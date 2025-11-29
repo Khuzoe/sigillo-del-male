@@ -14,15 +14,14 @@
     <style>
         /* --- PALETTE & VARIABILI --- */
         :root {
-            /* MODIFICATO: Sfondo leggermente più chiaro (da #0a0a0c a #141419) */
             --bg-dark: #141419;        
             --bg-light: #1c1c24;       
-            --sidebar-bg: rgba(20, 20, 25, 0.9); /* Adattato al nuovo sfondo */
+            --sidebar-bg: rgba(20, 20, 25, 0.9);
             --card-bg: rgba(35, 35, 40, 0.6);
             --card-hover: rgba(50, 50, 60, 0.8);
             
             --text-main: #dcd6c6;      
-            --text-muted: #9b9bab;     /* Leggermente più luminoso */
+            --text-muted: #9b9bab;
             --accent-primary: #8a1c1c; 
             --accent-glow: #ff3333;
             --gold: #c5a059;
@@ -52,16 +51,11 @@
             top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none;
             z-index: -1;
-            
-            /* Texture Noise */
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E"),
-            
-            /* Luce Ambientale - Adattata al nuovo sfondo */
             radial-gradient(circle at 50% 0%, #353545 0%, transparent 60%),       
             radial-gradient(circle at 85% 90%, rgba(138, 28, 28, 0.12) 0%, transparent 45%), 
             radial-gradient(circle at 0% 100%, rgba(0, 0, 0, 0.6) 0%, transparent 50%),      
             linear-gradient(var(--bg-dark), var(--bg-dark));
-            
             background-blend-mode: overlay, normal;
         }
 
@@ -246,7 +240,7 @@
             z-index: 10;
         }
 
-        /* --- AVATAR FIX (MASCHERA CIRCOLARE) --- */
+        /* --- AVATAR FIX (MASCHERA CIRCOLARE & POPOUT) --- */
         .npc-avatar-container {
             position: relative;
             width: 130px;
@@ -254,20 +248,17 @@
             margin-right: 2.5rem;
             flex-shrink: 0;
             
-            /* MODIFICA: Rimosso overflow: hidden per permettere l'effetto Pop-out */
-            /* La cornice e lo sfondo rimangono rotondi grazie a border-radius, ma l'immagine può uscire */
+            /* EFFETTO POP-OUT: Rimosso overflow hidden per far uscire l'immagine */
             border-radius: 50%;
-            /* overflow: hidden;  <-- RIMOSSO */
+            /* overflow: hidden; */ 
             
-            /* Spostato lo stile del bordo/sfondo qui per coerenza con la maschera */
             background: radial-gradient(circle at 30% 30%, #444, #111);
             border: 2px solid rgba(255,255,255,0.05);
             box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5);
             transition: all 0.4s ease;
-            z-index: 1; /* Definisce il contesto di impilamento */
+            z-index: 1; 
         }
 
-        /* Cornice luminosa che appare al passaggio del mouse */
         .npc-card:hover .npc-avatar-container {
             border-color: var(--gold);
             box-shadow: 0 0 25px rgba(197, 160, 89, 0.2), inset 0 0 10px rgba(0,0,0,0.5);
@@ -276,21 +267,19 @@
         .npc-img-pop {
             position: absolute;
             top: 50%; left: 50%;
-            /* Centrato perfettamente */
             transform: translate(-50%, -50%);
-            width: 100%; /* Parte grande come il contenitore */
+            width: 100%; 
             height: auto;
-            z-index: 5; /* L'immagine sta sopra lo sfondo del contenitore */
+            z-index: 5; 
             transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             filter: grayscale(40%) contrast(110%);
-            pointer-events: none; /* Evita che l'immagine blocchi il mouse */
+            pointer-events: none; 
         }
 
         .npc-card:hover .npc-img-pop {
-            /* MODIFICA: Scala e porta in primo piano assoluto */
             transform: translate(-50%, -50%) scale(1.15); 
             filter: grayscale(0%) contrast(110%);
-            z-index: 10; /* Assicura che l'immagine "esca" sopra ogni cosa (bordo compreso) */
+            z-index: 10; 
         }
 
         .npc-info { flex: 1; z-index: 2; }
@@ -377,25 +366,9 @@
 </head>
 <body>
 
-    <!-- NAVIGAZIONE LATERALE -->
-    <nav class="sidebar">
-        <div class="logo">
-            <a href="index.html">
-                <img src="Cripta-di-Sangue/logo.png" alt="Sigillo del Male" class="logo-img" onerror="this.style.display='none'; this.parentNode.innerHTML='<h2 style=\'color:#8a1c1c; font-family:Cinzel\'>Sigillo del Male</h2>'">
-            </a>
-        </div>
-
-        <ul class="nav-links">
-            <li><a href="index.html" class="active"><i class="fas fa-skull"></i> Cripta</a></li>
-            <li><a href="pages/giocatori.html"><i class="fas fa-dice-d20"></i> Giocatori</a></li>
-            <li><a href="pages/famiglie.html"><i class="fas fa-crown"></i> Famiglie</a></li>
-            <li><a href="pages/sessioni.html"><i class="fas fa-scroll"></i> Sessioni</a></li>
-            <li><a href="pages/bestiario.html"><i class="fas fa-book-dead"></i> Bestiario</a></li>
-        </ul>
-        
-        <div style="margin-top: auto; padding-top: 2rem; font-size: 0.8rem; color: #555; text-align: center;">
-            Wiki Campagna<br>v1.8 (Abyssal Lighter)
-        </div>
+    <!-- NAVIGAZIONE LATERALE (Vuota - Gestita da layout.js) -->
+    <nav class="sidebar" id="sidebar-container">
+        <!-- Il contenuto verrà caricato qui automaticamente -->
     </nav>
 
     <!-- CONTENUTO PRINCIPALE -->
@@ -506,6 +479,9 @@
 
         </div>
     </main>
+
+    <!-- IMPORTANTE: Lo script che carica la sidebar -->
+    <script src="js/layout.js"></script>
 
 </body>
 </html>
