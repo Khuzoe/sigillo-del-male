@@ -1,163 +1,377 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rabberduscolanderson – Sigillo del Male</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rabberduscolanderson | Cripta di Sangue</title>
+    <!-- Importazione Font da Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Icone (FontAwesome) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* --- STESSE VARIABILI DELLA HOME (Abyssal Theme) --- */
+        :root {
+            --bg-dark: #0a0a0c;
+            --bg-light: #1c1c24;
+            --sidebar-bg: rgba(18, 18, 22, 0.85);
+            --card-bg: rgba(30, 30, 35, 0.6);
+            --text-main: #dcd6c6;
+            --text-muted: #8b8b9b;
+            --accent-primary: #8a1c1c; /* Rosso sangue */
+            --accent-copper: #c08040;  /* Rame (Specifico per Rabber) */
+            --gold: #c5a059;
+            --border-glass: rgba(255, 255, 255, 0.06);
+        }
 
-  <!-- Font Google -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Pro:wght@400;600&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+        /* --- BASE & LAYOUT (Copiato da index.html) --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
 
-  <!-- Stile generale della wiki -->
-  <link rel="stylesheet" href="style.css" />
+        body {
+            font-family: 'Crimson Text', serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-size: 1.1rem;
+            line-height: 1.6;
+            display: flex;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* Texture Noise di Sfondo */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: -1;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.07'/%3E%3C/svg%3E"),
+            radial-gradient(circle at 50% 0%, #2a2a35 0%, transparent 60%),
+            linear-gradient(var(--bg-dark), var(--bg-dark));
+            background-blend-mode: overlay, normal;
+        }
+
+        a { text-decoration: none; color: inherit; transition: 0.3s; }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-glass);
+            backdrop-filter: blur(12px);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+        }
+
+        /* MODIFICA LOGO PER IMMAGINE */
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-glass);
+            padding-bottom: 1.5rem;
+        }
+
+        .logo-img {
+            max-width: 110%;       /* Si adatta alla larghezza della sidebar */
+            height: auto;          /* Mantiene le proporzioni */
+            /* AUMENTATO: Ora può diventare molto più alto */
+            max-height: 200px;     
+            display: block;
+            margin: 0 auto;
+            /* Effetto bagliore rosso sangue intorno al logo PNG trasparente */
+            filter: drop-shadow(0 0 8px rgba(138, 28, 28, 0.5)); 
+            transition: transform 0.3s ease;
+        }
+
+        .logo-img:hover {
+            transform: scale(1.05);
+            filter: drop-shadow(0 0 12px rgba(138, 28, 28, 0.8));
+        }
+
+        .nav-links { list-style: none; }
+        .nav-links li { margin-bottom: 0.8rem; }
+        .nav-links a {
+            display: flex; align-items: center; padding: 0.8rem 1rem;
+            border-radius: 8px; color: var(--text-muted);
+            font-family: 'Cinzel', serif; font-size: 0.95rem;
+            transition: all 0.3s ease; border: 1px solid transparent;
+        }
+        .nav-links a i { margin-right: 12px; width: 20px; text-align: center; opacity: 0.7; }
+        .nav-links a:hover, .nav-links a.active {
+            background-color: rgba(255, 255, 255, 0.03);
+            border-color: rgba(138, 28, 28, 0.4);
+            color: #fff; transform: translateX(5px);
+        }
+
+        /* --- MAIN CONTENT --- */
+        .main-content { margin-left: 260px; padding: 0; width: 100%; }
+
+        .hero-mini {
+            background: linear-gradient(to bottom, rgba(10, 10, 12, 0.6), var(--bg-dark)), url('https://placehold.co/1200x400/151515/333?text=Von+T+Archive');
+            background-size: cover; background-position: center;
+            height: 250px; display: flex; align-items: flex-end; justify-content: flex-start;
+            padding: 3rem 4rem; border-bottom: 1px solid var(--border-glass);
+            position: relative;
+        }
+
+        .hero-title h1 {
+            font-family: 'Cinzel', serif; font-size: 3.5rem; color: var(--text-main);
+            margin: 0; text-shadow: 0 4px 30px rgba(0,0,0,0.9);
+            line-height: 1;
+        }
+        .hero-title .subtitle {
+            font-family: 'Montserrat', sans-serif; color: var(--accent-copper);
+            text-transform: uppercase; letter-spacing: 4px; font-size: 0.9rem; margin-top: 0.5rem; font-weight: 600;
+        }
+
+        .container { padding: 3rem 4rem; max-width: 1200px; margin: 0 auto; }
+
+        /* --- LAYOUT GRID --- */
+        .char-grid {
+            display: grid; grid-template-columns: 2fr 1fr; gap: 3rem;
+            align-items: start;
+        }
+
+        /* --- CARTE E BOX --- */
+        .content-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px; padding: 2rem;
+            backdrop-filter: blur(8px); margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        h3 {
+            font-family: 'Cinzel', serif; color: var(--accent-copper);
+            font-size: 1.5rem; margin-bottom: 1rem; margin-top: 0;
+            display: flex; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 0.5rem;
+        }
+        h3 i { margin-right: 10px; font-size: 1.2rem; }
+
+        p { margin-bottom: 1rem; color: #ccc; }
+        strong { color: var(--text-main); }
+
+        /* --- IMAGE CARD (Destra) --- */
+        .image-card {
+            position: sticky; top: 2rem;
+            background: rgba(20, 20, 25, 0.6);
+            border: 1px solid var(--accent-copper);
+            border-radius: 8px; overflow: hidden;
+            box-shadow: 0 0 20px rgba(192, 128, 64, 0.1);
+        }
+        .char-portrait {
+            width: 100%; display: block;
+            filter: sepia(20%) contrast(1.1);
+            mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+        }
+        .stats-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+            padding: 1rem; margin-top: -3rem; position: relative; z-index: 2;
+        }
+        .stat-box {
+            background: rgba(10, 10, 12, 0.9); border: 1px solid var(--border-glass);
+            padding: 8px; text-align: center; border-radius: 4px;
+        }
+        .stat-label { font-size: 0.7rem; color: #777; text-transform: uppercase; display: block; }
+        .stat-value { font-family: 'Cinzel', serif; color: var(--text-main); font-size: 0.9rem; font-weight: 700; }
+
+        /* --- SEZIONE SEGRETA (ELENA) --- */
+        .secret-dossier {
+            background: linear-gradient(135deg, rgba(40, 10, 10, 0.4), rgba(20, 0, 0, 0.2));
+            border-left: 3px solid var(--accent-primary);
+            padding: 1.5rem; border-radius: 0 8px 8px 0;
+            position: relative; overflow: hidden; margin-top: 2rem;
+        }
+        .secret-badge {
+            position: absolute; top: 10px; right: 10px;
+            border: 1px solid rgba(255, 68, 68, 0.3); color: rgba(255, 68, 68, 0.5);
+            padding: 2px 8px; font-size: 0.7rem; letter-spacing: 2px;
+            transform: rotate(-5deg); font-family: 'Montserrat', sans-serif;
+        }
+        .dossier-content { display: flex; gap: 1.5rem; align-items: center; }
+        .elena-img {
+            width: 80px; height: 80px; border-radius: 50%; object-fit: cover;
+            border: 2px solid var(--accent-primary);
+        }
+
+        /* --- CANI --- */
+        .dog-grid { display: flex; gap: 1.5rem; margin-top: 1rem; justify-content: center; }
+        .dog-item { text-align: center; }
+        .dog-img {
+            width: 70px; height: 70px; border-radius: 50%; object-fit: cover;
+            border: 2px solid #444; margin-bottom: 0.5rem;
+            filter: grayscale(80%); transition: 0.3s;
+        }
+        .dog-item:hover .dog-img { filter: grayscale(0%); border-color: var(--accent-copper); }
+        .dog-name { font-size: 0.8rem; color: #888; display: block; font-family: 'Montserrat', sans-serif; }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; position: relative; flex-direction: row; justify-content: space-between; align-items: center; padding: 1rem; }
+            .nav-links { display: none; }
+            .main-content { margin-left: 0; }
+            .hero-mini { height: 200px; padding: 1.5rem; }
+            .hero-title h1 { font-size: 2.5rem; }
+            .container { padding: 1.5rem; }
+            .char-grid { grid-template-columns: 1fr; }
+            .image-card { position: relative; top: 0; margin-bottom: 2rem; order: -1; }
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <h1>📚 Sigillo del Male</h1>
-    <p>Bestiario &amp; personaggi</p>
-  </header>
 
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="pagina1.html">Pagina 1</a>
-    <a href="pagina2.html">Pagina 2</a>
-    <a href="rabberduscolanderson.html" class="active">Rabberduscolanderson</a>
-  </nav>
+    <!-- NAVIGAZIONE LATERALE (Standard) -->
+    <nav class="sidebar">
+        <!-- LOGO AGGIORNATO (Versione Grande) -->
+        <div class="logo">
+            <!-- SOSTITUISCI 'logo.png' CON IL NOME DEL TUO FILE -->
+            <a href="index.html">
+                <img src="Cripta-di-Sangue/logo.png" alt="Sigillo del Male" class="logo-img" onerror="this.style.display='none'; this.parentNode.innerHTML='<h2 style=\'color:#8a1c1c; font-family:Cinzel\'>Sigillo del Male</h2>'">
+            </a>
+        </div>
 
-  <main class="container">
+        <ul class="nav-links">
+            <li><a href="index.html"><i class="fas fa-skull"></i> Cripta</a></li>
+            <li><a href="pages/giocatori.html"><i class="fas fa-dice-d20"></i> Giocatori</a></li>
+            <li><a href="pages/famiglie.html"><i class="fas fa-crown"></i> Famiglie</a></li>
+            <li><a href="pages/sessioni.html"><i class="fas fa-scroll"></i> Sessioni</a></li>
+            <li><a href="pages/bestiario.html" class="active"><i class="fas fa-book-dead"></i> Bestiario</a></li>
+        </ul>
+        <div style="margin-top: auto; padding-top: 2rem; font-size: 0.8rem; color: #555; text-align: center;">
+            Wiki Campagna<br>v1.7
+        </div>
+    </nav>
 
-    <!-- QUI INIZIA IL BLOCCO DEL PERSONAGGIO -->
-    <div style="font-family: 'Crimson Pro', sans-serif; color: #ccc; background: linear-gradient(145deg, #1a1a1a, #0d0d0d); padding: 2rem; border-radius: 12px; border: 1px solid #333; box-shadow: 0 10px 30px rgba(0,0,0,0.9); line-height: 1.6;">
+    <!-- CONTENUTO PRINCIPALE -->
+    <main class="main-content">
+        
+        <!-- HEADER SPECIFICO PER RABBER -->
+        <header class="hero-mini">
+            <div class="hero-title">
+                <h1>Rabberduscolanderson</h1>
+                <div class="subtitle">Il Reietto dei Von T</div>
+            </div>
+        </header>
 
-      <!-- HEADER SUPERIORE CON SFUMATURA RAME -->
-      <div style="border-bottom: 2px solid; border-image: linear-gradient(to right, transparent, #c08040, transparent) 1; padding-bottom: 1rem; margin-bottom: 2rem; text-align: center;">
-          <h1 style="font-family: 'Cinzel', serif; font-weight: 700; margin: 0; font-size: 3rem; text-transform: uppercase; background: linear-gradient(to bottom, #fff, #c08040); -webkit-background-clip: text; color: transparent; text-shadow: 0px 2px 4px rgba(0,0,0,0.5);">Rabberduscolanderson</h1>
-          <p style="margin: 0.5rem 0 0; color: #c08040; font-family: 'Montserrat', sans-serif; letter-spacing: 4px; text-transform: uppercase; font-size: 0.9rem; opacity: 0.8;">Il Reietto dei Von T</p>
-      </div>
+        <div class="container">
+            <div class="char-grid">
 
-      <!-- SEZIONE SUPERIORE: IDENTITÀ VISIVA E STATISTICHE CHIAVE -->
-      <div style="display: flex; gap: 2rem; margin-bottom: 2.5rem; align-items: flex-start; flex-wrap: wrap-reverse;">
-          
-          <!-- BLOCCO NARRAZIONE INIZIALE -->
-          <div style="flex: 3; min-width: 300px;">
-              <h3 style="font-family: 'Cinzel', serif; color: #c08040; display: flex; align-items: center; gap: 10px; margin-top: 0;">
-                  <span style="border-bottom: 2px solid #c08040; padding-bottom: 5px;">📜 Le Origini della Tragedia</span>
-              </h3>
-              <p style="text-align: justify; margin-bottom: 1.2rem; font-size: 1.05rem;">
-                  <strong style="color: #c08040; font-size: 1.2em;">R</strong>abberduscolanderson Von T è il primo figlio di Yuris Von T e Leonora, e fratello maggiore di X Von T. Suo padre gli diede questo nome contro la volontà della moglie. Per questo, Leonora vide sempre Rabberduscolanderson come una causa di litigi con il marito, ed attribuì tutte queste frustrazioni proprio a lui, ignorandolo per gran parte del tempo.
-              </p>
-              <p style="text-align: justify; font-size: 1.05rem;">
-                  Non ebbe mai una particolare abilità lavorativa o sociale, e fece estrema fatica a trovare uno spazio adatto a lui. Oltre a questo, non riuscì mai a trovare una compagna con cui creare una famiglia. Questo causò l'ira del padre, il quale aveva come obiettivo primario la continuazione della stirpe Von T.
-              </p>
-          </div>
+                <!-- COLONNA SINISTRA: LORE & STORIA -->
+                <div class="left-col">
+                    
+                    <!-- Box 1: Origini -->
+                    <div class="content-card">
+                        <h3><i class="fas fa-scroll"></i> Le Origini della Tragedia</h3>
+                        <p>
+                            <strong>Rabberduscolanderson Von T</strong> è il primo figlio di Yuris Von T e Leonora, e fratello maggiore di X Von T. Suo padre gli diede questo nome contro la volontà della moglie. Per questo, Leonora vide sempre Rabberduscolanderson come una causa di litigi con il marito, ed attribuì tutte queste frustrazioni proprio a lui, ignorandolo per gran parte del tempo.
+                        </p>
+                        <p>
+                            Non ebbe mai una particolare abilità lavorativa o sociale, e fece estrema fatica a trovare uno spazio adatto a lui. Il fallimento nel trovare una compagna per continuare la stirpe Von T causò l'ira definitiva del padre.
+                        </p>
+                    </div>
 
-          <!-- BLOCCO IMMAGINE "HERO" CON BADGE STATISTICHE -->
-          <div style="flex: 2; min-width: 250px; position: relative;">
-              <div style="position: relative; border-radius: 8px; overflow: hidden; border: 2px solid #333; box-shadow: 0 5px 20px rgba(192, 128, 64, 0.2);">
-                  <img src="Cripta-di-Sangue/creatures/rabberduscolanderson.png" style="width: 100%; display: block; object-fit: cover; aspect-ratio: 1/1.3; filter: contrast(1.1) sepia(0.1);">
-                  <!-- Overlay Sfumato -->
-                  <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 50%; background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);"></div>
-                  
-                  <!-- BADGE STATISTICHE SOVRAPPOSTI -->
-                  <div style="position: absolute; bottom: 15px; left: 15px; right: 15px; display: flex; gap: 10px; justify-content: space-between; text-align: center;">
-                       <div style="background: rgba(20, 20, 20, 0.8); backdrop-filter: blur(5px); border: 1px solid #c08040; padding: 8px 12px; border-radius: 4px; flex: 1;">
-                          <span style="display: block; font-size: 0.7rem; color: #c08040; text-transform: uppercase;">Età / Morte</span>
-                          <span style="color: #fff; font-weight: bold;">65 (Suicidio)</span>
-                      </div>
-                      <div style="background: rgba(20, 20, 20, 0.8); backdrop-filter: blur(5px); border: 1px solid #8f2626; padding: 8px 12px; border-radius: 4px; flex: 1;">
-                          <span style="display: block; font-size: 0.7rem; color: #ff6666; text-transform: uppercase;">Razza</span>
-                          <span style="color: #ffcccc; font-weight: bold;">Non Morto</span>
-                      </div>
-                  </div>
-              </div>
-               <p style="text-align: center; margin: 10px 0 0 0; font-size: 0.8rem; color: #666; font-family: 'Montserrat', sans-serif;">Fisico: 1.62m &bull; 15kg</p>
-               <p style="text-align: center; margin: 2px 0 0 0; font-size: 0.8rem; color: #888; font-family: 'Montserrat', sans-serif; font-weight: bold;">1025 - 1090</p>
-          </div>
-      </div>
+                    <!-- Box 2: Esilio e Elena (SECRET) -->
+                    <div class="content-card">
+                        <h3><i class="fas fa-heart-broken"></i> L'Esilio e l'Amore Breve</h3>
+                        <p>
+                            Cacciato dal palazzo, iniziò a vivere in modo umile con i suoi tre cani. Negli ultimi anni di vita trovò una compagna, Elena, di una ventina d'anni più giovane. Tuttavia, la felicità fu breve.
+                        </p>
 
-      <!-- SECONDA PARTE NARRAZIONE -->
-      <div style="margin-bottom: 2rem;">
-          <h3 style="font-family: 'Cinzel', serif; color: #c08040; display: flex; align-items: center; gap: 10px;">
-               <span style="border-bottom: 2px solid #c08040; padding-bottom: 5px;">🥀 L'Esilio e l'Amore Breve</span>
-          </h3>
-          <p style="text-align: justify; font-size: 1.05rem; margin-bottom: 1.5rem;">
-              Cacciato dal palazzo, iniziò a vivere in modo umile con i suoi tre cani: <strong>Mimi, Coco, e Balù</strong>. Negli ultimi anni di vita trovò una compagna, Elena, di una ventina d'anni più giovane di lui. Tuttavia, la felicità fu breve.
-          </p>
+                        <!-- DOSSIER SEGRETO -->
+                        <div class="secret-dossier">
+                            <div class="secret-badge">OMICIDIO</div>
+                            <div class="dossier-content">
+                                <img src="Cripta-di-Sangue/creatures/elena.png" class="elena-img" onerror="this.src='https://placehold.co/100x100/330000/ff4444?text=E'">
+                                <div>
+                                    <h4 style="margin: 0; color: var(--accent-primary); font-family: 'Cinzel';">La Verità sull'Omicidio</h4>
+                                    <p style="font-size: 0.95rem; margin-top: 0.5rem; color: #dcbaba;">
+                                        I due erano innamorati. Rabberduscolanderson invitò ingenuamente <strong>Karla</strong> a cena. Ella si introdusse in casa mentre lui era fuori e pugnalò Elena al petto. Elena morì guardando Karla negli occhi.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
 
-          <!-- SEZIONE SEGRETA ELENA -->
-          <section id="secret-ElenaDossier">
-              <div style="position: relative; margin: 2rem 0; background: linear-gradient(to right, rgba(40, 10, 10, 0.9), rgba(20, 0, 0, 0.8)); border-left: 4px solid #ff4444; border-radius: 0 8px 8px 0; overflow: hidden; box-shadow: 5px 5px 15px rgba(0,0,0,0.3);">
-                  <div style="position: absolute; top: 10px; right: 10px; border: 2px solid rgba(255, 68, 68, 0.3); color: rgba(255, 68, 68, 0.3); padding: 5px 10px; font-family: 'Montserrat', sans-serif; font-weight: bold; letter-spacing: 2px; transform: rotate(-5deg); pointer-events: none;">OMICIDIO</div>
-                  
-                  <div style="padding: 1.5rem; display: flex; gap: 2rem; align-items: center; flex-wrap: wrap;">
-                      <div style="flex-shrink: 0; border-radius: 50%; padding: 3px; background: linear-gradient(to bottom right, #ff4444, #330000);">
-                           <img src="Cripta-di-Sangue/creatures/elena.png" style="width: 100px; height: 100px; object-fit: cover; border-radius: 50%; border: 3px solid #1a1a1a; display: block;">
-                      </div>
-                      <div style="flex: 1; min-width: 250px;">
-                          <h4 style="margin: 0 0 0.5rem 0; color: #ff6666; font-family: 'Cinzel', serif; font-size: 1.3rem; text-shadow: 0 0 5px rgba(255, 68, 68, 0.4);">La Verità sull'Omicidio</h4>
-                          <p style="margin: 0; font-size: 1rem; color: #ffcccc; line-height: 1.5;">
-                              I due erano innamorati. Rabberduscolanderson invitò ingenuamente <strong>Karla</strong> a cena – concedendo alla vampira l'invito ad entrare. Ella si introdusse in casa mentre lui era fuori con i cani e pugnalò Elena in petto. Elena morì guardando Karla negli occhi.
-                          </p>
-                      </div>
-                  </div>
-              </div>
-          </section>
+                        <p style="margin-top: 1.5rem; font-style: italic; color: #666; font-size: 0.95rem;">
+                            La morte di Elena causò una insuperabile tristezza a Rabberduscolanderson, il quale decise di porre fine alla sua vita gettandosi in un fossato.
+                        </p>
+                    </div>
 
-          <p style="text-align: justify; font-size: 1.05rem; border-left: 3px solid #444; padding-left: 15px; margin-left: 10px; color: #aaa; font-style: italic;">
-              La morte di Elena causò una insuperabile tristezza a Rabberduscolanderson, il quale decise di porre fine alla sua vita una volta per tutte, gettandosi in un fossato. Successivamente, i suoi cani morirono di fame, abbandonati al loro destino, nel giro di qualche giorno.
-          </p>
-      </div>
+                    <!-- Box 3: Cani e Ossessione -->
+                    <div class="content-card" style="border-color: var(--accent-copper);">
+                        <h3><i class="fas fa-coins"></i> L'Ossessione del Rame</h3>
+                        <p>
+                            Rabberduscolanderson ricorda ancora i momenti di semplicità che lo rendevano felice. Il suono delle monete di rame, le uniche che poteva permettersi, richiama ancora oggi sentimenti di gioia nel suo cuore non-morto.
+                        </p>
+                        
+                        <div style="background: rgba(192, 128, 64, 0.1); padding: 1rem; border-radius: 6px; margin: 1rem 0; border-left: 3px solid var(--accent-copper);">
+                            <i class="fas fa-exclamation-circle" style="color: var(--accent-copper);"></i> 
+                            <span style="font-size: 0.9rem;">Accetta scambi <strong>solo</strong> in monete di rame.</span>
+                        </div>
 
-      <div style="border-top: 1px solid #333; margin: 2rem 0;"></div>
+                        <div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 1.5rem; padding-top: 1rem; text-align: center;">
+                            <h4 style="font-family:'Cinzel'; color:#666; font-size: 0.9rem; margin-bottom: 1rem;">I Compagni Fedeli (Deceduti)</h4>
+                            <div class="dog-grid">
+                                <div class="dog-item">
+                                    <img src="Cripta-di-Sangue/items/dog_balu.png" class="dog-img" onerror="this.src='https://placehold.co/70/333/666?text=B'">
+                                    <span class="dog-name">Balù</span>
+                                </div>
+                                <div class="dog-item">
+                                    <img src="Cripta-di-Sangue/items/dog_mimi.png" class="dog-img" style="border-color: var(--accent-copper);" onerror="this.src='https://placehold.co/70/333/c08040?text=M'">
+                                    <span class="dog-name" style="color: var(--accent-copper);">Mimi</span>
+                                </div>
+                                <div class="dog-item">
+                                    <img src="Cripta-di-Sangue/items/dog_coco.png" class="dog-img" onerror="this.src='https://placehold.co/70/333/666?text=C'">
+                                    <span class="dog-name">Coco</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-      <!-- SEZIONE INFERIORE: PARTICOLARITÀ E CANI -->
-      <div style="display: flex; gap: 3rem; flex-wrap: wrap;">
-          
-          <!-- PARTICOLARITÀ -->
-          <div style="flex: 2; min-width: 300px;">
-              <h3 style="font-family: 'Cinzel', serif; color: #c08040; display: flex; align-items: center; gap: 10px; margin-top: 0;">
-                  <span style="border-bottom: 2px solid #c08040; padding-bottom: 5px;">🪙 Particolarità: L'Ossessione del Rame</span>
-              </h3>
-              <p style="text-align: justify; font-size: 1.05rem;">
-                  Rabberduscolanderson ricorda ancora i momenti di semplicità che lo rendevano felice, anche quando era povero. Il suono delle monete di rame, le uniche che poteva permettersi, richiama ancora oggi sentimenti di gioia nel suo cuore non-morto.
-              </p>
-              <p style="text-align: justify; font-size: 1.05rem; background: rgba(192, 128, 64, 0.1); padding: 1rem; border-radius: 6px; border: 1px solid #c08040;">
-                  <strong>Interazione:</strong> Quando è arrivato nella cripta ha trovato alcuni oggetti preziosi. Li ha presi ed è disposto a scambiarli solo in cambio delle sue adorate <strong>monete di rame</strong>, le uniche che accetta.
-              </p>
-          </div>
+                </div>
 
-          <!-- MEMORIALE CANI -->
-          <div style="flex: 1; min-width: 250px; text-align: center;">
-               <h4 style="font-family: 'Cinzel', serif; color: #777; margin: 0 0 1.5rem 0; text-transform: uppercase; letter-spacing: 2px; font-size: 1rem;">Compagni Fedeli</h4>
-               <div style="display: flex; justify-content: center; gap: 15px;">
-                  <!-- Balu -->
-                  <div style="flex: 1; max-width: 90px;">
-                      <img src="Cripta-di-Sangue/items/dog_balu.png" style="width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 50%; border: 2px solid #444; filter: grayscale(0.8); margin-bottom: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
-                      <span style="font-family: 'Montserrat', sans-serif; font-size: 0.75rem; color: #888;">Balù</span>
-                  </div>
-                  <!-- Mimi -->
-                  <div style="flex: 1; max-width: 100px; transform: translateY(-10px);">
-                      <img src="Cripta-di-Sangue/items/dog_mimi.png" style="width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 50%; border: 2px solid #c08040; filter: grayscale(0.8); margin-bottom: 5px; box-shadow: 0 5px 10px rgba(0,0,0,0.6);">
-                      <span style="font-family: 'Montserrat', sans-serif; font-size: 0.8rem; color: #c08040; font-weight: bold;">Mimi</span>
-                  </div>
-                  <!-- Coco -->
-                  <div style="flex: 1; max-width: 90px;">
-                      <img src="Cripta-di-Sangue/items/dog_coco.png" style="width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 50%; border: 2px solid #444; filter: grayscale(0.8); margin-bottom: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">
-                      <span style="font-family: 'Montserrat', sans-serif; font-size: 0.75rem; color: #888;">Coco</span>
-                  </div>
-               </div>
-          </div>
-      </div>
+                <!-- COLONNA DESTRA: STATISTICHE E IMMAGINE -->
+                <div class="right-col">
+                    <div class="image-card">
+                        <!-- Immagine Principale -->
+                        <img src="Cripta-di-Sangue/creatures/rabberduscolanderson.png" class="char-portrait" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
+                        
+                        <!-- Griglia Statistiche -->
+                        <div class="stats-grid">
+                            <div class="stat-box">
+                                <span class="stat-label">Razza</span>
+                                <span class="stat-value" style="color: #ffcccc;">Non Morto</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-label">Età / Morte</span>
+                                <span class="stat-value">65 Anni</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-label">Altezza</span>
+                                <span class="stat-value">1.62m</span>
+                            </div>
+                            <div class="stat-box">
+                                <span class="stat-label">Periodo</span>
+                                <span class="stat-value">1025-1090</span>
+                            </div>
+                        </div>
+                        
+                        <div style="padding: 1rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <span class="stat-label" style="margin-bottom: 5px;">Causa del Decesso</span>
+                            <span style="color: var(--accent-primary); font-family: 'Cinzel';">Suicidio</span>
+                        </div>
+                    </div>
+                </div>
 
-    </div>
-    <!-- FINE BLOCCO PERSONAGGIO -->
+            </div>
+        </div>
+    </main>
 
-  </main>
-
-  <footer>
-    <p>Sigillo del Male – Wiki</p>
-  </footer>
 </body>
 </html>
