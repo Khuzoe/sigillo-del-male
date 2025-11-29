@@ -11,358 +11,8 @@
     <!-- Icone (FontAwesome) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
-    <style>
-        /* --- PALETTE & VARIABILI --- */
-        :root {
-            --bg-dark: #141419;        
-            --bg-light: #1c1c24;       
-            --sidebar-bg: rgba(20, 20, 25, 0.9);
-            --card-bg: rgba(35, 35, 40, 0.6);
-            --card-hover: rgba(50, 50, 60, 0.8);
-            
-            --text-main: #dcd6c6;      
-            --text-muted: #9b9bab;
-            --accent-primary: #8a1c1c; 
-            --accent-glow: #ff3333;
-            --gold: #c5a059;
-            
-            --border-glass: rgba(255, 255, 255, 0.08);
-            --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.4);
-        }
+    <link rel="stylesheet" href="assets/css/abyssal.css">
 
-        /* --- BASE --- */
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-
-        body {
-            font-family: 'Crimson Text', serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            font-size: 1.1rem;
-            line-height: 1.6;
-            display: flex;
-            min-height: 100vh;
-            position: relative;
-        }
-
-        /* --- SFONDO ATMOSFERICO --- */
-        body::before {
-            content: "";
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            z-index: -1;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E"),
-            radial-gradient(circle at 50% 0%, #353545 0%, transparent 60%),       
-            radial-gradient(circle at 85% 90%, rgba(138, 28, 28, 0.12) 0%, transparent 45%), 
-            radial-gradient(circle at 0% 100%, rgba(0, 0, 0, 0.6) 0%, transparent 50%),      
-            linear-gradient(var(--bg-dark), var(--bg-dark));
-            background-blend-mode: overlay, normal;
-        }
-
-        a { text-decoration: none; color: inherit; transition: 0.3s; }
-
-        /* --- SIDEBAR --- */
-        .sidebar {
-            width: 260px;
-            background-color: var(--sidebar-bg);
-            border-right: 1px solid var(--border-glass);
-            backdrop-filter: blur(12px);
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            height: 100vh;
-            z-index: 100;
-            box-shadow: 10px 0 30px rgba(0,0,0,0.2);
-        }
-
-        .logo {
-            text-align: center;
-            margin-bottom: 2rem;
-            border-bottom: 1px solid var(--border-glass);
-            padding-bottom: 1.5rem;
-        }
-
-        .logo-img {
-            max-width: 110%;
-            height: auto;
-            max-height: 200px;     
-            display: block;
-            margin: 0 auto;
-            filter: drop-shadow(0 0 8px rgba(138, 28, 28, 0.5)); 
-            transition: transform 0.3s ease;
-        }
-
-        .logo-img:hover {
-            transform: scale(1.05);
-            filter: drop-shadow(0 0 12px rgba(138, 28, 28, 0.8));
-        }
-
-        .nav-links { list-style: none; }
-        .nav-links li { margin-bottom: 0.8rem; }
-
-        .nav-links a {
-            display: flex;
-            align-items: center;
-            padding: 0.8rem 1rem;
-            border-radius: 8px;
-            color: var(--text-muted);
-            font-family: 'Cinzel', serif;
-            font-size: 0.95rem;
-            letter-spacing: 1px;
-            transition: all 0.3s ease;
-            border: 1px solid transparent;
-        }
-
-        .nav-links a i { margin-right: 12px; width: 20px; text-align: center; opacity: 0.7; }
-
-        .nav-links a:hover, .nav-links a.active {
-            background-color: rgba(255, 255, 255, 0.05);
-            border-color: rgba(138, 28, 28, 0.4);
-            color: #fff;
-            text-shadow: 0 0 10px rgba(138, 28, 28, 0.5);
-            transform: translateX(5px);
-        }
-        
-        .nav-links a:hover i { opacity: 1; color: var(--accent-glow); }
-
-        /* --- MAIN CONTENT --- */
-        .main-content {
-            margin-left: 260px;
-            padding: 0;
-            width: 100%;
-        }
-
-        .hero {
-            background: linear-gradient(to bottom, rgba(20, 20, 25, 0.3), var(--bg-dark)), url('https://placehold.co/1200x600/222/444?text=Cripta+di+Sangue');
-            background-size: cover;
-            background-position: center;
-            height: 420px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            flex-direction: column;
-            padding: 2rem;
-            border-bottom: 1px solid var(--border-glass);
-            position: relative;
-            mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
-        }
-
-        .hero h1 {
-            font-family: 'Cinzel', serif;
-            font-size: 4.5rem;
-            color: var(--text-main);
-            text-shadow: 0 4px 30px rgba(0,0,0,0.8);
-            margin-bottom: 0.5rem;
-            letter-spacing: 6px;
-            text-transform: uppercase;
-            background: -webkit-linear-gradient(#fff, #999);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .hero p {
-            font-style: italic;
-            color: #ccc;
-            max-width: 650px;
-            font-size: 1.3rem;
-            margin-top: 1.5rem;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-            position: relative;
-        }
-        
-        .hero p::after {
-            content: '';
-            display: block;
-            width: 60px;
-            height: 2px;
-            background-color: var(--accent-primary);
-            margin: 1.5rem auto 0;
-            box-shadow: 0 0 10px var(--accent-primary);
-        }
-
-        .container {
-            padding: 4rem;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        h2 {
-            font-family: 'Cinzel', serif;
-            color: var(--text-main);
-            font-size: 2.2rem;
-            margin-bottom: 3rem;
-            display: flex;
-            align-items: center;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-        }
-        
-        h2::before {
-            content: '';
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: var(--accent-primary);
-            transform: rotate(45deg);
-            margin-right: 15px;
-            box-shadow: 0 0 10px var(--accent-primary);
-        }
-
-        /* --- NPC CARD STYLES --- */
-        .npc-list {
-            display: flex;
-            flex-direction: column;
-            gap: 2rem;
-            margin-bottom: 6rem;
-        }
-
-        .npc-card {
-            display: flex;
-            align-items: center;
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-glass);
-            border-radius: 16px;
-            padding: 2rem;
-            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-            text-decoration: none;
-            position: relative;
-            backdrop-filter: blur(8px);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        .npc-card:hover {
-            transform: translateY(-5px) scale(1.02);
-            border-color: rgba(138, 28, 28, 0.3);
-            background-color: var(--card-hover);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            z-index: 10;
-        }
-
-        /* --- AVATAR FIX (MASCHERA CIRCOLARE & POPOUT) --- */
-        .npc-avatar-container {
-            position: relative;
-            width: 130px;
-            height: 130px;
-            margin-right: 2.5rem;
-            flex-shrink: 0;
-            
-            /* EFFETTO POP-OUT: Rimosso overflow hidden per far uscire l'immagine */
-            border-radius: 50%;
-            /* overflow: hidden; */ 
-            
-            background: radial-gradient(circle at 30% 30%, #444, #111);
-            border: 2px solid rgba(255,255,255,0.05);
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5);
-            transition: all 0.4s ease;
-            z-index: 1; 
-        }
-
-        .npc-card:hover .npc-avatar-container {
-            border-color: var(--gold);
-            box-shadow: 0 0 25px rgba(197, 160, 89, 0.2), inset 0 0 10px rgba(0,0,0,0.5);
-        }
-
-        .npc-img-pop {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 100%; 
-            height: auto;
-            z-index: 5; 
-            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            filter: grayscale(40%) contrast(110%);
-            pointer-events: none; 
-        }
-
-        .npc-card:hover .npc-img-pop {
-            transform: translate(-50%, -50%) scale(1.15); 
-            filter: grayscale(0%) contrast(110%);
-            z-index: 10; 
-        }
-
-        .npc-info { flex: 1; z-index: 2; }
-
-        .npc-header {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 0.8rem;
-            padding-bottom: 0.8rem;
-            border-bottom: 1px solid rgba(255,255,255,0.03);
-        }
-
-        .npc-name {
-            font-family: 'Cinzel', serif;
-            font-size: 1.8rem;
-            color: var(--text-main);
-            margin: 0;
-            font-weight: 700;
-            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
-        }
-
-        .npc-role {
-            font-size: 0.8rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--accent-primary);
-            font-family: 'Cinzel', serif;
-            font-weight: 700;
-            background: rgba(138, 28, 28, 0.1);
-            padding: 4px 8px;
-            border-radius: 4px;
-            border: 1px solid rgba(138, 28, 28, 0.2);
-        }
-
-        .npc-desc {
-            font-size: 1.1rem;
-            color: var(--text-muted);
-            line-height: 1.6;
-            margin: 0;
-            font-weight: 300;
-        }
-        
-        .arrow-icon {
-            color: rgba(255,255,255,0.1);
-            font-size: 1.2rem;
-            transition: 0.3s;
-            margin-left: 2rem;
-        }
-        
-        .npc-card:hover .arrow-icon {
-            color: var(--gold);
-            transform: translateX(10px) scale(1.2);
-            text-shadow: 0 0 10px var(--gold);
-        }
-
-        /* --- RESPONSIVE --- */
-        @media (max-width: 900px) {
-            body { flex-direction: column; }
-            .sidebar { 
-                width: 100%; height: auto; position: relative; 
-                flex-direction: row; justify-content: space-between; align-items: center; 
-                padding: 1rem 1.5rem; 
-                background-color: var(--bg-dark);
-            }
-            .logo { margin: 0; border: none; font-size: 1.4rem; padding: 0; }
-            .nav-links { display: none; }
-            .main-content { margin-left: 0; }
-            .hero { height: 300px; }
-            .hero h1 { font-size: 2.8rem; letter-spacing: 2px; }
-            .container { padding: 1.5rem; }
-            
-            .npc-card {
-                flex-direction: column;
-                text-align: center;
-                gap: 1.5rem;
-                padding: 2.5rem 1.5rem;
-            }
-            .npc-avatar-container { margin-right: 0; width: 140px; height: 140px; }
-            .npc-header { flex-direction: column; gap: 0.5rem; justify-content: center; border: none; }
-            .arrow-icon { display: none; }
-        }
-    </style>
 </head>
 <body>
 
@@ -386,9 +36,9 @@
             <div class="npc-list">
                 
                 <!-- 1. RABBERDUSCOLANDERSON -->
-                <a href="rabberduscolanderson.html" class="npc-card">
+                <a href="pages/characters/rabberduscolanderson.html" class="npc-card">
                     <div class="npc-avatar-container">
-                        <img src="Cripta-di-Sangue/creatures/transp/rabberduscolanderson_transp.png" alt="Rabber" class="npc-img-pop">
+                        <img src="assets/img/cripta-di-sangue/creatures/transp/rabberduscolanderson_transp.png" alt="Rabber" class="npc-img-pop">
                     </div>
                     <div class="npc-info">
                         <div class="npc-header">
@@ -405,7 +55,7 @@
                 <!-- 2. KARLA -->
                 <a href="karla.html" class="npc-card">
                     <div class="npc-avatar-container">
-                        <img src="Cripta-di-Sangue/creatures/transp/karla_transp.png" alt="Karla" class="npc-img-pop" onerror="this.src='https://placehold.co/200x200/222/555?text=K'">
+                        <img src="assets/img/cripta-di-sangue/creatures/transp/karla_transp.png" alt="Karla" class="npc-img-pop" onerror="this.src='https://placehold.co/200x200/222/555?text=K'">
                     </div>
                     <div class="npc-info">
                         <div class="npc-header">
@@ -422,7 +72,7 @@
                 <!-- 3. X -->
                 <a href="x.html" class="npc-card">
                     <div class="npc-avatar-container">
-                        <img src="Cripta-di-Sangue/creatures/transp/x_transp.png" alt="X" class="npc-img-pop" onerror="this.src='https://placehold.co/200x200/222/555?text=X'">
+                        <img src="assets/img/cripta-di-sangue/creatures/transp/x_transp.png" alt="X" class="npc-img-pop" onerror="this.src='https://placehold.co/200x200/222/555?text=X'">
                     </div>
                     <div class="npc-info">
                         <div class="npc-header">
@@ -439,7 +89,7 @@
                 <!-- 4. ZARA -->
                 <a href="zara.html" class="npc-card">
                     <div class="npc-avatar-container">
-                        <img src="Cripta-di-Sangue/creatures/transp/zara_transp.png" alt="Zara" class="npc-img-pop" onerror="this.src='https://placehold.co/200x200/222/555?text=Z'">
+                        <img src="assets/img/cripta-di-sangue/creatures/transp/zara_transp.png" alt="Zara" class="npc-img-pop" onerror="this.src='https://placehold.co/200x200/222/555?text=Z'">
                     </div>
                     <div class="npc-info">
                         <div class="npc-header">
@@ -464,7 +114,7 @@
     </main>
 
     <!-- IMPORTANTE: Lo script che carica la sidebar -->
-    <script src="js/layout.js"></script>
+    <script src="assets/js/layout.js"></script>
 
 </body>
 </html>
