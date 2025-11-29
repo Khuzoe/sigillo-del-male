@@ -3,7 +3,12 @@ document.addEventListener("DOMContentLoaded", function() {
     const currentPage = pathSegments[pathSegments.length - 1] || "index.html";
 
     const scriptUrl = document.currentScript?.src || window.location.href;
-    const siteRoot = new URL("../..", scriptUrl);
+    const scriptLocation = new URL(scriptUrl);
+    const siteRoot = new URL(
+        scriptLocation.pathname.replace(/\/assets\/js\/.+$/, "/"),
+        scriptLocation.origin
+    );
+
     const sidebarUrl = new URL("sidebar.html", siteRoot).href;
 
     fetch(sidebarUrl)
@@ -29,7 +34,7 @@ function fixPaths(container, siteRoot) {
     links.forEach(link => {
         const href = link.getAttribute('href');
         if (href && !href.startsWith('http') && !href.startsWith('#')) {
-            link.setAttribute('href', new URL(href, siteRoot).pathname);
+            link.setAttribute('href', new URL(href, siteRoot).href);
         }
     });
 
@@ -37,7 +42,7 @@ function fixPaths(container, siteRoot) {
     images.forEach(img => {
         const src = img.getAttribute('src');
         if (src && !src.startsWith('http')) {
-            img.setAttribute('src', new URL(src, siteRoot).pathname);
+            img.setAttribute('src', new URL(src, siteRoot).href);
         }
     });
 }
