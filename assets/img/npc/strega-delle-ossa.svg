@@ -1,0 +1,36 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="75%">
+      <stop offset="0%" stop-color="#2c281f" />
+      <stop offset="100%" stop-color="#0f0d09" />
+    </radialGradient>
+    <linearGradient id="cloak" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#766448" />
+      <stop offset="100%" stop-color="#3c3325" />
+    </linearGradient>
+    <linearGradient id="bones" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f4e7c8" />
+      <stop offset="100%" stop-color="#c0ae86" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)" rx="256" ry="256" />
+  <ellipse cx="256" cy="360" rx="170" ry="120" fill="url(#cloak)" opacity="0.95" />
+  <path d="M168 232 Q256 190 344 232" fill="#4a3f30" />
+  <path d="M182 248 Q256 230 330 248 L314 326 Q256 350 198 326 Z" fill="#5a4d39" />
+  <circle cx="256" cy="214" r="70" fill="#1e1a13" stroke="#7b6b52" stroke-width="6" />
+  <ellipse cx="236" cy="208" rx="16" ry="12" fill="#f4e7c8" />
+  <ellipse cx="276" cy="208" rx="16" ry="12" fill="#f4e7c8" />
+  <circle cx="236" cy="208" r="5" fill="#0f0d09" />
+  <circle cx="276" cy="208" r="5" fill="#0f0d09" />
+  <path d="M230 232 Q256 244 282 232" stroke="#f4e7c8" stroke-width="6" fill="none" stroke-linecap="round" />
+  <path d="M214 260 Q256 252 298 260" stroke="#f4e7c8" stroke-width="12" stroke-linecap="round" />
+  <path d="M214 288 L214 336 M236 288 L236 336 M278 288 L278 336 M300 288 L300 336" stroke="url(#bones)" stroke-width="10" stroke-linecap="round" />
+  <path d="M198 326 Q256 356 314 326" stroke="#c0ae86" stroke-width="8" stroke-linecap="round" />
+  <path d="M188 268 Q200 242 220 246 M292 246 Q312 242 324 268" stroke="#c0ae86" stroke-width="7" stroke-linecap="round" />
+  <path d="M152 230 Q256 150 360 230" stroke="#c0ae86" stroke-width="10" stroke-linecap="round" />
+  <path d="M160 214 Q190 168 224 186" stroke="#f4e7c8" stroke-width="8" stroke-linecap="round" />
+  <path d="M352 214 Q322 168 288 186" stroke="#f4e7c8" stroke-width="8" stroke-linecap="round" />
+  <path d="M206 154 Q256 126 306 154" fill="#3a3026" stroke="#7b6b52" stroke-width="6" />
+  <path d="M224 144 Q256 102 288 144" stroke="#a2906e" stroke-width="10" stroke-linecap="round" />
+  <path d="M244 126 Q256 92 268 126" stroke="#c0ae86" stroke-width="8" stroke-linecap="round" />
+</svg>
