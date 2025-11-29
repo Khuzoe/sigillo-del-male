@@ -14,34 +14,90 @@
     <link rel="stylesheet" href="../assets/css/abyssal.css">
 
     <style>
-        /* STILI SPECIFICI PER LA TIMELINE DELLE SESSIONI */
+        /* SCROLL FLUIDO PER TUTTA LA PAGINA */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* STILI PER IL MENU DI NAVIGAZIONE SESSIONI */
+        .session-nav {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 0.8rem;
+            margin-bottom: 3rem;
+            padding: 1.5rem;
+            background: rgba(36, 36, 36, 0.4);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 8px;
+        }
+
+        .session-nav-title {
+            grid-column: 1 / -1;
+            font-family: var(--font-heading);
+            color: var(--gold);
+            margin-bottom: 0.5rem;
+            text-align: center;
+            font-size: 1.2rem;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 0.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            color: var(--text-muted);
+            text-align: center;
+            border-radius: 4px;
+            border: 1px solid transparent;
+            font-family: var(--font-ui);
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .nav-item:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+            background: rgba(212, 175, 55, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .nav-date {
+            display: block;
+            font-size: 0.7rem;
+            opacity: 0.7;
+        }
+
+        /* STILI SPECIFICI PER LA TIMELINE DELLE SESSIONI - MODALITA' WIDE */
         .timeline {
             position: relative;
-            max-width: 900px;
+            max-width: 1600px; /* Aumentato per sfruttare meglio lo spazio */
             margin: 0 auto;
             padding: 2rem 0;
         }
 
-        /* Linea centrale */
+        /* Linea laterale a sinistra */
         .timeline::before {
             content: '';
             position: absolute;
             top: 0;
             bottom: 0;
-            left: 20px; /* Allineamento a sinistra per mobile friendly */
-            width: 2px;
+            left: 30px; /* Posizione fissa a sinistra */
+            width: 3px;
             background: linear-gradient(to bottom, transparent, var(--gold-dim), var(--gold), var(--gold-dim), transparent);
         }
 
         .session-card {
             position: relative;
-            margin-left: 60px; /* Spazio per la linea */
+            margin-left: 80px; /* Lascia spazio per la linea */
             margin-bottom: 3rem;
-            background: rgba(36, 36, 36, 0.6); /* Leggermente più trasparente del solito */
+            width: auto; /* Occupa tutto lo spazio disponibile */
+            background: rgba(36, 36, 36, 0.6);
             border: 1px solid rgba(212, 175, 55, 0.1);
             border-radius: 8px;
-            padding: 1.5rem;
+            padding: 2rem;
             transition: all 0.3s ease;
+            
+            scroll-margin-top: 2rem; 
         }
 
         .session-card:hover {
@@ -54,14 +110,14 @@
         /* Pallino sulla timeline */
         .timeline-marker {
             position: absolute;
-            left: -49px; /* (60px margin - 20px line) centrato sulla linea */
-            top: 20px;
-            width: 20px;
-            height: 20px;
+            left: -61px; /* Posizionato sopra la linea */
+            top: 25px;
+            width: 24px;
+            height: 24px;
             background: var(--bg-dark);
-            border: 2px solid var(--gold);
+            border: 3px solid var(--gold);
             border-radius: 50%;
-            box-shadow: 0 0 10px var(--gold-dim);
+            box-shadow: 0 0 15px var(--gold-dim);
             z-index: 2;
             display: flex;
             align-items: center;
@@ -74,9 +130,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
             border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 0.5rem;
+            padding-bottom: 0.8rem;
             flex-wrap: wrap;
             gap: 0.5rem;
         }
@@ -84,23 +140,25 @@
         .session-title {
             font-family: var(--font-heading);
             color: var(--gold);
-            font-size: 1.4rem;
+            font-size: 1.6rem;
             margin: 0;
         }
 
         .session-date {
             font-family: var(--font-ui);
-            font-size: 0.85rem;
+            font-size: 0.95rem;
             color: var(--text-muted);
             background: rgba(0,0,0,0.3);
-            padding: 2px 8px;
+            padding: 4px 12px;
             border-radius: 4px;
+            border: 1px solid rgba(255,255,255,0.05);
         }
 
         .session-body {
-            font-size: 1rem;
+            font-size: 1.05rem; /* Testo leggermente più grande per leggibilità */
             color: var(--text-main);
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
+            line-height: 1.7;
         }
         
         .session-body strong {
@@ -109,19 +167,19 @@
         }
         
         .session-body p {
-            margin-bottom: 0.8rem;
+            margin-bottom: 1rem;
         }
 
         .xp-footer {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 1.5rem;
             font-family: var(--font-ui);
-            font-size: 0.9rem;
+            font-size: 1rem;
             background: rgba(138, 28, 28, 0.1);
-            padding: 0.5rem 1rem;
+            padding: 0.8rem 1.5rem;
             border-radius: 4px;
-            border-left: 3px solid var(--accent-primary);
+            border-left: 4px solid var(--accent-primary);
         }
 
         .xp-value {
@@ -131,53 +189,40 @@
 
         .xp-sub {
             color: var(--text-muted);
-            font-size: 0.8rem;
+            font-size: 0.85rem;
         }
 
         .levelup-badge {
             background: var(--gold);
             color: #000;
             font-weight: bold;
-            padding: 2px 6px;
+            padding: 3px 8px;
             border-radius: 2px;
-            font-size: 0.7rem;
-            margin-left: 0.5rem;
+            font-size: 0.75rem;
+            margin-left: 0.8rem;
             text-transform: uppercase;
             font-family: var(--font-ui);
+            box-shadow: 0 0 5px rgba(212, 175, 55, 0.5);
         }
 
-        @media (min-width: 768px) {
+        @media (max-width: 768px) {
             .timeline::before {
-                left: 50%;
+                left: 20px;
             }
             .session-card {
-                width: 45%;
-                margin-left: 0;
+                margin-left: 50px;
+                padding: 1.5rem;
             }
-            /* Sessioni dispari a sinistra */
-            .session-card:nth-child(odd) {
-                margin-right: auto;
-                text-align: right;
+            .timeline-marker {
+                left: -42px;
+                width: 20px;
+                height: 20px;
+                top: 20px;
             }
-            .session-card:nth-child(odd) .timeline-marker {
-                left: auto;
-                right: -51px; /* Aggiustamento per centrare sulla linea al 50% */
-            }
-            .session-card:nth-child(odd) .session-header {
-                flex-direction: row-reverse;
-            }
-            .session-card:nth-child(odd) .xp-footer {
-                flex-direction: row-reverse;
-                border-left: none;
-                border-right: 3px solid var(--accent-primary);
-            }
-            
-            /* Sessioni pari a destra */
-            .session-card:nth-child(even) {
-                margin-left: auto;
-            }
-            .session-card:nth-child(even) .timeline-marker {
-                left: -51px;
+            .xp-footer {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
             }
         }
     </style>
@@ -200,62 +245,306 @@
 
         <div class="container">
             
+            <!-- MENU DI NAVIGAZIONE RAPIDA -->
+            <div class="session-nav">
+                <h3 class="session-nav-title">Indice Rapido</h3>
+                
+                <a href="#session-13" class="nav-item">
+                    Sessione 13
+                    <span class="nav-date">23/11/2025</span>
+                </a>
+                <a href="#session-12" class="nav-item">
+                    Sessione 12
+                    <span class="nav-date">06/11/2025</span>
+                </a>
+                <a href="#session-11" class="nav-item">
+                    Sessione 11
+                    <span class="nav-date">19/10/2025</span>
+                </a>
+                <a href="#session-10" class="nav-item">
+                    Sessione 10
+                    <span class="nav-date">06/10/2025</span>
+                </a>
+                <a href="#session-9" class="nav-item">
+                    Sessione 9
+                    <span class="nav-date">12/09/2025</span>
+                </a>
+                <a href="#session-8" class="nav-item">
+                    Sessione 8
+                    <span class="nav-date">01/09/2025</span>
+                </a>
+                <a href="#session-7" class="nav-item">
+                    Sessione 7
+                    <span class="nav-date">04/08/2025</span>
+                </a>
+                <a href="#session-6" class="nav-item">
+                    Sessione 6
+                    <span class="nav-date">27/07/2025</span>
+                </a>
+                <a href="#session-5" class="nav-item">
+                    Sessione 5
+                    <span class="nav-date">08/07/2025</span>
+                </a>
+                <a href="#session-4" class="nav-item">
+                    Sessione 4
+                    <span class="nav-date">22/06/2025</span>
+                </a>
+                <a href="#session-3" class="nav-item">
+                    Sessione 3
+                    <span class="nav-date">07/06/2025</span>
+                </a>
+                <a href="#session-2" class="nav-item">
+                    Sessione 2
+                    <span class="nav-date">25/05/2025</span>
+                </a>
+                <a href="#session-1" class="nav-item">
+                    Sessione 1
+                    <span class="nav-date">Inizio</span>
+                </a>
+            </div>
+
             <div class="timeline">
 
-                <!-- SESSIONE 1 -->
-                <div class="session-card">
-                    <div class="timeline-marker"><i class="fas fa-circle" style="font-size: 6px;"></i></div>
+                <!-- SESSIONE 13 -->
+                <div id="session-13" class="session-card">
+                    <div class="timeline-marker"><i class="fas fa-circle" style="font-size: 8px; color: var(--gold);"></i></div>
                     <div class="session-header">
-                        <h3 class="session-title">Sessione 1</h3>
-                        <span class="session-date">Inizio Campagna</span>
+                        <h3 class="session-title">Sessione 13</h3>
+                        <div style="display: flex; align-items: center;">
+                            <span class="session-date">23/11/2025</span>
+                            <span class="levelup-badge">1 SKILL POINT</span>
+                        </div>
                     </div>
                     <div class="session-body">
-                        <p>Il gruppo si riunisce, insieme aprite la porta d'ingresso con i vostri cuori che battono all'unisono.</p>
-                        <p>Affrontate un cane mostruoso, sul lato ovest rispetto alla porta d'ingresso.</p>
-                        <p>Iniziate il combattimento contro un mimic 'Scrigno Rosa', che però riesce a fuggire gettandosi nel fiume rosso.</p>
-                        <p>Tentate di evitare la figura gigante che avete intravisto, e restate sul lato Ovest del luogo in cui vi trovate.</p>
-                        <p>Trovate una stanza con 3 teschi colorati di fronte ad un libro. Valdor tenta di prenderlo, ma i teschi sembrano reagire. Viene convinto dal gruppo ad abbandonare la stanza.</p>
-                        <p>Chiudete una stanza con all'interno due non morti usando Arcane Lock. Parola d'ordine: 'Apothecary'.</p>
-                        <p>Incontrate Rabberduscolanderson Von T, il quale assegna una missione a Valdor ed Apothecary: ottenere quello che nasconde Ran'Dra in tasca.</p>
-                        <p>Incontrate X Von T, la quale chiede a Ga'Run di procurarle libri interessanti in cambio di informazioni.</p>
+                        <p>Quando la gigantesca figura attacca Valdor, questa si dissolve in un'esplosione di coriandoli colorati rivelando di essere una semplice illusione.</p>
+                        <p>Fate mente locale su come procedere, e decidete comunque di dirigervi nella zona nord senza incontrare Karla, in modo da non ricevere da lei raccomandazioni o limitazioni di alcun tipo durante la vostra esplorazione.</p>
+                        <p>Entrate in una stanza composta da un lungo corridoio, dopo aver aperto un grosso portone, strappando con la forza le ragnatele dietro di esso che lo tenevano chiuso. Dopo qualche secondo dal vostro arrivo, un occhio rosso sul lato opposto del corridoio si illumina e le ragnatele sulle pareti si estendono e fortificano, tenendovi in trappola</p>
+                        <p>Scoppia un combattimento contro una serie di ondate di creature mostruose, create da ragnatele e corpi umani ed animali. Riuscite a sconfiggere con un combattimento pericoloso, dove Ran'Dra è andata vicina a perdere la vita.</p>
+                        <p>Ran'Dra, subito dopo il combattimento, dopo aver avuto una discussione con il padre Ga'Run, si dirige verso la porta a sud, ora libera dalle ragnatele che la bloccavano durante il combattimento. Una volta aperta, però, compare di nuovo la figura della giullare, un po' più piccola questa volta, di nuovo con un forte "Booo!".</p>
                     </div>
                     <div class="xp-footer">
-                        <i class="fas fa-star" style="color: var(--gold);"></i>
+                        <i class="fas fa-star" style="color: var(--gold); font-size: 1.2rem;"></i>
                         <div>
-                            <span class="xp-value">2300 XP Totali</span>
-                            <span class="xp-sub">(575 a testa)</span>
+                            <span class="xp-value">12000 XP Totali</span>
+                            <span class="xp-sub">(3000 a testa)</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- SESSIONE 2 -->
-                <div class="session-card">
+                <!-- SESSIONE 12 -->
+                <div id="session-12" class="session-card">
                     <div class="timeline-marker"></div>
                     <div class="session-header">
-                        <h3 class="session-title">Sessione 2</h3>
-                        <span class="session-date">25/05/2025</span>
+                        <h3 class="session-title">Sessione 12</h3>
+                        <div style="display: flex; align-items: center;">
+                            <span class="session-date">06/11/2025</span>
+                            <span class="levelup-badge">1 SKILL POINT</span>
+                        </div>
                     </div>
                     <div class="session-body">
-                        <p>Ga'Run e Ran'Dra concludono il loro primo dialogo con X, scoprendo qualche informazione di base e che vende alcune pergamene per incantesimi.</p>
-                        <p>Ga'Run minaccia Rabberduscolanderson prima di abbandonare la stanza, infastidito dal fatto che abbia fumato con Valdor.</p>
-                        <p>Vedete il giardino di fiori fuori dalla stanza di Rabberduscolanderson, incluso un grosso fiore nero al centro di una pozza rossa. Decidete di non interagire con essi.</p>
-                        <p>Apothecary prova a tirare i petali che fuoriescono da un cumulo di terra, rivelando una testa parzialmente fantasma e parzialmente coperta di petali di rosa.</p>
-                        <p>Vi imbattete in una sorta di enigma con delle torce. Grazie all'ingegno di Valdor, riuscite a capirne il funzionamento. Sul sarcofago centrale: 'Il destino di un popolo è determinato dalla sola luce che lo guida.'</p>
-                        <p>Durante la risoluzione dell'enigma, combattete contro alcune creature non-morte ed ottenete una piccola pergamena con scritto 'Metà è fatta, dov'è l'altra?'</p>
-                        <p>Infine, per via del rumore generato dal combattimento, viene attirata l'enorme creatura bipede che si aggira per questo piano. Completate il combattimento e fuggite, grazie ad un'illusione di Ran'Dra.</p>
-                        <p>Vi trovate bloccati tra tre problemi: la creatura con il sacco, una creatura che raccoglie dei corpi da un pozzo e li 'strizza' tirandone fuori il sangue, e due cani mostruosi come quello che avete già affrontato.</p>
+                        <p>Uno dopo l'altro vi sottoponete al rituale macabro di Karla, tutti con successo. Uno per uno, dopo quella che sembra essere stata una morte temporanea, vi risvegliate sentendo dentro di voi un potere nuovo.</p>
+                        <p>Dopo i rituali, avete l'occasione di parlare con Karla riguardo alla situazione in cui tutti voi, lei compresa, vi trovate. Capite che entrambi avete un obiettivo comune: Deborah, la ragazza dai capelli bianchi.</p>
+                        <p>Karla vi parla dei pericoli di questo luogo, citando un uomo folle che realizza creature di ragnatela e tendini (a nord), e numerosi non-morti (a sud). Ella vi chiede di liberarvi di loro, dato il fastidio che provocano nel piano.</p>
+                        <p>Inoltre vi cita la presenza di una giullare, probabile creatice di alcune stranezze che avete visto da quando siete arrivati al secondo piano.</p>
+                        <p>Vi fermate a dormire in una piccola stanza a est, per poi ripartire il giorno dopo. Ignorate Karla e decidete di procedere con l'esplorazione in autonomia. Trovate una stanza con un baule davanti ad una grande statua. Valdor lo apre, ed all'interno trova una pergamena contenente un disegno. Una volta raccolto, una figura gargantuesca di una giullare appare nella stanza con un secco "Booo!".</p>
                     </div>
                     <div class="xp-footer">
-                        <i class="fas fa-star" style="color: var(--gold);"></i>
+                        <i class="fas fa-gift" style="color: var(--gold); font-size: 1.2rem;"></i>
                         <div>
-                            <span class="xp-value">950 XP Totali</span>
-                            <span class="xp-sub">(237 a testa)</span>
+                            <span class="xp-value">Punto Abilità [1/8]</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SESSIONE 11 -->
+                <div id="session-11" class="session-card">
+                    <div class="timeline-marker"></div>
+                    <div class="session-header">
+                        <h3 class="session-title">Sessione 11</h3>
+                        <span class="session-date">19/10/2025</span>
+                    </div>
+                    <div class="session-body">
+                        <p>Il vostro incontro con le progenie vampiriche si sviluppa in modo violento ed iniziate ad attaccare queste creature, provando ad ucciderle.</p>
+                        <p>Grazie alla loro sorprendente rigenerazione naturale, le ferite di queste creature si rimarginano molto rapidamente, rendendovi difficile il compito di abbatterle.</p>
+                        <p>Una di queste creature si allontana, andando a chiamare un'altra figura, decisamente più inquietante. Karla, una vampira, si presenta di fronte a voi, ponendo fine al combattimento.</p>
+                        <p>Karla utilizza un effetto di incantamento su Ga'Run, portandolo dalla sua parte. Poi, Valdor decide di arrendersi, e così anche Ran'Dra e Apothecary. Insieme, venite accompagnati in una grande sala dove scambiate 2 chiacchiere con Karla.</p>
+                        <p>Karla rimane piuttosto criptica, ma prova interesse nei vostri confronti, dicendo che stava aspettando qualcuno che fosse 'in una linea vicina' - come voi. Vi propone di aiutarvi, dicendo che la ragazza dai capelli bianchi è un male terribile da estirpare.</p>
+                        <p>Per aiutarvi, inizia un rituale partendo da Ran'Dra, la quale si offre di essere la prima. Entrata in una stanza, accondono cose di cui non siete troppo certi. Il secondo è Valdor, che prima di entrare lancia un segnale di pericolo ai suoi compagni che restano all'esterno.</p>
+                        <p>Egli, usando la sua magia di Arcane Lock, intrappola sé stesso e Karla nella stanza; nel frattempo, Ga'Run perde la pazienza all'esterno e pretende di entrare e vedere le condizioni di Ran'Dra. Come procederà questa situazione di stallo? Cosa è accaduto davvero in quella stanza?</p>
+                    </div>
+                    <div class="xp-footer">
+                        <i class="fas fa-bolt" style="color: var(--accent-primary); font-size: 1.2rem;"></i>
+                        <div>
+                            <span class="xp-value">0 XP</span>
+                            <span class="xp-sub">(Evento Trama)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SESSIONE 10 -->
+                <div id="session-10" class="session-card">
+                    <div class="timeline-marker"></div>
+                    <div class="session-header">
+                        <h3 class="session-title">Sessione 10</h3>
+                        <span class="session-date">06/10/2025</span>
+                    </div>
+                    <div class="session-body">
+                        <p>Trascorrete del tempo con il vostro amico Rabberduscolanderson e Valdor realizza un portafoto olografico con una fotografia che rappresenta tutti voi.</p>
+                        <p>Consegnate il Cuore di Albert ad X, la quale ha iniziato a studiarlo aiutandosi con lo strano libro che avete rubato a Franky.</p>
+                        <p>Decidete di scendere al livello inferiore, dove venite accolti da una stanza ampia, con la statua di 'Octavio' in fondo. Qui trovate dei palloncini che iniziano a seguirvi fluttuando, e una bambolina che chiamava Ran'Dra "Mamma" e chiedeva di stare in braccio.</p>
+                        <p>Dopo aver gettato la bambolina in un fosso, avete continuato verso sud, dove avete incontrato degli umanoidi estremamente magri e pallidi, che Valdor ha riconosciuto come Progenie Vampiriche. Queste stanno tentando di portarvi pacificamente da "Karla", che desidera incontrarvi. Voi state tentando di ribellarvi.</p>
+                    </div>
+                    <div class="xp-footer">
+                        <i class="fas fa-forward" style="color: var(--text-muted); font-size: 1.2rem;"></i>
+                        <div>
+                            <span class="xp-value">0 XP</span>
+                            <span class="xp-sub">(Esplorazione)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SESSIONE 9 -->
+                <div id="session-9" class="session-card">
+                    <div class="timeline-marker"></div>
+                    <div class="session-header">
+                        <h3 class="session-title">Sessione 9</h3>
+                        <div style="display: flex; align-items: center;">
+                            <span class="session-date">12/09/2025</span>
+                            <span class="levelup-badge">LEVEL UP (6)</span>
+                        </div>
+                    </div>
+                    <div class="session-body">
+                        <p>Continuate il vostro combattimento contro gli scheletri animati dopo che Valdor ha raccolto il libro, e riuscite ad uscirne vincitori senza perdite.</p>
+                        <p>Una volta sconfitti gli scheletri di Rosskar, Okbrax e Lumilla, il sacrofago all'interno della stanza si sblocca, rivelando al suo interno numerosi oggetti magici (armature e armi).</p>
+                        <p>Date un'occhiata veloce al libro e capite che questo contiene parti della storia dei Klaren, narrati con un linguaggio piuttosto arcaico.</p>
+                    </div>
+                    <div class="xp-footer">
+                        <i class="fas fa-arrow-up" style="color: var(--gold); font-size: 1.2rem;"></i>
+                        <div>
+                            <span class="xp-value">8004 XP Totali</span>
+                            <span class="xp-sub">(2001 a testa)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SESSIONE 8 -->
+                <div id="session-8" class="session-card">
+                    <div class="timeline-marker"></div>
+                    <div class="session-header">
+                        <h3 class="session-title">Sessione 8</h3>
+                        <span class="session-date">01/09/2025</span>
+                    </div>
+                    <div class="session-body">
+                        <p>Parlando con X, scoprite anche che i fantasmi che abitano questa cripta non sono altro che altre persone che, come voi, si trovano in questo luogo. Pare che voi, a differenza loro, vi troviate nella linea più vicina a quella reale, cioè a quella dove si trovano i Von T. Gli altri, invece, si trovano in delle repliche di essa.</p>
+                        <p>Dopo il combattimento contro il giardino di Albert, eravate piuttosto stanchi e decidete di recuperare le forze trascorrendo il resto della giornata all'interno della vostra stanza.</p>
+                        <p>Prima di spostarvi al piano sottostante, la mattina seguente provate a mettere le mani sul libro che Valdor aveva adocchiato il primo giorno che avete iniziato ad esplorare questa cripta. Tuttavia, dopo averlo preso, Valdor è rimasto intrappolato all'interno della stanza, circondato da creature non morte che lo hanno attaccato.</p>
+                    </div>
+                    <div class="xp-footer">
+                        <i class="fas fa-hourglass-half" style="color: var(--text-muted); font-size: 1.2rem;"></i>
+                        <div>
+                            <span class="xp-value">0 XP</span>
+                            <span class="xp-sub">(Cliffhanger)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SESSIONE 7 -->
+                <div id="session-7" class="session-card">
+                    <div class="timeline-marker"></div>
+                    <div class="session-header">
+                        <h3 class="session-title">Sessione 7</h3>
+                        <span class="session-date">04/08/2025</span>
+                    </div>
+                    <div class="session-body">
+                        <p>Valdor controlla il cadavere dello scrigno animato, trovando al suo interno una particolare spilla, che supponete con abbastanza certezza sia magica.</p>
+                        <p>Vi dirigete verso la stanza di Rabberduscolanderson, quando notate i fiori che tempo prima aveva definito come "il giardino di Albert". Decidete di attaccarli, trovandovi in un combattimento piuttosto rischioso contro dei fiori-pianta.</p>
+                        <p>Grazie all'aiuto di Rabberduscolanderson e X, riuscite a sconfiggere questi nemici, sopravvivendo.</p>
+                        <p>Ran'Dra consegna a X il libro rubato a Franky, ottenendo alcune informazioni in cambio: in particolare, scoprite che per accedere al piano sottostante è sufficiente mostrare alla porta il simbolo del Klaren.</p>
+                    </div>
+                    <div class="xp-footer">
+                        <i class="fas fa-star" style="color: var(--gold); font-size: 1.2rem;"></i>
+                        <div>
+                            <span class="xp-value">5150 XP Totali</span>
+                            <span class="xp-sub">(1287 a testa)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SESSIONE 6 -->
+                <div id="session-6" class="session-card">
+                    <div class="timeline-marker"></div>
+                    <div class="session-header">
+                        <h3 class="session-title">Sessione 6</h3>
+                        <span class="session-date">27/07/2025</span>
+                    </div>
+                    <div class="session-body">
+                        <p>Riuscite a completare il combattimento contro Gianni, avendo successo. Riuscite a prelevare un Cuore dal suo corpo, che sembra avere una funzione simile a quella di una batteria arcana. Valdor scopre che pare sia incantato con un incantesimo simile a Desiderio.</p>
+                        <p>Franky sembrava particolarmente interessato a quel cuore, ma riuscite ad evitare le sue richieste e a procedere senza darglielo o parlargliene.</p>
+                        <p>Cercando nei sarcofagi dove avete affrontato le mummie il giorno precedente, trovate un diamante e un Medaglione con inciso il simbolo Klaren.</p>
+                        <p>Esplorate la parte sud del livello e trovate 3 dipinti con delle targhette sotto: "Zara", "Mafu" e "Lumilla, Rosskar, Okbrax". Di fronte a quello di "Zara", Ran'Dra raccoglie una Collana che emana magia.</p>
+                        <p>Vi dirigete di nuovo verso nord, dove ritrovate il mimic che era fuggito durante il vostro primo scontro. Questa volta, riuscite ad abbatterlo; ci sarà qualcosa dentro?</p>
+                    </div>
+                    <div class="xp-footer">
+                        <i class="fas fa-star" style="color: var(--gold); font-size: 1.2rem;"></i>
+                        <div>
+                            <span class="xp-value">6800 XP Totali</span>
+                            <span class="xp-sub">(1700 a testa)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SESSIONE 5 -->
+                <div id="session-5" class="session-card">
+                    <div class="timeline-marker"></div>
+                    <div class="session-header">
+                        <h3 class="session-title">Sessione 5</h3>
+                        <span class="session-date">08/07/2025</span>
+                    </div>
+                    <div class="session-body">
+                        <p>Concludete il vostro riposo lungo e, una volta svegli, Apothecary utilizza la sua magia divina per rimuovere la maledizione che affligge Ga'Run.</p>
+                        <p>Dopo aver trascorso qualche minuto a chiacchierare, in attesa che Ga'Run riposasse un po', decidete di ripartire.</p>
+                        <p>Mentre percorrete i corridoi e le vie della cripta, cercate di individuare Gianni, in modo da abbatterlo cogliendolo di sorpresa.</p>
+                        <p>Prima di Gianni, però, incontrate uno strano topo parlante, affiancato da uno strano essere di carne che lo accompagna. Egli vi invita nel suo macabro laboratorio dove vi chiede di procurargli un cuore in grado di alimentare un golem gigante che sta costruendo; in cambio, vi ha offerto dei "sieri speciali".</p>
+                        <p>Rifiutate la sua offerta, Ran'Dra gli ruba di soppiatto uno strano libro, e ve ne andate.</p>
+                        <p>Poco dopo, vedete passare Gianni ed iniziate un combattimento contro di lui, il quale sembra essere un avversario piuttosto temibile.</p>
+                    </div>
+                    <div class="xp-footer">
+                        <i class="fas fa-skull" style="color: var(--text-muted); font-size: 1.2rem;"></i>
+                        <div>
+                            <span class="xp-value">0 XP</span>
+                            <span class="xp-sub">(Combattimento in corso)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SESSIONE 4 -->
+                <div id="session-4" class="session-card">
+                    <div class="timeline-marker"></div>
+                    <div class="session-header">
+                        <h3 class="session-title">Sessione 4</h3>
+                        <span class="session-date">22/06/2025</span>
+                    </div>
+                    <div class="session-body">
+                        <p>Valdor consegna la prima targhetta a Rabberduscolanderson, il quale gli dà in cambio una pozione. Lo accompagnate momentaneamente dove avete ucciso il primo cane e poi tornate indietro.</p>
+                        <p>Decidete di andare a prendere anche le altre due targhette a nord, e le riportate a Rabberduscolanderson, ottenendo ulteriori pozioni in cambio.</p>
+                        <p>Egli vi cita 'Elena', la sua compagna, dicendovi che nel caso in cui ci fosse qualcosa in giro a lei legata, gli farebbe piacere riaverla tra le mani.</p>
+                        <p>Procedete furtivi con l'esplorazione del piano, trovando due porte chiuse. Ran'Dra, origliando dietro la prima, sente una strana voce dall'altra parte, accompagnata da suoni inquietanti.</p>
+                        <p>Decidete di dirigervi nell'altra, dove trovate 3 sarcofagi. Decidete di aprirli e venite attaccati da alcune mummie. Una di questa, purtroppo, maledice Ga'Run.</p>
+                        <p>Il gigante che si aggira per la cripta, attirato dal rumore, inizia ad avvicinarsi minaccioso verso la vostra posizione. Riuscite ad evitarlo e ad andarvene via.</p>
+                        <p>Tornate da X, la quale vi propone di uccidere Ga'Run e riportarlo in vita per rimuovere la maledizione; morendo per la maledizione, invece, il corpo si tramuta in cenere!</p>
+                        <p>Andate infine a riposare nella stanza sigillata dalla magia di Valdor, e passate la notte lì, preparandovi a rimuovere la terribile maledizione con l'aiuta della magia di Apothecary.</p>
+                    </div>
+                    <div class="xp-footer">
+                        <i class="fas fa-star" style="color: var(--gold); font-size: 1.2rem;"></i>
+                        <div>
+                            <span class="xp-value">2200 XP Totali</span>
+                            <span class="xp-sub">(550 a testa)</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- SESSIONE 3 -->
-                <div class="session-card">
+                <div id="session-3" class="session-card">
                     <div class="timeline-marker"></div>
                     <div class="session-header">
                         <h3 class="session-title">Sessione 3</h3>
@@ -274,7 +563,7 @@
                         <p>Sembra che Rabberduscolanderson sia interessato alla targhetta nella tasca di Ran'Dra. Inoltre, avevate lasciato nei cadaveri degli altri cani altre due targhette, che forse volevate riprendere.</p>
                     </div>
                     <div class="xp-footer">
-                        <i class="fas fa-star" style="color: var(--gold);"></i>
+                        <i class="fas fa-star" style="color: var(--gold); font-size: 1.2rem;"></i>
                         <div>
                             <span class="xp-value">4600 XP Totali</span>
                             <span class="xp-sub">(1150 a testa)</span>
@@ -282,234 +571,54 @@
                     </div>
                 </div>
 
-                <!-- SESSIONE 4 -->
-                <div class="session-card">
+                <!-- SESSIONE 2 -->
+                <div id="session-2" class="session-card">
                     <div class="timeline-marker"></div>
                     <div class="session-header">
-                        <h3 class="session-title">Sessione 4</h3>
-                        <span class="session-date">22/06/2025</span>
+                        <h3 class="session-title">Sessione 2</h3>
+                        <span class="session-date">25/05/2025</span>
                     </div>
                     <div class="session-body">
-                        <p>Valdor consegna la prima targhetta a Rabberduscolanderson, il quale gli dà in cambio una pozione. Lo accompagnate momentaneamente dove avete ucciso il primo cane e poi tornate indietro.</p>
-                        <p>Decidete di andare a prendere anche le altre due targhette a nord, e le riportate a Rabberduscolanderson, ottenendo ulteriori pozioni in cambio.</p>
-                        <p>Egli vi cita 'Elena', la sua compagna, dicendovi che nel caso in cui ci fosse qualcosa in giro a lei legata, gli farebbe piacere riaverla tra le mani.</p>
-                        <p>Procedete furtivi con l'esplorazione del piano, trovando due porte chiuse. Ran'Dra, origliando dietro la prima, sente una strana voce dall'altra parte, accompagnata da suoni inquietanti.</p>
-                        <p>Decidete di dirigervi nell'altra, dove trovate 3 sarcofagi. Decidete di aprirli e venite attaccati da alcune mummie. Una di questa, purtroppo, maledice Ga'Run.</p>
-                        <p>Il gigante che si aggira per la cripta, attirato dal rumore, inizia ad avvicinarsi minaccioso verso la vostra posizione. Riuscite ad evitarlo e ad andarvene via.</p>
-                        <p>Tornate da X, la quale vi propone di uccidere Ga'Run e riportarlo in vita per rimuovere la maledizione; morendo per la maledizione, invece, il corpo si tramuta in cenere!</p>
-                        <p>Andate infine a riposare nella stanza sigillata dalla magia di Valdor, e passate la notte lì, preparandovi a rimuovere la terribile maledizione con l'aiuta della magia di Apothecary.</p>
+                        <p>Ga'Run e Ran'Dra concludono il loro primo dialogo con X, scoprendo qualche informazione di base e che vende alcune pergamene per incantesimi.</p>
+                        <p>Ga'Run minaccia Rabberduscolanderson prima di abbandonare la stanza, infastidito dal fatto che abbia fumato con Valdor.</p>
+                        <p>Vedete il giardino di fiori fuori dalla stanza di Rabberduscolanderson, incluso un grosso fiore nero al centro di una pozza rossa. Decidete di non interagire con essi.</p>
+                        <p>Apothecary prova a tirare i petali che fuoriescono da un cumulo di terra, rivelando una testa parzialmente fantasma e parzialmente coperta di petali di rosa.</p>
+                        <p>Vi imbattete in una sorta di enigma con delle torce. Grazie all'ingegno di Valdor, riuscite a capirne il funzionamento. Sul sarcofago centrale: 'Il destino di un popolo è determinato dalla sola luce che lo guida.'</p>
+                        <p>Durante la risoluzione dell'enigma, combattete contro alcune creature non-morte ed ottenete una piccola pergamena con scritto 'Metà è fatta, dov'è l'altra?'</p>
+                        <p>Infine, per via del rumore generato dal combattimento, viene attirata l'enorme creatura bipede che si aggira per questo piano. Completate il combattimento e fuggite, grazie ad un'illusione di Ran'Dra.</p>
+                        <p>Vi trovate bloccati tra tre problemi: la creatura con il sacco, una creatura che raccoglie dei corpi da un pozzo e li 'strizza' tirandone fuori il sangue, e due cani mostruosi come quello che avete già affrontato.</p>
                     </div>
                     <div class="xp-footer">
-                        <i class="fas fa-star" style="color: var(--gold);"></i>
+                        <i class="fas fa-star" style="color: var(--gold); font-size: 1.2rem;"></i>
                         <div>
-                            <span class="xp-value">2200 XP Totali</span>
-                            <span class="xp-sub">(550 a testa)</span>
+                            <span class="xp-value">950 XP Totali</span>
+                            <span class="xp-sub">(237 a testa)</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- SESSIONE 5 -->
-                <div class="session-card">
-                    <div class="timeline-marker"></div>
+                <!-- SESSIONE 1 -->
+                <div id="session-1" class="session-card">
+                    <div class="timeline-marker"><i class="fas fa-circle" style="font-size: 8px; color: var(--gold);"></i></div>
                     <div class="session-header">
-                        <h3 class="session-title">Sessione 5</h3>
-                        <span class="session-date">08/07/2025</span>
+                        <h3 class="session-title">Sessione 1</h3>
+                        <span class="session-date">Inizio Campagna</span>
                     </div>
                     <div class="session-body">
-                        <p>Concludete il vostro riposo lungo e, una volta svegli, Apothecary utilizza la sua magia divina per rimuovere la maledizione che affligge Ga'Run.</p>
-                        <p>Dopo aver trascorso qualche minuto a chiacchierare, in attesa che Ga'Run riposasse un po', decidete di ripartire.</p>
-                        <p>Mentre percorrete i corridoi e le vie della cripta, cercate di individuare Gianni, in modo da abbatterlo cogliendolo di sorpresa.</p>
-                        <p>Prima di Gianni, però, incontrate uno strano topo parlante, affiancato da uno strano essere di carne che lo accompagna. Egli vi invita nel suo macabro laboratorio dove vi chiede di procurargli un cuore in grado di alimentare un golem gigante che sta costruendo; in cambio, vi ha offerto dei "sieri speciali".</p>
-                        <p>Rifiutate la sua offerta, Ran'Dra gli ruba di soppiatto uno strano libro, e ve ne andate.</p>
-                        <p>Poco dopo, vedete passare Gianni ed iniziate un combattimento contro di lui, il quale sembra essere un avversario piuttosto temibile.</p>
+                        <p>Il gruppo si riunisce, insieme aprite la porta d'ingresso con i vostri cuori che battono all'unisono.</p>
+                        <p>Affrontate un cane mostruoso, sul lato ovest rispetto alla porta d'ingresso.</p>
+                        <p>Iniziate il combattimento contro un mimic 'Scrigno Rosa', che però riesce a fuggire gettandosi nel fiume rosso.</p>
+                        <p>Tentate di evitare la figura gigante che avete intravisto, e restate sul lato Ovest del luogo in cui vi trovate.</p>
+                        <p>Trovate una stanza con 3 teschi colorati di fronte ad un libro. Valdor tenta di prenderlo, ma i teschi sembrano reagire. Viene convinto dal gruppo ad abbandonare la stanza.</p>
+                        <p>Chiudete una stanza con all'interno due non morti usando Arcane Lock. Parola d'ordine: 'Apothecary'.</p>
+                        <p>Incontrate Rabberduscolanderson Von T, il quale assegna una missione a Valdor ed Apothecary: ottenere quello che nasconde Ran'Dra in tasca.</p>
+                        <p>Incontrate X Von T, la quale chiede a Ga'Run di procurarle libri interessanti in cambio di informazioni.</p>
                     </div>
                     <div class="xp-footer">
-                        <i class="fas fa-skull" style="color: var(--text-muted);"></i>
+                        <i class="fas fa-star" style="color: var(--gold); font-size: 1.2rem;"></i>
                         <div>
-                            <span class="xp-value">0 XP</span>
-                            <span class="xp-sub">(Combattimento in corso)</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SESSIONE 6 -->
-                <div class="session-card">
-                    <div class="timeline-marker"></div>
-                    <div class="session-header">
-                        <h3 class="session-title">Sessione 6</h3>
-                        <span class="session-date">27/07/2025</span>
-                    </div>
-                    <div class="session-body">
-                        <p>Riuscite a completare il combattimento contro Gianni, avendo successo. Riuscite a prelevare un Cuore dal suo corpo, che sembra avere una funzione simile a quella di una batteria arcana. Valdor scopre che pare sia incantato con un incantesimo simile a Desiderio.</p>
-                        <p>Franky sembrava particolarmente interessato a quel cuore, ma riuscite ad evitare le sue richieste e a procedere senza darglielo o parlargliene.</p>
-                        <p>Cercando nei sarcofagi dove avete affrontato le mummie il giorno precedente, trovate un diamante e un Medaglione con inciso il simbolo Klaren.</p>
-                        <p>Esplorate la parte sud del livello e trovate 3 dipinti con delle targhette sotto: "Zara", "Mafu" e "Lumilla, Rosskar, Okbrax". Di fronte a quello di "Zara", Ran'Dra raccoglie una Collana che emana magia.</p>
-                        <p>Vi dirigete di nuovo verso nord, dove ritrovate il mimic che era fuggito durante il vostro primo scontro. Questa volta, riuscite ad abbatterlo; ci sarà qualcosa dentro?</p>
-                    </div>
-                    <div class="xp-footer">
-                        <i class="fas fa-star" style="color: var(--gold);"></i>
-                        <div>
-                            <span class="xp-value">6800 XP Totali</span>
-                            <span class="xp-sub">(1700 a testa)</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SESSIONE 7 -->
-                <div class="session-card">
-                    <div class="timeline-marker"></div>
-                    <div class="session-header">
-                        <h3 class="session-title">Sessione 7</h3>
-                        <span class="session-date">04/08/2025</span>
-                    </div>
-                    <div class="session-body">
-                        <p>Valdor controlla il cadavere dello scrigno animato, trovando al suo interno una particolare spilla, che supponete con abbastanza certezza sia magica.</p>
-                        <p>Vi dirigete verso la stanza di Rabberduscolanderson, quando notate i fiori che tempo prima aveva definito come "il giardino di Albert". Decidete di attaccarli, trovandovi in un combattimento piuttosto rischioso contro dei fiori-pianta.</p>
-                        <p>Grazie all'aiuto di Rabberduscolanderson e X, riuscite a sconfiggere questi nemici, sopravvivendo.</p>
-                        <p>Ran'Dra consegna a X il libro rubato a Franky, ottenendo alcune informazioni in cambio: in particolare, scoprite che per accedere al piano sottostante è sufficiente mostrare alla porta il simbolo del Klaren.</p>
-                    </div>
-                    <div class="xp-footer">
-                        <i class="fas fa-star" style="color: var(--gold);"></i>
-                        <div>
-                            <span class="xp-value">5150 XP Totali</span>
-                            <span class="xp-sub">(1287 a testa)</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SESSIONE 8 -->
-                <div class="session-card">
-                    <div class="timeline-marker"></div>
-                    <div class="session-header">
-                        <h3 class="session-title">Sessione 8</h3>
-                        <span class="session-date">01/09/2025</span>
-                    </div>
-                    <div class="session-body">
-                        <p>Parlando con X, scoprite anche che i fantasmi che abitano questa cripta non sono altro che altre persone che, come voi, si trovano in questo luogo. Pare che voi, a differenza loro, vi troviate nella linea più vicina a quella reale, cioè a quella dove si trovano i Von T. Gli altri, invece, si trovano in delle repliche di essa.</p>
-                        <p>Dopo il combattimento contro il giardino di Albert, eravate piuttosto stanchi e decidete di recuperare le forze trascorrendo il resto della giornata all'interno della vostra stanza.</p>
-                        <p>Prima di spostarvi al piano sottostante, la mattina seguente provate a mettere le mani sul libro che Valdor aveva adocchiato il primo giorno che avete iniziato ad esplorare questa cripta. Tuttavia, dopo averlo preso, Valdor è rimasto intrappolato all'interno della stanza, circondato da creature non morte che lo hanno attaccato.</p>
-                    </div>
-                    <div class="xp-footer">
-                        <i class="fas fa-hourglass-half" style="color: var(--text-muted);"></i>
-                        <div>
-                            <span class="xp-value">0 XP</span>
-                            <span class="xp-sub">(Cliffhanger)</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SESSIONE 9 -->
-                <div class="session-card">
-                    <div class="timeline-marker"></div>
-                    <div class="session-header">
-                        <h3 class="session-title">Sessione 9</h3>
-                        <span class="session-date">12/09/2025</span>
-                        <span class="levelup-badge">LEVEL UP (6)</span>
-                    </div>
-                    <div class="session-body">
-                        <p>Continuate il vostro combattimento contro gli scheletri animati dopo che Valdor ha raccolto il libro, e riuscite ad uscirne vincitori senza perdite.</p>
-                        <p>Una volta sconfitti gli scheletri di Rosskar, Okbrax e Lumilla, il sacrofago all'interno della stanza si sblocca, rivelando al suo interno numerosi oggetti magici (armature e armi).</p>
-                        <p>Date un'occhiata veloce al libro e capite che questo contiene parti della storia dei Klaren, narrati con un linguaggio piuttosto arcaico.</p>
-                    </div>
-                    <div class="xp-footer">
-                        <i class="fas fa-arrow-up" style="color: var(--gold);"></i>
-                        <div>
-                            <span class="xp-value">8004 XP Totali</span>
-                            <span class="xp-sub">(2001 a testa)</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SESSIONE 10 -->
-                <div class="session-card">
-                    <div class="timeline-marker"></div>
-                    <div class="session-header">
-                        <h3 class="session-title">Sessione 10</h3>
-                        <span class="session-date">06/10/2025</span>
-                    </div>
-                    <div class="session-body">
-                        <p>Trascorrete del tempo con il vostro amico Rabberduscolanderson e Valdor realizza un portafoto olografico con una fotografia che rappresenta tutti voi.</p>
-                        <p>Consegnate il Cuore di Albert ad X, la quale ha iniziato a studiarlo aiutandosi con lo strano libro che avete rubato a Franky.</p>
-                        <p>Decidete di scendere al livello inferiore, dove venite accolti da una stanza ampia, con la statua di 'Octavio' in fondo. Qui trovate dei palloncini che iniziano a seguirvi fluttuando, e una bambolina che chiamava Ran'Dra "Mamma" e chiedeva di stare in braccio.</p>
-                        <p>Dopo aver gettato la bambolina in un fosso, avete continuato verso sud, dove avete incontrato degli umanoidi estremamente magri e pallidi, che Valdor ha riconosciuto come Progenie Vampiriche. Queste stanno tentando di portarvi pacificamente da "Karla", che desidera incontrarvi. Voi state tentando di ribellarvi.</p>
-                    </div>
-                    <div class="xp-footer">
-                        <i class="fas fa-forward" style="color: var(--text-muted);"></i>
-                        <div>
-                            <span class="xp-value">0 XP</span>
-                            <span class="xp-sub">(Esplorazione)</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SESSIONE 11 -->
-                <div class="session-card">
-                    <div class="timeline-marker"></div>
-                    <div class="session-header">
-                        <h3 class="session-title">Sessione 11</h3>
-                        <span class="session-date">19/10/2025</span>
-                    </div>
-                    <div class="session-body">
-                        <p>Il vostro incontro con le progenie vampiriche si sviluppa in modo violento ed iniziate ad attaccare queste creature, provando ad ucciderle.</p>
-                        <p>Grazie alla loro sorprendente rigenerazione naturale, le ferite di queste creature si rimarginano molto rapidamente, rendendovi difficile il compito di abbatterle.</p>
-                        <p>Una di queste creature si allontana, andando a chiamare un'altra figura, decisamente più inquietante. Karla, una vampira, si presenta di fronte a voi, ponendo fine al combattimento.</p>
-                        <p>Karla utilizza un effetto di incantamento su Ga'Run, portandolo dalla sua parte. Poi, Valdor decide di arrendersi, e così anche Ran'Dra e Apothecary. Insieme, venite accompagnati in una grande sala dove scambiate 2 chiacchiere con Karla.</p>
-                        <p>Karla rimane piuttosto criptica, ma prova interesse nei vostri confronti, dicendo che stava aspettando qualcuno che fosse 'in una linea vicina' - come voi. Vi propone di aiutarvi, dicendo che la ragazza dai capelli bianchi è un male terribile da estirpare.</p>
-                        <p>Per aiutarvi, inizia un rituale partendo da Ran'Dra, la quale si offre di essere la prima. Entrata in una stanza, accondono cose di cui non siete troppo certi. Il secondo è Valdor, che prima di entrare lancia un segnale di pericolo ai suoi compagni che restano all'esterno.</p>
-                        <p>Egli, usando la sua magia di Arcane Lock, intrappola sé stesso e Karla nella stanza; nel frattempo, Ga'Run perde la pazienza all'esterno e pretende di entrare e vedere le condizioni di Ran'Dra. Come procederà questa situazione di stallo? Cosa è accaduto davvero in quella stanza?</p>
-                    </div>
-                    <div class="xp-footer">
-                        <i class="fas fa-bolt" style="color: var(--accent-primary);"></i>
-                        <div>
-                            <span class="xp-value">0 XP</span>
-                            <span class="xp-sub">(Evento Trama)</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SESSIONE 12 -->
-                <div class="session-card">
-                    <div class="timeline-marker"></div>
-                    <div class="session-header">
-                        <h3 class="session-title">Sessione 12</h3>
-                        <span class="session-date">06/11/2025</span>
-                        <span class="levelup-badge">1 SKILL POINT</span>
-                    </div>
-                    <div class="session-body">
-                        <p>Uno dopo l'altro vi sottoponete al rituale macabro di Karla, tutti con successo. Uno per uno, dopo quella che sembra essere stata una morte temporanea, vi risvegliate sentendo dentro di voi un potere nuovo.</p>
-                        <p>Dopo i rituali, avete l'occasione di parlare con Karla riguardo alla situazione in cui tutti voi, lei compresa, vi trovate. Capite che entrambi avete un obiettivo comune: Deborah, la ragazza dai capelli bianchi.</p>
-                        <p>Karla vi parla dei pericoli di questo luogo, citando un uomo folle che realizza creature di ragnatela e tendini (a nord), e numerosi non-morti (a sud). Ella vi chiede di liberarvi di loro, dato il fastidio che provocano nel piano.</p>
-                        <p>Inoltre vi cita la presenza di una giullare, probabile creatice di alcune stranezze che avete visto da quando siete arrivati al secondo piano.</p>
-                        <p>Vi fermate a dormire in una piccola stanza a est, per poi ripartire il giorno dopo. Ignorate Karla e decidete di procedere con l'esplorazione in autonomia. Trovate una stanza con un baule davanti ad una grande statua. Valdor lo apre, ed all'interno trova una pergamena contenente un disegno. Una volta raccolto, una figura gargantuesca di una giullare appare nella stanza con un secco "Booo!".</p>
-                    </div>
-                    <div class="xp-footer">
-                        <i class="fas fa-gift" style="color: var(--gold);"></i>
-                        <div>
-                            <span class="xp-value">Punto Abilità [1/8]</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- SESSIONE 13 -->
-                <div class="session-card">
-                    <div class="timeline-marker"></div>
-                    <div class="session-header">
-                        <h3 class="session-title">Sessione 13</h3>
-                        <span class="session-date">23/11/2025</span>
-                        <span class="levelup-badge">1 SKILL POINT</span>
-                    </div>
-                    <div class="session-body">
-                        <p>Quando la gigantesca figura attacca Valdor, questa si dissolve in un'esplosione di coriandoli colorati rivelando di essere una semplice illusione.</p>
-                        <p>Fate mente locale su come procedere, e decidete comunque di dirigervi nella zona nord senza incontrare Karla, in modo da non ricevere da lei raccomandazioni o limitazioni di alcun tipo durante la vostra esplorazione.</p>
-                        <p>Entrate in una stanza composta da un lungo corridoio, dopo aver aperto un grosso portone, strappando con la forza le ragnatele dietro di esso che lo tenevano chiuso. Dopo qualche secondo dal vostro arrivo, un occhio rosso sul lato opposto del corridoio si illumina e le ragnatele sulle pareti si estendono e fortificano, tenendovi in trappola</p>
-                        <p>Scoppia un combattimento contro una serie di ondate di creature mostruose, create da ragnatele e corpi umani ed animali. Riuscite a sconfiggere con un combattimento pericoloso, dove Ran'Dra è andata vicina a perdere la vita.</p>
-                        <p>Ran'Dra, subito dopo il combattimento, dopo aver avuto una discussione con il padre Ga'Run, si dirige verso la porta a sud, ora libera dalle ragnatele che la bloccavano durante il combattimento. Una volta aperta, però, compare di nuovo la figura della giullare, un po' più piccola questa volta, di nuovo con un forte "Booo!".</p>
-                    </div>
-                    <div class="xp-footer">
-                        <i class="fas fa-star" style="color: var(--gold);"></i>
-                        <div>
-                            <span class="xp-value">12000 XP Totali</span>
-                            <span class="xp-sub">(3000 a testa)</span>
+                            <span class="xp-value">2300 XP Totali</span>
+                            <span class="xp-sub">(575 a testa)</span>
                         </div>
                     </div>
                 </div>
