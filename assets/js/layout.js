@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     const scriptUrl = document.currentScript?.src || window.location.href;
     const siteRoot = new URL("../..", scriptUrl);
-    const sidebarUrl = new URL("../../sidebar.html", siteRoot).href;
+    const sidebarUrl = new URL("sidebar.html", siteRoot).href;
 
     fetch(sidebarUrl)
         .then(response => {
