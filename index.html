@@ -149,68 +149,102 @@
             margin-left: 1rem;
         }
 
-        /* --- CHARACTER GRID --- */
-        .character-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 2rem;
+        /* --- NPC LIST STYLE (Modificato per lista verticale) --- */
+        .npc-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
             margin-bottom: 4rem;
         }
 
-        .char-card {
+        .npc-card {
+            display: flex;
+            align-items: center;
             background-color: var(--card-bg);
             border: 1px solid var(--border-subtle);
             border-radius: 8px;
-            overflow: hidden;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .char-card:hover {
-            transform: translateY(-5px);
-            box-shadow: var(--shadow-card);
-            border-color: var(--accent-primary);
-        }
-
-        .char-img {
-            width: 100%;
-            height: 220px;
-            object-fit: cover;
-            filter: grayscale(40%); /* Desaturato per look dark */
-            transition: filter 0.3s;
-            background-color: #222;
-        }
-
-        .char-card:hover .char-img {
-            filter: grayscale(0%); /* Colore pieno all'hover */
-        }
-
-        .char-info {
             padding: 1.5rem;
+            transition: transform 0.2s ease, border-color 0.2s, background-color 0.2s;
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
         }
 
-        .char-role {
+        .npc-card:hover {
+            transform: translateX(10px); /* Slitta leggermente a destra */
+            border-color: var(--accent-primary);
+            background-color: rgba(30, 30, 36, 0.9);
+            box-shadow: var(--shadow-card);
+        }
+
+        /* Indicatore laterale all'hover */
+        .npc-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background-color: var(--accent-primary);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .npc-card:hover::before {
+            opacity: 1;
+        }
+
+        .npc-img {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%; /* Cerchio */
+            object-fit: cover;
+            border: 2px solid var(--border-subtle);
+            margin-right: 2rem;
+            flex-shrink: 0; /* Impedisce che l'immagine si schiacci */
+            filter: grayscale(60%) sepia(20%);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .npc-card:hover .npc-img {
+            filter: grayscale(0%) sepia(0%);
+            border-color: var(--gold);
+            transform: scale(1.05);
+        }
+
+        .npc-info {
+            flex: 1;
+        }
+
+        .npc-header {
+            display: flex;
+            align-items: baseline;
+            gap: 1rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .npc-name {
+            font-family: 'Cinzel', serif;
+            font-size: 1.5rem;
+            color: var(--text-main);
+            margin: 0;
+        }
+
+        .npc-role {
             font-size: 0.8rem;
             text-transform: uppercase;
             letter-spacing: 1px;
             color: var(--accent-primary);
             font-family: 'Cinzel', serif;
             font-weight: 700;
-            margin-bottom: 0.5rem;
         }
 
-        .char-name {
-            font-size: 1.4rem;
-            color: var(--text-main);
-            margin-bottom: 0.5rem;
-            font-family: 'Cinzel', serif;
-        }
-
-        .char-desc {
-            font-size: 0.95rem;
+        .npc-desc {
+            font-size: 1rem;
             color: var(--text-muted);
-            line-height: 1.5;
+            line-height: 1.4;
+            margin: 0;
         }
 
         /* --- LORE SECTION --- */
@@ -254,12 +288,25 @@
                 padding: 1rem;
             }
             .logo { margin: 0; border: none; font-size: 1.2rem; }
-            .nav-links { display: none; /* Menu mobile da implementare con JS se necessario */ }
+            .nav-links { display: none; }
             .main-content { margin-left: 0; }
             .hero { height: 250px; }
             .hero h1 { font-size: 2.5rem; }
             .lore-section { grid-template-columns: 1fr; }
             .container { padding: 2rem; }
+            
+            /* NPC Mobile */
+            .npc-card {
+                flex-direction: column;
+                text-align: center;
+                gap: 1rem;
+            }
+            .npc-img { margin-right: 0; }
+            .npc-header {
+                flex-direction: column;
+                gap: 0.5rem;
+                justify-content: center;
+            }
         }
     </style>
 </head>
@@ -287,38 +334,50 @@
 
         <div class="container">
 
-            <!-- SEZIONE PERSONAGGI -->
-            <h2>I Protagonisti</h2>
-            <div class="character-grid">
+            <!-- SEZIONE NPC (Lista Verticale) -->
+            <h2>NPCs</h2>
+            <div class="npc-list">
                 
-                <!-- CARTA 1: RABBERDUSCOLANDERSON -->
-                <a href="rabberduscolanderson.html" class="char-card">
-                    <!-- Placeholder Immagine: Sostituisci src con il link alla tua immagine vera -->
-                    <img src="https://placehold.co/600x400/1a1a1a/a82e2e?text=Rabber" alt="Rabberduscolanderson" class="char-img">
-                    <div class="char-info">
-                        <div class="char-role">Stregone / Mistero</div>
-                        <h3 class="char-name">Rabberduscolanderson</h3>
-                        <p class="char-desc">Le note segrete e le memorie di un'anima tormentata. Custode di verità che potrebbero far impazzire i deboli.</p>
+                <!-- NPC 1: RABBERDUSCOLANDERSON -->
+                <a href="rabberduscolanderson.html" class="npc-card">
+                    <!-- Placeholder Immagine Rotonda -->
+                    <img src="https://placehold.co/200x200/1a1a1a/a82e2e?text=R" alt="Rabberduscolanderson" class="npc-img">
+                    <div class="npc-info">
+                        <div class="npc-header">
+                            <h3 class="npc-name">Rabberduscolanderson</h3>
+                            <span class="npc-role">Stregone / Mistero</span>
+                        </div>
+                        <p class="npc-desc">
+                            Le note segrete e le memorie di un'anima tormentata. Custode di verità che potrebbero far impazzire i deboli. Si aggira spesso vicino alla sezione proibita della biblioteca.
+                        </p>
                     </div>
                 </a>
 
-                <!-- CARTA 2: Esempio (Modificabile) -->
-                <a href="pagina2.html" class="char-card">
-                    <img src="https://placehold.co/600x400/1a1a1a/555?text=Guerriero" alt="Guerriero" class="char-img">
-                    <div class="char-info">
-                        <div class="char-role">Paladino</div>
-                        <h3 class="char-name">Vorag il Silente</h3>
-                        <p class="char-desc">Un guerriero che ha giurato di non parlare finché il Sigillo non sarà ripristinato.</p>
+                <!-- NPC 2: VORAG -->
+                <a href="pagina2.html" class="npc-card">
+                    <img src="https://placehold.co/200x200/1a1a1a/555?text=V" alt="Vorag" class="npc-img">
+                    <div class="npc-info">
+                        <div class="npc-header">
+                            <h3 class="npc-name">Vorag il Silente</h3>
+                            <span class="npc-role">Paladino Caduto</span>
+                        </div>
+                        <p class="npc-desc">
+                            Un guerriero imponente in armatura nera. Ha giurato voto di silenzio finché il Sigillo non sarà ripristinato. Comunica solo attraverso sguardi gelidi.
+                        </p>
                     </div>
                 </a>
 
-                <!-- CARTA 3: Esempio (Modificabile) -->
-                <a href="pagina2.html" class="char-card">
-                    <img src="https://placehold.co/600x400/1a1a1a/555?text=Ladro" alt="Ladro" class="char-img">
-                    <div class="char-info">
-                        <div class="char-role">Ladro</div>
-                        <h3 class="char-name">Lysa delle Ombre</h3>
-                        <p class="char-desc">Si muove invisibile tra le rovine della Cripta di Sangue, cercando tesori dimenticati.</p>
+                <!-- NPC 3: LYSA -->
+                <a href="pagina2.html" class="npc-card">
+                    <img src="https://placehold.co/200x200/1a1a1a/555?text=L" alt="Lysa" class="npc-img">
+                    <div class="npc-info">
+                        <div class="npc-header">
+                            <h3 class="npc-name">Lysa delle Ombre</h3>
+                            <span class="npc-role">Ladro / Informatore</span>
+                        </div>
+                        <p class="npc-desc">
+                            Nessuno sa dove vive, ma lei sa tutto di tutti. Spesso la si trova a giocare con un pugnale d'argento, in attesa di vendere informazioni al miglior offerente.
+                        </p>
                     </div>
                 </a>
 
