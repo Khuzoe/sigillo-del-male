@@ -3,27 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cronache del Sigillo del Male</title>
+    <title>Cripta di Sangue</title>
     <!-- Importazione Font da Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-    <!-- Icone (opzionale, per frecce e simboli) -->
+    <!-- Icone (FontAwesome) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
     <style>
         /* --- PALETTE & VARIABILI --- */
         :root {
-            --bg-color: #0f0f13;       /* Nero profondo con tinta bluastra impercettibile */
-            --sidebar-bg: #16161a;
-            --card-bg: #1e1e24;
-            --text-main: #e0d8c3;      /* Pergamena chiaro */
-            --text-muted: #9494a0;
-            --accent-primary: #a82e2e; /* Rosso sangue spento */
-            --accent-glow: #ff4d4d;    /* Rosso acceso per hover */
-            --gold: #d4af37;           /* Oro metallico */
-            --border-subtle: #2d2d35;
-            --shadow-card: 0 10px 20px rgba(0,0,0,0.5);
+            /* MODIFICATO: Sfondo leggermente più chiaro (da #0a0a0c a #141419) */
+            --bg-dark: #141419;        
+            --bg-light: #1c1c24;       
+            --sidebar-bg: rgba(20, 20, 25, 0.9); /* Adattato al nuovo sfondo */
+            --card-bg: rgba(35, 35, 40, 0.6);
+            --card-hover: rgba(50, 50, 60, 0.8);
+            
+            --text-main: #dcd6c6;      
+            --text-muted: #9b9bab;     /* Leggermente più luminoso */
+            --accent-primary: #8a1c1c; 
+            --accent-glow: #ff3333;
+            --gold: #c5a059;
+            
+            --border-glass: rgba(255, 255, 255, 0.08);
+            --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.4);
         }
 
         /* --- BASE --- */
@@ -31,12 +36,33 @@
 
         body {
             font-family: 'Crimson Text', serif;
-            background-color: var(--bg-color);
+            background-color: var(--bg-dark);
             color: var(--text-main);
             font-size: 1.1rem;
             line-height: 1.6;
             display: flex;
             min-height: 100vh;
+            position: relative;
+        }
+
+        /* --- SFONDO ATMOSFERICO --- */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            
+            /* Texture Noise */
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E"),
+            
+            /* Luce Ambientale - Adattata al nuovo sfondo */
+            radial-gradient(circle at 50% 0%, #353545 0%, transparent 60%),       
+            radial-gradient(circle at 85% 90%, rgba(138, 28, 28, 0.12) 0%, transparent 45%), 
+            radial-gradient(circle at 0% 100%, rgba(0, 0, 0, 0.6) 0%, transparent 50%),      
+            linear-gradient(var(--bg-dark), var(--bg-dark));
+            
+            background-blend-mode: overlay, normal;
         }
 
         a { text-decoration: none; color: inherit; transition: 0.3s; }
@@ -45,47 +71,66 @@
         .sidebar {
             width: 260px;
             background-color: var(--sidebar-bg);
-            border-right: 1px solid var(--border-subtle);
+            border-right: 1px solid var(--border-glass);
+            backdrop-filter: blur(12px);
             padding: 2rem;
             display: flex;
             flex-direction: column;
             position: fixed;
             height: 100vh;
             z-index: 100;
+            box-shadow: 10px 0 30px rgba(0,0,0,0.2);
         }
 
         .logo {
-            font-family: 'Cinzel', serif;
-            font-size: 1.6rem;
-            color: var(--gold);
             text-align: center;
-            margin-bottom: 3rem;
-            text-shadow: 0 2px 10px rgba(212, 175, 55, 0.2);
-            border-bottom: 2px solid var(--accent-primary);
-            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-glass);
+            padding-bottom: 1.5rem;
+        }
+
+        .logo-img {
+            max-width: 110%;
+            height: auto;
+            max-height: 200px;     
+            display: block;
+            margin: 0 auto;
+            filter: drop-shadow(0 0 8px rgba(138, 28, 28, 0.5)); 
+            transition: transform 0.3s ease;
+        }
+
+        .logo-img:hover {
+            transform: scale(1.05);
+            filter: drop-shadow(0 0 12px rgba(138, 28, 28, 0.8));
         }
 
         .nav-links { list-style: none; }
-        .nav-links li { margin-bottom: 0.5rem; }
+        .nav-links li { margin-bottom: 0.8rem; }
 
         .nav-links a {
             display: flex;
             align-items: center;
             padding: 0.8rem 1rem;
-            border-radius: 6px;
+            border-radius: 8px;
             color: var(--text-muted);
             font-family: 'Cinzel', serif;
             font-size: 0.95rem;
             letter-spacing: 1px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
         }
 
-        .nav-links a i { margin-right: 10px; width: 20px; text-align: center; }
+        .nav-links a i { margin-right: 12px; width: 20px; text-align: center; opacity: 0.7; }
 
         .nav-links a:hover, .nav-links a.active {
-            background-color: rgba(168, 46, 46, 0.15);
-            color: var(--text-main);
-            border-left: 3px solid var(--accent-primary);
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: rgba(138, 28, 28, 0.4);
+            color: #fff;
+            text-shadow: 0 0 10px rgba(138, 28, 28, 0.5);
+            transform: translateX(5px);
         }
+        
+        .nav-links a:hover i { opacity: 1; color: var(--accent-glow); }
 
         /* --- MAIN CONTENT --- */
         .main-content {
@@ -94,327 +139,369 @@
             width: 100%;
         }
 
-        /* Hero Header */
         .hero {
-            background: linear-gradient(to bottom, rgba(15,15,19,0.3), var(--bg-color)), url('https://placehold.co/1200x600/1a1a1a/333?text=Sigillo+del+Male');
+            background: linear-gradient(to bottom, rgba(20, 20, 25, 0.3), var(--bg-dark)), url('https://placehold.co/1200x600/222/444?text=Cripta+di+Sangue');
             background-size: cover;
             background-position: center;
-            height: 350px;
+            height: 420px;
             display: flex;
             align-items: center;
             justify-content: center;
             text-align: center;
             flex-direction: column;
             padding: 2rem;
-            border-bottom: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-glass);
+            position: relative;
+            mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
         }
 
         .hero h1 {
             font-family: 'Cinzel', serif;
-            font-size: 3.5rem;
+            font-size: 4.5rem;
             color: var(--text-main);
-            text-shadow: 0 4px 15px rgba(0,0,0,0.8);
-            margin-bottom: 1rem;
+            text-shadow: 0 4px 30px rgba(0,0,0,0.8);
+            margin-bottom: 0.5rem;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            background: -webkit-linear-gradient(#fff, #999);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .hero p {
             font-style: italic;
-            color: var(--text-muted);
-            max-width: 600px;
-            font-size: 1.2rem;
-            border-top: 1px solid var(--accent-primary);
-            padding-top: 1rem;
+            color: #ccc;
+            max-width: 650px;
+            font-size: 1.3rem;
+            margin-top: 1.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            position: relative;
+        }
+        
+        .hero p::after {
+            content: '';
+            display: block;
+            width: 60px;
+            height: 2px;
+            background-color: var(--accent-primary);
+            margin: 1.5rem auto 0;
+            box-shadow: 0 0 10px var(--accent-primary);
         }
 
         .container {
-            padding: 3rem 4rem;
-            max-width: 1400px;
+            padding: 4rem;
+            max-width: 1200px;
             margin: 0 auto;
         }
 
         h2 {
             font-family: 'Cinzel', serif;
-            color: var(--gold);
-            font-size: 2rem;
-            margin-bottom: 2rem;
+            color: var(--text-main);
+            font-size: 2.2rem;
+            margin-bottom: 3rem;
             display: flex;
             align-items: center;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
         }
         
-        h2::after {
+        h2::before {
             content: '';
-            flex: 1;
-            height: 1px;
-            background: linear-gradient(to right, var(--border-subtle), transparent);
-            margin-left: 1rem;
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: var(--accent-primary);
+            transform: rotate(45deg);
+            margin-right: 15px;
+            box-shadow: 0 0 10px var(--accent-primary);
         }
 
-        /* --- NPC LIST STYLE (Modificato per lista verticale) --- */
+        /* --- NPC CARD STYLES --- */
         .npc-list {
             display: flex;
             flex-direction: column;
-            gap: 1.5rem;
-            margin-bottom: 4rem;
+            gap: 2rem;
+            margin-bottom: 6rem;
         }
 
         .npc-card {
             display: flex;
             align-items: center;
             background-color: var(--card-bg);
-            border: 1px solid var(--border-subtle);
-            border-radius: 8px;
-            padding: 1.5rem;
-            transition: transform 0.2s ease, border-color 0.2s, background-color 0.2s;
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
             text-decoration: none;
             position: relative;
-            overflow: hidden;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
         .npc-card:hover {
-            transform: translateX(10px); /* Slitta leggermente a destra */
-            border-color: var(--accent-primary);
-            background-color: rgba(30, 30, 36, 0.9);
-            box-shadow: var(--shadow-card);
+            transform: translateY(-5px) scale(1.02);
+            border-color: rgba(138, 28, 28, 0.3);
+            background-color: var(--card-hover);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            z-index: 10;
         }
 
-        /* Indicatore laterale all'hover */
-        .npc-card::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 4px;
-            background-color: var(--accent-primary);
-            opacity: 0;
-            transition: opacity 0.2s;
+        /* --- AVATAR FIX (MASCHERA CIRCOLARE) --- */
+        .npc-avatar-container {
+            position: relative;
+            width: 130px;
+            height: 130px;
+            margin-right: 2.5rem;
+            flex-shrink: 0;
+            
+            /* MODIFICA: Rimosso overflow: hidden per permettere l'effetto Pop-out */
+            /* La cornice e lo sfondo rimangono rotondi grazie a border-radius, ma l'immagine può uscire */
+            border-radius: 50%;
+            /* overflow: hidden;  <-- RIMOSSO */
+            
+            /* Spostato lo stile del bordo/sfondo qui per coerenza con la maschera */
+            background: radial-gradient(circle at 30% 30%, #444, #111);
+            border: 2px solid rgba(255,255,255,0.05);
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.5);
+            transition: all 0.4s ease;
+            z-index: 1; /* Definisce il contesto di impilamento */
         }
 
-        .npc-card:hover::before {
-            opacity: 1;
-        }
-
-        .npc-img {
-            width: 90px;
-            height: 90px;
-            border-radius: 50%; /* Cerchio */
-            object-fit: cover;
-            border: 2px solid var(--border-subtle);
-            margin-right: 2rem;
-            flex-shrink: 0; /* Impedisce che l'immagine si schiacci */
-            filter: grayscale(60%) sepia(20%);
-            transition: all 0.3s ease;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-        }
-
-        .npc-card:hover .npc-img {
-            filter: grayscale(0%) sepia(0%);
+        /* Cornice luminosa che appare al passaggio del mouse */
+        .npc-card:hover .npc-avatar-container {
             border-color: var(--gold);
-            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(197, 160, 89, 0.2), inset 0 0 10px rgba(0,0,0,0.5);
         }
 
-        .npc-info {
-            flex: 1;
+        .npc-img-pop {
+            position: absolute;
+            top: 50%; left: 50%;
+            /* Centrato perfettamente */
+            transform: translate(-50%, -50%);
+            width: 100%; /* Parte grande come il contenitore */
+            height: auto;
+            z-index: 5; /* L'immagine sta sopra lo sfondo del contenitore */
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            filter: grayscale(40%) contrast(110%);
+            pointer-events: none; /* Evita che l'immagine blocchi il mouse */
         }
+
+        .npc-card:hover .npc-img-pop {
+            /* MODIFICA: Scala e porta in primo piano assoluto */
+            transform: translate(-50%, -50%) scale(1.15); 
+            filter: grayscale(0%) contrast(110%);
+            z-index: 10; /* Assicura che l'immagine "esca" sopra ogni cosa (bordo compreso) */
+        }
+
+        .npc-info { flex: 1; z-index: 2; }
 
         .npc-header {
             display: flex;
-            align-items: baseline;
+            align-items: center;
             gap: 1rem;
-            margin-bottom: 0.3rem;
+            margin-bottom: 0.8rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
         }
 
         .npc-name {
             font-family: 'Cinzel', serif;
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             color: var(--text-main);
             margin: 0;
+            font-weight: 700;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
         }
 
         .npc-role {
             font-size: 0.8rem;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
             color: var(--accent-primary);
             font-family: 'Cinzel', serif;
             font-weight: 700;
+            background: rgba(138, 28, 28, 0.1);
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid rgba(138, 28, 28, 0.2);
         }
 
         .npc-desc {
-            font-size: 1rem;
+            font-size: 1.1rem;
             color: var(--text-muted);
-            line-height: 1.4;
+            line-height: 1.6;
             margin: 0;
+            font-weight: 300;
         }
-
-        /* --- LORE SECTION --- */
-        .lore-section {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 3rem;
-            align-items: center;
+        
+        .arrow-icon {
+            color: rgba(255,255,255,0.1);
+            font-size: 1.2rem;
+            transition: 0.3s;
+            margin-left: 2rem;
         }
-
-        .lore-text p { margin-bottom: 1rem; }
-
-        .btn {
-            display: inline-block;
-            margin-top: 1rem;
-            padding: 0.8rem 1.5rem;
-            background: transparent;
-            border: 1px solid var(--gold);
+        
+        .npc-card:hover .arrow-icon {
             color: var(--gold);
-            font-family: 'Cinzel', serif;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            border-radius: 4px;
-        }
-
-        .btn:hover {
-            background: rgba(212, 175, 55, 0.1);
-            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+            transform: translateX(10px) scale(1.2);
+            text-shadow: 0 0 10px var(--gold);
         }
 
         /* --- RESPONSIVE --- */
         @media (max-width: 900px) {
             body { flex-direction: column; }
             .sidebar { 
-                width: 100%; 
-                height: auto; 
-                position: relative; 
-                flex-direction: row; 
-                justify-content: space-between;
-                align-items: center;
-                padding: 1rem;
+                width: 100%; height: auto; position: relative; 
+                flex-direction: row; justify-content: space-between; align-items: center; 
+                padding: 1rem 1.5rem; 
+                background-color: var(--bg-dark);
             }
-            .logo { margin: 0; border: none; font-size: 1.2rem; }
+            .logo { margin: 0; border: none; font-size: 1.4rem; padding: 0; }
             .nav-links { display: none; }
             .main-content { margin-left: 0; }
-            .hero { height: 250px; }
-            .hero h1 { font-size: 2.5rem; }
-            .lore-section { grid-template-columns: 1fr; }
-            .container { padding: 2rem; }
+            .hero { height: 300px; }
+            .hero h1 { font-size: 2.8rem; letter-spacing: 2px; }
+            .container { padding: 1.5rem; }
             
-            /* NPC Mobile */
             .npc-card {
                 flex-direction: column;
                 text-align: center;
-                gap: 1rem;
+                gap: 1.5rem;
+                padding: 2.5rem 1.5rem;
             }
-            .npc-img { margin-right: 0; }
-            .npc-header {
-                flex-direction: column;
-                gap: 0.5rem;
-                justify-content: center;
-            }
+            .npc-avatar-container { margin-right: 0; width: 140px; height: 140px; }
+            .npc-header { flex-direction: column; gap: 0.5rem; justify-content: center; border: none; }
+            .arrow-icon { display: none; }
         }
     </style>
 </head>
 <body>
 
-    <!-- NAVIGAZIONE -->
+    <!-- NAVIGAZIONE LATERALE -->
     <nav class="sidebar">
-        <div class="logo">Sigillo del Male</div>
+        <div class="logo">
+            <a href="index.html">
+                <img src="Cripta-di-Sangue/logo.png" alt="Sigillo del Male" class="logo-img" onerror="this.style.display='none'; this.parentNode.innerHTML='<h2 style=\'color:#8a1c1c; font-family:Cinzel\'>Sigillo del Male</h2>'">
+            </a>
+        </div>
+
         <ul class="nav-links">
-            <li><a href="index.html" class="active"><i class="fas fa-dungeon"></i> Home</a></li>
-            <li><a href="pagina1.html"><i class="fas fa-globe-europe"></i> Mondo</a></li>
-            <li><a href="pagina2.html"><i class="fas fa-users"></i> Bestiario</a></li>
-            <li><a href="Cripta-di-Sangue/index.html"><i class="fas fa-skull"></i> Cripta</a></li>
+            <li><a href="index.html" class="active"><i class="fas fa-skull"></i> Cripta</a></li>
+            <li><a href="pages/giocatori.html"><i class="fas fa-dice-d20"></i> Giocatori</a></li>
+            <li><a href="pages/famiglie.html"><i class="fas fa-crown"></i> Famiglie</a></li>
+            <li><a href="pages/sessioni.html"><i class="fas fa-scroll"></i> Sessioni</a></li>
+            <li><a href="pages/bestiario.html"><i class="fas fa-book-dead"></i> Bestiario</a></li>
         </ul>
+        
+        <div style="margin-top: auto; padding-top: 2rem; font-size: 0.8rem; color: #555; text-align: center;">
+            Wiki Campagna<br>v1.8 (Abyssal Lighter)
+        </div>
     </nav>
 
-    <!-- CONTENUTO -->
+    <!-- CONTENUTO PRINCIPALE -->
     <main class="main-content">
         
-        <!-- Intestazione Scenica -->
         <header class="hero">
-            <h1>Le Cronache</h1>
-            <p>"Ciò che è stato sigillato non deve essere dimenticato, pena il ritorno dell'eterna notte."</p>
+            <h1>Cripta di Sangue</h1>
+            <p>"Coloro che varcano la soglia lasciano ogni speranza, tranne quella della vendetta."</p>
         </header>
 
         <div class="container">
 
-            <!-- SEZIONE NPC (Lista Verticale) -->
-            <h2>NPCs</h2>
+            <h2>Anime e Presenze</h2>
+            
             <div class="npc-list">
-
-                <!-- NPC 1: RABBERDUSCOLANDERSON -->
+                
+                <!-- 1. RABBERDUSCOLANDERSON -->
                 <a href="rabberduscolanderson.html" class="npc-card">
-                    <img src="assets/img/npc/rabberduscolanderson.svg" alt="Rabberduscolanderson" class="npc-img">
+                    <div class="npc-avatar-container">
+                        <img src="Cripta-di-Sangue/creatures/transp/rabberduscolanderson_transp.png" alt="Rabber" class="npc-img-pop">
+                    </div>
                     <div class="npc-info">
                         <div class="npc-header">
                             <h3 class="npc-name">Rabberduscolanderson</h3>
-                            <span class="npc-role">Stregone / Custode del Sigillo</span>
+                            <span class="npc-role">L'Osservatore</span>
                         </div>
                         <p class="npc-desc">
-                            Le note segrete e le memorie di un'anima tormentata. Custode di verità che potrebbero far impazzire i deboli. Si aggira spesso vicino alla sezione proibita della biblioteca.
+                            Custode di antichi segreti e memorie frammentate. Si aggira nell'ombra, sussurrando verità che nessuno vuole sentire.
                         </p>
                     </div>
+                    <i class="fas fa-chevron-right arrow-icon"></i>
                 </a>
 
-                <!-- NPC 2: CONTESSA SANGUIGNA -->
-                <a href="pagina1.html" class="npc-card">
-                    <img src="assets/img/npc/contessa-sanguigna.svg" alt="Contessa Sanguigna" class="npc-img">
+                <!-- 2. KARLA -->
+                <a href="karla.html" class="npc-card">
+                    <div class="npc-avatar-container">
+                        <img src="Cripta-di-Sangue/creatures/transp/karla_transp.png" alt="Karla" class="npc-img-pop" onerror="this.src='https://placehold.co/200x200/222/555?text=K'">
+                    </div>
                     <div class="npc-info">
                         <div class="npc-header">
-                            <h3 class="npc-name">Contessa Sanguigna</h3>
-                            <span class="npc-role">Nobile Vampira</span>
+                            <h3 class="npc-name">Karla</h3>
+                            <span class="npc-role">?? Ruolo da Definire ??</span>
                         </div>
                         <p class="npc-desc">
-                            Sovrana decaduta della Cittadella Cremisi. Offre protezione in cambio di libagioni di sangue scelto e informazioni sulle congiure di corte.
+                            Una presenza che non passa inosservata.
                         </p>
                     </div>
+                    <i class="fas fa-chevron-right arrow-icon"></i>
                 </a>
 
-                <!-- NPC 3: GIULLARE MALEDETTO -->
-                <a href="pagina2.html" class="npc-card">
-                    <img src="assets/img/npc/giullare-maledetto.svg" alt="Giullare Maledetto" class="npc-img">
+                <!-- 3. X -->
+                <a href="x.html" class="npc-card">
+                    <div class="npc-avatar-container">
+                        <img src="Cripta-di-Sangue/creatures/transp/x_transp.png" alt="X" class="npc-img-pop" onerror="this.src='https://placehold.co/200x200/222/555?text=X'">
+                    </div>
                     <div class="npc-info">
                         <div class="npc-header">
-                            <h3 class="npc-name">Giullare Maledetto</h3>
-                            <span class="npc-role">Araldo del Caos</span>
+                            <h3 class="npc-name">X</h3>
+                            <span class="npc-role">L'Incognito</span>
                         </div>
                         <p class="npc-desc">
-                            Ride solo quando la morte è vicina. Usa maschere animate per replicare le voci degli avversari e destabilizzare le guardie cittadine.
+                            Poco si sa di questa figura enigmatica. Le sue intenzioni rimangono avvolte nel mistero.
                         </p>
                     </div>
+                    <i class="fas fa-chevron-right arrow-icon"></i>
                 </a>
 
-                <!-- NPC 4: STREGA DELLE OSSA -->
-                <a href="pagina1.html" class="npc-card">
-                    <img src="assets/img/npc/strega-delle-ossa.svg" alt="Strega delle Ossa" class="npc-img">
+                <!-- 4. ZARA -->
+                <a href="zara.html" class="npc-card">
+                    <div class="npc-avatar-container">
+                        <img src="Cripta-di-Sangue/creatures/transp/zara_transp.png" alt="Zara" class="npc-img-pop" onerror="this.src='https://placehold.co/200x200/222/555?text=Z'">
+                    </div>
                     <div class="npc-info">
                         <div class="npc-header">
-                            <h3 class="npc-name">Strega delle Ossa</h3>
-                            <span class="npc-role">Necromante Errante</span>
+                            <h3 class="npc-name">Zara</h3>
+                            <span class="npc-role">?? Ruolo da Definire ??</span>
                         </div>
                         <p class="npc-desc">
-                            Cammina tra i campi di battaglia portando con sé reliquie calcificate. Conosce percorsi segreti tra le tombe e può aprire varchi verso la Cripta di Sangue.
+                            Dettagli su Zara...
                         </p>
                     </div>
+                    <i class="fas fa-chevron-right arrow-icon"></i>
+                </a>
+
+                <!-- 5. GINEVRA -->
+                <a href="ginevra.html" class="npc-card">
+                    <div class="npc-avatar-container">
+                        <img src="Cripta-di-Sangue/creatures/transp/ginevra_transp.png" alt="Ginevra" class="npc-img-pop" onerror="this.src='https://placehold.co/200x200/222/555?text=G'">
+                    </div>
+                    <div class="npc-info">
+                        <div class="npc-header">
+                            <h3 class="npc-name">Ginevra</h3>
+                            <span class="npc-role">?? Ruolo da Definire ??</span>
+                        </div>
+                        <p class="npc-desc">
+                            Dettagli su Ginevra...
+                        </p>
+                    </div>
+                    <i class="fas fa-chevron-right arrow-icon"></i>
                 </a>
 
             </div>
-
-            <!-- SEZIONE LORE / MONDO -->
-            <h2>Lo Stato del Mondo</h2>
-            <div class="lore-section">
-                <div class="lore-text">
-                    <p>
-                        Il mondo è in rovina. Dopo la rottura del <strong>Terzo Sigillo</strong>, le terre emerse sono state invase da una nebbia perenne che nasconde creature da incubo. 
-                        Le città stato sopravvissute si sono chiuse dietro alte mura, governate dalla paura e dalla superstizione.
-                    </p>
-                    <p>
-                        La <strong>Cripta di Sangue</strong> è l'unico luogo noto dove si dice risieda ancora una scintilla di potere antico, capace di respingere l'oscurità o di condannarci per sempre.
-                    </p>
-                    <a href="pagina1.html" class="btn">Esplora la mappa</a>
-                </div>
-                <!-- Box decorativo o altra immagine -->
-                <div style="background: #1a1a1a; padding: 2rem; border: 1px solid #333; text-align: center;">
-                    <h3 style="font-family: 'Cinzel'; color: var(--accent-primary); margin-bottom: 1rem;">Sessione Corrente</h3>
-                    <p style="font-size: 0.9rem; color: #888;">Data Astrale: 452.E4</p>
-                    <p style="margin: 1rem 0;">Il gruppo si trova alle porte della Necropoli, cercando l'ingresso segreto menzionato da Rabberduscolanderson.</p>
-                </div>
+            
+            <div style="text-align: center; margin-top: 4rem; opacity: 0.4;">
+                <i class="fas fa-dungeon" style="font-size: 2rem; margin-bottom: 1rem; color: var(--gold);"></i>
+                <p>La lista delle anime si allunga...</p>
             </div>
 
         </div>
