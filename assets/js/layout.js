@@ -2,8 +2,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const pathSegments = window.location.pathname.split("/").filter(Boolean);
     const currentPage = pathSegments[pathSegments.length - 1] || "index.html";
 
-    const scriptUrl = document.currentScript?.src;
-    const siteRoot = scriptUrl ? new URL("../..", scriptUrl) : new URL("/", window.location.origin);
+    const scriptUrl = document.currentScript?.src || window.location.href;
+    const siteRoot = new URL("../..", scriptUrl);
     const sidebarUrl = new URL("sidebar.html", siteRoot).href;
 
     fetch(sidebarUrl)
