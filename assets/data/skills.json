@@ -22,6 +22,7 @@
         "title": "Risonanza Tonante",
         "flavor": "L'eco dei tuoi schiaffi tonanti si propaga nel tuo corpo.",
         "desc": "<p>Ogni volta che spendi le tue cariche tonanti, puoi attivare uno dei seguenti effetti a tua scelta:</p><ul><li>Ottieni punti vita temporanei pari a 1d4 × cariche spese (eventualmente cumulativi);</li><li>Ottieni classe armatura pari a 1d4 × cariche spese, fino alla fine del tuo prossimo turno;</li><li>Ottieni un bonus ai tiri salvezza pari a 1d4 × cariche spese, fino alla fine del tuo prossimo turno;</li><li>Ottieni un bonus ai danni del tuo Schiaffo Tonante pari a 1d4 × cariche spese, fino alla fine del tuo prossimo turno.</li></ul>",
+        "state":"unlockable",
         "connections": [3, 4]
       },
       {
@@ -139,6 +140,7 @@
         "title": "Crescita Rigogliosa",
         "flavor": "Il tuo corpo terreno consente una crescita più rigogliosa.",
         "desc": "Le tue Foglie di Apothecura sono più succose. Le tue Pozioni di Apothecura curano di 2d4+2 punti vita aggiuntivi.",
+        "state":"unlockable",
         "connections": [4]
       },
       {
@@ -149,6 +151,7 @@
         "title": "Crescita Rapida",
         "flavor": "Il tuo corpo terreno consente una crescita più veloce.",
         "desc": "Le piante che crescono sul tuo corpo impiegano la metà del tempo per essere pronte all'utilizzo.",
+        "state":"unlockable",
         "connections": [4]
       },
       {
