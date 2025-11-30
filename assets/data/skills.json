@@ -25,8 +25,8 @@
         "desc": "<p>Puoi coltivare delle piante direttamente sul tuo petto. Per piantare un seme nel tuo corpo, puoi consumare uno slot incantesimo. Dopo 24 ore, tra le tue piume nasceranno delle Foglie di Apothecura utilizzabili per creare una Pozione di Apothecura. Se ingerita, rigenera 3d4+3 punti vita.</p><p>Puoi cogliere e consumare le tue Foglie di Apothecura durante un riposo breve per ottenere la pozione. Una volta colte, le foglie rimangono utlizzabili per 8 ore, prima di scadere. Puoi avere al massimo una porzione di foglie sul tuo corpo.</p><p>Quando raggiungi 0 punti vita, se hai piantato le Foglie di Apothecura sul tuo corpo da almeno 1 ora, puoi ottenere immediatamente gli effetti forniti dalla tua Pozione di Apothecura, consumando le foglie.</p>",
         "unlocked": true, "keyNode": true, "connections": [2, 3]
       },
-      { "id": 2, "x": 60, "y": 27, "icon": "skill_apothecary_crescita_rigogliosa.png", "title": "Crescita Rigogliosa", "flavor": "Il tuo corpo terreno consente una crescita più rigogliosa.", "desc": "Le tue Foglie di Apothecura sono più succose. Le tue Pozioni di Apothecura curano di 2d4+2 punti vita aggiuntivi.", "unlocked": true, "connections": [4] },
-      { "id": 3, "x": 45, "y": 27, "icon": "skill_apothecary_crescita_rapida.png", "title": "Crescita Rapida", "flavor": "Il tuo corpo terreno consente una crescita più veloce.", "desc": "Le piante che crescono sul tuo corpo impiegano la metà del tempo per essere pronte all'utilizzo.", "unlocked": true, "connections": [4] },
+      { "id": 2, "x": 60, "y": 27, "icon": "skill_apothecary_crescita_rigogliosa.png", "title": "Crescita Rigogliosa", "flavor": "Il tuo corpo terreno consente una crescita più rigogliosa.", "desc": "Le tue Foglie di Apothecura sono più succose. Le tue Pozioni di Apothecura curano di 2d4+2 punti vita aggiuntivi.", "unlocked": false, "connections": [4] },
+      { "id": 3, "x": 45, "y": 27, "icon": "skill_apothecary_crescita_rapida.png", "title": "Crescita Rapida", "flavor": "Il tuo corpo terreno consente una crescita più veloce.", "desc": "Le piante che crescono sul tuo corpo impiegano la metà del tempo per essere pronte all'utilizzo.", "unlocked": false, "connections": [4] },
       { "id": 4, "x": 45, "y": 39, "icon": "skill_apothecary_apotherapia.png", "title": "Apotherapia", "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.", "desc": "Ora puoi coltivare anche Foglie di Apotherapia per creare una Pozione di Apotherapia. Se ingerita, rimuove gli effetti negativi che affliggono il paziente, con un effetto pari all'incantesimo Lesser Restoration.", "unlocked": false, "connections": [5, 6] },
       { "id": 5, "x": 45, "y": 51, "icon": "skill_apothecary_crescita_rigogliosa.png", "title": "Crescita Rigogliosa", "flavor": "Il tuo corpo terreno consente una crescita più rigogliosa.", "desc": "Le tue Foglie di Apothecura sono più succose. Le tue Pozioni di Apothecura curano di 2d4+2 punti vita aggiuntivi.", "unlocked": false, "connections": [7] },
       { "id": 6, "x": 30, "y": 51, "icon": "skill_apothecary_crescita_rapida.png", "title": "Crescita Rapida", "flavor": "Il tuo corpo terreno consente una crescita più veloce.", "desc": "Le piante che crescono sul tuo corpo impiegano la metà del tempo per essere pronte all'utilizzo.", "unlocked": false, "connections": [7] },
@@ -40,15 +40,154 @@
   "garun": {
     "bgImage": "tree_garun.png",
     "nodes": [
-      { "id": 1, "x": 50, "y": 88, "icon": "https://placehold.co/100/d35400/fff?text=W", "title": "Spirito Lupo", "flavor": "La bestia si sveglia.", "desc": "Rage +1 danno.", "unlocked": true, "keyNode": true, "connections": [2] },
-      { "id": 2, "x": 50, "y": 72, "icon": "https://placehold.co/100/333/fff?text=Up", "title": "Istinto", "flavor": "Sensi affinati.", "desc": "Vantaggio Percezione.", "unlocked": true, "connections": [3, 4, 5] },
-      { "id": 3, "x": 30, "y": 55, "icon": "https://placehold.co/100/333/fff?text=L", "title": "Zanna", "flavor": "Morso letale.", "desc": "Critico a 19.", "unlocked": false, "connections": [5] },
-      { "id": 4, "x": 70, "y": 55, "icon": "https://placehold.co/100/333/fff?text=R", "title": "Artiglio", "flavor": "Presa ferrea.", "desc": "Grapple Bonus.", "unlocked": false, "connections": [5] },
-      { "id": 5, "x": 50, "y": 40, "icon": "https://placehold.co/100/333/fff?text=C", "title": "Alpha", "flavor": "Il capobranco.", "desc": "Aura di paura.", "unlocked": false, "connections": [6] },
-      { "id": 6, "x": 50, "y": 25, "icon": "https://placehold.co/100/333/fff?text=N", "title": "Howl", "flavor": "Urlo di guerra.", "desc": "Temp HP agli alleati.", "unlocked": false, "connections": [7, 8, 9] },
-      { "id": 7, "x": 30, "y": 12, "icon": "https://placehold.co/100/333/fff?text=T1", "title": "Furia", "flavor": "Attacco extra.", "desc": "", "unlocked": false, "connections": [] },
-      { "id": 8, "x": 50, "y": 12, "icon": "https://placehold.co/100/d4af37/000?text=T2", "title": "Lupo Ancestrale", "flavor": "Forma spirituale.", "desc": "", "unlocked": false, "keyNode": true, "connections": [] },
-      { "id": 9, "x": 70, "y": 12, "icon": "https://placehold.co/100/333/fff?text=T3", "title": "Immortale", "flavor": "Riduci danni.", "desc": "", "unlocked": false, "connections": [] }
+      {
+        "id": 1,
+        "x": 50,
+        "y": 72,
+        "icon": "skill_garun_impulso_premonitore.png",
+        "title": "Impulso Premonitore",
+        "flavor": "Alcuni battiti del tuo cuore mandano impulsi al tuo cervello.",
+        "desc": "<p>Alcuni battiti del tuo cuore mandano impulsi al tuo cervello, permettendoti di vedere in anticipo eventi dell'immediato futuro.</p><p>Puoi aggiungere il tuo modificatore Saggezza alla CA.</p><p>Una volta al giorno, la prima volta che raggiungi 0 punti vita mentre sei in ira, rimani invece con 1 punto vita. Poi, per un numero di round completi pari al tuo modificatore di Saggezza, oltre che nel resto del round in cui l'effetto si attiva, eviti automaticamente tutti gli attacchi di cui sei il bersaglio e superi ogni tiro salvezza su Destrezza. Questo effetto finisce se la tua ira termina.</p>",
+        "state": "unlocked",
+        "unlocked": true,
+        "keyNode": true,
+        "connections": [2, 3]
+      },
+      {
+        "id": 2,
+        "x": 35,
+        "y": 72,
+        "icon": "skill_garun_premonizione_ripetuta.png",
+        "title": "Premonizione Ripetuta",
+        "flavor": "Ogni volta che vieni colpito, la frequenza degli impulsi aumenta.",
+        "desc": "<p>Ogni volta che vieni colpito, la frequenza degli impulsi del tuo cuore aumenta.</p><p>Ogni volta che vieni colpito da un attacco di una creatura nemica, ottieni un bonus di +1 alla CA, fino ad un massimo pari al tuo modificatore di Saggezza.</p><p>Il bonus termina all'inizio del tuo prossimo turno.</p>",
+        "state": "unlocked",
+        "unlocked": true,
+        "connections": [4]
+      },
+      {
+        "id": 3,
+        "x": 65,
+        "y": 72,
+        "icon": "skill_garun_premonizione_istantanea.png",
+        "title": "Premonizione Istantanea",
+        "flavor": "Il tuo cuore rilascia istintivamente un impulso immediato.",
+        "desc": "<p>Il tuo cuore rilascia istintivamente un impulso immediato nei momenti di pericolo improvvisi.</p><p>Ogni volta che sei soggetto ad un tiro salvezza di qualsiasi tipo, puoi aggiungere il tuo modificatore di Saggezza a quel tiro salvezza.</p><p>Nel caso di tiri salvezza su Saggezza, aggiungi il modificatore due volte.</p>",
+        "state": "unlockable",
+        "unlocked": false,
+        "connections": [4]
+      },
+      {
+        "id": 4,
+        "x": 50,
+        "y": 50,
+        "icon": "skill_garun_impulso_antico.png",
+        "title": "Impulso Antico",
+        "flavor": "Nei momenti in cui provi dolore, gli impulsi del tuo cuore diventano gelidi.",
+        "desc": "<p>Nei momenti in cui provi dolore, gli impulsi del tuo cuore diventano gelidi.</p><p>Dopo aver subito danni, puoi usare la tua reazione per ottenere 1d10 + il tuo modificatore di Saggezza punti vita temporanei.</p><p>All'inizio del tuo turno puoi decidere di convertire tutti i tuoi punti vita temporanei in punti vita. Non puoi superare i tuoi punti vita massimi; l'eventuale eccedenza va persa.</p>",
+        "state": "locked",
+        "unlocked": false,
+        "connections": [5]
+      },
+      {
+        "id": 5,
+        "x": 50,
+        "y": 30,
+        "icon": "skill_garun_impulso_primordiale.png",
+        "title": "Impulso Primordiale",
+        "flavor": "Gli impulsi gelidi del tuo cuore risvegliano un potere antico.",
+        "desc": "<p>Gli impulsi gelidi del tuo cuore risvegliano un potere antico che ti lega alla tua terra natale.</p><p>Come azione bonus, ti trasformi nella Forma Primordiale: la tua taglia diventa Grande, ottieni immunità ai danni da Gelo e 50 punti vita temporanei.</p><p>Mantieni questa forma per 1 minuto o finché i tuoi punti vita temporanei non scendono a 0.</p><p>Puoi entrare in questa forma una volta per riposo breve.</p>",
+        "unlocked": false,
+        "connections": [6, 7, 8, 9]
+      },
+      {
+        "id": 6,
+        "x": 35,
+        "y": 20,
+        "icon": "skill_garun_impulso_d_ira.png",
+        "title": "Impulso d'Ira",
+        "flavor": "Gli impulsi del tuo cuore e della tua mente si allineano perfettamente.",
+        "desc": "<p>Gli impulsi del tuo cuore e della tua mente si allineano perfettamente.</p><p>Puoi entrare nella tua Forma Primordiale con la stessa azione bonus con cui entri in ira, consumando un utilizzo di entrambe le abilità.</p>",
+        "unlocked": false,
+        "connections": [10]
+      },
+      {
+        "id": 7,
+        "x": 35,
+        "y": 40,
+        "icon": "skill_garun_istinto_improvviso.png",
+        "title": "Istinto Improvviso",
+        "flavor": "Qualcosa dentro ti suggerisce di andare contro le regole.",
+        "desc": "<p>Qualcosa dentro ti suggerisce di andare contro le classiche regole di combattimento.</p><p>Mentre sei nella tua Forma Primordiale e non stai impugnando armi, ottieni i seguenti benefici:</p><ul><li>Puoi usare il tuo scudo come arma da mischia (1d8 danni contundenti).</li><li>Mentre attacchi con uno scudo, puoi aggiungere 2 volte il tuo modificatore di Forza ai danni.</li><li>Puoi brandire due scudi ottenendo i benefici di entrambi.</li></ul>",
+        "unlocked": false,
+        "connections": [10]
+      },
+      {
+        "id": 8,
+        "x": 65,
+        "y": 20,
+        "icon": "skill_garun_saggezza_risvegliata.png",
+        "title": "Saggezza Risvegliata",
+        "flavor": "Il tuo istinto precognitivo guida ogni tuo movimento.",
+        "desc": "<p>Il tuo istinto precognitivo guida ogni tuo movimento in battaglia.</p><p>Mentre sei nella tua Forma Primordiale e non indossi un'armatura, se vieni colpito da un attacco puoi usare la tua reazione per guadagnare CA pari al tuo modificatore di Saggezza fino alla fine del turno della creatura che ti ha attaccato. Attivare questo effetto può far mancare l'attacco che lo ha attivato.</p><p>Puoi usare questa abilità un numero massimo di volte pari al tuo modificatore di Saggezza ogni riposo lungo.</p>",
+        "unlocked": false,
+        "connections": [12]
+      },
+      {
+        "id": 9,
+        "x": 65,
+        "y": 40,
+        "icon": "skill_garun_resistenza_risvegliata.png",
+        "title": "Resistenza Risvegliata",
+        "flavor": "La tua carne si indurisce come ghiaccio antico.",
+        "desc": "<p>La tua carne si indurisce come ghiaccio antico.</p><p>Mentre sei nella tua Forma Primordiale, quando subisci danni, li riduci di un ammontare pari al tuo modificatore di Saggezza, dopo aver applicato resistenze e vulnerabilità.</p>",
+        "unlocked": false,
+        "connections": [12]
+      },
+      {
+        "id": 10,
+        "x": 30,
+        "y": 30,
+        "icon": "skill_garun_impulso_demoniaco.png",
+        "title": "Impulso Demoniaco",
+        "flavor": "L'impulso del tuo cuore si fa ardente e famelico.",
+        "desc": "<p>L'impulso del tuo cuore si fa ardente e famelico. Senti che la tua forma primordiale inizia a prendere il sopravvento.</p><p>Quando entri nella tua Forma Primordiale, ottieni 100 punti vita temporanei al posto di 50.</p><p>Inoltre, ti curi immediatamente di un ammontare di punti vita pari a 10 × il tuo modificatore di Forza.</p>",
+        "unlocked": false,
+        "connections": [11]
+      },
+      {
+        "id": 11,
+        "x": 20,
+        "y": 30,
+        "icon": "skill_garun_demone_primordiale.png",
+        "title": "Demone Primordiale",
+        "flavor": "Gli impulsi tra il tuo cuore e cervello vanno a ritmo dell'Abisso.",
+        "desc": "<p>Gli impulsi tra il tuo cuore e cervello vanno a ritmo dell'Abisso.</p><p>Ottieni +4 Forza, fino a un massimo di 30.</p><p>Quando entri nella tua Forma Primordiale, diventi un Demone Primordiale: il tuo tipo cambia in Demone, la tua taglia diventa Enorme e ottieni vulnerabilità ai danni Radiosi.</p><p>Finché resti in questa forma, ogni volta che colpisci una creatura ostile con un attacco, ti curi di punti vita pari al modificatore di Forza aggiunto ai danni di quell'attacco.</p>",
+        "unlocked": false,
+        "connections": []
+      },
+      {
+        "id": 12,
+        "x": 70,
+        "y": 30,
+        "icon": "skill_garun_impulso_di_nonmorte.png",
+        "title": "Impulso di Non-morte",
+        "flavor": "Il tuo cuore smette quasi di battere.",
+        "desc": "<p>Il tuo cuore smette quasi di battere, ma continua a pulsare potere freddo.</p><p>Quando entri nella tua Forma Primordiale, ottieni 150 punti vita temporanei al posto di 50.</p>",
+        "unlocked": false,
+        "connections": [13]
+      },
+      {
+        "id": 13,
+        "x": 80,
+        "y": 30,
+        "icon": "skill_garun_nonmorto_primordiale.png",
+        "title": "Non Morto Primordiale",
+        "flavor": "I tuoi impulsi sono pochi ma precisi.",
+        "desc": "<p>I tuoi impulsi sono pochi ma precisi. Respiri in modo estremamente lento, ma calcolato.</p><p>Ottieni +4 Saggezza, fino a un massimo di 30.</p><p>Quando entri nella tua Forma Primordiale, diventi un Non Morto Primordiale: il tuo tipo cambia in Non Morto, la tua taglia diventa Enorme e ottieni vulnerabilità ai danni Radiosi.</p><p>Se non indossi un'armatura, mentre sei in questa forma puoi aggiungere due volte il tuo modificatore di Saggezza alla tua CA base. Puoi comunque usare uno scudo normalmente.</p><p>All'inizio di ciascuno dei tuoi turni, ottieni 10 punti vita temporanei, fino a un massimo di 150.</p>",
+        "unlocked": false,
+        "connections": []
+      }
     ]
   },
   "randra": {
