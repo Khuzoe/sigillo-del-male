@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Missioni | Cripta di Sangue</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="../assets/css/abyssal.css">
+
+    <style>
+        /* STILI SPECIFICI PER LE MISSIONI */
+        
+        /* OVERRIDE: Larghezza aumentata per questa pagina */
+        .container {
+            max-width: 1600px; /* Era 1200px */
+        }
+
+        /* Categorie (Principale / Secondarie) */
+        .quest-category-title {
+            font-family: var(--font-heading);
+            color: var(--gold);
+            font-size: 2rem; /* Aumentato */
+            margin-top: 3rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+            padding-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* Card della Missione */
+        .quest-card {
+            background: rgba(36, 36, 36, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-left: 5px solid #555; /* Bordo più spesso */
+            border-radius: 8px;
+            margin-bottom: 2rem; /* Spaziatura maggiore */
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        /* Stati della Missione (Bordo sinistro colorato) */
+        .quest-card.active { border-left-color: var(--gold); }
+        .quest-card.completed { border-left-color: #2ecc71; opacity: 0.9; } /* Meno opaco per leggibilità */
+        .quest-card.failed { border-left-color: #e74c3c; opacity: 0.7; }
+
+        /* Header della Card (Sempre visibile) */
+        .quest-header {
+            padding: 2rem; /* Padding aumentato */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .quest-header:hover {
+            background: rgba(212, 175, 55, 0.05);
+        }
+
+        .quest-title-group h3 {
+            font-family: var(--font-heading);
+            font-size: 1.8rem; /* Aumentato molto */
+            margin: 0 0 0.5rem 0;
+            color: var(--text-main);
+            letter-spacing: 0.5px;
+        }
+
+        .quest-type {
+            font-family: var(--font-ui);
+            font-size: 0.9rem; /* Aumentato */
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 2px;
+            font-weight: 600;
+        }
+
+        /* Badge di Stato */
+        .quest-status {
+            font-family: var(--font-ui);
+            font-size: 0.85rem; /* Aumentato */
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 6px 12px;
+            border-radius: 4px;
+            margin-left: 1.5rem;
+            white-space: nowrap;
+            letter-spacing: 1px;
+        }
+
+        .status-active { background: rgba(212, 175, 55, 0.2); color: var(--gold); border: 1px solid var(--gold); }
+        .status-completed { background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71; }
+        .status-failed { background: rgba(231, 76, 60, 0.2); color: #e74c3c; border: 1px solid #e74c3c; }
+
+        /* Barra di Progressione Mini */
+        .mini-progress {
+            width: 150px; /* Più larga */
+            height: 8px; /* Più alta */
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            margin-left: auto;
+            margin-right: 2rem;
+            overflow: hidden;
+            display: none; 
+        }
+
+        @media(min-width: 992px) {
+            .mini-progress { display: block; }
+        }
+
+        .mini-bar {
+            height: 100%;
+            background: var(--gold);
+            width: 0%;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.5);
+        }
+
+        /* Icona espansione */
+        .expand-icon {
+            color: var(--text-muted);
+            transition: transform 0.3s ease;
+            font-size: 1.5rem; /* Icona più grande */
+            margin-left: 2rem; /* Margine aumentato per distanziare dal tag */
+        }
+
+        .quest-card.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+
+        /* Corpo della Missione */
+        .quest-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .quest-card.expanded .quest-body {
+            max-height: 1500px; 
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .quest-content {
+            padding: 2rem; /* Più spazio interno */
+        }
+
+        .quest-desc {
+            font-family: var(--font-body);
+            font-style: italic;
+            color: #ddd; /* Colore più chiaro per contrasto */
+            margin-bottom: 2rem;
+            font-size: 1.2rem; /* Font decisamente più grande */
+            line-height: 1.6;
+            border-left: 4px solid rgba(255,255,255,0.15);
+            padding-left: 1.5rem;
+        }
+
+        /* Lista Obiettivi (Checkbox) */
+        .objective-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .objective-item {
+            display: flex;
+            align-items: flex-start; /* Allinea in alto se il testo va a capo */
+            margin-bottom: 1rem;
+            padding: 0.8rem;
+            border-radius: 6px;
+            transition: background 0.2s;
+            background: rgba(0,0,0,0.2); /* Leggero sfondo per ogni item */
+        }
+
+        .objective-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+
+        /* Custom Checkbox Styling */
+        .custom-checkbox {
+            width: 26px; /* Più grande */
+            height: 26px; /* Più grande */
+            border: 2px solid #888;
+            border-radius: 4px;
+            margin-right: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            cursor: default; 
+            transition: all 0.3s;
+            margin-top: 2px; /* Allineamento ottico col testo */
+        }
+
+        /* Stato Completato dell'obiettivo */
+        .objective-item.done .custom-checkbox {
+            border-color: var(--gold);
+            background: rgba(212, 175, 55, 0.2);
+        }
+
+        .objective-item.done .custom-checkbox::after {
+            content: '\f00c'; 
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            font-size: 16px; /* Spunta più grande */
+            color: var(--gold);
+        }
+
+        .objective-item.done .objective-text {
+            color: #888;
+            text-decoration: line-through;
+            opacity: 0.8;
+        }
+
+        .objective-text {
+            font-family: var(--font-ui);
+            font-size: 1.1rem; /* Font aumentato per leggibilità */
+            color: var(--text-main);
+            line-height: 1.5;
+        }
+
+        /* Reward Section */
+        .quest-rewards {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px dashed rgba(255,255,255,0.15);
+            font-size: 1.1rem; /* Aumentato */
+            color: var(--gold);
+            font-family: var(--font-ui);
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            font-weight: 500;
+        }
+
+        .quest-rewards i {
+            font-size: 1.3rem;
+        }
+
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar" id="sidebar-container"></nav>
+
+    <main class="main-content">
+        
+        <header class="hero-mini">
+            <div class="hero-title">
+                <h1>Registro delle Imprese</h1>
+                <div class="subtitle">Obiettivi e Patti</div>
+            </div>
+        </header>
+
+        <div class="container">
+
+            <!-- SEZIONE PRINCIPALE -->
+            <div class="quest-category-title">
+                <i class="fas fa-crown"></i> Trama Principale
+            </div>
+
+            <!-- Quest 1: I Segreti dei Von T -->
+            <div class="quest-card active expanded">
+                <div class="quest-header" onclick="toggleQuest(this)">
+                    <div class="quest-title-group">
+                        <h3>L'Eredità dei Von T</h3>
+                        <span class="quest-type">Capitolo 1: La Cripta</span>
+                    </div>
+                    <div class="mini-progress"><div class="mini-bar" style="width: 60%;"></div></div>
+                    <span class="quest-status status-active">In Corso</span>
+                    <i class="fas fa-chevron-down expand-icon"></i>
+                </div>
+                <div class="quest-body">
+                    <div class="quest-content">
+                        <p class="quest-desc">
+                            Avete scoperto che la famiglia Von T è al centro dei misteri di questo luogo. X vi ha chiesto di raccogliere informazioni sulla stirpe e sulla "bambina dai capelli bianchi".
+                        </p>
+                        <ul class="objective-list">
+                            <li class="objective-item done">
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Esplorare il Primo Livello della Cripta.</span>
+                            </li>
+                            <li class="objective-item done">
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Trovare informazioni su Rabberduscolanderson.</span>
+                            </li>
+                            <li class="objective-item done">
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Sconfiggere "Gianni" il giardiniere.</span>
+                            </li>
+                            <li class="objective-item done">
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Accedere al Secondo Livello (Simbolo Klaren).</span>
+                            </li>
+                            <li class="objective-item">
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Scoprire la posizione di Deborah (la ragazza dai capelli bianchi).</span>
+                            </li>
+                            <li class="objective-item">
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Affrontare l'Uomo Ragno a Nord (In corso).</span>
+                            </li>
+                        </ul>
+                        <div class="quest-rewards">
+                            <i class="fas fa-gem"></i> Ricompense: Verità sul passato, Accesso ai piani inferiori.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEZIONE SECONDARIE -->
+            <div class="quest-category-title">
+                <i class="fas fa-scroll"></i> Incarichi Secondari
+            </div>
+
+            <!-- Quest 2: Il Giardino di Albert -->
+            <div class="quest-card completed">
+                <div class="quest-header" onclick="toggleQuest(this)">
+                    <div class="quest-title-group">
+                        <h3>Il Giardino di Albert</h3>
+                        <span class="quest-type">Caccia</span>
+                    </div>
+                    <div class="mini-progress"><div class="mini-bar" style="width: 100%;"></div></div>
+                    <span class="quest-status status-completed">Completata</span>
+                    <i class="fas fa-chevron-down expand-icon"></i>
+                </div>
+                <div class="quest-body">
+                    <div class="quest-content">
+                        <p class="quest-desc">
+                            Rabberduscolanderson vi ha parlato di piante mostruose cresciute in una zona della cripta.
+                        </p>
+                        <ul class="objective-list">
+                            <li class="objective-item done">
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Localizzare il giardino infestato.</span>
+                            </li>
+                            <li class="objective-item done">
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Estirpare le piante mostruose.</span>
+                            </li>
+                        </ul>
+                        <div class="quest-rewards">
+                            <i class="fas fa-check"></i> Ricompensa: Fiducia di Rabber, Accesso sicuro all'area.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quest 3: Cuore per Franky -->
+            <div class="quest-card failed">
+                <div class="quest-header" onclick="toggleQuest(this)">
+                    <div class="quest-title-group">
+                        <h3>Un Cuore per Franky</h3>
+                        <span class="quest-type">Scambio</span>
+                    </div>
+                    <div class="mini-progress"><div class="mini-bar" style="width: 50%;"></div></div>
+                    <span class="quest-status status-failed">Rifiutata</span>
+                    <i class="fas fa-chevron-down expand-icon"></i>
+                </div>
+                <div class="quest-body">
+                    <div class="quest-content">
+                        <p class="quest-desc">
+                            Il topo parlante Franky voleva il Cuore Arcano di Gianni per il suo golem di carne. Avete deciso di non aiutarlo.
+                        </p>
+                        <ul class="objective-list">
+                            <li class="objective-item done">
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Incontrare Franky nel laboratorio.</span>
+                            </li>
+                            <li class="objective-item done">
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Ottenere il Cuore da Gianni.</span>
+                            </li>
+                            <li class="objective-item"> <!-- Non Done -->
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Consegnare il Cuore a Franky.</span>
+                            </li>
+                        </ul>
+                        <div class="quest-rewards" style="color: #e74c3c;">
+                            <i class="fas fa-times"></i> Esito: Il Cuore è stato consegnato a X. Franky è rimasto a mani vuote (e derubato).
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+             <!-- Quest 4: Maledizione -->
+             <div class="quest-card completed">
+                <div class="quest-header" onclick="toggleQuest(this)">
+                    <div class="quest-title-group">
+                        <h3>La Maledizione di Ga'Run</h3>
+                        <span class="quest-type">Personale</span>
+                    </div>
+                    <div class="mini-progress"><div class="mini-bar" style="width: 100%;"></div></div>
+                    <span class="quest-status status-completed">Completata</span>
+                    <i class="fas fa-chevron-down expand-icon"></i>
+                </div>
+                <div class="quest-body">
+                    <div class="quest-content">
+                        <p class="quest-desc">
+                            Ga'Run è stato colpito da una terribile maledizione mummificante aprendo un sarcofago.
+                        </p>
+                        <ul class="objective-list">
+                            <li class="objective-item done">
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Sopravvivere allo scontro con le mummie.</span>
+                            </li>
+                            <li class="objective-item done">
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Rifiutare la soluzione letale di X.</span>
+                            </li>
+                            <li class="objective-item done">
+                                <div class="custom-checkbox"></div>
+                                <span class="objective-text">Rimuovere la maledizione tramite magia divina (Apothecary).</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="../assets/js/layout.js"></script>
+
+    <script>
+        // Script per l'apertura/chiusura a fisarmonica (Accordion)
+        function toggleQuest(header) {
+            const card = header.parentElement;
+            card.classList.toggle('expanded');
+        }
+
+        // Calcolo automatico delle barre di progresso all'avvio
+        document.addEventListener("DOMContentLoaded", function() {
+            const cards = document.querySelectorAll('.quest-card');
+            
+            cards.forEach(card => {
+                const objectives = card.querySelectorAll('.objective-item');
+                const completed = card.querySelectorAll('.objective-item.done');
+                const progressBar = card.querySelector('.mini-bar');
+                
+                if(objectives.length > 0 && progressBar) {
+                    const percent = (completed.length / objectives.length) * 100;
+                    progressBar.style.width = percent + '%';
+                    
+                    // Opzionale: Se è al 100% ma non ha la classe completed, potremmo aggiungerla dinamicamente
+                    // ma preferisco lasciarlo manuale per gestire casi come "Fallita" ma con step fatti.
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>
