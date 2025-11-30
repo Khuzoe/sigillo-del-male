@@ -11,6 +11,7 @@
         "flavor": "Il potere del tuono si concentra nel palmo della tua mano.",
         "desc": "<p>Ottieni 3 cariche tonanti e recuperi le tue cariche tonanti quando completi un riposo lungo. Inoltre, recuperi 1 carica tonante ogni volta che infliggi danni ad una creatura ostile con il tuo Schiaffo Tonante. Se fai un critico, ne recuperi 2.</p><p>Quando vieni colpito da un attacco, puoi usare la tua reazione per spendere 1 carica tonante ed attaccare la creatura attaccante con il tuo Schiaffo Tonante, se si trova nel tuo reach.</p><p>Quando raggiungi 0 punti vita, puoi spendere 1 carica tonante per rimanere con 1 punto vita.</p>",
         "keyNode": true,
+        "state":"unlocked",
         "connections": [2]
       },
       {
@@ -127,6 +128,7 @@
         "flavor": "Il tuo corpo terreno inizia a diventare fertile.",
         "desc": "<p>Puoi coltivare delle piante direttamente sul tuo petto. Per piantare un seme nel tuo corpo, puoi consumare uno slot incantesimo. Dopo 24 ore, tra le tue piume nasceranno delle Foglie di Apothecura utilizzabili per creare una Pozione di Apothecura. Se ingerita, rigenera 3d4+3 punti vita.</p><p>Puoi cogliere e consumare le tue Foglie di Apothecura durante un riposo breve per ottenere la pozione. Una volta colte, le foglie rimangono utlizzabili per 8 ore, prima di scadere. Puoi avere al massimo una porzione di foglie sul tuo corpo.</p><p>Quando raggiungi 0 punti vita, se hai piantato le Foglie di Apothecura sul tuo corpo da almeno 1 ora, puoi ottenere immediatamente gli effetti forniti dalla tua Pozione di Apothecura, consumando le foglie.</p>",
         "keyNode": true,
+        "state":"unlocked",
         "connections": [2, 3]
       },
       {
