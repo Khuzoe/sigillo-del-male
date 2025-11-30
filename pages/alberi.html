@@ -277,10 +277,10 @@
         <div class="container">
             
             <div class="skill-nav">
-                <div class="skill-tab active" onclick="switchCharacter('valdor')">Valdor</div>
                 <div class="skill-tab" onclick="switchCharacter('apothecary')">Apothecary</div>
                 <div class="skill-tab" onclick="switchCharacter('garun')">Ga'Run</div>
                 <div class="skill-tab" onclick="switchCharacter('randra')">Ran'Dra</div>
+                <div class="skill-tab active" onclick="switchCharacter('valdor')">Valdor</div>
             </div>
 
             <div class="skill-layout">
@@ -330,7 +330,7 @@
                 skillsData = await response.json();
                 
                 // Carica il primo personaggio di default una volta ottenuti i dati
-                switchCharacter('valdor');
+                switchCharacter('apothecary');
                 resetInfoPanel();
 
             } catch (error) {
