@@ -19,6 +19,154 @@
             scroll-behavior: smooth;
         }
 
+        /* NEXT SESSION CARD - NUOVO STILE */
+        .next-session-card {
+            background: linear-gradient(135deg, rgba(138, 28, 28, 0.2), rgba(0, 0, 0, 0.8));
+            border: 2px solid var(--gold);
+            border-radius: 8px;
+            padding: 2.5rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Icona di sfondo decorativa */
+        .next-session-card::before {
+            content: '\f6ec'; /* Icona dadi */
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            position: absolute;
+            top: -30px;
+            right: -20px;
+            font-size: 12rem;
+            color: rgba(255, 255, 255, 0.03);
+            transform: rotate(20deg);
+            pointer-events: none;
+        }
+
+        .next-label {
+            font-family: var(--font-ui);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--accent-primary);
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .next-title {
+            font-family: var(--font-heading);
+            font-size: 3rem;
+            color: var(--gold);
+            margin-bottom: 2rem;
+            text-shadow: 0 4px 10px #000;
+            line-height: 1;
+        }
+
+        .next-details {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 2;
+            margin-bottom: 2rem;
+        }
+
+        .detail-item {
+            background: rgba(0,0,0,0.6);
+            padding: 1rem 2rem;
+            border-radius: 4px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            min-width: 160px;
+            backdrop-filter: blur(5px);
+        }
+
+        .detail-label {
+            display: block;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            font-family: var(--font-ui);
+            letter-spacing: 1px;
+        }
+
+        .detail-value {
+            font-family: var(--font-heading);
+            font-size: 1.4rem;
+            color: #fff;
+        }
+
+        /* COUNTDOWN TIMER */
+        .countdown-container {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            position: relative;
+            z-index: 2;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .countdown-box {
+            text-align: center;
+            background: rgba(0,0,0,0.4);
+            padding: 0.8rem;
+            border-radius: 6px;
+            min-width: 80px;
+            border: 1px solid rgba(212, 175, 55, 0.1);
+        }
+
+        .count-number {
+            display: block;
+            font-family: var(--font-heading);
+            font-size: 2rem;
+            color: var(--gold);
+            line-height: 1;
+            margin-bottom: 0.2rem;
+        }
+
+        .count-label {
+            font-family: var(--font-ui);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 1px;
+        }
+
+        .session-live {
+            color: #ff4444;
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            animation: pulse 2s infinite;
+            margin-top: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; text-shadow: 0 0 10px red; }
+            50% { opacity: 0.7; text-shadow: 0 0 20px red; }
+            100% { opacity: 1; text-shadow: 0 0 10px red; }
+        }
+
+        .tbd-message {
+            font-family: var(--font-body);
+            font-style: italic;
+            color: #aaa;
+            font-size: 1.3rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding: 1rem 0;
+            display: inline-block;
+            min-width: 300px;
+        }
+
         /* STILI PER IL MENU DI NAVIGAZIONE SESSIONI */
         .session-nav {
             display: grid;
@@ -81,22 +229,21 @@
             position: absolute;
             top: 0;
             bottom: 0;
-            left: 30px; /* Posizione fissa a sinistra */
+            left: 30px;
             width: 3px;
             background: linear-gradient(to bottom, transparent, var(--gold-dim), var(--gold), var(--gold-dim), transparent);
         }
 
         .session-card {
             position: relative;
-            margin-left: 80px; /* Lascia spazio per la linea */
+            margin-left: 80px;
             margin-bottom: 3rem;
-            width: auto; /* Occupa tutto lo spazio disponibile */
+            width: auto;
             background: rgba(36, 36, 36, 0.6);
             border: 1px solid rgba(212, 175, 55, 0.1);
             border-radius: 8px;
             padding: 2rem;
             transition: all 0.3s ease;
-            
             scroll-margin-top: 2rem; 
         }
 
@@ -110,7 +257,7 @@
         /* Pallino sulla timeline */
         .timeline-marker {
             position: absolute;
-            left: -61px; /* Posizionato sopra la linea */
+            left: -61px;
             top: 25px;
             width: 24px;
             height: 24px;
@@ -155,7 +302,7 @@
         }
 
         .session-body {
-            font-size: 1.05rem; /* Testo leggermente più grande per leggibilità */
+            font-size: 1.05rem;
             color: var(--text-main);
             margin-bottom: 2rem;
             line-height: 1.7;
@@ -224,6 +371,22 @@
                 align-items: flex-start;
                 gap: 0.5rem;
             }
+            .next-session-card {
+                padding: 1.5rem;
+            }
+            .next-title {
+                font-size: 2rem;
+            }
+            .countdown-container {
+                gap: 0.5rem;
+            }
+            .countdown-box {
+                min-width: 60px;
+                padding: 0.5rem;
+            }
+            .count-number {
+                font-size: 1.5rem;
+            }
         }
     </style>
 </head>
@@ -239,12 +402,15 @@
         <header class="hero-mini">
             <div class="hero-title">
                 <h1>Diario delle Sessioni</h1>
-                <div class="subtitle">Cronache del Destino</div>
+                <div class="subtitle">La Cripta di Sangue</div>
             </div>
         </header>
 
         <div class="container">
             
+            <!-- BOX PROSSIMA SESSIONE (Dinamico) -->
+            <div id="next-session-container"></div>
+
             <!-- MENU DI NAVIGAZIONE RAPIDA -->
             <div class="session-nav">
                 <h3 class="session-nav-title">Indice Rapido</h3>
@@ -614,7 +780,7 @@
                         <p>Incontrate X Von T, la quale chiede a Ga'Run di procurarle libri interessanti in cambio di informazioni.</p>
                     </div>
                     <div class="xp-footer">
-                        <i class="fas fa-star" style="color: var(--gold); font-size: 1.2rem;"></i>
+                        <i class="fas fa-star" style="color: var(--gold);"></i>
                         <div>
                             <span class="xp-value">2300 XP Totali</span>
                             <span class="xp-sub">(575 a testa)</span>
@@ -628,6 +794,122 @@
     </main>
 
     <script src="../assets/js/layout.js"></script>
+
+    <!-- Script per gestire la Prossima Sessione -->
+    <script>
+        const nextSessionConfig = {
+            number: 14,
+            date: "3 Dicembre 2025",
+            timeStart: "20:30",
+            timeEnd: "23:30",
+            isScheduled: true // Cambia in false se la data è TBD
+        };
+
+        const container = document.getElementById('next-session-container');
+
+        // Mappa mesi italiani -> inglesi
+        const monthMap = {
+            "Gennaio": "January", "Febbraio": "February", "Marzo": "March",
+            "Aprile": "April", "Maggio": "May", "Giugno": "June",
+            "Luglio": "July", "Agosto": "August", "Settembre": "September",
+            "Ottobre": "October", "Novembre": "November", "Dicembre": "December"
+        };
+
+        function startCountdown(targetDate) {
+            const countdownEl = document.getElementById('countdown');
+            if(!countdownEl) return;
+
+            function update() {
+                const now = new Date().getTime();
+                const distance = targetDate - now;
+
+                if (distance < 0) {
+                    // Sessione iniziata o passata (entro 4 ore consideriamola LIVE)
+                    if (distance > -14400000) { 
+                        countdownEl.innerHTML = '<div class="session-live">SESSIONE IN CORSO!</div>';
+                    } else {
+                        countdownEl.innerHTML = '<div class="session-live" style="color:#aaa">SESSIONE CONCLUSA</div>';
+                    }
+                    return;
+                }
+
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                document.getElementById('d').innerText = days < 10 ? '0'+days : days;
+                document.getElementById('h').innerText = hours < 10 ? '0'+hours : hours;
+                document.getElementById('m').innerText = minutes < 10 ? '0'+minutes : minutes;
+                document.getElementById('s').innerText = seconds < 10 ? '0'+seconds : seconds;
+            }
+
+            update();
+            setInterval(update, 1000);
+        }
+
+        if (nextSessionConfig.isScheduled) {
+            // Parsifica la data italiana
+            let dateStr = nextSessionConfig.date;
+            for (let [it, en] of Object.entries(monthMap)) {
+                dateStr = dateStr.replace(it, en);
+            }
+            // Aggiungi orario inizio
+            const targetDate = new Date(`${dateStr} ${nextSessionConfig.timeStart}:00`).getTime();
+
+            container.innerHTML = `
+                <div class="next-session-card">
+                    <span class="next-label">Prossima Sessione</span>
+                    <h2 class="next-title">Sessione ${nextSessionConfig.number}</h2>
+                    <div class="next-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Data</span>
+                            <span class="detail-value"><i class="far fa-calendar-alt" style="margin-right: 8px; color: var(--gold);"></i> ${nextSessionConfig.date}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Orario</span>
+                            <span class="detail-value"><i class="far fa-clock" style="margin-right: 8px; color: var(--gold);"></i> ${nextSessionConfig.timeStart} - ${nextSessionConfig.timeEnd}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- COUNTDOWN -->
+                    <div class="countdown-container" id="countdown">
+                        <div class="countdown-box">
+                            <span class="count-number" id="d">00</span>
+                            <span class="count-label">Giorni</span>
+                        </div>
+                        <div class="countdown-box">
+                            <span class="count-number" id="h">00</span>
+                            <span class="count-label">Ore</span>
+                        </div>
+                        <div class="countdown-box">
+                            <span class="count-number" id="m">00</span>
+                            <span class="count-label">Minuti</span>
+                        </div>
+                        <div class="countdown-box">
+                            <span class="count-number" id="s">00</span>
+                            <span class="count-label">Secondi</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Avvia il timer
+            startCountdown(targetDate);
+
+        } else {
+            container.innerHTML = `
+                <div class="next-session-card" style="border-color: #555;">
+                    <span class="next-label">Prossima Sessione</span>
+                    <h2 class="next-title" style="color: #aaa;">Sessione ${nextSessionConfig.number}</h2>
+                    <div class="tbd-message">
+                        <i class="fas fa-hourglass-half" style="margin-right: 10px;"></i>
+                        Data da destinarsi
+                    </div>
+                </div>
+            `;
+        }
+    </script>
 
 </body>
 </html>
