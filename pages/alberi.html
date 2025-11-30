@@ -98,21 +98,21 @@
 
         .connection-line {
             stroke: #444;
-            stroke-width: 3;
+            stroke-width: 4; /* Linee più spesse */
             transition: stroke 0.3s ease;
         }
 
         .connection-line.active {
             stroke: #e0e0e0;
             filter: drop-shadow(0 0 4px #d4af37);
-            stroke-width: 4;
+            stroke-width: 5;
         }
 
         /* Nodi */
         .skill-node {
             position: absolute;
-            width: 55px;
-            height: 55px;
+            width: 65px;
+            height: 65px;
             transform: translate(-50%, -50%);
             border-radius: 50%;
             border: 3px solid #333;
@@ -136,8 +136,8 @@
         }
 
         .skill-node.key-node {
-            width: 70px;
-            height: 70px;
+            width: 85px;
+            height: 85px;
             border-width: 4px;
             border-color: #d4af37;
             box-shadow: 0 0 25px rgba(212, 175, 55, 0.6);
@@ -145,7 +145,7 @@
         }
 
         .skill-node:hover, .skill-node.selected {
-            transform: translate(-50%, -50%) scale(1.2);
+            transform: translate(-50%, -50%) scale(1.15);
             z-index: 10;
             border-color: #fff;
             box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
@@ -272,8 +272,8 @@
         }
 
         @media (max-width: 768px) {
-            .skill-node { width: 40px; height: 40px; }
-            .skill-node.key-node { width: 50px; height: 50px; }
+            .skill-node { width: 50px; height: 50px; }
+            .skill-node.key-node { width: 65px; height: 65px; }
             .skill-tab { padding: 0.5rem 1rem; flex-grow: 1; }
         }
     </style>
@@ -293,10 +293,10 @@
         <div class="container">
             
             <div class="skill-nav">
-                <div class="skill-tab active" onclick="switchCharacter('valdor')">Valdor</div>
                 <div class="skill-tab" onclick="switchCharacter('apothecary')">Apothecary</div>
                 <div class="skill-tab" onclick="switchCharacter('garun')">Ga'Run</div>
                 <div class="skill-tab" onclick="switchCharacter('randra')">Ran'Dra</div>
+                <div class="skill-tab active" onclick="switchCharacter('valdor')">Valdor</div>
             </div>
 
             <div class="skill-layout">
@@ -326,12 +326,12 @@
     </main>
 
     <script src="../assets/js/layout.js"></script>
-
+    
     <script>
         // CONFIGURAZIONE BASE PER I PERCORSI
         const BASE_PATH = '../assets/img/cripta-di-sangue/skill_trees/';
 
-        // CONFIGURAZIONE DATI ALBERI
+        // DATI INTEGRATI NELLO SCRIPT (FIX PER ERRORE CARICAMENTO)
         const characters = {
             'valdor': {
                 bgImage: `${BASE_PATH}tree_valdor.png`, 
@@ -523,7 +523,6 @@
                 el.style.backgroundImage = `url('${node.icon}')`;
 
                 el.addEventListener('mouseenter', () => updateInfoPanel(node));
-                // Opzionale: Click per mantenere selezionato (per ora lasciamo solo hover)
                 
                 container.appendChild(el);
             });
@@ -539,7 +538,6 @@
             svgLines.appendChild(line);
         }
 
-        // Funzione che aggiorna il pannello laterale (Grimorio)
         function updateInfoPanel(node) {
             infoPanel.innerHTML = `
                 <div class="info-header">
@@ -551,7 +549,6 @@
             `;
         }
 
-        // Resetta il pannello allo stato vuoto
         function resetInfoPanel() {
             infoPanel.innerHTML = `
                 <div class="empty-state">
