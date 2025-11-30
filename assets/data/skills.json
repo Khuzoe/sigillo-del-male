@@ -111,7 +111,6 @@
         "title": "Schiaffone Finale",
         "flavor": "Il colpo conclusivo che fa tremare cielo e terra.",
         "desc": "<p>Se hai almeno 1 carica tonante, puoi spendere tutte le tue cariche tonanti rimaste per sferrare uno Schiaffone Finale, massimizzando i danni dello Schiaffone Tonante (prima del tiro per colpire). Dopo aver sferrato questo attacco, la Mano Tonante svanisce in un tuono assordante. Ogni creatura entro 15 piedi dalla Mano Tonante deve superare un tiro salvezza Costituzione o subire danni pari a tutti i danni inflitti dalla Mano Tonante in questo turno. Superare dimezza.</p>",
-        "keyNode": true,
         "connections": []
       }
     ]
