@@ -1,0 +1,70 @@
+{
+  "valdor": {
+    "bgImage": "tree_valdor.png",
+    "nodes": [
+      { "id": 1, "x": 50, "y": 90, "icon": "https://placehold.co/100/8a1c1c/fff?text=1", "title": "Origine", "flavor": "La prima fiamma.", "desc": "Punto di partenza.", "unlocked": true, "keyNode": true, "connections": [2] },
+      { "id": 2, "x": 50, "y": 76, "icon": "https://placehold.co/100/333/fff?text=2", "title": "Risveglio", "flavor": "Il calore aumenta.", "desc": "Sblocca rami laterali.", "unlocked": true, "connections": [3, 4] },
+      { "id": 3, "x": 25, "y": 62, "icon": "https://placehold.co/100/333/fff?text=3", "title": "Fiamma Rapida", "flavor": "Veloce come il pensiero.", "desc": "+2 Iniziativa.", "unlocked": false, "connections": [5] },
+      { "id": 4, "x": 75, "y": 62, "icon": "https://placehold.co/100/333/fff?text=4", "title": "Cuore Pulsante", "flavor": "Resilienza del fuoco.", "desc": "+10 HP Massimi.", "unlocked": false, "connections": [5] },
+      { "id": 5, "x": 50, "y": 62, "icon": "https://placehold.co/100/333/fff?text=5", "title": "Potenza Pura", "flavor": "Distruzione.", "desc": "+1 danni incantesimi fuoco.", "unlocked": false, "connections": [6, 7] },
+      { "id": 6, "x": 25, "y": 44, "icon": "https://placehold.co/100/333/fff?text=6", "title": "Passo di Cenere", "flavor": "Inafferrabile.", "desc": "Azione bonus per disimpegnarsi.", "unlocked": false, "connections": [8] },
+      { "id": 7, "x": 75, "y": 44, "icon": "https://placehold.co/100/333/fff?text=7", "title": "Lingua di Fuoco", "flavor": "Parole che bruciano.", "desc": "Vantaggio su Intimidire.", "unlocked": false, "connections": [8] },
+      { "id": 8, "x": 50, "y": 28, "icon": "https://placehold.co/100/333/fff?text=8", "title": "Inferno", "flavor": "Tutto brucia.", "desc": "Incantesimo Palla di Fuoco migliorato.", "unlocked": false, "connections": [9, 10] },
+      { "id": 9, "x": 35, "y": 28, "icon": "https://placehold.co/100/333/fff?text=9", "title": "Fenice", "flavor": "Rinascita.", "desc": "Una volta al giorno, torni a 1 HP se vai a 0.", "unlocked": false, "connections": [11] },
+      { "id": 10, "x": 65, "y": 28, "icon": "https://placehold.co/100/333/fff?text=10", "title": "Incenerire", "flavor": "Non resta nulla.", "desc": "I nemici uccisi diventano cenere.", "unlocked": false, "connections": [11] },
+      { "id": 11, "x": 50, "y": 12, "icon": "https://placehold.co/100/d4af37/000?text=11", "title": "AVATAR", "flavor": "Divinità Incarnata.", "desc": "Immunità Fuoco, Volo 18m, Danni raddoppiati per 1 min.", "unlocked": false, "keyNode": true, "connections": [] }
+    ]
+  },
+  "apothecary": {
+    "bgImage": "tree_apothecary.png",
+    "nodes": [
+      {
+        "id": 1, "x": 60, "y": 15, "icon": "skill_apothecary_corpo_terreno.png",
+        "title": "Corpo Terreno",
+        "flavor": "Il tuo corpo terreno inizia a diventare fertile.",
+        "desc": "<p>Puoi coltivare delle piante direttamente sul tuo petto. Per piantare un seme nel tuo corpo, puoi consumare uno slot incantesimo. Dopo 24 ore, tra le tue piume nasceranno delle Foglie di Apothecura utilizzabili per creare una Pozione di Apothecura. Se ingerita, rigenera 3d4+3 punti vita.</p><p>Puoi cogliere e consumare le tue Foglie di Apothecura durante un riposo breve per ottenere la pozione. Una volta colte, le foglie rimangono utlizzabili per 8 ore, prima di scadere. Puoi avere al massimo una porzione di foglie sul tuo corpo.</p><p>Quando raggiungi 0 punti vita, se hai piantato le Foglie di Apothecura sul tuo corpo da almeno 1 ora, puoi ottenere immediatamente gli effetti forniti dalla tua Pozione di Apothecura, consumando le foglie.</p>",
+        "unlocked": true, "keyNode": true, "connections": [2, 3]
+      },
+      { "id": 2, "x": 60, "y": 27, "icon": "skill_apothecary_crescita_rigogliosa.png", "title": "Crescita Rigogliosa", "flavor": "Il tuo corpo terreno consente una crescita più rigogliosa.", "desc": "Le tue Foglie di Apothecura sono più succose. Le tue Pozioni di Apothecura curano di 2d4+2 punti vita aggiuntivi.", "unlocked": true, "connections": [4] },
+      { "id": 3, "x": 45, "y": 27, "icon": "skill_apothecary_crescita_rapida.png", "title": "Crescita Rapida", "flavor": "Il tuo corpo terreno consente una crescita più veloce.", "desc": "Le piante che crescono sul tuo corpo impiegano la metà del tempo per essere pronte all'utilizzo.", "unlocked": true, "connections": [4] },
+      { "id": 4, "x": 45, "y": 39, "icon": "skill_apothecary_apotherapia.png", "title": "Apotherapia", "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.", "desc": "Ora puoi coltivare anche Foglie di Apotherapia per creare una Pozione di Apotherapia. Se ingerita, rimuove gli effetti negativi che affliggono il paziente, con un effetto pari all'incantesimo Lesser Restoration.", "unlocked": false, "connections": [5, 6] },
+      { "id": 5, "x": 45, "y": 51, "icon": "skill_apothecary_crescita_rigogliosa.png", "title": "Crescita Rigogliosa", "flavor": "Il tuo corpo terreno consente una crescita più rigogliosa.", "desc": "Le tue Foglie di Apothecura sono più succose. Le tue Pozioni di Apothecura curano di 2d4+2 punti vita aggiuntivi.", "unlocked": false, "connections": [7] },
+      { "id": 6, "x": 30, "y": 51, "icon": "skill_apothecary_crescita_rapida.png", "title": "Crescita Rapida", "flavor": "Il tuo corpo terreno consente una crescita più veloce.", "desc": "Le piante che crescono sul tuo corpo impiegano la metà del tempo per essere pronte all'utilizzo.", "unlocked": false, "connections": [7] },
+      { "id": 7, "x": 30, "y": 63, "icon": "skill_apothecary_giardino_variegato.png", "title": "Giardino Variegato", "flavor": "Il tuo corpo terreno ora riesce ad ospitare più foglie contemporaneamente.", "desc": "Se usi uno slot incantesimo di 2° livello o superiore, puoi coltivare contemporaneamente 2 porzioni di piante (uguali o diverse, a tua scelta).", "unlocked": false, "connections": [8] },
+      { "id": 8, "x": 60, "y": 63, "icon": "skill_apothecary_apothempo.png", "title": "Apothempo", "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.", "desc": "Ora puoi coltivare anche Foglie di Apothempo per creare una Pozione di Apothempo. Se ingerita, consente di eseguire un'azione extra nel prossimo turno.", "unlocked": false, "connections": [9] },
+      { "id": 9, "x": 75, "y": 51, "icon": "skill_apothecary_apothenza.png", "title": "Apothenza", "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.", "desc": "Ora puoi coltivare anche Foglie di Apothenza per creare una Pozione di Apothenza. Se ingerita, consente di infliggere 3d10 danni aggiuntivi con il prossimo attacco, entro 1 minuto.", "unlocked": false, "connections": [10, 11] },
+      { "id": 10, "x": 60, "y": 39, "icon": "skill_apothecary_apothecaos.png", "title": "Apothecaos", "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.", "desc": "<p>Se usi uno slot incantesimo di 3° livello o superiore, puoi coltivare contemporaneamente 3 piante (uguali o diverse, a tua scelta).</p><p>Ora puoi coltivare anche Foglie di Apothecaos per creare una Pozione di Apothecaos. Se ingerita, tira 1d8 per stabilire il suo effetto:</p><ul><li><strong>1:</strong> 10d10 danni necrotici (TS Cost).</li><li><strong>2:</strong> Avvelenato 1 ora (TS Cost).</li><li><strong>3:</strong> Confusione (TS Sag).</li><li><strong>4:</strong> Ottiene un punto ispirazione.</li><li><strong>5:</strong> Effetti di Greater Restoration.</li><li><strong>6:</strong> Resistenza danni fisici (1 ora).</li><li><strong>7:</strong> Effetti di Apothecura, Apotherapia, Apothempo e Apothenza.</li><li><strong>8:</strong> Recupera 10d10+20 HP.</li></ul>", "unlocked": false, "connections": [] },
+      { "id": 11, "x": 75, "y": 39, "icon": "skill_apothecary_apotheosi.png", "title": "Apotheosi", "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.", "desc": "<p>Se usi uno slot incantesimo di 3° livello o superiore, puoi coltivare contemporaneamente 3 piante (uguali o diverse, a tua scelta).</p><p>Ora puoi coltivare anche Foglie di Apotheosi per creare una Pozione di Apotheosi. Se ingerita, ogni volta che la creatura lancia un incantesimo di cura, ogni bersaglio è curato di 3d4 punti vita aggiuntivi.</p>", "unlocked": false, "connections": [] }
+    ]
+  },
+  "garun": {
+    "bgImage": "tree_garun.png",
+    "nodes": [
+      { "id": 1, "x": 50, "y": 88, "icon": "https://placehold.co/100/d35400/fff?text=W", "title": "Spirito Lupo", "flavor": "La bestia si sveglia.", "desc": "Rage +1 danno.", "unlocked": true, "keyNode": true, "connections": [2] },
+      { "id": 2, "x": 50, "y": 72, "icon": "https://placehold.co/100/333/fff?text=Up", "title": "Istinto", "flavor": "Sensi affinati.", "desc": "Vantaggio Percezione.", "unlocked": true, "connections": [3, 4, 5] },
+      { "id": 3, "x": 30, "y": 55, "icon": "https://placehold.co/100/333/fff?text=L", "title": "Zanna", "flavor": "Morso letale.", "desc": "Critico a 19.", "unlocked": false, "connections": [5] },
+      { "id": 4, "x": 70, "y": 55, "icon": "https://placehold.co/100/333/fff?text=R", "title": "Artiglio", "flavor": "Presa ferrea.", "desc": "Grapple Bonus.", "unlocked": false, "connections": [5] },
+      { "id": 5, "x": 50, "y": 40, "icon": "https://placehold.co/100/333/fff?text=C", "title": "Alpha", "flavor": "Il capobranco.", "desc": "Aura di paura.", "unlocked": false, "connections": [6] },
+      { "id": 6, "x": 50, "y": 25, "icon": "https://placehold.co/100/333/fff?text=N", "title": "Howl", "flavor": "Urlo di guerra.", "desc": "Temp HP agli alleati.", "unlocked": false, "connections": [7, 8, 9] },
+      { "id": 7, "x": 30, "y": 12, "icon": "https://placehold.co/100/333/fff?text=T1", "title": "Furia", "flavor": "Attacco extra.", "desc": "", "unlocked": false, "connections": [] },
+      { "id": 8, "x": 50, "y": 12, "icon": "https://placehold.co/100/d4af37/000?text=T2", "title": "Lupo Ancestrale", "flavor": "Forma spirituale.", "desc": "", "unlocked": false, "keyNode": true, "connections": [] },
+      { "id": 9, "x": 70, "y": 12, "icon": "https://placehold.co/100/333/fff?text=T3", "title": "Immortale", "flavor": "Riduci danni.", "desc": "", "unlocked": false, "connections": [] }
+    ]
+  },
+  "randra": {
+    "bgImage": "tree_randra.png",
+    "nodes": [
+      { "id": 1, "x": 65, "y": 10, "icon": "https://placehold.co/100/2ecc71/fff?text=1", "title": "Germoglio", "flavor": "Inizio.", "desc": "Start.", "unlocked": true, "keyNode": true, "connections": [2, 3] },
+      { "id": 2, "x": 55, "y": 25, "icon": "https://placehold.co/100/333/fff?text=2", "title": "Linfa", "flavor": "Nutrimento.", "desc": "", "unlocked": true, "connections": [4] },
+      { "id": 3, "x": 75, "y": 25, "icon": "https://placehold.co/100/333/fff?text=3", "title": "Corteccia", "flavor": "Protezione.", "desc": "", "unlocked": true, "connections": [5] },
+      { "id": 4, "x": 50, "y": 40, "icon": "https://placehold.co/100/333/fff?text=4", "title": "Radice", "flavor": "Stabilità.", "desc": "", "unlocked": false, "connections": [7, 8] },
+      { "id": 5, "x": 65, "y": 40, "icon": "https://placehold.co/100/333/fff?text=5", "title": "Ramo", "flavor": "Estensione.", "desc": "", "unlocked": false, "connections": [8] },
+      { "id": 6, "x": 80, "y": 40, "icon": "https://placehold.co/100/333/fff?text=6", "title": "Foglia", "flavor": "Mimetismo.", "desc": "", "unlocked": false, "connections": [9] },
+      { "id": 7, "x": 40, "y": 55, "icon": "https://placehold.co/100/333/fff?text=7", "title": "Spina", "flavor": "Danno.", "desc": "", "unlocked": false, "connections": [10] },
+      { "id": 8, "x": 60, "y": 55, "icon": "https://placehold.co/100/333/fff?text=8", "title": "Fiore", "flavor": "Bellezza mortale.", "desc": "", "unlocked": false, "connections": [11] },
+      { "id": 9, "x": 80, "y": 55, "icon": "https://placehold.co/100/333/fff?text=9", "title": "Polline", "flavor": "Sonno.", "desc": "", "unlocked": false, "connections": [] },
+      { "id": 10, "x": 40, "y": 70, "icon": "https://placehold.co/100/333/fff?text=10", "title": "Veleno", "flavor": "Tossina.", "desc": "", "unlocked": false, "connections": [] },
+      { "id": 11, "x": 65, "y": 70, "icon": "https://placehold.co/100/333/fff?text=11", "title": "Madre Natura", "flavor": "Controllo totale.", "desc": "", "unlocked": false, "connections": [] }
+    ]
+  }
+}
