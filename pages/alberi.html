@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Albero Abilità | Cripta di Sangue</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Carica il CSS base -->
+    <link rel="stylesheet" href="../assets/css/abyssal.css">
+
+    <style>
+        /* STILI AGGIUNTIVI SPECIFICI PER L'ALBERO */
+        
+        /* Layout Principale a due colonne */
+        .skill-layout {
+            display: flex;
+            gap: 2rem;
+            align-items: flex-start;
+            justify-content: center;
+            max-width: 1400px; 
+            margin: 0 auto;
+        }
+
+        .tree-column {
+            flex: 1; /* Prende lo spazio disponibile */
+            min-width: 0; /* Fix per flexbox overflow */
+        }
+
+        .info-column {
+            width: 450px; 
+            flex-shrink: 0;
+            position: sticky;
+            top: 2rem; /* Rimane visibile mentre scrolli se la pagina è lunga */
+        }
+
+        /* Navigazione Tab */
+        .skill-nav {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .skill-tab {
+            background: rgba(0,0,0,0.6);
+            border: 1px solid var(--gold-dim, #8a7329);
+            color: var(--text-muted, #a0a0a0);
+            padding: 0.8rem 1.5rem;
+            cursor: pointer;
+            font-family: 'Cinzel', serif;
+            transition: all 0.3s ease;
+            border-radius: 4px;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .skill-tab:hover, .skill-tab.active {
+            background: var(--gold-dim, #8a7329);
+            color: #fff;
+            border-color: var(--gold, #d4af37);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+            transform: translateY(-2px);
+        }
+
+        /* Contenitore Albero */
+        .tree-wrapper {
+            position: relative;
+            width: 100%;
+            /* Aspect ratio verticale */
+            aspect-ratio: 4 / 5;
+            min-height: 600px;
+
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            border-radius: 12px;
+            background-color: rgba(0,0,0,0.5); 
+            border: 2px solid rgba(138, 28, 28, 0.3);
+            box-shadow: inset 0 0 80px #000;
+            overflow: hidden; 
+        }
+
+        /* SVG per le linee */
+        .tree-connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .connection-line {
+            stroke: #444;
+            stroke-width: 3;
+            transition: stroke 0.3s ease;
+        }
+
+        .connection-line.active {
+            stroke: #e0e0e0;
+            filter: drop-shadow(0 0 4px #d4af37);
+            stroke-width: 4;
+        }
+
+        /* Nodi */
+        .skill-node {
+            position: absolute;
+            width: 55px;
+            height: 55px;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 3px solid #333;
+            background-color: #000;
+            background-size: cover;
+            background-position: center;
+            z-index: 2;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 0 10px rgba(0,0,0,0.8);
+        }
+
+        .skill-node.locked {
+            filter: grayscale(100%) brightness(0.4);
+        }
+
+        .skill-node.unlocked {
+            border-color: #d4af37;
+            filter: grayscale(0%);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+        }
+
+        .skill-node.key-node {
+            width: 70px;
+            height: 70px;
+            border-width: 4px;
+            border-color: #d4af37;
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.6);
+            z-index: 3;
+        }
+
+        .skill-node:hover, .skill-node.selected {
+            transform: translate(-50%, -50%) scale(1.2);
+            z-index: 10;
+            border-color: #fff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+
+        /* PANNELLO INFO LATERALE (Il Grimorio) */
+        .info-card {
+            background: rgba(18, 18, 18, 0.95);
+            border: 1px solid #8a1c1c;
+            border-radius: 8px;
+            padding: 2rem;
+            min-height: 400px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Elemento decorativo di sfondo */
+        .info-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 5px;
+            background: linear-gradient(90deg, transparent, #8a1c1c, transparent);
+        }
+
+        .info-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 1rem;
+        }
+
+        .info-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid #d4af37;
+            margin: 0 auto 1rem auto;
+            display: block;
+            object-fit: cover;
+            background-color: #000;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+        }
+
+        .info-title {
+            font-family: 'Cinzel', serif;
+            font-size: 1.8rem;
+            color: #d4af37;
+            margin-bottom: 0.5rem;
+            line-height: 1.2;
+        }
+
+        .info-flavor {
+            font-family: 'Crimson Text', serif;
+            font-style: italic;
+            color: #a0a0a0;
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .info-desc {
+            font-family: 'Montserrat', sans-serif;
+            color: #e0e0e0;
+            font-size: 0.95rem;
+            line-height: 1.7;
+            text-align: left;
+        }
+        
+        .info-desc p {
+            margin-bottom: 1rem;
+        }
+        
+        .info-desc ul {
+            list-style-type: none;
+            padding-left: 0;
+            margin-bottom: 1rem;
+        }
+        
+        .info-desc li {
+            margin-bottom: 0.5rem;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+        
+        .info-desc li::before {
+            content: '♦';
+            color: #d4af37;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+
+        /* Stato vuoto */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #555;
+            text-align: center;
+            min-height: 300px;
+        }
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.3;
+        }
+
+        /* RESPONSIVE */
+        @media (max-width: 992px) {
+            .skill-layout {
+                flex-direction: column;
+                align-items: center;
+            }
+            .info-column {
+                width: 100%;
+                max-width: 700px;
+                position: static; /* Rimuove sticky su mobile */
+            }
+            .tree-wrapper {
+                min-height: 500px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .skill-node { width: 40px; height: 40px; }
+            .skill-node.key-node { width: 50px; height: 50px; }
+            .skill-tab { padding: 0.5rem 1rem; flex-grow: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar" id="sidebar-container"></nav>
+
+    <main class="main-content">
+        <header class="hero-mini">
+            <div class="hero-title">
+                <h1>Maestrie e Poteri</h1>
+                <div class="subtitle">L'evoluzione dell'anima</div>
+            </div>
+        </header>
+
+        <div class="container">
+            
+            <div class="skill-nav">
+                <div class="skill-tab active" onclick="switchCharacter('valdor')">Valdor</div>
+                <div class="skill-tab" onclick="switchCharacter('apothecary')">Apothecary</div>
+                <div class="skill-tab" onclick="switchCharacter('garun')">Ga'Run</div>
+                <div class="skill-tab" onclick="switchCharacter('randra')">Ran'Dra</div>
+            </div>
+
+            <div class="skill-layout">
+                
+                <!-- COLONNA SINISTRA: ALBERO -->
+                <div class="tree-column">
+                    <div class="tree-wrapper" id="tree-container">
+                        <svg class="tree-connections" id="tree-lines"></svg>
+                        <!-- I nodi vengono generati qui -->
+                    </div>
+                </div>
+
+                <!-- COLONNA DESTRA: INFO PANEL (GRIMORIO) -->
+                <div class="info-column">
+                    <div class="info-card" id="info-panel">
+                        <!-- Contenuto dinamico -->
+                        <div class="empty-state">
+                            <i class="fas fa-hand-pointer"></i>
+                            <p>Passa il cursore su un nodo<br>per rivelarne i segreti.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <script src="../assets/js/layout.js"></script>
+
+    <script>
+        // CONFIGURAZIONE BASE PER I PERCORSI
+        const BASE_PATH = '../assets/img/cripta-di-sangue/skill_trees/';
+
+        // CONFIGURAZIONE DATI ALBERI
+        const characters = {
+            'valdor': {
+                bgImage: `${BASE_PATH}tree_valdor.png`, 
+                nodes: [
+                    { id: 1, x: 50, y: 90, icon: 'https://placehold.co/100/8a1c1c/fff?text=1', title: 'Origine', flavor: 'La prima fiamma.', desc: 'Punto di partenza.', unlocked: true, keyNode: true, connections: [2] },
+                    { id: 2, x: 50, y: 76, icon: 'https://placehold.co/100/333/fff?text=2', title: 'Risveglio', flavor: 'Il calore aumenta.', desc: 'Sblocca rami laterali.', unlocked: true, connections: [3,4] },
+                    { id: 3, x: 25, y: 62, icon: 'https://placehold.co/100/333/fff?text=3', title: 'Fiamma Rapida', flavor: 'Veloce come il pensiero.', desc: '+2 Iniziativa.', unlocked: false, connections: [5] },
+                    { id: 4, x: 75, y: 62, icon: 'https://placehold.co/100/333/fff?text=4', title: 'Cuore Pulsante', flavor: 'Resilienza del fuoco.', desc: '+10 HP Massimi.', unlocked: false, connections: [5] },
+                    { id: 5, x: 50, y: 62, icon: 'https://placehold.co/100/333/fff?text=5', title: 'Potenza Pura', flavor: 'Distruzione.', desc: '+1 danni incantesimi fuoco.', unlocked: false, connections: [6,7] },
+                    { id: 6, x: 25, y: 44, icon: 'https://placehold.co/100/333/fff?text=6', title: 'Passo di Cenere', flavor: 'Inafferrabile.', desc: 'Azione bonus per disimpegnarsi.', unlocked: false, connections: [8] },
+                    { id: 7, x: 75, y: 44, icon: 'https://placehold.co/100/333/fff?text=7', title: 'Lingua di Fuoco', flavor: 'Parole che bruciano.', desc: 'Vantaggio su Intimidire.', unlocked: false, connections: [8] },
+                    { id: 8, x: 50, y: 28, icon: 'https://placehold.co/100/333/fff?text=8', title: 'Inferno', flavor: 'Tutto brucia.', desc: 'Incantesimo Palla di Fuoco migliorato.', unlocked: false, connections: [9,10] },
+                    { id: 9, x: 35, y: 28, icon: 'https://placehold.co/100/333/fff?text=9', title: 'Fenice', flavor: 'Rinascita.', desc: 'Una volta al giorno, torni a 1 HP se vai a 0.', unlocked: false, connections: [11] },
+                    { id: 10, x: 65, y: 28, icon: 'https://placehold.co/100/333/fff?text=10', title: 'Incenerire', flavor: 'Non resta nulla.', desc: 'I nemici uccisi diventano cenere.', unlocked: false, connections: [11] },
+                    { id: 11, x: 50, y: 12, icon: 'https://placehold.co/100/d4af37/000?text=11', title: 'AVATAR', flavor: 'Divinità Incarnata.', desc: 'Immunità Fuoco, Volo 18m, Danni raddoppiati per 1 min.', unlocked: false, keyNode: true, connections: [] },
+                ]
+            },
+            'apothecary': {
+                bgImage: `${BASE_PATH}tree_apothecary.png`, 
+                nodes: [
+                    { 
+                        id: 1, x: 60, y: 15, icon: `${BASE_PATH}skill_apothecary_corpo_terreno.png`, 
+                        title: 'Corpo Terreno', 
+                        flavor: 'Il tuo corpo terreno inizia a diventare fertile.', 
+                        desc: `<p>Puoi coltivare delle piante direttamente sul tuo petto. Per piantare un seme nel tuo corpo, puoi consumare uno slot incantesimo. Dopo 24 ore, tra le tue piume nasceranno delle Foglie di Apothecura utilizzabili per creare una Pozione di Apothecura. Se ingerita, rigenera 3d4+3 punti vita.</p>
+                               <p>Puoi cogliere e consumare le tue Foglie di Apothecura durante un riposo breve per ottenere la pozione. Una volta colte, le foglie rimangono utlizzabili per 8 ore, prima di scadere. Puoi avere al massimo una porzione di foglie sul tuo corpo.</p>
+                               <p>Quando raggiungi 0 punti vita, se hai piantato le Foglie di Apothecura sul tuo corpo da almeno 1 ora, puoi ottenere immediatamente gli effetti forniti dalla tua Pozione di Apothecura, consumando le foglie.</p>`, 
+                        unlocked: true, keyNode: true, connections: [2, 3] 
+                    },
+                    { 
+                        id: 2, x: 60, y: 27, icon: `${BASE_PATH}skill_apothecary_crescita_rigogliosa.png`, 
+                        title: 'Crescita Rigogliosa', 
+                        flavor: 'Il tuo corpo terreno consente una crescita più rigogliosa.', 
+                        desc: 'Le tue Foglie di Apothecura sono più succose. Le tue Pozioni di Apothecura curano di 2d4+2 punti vita aggiuntivi.', 
+                        unlocked: true, connections: [4] 
+                    },
+                    { 
+                        id: 3, x: 45, y: 27, icon: `${BASE_PATH}skill_apothecary_crescita_rapida.png`, 
+                        title: 'Crescita Rapida', 
+                        flavor: 'Il tuo corpo terreno consente una crescita più veloce.', 
+                        desc: 'Le piante che crescono sul tuo corpo impiegano la metà del tempo per essere pronte all\'utilizzo.', 
+                        unlocked: true, connections: [4] 
+                    },
+                    { 
+                        id: 4, x: 45, y: 39, icon: `${BASE_PATH}skill_apothecary_apotherapia.png`, 
+                        title: 'Apotherapia', 
+                        flavor: 'Sul tuo corpo terreno cresce una nuova varietà di pianta.', 
+                        desc: 'Ora puoi coltivare anche Foglie di Apotherapia per creare una Pozione di Apotherapia. Se ingerita, rimuove gli effetti negativi che affliggono il paziente, con un effetto pari all\'incantesimo Lesser Restoration.', 
+                        unlocked: false, connections: [5, 6] 
+                    },
+                    { 
+                        id: 5, x: 45, y: 51, icon: `${BASE_PATH}skill_apothecary_crescita_rigogliosa.png`, 
+                        title: 'Crescita Rigogliosa', 
+                        flavor: 'Il tuo corpo terreno consente una crescita più rigogliosa.', 
+                        desc: 'Le tue Foglie di Apothecura sono più succose. Le tue Pozioni di Apothecura curano di 2d4+2 punti vita aggiuntivi.', 
+                        unlocked: false, connections: [7] 
+                    },
+                    { 
+                        id: 6, x: 30, y: 51, icon: `${BASE_PATH}skill_apothecary_crescita_rapida.png`, 
+                        title: 'Crescita Rapida', 
+                        flavor: 'Il tuo corpo terreno consente una crescita più veloce.', 
+                        desc: 'Le piante che crescono sul tuo corpo impiegano la metà del tempo per essere pronte all\'utilizzo.', 
+                        unlocked: false, connections: [7] 
+                    },
+                    { 
+                        id: 7, x: 30, y: 63, icon: `${BASE_PATH}skill_apothecary_giardino_variegato.png`, 
+                        title: 'Giardino Variegato', 
+                        flavor: 'Il tuo corpo terreno ora riesce ad ospitare più foglie contemporaneamente.', 
+                        desc: 'Se usi uno slot incantesimo di 2° livello o superiore, puoi coltivare contemporaneamente 2 porzioni di piante (uguali o diverse, a tua scelta).', 
+                        unlocked: false, connections: [8] 
+                    },
+                    { 
+                        id: 8, x: 60, y: 63, icon: `${BASE_PATH}skill_apothecary_apothempo.png`, 
+                        title: 'Apothempo', 
+                        flavor: 'Sul tuo corpo terreno cresce una nuova varietà di pianta.', 
+                        desc: 'Ora puoi coltivare anche Foglie di Apothempo per creare una Pozione di Apothempo. Se ingerita, consente di eseguire un\'azione extra nel prossimo turno.', 
+                        unlocked: false, connections: [9] 
+                    },
+                    { 
+                        id: 9, x: 75, y: 51, icon: `${BASE_PATH}skill_apothecary_apothenza.png`, 
+                        title: 'Apothenza', 
+                        flavor: 'Sul tuo corpo terreno cresce una nuova varietà di pianta.', 
+                        desc: 'Ora puoi coltivare anche Foglie di Apothenza per creare una Pozione di Apothenza. Se ingerita, consente di infliggere 3d10 danni aggiuntivi con il prossimo attacco, entro 1 minuto.', 
+                        unlocked: false, connections: [10,11] 
+                    },
+                    { 
+                        id: 10, x: 60, y: 39, icon: `${BASE_PATH}skill_apothecary_apothecaos.png`, 
+                        title: 'Apothecaos', 
+                        flavor: 'Sul tuo corpo terreno cresce una nuova varietà di pianta.', 
+                        desc: `<p>Se usi uno slot incantesimo di 3° livello o superiore, puoi coltivare contemporaneamente 3 piante (uguali o diverse, a tua scelta).</p>
+                               <p>Ora puoi coltivare anche Foglie di Apothecaos per creare una Pozione di Apothecaos. Se ingerita, tira 1d8 per stabilire il suo effetto:</p>
+                               <ul>
+                                   <li><strong>1:</strong> 10d10 danni necrotici (TS Cost).</li>
+                                   <li><strong>2:</strong> Avvelenato 1 ora (TS Cost).</li>
+                                   <li><strong>3:</strong> Confusione (TS Sag).</li>
+                                   <li><strong>4:</strong> Ottiene un punto ispirazione.</li>
+                                   <li><strong>5:</strong> Effetti di Greater Restoration.</li>
+                                   <li><strong>6:</strong> Resistenza danni fisici (1 ora).</li>
+                                   <li><strong>7:</strong> Effetti di Apothecura, Apotherapia, Apothempo e Apothenza.</li>
+                                   <li><strong>8:</strong> Recupera 10d10+20 HP.</li>
+                               </ul>`, 
+                        unlocked: false, connections: [] 
+                    },
+                    { 
+                        id: 11, x: 75, y: 39, icon: `${BASE_PATH}skill_apothecary_apotheosi.png`, 
+                        title: 'Apotheosi', 
+                        flavor: 'Sul tuo corpo terreno cresce una nuova varietà di pianta.', 
+                        desc: '<p>Se usi uno slot incantesimo di 3° livello o superiore, puoi coltivare contemporaneamente 3 piante (uguali o diverse, a tua scelta).</p><p>Ora puoi coltivare anche Foglie di Apotheosi per creare una Pozione di Apotheosi. Se ingerita, ogni volta che la creatura lancia un incantesimo di cura, ogni bersaglio è curato di 3d4 punti vita aggiuntivi.</p>', 
+                        unlocked: false, connections: [] 
+                    },
+                ]
+            },
+            'garun': {
+                bgImage: `${BASE_PATH}tree_garun.png`, 
+                nodes: [
+                    { id: 1, x: 50, y: 88, icon: 'https://placehold.co/100/d35400/fff?text=W', title: 'Spirito Lupo', flavor: 'La bestia si sveglia.', desc: 'Rage +1 danno.', unlocked: true, keyNode: true, connections: [2] },
+                    { id: 2, x: 50, y: 72, icon: 'https://placehold.co/100/333/fff?text=Up', title: 'Istinto', flavor: 'Sensi affinati.', desc: 'Vantaggio Percezione.', unlocked: true, connections: [3, 4, 5] },
+                    { id: 3, x: 30, y: 55, icon: 'https://placehold.co/100/333/fff?text=L', title: 'Zanna', flavor: 'Morso letale.', desc: 'Critico a 19.', unlocked: false, connections: [5] },
+                    { id: 4, x: 70, y: 55, icon: 'https://placehold.co/100/333/fff?text=R', title: 'Artiglio', flavor: 'Presa ferrea.', desc: 'Grapple Bonus.', unlocked: false, connections: [5] },
+                    { id: 5, x: 50, y: 40, icon: 'https://placehold.co/100/333/fff?text=C', title: 'Alpha', flavor: 'Il capobranco.', desc: 'Aura di paura.', unlocked: false, connections: [6] },
+                    { id: 6, x: 50, y: 25, icon: 'https://placehold.co/100/333/fff?text=N', title: 'Howl', flavor: 'Urlo di guerra.', desc: 'Temp HP agli alleati.', unlocked: false, connections: [7, 8, 9] },
+                    { id: 7, x: 30, y: 12, icon: 'https://placehold.co/100/333/fff?text=T1', title: 'Furia', flavor: 'Attacco extra.', desc: '', unlocked: false, connections: [] },
+                    { id: 8, x: 50, y: 12, icon: 'https://placehold.co/100/d4af37/000?text=T2', title: 'Lupo Ancestrale', flavor: 'Forma spirituale.', desc: '', unlocked: false, keyNode: true, connections: [] },
+                    { id: 9, x: 70, y: 12, icon: 'https://placehold.co/100/333/fff?text=T3', title: 'Immortale', flavor: 'Riduci danni.', desc: '', unlocked: false, connections: [] },
+                ]
+            },
+            'randra': {
+                bgImage: `${BASE_PATH}tree_randra.png`,
+                nodes: [
+                    { id: 1, x: 65, y: 10, icon: 'https://placehold.co/100/2ecc71/fff?text=1', title: 'Germoglio', flavor: 'Inizio.', desc: 'Start.', unlocked: true, keyNode: true, connections: [2, 3] },
+                    { id: 2, x: 55, y: 25, icon: 'https://placehold.co/100/333/fff?text=2', title: 'Linfa', flavor: 'Nutrimento.', desc: '', unlocked: true, connections: [4] },
+                    { id: 3, x: 75, y: 25, icon: 'https://placehold.co/100/333/fff?text=3', title: 'Corteccia', flavor: 'Protezione.', desc: '', unlocked: true, connections: [5] },
+                    { id: 4, x: 50, y: 40, icon: 'https://placehold.co/100/333/fff?text=4', title: 'Radice', flavor: 'Stabilità.', desc: '', unlocked: false, connections: [7, 8] },
+                    { id: 5, x: 65, y: 40, icon: 'https://placehold.co/100/333/fff?text=5', title: 'Ramo', flavor: 'Estensione.', desc: '', unlocked: false, connections: [8] },
+                    { id: 6, x: 80, y: 40, icon: 'https://placehold.co/100/333/fff?text=6', title: 'Foglia', flavor: 'Mimetismo.', desc: '', unlocked: false, connections: [9] },
+                    { id: 7, x: 40, y: 55, icon: 'https://placehold.co/100/333/fff?text=7', title: 'Spina', flavor: 'Danno.', desc: '', unlocked: false, connections: [10] },
+                    { id: 8, x: 60, y: 55, icon: 'https://placehold.co/100/333/fff?text=8', title: 'Fiore', flavor: 'Bellezza mortale.', desc: '', unlocked: false, connections: [11] },
+                    { id: 9, x: 80, y: 55, icon: 'https://placehold.co/100/333/fff?text=9', title: 'Polline', flavor: 'Sonno.', desc: '', unlocked: false, connections: [] },
+                    { id: 10, x: 40, y: 70, icon: 'https://placehold.co/100/333/fff?text=10', title: 'Veleno', flavor: 'Tossina.', desc: '', unlocked: false, connections: [] },
+                    { id: 11, x: 65, y: 70, icon: 'https://placehold.co/100/333/fff?text=11', title: 'Madre Natura', flavor: 'Controllo totale.', desc: '', unlocked: false, connections: [] },
+                ]
+            }
+        };
+
+        const container = document.getElementById('tree-container');
+        const svgLines = document.getElementById('tree-lines');
+        const infoPanel = document.getElementById('info-panel');
+
+        function switchCharacter(charKey) {
+            // Aggiorna tab attivo
+            document.querySelectorAll('.skill-tab').forEach(t => {
+                t.classList.remove('active');
+                if(t.getAttribute('onclick').includes(`'${charKey}'`)) t.classList.add('active');
+            });
+
+            // Pulisci
+            container.querySelectorAll('.skill-node').forEach(n => n.remove());
+            svgLines.innerHTML = '';
+            resetInfoPanel();
+
+            const data = characters[charKey];
+            if (!data) return;
+
+            // Sfondo dinamico
+            if(charKey === 'valdor' || charKey === 'garun') {
+                container.style.backgroundImage = `url('${data.bgImage}'), radial-gradient(circle, #3a0000, #000)`;
+            } else if(charKey === 'apothecary') {
+                container.style.backgroundImage = `url('${data.bgImage}'), radial-gradient(circle, #4a0000, #111)`;
+            } else {
+                container.style.backgroundImage = `url('${data.bgImage}'), radial-gradient(circle, #002200, #000)`;
+            }
+
+            // Disegna Linee
+            data.nodes.forEach(node => {
+                if (node.connections) {
+                    node.connections.forEach(targetId => {
+                        const targetNode = data.nodes.find(n => n.id === targetId);
+                        if (targetNode) drawLine(node, targetNode);
+                    });
+                }
+            });
+
+            // Disegna Nodi
+            data.nodes.forEach(node => {
+                const el = document.createElement('div');
+                el.className = `skill-node ${node.unlocked ? 'unlocked' : 'locked'} ${node.keyNode ? 'key-node' : ''}`;
+                el.style.left = node.x + '%';
+                el.style.top = node.y + '%';
+                el.style.backgroundImage = `url('${node.icon}')`;
+
+                el.addEventListener('mouseenter', () => updateInfoPanel(node));
+                // Opzionale: Click per mantenere selezionato (per ora lasciamo solo hover)
+                
+                container.appendChild(el);
+            });
+        }
+
+        function drawLine(start, end) {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', start.x + '%');
+            line.setAttribute('y1', start.y + '%');
+            line.setAttribute('x2', end.x + '%');
+            line.setAttribute('y2', end.y + '%');
+            line.setAttribute('class', `connection-line ${start.unlocked ? 'active' : ''}`);
+            svgLines.appendChild(line);
+        }
+
+        // Funzione che aggiorna il pannello laterale (Grimorio)
+        function updateInfoPanel(node) {
+            infoPanel.innerHTML = `
+                <div class="info-header">
+                    <img src="${node.icon}" class="info-icon">
+                    <h3 class="info-title">${node.title}</h3>
+                </div>
+                <p class="info-flavor">${node.flavor}</p>
+                <div class="info-desc">${node.desc}</div>
+            `;
+        }
+
+        // Resetta il pannello allo stato vuoto
+        function resetInfoPanel() {
+            infoPanel.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-hand-pointer"></i>
+                    <p>Passa il cursore su un nodo<br>per rivelarne i segreti.</p>
+                </div>
+            `;
+        }
+
+        // Avvio
+        document.addEventListener('DOMContentLoaded', () => {
+            switchCharacter('valdor');
+        });
+    </script>
+</body>
+</html>
