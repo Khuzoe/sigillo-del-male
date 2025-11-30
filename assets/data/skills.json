@@ -2,39 +2,234 @@
   "valdor": {
     "bgImage": "tree_valdor.png",
     "nodes": [
-      { "id": 1, "x": 50, "y": 90, "icon": "https://placehold.co/100/8a1c1c/fff?text=1", "title": "Origine", "flavor": "La prima fiamma.", "desc": "Punto di partenza.", "unlocked": true, "keyNode": true, "connections": [2] },
-      { "id": 2, "x": 50, "y": 76, "icon": "https://placehold.co/100/333/fff?text=2", "title": "Risveglio", "flavor": "Il calore aumenta.", "desc": "Sblocca rami laterali.", "unlocked": true, "connections": [3, 4] },
-      { "id": 3, "x": 25, "y": 62, "icon": "https://placehold.co/100/333/fff?text=3", "title": "Fiamma Rapida", "flavor": "Veloce come il pensiero.", "desc": "+2 Iniziativa.", "unlocked": false, "connections": [5] },
-      { "id": 4, "x": 75, "y": 62, "icon": "https://placehold.co/100/333/fff?text=4", "title": "Cuore Pulsante", "flavor": "Resilienza del fuoco.", "desc": "+10 HP Massimi.", "unlocked": false, "connections": [5] },
-      { "id": 5, "x": 50, "y": 62, "icon": "https://placehold.co/100/333/fff?text=5", "title": "Potenza Pura", "flavor": "Distruzione.", "desc": "+1 danni incantesimi fuoco.", "unlocked": false, "connections": [6, 7] },
-      { "id": 6, "x": 25, "y": 44, "icon": "https://placehold.co/100/333/fff?text=6", "title": "Passo di Cenere", "flavor": "Inafferrabile.", "desc": "Azione bonus per disimpegnarsi.", "unlocked": false, "connections": [8] },
-      { "id": 7, "x": 75, "y": 44, "icon": "https://placehold.co/100/333/fff?text=7", "title": "Lingua di Fuoco", "flavor": "Parole che bruciano.", "desc": "Vantaggio su Intimidire.", "unlocked": false, "connections": [8] },
-      { "id": 8, "x": 50, "y": 28, "icon": "https://placehold.co/100/333/fff?text=8", "title": "Inferno", "flavor": "Tutto brucia.", "desc": "Incantesimo Palla di Fuoco migliorato.", "unlocked": false, "connections": [9, 10] },
-      { "id": 9, "x": 35, "y": 28, "icon": "https://placehold.co/100/333/fff?text=9", "title": "Fenice", "flavor": "Rinascita.", "desc": "Una volta al giorno, torni a 1 HP se vai a 0.", "unlocked": false, "connections": [11] },
-      { "id": 10, "x": 65, "y": 28, "icon": "https://placehold.co/100/333/fff?text=10", "title": "Incenerire", "flavor": "Non resta nulla.", "desc": "I nemici uccisi diventano cenere.", "unlocked": false, "connections": [11] },
-      { "id": 11, "x": 50, "y": 12, "icon": "https://placehold.co/100/d4af37/000?text=11", "title": "AVATAR", "flavor": "Divinità Incarnata.", "desc": "Immunità Fuoco, Volo 18m, Danni raddoppiati per 1 min.", "unlocked": false, "keyNode": true, "connections": [] }
+      {
+        "id": 1,
+        "x": 50,
+        "y": 90,
+        "icon": "https://placehold.co/100/8a1c1c/fff?text=1",
+        "title": "Origine",
+        "flavor": "La prima fiamma.",
+        "desc": "Punto di partenza.",
+        "keyNode": true,
+        "connections": [2]
+      },
+      {
+        "id": 2,
+        "x": 50,
+        "y": 76,
+        "icon": "https://placehold.co/100/333/fff?text=2",
+        "title": "Risveglio",
+        "flavor": "Il calore aumenta.",
+        "desc": "Sblocca rami laterali.",
+        "connections": [3, 4]
+      },
+      {
+        "id": 3,
+        "x": 25,
+        "y": 62,
+        "icon": "https://placehold.co/100/333/fff?text=3",
+        "title": "Fiamma Rapida",
+        "flavor": "Veloce come il pensiero.",
+        "desc": "+2 Iniziativa.",
+        "connections": [5]
+      },
+      {
+        "id": 4,
+        "x": 75,
+        "y": 62,
+        "icon": "https://placehold.co/100/333/fff?text=4",
+        "title": "Cuore Pulsante",
+        "flavor": "Resilienza del fuoco.",
+        "desc": "+10 HP Massimi.",
+        "connections": [5]
+      },
+      {
+        "id": 5,
+        "x": 50,
+        "y": 62,
+        "icon": "https://placehold.co/100/333/fff?text=5",
+        "title": "Potenza Pura",
+        "flavor": "Distruzione.",
+        "desc": "+1 danni incantesimi fuoco.",
+        "connections": [6, 7]
+      },
+      {
+        "id": 6,
+        "x": 25,
+        "y": 44,
+        "icon": "https://placehold.co/100/333/fff?text=6",
+        "title": "Passo di Cenere",
+        "flavor": "Inafferrabile.",
+        "desc": "Azione bonus per disimpegnarsi.",
+        "connections": [8]
+      },
+      {
+        "id": 7,
+        "x": 75,
+        "y": 44,
+        "icon": "https://placehold.co/100/333/fff?text=7",
+        "title": "Lingua di Fuoco",
+        "flavor": "Parole che bruciano.",
+        "desc": "Vantaggio su Intimidire.",
+        "connections": [8]
+      },
+      {
+        "id": 8,
+        "x": 50,
+        "y": 28,
+        "icon": "https://placehold.co/100/333/fff?text=8",
+        "title": "Inferno",
+        "flavor": "Tutto brucia.",
+        "desc": "Incantesimo Palla di Fuoco migliorato.",
+        "connections": [9, 10]
+      },
+      {
+        "id": 9,
+        "x": 35,
+        "y": 28,
+        "icon": "https://placehold.co/100/333/fff?text=9",
+        "title": "Fenice",
+        "flavor": "Rinascita.",
+        "desc": "Una volta al giorno, torni a 1 HP se vai a 0.",
+        "connections": [11]
+      },
+      {
+        "id": 10,
+        "x": 65,
+        "y": 28,
+        "icon": "https://placehold.co/100/333/fff?text=10",
+        "title": "Incenerire",
+        "flavor": "Non resta nulla.",
+        "desc": "I nemici uccisi diventano cenere.",
+        "connections": [11]
+      },
+      {
+        "id": 11,
+        "x": 50,
+        "y": 12,
+        "icon": "https://placehold.co/100/d4af37/000?text=11",
+        "title": "AVATAR",
+        "flavor": "Divinità Incarnata.",
+        "desc": "Immunità Fuoco, Volo 18m, Danni raddoppiati per 1 min.",
+        "keyNode": true,
+        "connections": []
+      }
     ]
   },
   "apothecary": {
     "bgImage": "tree_apothecary.png",
     "nodes": [
       {
-        "id": 1, "x": 60, "y": 15, "icon": "skill_apothecary_corpo_terreno.png",
+        "id": 1,
+        "x": 60,
+        "y": 15,
+        "icon": "skill_apothecary_corpo_terreno.png",
         "title": "Corpo Terreno",
         "flavor": "Il tuo corpo terreno inizia a diventare fertile.",
         "desc": "<p>Puoi coltivare delle piante direttamente sul tuo petto. Per piantare un seme nel tuo corpo, puoi consumare uno slot incantesimo. Dopo 24 ore, tra le tue piume nasceranno delle Foglie di Apothecura utilizzabili per creare una Pozione di Apothecura. Se ingerita, rigenera 3d4+3 punti vita.</p><p>Puoi cogliere e consumare le tue Foglie di Apothecura durante un riposo breve per ottenere la pozione. Una volta colte, le foglie rimangono utlizzabili per 8 ore, prima di scadere. Puoi avere al massimo una porzione di foglie sul tuo corpo.</p><p>Quando raggiungi 0 punti vita, se hai piantato le Foglie di Apothecura sul tuo corpo da almeno 1 ora, puoi ottenere immediatamente gli effetti forniti dalla tua Pozione di Apothecura, consumando le foglie.</p>",
-        "unlocked": true, "keyNode": true, "connections": [2, 3]
+        "keyNode": true,
+        "connections": [2, 3]
       },
-      { "id": 2, "x": 60, "y": 27, "icon": "skill_apothecary_crescita_rigogliosa.png", "title": "Crescita Rigogliosa", "flavor": "Il tuo corpo terreno consente una crescita più rigogliosa.", "desc": "Le tue Foglie di Apothecura sono più succose. Le tue Pozioni di Apothecura curano di 2d4+2 punti vita aggiuntivi.", "unlocked": false, "connections": [4] },
-      { "id": 3, "x": 45, "y": 27, "icon": "skill_apothecary_crescita_rapida.png", "title": "Crescita Rapida", "flavor": "Il tuo corpo terreno consente una crescita più veloce.", "desc": "Le piante che crescono sul tuo corpo impiegano la metà del tempo per essere pronte all'utilizzo.", "unlocked": false, "connections": [4] },
-      { "id": 4, "x": 45, "y": 39, "icon": "skill_apothecary_apotherapia.png", "title": "Apotherapia", "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.", "desc": "Ora puoi coltivare anche Foglie di Apotherapia per creare una Pozione di Apotherapia. Se ingerita, rimuove gli effetti negativi che affliggono il paziente, con un effetto pari all'incantesimo Lesser Restoration.", "unlocked": false, "connections": [5, 6] },
-      { "id": 5, "x": 45, "y": 51, "icon": "skill_apothecary_crescita_rigogliosa.png", "title": "Crescita Rigogliosa", "flavor": "Il tuo corpo terreno consente una crescita più rigogliosa.", "desc": "Le tue Foglie di Apothecura sono più succose. Le tue Pozioni di Apothecura curano di 2d4+2 punti vita aggiuntivi.", "unlocked": false, "connections": [7] },
-      { "id": 6, "x": 30, "y": 51, "icon": "skill_apothecary_crescita_rapida.png", "title": "Crescita Rapida", "flavor": "Il tuo corpo terreno consente una crescita più veloce.", "desc": "Le piante che crescono sul tuo corpo impiegano la metà del tempo per essere pronte all'utilizzo.", "unlocked": false, "connections": [7] },
-      { "id": 7, "x": 30, "y": 63, "icon": "skill_apothecary_giardino_variegato.png", "title": "Giardino Variegato", "flavor": "Il tuo corpo terreno ora riesce ad ospitare più foglie contemporaneamente.", "desc": "Se usi uno slot incantesimo di 2° livello o superiore, puoi coltivare contemporaneamente 2 porzioni di piante (uguali o diverse, a tua scelta).", "unlocked": false, "connections": [8] },
-      { "id": 8, "x": 60, "y": 63, "icon": "skill_apothecary_apothempo.png", "title": "Apothempo", "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.", "desc": "Ora puoi coltivare anche Foglie di Apothempo per creare una Pozione di Apothempo. Se ingerita, consente di eseguire un'azione extra nel prossimo turno.", "unlocked": false, "connections": [9] },
-      { "id": 9, "x": 75, "y": 51, "icon": "skill_apothecary_apothenza.png", "title": "Apothenza", "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.", "desc": "Ora puoi coltivare anche Foglie di Apothenza per creare una Pozione di Apothenza. Se ingerita, consente di infliggere 3d10 danni aggiuntivi con il prossimo attacco, entro 1 minuto.", "unlocked": false, "connections": [10, 11] },
-      { "id": 10, "x": 60, "y": 39, "icon": "skill_apothecary_apothecaos.png", "title": "Apothecaos", "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.", "desc": "<p>Se usi uno slot incantesimo di 3° livello o superiore, puoi coltivare contemporaneamente 3 piante (uguali o diverse, a tua scelta).</p><p>Ora puoi coltivare anche Foglie di Apothecaos per creare una Pozione di Apothecaos. Se ingerita, tira 1d8 per stabilire il suo effetto:</p><ul><li><strong>1:</strong> 10d10 danni necrotici (TS Cost).</li><li><strong>2:</strong> Avvelenato 1 ora (TS Cost).</li><li><strong>3:</strong> Confusione (TS Sag).</li><li><strong>4:</strong> Ottiene un punto ispirazione.</li><li><strong>5:</strong> Effetti di Greater Restoration.</li><li><strong>6:</strong> Resistenza danni fisici (1 ora).</li><li><strong>7:</strong> Effetti di Apothecura, Apotherapia, Apothempo e Apothenza.</li><li><strong>8:</strong> Recupera 10d10+20 HP.</li></ul>", "unlocked": false, "connections": [] },
-      { "id": 11, "x": 75, "y": 39, "icon": "skill_apothecary_apotheosi.png", "title": "Apotheosi", "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.", "desc": "<p>Se usi uno slot incantesimo di 3° livello o superiore, puoi coltivare contemporaneamente 3 piante (uguali o diverse, a tua scelta).</p><p>Ora puoi coltivare anche Foglie di Apotheosi per creare una Pozione di Apotheosi. Se ingerita, ogni volta che la creatura lancia un incantesimo di cura, ogni bersaglio è curato di 3d4 punti vita aggiuntivi.</p>", "unlocked": false, "connections": [] }
+      {
+        "id": 2,
+        "x": 60,
+        "y": 27,
+        "icon": "skill_apothecary_crescita_rigogliosa.png",
+        "title": "Crescita Rigogliosa",
+        "flavor": "Il tuo corpo terreno consente una crescita più rigogliosa.",
+        "desc": "Le tue Foglie di Apothecura sono più succose. Le tue Pozioni di Apothecura curano di 2d4+2 punti vita aggiuntivi.",
+        "connections": [4]
+      },
+      {
+        "id": 3,
+        "x": 45,
+        "y": 27,
+        "icon": "skill_apothecary_crescita_rapida.png",
+        "title": "Crescita Rapida",
+        "flavor": "Il tuo corpo terreno consente una crescita più veloce.",
+        "desc": "Le piante che crescono sul tuo corpo impiegano la metà del tempo per essere pronte all'utilizzo.",
+        "connections": [4]
+      },
+      {
+        "id": 4,
+        "x": 45,
+        "y": 39,
+        "icon": "skill_apothecary_apotherapia.png",
+        "title": "Apotherapia",
+        "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.",
+        "desc": "Ora puoi coltivare anche Foglie di Apotherapia per creare una Pozione di Apotherapia. Se ingerita, rimuove gli effetti negativi che affliggono il paziente, con un effetto pari all'incantesimo Lesser Restoration.",
+        "connections": [5, 6]
+      },
+      {
+        "id": 5,
+        "x": 45,
+        "y": 51,
+        "icon": "skill_apothecary_crescita_rigogliosa.png",
+        "title": "Crescita Rigogliosa",
+        "flavor": "Il tuo corpo terreno consente una crescita più rigogliosa.",
+        "desc": "Le tue Foglie di Apothecura sono più succose. Le tue Pozioni di Apothecura curano di 2d4+2 punti vita aggiuntivi.",
+        "connections": [7]
+      },
+      {
+        "id": 6,
+        "x": 30,
+        "y": 51,
+        "icon": "skill_apothecary_crescita_rapida.png",
+        "title": "Crescita Rapida",
+        "flavor": "Il tuo corpo terreno consente una crescita più veloce.",
+        "desc": "Le piante che crescono sul tuo corpo impiegano la metà del tempo per essere pronte all'utilizzo.",
+        "connections": [7]
+      },
+      {
+        "id": 7,
+        "x": 30,
+        "y": 63,
+        "icon": "skill_apothecary_giardino_variegato.png",
+        "title": "Giardino Variegato",
+        "flavor": "Il tuo corpo terreno ora riesce ad ospitare più foglie contemporaneamente.",
+        "desc": "Se usi uno slot incantesimo di 2° livello o superiore, puoi coltivare contemporaneamente 2 porzioni di piante (uguali o diverse, a tua scelta).",
+        "connections": [8]
+      },
+      {
+        "id": 8,
+        "x": 60,
+        "y": 63,
+        "icon": "skill_apothecary_apothempo.png",
+        "title": "Apothempo",
+        "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.",
+        "desc": "Ora puoi coltivare anche Foglie di Apothempo per creare una Pozione di Apothempo. Se ingerita, consente di eseguire un'azione extra nel prossimo turno.",
+        "connections": [9]
+      },
+      {
+        "id": 9,
+        "x": 75,
+        "y": 51,
+        "icon": "skill_apothecary_apothenza.png",
+        "title": "Apothenza",
+        "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.",
+        "desc": "Ora puoi coltivare anche Foglie di Apothenza per creare una Pozione di Apothenza. Se ingerita, consente di infliggere 3d10 danni aggiuntivi con il prossimo attacco, entro 1 minuto.",
+        "connections": [10, 11]
+      },
+      {
+        "id": 10,
+        "x": 60,
+        "y": 39,
+        "icon": "skill_apothecary_apothecaos.png",
+        "title": "Apothecaos",
+        "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.",
+        "desc": "<p>Se usi uno slot incantesimo di 3° livello o superiore, puoi coltivare contemporaneamente 3 piante (uguali o diverse, a tua scelta).</p><p>Ora puoi coltivare anche Foglie di Apothecaos per creare una Pozione di Apothecaos. Se ingerita, tira 1d8 per stabilire il suo effetto:</p><ul><li><strong>1:</strong> 10d10 danni necrotici (TS Cost).</li><li><strong>2:</strong> Avvelenato 1 ora (TS Cost).</li><li><strong>3:</strong> Confusione (TS Sag).</li><li><strong>4:</strong> Ottiene un punto ispirazione.</li><li><strong>5:</strong> Effetti di Greater Restoration.</li><li><strong>6:</strong> Resistenza danni fisici (1 ora).</li><li><strong>7:</strong> Effetti di Apothecura, Apotherapia, Apothempo e Apothenza.</li><li><strong>8:</strong> Recupera 10d10+20 HP.</li></ul>",
+        "connections": []
+      },
+      {
+        "id": 11,
+        "x": 75,
+        "y": 39,
+        "icon": "skill_apothecary_apotheosi.png",
+        "title": "Apotheosi",
+        "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.",
+        "desc": "<p>Se usi uno slot incantesimo di 3° livello o superiore, puoi coltivare contemporaneamente 3 piante (uguali o diverse, a tua scelta).</p><p>Ora puoi coltivare anche Foglie di Apotheosi per creare una Pozione di Apotheosi. Se ingerita, ogni volta che la creatura lancia un incantesimo di cura, ogni bersaglio è curato di 3d4 punti vita aggiuntivi.</p>",
+        "connections": []
+      }
     ]
   },
   "garun": {
@@ -49,7 +244,6 @@
         "flavor": "Alcuni battiti del tuo cuore mandano impulsi al tuo cervello.",
         "desc": "<p>Alcuni battiti del tuo cuore mandano impulsi al tuo cervello, permettendoti di vedere in anticipo eventi dell'immediato futuro.</p><p>Puoi aggiungere il tuo modificatore Saggezza alla CA.</p><p>Una volta al giorno, la prima volta che raggiungi 0 punti vita mentre sei in ira, rimani invece con 1 punto vita. Poi, per un numero di round completi pari al tuo modificatore di Saggezza, oltre che nel resto del round in cui l'effetto si attiva, eviti automaticamente tutti gli attacchi di cui sei il bersaglio e superi ogni tiro salvezza su Destrezza. Questo effetto finisce se la tua ira termina.</p>",
         "state": "unlocked",
-        "unlocked": true,
         "keyNode": true,
         "connections": [2, 3]
       },
@@ -62,7 +256,6 @@
         "flavor": "Ogni volta che vieni colpito, la frequenza degli impulsi aumenta.",
         "desc": "<p>Ogni volta che vieni colpito, la frequenza degli impulsi del tuo cuore aumenta.</p><p>Ogni volta che vieni colpito da un attacco di una creatura nemica, ottieni un bonus di +1 alla CA, fino ad un massimo pari al tuo modificatore di Saggezza.</p><p>Il bonus termina all'inizio del tuo prossimo turno.</p>",
         "state": "unlocked",
-        "unlocked": true,
         "connections": [4]
       },
       {
@@ -74,7 +267,6 @@
         "flavor": "Il tuo cuore rilascia istintivamente un impulso immediato.",
         "desc": "<p>Il tuo cuore rilascia istintivamente un impulso immediato nei momenti di pericolo improvvisi.</p><p>Ogni volta che sei soggetto ad un tiro salvezza di qualsiasi tipo, puoi aggiungere il tuo modificatore di Saggezza a quel tiro salvezza.</p><p>Nel caso di tiri salvezza su Saggezza, aggiungi il modificatore due volte.</p>",
         "state": "unlockable",
-        "unlocked": false,
         "connections": [4]
       },
       {
@@ -86,7 +278,6 @@
         "flavor": "Nei momenti in cui provi dolore, gli impulsi del tuo cuore diventano gelidi.",
         "desc": "<p>Nei momenti in cui provi dolore, gli impulsi del tuo cuore diventano gelidi.</p><p>Dopo aver subito danni, puoi usare la tua reazione per ottenere 1d10 + il tuo modificatore di Saggezza punti vita temporanei.</p><p>All'inizio del tuo turno puoi decidere di convertire tutti i tuoi punti vita temporanei in punti vita. Non puoi superare i tuoi punti vita massimi; l'eventuale eccedenza va persa.</p>",
         "state": "locked",
-        "unlocked": false,
         "connections": [5]
       },
       {
@@ -97,7 +288,6 @@
         "title": "Impulso Primordiale",
         "flavor": "Gli impulsi gelidi del tuo cuore risvegliano un potere antico.",
         "desc": "<p>Gli impulsi gelidi del tuo cuore risvegliano un potere antico che ti lega alla tua terra natale.</p><p>Come azione bonus, ti trasformi nella Forma Primordiale: la tua taglia diventa Grande, ottieni immunità ai danni da Gelo e 50 punti vita temporanei.</p><p>Mantieni questa forma per 1 minuto o finché i tuoi punti vita temporanei non scendono a 0.</p><p>Puoi entrare in questa forma una volta per riposo breve.</p>",
-        "unlocked": false,
         "connections": [6, 7, 8, 9]
       },
       {
@@ -108,7 +298,6 @@
         "title": "Impulso d'Ira",
         "flavor": "Gli impulsi del tuo cuore e della tua mente si allineano perfettamente.",
         "desc": "<p>Gli impulsi del tuo cuore e della tua mente si allineano perfettamente.</p><p>Puoi entrare nella tua Forma Primordiale con la stessa azione bonus con cui entri in ira, consumando un utilizzo di entrambe le abilità.</p>",
-        "unlocked": false,
         "connections": [10]
       },
       {
@@ -119,7 +308,6 @@
         "title": "Istinto Improvviso",
         "flavor": "Qualcosa dentro ti suggerisce di andare contro le regole.",
         "desc": "<p>Qualcosa dentro ti suggerisce di andare contro le classiche regole di combattimento.</p><p>Mentre sei nella tua Forma Primordiale e non stai impugnando armi, ottieni i seguenti benefici:</p><ul><li>Puoi usare il tuo scudo come arma da mischia (1d8 danni contundenti).</li><li>Mentre attacchi con uno scudo, puoi aggiungere 2 volte il tuo modificatore di Forza ai danni.</li><li>Puoi brandire due scudi ottenendo i benefici di entrambi.</li></ul>",
-        "unlocked": false,
         "connections": [10]
       },
       {
@@ -130,7 +318,6 @@
         "title": "Saggezza Risvegliata",
         "flavor": "Il tuo istinto precognitivo guida ogni tuo movimento.",
         "desc": "<p>Il tuo istinto precognitivo guida ogni tuo movimento in battaglia.</p><p>Mentre sei nella tua Forma Primordiale e non indossi un'armatura, se vieni colpito da un attacco puoi usare la tua reazione per guadagnare CA pari al tuo modificatore di Saggezza fino alla fine del turno della creatura che ti ha attaccato. Attivare questo effetto può far mancare l'attacco che lo ha attivato.</p><p>Puoi usare questa abilità un numero massimo di volte pari al tuo modificatore di Saggezza ogni riposo lungo.</p>",
-        "unlocked": false,
         "connections": [12]
       },
       {
@@ -141,7 +328,6 @@
         "title": "Resistenza Risvegliata",
         "flavor": "La tua carne si indurisce come ghiaccio antico.",
         "desc": "<p>La tua carne si indurisce come ghiaccio antico.</p><p>Mentre sei nella tua Forma Primordiale, quando subisci danni, li riduci di un ammontare pari al tuo modificatore di Saggezza, dopo aver applicato resistenze e vulnerabilità.</p>",
-        "unlocked": false,
         "connections": [12]
       },
       {
@@ -152,7 +338,6 @@
         "title": "Impulso Demoniaco",
         "flavor": "L'impulso del tuo cuore si fa ardente e famelico.",
         "desc": "<p>L'impulso del tuo cuore si fa ardente e famelico. Senti che la tua forma primordiale inizia a prendere il sopravvento.</p><p>Quando entri nella tua Forma Primordiale, ottieni 100 punti vita temporanei al posto di 50.</p><p>Inoltre, ti curi immediatamente di un ammontare di punti vita pari a 10 × il tuo modificatore di Forza.</p>",
-        "unlocked": false,
         "connections": [11]
       },
       {
@@ -163,7 +348,6 @@
         "title": "Demone Primordiale",
         "flavor": "Gli impulsi tra il tuo cuore e cervello vanno a ritmo dell'Abisso.",
         "desc": "<p>Gli impulsi tra il tuo cuore e cervello vanno a ritmo dell'Abisso.</p><p>Ottieni +4 Forza, fino a un massimo di 30.</p><p>Quando entri nella tua Forma Primordiale, diventi un Demone Primordiale: il tuo tipo cambia in Demone, la tua taglia diventa Enorme e ottieni vulnerabilità ai danni Radiosi.</p><p>Finché resti in questa forma, ogni volta che colpisci una creatura ostile con un attacco, ti curi di punti vita pari al modificatore di Forza aggiunto ai danni di quell'attacco.</p>",
-        "unlocked": false,
         "connections": []
       },
       {
@@ -174,7 +358,6 @@
         "title": "Impulso di Non-morte",
         "flavor": "Il tuo cuore smette quasi di battere.",
         "desc": "<p>Il tuo cuore smette quasi di battere, ma continua a pulsare potere freddo.</p><p>Quando entri nella tua Forma Primordiale, ottieni 150 punti vita temporanei al posto di 50.</p>",
-        "unlocked": false,
         "connections": [13]
       },
       {
@@ -185,7 +368,6 @@
         "title": "Non Morto Primordiale",
         "flavor": "I tuoi impulsi sono pochi ma precisi.",
         "desc": "<p>I tuoi impulsi sono pochi ma precisi. Respiri in modo estremamente lento, ma calcolato.</p><p>Ottieni +4 Saggezza, fino a un massimo di 30.</p><p>Quando entri nella tua Forma Primordiale, diventi un Non Morto Primordiale: il tuo tipo cambia in Non Morto, la tua taglia diventa Enorme e ottieni vulnerabilità ai danni Radiosi.</p><p>Se non indossi un'armatura, mentre sei in questa forma puoi aggiungere due volte il tuo modificatore di Saggezza alla tua CA base. Puoi comunque usare uno scudo normalmente.</p><p>All'inizio di ciascuno dei tuoi turni, ottieni 10 punti vita temporanei, fino a un massimo di 150.</p>",
-        "unlocked": false,
         "connections": []
       }
     ]
@@ -193,17 +375,119 @@
   "randra": {
     "bgImage": "tree_randra.png",
     "nodes": [
-      { "id": 1, "x": 65, "y": 10, "icon": "https://placehold.co/100/2ecc71/fff?text=1", "title": "Germoglio", "flavor": "Inizio.", "desc": "Start.", "unlocked": true, "keyNode": true, "connections": [2, 3] },
-      { "id": 2, "x": 55, "y": 25, "icon": "https://placehold.co/100/333/fff?text=2", "title": "Linfa", "flavor": "Nutrimento.", "desc": "", "unlocked": true, "connections": [4] },
-      { "id": 3, "x": 75, "y": 25, "icon": "https://placehold.co/100/333/fff?text=3", "title": "Corteccia", "flavor": "Protezione.", "desc": "", "unlocked": true, "connections": [5] },
-      { "id": 4, "x": 50, "y": 40, "icon": "https://placehold.co/100/333/fff?text=4", "title": "Radice", "flavor": "Stabilità.", "desc": "", "unlocked": false, "connections": [7, 8] },
-      { "id": 5, "x": 65, "y": 40, "icon": "https://placehold.co/100/333/fff?text=5", "title": "Ramo", "flavor": "Estensione.", "desc": "", "unlocked": false, "connections": [8] },
-      { "id": 6, "x": 80, "y": 40, "icon": "https://placehold.co/100/333/fff?text=6", "title": "Foglia", "flavor": "Mimetismo.", "desc": "", "unlocked": false, "connections": [9] },
-      { "id": 7, "x": 40, "y": 55, "icon": "https://placehold.co/100/333/fff?text=7", "title": "Spina", "flavor": "Danno.", "desc": "", "unlocked": false, "connections": [10] },
-      { "id": 8, "x": 60, "y": 55, "icon": "https://placehold.co/100/333/fff?text=8", "title": "Fiore", "flavor": "Bellezza mortale.", "desc": "", "unlocked": false, "connections": [11] },
-      { "id": 9, "x": 80, "y": 55, "icon": "https://placehold.co/100/333/fff?text=9", "title": "Polline", "flavor": "Sonno.", "desc": "", "unlocked": false, "connections": [] },
-      { "id": 10, "x": 40, "y": 70, "icon": "https://placehold.co/100/333/fff?text=10", "title": "Veleno", "flavor": "Tossina.", "desc": "", "unlocked": false, "connections": [] },
-      { "id": 11, "x": 65, "y": 70, "icon": "https://placehold.co/100/333/fff?text=11", "title": "Madre Natura", "flavor": "Controllo totale.", "desc": "", "unlocked": false, "connections": [] }
+      {
+        "id": 1,
+        "x": 50,
+        "y": 70,
+        "icon": "skill_randra_spirito_interiore.png",
+        "title": "Spirito Interiore",
+        "flavor": "Una piccola fiamma si accende nel tuo cuore, liberandosi vicina.",
+        "desc": "<p>Una volta ogni riposo lungo, puoi usare la tua azione per liberare il tuo Spirito Interiore in un punto che puoi vedere entro 30 piedi da te. Lo Spirito Interiore è una creatura che agisce sempre nel turno successivo al tuo, seguendo il tuo volere. Puoi usare la tua azione bonus durante il tuo turno per farlo muovere della sua velocità.</p><p>Quando muori, se il tuo Spirito Interiore si trova entro 120 piedi da te, il tuo corpo si tramuta in finissima cenere incandescente. Poi, si rigenera nella posizione del tuo Spirito Interiore, consumandolo. Quando accade, ottieni punti vita pari ai punti vita rimanenti del tuo Spirito Interiore.</p><p>Lo Spirito Interiore ha 5 × tuo livello da Mago punti vita massimi ed il suo Firebolt ha un danno base come il tuo.</p>",
+        "keyNode": true,
+        "connections": [2],
+        "state": "unlocked"
+      },
+      {
+        "id": 2,
+        "x": 50,
+        "y": 60,
+        "icon": "skill_randra_fiamma_estesa.png",
+        "title": "Fiamma Estesa",
+        "flavor": "La fiamma nel tuo cuore inizia ad ardere ancora più forte.",
+        "desc": "<p>Hai sempre il trucchetto Firebolt preparato.</p><p>Quando colpisci una creatura con il tuo Firebolt, puoi generare un'ondata di fiamme intorno ad essa. Ogni creatura entro 5 piedi dal bersaglio deve superare un tiro salvezza su Destrezza, o subire gli stessi danni del tuo firebolt. Una creatura che supera il tiro salvezza subisce metà dei danni.</p>",
+        "connections": [3, 4],
+        "state": "unlockable"
+      },
+      {
+        "id": 3,
+        "x": 35,
+        "y": 60,
+        "icon": "skill_randra_rilascio_sincronizzato.png",
+        "title": "Rilascio Sincronizzato",
+        "flavor": "L'affinità tra te ed il tuo Spirito Interiore migliora.",
+        "desc": "<p>Ogni volta che infliggi danni da fuoco ad un bersaglio singolo con un incantesimo, il tuo Spirito Interiore può lanciare immediatamente un Firebolt contro quel bersaglio.</p>",
+        "connections": [5]
+      },
+      {
+        "id": 4,
+        "x": 65,
+        "y": 60,
+        "icon": "skill_randra_rilascio_esplosivo.png",
+        "title": "Rilascio Esplosivo",
+        "flavor": "L'affinità tra te ed il tuo Spirito Interiore migliora.",
+        "desc": "<p>Ogni volta che infliggi danni da fuoco ad area colpendo almeno 2 bersagli, il tuo Spirito Interiore può rilasciare immediatamente un'onda infuocata di 10 piedi intorno a sé. Le creature nell'area devono superare un tiro salvezza su Destrezza o subire i danni del suo Firebolt. Una creatura che supera il tiro subisce metà dei danni.</p>",
+        "connections": [6]
+      },
+      {
+        "id": 5,
+        "x": 30,
+        "y": 50,
+        "icon": "skill_randra_sincronia_esplosiva.png",
+        "title": "Sincronia Esplosiva",
+        "flavor": "Il tuo Spirito Interiore riesce ad incanalare meglio il tuo potere nella sua fiamma.",
+        "desc": "<p>Quando il tuo Spirito Interiore lancia un Firebolt, puoi decidere di ridurre il suo tiro per colpire di 5 per conferirgli un bonus di +10 ai danni.</p>",
+        "connections": [7]
+      },
+      {
+        "id": 6,
+        "x": 70,
+        "y": 50,
+        "icon": "skill_randra_esplosione_controllata.png",
+        "title": "Esplosione Controllata",
+        "flavor": "Riesci a controllare la fiamma del tuo Spirito Interiore, limitando i danni subiti dai tuoi alleati.",
+        "desc": "<p>Quando il tuo Spirito Interiore rilascia un'onda infuocata con Rilascio Esplosivo, ottiene punti vita temporanei pari al risultato del dado dei danni ed è in grado di escludere le creature che desideri dai danni inflitti.</p>",
+        "connections": [7]
+      },
+      {
+        "id": 7,
+        "x": 50,
+        "y": 40,
+        "icon": "skill_randra_energia_incanalata.png",
+        "title": "Energia Incanalata",
+        "flavor": "Riesci ad infondere magia aggiuntiva nei tuoi Firebolt, rendendoli estremamente ustionanti.",
+        "desc": "<p>Ogni volta che utilizzi il tuo Firebolt, puoi scegliere di infonderlo di ulteriore energia arcana, amplificando le sue fiamme. Prima del tiro per colpire, puoi spendere un tuo spell slot per aumentare i danni del Firebolt di 2d10 per ogni livello di slot speso.</p>",
+        "connections": [8]
+      },
+      {
+        "id": 8,
+        "x": 50,
+        "y": 30,
+        "icon": "skill_randra_fuocus.png",
+        "title": "Fuocus",
+        "flavor": "Riesci a mettere il focus su ciò che stai facendo, concentrandoti profondamente.",
+        "desc": "<p>Puoi usare la tua azione bonus per spendere uno slot incantesimo a tua scelta ed ottenere un bonus di +2 al tiro per colpire per ogni livello usato. L'effetto termina dopo che colpisci una creatura o alla fine del tuo turno.</p>",
+        "connections": [9]
+      },
+      {
+        "id": 9,
+        "x": 50,
+        "y": 20,
+        "icon": "skill_randra_fiamma_rinata.png",
+        "title": "Fiamma Rinata",
+        "flavor": "Riesci ad interagire più facilmente con il tuo Spirito Interiore.",
+        "desc": "<p>Puoi usare la tua azione per spendere uno slot di incantesimo di livello 4 o superiore per evocare il tuo Spirito Interiore, anche se lo hai già fatto una volta dopo il tuo ultimo riposo lungo.</p><p>Inoltre, puoi usare la tua azione per consumare il tuo Spirito Interiore e lanciare una Palla di Fuoco di 3° livello. Per attivare questo effetto, il tuo Spirito Interiore deve essere entro 120 piedi da te.</p>",
+        "connections": [10, 11]
+      },
+      {
+        "id": 10,
+        "x": 35,
+        "y": 20,
+        "icon": "skill_randra_spirito_interiore_lontano.png",
+        "title": "Spirito Interiore Lontano",
+        "flavor": "Il tuo Spirito Interiore desidera restare in sicurezza, osservando i nemici bruciare da lontano.",
+        "desc": "<p>Una volta per combattimento, quando lanci un incantesimo di fuoco mentre sei entro 10 piedi dal tuo Spirito Interiore, infliggi 1d10 danni da fuoco aggiuntivi per ogni livello incantesimo usato. Inoltre, ogni creatura a tua scelta all'interno di quell'area gode di immunità ai danni da Fuoco.</p><p>Quando rinasci con l'effetto di Spirito Interiore, puoi lanciare 3 Firebolt contro la creatura che ti ha ucciso. Se vuoi, puoi usare anche la tua reazione per usare Fuocus prima di lanciarli.</p>",
+        "connections": []
+      },
+      {
+        "id": 11,
+        "x": 65,
+        "y": 20,
+        "icon": "skill_randra_spirito_interiore_vicino.png",
+        "title": "Spirito Interiore Vicino",
+        "flavor": "Il tuo Spirito Interiore desidera sentire i nemici bruciare da vicino.",
+        "desc": "<p>I punti vita massimi del tuo Spirito Interiore diventano 10 × tuo livello da Mago.</p><p>Quando rinasci con l'effetto di Spirito Interiore, viene generata una Palla di Fuoco di 9° livello centrata su di te.</p>",
+        "connections": []
+      }
     ]
   }
 }
