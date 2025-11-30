@@ -442,6 +442,70 @@ ul {
     font-weight: bold;
 }
 
+
+
+/* =========================================
+   BADGE STATO PERSONAGGI (Nuovo)
+   ========================================= */
+.npc-status-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    z-index: 5;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Pallino colorato per status */
+.npc-status-badge::before {
+    content: '';
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+/* STATUS: VIVO (Verde) */
+.status-vivo {
+    color: #2ecc71;
+    border: 1px solid rgba(46, 204, 113, 0.4);
+}
+.status-vivo::before {
+    background-color: #2ecc71;
+    box-shadow: 0 0 5px #2ecc71;
+}
+
+/* STATUS: MORTO (Rosso) */
+.status-morto {
+    color: #e74c3c;
+    border: 1px solid rgba(231, 76, 60, 0.4);
+}
+.status-morto::before {
+    background-color: #e74c3c;
+    box-shadow: 0 0 5px #e74c3c;
+}
+
+/* STATUS: SCONOSCIUTO (Arancione) */
+.status-sconosciuto {
+    color: #e67e22;
+    border: 1px solid rgba(230, 126, 34, 0.4);
+}
+.status-sconosciuto::before {
+    background-color: #e67e22;
+    box-shadow: 0 0 5px #e67e22;
+}
+
 /* =========================================
    RESPONSIVE
    ========================================= */
