@@ -1,0 +1,44 @@
+{
+    "pointsOfInterest": [
+        { 
+            "id": "poi-1", 
+            "x": 25, 
+            "y": 30, 
+            "title": "Cristalli Verdi",
+            "flavor": "Una regione di cristalli verdi e velenosi.",
+            "desc": "<p>Questa vasta area è nota per i suoi imponenti cristalli verdi che emettono un debole bagliore tossico. La flora e la fauna si sono adattate a questo ambiente ostile, dando vita a creature bizzarre e pericolose.</p><p>Si dice che i cristalli abbiano potenti proprietà magiche, ma estrarli è un'impresa che pochi hanno osato tentare.</p>"
+        },
+        { 
+            "id": "poi-2", 
+            "x": 70, 
+            "y": 25, 
+            "title": "Vulcano",
+            "flavor": "Un vulcano attivo che minaccia la regione.",
+            "desc": "<p>Il Monte Cinereo è un vulcano perennemente attivo, le cui pendici sono coperte di cenere e fiumi di lava. Le antiche rovine di una civiltà perduta sono sparse intorno alla sua base, parzialmente sepolte da secoli di eruzioni.</p><p>Le leggende narrano di un potente spirito del fuoco che dimora nel cuore del vulcano, a guardia di un tesoro inimmaginabile.</p>"
+        },
+        { 
+            "id": "poi-3", 
+            "x": 75, 
+            "y": 80, 
+            "title": "Regno di Ghiaccio",
+            "flavor": "Una terra di ghiaccio e neve eterna.",
+            "desc": "<p>Le Guglie di Ghiaccio sono una catena montuosa permanentemente coperta da ghiacciai. Le temperature qui scendono a livelli insopportabili per la maggior parte delle creature. Un'antica città, scolpita direttamente nel ghiaccio, si dice che sia nascosta tra le vette, abitata da esseri di ghiaccio.</p>"
+        },
+        { 
+            "id": "poi-4", 
+            "x": 20, 
+            "y": 80, 
+            "title": "Isole Fluttuanti",
+            "flavor": "Isole che fluttuano nel cielo.",
+            "desc": "<p>Una catena di isole rocciose fluttua nel cielo, tenute sospese da una misteriosa forza magica. Vegetazione lussureggiante cresce su queste isole, e cascate d'acqua si riversano dai loro bordi nel vuoto sottostante. Raggiungere queste isole è una sfida, ma si dice che ospitino rovine di un'era dimenticata.</p>"
+        },
+        { 
+            "id": "poi-5", 
+            "x": 50, 
+            "y": 60, 
+            "title": "Foresta Viola",
+            "flavor": "Una foresta di funghi e piante viola.",
+            "desc": "<p>La Foresta Fungina è un bioma surreale dove funghi giganti e piante bioluminescenti di colore viola dominano il paesaggio. L'aria è carica di spore magiche che possono avere effetti imprevedibili su chi le respira. Molte creature rare e potenti, adatte a questo strano ambiente, si aggirano tra i funghi giganti.</p>"
+        }
+    ]
+}
