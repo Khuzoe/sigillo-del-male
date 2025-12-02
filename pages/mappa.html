@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mappa Interattiva | Cripta di Sangue</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <link rel="stylesheet" href="../assets/css/abyssal.css">
+
+    <style>
+        .map-container {
+            width: 100%;
+            height: 80vh;
+            overflow: hidden;
+            border: 2px solid rgba(138, 28, 28, 0.3);
+            border-radius: 12px;
+            position: relative;
+            background-color: #000;
+        }
+
+        .map-wrapper {
+            width: 100%;
+            height: 100%;
+            background-image: url('../assets/img/maps/map.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            transform-origin: 0 0; /* Crucial for correct zoom calculation */
+            transition: none; /* Prevents visual lag during interaction */
+            position: relative;
+        }
+
+        .poi {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background-color: red;
+            border-radius: 50%;
+            border: 2px solid white;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .poi:hover {
+            transform: translate(-50%, -50%) scale(1.5);
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar" id="sidebar-container"></nav>
+
+    <main class="main-content">
+        <header class="hero-mini">
+            <div class="hero-title">
+                <h1>Mappa del Mondo</h1>
+                <div class="subtitle">I luoghi perduti e ritrovati</div>
+            </div>
+        </header>
+
+        <div class="container">
+            <div class="map-container" id="map-container">
+                <div class="map-wrapper" id="map-wrapper">
+                    <!-- Points of Interest will be injected here by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="../assets/js/layout.js"></script>
+    <script src="../assets/js/map.js"></script>
+</body>
+</html>
