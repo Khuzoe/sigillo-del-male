@@ -9,12 +9,28 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
+    <!-- FIX: Restoring the essential global stylesheet -->
     <link rel="stylesheet" href="../assets/css/abyssal.css">
 
     <style>
+        /* FIX: Overriding the global container to fill the space on this page */
+        .container {
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 2rem 1.5rem;
+        }
+
+        .page-layout {
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 1.5rem;
+            align-items: flex-start;
+        }
+
         .map-container {
             width: 100%;
-            height: 80vh;
+            aspect-ratio: 16 / 9;
+            max-height: 85vh;
             overflow: hidden;
             border: 2px solid rgba(138, 28, 28, 0.3);
             border-radius: 12px;
@@ -22,7 +38,6 @@
             background-color: #000;
         }
 
-        /* This new element will be the pannable and zoomable layer */
         #map-content {
             position: absolute;
             width: 100%;
@@ -33,25 +48,82 @@
         #map-image {
             width: 100%;
             height: 100%;
-            object-fit: contain; /* Ensures the map fits within the container */
+            object-fit: contain; 
+            object-position: 0 0; 
         }
 
         .poi {
             position: absolute;
-            width: 15px;
-            height: 15px;
-            background-color: red;
+            width: 18px;
+            height: 18px;
+            background-color: #ffcc00;
             border-radius: 50%;
             border: 2px solid white;
             transform: translate(-50%, -50%);
             cursor: pointer;
-            transition: transform 0.2s;
+            transition: all 0.2s;
+            box-shadow: 0 0 10px #ffcc00, 0 0 15px #000;
         }
         
-        /* Make POIs smaller as the map is zoomed in */
-        .poi:hover {
-            transform: translate(-50%, -50%) scale(1.5);
+        .poi.active, .poi:hover {
+            background-color: #ff4d4d;
+            box-shadow: 0 0 15px #ff4d4d;
+            transform: translate(-50%, -50%) scale(1.3);
         }
+
+        /* Info Panel Styles */
+        .info-panel {
+            position: sticky;
+            top: 1.5rem;
+            background: rgba(18, 18, 18, 0.9);
+            border: 1px solid #8a1c1c;
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            max-height: calc(85vh + 4px); /* Match map height */
+            overflow-y: auto;
+        }
+
+        .info-panel-header .title {
+            font-family: 'Cinzel', serif;
+            font-size: 2rem;
+            color: #d4af37;
+            margin: 0 0 0.5rem 0;
+        }
+
+        .info-panel-header .flavor-text {
+            font-family: 'Crimson Text', serif;
+            font-style: italic;
+            color: #aaa;
+            margin: 0 0 1.5rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 1.5rem;
+        }
+        
+        .info-panel-content {
+            font-family: 'Montserrat', sans-serif;
+            color: #ddd;
+            line-height: 1.8;
+            font-size: 0.95rem;
+        }
+        .info-panel-content p {
+            margin-bottom: 1rem;
+        }
+
+        .info-panel-placeholder {
+            text-align: center;
+            color: #666;
+            min-height: 400px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .info-panel-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
     </style>
 </head>
 <body>
@@ -67,11 +139,23 @@
         </header>
 
         <div class="container">
-            <div class="map-container" id="map-container">
-                <!-- All transformations will now be applied to this content wrapper -->
-                <div id="map-content">
-                    <img src="../assets/img/maps/map.png" id="map-image" alt="World Map">
-                    <!-- Points of Interest will be injected here -->
+            <div class="page-layout">
+                <div class="map-column">
+                    <div class="map-container" id="map-container">
+                        <div id="map-content">
+                            <img src="../assets/img/maps/map.png" id="map-image" alt="World Map">
+                            <!-- Points of Interest will be injected here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-column">
+                    <div class="info-panel" id="info-panel">
+                        <div class="info-panel-placeholder">
+                            <i class="fas fa-map-marked-alt"></i>
+                            <p>Seleziona un punto di interesse per visualizzare i dettagli.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
