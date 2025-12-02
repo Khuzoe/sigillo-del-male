@@ -22,16 +22,18 @@
             background-color: #000;
         }
 
-        .map-wrapper {
+        /* This new element will be the pannable and zoomable layer */
+        #map-content {
+            position: absolute;
             width: 100%;
             height: 100%;
-            background-image: url('../assets/img/maps/map.png');
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            transform-origin: 0 0; /* Crucial for correct zoom calculation */
-            transition: none; /* Prevents visual lag during interaction */
-            position: relative;
+            transform-origin: 0 0;
+        }
+
+        #map-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Ensures the map fits within the container */
         }
 
         .poi {
@@ -43,9 +45,10 @@
             border: 2px solid white;
             transform: translate(-50%, -50%);
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: transform 0.2s;
         }
         
+        /* Make POIs smaller as the map is zoomed in */
         .poi:hover {
             transform: translate(-50%, -50%) scale(1.5);
         }
@@ -65,8 +68,10 @@
 
         <div class="container">
             <div class="map-container" id="map-container">
-                <div class="map-wrapper" id="map-wrapper">
-                    <!-- Points of Interest will be injected here by JavaScript -->
+                <!-- All transformations will now be applied to this content wrapper -->
+                <div id="map-content">
+                    <img src="../assets/img/maps/map.png" id="map-image" alt="World Map">
+                    <!-- Points of Interest will be injected here -->
                 </div>
             </div>
         </div>
