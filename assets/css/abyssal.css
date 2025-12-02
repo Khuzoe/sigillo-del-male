@@ -496,12 +496,12 @@ ul {
     box-shadow: 0 0 5px #e74c3c;
 }
 
-/* STATUS: SCONOSCIUTO (Arancione) */
-.status-sconosciuto {
+/* STATUS: IGNOTO (Arancione) */
+.status-ignoto {
     color: #e67e22;
     border: 1px solid rgba(230, 126, 34, 0.4);
 }
-.status-sconosciuto::before {
+.status-ignoto::before {
     background-color: #e67e22;
     box-shadow: 0 0 5px #e67e22;
 }
