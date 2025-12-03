@@ -78,6 +78,16 @@
                 charNameEl.textContent = "Errore";
                 container.innerHTML = `<p style="text-align: center; color: var(--status-dead);">${message}</p>`;
             }
+
+            function resolveImagePath(imagePath) {
+                if (!imagePath) return '';
+                // Check if the path is already absolute or starts with a protocol
+                if (imagePath.startsWith('http://') || imagePath.startsWith('https://') || imagePath.startsWith('/') || imagePath.startsWith('data:')) {
+                    return imagePath;
+                }
+                // Prepend the base path for relative asset images
+                return `../../assets/${imagePath}`;
+            }
             
             function renderRelationships(relationships, allCharacters) {
                 const card = document.createElement('div');
@@ -90,8 +100,8 @@
                     return `
                         <a href="?id=${relatedChar.id}" class="npc-card">
                             <div class="npc-avatar-container">
-                                <img src="${relatedChar.images.avatar}" alt="${relatedChar.name}" class="npc-img-pop img-main" onerror="this.style.display='none'">
-                                <img src="${relatedChar.images.hover}" alt="${relatedChar.name} Reveal" class="npc-img-pop img-hover" onerror="this.style.display='none'">
+                                <img src="${resolveImagePath(relatedChar.images.avatar)}" alt="${relatedChar.name}" class="npc-img-pop img-main" onerror="this.style.display='none'">
+                                <img src="${resolveImagePath(relatedChar.images.hover)}" alt="${relatedChar.name} Reveal" class="npc-img-pop img-hover" onerror="this.style.display='none'">
                             </div>
                             <div class="npc-info">
                                 <div class="npc-header">
@@ -176,7 +186,7 @@
 
                 return `
                     <div class="image-card">
-                        <img src="${character.images.portrait}" class="char-portrait" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
+                        <img src="${resolveImagePath(character.images.portrait)}" class="char-portrait" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
                         <div class="stats-grid">${statsHtml}</div>
                         <div style="padding: 1rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.1);">
                             <span class="stat-label" style="margin-bottom: 5px;">Causa del Decesso</span>
@@ -206,7 +216,7 @@
                             <div class="secret-dossier">
                                 <div class="secret-badge">${block.badge}</div>
                                 <div class="dossier-content">
-                                    <img src="${block.image}" class="elena-img" onerror="this.style.display='none'">
+                                    <img src="${resolveImagePath(block.image)}" class="elena-img" onerror="this.style.display='none'">
                                     <div>${block.content}</div>
                                 </div>
                             </div>`;
@@ -222,7 +232,7 @@
                     case 'image_grid':
                         const itemsHtml = block.items.map(item => `
                             <div class="dog-item">
-                                <img src="${item.image}" class="dog-img" style="${item.highlight ? 'border-color: var(--accent-copper);' : ''}" onerror="this.style.display='none'">
+                                <img src="${resolveImagePath(item.image)}" class="dog-img" style="${item.highlight ? 'border-color: var(--accent-copper);' : ''}" onerror="this.style.display='none'">
                                 <span class="dog-name" style="${item.highlight ? 'color: var(--accent-copper);' : ''}">${item.name}</span>
                             </div>
                         `).join('');
