@@ -258,164 +258,13 @@
             <div class="quest-category-title">
                 <i class="fas fa-crown"></i> Trama Principale
             </div>
-
-            <!-- Quest 1: I Segreti dei Von T -->
-            <div class="quest-card active expanded">
-                <div class="quest-header" onclick="toggleQuest(this)">
-                    <div class="quest-title-group">
-                        <h3>L'Eredità dei Von T</h3>
-                        <span class="quest-type">Capitolo 1: La Cripta</span>
-                    </div>
-                    <div class="mini-progress"><div class="mini-bar" style="width: 60%;"></div></div>
-                    <span class="quest-status status-active">In Corso</span>
-                    <i class="fas fa-chevron-down expand-icon"></i>
-                </div>
-                <div class="quest-body">
-                    <div class="quest-content">
-                        <p class="quest-desc">
-                            Avete scoperto che la famiglia Von T è al centro dei misteri di questo luogo. X vi ha chiesto di raccogliere informazioni sulla stirpe e sulla "bambina dai capelli bianchi".
-                        </p>
-                        <ul class="objective-list">
-                            <li class="objective-item done">
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Esplorare il Primo Livello della Cripta.</span>
-                            </li>
-                            <li class="objective-item done">
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Trovare informazioni su Rabberduscolanderson.</span>
-                            </li>
-                            <li class="objective-item done">
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Sconfiggere "Gianni" il giardiniere.</span>
-                            </li>
-                            <li class="objective-item done">
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Accedere al Secondo Livello (Simbolo Klaren).</span>
-                            </li>
-                            <li class="objective-item">
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Scoprire la posizione di Deborah (la ragazza dai capelli bianchi).</span>
-                            </li>
-                            <li class="objective-item">
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Affrontare l'Uomo Ragno a Nord (In corso).</span>
-                            </li>
-                        </ul>
-                        <div class="quest-rewards">
-                            <i class="fas fa-gem"></i> Ricompense: Verità sul passato, Accesso ai piani inferiori.
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <div id="main-quests-container"></div>
 
             <!-- SEZIONE SECONDARIE -->
             <div class="quest-category-title">
                 <i class="fas fa-scroll"></i> Incarichi Secondari
             </div>
-
-            <!-- Quest 2: Il Giardino di Albert -->
-            <div class="quest-card completed">
-                <div class="quest-header" onclick="toggleQuest(this)">
-                    <div class="quest-title-group">
-                        <h3>Il Giardino di Albert</h3>
-                        <span class="quest-type">Caccia</span>
-                    </div>
-                    <div class="mini-progress"><div class="mini-bar" style="width: 100%;"></div></div>
-                    <span class="quest-status status-completed">Completata</span>
-                    <i class="fas fa-chevron-down expand-icon"></i>
-                </div>
-                <div class="quest-body">
-                    <div class="quest-content">
-                        <p class="quest-desc">
-                            Rabberduscolanderson vi ha parlato di piante mostruose cresciute in una zona della cripta.
-                        </p>
-                        <ul class="objective-list">
-                            <li class="objective-item done">
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Localizzare il giardino infestato.</span>
-                            </li>
-                            <li class="objective-item done">
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Estirpare le piante mostruose.</span>
-                            </li>
-                        </ul>
-                        <div class="quest-rewards">
-                            <i class="fas fa-check"></i> Ricompensa: Fiducia di Rabber, Accesso sicuro all'area.
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quest 3: Cuore per Franky -->
-            <div class="quest-card failed">
-                <div class="quest-header" onclick="toggleQuest(this)">
-                    <div class="quest-title-group">
-                        <h3>Un Cuore per Franky</h3>
-                        <span class="quest-type">Scambio</span>
-                    </div>
-                    <div class="mini-progress"><div class="mini-bar" style="width: 50%;"></div></div>
-                    <span class="quest-status status-failed">Rifiutata</span>
-                    <i class="fas fa-chevron-down expand-icon"></i>
-                </div>
-                <div class="quest-body">
-                    <div class="quest-content">
-                        <p class="quest-desc">
-                            Il topo parlante Franky voleva il Cuore Arcano di Gianni per il suo golem di carne. Avete deciso di non aiutarlo.
-                        </p>
-                        <ul class="objective-list">
-                            <li class="objective-item done">
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Incontrare Franky nel laboratorio.</span>
-                            </li>
-                            <li class="objective-item done">
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Ottenere il Cuore da Gianni.</span>
-                            </li>
-                            <li class="objective-item"> <!-- Non Done -->
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Consegnare il Cuore a Franky.</span>
-                            </li>
-                        </ul>
-                        <div class="quest-rewards" style="color: #e74c3c;">
-                            <i class="fas fa-times"></i> Esito: Il Cuore è stato consegnato a X. Franky è rimasto a mani vuote (e derubato).
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-             <!-- Quest 4: Maledizione -->
-             <div class="quest-card completed">
-                <div class="quest-header" onclick="toggleQuest(this)">
-                    <div class="quest-title-group">
-                        <h3>La Maledizione di Ga'Run</h3>
-                        <span class="quest-type">Personale</span>
-                    </div>
-                    <div class="mini-progress"><div class="mini-bar" style="width: 100%;"></div></div>
-                    <span class="quest-status status-completed">Completata</span>
-                    <i class="fas fa-chevron-down expand-icon"></i>
-                </div>
-                <div class="quest-body">
-                    <div class="quest-content">
-                        <p class="quest-desc">
-                            Ga'Run è stato colpito da una terribile maledizione mummificante aprendo un sarcofago.
-                        </p>
-                        <ul class="objective-list">
-                            <li class="objective-item done">
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Sopravvivere allo scontro con le mummie.</span>
-                            </li>
-                            <li class="objective-item done">
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Rifiutare la soluzione letale di X.</span>
-                            </li>
-                            <li class="objective-item done">
-                                <div class="custom-checkbox"></div>
-                                <span class="objective-text">Rimuovere la maledizione tramite magia divina (Apothecary).</span>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
+            <div id="secondary-quests-container"></div>
 
         </div>
     </main>
@@ -429,23 +278,88 @@
             card.classList.toggle('expanded');
         }
 
-        // Calcolo automatico delle barre di progresso all'avvio
-        document.addEventListener("DOMContentLoaded", function() {
-            const cards = document.querySelectorAll('.quest-card');
+        // Funzione per generare l'HTML di una singola card
+        function createQuestCard(quest) {
+            const objectivesHtml = quest.objectives.map(obj => `
+                <li class="objective-item ${obj.done ? 'done' : ''}">
+                    <div class="custom-checkbox"></div>
+                    <span class="objective-text">${obj.text}</span>
+                </li>
+            `).join('');
+
+            const rewardsHtml = quest.rewards ? `
+                <div class="quest-rewards" ${quest.status === 'failed' ? 'style="color: #e74c3c;"' : ''}>
+                    <i class="fas ${quest.status === 'completed' ? 'fa-check' : (quest.status === 'failed' ? 'fa-times' : 'fa-gem')}"></i>
+                    ${quest.rewards}
+                </div>
+            ` : '';
             
-            cards.forEach(card => {
-                const objectives = card.querySelectorAll('.objective-item');
-                const completed = card.querySelectorAll('.objective-item.done');
-                const progressBar = card.querySelector('.mini-bar');
-                
-                if(objectives.length > 0 && progressBar) {
-                    const percent = (completed.length / objectives.length) * 100;
-                    progressBar.style.width = percent + '%';
-                    
-                    // Opzionale: Se è al 100% ma non ha la classe completed, potremmo aggiungerla dinamicamente
-                    // ma preferisco lasciarlo manuale per gestire casi come "Fallita" ma con step fatti.
+            const statusMap = {
+                active: { text: 'In Corso', class: 'status-active' },
+                completed: { text: 'Completata', class: 'status-completed' },
+                failed: { text: 'Rifiutata', class: 'status-failed' }
+            };
+            const statusInfo = statusMap[quest.status] || { text: 'Sconosciuto', class: '' };
+
+            const completedObjectives = quest.objectives.filter(o => o.done).length;
+            const totalObjectives = quest.objectives.length;
+            const progress = totalObjectives > 0 ? (completedObjectives / totalObjectives) * 100 : 0;
+
+            const card = document.createElement('div');
+            card.className = `quest-card ${quest.status} ${quest.expanded ? 'expanded' : ''}`;
+            card.innerHTML = `
+                <div class="quest-header" onclick="toggleQuest(this)">
+                    <div class="quest-title-group">
+                        <h3>${quest.title}</h3>
+                        <span class="quest-type">${quest.subtitle}</span>
+                    </div>
+                    <div class="mini-progress"><div class="mini-bar" style="width: ${progress}%;"></div></div>
+                    <span class="quest-status ${statusInfo.class}">${statusInfo.text}</span>
+                    <i class="fas fa-chevron-down expand-icon"></i>
+                </div>
+                <div class="quest-body">
+                    <div class="quest-content">
+                        <p class="quest-desc">${quest.description}</p>
+                        <ul class="objective-list">${objectivesHtml}</ul>
+                        ${rewardsHtml}
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        // Caricamento e renderizzazione delle missioni
+        document.addEventListener("DOMContentLoaded", async function() {
+            try {
+                const response = await fetch('../assets/data/missions.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-            });
+                const missions = await response.json();
+
+                const mainContainer = document.getElementById('main-quests-container');
+                const secondaryContainer = document.getElementById('secondary-quests-container');
+
+                missions.forEach(quest => {
+                    const card = createQuestCard(quest);
+                    if (quest.category === 'main') {
+                        mainContainer.appendChild(card);
+                    } else {
+                        secondaryContainer.appendChild(card);
+                    }
+                });
+                
+                // Aggiorna l'altezza del corpo delle quest espanse dopo il render
+                const expandedCards = document.querySelectorAll('.quest-card.expanded .quest-body');
+                expandedCards.forEach(body => {
+                    body.style.maxHeight = body.scrollHeight + 'px';
+                });
+
+            } catch (error) {
+                console.error("Errore nel caricamento delle missioni:", error);
+                const container = document.getElementById('main-quests-container');
+                container.innerHTML = '<p style="color: var(--red);">Impossibile caricare il registro delle imprese. Contattare il Master.</p>';
+            }
         });
     </script>
 
