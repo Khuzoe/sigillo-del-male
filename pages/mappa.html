@@ -71,6 +71,106 @@
             transform: translate(-50%, -50%) scale(1.3);
         }
 
+        .poi-label {
+            position: absolute;
+            bottom: 150%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.85);
+            color: #fff;
+            padding: 0.3rem 0.7rem;
+            border-radius: 5px;
+            font-family: var(--font-ui);
+            font-size: 0.9rem;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s ease, visibility 0.2s ease;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        .poi:hover .poi-label,
+        .poi.active .poi-label {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Fullscreen Button */
+        .fullscreen-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            border: 1px solid var(--gold-dim);
+            border-radius: 4px;
+            padding: 0.5rem 0.8rem;
+            cursor: pointer;
+            z-index: 10;
+            transition: all 0.2s ease;
+        }
+        .fullscreen-btn:hover {
+            background: var(--gold);
+            color: #000;
+        }
+
+        /* Map Modal (Fullscreen) */
+        .map-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            z-index: 1000;
+            display: none; /* Hidden by default */
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+        .map-modal.visible {
+            display: flex;
+        }
+
+        .map-modal-content {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* Controls inside the modal */
+        .map-modal-controls {
+            position: absolute;
+            top: -1.5rem;
+            right: 0;
+            z-index: 1010;
+            display: flex;
+            gap: 1rem;
+        }
+        .map-modal-controls button {
+            background: rgba(30,30,30,0.8);
+            border: 1px solid var(--gold-dim);
+            color: #fff;
+            font-size: 1.2rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .map-modal-controls button:hover {
+            background: var(--gold);
+            color: #000;
+        }
+
+        /* Specific styles for the map container when in fullscreen modal */
+        .map-modal .map-container {
+            height: 100%;
+            max-height: none;
+            aspect-ratio: unset;
+        }
+
         /* Info Panel Styles */
         .info-panel {
             position: sticky;
@@ -142,8 +242,11 @@
             <div class="page-layout">
                 <div class="map-column">
                     <div class="map-container" id="map-container">
+                        <button class="fullscreen-btn" id="open-fullscreen-btn" title="Schermo intero">
+                            <i class="fas fa-expand"></i>
+                        </button>
                         <div id="map-content">
-                            <img src="../assets/img/maps/tmp.png" id="map-image" alt="World Map">
+                            <img src="../assets/img/maps/tmp.jpg" id="map-image" alt="World Map">
                             <!-- Points of Interest will be injected here -->
                         </div>
                     </div>
@@ -161,7 +264,25 @@
         </div>
     </main>
 
+    <!-- MAP MODAL -->
+    <div class="map-modal" id="map-modal">
+        <div class="map-modal-content">
+            <div class="map-modal-controls">
+                <button id="toggle-poi-btn" title="Mostra/Nascondi Punti di Interesse">
+                    <i class="fas fa-map-marker-alt"></i>
+                </button>
+                <button id="close-fullscreen-btn" title="Chiudi">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="map-container" id="fullscreen-map-container">
+                <!-- The map will be moved here by JS -->
+            </div>
+        </div>
+    </div>
+
     <script src="../assets/js/layout.js"></script>
     <script src="../assets/js/map.js"></script>
+    <script src="../assets/js/map-fullscreen.js"></script>
 </body>
 </html>
