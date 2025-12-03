@@ -5,9 +5,9 @@
     "role": "Chierica della Vita",
     "description": "Portatrice di luce e guarigione. Ha stretto un legame particolare con Rabberduscolanderson e la sua magia divina è stata fondamentale per spezzare le maledizioni della cripta.",
     "images": {
-      "avatar": "../assets/img/players/apothecary_transp.webp",
-      "hover": "../assets/img/players/apothecary_animation.webp",
-      "portrait": "../assets/img/players/apothecary.webp"
+      "avatar": "../img/players/apothecary_transp.webp",
+      "hover": "../img/players/apothecary_animation.webp",
+      "portrait": "../img/players/apothecary.webp"
     },
     "summary": {
       "race": "Kenku",
@@ -24,9 +24,9 @@
     "role": "Barbaro",
     "description": "Padre di Ran'Dra e combattente instancabile. Ha subito sulla sua pelle le peggiori maledizioni dei Von T, ma la sua tenacia e la sua forza bruta non hanno mai vacillato.",
     "images": {
-      "avatar": "../assets/img/players/garun_transp.webp",
-      "hover": "../assets/img/players/garun_animation.webp",
-      "portrait": "../assets/img/players/garun.webp"
+      "avatar": "../img/players/garun_transp.webp",
+      "hover": "../img/players/garun_animation.webp",
+      "portrait": "../img/players/garun.webp"
     },
     "summary": {
       "race": "Umano",
@@ -43,9 +43,9 @@
     "role": "Maga (Evocazione)",
     "description": "Figlia di Ga'Run, esperta nel muoversi non vista e nel sottrarre oggetti preziosi. Le sue illusioni hanno spesso permesso al gruppo di sfuggire a mostri gargantueschi.",
     "images": {
-      "avatar": "../assets/img/players/randra_transp.webp",
-      "hover": "../assets/img/players/randra_animation.webp",
-      "portrait": "../assets/img/players/randra.webp"
+      "avatar": "../img/players/randra_transp.webp",
+      "hover": "../img/players/randra_animation.webp",
+      "portrait": "../img/players/randra.webp"
     },
     "summary": {
       "race": "Eladrin (Estate)",
@@ -62,15 +62,15 @@
     "role": "Artificiere",
     "description": "Maestro delle arti arcane e creatore di sigilli magici. La sua intelligenza ha salvato il gruppo innumerevoli volte, risolvendo enigmi letali e intrappolando nemici potenti.",
     "images": {
-      "avatar": "../assets/img/players/valdor_transp.webp",
-      "hover": "../assets/img/players/valdor_animation.webp",
-      "portrait": "../assets/img/players/valdor.webp"
+      "avatar": "../img/players/valdor_transp.webp",
+      "hover": "../img/players/valdor_animation.webp",
+      "portrait": "../img/players/valdor.webp"
     },
     "summary": {
-      "race": "Umano",
+      "race": "Nano",
       "age_at_death": "N/A",
-      "height": "1.40m",
-      "period": "Contemporaneo",
+      "height": "1.50m",
+      "period": "74",
       "cause_of_death": "N/A"
     },
     "content_blocks": []
