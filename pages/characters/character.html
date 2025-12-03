@@ -67,7 +67,7 @@
                     return;
                 }
 
-                renderCharacterPage(character);
+                renderCharacterPage(character, characters);
 
             } catch (error) {
                 console.error("Errore nel caricamento del personaggio:", error);
@@ -78,8 +78,43 @@
                 charNameEl.textContent = "Errore";
                 container.innerHTML = `<p style="text-align: center; color: var(--status-dead);">${message}</p>`;
             }
+            
+            function renderRelationships(relationships, allCharacters) {
+                const card = document.createElement('div');
+                card.className = 'content-card';
+                
+                const relationshipsHtml = relationships.map(rel => {
+                    const relatedChar = allCharacters.find(c => c.id === rel.id);
+                    if (!relatedChar) return '';
 
-            function renderCharacterPage(character) {
+                    return `
+                        <a href="?id=${relatedChar.id}" class="npc-card">
+                            <div class="npc-avatar-container">
+                                <img src="${relatedChar.images.avatar}" alt="${relatedChar.name}" class="npc-img-pop img-main" onerror="this.style.display='none'">
+                                <img src="${relatedChar.images.hover}" alt="${relatedChar.name} Reveal" class="npc-img-pop img-hover" onerror="this.style.display='none'">
+                            </div>
+                            <div class="npc-info">
+                                <div class="npc-header">
+                                    <h3 class="npc-name">${relatedChar.name}</h3>
+                                    <span class="npc-role">${relatedChar.role}</span>
+                                </div>
+                                <p class="npc-desc">${rel.description}</p>
+                            </div>
+                            <i class="fas fa-chevron-right arrow-icon"></i>
+                        </a>
+                    `;
+                }).join('');
+
+                card.innerHTML = `
+                    <h3><i class="fas fa-users"></i> Legami</h3>
+                    <div class="npc-list">
+                        ${relationshipsHtml}
+                    </div>
+                `;
+                return card;
+            }
+
+            function renderCharacterPage(character, allCharacters) {
                 // Set page title and header
                 document.title = `${character.name} | Cripta di Sangue`;
                 charNameEl.textContent = character.name;
@@ -104,6 +139,10 @@
                     leftCol.appendChild(placeholder);
                 }
 
+                // Render relationships if they exist
+                if(character.relationships && character.relationships.length > 0) {
+                    leftCol.appendChild(renderRelationships(character.relationships, allCharacters));
+                }
 
                 const rightCol = document.createElement('div');
                 rightCol.className = 'right-col';

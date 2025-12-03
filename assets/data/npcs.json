@@ -6,8 +6,8 @@
     "status": "vivo",
     "quote": "Io volevo solo starmene seduto nella mia stanza, perché sono finito su questo sito?!",
     "images": {
-      "avatar": "../assets/img/creatures/transp/rabberduscolanderson_transp.webp",
-      "hover": "../assets/img/creatures/transp/rabber_animation.webp",
+      "avatar": "../../assets/img/creatures/transp/rabberduscolanderson_transp.webp",
+      "hover": "../../assets/img/creatures/transp/rabber_animation.webp",
       "portrait": "../../assets/img/creatures/rabberduscolanderson.webp"
     },
     "summary": {
@@ -31,13 +31,6 @@
         "content": "<p>Cacciato dal palazzo, iniziò a vivere in modo umile con i suoi tre cani. Negli ultimi anni di vita trovò una compagna, Elena, di una ventina d'anni più giovane. Tuttavia, la felicità fu breve.</p><p style='margin-top: 1.5rem; font-style: italic; color: #666; font-size: 0.95rem;'>La morte di Elena causò una insuperabile tristezza a Rabberduscolanderson, il quale decise di porre fine alla sua vita gettandosi in un fossato.</p>"
       },
       {
-        "type": "secret_dossier",
-        "title": "La Verità sull'Omicidio",
-        "badge": "OMICIDIO",
-        "image": "../../assets/img/creatures/elena.webp",
-        "content": "<p style='font-size: 0.95rem; margin-top: 0.5rem; color: #dcbaba;'>I due erano innamorati. Rabberduscolanderson invitò ingenuamente <strong>Karla</strong> a cena. Ella si introdusse in casa mentre lui era fuori e pugnalò Elena al petto. Elena morì guardando Karla negli occhi.</p>"
-      },
-      {
         "type": "custom_box",
         "title": "L'Ossessione del Rame",
         "icon": "fa-coins",
@@ -53,6 +46,16 @@
           {"name": "Coco", "image": "../../assets/img/items/dog_coco.webp"}
         ]
       }
+    ],
+    "relationships": [
+        {
+            "id": "x",
+            "description": "Sorella minore"
+        },
+        {
+            "id": "karla",
+            "description": "Nipote"
+        }
     ]
   },
   {
@@ -62,11 +65,21 @@
     "status": "vivo",
     "quote": "La propria intelligenza deve essere sempre usata con cautela, ma in molti questo non lo sanno.",
     "images": {
-      "avatar": "../assets/img/creatures/transp/x_transp.webp",
-      "hover": "../assets/img/creatures/transp/x_animation.webp",
+      "avatar": "../../assets/img/creatures/transp/x_transp.webp",
+      "hover": "../../assets/img/creatures/transp/x_animation.webp",
       "portrait": "../../assets/img/creatures/x.webp"
     },
-    "content_blocks": []
+    "content_blocks": [],
+    "relationships": [
+        {
+            "id": "rabberduscolanderson",
+            "description": "Fratello maggiore"
+        },
+        {
+            "id": "karla",
+            "description": "Figlia"
+        }
+    ]
   },
   {
     "id": "franky",
@@ -75,11 +88,15 @@
     "status": "vivo",
     "quote": "She volete dei shieri, io shi shono!",
     "images": {
-      "avatar": "../assets/img/creatures/transp/franky_transp.webp",
-      "hover": "../assets/img/creatures/transp/franky_animation.webp",
+      "avatar": "../../assets/img/creatures/transp/franky_transp.webp",
+      "hover": "../../assets/img/creatures/transp/franky_animation.webp",
       "portrait": "../../assets/img/creatures/franky.webp"
     },
-    "content_blocks": []
+    "content_blocks": [],
+    "relationships": [
+        {
+        }
+    ]
   },
   {
     "id": "karla",
@@ -88,11 +105,21 @@
     "status": "vivo",
     "quote": "Insieme possiamo raggiungere il nostro obiettivo, lo sento.",
     "images": {
-      "avatar": "../assets/img/creatures/transp/karla_transp.webp",
-      "hover": "../assets/img/creatures/transp/karla_animation.webp",
+      "avatar": "../../assets/img/creatures/transp/karla_transp.webp",
+      "hover": "../../assets/img/creatures/transp/karla_animation.webp",
       "portrait": "../../assets/img/creatures/karla.webp"
     },
-    "content_blocks": []
+    "content_blocks": [],
+    "relationships": [
+        {
+            "id": "rabberduscolanderson",
+            "description": "Zio"
+        },
+        {
+            "id": "karla",
+            "description": "Madre"
+        }
+    ]
   },
   {
     "id": "zara",
@@ -101,10 +128,14 @@
     "status": "ignoto",
     "quote": "Buuuu! Ahahaha!",
     "images": {
-      "avatar": "../assets/img/creatures/transp/zara_transp.webp",
-      "hover": "../assets/img/creatures/transp/zara_animation.webp",
+      "avatar": "../../assets/img/creatures/transp/zara_transp.webp",
+      "hover": "../../assets/img/creatures/transp/zara_animation.webp",
       "portrait": "../../assets/img/creatures/zara.webp"
     },
-    "content_blocks": []
+    "content_blocks": [],
+    "relationships": [
+        {
+        }
+    ]
   }
 ]
