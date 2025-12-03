@@ -1,8 +1,10 @@
 document.addEventListener('DOMContentLoaded', async function() {
-    const mapContainer = document.getElementById('map-container');
+    const mainMapContainer = document.getElementById('map-container');
+    const fullscreenMapContainer = document.getElementById('fullscreen-map-container');
     const mapContent = document.getElementById('map-content');
     const mapImage = document.getElementById('map-image');
     const infoPanel = document.getElementById('info-panel');
+    let activeMapContainer = mainMapContainer;
 
     let pointsOfInterest = [];
 
@@ -34,6 +36,12 @@ document.addEventListener('DOMContentLoaded', async function() {
             poiElement.style.left = `${poiData.x}%`;
             poiElement.style.top = `${poiData.y}%`;
             poiElement.dataset.id = poiData.id;
+
+            // Create and append the label
+            const labelElement = document.createElement('span');
+            labelElement.className = 'poi-label';
+            labelElement.textContent = poiData.title;
+            poiElement.appendChild(labelElement);
 
             poiElement.addEventListener('click', () => {
                 updateInfoPanel(poiData.id);
@@ -72,11 +80,12 @@ document.addEventListener('DOMContentLoaded', async function() {
     let imageDimensions = { width: 0, height: 0, left: 0, top: 0 };
 
     const applyTransform = () => {
+        const container = activeMapContainer;
         const scaledWidth = imageDimensions.width * scale;
         const scaledHeight = imageDimensions.height * scale;
-        const minPanX = mapContainer.clientWidth - imageDimensions.left - scaledWidth;
+        const minPanX = container.clientWidth - imageDimensions.left - scaledWidth;
         const maxPanX = -imageDimensions.left;
-        const minPanY = mapContainer.clientHeight - imageDimensions.top - scaledHeight;
+        const minPanY = container.clientHeight - imageDimensions.top - scaledHeight;
         const maxPanY = -imageDimensions.top;
         pan.x = Math.max(minPanX, Math.min(maxPanX, pan.x));
         pan.y = Math.max(minPanY, Math.min(maxPanY, pan.y));
@@ -84,26 +93,29 @@ document.addEventListener('DOMContentLoaded', async function() {
     };
 
     const setInitialPosition = () => {
-        const containerRatio = mapContainer.clientWidth / mapContainer.clientHeight;
+        const container = activeMapContainer;
+        const containerRatio = container.clientWidth / container.clientHeight;
         const imageRatio = mapImage.naturalWidth / mapImage.naturalHeight;
         if (containerRatio > imageRatio) {
-            imageDimensions.height = mapContainer.clientHeight;
+            imageDimensions.height = container.clientHeight;
             imageDimensions.width = imageDimensions.height * imageRatio;
         } else {
-            imageDimensions.width = mapContainer.clientWidth;
+            imageDimensions.width = container.clientWidth;
             imageDimensions.height = imageDimensions.width / imageRatio;
         }
-        imageDimensions.left = (mapContainer.clientWidth - imageDimensions.width) / 2;
-        imageDimensions.top = (mapContainer.clientHeight - imageDimensions.height) / 2;
+        imageDimensions.left = (container.clientWidth - imageDimensions.width) / 2;
+        imageDimensions.top = (container.clientHeight - imageDimensions.height) / 2;
         scale = 1;
         pan.x = imageDimensions.left;
         pan.y = imageDimensions.top;
         applyTransform();
     };
 
-    mapContainer.addEventListener('wheel', (e) => {
+    document.body.addEventListener('wheel', (e) => {
+        // Ascolta lo zoom solo se il cursore è sopra un contenitore della mappa
+        if (!e.target.closest('.map-container')) return;
         e.preventDefault();
-        const rect = mapContainer.getBoundingClientRect();
+        const rect = activeMapContainer.getBoundingClientRect();
         const oldScale = scale;
         const delta = e.deltaY > 0 ? -0.2 : 0.2;
         scale = Math.max(minScale, Math.min(scale + delta, maxScale));
@@ -114,18 +126,19 @@ document.addEventListener('DOMContentLoaded', async function() {
         applyTransform();
     });
 
-    mapContainer.addEventListener('mousedown', (e) => {
+    document.body.addEventListener('mousedown', (e) => {
+        if (!e.target.closest('.map-container')) return;
         if (e.button !== 0) return;
         e.preventDefault();
         isPanning = true;
-        mapContainer.style.cursor = 'grabbing';
+        activeMapContainer.style.cursor = 'grabbing';
         startPoint = { x: e.clientX - pan.x, y: e.clientY - pan.y };
     });
 
     document.addEventListener('mouseup', () => {
         if (isPanning) {
             isPanning = false;
-            mapContainer.style.cursor = 'grab';
+            activeMapContainer.style.cursor = 'grab';
         }
     });
 
@@ -147,7 +160,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
 
-        const rect = mapContainer.getBoundingClientRect();
+        const rect = activeMapContainer.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
         const contentX = (mouseX - pan.x) / scale;
@@ -156,6 +169,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         const percentY = (contentY / mapContent.clientHeight) * 100;
         console.log(`{ "id": "new-poi", "x": ${percentX.toFixed(2)}, "y": ${percentY.toFixed(2)}, "title": "New Point", "flavor": "Flavor text", "desc": "Description" },`);
     });
+
+    // --- Fullscreen Handling ---
+    // Expose a function to be called from map-fullscreen.js
+    window.updateActiveMapContainer = (is_fullscreen) => {
+        if (is_fullscreen) {
+            activeMapContainer = fullscreenMapContainer;
+        } else {
+            activeMapContainer = mainMapContainer;
+        }
+        setInitialPosition(); // Recalculate dimensions and position
+    };
 
     // --- Initialization ---
     if (mapImage.complete) {
