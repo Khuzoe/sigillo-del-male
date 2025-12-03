@@ -48,8 +48,9 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const container = document.getElementById('player-list-container');
+            const base_path = '../assets/'; // Path from giocatori.html to assets folder
             
-            fetch('../assets/data/players.json')
+            fetch(base_path + 'data/players.json')
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
@@ -66,15 +67,11 @@
                     players.sort((a, b) => a.name.localeCompare(b.name));
 
                     players.forEach(player => {
-                        // Adjust image paths for the current page (giocatori.html)
-                        const avatarPath = player.images.avatar.replace('../../', '../');
-                        const hoverPath = player.images.hover.replace('../../', '../');
-
                         const playerCard = `
                             <a href="../pages/characters/character.html?id=${player.id}&type=player" class="npc-card">
                                 <div class="npc-avatar-container">
-                                    <img src="${avatarPath}" alt="${player.name}" class="npc-img-pop img-main" onerror="this.src='httpshttps://placehold.co/200x200/1a1a1a/gold?text=${player.name.charAt(0)}'">
-                                    <img src="${hoverPath}" alt="${player.name} Full" class="npc-img-pop img-hover" onerror="this.style.display='none'">
+                                    <img src="${base_path}${player.images.avatar}" alt="${player.name}" class="npc-img-pop img-main" onerror="this.src='httpshttps://placehold.co/200x200/1a1a1a/gold?text=${player.name.charAt(0)}'">
+                                    <img src="${base_path}${player.images.hover}" alt="${player.name} Full" class="npc-img-pop img-hover" onerror="this.style.display='none'">
                                 </div>
                                 <div class="npc-info">
                                     <div class="npc-header">
