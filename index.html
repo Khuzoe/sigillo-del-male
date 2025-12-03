@@ -1,10 +1,224 @@
 <!DOCTYPE html>
 <html lang="it" data-head-include="_includes/head.html">
 <head>
-    <title>Cripta di Sangue</title>
+    <title>Cripta di Sangue - Home</title>
     <script src="assets/js/head.js" defer></script>
     <link rel="stylesheet" href="assets/css/abyssal.css">
+    <style>
+        /* Homepage Specific Styles */
+        .home-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
 
+        .grid-section h2 {
+            font-family: var(--font-heading);
+            color: var(--gold);
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+            padding-bottom: 0.5rem;
+        }
+
+        /* NEXT SESSION CARD STYLES (from sessioni.html) */
+        .next-session-card {
+            background: linear-gradient(135deg, rgba(138, 28, 28, 0.2), rgba(0, 0, 0, 0.8));
+            border: 2px solid var(--gold);
+            border-radius: 8px;
+            padding: 2.5rem;
+            text-align: center;
+            margin-bottom: 3rem;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .next-session-card::before {
+            content: '\f6ec'; /* Icona dadi */
+            font-family: "Font Awesome 6 Free";
+            font-weight: 900;
+            position: absolute;
+            top: -30px;
+            right: -20px;
+            font-size: 12rem;
+            color: rgba(255, 255, 255, 0.03);
+            transform: rotate(20deg);
+            pointer-events: none;
+        }
+        .next-label {
+            font-family: var(--font-ui);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--accent-primary);
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        .next-title {
+            font-family: var(--font-heading);
+            font-size: 2.5rem;
+            color: var(--gold);
+            margin-bottom: 1.5rem;
+            text-shadow: 0 4px 10px #000;
+            line-height: 1;
+        }
+        .next-details {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 2;
+        }
+        .detail-item {
+            background: rgba(0,0,0,0.6);
+            padding: 0.8rem 1.5rem;
+            border-radius: 4px;
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            min-width: 150px;
+            backdrop-filter: blur(5px);
+        }
+        .detail-label {
+            display: block;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+        .detail-value {
+            font-family: var(--font-heading);
+            font-size: 1.2rem;
+            color: #fff;
+        }
+        .countdown-container {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            position: relative;
+            z-index: 2;
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .countdown-box {
+            text-align: center;
+            background: rgba(0,0,0,0.4);
+            padding: 0.6rem;
+            border-radius: 6px;
+            min-width: 70px;
+        }
+        .count-number {
+            display: block;
+            font-family: var(--font-heading);
+            font-size: 1.8rem;
+            color: var(--gold);
+        }
+        .count-label {
+            font-family: var(--font-ui);
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        .session-live {
+            color: #ff4444;
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            animation: pulse 2s infinite;
+            margin-top: 1rem;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; }
+        }
+
+        /* SESSION CARD STYLES (from sessioni.html) */
+        .session-card {
+            position: relative;
+            background: rgba(36, 36, 36, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.1);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        .session-card:hover {
+            background: var(--bg-card);
+            border-color: var(--gold-dim);
+            transform: translateY(-2px);
+        }
+        .session-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 0.8rem;
+        }
+        .session-title {
+            font-family: var(--font-heading);
+            color: var(--gold);
+            font-size: 1.3rem;
+            margin: 0;
+        }
+        .session-date {
+            font-family: var(--font-ui);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        .session-body {
+            font-size: 0.95rem;
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+        .session-body p {
+            margin-bottom: 0; /* Adjusted for summary */
+        }
+        .read-more {
+            display: inline-block;
+            margin-top: 1rem;
+            font-family: var(--font-ui);
+            color: var(--gold);
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .read-more:hover {
+            text-decoration: underline;
+        }
+
+        /* Simplified NPC Card for homepage */
+        .home-char-card {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            background: rgba(0,0,0,0.2);
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        .home-char-card:hover {
+            background: rgba(255,255,255,0.05);
+            transform: translateX(5px);
+        }
+        .home-char-avatar img {
+            width: 70px;
+            height: 70px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid var(--gold-dim);
+        }
+        .home-char-info .name {
+            font-family: var(--font-heading);
+            color: var(--text-main);
+            font-size: 1.2rem;
+            margin: 0;
+        }
+        .home-char-info .role {
+            font-family: var(--font-ui);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+    </style>
 </head>
 <body>
 
@@ -23,13 +237,70 @@
 
         <div class="container">
 
-            <h2>Benvenuti nella Cripta di Sangue</h2>
-            <p>Questo sito raccoglie tutte le informazioni, le storie e i segreti della nostra campagna di Dungeons & Dragons.</p>
-            <p>Esplora le sezioni per scoprire di più sui personaggi, le missioni e i misteri che si celano in questo mondo oscuro.</p>
-            
-            <div style="text-align: center; margin-top: 4rem; opacity: 0.4;">
-                <i class="fas fa-dungeon" style="font-size: 2rem; margin-bottom: 1rem; color: var(--gold);"></i>
-                <p>Che il vostro viaggio abbia inizio...</p>
+            <!-- Next Session Countdown -->
+            <div id="next-session-container"></div>
+
+            <div class="home-grid">
+                <div class="grid-section">
+                    <h2>I Protagonisti</h2>
+                    
+                    <a href="#" class="home-char-card">
+                        <div class="home-char-avatar">
+                            <img src="assets/img/players/valdor_transp.webp" alt="Valdor">
+                        </div>
+                        <div class="home-char-info">
+                            <h4 class="name">Valdor</h4>
+                            <span class="role">Artificiere</span>
+                        </div>
+                    </a>
+
+                    <a href="#" class="home-char-card">
+                        <div class="home-char-avatar">
+                            <img src="assets/img/players/apothecary_transp.webp" alt="Apothecary">
+                        </div>
+                        <div class="home-char-info">
+                            <h4 class="name">Apothecary</h4>
+                            <span class="role">Guaritrice</span>
+                        </div>
+                    </a>
+
+                    <a href="#" class="home-char-card">
+                        <div class="home-char-avatar">
+                            <img src="assets/img/players/garun_transp.webp" alt="Ga'Run">
+                        </div>
+                        <div class="home-char-info">
+                            <h4 class="name">Ga'Run</h4>
+                            <span class="role">Barbaro</span>
+                        </div>
+                    </a>
+                     <a href="#" class="home-char-card">
+                        <div class="home-char-avatar">
+                            <img src="assets/img/players/randra_transp.webp" alt="Ran'Dra">
+                        </div>
+                        <div class="home-char-info">
+                            <h4 class="name">Ran'Dra</h4>
+                            <span class="role">Maga</span>
+                        </div>
+                    </a>
+
+                    <a href="pages/giocatori.html" class="read-more" style="margin-left: 1rem;">Vedi tutti...</a>
+
+                </div>
+                <div class="grid-section">
+                    <h2>Ultimi Eventi</h2>
+                    <div class="session-card">
+                        <div class="session-header">
+                            <h3 class="session-title">Sessione 13</h3>
+                            <span class="session-date">23/11/2025</span>
+                        </div>
+                        <div class="session-body">
+                            <p>
+                                L'illusione di una gigantesca giullare si dissolve in coriandoli. Ignorando gli avvertimenti di Karla, il gruppo si addentra in un corridoio intrappolato da ragnatele viventi. Ne consegue una dura battaglia contro ondate di mostri aracnoidi, che culmina con un altro, più piccolo, incontro con la misteriosa giullare.
+                            </p>
+                        </div>
+                        <a href="pages/sessioni.html#session-13" class="read-more">Leggi il riassunto completo &rarr;</a>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -37,6 +308,113 @@
 
     <!-- IMPORTANTE: Lo script che carica la sidebar -->
     <script src="assets/js/layout.js"></script>
+
+    <!-- Script per gestire la Prossima Sessione -->
+    <script>
+        const nextSessionConfig = {
+            number: 14,
+            date: "3 Dicembre 2025",
+            timeStart: "20:30",
+            timeEnd: "23:30",
+            isScheduled: true // Cambia in false se la data è TBD
+        };
+
+        const sessionContainer = document.getElementById('next-session-container');
+
+        // Mappa mesi italiani -> inglesi
+        const monthMap = {
+            "Gennaio": "January", "Febbraio": "February", "Marzo": "March",
+            "Aprile": "April", "Maggio": "May", "Giugno": "June",
+            "Luglio": "July", "Agosto": "August", "Settembre": "September",
+            "Ottobre": "October", "Novembre": "November", "Dicembre": "December"
+        };
+
+        function startCountdown(targetDate) {
+            const countdownEl = document.getElementById('countdown');
+            if(!countdownEl) return;
+
+            function update() {
+                const now = new Date().getTime();
+                const distance = targetDate - now;
+
+                if (distance < 0) {
+                     if (distance > -14400000) { 
+                        countdownEl.innerHTML = '<div class="session-live">SESSIONE IN CORSO!</div>';
+                    } else {
+                        countdownEl.innerHTML = '<div class="session-live" style="color:#aaa">SESSIONE CONCLUSA</div>';
+                    }
+                    return;
+                }
+
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                document.getElementById('d').innerText = days < 10 ? '0'+days : days;
+                document.getElementById('h').innerText = hours < 10 ? '0'+hours : hours;
+                document.getElementById('m').innerText = minutes < 10 ? '0'+minutes : minutes;
+                document.getElementById('s').innerText = seconds < 10 ? '0'+seconds : seconds;
+            }
+
+            update();
+            setInterval(update, 1000);
+        }
+
+        if (nextSessionConfig.isScheduled) {
+            let dateStr = nextSessionConfig.date;
+            for (let [it, en] of Object.entries(monthMap)) {
+                dateStr = dateStr.replace(it, en);
+            }
+            const targetDate = new Date(`${dateStr} ${nextSessionConfig.timeStart}:00`).getTime();
+
+            sessionContainer.innerHTML = `
+                <div class="next-session-card">
+                    <span class="next-label">Prossima Sessione</span>
+                    <h2 class="next-title">Sessione ${nextSessionConfig.number}</h2>
+                    <div class="next-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Data</span>
+                            <span class="detail-value"><i class="far fa-calendar-alt" style="margin-right: 8px;"></i> ${nextSessionConfig.date}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Orario</span>
+                            <span class="detail-value"><i class="far fa-clock" style="margin-right: 8px;"></i> ${nextSessionConfig.timeStart} - ${nextSessionConfig.timeEnd}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="countdown-container" id="countdown">
+                        <div class="countdown-box">
+                            <span class="count-number" id="d">00</span>
+                            <span class="count-label">Giorni</span>
+                        </div>
+                        <div class="countdown-box">
+                            <span class="count-number" id="h">00</span>
+                            <span class="count-label">Ore</span>
+                        </div>
+                        <div class="countdown-box">
+                            <span class="count-number" id="m">00</span>
+                            <span class="count-label">Minuti</span>
+                        </div>
+                        <div class="countdown-box">
+                            <span class="count-number" id="s">00</span>
+                            <span class="count-label">Secondi</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            startCountdown(targetDate);
+
+        } else {
+            sessionContainer.innerHTML = `
+                <div class="next-session-card" style="border-color: #555;">
+                    <span class="next-label">Prossima Sessione</span>
+                    <h2 class="next-title" style="color: #aaa;">Sessione ${nextSessionConfig.number}</h2>
+                </div>
+            `;
+        }
+    </script>
 
 </body>
 </html>
