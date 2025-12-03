@@ -64,7 +64,7 @@
     "images": {
       "avatar": "../assets/img/creatures/transp/x_transp.webp",
       "hover": "../assets/img/creatures/transp/x_animation.webp",
-      "portrait": ""
+      "portrait": "../../assets/img/creatures/x.webp"
     },
     "content_blocks": []
   },
@@ -72,12 +72,12 @@
     "id": "franky",
     "name": "Franky",
     "role": "Lo Scienziato",
-    "status": "morto",
+    "status": "vivo",
     "quote": "She volete dei shieri, io shi shono!",
     "images": {
       "avatar": "../assets/img/creatures/transp/franky_transp.webp",
       "hover": "../assets/img/creatures/transp/franky_animation.webp",
-      "portrait": ""
+      "portrait": "../../assets/img/creatures/franky.webp"
     },
     "content_blocks": []
   },
@@ -90,7 +90,7 @@
     "images": {
       "avatar": "../assets/img/creatures/transp/karla_transp.webp",
       "hover": "../assets/img/creatures/transp/karla_animation.webp",
-      "portrait": ""
+      "portrait": "../../assets/img/creatures/karla.webp"
     },
     "content_blocks": []
   },
@@ -103,7 +103,7 @@
     "images": {
       "avatar": "../assets/img/creatures/transp/zara_transp.webp",
       "hover": "../assets/img/creatures/transp/zara_animation.webp",
-      "portrait": ""
+      "portrait": "../../assets/img/creatures/zara.webp"
     },
     "content_blocks": []
   }
