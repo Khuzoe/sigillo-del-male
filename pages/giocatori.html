@@ -24,84 +24,8 @@
 
         <div class="container">
 
-            <div class="npc-list">
-                
-        
-                <!-- 2. APOTHECARY -->
-                <a href="#" class="npc-card">
-                    <div class="npc-avatar-container">
-                        <img src="../assets/img/players/apothecary_transp.webp" alt="Apothecary" class="npc-img-pop img-main" onerror="this.src='https://placehold.co/200x200/1a1a1a/gold?text=A'">
-                        <img src="../assets/img/players/apothecary_animation.webp" alt="Apothecary Full" class="npc-img-pop img-hover" onerror="this.src='https://placehold.co/200x200/222/555?text=Apothecary'">
-                    </div>
-                    <div class="npc-info">
-                        <div class="npc-header">
-                            <h3 class="npc-name">Apothecary</h3>
-                            <span class="npc-role">Guaritrice</span>
-                        </div>
-                        <p class="npc-desc">
-                            Portatrice di luce e guarigione. Ha stretto un legame particolare con Rabberduscolanderson e la sua magia divina è stata fondamentale per spezzare le maledizioni della cripta.
-                        </p>
-                    </div>
-                    <i class="fas fa-chevron-right arrow-icon"></i>
-                </a>
-
-                <!-- 3. GA'RUN -->
-                <a href="#" class="npc-card">
-                    <div class="npc-avatar-container">
-                        <img src="../assets/img/players/garun_transp.webp" alt="Ga'Run" class="npc-img-pop img-main" onerror="this.src='https://placehold.co/200x200/1a1a1a/gold?text=G'">
-                        <img src="../assets/img/players/garun_animation.webp" alt="Ga'Run Full" class="npc-img-pop img-hover" onerror="this.src='https://placehold.co/200x200/222/555?text=GaRun'">
-                    </div>
-                    <div class="npc-info">
-                        <div class="npc-header">
-                            <h3 class="npc-name">Ga'Run</h3>
-                            <span class="npc-role">Barbaro</span>
-                        </div>
-                        <p class="npc-desc">
-                            Padre di Ran'Dra e combattente instancabile. Ha subito sulla sua pelle le peggiori maledizioni dei Von T, ma la sua tenacia e la sua forza bruta non hanno mai vacillato.
-                        </p>
-                    </div>
-                    <i class="fas fa-chevron-right arrow-icon"></i>
-                </a>
-
-                <!-- 4. RAN'DRA -->
-                <a href="#" class="npc-card">
-                    <div class="npc-avatar-container">
-                        <img src="../assets/img/players/randra_transp.webp" alt="Ran'Dra" class="npc-img-pop img-main" onerror="this.src='https://placehold.co/200x200/1a1a1a/gold?text=R'">
-                        <img src="../assets/img/players/randra_animation.webp" alt="Ran'Dra Full" class="npc-img-pop img-hover" onerror="this.src='https://placehold.co/200x200/222/555?text=RanDra'">
-                    </div>
-                    <div class="npc-info">
-                        <div class="npc-header">
-                            <h3 class="npc-name">Ran'Dra</h3>
-                            <span class="npc-role">Maga</span>
-                        </div>
-                        <p class="npc-desc">
-                            Figlia di Ga'Run, esperta nel muoversi non vista e nel sottrarre oggetti preziosi. Le sue illusioni hanno spesso permesso al gruppo di sfuggire a mostri gargantueschi.
-                        </p>
-                    </div>
-                    <i class="fas fa-chevron-right arrow-icon"></i>
-                </a>
-                
-                <!-- 1. VALDOR -->
-                <a href="#" class="npc-card">
-                    <div class="npc-avatar-container">
-                        <!-- Immagine Token -->
-                        <img src="../assets/img/players/valdor_transp.webp" alt="Valdor" class="npc-img-pop img-main" onerror="this.src='https://placehold.co/200x200/1a1a1a/gold?text=V'">
-                        <!-- Immagine Full Art (Hover) -->
-                        <img src="../assets/img/players/valdor_animation.webp" alt="Valdor Full" class="npc-img-pop img-hover" onerror="this.src='https://placehold.co/200x200/222/555?text=Valdor'">
-                    </div>
-                    <div class="npc-info">
-                        <div class="npc-header">
-                            <h3 class="npc-name">Valdor</h3>
-                            <span class="npc-role">Artificiere</span>
-                        </div>
-                        <p class="npc-desc">
-                            Maestro delle arti arcane e creatore di sigilli magici. La sua intelligenza ha salvato il gruppo innumerevoli volte, risolvendo enigmi letali e intrappolando nemici potenti.
-                        </p>
-                    </div>
-                    <i class="fas fa-chevron-right arrow-icon"></i>
-                </a>
-
-
+            <div class="npc-list" id="player-list-container">
+                <!-- I giocatori verranno caricati qui dinamicamente -->
             </div>
             
             <div style="text-align: center; margin-top: 4rem; opacity: 0.4;">
@@ -113,6 +37,59 @@
     </main>
 
     <script src="../assets/js/layout.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.getElementById('player-list-container');
+            
+            fetch('../assets/data/players.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(players => {
+                    if (players.length === 0) {
+                        container.innerHTML = '<p>Nessun giocatore trovato.</p>';
+                        return;
+                    }
+
+                    // Ordina i giocatori per nome
+                    players.sort((a, b) => a.name.localeCompare(b.name));
+
+                    players.forEach(player => {
+                        // Adjust image paths for the current page (giocatori.html)
+                        const avatarPath = player.images.avatar.replace('../../', '../');
+                        const hoverPath = player.images.hover.replace('../../', '../');
+
+                        const playerCard = `
+                            <a href="../pages/characters/character.html?id=${player.id}&type=player" class="npc-card">
+                                <div class="npc-avatar-container">
+                                    <img src="${avatarPath}" alt="${player.name}" class="npc-img-pop img-main" onerror="this.src='httpshttps://placehold.co/200x200/1a1a1a/gold?text=${player.name.charAt(0)}'">
+                                    <img src="${hoverPath}" alt="${player.name} Full" class="npc-img-pop img-hover" onerror="this.style.display='none'">
+                                </div>
+                                <div class="npc-info">
+                                    <div class="npc-header">
+                                        <h3 class="npc-name">${player.name}</h3>
+                                        <span class="npc-role">${player.role}</span>
+                                    </div>
+                                    <p class="npc-desc">
+                                        ${player.description}
+                                    </p>
+                                </div>
+                                <i class="fas fa-chevron-right arrow-icon"></i>
+                            </a>
+                        `;
+                        container.insertAdjacentHTML('beforeend', playerCard);
+                    });
+                })
+                .catch(error => {
+                    console.error('Errore nel caricamento dei dati dei giocatori:', error);
+                    container.innerHTML = '<p style="color: var(--status-dead);">Impossibile caricare i dati dei giocatori. Controlla la console per maggiori dettagli.</p>';
+                });
+        });
+    </script>
 
 </body>
 </html>
