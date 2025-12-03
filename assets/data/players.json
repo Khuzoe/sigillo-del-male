@@ -2,7 +2,7 @@
   {
     "id": "apothecary",
     "name": "Apothecary",
-    "role": "Guaritrice",
+    "role": "Chierica della Vita",
     "description": "Portatrice di luce e guarigione. Ha stretto un legame particolare con Rabberduscolanderson e la sua magia divina è stata fondamentale per spezzare le maledizioni della cripta.",
     "images": {
       "avatar": "../../assets/img/players/apothecary_transp.webp",
@@ -10,10 +10,10 @@
       "portrait": "../../assets/img/players/apothecary.webp"
     },
     "summary": {
-      "race": "Umana",
+      "race": "Kenku",
       "age_at_death": "N/A",
-      "height": "1.70m",
-      "period": "Contemporaneo",
+      "height": "70cm",
+      "period": "14",
       "cause_of_death": "N/A"
     },
     "content_blocks": []
@@ -31,7 +31,7 @@
     "summary": {
       "race": "Umano",
       "age_at_death": "N/A",
-      "height": "1.85m",
+      "height": "1.95m",
       "period": "Contemporaneo",
       "cause_of_death": "N/A"
     },
@@ -40,7 +40,7 @@
   {
     "id": "randra",
     "name": "Ran'Dra",
-    "role": "Maga",
+    "role": "Maga (Evocazione)",
     "description": "Figlia di Ga'Run, esperta nel muoversi non vista e nel sottrarre oggetti preziosi. Le sue illusioni hanno spesso permesso al gruppo di sfuggire a mostri gargantueschi.",
     "images": {
       "avatar": "../../assets/img/players/randra_transp.webp",
@@ -48,7 +48,7 @@
       "portrait": "../../assets/img/players/randra.webp"
     },
     "summary": {
-      "race": "Umana",
+      "race": "Eladrin (Estate)",
       "age_at_death": "N/A",
       "height": "1.65m",
       "period": "Contemporaneo",
@@ -69,7 +69,7 @@
     "summary": {
       "race": "Umano",
       "age_at_death": "N/A",
-      "height": "1.78m",
+      "height": "1.40m",
       "period": "Contemporaneo",
       "cause_of_death": "N/A"
     },
