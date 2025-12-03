@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="it" data-head-include="../../_includes/head.html">
+<head>
+    <!-- Title will be set dynamically -->
+    <title>Personaggio | Cripta di Sangue</title> 
+    <script src="../../assets/js/head.js" defer></script>
+    <link rel="stylesheet" href="../../assets/css/abyssal.css">
+</head>
+<body>
+
+    <!-- NAVIGAZIONE LATERALE (Caricata dinamicamente) -->
+    <nav class="sidebar" id="sidebar-container"></nav>
+
+    <!-- CONTENUTO PRINCIPALE -->
+    <main class="main-content">
+        
+        <!-- Header will be populated dynamically -->
+        <header class="hero-mini" id="char-header">
+            <div class="hero-title">
+                <h1 id="char-name">Caricamento...</h1>
+                <div class="subtitle" id="char-role"></div>
+            </div>
+        </header>
+
+        <div class="container">
+            <div id="character-content-container">
+                <!-- Dynamic content will be injected here -->
+            </div>
+        </div>
+    </main>
+
+    <script src="../../assets/js/layout.js"></script>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", async function() {
+            const container = document.getElementById('character-content-container');
+            const charNameEl = document.getElementById('char-name');
+            const charRoleEl = document.getElementById('char-role');
+
+            const params = new URLSearchParams(window.location.search);
+            const npcId = params.get('id');
+
+            if (!npcId) {
+                displayError("ID del personaggio non specificato.");
+                return;
+            }
+
+            try {
+                const response = await fetch('../../assets/data/npcs.json');
+                if (!response.ok) throw new Error("File NPC non trovato.");
+                
+                const npcs = await response.json();
+                const npc = npcs.find(n => n.id === npcId);
+
+                if (!npc) {
+                    displayError(`Personaggio con ID '${npcId}' non trovato.`);
+                    return;
+                }
+
+                renderCharacterPage(npc);
+
+            } catch (error) {
+                console.error("Errore nel caricamento del personaggio:", error);
+                displayError("Impossibile caricare i dati del personaggio.");
+            }
+
+            function displayError(message) {
+                charNameEl.textContent = "Errore";
+                container.innerHTML = `<p style="text-align: center; color: var(--red);">${message}</p>`;
+            }
+
+            function renderCharacterPage(npc) {
+                // Set page title and header
+                document.title = `${npc.name} | Cripta di Sangue`;
+                charNameEl.textContent = npc.name;
+                charRoleEl.textContent = npc.role;
+
+                // Build the main grid structure
+                const grid = document.createElement('div');
+                grid.className = 'char-grid';
+
+                // Build left (lore) and right (image/stats) columns
+                const leftCol = document.createElement('div');
+                leftCol.className = 'left-col';
+                npc.content_blocks.forEach(block => {
+                    leftCol.appendChild(renderContentBlock(block));
+                });
+
+                const rightCol = document.createElement('div');
+                rightCol.className = 'right-col';
+                rightCol.innerHTML = getRightColumnHtml(npc);
+                
+                grid.appendChild(leftCol);
+                grid.appendChild(rightCol);
+                container.appendChild(grid);
+            }
+
+            function getRightColumnHtml(npc) {
+                const summary = npc.summary || {};
+                const statsHtml = `
+                    <div class="stat-box">
+                        <span class="stat-label">Razza</span>
+                        <span class="stat-value" style="color: #ffcccc;">${summary.race || '???'}</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Età / Morte</span>
+                        <span class="stat-value">${summary.age_at_death || '???'}</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Altezza</span>
+                        <span class="stat-value">${summary.height || '???'}</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Periodo</span>
+                        <span class="stat-value">${summary.period || '???'}</span>
+                    </div>
+                `;
+
+                return `
+                    <div class="image-card">
+                        <img src="${npc.images.portrait}" class="char-portrait" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
+                        <div class="stats-grid">${statsHtml}</div>
+                        <div style="padding: 1rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <span class="stat-label" style="margin-bottom: 5px;">Causa del Decesso</span>
+                            <span style="color: var(--accent-primary); font-family: 'Cinzel';">${summary.cause_of_death || '???'}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function renderContentBlock(block) {
+                const card = document.createElement('div');
+                card.className = 'content-card';
+
+                // Use a switch to handle different block types
+                switch(block.type) {
+                    case 'lore':
+                        card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-book-open'}"></i> ${block.title}</h3>${block.content}`;
+                        break;
+                    
+                    case 'secret_dossier':
+                        // This block is initially commented out or hidden in the original file. 
+                        // For the template, we can render it directly or add a mechanism to reveal it.
+                        // For now, let's render it styled as a secret.
+                        card.classList.add('secret'); // You can style this class
+                        card.innerHTML = `
+                            <h3><i class="fas fa-user-secret"></i> ${block.title}</h3>
+                            <div class="secret-dossier">
+                                <div class="secret-badge">${block.badge}</div>
+                                <div class="dossier-content">
+                                    <img src="${block.image}" class="elena-img" onerror="this.style.display='none'">
+                                    <div>${block.content}</div>
+                                </div>
+                            </div>`;
+                        break;
+                    
+                    case 'custom_box':
+                        if (block.borderColor) {
+                            card.style.borderColor = block.borderColor;
+                        }
+                        card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-box'}"></i> ${block.title}</h3>${block.content}`;
+                        break;
+
+                    case 'image_grid':
+                        const itemsHtml = block.items.map(item => `
+                            <div class="dog-item">
+                                <img src="${item.image}" class="dog-img" style="${item.highlight ? 'border-color: var(--accent-copper);' : ''}" onerror="this.style.display='none'">
+                                <span class="dog-name" style="${item.highlight ? 'color: var(--accent-copper);' : ''}">${item.name}</span>
+                            </div>
+                        `).join('');
+                        card.innerHTML = `
+                            <div style="border-top: 1px solid rgba(255,255,255,0.1); margin-top: 1.5rem; padding-top: 1rem; text-align: center;">
+                                <h4 style="font-family:'Cinzel'; color:#666; font-size: 0.9rem; margin-bottom: 1rem;">${block.title}</h4>
+                                <div class="dog-grid">${itemsHtml}</div>
+                            </div>`;
+                        break;
+
+                    default:
+                        // Default handler for unknown block types
+                        card.innerHTML = `<h3>${block.title || 'Informazioni'}</h3>${block.content || ''}`;
+                }
+                return card;
+            }
+        });
+    </script>
+</body>
+</html>

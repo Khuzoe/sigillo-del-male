@@ -27,103 +27,7 @@
             <h2>NPC Principali</h2>
             
             <div class="npc-list">
-                
-                <!-- 1. RABBERDUSCOLANDERSON -->
-                <a href="characters/rabberduscolanderson.html" class="npc-card">
-                    <span class="npc-status-badge status-vivo">VIVO</span>
-                    <div class="npc-avatar-container">
-                        <img src="../assets/img/creatures/transp/rabberduscolanderson_transp.webp" alt="Rabber" class="npc-img-pop img-main">
-                    <!-- Immagine Hover (Portrait Completo) -->
-                        <img src="../assets/img/creatures/transp/rabber_animation.webp" alt="Rabber Reveal" class="npc-img-pop img-hover" onerror="this.src='https://placehold.co/200x200/222/555?text=R+Hover'">
-                    </div>
-                    <div class="npc-info">
-                        <div class="npc-header">
-                            <h3 class="npc-name">Rabberduscolanderson Von T</h3>
-                            <span class="npc-role">Il Reietto</span>
-                        </div>
-                        <p class="npc-desc">
-                            Io volevo solo starmene seduto nella mia stanza, perché sono finito su questo sito?!
-                        </p>
-                    </div>
-                    <i class="fas fa-chevron-right arrow-icon"></i>
-                </a>
-
-                <!-- 2. X -->
-                <a href="x.html" class="npc-card">
-                    <span class="npc-status-badge status-vivo">VIVO</span>
-                    <div class="npc-avatar-container">
-                        <img src="../assets/img/creatures/transp/x_transp.webp" alt="X" class="npc-img-pop img-main">
-                        <img src="../assets/img/creatures/transp/x_animation.webp" alt="X Reveal" class="npc-img-pop img-hover">
-                    </div>
-                    <div class="npc-info">
-                        <div class="npc-header">
-                            <h3 class="npc-name">X Von T</h3>
-                            <span class="npc-role">La Colta</span>
-                        </div>
-                        <p class="npc-desc">
-                            La propria intelligenza deve essere sempre usata con cautela, ma in molti questo non lo sanno.
-                        </p>
-                    </div>
-                    <i class="fas fa-chevron-right arrow-icon"></i>
-                </a>
-
-                <!-- 2. X -->
-                <a href="franky.html" class="npc-card">
-                    <span class="npc-status-badge status-morto">MORTO</span>
-                    <div class="npc-avatar-container">
-                        <img src="../assets/img/creatures/transp/franky_transp.webp" alt="X" class="npc-img-pop img-main">
-                        <img src="../assets/img/creatures/transp/franky_animation.webp" alt="Franky Reveal" class="npc-img-pop img-hover">
-                    </div>
-                    <div class="npc-info">
-                        <div class="npc-header">
-                            <h3 class="npc-name">Franky</h3>
-                            <span class="npc-role">Lo Scienziato</span>
-                        </div>
-                        <p class="npc-desc">
-                            She volete dei shieri, io shi shono!
-                        </p>
-                    </div>
-                    <i class="fas fa-chevron-right arrow-icon"></i>
-                </a>
-
-                <!-- 3. KARLA -->
-                <a href="karla.html" class="npc-card">
-                    <span class="npc-status-badge status-vivo">VIVO</span>
-                    <div class="npc-avatar-container">
-                        <img src="../assets/img/creatures/transp/karla_transp.webp" alt="Karla" class="npc-img-pop img-main">
-                        <img src="../assets/img/creatures/transp/karla_animation.webp" alt="Karla Reveal" class="npc-img-pop img-hover" onerror="this.src='https://placehold.co/200x200/222/555?text=R+Hover'">
-                    </div>
-                    <div class="npc-info">
-                        <div class="npc-header">
-                            <h3 class="npc-name">Karla Von T</h3>
-                            <span class="npc-role">La Vampira</span>
-                        </div>
-                        <p class="npc-desc">
-                            Insieme possiamo raggiungere il nostro obiettivo, lo sento.
-                        </p>
-                    </div>
-                    <i class="fas fa-chevron-right arrow-icon"></i>
-                </a>
-
-                <!-- 4. ZARA -->
-                <a href="zara.html" class="npc-card">
-                    <span class="npc-status-badge status-sconosciuto">IGNOTO</span>
-                    <div class="npc-avatar-container">
-                        <img src="../assets/img/creatures/transp/zara_transp.webp" alt="Zara" class="npc-img-pop img-main">
-                        <img src="../assets/img/creatures/transp/zara_animation.webp" alt="Zara Reveal" class="npc-img-pop img-hover" onerror="this.src='https://placehold.co/200x200/222/555?text=R+Hover'">
-                    </div>
-                    <div class="npc-info">
-                        <div class="npc-header">
-                            <h3 class="npc-name">Zara</h3>
-                            <span class="npc-role">La Giullare</span>
-                        </div>
-                        <p class="npc-desc">
-                            Buuuu! Ahahaha!
-                        </p>
-                    </div>
-                    <i class="fas fa-chevron-right arrow-icon"></i>
-                </a>
-
+                <!-- NPC cards will be dynamically inserted here -->
             </div>
             
             <div style="text-align: center; margin-top: 4rem; opacity: 0.4;">
@@ -137,5 +41,56 @@
     <!-- IMPORTANTE: Lo script che carica la sidebar -->
     <script src="../assets/js/layout.js"></script>
 
-</body>
-</html>
+    <script>
+        document.addEventListener("DOMContentLoaded", async function() {
+            const npcListContainer = document.querySelector('.npc-list');
+            if (!npcListContainer) return;
+
+            try {
+                const response = await fetch('../assets/data/npcs.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const npcs = await response.json();
+
+                npcs.forEach(npc => {
+                    const card = createNpcCard(npc);
+                    npcListContainer.appendChild(card);
+                });
+
+            } catch (error) {
+                console.error("Errore nel caricamento degli NPC:", error);
+                npcListContainer.innerHTML = '<p style="color: var(--red);">Impossibile caricare la lista degli NPC.</p>';
+            }
+        });
+
+        function createNpcCard(npc) {
+            const statusMap = {
+                vivo: { text: 'VIVO', class: 'status-vivo' },
+                morto: { text: 'MORTO', class: 'status-morto' },
+                ignoto: { text: 'IGNOTO', class: 'status-sconosciuto' }
+            };
+            const statusInfo = statusMap[npc.status] || { text: 'N/A', class: '' };
+
+            const card = document.createElement('a');
+            card.href = `characters/character.html?id=${npc.id}`;
+            card.className = 'npc-card';
+
+            card.innerHTML = `
+                <span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>
+                <div class="npc-avatar-container">
+                    <img src="${npc.images.avatar}" alt="${npc.name}" class="npc-img-pop img-main" onerror="this.style.display='none'">
+                    <img src="${npc.images.hover}" alt="${npc.name} Reveal" class="npc-img-pop img-hover" onerror="this.style.display='none'">
+                </div>
+                <div class="npc-info">
+                    <div class="npc-header">
+                        <h3 class="npc-name">${npc.name}</h3>
+                        <span class="npc-role">${npc.role}</span>
+                    </div>
+                    <p class="npc-desc">${npc.quote}</p>
+                </div>
+                <i class="fas fa-chevron-right arrow-icon"></i>
+            `;
+            return card;
+        }
+    </script>
