@@ -1,0 +1,110 @@
+[
+  {
+    "id": "rabberduscolanderson",
+    "name": "Rabberduscolanderson Von T",
+    "role": "Il Reietto",
+    "status": "vivo",
+    "quote": "Io volevo solo starmene seduto nella mia stanza, perché sono finito su questo sito?!",
+    "images": {
+      "avatar": "../assets/img/creatures/transp/rabberduscolanderson_transp.webp",
+      "hover": "../assets/img/creatures/transp/rabber_animation.webp",
+      "portrait": "../../assets/img/creatures/rabberduscolanderson.webp"
+    },
+    "summary": {
+      "race": "Non Morto",
+      "age_at_death": "65 Anni",
+      "height": "1.62m",
+      "period": "1025-1090",
+      "cause_of_death": "Suicidio"
+    },
+    "content_blocks": [
+      {
+        "type": "lore",
+        "title": "Le Origini della Tragedia",
+        "icon": "fa-scroll",
+        "content": "<p><strong>Rabberduscolanderson Von T</strong> è il primo figlio di Yuris Von T e Leonora, e fratello maggiore di X Von T. Suo padre gli diede questo nome contro la volontà della moglie. Per questo, Leonora vide sempre Rabberduscolanderson come una causa di litigi con il marito, ed attribuì tutte queste frustrazioni proprio a lui, ignorandolo per gran parte del tempo.</p><p>Non ebbe mai una particolare abilità lavorativa o sociale, e fece estrema fatica a trovare uno spazio adatto a lui. Il fallimento nel trovare una compagna per continuare la stirpe Von T causò l'ira definitiva del padre.</p>"
+      },
+      {
+        "type": "lore",
+        "title": "L'Esilio e l'Amore Breve",
+        "icon": "fa-heart-broken",
+        "content": "<p>Cacciato dal palazzo, iniziò a vivere in modo umile con i suoi tre cani. Negli ultimi anni di vita trovò una compagna, Elena, di una ventina d'anni più giovane. Tuttavia, la felicità fu breve.</p><p style='margin-top: 1.5rem; font-style: italic; color: #666; font-size: 0.95rem;'>La morte di Elena causò una insuperabile tristezza a Rabberduscolanderson, il quale decise di porre fine alla sua vita gettandosi in un fossato.</p>"
+      },
+      {
+        "type": "secret_dossier",
+        "title": "La Verità sull'Omicidio",
+        "badge": "OMICIDIO",
+        "image": "../../assets/img/creatures/elena.webp",
+        "content": "<p style='font-size: 0.95rem; margin-top: 0.5rem; color: #dcbaba;'>I due erano innamorati. Rabberduscolanderson invitò ingenuamente <strong>Karla</strong> a cena. Ella si introdusse in casa mentre lui era fuori e pugnalò Elena al petto. Elena morì guardando Karla negli occhi.</p>"
+      },
+      {
+        "type": "custom_box",
+        "title": "L'Ossessione del Rame",
+        "icon": "fa-coins",
+        "borderColor": "var(--accent-copper)",
+        "content": "<p>Rabberduscolanderson ricorda ancora i momenti di semplicità che lo rendevano felice. Il suono delle monete di rame, le uniche che poteva permettersi, richiama ancora oggi sentimenti di gioia nel suo cuore non-morto.</p><div style='background: rgba(192, 128, 64, 0.1); padding: 1rem; border-radius: 6px; margin: 1rem 0; border-left: 3px solid var(--accent-copper);'><i class='fas fa-exclamation-circle' style='color: var(--accent-copper);'></i><span style='font-size: 0.9rem;'> Accetta scambi <strong>solo</strong> in monete di rame.</span></div>"
+      },
+      {
+        "type": "image_grid",
+        "title": "I Compagni Fedeli (Deceduti)",
+        "items": [
+          {"name": "Balù", "image": "../../assets/img/items/dog_balu.webp"},
+          {"name": "Mimi", "image": "../../assets/img/items/dog_mimi.webp"},
+          {"name": "Coco", "image": "../../assets/img/items/dog_coco.webp"}
+        ]
+      }
+    ]
+  },
+  {
+    "id": "x",
+    "name": "X Von T",
+    "role": "La Colta",
+    "status": "vivo",
+    "quote": "La propria intelligenza deve essere sempre usata con cautela, ma in molti questo non lo sanno.",
+    "images": {
+      "avatar": "../assets/img/creatures/transp/x_transp.webp",
+      "hover": "../assets/img/creatures/transp/x_animation.webp",
+      "portrait": ""
+    },
+    "content_blocks": []
+  },
+  {
+    "id": "franky",
+    "name": "Franky",
+    "role": "Lo Scienziato",
+    "status": "morto",
+    "quote": "She volete dei shieri, io shi shono!",
+    "images": {
+      "avatar": "../assets/img/creatures/transp/franky_transp.webp",
+      "hover": "../assets/img/creatures/transp/franky_animation.webp",
+      "portrait": ""
+    },
+    "content_blocks": []
+  },
+  {
+    "id": "karla",
+    "name": "Karla Von T",
+    "role": "La Vampira",
+    "status": "vivo",
+    "quote": "Insieme possiamo raggiungere il nostro obiettivo, lo sento.",
+    "images": {
+      "avatar": "../assets/img/creatures/transp/karla_transp.webp",
+      "hover": "../assets/img/creatures/transp/karla_animation.webp",
+      "portrait": ""
+    },
+    "content_blocks": []
+  },
+  {
+    "id": "zara",
+    "name": "Zara",
+    "role": "La Giullare",
+    "status": "ignoto",
+    "quote": "Buuuu! Ahahaha!",
+    "images": {
+      "avatar": "../assets/img/creatures/transp/zara_transp.webp",
+      "hover": "../assets/img/creatures/transp/zara_animation.webp",
+      "portrait": ""
+    },
+    "content_blocks": []
+  }
+]
