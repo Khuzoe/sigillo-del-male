@@ -43,18 +43,19 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", async function() {
+            const base_path = '../assets/'; // Path from npcs.html to assets folder
             const npcListContainer = document.querySelector('.npc-list');
             if (!npcListContainer) return;
 
             try {
-                const response = await fetch('../assets/data/npcs.json');
+                const response = await fetch(base_path + 'data/npcs.json');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const npcs = await response.json();
 
                 npcs.forEach(npc => {
-                    const card = createNpcCard(npc);
+                    const card = createNpcCard(npc, base_path);
                     npcListContainer.appendChild(card);
                 });
 
@@ -64,7 +65,7 @@
             }
         });
 
-        function createNpcCard(npc) {
+        function createNpcCard(npc, base_path) {
             const statusMap = {
                 vivo: { text: 'VIVO', class: 'status-vivo' },
                 morto: { text: 'MORTO', class: 'status-morto' },
@@ -79,8 +80,8 @@
             card.innerHTML = `
                 <span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>
                 <div class="npc-avatar-container">
-                    <img src="${npc.images.avatar}" alt="${npc.name}" class="npc-img-pop img-main" onerror="this.style.display='none'">
-                    <img src="${npc.images.hover}" alt="${npc.name} Reveal" class="npc-img-pop img-hover" onerror="this.style.display='none'">
+                    <img src="${base_path}${npc.images.avatar}" alt="${npc.name}" class="npc-img-pop img-main" onerror="this.style.display='none'">
+                    <img src="${base_path}${npc.images.hover}" alt="${npc.name} Reveal" class="npc-img-pop img-hover" onerror="this.style.display='none'">
                 </div>
                 <div class="npc-info">
                     <div class="npc-header">

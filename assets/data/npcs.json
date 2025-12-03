@@ -6,9 +6,9 @@
     "status": "vivo",
     "quote": "Io volevo solo starmene seduto nella mia stanza, perché sono finito su questo sito?!",
     "images": {
-      "avatar": "../../assets/img/creatures/transp/rabberduscolanderson_transp.webp",
-      "hover": "../../assets/img/creatures/transp/rabber_animation.webp",
-      "portrait": "../../assets/img/creatures/rabberduscolanderson.webp"
+      "avatar": "img/creatures/transp/rabberduscolanderson_transp.webp",
+      "hover": "img/creatures/transp/rabber_animation.webp",
+      "portrait": "img/creatures/rabberduscolanderson.webp"
     },
     "summary": {
       "race": "Non Morto",
@@ -65,9 +65,9 @@
     "status": "vivo",
     "quote": "La propria intelligenza deve essere sempre usata con cautela, ma in molti questo non lo sanno.",
     "images": {
-      "avatar": "../../assets/img/creatures/transp/x_transp.webp",
-      "hover": "../../assets/img/creatures/transp/x_animation.webp",
-      "portrait": "../../assets/img/creatures/x.webp"
+      "avatar": "img/creatures/transp/x_transp.webp",
+      "hover": "img/creatures/transp/x_animation.webp",
+      "portrait": "img/creatures/x.webp"
     },
     "content_blocks": [],
     "relationships": [
@@ -88,9 +88,9 @@
     "status": "vivo",
     "quote": "She volete dei shieri, io shi shono!",
     "images": {
-      "avatar": "../../assets/img/creatures/transp/franky_transp.webp",
-      "hover": "../../assets/img/creatures/transp/franky_animation.webp",
-      "portrait": "../../assets/img/creatures/franky.webp"
+      "avatar": "img/creatures/transp/franky_transp.webp",
+      "hover": "img/creatures/transp/franky_animation.webp",
+      "portrait": "img/creatures/franky.webp"
     },
     "content_blocks": [],
     "relationships": [
@@ -105,9 +105,9 @@
     "status": "vivo",
     "quote": "Insieme possiamo raggiungere il nostro obiettivo, lo sento.",
     "images": {
-      "avatar": "../../assets/img/creatures/transp/karla_transp.webp",
-      "hover": "../../assets/img/creatures/transp/karla_animation.webp",
-      "portrait": "../../assets/img/creatures/karla.webp"
+      "avatar": "img/creatures/transp/karla_transp.webp",
+      "hover": "img/creatures/transp/karla_animation.webp",
+      "portrait": "img/creatures/karla.webp"
     },
     "content_blocks": [],
     "relationships": [
@@ -128,9 +128,9 @@
     "status": "ignoto",
     "quote": "Buuuu! Ahahaha!",
     "images": {
-      "avatar": "../../assets/img/creatures/transp/zara_transp.webp",
-      "hover": "../../assets/img/creatures/transp/zara_animation.webp",
-      "portrait": "../../assets/img/creatures/zara.webp"
+      "avatar": "img/creatures/transp/zara_transp.webp",
+      "hover": "img/creatures/transp/zara_animation.webp",
+      "portrait": "img/creatures/zara.webp"
     },
     "content_blocks": [],
     "relationships": [
