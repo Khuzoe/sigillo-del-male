@@ -83,6 +83,7 @@
                     return `
                         <a href="/pages/characters/character.html?id=${personId}" class="family-member" data-person-id="${personId}">
                             <img src="${resolveImagePath(person.image)}" alt="${person.name}" class="member-image">
+                            <div class="member-separator"></div>
                             <span class="member-name">${person.name}</span>
                         </a>
                     `;
@@ -251,18 +252,21 @@
                     familyTreeLines.appendChild(line);
                 }
 
-                connectionsToDraw.forEach(conn => {
-                    let startElement, endElement;
-                    if (conn.type === 'spouse') {
-                        startElement = treeContainer.querySelector(`[data-person-id="${conn.fromId}"]`);
-                        endElement = treeContainer.querySelector(`[data-person-id="${conn.toId}"]`);
-                        drawLine(startElement, endElement, 'spouse');
-                    } else if (conn.type === 'parent-child') {
-                        startElement = treeContainer.querySelector(`#${conn.fromId}`);
-                        endElement = treeContainer.querySelector(`[data-person-id="${conn.toId}"]`);
-                        drawLine(startElement, endElement, 'parent-child');
-                    }
-                });
+                setTimeout(() => {
+                    connectionsToDraw.forEach(conn => {
+                        let startElement, endElement;
+                        if (conn.type === 'spouse') {
+                            startElement = treeContainer.querySelector(`[data-person-id="${conn.fromId}"]`);
+                            endElement = treeContainer.querySelector(`[data-person-id="${conn.toId}"]`);
+                            drawLine(startElement, endElement, 'spouse');
+                        } else if (conn.type === 'parent-child') {
+                            startElement = treeContainer.querySelector(`#${conn.fromId}`);
+                            endElement = treeContainer.querySelector(`[data-person-id="${conn.toId}"]`);
+                            drawLine(startElement, endElement, 'parent-child');
+                        }
+                    });
+                }, 100); // 100ms delay to allow for render
+
             }
         });
     </script>
