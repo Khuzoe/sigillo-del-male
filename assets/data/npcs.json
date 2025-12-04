@@ -1,5 +1,28 @@
 [
   {
+    "id": "deborah",
+    "name": "Deborah Von T",
+    "role": "L'Ultima Foglia",
+    "status": "vivo",
+    "quote": "Dolore.",
+    "images": {
+      "avatar": "img/creatures/transp/deborah_transp.webp",
+      "hover": "img/creatures/transp/deborah_animation.webp",
+      "portrait": "img/creatures/deborah.webp"
+    },
+    "content_blocks": [],
+    "relationships": [
+        {
+            "id": "rabberduscolanderson",
+            "description": "Fratello maggiore"
+        },
+        {
+            "id": "karla",
+            "description": "Figlia"
+        }
+    ]
+  },
+  {
     "id": "rabberduscolanderson",
     "name": "Rabberduscolanderson Von T",
     "role": "Il Reietto",
