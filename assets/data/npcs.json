@@ -122,6 +122,20 @@
     ]
   },
   {
+    "id": "nino_olegna",
+    "name": "Nino Olegna",
+    "role": "Il Tessimorte",
+    "status": "morto",
+    "quote": "Il tradimento è inaccettabile. Pagherai.",
+    "images": {
+      "avatar": "img/creatures/transp/nino_olegna_transp.webp",
+      "hover": "img/creatures/transp/nino_olegna_animation.webp",
+      "portrait": "img/creatures/nino_olegna.webp"
+    },
+    "content_blocks": [],
+    "relationships": []
+  },
+  {
     "id": "zara",
     "name": "Zara",
     "role": "La Giullare",
