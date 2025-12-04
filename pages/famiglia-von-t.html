@@ -79,12 +79,17 @@
                 const createMemberNode = (personId) => {
                     const person = people.get(personId);
                     if (!person) return '';
+
+                    const personName = person.unnamed ? '???' : person.name;
+                    const personImage = person.unknown ? 'https://placehold.co/100/333/fff?text=?' : resolveImagePath(person.image);
+                    const vonTClass = person.von_t ? 'von-t' : '';
+
                     // Corrected link to character page
                     return `
-                        <a href="/pages/characters/character.html?id=${personId}" class="family-member" data-person-id="${personId}">
-                            <img src="${resolveImagePath(person.image)}" alt="${person.name}" class="member-image">
+                        <a href="/pages/characters/character.html?id=${personId}" class="family-member ${vonTClass}" data-person-id="${personId}">
+                            <img src="${personImage}" alt="${personName}" class="member-image">
                             <div class="member-separator"></div>
-                            <span class="member-name">${person.name}</span>
+                            <span class="member-name">${personName}</span>
                         </a>
                     `;
                 };

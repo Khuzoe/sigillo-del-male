@@ -750,3 +750,15 @@ ul {
 /* =========================================
    RESPONSIVE
    ========================================= */
+
+.family-member.von-t {
+    border-color: var(--gold);
+}
+
+.family-member.von-t .member-separator {
+    background-color: var(--gold);
+}
+
+.family-member .member-image[src*="data:image/svg+xml"] {
+    background-color: black;
+}

@@ -5,8 +5,10 @@
     "image": "img/creatures/transp/franky_transp.webp",
     "parents": [],
     "spouses": ["leonora"],
-    "children": ["x_von_t", "rabberduscolanderson", "ginevra_von_t"],
-    "hidden": false
+    "children": ["x_von_t", "rabberduscolanderson", "ginevra_von_t", "unknown_son"],
+    "hidden": false,
+    "unknown": true,
+    "von_t": true
   },
   {
     "id": "leonora",
@@ -14,8 +16,10 @@
     "image": "img/creatures/transp/zara_transp.webp",
     "parents": [],
     "spouses": ["yuris_von_t"],
-    "children": ["x_von_t", "rabberduscolanderson", "ginevra_von_t"],
-    "hidden": false
+    "children": ["x_von_t", "rabberduscolanderson", "ginevra_von_t", "unknown_son"],
+    "hidden": false,
+    "unknown": true,
+    "unnamed": true
   },
   {
     "id": "x_von_t",
@@ -24,7 +28,8 @@
     "parents": ["yuris_von_t", "leonora"],
     "spouses": ["nino_olegna"],
     "children": ["karla_von_t", "tokka_von_t"],
-    "hidden": false
+    "hidden": false,
+    "von_t": true
   },
   {
     "id": "rabberduscolanderson",
@@ -33,7 +38,8 @@
     "parents": ["yuris_von_t", "leonora"],
     "spouses": ["elena"],
     "children": [],
-    "hidden": false
+    "hidden": false,
+    "von_t": true
   },
   {
     "id": "ginevra_von_t",
@@ -42,7 +48,10 @@
     "parents": ["yuris_von_t", "leonora"],
     "spouses": ["rendar"],
     "children": ["deborah_von_t"],
-    "hidden": false
+    "hidden": true,
+    "von_t": true,
+    "unknown": true,
+    "unnamed": true
   },
   {
     "id": "nino_olegna",
@@ -60,7 +69,8 @@
     "parents": ["x_von_t", "nino_olegna"],
     "spouses": [],
     "children": [],
-    "hidden": false
+    "hidden": false,
+    "von_t": true
   },
   {
     "id": "tokka_von_t",
@@ -69,7 +79,10 @@
     "parents": ["x_von_t", "nino_olegna"],
     "spouses": [],
     "children": [],
-    "hidden": false
+    "hidden": true,
+    "von_t": true,
+    "unknown": true,
+    "unnamed": true
   },
   {
     "id": "rendar",
@@ -78,7 +91,9 @@
     "parents": [],
     "spouses": ["ginevra_von_t"],
     "children": ["deborah_von_t"],
-    "hidden": false
+    "hidden": false,
+    "unknown": true,
+    "unnamed": true
   },
   {
     "id": "deborah_von_t",
@@ -87,7 +102,8 @@
     "parents": ["ginevra_von_t", "rendar"],
     "spouses": [],
     "children": [],
-    "hidden": false
+    "hidden": true,
+    "von_t": true
   },
   {
     "id": "elena",
@@ -96,6 +112,7 @@
     "parents": [],
     "spouses": ["rabberduscolanderson"],
     "children": [],
-    "hidden": false
+    "hidden": false,
+    "unknown": true
   }
 ]
