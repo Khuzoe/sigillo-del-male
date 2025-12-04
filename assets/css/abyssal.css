@@ -740,7 +740,8 @@ ul {
 }
 
 /* SVG styles for lines */
-#family-tree-lines {
+#family-tree-spouses-svg,
+#family-tree-children-svg {
     position: absolute;
     top: 0;
     left: 0;
@@ -748,7 +749,14 @@ ul {
     height: 100%;
     overflow: visible;
     pointer-events: none; /* Allows clicks to pass through SVG to underlying elements */
+}
+
+#family-tree-spouses-svg {
     z-index: 5; /* Lines are below nodes */
+}
+
+#family-tree-children-svg {
+    z-index: 15; /* Lines are on top of nodes */
 }
 
 

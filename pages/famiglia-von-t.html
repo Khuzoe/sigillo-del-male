@@ -14,14 +14,17 @@
     </nav>
 
     <main class="main-content">
-        <header class="hero">
-            <h1>Famiglia Von T</h1>
-            <p>L'albero genealogico della nobile stirpe Von T.</p>
+        <header class="hero-mini">
+            <div class="hero-title">
+                <h1>Famiglia Von T</h1>
+                <div class="subtitle">L'albero genealogico della nobile stirpe Von T.</div>
+            </div>
         </header>
 
         <div class="container">
             <div id="family-tree-container" class="family-tree-container">
-                <svg id="family-tree-lines"></svg>
+                <svg id="family-tree-spouses-svg"></svg>
+                <svg id="family-tree-children-svg"></svg>
                 <!-- Family tree will be rendered here by JavaScript -->
             </div>
         </div>
@@ -208,7 +211,7 @@
                 tempDiv.innerHTML = treeHtml;
 
                 Array.from(treeContainer.children).forEach(child => {
-                    if (child.id !== 'family-tree-lines') {
+                    if (child.id !== 'family-tree-spouses-svg' && child.id !== 'family-tree-children-svg') {
                         child.remove();
                     }
                 });
@@ -217,8 +220,10 @@
                     treeContainer.appendChild(tempDiv.firstChild);
                 }
 
-                const familyTreeLines = document.getElementById('family-tree-lines');
-                familyTreeLines.innerHTML = '';
+                const spouseLinesSVG = document.getElementById('family-tree-spouses-svg');
+                const childLinesSVG = document.getElementById('family-tree-children-svg');
+                spouseLinesSVG.innerHTML = '';
+                childLinesSVG.innerHTML = '';
 
                 function drawLine(startElement, endElement, type) {
                     if (!startElement || !endElement) return;
@@ -228,23 +233,29 @@
                     const endRect = endElement.getBoundingClientRect();
     
                     let x1, y1, x2, y2;
+                    let targetSVG;
     
                     if (type === 'spouse') {
                         x1 = ((startRect.left + startRect.width / 2 - containerRect.left) / containerRect.width) * 100;
                         y1 = ((startRect.top + startRect.height / 2 - containerRect.top) / containerRect.height) * 100;
                         x2 = ((endRect.left + endRect.width / 2 - containerRect.left) / containerRect.width) * 100;
                         y2 = ((endRect.top + endRect.height / 2 - containerRect.top) / containerRect.height) * 100;
+                        targetSVG = spouseLinesSVG;
                     } else if (type === 'parent-child') {
                         x1 = ((startRect.left + startRect.width / 2 - containerRect.left) / containerRect.width) * 100;
                         y1 = ((startRect.bottom - containerRect.top) / containerRect.height) * 100;
                         x2 = ((endRect.left + endRect.width / 2 - containerRect.left) / containerRect.width) * 100;
                         y2 = ((endRect.top - containerRect.top) / containerRect.height) * 100;
+                        targetSVG = childLinesSVG;
                     } else {
+                        // Fallback or other types
                         x1 = ((startRect.left + startRect.width / 2 - containerRect.left) / containerRect.width) * 100;
                         y1 = ((startRect.top + startRect.height / 2 - containerRect.top) / containerRect.height) * 100;
                         x2 = ((endRect.left + endRect.width / 2 - containerRect.left) / containerRect.width) * 100;
                         y2 = ((endRect.top + endRect.height / 2 - containerRect.top) / containerRect.height) * 100;
+                        targetSVG = spouseLinesSVG;
                     }
+                    
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
                     line.setAttribute('x1', x1 + '%');
                     line.setAttribute('y1', y1 + '%');
@@ -253,8 +264,25 @@
                     line.setAttribute('stroke', 'var(--gold-dim)');
                     line.setAttribute('stroke-width', '0.3%');
                     line.setAttribute('class', 'family-connection-line');
-    
-                    familyTreeLines.appendChild(line);
+                    
+                    targetSVG.appendChild(line);
+
+                    // Only add dots for parent-child connections
+                    if (type === 'parent-child') {
+                        const startDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        startDot.setAttribute('cx', x1 + '%');
+                        startDot.setAttribute('cy', y1 + '%');
+                        startDot.setAttribute('r', '0.5%');
+                        startDot.setAttribute('fill', 'var(--gold)');
+                        targetSVG.appendChild(startDot);
+
+                        const endDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        endDot.setAttribute('cx', x2 + '%');
+                        endDot.setAttribute('cy', y2 + '%');
+                        endDot.setAttribute('r', '0.5%');
+                        endDot.setAttribute('fill', 'var(--gold)');
+                        targetSVG.appendChild(endDot);
+                    }
                 }
 
                 setTimeout(() => {
