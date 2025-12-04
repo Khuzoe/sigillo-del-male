@@ -20,22 +20,29 @@
     "content_blocks": [
       {
         "type": "lore",
-        "title": "Le Origini della Tragedia",
-        "icon": "fa-scroll",
-        "content": "<p><strong>Rabberduscolanderson Von T</strong> è il primo figlio di Yuris Von T e Leonora, e fratello maggiore di X Von T. Suo padre gli diede questo nome contro la volontà della moglie. Per questo, Leonora vide sempre Rabberduscolanderson come una causa di litigi con il marito, ed attribuì tutte queste frustrazioni proprio a lui, ignorandolo per gran parte del tempo.</p><p>Non ebbe mai una particolare abilità lavorativa o sociale, e fece estrema fatica a trovare uno spazio adatto a lui. Il fallimento nel trovare una compagna per continuare la stirpe Von T causò l'ira definitiva del padre.</p>"
+        "title": "Biografia e Storia: L'Infanzia del Rifiuto",
+        "icon": "fa-book-open",
+        "content": "<p>Rabberduscolanderson nacque come primogenito della nobile casata Von T. Il suo destino fu segnato fin dal battesimo: suo padre, Yuris, gli impose il nome \"Rabberduscolanderson\" contro la ferma volontà della madre, Leonora. Questo atto di prepotenza trasformò il figlio in un simbolo vivente dei conflitti coniugali. Leonora, incapace di separare il bambino dall'odio per il marito, lo ignorò per gran parte della sua infanzia, riversando su di lui una fredda indifferenza.</p><p>Crescendo, Rabberduscolanderson si rivelò privo di qualsiasi talento pratico, sociale o politico necessario per navigare la vita di corte. Non riuscì mai a trovare il suo posto nel regno, né una compagna con cui generare eredi. Per suo padre Yuris, ossessionato dalla continuazione della stirpe, questa fu l'onta definitiva. Considerato un ramo secco dell'albero genealogico, Rabberduscolanderson fu cacciato dal palazzo, spogliato dei suoi privilegi.</p>"
       },
       {
         "type": "lore",
-        "title": "L'Esilio e l'Amore Breve",
+        "title": "La Vita Umile e la Fine",
         "icon": "fa-heart-broken",
-        "content": "<p>Cacciato dal palazzo, iniziò a vivere in modo umile con i suoi tre cani. Negli ultimi anni di vita trovò una compagna, Elena, di una ventina d'anni più giovane. Tuttavia, la felicità fu breve.</p><p style='margin-top: 1.5rem; font-style: italic; color: #666; font-size: 0.95rem;'>La morte di Elena causò una insuperabile tristezza a Rabberduscolanderson, il quale decise di porre fine alla sua vita gettandosi in un fossato.</p>"
+        "content": "<p>Paradossalmente, l'exile fu la sua salvezza temporanea. Visse in povertà, circondato solo dall'affetto sincero dei suoi tre cani: Mimi, Coco e Balù. In tarda età, trovò l'amore in Elena, una donna di vent'anni più giovane. Furono anni di felicità semplice, scandita dal tintinnio di poche monete di rame. Tuttavia, il destino fu crudele: la morte prematura di Elena gettò Rabberduscolanderson in una disperazione senza fondo. Incapace di sopportare il dolore, si tolse la vita gettandosi in un fossato. I suoi fedeli cani, abbandonati, morirono di fame pochi giorni dopo, seguendo il padrone nel triste destino.</p>"
       },
       {
         "type": "custom_box",
-        "title": "L'Ossessione del Rame",
-        "icon": "fa-coins",
-        "borderColor": "var(--accent-copper)",
-        "content": "<p>Rabberduscolanderson ricorda ancora i momenti di semplicità che lo rendevano felice. Il suono delle monete di rame, le uniche che poteva permettersi, richiama ancora oggi sentimenti di gioia nel suo cuore non-morto.</p><div style='background: rgba(192, 128, 64, 0.1); padding: 1rem; border-radius: 6px; margin: 1rem 0; border-left: 3px solid var(--accent-copper);'><i class='fas fa-exclamation-circle' style='color: var(--accent-copper);'></i><span style='font-size: 0.9rem;'> Accetta scambi <strong>solo</strong> in monete di rame.</span></div>"
+        "title": "Comportamento e Particolarità",
+        "icon": "fa-theater-masks",
+        "borderColor": "var(--accent-primary)",
+        "content": "<p><strong>L'Ossessione per il Rame:</strong> Nonostante sia un non-morto, Rabberduscolanderson conserva una scintilla della sua umanità, legata indissolubilmente al ricordo della semplicità.</p><ul><li>Disprezza l'oro e l'argento: Non hanno valore per lui, gli ricordano la nobiltà che lo ha rifiutato.</li><li>Ama il Rame: Il suono e la vista delle monete di rame gli evocano i rari momenti di gioia della sua vita umile con Elena.</li></ul><p><strong>Il Mercante della Cripta:</strong> Vagando per la cripta, ha raccolto oggetti preziosi lasciati da altri avventurieri o appartenenti al luogo, ma non sa che farsene.</p><div style='background: rgba(192, 128, 64, 0.1); padding: 1rem; border-radius: 6px; margin: 1rem 0; border-left: 3px solid var(--accent-copper);'><i class='fas fa-exclamation-circle' style='color: var(--accent-copper);'></i><span class='mechanics-text'> Meccanica di Scambio: È disposto a cedere oggetti magici o di alto valore, ma accetta come pagamento esclusivamente monete di rame. Per lui, un sacchetto di tintinnanti monete marroni vale più di una spada incantata.</span></div>"
+      },
+      {
+        "type": "custom_box",
+        "title": "Aspetto Fisico",
+        "icon": "fa-mask",
+        "borderColor": "#8B4513",
+        "content": "<p>Una figura scheletrica, spogliata di ogni traccia di carne, ma che conserva una postura stranamente umana, quasi cortese. Le orbite vuote del teschio brillano di una flebile, inquietante luce rossa. Indossa abiti incredibilmente logori, stracci di tela grezza e i resti di quello che un tempo era un cappello a tesa larga, ormai sformato, che di tanto in tanto si aggiusta con una mano ossuta in un gesto di automatica educazione. Alla cintola porta una bisaccia di cuoio consumato, che tintinna debolmente ad ogni passo, tradendo il suono inconfondibile di piccole monete metalliche.</p>"
       },
       {
         "type": "image_grid",
@@ -47,6 +54,27 @@
         ]
       }
     ],
+    "questline": {
+      "title": "Missioni di Rabberduscolanderson",
+      "character_specific_quests": [
+        {
+          "character_id": "valdor",
+          "text": "Frugare nella tasca di Ran'Dra e trovare cosa nasconde.",
+          "status": "COMPLETA",
+          "image": "img/players/valdor_transp.webp"
+        }
+      ],
+      "general_quests": [
+        {
+          "text": "Trovare le 3 targhette dei suoi cani perduti.",
+          "status": "COMPLETA"
+        },
+        {
+          "text": "Trovare qualcosa che possa ricordargli la sua amata Elena.",
+          "status": "IN CORSO"
+        }
+      ]
+    },
     "relationships": [
         {
             "id": "x",
@@ -61,7 +89,7 @@
   {
     "id": "x",
     "name": "X Von T",
-    "role": "La Colta",
+    "role": "La Studiosa",
     "status": "vivo",
     "quote": "La propria intelligenza deve essere sempre usata con cautela, ma in molti questo non lo sanno.",
     "images": {
