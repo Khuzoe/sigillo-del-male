@@ -282,6 +282,35 @@
                             </div>`;
                         break;
 
+                    case 'document':
+                        const docSections = (block.sections || []).map(section => `
+                            <div class="doc-section">
+                                ${section.heading ? `<h4>${section.heading}</h4>` : ''}
+                                <p>${section.text || ''}</p>
+                            </div>
+                        `).join('');
+
+                        const docTags = (block.tags || []).map(tag => `<span class="doc-tag">${tag}</span>`).join('');
+
+                        card.classList.add('document-card');
+                        card.innerHTML = `
+                            <div class="document-header">
+                                <div class="doc-label"><i class="fas ${block.icon || 'fa-book-dead'}"></i> ${block.title}</div>
+                                <div class="document-tags">${docTags}</div>
+                            </div>
+                            <div class="document-body">
+                                <div class="document-image">
+                                    <img src="${resolveImagePath(block.image)}" alt="${block.title}" onerror="this.style.display='none'">
+                                    ${block.image_caption ? `<p class="document-caption">${block.image_caption}</p>` : ''}
+                                </div>
+                                <div class="document-content">
+                                    ${block.subtitle ? `<p class="document-subtitle">${block.subtitle}</p>` : ''}
+                                    ${docSections}
+                                    ${block.quote ? `<div class="document-quote"><i class="fas fa-feather-alt"></i><span>${block.quote}</span></div>` : ''}
+                                </div>
+                            </div>`;
+                        break;
+
                     default:
                         // Default handler for unknown block types
                         card.innerHTML = `<h3>${block.title || 'Informazioni'}</h3>${block.content || ''}`;
