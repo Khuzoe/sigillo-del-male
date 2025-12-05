@@ -183,7 +183,116 @@
       "hover": "img/creatures/transp/nino_olegna_animation.webp",
       "portrait": "img/creatures/nino_olegna.webp"
     },
-    "content_blocks": [],
+    "summary": {
+      "race": "Spirito Tessitore",
+      "age_at_death": "? (resti mai decomposti)",
+      "height": "1.78 m (stimato)",
+      "period": "Era dell'Oblio",
+      "cause_of_death": "Tradimento familiare e sacrificio rituale"
+    },
+    "content_blocks": [
+      {
+        "type": "custom_box",
+        "title": "Archivio Recuperato",
+        "icon": "fa-scroll",
+        "borderColor": "var(--accent-primary)",
+        "content": "<p>Tra le macerie della cripta sono emersi documenti macchiati di sangue e seta. Ogni pagina racconta la trasformazione di Nino in Tessimorte e le sue ossessioni. Le note sono state trascritte per mantenere intatta la loro ferocia.</p>"
+      },
+      {
+        "type": "document",
+        "title": "Grimorio Illustrato: Prigionieri tra le Ragnatele",
+        "subtitle": "Pagine bruciate ai bordi, odorano di muffa e veleno paralizzante.",
+        "image": "img/documents/nino_doc1.svg",
+        "image_caption": "Corpi avvolti vivi, un occhio unico che veglia sui bozzoli.",
+        "tags": ["bozzoli", "paralisi", "culto"],
+        "sections": [
+          {
+            "heading": "Iconografia",
+            "text": "Schizzi di vittime bendate di seta, tenute lucide mentre il veleno le addormenta. Accanto, ragni che filano e un'ombra incappucciata che dirige la tessitura."
+          },
+          {
+            "heading": "Note marginali",
+            "text": "\"Non urla nessuno. La seta è un abbraccio che spegne il sangue.\" — \"Chi si dibatte stringe la propria gabbia.\""
+          }
+        ],
+        "quote": "La pazienza del tessitore è la prima catena."
+      },
+      {
+        "type": "document",
+        "title": "Manuale di Tessimorfosi",
+        "subtitle": "Schema rituale che descrive come la seta sostituisce muscoli e nervi.",
+        "image": "img/documents/nino_doc2.svg",
+        "image_caption": "Sequenza di mutazione guidata dall'occhio superiore del culto.",
+        "tags": ["rituale", "metamorfosi", "larve"],
+        "sections": [
+          {
+            "heading": "Sequenza",
+            "text": "1) Invocazione: l'accolito apre le braccia davanti al nido. 2) Avvolgimento: la tela chiude vie aeree e polsi. 3) Emersione: la seta si indurisce come chitina. 4) Risveglio: la creatura obbedisce al tessitore. 5) Trionfo: l'orda trascina i vivi nel filatoio."
+          },
+          {
+            "heading": "Annotazioni",
+            "text": "\"Le larve pretendono calore umano.\" — \"Il coro si placa solo quando l'occhio si apre.\""
+          }
+        ],
+        "quote": "Ogni fibra è una scelta, ogni scelta è un ordine."
+      },
+      {
+        "type": "document",
+        "title": "Taccuino Anatomico",
+        "subtitle": "Appunti su come la seta penetra carne e ossa senza reciderle.",
+        "image": "img/documents/nino_doc3.svg",
+        "image_caption": "Scheletri con occhi innestati e membrane respirianti.",
+        "tags": ["chirurgia", "bozzoli", "innesti"],
+        "sections": [
+          {
+            "heading": "Tecnica",
+            "text": "Diagrammi mostrano la seta che aderisce a costole e tendini. Tagli di aerazione impediscono al bozzolo di soffocare la preda, prolungando la lucidità."
+          },
+          {
+            "heading": "Esperimenti",
+            "text": "Occhi supplementari innestati su corpi scheletrici per creare sentinelle. Frecce indicano posture forzate e nodi che spezzano le articolazioni per allungare le fibre."
+          }
+        ],
+        "quote": "La sete d'ossigeno del bozzolo è il canto più dolce."
+      },
+      {
+        "type": "document",
+        "title": "Evoluzione del Bozzolo",
+        "subtitle": "Dalle prime ragnatele al mostro abissale che cammina nel buio.",
+        "image": "img/documents/nino_doc4.svg",
+        "image_caption": "Quattro fasi di crescita, fino all'occhio che guida la massa.",
+        "tags": ["mutazione", "seta viva", "abissi"],
+        "sections": [
+          {
+            "heading": "Fasi",
+            "text": "1) Burattino: la vittima resta in piedi, la seta la muove. 2) Tendini di seta: appendici controllano ogni giuntura. 3) Emergenza: compaiono occhi e mascelle nascoste. 4) Trasfigurazione marina: carne e tela diventano un'unica massa abissale."
+          },
+          {
+            "heading": "Esito",
+            "text": "Quando le braccia cadono, la seta le sostituisce. L'occhio finale diventa faro per i figli del Ragno Abissale, attirando nuove vittime."
+          }
+        ]
+      },
+      {
+        "type": "document",
+        "title": "Pergamena di Nino",
+        "subtitle": "Un lamento personale rivolto a Karla, intriso di rancore e minaccia.",
+        "image": "img/documents/nino_doc5.svg",
+        "image_caption": "Versi scritti a inchiostro scuro su pergamena arrotolata.",
+        "tags": ["poesia", "vendetta", "famiglia"],
+        "sections": [
+          {
+            "heading": "Versi principali",
+            "text": "\"Nel fondo della tomba, continuamente mi rigiravo…\" Il poema accusa il tradimento, promette una morte di seta e richiama il sangue versato."
+          },
+          {
+            "heading": "Sottotesto",
+            "text": "Ogni strofa lega l'onore infranto di Nino alla punizione per la figlia. La tela bianca è sia messaggera che boia."
+          }
+        ],
+        "quote": "Il tuo declino, lo sai… vedrai le loro zampe e la seta sarà la fine, la paura."
+      }
+    ],
     "relationships": []
   },
   {

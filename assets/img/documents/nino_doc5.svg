@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="paper5" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f7e9c9" />
+      <stop offset="50%" stop-color="#e6d5b0" />
+      <stop offset="100%" stop-color="#d0bd93" />
+    </linearGradient>
+    <style>
+      .title { font-family: 'Cinzel', serif; font-size: 42px; fill: #2d1f13; }
+      .poem { font-family: 'Crimson Text', serif; font-size: 21px; fill: #2f241a; }
+    </style>
+  </defs>
+  <rect width="1200" height="720" fill="url(#paper5)" />
+  <g opacity="0.25" stroke="#4a2f1b" stroke-width="6" fill="none" stroke-linecap="round">
+    <path d="M120 80 q40 30 0 60" />
+    <path d="M120 140 q-40 30 0 60" />
+    <path d="M1080 80 q40 30 0 60" />
+    <path d="M1080 140 q-40 30 0 60" />
+  </g>
+  <text x="120" y="130" class="title">Pergamena di Nino</text>
+  <g class="poem">
+    <text x="140" y="190">Nel fondo della tomba, continuamente mi rigiravo,</text>
+    <text x="140" y="220">per quell'azione ignobile che da te non mi aspettavo.</text>
+    <text x="140" y="250">Ora dal buio ritorno, con in mano il mio cuore,</text>
+    <text x="140" y="280">da padre tradito, sono ancora il dolore.</text>
+    <text x="140" y="320">Un dolore antico, che in me non si placa,</text>
+    <text x="140" y="350">l'ammirazione ad uscire dalla mia foglia ingrata.</text>
+    <text x="140" y="380">Ma ascolta l'avviso che la bianca tela ti porta,</text>
+    <text x="140" y="410">perché qualsiasi atto nel tuo piano stavolta è controporta.</text>
+    <text x="140" y="450">Tra densi fili di terrore sarai imprigionata,</text>
+    <text x="140" y="480">nessuna salvezza, nessuna pietà mostrata.</text>
+    <text x="140" y="520">Il tuo declino, lo sai... vedrai le loro zampe e la seta</text>
+    <text x="140" y="550">sarà la fine, la paura, e... sarà completa.</text>
+    <text x="140" y="590">Karla, figlia ingrata, quel giorno il rispetto è mancato,</text>
+    <text x="140" y="620">ma il sangue è colato, ed il mio onore si è spezzato.</text>
+  </g>
+</svg>

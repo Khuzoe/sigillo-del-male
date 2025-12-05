@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="paper3" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#ead7b3" />
+      <stop offset="50%" stop-color="#d7c39c" />
+      <stop offset="100%" stop-color="#c1aa81" />
+    </linearGradient>
+    <style>
+      .title { font-family: 'Cinzel', serif; font-size: 40px; fill: #2a1f16; }
+      .body { font-family: 'Crimson Text', serif; font-size: 19px; fill: #2d241b; }
+      .note { font-family: 'Crimson Text', serif; font-size: 17px; fill: #6b251f; }
+    </style>
+  </defs>
+  <rect width="1200" height="720" fill="url(#paper3)" />
+  <g opacity="0.22" stroke="#3b2b1c" stroke-width="2.5" fill="none">
+    <path d="M240 120 C340 190, 360 320, 260 360" />
+    <path d="M900 160 C1000 230, 980 330, 860 360" />
+    <line x1="240" y1="120" x2="290" y2="360" />
+    <line x1="900" y1="160" x2="910" y2="360" />
+  </g>
+  <text x="90" y="110" class="title">Taccuino Anatomico</text>
+  <g class="body">
+    <text x="95" y="160">- Diagrammi su come la seta aderisce a costole e tendini.</text>
+    <text x="95" y="195">- Annotazioni sulle incisioni per far respirare il bozzolo senza spezzarlo.</text>
+    <text x="95" y="230">- Frecce che mostrano i movimenti obbligati delle vittime legate.</text>
+    <text x="95" y="265">- Disegni di occhi innestati in corpi scheletrici, come sentinelle.</text>
+  </g>
+  <g transform="translate(620,150)" stroke="#341b17" stroke-width="12" fill="none" stroke-linecap="round">
+    <path d="M120 80 q50 -40 100 0" />
+    <path d="M120 80 q-30 160 0 320" />
+    <path d="M220 80 q30 160 0 320" />
+    <path d="M120 400 q50 50 100 0" />
+  </g>
+  <g fill="#6f2621" stroke="#2c1513" stroke-width="4" transform="translate(780,260)">
+    <circle cx="0" cy="0" r="40" />
+    <circle cx="0" cy="0" r="18" fill="#d5c09c" />
+    <circle cx="0" cy="0" r="8" fill="#1a0b0b" />
+    <path d="M-40 10 q-50 40 -80 120" fill="none" stroke="#2c1513" stroke-width="6" />
+    <path d="M40 10 q50 40 80 120" fill="none" stroke="#2c1513" stroke-width="6" />
+  </g>
+  <g class="note">
+    <text x="95" y="330">"La sete di ossigeno del bozzolo è il canto più dolce."</text>
+    <text x="95" y="360">"Se l'ospite sopravvive tre giorni, l'occhio non rigetta l'innesto."</text>
+  </g>
+</svg>

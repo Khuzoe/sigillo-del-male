@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="paper4" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f5e7c7" />
+      <stop offset="50%" stop-color="#dfcfa7" />
+      <stop offset="100%" stop-color="#cdb98d" />
+    </linearGradient>
+    <style>
+      .title { font-family: 'Cinzel', serif; font-size: 40px; fill: #2c1f15; }
+      .body { font-family: 'Crimson Text', serif; font-size: 19px; fill: #31271d; }
+      .note { font-family: 'Crimson Text', serif; font-size: 17px; fill: #6f241e; }
+    </style>
+  </defs>
+  <rect width="1200" height="720" fill="url(#paper4)" />
+  <g opacity="0.2" stroke="#3d2e1f" stroke-width="2" fill="none">
+    <path d="M160 140 C320 220, 330 320, 200 360" />
+    <path d="M1000 140 C880 200, 860 320, 990 360" />
+    <line x1="170" y1="140" x2="260" y2="360" />
+    <line x1="1000" y1="140" x2="930" y2="360" />
+  </g>
+  <text x="90" y="110" class="title">Evoluzione del Bozzolo</text>
+  <g class="body">
+    <text x="95" y="160">- Fase 1: la vittima resta in piedi, le ragnatele la guidano come un burattino.</text>
+    <text x="95" y="195">- Fase 2: appendici di seta diventano tendini e controllano i movimenti.</text>
+    <text x="95" y="230">- Fase 3: la creatura si chiude, nascono occhi secondari e mascelle.</text>
+    <text x="95" y="265">- Fase 4: metamorfosi marina, la seta si trasforma in carne abissale.</text>
+  </g>
+  <g transform="translate(620,160)" stroke="#2d1a17" stroke-width="12" fill="none" stroke-linecap="round">
+    <path d="M60 80 q80 -70 160 0" />
+    <path d="M60 80 q-20 160 0 320" />
+    <path d="M220 80 q20 160 0 320" />
+    <path d="M60 400 q80 60 160 0" />
+  </g>
+  <g fill="#6c2121" stroke="#2d1614" stroke-width="4" transform="translate(820,280)">
+    <circle cx="0" cy="0" r="44" />
+    <circle cx="0" cy="0" r="18" fill="#d8c7a2" />
+    <circle cx="0" cy="0" r="8" fill="#1b0a0a" />
+    <path d="M-30 12 q-50 60 -60 150" fill="none" stroke="#2d1614" stroke-width="6" />
+    <path d="M30 12 q50 60 60 150" fill="none" stroke="#2d1614" stroke-width="6" />
+    <path d="M0 44 q0 50 0 140" fill="none" stroke="#2d1614" stroke-width="6" />
+  </g>
+  <g class="note">
+    <text x="95" y="330">"Quando le braccia cadono, la seta le rimpiazza. Nessuno smette di camminare."</text>
+    <text x="95" y="360">"L'occhio finale inghiotte il mare: diventa faro per i figli del Ragno Abissale."</text>
+  </g>
+</svg>
