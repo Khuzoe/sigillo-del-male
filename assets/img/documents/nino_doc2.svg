@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="paper2" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f0debe" />
+      <stop offset="60%" stop-color="#dbc79f" />
+      <stop offset="100%" stop-color="#c8b18a" />
+    </linearGradient>
+    <style>
+      .title { font-family: 'Cinzel', serif; font-size: 42px; fill: #2d1f12; }
+      .subtitle { font-family: 'Crimson Text', serif; font-size: 22px; fill: #4a2e18; }
+      .body { font-family: 'Crimson Text', serif; font-size: 19px; fill: #2f261c; }
+    </style>
+  </defs>
+  <rect width="1200" height="720" fill="url(#paper2)" />
+  <g opacity="0.18" stroke="#4a2f1c" stroke-width="3" fill="none">
+    <path d="M160 140 C320 200, 360 320, 200 360" />
+    <path d="M220 200 C360 260, 380 360, 230 400" />
+    <path d="M1020 160 C900 210, 880 320, 1020 350" />
+    <path d="M960 220 C850 280, 850 360, 970 390" />
+    <line x1="130" y1="160" x2="340" y2="360" />
+    <line x1="1030" y1="160" x2="880" y2="380" />
+  </g>
+  <text x="90" y="120" class="title">Manuale di Tessimorfosi</text>
+  <text x="92" y="160" class="subtitle">Sequenza di mutazione indotta dalle larve</text>
+  <g class="body">
+    <text x="95" y="210">1. Invocazione: gesto dell'accolito davanti al nido, braccia aperte.</text>
+    <text x="95" y="245">2. Avvolgimento: il tessuto crea il bozzolo e sigilla le vie aeree.</text>
+    <text x="95" y="280">3. Emersione: il corpo si gonfia, la seta si indurisce come chitina.</text>
+    <text x="95" y="315">4. Risveglio: la creatura si leva, segue la voce del tessitore.</text>
+    <text x="95" y="350">5. Trionfo: un'orda di servitori spinge i viventi verso la rete.</text>
+  </g>
+  <g transform="translate(670,180)">
+    <path d="M0 260 Q60 120 140 140 Q220 160 260 30" fill="none" stroke="#6b2b2b" stroke-width="10" stroke-linecap="round"/>
+    <path d="M80 240 Q150 150 220 180" fill="none" stroke="#7b3b3b" stroke-width="8" />
+    <circle cx="260" cy="30" r="38" fill="#762525" stroke="#301312" stroke-width="6" />
+    <circle cx="260" cy="30" r="16" fill="#dbc79f" />
+    <circle cx="260" cy="30" r="8" fill="#1d0b0b" />
+    <path d="M30 320 q70 60 140 0" fill="none" stroke="#2f1b10" stroke-width="12" stroke-linecap="round" />
+    <path d="M80 340 q40 20 80 0" fill="none" stroke="#2f1b10" stroke-width="12" stroke-linecap="round" />
+  </g>
+  <g class="body" fill="#702b2b">
+    <text x="720" y="520">Annotazioni a margine:</text>
+    <text x="720" y="550">"Le larve hanno bisogno di calore umano, le candele sono insufficienti."</text>
+    <text x="720" y="580">"Il coro di ronzio smette solo quando l'occhio superiore si apre."</text>
+  </g>
+</svg>
