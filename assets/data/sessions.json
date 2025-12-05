@@ -1,15 +1,15 @@
 {
     "nextSession": {
-        "number": 15,
-        "date": "3 Dicembre 2025",
+        "number": 16,
+        "date": "Da definire",
         "timeStart": "20:30",
         "timeEnd": "23:30",
-        "isScheduled": true
+        "isScheduled": false
     },
     "sessions": [
         {
             "id": 1,
-            "date": "30/04/2025 - Inizio Campagna",
+            "date": "30/04/2025 - Inizio",
             "summary": "<p>Test summary</p>",
             "xp": {
                 "total": "2300",
@@ -118,6 +118,15 @@
             "xp": {
                 "total": "5150",
                 "each": "1287"
+            }
+        },
+        {
+            "id": 15,
+            "date": "03/12/2025",
+            "summary": "<p>Dopo aver sconfitto Nino Olegna, vi dirigete verso il suo studio, dove trovate diversi oggetti interessanti. Oltre a documenti di vario tipo, legati principalmente a rituali oscuri per creare creature mostruose, Ga'Run ed Apothecary prendono con sé delle fiale contenenti liquidi magici.</p><p>In particolare, vi turbano i documenti relativi a due creature: la prima è una creatura 'Assistente' - il Bacio Mortale - in grado di aiutare nei processi di creazione di altre creature; la seconda, una creatura colossale, dotata di una forza e resistenza non misurabili.</p><p>Capendo che le Creature Tela che avete sconfitto precedentemente sono utilizzate per creare altre creature, decidete di distruggere i corpi di tutte quelle che avete lasciato indietro.</p><p>Decidete inoltre di bruciare il corpo di Nino Olegna, dopo che Valdor ha tagliato e preso la sua testa come segno dimostrativo per Karla. Durante questa fase, Ran'Dra ha mostrato una parte inquietante di sé, turbando particolarmente Apothecary.</p><p>Dopo un breve riposo, riprendete il vostro cammino verso un passaggio nascosto che Ga'Run aveva intravisto durante il combattimento contro Webber. Entrando, trovate un braccio gigantesco in fase di costruzione ed una creatura tentacolare che riconoscete essere l'Assistente discusso nei fascicoli. Decidete di affrontarlo, e riuscite ad uscirne vittoriosi.</p>",
+            "xp": {
+                "total": "8400",
+                "each": "2100"
             }
         }
     ]
