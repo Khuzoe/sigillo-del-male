@@ -12,14 +12,14 @@
     },
     "content_blocks": [],
     "relationships": [
-        {
-            "id": "rabberduscolanderson",
-            "description": "Fratello maggiore"
-        },
-        {
-            "id": "karla",
-            "description": "Figlia"
-        }
+      {
+        "id": "rabberduscolanderson",
+        "description": "Fratello maggiore"
+      },
+      {
+        "id": "karla",
+        "description": "Figlia"
+      }
     ]
   },
   {
@@ -99,14 +99,14 @@
       ]
     },
     "relationships": [
-        {
-            "id": "x",
-            "description": "Sorella minore"
-        },
-        {
-            "id": "karla",
-            "description": "Nipote"
-        }
+      {
+        "id": "x",
+        "description": "Sorella minore"
+      },
+      {
+        "id": "karla",
+        "description": "Nipote"
+      }
     ]
   },
   {
@@ -122,14 +122,14 @@
     },
     "content_blocks": [],
     "relationships": [
-        {
-            "id": "rabberduscolanderson",
-            "description": "Fratello maggiore"
-        },
-        {
-            "id": "karla",
-            "description": "Figlia"
-        }
+      {
+        "id": "rabberduscolanderson",
+        "description": "Fratello maggiore"
+      },
+      {
+        "id": "karla",
+        "description": "Figlia"
+      }
     ]
   },
   {
@@ -145,8 +145,8 @@
     },
     "content_blocks": [],
     "relationships": [
-        {
-        }
+      {
+      }
     ]
   },
   {
@@ -162,14 +162,14 @@
     },
     "content_blocks": [],
     "relationships": [
-        {
-            "id": "rabberduscolanderson",
-            "description": "Zio"
-        },
-        {
-            "id": "x",
-            "description": "Madre"
-        }
+      {
+        "id": "rabberduscolanderson",
+        "description": "Zio"
+      },
+      {
+        "id": "x",
+        "description": "Madre"
+      }
     ]
   },
   {
@@ -184,113 +184,118 @@
       "portrait": "img/creatures/nino_olegna.webp"
     },
     "summary": {
-      "race": "Spirito Tessitore",
-      "age_at_death": "? (resti mai decomposti)",
-      "height": "1.78 m (stimato)",
-      "period": "Era dell'Oblio",
-      "cause_of_death": "Tradimento familiare e sacrificio rituale"
+      "race": "Non Morto",
+      "age_at_death": "52 anni",
+      "height": "2.60m | 210kg",
+      "period": "1025-1077",
+      "cause_of_death": "?"
     },
     "content_blocks": [
       {
+        "type": "lore",
+        "title": "Biografia e Storia: ?",
+        "icon": "fa-book-open",
+        "content": "?"
+      },
+      {
         "type": "custom_box",
-        "title": "Archivio Recuperato",
+        "title": "I Fascicoli della Tessimorfosi",
         "icon": "fa-scroll",
         "borderColor": "var(--accent-primary)",
-        "content": "<p>Tra le macerie della cripta sono emersi documenti macchiati di sangue e seta. Ogni pagina racconta la trasformazione di Nino in Tessimorte e le sue ossessioni. Le note sono state trascritte per mantenere intatta la loro ferocia.</p>"
+        "content": "<p>Tra le carte del Tessimorte sono stati rinvenuti quattro studi principali, che dettagliano la discesa nella follia scientifica e magica per la creazione della vita attraverso la seta necrotica.</p>"
       },
       {
         "type": "document",
-        "title": "Grimorio Illustrato: Prigionieri tra le Ragnatele",
-        "subtitle": "Pagine bruciate ai bordi, odorano di muffa e veleno paralizzante.",
+        "title": "Tessimorfosi",
+        "subtitle": "Nascita delle Creature Tela",
         "image": "img/documents/nino_fascicolo_creature_tela.webp",
-        "image_caption": "Corpi avvolti vivi, un occhio unico che veglia sui bozzoli.",
-        "tags": ["bozzoli", "paralisi", "culto"],
+        "image_caption": "Schema di sostituzione dei tessuti molli con fibre di seta.",
+        "tags": ["Documento", "Studio"],
         "sections": [
           {
-            "heading": "Iconografia",
-            "text": "Schizzi di vittime bendate di seta, tenute lucide mentre il veleno le addormenta. Accanto, ragni che filano e un'ombra incappucciata che dirige la tessitura."
+            "heading": "Il Processo",
+            "text": "Studi complessi su come consumare i tessuti di una creatura umana preservando ossa e tendini. La carne viene rimpiazzata da tela di ragno gigante incantata con energia necrotica."
           },
           {
-            "heading": "Note marginali",
-            "text": "\"Non urla nessuno. La seta è un abbraccio che spegne il sangue.\" — \"Chi si dibatte stringe la propria gabbia.\""
+            "heading": "Risultato",
+            "text": "La 'Creatura Tela' finale è flessibile, resistente e totalmente manipolata per rispettare il volere del suo creatore senza esitazione."
           }
         ],
-        "quote": "La pazienza del tessitore è la prima catena."
+        "quote": "La carne marcisce, la tela perdura."
       },
       {
         "type": "document",
-        "title": "Manuale di Tessimorfosi",
-        "subtitle": "Schema rituale che descrive come la seta sostituisce muscoli e nervi.",
+        "title": "Evoluzione",
+        "subtitle": "Utilizzi e Creazione del 'Webber'",
         "image": "img/documents/nino_fascicolo_webber.webp",
-        "image_caption": "Sequenza di mutazione guidata dall'occhio superiore del culto.",
-        "tags": ["rituale", "metamorfosi", "larve"],
+        "image_caption": "Fusione di più creature in un unico organismo difensivo.",
+        "tags": ["Documento", "Studio"],
         "sections": [
           {
-            "heading": "Sequenza",
-            "text": "1) Invocazione: l'accolito apre le braccia davanti al nido. 2) Avvolgimento: la tela chiude vie aeree e polsi. 3) Emersione: la seta si indurisce come chitina. 4) Risveglio: la creatura obbedisce al tessitore. 5) Trionfo: l'orda trascina i vivi nel filatoio."
+            "heading": "Materia Prima",
+            "text": "Le Creature Tela non sono solo servi, ma ingredienti. Possono essere consumate e fuse per generare esseri superiori."
           },
           {
-            "heading": "Annotazioni",
-            "text": "\"Le larve pretendono calore umano.\" — \"Il coro si placa solo quando l'occhio si apre.\""
-          }
-        ],
-        "quote": "Ogni fibra è una scelta, ogni scelta è un ordine."
-      },
-      {
-        "type": "document",
-        "title": "Taccuino Anatomico",
-        "subtitle": "Appunti su come la seta penetra carne e ossa senza reciderle.",
-        "image": "img/documents/nino_fascicolo_bacio_mortale.webp",
-        "image_caption": "Scheletri con occhi innestati e membrane respirianti.",
-        "tags": ["chirurgia", "bozzoli", "innesti"],
-        "sections": [
-          {
-            "heading": "Tecnica",
-            "text": "Diagrammi mostrano la seta che aderisce a costole e tendini. Tagli di aerazione impediscono al bozzolo di soffocare la preda, prolungando la lucidità."
-          },
-          {
-            "heading": "Esperimenti",
-            "text": "Occhi supplementari innestati su corpi scheletrici per creare sentinelle. Frecce indicano posture forzate e nodi che spezzano le articolazioni per allungare le fibre."
-          }
-        ],
-        "quote": "La sete d'ossigeno del bozzolo è il canto più dolce."
-      },
-      {
-        "type": "document",
-        "title": "Evoluzione del Bozzolo",
-        "subtitle": "Dalle prime ragnatele al mostro abissale che cammina nel buio.",
-        "image": "img/documents/nino_fascicolo_colosso_tela.webp",
-        "image_caption": "Quattro fasi di crescita, fino all'occhio che guida la massa.",
-        "tags": ["mutazione", "seta viva", "abissi"],
-        "sections": [
-          {
-            "heading": "Fasi",
-            "text": "1) Burattino: la vittima resta in piedi, la seta la muove. 2) Tendini di seta: appendici controllano ogni giuntura. 3) Emergenza: compaiono occhi e mascelle nascoste. 4) Trasfigurazione marina: carne e tela diventano un'unica massa abissale."
-          },
-          {
-            "heading": "Esito",
-            "text": "Quando le braccia cadono, la seta le sostituisce. L'occhio finale diventa faro per i figli del Ragno Abissale, attirando nuove vittime."
+            "heading": "Progetto Webber",
+            "text": "Un esperimento riuscito che ha portato alla creazione di una creatura simile ad un Roper. Sacrificando creature tela minori, si ottiene un mostro difensivamente più utile e resistente."
           }
         ]
       },
       {
         "type": "document",
-        "title": "Pergamena di Nino",
-        "subtitle": "Un lamento personale rivolto a Karla, intriso di rancore e minaccia.",
-        "image": "img/documents/nino_poesia.webp",
-        "image_caption": "Versi scritti a inchiostro scuro su pergamena arrotolata.",
-        "tags": ["poesia", "vendetta", "famiglia"],
+        "title": "Tessimorfosi Ciclica",
+        "subtitle": "L'Assistente: Il Bacio Mortale",
+        "image": "img/documents/nino_fascicolo_bacio_mortale.webp",
+        "image_caption": "Una figura umanoide composta di seta densa, china su un rituale.",
+        "tags": ["Documento", "Studio"],
         "sections": [
           {
-            "heading": "Versi principali",
-            "text": "\"Nel fondo della tomba, continuamente mi rigiravo…\" Il poema accusa il tradimento, promette una morte di seta e richiama il sangue versato."
+            "heading": "Ottimizzazione",
+            "text": "Per velocizzare la creazione dell'armata, è stato progettato un Assistente. Richiede il consumo di un numero elevatissimo di Creature Tela, ma il risultato è inestimabile."
           },
           {
-            "heading": "Sottotesto",
-            "text": "Ogni strofa lega l'onore infranto di Nino alla punizione per la figlia. La tela bianca è sia messaggera che boia."
+            "heading": "Lealtà Assoluta",
+            "text": "Il Bacio Mortale è incredibilmente potente e pericoloso. Essendo composto della stessa essenza delle creature, vede Nino non solo come creatore, ma come padre e padrone assoluto, assistendolo nei rituali più complessi."
           }
         ],
-        "quote": "Il tuo declino, lo sai… vedrai le loro zampe e la seta sarà la fine, la paura."
+        "quote": "Egli tesse dove le mie mani non arrivano."
+      },
+      {
+        "type": "document",
+        "title": "Tessimorfosi Definitiva",
+        "subtitle": "La Fine del Ciclo: Il Colosso di Tela",
+        "image": "img/documents/nino_fascicolo_colosso_tela.webp",
+        "image_caption": "Schizzi frenetici di una creatura immensa che assorbe corpi.",
+        "tags": ["Documento", "Studio"],
+        "sections": [
+          {
+            "heading": "Genesi Rapida",
+            "text": "Con l'aiuto del Bacio Mortale, il tempo di creazione si riduce drasticamente. Nonostante l'alto sacrificio di servitori richiesto, la creazione del Colosso diventa possibile in tempi brevi."
+          },
+          {
+            "heading": "L'Imbattibile",
+            "text": "Una volta vivo, il Colosso si auto-alimenta. Uccide creature, ne assorbe i corpi e tramuta i tessuti in nuova tela, crescendo in dimensioni e potenza all'infinito."
+          },
+          {
+            "heading": "Nota Finale",
+            "text": "La grafia diviene pesante, il calco della penna quasi strappa la carta. L'ultima frase è un urlo di vendetta impresso nell'inchiostro: 'Nessuno sarà in grado di fermare questa creatura. NEMMENO TU.'"
+          }
+        ]
+      },
+      {
+        "type": "document",
+        "title": "Pergamena: Il Lamento del Tradito",
+        "subtitle": "Un messaggio personale rivolto a Karla.",
+        "image": "img/documents/nino_poesia.webp",
+        "image_caption": "Versi tracciati con rabbia su pergamena antica.",
+        "tags": ["Documento", "Poesia"],
+        "sections": [
+          {
+            "heading": "Il Testo",
+            "text": "Nel fondo della tomba, continuamente mi rigiravo,<br>Per quell'azione ignobile che da te non m'aspettavo.<br><br>Ora dal buio ritorno, con in mano il mio cuore,<br>Da padre tradito, sento ancora il dolore.<br><br>Un dolore antico, che in me non si placa,<br>Ingannato ed ucciso dalla mia figlia ingrata.<br><br>Ma ascolta l’avviso che la bianca tela ti porta,<br>Perché qualcosa nel tuo piano stavolta è andata storta.<br><br>Tra densi fili di tenebra sarai imprigionata,<br>Nessuna salvezza, nessuna pietà mostrata.<br><br>Ti troveranno, lo sai... vedrai le loro zanne e la seta<br>sarà la mia vendetta a prendere forma… e sarà completa.<br><br>Karla, figlia ingrata, quel giorno il rispetto è mancato,<br>il mio sangue è colato, ed il mio onore si è spezzato.<br><br>Ma a chi spezza il sacro ed antico patto familiare,<br>resta solo la notte, e i ragni che -"
+          }
+        ],
+        "quote": "Ma a chi spezza il sacro ed antico patto familiare, resta solo la notte..."
       }
     ],
     "relationships": []
@@ -308,8 +313,8 @@
     },
     "content_blocks": [],
     "relationships": [
-        {
-        }
+      {
+      }
     ]
   }
 ]
