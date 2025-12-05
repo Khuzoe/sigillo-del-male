@@ -11,15 +11,7 @@
       "portrait": "img/creatures/deborah.webp"
     },
     "content_blocks": [],
-    "relationships": [
-      {
-        "id": "rabberduscolanderson",
-        "description": "Fratello maggiore"
-      },
-      {
-        "id": "karla",
-        "description": "Figlia"
-      }
+    "relationships": [{}
     ]
   },
   {
