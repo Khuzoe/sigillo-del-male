@@ -288,6 +288,7 @@ ul {
     font-family: var(--font-heading);
     font-size: 1.5rem;
     color: var(--text-main);
+    text-transform: uppercase;
 }
 
 .npc-role {
