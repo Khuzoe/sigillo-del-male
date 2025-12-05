@@ -78,7 +78,7 @@
             const statusInfo = statusMap[npc.status] || { text: 'N/A', class: '' };
 
             const card = document.createElement('a');
-            card.href = `characters/character.html?id=${npc.id}`;
+            card.href = `./characters/character.html?id=${npc.id}`;
             card.className = 'npc-card';
 
             card.innerHTML = `
