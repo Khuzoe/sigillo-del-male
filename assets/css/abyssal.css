@@ -383,50 +383,13 @@ ul {
     filter: sepia(0.5) contrast(1.2);
 }
 
-/* Image Grid */
-.image-grid-container {
-    display: flex;
-    justify-content: center;
-    gap: 3rem; /* Increased gap */
-    flex-wrap: wrap; /* Allow wrapping for more items */
-}
-
-.grid-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    max-width: 120px; /* Limit item width */
-}
-
-.grid-image {
-    width: 100px; /* Increased from 70px */
-    height: 100px; /* Increased from 70px */
-    border-radius: 50%;
-    border: 2px solid #555;
-    object-fit: cover;
-    margin-bottom: 0.75rem; /* Adjusted margin */
-    transition: transform 0.3s, border-color 0.3s;
-}
-
-.grid-item:hover .grid-image {
-    transform: scale(1.1);
-    border-color: var(--accent-primary); /* Changed hover border color */
-}
-
-.grid-item-name {
-    font-size: 1rem; /* Slightly increased */
-    font-family: var(--font-heading);
-    color: var(--text-main); /* Ensure name color is visible */
-}
-
 .content-card p,
 .content-card li {
     font-size: 1.1em; /* Adjusted for better readability, approximately 20.9px */
     line-height: 1.7; /* Adjusted for better readability */
 }
 
-/* Document Blocks */
+/* Image Box Blocks */
 .document-card {
     padding: 0;
     overflow: hidden;
@@ -837,7 +800,7 @@ ul {
 
 .member-name {
     font-family: var(--font-ui);
-    font-size: 0.8em;
+    font-size: 0.7em;
     font-weight: bold;
     color: var(--text-main);
     white-space: nowrap;
