@@ -68,13 +68,19 @@
         "content": "<p>Una figura scheletrica, spogliata di ogni traccia di carne, ma che conserva una postura stranamente umana, quasi cortese. Le orbite vuote del teschio brillano di una flebile, inquietante luce rossa. Indossa abiti incredibilmente logori, stracci di tela grezza e i resti di quello che un tempo era un cappello a tesa larga, ormai sformato, che di tanto in tanto si aggiusta con una mano ossuta in un gesto di automatica educazione. Alla cintola porta una bisaccia di cuoio consumato, che tintinna debolmente ad ogni passo, tradendo il suono inconfondibile di piccole monete metalliche.</p>"
       },
       {
-        "type": "image_grid",
-        "title": "I Compagni Fedeli (Deceduti)",
-        "items": [
-          {"name": "Balù", "image": "../../assets/img/items/dog_balu.webp"},
-          {"name": "Mimi", "image": "../../assets/img/items/dog_mimi.webp"},
-          {"name": "Coco", "image": "../../assets/img/items/dog_coco.webp"}
-        ]
+        "type": "image_box",
+        "title": "I Compagni Fedeli",
+        "subtitle": "Mimi, Coco e Balù",
+        "image": "img/items/rabberduscolanderson_dogs.webp",
+        "image_caption": "I tre fedeli compagni di Rabberduscolanderson: Balù, Mimi e Coco.",
+        "tags": ["Compagni", "Lealtà"],
+        "sections": [
+          {
+            "heading": "Lealtà Incondizionata",
+            "text": "I tre fedeli cani di Rabberduscolanderson, che lo hanno seguito fino alla morte e oltre."
+          }
+        ],
+        "quote": "L'unico amore che non tradisce mai."
       }
     ],
     "questline": {
@@ -205,7 +211,7 @@
         "content": "<p>Tra le carte del Tessimorte sono stati rinvenuti quattro studi principali, che dettagliano la discesa nella follia scientifica e magica per la creazione della vita attraverso la seta necrotica.</p>"
       },
       {
-        "type": "document",
+        "type": "image_box",
         "title": "Tessimorfosi",
         "subtitle": "Nascita delle Creature Tela",
         "image": "img/documents/nino_fascicolo_creature_tela.webp",
@@ -224,7 +230,7 @@
         "quote": "La carne marcisce, la tela perdura."
       },
       {
-        "type": "document",
+        "type": "image_box",
         "title": "Evoluzione",
         "subtitle": "Utilizzi e Creazione del 'Webber'",
         "image": "img/documents/nino_fascicolo_webber.webp",
@@ -242,7 +248,7 @@
         ]
       },
       {
-        "type": "document",
+        "type": "image_box",
         "title": "Tessimorfosi Ciclica",
         "subtitle": "L'Assistente: Il Bacio Mortale",
         "image": "img/documents/nino_fascicolo_bacio_mortale.webp",
@@ -261,7 +267,7 @@
         "quote": "Egli tesse dove le mie mani non arrivano."
       },
       {
-        "type": "document",
+        "type": "image_box",
         "title": "Tessimorfosi Definitiva",
         "subtitle": "La Fine del Ciclo: Il Colosso di Tela",
         "image": "img/documents/nino_fascicolo_colosso_tela.webp",
@@ -283,7 +289,7 @@
         ]
       },
       {
-        "type": "document",
+        "type": "image_box",
         "title": "Pergamena: Il Lamento del Tradito",
         "subtitle": "Un messaggio personale rivolto a Karla.",
         "image": "img/documents/nino_poesia.webp",
