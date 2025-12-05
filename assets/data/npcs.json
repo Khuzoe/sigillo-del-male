@@ -202,7 +202,7 @@
         "type": "document",
         "title": "Grimorio Illustrato: Prigionieri tra le Ragnatele",
         "subtitle": "Pagine bruciate ai bordi, odorano di muffa e veleno paralizzante.",
-        "image": "img/documents/nino_doc1.svg",
+        "image": "img/documents/nino_fascicolo_creature_tela.webp",
         "image_caption": "Corpi avvolti vivi, un occhio unico che veglia sui bozzoli.",
         "tags": ["bozzoli", "paralisi", "culto"],
         "sections": [
@@ -221,7 +221,7 @@
         "type": "document",
         "title": "Manuale di Tessimorfosi",
         "subtitle": "Schema rituale che descrive come la seta sostituisce muscoli e nervi.",
-        "image": "img/documents/nino_doc2.svg",
+        "image": "img/documents/nino_fascicolo_webber.webp",
         "image_caption": "Sequenza di mutazione guidata dall'occhio superiore del culto.",
         "tags": ["rituale", "metamorfosi", "larve"],
         "sections": [
@@ -240,7 +240,7 @@
         "type": "document",
         "title": "Taccuino Anatomico",
         "subtitle": "Appunti su come la seta penetra carne e ossa senza reciderle.",
-        "image": "img/documents/nino_doc3.svg",
+        "image": "img/documents/nino_fascicolo_bacio_mortale.webp",
         "image_caption": "Scheletri con occhi innestati e membrane respirianti.",
         "tags": ["chirurgia", "bozzoli", "innesti"],
         "sections": [
@@ -259,7 +259,7 @@
         "type": "document",
         "title": "Evoluzione del Bozzolo",
         "subtitle": "Dalle prime ragnatele al mostro abissale che cammina nel buio.",
-        "image": "img/documents/nino_doc4.svg",
+        "image": "img/documents/nino_fascicolo_colosso_tela.webp",
         "image_caption": "Quattro fasi di crescita, fino all'occhio che guida la massa.",
         "tags": ["mutazione", "seta viva", "abissi"],
         "sections": [
@@ -277,7 +277,7 @@
         "type": "document",
         "title": "Pergamena di Nino",
         "subtitle": "Un lamento personale rivolto a Karla, intriso di rancore e minaccia.",
-        "image": "img/documents/nino_doc5.svg",
+        "image": "img/documents/nino_poesia.webp",
         "image_caption": "Versi scritti a inchiostro scuro su pergamena arrotolata.",
         "tags": ["poesia", "vendetta", "famiglia"],
         "sections": [
