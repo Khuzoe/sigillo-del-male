@@ -250,16 +250,6 @@
             <div class="home-grid">
                 <div class="grid-section">
                     <h2>I Protagonisti</h2>
-                    
-                    <a href="#" class="home-char-card">
-                        <div class="home-char-avatar">
-                            <img src="assets/img/players/valdor_transp.webp" alt="Valdor">
-                        </div>
-                        <div class="home-char-info">
-                            <h4 class="name">Valdor</h4>
-                            <span class="role">Artificiere</span>
-                        </div>
-                    </a>
 
                     <a href="#" class="home-char-card">
                         <div class="home-char-avatar">
@@ -289,23 +279,24 @@
                             <span class="role">Maga</span>
                         </div>
                     </a>
+                    
+                    <a href="#" class="home-char-card">
+                        <div class="home-char-avatar">
+                            <img src="assets/img/players/valdor_transp.webp" alt="Valdor">
+                        </div>
+                        <div class="home-char-info">
+                            <h4 class="name">Valdor</h4>
+                            <span class="role">Artificiere</span>
+                        </div>
+                    </a>
 
                     <a href="pages/giocatori.html" class="read-more" style="margin-left: 1rem;">Vedi tutti...</a>
 
                 </div>
-                <div class="grid-section">
+                <div class="grid-section" id="latest-events-section">
                     <h2>Ultimi Eventi</h2>
                     <div class="session-card">
-                        <div class="session-header">
-                            <h3 class="session-title">Sessione 13</h3>
-                            <span class="session-date">23/11/2025</span>
-                        </div>
-                        <div class="session-body">
-                            <p>
-                                L'illusione di una gigantesca giullare si dissolve in coriandoli. Ignorando gli avvertimenti di Karla, il gruppo si addentra in un corridoio intrappolato da ragnatele viventi. Ne consegue una dura battaglia contro ondate di mostri aracnoidi, che culmina con un altro, più piccolo, incontro con la misteriosa giullare.
-                            </p>
-                        </div>
-                        <a href="pages/sessioni.html#session-13" class="read-more">Leggi il riassunto completo &rarr;</a>
+                        <!-- Contenuto caricato dinamicamente -->
                     </div>
                 </div>
             </div>
@@ -316,25 +307,75 @@
     <!-- IMPORTANTE: Lo script che carica la sidebar -->
     <script src="assets/js/layout.js"></script>
 
-    <!-- Script per gestire la Prossima Sessione -->
+    <!-- Script per gestire la Prossima Sessione e l'Ultima Sessione -->
     <script>
-        const nextSessionConfig = {
-            number: 14,
-            date: "3 Dicembre 2025",
-            timeStart: "20:30",
-            timeEnd: "23:30",
-            isScheduled: true // Cambia in false se la data è TBD
-        };
+    document.addEventListener('DOMContentLoaded', () => {
+        fetch('assets/data/sessions.json')
+            .then(response => response.json())
+            .then(data => {
+                // Gestione Prossima Sessione
+                const nextSessionConfig = data.nextSession;
+                const sessionContainer = document.getElementById('next-session-container');
+                setupNextSession(nextSessionConfig, sessionContainer);
 
-        const sessionContainer = document.getElementById('next-session-container');
+                // Gestione Ultima Sessione
+                const lastSession = data.sessions[data.sessions.length - 1];
+                const latestEventsContainer = document.getElementById('latest-events-section');
+                setupLatestSession(lastSession, latestEventsContainer);
+            })
+            .catch(error => {
+                console.error("Errore nel caricamento delle sessioni:", error);
+                const sessionContainer = document.getElementById('next-session-container');
+                sessionContainer.innerHTML = `<p style="color:red; text-align:center;">Impossibile caricare i dati delle sessioni.</p>`;
+            });
 
-        // Mappa mesi italiani -> inglesi
         const monthMap = {
             "Gennaio": "January", "Febbraio": "February", "Marzo": "March",
             "Aprile": "April", "Maggio": "May", "Giugno": "June",
             "Luglio": "July", "Agosto": "August", "Settembre": "September",
             "Ottobre": "October", "Novembre": "November", "Dicembre": "December"
         };
+
+        function setupNextSession(config, container) {
+            if (config.isScheduled) {
+                let dateStr = config.date;
+                for (let [it, en] of Object.entries(monthMap)) {
+                    dateStr = dateStr.replace(it, en);
+                }
+                const targetDate = new Date(`${dateStr} ${config.timeStart}:00`).getTime();
+
+                container.innerHTML = `
+                    <div class="next-session-card">
+                        <span class="next-label">Prossima Sessione</span>
+                        <h2 class="next-title">Sessione ${config.number}</h2>
+                        <div class="next-details">
+                            <div class="detail-item">
+                                <span class="detail-label">Data</span>
+                                <span class="detail-value"><i class="far fa-calendar-alt" style="margin-right: 8px;"></i> ${config.date}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Orario</span>
+                                <span class="detail-value"><i class="far fa-clock" style="margin-right: 8px;"></i> ${config.timeStart} - ${config.timeEnd}</span>
+                            </div>
+                        </div>
+                        <div class="countdown-container" id="countdown">
+                            <div class="countdown-box"><span class="count-number" id="d">00</span><span class="count-label">Giorni</span></div>
+                            <div class="countdown-box"><span class="count-number" id="h">00</span><span class="count-label">Ore</span></div>
+                            <div class="countdown-box"><span class="count-number" id="m">00</span><span class="count-label">Minuti</span></div>
+                            <div class="countdown-box"><span class="count-number" id="s">00</span><span class="count-label">Secondi</span></div>
+                        </div>
+                    </div>
+                `;
+                startCountdown(targetDate);
+            } else {
+                container.innerHTML = `
+                    <div class="next-session-card" style="border-color: #555;">
+                        <span class="next-label">Prossima Sessione</span>
+                        <h2 class="next-title" style="color: #aaa;">Sessione ${config.number}</h2>
+                    </div>
+                `;
+            }
+        }
 
         function startCountdown(targetDate) {
             const countdownEl = document.getElementById('countdown');
@@ -345,7 +386,7 @@
                 const distance = targetDate - now;
 
                 if (distance < 0) {
-                     if (distance > -14400000) { 
+                     if (distance > -14400000) { // 4 ore di durata
                         countdownEl.innerHTML = '<div class="session-live">SESSIONE IN CORSO!</div>';
                     } else {
                         countdownEl.innerHTML = '<div class="session-live" style="color:#aaa">SESSIONE CONCLUSA</div>';
@@ -367,60 +408,31 @@
             update();
             setInterval(update, 1000);
         }
+        
+        function setupLatestSession(session, container) {
+            const sessionCard = container.querySelector('.session-card');
+            if (session && sessionCard) {
+                // Tronca il riassunto a ~250 caratteri
+                const summaryElement = document.createElement('div');
+                summaryElement.innerHTML = session.summary;
+                let summaryText = summaryElement.textContent || summaryElement.innerText || "";
+                if (summaryText.length > 250) {
+                    summaryText = summaryText.substring(0, 250) + '...';
+                }
 
-        if (nextSessionConfig.isScheduled) {
-            let dateStr = nextSessionConfig.date;
-            for (let [it, en] of Object.entries(monthMap)) {
-                dateStr = dateStr.replace(it, en);
+                sessionCard.innerHTML = `
+                    <div class="session-header">
+                        <h3 class="session-title">Sessione ${session.id}</h3>
+                        <span class="session-date">${session.date.split(' - ')[0]}</span>
+                    </div>
+                    <div class="session-body">
+                        <p>${summaryText}</p>
+                    </div>
+                    <a href="pages/sessioni.html#session-${session.id}" class="read-more">Leggi il riassunto completo &rarr;</a>
+                `;
             }
-            const targetDate = new Date(`${dateStr} ${nextSessionConfig.timeStart}:00`).getTime();
-
-            sessionContainer.innerHTML = `
-                <div class="next-session-card">
-                    <span class="next-label">Prossima Sessione</span>
-                    <h2 class="next-title">Sessione ${nextSessionConfig.number}</h2>
-                    <div class="next-details">
-                        <div class="detail-item">
-                            <span class="detail-label">Data</span>
-                            <span class="detail-value"><i class="far fa-calendar-alt" style="margin-right: 8px;"></i> ${nextSessionConfig.date}</span>
-                        </div>
-                        <div class="detail-item">
-                            <span class="detail-label">Orario</span>
-                            <span class="detail-value"><i class="far fa-clock" style="margin-right: 8px;"></i> ${nextSessionConfig.timeStart} - ${nextSessionConfig.timeEnd}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="countdown-container" id="countdown">
-                        <div class="countdown-box">
-                            <span class="count-number" id="d">00</span>
-                            <span class="count-label">Giorni</span>
-                        </div>
-                        <div class="countdown-box">
-                            <span class="count-number" id="h">00</span>
-                            <span class="count-label">Ore</span>
-                        </div>
-                        <div class="countdown-box">
-                            <span class="count-number" id="m">00</span>
-                            <span class="count-label">Minuti</span>
-                        </div>
-                        <div class="countdown-box">
-                            <span class="count-number" id="s">00</span>
-                            <span class="count-label">Secondi</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            startCountdown(targetDate);
-
-        } else {
-            sessionContainer.innerHTML = `
-                <div class="next-session-card" style="border-color: #555;">
-                    <span class="next-label">Prossima Sessione</span>
-                    <h2 class="next-title" style="color: #aaa;">Sessione ${nextSessionConfig.number}</h2>
-                </div>
-            `;
         }
+    });
     </script>
 
 </body>
