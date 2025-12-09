@@ -1,36 +1,40 @@
 {
     "pointsOfInterest": [
         { 
-            "id": "poi-1", 
-            "x": 25, 
-            "y": 30, 
-            "title": "Cristalli Verdi",
-            "flavor": "Una regione di cristalli verdi e velenosi.",
-            "desc": "<p>Questa vasta area è nota per i suoi imponenti cristalli verdi che emettono un debole bagliore tossico. La flora e la fauna si sono adattate a questo ambiente ostile, dando vita a creature bizzarre e pericolose.</p><p>Si dice che i cristalli abbiano potenti proprietà magiche, ma estrarli è un'impresa che pochi hanno osato tentare.</p>"
+            "id": "poi-terre-neutrali", 
+            "x": 59.07, 
+            "y": 31.25, 
+            "title": "Terre Neutrali",
+            "flavor": "Flavor text",
+            "desc": "Description",
+            "subMap": {
+                "data": "../assets/data/maps/inner_maps/terre_neutrali_map.json",
+                "image": "../assets/img/maps/terre_neutrali.webp"
+            }
         },
         { 
-            "id": "poi-2", 
-            "x": 70, 
-            "y": 25, 
-            "title": "Vulcano",
-            "flavor": "Un vulcano attivo che minaccia la regione.",
-            "desc": "<p>Il Monte Cinereo è un vulcano perennemente attivo, le cui pendici sono coperte di cenere e fiumi di lava. Le antiche rovine di una civiltà perduta sono sparse intorno alla sua base, parzialmente sepolte da secoli di eruzioni.</p><p>Le leggende narrano di un potente spirito del fuoco che dimora nel cuore del vulcano, a guardia di un tesoro inimmaginabile.</p>"
+            "id": "poi-arazora", 
+            "x": 73.42, 
+            "y": 37.11, 
+            "title": "Arazora",
+            "flavor": "Flavor text",
+            "desc": "Description"
         },
         { 
-            "id": "poi-3", 
-            "x": 75, 
-            "y": 80, 
-            "title": "Regno di Ghiaccio",
-            "flavor": "Una terra di ghiaccio e neve eterna.",
-            "desc": "<p>Le Guglie di Ghiaccio sono una catena montuosa permanentemente coperta da ghiacciai. Le temperature qui scendono a livelli insopportabili per la maggior parte delle creature. Un'antica città, scolpita direttamente nel ghiaccio, si dice che sia nascosta tra le vette, abitata da esseri di ghiaccio.</p>"
+            "id": "poi-daremmar", 
+            "x": 33.10, 
+            "y": 42.67, 
+            "title": "Daremmar",
+            "flavor": "Flavor text",
+            "desc": "Description"
         },
         { 
-            "id": "poi-4", 
-            "x": 20, 
-            "y": 80, 
-            "title": "Isole Fluttuanti",
-            "flavor": "Isole che fluttuano nel cielo.",
-            "desc": "<p>Una catena di isole rocciose fluttua nel cielo, tenute sospese da una misteriosa forza magica. Vegetazione lussureggiante cresce su queste isole, e cascate d'acqua si riversano dai loro bordi nel vuoto sottostante. Raggiungere queste isole è una sfida, ma si dice che ospitino rovine di un'era dimenticata.</p>"
+            "id": "poi-vermidiandas", 
+            "x": 56.31, 
+            "y": 37.03, 
+            "title": "Vermidiandas",
+            "flavor": "Flavor text",
+            "desc": "Description"
         },
         { 
             "id": "poi-5", 
