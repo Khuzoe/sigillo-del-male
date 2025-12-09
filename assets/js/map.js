@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let pointsOfInterest = [];
     const defaultMapData = '../assets/data/maps/main_maps/map.json';
-    const defaultMapImage = '../assets/img/maps/map.webp';
+    const defaultMapImage = '../assets/img/maps/worldMap.webp';
     const backBtn = document.getElementById('back-btn');
     let mapHistory = [];
 
@@ -164,23 +164,29 @@ document.addEventListener('DOMContentLoaded', function() {
         const oldScale = scale;
         const delta = e.deltaY > 0 ? -0.2 : 0.2;
         scale = Math.max(minScale, Math.min(scale + delta, maxScale));
+
         if (scale === oldScale) return;
-        const mouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        
-        const contentRect = mapContent.getBoundingClientRect();
-        const mouseOnContentX = mouse.x - contentRect.left;
-        const mouseOnContentY = mouse.y - contentRect.top;
 
-        const newPanX = pan.x - mouseOnContentX * (scale / oldScale - 1);
-        const newPanY = pan.y - mouseOnContentY * (scale / oldScale - 1);
+        if (scale === minScale) {
+            setInitialPosition();
+        } else {
+            const mouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+            const contentRect = mapContent.getBoundingClientRect();
+            const mouseOnContentX = mouse.x - contentRect.left;
+            const mouseOnContentY = mouse.y - contentRect.top;
 
-        pan.x = newPanX;
-        pan.y = newPanY;
-        applyTransform();
+            const newPanX = pan.x - mouseOnContentX * (scale / oldScale - 1);
+            const newPanY = pan.y - mouseOnContentY * (scale / oldScale - 1);
+
+            pan.x = newPanX;
+            pan.y = newPanY;
+            
+            applyTransform();
+        }
     });
 
     document.body.addEventListener('mousedown', (e) => {
-        if (!e.target.closest('#map-content')) return;
+        if (!e.target.closest('#map-content') || scale <= minScale) return;
         if (e.button !== 0) return;
         e.preventDefault();
         isPanning = true;
