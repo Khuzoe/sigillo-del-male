@@ -5,6 +5,7 @@
             "x": 59.07, 
             "y": 31.25, 
             "title": "Terre Neutrali",
+            "type": "Area",
             "flavor": "Flavor text",
             "desc": "Description",
             "subMap": {
@@ -17,6 +18,7 @@
             "x": 73.42, 
             "y": 37.11, 
             "title": "Arazora",
+            "type": "Città",
             "flavor": "Flavor text",
             "desc": "Description"
         },
@@ -25,6 +27,7 @@
             "x": 33.10, 
             "y": 42.67, 
             "title": "Daremmar",
+            "type": "Città",
             "flavor": "Flavor text",
             "desc": "Description"
         },
@@ -33,6 +36,7 @@
             "x": 56.31, 
             "y": 37.03, 
             "title": "Vermidiandas",
+            "type": "Città",
             "flavor": "Flavor text",
             "desc": "Description"
         },
@@ -41,6 +45,7 @@
             "x": 50, 
             "y": 60, 
             "title": "Foresta Viola",
+            "type": "Area",
             "flavor": "Una foresta di funghi e piante viola.",
             "desc": "<p>La Foresta Fungina è un bioma surreale where funghi giganti e piante bioluminescenti di colore viola dominano il paesaggio. L'aria è carica di spore magiche che possono avere effetti imprevedibili su chi le respira. Molte creature rare e potenti, adatte a questo strano ambiente, si aggirano tra i funghi giganti.</p>",
             "subMap": {
