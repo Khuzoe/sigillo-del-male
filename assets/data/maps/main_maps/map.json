@@ -8,8 +8,8 @@
             "flavor": "Flavor text",
             "desc": "Description",
             "subMap": {
-                "data": "../assets/data/maps/inner_maps/terre_neutrali_map.json",
-                "image": "../assets/img/maps/terre_neutrali.webp"
+                "data": "../assets/data/maps/main_maps/terre_neutrali_map.json",
+                "image": "../assets/img/maps/main_maps/terre_neutrali.webp"
             }
         },
         { 
