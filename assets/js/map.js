@@ -1,3 +1,4 @@
+const devMode = true;
 document.addEventListener('DOMContentLoaded', function() {
     const mainMapContainer = document.getElementById('map-container');
     const fullscreenMapContainer = document.getElementById('fullscreen-map-container');
@@ -8,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let pointsOfInterest = [];
     const defaultMapData = '../assets/data/maps/main_maps/map.json';
-    const defaultMapImage = '../assets/img/maps/worldMap.webp';
+    const defaultMapImage = '../assets/img/maps/world_map.webp';
     const backBtn = document.getElementById('back-btn');
     let mapHistory = [];
 
@@ -22,6 +23,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             pointsOfInterest = data.pointsOfInterest;
             renderPOIs();
+            if (devMode) {
+                initializeDevTools();
+            }
             // Clear info panel when loading a new map
             infoPanel.innerHTML = '<div class="info-panel-placeholder"><p>Seleziona un punto di interesse sulla mappa per visualizzare i dettagli.</p></div>';
         } catch (error) {
@@ -108,6 +112,59 @@ document.addEventListener('DOMContentLoaded', function() {
 
             contentDiv.appendChild(document.createElement('hr'));
             contentDiv.appendChild(enterButton);
+        }
+    }
+
+    // --- Dev Tools ---
+    let selectedDevPoi = null;
+
+    function initializeDevTools() {
+        const devToolsContainer = document.getElementById('dev-tools-container');
+        const devPoiList = document.getElementById('dev-poi-list');
+        const copyBtn = document.getElementById('dev-copy-btn');
+        const toggleBtn = document.getElementById('dev-tools-toggle-btn');
+
+        if (!devToolsContainer || !devPoiList || !copyBtn || !toggleBtn) return;
+
+        toggleBtn.style.display = 'block';
+
+        toggleBtn.addEventListener('click', () => {
+            const isVisible = devToolsContainer.style.display === 'block';
+            devToolsContainer.style.display = isVisible ? 'none' : 'block';
+        });
+
+        devPoiList.innerHTML = '';
+
+        const poisToSet = pointsOfInterest.filter(p => p.x === null || p.y === null);
+
+        poisToSet.forEach(poi => {
+            const li = document.createElement('li');
+            li.textContent = `${poi.title} - (click to set)`;
+            li.dataset.id = poi.id;
+            li.style.cursor = 'pointer';
+            li.addEventListener('click', () => {
+                selectedDevPoi = poi.id;
+                document.querySelectorAll('#dev-poi-list li').forEach(item => item.style.fontWeight = 'normal');
+                li.style.fontWeight = 'bold';
+            });
+            devPoiList.appendChild(li);
+        });
+
+        copyBtn.addEventListener('click', () => {
+            const updatedPois = pointsOfInterest.filter(p => poisToSet.find(ps => ps.id === p.id));
+            const json = JSON.stringify(updatedPois, ['id', 'title', 'x', 'y'], 2);
+            navigator.clipboard.writeText(json).then(() => {
+                alert('POIs copied to clipboard!');
+            });
+        });
+    }
+
+    function updateDevToolsUI(poiId, x, y) {
+        const li = document.querySelector(`#dev-poi-list li[data-id="${poiId}"]`);
+        if (li) {
+            li.textContent = `${li.textContent.split(' - ')[0]} - x: ${x.toFixed(2)}, y: ${y.toFixed(2)}`;
+            li.style.fontWeight = 'normal';
+            li.style.color = 'lime';
         }
     }
 
@@ -213,13 +270,24 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isPanning && (Math.abs(e.clientX - (startPoint.x + pan.x)) > 2 || Math.abs(e.clientY - (startPoint.y + pan.y)) > 2)) return;
         if (e.target.closest('.poi')) return;
 
-        // Code for getting coordinates on click
         const rect = mapContent.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         const clickY = e.clientY - rect.top;
         const percentX = (clickX / rect.width) * 100;
         const percentY = (clickY / rect.height) * 100;
-        console.log(`{ "id": "new-poi", "x": ${percentX.toFixed(2)}, "y": ${percentY.toFixed(2)}, "title": "New Point", "flavor": "Flavor text", "desc": "Description" },`);
+
+        if (devMode && selectedDevPoi) {
+            const poi = pointsOfInterest.find(p => p.id === selectedDevPoi);
+            if (poi) {
+                poi.x = percentX;
+                poi.y = percentY;
+                updateDevToolsUI(selectedDevPoi, percentX, percentY);
+                renderPOIs();
+                selectedDevPoi = null;
+            }
+        } else {
+            console.log(`{ "id": "new-poi", "x": ${percentX.toFixed(2)}, "y": ${percentY.toFixed(2)}, "title": "New Point", "flavor": "Flavor text", "desc": "Description" },`);
+        }
     });
 
     // --- Fullscreen Handling ---

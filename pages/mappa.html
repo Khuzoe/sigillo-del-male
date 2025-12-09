@@ -245,6 +245,7 @@
                 <h1>Mappa del Mondo</h1>
                 <div class="subtitle">I luoghi perduti e ritrovati</div>
             </div>
+            <button id="dev-tools-toggle-btn" style="display: none; position: absolute; top: 1rem; right: 1rem; background: var(--accent-primary); color: #fff; border: 1px solid var(--gold-dim); border-radius: 4px; padding: 0.5rem 0.8rem; cursor: pointer;">Dev Tools</button>
         </header>
 
         <div class="container">
@@ -273,6 +274,11 @@
                     </div>
                 </div>
             </div>
+        </div>
+        <div id="dev-tools-container" style="display: none; background: #111; color: #fff; padding: 1rem; border-top: 1px solid var(--gold-dim); margin-top: 2rem;">
+            <h3>Dev Tools</h3>
+            <ul id="dev-poi-list" style="list-style: none; padding: 0; margin: 1rem 0;"></ul>
+            <button id="dev-copy-btn">Copy POIs</button>
         </div>
     </main>
 

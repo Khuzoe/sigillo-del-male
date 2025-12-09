@@ -1,0 +1,188 @@
+{
+  "pointsOfInterest": [
+    {
+      "id": "poi-gutrenka",
+      "x": 73.79,
+      "y": 96.12,
+      "title": "Gutrenka",
+      "flavor": "Città libera ricchissima e corrotta, cuore commerciale delle Terre Neutrali.",
+      "desc": "Popolazione stimata: 47.000 anime\nDemografia: 59% umani, 10% mezzelfi, 8% gnomi, 7% halfling, 4% dragonborn, 2% goliath, e un restante 10% frammentato tra razze più disparate, come tiefling, tritoni, tabaxi e mezzorchi.\n\nGutrenka si erge come una dama stanca dal volto splendente, una città che ha assaporato il potere, conosciuto la caduta, sfiorato la rinascita, e infine… avvolta di nuovo dall’ombra.\n\nQuando la Famiglia Tunvìr ottenne il controllo della città, ricevette in dote rovine e miseria.\nLe strade erano silenziose, la fame mordeva le viscere dei poveri, e le fontane un tempo dorate sgorgavano solo ruggine. Le casse cittadine erano vuote, e con esse anche le speranze.\n\nFu Emilien Tunvìr, capofamiglia di tempra rara, a varare i Decreti di Rinascita:\n\n- bonifica delle terre del Terzogenito,\n- riapertura delle attività di pesca,\n- e un appello d’aiuto al Marchesato d’Avorio di Arazora per ricevere sostegno medico.\n\nIn venticinque anni, Gutrenka conobbe un miracolo silenzioso: i tetti tornarono a fumare, il mercato a brulicare, e la dignità a farsi strada tra le macerie.\nMa fu il figlio di Emilien, Marque Tunvìr, a scoperchiare il vero tesoro.\n\nDopo la morte del padre, guidò una spedizione nelle antiche miniere sotto le Mirmane, e lì scoprì un minerale che avrebbe cambiato il destino della città: la Lunarmana, pietra lucente dai riflessi d’argento lunare, capace di condurre magia e calore con un’efficienza inaudita.\nEsportata in oriente, la Lunarmana riempì le casse di Gutrenka. La città crebbe, si vestì di marmo e ferro, e tornò a parlare con voce autorevole nei mercati imperiali.\n\nEppure, quella grandezza rimase l’eco di ciò che fu sotto Guglielmo. Nessun impero torna davvero due volte.\n\nPoi, nel 321 della Quinta Epoca, tutto si spezzò.\nPhilippe Tunvìr morì senza lasciare eredi legittimi, e la sua vedova, Fransès, assunse temporaneamente il ruolo di reggente. La legge le concedeva sei mesi per scegliere un nuovo sposo, e con esso, un nuovo sovrano.\n\nNon ne ebbe il tempo.\n\nNel giro di quel semestre, l’intera stirpe dei Tunvìr venne spazzata via.\nIl popolo parlò di peste. La cosiddetta Piaga del Pesce, una malattia che si diffuse con rapidità e stranezze inquietanti, venne ufficialmente riconosciuta come causa delle morti.\n\nI Fantocci. colti dall’occasione, strinsero le redini della città con artigli d’oro e ferro, istituendo le Gilde Fantoccio di Gutrenka.\nUna compagnia che si spaccia per amministrazione civile, ma agisce come una vera organizzazione mercenaria, con la Guardia del Pugno di Ferro come volto pubblico e braccio armato. Spietata, corrotta, e in apparenza legalizzata, questa forza mantiene l’ordine… o ciò che ne resta.\n\nEppure, nonostante il suo cuore avvelenato, Gutrenka è oggi la città più ricca delle Terre Neutrali.\nIl suo potere non sta più nei nobili, né nei templi, ma nei condotti commerciali che collegano mari e terre lontane. La sua rete logistica attraversa interi continenti, e ogni carovana, ogni nave, ogni cammello carico… paga il suo tributo a Gutrenka."
+    },
+    {
+      "id": "poi-terre-delle-gilde",
+      "x": 69.62,
+      "y": 86.91,
+      "title": "Terre delle Gilde",
+      "flavor": "Lande sfruttate e infestate da faglie, dove i contadini vivono di paura e miseria.",
+      "desc": "Oltre le mura annerite di Gutrenka si distendono per leghe e leghe le Lande, campi poveramente coltivati, dove la fatica ha il sapore della polvere e della resa. I contadini piegano la schiena dall’alba al tramonto per una manciata di monete, mentre il grosso del raccolto viene requisito dal Pugno di Ferro, braccio armato delle Gilde Fantoccio, a sostegno dei loro oscuri interessi.\n\nLa fauna è scarsa, appena sufficiente a tenere in vita chi vi abita. Le provviste bastano a malapena, eppure si sopravvive. Si sopravvive sempre.\n\nNegli ultimi decenni, tuttavia, qualcosa di ben peggiore della fame ha messo radici: Faglie del Reame dell’Assolutore, crepe tra i mondi, hanno cominciato ad aprirsi nelle profondità della campagna. Da esse sono fuoriusciti non-morti e orrori deformi, portando rovina ai campi e morte nei villaggi.\n\nIl Pugno di Ferro, ben protetto nelle sue caserme cittadine, raramente si muove per aiutare. Troppa fatica, troppo lontano, troppo poco da guadagnare. Così, i contadini si affidano alla speranza: quando un gruppo d’avventurieri passa per quelle terre, lo pregano, lo pagano con tutto ciò che possiedono, spesso i risparmi di una vita, pur di non finire divorati nel sonno.\n\nCome dice un vecchio detto delle Lande:\n“Meglio vivere in miseria… che marcire nello stomaco di un cadavere.”"
+    },
+    {
+      "id": "poi-terzogenito",
+      "x": 73.76,
+      "y": 77.58,
+      "title": "Terzogenito",
+      "flavor": "Fiume potente e ostile, la cui corrente sembra guidata da una volontà arcana.",
+      "desc": "Fiume temuto quanto venerato, il Terzogenito serpeggia tra le Terre Neutrali con la furia e il mistero di una creatura viva. La sua sorgente, avvolta da leggende e mappe sbiadite, si cela tra le vette remote della Catena delle Mirmane, dove pochi hanno osato spingersi e ancor meno sono tornati con racconti coerenti.\n\nLa corrente del fiume è potente, quasi arcana, come se qualcosa, una reliquia, un sigillo infranto, o forse un essere antico, ne distorcesse il respiro. I maestri d’acqua e i veggenti locali parlano di una forza invisibile che altera il suo corso, sfidando le leggi della natura.\n\nUn tempo pullulante di vita, il Terzogenito è ora un cimitero d’acqua. I banchi di pesce si sono diradati, alcuni estinti, altri migrati in cerca di acque più miti. Solo le specie più ostinate, o più mutanti, resistono nei suoi flutti.\n\nA Gutrenka, il fiume si placa, ma la sua ostilità non si spegne. Le navi faticano a solcare le sue acque, come se ogni remo e ogni vela fossero invisi alla volontà nascosta del fiume. Eppure, il Terzogenito continua a scorrere, silenzioso e torvo, come un segreto che nessuno ha ancora osato svelare."
+    },
+    {
+      "id": "poi-abissi-di-lunarmana",
+      "x": 77.88,
+      "y": 62.42,
+      "title": "Abissi di Lunarmana",
+      "flavor": "Immensa miniera sigillata, da cui il prezioso minerale continua a fluire misteriosamente.",
+      "desc": "Nel ventre oscuro della terra, là dove neppure la luce osa penetrare, si celano gli Abissi di Lunarmana: un colossale reticolo minerario che si inabissa per chilometri sotto le radici delle Terre Neutrali. In queste profondità si estrae, o si estraeva, il prezioso minerale da cui prende il nome: la Lunarmana, materia arcana ambita da imperi, stregoni e mercanti.\n\nUn tempo, centinaia di minatori di Gutrenka vi lavoravano instancabili. Ma tutto cambiò in un giorno senza sole, quando quarantasei di loro scomparvero nelle viscere della miniera. Nessun superstite, nessuna spiegazione. Da allora, le Gilde Fantoccio hanno sigillato l’accesso, dichiarando l’estrazione chiusa per sempre.\n\nEppure, il flusso di Lunarmana verso i mercati dei Manthae e delle confederazioni orientali non si è mai interrotto. Un avamposto pesantemente armato del Pugno di Ferro sorge ora davanti all’ingresso, a celare verità scomode.\n\nSi narra che le gallerie si estendano ben oltre quanto mappato, raggiungendo le fondamenta di Arazora e insinuandosi fin sotto la Foresta di Margovia. Là sotto, oltre l’eco dei picconi e il silenzio della morte, giacciono segreti che forse sarebbe stato meglio non seppellire."
+    },
+    {
+      "id": "poi-secondogenito",
+      "x": 66.1,
+      "y": 66.81,
+      "title": "Secondogenito",
+      "flavor": "Fiume quieto e devoto, nato – si dice – dalle lacrime di un dio ignorato.",
+      "desc": "Tra i corsi d’acqua delle Terre Neutrali, il Secondogenito è quello di cui si parla meno, ma che nessuno oserebbe ignorare del tutto. Esile e quieto, scorre lento tra le colline a sud di Gleanscath, offrendo alla popolazione locale un’umile ma costante fonte di sostentamento.\n\nI suoi argini sono spesso affollati da pescatori, uomini e donne che conoscono ogni curva del fiume, ogni sua bolla d’aria o movimento anomalo.\n\nSi narra che il suo nome provenga da un’antica leggenda: che sia nato dalle lacrime versate dal fratello minore del dio Zaahul, mai lodato quanto meritava. E come quel dio dimenticato, anche il Secondogenito continua il suo cammino, silenzioso ma fedele, senza pretendere nulla in cambio."
+    },
+    {
+      "id": "poi-nido-di-gaul-e-diomede",
+      "x": 49.11,
+      "y": 76.3,
+      "title": "Nido di Gaul e Diomede",
+      "flavor": "Antico salice sacro, dimora delle divinità del Vento e della Pioggia.",
+      "desc": "Il Nido di Gaul e Diomede si erge solitario tra le colline spazzate dai venti, un antico salice piangente le cui radici affondano nell’alba della Prima Epoca. È qui che si dice dimorino Gaul e Diomede, Divinità del Vento e della Pioggia, spiriti liberi e impetuosi come le forze che dominano.\n\nL’albero non è un semplice testimone del tempo: è l’ultimo salice rimasto tra quelli forgiati dal Grande Verme in persona, cresciuto quando ancora il mondo era giovane e gli dei camminavano a fianco dei mortali. Le sue fronde, lunghe come veli di seta, sussurrano canti antichi a chi sa ascoltare; le sue lacrime d’ambra, che stillano dai rami, si dice siano gocce della pioggia primordiale.\n\nSopravvissuto a secoli di tempeste, guerre e mutamenti arcani, il Nido è oggi un luogo sacro, intoccabile, nascosto agli occhi dei profani. Chi vi si avvicina durante una notte di tempesta giura di udire i mormorii dei due patroni, danzare tra il fruscio del vento e il battito della pioggia."
+    },
+    {
+      "id": "poi-gleanscath",
+      "x": 46.84,
+      "y": 66.1,
+      "title": "Gleanscath",
+      "flavor": "Cittadina gourmet e pacifica, minacciata da una misteriosa piaga metallica.",
+      "desc": "Popolazione stimata: 14.000 anime\nDemografia: 52% umani, 8% mezzelfi, 7% gnomi, 7% halfling, 3% dragonborn, 3% goliath, e un restante 20% frammentato tra razze più disparate, come tiefling, tritoni, tabaxi e mezzorchi.\n\nNel cuore delle Terre Neutrali centrali sorge Gleanscath, una cittadina modesta, ma fiera, dal volto scolpito nel legno e nella pietra di un’architettura che ricorda i giorni antichi del mondo, simile a quella delle isole occidentali dei popoli umani. Le sue strade sono strette ma pulite, i tetti spioventi, le piazze sempre colme di profumi.\n\nA reggere la città è Lord Falko Hopper, un uomo noto per il cuore mite e la lingua misurata. Non è un sovrano ambizioso, né un mercante assetato d’oro. Governa con l’animo del giardiniere che teme di potare troppo una pianta già in fiore: teme che un passo falso, una spesa mal calcolata, possa distruggere l’equilibrio fragile su cui si regge la sua comunità. E forse, ha ragione.\n\nGleanscath non è ricca d’oro, ma abbonda di qualcosa che in pochi sanno riconoscere come tesoro: il cibo. La terra è fertile, i boschi generosi, il fiume pescoso. E così, con il tempo, gli abitanti hanno trasformato quella generosità naturale in arte. Nasce così la Grande Cucina del Bue Ghiotto, una scuola di cucina diventata leggenda nei quattro angoli del continente. Da qui sono usciti nomi come Alexander Cumat, Jacque Burdel e Yosef Hopper, il secondo figlio del Lord.\n\nOgni estate, nel mese di Falkru, Gleanscath ospita la celebre Fiera Gastronomica, un tripudio di sapori e colori in cui gli apprendisti cuochi della Grande Cucina offrono il meglio della loro arte. E ogni inverno, nel mese di Metsa, si tiene il Ritrovo degli Oggetti Meravigliosi, curato dal bizzarro Sir Sean Mcgualdav, un collezionista proveniente da Vidammar, che si è stabilito in città da ormai trent’anni. Questi due eventi, e solo questi, bastano a malapena a mantenere in vita la fragile economia locale.\n\nMa non tutto è pace. Gleanscath è oggi stretta nella morsa di un male misterioso. Una piaga ha cominciato a mutare le carni in metallo corroso, arrugginendo gli arti e trasformando gli infetti in statue di ferro deformi. Le autorità, con dolore, hanno posto il centro cittadino in quarantena.\n\nE mentre l’ombra si allunga sulle tavole imbandite, molti iniziano a chiedersi: chi o cosa ha davvero portato questa maledizione tra i forni e i campi di Gleanscath?"
+    },
+    {
+      "id": "poi-osservatorio-di-farta",
+      "x": 37.66,
+      "y": 74.16,
+      "title": "Osservatorio di Farta",
+      "flavor": "Antico osservatorio elfico, ora silenzioso e forse teatro di un mistero.",
+      "desc": "L’Osservatorio di Farta sorge isolato tra le alture nebbiose a sud-ovest di Gleanscath, dove le nubi raramente osano celare il volto delle stelle. Un tempo costruito dagli Elfi di Arazora nella tarda Seconda Epoca, questo sacro luogo era frequentato da astrologi, veggenti e monaci devoti alla contemplazione dei moti celesti.\n\nSi narra che chiunque riesca a comunicare con una stella, nel profondo silenzio della Cupola, possa ricevere frammenti di saggezza antica, risposte che né i saggi né i re avrebbero mai osato pronunciare.\n\nL’ingresso all’Osservatorio è sorvegliato da monaci dai lunghi mantelli blu scuro, e una donazione è sempre richiesta, che sia in monete d’oro, provviste o semplici ceste di pane e frutta essiccata. È un pegno d’umiltà, dicono, per meritare di guardare il volto degli dei.\n\nTuttavia, le voci che giungono dai mercanti e dai contadini di Gleanscath sussurrano una verità più inquietante: da settimane, forse mesi, nessuno ha più visto i monaci uscire dalle mura. Le lanterne non brillano più nella notte. Né fumo esce dalle canne dei camini. Qualcosa è accaduto. Qualcosa che ha reso silenziose persino le stelle."
+    },
+    {
+      "id": "poi-seconda-basilica-di-guglielmo",
+      "x": 27.49,
+      "y": 59.19,
+      "title": "Seconda Basilica di Guglielmo",
+      "flavor": "Colossale tempio imperiale, cicatrice luminosa e reliquia di un Impero eterno.",
+      "desc": "Sorge come una cicatrice luminosa nel cuore delle Terre Neutrali, la Seconda Basilica di Guglielmo: colossale tempio in pietra e fede, eretta all'alba della Quarta Epoca per celebrare la vittoria imperiale sul leggendario Popolo Zaahul. La sua costruzione, guidata con pugno fermo dal Vescovo Halifax Grommel, richiese ottantaquattro lunghi anni di fatiche, preghiere e sangue versato in onore dell'Antico Dorato.\n\nOggi, la Basilica si erge tra le più venerabili reliquie dell’Autorità Imperiale di Guglielmo, meta di pellegrinaggi da ogni angolo del continente di Kama. Pur martoriata nel tempo da tempeste che sembravano volerla inghiottire, le sue pietre resistettero, e grazie a restauri sapienti ha mantenuto intatto il suo splendore. Le vetrate, frammenti di luce incantata che narrano la storia del Verbo Imperiale, furono più volte infrante dai venti e ricomposte con nuova maestria: le attuali risalgono all’anno 1302 della Quarta Epoca.\n\nTre portali dominano la facciata come bocche divine: al centro, il Portale del Grande Verme, ornato da bassorilievi che narrano la creazione del mondo; ai lati, il Portale di Guglielmo l’Antico Dorato, simbolo di dominio e redenzione, e il Portale della Donna Bianca, silente omaggio al mistero e al sacrificio. Tra loro si erge, come sentinella del tempo, la statua della Gloria Incarnata, raffigurazione colossale della giustizia imperiale: spada levata, volto impassibile, occhi eterni.\n\nChiunque varchi quelle soglie con il cuore colmo di fede o di dubbio, ne esce mutato. La Basilica non è solo pietra e storia: è memoria vivente di un Impero che non ha mai smesso di credersi eterno."
+    },
+    {
+      "id": "poi-manto-di-quimbur",
+      "x": 46.75,
+      "y": 48.31,
+      "title": "Manto di Quimbur",
+      "flavor": "Foresta oscura e senziente, dominio di mostri, streghe e spiriti irrequieti.",
+      "desc": "Oscura e maestosa, la foresta che i saggi chiamano Manto di Quimbur deve il suo nome all’antico Dio delle Bestie, Quimbur, il cui vello, si narra, sia stato l’archetipo stesso della vegetazione che qui cresce. Gli alberi che vi dimorano, vetusti e irti di muschio, intrecciano i loro rami in un abbraccio eterno, così denso da soffocare ogni raggio del sole. Camminare sotto quelle fronde è come calarsi in un crepuscolo senza fine.\n\nMa non è solo l’oscurità a rendere temuto quel luogo. Il Manto è vivo. E vigila.\n\nTra le sue pieghe dimorano esseri di ogni sorta: cervi dagli occhi intelligenti che osservano in silenzio, branchi di lupi che sembrano muoversi come un’unica ombra, ma anche mostruosità che l’uomo oserebbe solo sussurrare accanto al fuoco.\n\nLe leggende parlano dell’Orsogufo Mannaro, detto il Collezionista di Cadaveri, un mostro dalla mente contorta che raccoglie i resti delle sue vittime in santuari macabri tra le radici. Si dice che le Streghe di Lunarmana celebrino lì il loro Carnevale di Carne, un rituale notturno fatto di danze, risa folli e sacrifici. E infine, ci sono le Ninfe dei Morti, spiriti silvani strappati alla vita, che piangono eternamente il proprio destino, attirando gli sventurati nei laghi ombrosi del bosco."
+    },
+    {
+      "id": "poi-vecchia-fattoria-degli-hopper",
+      "x": 33.54,
+      "y": 46.24,
+      "title": "Vecchia Fattoria degli Hopper",
+      "flavor": "Fattoria maledetta, epicentro di una Faglia Negromantica in marcia su Gleanscath.",
+      "desc": "Un tempo fertile e serena, la vecchia fattoria degli Hopper giace ora in rovina, stretta nella morsa di un’inquietante maledizione. Le sue terre, aride e infrante, non danno più frutti; i suoi silos, un tempo colmi di grano, ora sussurrano al vento lamenti innaturali.\n\nSotto le fondamenta marcite, nelle profondità scavate da un antico nido di ogretalpa, si è spalancata una Faglia Negromantica, un’infezione del Reame dell’Assolutore. Da lì, invisibili effluvi si diffondono silenziosi: un miasma senza odore, ma dallo spirito funesto, che uccide i viventi e richiama in vita le loro carcasse come servitori senz’anima.\n\nI pochi contadini che ancora abitavano la tenuta sono caduti senza neppure un grido, ora ridotti a zombi vaganti tra le stalle annerite e i campi spogli. E il miasma avanza, lento ma inesorabile, diretto verso la città di Gleanscath.\n\nA frapporsi tra la rovina e l’ignaro popolo, vi è una figura solitaria: una donna guerriera dal passato tormentato. Figlia del Baronaccio di Gwylan, la si dice fuggita dalla propria casata dopo un tragico errore. Ora, armata di ascia e rimorso, caccia i non-morti generati dalla Faglia, nel tentativo di redimere le colpe del proprio sangue... prima che l’oscurità si spinga oltre il confine del possibile."
+    },
+    {
+      "id": "poi-occhio-dell-impero",
+      "x": 42.61,
+      "y": 41.54,
+      "title": "Occhio dell’Impero",
+      "flavor": "Torre di vedetta in rovina, forse nido di un orrore mutaforma antico.",
+      "desc": "Sui crinali settentrionali delle Terre Neutrali, si erge l'Occhio dell’Impero, un’antica torre di vedetta appartenuta un tempo all’Autorità Imperiale di Guglielmo. Costruita in epoca remota per scrutare le frontiere dell’Est, era un simbolo di controllo e lungimiranza militare. Oggi, è solo un guscio di pietra e ombra, abbandonato al tempo e alle leggende.\n\nSebbene la struttura sia in rovina, non ha mai smesso di attirare gli incauti. Avventurieri, studiosi e vagabondi vi si recano con la speranza di trovare reliquie dimenticate… o semplicemente per sfidare le dicerie.\n\nSi narra, tuttavia, che tra quelle mura si nasconda un orrore uscito da una Faglia dimenticata: una creatura mutaforma, antica e famelica, dotata di un potere oscuro capace di sedurre la mente e corrompere il corpo. Coloro che cadono preda della sua illusoria bellezza si risvegliano senza memoria, ma segnati da un'inquietudine profonda.\n\nDopo tre lune, si dice che la carne ospite ceda al peso della nuova vita, e dal ventre della vittima esploda la nidiata abominevole del mostro, pronta a spargersi nelle notti senza luna.\n\nNessuno ha mai visto la creatura in volto e vissuto abbastanza a lungo da raccontarlo. Ma la torre osserva ancora, silenziosa… come se attendesse."
+    },
+    {
+      "id": "poi-rovine-di-iseren",
+      "x": 57.32,
+      "y": 38.24,
+      "title": "Rovine di Iseren",
+      "flavor": "Antica cittadella dei Giganti, ora rovina carica di memoria e canti lontani.",
+      "desc": "Un tempo, Iseren si ergeva come una delle poche vestigia dell’antico popolo dei Giganti al di fuori della leggendaria Muov’Youmajenn, la Torre del Mondo. Collocata su un altopiano, la cittadella era un avamposto sacro, scolpito nella pietra con la sapienza dei Titani e alimentato dalla forza viva della terra.\n\nMa la gloria di Iseren conobbe la rovina all’alba della Seconda Epoca, quando le fiamme della guerra divamparono tra i Giganti e il Popolo Khul. La battaglia che lì si consumò fu tanto colossale da scuotere il cuore stesso del mondo. Si racconta che le urla dei morenti si udirono fino alle scogliere di Vilmora, e che il cielo si tinse di rosso per tre giorni e tre notti.\n\nOra Iseren giace spezzata, un cumulo di rovine avvolte da muschi secolari e silenzi carichi di memoria. Le sue arcate cadute e le statue crepate sono tutto ciò che resta della grandezza dei Giganti. Ma nelle notti di luna piena, alcuni viandanti giurano di sentire un canto grave, ritmato come il battito di un cuore antico… come se le pietre stesse, nel loro eterno lamento, non avessero ancora dimenticato."
+    },
+    {
+      "id": "poi-primogenito",
+      "x": 39.67,
+      "y": 35.65,
+      "title": "Primogenito",
+      "flavor": "Fiume sacro e antico, culla delle prime civiltà del nord.",
+      "desc": "Tra le Terre Neutrali, pochi elementi naturali godono della riverenza che si tributa al Primogenito, il più antico e venerato tra i fiumi della regione. La sua sorgente sgorga ai piedi del leggendario Ghiacciaio dei Giganti, là dove la neve non si scioglie mai e i venti cantano i nomi degli antichi padri.\n\nA differenza del suo fratello minore, il Terzogenito, il Primogenito scorre con grazia silenziosa, come un saggio anziano che conosce ogni segreto della terra. Le sue acque hanno nutrito le prime civiltà che sorsero a nord, rendendolo culla della vita, della speranza e dei raccolti abbondanti. Le sue rive sono popolate da una fauna rigogliosa, e molte comunità ancora oggi lo venerano come una divinità minore, offrendo doni alle sue correnti.\n\nEppure, sotto la sua superficie calma, si celano abisso e mistero. Naviganti e pescatori raccontano di improvvise sparizioni, trascinate da risacche invisibili e mulinelli profondi come la morte. Gli studiosi più arditi parlano di voragini sommerse, capaci di inghiottire intere navi, e di una rete di gallerie sotterranee che si estende sotto il letto del fiume, forse scavate da antichi serpenti elementali o da creature dimenticate."
+    },
+    {
+      "id": "poi-respiro-di-galvan",
+      "x": 24.92,
+      "y": 41.8,
+      "title": "Respiro di Galvan",
+      "flavor": "Foresta di fiamme eterne, santuario purificatore e fonte di poteri divini.",
+      "desc": "Nel cuore pulsante delle Terre Neutrali si estende un bosco di fiamme eterne, conosciuto come il Respiro di Galvan. Si narra che la foresta sia sorta laddove Galvan, il Primogenito di Guglielmo e guerriero consacrato, emise il suo ultimo respiro mortale, trasformandolo in fuoco sacro. Da quel momento, ogni tronco, ramo e foglia prese a bruciare con una fiamma viva e silenziosa, dalle tinte cangianti d’oro, porpora e azzurro lunare.\n\nQueste fiamme non consumano, ma purificano. Nessuna creatura corrotta dall’Ombra osa avvicinarsi, e gli spiriti maligni svaniscono come nebbia al sole se solo sfiorano i confini del bosco.\n\nAl centro del Respiro, protetto da illusioni, si dice sorga un antico santuario, edificato in pietra benedetta, dedicato proprio a Galvan. Chi riesce a trovarlo, e pochi affermano di esserci riusciti, ottiene una forza tale da ribaltare le sorti di un’intera battaglia. Ma le sue porte si aprono solo a coloro il cui cuore è privo di menzogna.\n\nLa linfa degli alberi, luminosa come ambra viva, è un tesoro bramato: può curare ferite gravi, lenire maledizioni e potenziare incantesimi divini. Tuttavia, i popoli delle terre vicine la utilizzano con reverenza in usi quotidiani: come vernice sacra, incenso protettivo o tintura per amuleti e talismani."
+    },
+    {
+      "id": "poi-bacio-di-settimpur",
+      "x": 12.17,
+      "y": 39.14,
+      "title": "Bacio di Settimpur",
+      "flavor": "Foresta dorata e benedetta dal Dio Sole, rifugio per cuori puri.",
+      "desc": "Si narra che, nel cuore delle Terre Neutrali, vi sia una foresta talmente luminosa da sembrare sfiorata ogni giorno dal primo raggio dell’alba. È il Bacio di Settimpur, così chiamato per le chiome dorate che incoronano ogni albero, brillanti come fuoco solare riflesso sull’ambra. Nessun druido, nessun saggio è mai riuscito a spiegare come piante così comuni possano portare un tale splendore sulle fronde. I più pii, invece, non hanno dubbi: si tratta della benedizione del Dio Sole, Settimpur in persona, sceso in tempi remoti per sfiorare con amore quel lembo di mondo.\n\nLe leggende raccontano che chi osi addentrarsi nella foresta con cuore puro e intenzioni sincere, possa essere testimone di meraviglie dimenticate: sentieri che si aprono da soli, animali che parlano con voce umana, e luce che cura ferite dell’anima ancor prima di quelle del corpo."
+    },
+    {
+      "id": "poi-rocca-di-gwylan",
+      "x": 23.98,
+      "y": 26.25,
+      "title": "Rocca di Gwylan",
+      "flavor": "Fortezza costiera maledetta dai non-morti, un tempo orgoglio del casato Gwylan.",
+      "desc": "Stretta come un artiglio sulla roccia nuda delle scogliere settentrionali delle Terre Meridionali, la Rocca di Gwylan si erge maestosa sopra il Sussulto di Moara, vegliando sul mare grigio come un antico guardiano dimenticato. Le sue guglie gotiche, annerite dal vento salmastro e dalle tempeste, narrano storie di gloria, sangue e sacrificio.\n\nUn tempo, questa roccaforte era il cuore pulsante del dominio del Baronaccio Terrien Gwylan, un uomo noto tanto per la sua crudeltà calcolatrice quanto per la dedizione incrollabile al suo popolo. Freddo come le onde che s’infrangono contro le scogliere sottostanti, Terrien governava con pugno di ferro e spirito inflessibile. Ma nessuno avrebbe osato dire che non avrebbe dato la vita per proteggere quelle terre e chi vi abitava.\n\nLa ricchezza di Gwylan non proveniva da miniere d’oro o rotte carovaniere, bensì dal ventre del mare: allevamenti di molluschi e crostacei, prezioso corallo e rare piante marine raccolte nelle Grotte Sottomarine che si snodano sotto la costa. Tra le profondità delle scogliere si celava persino un piccolo giacimento di platino, custodito gelosamente dal casato Gwylan da generazioni.\n\nIl Campo di Festa, a sud della Rocca, era conosciuto in tutta Kama per i suoi tornei spettacolari e le sue fiere senza fine. Lì si radunavano guerrieri, giullari e mercanti da ogni dove. Era un’oasi di vitalità e colore… prima della caduta.\n\nDue anni or sono, un evento cambiò per sempre il destino della Rocca. Una Faglia Oscura si spalancò sotto le sue fondamenta, squarciando la terra e vomitando un’orda inarrestabile di non-morti assetati di carne. I sacri stendardi furono innalzati, e il Baronaccio stesso guidò le sue legioni nella battaglia contro l’oscurità.\n\nIl Battaglione Sacro, guidato dalla sua primogenita, Sophia Gwylen, si batté con eroismo. La giovane comandante, una stella luminosa nel cielo della guerra, resistette più di chiunque altro. Ma quando tutto sembrava perduto, Sophia fuggì. Nessuno sa perché. Alcuni dicono per viltà, altri parlano di una visione, un oscuro presagio.\n\nAbbandonati dalla loro guida, i difensori crollarono. La carne divenne putrefatta, i cadaveri si rialzarono, e l’oscurità si sparse come peste sulle colline e nei boschi.\n\nOra, lo spirito del Baronaccio, intrappolato nel suo corpo scarnificato, vaga tra le mura della Rocca, guidato da un solo desiderio: trovare Sophia... e ucciderla con le sue stesse mani. Le notti senza luna sono riempite dal suo ululato funebre, che riecheggia tra le guglie come un lamento di dannazione eterna.\n\nE i Ventiquattro del Crogiolo, un tempo i più valorosi tra i suoi cavalieri, cavalcano ancora, ma ora sono bestie d’inferno, armate di fuoco e morte. Si muovono nel silenzio, razziando villaggi, massacrando innocenti e infettando la terra con il seme della non-morte."
+    },
+    {
+      "id": "poi-valmorta",
+      "x": 44.41,
+      "y": 28.37,
+      "title": "Valmorta",
+      "flavor": "Paludi necromantiche nate da una Faglia, dove pochi attraversano e tornano sani.",
+      "desc": "Un tempo fu chiamata Valle della Vita…\n\nValmorta, oggi avvolta da nebbie fetide e acque stagnanti, fu un tempo una delle più rigogliose valli delle Terre Neutrali. Campi fertili, colline fiorite e corsi d’acqua limpidi disegnavano un paesaggio idilliaco, cantato da bardi e protetto da antichi spiriti silvani. Ma alla fine della Quarta Epoca, qualcosa ruppe l’equilibrio.\n\nUna Faglia Negromantica si squarciò nel cuore della valle, riversando sulla terra una putrefazione magica che corrose ogni forma di vita. Gli alberi marcirono, gli animali impazzirono o mutarono in bestie fameliche, e le acque si fecero nere come inchiostro. Nacquero così le Paludi di Valmorta.\n\nSi dice che vi dimorino creature innominabili, deformi abomini generati dal Mana corrotto.\n\nI pochi che osano attraversarla, per necessità, non per scelta, raramente tornano, e se lo fanno… non sono più gli stessi. Così, chi deve raggiungere le Terre Neutrali del Nord, preferisce sfidare i gelidi sentieri delle Mirmane, fra burroni ghiacciati e vette coperte di neve, piuttosto che affrontare il fetore immortale di Valmorta."
+    },
+    {
+      "id": "poi-conca-delle-grotte-marine",
+      "x": 29.16,
+      "y": 18.27,
+      "title": "Conca delle Grotte Marine",
+      "flavor": "Complesso di grotte costiere splendide e temute, tempio naturale dell’oceano.",
+      "desc": "Nascoste sotto le scogliere scabre del dominio di Gwylan, le Grotte Marine sono considerate da molti saggi e viandanti come il gioiello nascosto del continente.\n\nGiganteschi archi di roccia, levigati dalla furia del mare, incorniciano le onde come se la natura stessa avesse voluto scolpire un tempio alla dea dell’oceano. Le loro pareti si frastagliano in centinaia di lame aguzze e ondulate, testimoni della millenaria erosione. All’interno, un tappeto di sabbia argentata riflette la luce delle acque cristalline, creando un chiarore lunare che sfida l’oscurità delle profondità.\n\nSi narra che, durante le notti in cui la luna piena si riflette tra gli archi, si possano udire canti sommessi provenire dalla marea. Alcuni li attribuiscono a spiriti marini, altri a sirene ancestrali che ancora abitano quei luoghi sacri. Ma nessuno, nemmeno i più audaci pescatori del nord, osa trattenersi troppo a lungo: la bellezza, si dice, spesso cela un richiamo mortale."
+    },
+    {
+      "id": "poi-bedrager",
+      "x": 72.17,
+      "y": 18.84,
+      "title": "Bedrager",
+      "flavor": "Città costiera gotica, governata da un arcidruido enigmatico e segnata da omicidi.",
+      "desc": "Popolazione stimata: 14000 anime\nDemografia: 53% umani, 11% mezzelfi, 9% nani, 7% gnomi, 5% halfling, 4% mezzorchi, 11% tra tutte le razze rimanenti.\n\nSospesa tra nebbie marine, Bedrager si adagia sulla costa settentrionale delle Terre Meridionali, lambita dalle acque scure del Sussulto di Moara. Un tempo fiorente crocevia di scambi e carovane, oggi la città è un riflesso opaco della sua antica gloria, una cittadina dalla bellezza gotica e dalle ossa corrose.\n\nIl potere è detenuto dall’enigmatico Arcidruido Yulgon Forsalte, guida indiscussa del Circolo delle Stelle Morte, devoto al dio Quimbur, il Cervo Nero. Yulgon, elfo venuto dai boschi di Arazora, visse a lungo nelle profondità del Manto di Quimbur e della Foresta Bicefala, e pare che là ella abbia stretto un patto arcano con la divinità stessa. Alcuni dicono che ella non sia un mortale nel senso più stretto del termine. Altri giurano che \"Yulgon\" sia solo uno dei molti nomi con cui è stato conosciuto nel corso delle ere.\n\nMa ciò che davvero getta un’ombra su Bedrager è il destino della Famiglia Devitièn. Un mattino d’autunno, quattro anni or sono, i loro corpi furono rinvenuti smembrati e profanati all’interno della loro villa,. Nessun colpevole fu mai trovato. Da allora, la villa è rimasta disabitata, e si dice che gli spiriti furenti dei Devitièn vi vaghino, urlando vendetta al vento.\n\nDue successivi governatori condivisero la stessa sorte. Straziati nel sonno, le loro stanze divennero altari di sangue. Così, il popolo decise: Bedrager non avrebbe avuto più padroni. Yulgon fu pagata per mantenere l’equilibrio.\n\nOggi Bedrager è perlopiù una cittadina di pescatori e scalpellini. Vive del commercio di basalto nero, estratto dalle gole che si aprono come ferite nella terra. Eppure, conserva un’inaspettata grazia: spiagge di ciottoli bianchi, case ampie e luminose, e una birra amara e celebre, la Birra del Governatore Maledetto, un brindisi ironico al destino crudele che aleggia su chiunque osi mettersi al comando.\n\nMa sotto quella schiuma dorata, Bedrager resta ciò che è: un luogo intriso di mistero, superstizione e magia dimenticata. Dove ogni notte, il vento che sale dalla villa abbandonata pare portare con sé il respiro dei morti."
+    },
+    {
+      "id": "poi-conca-dello-scoglio-impostore",
+      "x": 71.89,
+      "y": 9.6,
+      "title": "Conca dello Scoglio Impostore",
+      "flavor": "Sistema di grotte turchesi infide, forse nascondiglio di antichi tesori pirata.",
+      "desc": "La Conca dello Scoglio Impostore è un sistema di grotte costiere accessibile solo dal mare, con piccole imbarcazioni agili in grado di districarsi tra gli scogli aguzzi che la circondano. Conosciute dalla gente del posto come Grotte Turchesi, devono il loro nome ai cristalli di mana coagulato che rivestono le pareti e tingono l’acqua di riflessi azzurrastri; la loro presenza ha alterato la fauna locale, dando vita a creature rare e pericolose. Le voci parlano di una spiaggia nascosta, un antico deposito di tesori pirata celato nel cuore della conca, ma finora nessuno è mai riuscito a trovarla e tornare con una prova certa."
+    },
+    {
+      "id": "poi-soffio-di-algon",
+      "x": 85.77,
+      "y": 9.84,
+      "title": "Soffio di Algon",
+      "flavor": "Semipiano oceanico distorto, da cui filtrano mostri marini e influssi abissali.",
+      "desc": "Il Soffio di Algon è un piccolo semipiano tangibile nato dagli squilibri di Mana attorno all’Eco dell’Eternità. Un antico strappo dimensionale ha inghiottito una porzione delle Terre Neutrali, racchiudendola in una bolla oceanica statica da cui sono fuoriusciti gli influssi di Algon, il Padre Abissale. In quell’area la terra si è trasformata in alghe, coralli e scogliere sommerse, e mostri marini si sono riversati nelle Terre Neutrali del Nord. Al centro del semipiano vorticerebbe un enorme maelstrom: chi lo attraversa, dicono, viene trascinato nelle profondità dell’oceano orientale, direttamente nel dominio di Algon e delle sue creature."
+    },
+    {
+      "id": "poi-foresta-bicefala",
+      "x": 74.79,
+      "y": 27.68,
+      "title": "Foresta Bicefala",
+      "flavor": "Bosco dalla doppia natura, tra inverno eterno e giungla soffocante, covo di streghe.",
+      "desc": "La Foresta Bicefala deve il suo nome alla sua doppia natura: a nord è un regno d’inverno perenne, coperto di neve e silenzi ovattati, dove gli alberi brillano di brina e la luce filtra come in un sogno; a sud, invece, la stessa foresta si trasforma in una giungla soffocante, avvolta da nebbia densa, umidità opprimente e un caldo innaturale. Si racconta che tra i suoi sentieri si nascondano luoghi leggendari cantati dai bardi, come la Tomba Invisibile dell’Arcimago Wolvart e la Fontana Semovente di Arti. La parte meridionale, in particolare, è temuta come dominio di una coven di streghe che attirerebbe i cavalieri più audaci per poi divorarli vivi nelle profondità della nebbia."
+    }
+  ]
+}
