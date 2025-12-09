@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let pointsOfInterest = [];
     const defaultMapData = '../assets/data/maps/main_maps/map.json';
     const defaultMapImage = '../assets/img/maps/map.webp';
+    const backBtn = document.getElementById('back-btn');
+    let mapHistory = [];
 
     // --- Data Loading & Map Switching ---
     async function loadMapData(mapPath) {
@@ -32,9 +34,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Clear existing POIs immediately
         const existingPois = mapContent.querySelectorAll('.poi');
         existingPois.forEach(poi => poi.remove());
-        
+
         mapImage.dataset.mapDataPath = mapDataPath; // Store the data path
         mapImage.src = mapImagePath;
+
+        // Update back button visibility
+        if (mapHistory.length > 0) {
+            backBtn.style.display = 'block';
+        } else {
+            backBtn.style.display = 'none';
+        }
         // The onload event will handle the rest
     }
 
@@ -89,6 +98,11 @@ document.addEventListener('DOMContentLoaded', function() {
             enterButton.textContent = 'ENTRA';
             enterButton.className = 'enter-button'; // Add a class for styling
             enterButton.addEventListener('click', () => {
+                // Push current map to history before loading the new one
+                mapHistory.push({
+                    data: mapImage.dataset.mapDataPath,
+                    image: mapImage.src
+                });
                 loadMap(poiData.subMap.data, poiData.subMap.image);
             });
 
@@ -207,6 +221,13 @@ document.addEventListener('DOMContentLoaded', function() {
         activeMapContainer = is_fullscreen ? fullscreenMapContainer : mainMapContainer;
         setInitialPosition();
     };
+
+    backBtn.addEventListener('click', () => {
+        if (mapHistory.length > 0) {
+            const previousMap = mapHistory.pop();
+            loadMap(previousMap.data, previousMap.image);
+        }
+    });
 
     // --- Initialization ---
     mapImage.onload = () => {
