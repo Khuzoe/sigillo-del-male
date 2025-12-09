@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', function() {
     const mainMapContainer = document.getElementById('map-container');
     const fullscreenMapContainer = document.getElementById('fullscreen-map-container');
     const mapContent = document.getElementById('map-content');
@@ -7,26 +7,40 @@ document.addEventListener('DOMContentLoaded', async function() {
     let activeMapContainer = mainMapContainer;
 
     let pointsOfInterest = [];
+    const defaultMapData = '../assets/data/maps/main_maps/map.json';
+    const defaultMapImage = '../assets/img/maps/map.webp';
 
-    // --- Data Loading ---
-    async function loadMapData() {
+    // --- Data Loading & Map Switching ---
+    async function loadMapData(mapPath) {
         try {
-            const response = await fetch('../assets/data/map.json');
+            const response = await fetch(mapPath);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const data = await response.json();
             pointsOfInterest = data.pointsOfInterest;
             renderPOIs();
+            // Clear info panel when loading a new map
+            infoPanel.innerHTML = '<div class="info-panel-placeholder"><p>Seleziona un punto di interesse sulla mappa per visualizzare i dettagli.</p></div>';
         } catch (error) {
             console.error("Could not load map data:", error);
             infoPanel.innerHTML = `<div class="info-panel-placeholder"><i class="fas fa-exclamation-triangle"></i><p>Errore nel caricamento dei dati della mappa.</p></div>`;
         }
     }
 
+    function loadMap(mapDataPath, mapImagePath) {
+        // Clear existing POIs immediately
+        const existingPois = mapContent.querySelectorAll('.poi');
+        existingPois.forEach(poi => poi.remove());
+        
+        mapImage.dataset.mapDataPath = mapDataPath; // Store the data path
+        mapImage.src = mapImagePath;
+        // The onload event will handle the rest
+    }
+
     // --- Rendering ---
     function renderPOIs() {
-        // Clear existing POIs
+        // Clear existing POIs before rendering new ones
         const existingPois = mapContent.querySelectorAll('.poi');
         existingPois.forEach(poi => poi.remove());
         
@@ -37,16 +51,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             poiElement.style.top = `${poiData.y}%`;
             poiElement.dataset.id = poiData.id;
 
-            // Create and append the label
             const labelElement = document.createElement('span');
             labelElement.className = 'poi-label';
             labelElement.textContent = poiData.title;
             poiElement.appendChild(labelElement);
 
-            poiElement.addEventListener('click', () => {
+            poiElement.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent map click event from firing
                 updateInfoPanel(poiData.id);
-                
-                // Highlight the active POI
                 document.querySelectorAll('.poi').forEach(p => p.classList.remove('active'));
                 poiElement.classList.add('active');
             });
@@ -68,6 +80,21 @@ document.addEventListener('DOMContentLoaded', async function() {
                 ${poiData.desc}
             </div>
         `;
+
+        // Check for subMap and add 'ENTRA' button
+        if (poiData.subMap && poiData.subMap.data && poiData.subMap.image) {
+            const contentDiv = infoPanel.querySelector('.info-panel-content');
+            
+            const enterButton = document.createElement('button');
+            enterButton.textContent = 'ENTRA';
+            enterButton.className = 'enter-button'; // Add a class for styling
+            enterButton.addEventListener('click', () => {
+                loadMap(poiData.subMap.data, poiData.subMap.image);
+            });
+
+            contentDiv.appendChild(document.createElement('hr'));
+            contentDiv.appendChild(enterButton);
+        }
     }
 
     // --- Map Interaction Logic ---
@@ -94,6 +121,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     const setInitialPosition = () => {
         const container = activeMapContainer;
+        if (!container) return;
         const containerRatio = container.clientWidth / container.clientHeight;
         const imageRatio = mapImage.naturalWidth / mapImage.naturalHeight;
         if (containerRatio > imageRatio) {
@@ -106,13 +134,16 @@ document.addEventListener('DOMContentLoaded', async function() {
         imageDimensions.left = (container.clientWidth - imageDimensions.width) / 2;
         imageDimensions.top = (container.clientHeight - imageDimensions.height) / 2;
         scale = 1;
-        pan.x = imageDimensions.left;
-        pan.y = imageDimensions.top;
-        applyTransform();
+        pan.x = 0; // Reset pan
+        pan.y = 0; // Reset pan
+        mapContent.style.width = `${imageDimensions.width}px`;
+        mapContent.style.height = `${imageDimensions.height}px`;
+        mapContent.style.left = `${imageDimensions.left}px`;
+        mapContent.style.top = `${imageDimensions.top}px`;
+        mapContent.style.transform = `translate(0px, 0px) scale(1)`; // Reset transform
     };
 
     document.body.addEventListener('wheel', (e) => {
-        // Ascolta lo zoom solo se il cursore è sopra un contenitore della mappa
         if (!e.target.closest('.map-container')) return;
         e.preventDefault();
         const rect = activeMapContainer.getBoundingClientRect();
@@ -121,13 +152,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         scale = Math.max(minScale, Math.min(scale + delta, maxScale));
         if (scale === oldScale) return;
         const mouse = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-        pan.x = mouse.x - (mouse.x - pan.x) * (scale / oldScale);
-        pan.y = mouse.y - (mouse.y - pan.y) * (scale / oldScale);
+        
+        const contentRect = mapContent.getBoundingClientRect();
+        const mouseOnContentX = mouse.x - contentRect.left;
+        const mouseOnContentY = mouse.y - contentRect.top;
+
+        const newPanX = pan.x - mouseOnContentX * (scale / oldScale - 1);
+        const newPanY = pan.y - mouseOnContentY * (scale / oldScale - 1);
+
+        pan.x = newPanX;
+        pan.y = newPanY;
         applyTransform();
     });
 
     document.body.addEventListener('mousedown', (e) => {
-        if (!e.target.closest('.map-container')) return;
+        if (!e.target.closest('#map-content')) return;
         if (e.button !== 0) return;
         e.preventDefault();
         isPanning = true;
@@ -151,45 +190,37 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 
     mapContent.addEventListener('click', (e) => {
-        const dx = Math.abs(e.clientX - (startPoint.x + pan.x));
-        const dy = Math.abs(e.clientY - (startPoint.y + pan.y));
-        if (isPanning && (dx > 2 || dy > 2)) return;
+        if (isPanning && (Math.abs(e.clientX - (startPoint.x + pan.x)) > 2 || Math.abs(e.clientY - (startPoint.y + pan.y)) > 2)) return;
+        if (e.target.closest('.poi')) return;
 
-        // Check if the click was on a POI
-        if (e.target.classList.contains('poi')) {
-            return;
-        }
-
-        const rect = activeMapContainer.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        const contentX = (mouseX - pan.x) / scale;
-        const contentY = (mouseY - pan.y) / scale;
-        const percentX = (contentX / mapContent.clientWidth) * 100;
-        const percentY = (contentY / mapContent.clientHeight) * 100;
+        // Code for getting coordinates on click
+        const rect = mapContent.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        const percentX = (clickX / rect.width) * 100;
+        const percentY = (clickY / rect.height) * 100;
         console.log(`{ "id": "new-poi", "x": ${percentX.toFixed(2)}, "y": ${percentY.toFixed(2)}, "title": "New Point", "flavor": "Flavor text", "desc": "Description" },`);
     });
 
     // --- Fullscreen Handling ---
-    // Expose a function to be called from map-fullscreen.js
     window.updateActiveMapContainer = (is_fullscreen) => {
-        if (is_fullscreen) {
-            activeMapContainer = fullscreenMapContainer;
-        } else {
-            activeMapContainer = mainMapContainer;
-        }
-        setInitialPosition(); // Recalculate dimensions and position
+        activeMapContainer = is_fullscreen ? fullscreenMapContainer : mainMapContainer;
+        setInitialPosition();
     };
 
     // --- Initialization ---
-    if (mapImage.complete) {
+    mapImage.onload = () => {
         setInitialPosition();
-        loadMapData();
-    } else {
-        mapImage.onload = () => {
-            setInitialPosition();
-            loadMapData();
-        };
+        const mapDataPath = mapImage.dataset.mapDataPath || defaultMapData;
+        loadMapData(mapDataPath);
+    };
+
+    if (mapImage.complete) {
+        mapImage.onload();
     }
+    
+    // Initial load
+    loadMap(defaultMapData, defaultMapImage);
+
     window.addEventListener('resize', setInitialPosition);
 });
