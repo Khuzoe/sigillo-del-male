@@ -859,3 +859,31 @@ ul {
 .family-member .member-image[src*="data:image/svg+xml"] {
     background-color: black;
 }
+
+/* =========================================
+   ENTER BUTTON (MAP)
+   ========================================= */
+
+.enter-button {
+    display: block;
+    width: 100%;
+    padding: 0.8rem 1rem;
+    margin-top: 1.5rem;
+    background: transparent;
+    border: 2px solid var(--gold);
+    color: var(--gold);
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 4px;
+}
+
+.enter-button:hover {
+    background: var(--gold);
+    color: var(--bg-darker);
+    box-shadow: 0 0 15px var(--gold);
+}
