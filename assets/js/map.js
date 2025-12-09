@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             pointsOfInterest = data.pointsOfInterest;
             renderPOIs();
+            filterPOIs(); // Apply filters on initial load
             if (devMode) {
                 initializeDevTools();
             }
@@ -63,6 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
             poiElement.style.left = `${poiData.x}%`;
             poiElement.style.top = `${poiData.y}%`;
             poiElement.dataset.id = poiData.id;
+            poiElement.dataset.type = poiData.type || 'Luogo Generico'; // Add data-type attribute
 
             const labelElement = document.createElement('span');
             labelElement.className = 'poi-label';
@@ -79,6 +81,21 @@ document.addEventListener('DOMContentLoaded', function() {
             mapContent.appendChild(poiElement);
         });
     }
+
+    function filterPOIs() {
+        const checkedTypes = Array.from(document.querySelectorAll('input[name="poi-type"]:checked')).map(cb => cb.value);
+        document.querySelectorAll('.poi').forEach(poi => {
+            if (checkedTypes.includes(poi.dataset.type)) {
+                poi.classList.remove('hidden');
+            } else {
+                poi.classList.add('hidden');
+            }
+        });
+    }
+
+    document.querySelectorAll('input[name="poi-type"]').forEach(checkbox => {
+        checkbox.addEventListener('change', filterPOIs);
+    });
 
     function updateInfoPanel(poiId) {
         const poiData = pointsOfInterest.find(p => p.id === poiId);
@@ -216,7 +233,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.body.addEventListener('wheel', (e) => {
         if (!e.target.closest('.map-container')) return;
+        
+        // Prevent page scrolling while zooming the map
         e.preventDefault();
+
         const rect = activeMapContainer.getBoundingClientRect();
         const oldScale = scale;
         const delta = e.deltaY > 0 ? -0.2 : 0.2;
@@ -240,7 +260,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             applyTransform();
         }
-    });
+    }, { passive: false });
 
     document.body.addEventListener('mousedown', (e) => {
         if (!e.target.closest('#map-content') || scale <= minScale) return;
