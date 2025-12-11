@@ -83,18 +83,51 @@ document.addEventListener('DOMContentLoaded', function() {
             poiElement.style.left = `${poiData.x}%`;
             poiElement.style.top = `${poiData.y}%`;
             poiElement.dataset.id = poiData.id;
-            poiElement.dataset.type = poiData.type || 'Luogo Generico'; // Add data-type attribute
+            poiElement.dataset.type = poiData.type || 'Luogo Generico';
 
             const labelElement = document.createElement('span');
             labelElement.className = 'poi-label';
-            labelElement.textContent = poiData.title;
+            
+            // Build the rich label content
+            labelElement.innerHTML = `<span class="poi-label-title">${poiData.title}</span>`;
+            
+            if (poiData.icons && poiData.icons.length > 0) {
+                const iconsContainer = document.createElement('div');
+                iconsContainer.className = 'poi-label-icons';
+                poiData.icons.forEach(iconPath => {
+                    const iconImg = document.createElement('img');
+                    iconImg.src = iconPath;
+                    iconImg.className = 'poi-label-icon';
+                    iconImg.alt = "POI Icon"; // Add alt text for accessibility
+                    iconsContainer.appendChild(iconImg);
+                });
+                labelElement.appendChild(iconsContainer);
+            }
+            
             poiElement.appendChild(labelElement);
 
+            // Single-click to show info
             poiElement.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent map click event from firing
+                e.stopPropagation();
                 updateInfoPanel(poiData.id);
                 document.querySelectorAll('.poi').forEach(p => p.classList.remove('active'));
                 poiElement.classList.add('active');
+            });
+
+            // Prevent text selection on double-click
+            poiElement.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+            });
+
+            // Double-click to enter sub-map, if available
+            poiElement.addEventListener('dblclick', () => {
+                if (poiData.subMap && poiData.subMap.data && poiData.subMap.image) {
+                    mapHistory.push({
+                        data: mapImage.dataset.mapDataPath,
+                        image: mapImage.src
+                    });
+                    loadMap(poiData.subMap.data, poiData.subMap.image);
+                }
             });
 
             mapContent.appendChild(poiElement);
@@ -120,9 +153,25 @@ document.addEventListener('DOMContentLoaded', function() {
         const poiData = pointsOfInterest.find(p => p.id === poiId);
         if (!poiData) return;
 
+        let imageHtml = '';
+        if (poiData.image) {
+            imageHtml = `<img src="${poiData.image}" alt="${poiData.title}" class="info-panel-image">`;
+        }
+
+        let iconsHtml = '';
+        if (poiData.icons && poiData.icons.length > 0) {
+            iconsHtml += '<div class="info-panel-icons">';
+            poiData.icons.forEach(iconPath => {
+                iconsHtml += `<img src="${iconPath}" class="info-panel-icon" alt="Icon">`;
+            });
+            iconsHtml += '</div>';
+        }
+
         infoPanel.innerHTML = `
             <div class="info-panel-header">
                 <h2 class="title">${poiData.title}</h2>
+                ${imageHtml}
+                ${iconsHtml}
                 <p class="flavor-text">${poiData.flavor}</p>
             </div>
             <div class="info-panel-content">
