@@ -20,7 +20,8 @@
             "title": "Arazora",
             "type": "Città",
             "flavor": "Flavor text",
-            "desc": "Description"
+            "desc": "Description",
+            "icons": ["../assets/img/maps/mark_city.webp"]
         },
         { 
             "id": "poi-daremmar", 
@@ -48,6 +49,7 @@
             "type": "Area",
             "flavor": "Una foresta di funghi e piante viola.",
             "desc": "<p>La Foresta Fungina è un bioma surreale where funghi giganti e piante bioluminescenti di colore viola dominano il paesaggio. L'aria è carica di spore magiche che possono avere effetti imprevedibili su chi le respira. Molte creature rare e potenti, adatte a questo strano ambiente, si aggirano tra i funghi giganti.</p>",
+            "image": "../assets/img/maps/tmp.webp",
             "subMap": {
                 "data": "../assets/data/maps/main_maps/foresta_viola_map.json",
                 "image": "../assets/img/maps/tmp.webp"
