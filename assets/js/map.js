@@ -7,6 +7,25 @@ document.addEventListener('DOMContentLoaded', function() {
     const infoPanel = document.getElementById('info-panel');
     let activeMapContainer = mainMapContainer;
 
+    function adjustInfoPanelHeight() {
+        // We need a slight delay to ensure the containers have their final dimensions.
+        setTimeout(() => {
+            const filterContainer = document.getElementById('filter-container');
+            const mapContainer = mainMapContainer;
+
+            if (filterContainer && mapContainer) {
+                const filterStyle = getComputedStyle(filterContainer);
+                const marginBottom = parseFloat(filterStyle.marginBottom);
+                const totalHeight = filterContainer.offsetHeight + mapContainer.offsetHeight + marginBottom;
+                
+                if (totalHeight > 0) {
+                    infoPanel.style.height = `${totalHeight}px`;
+                    infoPanel.style.minHeight = `${totalHeight}px`;
+                }
+            }
+        }, 100); 
+    }
+
     let pointsOfInterest = [];
     const defaultMapData = '../assets/data/maps/main_maps/map.json';
     const defaultMapImage = '../assets/img/maps/world_map.webp';
@@ -132,6 +151,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function resetPoiSelection() {
+        document.querySelectorAll('.poi.active').forEach(p => p.classList.remove('active'));
+        infoPanel.innerHTML = `
+            <div class="info-panel-placeholder">
+                <i class="fas fa-map-marked-alt"></i>
+                <p>Seleziona un punto di interesse per visualizzare i dettagli.</p>
+            </div>`;
+    }
+
     // --- Dev Tools ---
     let selectedDevPoi = null;
 
@@ -229,6 +257,11 @@ document.addEventListener('DOMContentLoaded', function() {
         mapContent.style.left = `${imageDimensions.left}px`;
         mapContent.style.top = `${imageDimensions.top}px`;
         mapContent.style.transform = `translate(0px, 0px) scale(1)`; // Reset transform
+        
+        // Adjust the info panel height to match the map container
+        if (container === mainMapContainer) {
+            adjustInfoPanelHeight();
+        }
     };
 
     document.body.addEventListener('wheel', (e) => {
@@ -288,7 +321,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     mapContent.addEventListener('click', (e) => {
         if (isPanning && (Math.abs(e.clientX - (startPoint.x + pan.x)) > 2 || Math.abs(e.clientY - (startPoint.y + pan.y)) > 2)) return;
-        if (e.target.closest('.poi')) return;
+        
+        // If a POI was clicked, its own handler will manage the state.
+        if (e.target.closest('.poi')) {
+            return;
+        }
+
+        // If the map background is clicked, reset the active POI.
+        resetPoiSelection();
 
         const rect = mapContent.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
@@ -296,17 +336,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const percentX = (clickX / rect.width) * 100;
         const percentY = (clickY / rect.height) * 100;
 
-        if (devMode && selectedDevPoi) {
-            const poi = pointsOfInterest.find(p => p.id === selectedDevPoi);
-            if (poi) {
-                poi.x = percentX;
-                poi.y = percentY;
-                updateDevToolsUI(selectedDevPoi, percentX, percentY);
-                renderPOIs();
-                selectedDevPoi = null;
+        // Dev tools logic for placing or logging POIs.
+        if (devMode) {
+            if (selectedDevPoi) {
+                const poi = pointsOfInterest.find(p => p.id === selectedDevPoi);
+                if (poi) {
+                    poi.x = percentX;
+                    poi.y = percentY;
+                    updateDevToolsUI(selectedDevPoi, percentX, percentY);
+                    renderPOIs();
+                    selectedDevPoi = null;
+                }
+            } else {
+                console.log(`{ "id": "new-poi", "x": ${percentX.toFixed(2)}, "y": ${percentY.toFixed(2)}, "title": "New Point", "flavor": "Flavor text", "desc": "Description" },`);
             }
-        } else {
-            console.log(`{ "id": "new-poi", "x": ${percentX.toFixed(2)}, "y": ${percentY.toFixed(2)}, "title": "New Point", "flavor": "Flavor text", "desc": "Description" },`);
         }
     });
 
@@ -337,5 +380,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial load
     loadMap(defaultMapData, defaultMapImage);
 
+    // Adjust panel on load and resize
     window.addEventListener('resize', setInitialPosition);
+    adjustInfoPanelHeight(); // Also call it once on initial load
 });
