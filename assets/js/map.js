@@ -85,6 +85,13 @@ document.addEventListener('DOMContentLoaded', function() {
             poiElement.dataset.id = poiData.id;
             poiElement.dataset.type = poiData.type || 'Luogo Generico';
 
+            if (poiData.icons && poiData.icons.length > 0) {
+                const iconElement = document.createElement('div');
+                iconElement.className = 'poi-icon';
+                iconElement.style.backgroundImage = `url('${poiData.icons[0]}')`;
+                poiElement.appendChild(iconElement);
+            }
+
             const labelElement = document.createElement('span');
             labelElement.className = 'poi-label';
             
