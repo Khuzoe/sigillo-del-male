@@ -1,10 +1,10 @@
 {
     "nextSession": {
         "number": 16,
-        "date": "Da definire",
+        "date": "23 Dicembre 2025",
         "timeStart": "20:30",
         "timeEnd": "23:30",
-        "isScheduled": false
+        "isScheduled": true
     },
     "sessions": [
         {
