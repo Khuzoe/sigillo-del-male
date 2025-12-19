@@ -13,6 +13,23 @@
     "content_blocks": [],
     "relationships": [{}
     ]
+  },  
+  {
+    "id": "ginevra",
+    "name": "Ginevra Von T",
+    "role": "La Madre",
+    "status": "ignoto",
+    "quote": "",
+    "images": {
+      "avatar": "img/creatures/transp/ginevra_transp.webp",
+      "hover": "img/creatures/transp/ginevra_animation.webp",
+      "portrait": "img/creatures/ginevra.webp"
+    },
+    "content_blocks": [],
+    "relationships": [
+      {
+      }
+    ]
   },
   {
     "id": "rabberduscolanderson",
@@ -129,48 +146,7 @@
         "description": "Figlia"
       }
     ]
-  },
-  {
-    "id": "franky",
-    "name": "Franky",
-    "role": "Lo Scienziato",
-    "status": "vivo",
-    "quote": "She volete dei shieri, io shi shono!",
-    "images": {
-      "avatar": "img/creatures/transp/franky_transp.webp",
-      "hover": "img/creatures/transp/franky_animation.webp",
-      "portrait": "img/creatures/franky.webp"
-    },
-    "content_blocks": [],
-    "relationships": [
-      {
-      }
-    ]
-  },
-  {
-    "id": "karla",
-    "name": "Karla Von T",
-    "role": "La Vampira",
-    "status": "vivo",
-    "quote": "Insieme possiamo raggiungere il nostro obiettivo, lo sento.",
-    "images": {
-      "avatar": "img/creatures/transp/karla_transp.webp",
-      "hover": "img/creatures/transp/karla_animation.webp",
-      "portrait": "img/creatures/karla.webp"
-    },
-    "content_blocks": [],
-    "relationships": [
-      {
-        "id": "rabberduscolanderson",
-        "description": "Zio"
-      },
-      {
-        "id": "x",
-        "description": "Madre"
-      }
-    ]
-  },
-  {
+  },{
     "id": "nino_olegna",
     "name": "Nino Olegna",
     "role": "Il Tessimorte",
@@ -297,6 +273,63 @@
       }
     ],
     "relationships": []
+  },
+  {
+    "id": "franky",
+    "name": "Franky",
+    "role": "Lo Scienziato",
+    "status": "vivo",
+    "quote": "She volete dei shieri, io shi shono!",
+    "images": {
+      "avatar": "img/creatures/transp/franky_transp.webp",
+      "hover": "img/creatures/transp/franky_animation.webp",
+      "portrait": "img/creatures/franky.webp"
+    },
+    "content_blocks": [],
+    "relationships": [
+      {
+      }
+    ]
+  },
+  {
+    "id": "karla",
+    "name": "Karla Von T",
+    "role": "La Vampira",
+    "status": "vivo",
+    "quote": "Insieme possiamo raggiungere il nostro obiettivo, lo sento.",
+    "images": {
+      "avatar": "img/creatures/transp/karla_transp.webp",
+      "hover": "img/creatures/transp/karla_animation.webp",
+      "portrait": "img/creatures/karla.webp"
+    },
+    "content_blocks": [],
+    "relationships": [
+      {
+        "id": "rabberduscolanderson",
+        "description": "Zio"
+      },
+      {
+        "id": "x",
+        "description": "Madre"
+      }
+    ]
+  },
+  {
+    "id": "elena",
+    "name": "Elena ",
+    "role": "La Fantasma",
+    "status": "ignoto",
+    "quote": "Oh mamma mi!",
+    "images": {
+      "avatar": "img/creatures/transp/elena_transp.webp",
+      "hover": "img/creatures/transp/elena_animation.webp",
+      "portrait": "img/creatures/elena.webp"
+    },
+    "content_blocks": [],
+    "relationships": [
+      {
+      }
+    ]
   },
   {
     "id": "zara",
