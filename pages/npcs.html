@@ -57,8 +57,14 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const npcs = await response.json();
+                const visibleNpcs = npcs.filter(npc => !npc.hidden);
 
-                npcs.forEach(npc => {
+                if (visibleNpcs.length === 0) {
+                    npcListContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Nessun NPC disponibile.</p>';
+                    return;
+                }
+
+                visibleNpcs.forEach(npc => {
                     const card = createNpcCard(npc, base_path);
                     npcListContainer.appendChild(card);
                 });
