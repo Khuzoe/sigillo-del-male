@@ -1,9 +1,10 @@
-[
+﻿[
   {
     "id": "deborah",
     "name": "Deborah Von T",
     "role": "L'Ultima Foglia",
     "status": "vivo",
+    "hidden": false,
     "quote": "Dolore.",
     "images": {
       "avatar": "img/creatures/transp/deborah_transp.webp",
@@ -19,6 +20,7 @@
     "name": "Ginevra Von T",
     "role": "La Madre",
     "status": "ignoto",
+    "hidden": true,
     "quote": "",
     "images": {
       "avatar": "img/creatures/transp/ginevra_transp.webp",
@@ -36,6 +38,7 @@
     "name": "Rabberduscolanderson Von T",
     "role": "Il Reietto",
     "status": "vivo",
+    "hidden": false,
     "quote": "Io volevo solo starmene seduto nella mia stanza, perché sono finito su questo sito?!",
     "images": {
       "avatar": "img/creatures/transp/rabberduscolanderson_transp.webp",
@@ -129,6 +132,7 @@
     "name": "X Von T",
     "role": "La Studiosa",
     "status": "vivo",
+    "hidden": false,
     "quote": "La propria intelligenza deve essere sempre usata con cautela, ma in molti questo non lo sanno.",
     "images": {
       "avatar": "img/creatures/transp/x_transp.webp",
@@ -279,6 +283,7 @@
     "name": "Franky",
     "role": "Lo Scienziato",
     "status": "vivo",
+    "hidden": false,
     "quote": "She volete dei shieri, io shi shono!",
     "images": {
       "avatar": "img/creatures/transp/franky_transp.webp",
@@ -296,6 +301,7 @@
     "name": "Karla Von T",
     "role": "La Vampira",
     "status": "vivo",
+    "hidden": false,
     "quote": "Insieme possiamo raggiungere il nostro obiettivo, lo sento.",
     "images": {
       "avatar": "img/creatures/transp/karla_transp.webp",
@@ -316,9 +322,10 @@
   },
   {
     "id": "elena",
-    "name": "Elena ",
+    "name": "Elena Erbadath",
     "role": "La Fantasma",
     "status": "ignoto",
+    "hidden": true,
     "quote": "Oh mamma mi!",
     "images": {
       "avatar": "img/creatures/transp/elena_transp.webp",
@@ -336,6 +343,7 @@
     "name": "Zara",
     "role": "La Giullare",
     "status": "ignoto",
+    "hidden": false,
     "quote": "Buuuu! Ahahaha!",
     "images": {
       "avatar": "img/creatures/transp/zara_transp.webp",
@@ -349,3 +357,4 @@
     ]
   }
 ]
+
