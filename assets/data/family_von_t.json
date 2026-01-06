@@ -113,6 +113,6 @@
     "spouses": ["rabberduscolanderson"],
     "children": [],
     "hidden": false,
-    "unknown": true
+    "unknown": false
   }
 ]
