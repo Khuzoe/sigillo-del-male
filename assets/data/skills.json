@@ -22,7 +22,7 @@
         "title": "Risonanza Tonante",
         "flavor": "L'eco dei tuoi schiaffi tonanti si propaga nel tuo corpo.",
         "desc": "<p>Ogni volta che spendi le tue cariche tonanti, puoi attivare uno dei seguenti effetti a tua scelta:</p><ul><li>Ottieni punti vita temporanei pari a 1d4 × cariche spese (eventualmente cumulativi);</li><li>Ottieni classe armatura pari a 1d4 × cariche spese, fino alla fine del tuo prossimo turno;</li><li>Ottieni un bonus ai tiri salvezza pari a 1d4 × cariche spese, fino alla fine del tuo prossimo turno;</li><li>Ottieni un bonus ai danni del tuo Schiaffo Tonante pari a 1d4 × cariche spese, fino alla fine del tuo prossimo turno.</li></ul>",
-        "state": "unlockable",
+        "state": "unlocked",
         "connections": [3, 4]
       },
       {
@@ -33,7 +33,8 @@
         "title": "Carica Devastante",
         "flavor": "Convogli l'energia tonante in un singolo colpo devastante.",
         "desc": "<p>Dopo aver colpito con il tuo Schiaffo Tonante, puoi spendere un numero di cariche tonanti a tua scelta per aumentare i danni inflitti di 1d8 × numero di cariche tonanti spese.</p>",
-        "connections": [5]
+        "connections": [5], 
+        "state": "unlockable"
       },
       {
         "id": 4,
@@ -43,7 +44,8 @@
         "title": "Braccio Tonante",
         "flavor": "Il tuono raggiunge anche i nemici più lontani.",
         "desc": "<p>All'inizio del tuo turno, puoi spendere 1 carica tonante per aumentare il reach di 30 piedi del tuo Schiaffo Tonante fino all'inizio del tuo prossimo turno.</p>",
-        "connections": [5]
+        "connections": [5], 
+        "state": "unlockable"
       },
       {
         "id": 5,
@@ -151,7 +153,7 @@
         "title": "Crescita Rapida",
         "flavor": "Il tuo corpo terreno consente una crescita più veloce.",
         "desc": "Le piante che crescono sul tuo corpo impiegano la metà del tempo per essere pronte all'utilizzo.",
-        "state": "unlockable",
+        "state": "unlocked",
         "connections": [4]
       },
       {
@@ -162,7 +164,8 @@
         "title": "Apotherapia",
         "flavor": "Sul tuo corpo terreno cresce una nuova varietà di pianta.",
         "desc": "Ora puoi coltivare anche Foglie di Apotherapia per creare una Pozione di Apotherapia. Se ingerita, rimuove gli effetti negativi che affliggono il paziente, con un effetto pari all'incantesimo Lesser Restoration.",
-        "connections": [5, 6]
+        "connections": [5, 6],
+        "state": "unlockable"
       },
       {
         "id": 5,
@@ -259,7 +262,7 @@
         "title": "Premonizione Ripetuta",
         "flavor": "Ogni volta che vieni colpito, la frequenza degli impulsi aumenta.",
         "desc": "<p>Ogni volta che vieni colpito da un attacco di una creatura nemica, ottieni un bonus di +1 alla CA, fino ad un massimo pari al tuo modificatore di Saggezza.</p><p>Il bonus termina all'inizio del tuo prossimo turno.</p>",
-        "state": "unlocked",
+        "state": "unlockable",
         "connections": [4]
       },
       {
@@ -270,7 +273,7 @@
         "title": "Premonizione Istantanea",
         "flavor": "Il tuo cuore rilascia istintivamente un impulso immediato. Nei momenti di pericolo improvvisi, reagisci prima ancora di capire.",
         "desc": "<p>Ogni volta che sei soggetto ad un tiro salvezza di qualsiasi tipo, puoi aggiungere la metà del tuo modificatore di Saggezza (arrotondata per difetto, minimo 1) a quel tiro salvezza.</p>",
-        "state": "unlockable",
+        "state": "unlocked",
         "connections": [4]
       },
       {
@@ -281,7 +284,7 @@
         "title": "Impulso Antico",
         "flavor": "Nei momenti in cui provi dolore, gli impulsi del tuo cuore diventano gelidi.",
         "desc": "<p>Dopo aver subito danni, puoi usare la tua reazione per ottenere 1d10 + il tuo modificatore di Saggezza punti vita temporanei.</p><p>All'inizio del tuo turno puoi decidere di convertire tutti i tuoi punti vita temporanei in punti vita. Non puoi superare i tuoi punti vita massimi; l'eventuale eccedenza va persa.</p>",
-        "state": "locked",
+        "state": "unlockable",
         "connections": [5]
       },
       {
@@ -400,7 +403,7 @@
         "flavor": "La fiamma nel tuo cuore inizia ad ardere ancora più forte.",
         "desc": "<p>Hai sempre il trucchetto Firebolt preparato.</p><p>Quando colpisci una creatura con il tuo Firebolt, puoi generare un'ondata di fiamme intorno ad essa. Ogni creatura entro 5 piedi dal bersaglio deve superare un tiro salvezza su Destrezza, o subire gli stessi danni del tuo firebolt. Una creatura che supera il tiro salvezza subisce metà dei danni.</p>",
         "connections": [3, 4],
-        "state": "unlockable"
+        "state": "unlocked"
       },
       {
         "id": 3,
@@ -410,7 +413,8 @@
         "title": "Rilascio Sincronizzato",
         "flavor": "L'affinità tra te ed il tuo Spirito Interiore migliora.",
         "desc": "<p>Ogni volta che infliggi danni da fuoco ad un bersaglio singolo con un incantesimo, il tuo Spirito Interiore può lanciare immediatamente un Firebolt contro quel bersaglio.</p>",
-        "connections": [5]
+        "connections": [5],
+        "state": "unlockable"
       },
       {
         "id": 4,
@@ -420,7 +424,8 @@
         "title": "Rilascio Esplosivo",
         "flavor": "L'affinità tra te ed il tuo Spirito Interiore migliora.",
         "desc": "<p>Ogni volta che infliggi danni da fuoco ad area colpendo almeno 2 bersagli, il tuo Spirito Interiore può rilasciare immediatamente un'onda infuocata di 10 piedi intorno a sé. Le creature nell'area devono superare un tiro salvezza su Destrezza o subire i danni del suo Firebolt. Una creatura che supera il tiro subisce metà dei danni.</p>",
-        "connections": [6]
+        "connections": [6],
+        "state": "unlockable"
       },
       {
         "id": 5,
