@@ -129,6 +129,10 @@
                       },
         "relationships":  [
                               {
+                                  "id":  "elena",
+                                  "description":  "Compagna"
+                              },            
+                              {
                                   "id":  "x",
                                   "description":  "Sorella minore"
                               },
@@ -412,7 +416,8 @@
                            ],
         "relationships":  [
                               {
-
+                                  "id":  "rabberduscolanderson",
+                                  "description":  "Compagno"
                               }
                           ],
         "summary":  {
