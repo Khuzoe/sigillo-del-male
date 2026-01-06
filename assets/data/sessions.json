@@ -1,16 +1,16 @@
 {
     "nextSession": {
-        "number": 16,
-        "date": "23 Dicembre 2025",
+        "number": 18,
+        "date": "Da Fissare",
         "timeStart": "20:30",
         "timeEnd": "23:30",
-        "isScheduled": true
+        "isScheduled": false
     },
     "sessions": [
         {
             "id": 1,
             "date": "30/04/2025 - Inizio",
-            "summary": "<p>Test summary</p>",
+            "summary": "<p>Il gruppo si riunisce e insieme aprite la porta d'ingresso, con i cuori che battono all'unisono.</p><p>Affrontate un cane mostruoso sul lato ovest rispetto alla porta d'ingresso.</p><p>Iniziate il combattimento contro un mimic, lo \"Scrigno Rosa\", che però riesce a fuggire gettandosi nel fiume rosso.</p><p>Tentate di evitare la figura gigante che avete intravisto e restate sul lato ovest del luogo in cui vi trovate.</p><p>Trovate una stanza con tre teschi colorati di fronte a un libro. Valdor tenta di prenderlo, ma i teschi sembrano reagire; viene quindi convinto dal gruppo ad abbandonare la stanza.</p><p>Chiudete una stanza contenente due non-morti utilizzando Arcane Lock. La parola d'ordine scelta è \"Apothecary\".</p><p>Incontrate Rabberduscolanderson Von T, che assegna una missione a Valdor e Apothecary: ottenere ciò che Ran'Dra nasconde in tasca.</p><p>Incontrate infine X Von T, la quale chiede a Ga'Run di procurarle libri interessanti in cambio di informazioni.</p>",
             "xp": {
                 "total": "2300",
                 "each": "575"
@@ -128,6 +128,26 @@
                 "total": "8400",
                 "each": "2100"
             }
+        },
+        {
+            "id": 16,
+            "date": "23/12/2025",
+            "summary": "<p>Dopo aver combattuto contro l'Assistente, avete il tempo di esaminare l'enorme braccio circondato da ragnatele negromantiche presente nella nicchia della caverna. Riuscite a rimuovere un bracciale incastrato nel suo polso, facendo degenerare rapidamente la struttura del braccio stesso.</p><p>Valdor trova anche un piccolo ciondolo rosso, leggermente etereo, riuscendo ad inserirlo nella sua borsa conservante. Scoprite inoltre che il bracciale rimosso è in realtà un Anello di Resistenza Necrotica, che decidete di tenere con voi.</p><p>Proseguendo verso sud, incontrate una donna fantasma seduta su una sedia a rotelle. Grazie all'amuleto spettrale trovato poco prima — in realtà un portafoto contenente la rappresentazione di Rabberduscolanderson in forma umana — capite che la fantasma è Elena, la sua compagna. Ella sembra essere stata uccisa da una donna con i capelli raccolti, ma i suoi ricordi appaiono confusi, incluso quelli legati a Rabber.</p><p>Dopo averla salutata momentaneamente, vi dirigete in una cella poco a nord, dove trovate uno dei pupazzetti già incontrati. Si presenta come Dinosauro Spaziale Distruttore Assoluto (Dino, il Paladino). Parlate con lui e scoprite alcune informazioni sulla sua creatrice, prima di metterlo nella borsa conservante e dirigervi da Karla.</p><p>Giunti da Karla, le mostrate la testa di Nino Olegna. Lei afferma di non conoscerlo, ma si congratula comunque con voi per il compimento della missione. Infine, Valdor le dona un po' del suo sangue per sfamare la sua incolmabile fame.</p>",
+            "xp": {
+                "total": "0",
+                "each": "0"
+            }
+        },
+        {
+            "id": 17,
+            "date": "06/01/2026",
+            "summary": "<p>Dopo aver lasciato la stanza di Karla, decidete di tornare da Elena per poi risalire tutti insieme al piano superiore. Scambiate qualche parola con lei, Valdor fuma un sigaro sotto lo sguardo teso di Ga'Run, e procedete lungo i corridoi della cripta.</p><p>Giungete alla stanza di Rabberduscolanderson e assistete alla riunione dei due. Una luce si accende nel petto di Rabber, che si sente spinto a donarvi un oggetto che portava con sé: il suo cuore, racchiuso in una sfera di vetro. Nel momento in cui il cuore tocca le mani di Valdor, sentite i vostri simboli reagire.</p><p>Decidete di bruciare tutti i documenti di Tessimorte recuperati nel laboratorio di Nino Olegna, tenendo con voi soltanto la poesia. Durante la giornata, Valdor lavora ad un progetto per un sigaro — che richiederà un innesco di energia arcana — mentre Ga'Run sistema i suoi equipaggiamenti.</p><p>Durante la notte, qualcuno sembra farvi visita, lasciando dietro la porta due pupazzi inquietanti infusi di magia.</p><p>Parlate anche con X, che vi rivela ulteriori informazioni sul rituale contenuto nel libro: un metodo per tornare indietro nel tempo utilizzando un immenso flusso di sangue e sacrifici. Il rituale appare ignoto, pericoloso e forse impossibile da realizzare, ma vi turba profondamente.</p><p>Infine, fate incontrare X ed Elena. Capite che rimuovere il pugnale dal petto della donna sarebbe fatale e ottenete conferma che sia stata Karla ad ucciderla. Prima di andarsene, X vi rivela accidentalmente di essere stata uccisa da Karla anche lei, chiedendovi poi di recuperare nuovi documenti e libri.</p>",
+            "xp": {
+                "total": "0",
+                "each": "0"
+            },
+            "reward": "Punto Abilità [2/8]",
+            "skillPoint": true
         }
     ]
 }
