@@ -104,7 +104,26 @@
                                                     }
                                                 ],
                                    "quote":  "L\u0027unico amore che non tradisce mai."
-                               }
+                               },
+                                {
+                                    "type": "image_box",
+                                    "title": "Cuore di Rabberduscolanderson",
+                                    "subtitle": "Una piccola sfera contenente un cuore e potere arcano.",
+                                    "image": "img/items/heart-rabberduscolanderson.webp",
+                                    "image_caption": "I tre fedeli compagni di Rabberduscolanderson: Balù, Mimi e Coco.",
+                                    "tags": [
+                                        "Cuore",
+                                        "Oggetto Magico"
+                                    ],
+                                    "sections": [
+                                        {
+                                        "heading": "Oggetto meraviglioso (leggendario), richiede sintonia",
+                                        "text": "Ottieni vantaggio alle prove abilità di Stealth, Perception per cercare oggetti nascosti vicini ad almeno una moneta di rame, e Animal Handling nelle prove contro le bestie.<br>Ottieni svantaggio a qualsiasi tiro salvezza legato ad effetti di paura ed hai svantaggio ai tiri per colpire contro qualsiasi creatura di taglia superiore alla tua. Inoltre, sei vulnerabile ai danni da caduta.\n\nSolo e reietto vive incapace nel dolore più profondo\n\nama una donna, lei muore: del baratro tocca il fondo."
+                                        }
+                                    ],
+                                    "quote":  "Solo e reietto vive incapace nel dolore più profondo<br>ama una donna, lei muore: del baratro tocca il fondo."
+                                }
+
                            ],
         "questline":  {
                           "title":  "Missioni di Rabberduscolanderson",
