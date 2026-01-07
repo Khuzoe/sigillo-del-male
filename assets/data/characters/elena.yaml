@@ -1,14 +1,31 @@
 id: "elena"
 name: "Elena Erbadath"
 role: "La Fantasma"
-status: "ignoto"
+status: "vivo"
 hidden: false
 quote: "I ricordi sono annebbiati... ma il mio amore per lui è eterno."
 images:
   avatar: "img/creatures/transp/elena_transp.webp"
   hover: "img/creatures/transp/elena_animation.webp"
   portrait: "img/creatures/elena.webp"
-content_blocks: []
+content_blocks:
+  - type: "lore"
+    title: "Biografia e Storia: La vita senza passi"
+    icon: "fa-book-open"
+    markdown: "characters/elena/1-biografia-e-storia-la-vita-senza-passi.md"
+  - type: "lore"
+    title: "La morte che non libera"
+    icon: "fa-heart-broken"
+    markdown: "characters/elena/2-la-morte-che-non-libera.md"
+  - type: "custom_box"
+    title: "Aspetto fisico"
+    icon: "fa-mask"
+    borderColor: "#8B0000"
+    markdown: "characters/elena/3-aspetto-fisico.md"
+  - type: "image_box"
+    title: "Il ciondolo etereo"
+    image: "img/items/elena_necklace.webp"
+    markdown: "characters/elena/4-il-ciondolo-etereo.md"
 relationships:
   - id: "rabberduscolanderson"
     description: "Compagno"
