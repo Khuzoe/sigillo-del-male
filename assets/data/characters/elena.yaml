@@ -1,0 +1,21 @@
+id: "elena"
+name: "Elena Erbadath"
+role: "La Fantasma"
+status: "ignoto"
+hidden: false
+quote: "I ricordi sono annebbiati... ma il mio amore per lui è eterno."
+images:
+  avatar: "img/creatures/transp/elena_transp.webp"
+  hover: "img/creatures/transp/elena_animation.webp"
+  portrait: "img/creatures/elena.webp"
+content_blocks: []
+relationships:
+  - id: "rabberduscolanderson"
+    description: "Compagno"
+summary:
+  race: "Fantasma"
+  age_at_death: "34 anni"
+  height: "1.61m | 750g"
+  period: "56-90"
+  cause_of_death: "Uccisa da Karla (Pugnalata al petto)"
+type: "npc"

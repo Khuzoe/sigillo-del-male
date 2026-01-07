@@ -78,6 +78,30 @@
         .doc-image-popup:hover {
             transform: scale(1.03);
         }
+
+        /* Markdown styling helpers for content blocks */
+        .doc-subtitle {
+            font-style: italic;
+            color: inherit;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        .doc-heading {
+            font-family: 'Cinzel', serif;
+            font-weight: 700;
+            margin: 0.5rem 0;
+            color: var(--gold);
+            text-transform: none;
+            letter-spacing: 0.5px;
+        }
+        .doc-paragraph {
+            margin: 0 0 0.75rem;
+            line-height: 1.5;
+        }
+        .doc-list {
+            padding-left: 1.25rem;
+            margin: 0 0 0.75rem;
+        }
     </style>
 </head>
 <body>
@@ -116,6 +140,253 @@
     <script src="../../assets/js/layout.js"></script>
 
     <script>
+        function parseYamlLite(yamlText) {
+            const text = yamlText.replace(/^\uFEFF/, '');
+            const lines = text.split(/\r?\n/);
+
+            const firstNonEmpty = lines.find(l => {
+                const t = l.trim();
+                return t !== '' && !t.startsWith('#');
+            });
+            const isArrayRoot = firstNonEmpty ? firstNonEmpty.trim().startsWith('- ') : true;
+
+            const root = isArrayRoot ? [] : {};
+            const stack = [{ type: isArrayRoot ? 'array' : 'object', value: root, indent: -1 }];
+
+            const parseScalar = (v) => {
+                const val = v.trim();
+                if (val === '[]') return [];
+                if (val === '{}') return {};
+                if (val === 'null') return null;
+                if (val === 'true' || val === 'false') return val === 'true';
+                if (/^-?\d+(\.\d+)?$/.test(val)) return Number(val);
+                if (val.startsWith('"') && val.endsWith('"')) {
+                    try { return JSON.parse(val); } catch (_) { return val.slice(1, -1); }
+                }
+                if (val.startsWith('\'') && val.endsWith('\'')) return val.slice(1, -1);
+                if (val.startsWith('- ')) return [parseScalar(val.slice(2))];
+                return val;
+            };
+
+            const nextNonEmpty = (idx) => {
+                for (let i = idx + 1; i < lines.length; i++) {
+                    const raw = lines[i];
+                    const trimmed = raw.trim();
+                    if (trimmed === '' || trimmed.startsWith('#')) continue;
+                    const indent = raw.match(/^ */)[0].length;
+                    return { indent, trimmed };
+                }
+                return null;
+            };
+
+            lines.forEach((raw, idx) => {
+                const trimmed = raw.trim();
+                if (trimmed === '' || trimmed.startsWith('#')) return;
+                const indent = raw.match(/^ */)[0].length;
+                while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
+                    stack.pop();
+                }
+                const parent = stack[stack.length - 1];
+
+                if (trimmed.startsWith('- ')) {
+                    if (parent.type !== 'array') throw new Error('YAML: elemento lista fuori contesto');
+                    const entryText = trimmed.slice(2).trim();
+                    let item;
+                    let pushItem = false;
+
+                    if (entryText === '') {
+                        item = {};
+                        pushItem = true;
+                    } else {
+                        const m = entryText.match(/^([^:]+):\s*(.*)$/);
+                        if (m) {
+                            const key = m[1].trim();
+                            const valStr = m[2];
+                            item = {};
+                            if (valStr === '') {
+                                const next = nextNonEmpty(idx);
+                                const container = next && next.indent > indent && next.trimmed.startsWith('-') ? [] : {};
+                                item[key] = container;
+                                pushItem = true;
+                                stack.push({ type: Array.isArray(container) ? 'array' : 'object', value: container, indent });
+                            } else {
+                                item[key] = parseScalar(valStr);
+                                pushItem = true;
+                            }
+                        } else {
+                            item = parseScalar(entryText);
+                        }
+                    }
+                    parent.value.push(item);
+                    if (pushItem && typeof item === 'object' && item !== null && !Array.isArray(item)) {
+                        stack.push({ type: 'object', value: item, indent });
+                    }
+                    return;
+                }
+
+                if (parent.type !== 'object') throw new Error('YAML: chiave fuori contesto');
+                const match = trimmed.match(/^([^:]+):\s*(.*)$/);
+                if (!match) throw new Error('YAML: riga non valida');
+                const key = match[1].trim();
+                const valStr = match[2];
+
+                if (valStr === '') {
+                    const next = nextNonEmpty(idx);
+                    const container = next && next.indent > indent && next.trimmed.startsWith('-') ? [] : {};
+                    parent.value[key] = container;
+                    stack.push({ type: Array.isArray(container) ? 'array' : 'object', value: container, indent });
+                } else {
+                    const value = parseScalar(valStr);
+                    parent.value[key] = value;
+                    if (typeof value === 'object' && value !== null) {
+                        stack.push({ type: Array.isArray(value) ? 'array' : 'object', value, indent });
+                    }
+                }
+            });
+
+            return root;
+        }
+
+        function renderMarkdown(md, options = {}) {
+            const context = options.context || null;
+            if (!md) return '';
+            const inline = (text) => {
+                const escaped = text
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                return escaped
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                    .replace(/`(.+?)`/g, '<code>$1</code>');
+            };
+
+            const lines = md.replace(/\r\n?/g, '\n').split('\n');
+            const out = [];
+            let i = 0;
+            while (i < lines.length) {
+                if (/^\s*$/.test(lines[i])) { i++; continue; }
+
+                // Subtitle as a single italic line at start (image_box, etc.)
+                if (context === 'image_box' && i === 0) {
+                    const m = lines[i].trim().match(/^\*(.+)\*$/);
+                    if (m) {
+                        out.push(`<p class="doc-subtitle">${inline(m[1])}</p>`);
+                        i++; continue;
+                    }
+                }
+
+                if (/^###\s+/.test(lines[i])) {
+                    out.push(`<h4 class="doc-heading">${inline(lines[i].replace(/^###\s+/, ''))}</h4>`);
+                    i++; continue;
+                }
+                if (/^##\s+/.test(lines[i])) {
+                    out.push(`<h3 class="doc-heading">${inline(lines[i].replace(/^##\s+/, ''))}</h3>`);
+                    i++; continue;
+                }
+                if (/^#\s+/.test(lines[i])) {
+                    out.push(`<h2 class="doc-heading">${inline(lines[i].replace(/^#\s+/, ''))}</h2>`);
+                    i++; continue;
+                }
+
+                if (/^>\s?/.test(lines[i])) {
+                    const quote = [];
+                    while (i < lines.length && /^>\s?/.test(lines[i])) {
+                        quote.push(lines[i].replace(/^>\s?/, ''));
+                        i++;
+                    }
+                    const rawQuote = quote.join('\n').trim();
+                    const quoteText = inline(rawQuote).replace(/\n/g, '<br>');
+                    out.push(`<div class="document-quote"><i class="fas fa-feather-alt"></i><span>${quoteText}</span></div>`);
+                    continue;
+                }
+
+                if (/^- /.test(lines[i])) {
+                    const items = [];
+                    while (i < lines.length && /^- /.test(lines[i])) {
+                        items.push(lines[i].replace(/^- /, ''));
+                        i++;
+                    }
+                    const lis = items.map(t => `<li>${inline(t)}</li>`).join('');
+                    out.push(`<ul class="doc-list">${lis}</ul>`);
+                    continue;
+                }
+
+                const para = [];
+                while (i < lines.length && !/^\s*$/.test(lines[i])) {
+                    para.push(lines[i]);
+                    i++;
+                }
+                const paraClass = context === 'image_box' ? ' class="doc-paragraph"' : '';
+                out.push(`<p${paraClass}>${inline(para.join(' '))}</p>`);
+            }
+            return out.join('\n');
+        }
+
+        async function loadCharactersManifest() {
+            const yamlUrl = '../../assets/data/characters/index.yaml';
+            try {
+                const resp = await fetch(yamlUrl);
+                if (resp.ok) {
+                    const text = await resp.text();
+                    const parsed = parseYamlLite(text);
+                    if (Array.isArray(parsed)) return parsed;
+                }
+            } catch (err) {
+                console.warn('Impossibile leggere manifest YAML, provo JSON:', err);
+            }
+
+            const jsonUrl = '../../assets/data/characters/index.json';
+            const jsonResp = await fetch(jsonUrl);
+            if (jsonResp.ok) return jsonResp.json();
+            throw new Error('Impossibile caricare il manifest dei personaggi.');
+        }
+
+        async function loadCharacterYaml(entry) {
+            const base = '../../assets/data/';
+            const filePath = entry.file || `characters/${entry.id}.yaml`;
+            const yamlUrl = base + filePath;
+            try {
+                const resp = await fetch(yamlUrl);
+                if (resp.ok) {
+                    const text = await resp.text();
+                    const parsed = parseYamlLite(text);
+                    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+                }
+            } catch (err) {
+                console.warn(`Impossibile leggere YAML per ${entry.id}, provo JSON:`, err);
+            }
+
+            const jsonUrl = yamlUrl.replace(/\\.yaml$/, '.json');
+            const jsonResp = await fetch(jsonUrl);
+            if (jsonResp.ok) return jsonResp.json();
+            throw new Error(`Impossibile caricare i dati del personaggio ${entry.id}`);
+        }
+
+        async function loadPlayersData() {
+            const resp = await fetch('../../assets/data/players.json');
+            if (!resp.ok) throw new Error(`File dati players (${resp.status}) non trovato.`);
+            return resp.json();
+        }
+
+        async function hydrateContentBlocks(character) {
+            if (!character || !Array.isArray(character.content_blocks)) return;
+            const base = '../../assets/content/';
+            await Promise.all(character.content_blocks.map(async (block) => {
+                if (!block.markdown) return;
+                const url = base + block.markdown;
+                try {
+                    const resp = await fetch(url);
+                    const md = resp.ok ? await resp.text() : '';
+                    block.markdownText = md;
+                    block.markdownHtml = md ? renderMarkdown(md, { context: block.type }) : `<p>Impossibile caricare ${block.markdown}</p>`;
+                } catch (err) {
+                    console.warn(`Errore nel caricare ${block.markdown}:`, err);
+                    block.markdownHtml = `<p>Impossibile caricare ${block.markdown}</p>`;
+                }
+            }));
+        }
+
         document.addEventListener("DOMContentLoaded", async function() {
             const container = document.getElementById('character-content-container');
             const charNameEl = document.getElementById('char-name');
@@ -130,13 +401,20 @@
                 return;
             }
 
-            const jsonPath = `../../assets/data/${charType === 'player' ? 'players' : 'npcs'}.json`;
-
             try {
-                const response = await fetch(jsonPath);
-                if (!response.ok) throw new Error(`File dati (${jsonPath}) non trovato.`);
-                
-                const characters = await response.json();
+                let characters;
+                if (charType === 'player') {
+                    characters = await loadPlayersData();
+                } else {
+                    const manifest = await loadCharactersManifest();
+                    const npcEntries = manifest.filter(entry => (entry.type || 'npc') === 'npc');
+                    characters = [];
+                    for (const entry of npcEntries) {
+                        const char = await loadCharacterYaml(entry);
+                        if (char) characters.push(char);
+                    }
+                }
+
                 const character = characters.find(c => c.id === charId);
 
                 if (!character) {
@@ -144,6 +422,7 @@
                     return;
                 }
 
+                await hydrateContentBlocks(character);
                 renderCharacterPage(character, characters);
 
             } catch (error) {
@@ -315,73 +594,64 @@
             }
 
             function renderContentBlock(block) {
-                const card = document.createElement('div');
-                card.className = 'content-card';
+            const card = document.createElement('div');
+            card.className = 'content-card';
 
-                // Use a switch to handle different block types
-                switch(block.type) {
-                    case 'lore':
-                        card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-book-open'}"></i> ${block.title}</h3>${block.content}`;
-                        break;
-                    
-                    case 'secret_dossier':
-                        // This block is initially commented out or hidden in the original file. 
-                        // For the template, we can render it directly or add a mechanism to reveal it.
-                        // For now, let's render it styled as a secret.
-                        card.classList.add('secret'); // You can style this class
-                        card.innerHTML = `
-                            <h3><i class="fas fa-user-secret"></i> ${block.title}</h3>
-                            <div class="secret-dossier">
-                                <div class="secret-badge">${block.badge}</div>
-                                <div class="dossier-content">
-                                    <img src="${resolveImagePath(block.image)}" class="elena-img" onerror="this.style.display='none'">
-                                    <div>${block.content}</div>
-                                </div>
-                            </div>`;
-                        break;
-                    
-                    case 'custom_box':
-                        if (block.borderColor) {
-                            card.style.borderColor = block.borderColor;
-                        }
-                        card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-box'}"></i> ${block.title}</h3>${block.content}`;
-                        break;
-
-                    case 'image_box':
-                        const docSections = (block.sections || []).map(section => `
-                            <div class="doc-section">
-                                ${section.heading ? `<h4>${section.heading}</h4>` : ''}
-                                <p>${section.text || ''}</p>
+            // Use a switch to handle different block types
+            switch(block.type) {
+                case 'lore':
+                    card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-book-open'}"></i> ${block.title}</h3>${block.markdownHtml || ''}`;
+                    break;
+                
+                case 'secret_dossier':
+                    // This block is initially commented out or hidden in the original file. 
+                    // For the template, we can render it directly or add a mechanism to reveal it.
+                    // For now, let's render it styled as a secret.
+                    card.classList.add('secret'); // You can style this class
+                    card.innerHTML = `
+                        <h3><i class="fas fa-user-secret"></i> ${block.title}</h3>
+                        <div class="secret-dossier">
+                            <div class="secret-badge">${block.badge}</div>
+                            <div class="dossier-content">
+                                <img src="${resolveImagePath(block.image)}" class="elena-img" onerror="this.style.display='none'">
+                                <div>${block.markdownHtml || ''}</div>
                             </div>
-                        `).join('');
+                        </div>`;
+                    break;
+                
+                case 'custom_box':
+                    if (block.borderColor) {
+                        card.style.borderColor = block.borderColor;
+                    }
+                    card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-box'}"></i> ${block.title}</h3>${block.markdownHtml || ''}`;
+                    break;
 
-                        const docTags = (block.tags || []).map(tag => `<span class="doc-tag">${tag}</span>`).join('');
+                case 'image_box':
+                    const docTags = (block.tags || []).map(tag => `<span class="doc-tag">${tag}</span>`).join('');
 
-                        card.classList.add('document-card');
-                        card.innerHTML = `
-                            <div class="document-header">
-                                <div class="doc-label"><i class="fas ${block.icon || 'fa-book-dead'}"></i> ${block.title}</div>
-                                <div class="document-tags">${docTags}</div>
+                    card.classList.add('document-card');
+                    card.innerHTML = `
+                        <div class="document-header">
+                            <div class="doc-label"><i class="fas ${block.icon || 'fa-book-dead'}"></i> ${block.title}</div>
+                            <div class="document-tags">${docTags}</div>
+                        </div>
+                        <div class="document-body">
+                            <div class="document-image">
+                                 <img src="${resolveImagePath(block.image)}" alt="${block.title}" class="doc-image-popup" onerror="this.style.display='none'">
+                                ${block.image_caption ? `<p class="document-caption">${block.image_caption}</p>` : ''}
                             </div>
-                            <div class="document-body">
-                                <div class="document-image">
-                                     <img src="${resolveImagePath(block.image)}" alt="${block.title}" class="doc-image-popup" onerror="this.style.display='none'">
-                                    ${block.image_caption ? `<p class="document-caption">${block.image_caption}</p>` : ''}
-                                </div>
-                                <div class="document-content">
-                                    ${block.subtitle ? `<p class="document-subtitle">${block.subtitle}</p>` : ''}
-                                    ${docSections}
-                                    ${block.quote ? `<div class="document-quote"><i class="fas fa-feather-alt"></i><span>${block.quote}</span></div>` : ''}
-                                </div>
-                            </div>`;
-                        break;
+                            <div class="document-content">
+                                ${block.markdownHtml || ''}
+                            </div>
+                        </div>`;
+                    break;
 
-                    default:
-                        // Default handler for unknown block types
-                        card.innerHTML = `<h3>${block.title || 'Informazioni'}</h3>${block.content || ''}`;
-                }
-                return card;
+                default:
+                    // Default handler for unknown block types
+                    card.innerHTML = `<h3>${block.title || 'Informazioni'}</h3>${block.markdownHtml || block.content || ''}`;
             }
+            return card;
+        }
         });
     </script>
     <script>

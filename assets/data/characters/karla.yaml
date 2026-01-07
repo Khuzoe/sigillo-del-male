@@ -1,0 +1,17 @@
+id: "karla"
+name: "Karla Von T"
+role: "La Vampira"
+status: "vivo"
+hidden: false
+quote: "Insieme possiamo raggiungere il nostro obiettivo, lo sento."
+images:
+  avatar: "img/creatures/transp/karla_transp.webp"
+  hover: "img/creatures/transp/karla_animation.webp"
+  portrait: "img/creatures/karla.webp"
+content_blocks: []
+relationships:
+  - id: "rabberduscolanderson"
+    description: "Zio"
+  - id: "x"
+    description: "Madre"
+type: "npc"
