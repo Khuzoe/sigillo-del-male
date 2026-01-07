@@ -1,0 +1,13 @@
+id: "ginevra"
+name: "Ginevra Von T"
+role: "La Madre"
+status: "ignoto"
+hidden: true
+quote: ""
+images:
+  avatar: "img/creatures/transp/ginevra_transp.webp"
+  hover: "img/creatures/transp/ginevra_animation.webp"
+  portrait: "img/creatures/ginevra.webp"
+content_blocks: []
+relationships: - {}
+type: "npc"

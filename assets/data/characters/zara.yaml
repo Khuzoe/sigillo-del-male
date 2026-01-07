@@ -1,0 +1,13 @@
+id: "zara"
+name: "Zara"
+role: "La Giullare"
+status: "ignoto"
+hidden: false
+quote: "Buuuu! Ahahaha!"
+images:
+  avatar: "img/creatures/transp/zara_transp.webp"
+  hover: "img/creatures/transp/zara_animation.webp"
+  portrait: "img/creatures/zara.webp"
+content_blocks: []
+relationships: - {}
+type: "npc"

@@ -1,0 +1,13 @@
+id: "franky"
+name: "Franky"
+role: "Lo Scienziato"
+status: "vivo"
+hidden: false
+quote: "She volete dei shieri, io shi shono!"
+images:
+  avatar: "img/creatures/transp/franky_transp.webp"
+  hover: "img/creatures/transp/franky_animation.webp"
+  portrait: "img/creatures/franky.webp"
+content_blocks: []
+relationships: - {}
+type: "npc"
