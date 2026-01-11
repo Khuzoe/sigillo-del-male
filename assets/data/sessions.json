@@ -1,10 +1,10 @@
 {
     "nextSession": {
         "number": 18,
-        "date": "Da Fissare",
+        "date": "20 Gennaio 2026",
         "timeStart": "20:30",
         "timeEnd": "23:30",
-        "isScheduled": false
+        "isScheduled": true
     },
     "sessions": [
         {

@@ -1,109 +1,22 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <!-- Title will be set dynamically -->
-    <title>Personaggio | Cripta di Sangue</title> 
+    <title>Personaggio | Cripta di Sangue</title>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
     <link rel="stylesheet" href="../../assets/css/abyssal.css">
-    <style>
-        /* Styles for the Image Modal */
-        .image-modal {
-            position: fixed;
-            inset: 0; /* shortcut for top, right, bottom, left = 0 */
-            background-color: rgba(0, 0, 0, 0.9);
-            z-index: 1000;
-            display: none; /* Hidden by default */
-            padding: 2rem;
-            box-sizing: border-box;
-        }
-
-        .image-modal.visible {
-            display: block; /* Use block to fill space */
-        }
-
-        .image-modal-content {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        #modal-image-content { /* Targeting the image by ID for specificity */
-            display: block;
-            max-width: 100%;
-            max-height: 100%;
-            width: auto;
-            height: auto;
-            object-fit: contain;
-        }
-
-        .image-modal-close {
-            position: absolute;
-            top: 0; /* Position relative to the viewport/padding now */
-            right: 0;
-            transform: translate(50%, -50%); /* Center it on the corner edge */
-            background: rgba(30, 30, 30, 0.8);
-            border: 1px solid var(--gold-dim);
-            color: #fff;
-            font-size: 1.2rem;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 10; /* Ensure it's above the image container */
-        }
-
-        .image-modal-close:hover {
-            background: var(--gold);
-            color: #000;
-        }
-
-        .doc-image-popup {
-            cursor: pointer;
-            transition: transform 0.2s ease;
-        }
-
-        .doc-image-popup:hover {
-            transform: scale(1.03);
-        }
-
-        /* Markdown styling helpers for content blocks */
-        .doc-subtitle {
-            font-style: italic;
-            color: inherit;
-            margin-bottom: 0.5rem;
-            display: block;
-        }
-        .doc-heading {
-            font-family: 'Cinzel', serif;
-            font-weight: 700;
-            margin: 0.5rem 0;
-            color: var(--gold);
-            text-transform: none;
-            letter-spacing: 0.5px;
-        }
-        .doc-paragraph {
-            margin: 0 0 0.75rem;
-            line-height: 1.5;
-        }
-        .doc-list {
-            padding-left: 1.25rem;
-            margin: 0 0 0.75rem;
-        }
-    </style>
 </head>
+
 <body>
 
     <!-- NAVIGAZIONE LATERALE (Caricata dinamicamente) -->
@@ -111,7 +24,7 @@
 
     <!-- CONTENUTO PRINCIPALE -->
     <main class="main-content">
-        
+
         <!-- Header will be populated dynamically -->
         <header class="hero-mini" id="char-header">
             <div class="hero-title">
@@ -387,7 +300,7 @@
             }));
         }
 
-        document.addEventListener("DOMContentLoaded", async function() {
+        document.addEventListener("DOMContentLoaded", async function () {
             const container = document.getElementById('character-content-container');
             const charNameEl = document.getElementById('char-name');
             const charRoleEl = document.getElementById('char-role');
@@ -444,11 +357,11 @@
                 // Prepend the base path for relative asset images
                 return `../../assets/${imagePath}`;
             }
-            
+
             function renderRelationships(relationships, allCharacters) {
                 const card = document.createElement('div');
                 card.className = 'content-card';
-                
+
                 const relationshipsHtml = relationships.map(rel => {
                     const relatedChar = allCharacters.find(c => c.id === rel.id);
                     if (!relatedChar) return '';
@@ -462,9 +375,11 @@
                             <div class="npc-info">
                                 <div class="npc-header">
                                     <h3 class="npc-name">${relatedChar.name}</h3>
+                                </div>
+                                <div class="npc-footer">
+                                    <span class="npc-desc">${rel.description}</span>
                                     <span class="npc-role">${relatedChar.role}</span>
                                 </div>
-                                <p class="npc-desc">${rel.description}</p>
                             </div>
                             <i class="fas fa-chevron-right arrow-icon"></i>
                         </a>
@@ -514,11 +429,11 @@
                 const rightCol = document.createElement('div');
                 rightCol.className = 'right-col';
                 rightCol.innerHTML = getRightColumnHtml(character, allCharacters);
-                
+
                 grid.appendChild(leftCol);
                 grid.appendChild(rightCol);
                 container.appendChild(grid);
-                 // After rendering everything, initialize modal logic
+                // After rendering everything, initialize modal logic
                 initializeImageModal();
             }
 
@@ -594,43 +509,51 @@
             }
 
             function renderContentBlock(block) {
-            const card = document.createElement('div');
-            card.className = 'content-card';
+                const card = document.createElement('div');
+                card.className = 'content-card';
+                if (block.type) {
+                    card.classList.add(`content-card--${block.type}`);
+                }
+                const wrapMarkdown = (html, extraClass = '') => {
+                    if (!html) return '';
+                    const className = extraClass ? `chapter-content ${extraClass}` : 'chapter-content';
+                    return `<div class="${className}">${html}</div>`;
+                };
 
-            // Use a switch to handle different block types
-            switch(block.type) {
-                case 'lore':
-                    card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-book-open'}"></i> ${block.title}</h3>${block.markdownHtml || ''}`;
-                    break;
-                
-                case 'secret_dossier':
-                    // This block is initially commented out or hidden in the original file. 
-                    // For the template, we can render it directly or add a mechanism to reveal it.
-                    // For now, let's render it styled as a secret.
-                    card.classList.add('secret'); // You can style this class
-                    card.innerHTML = `
+                // Use a switch to handle different block types
+                switch (block.type) {
+                    case 'lore':
+                        card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-book-open'}"></i> ${block.title}</h3>${wrapMarkdown(block.markdownHtml)}`;
+                        break;
+
+                    case 'secret_dossier':
+                        // This block is initially commented out or hidden in the original file. 
+                        // For the template, we can render it directly or add a mechanism to reveal it.
+                        // For now, let's render it styled as a secret.
+                        card.classList.add('secret'); // You can style this class
+                        card.innerHTML = `
                         <h3><i class="fas fa-user-secret"></i> ${block.title}</h3>
                         <div class="secret-dossier">
                             <div class="secret-badge">${block.badge}</div>
                             <div class="dossier-content">
                                 <img src="${resolveImagePath(block.image)}" class="elena-img" onerror="this.style.display='none'">
-                                <div>${block.markdownHtml || ''}</div>
+                                ${wrapMarkdown(block.markdownHtml, 'chapter-content--compact')}
                             </div>
                         </div>`;
-                    break;
-                
-                case 'custom_box':
-                    if (block.borderColor) {
-                        card.style.borderColor = block.borderColor;
-                    }
-                    card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-box'}"></i> ${block.title}</h3>${block.markdownHtml || ''}`;
-                    break;
+                        break;
 
-                case 'image_box':
-                    const docTags = (block.tags || []).map(tag => `<span class="doc-tag">${tag}</span>`).join('');
+                    case 'custom_box':
+                        if (block.borderColor) {
+                            card.style.borderColor = block.borderColor;
+                        }
+                        card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-box'}"></i> ${block.title}</h3>${wrapMarkdown(block.markdownHtml)}`;
+                        break;
 
-                    card.classList.add('document-card');
-                    card.innerHTML = `
+                    case 'image_box':
+                        const docTags = (block.tags || []).map(tag => `<span class="doc-tag">${tag}</span>`).join('');
+
+                        card.classList.add('document-card');
+                        card.innerHTML = `
                         <div class="document-header">
                             <div class="doc-label"><i class="fas ${block.icon || 'fa-book-dead'}"></i> ${block.title}</div>
                             <div class="document-tags">${docTags}</div>
@@ -641,58 +564,59 @@
                                 ${block.image_caption ? `<p class="document-caption">${block.image_caption}</p>` : ''}
                             </div>
                             <div class="document-content">
-                                ${block.markdownHtml || ''}
+                                ${wrapMarkdown(block.markdownHtml, 'chapter-content--compact')}
                             </div>
                         </div>`;
-                    break;
+                        break;
 
-                default:
-                    // Default handler for unknown block types
-                    card.innerHTML = `<h3>${block.title || 'Informazioni'}</h3>${block.markdownHtml || block.content || ''}`;
+                    default:
+                        // Default handler for unknown block types
+                        card.innerHTML = `<h3>${block.title || 'Informazioni'}</h3>${wrapMarkdown(block.markdownHtml || block.content || '')}`;
+                }
+                return card;
             }
-            return card;
-        }
         });
     </script>
     <script>
-    function initializeImageModal() {
-        const modal = document.getElementById('image-modal');
-        const modalImg = document.getElementById('modal-image-content');
-        const closeBtn = document.getElementById('image-modal-close');
+        function initializeImageModal() {
+            const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('modal-image-content');
+            const closeBtn = document.getElementById('image-modal-close');
 
-        if (!modal || !modalImg || !closeBtn) {
-            console.error('Modal elements not found!');
-            return;
-        }
+            if (!modal || !modalImg || !closeBtn) {
+                console.error('Modal elements not found!');
+                return;
+            }
 
-        const images = document.querySelectorAll('.doc-image-popup');
+            const images = document.querySelectorAll('.doc-image-popup');
 
-        images.forEach(image => {
-            image.addEventListener('click', () => {
-                modal.classList.add('visible');
-                modalImg.src = image.src;
+            images.forEach(image => {
+                image.addEventListener('click', () => {
+                    modal.classList.add('visible');
+                    modalImg.src = image.src;
+                });
             });
-        });
 
-        const closeModal = () => {
-            modal.classList.remove('visible');
-            modalImg.src = ""; // Clear src to stop loading if in progress
-        };
+            const closeModal = () => {
+                modal.classList.remove('visible');
+                modalImg.src = ""; // Clear src to stop loading if in progress
+            };
 
-        closeBtn.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => {
-            // Close if clicking on the background, not the image itself
-            if (e.target === modal) {
-                closeModal();
-            }
-        });
+            closeBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => {
+                // Close if clicking on the background, not the image itself
+                if (e.target === modal) {
+                    closeModal();
+                }
+            });
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && modal.classList.contains('visible')) {
-                closeModal();
-            }
-        });
-    }
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal.classList.contains('visible')) {
+                    closeModal();
+                }
+            });
+        }
     </script>
 </body>
+
 </html>

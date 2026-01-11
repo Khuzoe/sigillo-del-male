@@ -34,6 +34,8 @@ content_blocks:
 relationships:
   - id: "rabberduscolanderson"
     description: "Fratello maggiore"
+  - id: "nino_olegna"
+    description: "Marito"
   - id: "karla"
     description: "Figlia"
 summary:

@@ -15,7 +15,7 @@ summary:
   cause_of_death: "Gettato in gabbia con un Ratto delle Sabbie a Chult"
 content_blocks:
   - type: "lore"
-    title: "Biografia e Storia: ?"
+    title: "Biografia e Storia: Il Tessimorte"
     icon: "fa-book-open"
     markdown: "characters/nino_olegna/1-biografia-e-storia.md"
   - type: "custom_box"
@@ -63,6 +63,10 @@ content_blocks:
       - "Documento"
       - "Poesia"
     markdown: "characters/nino_olegna/7-pergamena-il-lamento-del-tradito.md"
-relationships: []
+relationships:
+  - id: "x"
+    description: "Moglie"
+  - id: "karla"
+    description: "Figlia"
 hidden: false
 type: "npc"

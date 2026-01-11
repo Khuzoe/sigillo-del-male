@@ -8,6 +8,15 @@ images:
   avatar: "img/creatures/transp/zara_transp.webp"
   hover: "img/creatures/transp/zara_animation.webp"
   portrait: "img/creatures/zara.webp"
-content_blocks: []
+content_blocks:
+  - type: "lore"
+    title: "Biografia e Storia: La giullare della cripta"
+    icon: "fa-mask"
+    markdown: "characters/zara/1-biografia-e-storia-la-giullare-della-cripta.md"
+  - type: "custom_box"
+    title: "Apparizioni e illusioni"
+    icon: "fa-feather"
+    borderColor: "var(--accent-primary)"
+    markdown: "characters/zara/2-apparizioni-e-illusioni.md"
 relationships: - {}
 type: "npc"

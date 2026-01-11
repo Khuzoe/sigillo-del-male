@@ -8,6 +8,15 @@ images:
   avatar: "img/creatures/transp/franky_transp.webp"
   hover: "img/creatures/transp/franky_animation.webp"
   portrait: "img/creatures/franky.webp"
-content_blocks: []
+content_blocks:
+  - type: "lore"
+    title: "Biografia e Storia: Il laboratorio dei sieri"
+    icon: "fa-flask"
+    markdown: "characters/franky/1-biografia-e-storia-il-laboratorio-dei-sieri.md"
+  - type: "custom_box"
+    title: "Il cuore per il golem"
+    icon: "fa-heart"
+    borderColor: "var(--accent-primary)"
+    markdown: "characters/franky/2-il-cuore-per-il-golem.md"
 relationships: - {}
 type: "npc"

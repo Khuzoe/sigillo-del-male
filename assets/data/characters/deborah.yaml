@@ -8,6 +8,14 @@ images:
   avatar: "img/creatures/transp/deborah_transp.webp"
   hover: "img/creatures/transp/deborah_animation.webp"
   portrait: "img/creatures/deborah.webp"
-content_blocks: []
+content_blocks:
+  - type: "lore"
+    title: "Biografia e Storia: L'Ultima Foglia"
+    icon: "fa-book-open"
+    markdown: "characters/deborah/1-biografia-e-storia-l-ultima-foglia.md"
+  - type: "lore"
+    title: "La minaccia dai capelli bianchi"
+    icon: "fa-skull"
+    markdown: "characters/deborah/2-la-minaccia-dai-capelli-bianchi.md"
 relationships: - {}
 type: "npc"
