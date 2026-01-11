@@ -15,6 +15,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
     <link rel="stylesheet" href="../../assets/css/abyssal.css">
+
+    <!-- STATIC DATA LOADING (CORS Bypass) -->
+
 </head>
 
 <body>
@@ -315,28 +318,51 @@
             }
 
             try {
-                let characters;
-                if (charType === 'player') {
-                    characters = await loadPlayersData();
-                } else {
-                    const manifest = await loadCharactersManifest();
-                    const npcEntries = manifest.filter(entry => (entry.type || 'npc') === 'npc');
-                    characters = [];
-                    for (const entry of npcEntries) {
-                        const char = await loadCharacterYaml(entry);
-                        if (char) characters.push(char);
-                    }
-                }
+                let character = null;
+                let allCharacters = [];
 
-                const character = characters.find(c => c.id === charId);
+                // IBRIDO: Se abbiamo dati statici, usiamoli.
+                if (window.NPC_DATA && window.NPC_DATA.length > 0) {
+                    console.log("Using static NPC data for character details");
+                    allCharacters = window.NPC_DATA;
+                    character = allCharacters.find(c => c.id === charId);
+                } else {
+                    // Fallback Fetch Logic
+                    let characters;
+                    if (charType === 'player') {
+                        characters = await loadPlayersData();
+                    } else {
+                        const manifest = await loadCharactersManifest();
+                        const npcEntries = manifest.filter(entry => (entry.type || 'npc') === 'npc');
+                        characters = [];
+                        for (const entry of npcEntries) {
+                            const char = await loadCharacterYaml(entry);
+                            if (char) characters.push(char);
+                        }
+                    }
+                    allCharacters = characters;
+                    character = characters.find(c => c.id === charId);
+
+                    // Fetch Markdown content if not static
+                    await hydrateContentBlocks(character);
+                }
 
                 if (!character) {
                     displayError(`Personaggio con ID '${charId}' non trovato.`);
                     return;
                 }
 
-                await hydrateContentBlocks(character);
-                renderCharacterPage(character, characters);
+                // If using static data, we might need to convert markdownText to HTML on the fly
+                // because build script only loads text.
+                if (character.content_blocks) {
+                    character.content_blocks.forEach(block => {
+                        if (block.markdownText && !block.markdownHtml) {
+                            block.markdownHtml = renderMarkdown(block.markdownText, { context: block.type });
+                        }
+                    });
+                }
+
+                renderCharacterPage(character, allCharacters);
 
             } catch (error) {
                 console.error("Errore nel caricamento del personaggio:", error);

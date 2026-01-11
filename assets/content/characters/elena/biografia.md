@@ -1,4 +1,4 @@
-﻿Elena Erbadath nacque in una famiglia ricca, circondata da comodità, cure e attenzioni costanti. Nulla le mancava, tranne una cosa fondamentale: non camminò mai. Le sue gambe non la portarono mai da nessuna parte, e quella mancanza segnò tutta la sua vita.
+Elena Erbadath nacque in una famiglia ricca, circondata da comodità, cure e attenzioni costanti. Nulla le mancava, tranne una cosa fondamentale: non camminò mai. Le sue gambe non la portarono mai da nessuna parte, e quella mancanza segnò tutta la sua vita.
 
 Il denaro le offrì ciò che a molti era negato: una sedia a rotelle costruita con cura, medici preparati, una casa sicura. La sua esistenza era protetta, ordinata, controllata. Ma col tempo Elena capì che il benessere non poteva colmare ciò che sentiva dentro. Ogni gesto gentile le sembrava una catena, ogni attenzione una barriera. Non voleva essere difesa. Voleva scegliere.
 
