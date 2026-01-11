@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", function() {
+document.addEventListener("DOMContentLoaded", function () {
     // 1. TROVIAMO LA "BASE PATH" (La radice del sito relativa alla pagina corrente)
     // Cerchiamo il tag script che ha caricato questo file
     const scriptTag = document.querySelector('script[src*="layout.js"]');
@@ -11,30 +11,32 @@ document.addEventListener("DOMContentLoaded", function() {
         basePath = src.replace("assets/js/layout.js", "");
     }
 
-    // 2. CARICHIAMO LA SIDEBAR DALLA POSIZIONE CORRETTA
-    const sidebarUrl = basePath + "sidebar.html";
+    // 2. CARICHIAMO LA SIDEBAR
+    // Metodo Ibrido: Se esiste window.SIDEBAR_HTML (da static_data.js), usiamo quello.
+    // Altrimenti proviamo fetch (per dev server).
 
-    fetch(sidebarUrl)
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            return response.text();
-        })
-        .then(html => {
-            const container = document.getElementById("sidebar-container");
-            if (container) {
-                container.innerHTML = html;
-
-                // 3. CORREGGIAMO I LINK DENTRO LA SIDEBAR
-                // La sidebar.html ha link scritti come se fosse nella root (es. "index.html")
-                // Dobbiamo aggiungere il prefisso (es. "../../") se siamo in una sottocartella.
-                fixPaths(container, basePath);
-
-                // 4. ATTIVIAMO IL LINK DELLA PAGINA CORRENTE
-                setActiveLink();
-            }
-        })
-        .catch(err => console.error("Errore caricamento sidebar:", err));
+    if (window.SIDEBAR_HTML) {
+        initSidebar(window.SIDEBAR_HTML, basePath);
+    } else {
+        const sidebarUrl = basePath + "sidebar.html";
+        fetch(sidebarUrl)
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return response.text();
+            })
+            .then(html => initSidebar(html, basePath))
+            .catch(err => console.error("Errore caricamento sidebar:", err));
+    }
 });
+
+function initSidebar(html, basePath) {
+    const container = document.getElementById("sidebar-container");
+    if (container) {
+        container.innerHTML = html;
+        fixPaths(container, basePath);
+        setActiveLink();
+    }
+}
 
 function fixPaths(container, basePath) {
     // Se siamo nella root (basePath vuoto), non serve correggere nulla
@@ -74,7 +76,7 @@ function setActiveLink() {
     // Metodo 1: Controllo esatto del href (utile se i link nella sidebar sono specifici)
     // Nota: i link sono stati modificati da fixPaths, quindi controlliamo la parte finale
     const allLinks = document.querySelectorAll('.nav-links a');
-    
+
     allLinks.forEach(link => {
         const href = link.getAttribute('href');
         if (href && href.endsWith(page)) {
@@ -87,7 +89,7 @@ function setActiveLink() {
     if (!targetLink) {
         // Logica di fallback per index
         if (page === "index.html" || page === "") {
-             targetLink = document.querySelector('.nav-links a[href*="index.html"]');
+            targetLink = document.querySelector('.nav-links a[href*="index.html"]');
         }
     }
 

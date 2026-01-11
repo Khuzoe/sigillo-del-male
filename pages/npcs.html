@@ -1,17 +1,24 @@
 <!DOCTYPE html>
 <html lang="it" data-head-include="../_includes/head.html">
+
 <head>
     <title>Cripta di Sangue - NPCs</title>
-    <script src="../assets/js/head.js" defer></script>    
+    <script src="../assets/js/head.js" defer></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
     <link rel="stylesheet" href="../assets/css/abyssal.css">
 
+    <!-- STATIC DATA LOADING (CORS Bypass) -->
+
+
 </head>
+
 <body>
 
     <!-- NAVIGAZIONE LATERALE (Vuota - Gestita da layout.js) -->
@@ -21,19 +28,19 @@
 
     <!-- CONTENUTO PRINCIPALE -->
     <main class="main-content">
-         <header class="hero-mini">
+        <header class="hero-mini">
             <div class="hero-title">
                 <h1>NPCs</h1>
                 <div class="subtitle">Le anime che popolano la cripta, ognuna con una storia da raccontare.</div>
             </div>
-        </header>       
+        </header>
 
         <div class="container">
-            
+
             <div class="npc-list">
                 <!-- NPC cards will be dynamically inserted here -->
             </div>
-            
+
             <div style="text-align: center; margin-top: 4rem; opacity: 0.4;">
                 <i class="fas fa-dungeon" style="font-size: 2rem; margin-bottom: 1rem; color: var(--gold);"></i>
                 <p>La lista delle anime si allunga...</p>
@@ -153,13 +160,22 @@
             return root;
         }
 
-        document.addEventListener("DOMContentLoaded", async function() {
+        document.addEventListener("DOMContentLoaded", async function () {
             const base_path = '../assets/'; // Path from npcs.html to assets folder
             const npcListContainer = document.querySelector('.npc-list');
             if (!npcListContainer) return;
 
             try {
-                const npcs = await loadNpcData(base_path);
+                let npcs = [];
+                // IBRIDO: Se abbiamo dati statici, usiamoli.
+                if (window.NPC_DATA && window.NPC_DATA.length > 0) {
+                    console.log("Using static NPC data");
+                    npcs = window.NPC_DATA;
+                } else {
+                    console.log("Fetching NPC data...");
+                    npcs = await loadNpcData(base_path);
+                }
+
                 const visibleNpcs = npcs.filter(npc => !npc.hidden);
 
                 if (visibleNpcs.length === 0) {
