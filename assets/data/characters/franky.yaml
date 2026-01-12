@@ -21,5 +21,22 @@ content_blocks:
     title: "Aspetto Fisico"
     icon: "fa-user"
     markdown: "characters/franky/aspetto_fisico.md"
+  - type: "image_box"
+    title: "I Sieri"
+    image: "img/items/franky_sierums.webp"
+    image_caption: "Collezione di sieri instabili."
+    tags:
+      - "Oggetto"
+      - "Alchimia"
+    markdown: "characters/franky/sieri.md"
+  - type: "image_box"
+    title: "Colosso di Carne"
+    image: "img/items/franky_colossal_golem.webp"
+    image_caption: "Costrutto di carne e metallo."
+    tags:
+      - "Creatura"
+      - "Esperimento"
+    markdown: "characters/franky/golem.md"
+
 relationships: - {}
 type: "npc"

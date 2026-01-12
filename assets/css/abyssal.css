@@ -84,6 +84,40 @@ body {
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E");
 }
 
+/* =========================================
+   PREMIUM GLOBAL STYLES (Scrollbar & Selection)
+   ========================================= */
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-darker);
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--gold-dim) 0%, var(--gold) 50%, var(--gold-dim) 100%);
+    border-radius: 5px;
+    border: 2px solid var(--bg-darker);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--gold);
+    border-color: var(--bg-dark);
+}
+
+/* Text Selection */
+::selection {
+    background: var(--gold);
+    color: #000;
+    text-shadow: none;
+}
+
+
 a {
     text-decoration: none;
     color: inherit;
@@ -217,12 +251,17 @@ ul {
     font-size: 3rem;
     /* Smaller than 6rem */
     margin: 0;
-    background: linear-gradient(to bottom, var(--gold) 0%, var(--gold-dim) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+
+    /* Gold Gradient Style */
     text-transform: uppercase;
-    letter-spacing: -1px;
+    letter-spacing: 0.05em;
+    font-weight: 400;
+    background: linear-gradient(to bottom, #cfc09f 0%, #ffecb3 45%, #9e7f2a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 .dashboard-header p {
@@ -374,8 +413,18 @@ ul {
 .hero-mini h1 {
     font-family: var(--font-heading);
     font-size: 2.5rem;
-    color: var(--gold);
     margin-bottom: 0.5rem;
+
+    /* Gold Gradient Style */
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 400;
+    background: linear-gradient(to bottom, #cfc09f 0%, #ffecb3 45%, #9e7f2a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 .subtitle {
@@ -538,11 +587,43 @@ ul {
     padding-bottom: 0.5rem;
 }
 
+/* Global Gold Gradient Text Utility */
+.text-gold-gradient {
+    font-family: var(--font-heading);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 400;
+
+    /* Gradient Text Effect */
+    background: linear-gradient(to bottom, #cfc09f 0%, #ffecb3 45%, #9e7f2a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+
+    /* Filter for shadow */
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
 .npc-name {
     font-family: var(--font-heading);
     font-size: 1.3rem;
-    color: var(--text-main);
+
+    /* Inherit Gradient Styles via mixin logic or duplication since CSS vars don't support full rulesets easily */
+    /* Duplicating for now or simply adding the class in HTML. 
+       Better approach: Apply properties here for consistency if HTML isn't changed.
+    */
     text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 400;
+
+    background: linear-gradient(to bottom, #cfc09f 0%, #ffecb3 45%, #9e7f2a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 .npc-role {
