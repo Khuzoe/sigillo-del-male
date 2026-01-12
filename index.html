@@ -319,14 +319,24 @@
 
         .home-char-info .name {
             font-family: var(--font-heading);
-            color: var(--text-main);
             font-size: 1.4rem;
             margin: 0 0 0.3rem 0;
-            transition: color 0.3s ease;
+
+            /* Gold Gradient Style */
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 400;
+            background: linear-gradient(to bottom, #cfc09f 0%, #ffecb3 45%, #9e7f2a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+            transition: filter 0.3s ease;
         }
 
         .home-char-card:hover .home-char-info .name {
-            color: var(--gold);
+            filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.4));
         }
 
         .home-char-info .role {
@@ -461,7 +471,7 @@
                     container.innerHTML = `
                     <div class="next-session-card">
                         <span class="next-label">Prossima Sessione</span>
-                        <h2 class="next-title">Sessione ${config.number}</h2>
+                        <h2 class="next-title text-gold-gradient">Sessione ${config.number}</h2>
                         <div class="next-details">
                             <div class="detail-item">
                                 <span class="detail-label">Data</span>
@@ -536,7 +546,7 @@
 
                     sessionCard.innerHTML = `
                     <div class="session-header">
-                        <h3 class="session-title">Sessione ${session.id}</h3>
+                        <h3 class="session-title text-gold-gradient">Sessione ${session.id}</h3>
                         <span class="session-date">${session.date.split(' - ')[0]}</span>
                     </div>
                     <div class="session-body">

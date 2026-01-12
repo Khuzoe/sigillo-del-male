@@ -357,25 +357,15 @@
 
         /* Updated Header Title to match MD Block Titles (.doc-label style) */
         /* Updated Header Title with GOLD GRADIENT */
+        /* Updated Header Title to match MD Block Titles (.doc-label style) */
+        /* Updated Header Title with GOLD GRADIENT */
         .quest-title-group h3 {
             font-family: var(--font-heading);
             font-size: 1.8rem;
             margin: 0;
             display: flex;
             align-items: center;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-weight: 400;
-
-            /* Gradient Text Effect */
-            background: linear-gradient(to bottom, #cfc09f 0%, #ffecb3 45%, #9e7f2a 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            color: transparent;
-
-            /* Use filter for shadow since text-shadow doesn't work well with transparent text */
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+            /* Gradient attributes moved to .text-gold-gradient utility class */
         }
     </style>
 </head>
@@ -589,7 +579,7 @@
                 <div class="quest-header" onclick="toggleQuest(this)">
                     ${npcAvatarHtml}
                     <div class="quest-title-group">
-                        <h3>${group.title}</h3>
+                        <h3 class="text-gold-gradient">${group.title}</h3>
                         ${group.npc_id ? `<span class="quest-type">Incarichi di ${group.title}</span>` : ''}
                     </div>
                     <div class="mini-progress"><div class="mini-bar" style="width: ${progress}%;"></div></div>

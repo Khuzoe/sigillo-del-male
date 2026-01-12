@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <title>Diario delle Sessioni | Cripta di Sangue</title>
-    
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
     <link rel="stylesheet" href="../assets/css/abyssal.css">
@@ -33,7 +36,8 @@
 
         /* Icona di sfondo decorativa */
         .next-session-card::before {
-            content: '\f6ec'; /* Icona dadi */
+            content: '\f6ec';
+            /* Icona dadi */
             font-family: "Font Awesome 6 Free";
             font-weight: 900;
             position: absolute;
@@ -59,10 +63,9 @@
         .next-title {
             font-family: var(--font-heading);
             font-size: 3rem;
-            color: var(--gold);
             margin-bottom: 2rem;
-            text-shadow: 0 4px 10px #000;
             line-height: 1;
+            /* Gold Gradient applied via utility class */
         }
 
         .next-details {
@@ -76,7 +79,7 @@
         }
 
         .detail-item {
-            background: rgba(0,0,0,0.6);
+            background: rgba(0, 0, 0, 0.6);
             padding: 1rem 2rem;
             border-radius: 4px;
             border: 1px solid rgba(212, 175, 55, 0.3);
@@ -109,12 +112,12 @@
             z-index: 2;
             margin-top: 2rem;
             padding-top: 2rem;
-            border-top: 1px solid rgba(255,255,255,0.1);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .countdown-box {
             text-align: center;
-            background: rgba(0,0,0,0.4);
+            background: rgba(0, 0, 0, 0.4);
             padding: 0.8rem;
             border-radius: 6px;
             min-width: 80px;
@@ -149,9 +152,20 @@
         }
 
         @keyframes pulse {
-            0% { opacity: 1; text-shadow: 0 0 10px red; }
-            50% { opacity: 0.7; text-shadow: 0 0 20px red; }
-            100% { opacity: 1; text-shadow: 0 0 10px red; }
+            0% {
+                opacity: 1;
+                text-shadow: 0 0 10px red;
+            }
+
+            50% {
+                opacity: 0.7;
+                text-shadow: 0 0 20px red;
+            }
+
+            100% {
+                opacity: 1;
+                text-shadow: 0 0 10px red;
+            }
         }
 
         .tbd-message {
@@ -159,8 +173,8 @@
             font-style: italic;
             color: #aaa;
             font-size: 1.3rem;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             padding: 1rem 0;
             display: inline-block;
             min-width: 300px;
@@ -217,7 +231,8 @@
         /* STILI SPECIFICI PER LA TIMELINE DELLE SESSIONI - MODALITA' WIDE */
         .timeline {
             position: relative;
-            max-width: 1600px; /* Aumentato per sfruttare meglio lo spazio */
+            max-width: 1600px;
+            /* Aumentato per sfruttare meglio lo spazio */
             margin: 0 auto;
             padding: 2rem 0;
         }
@@ -243,14 +258,14 @@
             border-radius: 8px;
             padding: 2rem;
             transition: all 0.3s ease;
-            scroll-margin-top: 2rem; 
+            scroll-margin-top: 2rem;
         }
 
         .session-card:hover {
             background: var(--bg-card);
             border-color: var(--gold-dim);
             transform: translateX(5px);
-            box-shadow: -5px 5px 15px rgba(0,0,0,0.5);
+            box-shadow: -5px 5px 15px rgba(0, 0, 0, 0.5);
         }
 
         /* Pallino sulla timeline */
@@ -277,7 +292,7 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1.5rem;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             padding-bottom: 0.8rem;
             flex-wrap: wrap;
             gap: 0.5rem;
@@ -285,19 +300,19 @@
 
         .session-title {
             font-family: var(--font-heading);
-            color: var(--gold);
             font-size: 1.6rem;
             margin: 0;
+            /* Gold Gradient applied via utility class */
         }
 
         .session-date {
             font-family: var(--font-ui);
             font-size: 0.95rem;
             color: var(--text-muted);
-            background: rgba(0,0,0,0.3);
+            background: rgba(0, 0, 0, 0.3);
             padding: 4px 12px;
             border-radius: 4px;
-            border: 1px solid rgba(255,255,255,0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .session-body {
@@ -306,12 +321,12 @@
             margin-bottom: 2rem;
             line-height: 1.7;
         }
-        
+
         .session-body strong {
             color: var(--text-main);
             font-weight: 700;
         }
-        
+
         .session-body p {
             margin-bottom: 1rem;
         }
@@ -355,40 +370,49 @@
             .timeline::before {
                 left: 20px;
             }
+
             .session-card {
                 margin-left: 50px;
                 padding: 1.5rem;
             }
+
             .timeline-marker {
                 left: -42px;
                 width: 20px;
                 height: 20px;
                 top: 20px;
             }
+
             .xp-footer {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 0.5rem;
             }
+
             .next-session-card {
                 padding: 1.5rem;
             }
+
             .next-title {
                 font-size: 2rem;
             }
+
             .countdown-container {
                 gap: 0.5rem;
             }
+
             .countdown-box {
                 min-width: 60px;
                 padding: 0.5rem;
             }
+
             .count-number {
                 font-size: 1.5rem;
             }
         }
     </style>
 </head>
+
 <body>
 
     <!-- NAVIGAZIONE LATERALE -->
@@ -397,7 +421,7 @@
 
     <!-- CONTENUTO PRINCIPALE -->
     <main class="main-content">
-        
+
         <header class="hero-mini">
             <div class="hero-title">
                 <h1>Diario delle Sessioni</h1>
@@ -406,7 +430,7 @@
         </header>
 
         <div class="container">
-            
+
             <!-- BOX PROSSIMA SESSIONE (Dinamico) -->
             <div id="next-session-container"></div>
 
@@ -427,14 +451,14 @@
 
     <!-- Script per gestire la Prossima Sessione e la timeline -->
     <script>
-        document.addEventListener("DOMContentLoaded", async function() {
+        document.addEventListener("DOMContentLoaded", async function () {
             try {
                 const response = await fetch('../assets/data/sessions.json');
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 const data = await response.json();
-                
+
                 // The sessions are reversed to show the most recent first
                 const sessions = data.sessions.slice().reverse();
                 const nextSessionConfig = data.nextSession;
@@ -471,7 +495,7 @@
                 container.innerHTML = `
                     <div class="next-session-card">
                         <span class="next-label">Prossima Sessione</span>
-                        <h2 class="next-title">Sessione ${config.number}</h2>
+                        <h2 class="next-title text-gold-gradient">Sessione ${config.number}</h2>
                         <div class="next-details">
                             <div class="detail-item">
                                 <span class="detail-label">Data</span>
@@ -507,14 +531,14 @@
 
         function startCountdown(targetDate) {
             const countdownEl = document.getElementById('countdown');
-            if(!countdownEl) return;
+            if (!countdownEl) return;
 
             function update() {
                 const now = new Date().getTime();
                 const distance = targetDate - now;
 
                 if (distance < 0) {
-                    if (distance > -14400000) { 
+                    if (distance > -14400000) {
                         countdownEl.innerHTML = '<div class="session-live">SESSIONE IN CORSO!</div>';
                     } else {
                         countdownEl.innerHTML = '<div class="session-live" style="color:#aaa">SESSIONE CONCLUSA</div>';
@@ -563,10 +587,10 @@
                 card.className = 'session-card';
 
                 let headerBadges = `<span class="session-date">${session.date}</span>`;
-                if(session.levelup) {
+                if (session.levelup) {
                     headerBadges += `<span class="levelup-badge">LEVEL UP (${session.levelup})</span>`;
                 }
-                if(session.skillPoint) {
+                if (session.skillPoint) {
                     headerBadges += `<span class="levelup-badge">+1 SKILL POINT</span>`;
                 }
 
@@ -581,7 +605,7 @@
                         </div>
                     </div>`;
                 } else if (session.reward) {
-                     xpFooter = `
+                    xpFooter = `
                     <div class="xp-footer">
                         <i class="fas fa-gift" style="color: var(--gold); font-size: 1.2rem;"></i>
                         <div>
@@ -589,7 +613,7 @@
                         </div>
                     </div>`;
                 } else {
-                     xpFooter = `
+                    xpFooter = `
                     <div class="xp-footer">
                         <i class="fas fa-info-circle" style="color: var(--text-muted); font-size: 1.2rem;"></i>
                         <div>
@@ -602,7 +626,7 @@
                 card.innerHTML = `
                     <div class="timeline-marker"><i class="fas fa-circle" style="font-size: 8px; color: var(--gold);"></i></div>
                     <div class="session-header">
-                        <h3 class="session-title">Sessione ${session.id}</h3>
+                        <h3 class="session-title text-gold-gradient">Sessione ${session.id}</h3>
                         <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                            ${headerBadges}
                         </div>
@@ -618,4 +642,5 @@
     </script>
 
 </body>
+
 </html>

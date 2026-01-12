@@ -493,10 +493,14 @@
                 grid.className = 'char-grid';
 
                 // Build left (lore) and right (image/stats) columns
+                // Build left (lore) and right (image/stats) columns
                 const leftCol = document.createElement('div');
                 leftCol.className = 'left-col';
-                if (character.content_blocks && character.content_blocks.length > 0) {
-                    character.content_blocks.forEach(block => {
+
+                const visibleBlocks = (character.content_blocks || []).filter(block => !block.hidden);
+
+                if (visibleBlocks.length > 0) {
+                    visibleBlocks.forEach(block => {
                         leftCol.appendChild(renderContentBlock(block));
                     });
                 } else {
@@ -601,7 +605,7 @@
                         }).join('');
 
                         questsHtml = `
-                        <div class="content-card questline-card">
+                        <div class="content-card questline-card" style="margin-top: 2rem;">
                             <h3><i class="fas fa-scroll"></i> Missioni</h3>
                             <div class="quest-category">
                                 ${questsList}
