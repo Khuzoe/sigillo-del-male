@@ -1,5 +1,4 @@
-Zara è l'incarnazione della follia ludica e macabra, un giullare che danza sul confine tra divertimento e orrore. È una donna umana dall'incarnato pallido, con un'espressione maniacale stampata sul volto: un sorriso troppo ampio e occhi rossi luminosi che tradiscono una natura instabile. Ciuffi di capelli color zenzero sfuggono disordinatamente dal suo copricapo.
+Zara è una donna umana dall'incarnato pallido, con un'espressione maniacale stampata sul volto: un sorriso troppo ampio e occhi rossi luminosi che tradiscono una natura instabile. Ciuffi di capelli color zenzero sfuggono disordinatamente dal suo copricapo.
 
-Il suo abbigliamento è un tripudio di colori contrastanti: indossa un classico costume da giullare a rombi viola e gialli, completo di cappello a due punte con campanellini dorati, calze a righe coordinate e scarpe rosse a punta arricciate. Nonostante i colori vivaci, l'effetto è tutt'altro che allegro.
-
-Brandisce uno scettro grottesco sormontato da un teschio ridente, che indossa a sua volta un piccolo cappello da giullare; dallo scettro emana un fumo spettrale verdastro, suggerendo poteri magici o illusori. Spesso è raffigurata distesa tra ossa e teschi umani, come se fossero i suoi giocattoli, perfettamente a suo agio in un macabro ossario che ha trasformato nel suo palcoscenico personale.
+Il suo abbigliamento è un tripudio di colori contrastanti: indossa un classico costume da giullare a rombi viola e gialli, completo di cappello a due punte con campanellini dorati, calze a righe coordinate e scarpe rosse a punta arricciate.
+Brandisce uno scettro grottesco sormontato da un teschio ridente, che indossa a sua volta un piccolo cappello da giullare; dallo scettro emana un fumo spettrale verdastro
