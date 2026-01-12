@@ -1,0 +1,132 @@
+[
+    {
+        "id": "main_quest",
+        "title": "Quest Principale",
+        "npc_id": null,
+        "quests": [
+            {
+                "title": "Entrare nella Cripta",
+                "status": "completed"
+            },
+            {
+                "title": "Esplorare il Primo Piano",
+                "status": "completed"
+            },
+            {
+                "title": "Esplorare il Secondo Piano",
+                "status": "in_progress"
+            },
+            {
+                "title": "Esplorare il Terzo Piano",
+                "status": "hidden"
+            },
+            {
+                "title": "Esplorare il Quarto Piano",
+                "status": "hidden"
+            },
+            {
+                "title": "Trovare Deborah",
+                "status": "active"
+            }
+        ]
+    },
+    {
+        "id": "rabber_quests",
+        "title": "Rabberduscolanderson Von T",
+        "npc_id": "rabberduscolanderson",
+        "quests": [
+            {
+                "title": "Frugare nella tasca di Ran'Dra e trovare cosa nasconde",
+                "status": "completed",
+                "character_specific": "valdor"
+            },
+            {
+                "title": "Trovare le 3 targhette dei suoi cani perduti",
+                "status": "completed",
+                "rewards": "Commercio agevolato con Monete di Rame"
+            },
+            {
+                "title": "Trovare qualcosa che possa ricordargli Elena",
+                "status": "completed"
+            },
+            {
+                "title": "Farlo riunire con la sua amata Elena",
+                "status": "completed",
+                "rewards": "Cuore di Rabberduscolanderson Von T"
+            }
+        ]
+    },
+    {
+        "id": "x_quests",
+        "title": "X Von T",
+        "npc_id": "x",
+        "quests": [
+            {
+                "title": "Trovare documenti interessanti",
+                "status": "active",
+                "rewards": "Informazioni interessanti"
+            }
+        ]
+    },
+    {
+        "id": "elena_quests",
+        "title": "Elena Erbadath",
+        "npc_id": "elena",
+        "quests": [
+            {
+                "title": "Trovare l'oggetto perduto di Elena",
+                "status": "completed"
+            },
+            {
+                "title": "Riportare Elena da Rabberduscolanderson",
+                "status": "completed"
+            }
+        ]
+    },
+    {
+        "id": "karla_quests",
+        "title": "Karla Von T",
+        "npc_id": "karla",
+        "quests": [
+            {
+                "title": "Partecipare al rituale del sigillo Von T",
+                "status": "completed"
+            },
+            {
+                "title": "Liberare il Secondo Piano dalle creature ostili",
+                "status": "active",
+                "rewards": "Piano più sicuro",
+                "subquests": [
+                    {
+                        "title": "Eliminare Nino Olegna e le sue creature tela dalla zona nord",
+                        "status": "completed"
+                    },
+                    {
+                        "title": "Eliminare i non morti dalla zona sud",
+                        "status": "active"
+                    }
+                ]
+            },
+            {
+                "title": "Trovare i cuori dei Von T",
+                "status": "hidden"
+            }
+        ]
+    },
+    {
+        "id": "franky_quests",
+        "title": "Franky",
+        "npc_id": "franky",
+        "quests": [
+            {
+                "title": "Fornire un cuore per dare vita al Colosso di Carne",
+                "status": "in_progress",
+                "rewards": "Shieri Potenti"
+            },
+            {
+                "title": "Trovare un oggetto di calma mentale per mantenere tranquillo il Colosso di Carne",
+                "status": "hidden"
+            }
+        ]
+    }
+]

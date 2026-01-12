@@ -18,6 +18,53 @@
 
     <!-- STATIC DATA LOADING (CORS Bypass) -->
 
+    <style>
+        .questline-card .quest-category {
+            margin-bottom: 1.5rem;
+        }
+
+        .quest-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .quest-item:last-child {
+            border-bottom: none;
+        }
+
+        .quest-text {
+            font-family: var(--font-body);
+            font-size: 1rem;
+            color: var(--text-main);
+        }
+
+        .quest-status {
+            font-family: var(--font-ui);
+            font-size: 0.75rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-left: 1rem;
+            white-space: nowrap;
+        }
+
+        .status-inprogress {
+            background: rgba(212, 175, 55, 0.1);
+            color: var(--gold);
+            border: 1px solid var(--gold);
+        }
+
+        .status-completed {
+            background: rgba(46, 204, 113, 0.1);
+            color: #2ecc71;
+            border: 1px solid #2ecc71;
+        }
+    </style>
+
 </head>
 
 <body>
@@ -303,6 +350,16 @@
             }));
         }
 
+        async function loadQuestsData() {
+            try {
+                const resp = await fetch('../../assets/data/quests.json');
+                if (resp.ok) return resp.json();
+            } catch (e) {
+                console.warn("Impossibile caricare quests.json", e);
+            }
+            return [];
+        }
+
         document.addEventListener("DOMContentLoaded", async function () {
             const container = document.getElementById('character-content-container');
             const charNameEl = document.getElementById('char-name');
@@ -320,6 +377,10 @@
             try {
                 let character = null;
                 let allCharacters = [];
+
+                // Load Quests Data separately
+                const questsData = await loadQuestsData();
+                const npcQuests = questsData.find(g => g.npc_id === charId);
 
                 // IBRIDO: Se abbiamo dati statici, usiamoli.
                 if (window.NPC_DATA && window.NPC_DATA.length > 0) {
@@ -362,7 +423,7 @@
                     });
                 }
 
-                renderCharacterPage(character, allCharacters);
+                renderCharacterPage(character, allCharacters, npcQuests);
 
             } catch (error) {
                 console.error("Errore nel caricamento del personaggio:", error);
@@ -421,7 +482,7 @@
                 return card;
             }
 
-            function renderCharacterPage(character, allCharacters) {
+            function renderCharacterPage(character, allCharacters, npcQuests) {
                 // Set page title and header
                 document.title = `${character.name} | Cripta di Sangue`;
                 charNameEl.textContent = character.name;
@@ -454,7 +515,7 @@
 
                 const rightCol = document.createElement('div');
                 rightCol.className = 'right-col';
-                rightCol.innerHTML = getRightColumnHtml(character, allCharacters);
+                rightCol.innerHTML = getRightColumnHtml(character, allCharacters, npcQuests);
 
                 grid.appendChild(leftCol);
                 grid.appendChild(rightCol);
@@ -463,73 +524,114 @@
                 initializeImageModal();
             }
 
-            function getRightColumnHtml(character, allCharacters) {
+            function getRightColumnHtml(character, allCharacters, npcQuests) {
                 const summary = character.summary || {};
+
+                // --- CALCOLO ANNO DI NASCITA E ETA' ---
+                // --- CALCOLO ANNO DI NASCITA E ETA' ---
+                const CURRENT_YEAR = 2026;
+                let periodLabel = "Anno di Nascita";
+                let periodValue = "Non disponibile";
+                let age = "Non disponibile";
+
+                // Parsing Period field (expected format: "Birth-Death" or "Birth")
+                if (summary.period) {
+                    const parts = summary.period.toString().split('-');
+                    const bYear = parseInt(parts[0].trim());
+
+                    if (!isNaN(bYear)) {
+                        periodValue = bYear; // Default to just birth year
+
+                        // Calculate Age
+                        if (parts.length > 1 && parts[1].trim() !== '') {
+                            // Dead: Age = Death - Birth
+                            const dYear = parseInt(parts[1].trim());
+                            if (!isNaN(dYear)) {
+                                age = `${dYear - bYear} anni`;
+                                // UPDATE: Use range for label and value if dead
+                                periodLabel = "Nascita - Morte";
+                                periodValue = `${bYear} - ${dYear}`;
+                            }
+                        } else {
+                            // Alive/Unknown Death: Age = Current - Birth
+                            age = `${CURRENT_YEAR - bYear} anni`;
+                        }
+                    } else {
+                        // Fallback if period is just text (e.g. "Sconosciuto")
+                        periodValue = summary.period;
+                    }
+                }
+
+                // --- ALTRI CAMPI ---
+                // Height is already combined in YAML usually ("1.62m | 9kg")
+                const heightWeight = summary.height || "Non disponibile";
+
+
                 const statsHtml = `
                     <div class="stat-box">
-                        <span class="stat-label">Razza</span>
-                        <span class="stat-value" style="color: #ffcccc;">${summary.race || '???'}</span>
+                        <span class="stat-label">${periodLabel}</span>
+                        <span class="stat-value">${periodValue}</span>
                     </div>
                     <div class="stat-box">
-                        <span class="stat-label">Età / Morte</span>
-                        <span class="stat-value">${summary.age_at_death || '???'}</span>
+                        <span class="stat-label">Età</span>
+                        <span class="stat-value">${age}</span>
                     </div>
                     <div class="stat-box">
-                        <span class="stat-label">Altezza</span>
-                        <span class="stat-value">${summary.height || '???'}</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-label">Periodo</span>
-                        <span class="stat-value">${summary.period || '???'}</span>
+                        <span class="stat-label">Altezza | Peso</span>
+                        <span class="stat-value">${heightWeight}</span>
                     </div>
                 `;
+
+                // Render Quests if available
+                let questsHtml = '';
+                if (npcQuests && npcQuests.quests && npcQuests.quests.length > 0) {
+                    const visibleQuests = npcQuests.quests.filter(q => q.status !== 'hidden');
+                    if (visibleQuests.length > 0) {
+                        const questsList = visibleQuests.map(q => {
+                            const isCompleted = q.status === 'completed';
+                            return `
+                            <div class="quest-item">
+                                <span class="quest-text" style="${isCompleted ? 'opacity: 0.7;' : ''}">${q.title}</span>
+                                <span class="quest-status ${isCompleted ? 'status-completed' : 'status-inprogress'}">
+                                    <i class="fas ${isCompleted ? 'fa-check-circle' : 'fa-clock'}"></i>
+                                    ${isCompleted ? 'COMPLETA' : 'IN CORSO'}
+                                </span>
+                            </div>
+                           `;
+                        }).join('');
+
+                        questsHtml = `
+                        <div class="content-card questline-card">
+                            <h3><i class="fas fa-scroll"></i> Missioni</h3>
+                            <div class="quest-category">
+                                ${questsList}
+                            </div>
+                             <div style="margin-top: 1rem; text-align: center;">
+                                <a href="../missioni.html" class="button-gold-outline" style="font-size: 0.8rem;">Vedi Registro Completo</a>
+                            </div>
+                        </div>
+                        `;
+                    }
+                }
+
+                // Causa del Decesso (Solo se presente)
+                let causeOfDeathHtml = '';
+                if (summary.cause_of_death) {
+                    causeOfDeathHtml = `
+                        <div style="padding: 1rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <span class="stat-label" style="margin-bottom: 5px;">Causa del Decesso</span>
+                            <span style="color: var(--accent-primary); font-family: 'Cinzel';">${summary.cause_of_death}</span>
+                        </div>
+                    `;
+                }
 
                 return `
                     <div class="image-card">
                         <img src="${resolveImagePath(character.images.portrait)}" class="char-portrait" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
                         <div class="stats-grid">${statsHtml}</div>
-                        <div style="padding: 1rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.1);">
-                            <span class="stat-label" style="margin-bottom: 5px;">Causa del Decesso</span>
-                            <span style="color: var(--accent-primary); font-family: 'Cinzel';">${summary.cause_of_death || '???'}</span>
-                        </div>
+                        ${causeOfDeathHtml}
                     </div>
-                    ${character.questline ? `
-                        <div class="content-card questline-card">
-                            <h3><i class="fas fa-scroll"></i> ${character.questline.title || 'Questline'}</h3>
-                            ${character.questline.character_specific_quests && character.questline.character_specific_quests.length > 0 ? `
-                                <div class="quest-category">
-                                    <h4>Missioni Specifiche</h4>
-                                    ${character.questline.character_specific_quests.map(quest => `
-                                        <div class="quest-item">
-                                            <div class="quest-icon-container">
-                                                <img src="${resolveImagePath(quest.image)}" class="quest-char-icon" onerror="this.style.display='none'">
-                                            </div>
-                                            <span class="quest-text">${quest.text}</span>
-                                            <span class="quest-status ${quest.status === 'COMPLETA' ? 'status-completed' : 'status-inprogress'}">
-                                                <i class="fas ${quest.status === 'COMPLETA' ? 'fa-check-circle' : 'fa-clock'}"></i>
-                                                ${quest.status}
-                                            </span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                            ${character.questline.general_quests && character.questline.general_quests.length > 0 ? `
-                                <div class="quest-category">
-                                    <h4>Missioni Generali</h4>
-                                    ${character.questline.general_quests.map(quest => `
-                                        <div class="quest-item">
-                                            <span class="quest-text">${quest.text}</span>
-                                            <span class="quest-status ${quest.status === 'COMPLETA' ? 'status-completed' : 'status-inprogress'}">
-                                                <i class="fas ${quest.status === 'COMPLETA' ? 'fa-check-circle' : 'fa-clock'}"></i>
-                                                ${quest.status}
-                                            </span>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-                    ` : ''}
-
+                    ${questsHtml}
                     ${character.relationships && character.relationships.length > 0 ? renderRelationships(character.relationships, allCharacters).outerHTML : ''}
                 `;
             }
