@@ -34,6 +34,7 @@ content_blocks:
   - type: "image_box"
     title: "Cuore di Rabberduscolanderson"
     image: "img/items/heart-rabberduscolanderson.webp"
+    imageStyle: "border-radius: 50%; object-fit: cover;"
     markdown: "characters/rabberduscolanderson/cuore-di-rabberduscolanderson.md"
 questline:
   title: "Missioni di Rabberduscolanderson"
