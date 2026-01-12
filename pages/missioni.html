@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <title>Missioni | Cripta di Sangue</title>
 
@@ -7,24 +8,28 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    
+
     <link rel="stylesheet" href="../assets/css/abyssal.css">
 
     <style>
         /* STILI SPECIFICI PER LE MISSIONI */
-        
+
         /* OVERRIDE: Larghezza aumentata per questa pagina */
         .container {
-            max-width: 1600px; /* Era 1200px */
+            max-width: 1600px;
+            /* Era 1200px */
         }
 
         /* Categorie (Principale / Secondarie) */
         .quest-category-title {
             font-family: var(--font-heading);
             color: var(--gold);
-            font-size: 2rem; /* Aumentato */
+            font-size: 2rem;
+            /* Aumentato */
             margin-top: 3rem;
             margin-bottom: 1.5rem;
             border-bottom: 1px solid rgba(212, 175, 55, 0.2);
@@ -38,26 +43,40 @@
         .quest-card {
             background: rgba(36, 36, 36, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-left: 5px solid #555; /* Bordo più spesso */
+            border-left: 5px solid #555;
+            /* Bordo più spesso */
             border-radius: 8px;
-            margin-bottom: 2rem; /* Spaziatura maggiore */
+            margin-bottom: 2rem;
+            /* Spaziatura maggiore */
             overflow: hidden;
             transition: all 0.3s ease;
         }
 
         /* Stati della Missione (Bordo sinistro colorato) */
-        .quest-card.active { border-left-color: var(--gold); }
-        .quest-card.completed { border-left-color: #2ecc71; opacity: 0.9; } /* Meno opaco per leggibilità */
-        .quest-card.failed { border-left-color: #e74c3c; opacity: 0.7; }
+        .quest-card.active {
+            border-left-color: var(--gold);
+        }
+
+        .quest-card.completed {
+            border-left-color: #2ecc71;
+            opacity: 0.9;
+        }
+
+        /* Meno opaco per leggibilità */
+        .quest-card.failed {
+            border-left-color: #e74c3c;
+            opacity: 0.7;
+        }
 
         /* Header della Card (Sempre visibile) */
         .quest-header {
-            padding: 2rem; /* Padding aumentato */
+            padding: 2rem;
+            /* Padding aumentato */
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
-            background: rgba(0,0,0,0.2);
+            background: rgba(0, 0, 0, 0.2);
         }
 
         .quest-header:hover {
@@ -66,7 +85,8 @@
 
         .quest-title-group h3 {
             font-family: var(--font-heading);
-            font-size: 1.8rem; /* Aumentato molto */
+            font-size: 1.8rem;
+            /* Aumentato molto */
             margin: 0 0 0.5rem 0;
             color: var(--text-main);
             letter-spacing: 0.5px;
@@ -74,7 +94,8 @@
 
         .quest-type {
             font-family: var(--font-ui);
-            font-size: 0.9rem; /* Aumentato */
+            font-size: 0.9rem;
+            /* Aumentato */
             text-transform: uppercase;
             color: var(--text-muted);
             letter-spacing: 2px;
@@ -84,7 +105,8 @@
         /* Badge di Stato */
         .quest-status {
             font-family: var(--font-ui);
-            font-size: 0.85rem; /* Aumentato */
+            font-size: 0.85rem;
+            /* Aumentato */
             font-weight: bold;
             text-transform: uppercase;
             padding: 6px 12px;
@@ -94,24 +116,42 @@
             letter-spacing: 1px;
         }
 
-        .status-active { background: rgba(212, 175, 55, 0.2); color: var(--gold); border: 1px solid var(--gold); }
-        .status-completed { background: rgba(46, 204, 113, 0.2); color: #2ecc71; border: 1px solid #2ecc71; }
-        .status-failed { background: rgba(231, 76, 60, 0.2); color: #e74c3c; border: 1px solid #e74c3c; }
+        .status-active {
+            background: rgba(212, 175, 55, 0.2);
+            color: var(--gold);
+            border: 1px solid var(--gold);
+        }
+
+        .status-completed {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+            border: 1px solid #2ecc71;
+        }
+
+        .status-failed {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+        }
 
         /* Barra di Progressione Mini */
         .mini-progress {
-            width: 150px; /* Più larga */
-            height: 8px; /* Più alta */
-            background: rgba(255,255,255,0.1);
+            width: 150px;
+            /* Più larga */
+            height: 8px;
+            /* Più alta */
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 4px;
             margin-left: auto;
             margin-right: 2rem;
             overflow: hidden;
-            display: none; 
+            display: none;
         }
 
         @media(min-width: 992px) {
-            .mini-progress { display: block; }
+            .mini-progress {
+                display: block;
+            }
         }
 
         .mini-bar {
@@ -126,8 +166,10 @@
         .expand-icon {
             color: var(--text-muted);
             transition: transform 0.3s ease;
-            font-size: 1.5rem; /* Icona più grande */
-            margin-left: 2rem; /* Margine aumentato per distanziare dal tag */
+            font-size: 1.5rem;
+            /* Icona più grande */
+            margin-left: 2rem;
+            /* Margine aumentato per distanziare dal tag */
         }
 
         .quest-card.expanded .expand-icon {
@@ -139,26 +181,29 @@
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.5s ease;
-            background: rgba(0,0,0,0.3);
+            background: rgba(0, 0, 0, 0.3);
         }
 
         .quest-card.expanded .quest-body {
-            max-height: 1500px; 
-            border-top: 1px solid rgba(255,255,255,0.05);
+            max-height: 1500px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .quest-content {
-            padding: 2rem; /* Più spazio interno */
+            padding: 2rem;
+            /* Più spazio interno */
         }
 
         .quest-desc {
             font-family: var(--font-body);
             font-style: italic;
-            color: #ddd; /* Colore più chiaro per contrasto */
+            color: #ddd;
+            /* Colore più chiaro per contrasto */
             margin-bottom: 2rem;
-            font-size: 1.2rem; /* Font decisamente più grande */
+            font-size: 1.2rem;
+            /* Font decisamente più grande */
             line-height: 1.6;
-            border-left: 4px solid rgba(255,255,255,0.15);
+            border-left: 4px solid rgba(255, 255, 255, 0.15);
             padding-left: 1.5rem;
         }
 
@@ -170,22 +215,26 @@
 
         .objective-item {
             display: flex;
-            align-items: flex-start; /* Allinea in alto se il testo va a capo */
+            align-items: flex-start;
+            /* Allinea in alto se il testo va a capo */
             margin-bottom: 1rem;
             padding: 0.8rem;
             border-radius: 6px;
             transition: background 0.2s;
-            background: rgba(0,0,0,0.2); /* Leggero sfondo per ogni item */
+            background: rgba(0, 0, 0, 0.2);
+            /* Leggero sfondo per ogni item */
         }
 
         .objective-item:hover {
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
         }
 
         /* Custom Checkbox Styling */
         .custom-checkbox {
-            width: 26px; /* Più grande */
-            height: 26px; /* Più grande */
+            width: 26px;
+            /* Più grande */
+            height: 26px;
+            /* Più grande */
             border: 2px solid #888;
             border-radius: 4px;
             margin-right: 1.5rem;
@@ -193,9 +242,10 @@
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            cursor: default; 
+            cursor: default;
             transition: all 0.3s;
-            margin-top: 2px; /* Allineamento ottico col testo */
+            margin-top: 2px;
+            /* Allineamento ottico col testo */
         }
 
         /* Stato Completato dell'obiettivo */
@@ -205,22 +255,24 @@
         }
 
         .objective-item.done .custom-checkbox::after {
-            content: '\f00c'; 
+            content: '\f00c';
             font-family: "Font Awesome 6 Free";
             font-weight: 900;
-            font-size: 16px; /* Spunta più grande */
+            font-size: 16px;
+            /* Spunta più grande */
             color: var(--gold);
         }
 
         .objective-item.done .objective-text {
             color: #888;
-            text-decoration: line-through;
+            /* text-decoration: line-through; REMOVED per user request */
             opacity: 0.8;
         }
 
         .objective-text {
             font-family: var(--font-ui);
-            font-size: 1.1rem; /* Font aumentato per leggibilità */
+            font-size: 1.1rem;
+            /* Font aumentato per leggibilità */
             color: var(--text-main);
             line-height: 1.5;
         }
@@ -229,8 +281,9 @@
         .quest-rewards {
             margin-top: 2rem;
             padding-top: 1.5rem;
-            border-top: 1px dashed rgba(255,255,255,0.15);
-            font-size: 1.1rem; /* Aumentato */
+            border-top: 1px dashed rgba(255, 255, 255, 0.15);
+            font-size: 1.1rem;
+            /* Aumentato */
             color: var(--gold);
             font-family: var(--font-ui);
             display: flex;
@@ -243,14 +296,96 @@
             font-size: 1.3rem;
         }
 
+        /* Subquests */
+        .subquest-list {
+            list-style: none;
+            padding-left: 2rem;
+            margin-top: 0.5rem;
+            border-left: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .objective-item.has-subquests {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .objective-item.has-subquests>.objective-content {
+            width: 100%;
+        }
+
+        .objective-content {
+            flex: 1;
+        }
+
+        .objective-reward {
+            font-size: 0.85rem;
+            color: var(--accent-secondary);
+            margin-top: 0.2rem;
+            font-style: italic;
+        }
+
+        /* NPC Avatar in Header */
+        .quest-npc-avatar {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 3px solid var(--gold);
+            overflow: hidden;
+            margin-right: 2rem;
+            flex-shrink: 0;
+            background: var(--bg-darker);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.7);
+        }
+
+        .quest-npc-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Small Character Icon for Quests */
+        .quest-char-icon-small {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            vertical-align: middle;
+            margin-right: 0.8rem;
+            border: 1px solid var(--gold-dim);
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Updated Header Title to match MD Block Titles (.doc-label style) */
+        /* Updated Header Title with GOLD GRADIENT */
+        .quest-title-group h3 {
+            font-family: var(--font-heading);
+            font-size: 1.8rem;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 400;
+
+            /* Gradient Text Effect */
+            background: linear-gradient(to bottom, #cfc09f 0%, #ffecb3 45%, #9e7f2a 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+
+            /* Use filter for shadow since text-shadow doesn't work well with transparent text */
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+        }
     </style>
 </head>
+
 <body>
 
     <nav class="sidebar" id="sidebar-container"></nav>
 
     <main class="main-content">
-        
+
         <header class="hero-mini">
             <div class="hero-title">
                 <h1>Registro delle Imprese</h1>
@@ -278,56 +413,192 @@
     <script src="../assets/js/layout.js"></script>
 
     <script>
+        /* MAPPA IMMAGINI (Cache) */
+        const characterImages = {};
+
+        // Funzione helper per parsare YAML (molto semplificata, solo per estrarre immagini)
+        function extractImagesFromYaml(yamlText) {
+            const avatarMatch = yamlText.match(/avatar:\s*["']?([^"'\n]+)["']?/);
+            return avatarMatch ? avatarMatch[1] : null;
+        }
+
+        // Carica dati giocatori e NPC per le immagini
+        async function loadCharacterAssets() {
+            try {
+                // 1. Carica Players
+                const respPlayers = await fetch('../assets/data/players.json');
+                if (respPlayers.ok) {
+                    const players = await respPlayers.json();
+                    players.forEach(p => {
+                        if (p.images && p.images.avatar) {
+                            characterImages[p.id] = p.images.avatar;
+                        }
+                    });
+                }
+
+                // 2. Carica NPC (dall'index)
+                // Nota: In produzione sarebbe meglio un singolo file JSON generato.
+                // Qui facciamo fetch multiple ma sono pochi file.
+                const respIndex = await fetch('../assets/data/characters/index.yaml');
+                if (respIndex.ok) {
+                    const text = await respIndex.text();
+                    // Parsing brutale dell'index YAML per trovare i file
+                    const lines = text.split('\n');
+                    const entries = [];
+                    let currentId = null;
+
+                    for (let line of lines) {
+                        const idMatch = line.match(/- id:\s*["']?([^"']+)["']?/);
+                        if (idMatch) currentId = idMatch[1];
+                        const fileMatch = line.match(/file:\s*["']?([^"']+)["']?/);
+                        if (currentId && fileMatch) {
+                            entries.push({ id: currentId, file: fileMatch[1] });
+                            currentId = null;
+                        }
+                    }
+
+                    // Fetch parallelo dei singoli file NPC
+                    await Promise.all(entries.map(async (entry) => {
+                        try {
+                            const r = await fetch(`../assets/data/${entry.file}`);
+                            if (r.ok) {
+                                const t = await r.text();
+                                const img = extractImagesFromYaml(t);
+                                if (img) characterImages[entry.id] = img;
+                            }
+                        } catch (e) { console.warn("Failed to load generic NPC", entry.id); }
+                    }));
+                }
+
+            } catch (e) {
+                console.warn("Errore caricamento assets personaggi:", e);
+            }
+        }
+
+        function resolveImagePath(path) {
+            if (!path) return '';
+            if (path.startsWith('http') || path.startsWith('data:')) return path;
+            return `../assets/${path}`;
+        }
+
         // Script per l'apertura/chiusura a fisarmonica (Accordion)
         function toggleQuest(header) {
             const card = header.parentElement;
-            card.classList.toggle('expanded');
+            const body = card.querySelector('.quest-body');
+            const isExpanded = card.classList.contains('expanded');
+
+            if (isExpanded) {
+                // Chiudi
+                body.style.maxHeight = body.scrollHeight + 'px'; // Imposta altezza fissa prima di chiudere per transizione fluida
+                requestAnimationFrame(() => {
+                    body.style.maxHeight = '0px';
+                    card.classList.remove('expanded');
+                });
+            } else {
+                // Apri
+                card.classList.add('expanded');
+                body.style.maxHeight = body.scrollHeight + 'px';
+
+                // Rimuovi max-height alla fine della transizione per permettere resize dinamico
+                setTimeout(() => {
+                    if (card.classList.contains('expanded')) {
+                        body.style.maxHeight = 'none';
+                    }
+                }, 500);
+            }
         }
 
-        // Funzione per generare l'HTML di una singola card
-        function createQuestCard(quest) {
-            const objectivesHtml = quest.objectives.map(obj => `
-                <li class="objective-item ${obj.done ? 'done' : ''}">
-                    <div class="custom-checkbox"></div>
-                    <span class="objective-text">${obj.text}</span>
-                </li>
-            `).join('');
+        // Renderizza una subquest (o un obiettivo semplice)
+        function createObjectiveHtml(quest) {
+            if (quest.status === 'hidden') return '';
 
-            const rewardsHtml = quest.rewards ? `
-                <div class="quest-rewards" ${quest.status === 'failed' ? 'style="color: #e74c3c;"' : ''}>
-                    <i class="fas ${quest.status === 'completed' ? 'fa-check' : (quest.status === 'failed' ? 'fa-times' : 'fa-gem')}"></i>
-                    ${quest.rewards}
-                </div>
-            ` : '';
-            
+            const isDone = quest.status === 'completed';
+            const hasSubquests = quest.subquests && quest.subquests.length > 0;
+
+            // Icona specifica personaggio
+            let charIconHtml = '';
+            if (quest.character_specific && characterImages[quest.character_specific]) {
+                const imgPath = resolveImagePath(characterImages[quest.character_specific]);
+                charIconHtml = `<img src="${imgPath}" class="quest-char-icon-small" title="Esclusiva per ${quest.character_specific}" alt="${quest.character_specific}">`;
+            }
+
+            let html = `
+                <li class="objective-item ${isDone ? 'done' : ''} ${hasSubquests ? 'has-subquests' : ''}">
+                    ${hasSubquests ? '' : '<div class="custom-checkbox"></div>'}
+                    <div class="objective-content">
+                        <span class="objective-text">
+                            ${charIconHtml}
+                            ${quest.title}
+                        </span>
+            `;
+
+            if (quest.rewards) {
+                html += `<div class="objective-reward"><i class="fas fa-gift"></i> ${quest.rewards}</div>`;
+            }
+
+            if (hasSubquests) {
+                html += '<ul class="subquest-list">';
+                quest.subquests.forEach(sub => {
+                    html += createObjectiveHtml(sub);
+                });
+                html += '</ul>';
+            }
+
+            html += `
+                    </div>
+                </li>
+            `;
+            return html;
+        }
+
+        // Funzione per generare l'HTML di una singola card (Gruppo di Quest)
+        function createQuestGroupCard(group) {
+            // Filtra quest nascoste per il conteggio
+            const visibleQuests = group.quests.filter(q => q.status !== 'hidden');
+            if (visibleQuests.length === 0 && group.quests.length > 0) return null;
+
+            const total = visibleQuests.length;
+            const completed = visibleQuests.filter(q => q.status === 'completed').length;
+            const progress = total > 0 ? (completed / total) * 100 : 0;
+
+            let groupStatus = 'active';
+            if (total > 0 && completed === total) groupStatus = 'completed';
+
+            const objectivesHtml = visibleQuests.map(q => createObjectiveHtml(q)).join('');
+
             const statusMap = {
                 active: { text: 'In Corso', class: 'status-active' },
                 completed: { text: 'Completata', class: 'status-completed' },
-                failed: { text: 'Rifiutata', class: 'status-failed' }
+                failed: { text: 'Fallita', class: 'status-failed' }
             };
-            const statusInfo = statusMap[quest.status] || { text: 'Sconosciuto', class: '' };
+            const statusInfo = statusMap[groupStatus] || { text: 'Ignoto', class: '' };
 
-            const completedObjectives = quest.objectives.filter(o => o.done).length;
-            const totalObjectives = quest.objectives.length;
-            const progress = totalObjectives > 0 ? (completedObjectives / totalObjectives) * 100 : 0;
+            // NPC Avatar Logic
+            let npcAvatarHtml = '';
+            if (group.npc_id && characterImages[group.npc_id]) {
+                npcAvatarHtml = `
+                    <div class="quest-npc-avatar">
+                        <img src="${resolveImagePath(characterImages[group.npc_id])}" alt="${group.title}">
+                    </div>
+                `;
+            }
 
             const card = document.createElement('div');
-            card.className = `quest-card ${quest.status} ${quest.expanded ? 'expanded' : ''}`;
+            card.className = `quest-card ${groupStatus} expanded`;
             card.innerHTML = `
                 <div class="quest-header" onclick="toggleQuest(this)">
+                    ${npcAvatarHtml}
                     <div class="quest-title-group">
-                        <h3>${quest.title}</h3>
-                        <span class="quest-type">${quest.subtitle}</span>
+                        <h3>${group.title}</h3>
+                        ${group.npc_id ? `<span class="quest-type">Incarichi di ${group.title}</span>` : ''}
                     </div>
                     <div class="mini-progress"><div class="mini-bar" style="width: ${progress}%;"></div></div>
                     <span class="quest-status ${statusInfo.class}">${statusInfo.text}</span>
                     <i class="fas fa-chevron-down expand-icon"></i>
                 </div>
-                <div class="quest-body">
+                <div class="quest-body" style="display: block;"> 
                     <div class="quest-content">
-                        <p class="quest-desc">${quest.description}</p>
                         <ul class="objective-list">${objectivesHtml}</ul>
-                        ${rewardsHtml}
                     </div>
                 </div>
             `;
@@ -335,39 +606,38 @@
         }
 
         // Caricamento e renderizzazione delle missioni
-        document.addEventListener("DOMContentLoaded", async function() {
+        document.addEventListener("DOMContentLoaded", async function () {
             try {
-                const response = await fetch('../assets/data/missions.json');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const missions = await response.json();
+                // 1. Preload images
+                await loadCharacterAssets();
+
+                // 2. Load Quests
+                const response = await fetch('../assets/data/quests.json');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const groups = await response.json();
 
                 const mainContainer = document.getElementById('main-quests-container');
                 const secondaryContainer = document.getElementById('secondary-quests-container');
 
-                missions.forEach(quest => {
-                    const card = createQuestCard(quest);
-                    if (quest.category === 'main') {
+                groups.forEach(group => {
+                    const card = createQuestGroupCard(group);
+                    if (!card) return;
+
+                    if (group.id === 'main_quest') {
                         mainContainer.appendChild(card);
                     } else {
                         secondaryContainer.appendChild(card);
                     }
                 });
-                
-                // Aggiorna l'altezza del corpo delle quest espanse dopo il render
-                const expandedCards = document.querySelectorAll('.quest-card.expanded .quest-body');
-                expandedCards.forEach(body => {
-                    body.style.maxHeight = body.scrollHeight + 'px';
-                });
 
             } catch (error) {
                 console.error("Errore nel caricamento delle missioni:", error);
                 const container = document.getElementById('main-quests-container');
-                container.innerHTML = '<p style="color: var(--red);">Impossibile caricare il registro delle imprese. Contattare il Master.</p>';
+                container.innerHTML = '<p style="color: var(--red);">Impossibile caricare il registro delle imprese.</p>';
             }
         });
     </script>
 
 </body>
+
 </html>

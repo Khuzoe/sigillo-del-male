@@ -1,3 +1,5 @@
-Deborah è una bambina dall'aspetto spettrale e tragico. Ha lunghi capelli bianchi disordinati e occhi vitrei, privi di pupille, da cui scorrono lacrime di sangue.
+Deborah appare come una bambina dall'aspetto spettrale e profondamente tragico. La sua pelle è diafana, di un pallore marmoreo che risalta nell'oscurità, incorniciata da lunghi capelli bianchi leggermente ondulati che le ricadono sulle spalle.
 
-Indossa una camicia da notte bianca lacera e sporca di sangue, e porta sul capo una corona di spine scura con punte insanguinate.
+I suoi occhi sono completamente bianchi, privi di iride e pupilla, e da essi sgorgano costantemente lacrime di sangue che le rigano il volto. Le sue mani, pallide e sottili, sono macchiate di sangue sulle punte delle dita e sui palmi.
+
+Indossa una lunga tunica bianca, logora e sfilacciata alle maniche e all'orlo, sporca di polvere grigia e macchie ematiche rapprese. Al collo porta una semplice collana di perle, mentre sul capo è posata una corona di spine metalliche arrugginite, color rosso scuro, i cui aculei sembrano penetrare dolorosamente nella cute. Ai piedi indossa semplici scarpette bianche, anch'esse segnate dal tempo.
