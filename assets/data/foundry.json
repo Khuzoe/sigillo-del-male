@@ -409,7 +409,7 @@
           "title": "Particolarità",
           "icon": "fa-scoll",
           "markdown": "characters/x/particolarita.md",
-          "markdownText": "<h3>Ricercatrice nella Cripta</h3><br>Ora si trova nel primo piano della cripta: una cella piena di libri aperti, pergamene e formule abbozzate. La sua sete di conoscenza non si è placata con la morte, anzi si è cristallizzata.<br><br><b>Cosa vuole:</b>\r<ul><li>Libri, appunti, pergamene o documenti rari di qualsiasi scuola.</li><li>Notizie sul patto dei Von T e sugli esiti dell'Ultima Foglia.</li><li>Trattati su necromanzia, sangue e tempo.</li></ul><br><b>Cosa offre:</b>\r<ul><li>Informazioni sulla famiglia, sui rituali necromantici e sulla cripta.</li><li>Interpretazioni di testi oscuri e piccoli rituali di supporto.</li></ul><br><b>Meccanica di Scambio:</b> consegnando un testo interessante, i personaggi possono ottenere dettagli sul patto, bonus narrativi legati alla necromanzia o frammenti di conoscenza sulla famiglia.<br>"
+          "markdownText": "<h3>Ricercatrice nella Cripta</h3><br>Ora si trova nel primo piano della cripta: una cella piena di libri aperti, pergamene e formule abbozzate. La sua sete di conoscenza non si è placata con la morte, anzi si è cristallizzata.<br><br><b>Cosa vuole:</b><br><ul><li>Libri, appunti, pergamene o documenti rari di qualsiasi scuola.</li><li>Notizie sul patto dei Von T e sugli esiti dell'Ultima Foglia.</li><li>Trattati su necromanzia, sangue e tempo.</li></ul><br><b>Cosa offre:</b><br><ul><li>Informazioni sulla famiglia, sui rituali necromantici e sulla cripta.</li><li>Interpretazioni di testi oscuri e piccoli rituali di supporto.</li></ul><br><b>Meccanica di Scambio:</b> consegnando un testo interessante, i personaggi possono ottenere dettagli sul patto, bonus narrativi legati alla necromanzia o frammenti di conoscenza sulla famiglia.<br>"
         },
         {
           "type": "lore",
@@ -481,7 +481,7 @@
           "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/items/zara_shoes.webp",
           "hidden": "true",
           "markdown": "characters/zara/i-passi-della-follia.md",
-          "markdownText": "<h2>Scarpe del Giullare incantate</h2>\r<h3>Passo Danzante</h3><br>Queste scarpe rosse dalla punta arricciata sembrano muoversi da sole a ritmo di una musica udibile solo da chi le indossa. \r<h3>Effetti</h3><br>Permettono di muoversi con grazia innaturale, ignorando le leggi della fisica per brevi istanti. Chi le indossa può camminare su superfici verticali o sull'acqua per un breve tratto, purché continui a danzare senza sosta.<br><br>> \"La gravità è solo un suggerimento, e anche piuttosto noioso.\""
+          "markdownText": "<h2>Scarpe del Giullare incantate</h2><br><h3>Passo Danzante</h3><br>Queste scarpe rosse dalla punta arricciata sembrano muoversi da sole a ritmo di una musica udibile solo da chi le indossa. <br><h3>Effetti</h3><br>Permettono di muoversi con grazia innaturale, ignorando le leggi della fisica per brevi istanti. Chi le indossa può camminare su superfici verticali o sull'acqua per un breve tratto, purché continui a danzare senza sosta.<br><br>> \"La gravità è solo un suggerimento, e anche piuttosto noioso.\""
         },
         {
           "type": "image_box",
@@ -643,7 +643,7 @@
       },
       {
         "id": 17,
-        "date": "05/01/2026",
+        "date": "06/01/2026",
         "summary": "<p>Dopo aver lasciato la stanza di Karla, decidete di tornare da Elena per poi risalire tutti insieme al piano superiore. Scambiate qualche parola con lei, Valdor fuma un sigaro sotto lo sguardo teso di Ga'Run, e procedete lungo i corridoi della cripta.</p><p>Giungete alla stanza di Rabberduscolanderson e assistete alla riunione dei due. Una luce si accende nel petto di Rabber, che si sente spinto a donarvi un oggetto che portava con sé: il suo cuore, racchiuso in una sfera di vetro. Nel momento in cui il cuore tocca le mani di Valdor, sentite i vostri simboli reagire.</p><p>Decidete di bruciare tutti i documenti di Tessimorte recuperati nel laboratorio di Nino Olegna, tenendo con voi soltanto la poesia. Durante la giornata, Valdor lavora ad un progetto per un sigaro — che richiederà un innesco di energia arcana — mentre Ga'Run sistema i suoi equipaggiamenti.</p><p>Durante la notte, qualcuno sembra farvi visita, lasciando dietro la porta due pupazzi inquietanti infusi di magia.</p><p>Parlate anche con X, che vi rivela ulteriori informazioni sul rituale contenuto nel libro: un metodo per tornare indietro nel tempo utilizzando un immenso flusso di sangue e sacrifici. Il rituale appare ignoto, pericoloso e forse impossibile da realizzare, ma vi turba profondamente.</p><p>Infine, fate incontrare X ed Elena. Capite che rimuovere il pugnale dal petto della donna sarebbe fatale e ottenete conferma che sia stata Karla ad ucciderla. Prima di andarsene, X vi rivela accidentalmente di essere stata uccisa da Karla anche lei, chiedendovi poi di recuperare nuovi documenti e libri.</p>",
         "xp": {
           "total": "0",
