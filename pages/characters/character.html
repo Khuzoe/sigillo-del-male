@@ -674,6 +674,18 @@
                         </div>`;
                         break;
 
+                    case 'banner_box':
+                        card.innerHTML = `
+                             <div class="banner-header">
+                                 <img src="${resolveImagePath(block.banner)}" class="banner-img" alt="${block.title}">
+                             </div>
+                             <div class="banner-body">
+                                 <h3><i class="fas ${block.icon || 'fa-flag'}"></i> ${block.title}</h3>
+                                 ${wrapMarkdown(block.markdownHtml)}
+                             </div>
+                         `;
+                        break;
+
                     case 'custom_box':
                         if (block.borderColor) {
                             card.style.borderColor = block.borderColor;
