@@ -168,10 +168,12 @@ function build() {
 
     const data = {
         characters: [],
+        players: [],
+        skills: {},
         sessions: {}
     };
 
-    // 1. Process Characters
+    // 1. Process NPC Characters
     if (fs.existsSync(CHARS_DIR)) {
         const files = fs.readdirSync(CHARS_DIR).filter(f => f.endsWith('.yaml') && f !== 'index.yaml');
         files.forEach(file => {
@@ -200,10 +202,61 @@ function build() {
         console.warn("Sessions file not found:", SESSIONS_FILE);
     }
 
+    // 3. Process Players
+    const playersFile = 'assets/data/players.json';
+    if (fs.existsSync(playersFile)) {
+        try {
+            const playersContent = fs.readFileSync(playersFile, 'utf8');
+            let playersData = JSON.parse(playersContent);
+
+            // Fix paths for players
+            playersData = playersData.map(p => {
+                if (p.images) {
+                    p.images.avatar = fixPath(p.images.avatar);
+                    p.images.hover = fixPath(p.images.hover);
+                    p.images.portrait = fixPath(p.images.portrait);
+                }
+                return p;
+            });
+            data.players = playersData;
+        } catch (err) {
+            console.error("Error reading players file:", err);
+        }
+    }
+
+    // 4. Process Skills
+    const skillsFile = 'assets/data/skills.json';
+    if (fs.existsSync(skillsFile)) {
+        try {
+            const skillsContent = fs.readFileSync(skillsFile, 'utf8');
+            let skillsData = JSON.parse(skillsContent);
+
+            // Fix paths in skills
+            for (const charId in skillsData) {
+                const skillTree = skillsData[charId];
+                if (skillTree.bgImage) {
+                    skillTree.bgImage = fixPath('img/skill_trees/' + skillTree.bgImage);
+                }
+                if (skillTree.nodes) {
+                    skillTree.nodes.forEach(node => {
+                        if (node.icon) {
+                            node.icon = fixPath('img/skill_trees/' + node.icon);
+                        }
+                    });
+                }
+            }
+            data.skills = skillsData;
+        } catch (err) {
+            console.error("Error reading skills file:", err);
+        }
+    }
+
+
     // 3. Write Output
     fs.writeFileSync(OUTPUT_FILE, JSON.stringify(data, null, 2), 'utf8');
     console.log(`Successfully wrote module data to ${OUTPUT_FILE}`);
     console.log(`- Characters: ${data.characters.length}`);
+    console.log(`- Players: ${data.players.length}`);
     console.log(`- Sessions: ${data.sessions.sessions ? data.sessions.sessions.length : 0}`);
 }
 
