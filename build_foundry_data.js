@@ -25,6 +25,31 @@ const fixPath = (p) => {
 
 // --- YAML Parser (Same as build_static_data.js) ---
 
+// --- Simple Markdown Parser (No deps) ---
+function parseMarkdown(md) {
+    if (!md) return '';
+    let html = md
+        // Headers
+        // Headers (Flexible: allow optional whitespace before/after #)
+        .replace(/^\s*###\s*(.*?)[\r\n]*$/gim, '<h3>$1</h3>')
+        .replace(/^\s*##\s*(.*?)[\r\n]*$/gim, '<h2>$1</h2>')
+        .replace(/^\s*#\s*(.*?)[\r\n]*$/gim, '<h1>$1</h1>')
+        // Bold
+        .replace(/\*\*(.*?)\*\*/gim, '<b>$1</b>')
+        .replace(/__(.*?)__/gim, '<b>$1</b>')
+        // Italic
+        .replace(/\*(.*?)\*/gim, '<i>$1</i>')
+        .replace(/_(.*?)_/gim, '<i>$1</i>')
+        // Lists
+        .replace(/^\s*-\s+(.*?)[\r\n]*$/gim, '<ul><li>$1</li></ul>')
+        // Fix list grouping (Naive)
+        .replace(/<\/ul>\s*<ul>/gim, '')
+        // Newlines to br (Handle CRLF)
+        .replace(/\r?\n/gim, '<br>');
+
+    return html;
+}
+
 function parseYamlAndHydrate(yamlText, charId) {
     const text = yamlText.replace(/^\uFEFF/, '');
     const result = {};
@@ -88,7 +113,8 @@ function parseYamlAndHydrate(yamlText, charId) {
                     currentBlock[k] = v;
                     const mdPath = path.join('assets/content', v);
                     if (fs.existsSync(mdPath)) {
-                        currentBlock.markdownText = fs.readFileSync(mdPath, 'utf8');
+                        const rawMd = fs.readFileSync(mdPath, 'utf8');
+                        currentBlock.markdownText = parseMarkdown(rawMd); // PARSE HERE
                     } else {
                         console.warn(`[WARN] Markdown file not found for ${charId}: ${mdPath}`);
                     }
@@ -103,7 +129,7 @@ function parseYamlAndHydrate(yamlText, charId) {
     if (currentBlock) contentBlocks.push(currentBlock);
     result.content_blocks = contentBlocks;
 
-    // Relationships
+    // Relationships (Keep same)
     const relationships = [];
     let currentRel = null;
     let inRels = false;

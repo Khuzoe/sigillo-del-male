@@ -8,9 +8,9 @@
       "quote": "Dolore.",
       "type": "npc",
       "images": {
-        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/deborah_transp.webp",
-        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/deborah_animation.webp",
-        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/deborah.webp"
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/deborah_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/deborah_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/deborah.webp"
       },
       "content_blocks": [
         {
@@ -18,21 +18,21 @@
           "title": "Biografia",
           "icon": "fa-book-open",
           "markdown": "characters/deborah/biografia.md",
-          "markdownText": "Deborah Von T è ricordata come l'Ultima Foglia della stirpe. Bambina dai capelli bianchi, porta con sé un potere antico che la casata Von T ha temuto e desiderato insieme.\n\nNel silenzio della cripta, la sua presenza è percepita come un peso costante: il suo nome ricorre nei sussurri e nei documenti, legato a un destino che potrebbe ridisegnare il sangue dei Von T.\n"
+          "markdownText": "Deborah Von T è ricordata come l'Ultima Foglia della stirpe. Bambina dai capelli bianchi, porta con sé un potere antico che la casata Von T ha temuto e desiderato insieme.<br><br>Nel silenzio della cripta, la sua presenza è percepita come un peso costante: il suo nome ricorre nei sussurri e nei documenti, legato a un destino che potrebbe ridisegnare il sangue dei Von T.<br>"
         },
         {
           "type": "lore",
           "title": "Particolarità",
           "icon": "fa-fingerprint",
           "markdown": "characters/deborah/particolarita.md",
-          "markdownText": "Molti la considerano la minaccia più grande del luogo. Si dice che la linea più vicina alla realtà sia legata a lei, e che le sue scelte possano alterare l'equilibrio dell'intera cripta.\n\nPer questo è vista come un male da estirpare, non per crudeltà ma per paura di ciò che potrebbe diventare.\n"
+          "markdownText": "Molti la considerano la minaccia più grande del luogo. Si dice che la linea più vicina alla realtà sia legata a lei, e che le sue scelte possano alterare l'equilibrio dell'intera cripta.<br><br>Per questo è vista come un male da estirpare, non per crudeltà ma per paura di ciò che potrebbe diventare.<br>"
         },
         {
           "type": "lore",
           "title": "Aspetto Fisico",
           "icon": "fa-user",
           "markdown": "characters/deborah/aspetto_fisico.md",
-          "markdownText": "Deborah appare come una bambina dall'aspetto spettrale e profondamente tragico. La sua pelle è diafana, di un pallore marmoreo che risalta nell'oscurità, incorniciata da lunghi capelli bianchi leggermente ondulati che le ricadono sulle spalle.\n\nI suoi occhi sono completamente bianchi, privi di iride e pupilla, e da essi sgorgano costantemente lacrime di sangue che le rigano il volto. Le sue mani, pallide e sottili, sono macchiate di sangue sulle punte delle dita e sui palmi.\n\nIndossa una lunga tunica bianca, logora e sfilacciata alle maniche e all'orlo, sporca di polvere grigia e macchie ematiche rapprese. Al collo porta una semplice collana di perle, mentre sul capo è posata una corona di spine metalliche arrugginite, color rosso scuro, i cui aculei sembrano penetrare dolorosamente nella cute. Ai piedi indossa semplici scarpette bianche, anch'esse segnate dal tempo.\n"
+          "markdownText": "Deborah appare come una bambina dall'aspetto spettrale e profondamente tragico. La sua pelle è diafana, di un pallore marmoreo che risalta nell'oscurità, incorniciata da lunghi capelli bianchi leggermente ondulati che le ricadono sulle spalle.<br><br>I suoi occhi sono completamente bianchi, privi di iride e pupilla, e da essi sgorgano costantemente lacrime di sangue che le rigano il volto. Le sue mani, pallide e sottili, sono macchiate di sangue sulle punte delle dita e sui palmi.<br><br>Indossa una lunga tunica bianca, logora e sfilacciata alle maniche e all'orlo, sporca di polvere grigia e macchie ematiche rapprese. Al collo porta una semplice collana di perle, mentre sul capo è posata una corona di spine metalliche arrugginite, color rosso scuro, i cui aculei sembrano penetrare dolorosamente nella cute. Ai piedi indossa semplici scarpette bianche, anch'esse segnate dal tempo.<br>"
         }
       ],
       "relationships": []
@@ -45,9 +45,9 @@
       "quote": "I ricordi sono annebbiati... ma il mio amore per lui è eterno.",
       "type": "npc",
       "images": {
-        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/elena_transp.webp",
-        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/elena_animation.webp",
-        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/elena.webp"
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/elena_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/elena_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/elena.webp"
       },
       "content_blocks": [
         {
@@ -55,14 +55,14 @@
           "title": "Biografia",
           "icon": "fa-book-open",
           "markdown": "characters/elena/biografia.md",
-          "markdownText": "Elena Erbadath nacque in una famiglia ricca, circondata da comodità, cure e attenzioni costanti. Nulla le mancava, tranne una cosa fondamentale: non camminò mai. Le sue gambe non la portarono mai da nessuna parte, e quella mancanza segnò tutta la sua vita.\n\nIl denaro le offrì ciò che a molti era negato: una sedia a rotelle costruita con cura, medici preparati, una casa sicura. La sua esistenza era protetta, ordinata, controllata. Ma col tempo Elena capì che il benessere non poteva colmare ciò che sentiva dentro. Ogni gesto gentile le sembrava una catena, ogni attenzione una barriera. Non voleva essere difesa. Voleva scegliere.\n\nCosì, contro la volontà della famiglia, lasciò la sua casa e si trasferì nei quartieri poveri della città. Lì trovò strade rotte, muri consumati e persone vere. La vita era dura, ma sincera. Elena imparò a contare su se stessa, a chiedere meno aiuto, a sentire di più.\n\nIn quel mondo incontrò Rabberduscolanderson. Anche lui proveniva da una famiglia ricca, anche lui aveva rinunciato a tutto. Tra loro nacque un legame semplice e profondo. Andarono a vivere insieme in una casa modesta, tenuta in piedi più dall'affetto che dalle fondamenta. Furono anni brevi ma intensi: pochi soldi, silenzi condivisi, cani che dormivano ai piedi del letto.\n\nPoi arrivò il giorno del sangue. Mentre Rabberduscolanderson era fuori con i suoi cani, Karla, sua nipote, entrò in casa. Non disse nulla. Non esitò. Un pugnale, un solo colpo, diretto al cuore. Elena morì lì, stesa sul letto, senza capire il motivo di tale crudeltà e senza poter rivedere l'uomo che amava.\n"
+          "markdownText": "Elena Erbadath nacque in una famiglia ricca, circondata da comodità, cure e attenzioni costanti. Nulla le mancava, tranne una cosa fondamentale: non camminò mai. Le sue gambe non la portarono mai da nessuna parte, e quella mancanza segnò tutta la sua vita.<br><br>Il denaro le offrì ciò che a molti era negato: una sedia a rotelle costruita con cura, medici preparati, una casa sicura. La sua esistenza era protetta, ordinata, controllata. Ma col tempo Elena capì che il benessere non poteva colmare ciò che sentiva dentro. Ogni gesto gentile le sembrava una catena, ogni attenzione una barriera. Non voleva essere difesa. Voleva scegliere.<br><br>Così, contro la volontà della famiglia, lasciò la sua casa e si trasferì nei quartieri poveri della città. Lì trovò strade rotte, muri consumati e persone vere. La vita era dura, ma sincera. Elena imparò a contare su se stessa, a chiedere meno aiuto, a sentire di più.<br><br>In quel mondo incontrò Rabberduscolanderson. Anche lui proveniva da una famiglia ricca, anche lui aveva rinunciato a tutto. Tra loro nacque un legame semplice e profondo. Andarono a vivere insieme in una casa modesta, tenuta in piedi più dall'affetto che dalle fondamenta. Furono anni brevi ma intensi: pochi soldi, silenzi condivisi, cani che dormivano ai piedi del letto.<br><br>Poi arrivò il giorno del sangue. Mentre Rabberduscolanderson era fuori con i suoi cani, Karla, sua nipote, entrò in casa. Non disse nulla. Non esitò. Un pugnale, un solo colpo, diretto al cuore. Elena morì lì, stesa sul letto, senza capire il motivo di tale crudeltà e senza poter rivedere l'uomo che amava.<br>"
         },
         {
           "type": "lore",
           "title": "Particolarità",
           "icon": "fa-fingerprint",
           "markdown": "characters/elena/particolarita.md",
-          "markdownText": "La morte non la lasciò andare.\n\nIl ricordo dell'ultimo istante - il freddo del metallo, il dolore improvviso, la solitudine di quel momento - la trattenne nel mondo dei vivi. Nel suo petto è ancora conficcato il pugnale che l'ha uccisa. Non è solo una ferita: è un'ancora. Ciò che l'ha strappata alla vita è anche ciò che la lega all'esistenza.\n"
+          "markdownText": "La morte non la lasciò andare.<br><br>Il ricordo dell'ultimo istante - il freddo del metallo, il dolore improvviso, la solitudine di quel momento - la trattenne nel mondo dei vivi. Nel suo petto è ancora conficcato il pugnale che l'ha uccisa. Non è solo una ferita: è un'ancora. Ciò che l'ha strappata alla vita è anche ciò che la lega all'esistenza.<br>"
         },
         {
           "type": "custom_box",
@@ -70,26 +70,26 @@
           "icon": "fa-user",
           "borderColor": "#8B0000",
           "markdown": "characters/elena/aspetto_fisico.md",
-          "markdownText": "Elena appare come una figura eterea e tragica, con una forma translucida composta da un'energia spirituale che pulsa di sfumature rosso cremisi. Indossa un abito lungo e semplice, anch'esso spettrale.\n\nI suoi capelli lunghi e ondulati incorniciano un volto pallido e diafano, segnato da un'espressione malinconica. Il dettaglio più agghiacciante è il pugnale di cristallo rosso conficcato nel suo petto, proprio sopra il cuore; non è un semplice oggetto, ma il fulcro della sua esistenza attuale. Si muove su una sedia a rotelle d'epoca in legno e metallo.\n"
+          "markdownText": "Elena appare come una figura eterea e tragica, con una forma translucida composta da un'energia spirituale che pulsa di sfumature rosso cremisi. Indossa un abito lungo e semplice, anch'esso spettrale.<br><br>I suoi capelli lunghi e ondulati incorniciano un volto pallido e diafano, segnato da un'espressione malinconica. Il dettaglio più agghiacciante è il pugnale di cristallo rosso conficcato nel suo petto, proprio sopra il cuore; non è un semplice oggetto, ma il fulcro della sua esistenza attuale. Si muove su una sedia a rotelle d'epoca in legno e metallo.<br>"
         },
         {
           "type": "image_box",
           "title": "Il ciondolo etereo",
-          "image": "img/items/elena_necklace.webp"
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/items/elena_necklace.webp"
         },
         {
           "type": "image_box",
           "title": "La Riunione",
-          "image": "img/creatures/elena_rabber_reunion.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/elena_rabber_reunion.webp",
           "markdown": "characters/elena/la-riunione.md",
-          "markdownText": "Una luce calda si accende nel petto di Rabberduscolanderson, pulsando a ritmo di un cuore che non batte più. Spinto da una forza che non sa spiegare, dona a Valdor il suo stesso cuore, racchiuso in una sfera di vetro, come pegno di gratitudine e legame.\n\nElena, eterea e silente, lo avvolge in un abbraccio che trascende la morte. Non ci sono parole, solo la consapevolezza di essersi ritrovati in un luogo di disperazione. I ricordi sono confusi, il dolore è presente, ma per un istante, nel freddo della cripta, brilla una scintilla di calda umanità.\n"
+          "markdownText": "Una luce calda si accende nel petto di Rabberduscolanderson, pulsando a ritmo di un cuore che non batte più. Spinto da una forza che non sa spiegare, dona a Valdor il suo stesso cuore, racchiuso in una sfera di vetro, come pegno di gratitudine e legame.<br><br>Elena, eterea e silente, lo avvolge in un abbraccio che trascende la morte. Non ci sono parole, solo la consapevolezza di essersi ritrovati in un luogo di disperazione. I ricordi sono confusi, il dolore è presente, ma per un istante, nel freddo della cripta, brilla una scintilla di calda umanità.<br>"
         },
         {
           "type": "banner_box",
           "title": "Messaggio dai Von T",
           "banner": "img/ui/karla_banner.png",
           "markdown": "characters/elena/messaggio_karla.md",
-          "markdownText": "\n\n*\"Certo, vieni pure quando vuoi!\"*\n\nParole innocenti, un invito gentile che segnò la condanna di due vite.\nQuella sera, l'ombra della nostra ospite scivolò nella stanza, avvicinandosi al letto con passo felpato e inesorabile. Ricordo ancora il bagliore tremulo della candela che danzava sul filo della sua lama.\n\nSussurrò qualche parola, impossibili da ricordare... seguite solo da un dolore che invece non si può dimenticare.\n\n*\"Riposa in pace... o almeno provaci.\"*\n\n— *Karla Von T*"
+          "markdownText": "<br><br><i>\"Certo, vieni pure quando vuoi!\"</i><br><br>Parole innocenti, un invito gentile che segnò la condanna di due vite.<br>Quella sera, l'ombra della nostra ospite scivolò nella stanza, avvicinandosi al letto con passo felpato e inesorabile. Ricordo ancora il bagliore tremulo della candela che danzava sul filo della sua lama.<br><br>Sussurrò qualche parola, impossibili da ricordare... seguite solo da un dolore che invece non si può dimenticare.<br><br><i>\"Riposa in pace... o almeno provaci.\"</i><br><br>— <i>Karla Von T</i>"
         }
       ],
       "relationships": [
@@ -107,9 +107,9 @@
       "quote": "She volete dei shieri, io shi shono!",
       "type": "npc",
       "images": {
-        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/franky_transp.webp",
-        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/franky_animation.webp",
-        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/franky.webp"
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/franky_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/franky_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/franky.webp"
       },
       "content_blocks": [
         {
@@ -117,39 +117,39 @@
           "title": "Biografia",
           "icon": "fa-book-open",
           "markdown": "characters/franky/biografia.md",
-          "markdownText": "Franky è uno scienziato dalla mente instabile: un topo parlante affiancato da un essere di carne cucita. Nel suo laboratorio macabro prepara sieri e innesti, trattando corpi e organi come componenti.\n\nLa sua ossessione è un golem gigantesco, un colosso che vorrebbe animare con un cuore capace di sostenerne il potere.\n"
+          "markdownText": "Franky è uno scienziato dalla mente instabile: un topo parlante affiancato da un essere di carne cucita. Nel suo laboratorio macabro prepara sieri e innesti, trattando corpi e organi come componenti.<br><br>La sua ossessione è un golem gigantesco, un colosso che vorrebbe animare con un cuore capace di sostenerne il potere.<br>"
         },
         {
           "type": "lore",
           "title": "Particolarità",
           "icon": "fa-fingerprint",
           "markdown": "characters/franky/particolarita.md",
-          "markdownText": "Tra i segreti che cerca, Franky brama un cuore che funzioni da batteria arcana. Le voci parlano di un cuore particolare, appartenuto ad Albert, che pulserebbe ancora di magia.\n\nPer lui quel cuore è la chiave per dare vita al suo progetto, e ogni indizio alimenta la sua brama.\n"
+          "markdownText": "Tra i segreti che cerca, Franky brama un cuore che funzioni da batteria arcana. Le voci parlano di un cuore particolare, appartenuto ad Albert, che pulserebbe ancora di magia.<br><br>Per lui quel cuore è la chiave per dare vita al suo progetto, e ogni indizio alimenta la sua brama.<br>"
         },
         {
           "type": "lore",
           "title": "Aspetto Fisico",
           "icon": "fa-user",
           "markdown": "characters/franky/aspetto_fisico.md",
-          "markdownText": "Franky è un topo antropomorfo dall'aspetto grottesco, con il corpo privo di pelo e la pelle rosso sangue, come se fosse stato scuoiato.\n\nIl suo corpo è coperto da rozze cuciture nere che tengono insieme pezzi di carne diversa. Ha grandi occhi neri e vitrei e un muso pronunciato. Indossa un camice da laboratorio bianco, sporco e ridotto a brandelli.\n"
+          "markdownText": "Franky è un topo antropomorfo dall'aspetto grottesco, con il corpo privo di pelo e la pelle rosso sangue, come se fosse stato scuoiato.<br><br>Il suo corpo è coperto da rozze cuciture nere che tengono insieme pezzi di carne diversa. Ha grandi occhi neri e vitrei e un muso pronunciato. Indossa un camice da laboratorio bianco, sporco e ridotto a brandelli.<br>"
         },
         {
           "type": "image_box",
           "title": "I Sieri",
-          "image": "img/items/franky_sierums.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/items/franky_sierums.webp",
           "image_caption": "Collezione di sieri instabili.",
           "tags": "",
           "markdown": "characters/franky/sieri.md",
-          "markdownText": "\n\n> \"Ogni colore è una prome-sha... o una minac-sha!\"\n\nFranky porta sempre con sé una vasta gamma di sieri instabili. Alcuni curano, altri potenziano, molti esplodono. La distinzione è spesso sottile quanto una sfumatura cromatica.\n"
+          "markdownText": "<br><br>> \"Ogni colore è una prome-sha... o una minac-sha!\"<br><br>Franky porta sempre con sé una vasta gamma di sieri instabili. Alcuni curano, altri potenziano, molti esplodono. La distinzione è spesso sottile quanto una sfumatura cromatica.<br>"
         },
         {
           "type": "image_box",
           "title": "Colosso di Carne",
-          "image": "img/items/franky_colossal_golem.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/items/franky_colossal_golem.webp",
           "image_caption": "Costrutto di carne e metallo.",
           "tags": "",
           "markdown": "characters/franky/golem.md",
-          "markdownText": "\n\n> \"È vivo! PIÙ O MENO!\"\n\nIl capolavoro (o l'abominio) supremo di Franky. Una montagna di muscoli cuciti insieme, alimentato da elettricità statica e fedeltà cieca. Ideale per spostare carichi pesanti o appiattire nemici fastidiosi.\n"
+          "markdownText": "<br><br>> \"È vivo! PIÙ O MENO!\"<br><br>Il capolavoro (o l'abominio) supremo di Franky. Una montagna di muscoli cuciti insieme, alimentato da elettricità statica e fedeltà cieca. Ideale per spostare carichi pesanti o appiattire nemici fastidiosi.<br>"
         }
       ],
       "relationships": []
@@ -162,9 +162,9 @@
       "quote": "",
       "type": "npc",
       "images": {
-        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/ginevra_transp.webp",
-        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/ginevra_animation.webp",
-        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/ginevra.webp"
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/ginevra_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/ginevra_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/ginevra.webp"
       },
       "content_blocks": [],
       "relationships": []
@@ -177,9 +177,9 @@
       "quote": "Insieme possiamo raggiungere il nostro obiettivo, lo sento.",
       "type": "npc",
       "images": {
-        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/karla_transp.webp",
-        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/karla_animation.webp",
-        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/karla.webp"
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/karla_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/karla_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/karla.webp"
       },
       "content_blocks": [
         {
@@ -187,21 +187,21 @@
           "title": "Biografia",
           "icon": "fa-book-open",
           "markdown": "characters/karla/biografia.md",
-          "markdownText": "Karla Von T appare quando viene chiamata dalle sue progenie o quando la sua volontà decide di imporsi. La sua presenza spezza le violenze: uno sguardo basta a piegare la volontà e a imporre silenzio.\n\nSi mostra criptica ma interessata, soprattutto verso chi proviene da linee vicine a quella dei Von T, perché ritiene che il loro destino sia intrecciato al suo.\n"
+          "markdownText": "Karla Von T appare quando viene chiamata dalle sue progenie o quando la sua volontà decide di imporsi. La sua presenza spezza le violenze: uno sguardo basta a piegare la volontà e a imporre silenzio.<br><br>Si mostra criptica ma interessata, soprattutto verso chi proviene da linee vicine a quella dei Von T, perché ritiene che il loro destino sia intrecciato al suo.<br>"
         },
         {
           "type": "lore",
           "title": "Particolarità",
           "icon": "fa-fingerprint",
           "markdown": "characters/karla/particolarita.md",
-          "markdownText": "Karla conduce un rituale macabro che simula la morte. Chi vi si sottopone attraversa un'ombra breve e poi si risveglia con un potere nuovo, legato al sangue.\n\nIl rito è rischioso e richiede fiducia assoluta; Karla lo presenta come un dono, ma il prezzo non è mai del tutto chiaro.\n"
+          "markdownText": "Karla conduce un rituale macabro che simula la morte. Chi vi si sottopone attraversa un'ombra breve e poi si risveglia con un potere nuovo, legato al sangue.<br><br>Il rito è rischioso e richiede fiducia assoluta; Karla lo presenta come un dono, ma il prezzo non è mai del tutto chiaro.<br>"
         },
         {
           "type": "lore",
           "title": "Aspetto Fisico",
           "icon": "fa-user",
           "markdown": "characters/karla/aspetto_fisico.md",
-          "markdownText": "Karla è una donna aristocratica dall'aspetto regale e minaccioso, con pelle pallidissima e lineamenti affilati. Ha capelli neri raccolti in un'acconciatura elegante e occhi rossi intensi che risaltano sul trucco scuro.\n\nIndossa un sontuoso abito barocco rosso sangue con maniche a sbuffo, un corpetto stretto e una gonna ampia dorata.\n"
+          "markdownText": "Karla è una donna aristocratica dall'aspetto regale e minaccioso, con pelle pallidissima e lineamenti affilati. Ha capelli neri raccolti in un'acconciatura elegante e occhi rossi intensi che risaltano sul trucco scuro.<br><br>Indossa un sontuoso abito barocco rosso sangue con maniche a sbuffo, un corpetto stretto e una gonna ampia dorata.<br>"
         },
         {
           "type": "custom_box",
@@ -209,7 +209,7 @@
           "icon": "fa-scroll",
           "borderColor": "var(--accent-primary)",
           "markdown": "characters/karla/richieste-e-ambiguita.md",
-          "markdownText": "Karla chiede che il piano venga purificato da presenze che la infastidiscono: un uomo folle che tesse ragnatele e tendini, non-morti erranti, e una giullare che semina illusioni.\n\nSui suoi legami con il Tessimorte mantiene ambiguità: nega di conoscerlo, ma reagisce sempre quando il suo nome viene pronunciato. La sua fame è costante, e il sangue resta il suo vero tributo.\n"
+          "markdownText": "Karla chiede che il piano venga purificato da presenze che la infastidiscono: un uomo folle che tesse ragnatele e tendini, non-morti erranti, e una giullare che semina illusioni.<br><br>Sui suoi legami con il Tessimorte mantiene ambiguità: nega di conoscerlo, ma reagisce sempre quando il suo nome viene pronunciato. La sua fame è costante, e il sangue resta il suo vero tributo.<br>"
         }
       ],
       "relationships": [
@@ -235,9 +235,9 @@
       "quote": "Il tradimento è inaccettabile. Pagherai.",
       "type": "npc",
       "images": {
-        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/nino_olegna_transp.webp",
-        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/nino_olegna_animation.webp",
-        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/nino_olegna.webp"
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/nino_olegna_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/nino_olegna_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/nino_olegna.webp"
       },
       "content_blocks": [
         {
@@ -245,66 +245,66 @@
           "title": "Biografia",
           "icon": "fa-book-open",
           "markdown": "characters/nino_olegna/biografia.md",
-          "markdownText": "Nino Olegna, chiamato Tessimorte, è un alchimista macabro che intreccia ragnatele, tendini e corpi per generare creature innaturali. Il suo laboratorio è un labirinto di fascicoli e rituali oscuri.\n\nI suoi documenti parlano dell'Assistente, detto Bacio Mortale, e di una creatura colossale dalle capacità incalcolabili. Le Creature Tela sono descritte come base per ulteriori creazioni, a testimonianza di una ricerca senza scrupoli.\n\nDi lui restano appunti e una poesia carica di rancore, tracce di un uomo divorato dal proprio esperimento.\n"
+          "markdownText": "Nino Olegna, chiamato Tessimorte, è un alchimista macabro che intreccia ragnatele, tendini e corpi per generare creature innaturali. Il suo laboratorio è un labirinto di fascicoli e rituali oscuri.<br><br>I suoi documenti parlano dell'Assistente, detto Bacio Mortale, e di una creatura colossale dalle capacità incalcolabili. Le Creature Tela sono descritte come base per ulteriori creazioni, a testimonianza di una ricerca senza scrupoli.<br><br>Di lui restano appunti e una poesia carica di rancore, tracce di un uomo divorato dal proprio esperimento.<br>"
         },
         {
           "type": "lore",
           "title": "Particolarità",
           "icon": "fa-fingerprint",
           "markdown": "characters/nino_olegna/particolarita.md",
-          "markdownText": "Tra le carte del Tessimorte sono stati rinvenuti quattro studi principali, che dettagliano la discesa nella follia scientifica e magica per la creazione della vita attraverso la seta necrotica.\n"
+          "markdownText": "Tra le carte del Tessimorte sono stati rinvenuti quattro studi principali, che dettagliano la discesa nella follia scientifica e magica per la creazione della vita attraverso la seta necrotica.<br>"
         },
         {
           "type": "lore",
           "title": "Aspetto Fisico",
           "icon": "fa-user",
           "markdown": "characters/nino_olegna/aspetto_fisico.md",
-          "markdownText": "Nino Olegna è un uomo anziano e sinistro, dal viso scavato e la pelle grigiastra segnata dal tempo. Ha capelli bianchi radi e occhi gialli piccoli e penetranti.\n\nLa sua metà superiore è umana, mentre la parte inferiore è fusa con il corpo di un ragno gigante dalle zampe bianche e pelose. Indossa una veste blu notte decorata con motivi dorati che richiamano ragnatele e un ciondolo a forma di ragno sul petto.\n"
+          "markdownText": "Nino Olegna è un uomo anziano e sinistro, dal viso scavato e la pelle grigiastra segnata dal tempo. Ha capelli bianchi radi e occhi gialli piccoli e penetranti.<br><br>La sua metà superiore è umana, mentre la parte inferiore è fusa con il corpo di un ragno gigante dalle zampe bianche e pelose. Indossa una veste blu notte decorata con motivi dorati che richiamano ragnatele e un ciondolo a forma di ragno sul petto.<br>"
         },
         {
           "type": "image_box",
           "title": "Tessimorfosi",
-          "image": "img/documents/nino_fascicolo_creature_tela.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/documents/nino_fascicolo_creature_tela.webp",
           "image_caption": "Schema di sostituzione dei tessuti molli con fibre di seta.",
           "tags": "",
           "markdown": "characters/nino_olegna/tessimorfosi.md",
-          "markdownText": "*Nascita delle Creature Tela*\n\n### Il Processo\nStudi complessi su come consumare i tessuti di una creatura umana preservando ossa e tendini. La carne viene rimpiazzata da tela di ragno gigante incantata con energia necrotica.\n\n### Risultato\nLa 'Creatura Tela' finale è flessibile, resistente e totalmente manipolata per rispettare il volere del suo creatore senza esitazione.\n\n> La carne marcisce, la tela perdura.\n"
+          "markdownText": "<i>Nascita delle Creature Tela</i><br><h3>Il Processo</h3><br>Studi complessi su come consumare i tessuti di una creatura umana preservando ossa e tendini. La carne viene rimpiazzata da tela di ragno gigante incantata con energia necrotica.<br><h3>Risultato</h3><br>La 'Creatura Tela' finale è flessibile, resistente e totalmente manipolata per rispettare il volere del suo creatore senza esitazione.<br><br>> La carne marcisce, la tela perdura.<br>"
         },
         {
           "type": "image_box",
           "title": "Evoluzione",
-          "image": "img/documents/nino_fascicolo_webber.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/documents/nino_fascicolo_webber.webp",
           "image_caption": "Fusione di più creature in un unico organismo difensivo.",
           "tags": "",
           "markdown": "characters/nino_olegna/evoluzione.md",
-          "markdownText": "*Utilizzi e Creazione del 'Webber'*\n\n### Materia Prima\nLe Creature Tela non sono solo servi, ma ingredienti. Possono essere consumate e fuse per generare esseri superiori.\n\n### Progetto Webber\nUn esperimento riuscito che ha portato alla creazione di una creatura simile ad un Roper. Sacrificando creature tela minori, si ottiene un mostro difensivamente più utile e resistente.\n"
+          "markdownText": "<i>Utilizzi e Creazione del 'Webber'</i><br><h3>Materia Prima</h3><br>Le Creature Tela non sono solo servi, ma ingredienti. Possono essere consumate e fuse per generare esseri superiori.<br><h3>Progetto Webber</h3><br>Un esperimento riuscito che ha portato alla creazione di una creatura simile ad un Roper. Sacrificando creature tela minori, si ottiene un mostro difensivamente più utile e resistente.<br>"
         },
         {
           "type": "image_box",
           "title": "Tessimorfosi Ciclica",
-          "image": "img/documents/nino_fascicolo_bacio_mortale.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/documents/nino_fascicolo_bacio_mortale.webp",
           "image_caption": "Una figura umanoide composta di seta densa, china su un rituale.",
           "tags": "",
           "markdown": "characters/nino_olegna/tessimorfosi-ciclica.md",
-          "markdownText": "*L'Assistente: Il Bacio Mortale*\n\n### Ottimizzazione\nPer velocizzare la creazione dell'armata, è stato progettato un Assistente. Richiede il consumo di un numero elevatissimo di Creature Tela, ma il risultato è inestimabile.\n\n### Lealtà Assoluta\nIl Bacio Mortale è incredibilmente potente e pericoloso. Essendo composto della stessa essenza delle creature, vede Nino non solo come creatore, ma come padre e padrone assoluto, assistendolo nei rituali più complessi.\n\n> Egli tesse dove le mie mani non arrivano.\n"
+          "markdownText": "<i>L'Assistente: Il Bacio Mortale</i><br><h3>Ottimizzazione</h3><br>Per velocizzare la creazione dell'armata, è stato progettato un Assistente. Richiede il consumo di un numero elevatissimo di Creature Tela, ma il risultato è inestimabile.<br><h3>Lealtà Assoluta</h3><br>Il Bacio Mortale è incredibilmente potente e pericoloso. Essendo composto della stessa essenza delle creature, vede Nino non solo come creatore, ma come padre e padrone assoluto, assistendolo nei rituali più complessi.<br><br>> Egli tesse dove le mie mani non arrivano.<br>"
         },
         {
           "type": "image_box",
           "title": "Tessimorfosi Definitiva",
-          "image": "img/documents/nino_fascicolo_colosso_tela.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/documents/nino_fascicolo_colosso_tela.webp",
           "image_caption": "Schizzi frenetici di una creatura immensa che assorbe corpi.",
           "tags": "",
           "markdown": "characters/nino_olegna/tessimorfosi-definitiva.md",
-          "markdownText": "*La Fine del Ciclo: Il Colosso di Tela*\n\n### Genesi Rapida\nCon l'aiuto del Bacio Mortale, il tempo di creazione si riduce drasticamente. Nonostante l'alto sacrificio di servitori richiesto, la creazione del Colosso diventa possibile in tempi brevi.\n\n### L'Imbattibile\nUna volta vivo, il Colosso si auto-alimenta. Uccide creature, ne assorbe i corpi e tramuta i tessuti in nuova tela, crescendo in dimensioni e potenza all'infinito.\n\n### Nota Finale\nLa grafia diviene pesante, il calco della penna quasi strappa la carta. L'ultima frase è un urlo di vendetta impresso nell'inchiostro: 'Nessuno sarà in grado di fermare questa creatura. NEMMENO TU.'\n"
+          "markdownText": "<i>La Fine del Ciclo: Il Colosso di Tela</i><br><h3>Genesi Rapida</h3><br>Con l'aiuto del Bacio Mortale, il tempo di creazione si riduce drasticamente. Nonostante l'alto sacrificio di servitori richiesto, la creazione del Colosso diventa possibile in tempi brevi.<br><h3>L'Imbattibile</h3><br>Una volta vivo, il Colosso si auto-alimenta. Uccide creature, ne assorbe i corpi e tramuta i tessuti in nuova tela, crescendo in dimensioni e potenza all'infinito.<br><h3>Nota Finale</h3><br>La grafia diviene pesante, il calco della penna quasi strappa la carta. L'ultima frase è un urlo di vendetta impresso nell'inchiostro: 'Nessuno sarà in grado di fermare questa creatura. NEMMENO TU.'<br>"
         },
         {
           "type": "image_box",
           "title": "Pergamena: Il Lamento del Tradito",
-          "image": "img/documents/nino_poesia.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/documents/nino_poesia.webp",
           "image_caption": "Versi tracciati con rabbia su pergamena antica.",
           "tags": "",
           "markdown": "characters/nino_olegna/lamento-del-tradito.md",
-          "markdownText": "*Un messaggio personale rivolto a Karla.*\n\n### Il Testo\nNel fondo della tomba, continuamente mi rigiravo,\nPer quell'azione ignobile che da te non m'aspettavo.\n\nOra dal buio ritorno, con in mano il mio cuore,\nDa padre tradito, sento ancora il dolore.\n\nUn dolore antico, che in me non si placa,\nIngannato ed ucciso dalla mia figlia ingrata.\n\nMa ascolta l'avviso che la bianca tela ti porta,\nPerché qualcosa nel tuo piano stavolta è andata storta.\n\nTra densi fili di tenebra sarai imprigionata,\nNessuna salvezza, nessuna pietà mostrata.\n\nTi troveranno, lo sai... vedrai le loro zanne e la seta\nsarà la mia vendetta a prendere forma e sarà completa.\n\nKarla, figlia ingrata, quel giorno il rispetto è mancato,\nil mio sangue è colato, ed il mio onore si è spezzato.\n\nMa a chi spezza il sacro ed antico patto familiare,\nresta solo la notte, e i ragni che -\n\n> Ma a chi spezza il sacro ed antico patto familiare, resta solo la notte...\n"
+          "markdownText": "<i>Un messaggio personale rivolto a Karla.</i><br><h3>Il Testo</h3><br>Nel fondo della tomba, continuamente mi rigiravo,<br>Per quell'azione ignobile che da te non m'aspettavo.<br><br>Ora dal buio ritorno, con in mano il mio cuore,<br>Da padre tradito, sento ancora il dolore.<br><br>Un dolore antico, che in me non si placa,<br>Ingannato ed ucciso dalla mia figlia ingrata.<br><br>Ma ascolta l'avviso che la bianca tela ti porta,<br>Perché qualcosa nel tuo piano stavolta è andata storta.<br><br>Tra densi fili di tenebra sarai imprigionata,<br>Nessuna salvezza, nessuna pietà mostrata.<br><br>Ti troveranno, lo sai... vedrai le loro zanne e la seta<br>sarà la mia vendetta a prendere forma e sarà completa.<br><br>Karla, figlia ingrata, quel giorno il rispetto è mancato,<br>il mio sangue è colato, ed il mio onore si è spezzato.<br><br>Ma a chi spezza il sacro ed antico patto familiare,<br>resta solo la notte, e i ragni che -<br><br>> Ma a chi spezza il sacro ed antico patto familiare, resta solo la notte...<br>"
         }
       ],
       "relationships": [
@@ -327,9 +327,9 @@
       "quote": "Io volevo solo starmene seduto nella mia stanza, perché sono finito su questo sito?!",
       "type": "npc",
       "images": {
-        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/rabberduscolanderson_transp.webp",
-        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/rabber_animation.webp",
-        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/rabberduscolanderson.webp"
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/rabberduscolanderson_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/rabber_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/rabberduscolanderson.webp"
       },
       "content_blocks": [
         {
@@ -337,36 +337,36 @@
           "title": "Biografia",
           "icon": "fa-book-open",
           "markdown": "characters/rabberduscolanderson/biografia.md",
-          "markdownText": "Rabberduscolanderson nacque come primogenito della nobile casata Von T. Il suo destino fu segnato fin dal battesimo: suo padre, Yuris, gli impose il nome \"Rabberduscolanderson\" contro la ferma volontà della madre, Leonora. Questo atto di prepotenza trasformò il figlio in un simbolo vivente dei conflitti coniugali. Leonora, incapace di separare il bambino dall'odio per il marito, lo ignorò per gran parte della sua infanzia, riversando su di lui una fredda indifferenza.\n\nCrescendo, Rabberduscolanderson si rivelò privo di qualsiasi talento pratico, sociale o politico necessario per navigare la vita di corte. Non riuscì mai a trovare il suo posto nel regno, né una compagna con cui generare eredi. Per suo padre Yuris, ossessionato dalla continuazione della stirpe, questa fu l'onta definitiva. Considerato un ramo secco dell'albero genealogico, Rabberduscolanderson fu cacciato dal palazzo, spogliato dei suoi privilegi.\n\nParadossalmente, l'esilio fu la sua salvezza temporanea. Visse in povertà, circondato solo dall'affetto sincero dei suoi tre cani: Mimi, Coco e Balù. In tarda età, trovò l'amore in Elena, una donna di vent'anni più giovane. Furono anni di felicità semplice, scandita dal tintinnio di poche monete di rame. Tuttavia, il destino fu crudele: la morte prematura di Elena gettò Rabberduscolanderson in una disperazione senza fondo. Incapace di sopportare il dolore, si tolse la vita gettandosi in un fossato. I suoi fedeli cani, abbandonati, morirono di fame pochi giorni dopo, seguendo il padrone nel triste destino."
+          "markdownText": "Rabberduscolanderson nacque come primogenito della nobile casata Von T. Il suo destino fu segnato fin dal battesimo: suo padre, Yuris, gli impose il nome \"Rabberduscolanderson\" contro la ferma volontà della madre, Leonora. Questo atto di prepotenza trasformò il figlio in un simbolo vivente dei conflitti coniugali. Leonora, incapace di separare il bambino dall'odio per il marito, lo ignorò per gran parte della sua infanzia, riversando su di lui una fredda indifferenza.<br><br>Crescendo, Rabberduscolanderson si rivelò privo di qualsiasi talento pratico, sociale o politico necessario per navigare la vita di corte. Non riuscì mai a trovare il suo posto nel regno, né una compagna con cui generare eredi. Per suo padre Yuris, ossessionato dalla continuazione della stirpe, questa fu l'onta definitiva. Considerato un ramo secco dell'albero genealogico, Rabberduscolanderson fu cacciato dal palazzo, spogliato dei suoi privilegi.<br><br>Paradossalmente, l'esilio fu la sua salvezza temporanea. Visse in povertà, circondato solo dall'affetto sincero dei suoi tre cani: Mimi, Coco e Balù. In tarda età, trovò l'amore in Elena, una donna di vent'anni più giovane. Furono anni di felicità semplice, scandita dal tintinnio di poche monete di rame. Tuttavia, il destino fu crudele: la morte prematura di Elena gettò Rabberduscolanderson in una disperazione senza fondo. Incapace di sopportare il dolore, si tolse la vita gettandosi in un fossato. I suoi fedeli cani, abbandonati, morirono di fame pochi giorni dopo, seguendo il padrone nel triste destino."
         },
         {
           "type": "lore",
           "title": "Particolarità",
           "icon": "fa-fingerprint",
           "markdown": "characters/rabberduscolanderson/particolarita.md",
-          "markdownText": "### L'Ossessione per il Rame\nNonostante sia un non-morto, Rabberduscolanderson conserva una scintilla della sua umanità, legata indissolubilmente al ricordo della semplicità. Oro ed argento non hanno valore per lui, gli ricordano la nobiltà che lo ha rifiutato. Ama invece il rame: il suono e la vista delle monete di rame gli evocano i rari momenti di gioia della sua vita umile con Elena.\n\n> **Il Mercante della Cripta:** Vagando per la cripta, ha raccolto oggetti preziosi lasciati da altri avventurieri o appartenenti al luogo, ma non sa che farsene. È disposto a cedere oggetti magici e di  valore, ma accetta come pagamento esclusivamente monete di rame. Per lui, un sacchetto di tintinnanti monete marroni vale più di una spada incantata.\n"
+          "markdownText": "<h3>L'Ossessione per il Rame</h3><br>Nonostante sia un non-morto, Rabberduscolanderson conserva una scintilla della sua umanità, legata indissolubilmente al ricordo della semplicità. Oro ed argento non hanno valore per lui, gli ricordano la nobiltà che lo ha rifiutato. Ama invece il rame: il suono e la vista delle monete di rame gli evocano i rari momenti di gioia della sua vita umile con Elena.<br><br>> <b>Il Mercante della Cripta:</b> Vagando per la cripta, ha raccolto oggetti preziosi lasciati da altri avventurieri o appartenenti al luogo, ma non sa che farsene. È disposto a cedere oggetti magici e di  valore, ma accetta come pagamento esclusivamente monete di rame. Per lui, un sacchetto di tintinnanti monete marroni vale più di una spada incantata.<br>"
         },
         {
           "type": "lore",
           "title": "Aspetto Fisico",
           "icon": "fa-user",
           "markdown": "characters/rabberduscolanderson/aspetto_fisico.md",
-          "markdownText": "Rabberduscolanderson è uno scheletro vivente che emana un'aria di furtiva astuzia. Spogliato di ogni traccia di carne, le sue ossa sono ingiallite dal tempo, e le orbite vuote del teschio sono illuminate da due piccoli punti di luce rossa. Il suo volto scheletrico sembra perennemente atteggiato in un sorriso sardonico.\n\nVeste come un vagabondo: indossa stracci logori nei toni del marrone e del grigio, talmente consunti da sembrare fusi con le sue ossa. Un cappello di paglia sformato e rovinato dalle intemperie gli copre il capo. Una borsa a tracolla in cuoio marrone, piena di fibbie e tasche, è assicurata al suo petto.\n"
+          "markdownText": "Rabberduscolanderson è uno scheletro vivente che emana un'aria di furtiva astuzia. Spogliato di ogni traccia di carne, le sue ossa sono ingiallite dal tempo, e le orbite vuote del teschio sono illuminate da due piccoli punti di luce rossa. Il suo volto scheletrico sembra perennemente atteggiato in un sorriso sardonico.<br><br>Veste come un vagabondo: indossa stracci logori nei toni del marrone e del grigio, talmente consunti da sembrare fusi con le sue ossa. Un cappello di paglia sformato e rovinato dalle intemperie gli copre il capo. Una borsa a tracolla in cuoio marrone, piena di fibbie e tasche, è assicurata al suo petto.<br>"
         },
         {
           "type": "image_box",
           "title": "I Compagni Fedeli",
-          "image": "img/items/rabberduscolanderson_dogs.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/items/rabberduscolanderson_dogs.webp",
           "markdown": "characters/rabberduscolanderson/i-compagni-fedeli.md",
-          "markdownText": "*Mimi, Coco e Balù*\n\n### Lealtà Incondizionata\nI tre fedeli cani di Rabberduscolanderson, che lo hanno seguito fino alla morte e oltre.\n\n> L'unico amore che non tradisce mai.\n"
+          "markdownText": "<i>Mimi, Coco e Balù</i><br><h3>Lealtà Incondizionata</h3><br>I tre fedeli cani di Rabberduscolanderson, che lo hanno seguito fino alla morte e oltre.<br><br>> L'unico amore che non tradisce mai.<br>"
         },
         {
           "type": "image_box",
           "title": "Cuore di Rabberduscolanderson",
-          "image": "img/items/heart-rabberduscolanderson.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/items/heart-rabberduscolanderson.webp",
           "imageStyle": "border-radius: 50%; object-fit: cover;",
           "markdown": "characters/rabberduscolanderson/cuore-di-rabberduscolanderson.md",
-          "markdownText": "*Una piccola sfera contenente un cuore e potere arcano.*\n\n### Oggetto meraviglioso (leggendario), richiede sintonia\nOttieni vantaggio alle prove abilità di Stealth, Perception per cercare oggetti nascosti vicini ad almeno una moneta di rame, e Animal Handling nelle prove contro le bestie.\nOttieni svantaggio a qualsiasi tiro salvezza legato ad effetti di paura ed hai svantaggio ai tiri per colpire contro qualsiasi creatura di taglia superiore alla tua. Inoltre, sei vulnerabile ai danni da caduta.\n\n> Solo e reietto vive incapace nel dolore più profondo\n> ama una donna, lei muore: del baratro tocca il fondo.\n"
+          "markdownText": "<i>Una piccola sfera contenente un cuore e potere arcano.</i><br><h3>Oggetto meraviglioso (leggendario), richiede sintonia</h3><br>Ottieni vantaggio alle prove abilità di Stealth, Perception per cercare oggetti nascosti vicini ad almeno una moneta di rame, e Animal Handling nelle prove contro le bestie.<br>Ottieni svantaggio a qualsiasi tiro salvezza legato ad effetti di paura ed hai svantaggio ai tiri per colpire contro qualsiasi creatura di taglia superiore alla tua. Inoltre, sei vulnerabile ai danni da caduta.<br><br>> Solo e reietto vive incapace nel dolore più profondo<br>> ama una donna, lei muore: del baratro tocca il fondo.<br>"
         }
       ],
       "relationships": [
@@ -392,9 +392,9 @@
       "quote": "Il sapere sopravvive dove il potere consuma.",
       "type": "npc",
       "images": {
-        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/x_transp.webp",
-        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/x_animation.webp",
-        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/x.webp"
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/x_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/x_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/x.webp"
       },
       "content_blocks": [
         {
@@ -402,21 +402,21 @@
           "title": "Biografia",
           "icon": "fa-book-open",
           "markdown": "characters/x/biografia.md",
-          "markdownText": "Figlia di Yuris e Leonora Von T, X porta un nome nato per ripicca. Dopo che il primogenito fu chiamato Rabberduscolanderson contro la volontà della madre, Leonora scelse per la figlia successiva un nome ridotto all'essenziale: una sola lettera, un rifiuto silenzioso verso le imposizioni del marito.\n\nCrescendo, X osservò i conflitti familiari da un angolo distante, trasformando la freddezza domestica in curiosità. Il sangue dei Von T le offriva privilegi, ma lei li usò soltanto per accedere a tomi e rituali proibiti.\n\nX fu attratta fin da piccola dalle arti arcane, incrociando ogni declinazione della necromanzia: resuscitazione, annichilimento, tessitura di anime. Studiò con attenzione il patto che Yuris stipulò per elevare la casata, annotando conseguenze e pericoli con rigore quasi accademico. Pur comprendendo l'immenso potere destinato all'Ultima Foglia, lo considerava una condanna. Cercò nei suoi studi una via per comprendere, non per ereditare, convinta che rincorrere quel potere le avrebbe fatto perdere la sua umanità.\n\nConvinta che il patto avrebbe divorato l'Ultima Foglia, X decise di avere figli presto: a 17 anni diede alla luce Tokka e, subito dopo, Karla. Sapeva che Rabberduscolanderson difficilmente avrebbe portato avanti la stirpe e non voleva che il potere finale si posasse sulle sue spalle. Per tutta la vita rimase ai margini degli intrighi di corte, utilizzando il titolo nobiliare soltanto per ottenere accesso a biblioteche, rituali e mentori. La famiglia la considerava distante; lei ricambiava con un distacco calcolato, protetta dai suoi studi.\n"
+          "markdownText": "Figlia di Yuris e Leonora Von T, X porta un nome nato per ripicca. Dopo che il primogenito fu chiamato Rabberduscolanderson contro la volontà della madre, Leonora scelse per la figlia successiva un nome ridotto all'essenziale: una sola lettera, un rifiuto silenzioso verso le imposizioni del marito.<br><br>Crescendo, X osservò i conflitti familiari da un angolo distante, trasformando la freddezza domestica in curiosità. Il sangue dei Von T le offriva privilegi, ma lei li usò soltanto per accedere a tomi e rituali proibiti.<br><br>X fu attratta fin da piccola dalle arti arcane, incrociando ogni declinazione della necromanzia: resuscitazione, annichilimento, tessitura di anime. Studiò con attenzione il patto che Yuris stipulò per elevare la casata, annotando conseguenze e pericoli con rigore quasi accademico. Pur comprendendo l'immenso potere destinato all'Ultima Foglia, lo considerava una condanna. Cercò nei suoi studi una via per comprendere, non per ereditare, convinta che rincorrere quel potere le avrebbe fatto perdere la sua umanità.<br><br>Convinta che il patto avrebbe divorato l'Ultima Foglia, X decise di avere figli presto: a 17 anni diede alla luce Tokka e, subito dopo, Karla. Sapeva che Rabberduscolanderson difficilmente avrebbe portato avanti la stirpe e non voleva che il potere finale si posasse sulle sue spalle. Per tutta la vita rimase ai margini degli intrighi di corte, utilizzando il titolo nobiliare soltanto per ottenere accesso a biblioteche, rituali e mentori. La famiglia la considerava distante; lei ricambiava con un distacco calcolato, protetta dai suoi studi.<br>"
         },
         {
           "type": "lore",
           "title": "Particolarità",
           "icon": "fa-scoll",
           "markdown": "characters/x/particolarita.md",
-          "markdownText": "### Ricercatrice nella Cripta\nOra si trova nel primo piano della cripta: una cella piena di libri aperti, pergamene e formule abbozzate. La sua sete di conoscenza non si è placata con la morte, anzi si è cristallizzata.\n\n**Cosa vuole:**\n\n- Libri, appunti, pergamene o documenti rari di qualsiasi scuola.\n- Notizie sul patto dei Von T e sugli esiti dell'Ultima Foglia.\n- Trattati su necromanzia, sangue e tempo.\n\n**Cosa offre:**\n\n- Informazioni sulla famiglia, sui rituali necromantici e sulla cripta.\n- Interpretazioni di testi oscuri e piccoli rituali di supporto.\n\n**Meccanica di Scambio:** consegnando un testo interessante, i personaggi possono ottenere dettagli sul patto, bonus narrativi legati alla necromanzia o frammenti di conoscenza sulla famiglia.\n"
+          "markdownText": "<h3>Ricercatrice nella Cripta</h3><br>Ora si trova nel primo piano della cripta: una cella piena di libri aperti, pergamene e formule abbozzate. La sua sete di conoscenza non si è placata con la morte, anzi si è cristallizzata.<br><br><b>Cosa vuole:</b>\r<ul><li>Libri, appunti, pergamene o documenti rari di qualsiasi scuola.</li><li>Notizie sul patto dei Von T e sugli esiti dell'Ultima Foglia.</li><li>Trattati su necromanzia, sangue e tempo.</li></ul><br><b>Cosa offre:</b>\r<ul><li>Informazioni sulla famiglia, sui rituali necromantici e sulla cripta.</li><li>Interpretazioni di testi oscuri e piccoli rituali di supporto.</li></ul><br><b>Meccanica di Scambio:</b> consegnando un testo interessante, i personaggi possono ottenere dettagli sul patto, bonus narrativi legati alla necromanzia o frammenti di conoscenza sulla famiglia.<br>"
         },
         {
           "type": "lore",
           "title": "Aspetto Fisico",
           "icon": "fa-user",
           "markdown": "characters/x/aspetto_fisico.md",
-          "markdownText": "X è un'imponente entità non-morta che irradia potere arcano e autorità oscura. Si presenta come uno scheletro completo, la cui struttura ossea è visibile attraverso gli strappi delle sue vesti. Le orbite profonde ospitano fiamme rosse ardenti.\n\nIndossa paramenti neri, ampi e lacerati, che ricordano quelli di un antico stregone o di un sacerdote della morte. Il capo è coperto da un grande cappello nero a tesa larga, sopra il quale poggia una corona di punte metalliche o spine. Alla cintura porta diverse borse e sacche di pelle, probabilmente contenenti componenti magici.\n"
+          "markdownText": "X è un'imponente entità non-morta che irradia potere arcano e autorità oscura. Si presenta come uno scheletro completo, la cui struttura ossea è visibile attraverso gli strappi delle sue vesti. Le orbite profonde ospitano fiamme rosse ardenti.<br><br>Indossa paramenti neri, ampi e lacerati, che ricordano quelli di un antico stregone o di un sacerdote della morte. Il capo è coperto da un grande cappello nero a tesa larga, sopra il quale poggia una corona di punte metalliche o spine. Alla cintura porta diverse borse e sacche di pelle, probabilmente contenenti componenti magici.<br>"
         }
       ],
       "relationships": [
@@ -442,9 +442,9 @@
       "quote": "Buuuu! Ahahaha!",
       "type": "npc",
       "images": {
-        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/zara_transp.webp",
-        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/zara_animation.webp",
-        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/zara.webp"
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/zara_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/zara_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/zara.webp"
       },
       "content_blocks": [
         {
@@ -452,50 +452,50 @@
           "title": "Biografia",
           "icon": "fa-mask",
           "markdown": "characters/zara/biografia.md",
-          "markdownText": "Il nome di Zara compare tra i ritratti e le targhette del palazzo, come un ricordo fissato nel tempo. È conosciuta come La Giullare, una presenza legata alle stranezze del piano.\n\nChi ne parla la descrive come creatrice di inganni e distorsioni, un'ombra che prende forma tra le sale.\n"
+          "markdownText": "Il nome di Zara compare tra i ritratti e le targhette del palazzo, come un ricordo fissato nel tempo. È conosciuta come La Giullare, una presenza legata alle stranezze del piano.<br><br>Chi ne parla la descrive come creatrice di inganni e distorsioni, un'ombra che prende forma tra le sale.<br>"
         },
         {
           "type": "lore",
           "title": "Particolarità",
           "icon": "fa-feather",
           "markdown": "characters/zara/particolarita.md",
-          "markdownText": "Le sue apparizioni sono teatrali: una figura enorme che urla \"Booo!\" e poi esplode in coriandoli colorati. Ogni volta si dissolve senza lasciare tracce, tornando con forme diverse, più piccole e più beffarde.\n\nÈ difficile distinguere dove finisca l'illusione e dove inizi il pericolo reale.\n"
+          "markdownText": "Le sue apparizioni sono teatrali: una figura enorme che urla \"Booo!\" e poi esplode in coriandoli colorati. Ogni volta si dissolve senza lasciare tracce, tornando con forme diverse, più piccole e più beffarde.<br><br>È difficile distinguere dove finisca l'illusione e dove inizi il pericolo reale.<br>"
         },
         {
           "type": "lore",
           "title": "Aspetto Fisico",
           "icon": "fa-user",
           "markdown": "characters/zara/aspetto_fisico.md",
-          "markdownText": "Zara è una donna umana dall'incarnato pallido, con un'espressione maniacale stampata sul volto: un sorriso troppo ampio e occhi rossi luminosi che tradiscono una natura instabile. Ciuffi di capelli color zenzero sfuggono disordinatamente dal suo copricapo.\n\nIl suo abbigliamento è un tripudio di colori contrastanti: indossa un classico costume da giullare a rombi viola e gialli, completo di cappello a due punte con campanellini dorati, calze a righe coordinate e scarpe rosse a punta arricciate.\nBrandisce uno scettro grottesco sormontato da un teschio ridente, che indossa a sua volta un piccolo cappello da giullare; dallo scettro emana un fumo spettrale verdastro\n"
+          "markdownText": "Zara è una donna umana dall'incarnato pallido, con un'espressione maniacale stampata sul volto: un sorriso troppo ampio e occhi rossi luminosi che tradiscono una natura instabile. Ciuffi di capelli color zenzero sfuggono disordinatamente dal suo copricapo.<br><br>Il suo abbigliamento è un tripudio di colori contrastanti: indossa un classico costume da giullare a rombi viola e gialli, completo di cappello a due punte con campanellini dorati, calze a righe coordinate e scarpe rosse a punta arricciate.<br>Brandisce uno scettro grottesco sormontato da un teschio ridente, che indossa a sua volta un piccolo cappello da giullare; dallo scettro emana un fumo spettrale verdastro<br>"
         },
         {
           "type": "image_box",
           "title": "Il Girocollo Festoso",
-          "image": "img/items/zara_necklace.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/items/zara_necklace.webp",
           "markdown": "characters/zara/collana.md",
-          "markdownText": "Un bizzarro girocollo composto da palloncini colorati (blu, arancione, verde, giallo) intrecciati tra loro con maestria sorprendente. Al centro pende un ciondolo piatto, forse di legno dipinto o plastica rigida, che raffigura il volto stilizzato e sorridente di un giullare. Nonostante l'apparenza innocua e giocosa, l'oggetto emana una vibrazione di follia latente, come se fosse un trofeo o un talismano di un carnevale distorto.\n"
+          "markdownText": "Un bizzarro girocollo composto da palloncini colorati (blu, arancione, verde, giallo) intrecciati tra loro con maestria sorprendente. Al centro pende un ciondolo piatto, forse di legno dipinto o plastica rigida, che raffigura il volto stilizzato e sorridente di un giullare. Nonostante l'apparenza innocua e giocosa, l'oggetto emana una vibrazione di follia latente, come se fosse un trofeo o un talismano di un carnevale distorto.<br>"
         },
         {
           "type": "image_box",
           "title": "I Passi della Follia",
-          "image": "img/items/zara_shoes.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/items/zara_shoes.webp",
           "hidden": "true",
           "markdown": "characters/zara/i-passi-della-follia.md",
-          "markdownText": "## Scarpe del Giullare incantate\n\n### Passo Danzante\nQueste scarpe rosse dalla punta arricciata sembrano muoversi da sole a ritmo di una musica udibile solo da chi le indossa. \n\n### Effetti\nPermettono di muoversi con grazia innaturale, ignorando le leggi della fisica per brevi istanti. Chi le indossa può camminare su superfici verticali o sull'acqua per un breve tratto, purché continui a danzare senza sosta.\n\n> \"La gravità è solo un suggerimento, e anche piuttosto noioso.\""
+          "markdownText": "<h2>Scarpe del Giullare incantate</h2>\r<h3>Passo Danzante</h3><br>Queste scarpe rosse dalla punta arricciata sembrano muoversi da sole a ritmo di una musica udibile solo da chi le indossa. \r<h3>Effetti</h3><br>Permettono di muoversi con grazia innaturale, ignorando le leggi della fisica per brevi istanti. Chi le indossa può camminare su superfici verticali o sull'acqua per un breve tratto, purché continui a danzare senza sosta.<br><br>> \"La gravità è solo un suggerimento, e anche piuttosto noioso.\""
         },
         {
           "type": "image_box",
           "title": "Marionetta Rara",
-          "image": "img/creatures/zara_puppet_1.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/zara_puppet_1.webp",
           "markdown": "characters/zara/marionetta_rara.md",
-          "markdownText": "Una bambola di pezza dall'aspetto grottesco, seduta in posa inerte. Indossa un cappello da giullare bicolore, rosso e blu, adornato da campanelli dorati. Il volto, simile a porcellana o plastica invecchiata, è deformato in un sorriso sdentato e maniacale, mentre gli occhi brillano di una sinistra luce rossa priva di pupille. Il corpo tozzo è segnato da cuciture grossolane e termina con scarpe a punta rosse.\n"
+          "markdownText": "Una bambola di pezza dall'aspetto grottesco, seduta in posa inerte. Indossa un cappello da giullare bicolore, rosso e blu, adornato da campanelli dorati. Il volto, simile a porcellana o plastica invecchiata, è deformato in un sorriso sdentato e maniacale, mentre gli occhi brillano di una sinistra luce rossa priva di pupille. Il corpo tozzo è segnato da cuciture grossolane e termina con scarpe a punta rosse.<br>"
         },
         {
           "type": "image_box",
           "title": "Marionetta Tete",
-          "image": "img/creatures/zara_puppet_2.webp",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/zara_puppet_2.webp",
           "markdown": "characters/zara/marionetta_tete.md",
-          "markdownText": "Una creatura surreale composta quasi interamente da una testa enorme montata su due gambe sottili e lunghe. Il volto riprende i tratti inquietanti della prima marionetta: occhi rossi luminosi e sorriso folle, incorniciati da capelli color zenzero e un cappello da giullare. Le gambe esili, prive di un vero corpo, terminano in grandi scarpe rosse a punta arricciata, suggerendo un movimento saltellante e innaturale.\n"
+          "markdownText": "Una creatura surreale composta quasi interamente da una testa enorme montata su due gambe sottili e lunghe. Il volto riprende i tratti inquietanti della prima marionetta: occhi rossi luminosi e sorriso folle, incorniciati da capelli color zenzero e un cappello da giullare. Le gambe esili, prive di un vero corpo, terminano in grandi scarpe rosse a punta arricciata, suggerendo un movimento saltellante e innaturale.<br>"
         }
       ],
       "relationships": []
@@ -643,7 +643,7 @@
       },
       {
         "id": 17,
-        "date": "06/01/2026",
+        "date": "05/01/2026",
         "summary": "<p>Dopo aver lasciato la stanza di Karla, decidete di tornare da Elena per poi risalire tutti insieme al piano superiore. Scambiate qualche parola con lei, Valdor fuma un sigaro sotto lo sguardo teso di Ga'Run, e procedete lungo i corridoi della cripta.</p><p>Giungete alla stanza di Rabberduscolanderson e assistete alla riunione dei due. Una luce si accende nel petto di Rabber, che si sente spinto a donarvi un oggetto che portava con sé: il suo cuore, racchiuso in una sfera di vetro. Nel momento in cui il cuore tocca le mani di Valdor, sentite i vostri simboli reagire.</p><p>Decidete di bruciare tutti i documenti di Tessimorte recuperati nel laboratorio di Nino Olegna, tenendo con voi soltanto la poesia. Durante la giornata, Valdor lavora ad un progetto per un sigaro — che richiederà un innesco di energia arcana — mentre Ga'Run sistema i suoi equipaggiamenti.</p><p>Durante la notte, qualcuno sembra farvi visita, lasciando dietro la porta due pupazzi inquietanti infusi di magia.</p><p>Parlate anche con X, che vi rivela ulteriori informazioni sul rituale contenuto nel libro: un metodo per tornare indietro nel tempo utilizzando un immenso flusso di sangue e sacrifici. Il rituale appare ignoto, pericoloso e forse impossibile da realizzare, ma vi turba profondamente.</p><p>Infine, fate incontrare X ed Elena. Capite che rimuovere il pugnale dal petto della donna sarebbe fatale e ottenete conferma che sia stata Karla ad ucciderla. Prima di andarsene, X vi rivela accidentalmente di essere stata uccisa da Karla anche lei, chiedendovi poi di recuperare nuovi documenti e libri.</p>",
         "xp": {
           "total": "0",
