@@ -15,19 +15,18 @@ export class CriptaViewer extends Application {
             id: "cripta-viewer-main",
             title: "Cripta di Sangue - Wiki",
             template: "modules/cripta-viewer/templates/viewer.html",
-            width: 1000,
-            height: 800,
+            width: 1100,
+            height: 900,
             resizable: true,
             classes: ["cripta-window"]
         });
     }
 
     async getData() {
-        // Fetch data if not already loaded
         if (!this.data) {
             try {
                 const src = game.settings.get("cripta-viewer", "sourceUrl");
-                const res = await fetch(src + "?t=" + Date.now()); // Prevent caching
+                const res = await fetch(src + "?t=" + Date.now());
                 this.data = await res.json();
             } catch (e) {
                 console.error("Cripta Viewer | Error loading data", e);
@@ -38,83 +37,58 @@ export class CriptaViewer extends Application {
     }
 
     async _render(force, options) {
-        // Standard render to create the window
         await super._render(force, options);
-
-        // Now fully hijack the content
         await this.renderContent();
     }
 
     async renderContent() {
+        // Initialize Setup if needed
         const el = this.element[0].querySelector(".window-content");
-        el.innerHTML = ""; // Clear existing
+        el.innerHTML = "";
 
         if (!this.data) await this.getData();
         if (!this.data) return;
 
-        // --- MASTER LAYOUT ---
-        // Left: Sidebar (List), Right: Preview
-
+        // Container
         const container = document.createElement("div");
-        container.style.display = "flex";
-        container.style.height = "100%";
-        container.style.width = "100%"; // Ensure width fill
-        container.style.overflow = "hidden";
+        container.style.cssText = "display:flex; height:100%; width:100%; overflow:hidden;";
 
         // Sidebar
         const sidebar = document.createElement("div");
-        sidebar.style.width = "250px";
-        sidebar.style.background = "#1a1a1a";
-        sidebar.style.color = "#ccc";
-        sidebar.style.overflowY = "auto";
-        sidebar.style.borderRight = "1px solid #444";
-        sidebar.style.padding = "10px";
-        sidebar.style.flexShrink = "0"; // Prevent shrink
+        sidebar.className = "sidebar-container";
+        sidebar.style.cssText = "width:250px; background:#1a1a1a; color:#ccc; overflow-y:auto; border-right:1px solid #444; padding:10px; flex-shrink:0;";
 
-        // Main View
+        // Main
         const main = document.createElement("div");
-        main.style.flex = "1";
-        main.style.position = "relative";
-        main.style.background = "black"; // Base for Shadow DOM
-        main.style.display = "flex";       // Flex container for host
-        main.style.flexDirection = "column";
-        main.style.overflow = "hidden";
+        main.style.cssText = "flex:1; position:relative; background:black; display:flex; flex-direction:column; overflow:hidden;";
 
-        // Create Shadow DOM host
-        // FIX: Use Flexbox child to fill space
+        // Shadow Host
         const shadowHost = document.createElement("div");
-        shadowHost.style.flex = "1";
-        shadowHost.style.position = "relative"; // Context
-        shadowHost.style.width = "100%";
-        shadowHost.style.overflow = "hidden"; // Clip anything spilling out
+        shadowHost.style.cssText = "flex:1; position:relative; width:100%; overflow:hidden;";
         main.appendChild(shadowHost);
 
-        // --- Populate Sidebar ---
-        this.renderSidebar(sidebar, shadowHost);
+        this.renderSidebarLayout(sidebar, shadowHost);
 
         container.appendChild(sidebar);
         container.appendChild(main);
         el.appendChild(container);
 
-        // Render "Home" (Sessions) by default
-        this.renderSessions(shadowHost);
+        // Default View
+        this.renderHome(shadowHost);
     }
 
-    renderSidebar(sidebar, host) {
+    renderSidebarLayout(sidebar, host) {
         const mkHeader = (text) => {
             const h = document.createElement("h3");
             h.innerText = text;
-            h.style.borderBottom = "1px solid #555";
-            h.style.color = "gold";
-            h.style.marginTop = "10px";
+            h.style.cssText = "border-bottom:1px solid #555; color:gold; margin-top:15px; font-family:'Cinzel'; font-weight:normal; letter-spacing:1px;";
             sidebar.appendChild(h);
         }
 
-        const mkItem = (text, onClick) => {
+        const mkItem = (text, icon, onClick) => {
             const div = document.createElement("div");
-            div.innerText = text;
-            div.style.padding = "5px";
-            div.style.cursor = "pointer";
+            div.innerHTML = `<i class="fas ${icon}" style="width:20px; text-align:center; margin-right:5px;"></i> ${text}`;
+            div.style.cssText = "padding:6px; cursor:pointer; font-family:'Montserrat'; font-size:0.9rem; border-radius:4px; display:flex; align-items:center;";
             div.onmouseover = () => div.style.background = "#333";
             div.onmouseout = () => div.style.background = "transparent";
             div.onclick = onClick;
@@ -122,322 +96,380 @@ export class CriptaViewer extends Application {
         }
 
         mkHeader("Generale");
-        mkItem("Sessioni", () => this.renderSessions(host));
+        mkItem("Home / Sessioni", "fa-book", () => this.renderHome(host));
 
         mkHeader("Personaggi");
         if (this.data.characters) {
             this.data.characters.forEach(char => {
-                mkItem(char.name, () => this.renderCharacter(host, char));
+                mkItem(char.name, "fa-user", () => this.renderCharacter(host, char));
+            });
+        }
+
+        if (this.data.players && this.data.players.length > 0) {
+            mkHeader("Giocatori");
+            this.data.players.forEach(p => {
+                mkItem(p.name, "fa-dice-d20", () => this.renderPlayer(host, p));
             });
         }
     }
 
-    // --- SHARED HELPER ---
-    setupShadowRoot(host, htmlContent, blocksForSharing = []) {
-        // Clear old
-        if (host.shadowRoot) {
-            host.shadowRoot.innerHTML = "";
-        } else {
-            host.attachShadow({ mode: "open" });
-        }
+    renderHome(host) {
+        if (!this.data.sessions) return;
 
-        const root = host.shadowRoot;
+        let html = `<div class="dashboard-wrapper">
+            <div class="dashboard-header" style="text-align:center; padding:2rem; border-bottom:1px solid #333;">
+                <h1 class="text-gold-gradient" style="font-size:3rem; margin:0;">Cripta di Sangue</h1>
+                <p style="color:#aaa; font-style:italic;">Wiki & Diario di Campagna</p>
+            </div>
+            <div class="session-list" style="padding:20px;">`;
 
-        // 1. Style
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = CSS_URL;
-        root.appendChild(link);
+        const blocks = [];
+        const sessions = this.data.sessions.sessions || [];
 
-        // 1b. Custom Scrollbar & Lightbox Styles (Injected)
-        const customStyle = document.createElement("style");
-        customStyle.textContent = `
-            /* RESET LAYOUT from Abyssal.css */
-            :host {
-                display: flex;
-                flex-direction: column;
-                height: 100%;
-                width: 100%;
-                overflow: hidden; /* Prevent double scrollbars */
-                box-sizing: border-box;
-            }
-            .main-content {
-                margin: 0 !important;
-                margin-left: 0 !important;
-                margin-right: 0 !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                padding: 20px !important; 
-                padding-right: 15px !important; /* Space for scrollbar */
-                
-                /* FLEX SCROLL FIX */
-                flex: 1;
-                height: auto !important; /* Let Flex handle height */
-                min-height: 0; /* Allow shrink */
-                
-                overflow-y: auto !important;
-                overflow-x: hidden !important;
-                box-sizing: border-box !important;
-                position: relative;
-            }
-
-            /* Scrollbar */
-            ::-webkit-scrollbar { width: 10px; height: 10px; }
-            ::-webkit-scrollbar-track { background: #000; box-shadow: inset 0 0 6px rgba(0,0,0,0.3); }
-            ::-webkit-scrollbar-thumb { background: #444; border: 1px solid #222; border-radius: 4px; }
-            ::-webkit-scrollbar-thumb:hover { background: var(--gold, gold); }
-            
-            /* Lightbox */
-            .lightbox-overlay {
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.95); z-index: 10000;
-                display: none; align-items: center; justify-content: center;
-                backdrop-filter: blur(8px);
-            }
-            .lightbox-overlay.active { display: flex; animation: fadeIn 0.3s; }
-            .lightbox-content { 
-                max-width: 95%; max-height: 95%; 
-                border: 2px solid var(--gold, gold); 
-                box-shadow: 0 0 50px rgba(0,0,0,1); 
-                object-fit: contain;
-            }
-            .lightbox-close {
-                position: absolute; top: 20px; right: 30px;
-                font-size: 50px; color: var(--gold, gold); cursor: pointer;
-                text-shadow: 0 0 10px black;
-                font-family: serif;
-            }
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            
-            /* Cursor for images */
-            img { cursor: zoom-in; transition: transform 0.2s; }
-            img:hover { transform: scale(1.02); }
-
-            /* Share Button Style */
-            .share-btn {
-                float: right;
-                margin-left: 10px;
-                margin-bottom: 5px;
-                width: 30px;
-                height: 30px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 50%;
-                background: rgba(0, 0, 0, 0.5);
-                border: 1px solid gold;
-                color: white;
-                cursor: pointer;
-                z-index: 100; /* Ensure it's on top */
-                position: relative; /* Ensure z-index works */
-                box-sizing: border-box;
-                padding: 0;
-            }
-            .share-btn:hover { background: gold; color: black; }
-            .share-btn span { pointer-events: none; } /* Click goes to button */
-
-            /* Character Block Layout - Image Left, Text Right */
-            .char-block-flex {
-                display: flex;
-                flex-direction: row;
-                gap: 20px;
-                align-items: flex-start;
-            }
-            
-            /* Responsive: Stack on very small screens */
-            @media (max-width: 600px) {
-                .char-block-flex { flex-direction: column; }
-            }
-
-            .char-block-img-container {
-                flex-shrink: 0;
-                width: 250px; /* Fixed width for consistency */
-                max-width: 30%;
-            }
-            .char-block-img-container img {
-                width: 100%;
-                border-radius: 4px;
-                border: 1px solid #444;
-            }
-            .char-block-text {
-                flex: 1;
-                min-width: 0; /* Fix flex overflow */
-            }
-            /* Markdown Styling */
-            .char-block-text h1, .char-block-text h2, .char-block-text h3 {
-                margin-top: 0;
-                color: var(--gold, gold);
-                font-family: 'Cinzel', serif;
-            } 
-            .char-block-text p { margin-bottom: 10px; }
-            .char-block-text ul { padding-left: 20px; }
-        `;
-        root.appendChild(customStyle);
-
-        // 2. Font Awesome (External)
-        const fa = document.createElement("link");
-        fa.rel = "stylesheet";
-        fa.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css";
-        root.appendChild(fa);
-
-        // 3. Fonts
-        const fonts = document.createElement("link");
-        fonts.href = "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap";
-        fonts.rel = "stylesheet";
-        root.appendChild(fonts);
-
-        // 4. Wrapper
-        const wrapper = document.createElement("div");
-        // Reuse main-content style usually found in body
-        wrapper.className = "main-content";
-        // Inline styles removed, relying on CSS override above
-        wrapper.innerHTML = htmlContent;
-        wrapper.querySelectorAll("button").forEach(b => b.remove()); // Clean old buttons if any
-        root.appendChild(wrapper);
-
-        // 5. Lightbox Element
-        const lightbox = document.createElement("div");
-        lightbox.className = "lightbox-overlay";
-        lightbox.innerHTML = `
-            <span class="lightbox-close">&times;</span>
-            <img class="lightbox-content" src="">
-        `;
-        root.appendChild(lightbox);
-
-        // Lightbox Logic
-        const lbImg = lightbox.querySelector(".lightbox-content");
-        const lbClose = lightbox.querySelector(".lightbox-close");
-
-        const closeLb = () => { lightbox.classList.remove("active"); lbImg.src = ""; };
-        lbClose.onclick = closeLb;
-        lightbox.onclick = (e) => { if (e.target === lightbox) closeLb(); };
-
-        // Attach click to all images
-        wrapper.querySelectorAll("img").forEach(img => {
-            img.onclick = () => {
-                lbImg.src = img.src;
-                lightbox.classList.add("active");
-            };
+        sessions.slice().reverse().forEach(s => {
+            html += `
+             <div id="session-${s.id}" class="content-card" style="margin-bottom:20px;">
+                <h3 class="text-gold-gradient" style="font-size:1.5rem; border-bottom:1px solid #444; padding-bottom:10px; margin-bottom:15px;">
+                    Sessione ${s.id} - ${s.date}
+                </h3>
+                <div class="session-body" style="font-size:1.1rem; line-height:1.6;">${s.summary}</div>
+             </div>`;
+            blocks.push({ selector: `#session-${s.id}`, title: `Sessione ${s.id}` });
         });
 
-        // 6. Inject Sharing Buttons (The "Eye")
-        if (blocksForSharing.length > 0 && game.user.isGM) {
-            blocksForSharing.forEach(block => {
-                let el = wrapper.querySelector(block.selector);
-                if (el) {
-                    // Create Eye Button
-                    const btn = document.createElement("button");
-                    btn.className = "share-btn";
-                    btn.innerHTML = "<span>👁️</span>";
-                    btn.title = "Mostra ai Giocatori";
-
-                    // Prepend to float right
-                    el.prepend(btn);
-
-                    btn.onclick = (e) => {
-                        e.stopPropagation();
-                        // SocketLib Emit
-                        console.log("Cripta Viewer | Emitting share event via Socketlib for:", block.title);
-                        if (criptaSocket) {
-                            criptaSocket.executeForEveryone("showPopup", {
-                                html: block.html || el.outerHTML,
-                                title: block.title
-                            });
-                            ui.notifications.info(`Condiviso: ${block.title}`);
-                        } else {
-                            ui.notifications.error("Errore: Socketlib non caricato.");
-                        }
-                    };
-                }
-            });
-        }
+        html += `</div></div>`;
+        this.attachShadow(host, html, blocks);
     }
 
-    // --- RENDERERS (Inject into Shadow DOM) ---
+    renderPlayer(host, player) {
+        const skills = this.data.skills ? this.data.skills[player.id] : null;
+
+        // Skill Tree HTML
+        let skillTreeHtml = "";
+        if (skills) {
+            const bg = skills.bgImage ? `background-image: url('${skills.bgImage}');` : 'background:#111;';
+
+            // Nodes
+            const nodes = skills.nodes.map(n => {
+                const isUnlocked = n.state === 'unlocked';
+                const isUnlockable = n.state === 'unlockable';
+                // Style adjustments
+                let filter = "filter: grayscale(100%) brightness(0.5); opacity:0.6;";
+                let border = "border: 1px solid #555;";
+
+                if (isUnlocked) {
+                    filter = "";
+                    border = n.keyNode ? "border: 2px solid gold; box-shadow: 0 0 10px gold;" : "border: 2px solid #888;";
+                } else if (isUnlockable) {
+                    filter = "filter: grayscale(100%); opacity: 0.8;";
+                    border = "border: 1px dashed gold;";
+                }
+
+                return `
+                <div class="skill-node" title="${n.title}" 
+                     style="position:absolute; left:${n.x}%; top:${n.y}%; width:50px; height:50px; transform:translate(-50%, -50%); cursor:help; z-index:10;">
+                    <img src="${n.icon}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; ${border} ${filter}">
+                    <div class="tooltip">${n.title}</div>
+                </div>`;
+            }).join('');
+
+            // Lines (Naive)
+            let lines = "";
+            skills.nodes.forEach(n => {
+                if (n.connections) {
+                    n.connections.forEach(targetId => {
+                        const t = skills.nodes.find(x => x.id === targetId);
+                        if (t) {
+                            const color = (n.state === 'unlocked' && t.state === 'unlocked') ? "var(--gold)" : "#444";
+                            lines += `<line x1="${n.x}%" y1="${n.y}%" x2="${t.x}%" y2="${t.y}%" stroke="${color}" stroke-width="2" />`;
+                        }
+                    });
+                }
+            });
+
+            skillTreeHtml = `
+            <div class="content-card">
+                <h3 class="text-gold-gradient">Albero Abilità</h3>
+                <div class="skill-tree-frame" style="position:relative; width:100%; aspect-ratio:16/9; ${bg} background-size:cover; background-position:center; border-radius:8px; border:1px solid #444; overflow:hidden;">
+                    <svg style="position:absolute; width:100%; height:100%; pointer-events:none;">
+                        ${lines}
+                    </svg>
+                    ${nodes}
+                </div>
+                <p style="margin-top:10px; font-size:0.9rem; color:#888;">* Passa il mouse sulle icone per i dettagli (Tooltip non ancora implementati nativamente, usa Title per ora)</p>
+            </div>`;
+        }
+
+        let html = `
+            <div class="hero-mini" style="padding:2rem; background:linear-gradient(to right, rgba(138,28,28,0.1), transparent); border-bottom:1px solid rgba(255,255,255,0.05); margin-bottom:2rem;">
+                <h1 class="text-gold-gradient" style="font-size:3rem; margin:0;">${player.name}</h1>
+                <div class="subtitle" style="font-family:'Cinzel'; color:var(--accent-primary); font-size:1.2rem; letter-spacing:2px; text-transform:uppercase;">${player.role || ''}</div>
+            </div>
+
+            <div class="container" style="padding:0 2rem;">
+                <div class="char-grid" style="display:grid; grid-template-columns: 2fr 1fr; gap:3rem;">
+                    <div class="left-col">
+                        <div class="content-card">
+                            <p class="npc-desc" style="font-size:1.1em; line-height:1.7; color:#a0a0a0;">${player.description || ''}</p>
+                            
+                            ${player.summary ? `
+                                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-top:20px; border-top:1px solid #333; padding-top:15px;">
+                                    <div><b style="color:gold;">Razza:</b> ${player.summary.race}</div>
+                                    <div><b style="color:gold;">Periodo:</b> ${player.summary.period}</div>
+                                </div>` : ''}
+                        </div>
+                        ${skillTreeHtml}
+                    </div>
+
+                    <div class="right-col">
+                         <div class="npc-avatar-container" style="width:200px; height:200px; border-radius:50%; border:3px solid gold; position:relative; margin:0 auto; background:#0a0a0a; overflow:hidden;">
+                            <img src="${player.images.portrait}" class="img-main" style="width:100%; height:100%; object-fit:cover;">
+                         </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.attachShadow(host, html, []);
+    }
+
+    renderCharacter(host, char) {
+        // Status formatting
+        let statusStyle = "";
+        let statusIcon = "fa-question";
+        if (char.status === "vivo") { statusStyle = "color:var(--status-alive);"; statusIcon = "fa-heartbeat"; }
+        else if (char.status === "morto") { statusStyle = "color:var(--status-dead);"; statusIcon = "fa-skull"; }
+
+        let html = `
+            <div class="hero-mini" style="padding:2rem; background:linear-gradient(to right, rgba(138,28,28,0.1), transparent); border-bottom:1px solid rgba(255,255,255,0.05); margin-bottom:2rem;">
+                <h1 class="text-gold-gradient" style="font-size:3rem; margin:0;">${char.name}</h1>
+                <div class="subtitle" style="font-family:'Cinzel'; color:var(--accent-primary); font-size:1.2rem; letter-spacing:2px; text-transform:uppercase;">${char.role || ''}</div>
+            </div>
+
+            <div class="container" style="padding:0 2rem;">
+                <div class="char-grid" style="display:grid; grid-template-columns: 2fr 1fr; gap:3rem;">
+                    
+                    <!-- LEFT COLUMN -->
+                    <div class="left-col" style="display:flex; flex-direction:column; gap:2rem;">
+                         
+                         <!-- INFO CARD -->
+                         <div class="content-card">
+                            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.5rem; margin-bottom:1rem;">
+                                <span class="npc-role" style="font-family:'Montserrat'; font-size:0.9rem; color:gold; text-transform:uppercase; letter-spacing:1px;">${char.role}</span>
+                                <span style="${statusStyle} font-weight:bold; text-transform:uppercase; font-size:0.8rem;">
+                                    <i class="fas ${statusIcon}"></i> ${char.status}
+                                </span>
+                            </div>
+                            
+                            <p class="npc-desc" style="font-size:1.1em; font-style:italic; border-left:3px solid gold; padding-left:1rem; color:#a0a0a0; margin-bottom:1.5rem;">
+                                "${char.quote || ''}"
+                            </p>
+
+                            <!-- BLOCKS -->
+                            ${this.renderBlocks(char.content_blocks)}
+                         </div>
+
+                         <!-- RELATIONS -->
+                         ${this.renderRelations(char.relationships)}
+                    </div>
+
+                    <!-- RIGHT COLUMN -->
+                    <div class="right-col">
+                        <div class="npc-card" style="background:rgba(30,30,30,0.4); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:2rem; display:flex; flex-direction:column; align-items:center;">
+                            <div class="npc-avatar-container" style="width:200px; height:200px; border-radius:50%; border:3px solid gold; position:relative; background:#0a0a0a; margin-bottom:1.5rem;">
+                                <!-- Simple swap logic handled by CSS or just absolute overlap -->
+                                <img src="${char.images.portrait}" class="img-main" style="width:100%; height:100%; object-fit:cover; border-radius:50%; position:absolute; top:0; left:0; transition:opacity 0.4s;">
+                                <img src="${char.images.hover}" class="img-hover" style="width:100%; height:100%; object-fit:cover; opacity:0; position:absolute; top:0; left:0; transition:opacity 0.4s;" 
+                                     onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
+                            </div>
+                            <div class="npc-info" style="text-align:center;">
+                                <div class="npc-name text-gold-gradient" style="font-size:1.5rem;">${char.name}</div>
+                                <div class="npc-role" style="font-size:0.8rem; color:gold; margin-top:5px;">${char.role}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        `;
+
+        // Extract blocks for sharing
+        const blocks = (char.content_blocks || []).map((b, i) => ({
+            selector: `#block-${i}`,
+            title: `${char.name} - ${b.title}`
+        }));
+
+        this.attachShadow(host, html, blocks);
+    }
+
+    renderBlocks(blocks) {
+        if (!blocks) return "";
+        return blocks.map((block, idx) => {
+            const text = block.markdownText || block.markdown || "";
+            let img = "";
+            let content = "";
+
+            // Image Box
+            if (block.type === 'image_box' && block.image) {
+                content = `
+                <div class="char-block-flex" style="display:flex; gap:20px; align-items:flex-start; margin-top:15px;">
+                    <div style="flex-shrink:0; width:250px;">
+                        <img src="${block.image}" style="width:100%; border-radius:4px; border:1px solid #444; cursor:zoom-in;">
+                    </div>
+                    <div style="flex:1;">${text}</div>
+                </div>`;
+            } else if (block.type === 'banner_box') {
+                return `
+                <div id="block-${idx}" style="margin:20px 0; border:1px solid gold; background:rgba(0,0,0,0.5); padding:0;">
+                    ${block.banner ? `<img src="${block.banner}" style="width:100%; display:block;">` : ''}
+                    <div style="padding:15px;">
+                        <h3 style="color:gold; margin-top:0;">${block.title}</h3>
+                        ${text}
+                        <div style="text-align:right; margin-top:10px;"><button class="share-btn">👁️</button></div>
+                    </div>
+                </div>`;
+            } else {
+                // Lore / Standard
+                content = `<div style="margin-top:10px;">${text}</div>`;
+            }
+
+            return `
+            <div id="block-${idx}" class="content-block" style="border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:20px; margin-bottom:20px;">
+                <h3 style="color:gold; font-family:'Cinzel'; border-bottom:1px solid #444; margin-bottom:10px; display:flex; justify-content:space-between;">
+                    <span><i class="fas ${block.icon || 'fa-scroll'}"></i> ${block.title}</span>
+                    <button class="share-btn">👁️</button>
+                </h3>
+                ${content}
+            </div>`;
+        }).join("");
+    }
+
+    renderRelations(rels) {
+        if (!rels || rels.length === 0) return "";
+        return `
+        <div class="content-card" style="margin-top:2rem;">
+            <h3 class="text-gold-gradient" style="font-size:1.2rem; border-bottom:1px solid #444; margin-bottom:10px;">Relazioni</h3>
+            <ul style="list-style:none; padding:0;">
+                ${rels.map(r => `
+                <li style="margin-bottom:10px; display:flex; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:5px;">
+                    <strong style="color:gold; width:120px; flex-shrink:0;">${r.id}</strong>
+                    <span style="color:#aaa;">${r.description}</span>
+                </li>`).join('')}
+            </ul>
+        </div>`;
+    }
 
     attachShadow(host, htmlContent, blocksForSharing = []) {
         this.setupShadowRoot(host, htmlContent, blocksForSharing);
     }
 
-    renderSessions(host) {
-        if (!this.data.sessions || !this.data.sessions.sessions) return;
+    // SHARED SETUP
+    setupShadowRoot(host, htmlContent, blocksForSharing = []) {
+        if (host.shadowRoot) host.shadowRoot.innerHTML = "";
+        else host.attachShadow({ mode: "open" });
 
-        // Build HTML for sessions
-        let html = `<h1>Diario delle Sessioni</h1><div class="session-list">`;
-        const blocks = [];
+        const root = host.shadowRoot;
 
-        this.data.sessions.sessions.reverse().forEach(s => {
-            html += `
-            <div id="session-${s.id}" class="session-card" style="margin-bottom: 2rem;">
-                <div class="session-header">
-                     <h3 class="session-title text-gold-gradient">Sessione ${s.id} - ${s.date}</h3>
-                </div>
-                <div class="session-body">${s.summary}</div>
-            </div>`;
+        // Styles
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = CSS_URL;
+        root.appendChild(link);
 
-            blocks.push({
-                selector: `#session-${s.id}`,
-                title: `Sessione ${s.id}`,
-            });
-        });
-        html += "</div>";
+        const fa = document.createElement("link");
+        fa.rel = "stylesheet";
+        fa.href = "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css";
+        root.appendChild(fa);
 
-        this.attachShadow(host, html, blocks);
-    }
+        const fonts = document.createElement("link");
+        fonts.href = "https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap";
+        fonts.rel = "stylesheet";
+        root.appendChild(fonts);
 
-    renderCharacter(host, char) {
-        // Build HTML for Character (Header + Blocks)
-        let html = `
-            <div class="char-header" style="text-align:center; padding:20px; border-bottom:1px solid #444; margin-bottom:20px;">
-                <img src="${char.images?.avatar || ''}" style="width:100px; height:100px; border-radius:50%; border:2px solid gold; box-shadow:0 0 10px gold;">
-                <div>
-                    <h1 style="color:gold; font-family:'Cinzel', serif; margin:10px 0;">${char.name}</h1>
-                    <p style="color:#aaa; font-style:italic;">"${char.quote || ''}"</p>
-                    <div style="display:flex; justify-content:center; gap:20px; font-size:0.9em; color:#ddd;">
-                        <span><i class="fas fa-user-tag"></i> ${char.role || 'N/A'}</span>
-                        <span><i class="fas fa-heartbeat"></i> ${char.status || 'N/A'}</span>
-                    </div>
-                </div>
-            </div>
-            <div class="char-content">
+        // Custom Styles Override
+        const style = document.createElement("style");
+        style.textContent = `
+            :host { display:flex; flex-direction:column; width:100%; height:100%; font-family: 'Crimson Text', serif; font-size:18px; color:#e0e0e0; }
+            .content-card { background:var(--bg-card, #1e1e1e); padding:2rem; border-radius:4px; margin-bottom:0; }
+            .text-gold-gradient { 
+                background: linear-gradient(to bottom, #cfc09f 0%, #ffecb3 45%, #9e7f2a 100%);
+                -webkit-background-clip: text; -webkit-text-fill-color: transparent; color:gold;
+                font-family: 'Cinzel', serif; text-transform:uppercase;
+            }
+            .share-btn { 
+                background:rgba(0,0,0,0.5); border:1px solid gold; color:gold; 
+                width:30px; height:30px; border-radius:50%; cursor:pointer; 
+                display:inline-flex; align-items:center; justify-content:center;
+                font-size:14px; margin-left:10px;
+            }
+            .share-btn:hover { background:gold; color:black; }
+            
+            /* Responsive Grid */
+            @media(max-width: 900px) {
+                .char-grid { grid-template-columns: 1fr !important; }
+                .right-col { order:-1; }
+            }
+            
+            /* Scrollbars */
+            ::-webkit-scrollbar { width: 10px; }
+            ::-webkit-scrollbar-track { background: #0a0a0a; }
+            ::-webkit-scrollbar-thumb { background: #444; border: 1px solid #222; border-radius: 4px; }
+            ::-webkit-scrollbar-thumb:hover { background: gold; }
         `;
+        root.appendChild(style);
 
-        const blocks = [];
+        // Content Wrapper
+        const wrapper = document.createElement("div");
+        wrapper.className = "main-content";
+        wrapper.style.cssText = "flex:1; overflow-y:auto; padding:0; position:relative;";
+        wrapper.innerHTML = htmlContent;
+        wrapper.querySelectorAll("button.share-btn").forEach(b => b.remove()); // clean placeholders
+        root.appendChild(wrapper);
 
-        if (char.content_blocks) {
-            char.content_blocks.forEach((block, idx) => {
-                const safeText = block.markdownText || "";
+        // Lightbox
+        // ... (省略 lightbox logic per brevità, se serve lo rimetto, ma il codice originale lo aveva)
+        // Re-adding Lightbox simple logic
+        const lb = document.createElement("div");
+        lb.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9999; display:none; align-items:center; justify-content:center;";
+        lb.innerHTML = '<img style="max-width:90%; max-height:90%; border:2px solid gold; box-shadow:0 0 50px black;">';
+        lb.onclick = () => lb.style.display = "none";
+        root.appendChild(lb);
 
-                const blockId = `block-${idx}`;
+        wrapper.querySelectorAll("img").forEach(img => {
+            img.style.cursor = "zoom-in";
+            img.onclick = () => {
+                lb.querySelector("img").src = img.src;
+                lb.style.display = "flex";
+            };
+        });
 
-                // New Flex Layout
-                html += `
-                <div id="${blockId}" class="content-block char-section" style="background:rgba(255,255,255,0.05); padding:15px; margin-bottom:15px; border-radius:8px;">
-                    <h3 style="color:gold; border-bottom:1px solid #444; margin-bottom:10px;">
-                        <i class="fas ${block.icon || 'fa-scroll'}"></i> ${block.title}
-                    </h3>
-                    
-                    <div class="char-block-flex">
-                        ${block.image ? `
-                        <div class="char-block-img-container">
-                            <img src="${block.image}">
-                        </div>` : ''}
-                        
-                        <div class="char-block-text block-text">
-                            ${safeText}
-                        </div>
-                    </div>
-                </div>`;
+        // Shared Buttons
+        if (blocksForSharing.length > 0 && game.user.isGM) {
+            blocksForSharing.forEach(b => {
+                const target = wrapper.querySelector(b.selector);
+                if (target) {
+                    const btn = document.createElement("button");
+                    btn.className = "share-btn";
+                    btn.innerHTML = "👁️";
+                    btn.title = "Condividi";
+                    // Try to append near header
+                    const h3 = target.querySelector("h3");
+                    if (h3) h3.appendChild(btn);
+                    else target.prepend(btn);
 
-                blocks.push({
-                    selector: `#${blockId}`,
-                    title: `${char.name} - ${block.title}`
-                });
+                    btn.onclick = (e) => {
+                        e.stopPropagation();
+                        if (criptaSocket) {
+                            criptaSocket.executeForEveryone("showPopup", {
+                                html: target.outerHTML,
+                                title: b.title
+                            });
+                            ui.notifications.info(`Condiviso: ${b.title}`);
+                        }
+                    };
+                }
             });
         }
-
-        html += "</div>";
-        this.attachShadow(host, html, blocks);
     }
 }
 
