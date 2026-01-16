@@ -29,6 +29,10 @@ content_blocks:
     title: "La Riunione"
     image: "img/creatures/elena_rabber_reunion.webp"
     markdown: "characters/elena/la-riunione.md"
+  - type: "banner_box"
+    title: "Messaggio dai Von T"
+    banner: "img/ui/karla_banner.png"
+    markdown: "characters/elena/messaggio_karla.md"
 relationships:
   - id: "rabberduscolanderson"
     description: "Compagno"

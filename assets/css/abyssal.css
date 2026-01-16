@@ -640,9 +640,33 @@ ul {
     margin: 0;
 }
 
-.arrow-icon {
-    color: var(--gold-dim);
-    margin-left: 1rem;
+/* cleaned up */
+
+/* --- Banner Box (Horizontal Banner Header) --- */
+#character-content-container .content-card.content-card--banner_box {
+    padding: 0 !important;
+    overflow: hidden;
+    position: relative;
+}
+
+.banner-header {
+    width: 100%;
+    position: relative;
+    border-bottom: none;
+    margin: 0;
+    line-height: 0;
+}
+
+.banner-img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Obsolete banner styles removed */
+
+.banner-body {
+    padding: 2rem !important;
     transition: transform 0.3s ease;
 }
 
