@@ -13,7 +13,14 @@ if (!fs.existsSync(outputDir)) {
 }
 
 // Helpers
-const fixPath = (p) => p ? (p.startsWith('http') ? p : BASE_URL + p) : null;
+const fixPath = (p) => {
+    if (!p) return null;
+    if (p.startsWith('http')) return p;
+    // Se il path inizia già con assets (es. assets/img...), non lo raddoppiamo.
+    // Se inizia con img/ (come nei YAML), aggiungiamo assets/ davanti.
+    if (p.startsWith('assets/')) return BASE_URL + p;
+    return BASE_URL + 'assets/' + p;
+};
 
 
 // --- YAML Parser (Same as build_static_data.js) ---
@@ -85,6 +92,8 @@ function parseYamlAndHydrate(yamlText, charId) {
                     } else {
                         console.warn(`[WARN] Markdown file not found for ${charId}: ${mdPath}`);
                     }
+                } else if (k === 'image') {
+                    currentBlock[k] = fixPath(v);
                 } else {
                     currentBlock[k] = v;
                 }
