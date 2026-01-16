@@ -1,0 +1,657 @@
+{
+  "characters": [
+    {
+      "id": "deborah",
+      "name": "Deborah Von T",
+      "role": "L'Ultima Foglia",
+      "status": "vivo",
+      "quote": "Dolore.",
+      "type": "npc",
+      "images": {
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/deborah_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/deborah_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/deborah.webp"
+      },
+      "content_blocks": [
+        {
+          "type": "lore",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "markdown": "characters/deborah/biografia.md",
+          "markdownText": "Deborah Von T è ricordata come l'Ultima Foglia della stirpe. Bambina dai capelli bianchi, porta con sé un potere antico che la casata Von T ha temuto e desiderato insieme.\n\nNel silenzio della cripta, la sua presenza è percepita come un peso costante: il suo nome ricorre nei sussurri e nei documenti, legato a un destino che potrebbe ridisegnare il sangue dei Von T.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Particolarità",
+          "icon": "fa-fingerprint",
+          "markdown": "characters/deborah/particolarita.md",
+          "markdownText": "Molti la considerano la minaccia più grande del luogo. Si dice che la linea più vicina alla realtà sia legata a lei, e che le sue scelte possano alterare l'equilibrio dell'intera cripta.\n\nPer questo è vista come un male da estirpare, non per crudeltà ma per paura di ciò che potrebbe diventare.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "markdown": "characters/deborah/aspetto_fisico.md",
+          "markdownText": "Deborah appare come una bambina dall'aspetto spettrale e profondamente tragico. La sua pelle è diafana, di un pallore marmoreo che risalta nell'oscurità, incorniciata da lunghi capelli bianchi leggermente ondulati che le ricadono sulle spalle.\n\nI suoi occhi sono completamente bianchi, privi di iride e pupilla, e da essi sgorgano costantemente lacrime di sangue che le rigano il volto. Le sue mani, pallide e sottili, sono macchiate di sangue sulle punte delle dita e sui palmi.\n\nIndossa una lunga tunica bianca, logora e sfilacciata alle maniche e all'orlo, sporca di polvere grigia e macchie ematiche rapprese. Al collo porta una semplice collana di perle, mentre sul capo è posata una corona di spine metalliche arrugginite, color rosso scuro, i cui aculei sembrano penetrare dolorosamente nella cute. Ai piedi indossa semplici scarpette bianche, anch'esse segnate dal tempo.\n"
+        }
+      ],
+      "relationships": []
+    },
+    {
+      "id": "elena",
+      "name": "Elena Erbadath",
+      "role": "La Fantasma",
+      "status": "vivo",
+      "quote": "I ricordi sono annebbiati... ma il mio amore per lui è eterno.",
+      "type": "npc",
+      "images": {
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/elena_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/elena_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/elena.webp"
+      },
+      "content_blocks": [
+        {
+          "type": "lore",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "markdown": "characters/elena/biografia.md",
+          "markdownText": "Elena Erbadath nacque in una famiglia ricca, circondata da comodità, cure e attenzioni costanti. Nulla le mancava, tranne una cosa fondamentale: non camminò mai. Le sue gambe non la portarono mai da nessuna parte, e quella mancanza segnò tutta la sua vita.\n\nIl denaro le offrì ciò che a molti era negato: una sedia a rotelle costruita con cura, medici preparati, una casa sicura. La sua esistenza era protetta, ordinata, controllata. Ma col tempo Elena capì che il benessere non poteva colmare ciò che sentiva dentro. Ogni gesto gentile le sembrava una catena, ogni attenzione una barriera. Non voleva essere difesa. Voleva scegliere.\n\nCosì, contro la volontà della famiglia, lasciò la sua casa e si trasferì nei quartieri poveri della città. Lì trovò strade rotte, muri consumati e persone vere. La vita era dura, ma sincera. Elena imparò a contare su se stessa, a chiedere meno aiuto, a sentire di più.\n\nIn quel mondo incontrò Rabberduscolanderson. Anche lui proveniva da una famiglia ricca, anche lui aveva rinunciato a tutto. Tra loro nacque un legame semplice e profondo. Andarono a vivere insieme in una casa modesta, tenuta in piedi più dall'affetto che dalle fondamenta. Furono anni brevi ma intensi: pochi soldi, silenzi condivisi, cani che dormivano ai piedi del letto.\n\nPoi arrivò il giorno del sangue. Mentre Rabberduscolanderson era fuori con i suoi cani, Karla, sua nipote, entrò in casa. Non disse nulla. Non esitò. Un pugnale, un solo colpo, diretto al cuore. Elena morì lì, stesa sul letto, senza capire il motivo di tale crudeltà e senza poter rivedere l'uomo che amava.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Particolarità",
+          "icon": "fa-fingerprint",
+          "markdown": "characters/elena/particolarita.md",
+          "markdownText": "La morte non la lasciò andare.\n\nIl ricordo dell'ultimo istante - il freddo del metallo, il dolore improvviso, la solitudine di quel momento - la trattenne nel mondo dei vivi. Nel suo petto è ancora conficcato il pugnale che l'ha uccisa. Non è solo una ferita: è un'ancora. Ciò che l'ha strappata alla vita è anche ciò che la lega all'esistenza.\n"
+        },
+        {
+          "type": "custom_box",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "borderColor": "#8B0000",
+          "markdown": "characters/elena/aspetto_fisico.md",
+          "markdownText": "Elena appare come una figura eterea e tragica, con una forma translucida composta da un'energia spirituale che pulsa di sfumature rosso cremisi. Indossa un abito lungo e semplice, anch'esso spettrale.\n\nI suoi capelli lunghi e ondulati incorniciano un volto pallido e diafano, segnato da un'espressione malinconica. Il dettaglio più agghiacciante è il pugnale di cristallo rosso conficcato nel suo petto, proprio sopra il cuore; non è un semplice oggetto, ma il fulcro della sua esistenza attuale. Si muove su una sedia a rotelle d'epoca in legno e metallo.\n"
+        },
+        {
+          "type": "image_box",
+          "title": "Il ciondolo etereo",
+          "image": "img/items/elena_necklace.webp"
+        },
+        {
+          "type": "image_box",
+          "title": "La Riunione",
+          "image": "img/creatures/elena_rabber_reunion.webp",
+          "markdown": "characters/elena/la-riunione.md",
+          "markdownText": "Una luce calda si accende nel petto di Rabberduscolanderson, pulsando a ritmo di un cuore che non batte più. Spinto da una forza che non sa spiegare, dona a Valdor il suo stesso cuore, racchiuso in una sfera di vetro, come pegno di gratitudine e legame.\n\nElena, eterea e silente, lo avvolge in un abbraccio che trascende la morte. Non ci sono parole, solo la consapevolezza di essersi ritrovati in un luogo di disperazione. I ricordi sono confusi, il dolore è presente, ma per un istante, nel freddo della cripta, brilla una scintilla di calda umanità.\n"
+        },
+        {
+          "type": "banner_box",
+          "title": "Messaggio dai Von T",
+          "banner": "img/ui/karla_banner.png",
+          "markdown": "characters/elena/messaggio_karla.md",
+          "markdownText": "\n\n*\"Certo, vieni pure quando vuoi!\"*\n\nParole innocenti, un invito gentile che segnò la condanna di due vite.\nQuella sera, l'ombra della nostra ospite scivolò nella stanza, avvicinandosi al letto con passo felpato e inesorabile. Ricordo ancora il bagliore tremulo della candela che danzava sul filo della sua lama.\n\nSussurrò qualche parola, impossibili da ricordare... seguite solo da un dolore che invece non si può dimenticare.\n\n*\"Riposa in pace... o almeno provaci.\"*\n\n— *Karla Von T*"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rabberduscolanderson",
+          "description": "Compagno"
+        }
+      ]
+    },
+    {
+      "id": "franky",
+      "name": "Franky",
+      "role": "Lo Scienziato",
+      "status": "vivo",
+      "quote": "She volete dei shieri, io shi shono!",
+      "type": "npc",
+      "images": {
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/franky_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/franky_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/franky.webp"
+      },
+      "content_blocks": [
+        {
+          "type": "lore",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "markdown": "characters/franky/biografia.md",
+          "markdownText": "Franky è uno scienziato dalla mente instabile: un topo parlante affiancato da un essere di carne cucita. Nel suo laboratorio macabro prepara sieri e innesti, trattando corpi e organi come componenti.\n\nLa sua ossessione è un golem gigantesco, un colosso che vorrebbe animare con un cuore capace di sostenerne il potere.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Particolarità",
+          "icon": "fa-fingerprint",
+          "markdown": "characters/franky/particolarita.md",
+          "markdownText": "Tra i segreti che cerca, Franky brama un cuore che funzioni da batteria arcana. Le voci parlano di un cuore particolare, appartenuto ad Albert, che pulserebbe ancora di magia.\n\nPer lui quel cuore è la chiave per dare vita al suo progetto, e ogni indizio alimenta la sua brama.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "markdown": "characters/franky/aspetto_fisico.md",
+          "markdownText": "Franky è un topo antropomorfo dall'aspetto grottesco, con il corpo privo di pelo e la pelle rosso sangue, come se fosse stato scuoiato.\n\nIl suo corpo è coperto da rozze cuciture nere che tengono insieme pezzi di carne diversa. Ha grandi occhi neri e vitrei e un muso pronunciato. Indossa un camice da laboratorio bianco, sporco e ridotto a brandelli.\n"
+        },
+        {
+          "type": "image_box",
+          "title": "I Sieri",
+          "image": "img/items/franky_sierums.webp",
+          "image_caption": "Collezione di sieri instabili.",
+          "tags": "",
+          "markdown": "characters/franky/sieri.md",
+          "markdownText": "\n\n> \"Ogni colore è una prome-sha... o una minac-sha!\"\n\nFranky porta sempre con sé una vasta gamma di sieri instabili. Alcuni curano, altri potenziano, molti esplodono. La distinzione è spesso sottile quanto una sfumatura cromatica.\n"
+        },
+        {
+          "type": "image_box",
+          "title": "Colosso di Carne",
+          "image": "img/items/franky_colossal_golem.webp",
+          "image_caption": "Costrutto di carne e metallo.",
+          "tags": "",
+          "markdown": "characters/franky/golem.md",
+          "markdownText": "\n\n> \"È vivo! PIÙ O MENO!\"\n\nIl capolavoro (o l'abominio) supremo di Franky. Una montagna di muscoli cuciti insieme, alimentato da elettricità statica e fedeltà cieca. Ideale per spostare carichi pesanti o appiattire nemici fastidiosi.\n"
+        }
+      ],
+      "relationships": []
+    },
+    {
+      "id": "ginevra",
+      "name": "Ginevra Von T",
+      "role": "La Madre",
+      "status": "ignoto",
+      "quote": "",
+      "type": "npc",
+      "images": {
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/ginevra_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/ginevra_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/ginevra.webp"
+      },
+      "content_blocks": [],
+      "relationships": []
+    },
+    {
+      "id": "karla",
+      "name": "Karla Von T",
+      "role": "La Vampira",
+      "status": "vivo",
+      "quote": "Insieme possiamo raggiungere il nostro obiettivo, lo sento.",
+      "type": "npc",
+      "images": {
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/karla_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/karla_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/karla.webp"
+      },
+      "content_blocks": [
+        {
+          "type": "lore",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "markdown": "characters/karla/biografia.md",
+          "markdownText": "Karla Von T appare quando viene chiamata dalle sue progenie o quando la sua volontà decide di imporsi. La sua presenza spezza le violenze: uno sguardo basta a piegare la volontà e a imporre silenzio.\n\nSi mostra criptica ma interessata, soprattutto verso chi proviene da linee vicine a quella dei Von T, perché ritiene che il loro destino sia intrecciato al suo.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Particolarità",
+          "icon": "fa-fingerprint",
+          "markdown": "characters/karla/particolarita.md",
+          "markdownText": "Karla conduce un rituale macabro che simula la morte. Chi vi si sottopone attraversa un'ombra breve e poi si risveglia con un potere nuovo, legato al sangue.\n\nIl rito è rischioso e richiede fiducia assoluta; Karla lo presenta come un dono, ma il prezzo non è mai del tutto chiaro.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "markdown": "characters/karla/aspetto_fisico.md",
+          "markdownText": "Karla è una donna aristocratica dall'aspetto regale e minaccioso, con pelle pallidissima e lineamenti affilati. Ha capelli neri raccolti in un'acconciatura elegante e occhi rossi intensi che risaltano sul trucco scuro.\n\nIndossa un sontuoso abito barocco rosso sangue con maniche a sbuffo, un corpetto stretto e una gonna ampia dorata.\n"
+        },
+        {
+          "type": "custom_box",
+          "title": "Richieste e ambiguità",
+          "icon": "fa-scroll",
+          "borderColor": "var(--accent-primary)",
+          "markdown": "characters/karla/richieste-e-ambiguita.md",
+          "markdownText": "Karla chiede che il piano venga purificato da presenze che la infastidiscono: un uomo folle che tesse ragnatele e tendini, non-morti erranti, e una giullare che semina illusioni.\n\nSui suoi legami con il Tessimorte mantiene ambiguità: nega di conoscerlo, ma reagisce sempre quando il suo nome viene pronunciato. La sua fame è costante, e il sangue resta il suo vero tributo.\n"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rabberduscolanderson",
+          "description": "Zio"
+        },
+        {
+          "id": "x",
+          "description": "Madre"
+        },
+        {
+          "id": "nino_olegna",
+          "description": "Padre"
+        }
+      ]
+    },
+    {
+      "id": "nino_olegna",
+      "name": "Nino Olegna",
+      "role": "Il Tessimorte",
+      "status": "morto",
+      "quote": "Il tradimento è inaccettabile. Pagherai.",
+      "type": "npc",
+      "images": {
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/nino_olegna_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/nino_olegna_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/nino_olegna.webp"
+      },
+      "content_blocks": [
+        {
+          "type": "lore",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "markdown": "characters/nino_olegna/biografia.md",
+          "markdownText": "Nino Olegna, chiamato Tessimorte, è un alchimista macabro che intreccia ragnatele, tendini e corpi per generare creature innaturali. Il suo laboratorio è un labirinto di fascicoli e rituali oscuri.\n\nI suoi documenti parlano dell'Assistente, detto Bacio Mortale, e di una creatura colossale dalle capacità incalcolabili. Le Creature Tela sono descritte come base per ulteriori creazioni, a testimonianza di una ricerca senza scrupoli.\n\nDi lui restano appunti e una poesia carica di rancore, tracce di un uomo divorato dal proprio esperimento.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Particolarità",
+          "icon": "fa-fingerprint",
+          "markdown": "characters/nino_olegna/particolarita.md",
+          "markdownText": "Tra le carte del Tessimorte sono stati rinvenuti quattro studi principali, che dettagliano la discesa nella follia scientifica e magica per la creazione della vita attraverso la seta necrotica.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "markdown": "characters/nino_olegna/aspetto_fisico.md",
+          "markdownText": "Nino Olegna è un uomo anziano e sinistro, dal viso scavato e la pelle grigiastra segnata dal tempo. Ha capelli bianchi radi e occhi gialli piccoli e penetranti.\n\nLa sua metà superiore è umana, mentre la parte inferiore è fusa con il corpo di un ragno gigante dalle zampe bianche e pelose. Indossa una veste blu notte decorata con motivi dorati che richiamano ragnatele e un ciondolo a forma di ragno sul petto.\n"
+        },
+        {
+          "type": "image_box",
+          "title": "Tessimorfosi",
+          "image": "img/documents/nino_fascicolo_creature_tela.webp",
+          "image_caption": "Schema di sostituzione dei tessuti molli con fibre di seta.",
+          "tags": "",
+          "markdown": "characters/nino_olegna/tessimorfosi.md",
+          "markdownText": "*Nascita delle Creature Tela*\n\n### Il Processo\nStudi complessi su come consumare i tessuti di una creatura umana preservando ossa e tendini. La carne viene rimpiazzata da tela di ragno gigante incantata con energia necrotica.\n\n### Risultato\nLa 'Creatura Tela' finale è flessibile, resistente e totalmente manipolata per rispettare il volere del suo creatore senza esitazione.\n\n> La carne marcisce, la tela perdura.\n"
+        },
+        {
+          "type": "image_box",
+          "title": "Evoluzione",
+          "image": "img/documents/nino_fascicolo_webber.webp",
+          "image_caption": "Fusione di più creature in un unico organismo difensivo.",
+          "tags": "",
+          "markdown": "characters/nino_olegna/evoluzione.md",
+          "markdownText": "*Utilizzi e Creazione del 'Webber'*\n\n### Materia Prima\nLe Creature Tela non sono solo servi, ma ingredienti. Possono essere consumate e fuse per generare esseri superiori.\n\n### Progetto Webber\nUn esperimento riuscito che ha portato alla creazione di una creatura simile ad un Roper. Sacrificando creature tela minori, si ottiene un mostro difensivamente più utile e resistente.\n"
+        },
+        {
+          "type": "image_box",
+          "title": "Tessimorfosi Ciclica",
+          "image": "img/documents/nino_fascicolo_bacio_mortale.webp",
+          "image_caption": "Una figura umanoide composta di seta densa, china su un rituale.",
+          "tags": "",
+          "markdown": "characters/nino_olegna/tessimorfosi-ciclica.md",
+          "markdownText": "*L'Assistente: Il Bacio Mortale*\n\n### Ottimizzazione\nPer velocizzare la creazione dell'armata, è stato progettato un Assistente. Richiede il consumo di un numero elevatissimo di Creature Tela, ma il risultato è inestimabile.\n\n### Lealtà Assoluta\nIl Bacio Mortale è incredibilmente potente e pericoloso. Essendo composto della stessa essenza delle creature, vede Nino non solo come creatore, ma come padre e padrone assoluto, assistendolo nei rituali più complessi.\n\n> Egli tesse dove le mie mani non arrivano.\n"
+        },
+        {
+          "type": "image_box",
+          "title": "Tessimorfosi Definitiva",
+          "image": "img/documents/nino_fascicolo_colosso_tela.webp",
+          "image_caption": "Schizzi frenetici di una creatura immensa che assorbe corpi.",
+          "tags": "",
+          "markdown": "characters/nino_olegna/tessimorfosi-definitiva.md",
+          "markdownText": "*La Fine del Ciclo: Il Colosso di Tela*\n\n### Genesi Rapida\nCon l'aiuto del Bacio Mortale, il tempo di creazione si riduce drasticamente. Nonostante l'alto sacrificio di servitori richiesto, la creazione del Colosso diventa possibile in tempi brevi.\n\n### L'Imbattibile\nUna volta vivo, il Colosso si auto-alimenta. Uccide creature, ne assorbe i corpi e tramuta i tessuti in nuova tela, crescendo in dimensioni e potenza all'infinito.\n\n### Nota Finale\nLa grafia diviene pesante, il calco della penna quasi strappa la carta. L'ultima frase è un urlo di vendetta impresso nell'inchiostro: 'Nessuno sarà in grado di fermare questa creatura. NEMMENO TU.'\n"
+        },
+        {
+          "type": "image_box",
+          "title": "Pergamena: Il Lamento del Tradito",
+          "image": "img/documents/nino_poesia.webp",
+          "image_caption": "Versi tracciati con rabbia su pergamena antica.",
+          "tags": "",
+          "markdown": "characters/nino_olegna/lamento-del-tradito.md",
+          "markdownText": "*Un messaggio personale rivolto a Karla.*\n\n### Il Testo\nNel fondo della tomba, continuamente mi rigiravo,\nPer quell'azione ignobile che da te non m'aspettavo.\n\nOra dal buio ritorno, con in mano il mio cuore,\nDa padre tradito, sento ancora il dolore.\n\nUn dolore antico, che in me non si placa,\nIngannato ed ucciso dalla mia figlia ingrata.\n\nMa ascolta l'avviso che la bianca tela ti porta,\nPerché qualcosa nel tuo piano stavolta è andata storta.\n\nTra densi fili di tenebra sarai imprigionata,\nNessuna salvezza, nessuna pietà mostrata.\n\nTi troveranno, lo sai... vedrai le loro zanne e la seta\nsarà la mia vendetta a prendere forma e sarà completa.\n\nKarla, figlia ingrata, quel giorno il rispetto è mancato,\nil mio sangue è colato, ed il mio onore si è spezzato.\n\nMa a chi spezza il sacro ed antico patto familiare,\nresta solo la notte, e i ragni che -\n\n> Ma a chi spezza il sacro ed antico patto familiare, resta solo la notte...\n"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "x",
+          "description": "Moglie"
+        },
+        {
+          "id": "karla",
+          "description": "Figlia",
+          "hidden": "false"
+        }
+      ]
+    },
+    {
+      "id": "rabberduscolanderson",
+      "name": "Rabberduscolanderson Von T",
+      "role": "Il Reietto",
+      "status": "vivo",
+      "quote": "Io volevo solo starmene seduto nella mia stanza, perché sono finito su questo sito?!",
+      "type": "npc",
+      "images": {
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/rabberduscolanderson_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/rabber_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/rabberduscolanderson.webp"
+      },
+      "content_blocks": [
+        {
+          "type": "lore",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "markdown": "characters/rabberduscolanderson/biografia.md",
+          "markdownText": "Rabberduscolanderson nacque come primogenito della nobile casata Von T. Il suo destino fu segnato fin dal battesimo: suo padre, Yuris, gli impose il nome \"Rabberduscolanderson\" contro la ferma volontà della madre, Leonora. Questo atto di prepotenza trasformò il figlio in un simbolo vivente dei conflitti coniugali. Leonora, incapace di separare il bambino dall'odio per il marito, lo ignorò per gran parte della sua infanzia, riversando su di lui una fredda indifferenza.\n\nCrescendo, Rabberduscolanderson si rivelò privo di qualsiasi talento pratico, sociale o politico necessario per navigare la vita di corte. Non riuscì mai a trovare il suo posto nel regno, né una compagna con cui generare eredi. Per suo padre Yuris, ossessionato dalla continuazione della stirpe, questa fu l'onta definitiva. Considerato un ramo secco dell'albero genealogico, Rabberduscolanderson fu cacciato dal palazzo, spogliato dei suoi privilegi.\n\nParadossalmente, l'esilio fu la sua salvezza temporanea. Visse in povertà, circondato solo dall'affetto sincero dei suoi tre cani: Mimi, Coco e Balù. In tarda età, trovò l'amore in Elena, una donna di vent'anni più giovane. Furono anni di felicità semplice, scandita dal tintinnio di poche monete di rame. Tuttavia, il destino fu crudele: la morte prematura di Elena gettò Rabberduscolanderson in una disperazione senza fondo. Incapace di sopportare il dolore, si tolse la vita gettandosi in un fossato. I suoi fedeli cani, abbandonati, morirono di fame pochi giorni dopo, seguendo il padrone nel triste destino."
+        },
+        {
+          "type": "lore",
+          "title": "Particolarità",
+          "icon": "fa-fingerprint",
+          "markdown": "characters/rabberduscolanderson/particolarita.md",
+          "markdownText": "### L'Ossessione per il Rame\nNonostante sia un non-morto, Rabberduscolanderson conserva una scintilla della sua umanità, legata indissolubilmente al ricordo della semplicità. Oro ed argento non hanno valore per lui, gli ricordano la nobiltà che lo ha rifiutato. Ama invece il rame: il suono e la vista delle monete di rame gli evocano i rari momenti di gioia della sua vita umile con Elena.\n\n> **Il Mercante della Cripta:** Vagando per la cripta, ha raccolto oggetti preziosi lasciati da altri avventurieri o appartenenti al luogo, ma non sa che farsene. È disposto a cedere oggetti magici e di  valore, ma accetta come pagamento esclusivamente monete di rame. Per lui, un sacchetto di tintinnanti monete marroni vale più di una spada incantata.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "markdown": "characters/rabberduscolanderson/aspetto_fisico.md",
+          "markdownText": "Rabberduscolanderson è uno scheletro vivente che emana un'aria di furtiva astuzia. Spogliato di ogni traccia di carne, le sue ossa sono ingiallite dal tempo, e le orbite vuote del teschio sono illuminate da due piccoli punti di luce rossa. Il suo volto scheletrico sembra perennemente atteggiato in un sorriso sardonico.\n\nVeste come un vagabondo: indossa stracci logori nei toni del marrone e del grigio, talmente consunti da sembrare fusi con le sue ossa. Un cappello di paglia sformato e rovinato dalle intemperie gli copre il capo. Una borsa a tracolla in cuoio marrone, piena di fibbie e tasche, è assicurata al suo petto.\n"
+        },
+        {
+          "type": "image_box",
+          "title": "I Compagni Fedeli",
+          "image": "img/items/rabberduscolanderson_dogs.webp",
+          "markdown": "characters/rabberduscolanderson/i-compagni-fedeli.md",
+          "markdownText": "*Mimi, Coco e Balù*\n\n### Lealtà Incondizionata\nI tre fedeli cani di Rabberduscolanderson, che lo hanno seguito fino alla morte e oltre.\n\n> L'unico amore che non tradisce mai.\n"
+        },
+        {
+          "type": "image_box",
+          "title": "Cuore di Rabberduscolanderson",
+          "image": "img/items/heart-rabberduscolanderson.webp",
+          "imageStyle": "border-radius: 50%; object-fit: cover;",
+          "markdown": "characters/rabberduscolanderson/cuore-di-rabberduscolanderson.md",
+          "markdownText": "*Una piccola sfera contenente un cuore e potere arcano.*\n\n### Oggetto meraviglioso (leggendario), richiede sintonia\nOttieni vantaggio alle prove abilità di Stealth, Perception per cercare oggetti nascosti vicini ad almeno una moneta di rame, e Animal Handling nelle prove contro le bestie.\nOttieni svantaggio a qualsiasi tiro salvezza legato ad effetti di paura ed hai svantaggio ai tiri per colpire contro qualsiasi creatura di taglia superiore alla tua. Inoltre, sei vulnerabile ai danni da caduta.\n\n> Solo e reietto vive incapace nel dolore più profondo\n> ama una donna, lei muore: del baratro tocca il fondo.\n"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "elena",
+          "description": "Compagna"
+        },
+        {
+          "id": "x",
+          "description": "Sorella minore"
+        },
+        {
+          "id": "karla",
+          "description": "Nipote"
+        }
+      ]
+    },
+    {
+      "id": "x",
+      "name": "X Von T",
+      "role": "La Studiosa",
+      "status": "vivo",
+      "quote": "Il sapere sopravvive dove il potere consuma.",
+      "type": "npc",
+      "images": {
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/x_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/x_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/x.webp"
+      },
+      "content_blocks": [
+        {
+          "type": "lore",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "markdown": "characters/x/biografia.md",
+          "markdownText": "Figlia di Yuris e Leonora Von T, X porta un nome nato per ripicca. Dopo che il primogenito fu chiamato Rabberduscolanderson contro la volontà della madre, Leonora scelse per la figlia successiva un nome ridotto all'essenziale: una sola lettera, un rifiuto silenzioso verso le imposizioni del marito.\n\nCrescendo, X osservò i conflitti familiari da un angolo distante, trasformando la freddezza domestica in curiosità. Il sangue dei Von T le offriva privilegi, ma lei li usò soltanto per accedere a tomi e rituali proibiti.\n\nX fu attratta fin da piccola dalle arti arcane, incrociando ogni declinazione della necromanzia: resuscitazione, annichilimento, tessitura di anime. Studiò con attenzione il patto che Yuris stipulò per elevare la casata, annotando conseguenze e pericoli con rigore quasi accademico. Pur comprendendo l'immenso potere destinato all'Ultima Foglia, lo considerava una condanna. Cercò nei suoi studi una via per comprendere, non per ereditare, convinta che rincorrere quel potere le avrebbe fatto perdere la sua umanità.\n\nConvinta che il patto avrebbe divorato l'Ultima Foglia, X decise di avere figli presto: a 17 anni diede alla luce Tokka e, subito dopo, Karla. Sapeva che Rabberduscolanderson difficilmente avrebbe portato avanti la stirpe e non voleva che il potere finale si posasse sulle sue spalle. Per tutta la vita rimase ai margini degli intrighi di corte, utilizzando il titolo nobiliare soltanto per ottenere accesso a biblioteche, rituali e mentori. La famiglia la considerava distante; lei ricambiava con un distacco calcolato, protetta dai suoi studi.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Particolarità",
+          "icon": "fa-scoll",
+          "markdown": "characters/x/particolarita.md",
+          "markdownText": "### Ricercatrice nella Cripta\nOra si trova nel primo piano della cripta: una cella piena di libri aperti, pergamene e formule abbozzate. La sua sete di conoscenza non si è placata con la morte, anzi si è cristallizzata.\n\n**Cosa vuole:**\n\n- Libri, appunti, pergamene o documenti rari di qualsiasi scuola.\n- Notizie sul patto dei Von T e sugli esiti dell'Ultima Foglia.\n- Trattati su necromanzia, sangue e tempo.\n\n**Cosa offre:**\n\n- Informazioni sulla famiglia, sui rituali necromantici e sulla cripta.\n- Interpretazioni di testi oscuri e piccoli rituali di supporto.\n\n**Meccanica di Scambio:** consegnando un testo interessante, i personaggi possono ottenere dettagli sul patto, bonus narrativi legati alla necromanzia o frammenti di conoscenza sulla famiglia.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "markdown": "characters/x/aspetto_fisico.md",
+          "markdownText": "X è un'imponente entità non-morta che irradia potere arcano e autorità oscura. Si presenta come uno scheletro completo, la cui struttura ossea è visibile attraverso gli strappi delle sue vesti. Le orbite profonde ospitano fiamme rosse ardenti.\n\nIndossa paramenti neri, ampi e lacerati, che ricordano quelli di un antico stregone o di un sacerdote della morte. Il capo è coperto da un grande cappello nero a tesa larga, sopra il quale poggia una corona di punte metalliche o spine. Alla cintura porta diverse borse e sacche di pelle, probabilmente contenenti componenti magici.\n"
+        }
+      ],
+      "relationships": [
+        {
+          "id": "rabberduscolanderson",
+          "description": "Fratello maggiore"
+        },
+        {
+          "id": "nino_olegna",
+          "description": "Marito"
+        },
+        {
+          "id": "karla",
+          "description": "Figlia"
+        }
+      ]
+    },
+    {
+      "id": "zara",
+      "name": "Zara",
+      "role": "La Giullare",
+      "status": "ignoto",
+      "quote": "Buuuu! Ahahaha!",
+      "type": "npc",
+      "images": {
+        "avatar": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/zara_transp.webp",
+        "hover": "https://khuzoe.github.io/sigillo-del-male/img/creatures/transp/zara_animation.webp",
+        "portrait": "https://khuzoe.github.io/sigillo-del-male/img/creatures/zara.webp"
+      },
+      "content_blocks": [
+        {
+          "type": "lore",
+          "title": "Biografia",
+          "icon": "fa-mask",
+          "markdown": "characters/zara/biografia.md",
+          "markdownText": "Il nome di Zara compare tra i ritratti e le targhette del palazzo, come un ricordo fissato nel tempo. È conosciuta come La Giullare, una presenza legata alle stranezze del piano.\n\nChi ne parla la descrive come creatrice di inganni e distorsioni, un'ombra che prende forma tra le sale.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Particolarità",
+          "icon": "fa-feather",
+          "markdown": "characters/zara/particolarita.md",
+          "markdownText": "Le sue apparizioni sono teatrali: una figura enorme che urla \"Booo!\" e poi esplode in coriandoli colorati. Ogni volta si dissolve senza lasciare tracce, tornando con forme diverse, più piccole e più beffarde.\n\nÈ difficile distinguere dove finisca l'illusione e dove inizi il pericolo reale.\n"
+        },
+        {
+          "type": "lore",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "markdown": "characters/zara/aspetto_fisico.md",
+          "markdownText": "Zara è una donna umana dall'incarnato pallido, con un'espressione maniacale stampata sul volto: un sorriso troppo ampio e occhi rossi luminosi che tradiscono una natura instabile. Ciuffi di capelli color zenzero sfuggono disordinatamente dal suo copricapo.\n\nIl suo abbigliamento è un tripudio di colori contrastanti: indossa un classico costume da giullare a rombi viola e gialli, completo di cappello a due punte con campanellini dorati, calze a righe coordinate e scarpe rosse a punta arricciate.\nBrandisce uno scettro grottesco sormontato da un teschio ridente, che indossa a sua volta un piccolo cappello da giullare; dallo scettro emana un fumo spettrale verdastro\n"
+        },
+        {
+          "type": "image_box",
+          "title": "Il Girocollo Festoso",
+          "image": "img/items/zara_necklace.webp",
+          "markdown": "characters/zara/collana.md",
+          "markdownText": "Un bizzarro girocollo composto da palloncini colorati (blu, arancione, verde, giallo) intrecciati tra loro con maestria sorprendente. Al centro pende un ciondolo piatto, forse di legno dipinto o plastica rigida, che raffigura il volto stilizzato e sorridente di un giullare. Nonostante l'apparenza innocua e giocosa, l'oggetto emana una vibrazione di follia latente, come se fosse un trofeo o un talismano di un carnevale distorto.\n"
+        },
+        {
+          "type": "image_box",
+          "title": "I Passi della Follia",
+          "image": "img/items/zara_shoes.webp",
+          "hidden": "true",
+          "markdown": "characters/zara/i-passi-della-follia.md",
+          "markdownText": "## Scarpe del Giullare incantate\n\n### Passo Danzante\nQueste scarpe rosse dalla punta arricciata sembrano muoversi da sole a ritmo di una musica udibile solo da chi le indossa. \n\n### Effetti\nPermettono di muoversi con grazia innaturale, ignorando le leggi della fisica per brevi istanti. Chi le indossa può camminare su superfici verticali o sull'acqua per un breve tratto, purché continui a danzare senza sosta.\n\n> \"La gravità è solo un suggerimento, e anche piuttosto noioso.\""
+        },
+        {
+          "type": "image_box",
+          "title": "Marionetta Rara",
+          "image": "img/creatures/zara_puppet_1.webp",
+          "markdown": "characters/zara/marionetta_rara.md",
+          "markdownText": "Una bambola di pezza dall'aspetto grottesco, seduta in posa inerte. Indossa un cappello da giullare bicolore, rosso e blu, adornato da campanelli dorati. Il volto, simile a porcellana o plastica invecchiata, è deformato in un sorriso sdentato e maniacale, mentre gli occhi brillano di una sinistra luce rossa priva di pupille. Il corpo tozzo è segnato da cuciture grossolane e termina con scarpe a punta rosse.\n"
+        },
+        {
+          "type": "image_box",
+          "title": "Marionetta Tete",
+          "image": "img/creatures/zara_puppet_2.webp",
+          "markdown": "characters/zara/marionetta_tete.md",
+          "markdownText": "Una creatura surreale composta quasi interamente da una testa enorme montata su due gambe sottili e lunghe. Il volto riprende i tratti inquietanti della prima marionetta: occhi rossi luminosi e sorriso folle, incorniciati da capelli color zenzero e un cappello da giullare. Le gambe esili, prive di un vero corpo, terminano in grandi scarpe rosse a punta arricciata, suggerendo un movimento saltellante e innaturale.\n"
+        }
+      ],
+      "relationships": []
+    }
+  ],
+  "sessions": {
+    "nextSession": {
+      "number": 18,
+      "date": "20 Gennaio 2026",
+      "timeStart": "20:30",
+      "timeEnd": "23:30",
+      "isScheduled": true
+    },
+    "sessions": [
+      {
+        "id": 1,
+        "date": "30/04/2025 - Inizio",
+        "summary": "<p>Il gruppo si riunisce e insieme aprite la porta d'ingresso, con i cuori che battono all'unisono.</p><p>Affrontate un cane mostruoso sul lato ovest rispetto alla porta d'ingresso.</p><p>Iniziate il combattimento contro un mimic, lo \"Scrigno Rosa\", che però riesce a fuggire gettandosi nel fiume rosso.</p><p>Tentate di evitare la figura gigante che avete intravisto e restate sul lato ovest del luogo in cui vi trovate.</p><p>Trovate una stanza con tre teschi colorati di fronte a un libro. Valdor tenta di prenderlo, ma i teschi sembrano reagire; viene quindi convinto dal gruppo ad abbandonare la stanza.</p><p>Chiudete una stanza contenente due non-morti utilizzando Arcane Lock. La parola d'ordine scelta è \"Apothecary\".</p><p>Incontrate Rabberduscolanderson Von T, che assegna una missione a Valdor e Apothecary: ottenere ciò che Ran'Dra nasconde in tasca.</p><p>Incontrate infine X Von T, la quale chiede a Ga'Run di procurarle libri interessanti in cambio di informazioni.</p>",
+        "xp": {
+          "total": "2300",
+          "each": "575"
+        }
+      },
+      {
+        "id": 2,
+        "date": "13/05/2025",
+        "summary": "<p>Ga'Run e Ran'Dra concludono il loro primo dialogo con X, scoprendo qualche informazione di base e che vende alcune pergamene per incantesimi.</p><p>Ga'Run minaccia Rabberduscolanderson prima di abbandonare la stanza, infastidito dal fatto che abbia fumato con Valdor.</p><p>Vedete il giardino di fiori fuori dalla stanza di Rabberduscolanderson, incluso un grosso fiore nero al centro di una pozza rossa. Decidete di non interagire con essi.</p><p>Apothecary prova a tirare i petali che fuoriescono da un cumulo di terra, rivelando una testa parzialmente fantasma e parzialmente coperta di petali di rosa.</p><p>Vi imbattete in una sorta di enigma con delle torce. Grazie all'ingegno di Valdor, riuscite a capirne il funzionamento. Sul sarcofago centrale: 'Il destino di un popolo è determinato dalla sola luce che lo guida.'</p><p>Durante la risoluzione dell'enigma, combattete contro alcune creature non-morte ed ottenete una piccola pergamena con scritto 'Metà è fatta, dov'è l'altra?'</p><p>Infine, per via del rumore generato dal combattimento, viene attirata l'enorme creatura bipede che si aggira per questo piano. Completate il combattimento e fuggite, grazie ad un'illusione di Ran'Dra.</p><p>Vi trovate bloccati tra tre problemi: la creatura con il sacco, una creatura che raccoglie dei corpi da un pozzo e li 'strizza' tirandone fuori il sangue, e due cani mostruosi come quello che avete già affrontato.</p>",
+        "xp": {
+          "total": "950",
+          "each": "237"
+        }
+      },
+      {
+        "id": 3,
+        "date": "26/05/2025",
+        "summary": "<p>Decidete di affrontare i cani a ovest, riuscendo a sconfiggerli.</p><p>Vi avvicinate leggermente allo 'Spremiagrumi'; non sembra reagire in modo ostile, porge la mano a Ga'Run, che però non si avvicina.</p><p>Tornate nella stanza con i bracieri, entrando nello stanzino aperto da 'Gianni': dentro trovate varie copie del libro \"Sotto la guida di Abrak\", che parla del popolo Klaren e di una divinità - Abrak - nata dopo un patto tra i Klaren stessi ed un'altra entità di cui non sono specificati nome o natura.</p><p>Raccogliete velocemente dei documenti, che includono quattro macchie colorate collegate da una freccia: verde > azzurro > rosso > viola</p><p>Tornate da Rabberduscolanderson e X. Apothecary parla con Rabberduscolanderson, scoprendo dettagli sulla sua storia. Dopo avervici fatto amicizia, egli regala ad Apothecary un anello magico.</p><p>Gli altri, nel frattempo, parlano con X e 'rubano' qualche informazione pur non avendo portato libri particolarmente interessanti.</p><p>X dopo avervi fornito più informazioni di quanto pattuito inizialmente, insiste chiedendovi di esplorare la cripta e raccogliere quante più informazioni interessanti possibile.</p><p><strong>Note aggiuntive:</strong> Da quello che X vi ha rivelato, sembra che la famiglia Von T sia coinvolta in qualcosa che riguarda il luogo in cui vi trovate. Inoltre, la bambina dai capelli bianchi sembra essere l'ultima della stirpe Von T, la quale ora dispone di un potere molto grande. Infine sembra che anche i ricordi dei Von T stiano influenzando questo luogo, ad esempio 'Gianni' è stato definito come 'il giardiniere del Palazzo Von T', un bell'uomo a detta di X.</p><p>Rabberduscolanderson - da quanto sa Apothecary - è sempre stato da solo in vita. Aveva solo 3 cani e dopo anni aveva conosciuto una donna, che però venne uccisa. Alla fine, si gettò da un precipizio e pose fine alla sua vita.</p><p>Sembra che Rabberduscolanderson sia interessato alla targhetta nella tasca di Ran'Dra. Inoltre, avevate lasciato nei cadaveri degli altri cani altre due targhette, che forse volevate riprendere.</p>",
+        "xp": {
+          "total": "4600",
+          "each": "1150"
+        }
+      },
+      {
+        "id": 4,
+        "date": "10/06/2025",
+        "summary": "<p>Valdor consegna la prima targhetta a Rabberduscolanderson, il quale gli dà in cambio una pozione. Lo accompagnate momentaneamente dove avete ucciso il primo cane e poi tornate indietro.</p><p>Decidete di andare a prendere anche le altre due targhette a nord, e le riportate a Rabberduscolanderson, ottenendo ulteriori pozioni in cambio.</p><p>Egli vi cita 'Elena', la sua compagna, dicendovi che nel caso in cui ci fosse qualcosa in giro a lei legata, gli farebbe piacere riaverla tra le mani.</p><p>Procedete furtivi con l'esplorazione del piano, trovando due porte chiuse. Ran'Dra, origliando dietro la prima, sente una strana voce dall'altra parte, accompagnata da suoni inquietanti.</p><p>Decidete di dirigervi nell'altra, dove trovate 3 sarcofagi. Decidete di aprirli e venite attaccati da alcune mummie. Una di questa, purtroppo, maledice Ga'Run.</p><p>Il gigante che si aggira per la cripta, attirato dal rumore, inizia ad avvicinarsi minaccioso verso la vostra posizione. Riuscite ad evitarlo e ad andarvene via.</p><p>Tornate da X, la quale vi propone di uccidere Ga'Run e riportarlo in vita per rimuovere la maledizione; morendo per la maledizione, invece, il corpo si tramuta in cenere!</p><p>Andate infine a riposare nella stanza sigillata dalla magia di Valdor, e passate la notte lì, preparandovi a rimuovere la terribile maledizione con l'aiuta della magia di Apothecary.</p>",
+        "xp": {
+          "total": "2200",
+          "each": "550"
+        }
+      },
+      {
+        "id": 5,
+        "date": "24/06/2025",
+        "summary": "<p>Concludete il vostro riposo lungo e, una volta svegli, Apothecary utilizza la sua magia divina per rimuovere la maledizione che affligge Ga'Run.</p><p>Dopo aver trascorso qualche minuto a chiacchierare, in attesa che Ga'Run riposasse un po', decidete di ripartire.</p><p>Mentre percorrete i corridoi e le vie della cripta, cercate di individuare Gianni, in modo da abbatterlo cogliendolo di sorpresa.</p><p>Prima di Gianni, però, incontrate uno strano topo parlante, affiancato da uno strano essere di carne che lo accompagna. Egli vi invita nel suo macabro laboratorio dove vi chiede di procurargli un cuore in grado di alimentare un golem gigante che sta costruendo; in cambio, vi ha offerto dei \"sieri speciali\".</p><p>Rifiutate la sua offerta, Ran'Dra gli ruba di soppiatto uno strano libro, e ve ne andate.</p><p>Poco dopo, vedete passare Gianni ed iniziate un combattimento contro di lui, il quale sembra essere un avversario piuttosto temibile.</p>",
+        "reward": "Combattimento in corso"
+      },
+      {
+        "id": 6,
+        "date": "08/07/2025",
+        "summary": "<p>Riuscite a completare il combattimento contro Gianni, avendo successo. Riuscite a prelevare un Cuore dal suo corpo, che sembra avere una funzione simile a quella di una batteria arcana. Valdor scopre che pare sia incantato con un incantesimo simile a Desiderio.</p><p>Franky sembrava particolarmente interessato a quel cuore, ma riuscite ad evitare le sue richieste e a procedere senza darglielo o parlargliene.</p><p>Cercando nei sarcofagi dove avete affrontato le mummie il giorno precedente, trovate un diamante e un Medaglione con inciso il simbolo Klaren.</p><p>Esplorate la parte sud del livello e trovate 3 dipinti con delle targhette sotto: \"Zara\", \"Mafu\" e \"Lumilla, Rosskar, Okbrax\". Di fronte a quello di \"Zara\", Ran'Dra raccoglie una Collana che emana magia.</p><p>Vi dirigete di nuovo verso nord, dove ritrovate il mimic che era fuggito durante il vostro primo scontro. Questa volta, riuscite ad abbatterlo; ci sarà qualcosa dentro?</p>",
+        "xp": {
+          "total": "6800",
+          "each": "1700"
+        }
+      },
+      {
+        "id": 7,
+        "date": "31/07/2025",
+        "summary": "<p>Valdor controlla il cadavere dello scrigno animato, trovando al suo interno una particolare spilla, che supponete con abbastanza certezza sia magica.</p><p>Vi dirigete verso la stanza di Rabberduscolanderson, quando notate i fiori che tempo prima aveva definito come \"il giardino di Albert\". Decidete di attaccarli, trovandovi in un combattimento piuttosto rischioso contro dei fiori-pianta.</p><p>Grazie all'aiuto di Rabberduscolanderson e X, riuscite a sconfiggere questi nemici, sopravvivendo.</p><p>Ran'Dra consegna a X il libro rubato a Franky, ottenendo alcune informazioni in cambio: in particolare, scoprite che per accedere al piano sottostante è sufficiente mostrare alla porta il simbolo del Klaren.</p>",
+        "xp": {
+          "total": "5150",
+          "each": "1287"
+        }
+      },
+      {
+        "id": 8,
+        "date": "04/08/2025",
+        "summary": "<p>Parlando con X, scoprite anche che i fantasmi che abitano questa cripta non sono altro che altre persone che, come voi, si trovano in questo luogo. Pare che voi, a differenza loro, vi troviate nella linea più vicina a quella reale, cioè a quella dove si trovano i Von T. Gli altri, invece, si trovano in delle repliche di essa.</p><p>Dopo il combattimento contro il giardino di Albert, eravate piuttosto stanchi e decidete di recuperare le forze trascorrendo il resto della giornata all'interno della vostra stanza.</p><p>Prima di spostarvi al piano sottostante, la mattina seguente provate a mettere le mani sul libro che Valdor aveva adocchiato il primo giorno che avete iniziato ad esplorare questa cripta. Tuttavia, dopo averlo preso, Valdor è rimasto intrappolato all'interno della stanza, circondato da creature non morte che lo hanno attaccato.</p>",
+        "reward": "Cliffhanger"
+      },
+      {
+        "id": 9,
+        "date": "01/09/2025",
+        "summary": "<p>Continuate il vostro combattimento contro gli scheletri animati dopo che Valdor ha raccolto il libro, e riuscite ad uscirne vincitori senza perdite.</p><p>Una volta sconfitti gli scheletri di Rosskar, Okbrax e Lumilla, il sacrofago all'interno della stanza si sblocca, rivelando al suo interno numerosi oggetti magici (armature e armi).</p><p>Date un'occhiata veloce al libro e capite che questo contiene parti della storia dei Klaren, narrati con un linguaggio piuttosto arcaico.</p>",
+        "xp": {
+          "total": "8004",
+          "each": "2001"
+        },
+        "levelup": 6
+      },
+      {
+        "id": 10,
+        "date": "21/09/2025",
+        "summary": "<p>Trascorrete del tempo con il vostro amico Rabberduscolanderson e Valdor realizza un portafoto olografico con una fotografia che rappresenta tutti voi.</p><p>Consegnate il Cuore di Albert ad X, la quale ha iniziato a studiarlo aiutandosi con lo strano libro che avete rubato a Franky.</p><p>Decidete di scendere al livello inferiore, dove venite accolti da una stanza ampia, con la statua di 'Octavio' in fondo. Qui trovate dei palloncini che iniziano a seguirvi fluttuando, e una bambolina che chiamava Ran'Dra \"Mamma\" e chiedeva di stare in braccio.</p><p>Dopo aver gettato la bambolina in un fosso, avete continuato verso sud, dove avete incontrato degli umanoidi estremamente magri e pallidi, che Valdor ha riconosciuto come Progenie Vampiriche. Queste stanno tentando di portarvi pacificamente da \"Karla\", che desidera incontrarvi. Voi state tentando di ribellarvi.</p>",
+        "reward": "Esplorazione"
+      },
+      {
+        "id": 11,
+        "date": "06/10/2025",
+        "summary": "<p>Il vostro incontro con le progenie vampiriche si sviluppa in modo violento ed iniziate ad attaccare queste creature, provando ad ucciderle.</p><p>Grazie alla loro sorprendente rigenerazione naturale, le ferite di queste creature si rimarginano molto rapidamente, rendendovi difficile il compito di abbatterle.</p><p>Una di queste creature si allontana, andando a chiamare un'altra figura, decisamente più inquietante. Karla, una vampira, si presenta di fronte a voi, ponendo fine al combattimento.</p><p>Karla utilizza un effetto di incantamento su Ga'Run, portandolo dalla sua parte. Poi, Valdor decide di arrendersi, e così anche Ran'Dra e Apothecary. Insieme, venite accompagnati in una grande sala dove scambiate 2 chiacchiere con Karla.</p><p>Karla rimane piuttosto criptica, ma prova interesse nei vostri confronti, dicendo che stava aspettando qualcuno che fosse 'in una linea vicina' - come voi. Vi propone di aiutarvi, dicendo che la ragazza dai capelli bianchi è un male terribile da estirpare.</p><p>Per aiutarvi, inizia un rituale partendo da Ran'Dra, la quale si offre di essere la prima. Entrata in una stanza, accondono cose di cui non siete troppo certi. Il secondo è Valdor, che prima di entrare lancia un segnale di pericolo ai suoi compagni che restano all'esterno.</p><p>Egli, usando la sua magia di Arcane Lock, intrappola sé stesso e Karla nella stanza; nel frattempo, Ga'Run perde la pazienza all'esterno e pretende di entrare e vedere le condizioni di Ran'Dra. Come procederà questa situazione di stallo? Cosa è accaduto davvero in quella stanza?</p>",
+        "reward": "Evento Trama"
+      },
+      {
+        "id": 12,
+        "date": "19/10/2025",
+        "summary": "<p>Uno dopo l'altro vi sottoponete al rituale macabro di Karla, tutti con successo. Uno per uno, dopo quella che sembra essere stata una morte temporanea, vi risvegliate sentendo dentro di voi un potere nuovo.</p><p>Dopo i rituali, avete l'occasione di parlare con Karla riguardo alla situazione in cui tutti voi, lei compresa, vi trovate. Capite che entrambi avete un obiettivo comune: Deborah, la ragazza dai capelli bianchi.</p><p>Karla vi parla dei pericoli di questo luogo, citando un uomo folle che realizza creature di ragnatela e tendini (a nord), e numerosi non-morti (a sud). Ella vi chiede di liberarvi di loro, dato il fastidio che provocano nel piano.</p><p>Inoltre vi cita la presenza di una giullare, probabile creatrice di alcune stranezze che avete visto da quando siete arrivati al secondo piano.</p><p>Vi fermate a dormire in una piccola stanza a est, per poi ripartire il giorno dopo. Ignorate Karla e decidete di procedere con l'esplorazione in autonomia. Trovate una stanza con un baule davanti ad una grande statua. Valdor lo apre, ed all'interno trova una pergamena contenente un disegno. Una volta raccolto, una figura gargantuesca di una giullare appare nella stanza con un secco \"Booo!\".</p>",
+        "reward": "Punto Abilità [1/8]",
+        "skillPoint": true
+      },
+      {
+        "id": 13,
+        "date": "06/11/2025",
+        "summary": "<p>Quando la gigantesca figura attacca Valdor, questa si dissolve in un'esplosione di coriandoli colorati rivelando di essere una semplice illusione.</p><p>Fate mente locale su come procedere, e decidete comunque di dirigervi nella zona nord senza incontrare Karla, in modo da non ricevere da lei raccomandazioni o limitazioni di alcun tipo durante la vostra esplorazione.</p><p>Entrate in una stanza composta da un lungo corridoio, dopo aver aperto un grosso portone, strappando con la forza le ragnatele dietro di esso che lo tenevano chiuso. Dopo qualche secondo dal vostro arrivo, un occhio rosso sul lato opposto del corridoio si illumina e le ragnatele sulle pareti si estendono e fortificano, tenendovi in trappola</p><p>Scoppia un combattimento contro una serie di ondate di creature mostruose, create da ragnatele e corpi umani ed animali. Riuscite a sconfiggere con un combattimento pericoloso, dove Ran'Dra è andata vicina a perdere la vita.</p><p>Ran'Dra, subito dopo il combattimento, dopo aver avuto una discussione con il padre Ga'Run, si dirige verso la porta a sud, ora libera dalle ragnatele che la bloccavano durante il combattimento. Una volta aperta, però, compare di nuovo la figura della giullare, un po' più piccola questa volta, di nuovo con un forte \"Booo!\".</p>",
+        "xp": {
+          "total": "12000",
+          "each": "3000"
+        }
+      },
+      {
+        "id": 14,
+        "date": "23/11/2025",
+        "summary": "<p>Ancora una volta, vi preparate al combattimento contro la giullare. Ga'Run si tuffa senza pensarci due volte nella nube di fumo colorato che ha circondato Ran'Dra, per capire ben presto che si trattava nuovamente di un'illusione.</p><p>Vi dirigete nella stanza con le due bamboline, e decidete di abbatterle, per poi riposarvi nella loro stanza. Durante il riposo, Valdor ha una visione particolare che lo mostrava all'interno di una piccola casa di legno nella foresta.</p><p>Durante il riposo, Valdor decide di indagare riguardo alla X del tesoro che c'era nella stanza, trovando uno Specchio Rotto magico, in grado di mostrare le persone riflesse con espressioni diverse.</p><p>Vi dirigete nella zona più a nord, dove Apothecary vede un mostro orribile nell'oscurità in fondo ad un lungo corridoio. Grazie a lei, riuscite ad evitare un eventuale attacco a sorpresa.</p><p>Incontrate una persona metà ragno e metà uomo, con cui iniziate a combattere, vincendo. Il suo laboratorio sembra essere pieno di oggetti, che ancora non avete avuto occasione di analizzare.</p>",
+        "xp": {
+          "total": "5150",
+          "each": "1287"
+        }
+      },
+      {
+        "id": 15,
+        "date": "03/12/2025",
+        "summary": "<p>Dopo aver sconfitto Nino Olegna, vi dirigete verso il suo studio, dove trovate diversi oggetti interessanti. Oltre a documenti di vario tipo, legati principalmente a rituali oscuri per creare creature mostruose, Ga'Run ed Apothecary prendono con sé delle fiale contenenti liquidi magici.</p><p>In particolare, vi turbano i documenti relativi a due creature: la prima è una creatura 'Assistente' - il Bacio Mortale - in grado di aiutare nei processi di creazione di altre creature; la seconda, una creatura colossale, dotata di una forza e resistenza non misurabili.</p><p>Capendo che le Creature Tela che avete sconfitto precedentemente sono utilizzate per creare altre creature, decidete di distruggere i corpi di tutte quelle che avete lasciato indietro.</p><p>Decidete inoltre di bruciare il corpo di Nino Olegna, dopo che Valdor ha tagliato e preso la sua testa come segno dimostrativo per Karla. Durante questa fase, Ran'Dra ha mostrato una parte inquietante di sé, turbando particolarmente Apothecary.</p><p>Dopo un breve riposo, riprendete il vostro cammino verso un passaggio nascosto che Ga'Run aveva intravisto durante il combattimento contro Webber. Entrando, trovate un braccio gigantesco in fase di costruzione ed una creatura tentacolare che riconoscete essere l'Assistente discusso nei fascicoli. Decidete di affrontarlo, e riuscite ad uscirne vittoriosi.</p>",
+        "xp": {
+          "total": "8400",
+          "each": "2100"
+        }
+      },
+      {
+        "id": 16,
+        "date": "23/12/2025",
+        "summary": "<p>Dopo aver combattuto contro l'Assistente, avete il tempo di esaminare l'enorme braccio circondato da ragnatele negromantiche presente nella nicchia della caverna. Riuscite a rimuovere un bracciale incastrato nel suo polso, facendo degenerare rapidamente la struttura del braccio stesso.</p><p>Valdor trova anche un piccolo ciondolo rosso, leggermente etereo, riuscendo ad inserirlo nella sua borsa conservante. Scoprite inoltre che il bracciale rimosso è in realtà un Anello di Resistenza Necrotica, che decidete di tenere con voi.</p><p>Proseguendo verso sud, incontrate una donna fantasma seduta su una sedia a rotelle. Grazie all'amuleto spettrale trovato poco prima — in realtà un portafoto contenente la rappresentazione di Rabberduscolanderson in forma umana — capite che la fantasma è Elena, la sua compagna. Ella sembra essere stata uccisa da una donna con i capelli raccolti, ma i suoi ricordi appaiono confusi, incluso quelli legati a Rabber.</p><p>Dopo averla salutata momentaneamente, vi dirigete in una cella poco a nord, dove trovate uno dei pupazzetti già incontrati. Si presenta come Dinosauro Spaziale Distruttore Assoluto (Dino, il Paladino). Parlate con lui e scoprite alcune informazioni sulla sua creatrice, prima di metterlo nella borsa conservante e dirigervi da Karla.</p><p>Giunti da Karla, le mostrate la testa di Nino Olegna. Lei afferma di non conoscerlo, ma si congratula comunque con voi per il compimento della missione. Infine, Valdor le dona un po' del suo sangue per sfamare la sua incolmabile fame.</p>",
+        "xp": {
+          "total": "0",
+          "each": "0"
+        }
+      },
+      {
+        "id": 17,
+        "date": "06/01/2026",
+        "summary": "<p>Dopo aver lasciato la stanza di Karla, decidete di tornare da Elena per poi risalire tutti insieme al piano superiore. Scambiate qualche parola con lei, Valdor fuma un sigaro sotto lo sguardo teso di Ga'Run, e procedete lungo i corridoi della cripta.</p><p>Giungete alla stanza di Rabberduscolanderson e assistete alla riunione dei due. Una luce si accende nel petto di Rabber, che si sente spinto a donarvi un oggetto che portava con sé: il suo cuore, racchiuso in una sfera di vetro. Nel momento in cui il cuore tocca le mani di Valdor, sentite i vostri simboli reagire.</p><p>Decidete di bruciare tutti i documenti di Tessimorte recuperati nel laboratorio di Nino Olegna, tenendo con voi soltanto la poesia. Durante la giornata, Valdor lavora ad un progetto per un sigaro — che richiederà un innesco di energia arcana — mentre Ga'Run sistema i suoi equipaggiamenti.</p><p>Durante la notte, qualcuno sembra farvi visita, lasciando dietro la porta due pupazzi inquietanti infusi di magia.</p><p>Parlate anche con X, che vi rivela ulteriori informazioni sul rituale contenuto nel libro: un metodo per tornare indietro nel tempo utilizzando un immenso flusso di sangue e sacrifici. Il rituale appare ignoto, pericoloso e forse impossibile da realizzare, ma vi turba profondamente.</p><p>Infine, fate incontrare X ed Elena. Capite che rimuovere il pugnale dal petto della donna sarebbe fatale e ottenete conferma che sia stata Karla ad ucciderla. Prima di andarsene, X vi rivela accidentalmente di essere stata uccisa da Karla anche lei, chiedendovi poi di recuperare nuovi documenti e libri.</p>",
+        "xp": {
+          "total": "0",
+          "each": "0"
+        },
+        "reward": "Punto Abilità [2/8]",
+        "skillPoint": true
+      }
+    ]
+  }
+}
