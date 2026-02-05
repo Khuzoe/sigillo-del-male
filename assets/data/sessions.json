@@ -1,7 +1,7 @@
 {
     "nextSession": {
-        "number": 18,
-        "date": "20 Gennaio 2026",
+        "number": 19,
+        "date": "05 Febbraio 2026",
         "timeStart": "20:30",
         "timeEnd": "23:30",
         "isScheduled": true
@@ -140,7 +140,7 @@
         },
         {
             "id": 17,
-            "date": "06/01/2026",
+            "date": "05/01/2026",
             "summary": "<p>Dopo aver lasciato la stanza di Karla, decidete di tornare da Elena per poi risalire tutti insieme al piano superiore. Scambiate qualche parola con lei, Valdor fuma un sigaro sotto lo sguardo teso di Ga'Run, e procedete lungo i corridoi della cripta.</p><p>Giungete alla stanza di Rabberduscolanderson e assistete alla riunione dei due. Una luce si accende nel petto di Rabber, che si sente spinto a donarvi un oggetto che portava con sé: il suo cuore, racchiuso in una sfera di vetro. Nel momento in cui il cuore tocca le mani di Valdor, sentite i vostri simboli reagire.</p><p>Decidete di bruciare tutti i documenti di Tessimorte recuperati nel laboratorio di Nino Olegna, tenendo con voi soltanto la poesia. Durante la giornata, Valdor lavora ad un progetto per un sigaro — che richiederà un innesco di energia arcana — mentre Ga'Run sistema i suoi equipaggiamenti.</p><p>Durante la notte, qualcuno sembra farvi visita, lasciando dietro la porta due pupazzi inquietanti infusi di magia.</p><p>Parlate anche con X, che vi rivela ulteriori informazioni sul rituale contenuto nel libro: un metodo per tornare indietro nel tempo utilizzando un immenso flusso di sangue e sacrifici. Il rituale appare ignoto, pericoloso e forse impossibile da realizzare, ma vi turba profondamente.</p><p>Infine, fate incontrare X ed Elena. Capite che rimuovere il pugnale dal petto della donna sarebbe fatale e ottenete conferma che sia stata Karla ad ucciderla. Prima di andarsene, X vi rivela accidentalmente di essere stata uccisa da Karla anche lei, chiedendovi poi di recuperare nuovi documenti e libri.</p>",
             "xp": {
                 "total": "0",
@@ -148,6 +148,15 @@
             },
             "reward": "Punto Abilità [2/8]",
             "skillPoint": true
+        },
+        {
+            "id": 18,
+            "date": "22/01/2026",
+            "summary": "<p>Vi preparate a partire nuovamente verso il piano sottostante, intenzionati a ripulire la parte sud del livello che, per quanto detto da Karla, sembra essere infestato dai non-morti.</p><p>Giungete nella zona sud, dove la struttura diventa una sorta di caverna fangosa. Qui sentite alcuni canti provenire dai tunnel, e capite che provenivano da alcuni non-morti con vesti Klaren.</p><p>Iniziate un combattimento contro questi non-morti, eliminando incantatori, zombie ed uno strano non-morto con una pala di mano.</p><p>Successivamente Ga'Run vede una figura umanoide gigantesca sepolta parzialmente nel terreno, con alcuni piccoli non-morti che sembravano ostili. Decide di attaccare, provocando la reazione della figura sepolta che, alzandosi, inizia a combattere contro di voi.</p>",
+            "xp": {
+                "total": "2360",
+                "each": "590"
+            }
         }
     ]
 }
