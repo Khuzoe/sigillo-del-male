@@ -1,0 +1,66 @@
+﻿moved=58
+already=0
+missing=0
+badrel=0
+--- moved files ---
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\area.svg
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\city.svg
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\albert.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\black_rose_warrior.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\corpse_dog.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\death_webkiss.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\deborah.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\elena.jpeg
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\face_zombie.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\franky_flash_golem.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\golem_incompleto.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\karla.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\karla-2.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\karla-3.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\klaren_priest.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\linda.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\lumilla.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\mafu.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\meat_tower.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\mosquito_bat.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\okbrax.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\rabberduscolanderson.jpg
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\rabberduscolanderson.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\rendar.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\rokkara.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\rose.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\rose_chest.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\rose_warrior.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\rosskar.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\spider_abomination.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\tokka.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\transp\deborah_transp.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\transp\elena_animation.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\transp\elena_transp.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\transp\elena_transp-old.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\transp\ginevra_animation.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\transp\ginevra_transp.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\transp\nino_olegna_animation.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\trerkor.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\vampire_spawn_preferred_1.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\vampire_spawn_preferred_2.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\vampire_spawn_variants_1.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\vampire_spawn_variants_2.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\web_spider.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\x.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\zara.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\zara_puppet_1.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\creatures\zara_puppet_2.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\generic_place.svg
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\items\dog_balu.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\items\dog_coco.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\items\dog_mimi.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\maps\mark_creature.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\maps\mark_place.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\maps\mark_resource.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\skill_trees\banner_klaren.webp
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\skill_trees\banner_von_t.png
+C:\Users\delia\OneDrive\Documenti\Cripta di Sangue - GIT\assets\img\inutili\skill_trees\tree_garun.png
+--- already/destination existed ---
+--- bad relative extraction ---
+--- missing entries ---

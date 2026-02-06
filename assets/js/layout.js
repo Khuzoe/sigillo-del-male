@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     // 2. CARICHIAMO LA SIDEBAR
-    // Metodo Ibrido: Se esiste window.SIDEBAR_HTML (da static_data.js), usiamo quello.
+    // Metodo ibrido: se una pagina espone già window.SIDEBAR_HTML, usiamo quello.
     // Altrimenti proviamo fetch (per dev server).
 
     if (window.SIDEBAR_HTML) {

@@ -21,6 +21,11 @@ content_blocks:
     title: "Aspetto Fisico"
     icon: "fa-user"
     markdown: "characters/x/aspetto_fisico.md"
+  - type: "image_box"
+    title: "Cuore di X"
+    image: "img/items/heart-x.webp"
+    markdown: "characters/x/cuore-di-x.md"
+    hidden: true
 relationships:
   - id: "rabberduscolanderson"
     description: "Fratello maggiore"

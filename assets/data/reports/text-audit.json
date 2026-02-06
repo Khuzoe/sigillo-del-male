@@ -1,0 +1,38 @@
+﻿{
+    "generated_at":  "2026-02-06 11:01:19",
+    "method":  "heuristic string-path reference scan over text sources",
+    "summary":  {
+                    "total_json":  10,
+                    "used_json":  9,
+                    "unused_json":  1,
+                    "total_md":  40,
+                    "used_md":  40,
+                    "unused_md":  0,
+                    "general_unused_candidates":  3
+                },
+    "unused_json":  {
+                        "path":  ".vscode/settings.json",
+                        "bytes":  42,
+                        "used":  false
+                    },
+    "unused_md":  {
+
+                  },
+    "general_unused_candidates":  [
+                                      {
+                                          "path":  ".github/workflows/build-data.yml",
+                                          "bytes":  626,
+                                          "ext":  ".yml"
+                                      },
+                                      {
+                                          "path":  ".vscode/settings.json",
+                                          "bytes":  42,
+                                          "ext":  ".json"
+                                      },
+                                      {
+                                          "path":  "fixchars.js",
+                                          "bytes":  1271,
+                                          "ext":  ".js"
+                                      }
+                                  ]
+}
