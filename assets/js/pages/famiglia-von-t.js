@@ -1,0 +1,271 @@
+function resolveImagePath(imagePath) {
+            if (!imagePath) return '';
+            if (imagePath.startsWith('http://') || imagePath.startsWith('https://') || imagePath.startsWith('/') || imagePath.startsWith('data:')) {
+                return imagePath;
+            }
+            return `../assets/${imagePath}`;
+        }
+
+        document.addEventListener("DOMContentLoaded", async function() {
+            const treeContainer = document.getElementById('family-tree-container');
+            
+            try {
+                const response = await fetch('../assets/data/family_von_t.json');
+                if (!response.ok) throw new Error(`File dati (${'../assets/data/family_von_t.json'}) non trovato.`);
+                
+                let familyData = await response.json();
+                
+                const visibleRows = (window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers())
+                    ? familyData.filter(p => window.WikiSpoiler.isVisible(p))
+                    : familyData;
+                const visibleIds = new Set(visibleRows.map(p => p.id));
+                let visibleFamilyData = familyData.filter(p => visibleIds.has(p.id));
+
+                // Clean up references to hidden members
+                visibleFamilyData.forEach(person => {
+                    if (person.parents) {
+                        person.parents = person.parents.filter(id => visibleIds.has(id));
+                    }
+                    if (person.spouses) {
+                        person.spouses = person.spouses.filter(id => visibleIds.has(id));
+                    }
+                    if (person.children) {
+                        person.children = person.children.filter(id => visibleIds.has(id));
+                    }
+                });
+
+                renderFamilyTree(visibleFamilyData); // Call renderFamilyTree with filtered data
+
+            } catch (error) {
+                console.error("Errore nel caricamento dell'albero genealogico:", error);
+                treeContainer.innerHTML = `<p style="text-align: center; color: var(--status-dead);">Impossibile caricare i dati dell'albero genealogico.</p>`;
+            }
+
+            function renderFamilyTree(data) {
+                const people = new Map(data.map(p => [p.id, p]));
+                const connectionsToDraw = [];
+
+                // Helper to create a member node
+                const createMemberNode = (personId) => {
+                    const person = people.get(personId);
+                    if (!person) return '';
+
+                    const personName = person.unnamed ? '???' : person.name;
+                    const personImage = person.unknown ? 'https://placehold.co/100/333/fff?text=?' : resolveImagePath(person.image);
+                    const vonTClass = person.von_t ? 'von-t' : '';
+
+                    // Corrected link to character page
+                    return `
+                        <a href="./characters/character.html?id=${personId}" class="family-member ${vonTClass}" data-person-id="${personId}">
+                            <img src="${personImage}" alt="${personName}" class="member-image">
+                            <div class="member-separator"></div>
+                            <span class="member-name">${personName}</span>
+                        </a>
+                    `;
+                };
+
+                // Helper to render a parent unit (single person or spouse unit) and their children's connectors
+                const renderParentUnitWithConnectors = (parent1, parent2 = null, children = []) => {
+                    let unitHtml = `<div class="family-unit-wrapper">`;
+                    let unitContent;
+                    const parentUnitId = `parent-unit-${parent1.id}${parent2 ? `-${parent2.id}` : ''}`;
+
+                    if (parent2) { // Spouse unit
+                        unitContent = `
+                            <div class="family-unit spouse-unit" id="${parentUnitId}" data-parent1-id="${parent1.id}" data-parent2-id="${parent2.id}">
+                                ${createMemberNode(parent1.id)}
+                                ${createMemberNode(parent2.id)}
+                            </div>
+                        `;
+                        connectionsToDraw.push({ fromId: parent1.id, toId: parent2.id, type: 'spouse' });
+                    } else { // Single parent
+                        unitContent = `
+                            <div class="family-unit" id="${parentUnitId}" data-parent1-id="${parent1.id}">
+                                ${createMemberNode(parent1.id)}
+                            </div>
+                        `;
+                    }
+                    unitHtml += unitContent;
+
+                    if (children && children.length > 0) {
+                        children.forEach(child => {
+                            if(people.has(child.id)) { // Ensure child is not hidden
+                                connectionsToDraw.push({ fromId: parentUnitId, toId: child.id, type: 'parent-child' });
+                            }
+                        });
+                    }
+                    unitHtml += `</div>`;
+                    return unitHtml;
+                };            
+
+                let treeHtml = `<div class="family-tree">`;
+                const allGenerationsData = [];
+                
+                // --- Generation 0: Yuris and Leonora (Founders) ---
+                const yuris = people.get('yuris');
+                const leonora = people.get('leonora');
+
+                if (yuris && leonora) {
+                    allGenerationsData.push({
+                        id: 'generation-0',
+                        members: [
+                            { type: 'couple', p1: yuris, p2: leonora, children: (yuris.children || []).map(id => people.get(id)).filter(Boolean) }
+                        ]
+                    });
+                }
+
+                // --- Generation 1: Children of Yuris and Leonora (and their spouses) ---
+                const gen1_members_data = [];
+                if (yuris && yuris.children && yuris.children.length > 0) {
+                    yuris.children.forEach(childId => {
+                        const child = people.get(childId);
+                        if (child) {
+                            if (child.spouses && child.spouses.length > 0) {
+                                const spouse = people.get(child.spouses[0]);
+                                if (spouse) {
+                                    gen1_members_data.push({ type: 'couple', p1: child, p2: spouse, children: (child.children || []).map(id => people.get(id)).filter(Boolean) });
+                                 } else {
+                                    gen1_members_data.push({ type: 'single', p1: child, children: (child.children || []).map(id => people.get(id)).filter(Boolean) });
+                                }
+                            } else {
+                                gen1_members_data.push({ type: 'single', p1: child, children: (child.children || []).map(id => people.get(id)).filter(Boolean) });
+                            }
+                        }
+                    });
+                    if (gen1_members_data.length > 0) {
+                        allGenerationsData.push({
+                            id: 'generation-1',
+                            members: gen1_members_data
+                        });
+                    }
+                }
+
+                // --- Generation 2: Grandchildren ---
+                const gen2_members_data = [];
+                if (gen1_members_data.length > 0) {
+                    gen1_members_data.forEach(parentData => {
+                        if (parentData.children) {
+                            parentData.children.forEach(grandchild => {
+                                if (grandchild) {
+                                    gen2_members_data.push({ type: 'single', p1: grandchild, children: [] });
+                                }
+                            });
+                        }
+                    });
+                    if (gen2_members_data.length > 0) {
+                        allGenerationsData.push({
+                            id: 'generation-2',
+                            members: gen2_members_data
+                        });
+                    }
+                }
+                
+                allGenerationsData.forEach(gen => {
+                    treeHtml += `<div class="generation ${gen.id}">`;
+                    gen.members.forEach(member => {
+                        if (member.type === 'couple') {
+                            treeHtml += renderParentUnitWithConnectors(member.p1, member.p2, member.children);
+                        } else {
+                            treeHtml += renderParentUnitWithConnectors(member.p1, null, member.children);
+                        }
+                    });
+                    treeHtml += `</div>`;
+                });
+
+                treeHtml += `</div>`;
+
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = treeHtml;
+
+                Array.from(treeContainer.children).forEach(child => {
+                    if (child.id !== 'family-tree-spouses-svg' && child.id !== 'family-tree-children-svg') {
+                        child.remove();
+                    }
+                });
+
+                while (tempDiv.firstChild) {
+                    treeContainer.appendChild(tempDiv.firstChild);
+                }
+
+                const spouseLinesSVG = document.getElementById('family-tree-spouses-svg');
+                const childLinesSVG = document.getElementById('family-tree-children-svg');
+                spouseLinesSVG.innerHTML = '';
+                childLinesSVG.innerHTML = '';
+
+                function drawLine(startElement, endElement, type) {
+                    if (!startElement || !endElement) return;
+    
+                    const containerRect = treeContainer.getBoundingClientRect();
+                    const startRect = startElement.getBoundingClientRect();
+                    const endRect = endElement.getBoundingClientRect();
+    
+                    let x1, y1, x2, y2;
+                    let targetSVG;
+    
+                    if (type === 'spouse') {
+                        x1 = ((startRect.left + startRect.width / 2 - containerRect.left) / containerRect.width) * 100;
+                        y1 = ((startRect.top + startRect.height / 2 - containerRect.top) / containerRect.height) * 100;
+                        x2 = ((endRect.left + endRect.width / 2 - containerRect.left) / containerRect.width) * 100;
+                        y2 = ((endRect.top + endRect.height / 2 - containerRect.top) / containerRect.height) * 100;
+                        targetSVG = spouseLinesSVG;
+                    } else if (type === 'parent-child') {
+                        x1 = ((startRect.left + startRect.width / 2 - containerRect.left) / containerRect.width) * 100;
+                        y1 = ((startRect.bottom - containerRect.top) / containerRect.height) * 100;
+                        x2 = ((endRect.left + endRect.width / 2 - containerRect.left) / containerRect.width) * 100;
+                        y2 = ((endRect.top - containerRect.top) / containerRect.height) * 100;
+                        targetSVG = childLinesSVG;
+                    } else {
+                        // Fallback or other types
+                        x1 = ((startRect.left + startRect.width / 2 - containerRect.left) / containerRect.width) * 100;
+                        y1 = ((startRect.top + startRect.height / 2 - containerRect.top) / containerRect.height) * 100;
+                        x2 = ((endRect.left + endRect.width / 2 - containerRect.left) / containerRect.width) * 100;
+                        y2 = ((endRect.top + endRect.height / 2 - containerRect.top) / containerRect.height) * 100;
+                        targetSVG = spouseLinesSVG;
+                    }
+                    
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', x1 + '%');
+                    line.setAttribute('y1', y1 + '%');
+                    line.setAttribute('x2', x2 + '%');
+                    line.setAttribute('y2', y2 + '%');
+                    line.setAttribute('stroke', 'var(--gold-dim)');
+                    line.setAttribute('stroke-width', '0.3%');
+                    line.setAttribute('class', 'family-connection-line');
+                    
+                    targetSVG.appendChild(line);
+
+                    // Only add dots for parent-child connections
+                    if (type === 'parent-child') {
+                        const startDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        startDot.setAttribute('cx', x1 + '%');
+                        startDot.setAttribute('cy', y1 + '%');
+                        startDot.setAttribute('r', '0.5%');
+                        startDot.setAttribute('fill', 'var(--gold)');
+                        targetSVG.appendChild(startDot);
+
+                        const endDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        endDot.setAttribute('cx', x2 + '%');
+                        endDot.setAttribute('cy', y2 + '%');
+                        endDot.setAttribute('r', '0.5%');
+                        endDot.setAttribute('fill', 'var(--gold)');
+                        targetSVG.appendChild(endDot);
+                    }
+                }
+
+                setTimeout(() => {
+                    connectionsToDraw.forEach(conn => {
+                        let startElement, endElement;
+                        if (conn.type === 'spouse') {
+                            startElement = treeContainer.querySelector(`[data-person-id="${conn.fromId}"]`);
+                            endElement = treeContainer.querySelector(`[data-person-id="${conn.toId}"]`);
+                            drawLine(startElement, endElement, 'spouse');
+                        } else if (conn.type === 'parent-child') {
+                            startElement = treeContainer.querySelector(`#${conn.fromId}`);
+                            endElement = treeContainer.querySelector(`[data-person-id="${conn.toId}"]`);
+                            drawLine(startElement, endElement, 'parent-child');
+                        }
+                    });
+                }, 100); // 100ms delay to allow for render
+
+            }
+        });

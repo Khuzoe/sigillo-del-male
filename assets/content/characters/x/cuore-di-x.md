@@ -6,4 +6,4 @@ Quando analizzi un testo magico, puoi comprenderne l'intento generale anche se i
 Hai svantaggio ai tiri salvezza contro veleno e agli effetti legati ad aracnidi.
 
 > Libri e pergamene studia, senza bramare potere,
-> il morso di un ragno: null’altro poté mai vedere.
+> il morso di un ragno: null'altro poté mai vedere.

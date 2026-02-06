@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+
+echo "[pre-commit] Running QA checks..."
+npm run qa
+STATUS=$?
+
+if [ $STATUS -ne 0 ]; then
+  echo "[pre-commit] QA failed. Commit aborted."
+  exit $STATUS
+fi
+
+echo "[pre-commit] QA passed."
+exit 0

@@ -1,13 +1,18 @@
-name: Build Foundry Data
+name: Quality And Derived Data
 
 on:
   push:
     branches:
       - main
       - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
 
 jobs:
-  build:
+  quality:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,11 +25,15 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Build Data
-        run: node build_foundry_data.js
+      - name: Run Validation And Search Build
+        run: npm run qa
 
-      - name: Commit changes
+      - name: Build Foundry Data (ignored by git)
+        run: npm run build:foundry
+
+      - name: Commit generated search index
+        if: github.event_name == 'push'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: update foundry data [skip ci]"
-          file_pattern: 'assets/data/foundry.json'
+          commit_message: "chore: update search index [skip ci]"
+          file_pattern: 'assets/data/search-index.json'

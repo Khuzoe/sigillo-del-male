@@ -1,0 +1,10 @@
+{
+  "id": 0,
+  "date": "gg/mm/aaaa",
+  "summary": "<p>Testo riassunto in HTML.</p>",
+  "xp": {
+    "total": "0",
+    "each": "0"
+  },
+  "skillPoint": false
+}
