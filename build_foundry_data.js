@@ -1,263 +1,229 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
+const { parseYamlLite } = require("./scripts/lib/yaml-lite");
 
-const CHARS_DIR = 'assets/data/characters';
-const SESSIONS_FILE = 'assets/data/sessions.json';
-const OUTPUT_FILE = 'assets/data/foundry.json';
-const BASE_URL = 'https://khuzoe.github.io/sigillo-del-male/'; // URL del tuo sito
+const ROOT = __dirname;
+const DATA_DIR = path.join(ROOT, "assets", "data");
+const CONTENT_DIR = path.join(ROOT, "assets", "content");
+const OUTPUT_FILE = path.join(DATA_DIR, "foundry.json");
+const BASE_URL = "https://khuzoe.github.io/sigillo-del-male/";
 
-// Ensure output directory exists
-const outputDir = path.dirname(OUTPUT_FILE);
-if (!fs.existsSync(outputDir)) {
-    fs.mkdirSync(outputDir, { recursive: true });
+function ensureDirForFile(filePath) {
+  const outDir = path.dirname(filePath);
+  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 }
 
-// Helpers
-const fixPath = (p) => {
-    if (!p) return null;
-    if (p.startsWith('http')) return p;
-    // Se il path inizia già con assets (es. assets/img...), non lo raddoppiamo.
-    // Se inizia con img/ (come nei YAML), aggiungiamo assets/ davanti.
-    if (p.startsWith('assets/')) return BASE_URL + p;
-    return BASE_URL + 'assets/' + p;
-};
-
-
-// --- YAML Parser ---
-
-// --- Simple Markdown Parser (No deps) ---
-function parseMarkdown(md) {
-    if (!md) return '';
-    let html = md
-        // Headers
-        // Headers (Flexible: allow optional whitespace before/after #)
-        .replace(/^\s*###\s*(.*?)[\r\n]*$/gim, '<h3>$1</h3>')
-        .replace(/^\s*##\s*(.*?)[\r\n]*$/gim, '<h2>$1</h2>')
-        .replace(/^\s*#\s*(.*?)[\r\n]*$/gim, '<h1>$1</h1>')
-        // Bold
-        .replace(/\*\*(.*?)\*\*/gim, '<b>$1</b>')
-        .replace(/__(.*?)__/gim, '<b>$1</b>')
-        // Italic
-        .replace(/\*(.*?)\*/gim, '<i>$1</i>')
-        .replace(/_(.*?)_/gim, '<i>$1</i>')
-        // Lists
-        .replace(/^\s*-\s+(.*?)[\r\n]*$/gim, '<ul><li>$1</li></ul>')
-        // Fix list grouping (Naive)
-        .replace(/<\/ul>\s*<ul>/gim, '')
-        // Newlines to br (Handle CRLF)
-        .replace(/\r?\n/gim, '<br>');
-
-    return html;
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-function parseYamlAndHydrate(yamlText, charId) {
-    const text = yamlText.replace(/^\uFEFF/, '');
-    const result = {};
+function readYaml(filePath) {
+  return parseYamlLite(fs.readFileSync(filePath, "utf8"));
+}
 
-    const extract = (key) => {
-        const match = text.match(new RegExp(`^${key}:\\s*(.*)$`, 'm'));
-        if (match) {
-            const val = match[1].trim();
-            if (val.startsWith('"') && val.endsWith('"')) return val.slice(1, -1);
-            if (val.startsWith("'") && val.endsWith("'")) return val.slice(1, -1);
-            return val;
-        }
-        return null;
+function normalizePath(inputPath) {
+  if (!inputPath || typeof inputPath !== "string") return null;
+  if (inputPath.startsWith("http://") || inputPath.startsWith("https://")) return inputPath;
+  if (inputPath.startsWith("assets/")) return `${BASE_URL}${inputPath}`;
+  return `${BASE_URL}assets/${inputPath}`;
+}
+
+function parseMarkdownToHtml(markdownText) {
+  if (!markdownText) return "";
+  const lines = markdownText.replace(/\r\n?/g, "\n").split("\n");
+  const out = [];
+  let inList = false;
+
+  const closeList = () => {
+    if (inList) {
+      out.push("</ul>");
+      inList = false;
+    }
+  };
+
+  const inline = (text) =>
+    text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.+?)\*/g, "<em>$1</em>")
+      .replace(/`(.+?)`/g, "<code>$1</code>");
+
+  lines.forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) {
+      closeList();
+      return;
+    }
+
+    if (/^###\s+/.test(line)) {
+      closeList();
+      out.push(`<h3>${inline(line.replace(/^###\s+/, ""))}</h3>`);
+      return;
+    }
+    if (/^##\s+/.test(line)) {
+      closeList();
+      out.push(`<h2>${inline(line.replace(/^##\s+/, ""))}</h2>`);
+      return;
+    }
+    if (/^#\s+/.test(line)) {
+      closeList();
+      out.push(`<h1>${inline(line.replace(/^#\s+/, ""))}</h1>`);
+      return;
+    }
+
+    if (/^- /.test(line)) {
+      if (!inList) {
+        out.push("<ul>");
+        inList = true;
+      }
+      out.push(`<li>${inline(line.replace(/^- /, ""))}</li>`);
+      return;
+    }
+
+    closeList();
+    if (/^>\s?/.test(line)) {
+      out.push(`<blockquote>${inline(line.replace(/^>\s?/, ""))}</blockquote>`);
+      return;
+    }
+    out.push(`<p>${inline(line)}</p>`);
+  });
+
+  closeList();
+  return out.join("\n");
+}
+
+function hydrateContentBlocks(blocks) {
+  if (!Array.isArray(blocks)) return [];
+
+  return blocks.map((block) => {
+    if (!block || typeof block !== "object") return block;
+    const out = { ...block };
+
+    if (out.image) out.image = normalizePath(out.image);
+
+    if (out.markdown) {
+      const markdownPath = path.join(CONTENT_DIR, out.markdown);
+      if (fs.existsSync(markdownPath)) {
+        const md = fs.readFileSync(markdownPath, "utf8");
+        out.markdownText = parseMarkdownToHtml(md);
+      } else {
+        out.markdownText = "";
+        console.warn(`[WARN] Markdown mancante: assets/content/${out.markdown}`);
+      }
+    }
+
+    return out;
+  });
+}
+
+function normalizeCharacter(character) {
+  const out = { ...character };
+  if (out.images && typeof out.images === "object") {
+    out.images = {
+      avatar: normalizePath(out.images.avatar),
+      hover: normalizePath(out.images.hover),
+      portrait: normalizePath(out.images.portrait),
     };
-
-    result.id = extract('id');
-    result.name = extract('name');
-    result.role = extract('role');
-    result.status = extract('status');
-    result.quote = extract('quote');
-    result.type = extract('type');
-
-    const imagesMatch = text.match(/^images:\s*\r?\n\s+avatar:\s*(.*)\r?\n\s+hover:\s*(.*)\r?\n\s+portrait:\s*(.*)/m);
-    if (imagesMatch) {
-        result.images = {
-            avatar: fixPath(imagesMatch[1].trim().replace(/"/g, '')),
-            hover: fixPath(imagesMatch[2].trim().replace(/"/g, '')),
-            portrait: fixPath(imagesMatch[3].trim().replace(/"/g, ''))
-        };
-    }
-
-    // Content Blocks
-    const lines = text.split(/\r?\n/);
-    const contentBlocks = [];
-    let currentBlock = null;
-    let inBlocks = false;
-
-    for (let line of lines) {
-        const trim = line.trim();
-        if (trim.startsWith('content_blocks:')) {
-            inBlocks = true;
-            continue;
-        }
-        if (!inBlocks) continue;
-        if (trim === '' || trim.startsWith('relationships:') || trim.startsWith('questline:')) {
-            inBlocks = false;
-            if (currentBlock) contentBlocks.push(currentBlock);
-            currentBlock = null;
-            continue;
-        }
-
-        if (trim.startsWith('- type:')) {
-            if (currentBlock) contentBlocks.push(currentBlock);
-            currentBlock = { type: trim.replace('- type:', '').trim().replace(/"/g, '') };
-        } else if (currentBlock) {
-            const keyVal = trim.match(/^([^:]+):\s*(.*)$/);
-            if (keyVal) {
-                let k = keyVal[1].trim();
-                let v = keyVal[2].trim().replace(/"/g, '');
-                if (k === 'markdown') {
-                    currentBlock[k] = v;
-                    const mdPath = path.join('assets/content', v);
-                    if (fs.existsSync(mdPath)) {
-                        const rawMd = fs.readFileSync(mdPath, 'utf8');
-                        currentBlock.markdownText = parseMarkdown(rawMd); // PARSE HERE
-                    } else {
-                        console.warn(`[WARN] Markdown file not found for ${charId}: ${mdPath}`);
-                    }
-                } else if (k === 'image') {
-                    currentBlock[k] = fixPath(v);
-                } else {
-                    currentBlock[k] = v;
-                }
-            }
-        }
-    }
-    if (currentBlock) contentBlocks.push(currentBlock);
-    result.content_blocks = contentBlocks;
-
-    // Relationships (Keep same)
-    const relationships = [];
-    let currentRel = null;
-    let inRels = false;
-
-    for (let line of lines) {
-        const trim = line.trim();
-        if (trim.startsWith('relationships:')) { inRels = true; continue; }
-        if (!inRels) continue;
-        if (trim === '' || trim.startsWith('type:') || trim.startsWith('summary:')) {
-            inRels = false;
-            if (currentRel) relationships.push(currentRel);
-            currentRel = null;
-            continue;
-        }
-
-        if (trim.startsWith('- id:')) {
-            if (currentRel) relationships.push(currentRel);
-            currentRel = { id: trim.replace('- id:', '').trim().replace(/"/g, '') };
-        } else if (currentRel) {
-            const keyVal = trim.match(/^([^:]+):\s*(.*)$/);
-            if (keyVal) {
-                currentRel[keyVal[1].trim()] = keyVal[2].trim().replace(/"/g, '');
-            }
-        }
-    }
-    if (currentRel) relationships.push(currentRel);
-    result.relationships = relationships;
-
-    return result;
+  }
+  out.content_blocks = hydrateContentBlocks(out.content_blocks);
+  if (!Array.isArray(out.relationships)) out.relationships = [];
+  return out;
 }
 
-// --- Main Build ---
+function loadNpcCharacters() {
+  const manifestPath = path.join(DATA_DIR, "characters", "index.yaml");
+  if (!fs.existsSync(manifestPath)) return [];
+
+  const manifest = readYaml(manifestPath);
+  if (!Array.isArray(manifest)) return [];
+
+  const characters = [];
+  manifest
+    .filter((entry) => (entry.type || "npc") === "npc")
+    .forEach((entry) => {
+      const filePath = path.join(DATA_DIR, entry.file || `characters/${entry.id}.yaml`);
+      if (!fs.existsSync(filePath)) {
+        console.warn(`[WARN] NPC mancante nel manifest: ${entry.id}`);
+        return;
+      }
+      try {
+        const character = readYaml(filePath);
+        if (character && character.id) {
+          characters.push(normalizeCharacter(character));
+        }
+      } catch (err) {
+        console.error(`[ERR] Errore parse NPC ${entry.id}:`, err.message);
+      }
+    });
+
+  return characters;
+}
+
+function loadPlayers() {
+  const filePath = path.join(DATA_DIR, "players.json");
+  if (!fs.existsSync(filePath)) return [];
+  const players = readJson(filePath);
+  if (!Array.isArray(players)) return [];
+
+  return players.map((player) => {
+    const out = { ...player };
+    if (out.images && typeof out.images === "object") {
+      out.images = {
+        avatar: normalizePath(out.images.avatar),
+        hover: normalizePath(out.images.hover),
+        portrait: normalizePath(out.images.portrait),
+      };
+    }
+    return out;
+  });
+}
+
+function loadSkills() {
+  const filePath = path.join(DATA_DIR, "skills.json");
+  if (!fs.existsSync(filePath)) return {};
+  const skills = readJson(filePath);
+  if (!skills || typeof skills !== "object") return {};
+
+  Object.keys(skills).forEach((characterId) => {
+    const tree = skills[characterId];
+    if (!tree || typeof tree !== "object") return;
+    if (tree.bgImage) tree.bgImage = normalizePath(`img/skill_trees/${tree.bgImage}`);
+    if (Array.isArray(tree.nodes)) {
+      tree.nodes = tree.nodes.map((node) => {
+        if (!node || typeof node !== "object") return node;
+        if (!node.icon) return node;
+        return { ...node, icon: normalizePath(`img/skill_trees/${node.icon}`) };
+      });
+    }
+  });
+
+  return skills;
+}
+
+function loadSessions() {
+  const filePath = path.join(DATA_DIR, "sessions.json");
+  if (!fs.existsSync(filePath)) return {};
+  return readJson(filePath);
+}
 
 function build() {
-    console.log("Building Foundry VTT module data...");
+  console.log("Building Foundry data...");
+  const payload = {
+    characters: loadNpcCharacters(),
+    players: loadPlayers(),
+    skills: loadSkills(),
+    sessions: loadSessions(),
+  };
 
-    const data = {
-        characters: [],
-        players: [],
-        skills: {},
-        sessions: {}
-    };
+  ensureDirForFile(OUTPUT_FILE);
+  fs.writeFileSync(OUTPUT_FILE, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 
-    // 1. Process NPC Characters
-    if (fs.existsSync(CHARS_DIR)) {
-        const files = fs.readdirSync(CHARS_DIR).filter(f => f.endsWith('.yaml') && f !== 'index.yaml');
-        files.forEach(file => {
-            try {
-                const content = fs.readFileSync(path.join(CHARS_DIR, file), 'utf8');
-                const charId = file.replace('.yaml', '');
-                const parsed = parseYamlAndHydrate(content, charId);
-                if (parsed.id) {
-                    data.characters.push(parsed);
-                }
-            } catch (err) {
-                console.error(`Error parsing character ${file}:`, err);
-            }
-        });
-    }
-
-    // 2. Process Sessions
-    if (fs.existsSync(SESSIONS_FILE)) {
-        try {
-            const sessionsContent = fs.readFileSync(SESSIONS_FILE, 'utf8');
-            data.sessions = JSON.parse(sessionsContent);
-        } catch (err) {
-            console.error("Error reading sessions file:", err);
-        }
-    } else {
-        console.warn("Sessions file not found:", SESSIONS_FILE);
-    }
-
-    // 3. Process Players
-    const playersFile = 'assets/data/players.json';
-    if (fs.existsSync(playersFile)) {
-        try {
-            const playersContent = fs.readFileSync(playersFile, 'utf8');
-            let playersData = JSON.parse(playersContent);
-
-            // Fix paths for players
-            playersData = playersData.map(p => {
-                if (p.images) {
-                    p.images.avatar = fixPath(p.images.avatar);
-                    p.images.hover = fixPath(p.images.hover);
-                    p.images.portrait = fixPath(p.images.portrait);
-                }
-                return p;
-            });
-            data.players = playersData;
-        } catch (err) {
-            console.error("Error reading players file:", err);
-        }
-    }
-
-    // 4. Process Skills
-    const skillsFile = 'assets/data/skills.json';
-    if (fs.existsSync(skillsFile)) {
-        try {
-            const skillsContent = fs.readFileSync(skillsFile, 'utf8');
-            let skillsData = JSON.parse(skillsContent);
-
-            // Fix paths in skills
-            for (const charId in skillsData) {
-                const skillTree = skillsData[charId];
-                if (skillTree.bgImage) {
-                    skillTree.bgImage = fixPath('img/skill_trees/' + skillTree.bgImage);
-                }
-                if (skillTree.nodes) {
-                    skillTree.nodes.forEach(node => {
-                        if (node.icon) {
-                            node.icon = fixPath('img/skill_trees/' + node.icon);
-                        }
-                    });
-                }
-            }
-            data.skills = skillsData;
-        } catch (err) {
-            console.error("Error reading skills file:", err);
-        }
-    }
-
-
-    // 3. Write Output
-    fs.writeFileSync(OUTPUT_FILE, JSON.stringify(data, null, 2), 'utf8');
-    console.log(`Successfully wrote module data to ${OUTPUT_FILE}`);
-    console.log(`- Characters: ${data.characters.length}`);
-    console.log(`- Players: ${data.players.length}`);
-    console.log(`- Sessions: ${data.sessions.sessions ? data.sessions.sessions.length : 0}`);
+  console.log(`Done: ${path.relative(ROOT, OUTPUT_FILE)}`);
+  console.log(`- Characters: ${payload.characters.length}`);
+  console.log(`- Players: ${payload.players.length}`);
+  console.log(`- Sessions: ${Array.isArray(payload.sessions.sessions) ? payload.sessions.sessions.length : 0}`);
 }
 
 build();

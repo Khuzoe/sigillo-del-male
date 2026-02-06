@@ -1,0 +1,19 @@
+{
+  "name": "cripta-di-sangue-wiki",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Tooling locale per qualita e dati derivati della wiki.",
+  "scripts": {
+    "build:foundry": "node build_foundry_data.js",
+    "build:search": "node scripts/generate_search_index.js",
+    "build:derived": "npm run build:search && npm run build:foundry",
+    "validate:data": "node scripts/validate_data.js",
+    "check:encoding": "node scripts/check_encoding.js",
+    "check:all": "npm run validate:data && npm run check:encoding",
+    "qa": "npm run check:all && npm run build:search",
+    "hooks:run": "npm run qa",
+    "hooks:install": "git config core.hooksPath .githooks",
+    "images:webp": "node scripts/convert-image.js",
+    "fix:chars": "node fixchars.js"
+  }
+}

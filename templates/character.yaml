@@ -1,0 +1,23 @@
+id: "character_id"
+name: "Nome Personaggio"
+role: "Ruolo"
+status: "vivo"
+hidden: false
+quote: "Citazione breve"
+images:
+  avatar: "img/creatures/transp/character_transp.webp"
+  hover: "img/creatures/transp/character_animation.webp"
+  portrait: "img/creatures/character.webp"
+content_blocks:
+  - type: "lore"
+    title: "Biografia"
+    icon: "fa-book-open"
+    markdown: "characters/character_id/biografia.md"
+relationships: []
+summary:
+  race: "Razza"
+  age_at_death: "N/A"
+  height: "1.70m | 70kg"
+  period: "Contemporaneo"
+  cause_of_death: "N/A"
+type: "npc"

@@ -1,0 +1,594 @@
+{
+  "generatedAt": "2026-02-06T16:54:09.885Z",
+  "itemCount": 46,
+  "items": [
+    {
+      "id": "player:apothecary",
+      "type": "player",
+      "entityId": "apothecary",
+      "title": "Apothecary",
+      "subtitle": "Chierica della Vita",
+      "url": "pages/characters/character.html?id=apothecary&type=player",
+      "tags": [
+        "player",
+        "Kenku"
+      ],
+      "content": "Portatrice di luce e guarigione. Ha stretto un legame particolare con Rabberduscolanderson e la sua magia divina è stata fondamentale per spezzare le maledizioni della cripta. Kenku N/A 70cm 14 N/A"
+    },
+    {
+      "id": "npc:deborah",
+      "type": "npc",
+      "entityId": "deborah",
+      "title": "Deborah Von T",
+      "subtitle": "L'Ultima Foglia",
+      "url": "pages/characters/character.html?id=deborah",
+      "tags": [
+        "npc",
+        "vivo",
+        "npc"
+      ],
+      "content": "Dolore. Biografia Deborah Von T è ricordata come l'Ultima Foglia della stirpe. Bambina dai capelli bianchi, porta con sé un potere antico che la casata Von T ha temuto e desiderato insieme. Nel silenzio della cripta, la sua presenza è percepita come un peso costante: il suo nome ricorre nei sussurri e nei documenti, legato a un destino che potrebbe ridisegnare il sangue dei Von T. Particolarità Molti la considerano la minaccia più grande del luogo. Si dice che la linea più vicina alla realtà sia legata a lei, e che le sue scelte possano alterare l'equilibrio dell'intera cripta. Per questo è v..."
+    },
+    {
+      "id": "npc:elena",
+      "type": "npc",
+      "entityId": "elena",
+      "title": "Elena Erbadath",
+      "subtitle": "La Fantasma",
+      "url": "pages/characters/character.html?id=elena",
+      "tags": [
+        "npc",
+        "vivo",
+        "npc"
+      ],
+      "content": "I ricordi sono annebbiati... ma il mio amore per lui è eterno. Fantasma 34 anni 1.61m | 750g 56-90 Uccisa da Karla (Pugnalata al petto) Biografia Elena Erbadath nacque in una famiglia ricca, circondata da comodità, cure e attenzioni costanti. Nulla le mancava, tranne una cosa fondamentale: non camminò mai. Le sue gambe non la portarono mai da nessuna parte, e quella mancanza segnò tutta la sua vita. Il denaro le offrì ciò che a molti era negato: una sedia a rotelle costruita con cura, medici preparati, una casa sicura. La sua esistenza era protetta, ordinata, controllata. Ma col tempo Elena c..."
+    },
+    {
+      "id": "quest-group:elena_quests",
+      "type": "quest",
+      "entityId": "elena_quests",
+      "title": "Elena Erbadath",
+      "subtitle": "NPC: elena",
+      "url": "pages/missioni.html",
+      "tags": [
+        "quest",
+        "npc"
+      ],
+      "content": "Trovare l'oggetto perduto di Elena Riportare Elena da Rabberduscolanderson"
+    },
+    {
+      "id": "family:elena",
+      "type": "family",
+      "entityId": "elena",
+      "title": "Elena Erbadath",
+      "subtitle": "Famiglia Von T",
+      "url": "pages/famiglia-von-t.html",
+      "tags": [
+        "family"
+      ],
+      "content": "Elena Erbadath Membro della Famiglia Von T"
+    },
+    {
+      "id": "npc:franky",
+      "type": "npc",
+      "entityId": "franky",
+      "title": "Franky",
+      "subtitle": "Lo Scienziato",
+      "url": "pages/characters/character.html?id=franky",
+      "tags": [
+        "npc",
+        "vivo",
+        "npc"
+      ],
+      "content": "She volete dei shieri, io shi shono! Biografia Franky è uno scienziato dalla mente instabile: un topo parlante affiancato da un essere di carne cucita. Nel suo laboratorio macabro prepara sieri e innesti, trattando corpi e organi come componenti. La sua ossessione è un golem gigantesco, un colosso che vorrebbe animare con un cuore capace di sostenerne il potere. Particolarità Tra i segreti che cerca, Franky brama un cuore che funzioni da batteria arcana. Le voci parlano di un cuore particolare, appartenuto ad Albert, che pulserebbe ancora di magia. Per lui quel cuore è la chiave per dare vita..."
+    },
+    {
+      "id": "quest-group:franky_quests",
+      "type": "quest",
+      "entityId": "franky_quests",
+      "title": "Franky",
+      "subtitle": "NPC: franky",
+      "url": "pages/missioni.html",
+      "tags": [
+        "quest",
+        "npc"
+      ],
+      "content": "Fornire un cuore per dare vita al Colosso di Carne Shieri Potenti"
+    },
+    {
+      "id": "player:garun",
+      "type": "player",
+      "entityId": "garun",
+      "title": "Ga'Run",
+      "subtitle": "Barbaro",
+      "url": "pages/characters/character.html?id=garun&type=player",
+      "tags": [
+        "player",
+        "Umano"
+      ],
+      "content": "Padre di Ran'Dra e combattente instancabile. Ha subito sulla sua pelle le peggiori maledizioni dei Von T, ma la sua tenacia e la sua forza bruta non hanno mai vacillato. Umano N/A 1.95m Contemporaneo N/A"
+    },
+    {
+      "id": "npc:ginevra",
+      "type": "npc",
+      "entityId": "ginevra",
+      "title": "Ginevra Von T",
+      "subtitle": "La Madre",
+      "url": "pages/characters/character.html?id=ginevra",
+      "tags": [
+        "npc",
+        "vivo",
+        "npc"
+      ],
+      "content": ""
+    },
+    {
+      "id": "npc:karla",
+      "type": "npc",
+      "entityId": "karla",
+      "title": "Karla Von T",
+      "subtitle": "La Vampira",
+      "url": "pages/characters/character.html?id=karla",
+      "tags": [
+        "npc",
+        "vivo",
+        "npc"
+      ],
+      "content": "Insieme possiamo raggiungere il nostro obiettivo, lo sento. Biografia Karla Von T appare quando viene chiamata dalle sue progenie o quando la sua volontà decide di imporsi. La sua presenza spezza le violenze: uno sguardo basta a piegare la volontà e a imporre silenzio. Si mostra criptica ma interessata, soprattutto verso chi proviene da linee vicine a quella dei Von T, perché ritiene che il loro destino sia intrecciato al suo. Particolarità Karla conduce un rituale macabro che simula la morte. Chi vi si sottopone attraversa un'ombra breve e poi si risveglia con un potere nuovo, legato al sang..."
+    },
+    {
+      "id": "quest-group:karla_quests",
+      "type": "quest",
+      "entityId": "karla_quests",
+      "title": "Karla Von T",
+      "subtitle": "NPC: karla",
+      "url": "pages/missioni.html",
+      "tags": [
+        "quest",
+        "npc"
+      ],
+      "content": "Partecipare al rituale del sigillo Von T Liberare il Secondo Piano dalle creature ostili Piano più sicuro Eliminare Nino Olegna e le sue creature tela dalla zona nord Eliminare i non morti dalla zona sud"
+    },
+    {
+      "id": "family:karla",
+      "type": "family",
+      "entityId": "karla",
+      "title": "Karla Von T",
+      "subtitle": "Famiglia Von T",
+      "url": "pages/famiglia-von-t.html",
+      "tags": [
+        "family",
+        "von-t"
+      ],
+      "content": "Karla Von T Membro della Famiglia Von T"
+    },
+    {
+      "id": "family:leonora",
+      "type": "family",
+      "entityId": "leonora",
+      "title": "Leonora",
+      "subtitle": "Famiglia Von T",
+      "url": "pages/famiglia-von-t.html",
+      "tags": [
+        "family"
+      ],
+      "content": "Leonora Membro della Famiglia Von T"
+    },
+    {
+      "id": "npc:nino_olegna",
+      "type": "npc",
+      "entityId": "nino_olegna",
+      "title": "Nino Olegna",
+      "subtitle": "Il Tessimorte",
+      "url": "pages/characters/character.html?id=nino_olegna",
+      "tags": [
+        "npc",
+        "morto",
+        "npc"
+      ],
+      "content": "Il tradimento è inaccettabile. Pagherai. Non Morto 60 anni 2.60m | 210kg 25-85 Gettato in gabbia con un Ratto delle Sabbie a Chult Biografia Nino Olegna, chiamato Tessimorte, è un alchimista macabro che intreccia ragnatele, tendini e corpi per generare creature innaturali. Il suo laboratorio è un labirinto di fascicoli e rituali oscuri. I suoi documenti parlano dell'Assistente, detto Bacio Mortale, e di una creatura colossale dalle capacità incalcolabili. Le Creature Tela sono descritte come base per ulteriori creazioni, a testimonianza di una ricerca senza scrupoli. Di lui restano appunti e ..."
+    },
+    {
+      "id": "family:nino_olegna",
+      "type": "family",
+      "entityId": "nino_olegna",
+      "title": "Nino Olegna",
+      "subtitle": "Famiglia Von T",
+      "url": "pages/famiglia-von-t.html",
+      "tags": [
+        "family"
+      ],
+      "content": "Nino Olegna Membro della Famiglia Von T"
+    },
+    {
+      "id": "quest-group:main_quest",
+      "type": "quest",
+      "entityId": "main_quest",
+      "title": "Quest Principale",
+      "subtitle": "Trama principale",
+      "url": "pages/missioni.html",
+      "tags": [
+        "quest",
+        "main"
+      ],
+      "content": "Entrare nella Cripta Esplorare il Primo Piano Esplorare il Secondo Piano Trovare Deborah"
+    },
+    {
+      "id": "npc:rabberduscolanderson",
+      "type": "npc",
+      "entityId": "rabberduscolanderson",
+      "title": "Rabberduscolanderson Von T",
+      "subtitle": "Il Reietto",
+      "url": "pages/characters/character.html?id=rabberduscolanderson",
+      "tags": [
+        "npc",
+        "vivo",
+        "npc"
+      ],
+      "content": "Io volevo solo starmene seduto nella mia stanza, perché sono finito su questo sito?! Non Morto 49 anni 1.62m | 9kg 41-90 Suicidio (gettandosi in un baratro) Biografia Rabberduscolanderson nacque come primogenito della nobile casata Von T. Il suo destino fu segnato fin dal battesimo: suo padre, Yuris, gli impose il nome \"Rabberduscolanderson\" contro la ferma volontà della madre, Leonora. Questo atto di prepotenza trasformò il figlio in un simbolo vivente dei conflitti coniugali. Leonora, incapace di separare il bambino dall'odio per il marito, lo ignorò per gran parte della sua infanzia, river..."
+    },
+    {
+      "id": "quest-group:rabber_quests",
+      "type": "quest",
+      "entityId": "rabber_quests",
+      "title": "Rabberduscolanderson Von T",
+      "subtitle": "NPC: rabberduscolanderson",
+      "url": "pages/missioni.html",
+      "tags": [
+        "quest",
+        "npc"
+      ],
+      "content": "Frugare nella tasca di Ran'Dra e trovare cosa nasconde Trovare le 3 targhette dei suoi cani perduti Commercio agevolato con Monete di Rame Trovare qualcosa che possa ricordargli Elena Farlo riunire con la sua amata Elena Cuore di Rabberduscolanderson Von T"
+    },
+    {
+      "id": "family:rabberduscolanderson",
+      "type": "family",
+      "entityId": "rabberduscolanderson",
+      "title": "Rabberduscolanderson Von T",
+      "subtitle": "Famiglia Von T",
+      "url": "pages/famiglia-von-t.html",
+      "tags": [
+        "family",
+        "von-t"
+      ],
+      "content": "Rabberduscolanderson Von T Membro della Famiglia Von T"
+    },
+    {
+      "id": "player:randra",
+      "type": "player",
+      "entityId": "randra",
+      "title": "Ran'Dra",
+      "subtitle": "Maga (Evocazione)",
+      "url": "pages/characters/character.html?id=randra&type=player",
+      "tags": [
+        "player",
+        "Eladrin (Estate)"
+      ],
+      "content": "Figlia di Ga'Run, esperta nel muoversi non vista e nel sottrarre oggetti preziosi. Le sue illusioni hanno spesso permesso al gruppo di sfuggire a mostri gargantueschi. Eladrin (Estate) N/A 1.65m Contemporaneo N/A"
+    },
+    {
+      "id": "family:rendar",
+      "type": "family",
+      "entityId": "rendar",
+      "title": "Rendar",
+      "subtitle": "Famiglia Von T",
+      "url": "pages/famiglia-von-t.html",
+      "tags": [
+        "family"
+      ],
+      "content": "Rendar Membro della Famiglia Von T"
+    },
+    {
+      "id": "session:1",
+      "type": "session",
+      "entityId": "1",
+      "title": "Sessione 1",
+      "subtitle": "30/04/2025 - Inizio",
+      "url": "pages/sessioni.html#session-1",
+      "tags": [
+        "session"
+      ],
+      "content": "Il gruppo si riunisce e insieme aprite la porta d'ingresso, con i cuori che battono all'unisono. Affrontate un cane mostruoso sul lato ovest rispetto alla porta d'ingresso. Iniziate il combattimento contro un mimic, lo \"Scrigno Rosa\", che però riesce a fuggire gettandosi nel fiume rosso. Tentate di evitare la figura gigante che avete intravisto e restate sul lato ovest del luogo in cui vi trovate. Trovate una stanza con tre teschi colorati di fronte a un libro. Valdor tenta di prenderlo, ma i teschi sembrano reagire; viene quindi convinto dal gruppo ad abbandonare la stanza. Chiudete una stan..."
+    },
+    {
+      "id": "session:10",
+      "type": "session",
+      "entityId": "10",
+      "title": "Sessione 10",
+      "subtitle": "21/09/2025",
+      "url": "pages/sessioni.html#session-10",
+      "tags": [
+        "session"
+      ],
+      "content": "Trascorrete del tempo con il vostro amico Rabberduscolanderson e Valdor realizza un portafoto olografico con una fotografia che rappresenta tutti voi. Consegnate il Cuore di Albert ad X, la quale ha iniziato a studiarlo aiutandosi con lo strano libro che avete rubato a Franky. Decidete di scendere al livello inferiore, dove venite accolti da una stanza ampia, con la statua di 'Octavio' in fondo. Qui trovate dei palloncini che iniziano a seguirvi fluttuando, e una bambolina che chiamava Ran'Dra \"Mamma\" e chiedeva di stare in braccio. Dopo aver gettato la bambolina in un fosso, avete continuato..."
+    },
+    {
+      "id": "session:11",
+      "type": "session",
+      "entityId": "11",
+      "title": "Sessione 11",
+      "subtitle": "06/10/2025",
+      "url": "pages/sessioni.html#session-11",
+      "tags": [
+        "session"
+      ],
+      "content": "Il vostro incontro con le progenie vampiriche si sviluppa in modo violento ed iniziate ad attaccare queste creature, provando ad ucciderle. Grazie alla loro sorprendente rigenerazione naturale, le ferite di queste creature si rimarginano molto rapidamente, rendendovi difficile il compito di abbatterle. Una di queste creature si allontana, andando a chiamare un'altra figura, decisamente più inquietante. Karla, una vampira, si presenta di fronte a voi, ponendo fine al combattimento. Karla utilizza un effetto di incantamento su Ga'Run, portandolo dalla sua parte. Poi, Valdor decide di arrendersi..."
+    },
+    {
+      "id": "session:12",
+      "type": "session",
+      "entityId": "12",
+      "title": "Sessione 12",
+      "subtitle": "19/10/2025",
+      "url": "pages/sessioni.html#session-12",
+      "tags": [
+        "session",
+        "skill-point"
+      ],
+      "content": "Uno dopo l'altro vi sottoponete al rituale macabro di Karla, tutti con successo. Uno per uno, dopo quella che sembra essere stata una morte temporanea, vi risvegliate sentendo dentro di voi un potere nuovo. Dopo i rituali, avete l'occasione di parlare con Karla riguardo alla situazione in cui tutti voi, lei compresa, vi trovate. Capite che entrambi avete un obiettivo comune: Deborah, la ragazza dai capelli bianchi. Karla vi parla dei pericoli di questo luogo, citando un uomo folle che realizza creature di ragnatela e tendini (a nord), e numerosi non-morti (a sud). Ella vi chiede di liberarvi ..."
+    },
+    {
+      "id": "session:13",
+      "type": "session",
+      "entityId": "13",
+      "title": "Sessione 13",
+      "subtitle": "06/11/2025",
+      "url": "pages/sessioni.html#session-13",
+      "tags": [
+        "session"
+      ],
+      "content": "Quando la gigantesca figura attacca Valdor, questa si dissolve in un'esplosione di coriandoli colorati rivelando di essere una semplice illusione. Fate mente locale su come procedere, e decidete comunque di dirigervi nella zona nord senza incontrare Karla, in modo da non ricevere da lei raccomandazioni o limitazioni di alcun tipo durante la vostra esplorazione. Entrate in una stanza composta da un lungo corridoio, dopo aver aperto un grosso portone, strappando con la forza le ragnatele dietro di esso che lo tenevano chiuso. Dopo qualche secondo dal vostro arrivo, un occhio rosso sul lato oppo..."
+    },
+    {
+      "id": "session:14",
+      "type": "session",
+      "entityId": "14",
+      "title": "Sessione 14",
+      "subtitle": "23/11/2025",
+      "url": "pages/sessioni.html#session-14",
+      "tags": [
+        "session"
+      ],
+      "content": "Ancora una volta, vi preparate al combattimento contro la giullare. Ga'Run si tuffa senza pensarci due volte nella nube di fumo colorato che ha circondato Ran'Dra, per capire ben presto che si trattava nuovamente di un'illusione. Vi dirigete nella stanza con le due bamboline, e decidete di abbatterle, per poi riposarvi nella loro stanza. Durante il riposo, Valdor ha una visione particolare che lo mostrava all'interno di una piccola casa di legno nella foresta. Durante il riposo, Valdor decide di indagare riguardo alla X del tesoro che c'era nella stanza, trovando uno Specchio Rotto magico, in..."
+    },
+    {
+      "id": "session:15",
+      "type": "session",
+      "entityId": "15",
+      "title": "Sessione 15",
+      "subtitle": "03/12/2025",
+      "url": "pages/sessioni.html#session-15",
+      "tags": [
+        "session"
+      ],
+      "content": "Dopo aver sconfitto Nino Olegna, vi dirigete verso il suo studio, dove trovate diversi oggetti interessanti. Oltre a documenti di vario tipo, legati principalmente a rituali oscuri per creare creature mostruose, Ga'Run ed Apothecary prendono con sé delle fiale contenenti liquidi magici. In particolare, vi turbano i documenti relativi a due creature: la prima è una creatura 'Assistente' - il Bacio Mortale - in grado di aiutare nei processi di creazione di altre creature; la seconda, una creatura colossale, dotata di una forza e resistenza non misurabili. Capendo che le Creature Tela che avete ..."
+    },
+    {
+      "id": "session:16",
+      "type": "session",
+      "entityId": "16",
+      "title": "Sessione 16",
+      "subtitle": "23/12/2025",
+      "url": "pages/sessioni.html#session-16",
+      "tags": [
+        "session"
+      ],
+      "content": "Dopo aver combattuto contro l'Assistente, avete il tempo di esaminare l'enorme braccio circondato da ragnatele negromantiche presente nella nicchia della caverna. Riuscite a rimuovere un bracciale incastrato nel suo polso, facendo degenerare rapidamente la struttura del braccio stesso. Valdor trova anche un piccolo ciondolo rosso, leggermente etereo, riuscendo ad inserirlo nella sua borsa conservante. Scoprite inoltre che il bracciale rimosso è in realtà un Anello di Resistenza Necrotica, che decidete di tenere con voi. Proseguendo verso sud, incontrate una donna fantasma seduta su una sedia ..."
+    },
+    {
+      "id": "session:17",
+      "type": "session",
+      "entityId": "17",
+      "title": "Sessione 17",
+      "subtitle": "05/01/2026",
+      "url": "pages/sessioni.html#session-17",
+      "tags": [
+        "session",
+        "skill-point"
+      ],
+      "content": "Dopo aver lasciato la stanza di Karla, decidete di tornare da Elena per poi risalire tutti insieme al piano superiore. Scambiate qualche parola con lei, Valdor fuma un sigaro sotto lo sguardo teso di Ga'Run, e procedete lungo i corridoi della cripta. Giungete alla stanza di Rabberduscolanderson e assistete alla riunione dei due. Una luce si accende nel petto di Rabber, che si sente spinto a donarvi un oggetto che portava con sé: il suo cuore, racchiuso in una sfera di vetro. Nel momento in cui il cuore tocca le mani di Valdor, sentite i vostri simboli reagire. Decidete di bruciare tutti i doc..."
+    },
+    {
+      "id": "session:18",
+      "type": "session",
+      "entityId": "18",
+      "title": "Sessione 18",
+      "subtitle": "22/01/2026",
+      "url": "pages/sessioni.html#session-18",
+      "tags": [
+        "session"
+      ],
+      "content": "Vi preparate a partire nuovamente verso il piano sottostante, intenzionati a ripulire la parte sud del livello che, per quanto detto da Karla, sembra essere infestato dai non-morti. Giungete nella zona sud, dove la struttura diventa una sorta di caverna fangosa. Qui sentite alcuni canti provenire dai tunnel, e capite che provenivano da alcuni non-morti con vesti Klaren. Iniziate un combattimento contro questi non-morti, eliminando incantatori, zombie ed uno strano non-morto con una pala di mano. Successivamente Ga'Run vede una figura umanoide gigantesca sepolta parzialmente nel terreno, con a..."
+    },
+    {
+      "id": "session:19",
+      "type": "session",
+      "entityId": "19",
+      "title": "Sessione 19",
+      "subtitle": "05/02/2026",
+      "url": "pages/sessioni.html#session-19",
+      "tags": [
+        "session",
+        "levelup"
+      ],
+      "content": "Riuscite a sconfiggere la non morta gigante ed i vari non-morti che uscivano ininterrottamente dalla sua pancia. Alla sua morte, vi rendete conto che l'equipaggiamento che indossava è magico. Dalla sua pancia è poi caduta anche una donna, apparentemente non-morta anche lei, con una pancia sproporzionatamente grande. La avete imbavagliata e legata, ed avete iniziato dei riposi brevi per entrare in sintonia con gli oggetti, così da trasportarli più facilmente. Durante i riposi, la donna si risveglia. Impaurita e sorpresa, fa dei versi per attirare l'attenzione. La tranquillizzate leggermente, a..."
+    },
+    {
+      "id": "session:2",
+      "type": "session",
+      "entityId": "2",
+      "title": "Sessione 2",
+      "subtitle": "13/05/2025",
+      "url": "pages/sessioni.html#session-2",
+      "tags": [
+        "session"
+      ],
+      "content": "Ga'Run e Ran'Dra concludono il loro primo dialogo con X, scoprendo qualche informazione di base e che vende alcune pergamene per incantesimi. Ga'Run minaccia Rabberduscolanderson prima di abbandonare la stanza, infastidito dal fatto che abbia fumato con Valdor. Vedete il giardino di fiori fuori dalla stanza di Rabberduscolanderson, incluso un grosso fiore nero al centro di una pozza rossa. Decidete di non interagire con essi. Apothecary prova a tirare i petali che fuoriescono da un cumulo di terra, rivelando una testa parzialmente fantasma e parzialmente coperta di petali di rosa. Vi imbattet..."
+    },
+    {
+      "id": "session:3",
+      "type": "session",
+      "entityId": "3",
+      "title": "Sessione 3",
+      "subtitle": "26/05/2025",
+      "url": "pages/sessioni.html#session-3",
+      "tags": [
+        "session"
+      ],
+      "content": "Decidete di affrontare i cani a ovest, riuscendo a sconfiggerli. Vi avvicinate leggermente allo 'Spremiagrumi'; non sembra reagire in modo ostile, porge la mano a Ga'Run, che però non si avvicina. Tornate nella stanza con i bracieri, entrando nello stanzino aperto da 'Gianni': dentro trovate varie copie del libro \"Sotto la guida di Abrak\", che parla del popolo Klaren e di una divinità - Abrak - nata dopo un patto tra i Klaren stessi ed un'altra entità di cui non sono specificati nome o natura. Raccogliete velocemente dei documenti, che includono quattro macchie colorate collegate da una frecc..."
+    },
+    {
+      "id": "session:4",
+      "type": "session",
+      "entityId": "4",
+      "title": "Sessione 4",
+      "subtitle": "10/06/2025",
+      "url": "pages/sessioni.html#session-4",
+      "tags": [
+        "session"
+      ],
+      "content": "Valdor consegna la prima targhetta a Rabberduscolanderson, il quale gli dà in cambio una pozione. Lo accompagnate momentaneamente dove avete ucciso il primo cane e poi tornate indietro. Decidete di andare a prendere anche le altre due targhette a nord, e le riportate a Rabberduscolanderson, ottenendo ulteriori pozioni in cambio. Egli vi cita 'Elena', la sua compagna, dicendovi che nel caso in cui ci fosse qualcosa in giro a lei legata, gli farebbe piacere riaverla tra le mani. Procedete furtivi con l'esplorazione del piano, trovando due porte chiuse. Ran'Dra, origliando dietro la prima, sente..."
+    },
+    {
+      "id": "session:5",
+      "type": "session",
+      "entityId": "5",
+      "title": "Sessione 5",
+      "subtitle": "24/06/2025",
+      "url": "pages/sessioni.html#session-5",
+      "tags": [
+        "session"
+      ],
+      "content": "Concludete il vostro riposo lungo e, una volta svegli, Apothecary utilizza la sua magia divina per rimuovere la maledizione che affligge Ga'Run. Dopo aver trascorso qualche minuto a chiacchierare, in attesa che Ga'Run riposasse un po', decidete di ripartire. Mentre percorrete i corridoi e le vie della cripta, cercate di individuare Gianni, in modo da abbatterlo cogliendolo di sorpresa. Prima di Gianni, però, incontrate uno strano topo parlante, affiancato da uno strano essere di carne che lo accompagna. Egli vi invita nel suo macabro laboratorio dove vi chiede di procurargli un cuore in grado..."
+    },
+    {
+      "id": "session:6",
+      "type": "session",
+      "entityId": "6",
+      "title": "Sessione 6",
+      "subtitle": "08/07/2025",
+      "url": "pages/sessioni.html#session-6",
+      "tags": [
+        "session"
+      ],
+      "content": "Riuscite a completare il combattimento contro Gianni, avendo successo. Riuscite a prelevare un Cuore dal suo corpo, che sembra avere una funzione simile a quella di una batteria arcana. Valdor scopre che pare sia incantato con un incantesimo simile a Desiderio. Franky sembrava particolarmente interessato a quel cuore, ma riuscite ad evitare le sue richieste e a procedere senza darglielo o parlargliene. Cercando nei sarcofagi dove avete affrontato le mummie il giorno precedente, trovate un diamante e un Medaglione con inciso il simbolo Klaren. Esplorate la parte sud del livello e trovate 3 dip..."
+    },
+    {
+      "id": "session:7",
+      "type": "session",
+      "entityId": "7",
+      "title": "Sessione 7",
+      "subtitle": "31/07/2025",
+      "url": "pages/sessioni.html#session-7",
+      "tags": [
+        "session"
+      ],
+      "content": "Valdor controlla il cadavere dello scrigno animato, trovando al suo interno una particolare spilla, che supponete con abbastanza certezza sia magica. Vi dirigete verso la stanza di Rabberduscolanderson, quando notate i fiori che tempo prima aveva definito come \"il giardino di Albert\". Decidete di attaccarli, trovandovi in un combattimento piuttosto rischioso contro dei fiori-pianta. Grazie all'aiuto di Rabberduscolanderson e X, riuscite a sconfiggere questi nemici, sopravvivendo. Ran'Dra consegna a X il libro rubato a Franky, ottenendo alcune informazioni in cambio: in particolare, scoprite c..."
+    },
+    {
+      "id": "session:8",
+      "type": "session",
+      "entityId": "8",
+      "title": "Sessione 8",
+      "subtitle": "04/08/2025",
+      "url": "pages/sessioni.html#session-8",
+      "tags": [
+        "session"
+      ],
+      "content": "Parlando con X, scoprite anche che i fantasmi che abitano questa cripta non sono altro che altre persone che, come voi, si trovano in questo luogo. Pare che voi, a differenza loro, vi troviate nella linea più vicina a quella reale, cioè a quella dove si trovano i Von T. Gli altri, invece, si trovano in delle repliche di essa. Dopo il combattimento contro il giardino di Albert, eravate piuttosto stanchi e decidete di recuperare le forze trascorrendo il resto della giornata all'interno della vostra stanza. Prima di spostarvi al piano sottostante, la mattina seguente provate a mettere le mani su..."
+    },
+    {
+      "id": "session:9",
+      "type": "session",
+      "entityId": "9",
+      "title": "Sessione 9",
+      "subtitle": "01/09/2025",
+      "url": "pages/sessioni.html#session-9",
+      "tags": [
+        "session",
+        "levelup"
+      ],
+      "content": "Continuate il vostro combattimento contro gli scheletri animati dopo che Valdor ha raccolto il libro, e riuscite ad uscirne vincitori senza perdite. Una volta sconfitti gli scheletri di Rosskar, Okbrax e Lumilla, il sacrofago all'interno della stanza si sblocca, rivelando al suo interno numerosi oggetti magici (armature e armi). Date un'occhiata veloce al libro e capite che questo contiene parti della storia dei Klaren, narrati con un linguaggio piuttosto arcaico. XP totali 8004 XP ciascuno 2001 level up 6"
+    },
+    {
+      "id": "player:valdor",
+      "type": "player",
+      "entityId": "valdor",
+      "title": "Valdor",
+      "subtitle": "Artificiere",
+      "url": "pages/characters/character.html?id=valdor&type=player",
+      "tags": [
+        "player",
+        "Nano"
+      ],
+      "content": "Maestro delle arti arcane e creatore di sigilli magici. La sua intelligenza ha salvato il gruppo innumerevoli volte, risolvendo enigmi letali e intrappolando nemici potenti. Nano N/A 1.50m 74 N/A"
+    },
+    {
+      "id": "npc:x",
+      "type": "npc",
+      "entityId": "x",
+      "title": "X Von T",
+      "subtitle": "La Studiosa",
+      "url": "pages/characters/character.html?id=x",
+      "tags": [
+        "npc",
+        "vivo",
+        "npc"
+      ],
+      "content": "Il sapere sopravvive dove il potere consuma. Non Morto 58 anni 1.68m | 8kg 42-100 Uccisa da Karla (???) Biografia Figlia di Yuris e Leonora Von T, X porta un nome nato per ripicca. Dopo che il primogenito fu chiamato Rabberduscolanderson contro la volontà della madre, Leonora scelse per la figlia successiva un nome ridotto all'essenziale: una sola lettera, un rifiuto silenzioso verso le imposizioni del marito. Crescendo, X osservò i conflitti familiari da un angolo distante, trasformando la freddezza domestica in curiosità. Il sangue dei Von T le offriva privilegi, ma lei li usò soltanto per ..."
+    },
+    {
+      "id": "quest-group:x_quests",
+      "type": "quest",
+      "entityId": "x_quests",
+      "title": "X Von T",
+      "subtitle": "NPC: x",
+      "url": "pages/missioni.html",
+      "tags": [
+        "quest",
+        "npc"
+      ],
+      "content": "Trovare documenti interessanti Informazioni interessanti"
+    },
+    {
+      "id": "family:x",
+      "type": "family",
+      "entityId": "x",
+      "title": "X Von T",
+      "subtitle": "Famiglia Von T",
+      "url": "pages/famiglia-von-t.html",
+      "tags": [
+        "family",
+        "von-t"
+      ],
+      "content": "X Von T Membro della Famiglia Von T"
+    },
+    {
+      "id": "family:yuris",
+      "type": "family",
+      "entityId": "yuris",
+      "title": "Yuris Von T",
+      "subtitle": "Famiglia Von T",
+      "url": "pages/famiglia-von-t.html",
+      "tags": [
+        "family",
+        "von-t"
+      ],
+      "content": "Yuris Von T Membro della Famiglia Von T"
+    },
+    {
+      "id": "npc:zara",
+      "type": "npc",
+      "entityId": "zara",
+      "title": "Zara",
+      "subtitle": "La Giullare",
+      "url": "pages/characters/character.html?id=zara",
+      "tags": [
+        "npc",
+        "ignoto",
+        "npc"
+      ],
+      "content": "Buuuu! Ahahaha! Biografia Il nome di Zara compare tra i ritratti e le targhette del palazzo, come un ricordo fissato nel tempo. È conosciuta come La Giullare, una presenza legata alle stranezze del piano. Chi ne parla la descrive come creatrice di inganni e distorsioni, un'ombra che prende forma tra le sale. Particolarità Le sue apparizioni sono teatrali: una figura enorme che urla \"Booo!\" e poi esplode in coriandoli colorati. Ogni volta si dissolve senza lasciare tracce, tornando con forme diverse, più piccole e più beffarde. È difficile distinguere dove finisca l'illusione e dove inizi il p..."
+    }
+  ]
+}
