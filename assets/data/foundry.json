@@ -1173,11 +1173,11 @@
   },
   "sessions": {
     "nextSession": {
-      "number": 19,
-      "date": "05 Febbraio 2026",
-      "timeStart": "20:30",
-      "timeEnd": "23:30",
-      "isScheduled": true
+      "number": 20,
+      "date": "",
+      "timeStart": "",
+      "timeEnd": "",
+      "isScheduled": false
     },
     "sessions": [
       {
@@ -1345,6 +1345,16 @@
           "total": "2360",
           "each": "590"
         }
+      },
+      {
+        "id": 19,
+        "date": "05/02/2026",
+        "summary": "<p>Riuscite a sconfiggere la non morta gigante ed i vari non-morti che uscivano ininterrottamente dalla sua pancia. Alla sua morte, vi rendete conto che l'equipaggiamento che indossava è magico.</p><p>Dalla sua pancia è poi caduta anche una donna, apparentemente non-morta anche lei, con una pancia sproporzionatamente grande. La avete imbavagliata e legata, ed avete iniziato dei riposi brevi per entrare in sintonia con gli oggetti, così da trasportarli più facilmente.</p><p>Durante i riposi, la donna si risveglia. Impaurita e sorpresa, fa dei versi per attirare l'attenzione. La tranquillizzate leggermente, analizzate la sua situazione e proseguite il riposo.</p><p>Notate del fumo verdastro uscire leggermente dal suo naso e bocca, e più intensamente dalla vagina. Sentite dall'odore e dal colore che sembra trattarsi di una sostanza gassosa che rimanda alle pozioni di cura o ai materiali per realizzarle.</p>",
+        "xp": {
+          "total": "10700",
+          "each": "2675"
+        },
+        "levelup": 7
       }
     ]
   }
