@@ -158,7 +158,7 @@
       "id": "ginevra",
       "name": "Ginevra Von T",
       "role": "La Madre",
-      "status": "ignoto",
+      "status": "vivo",
       "quote": "",
       "type": "npc",
       "images": {
@@ -166,7 +166,16 @@
         "hover": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/transp/ginevra_animation.webp",
         "portrait": "https://khuzoe.github.io/sigillo-del-male/assets/img/creatures/ginevra.webp"
       },
-      "content_blocks": [],
+      "content_blocks": [
+        {
+          "type": "image_box",
+          "title": "Healing Fetus",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/items/ginevra_healing_fetus.webp",
+          "markdown": "characters/ginevra/healing_fetus.md",
+          "markdownText": "<h3>Feto Curativo</h3><br>Il Feto Curativo e un oggetto che puo essere creato da Ginevra fornendole ingredienti adatti. Quando viene trattato correttamente, puo essere usato come reagente per produrre una sostanza incredibilmente curativa.",
+          "hidden": "true"
+        }
+      ],
       "relationships": []
     },
     {
@@ -417,6 +426,14 @@
           "icon": "fa-user",
           "markdown": "characters/x/aspetto_fisico.md",
           "markdownText": "X è un'imponente entità non-morta che irradia potere arcano e autorità oscura. Si presenta come uno scheletro completo, la cui struttura ossea è visibile attraverso gli strappi delle sue vesti. Le orbite profonde ospitano fiamme rosse ardenti.<br><br>Indossa paramenti neri, ampi e lacerati, che ricordano quelli di un antico stregone o di un sacerdote della morte. Il capo è coperto da un grande cappello nero a tesa larga, sopra il quale poggia una corona di punte metalliche o spine. Alla cintura porta diverse borse e sacche di pelle, probabilmente contenenti componenti magici.<br>"
+        },
+        {
+          "type": "image_box",
+          "title": "Cuore di X",
+          "image": "https://khuzoe.github.io/sigillo-del-male/assets/img/items/heart-x.webp",
+          "markdown": "characters/x/cuore-di-x.md",
+          "markdownText": "<i>Una piccola sfera contenente un cuore e filamenti arcani sigillati.</i><br><h3>Oggetto meraviglioso (leggendario), richiede sintonia</h3><br>Ottieni vantaggio alle prove di Arcana, History e Investigation quando studi libri, pergamene o rituali.<br>Quando analizzi un testo magico, puoi comprenderne l'intento generale anche se incompleto o criptico.<br>Hai svantaggio ai tiri salvezza contro veleno e agli effetti legati ad aracnidi.<br><br>> Libri e pergamene studia, senza bramare potere,<br>> il morso di un ragno: null’altro poté mai vedere.<br>",
+          "hidden": "true"
         }
       ],
       "relationships": [
