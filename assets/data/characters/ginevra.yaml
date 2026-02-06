@@ -1,13 +1,18 @@
 id: "ginevra"
 name: "Ginevra Von T"
 role: "La Madre"
-status: "ignoto"
-hidden: true
+status: "vivo"
+hidden: false
 quote: ""
 images:
   avatar: "img/creatures/transp/ginevra_transp.webp"
   hover: "img/creatures/transp/ginevra_animation.webp"
   portrait: "img/creatures/ginevra.webp"
-content_blocks: []
-relationships: - {}
+content_blocks:
+  - type: "image_box"
+    title: "Healing Fetus"
+    image: "img/items/ginevra_healing_fetus.webp"
+    markdown: "characters/ginevra/healing_fetus.md"
+    hidden: true
+relationships: []
 type: "npc"

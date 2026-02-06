@@ -1,1 +1,0 @@
-X indossa vesti semplici macchiate d'inchiostro, con pergamene arrotolate infilate nella cintura. Gli occhi, lucidi di curiosità, guardano chi le parla come se fosse una nota a piè di pagina di un manoscritto più grande. La voce è calma, misurata: quella di una donna che ha scelto il sapere al posto del potere.

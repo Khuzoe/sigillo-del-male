@@ -23,7 +23,7 @@ const fixPath = (p) => {
 };
 
 
-// --- YAML Parser (Same as build_static_data.js) ---
+// --- YAML Parser ---
 
 // --- Simple Markdown Parser (No deps) ---
 function parseMarkdown(md) {

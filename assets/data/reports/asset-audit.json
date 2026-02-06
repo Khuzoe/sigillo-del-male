@@ -1,0 +1,748 @@
+﻿{
+    "generated_at":  "2026-02-06 10:54:32",
+    "summary":  {
+                    "total_images":  172,
+                    "used_images":  114,
+                    "maybe_unused_images":  58,
+                    "duplicate_groups":  15,
+                    "duplicate_files":  31
+                },
+    "top_biggest":  [
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\deborah.png",
+                            "bytes":  7673384,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "deborah.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\x.png",
+                            "bytes":  6055239,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "x.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\karla.png",
+                            "bytes":  5903865,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "karla.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\rabberduscolanderson.png",
+                            "bytes":  5813434,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "rabberduscolanderson.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\nino_olegna_animation.png",
+                            "bytes":  3603455,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "nino_olegna_animation.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\skill_trees\\banner_von_t.png",
+                            "bytes":  2903549,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "banner_von_t.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\elena.jpeg",
+                            "bytes":  2412080,
+                            "used":  false,
+                            "ext":  ".jpeg",
+                            "name":  "elena.jpeg"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\zara.png",
+                            "bytes":  2284869,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "zara.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\skill_trees\\tree_garun.png",
+                            "bytes":  2043078,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "tree_garun.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\maps\\main_maps\\terre_neutrali.webp",
+                            "bytes":  1220748,
+                            "used":  true,
+                            "ext":  ".webp",
+                            "name":  "terre_neutrali.webp"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\ginevra_animation.png",
+                            "bytes":  1114117,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "ginevra_animation.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\elena_transp-old.png",
+                            "bytes":  1069854,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "elena_transp-old.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\ginevra_transp.png",
+                            "bytes":  1005537,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "ginevra_transp.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\zara_puppet_1.png",
+                            "bytes":  996635,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "zara_puppet_1.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\zara_puppet_2.png",
+                            "bytes":  969874,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "zara_puppet_2.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\elena_transp.png",
+                            "bytes":  963906,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "elena_transp.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\deborah_transp.png",
+                            "bytes":  924188,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "deborah_transp.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\elena_animation.png",
+                            "bytes":  736794,
+                            "used":  false,
+                            "ext":  ".png",
+                            "name":  "elena_animation.png"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\documents\\nino_fascicolo_creature_tela.webp",
+                            "bytes":  683314,
+                            "used":  true,
+                            "ext":  ".webp",
+                            "name":  "nino_fascicolo_creature_tela.webp"
+                        },
+                        {
+                            "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\ui\\karla_banner.png",
+                            "bytes":  614728,
+                            "used":  true,
+                            "ext":  ".png",
+                            "name":  "karla_banner.png"
+                        }
+                    ],
+    "duplicate_files":  [
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|deborah",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\deborah.png",
+                                "ext":  ".png",
+                                "bytes":  7673384
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|deborah",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\deborah.webp",
+                                "ext":  ".webp",
+                                "bytes":  182820
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|elena",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\elena.jpeg",
+                                "ext":  ".jpeg",
+                                "bytes":  2412080
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|elena",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\elena.webp",
+                                "ext":  ".webp",
+                                "bytes":  195898
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|karla",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\karla.png",
+                                "ext":  ".png",
+                                "bytes":  5903865
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|karla",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\karla.webp",
+                                "ext":  ".webp",
+                                "bytes":  236196
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|rabberduscolanderson",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\rabberduscolanderson.jpg",
+                                "ext":  ".jpg",
+                                "bytes":  520018
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|rabberduscolanderson",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\rabberduscolanderson.png",
+                                "ext":  ".png",
+                                "bytes":  5813434
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|rabberduscolanderson",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\rabberduscolanderson.webp",
+                                "ext":  ".webp",
+                                "bytes":  164262
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|x",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\x.png",
+                                "ext":  ".png",
+                                "bytes":  6055239
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|x",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\x.webp",
+                                "ext":  ".webp",
+                                "bytes":  231972
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|zara",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\zara.png",
+                                "ext":  ".png",
+                                "bytes":  2284869
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|zara",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\zara.webp",
+                                "ext":  ".webp",
+                                "bytes":  147486
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|zara_puppet_1",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\zara_puppet_1.png",
+                                "ext":  ".png",
+                                "bytes":  996635
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|zara_puppet_1",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\zara_puppet_1.webp",
+                                "ext":  ".webp",
+                                "bytes":  44544
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|zara_puppet_2",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\zara_puppet_2.png",
+                                "ext":  ".png",
+                                "bytes":  969874
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures|zara_puppet_2",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\zara_puppet_2.webp",
+                                "ext":  ".webp",
+                                "bytes":  44802
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp|deborah_transp",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\deborah_transp.png",
+                                "ext":  ".png",
+                                "bytes":  924188
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp|deborah_transp",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\deborah_transp.webp",
+                                "ext":  ".webp",
+                                "bytes":  46072
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp|elena_animation",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\elena_animation.png",
+                                "ext":  ".png",
+                                "bytes":  736794
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp|elena_animation",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\elena_animation.webp",
+                                "ext":  ".webp",
+                                "bytes":  52984
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp|elena_transp",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\elena_transp.png",
+                                "ext":  ".png",
+                                "bytes":  963906
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp|elena_transp",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\elena_transp.webp",
+                                "ext":  ".webp",
+                                "bytes":  36596
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp|ginevra_animation",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\ginevra_animation.png",
+                                "ext":  ".png",
+                                "bytes":  1114117
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp|ginevra_animation",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\ginevra_animation.webp",
+                                "ext":  ".webp",
+                                "bytes":  62764
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp|ginevra_transp",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\ginevra_transp.png",
+                                "ext":  ".png",
+                                "bytes":  1005537
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp|ginevra_transp",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\ginevra_transp.webp",
+                                "ext":  ".webp",
+                                "bytes":  49506
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp|nino_olegna_animation",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\nino_olegna_animation.png",
+                                "ext":  ".png",
+                                "bytes":  3603455
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp|nino_olegna_animation",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\nino_olegna_animation.webp",
+                                "ext":  ".webp",
+                                "bytes":  115158
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\skill_trees|tree_garun",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\skill_trees\\tree_garun.png",
+                                "ext":  ".png",
+                                "bytes":  2043078
+                            },
+                            {
+                                "group":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\skill_trees|tree_garun",
+                                "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\skill_trees\\tree_garun.webp",
+                                "ext":  ".webp",
+                                "bytes":  167872
+                            }
+                        ],
+    "maybe_unused":  [
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\area.svg",
+                             "bytes":  138,
+                             "used":  false,
+                             "ext":  ".svg",
+                             "name":  "area.svg"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\city.svg",
+                             "bytes":  138,
+                             "used":  false,
+                             "ext":  ".svg",
+                             "name":  "city.svg"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\albert.webp",
+                             "bytes":  434120,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "albert.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\black_rose_warrior.webp",
+                             "bytes":  204476,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "black_rose_warrior.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\corpse_dog.webp",
+                             "bytes":  152958,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "corpse_dog.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\death_webkiss.webp",
+                             "bytes":  50582,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "death_webkiss.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\deborah.png",
+                             "bytes":  7673384,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "deborah.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\elena.jpeg",
+                             "bytes":  2412080,
+                             "used":  false,
+                             "ext":  ".jpeg",
+                             "name":  "elena.jpeg"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\face_zombie.webp",
+                             "bytes":  38098,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "face_zombie.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\franky_flash_golem.webp",
+                             "bytes":  151216,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "franky_flash_golem.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\golem_incompleto.webp",
+                             "bytes":  271488,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "golem_incompleto.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\karla.png",
+                             "bytes":  5903865,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "karla.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\karla-2.webp",
+                             "bytes":  70330,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "karla-2.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\karla-3.webp",
+                             "bytes":  69984,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "karla-3.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\klaren_priest.webp",
+                             "bytes":  97912,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "klaren_priest.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\linda.webp",
+                             "bytes":  127910,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "linda.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\lumilla.webp",
+                             "bytes":  62766,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "lumilla.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\mafu.webp",
+                             "bytes":  35844,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "mafu.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\meat_tower.webp",
+                             "bytes":  94782,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "meat_tower.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\mosquito_bat.webp",
+                             "bytes":  80026,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "mosquito_bat.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\okbrax.webp",
+                             "bytes":  18800,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "okbrax.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\rabberduscolanderson.jpg",
+                             "bytes":  520018,
+                             "used":  false,
+                             "ext":  ".jpg",
+                             "name":  "rabberduscolanderson.jpg"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\rabberduscolanderson.png",
+                             "bytes":  5813434,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "rabberduscolanderson.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\rendar.webp",
+                             "bytes":  90528,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "rendar.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\rokkara.webp",
+                             "bytes":  78440,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "rokkara.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\rose.webp",
+                             "bytes":  113106,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "rose.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\rose_chest.webp",
+                             "bytes":  209846,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "rose_chest.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\rose_warrior.webp",
+                             "bytes":  101640,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "rose_warrior.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\rosskar.webp",
+                             "bytes":  73164,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "rosskar.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\spider_abomination.webp",
+                             "bytes":  110540,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "spider_abomination.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\tokka.webp",
+                             "bytes":  41828,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "tokka.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\deborah_transp.png",
+                             "bytes":  924188,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "deborah_transp.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\elena_animation.png",
+                             "bytes":  736794,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "elena_animation.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\elena_transp.png",
+                             "bytes":  963906,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "elena_transp.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\elena_transp-old.png",
+                             "bytes":  1069854,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "elena_transp-old.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\ginevra_animation.png",
+                             "bytes":  1114117,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "ginevra_animation.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\ginevra_transp.png",
+                             "bytes":  1005537,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "ginevra_transp.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\transp\\nino_olegna_animation.png",
+                             "bytes":  3603455,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "nino_olegna_animation.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\trerkor.webp",
+                             "bytes":  203708,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "trerkor.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\vampire_spawn_preferred_1.webp",
+                             "bytes":  118956,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "vampire_spawn_preferred_1.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\vampire_spawn_preferred_2.webp",
+                             "bytes":  47176,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "vampire_spawn_preferred_2.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\vampire_spawn_variants_1.webp",
+                             "bytes":  88410,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "vampire_spawn_variants_1.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\vampire_spawn_variants_2.webp",
+                             "bytes":  93402,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "vampire_spawn_variants_2.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\web_spider.webp",
+                             "bytes":  78890,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "web_spider.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\x.png",
+                             "bytes":  6055239,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "x.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\zara.png",
+                             "bytes":  2284869,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "zara.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\zara_puppet_1.png",
+                             "bytes":  996635,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "zara_puppet_1.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\creatures\\zara_puppet_2.png",
+                             "bytes":  969874,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "zara_puppet_2.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\generic_place.svg",
+                             "bytes":  148,
+                             "used":  false,
+                             "ext":  ".svg",
+                             "name":  "generic_place.svg"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\items\\dog_balu.webp",
+                             "bytes":  83874,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "dog_balu.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\items\\dog_coco.webp",
+                             "bytes":  81972,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "dog_coco.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\items\\dog_mimi.webp",
+                             "bytes":  136452,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "dog_mimi.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\maps\\mark_creature.webp",
+                             "bytes":  67142,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "mark_creature.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\maps\\mark_place.webp",
+                             "bytes":  55370,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "mark_place.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\maps\\mark_resource.webp",
+                             "bytes":  55658,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "mark_resource.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\skill_trees\\banner_klaren.webp",
+                             "bytes":  46580,
+                             "used":  false,
+                             "ext":  ".webp",
+                             "name":  "banner_klaren.webp"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\skill_trees\\banner_von_t.png",
+                             "bytes":  2903549,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "banner_von_t.png"
+                         },
+                         {
+                             "path":  "C:\\Users\\delia\\OneDrive\\Documenti\\Cripta di Sangue - GIT\\assets\\img\\skill_trees\\tree_garun.png",
+                             "bytes":  2043078,
+                             "used":  false,
+                             "ext":  ".png",
+                             "name":  "tree_garun.png"
+                         }
+                     ]
+}
