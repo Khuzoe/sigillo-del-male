@@ -7,7 +7,9 @@
             return avatarMatch ? avatarMatch[1] : null;
         }
         function isHiddenFromYaml(yamlText) {
-            return /hidden:\s*true/i.test(yamlText || '');
+            // Match only top-level "hidden: true" (no indentation),
+            // so nested fields like content_blocks[].hidden don't hide the whole NPC.
+            return /^hidden:\s*true\b/im.test(yamlText || '');
         }
 
         // Carica dati giocatori e NPC per le immagini
