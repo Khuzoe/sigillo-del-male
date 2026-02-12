@@ -1,4 +1,4 @@
-*La Fine del Ciclo: Il Colosso di Tela*
+*La Fine del Ciclo: Il **Colosso** di Tela*
 
 ### Genesi Rapida
 Con l'aiuto del Bacio Mortale, il tempo di creazione si riduce drasticamente. Nonostante l'alto sacrificio di servitori richiesto, la creazione del Colosso diventa possibile in tempi brevi.

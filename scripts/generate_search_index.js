@@ -215,7 +215,6 @@ function main() {
   ].sort((a, b) => a.title.localeCompare(b.title, "it"));
 
   const payload = {
-    generatedAt: new Date().toISOString(),
     itemCount: items.length,
     items,
   };

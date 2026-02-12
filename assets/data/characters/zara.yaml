@@ -1,5 +1,8 @@
 id: "zara"
 name: "Zara"
+aliases:
+  - "Zara"
+  - "Giullare"
 role: "La Giullare"
 status: "ignoto"
 hidden: false

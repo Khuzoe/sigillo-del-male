@@ -1,4 +1,4 @@
-*L'Assistente: Il Bacio Mortale*
+*L'Assistente: Il **Bacio Mortale***
 
 ### Ottimizzazione
 Per velocizzare la creazione dell'armata, è stato progettato un Assistente. Richiede il consumo di un numero elevatissimo di Creature Tela, ma il risultato è inestimabile.

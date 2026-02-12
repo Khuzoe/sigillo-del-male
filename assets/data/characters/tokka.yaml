@@ -1,0 +1,25 @@
+id: "tokka"
+name: "Tokka Von T"
+aliases:
+  - "Tokka"
+role: "Il Cuore Corrotto"
+status: "vivo"
+hidden: true
+quote: ""
+images:
+  avatar: "img/creatures/transp/tokka_transp.webp"
+  hover: "img/creatures/transp/tokka_animation.webp"
+  portrait: "img/creatures/tokka.webp"
+content_blocks:
+  - type: "lore"
+    title: "Biografia"
+    icon: "fa-book-open"
+    markdown: "characters/tokka/biografia.md"
+  - type: "lore"
+    title: "Aspetto Fisico"
+    icon: "fa-user"
+    markdown: "characters/tokka/aspetto_fisico.md"
+relationships: []
+summary:
+  race: "Non Morto"
+type: "npc"

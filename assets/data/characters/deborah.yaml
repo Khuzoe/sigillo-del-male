@@ -1,5 +1,8 @@
 id: "deborah"
 name: "Deborah Von T"
+aliases:
+  - "Deborah"
+order_slot: 1
 role: "L'Ultima Foglia"
 status: "vivo"
 hidden: false
@@ -21,5 +24,15 @@ content_blocks:
     title: "Aspetto Fisico"
     icon: "fa-user"
     markdown: "characters/deborah/aspetto_fisico.md"
-relationships: - {}
+  - type: "image_box"
+    title: "Visione di Valdor"
+    icon: "fa-eye"
+    image: "img/documents/visione_valdor.png"
+    markdown: "characters/deborah/visione-valdor.md"
+  - type: "image_box"
+    title: "Visione di Ran'Dra"
+    icon: "fa-eye"
+    image: "img/documents/visione_randra.png"
+    markdown: "characters/deborah/visione-randra.md"
+relationships: []
 type: "npc"

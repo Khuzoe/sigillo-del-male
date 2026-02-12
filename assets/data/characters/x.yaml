@@ -1,5 +1,7 @@
 id: "x"
 name: "X Von T"
+aliases:
+  - "X"
 role: "La Studiosa"
 status: "vivo"
 hidden: false

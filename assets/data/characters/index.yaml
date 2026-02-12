@@ -25,3 +25,6 @@
 - id: "zara"
   type: "npc"
   file: "characters/zara.yaml"
+- id: "tokka"
+  type: "npc"
+  file: "characters/tokka.yaml"

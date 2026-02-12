@@ -1,5 +1,7 @@
 id: "nino_olegna"
 name: "Nino Olegna"
+aliases:
+  - "Nino"
 role: "Il Tessimorte"
 status: "morto"
 quote: "Il tradimento è inaccettabile. Pagherai."

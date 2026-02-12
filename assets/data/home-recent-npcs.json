@@ -1,0 +1,42 @@
+{
+  "itemCount": 4,
+  "sessionIds": [
+    17,
+    18,
+    19
+  ],
+  "items": [
+    {
+      "id": "karla",
+      "name": "Karla Von T",
+      "role": "La Vampira",
+      "avatar": "img/creatures/transp/karla_transp.webp",
+      "url": "pages/characters/character.html?id=karla",
+      "score": 10
+    },
+    {
+      "id": "x",
+      "name": "X Von T",
+      "role": "La Studiosa",
+      "avatar": "img/creatures/transp/x_transp.webp",
+      "url": "pages/characters/character.html?id=x",
+      "score": 6
+    },
+    {
+      "id": "elena",
+      "name": "Elena Erbadath",
+      "role": "La Fantasma",
+      "avatar": "img/creatures/transp/elena_transp.webp",
+      "url": "pages/characters/character.html?id=elena",
+      "score": 4
+    },
+    {
+      "id": "nino_olegna",
+      "name": "Nino Olegna",
+      "role": "Il Tessimorte",
+      "avatar": "img/creatures/transp/nino_olegna_transp.webp",
+      "url": "pages/characters/character.html?id=nino_olegna",
+      "score": 4
+    }
+  ]
+}

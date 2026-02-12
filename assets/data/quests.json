@@ -128,5 +128,16 @@
                 "status": "hidden"
             }
         ]
+    },
+    {
+        "id": "ginevra_quests",
+        "title": "Ginevra Von T",
+        "npc_id": "ginevra",
+        "quests": [
+            {
+                "title": "Liberare Ginevra dalla sua forma Ricordo Costruito",
+                "status": "completed"
+            }
+        ]
     }
 ]
