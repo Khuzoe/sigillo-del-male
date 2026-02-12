@@ -9,6 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const lastSession = data.sessions[data.sessions.length - 1];
             const latestEventsContainer = document.getElementById('latest-events-section');
             setupLatestSession(lastSession, latestEventsContainer);
+
+            setupRecentNpcs();
         })
         .catch(error => {
             console.error("Errore nel caricamento delle sessioni:", error);
@@ -117,5 +119,41 @@ document.addEventListener('DOMContentLoaded', () => {
             <a href="pages/sessioni.html#session-${session.id}" class="read-more">Leggi il riassunto completo &rarr;</a>
         `;
         }
+    }
+
+    async function setupRecentNpcs() {
+        const container = document.getElementById('recent-npcs-row');
+        if (!container) return;
+
+        try {
+            const response = await fetch('assets/data/home-recent-npcs.json');
+            if (!response.ok) {
+                throw new Error(`Lista NPC recenti non trovata (${response.status})`);
+            }
+            const data = await response.json();
+            const items = Array.isArray(data.items) ? data.items : [];
+            if (items.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = items.slice(0, 4).map(npc => renderRecentNpcCard(npc)).join('');
+        } catch (error) {
+            console.warn('Impossibile caricare NPC recenti:', error);
+            container.innerHTML = '';
+        }
+    }
+
+    function renderRecentNpcCard(npc) {
+        const avatarPath = npc.avatar ? `assets/${npc.avatar}` : 'assets/img/logo.webp';
+        const url = npc.url || `pages/characters/character.html?id=${npc.id}`;
+        return `
+            <a href="${url}" class="home-char-card mini">
+                <div class="home-char-avatar"><img src="${avatarPath}" alt="${npc.name}"></div>
+                <div class="home-char-info">
+                    <h4 class="name">${npc.name}</h4><span class="role">${npc.role}</span>
+                </div>
+            </a>
+        `;
     }
 });

@@ -1,5 +1,8 @@
 id: "character_id"
 name: "Nome Personaggio"
+aliases:
+  - "Nome"
+order_slot: null
 role: "Ruolo"
 status: "vivo"
 hidden: false

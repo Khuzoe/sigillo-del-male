@@ -1,5 +1,7 @@
 id: "franky"
 name: "Franky"
+aliases:
+  - "Franky"
 role: "Lo Scienziato"
 status: "vivo"
 hidden: false

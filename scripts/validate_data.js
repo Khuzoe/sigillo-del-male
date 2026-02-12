@@ -128,6 +128,13 @@ function validateCharacters(playersById) {
       `${rel(charFile)}: type "${character.type}" diverso da manifest "${entryType}"`
     );
 
+    if ("order_slot" in character && character.order_slot !== null) {
+      const slot = Number(character.order_slot);
+      if (!Number.isInteger(slot) || slot <= 0) {
+        pushWarning(`${rel(charFile)}: order_slot dovrebbe essere un intero positivo o null`);
+      }
+    }
+
     if (!isObject(character.images)) {
       pushError(`${rel(charFile)}: campo "images" non valido`);
     } else {

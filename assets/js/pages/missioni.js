@@ -74,6 +74,70 @@
             return `../assets/${path}`;
         }
 
+        async function loadNpcRecencyMap() {
+            try {
+                const response = await fetch('../assets/data/npc-recency.json');
+                if (!response.ok) return {};
+                const payload = await response.json();
+                const map = {};
+                (payload.items || []).forEach(item => {
+                    if (item && item.id) map[item.id] = item;
+                });
+                return map;
+            } catch (error) {
+                console.warn("Impossibile caricare npc-recency.json:", error);
+                return {};
+            }
+        }
+
+        function sortQuestGroups(groups, recencyMap) {
+            const list = Array.isArray(groups) ? [...groups] : [];
+            const parseOrderSlot = (value) => {
+                if (value === null || value === undefined || value === '') return null;
+                const slot = Number(value);
+                return Number.isInteger(slot) && slot > 0 ? slot : null;
+            };
+            const mainGroups = list.filter((group) => group.id === 'main_quest');
+            const secondaryGroups = list.filter((group) => group.id !== 'main_quest');
+
+            const recencySort = (aMeta, bMeta) => {
+                if (aMeta.lastMentionSessionId !== bMeta.lastMentionSessionId) {
+                    return bMeta.lastMentionSessionId - aMeta.lastMentionSessionId;
+                }
+                if (aMeta.mentions !== bMeta.mentions) {
+                    return bMeta.mentions - aMeta.mentions;
+                }
+                return String(aMeta.group.title || aMeta.group.id || '').localeCompare(
+                    String(bMeta.group.title || bMeta.group.id || ''),
+                    'it'
+                );
+            };
+
+            const metas = secondaryGroups.map((group) => {
+                const recency = group.npc_id ? (recencyMap[group.npc_id] || {}) : {};
+                return {
+                    group,
+                    slot: parseOrderSlot(recency.order_slot),
+                    lastMentionSessionId: Number.isFinite(Number(recency.lastMentionSessionId)) ? Number(recency.lastMentionSessionId) : -1,
+                    mentions: Number.isFinite(Number(recency.mentions)) ? Number(recency.mentions) : 0,
+                };
+            });
+
+            const unpinned = metas.filter((meta) => meta.slot === null).sort(recencySort);
+            const pinned = metas.filter((meta) => meta.slot !== null).sort((a, b) => {
+                if (a.slot !== b.slot) return a.slot - b.slot;
+                return recencySort(a, b);
+            });
+
+            const orderedSecondary = unpinned.map((meta) => meta.group);
+            pinned.forEach((meta) => {
+                const insertIndex = Math.max(0, Math.min(meta.slot - 1, orderedSecondary.length));
+                orderedSecondary.splice(insertIndex, 0, meta.group);
+            });
+
+            return [...mainGroups, ...orderedSecondary];
+        }
+
         // Script per l'apertura/chiusura a fisarmonica (Accordion)
         function toggleQuest(header) {
             const card = header.parentElement;
@@ -212,11 +276,13 @@
                 const response = await fetch('../assets/data/quests.json');
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const groups = await response.json();
+                const recencyMap = await loadNpcRecencyMap();
+                const sortedGroups = sortQuestGroups(groups, recencyMap);
 
                 const mainContainer = document.getElementById('main-quests-container');
                 const secondaryContainer = document.getElementById('secondary-quests-container');
 
-                groups.forEach(group => {
+                sortedGroups.forEach(group => {
                     const card = createQuestGroupCard(group);
                     if (!card) return;
 

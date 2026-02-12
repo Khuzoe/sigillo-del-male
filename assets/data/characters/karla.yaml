@@ -1,5 +1,7 @@
 id: "karla"
 name: "Karla Von T"
+aliases:
+  - "Karla"
 role: "La Vampira"
 status: "vivo"
 hidden: false

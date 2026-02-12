@@ -31,9 +31,9 @@ jobs:
       - name: Build Foundry Data (ignored by git)
         run: npm run build:foundry
 
-      - name: Commit generated search index
+      - name: Commit generated derived data
         if: github.event_name == 'push'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore: update search index [skip ci]"
-          file_pattern: 'assets/data/search-index.json'
+          commit_message: "chore: update derived data [skip ci]"
+          file_pattern: 'assets/data/search-index.json assets/data/home-recent-npcs.json assets/data/npc-recency.json'

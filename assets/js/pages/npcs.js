@@ -125,12 +125,15 @@ function parseYamlLite(yamlText) {
                     ? window.WikiSpoiler.filterVisible(npcs)
                     : npcs.filter(npc => !npc.hidden);
 
-                if (visibleNpcs.length === 0) {
+                const recencyData = await loadNpcRecencyData(base_path);
+                const sortedNpcs = sortNpcsByRecency(visibleNpcs, recencyData);
+
+                if (sortedNpcs.length === 0) {
                     npcListContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Nessun NPC disponibile.</p>';
                     return;
                 }
 
-                visibleNpcs.forEach(npc => {
+                sortedNpcs.forEach(npc => {
                     const card = createNpcCard(npc, base_path);
                     npcListContainer.appendChild(card);
                 });
@@ -140,6 +143,64 @@ function parseYamlLite(yamlText) {
                 npcListContainer.innerHTML = '<p style="color: var(--red);">Impossibile caricare la lista degli NPC.</p>';
             }
         });
+
+        async function loadNpcRecencyData(base_path) {
+            try {
+                const response = await fetch(base_path + 'data/npc-recency.json');
+                if (!response.ok) return { byId: {} };
+                const payload = await response.json();
+                const byId = {};
+                (payload.items || []).forEach(item => {
+                    if (item && item.id) byId[item.id] = item;
+                });
+                return { byId };
+            } catch (error) {
+                console.warn('Impossibile caricare npc-recency.json:', error);
+                return { byId: {} };
+            }
+        }
+
+        function sortNpcsByRecency(npcs, recencyData) {
+            const byId = (recencyData && recencyData.byId) ? recencyData.byId : {};
+            const parseOrderSlot = (value) => {
+                if (value === null || value === undefined || value === '') return null;
+                const slot = Number(value);
+                return Number.isInteger(slot) && slot > 0 ? slot : null;
+            };
+            const recencySort = (aMeta, bMeta) => {
+                if (aMeta.lastMentionSessionId !== bMeta.lastMentionSessionId) {
+                    return bMeta.lastMentionSessionId - aMeta.lastMentionSessionId;
+                }
+                if (aMeta.mentions !== bMeta.mentions) {
+                    return bMeta.mentions - aMeta.mentions;
+                }
+                return String(aMeta.npc.name || aMeta.npc.id).localeCompare(String(bMeta.npc.name || bMeta.npc.id), 'it');
+            };
+
+            const metas = [...npcs].map((npc) => {
+                const recency = byId[npc.id] || {};
+                return {
+                    npc,
+                    slot: parseOrderSlot(recency.order_slot) ?? parseOrderSlot(npc.order_slot),
+                    lastMentionSessionId: Number.isFinite(Number(recency.lastMentionSessionId)) ? Number(recency.lastMentionSessionId) : -1,
+                    mentions: Number.isFinite(Number(recency.mentions)) ? Number(recency.mentions) : 0,
+                };
+            });
+
+            const unpinned = metas.filter((meta) => meta.slot === null).sort(recencySort);
+            const pinned = metas.filter((meta) => meta.slot !== null).sort((a, b) => {
+                if (a.slot !== b.slot) return a.slot - b.slot;
+                return recencySort(a, b);
+            });
+
+            const ordered = unpinned.map((meta) => meta.npc);
+            pinned.forEach((meta) => {
+                const insertIndex = Math.max(0, Math.min(meta.slot - 1, ordered.length));
+                ordered.splice(insertIndex, 0, meta.npc);
+            });
+
+            return ordered;
+        }
 
         async function loadNpcData(base_path) {
             const manifest = await loadCharactersManifest(base_path);
