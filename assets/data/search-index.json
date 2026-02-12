@@ -1,5 +1,5 @@
 {
-  "itemCount": 48,
+  "itemCount": 47,
   "items": [
     {
       "id": "player:apothecary",
@@ -521,20 +521,6 @@
         "levelup"
       ],
       "content": "Continuate il vostro combattimento contro gli scheletri animati dopo che Valdor ha raccolto il libro, e riuscite ad uscirne vincitori senza perdite. Una volta sconfitti gli scheletri di Rosskar, Okbrax e Lumilla, il sacrofago all'interno della stanza si sblocca, rivelando al suo interno numerosi oggetti magici (armature e armi). Date un'occhiata veloce al libro e capite che questo contiene parti della storia dei Klaren, narrati con un linguaggio piuttosto arcaico. XP totali 8004 XP ciascuno 2001 level up 6"
-    },
-    {
-      "id": "npc:tokka",
-      "type": "npc",
-      "entityId": "tokka",
-      "title": "Tokka Von T",
-      "subtitle": "Il Cuore Corrotto",
-      "url": "pages/characters/character.html?id=tokka",
-      "tags": [
-        "npc",
-        "vivo",
-        "npc"
-      ],
-      "content": "Non Morto Biografia Tokka Von T e una presenza recente tra le figure legate alla cripta. Le informazioni sulla sua storia sono ancora frammentarie, ma i segni sul corpo e l'energia violacea che lo attraversa suggeriscono un legame diretto con rituali di sangue e innesti arcani. La sua comparsa e da considerare un elemento ad alto rischio per gli equilibri gia instabili della famiglia Von T. Aspetto Fisico Tokka presenta una corporatura asciutta e tesa, con pelle pallida attraversata da cicatrici sottili. Una pesante placca metallica ricopre parte del volto e del torace, dove e visibile un nuc..."
     },
     {
       "id": "player:valdor",
