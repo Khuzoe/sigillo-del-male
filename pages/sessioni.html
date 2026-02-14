@@ -36,16 +36,15 @@
 
         /* Icona di sfondo decorativa */
         .next-session-card::before {
-            content: '\f6ec';
-            /* Icona dadi */
-            font-family: "Font Awesome 6 Free";
-            font-weight: 900;
+            content: '';
             position: absolute;
-            top: -30px;
-            right: -20px;
-            font-size: 12rem;
-            color: rgba(255, 255, 255, 0.03);
-            transform: rotate(20deg);
+            top: 50%;
+            right: -32px;
+            width: 240px;
+            height: 240px;
+            transform: translateY(-50%);
+            background: url('../assets/img/ui/session_decoration.webp') no-repeat center/contain;
+            opacity: 0.2;
             pointer-events: none;
         }
 

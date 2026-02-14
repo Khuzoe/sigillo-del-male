@@ -36,6 +36,10 @@
     --glass-bg: rgba(30, 30, 30, 0.6);
     --glass-border: rgba(255, 255, 255, 0.08);
     --glass-blur: blur(12px);
+
+    /* Text selection */
+    --selection-bg: #d4af37;
+    --selection-text: #000000;
 }
 
 /* In :root, you could remove --gold-dim */
@@ -112,8 +116,14 @@ body {
 
 /* Text Selection */
 ::selection {
-    background: var(--gold);
-    color: #000;
+    background: var(--selection-bg, var(--gold));
+    color: var(--selection-text, #000);
+    text-shadow: none;
+}
+
+::-moz-selection {
+    background: var(--selection-bg, var(--gold));
+    color: var(--selection-text, #000);
     text-shadow: none;
 }
 
@@ -1329,10 +1339,6 @@ ul {
     /* Darker backdrop */
     --status-unknown: #f39c12;
 
-    /* SELECTION COLORS */
-    --selection-bg: #8a1c1c;
-    /* Deep blood red */
-    --selection-text: #ffffff;
     z-index: 9999;
     display: none;
     padding: 2rem;
@@ -1344,9 +1350,15 @@ ul {
    GLOBAL SELECTION STYLE
    ========================================= */
 ::selection {
-    background: var(--selection-bg);
-    color: var(--selection-text);
-    text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+    background: var(--selection-bg, var(--gold));
+    color: var(--selection-text, #000);
+    text-shadow: none;
+}
+
+::-moz-selection {
+    background: var(--selection-bg, var(--gold));
+    color: var(--selection-text, #000);
+    text-shadow: none;
 }
 
 * {
