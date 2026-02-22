@@ -1,5 +1,5 @@
 {
-  "itemCount": 9,
+  "itemCount": 10,
   "sessionIds": [
     1,
     2,
@@ -81,6 +81,13 @@
     {
       "id": "ginevra",
       "name": "Ginevra Von T",
+      "order_slot": null,
+      "lastMentionSessionId": null,
+      "mentions": 0
+    },
+    {
+      "id": "leonora",
+      "name": "Leonora",
       "order_slot": null,
       "lastMentionSessionId": null,
       "mentions": 0

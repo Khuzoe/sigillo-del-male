@@ -119,12 +119,12 @@
         "npc_id": "franky",
         "quests": [
             {
-                "title": "Fornire un cuore per dare vita al Colosso di Carne",
+                "title": "Fornire un cuore per dare vita al Colossho di Carne",
                 "status": "in_progress",
                 "rewards": "Shieri Potenti"
             },
             {
-                "title": "Trovare un oggetto di calma mentale per mantenere tranquillo il Colosso di Carne",
+                "title": "Trovare un oggetto di calma mentale per mantenere tranquillo il Colossho di Carne",
                 "status": "hidden"
             }
         ]

@@ -55,6 +55,8 @@ relationships:
     description: "Compagna"
   - id: "x"
     description: "Sorella minore"
+  - id: "leonora"
+    description: "Madre"
   - id: "karla"
     description: "Nipote"
 type: "npc"

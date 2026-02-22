@@ -444,7 +444,7 @@
         "icon": "skill_garun_nonmorto_primordiale.webp",
         "title": "Non Morto Primordiale",
         "flavor": "I tuoi impulsi sono pochi ma precisi. Respiri in modo estremamente lento, ma calcolato.",
-        "desc": "<p>Ottieni +4 Saggezza, fino a un massimo di 30.</p><p>Quando entri nella tua Forma Primordiale, diventi un Non Morto Primordiale: il tuo tipo cambia in Non Morto, la tua taglia diventa Enorme e ottieni vulnerabilità ai danni Radiosi.</p><p>Se non indossi un'armatura, mentre sei in questa forma puoi aggiungere il tuo modificatore di Saggezza alla tua CA base. Puoi comunque usare uno scudo normalmente.</p><p>All'inizio di ciascuno dei tuoi turni, ottieni 10 punti vita temporanei, fino a un massimo di 100.</p>",
+        "desc": "<p>Ottieni +4 Saggezza, fino a un massimo di 30.</p><p>Quando entri nella tua Forma Primordiale, diventi un Non Morto Primordiale: il tuo tipo cambia in Non Morto, la tua taglia diventa Enorme e ottieni vulnerabilità ai danni Radiosi.</p><p>Una volta per turno, quando colpisci una creatura con un attacco, puoi sacrificare 20 punti vita temporanei per creare una reazione del ghiaccio sulla tua pelle che investe un'area di 5 piedi intorno a te. Le creature nell'area devono superare un tiro salvezza Destrezza, o subire 3d6 danni da gelo e 3d6 danni da fuoco. Superare il tiro salvezza dimezza i danni subiti. </p><p>All'inizio di ciascuno dei tuoi turni, ottieni 10 punti vita temporanei, fino a un massimo di 100.</p>",
         "connections": []
       }
     ]
