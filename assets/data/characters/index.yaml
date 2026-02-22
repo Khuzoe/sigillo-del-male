@@ -28,3 +28,6 @@
 - id: "tokka"
   type: "npc"
   file: "characters/tokka.yaml"
+- id: "leonora"
+  type: "npc"
+  file: "characters/leonora.yaml"

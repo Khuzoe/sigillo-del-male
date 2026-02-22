@@ -1,5 +1,5 @@
 {
-  "itemCount": 47,
+  "itemCount": 48,
   "items": [
     {
       "id": "player:apothecary",
@@ -92,7 +92,7 @@
         "quest",
         "npc"
       ],
-      "content": "Fornire un cuore per dare vita al Colosso di Carne Shieri Potenti"
+      "content": "Fornire un cuore per dare vita al Colossho di Carne Shieri Potenti"
     },
     {
       "id": "player:garun",
@@ -173,6 +173,20 @@
         "von-t"
       ],
       "content": "Karla Von T Membro della Famiglia Von T"
+    },
+    {
+      "id": "npc:leonora",
+      "type": "npc",
+      "entityId": "leonora",
+      "title": "Leonora",
+      "subtitle": "Figura Misteriosa",
+      "url": "pages/characters/character.html?id=leonora",
+      "tags": [
+        "npc",
+        "vivo",
+        "npc"
+      ],
+      "content": "Non Morto Biografia Leonora compare tra le presenze legate alla Cripta di Sangue, ma le informazioni sulla sua storia sono ancora incomplete. Il suo nome e associato alla linea Von T, e la sua apparizione lascia supporre un ruolo rilevante negli eventi piu recenti. Dettagli aggiuntivi su passato, obiettivi e legami devono ancora emergere. Aspetto Fisico Leonora presenta tratti pallidi e un portamento fermo, con uno sguardo che comunica freddezza e controllo. L'abbigliamento e segnato da elementi usurati e tonalita scure, coerenti con l'atmosfera della cripta. Nel complesso, il suo aspetto sug..."
     },
     {
       "id": "family:leonora",

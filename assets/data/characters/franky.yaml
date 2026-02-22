@@ -32,7 +32,7 @@ content_blocks:
       - "Alchimia"
     markdown: "characters/franky/sieri.md"
   - type: "image_box"
-    title: "Colosso di Carne"
+    title: "Colossho di Carne"
     image: "img/items/franky_colossal_golem.webp"
     image_caption: "Costrutto di carne e metallo."
     tags:

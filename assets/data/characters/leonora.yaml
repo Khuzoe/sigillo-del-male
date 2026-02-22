@@ -1,0 +1,31 @@
+id: "leonora"
+name: "Leonora Von T"
+aliases:
+  - "Leonora"
+role: "Figura Misteriosa"
+status: "vivo"
+hidden: false
+quote: ""
+images:
+  avatar: "img/creatures/transp/leonora_transp.webp"
+  hover: "img/creatures/transp/leonora_animation.webp"
+  portrait: "img/creatures/leonora.webp"
+content_blocks:
+  - type: "lore"
+    title: "Biografia"
+    icon: "fa-book-open"
+    markdown: "characters/leonora/biografia.md"
+  - type: "lore"
+    title: "Aspetto Fisico"
+    icon: "fa-user"
+    markdown: "characters/leonora/aspetto_fisico.md"
+relationships:
+  - id: "yuris"
+    description: "Marito"
+  - id: "x"
+    description: "Figlia"
+  - id: "rabberduscolanderson"
+    description: "Figlio"
+summary:
+  race: "Non Morto"
+type: "npc"
