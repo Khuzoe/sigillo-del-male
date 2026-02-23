@@ -639,6 +639,272 @@ function parseYamlLite(yamlText) {
             return `Aggiornamento: ${formatted}`;
         }
 
+        function toFiniteNumber(value) {
+            const num = Number(value);
+            return Number.isFinite(num) ? num : null;
+        }
+
+        function formatNumberIt(value, maxFractionDigits = 0) {
+            const num = toFiniteNumber(value);
+            if (num === null) return '—';
+            return new Intl.NumberFormat('it-IT', { maximumFractionDigits: maxFractionDigits }).format(num);
+        }
+
+        function formatWeightIt(value) {
+            const num = toFiniteNumber(value);
+            if (num === null) return '—';
+            return new Intl.NumberFormat('it-IT', { maximumFractionDigits: 1 }).format(num);
+        }
+
+        function getUniqueItemList(items) {
+            const seen = new Set();
+            return (Array.isArray(items) ? items : []).filter((item) => {
+                if (!item || typeof item !== 'object') return false;
+                const key = String(item.id || item.name || '').toLowerCase();
+                if (!key) return false;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+        }
+
+        function renderOverviewItemPills(items, emptyLabel) {
+            const list = getUniqueItemList(items);
+            if (!list.length) {
+                return `<p class="player-overview-empty">${escapeHtml(emptyLabel)}</p>`;
+            }
+
+            return `
+                <div class="player-overview-chip-list">
+                    ${list.map((item) => {
+                        const quantityLabel = getQuantityLabel(item);
+                        return `<span class="player-overview-chip">${escapeHtml(item.name || 'Elemento')} ${quantityLabel ? `<small>${escapeHtml(quantityLabel)}</small>` : ''}</span>`;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function renderSpellSlotsOverview(actor) {
+            const spellSlots = actor && actor.spellSlots ? actor.spellSlots : {};
+            const perLevel = Array.isArray(spellSlots.perLevel)
+                ? spellSlots.perLevel
+                    .filter((slot) => toFiniteNumber(slot.total) !== null && Number(slot.total) > 0)
+                    .sort((a, b) => Number(a.level || 0) - Number(b.level || 0))
+                : [];
+
+            const totalSlots = toFiniteNumber(spellSlots.totals && spellSlots.totals.total);
+            const usedSlots = toFiniteNumber(spellSlots.totals && spellSlots.totals.used);
+            const availableSlots = toFiniteNumber(spellSlots.totals && spellSlots.totals.available);
+            const hasUsableTotals = totalSlots !== null && totalSlots > 0;
+
+            if (!perLevel.length && !hasUsableTotals) {
+                return '';
+            }
+
+            const slotsSummary = hasUsableTotals
+                ? `
+                <div class="slots-overview-summary slots-overview-summary--compact">
+                    <strong>${formatNumberIt(availableSlots !== null ? availableSlots : Math.max(0, totalSlots - (usedSlots || 0)))} / ${formatNumberIt(totalSlots)}</strong>
+                </div>
+                `
+                : '';
+
+            const levelTiles = perLevel.length
+                ? `
+                <div class="slots-overview-grid">
+                    ${perLevel.map((slot) => {
+                        const level = toFiniteNumber(slot.level);
+                        const total = toFiniteNumber(slot.total) || 0;
+                        const available = toFiniteNumber(slot.available);
+                        const used = toFiniteNumber(slot.used);
+                        const shownAvailable = available !== null ? available : Math.max(0, total - (used || 0));
+                        const isEmpty = shownAvailable <= 0;
+                        return `
+                            <div class="slot-level-tile ${isEmpty ? 'is-empty' : ''}">
+                                <span class="slot-level-title">${level === 0 ? 'C' : `L${level || '?'}`}</span>
+                                <span class="slot-level-ratio">${formatNumberIt(shownAvailable)} / ${formatNumberIt(total)}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                `
+                : '';
+
+            return `${slotsSummary}${levelTiles}`;
+        }
+
+        function getXpOverviewData(actor) {
+            const xpCurrent = toFiniteNumber(actor.xp && actor.xp.current);
+            const xpNext = toFiniteNumber(actor.xp && actor.xp.nextLevel);
+            const xpMissing = toFiniteNumber(actor.xp && actor.xp.missingToLevel);
+            const hasXp = xpCurrent !== null && xpNext !== null && xpNext > 0;
+            const xpRatio = hasXp ? Math.min(100, Math.max(0, (xpCurrent / xpNext) * 100)) : 0;
+            const xpLevelReady = hasXp && ((xpMissing !== null && xpMissing <= 0) || xpCurrent >= xpNext);
+
+            return {
+                hasXp,
+                xpCurrent,
+                xpNext,
+                xpMissing,
+                xpRatio,
+                xpLevelReady
+            };
+        }
+
+        function renderXpOverviewBody(actor) {
+            if (!actor || typeof actor !== 'object') {
+                return '<p class="player-overview-empty">Dati XP non disponibili.</p>';
+            }
+
+            const xpData = getXpOverviewData(actor);
+            if (!xpData.hasXp) {
+                return '<p class="player-overview-empty">Dati XP non disponibili.</p>';
+            }
+
+            return `
+                <p class="player-overview-main">
+                    <strong>${formatNumberIt(xpData.xpCurrent)}</strong>
+                    <span>/ ${formatNumberIt(xpData.xpNext)} XP</span>
+                </p>
+                <div class="xp-progress ${xpData.xpLevelReady ? 'is-level-ready' : ''}">
+                    <div class="xp-progress-fill" style="width: ${xpData.xpRatio.toFixed(2)}%"></div>
+                </div>
+                <p class="player-overview-note ${xpData.xpLevelReady ? 'is-ready' : ''}">
+                    ${xpData.xpLevelReady ? 'Pronto per il level up' : `${formatNumberIt(xpData.xpMissing || 0)} XP al prossimo livello`}
+                </p>
+            `;
+        }
+
+        function getWeightOverviewData(actor) {
+            const weightCarried = toFiniteNumber(actor.weight && actor.weight.carried);
+            const weightCapacity = toFiniteNumber(actor.weight && actor.weight.capacity);
+            const weightPercent = toFiniteNumber(actor.weight && actor.weight.percent);
+            const computedPercent = (weightCarried !== null && weightCapacity && weightCapacity > 0)
+                ? (weightCarried / weightCapacity) * 100
+                : null;
+            const normalizedWeightPercent = computedPercent !== null
+                ? Math.max(0, Math.min(100, computedPercent))
+                : (weightPercent !== null ? Math.max(0, Math.min(100, weightPercent)) : 0);
+
+            let encumbranceTier = 'regular';
+            if (normalizedWeightPercent > (2 / 3) * 100) {
+                encumbranceTier = 'heavy';
+            } else if (normalizedWeightPercent >= (1 / 3) * 100) {
+                encumbranceTier = 'encumbered';
+            }
+
+            return {
+                weightCarried,
+                weightCapacity,
+                encumbranceTier,
+                normalizedWeightPercent
+            };
+        }
+
+        function renderWeightOverviewBody(actor) {
+            if (!actor || typeof actor !== 'object') {
+                return '<p class="player-overview-empty">Dati peso non disponibili.</p>';
+            }
+
+            const weightData = getWeightOverviewData(actor);
+            if (weightData.weightCarried === null || weightData.weightCapacity === null) {
+                return '<p class="player-overview-empty">Dati peso non disponibili.</p>';
+            }
+
+            const progressClass = weightData.encumbranceTier === 'heavy'
+                ? 'is-heavily-encumbered'
+                : (weightData.encumbranceTier === 'encumbered' ? 'is-encumbered' : '');
+            const noteClass = weightData.encumbranceTier === 'heavy'
+                ? 'is-danger'
+                : (weightData.encumbranceTier === 'encumbered' ? 'is-warning' : '');
+            const noteLabel = weightData.encumbranceTier === 'heavy'
+                ? 'Gravemente Appesantito'
+                : (weightData.encumbranceTier === 'encumbered' ? 'Appesantito' : 'Regolare');
+
+            return `
+                <p class="player-overview-main">
+                    <strong>${formatWeightIt(weightData.weightCarried)}</strong>
+                    <span>/ ${formatWeightIt(weightData.weightCapacity)} kg</span>
+                </p>
+                <div class="xp-progress has-threshold-markers ${progressClass}">
+                    <div class="xp-progress-fill" style="width: ${weightData.normalizedWeightPercent.toFixed(2)}%"></div>
+                </div>
+                <p class="player-overview-note ${noteClass}">
+                    ${noteLabel}
+                </p>
+            `;
+        }
+
+        function getAttunedItems(actor) {
+            const attunedItems = getUniqueItemList(
+                (Array.isArray(actor.attunementItems) && actor.attunementItems.length > 0)
+                    ? actor.attunementItems
+                    : (Array.isArray(actor.inventory) ? actor.inventory.filter((item) => item && item.attuned) : [])
+            );
+
+            return attunedItems;
+        }
+
+        function renderInventoryPanelSummary(actor) {
+            if (!actor || typeof actor !== 'object') return '';
+            const attunedItems = getAttunedItems(actor);
+
+            return `
+                <div class="player-overview-grid loadout-panel-summary">
+                    <section class="player-overview-card">
+                        <h4><i class="fas fa-weight-hanging"></i> Carico</h4>
+                        ${renderWeightOverviewBody(actor)}
+                    </section>
+
+                    <section class="player-overview-card player-overview-card--wide">
+                        <h4><i class="fas fa-gem"></i> Sintonizzati</h4>
+                        ${renderOverviewItemPills(attunedItems, 'Nessun oggetto sintonizzato.')}
+                    </section>
+                </div>
+            `;
+        }
+
+        function renderSpellsPanelSummary(actor, spellEntries) {
+            if (!actor || typeof actor !== 'object') return '';
+            if (!Array.isArray(spellEntries) || spellEntries.length === 0) return '';
+
+            const slotOverviewHtml = renderSpellSlotsOverview(actor);
+            if (!slotOverviewHtml) return '';
+
+            return `
+                <div class="player-overview-grid loadout-panel-summary">
+                    <section class="player-overview-card player-overview-card--wide">
+                        <h4><i class="fas fa-bolt"></i> Slot Incantesimi</h4>
+                        ${slotOverviewHtml}
+                    </section>
+                </div>
+            `;
+        }
+
+        function renderPlayerXpSidebarHtml(actor) {
+            return `
+                <h4><i class="fas fa-star"></i> Esperienza</h4>
+                ${renderXpOverviewBody(actor)}
+            `;
+        }
+
+        function renderPlayerXpSidebarError(message) {
+            const xpCard = document.getElementById('player-xp-right-card');
+            if (!xpCard) return;
+            xpCard.innerHTML = `
+                <h4><i class="fas fa-star"></i> Esperienza</h4>
+                <p class="player-overview-empty">${escapeHtml(message || 'Dati XP non disponibili.')}</p>
+            `;
+        }
+
+        function hydratePlayerRightOverview(character, payload) {
+            const xpCard = document.getElementById('player-xp-right-card');
+            if (!xpCard) return;
+
+            const actor = findPlayerActor(payload, character);
+            xpCard.innerHTML = renderPlayerXpSidebarHtml(actor);
+        }
+
         function getSpellLevelMeta(level) {
             const parsedLevel = Number(level);
             if (!Number.isFinite(parsedLevel)) {
@@ -816,7 +1082,6 @@ function parseYamlLite(yamlText) {
                     const typeMeta = getInventoryTypeMeta(entry.type);
                     badges.push(typeMeta.label);
                     if (entry.rarity) badges.push(`Rarita: ${formatToken(entry.rarity)}`);
-                    if (entry.equipped) badges.push('Equipaggiato');
                     if (entry.attuned) badges.push('Sintonizzato');
 
                     const description = cleanDescription(entry.description);
@@ -906,6 +1171,8 @@ function parseYamlLite(yamlText) {
             const { inventory, spells } = splitActorLoadout(actor);
             const owners = Array.isArray(actor.owners) ? actor.owners.map((owner) => owner.name).filter(Boolean) : [];
             const preparedSpells = spells.filter((spell) => spell.prepared);
+            const inventorySummaryHtml = renderInventoryPanelSummary(actor);
+            const spellsSummaryHtml = renderSpellsPanelSummary(actor, preparedSpells);
 
             return `
                 <h3><i class="fas fa-box-open"></i> Inventario e Incantesimi</h3>
@@ -922,10 +1189,12 @@ function parseYamlLite(yamlText) {
                     </button>
                 </div>
                 <section class="loadout-panel is-active" data-panel="inventory" role="tabpanel">
+                    ${inventorySummaryHtml}
                     ${renderInventoryTypeFilters(inventory)}
                     ${renderInventoryEntries(inventory)}
                 </section>
                 <section class="loadout-panel" data-panel="spells" role="tabpanel" hidden>
+                    ${spellsSummaryHtml}
                     ${renderSpellLevelFilters(preparedSpells)}
                     ${renderSpellEntries(preparedSpells)}
                 </section>
@@ -1169,6 +1438,7 @@ function parseYamlLite(yamlText) {
                     const inventoryPayload = await loadInventoryData();
                     loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload);
                     initializeLoadoutTabs(loadoutCard);
+                    hydratePlayerRightOverview(character, inventoryPayload);
                 } catch (error) {
                     console.error('Errore nel caricamento inventario API:', error);
                     loadoutCard.innerHTML = `
@@ -1178,6 +1448,7 @@ function parseYamlLite(yamlText) {
                             <span>Impossibile sincronizzare l'inventario dal server.</span>
                         </div>
                     `;
+                    renderPlayerXpSidebarError("Impossibile sincronizzare l'XP dal server.");
                 }
             }
 
@@ -1347,11 +1618,24 @@ function parseYamlLite(yamlText) {
                     `;
                 }
 
+                const playerXpHtml = charType === 'player'
+                    ? `
+                        <section id="player-xp-right-card" class="player-overview-card player-overview-card--sidebar">
+                            <h4><i class="fas fa-star"></i> Esperienza</h4>
+                            <div class="loadout-state">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <span>Sincronizzazione XP in corso...</span>
+                            </div>
+                        </section>
+                    `
+                    : '';
+
                 return `
                     <div class="image-card">
                         <img src="${resolveImagePath(character.images.portrait)}" class="char-portrait" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
                         <div class="stats-grid">${statsHtml}</div>
                         ${causeOfDeathHtml}
+                        ${playerXpHtml}
                     </div>
                     ${questsHtml}
                     ${character.relationships && character.relationships.length > 0 ? renderRelationships(character.relationships, allCharacters).outerHTML : ''}
