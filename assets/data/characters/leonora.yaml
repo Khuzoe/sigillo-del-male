@@ -4,7 +4,7 @@ aliases:
   - "Leonora"
 role: "Figura Misteriosa"
 status: "vivo"
-hidden: false
+hidden: true
 quote: ""
 images:
   avatar: "img/creatures/transp/leonora_transp.webp"
