@@ -255,6 +255,785 @@ function parseYamlLite(yamlText) {
             return [];
         }
 
+        const INVENTORY_API_URL = 'https://sigillo-api.khuzoe.workers.dev/api/inventory';
+        const INVENTORY_CACHE_KEY = 'cds_inventory_api_cache_v1';
+        const INVENTORY_CACHE_TTL_MS = 5 * 60 * 1000;
+        const INVENTORY_EXCLUDED_TYPES = new Set(['class', 'subclass', 'feat', 'background', 'race', 'spell']);
+        const SPELL_SCHOOL_LABELS = {
+            abj: 'Abiurazione',
+            con: 'Evocazione',
+            div: 'Divinazione',
+            enc: 'Ammaliamento',
+            evo: 'Invocazione',
+            ill: 'Illusione',
+            nec: 'Necromanzia',
+            trs: 'Trasmutazione'
+        };
+        const DURATION_UNITS_LABELS = {
+            inst: 'Istantanea',
+            round: 'round',
+            minute: 'min',
+            hour: 'ora',
+            day: 'giorno'
+        };
+        const RANGE_UNITS_LABELS = {
+            touch: 'Contatto',
+            self: 'Se stesso',
+            ft: 'ft',
+            m: 'm'
+        };
+        const PLAYER_NAME_ALIASES = {
+            apothecary: ['apothecary'],
+            garun: ["ga'run", 'ga run', 'garun'],
+            randra: ["ran'dra", 'ran dra', 'randra'],
+            valdor: ['valdor']
+        };
+
+        let inventoryRequestPromise = null;
+        let inventoryMemoryCache = null;
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function normalizeText(value) {
+            return String(value || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '');
+        }
+
+        function formatToken(value) {
+            const text = String(value || '')
+                .replace(/([a-z])([A-Z])/g, '$1 $2')
+                .replace(/[_-]+/g, ' ')
+                .trim();
+            if (!text) return '';
+            return text.replace(/\b\w/g, (letter) => letter.toUpperCase());
+        }
+
+        function getSafeSessionStorageItem(key) {
+            try {
+                return window.sessionStorage.getItem(key);
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function setSafeSessionStorageItem(key, value) {
+            try {
+                window.sessionStorage.setItem(key, value);
+            } catch (_) {
+                // Ignore storage quota / privacy mode errors.
+            }
+        }
+
+        function parseInventoryCache(rawValue) {
+            if (!rawValue) return null;
+            try {
+                const parsed = JSON.parse(rawValue);
+                if (!parsed || typeof parsed.fetchedAt !== 'number' || !parsed.data) return null;
+                return parsed;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function isInventoryCacheFresh(cache) {
+            if (!cache || typeof cache.fetchedAt !== 'number') return false;
+            return (Date.now() - cache.fetchedAt) < INVENTORY_CACHE_TTL_MS;
+        }
+
+        async function loadInventoryData() {
+            if (inventoryMemoryCache && isInventoryCacheFresh(inventoryMemoryCache)) {
+                return inventoryMemoryCache.data;
+            }
+
+            const storedCache = parseInventoryCache(getSafeSessionStorageItem(INVENTORY_CACHE_KEY));
+            if (storedCache && isInventoryCacheFresh(storedCache)) {
+                inventoryMemoryCache = storedCache;
+                return storedCache.data;
+            }
+
+            if (inventoryRequestPromise) {
+                return inventoryRequestPromise;
+            }
+
+            inventoryRequestPromise = (async () => {
+                try {
+                    const response = await fetch(INVENTORY_API_URL, {
+                        method: 'GET',
+                        headers: {
+                            Accept: 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Inventory API HTTP ${response.status}`);
+                    }
+
+                    const payload = await response.json();
+                    if (!payload || !Array.isArray(payload.actors)) {
+                        throw new Error('Inventory API: formato non valido.');
+                    }
+
+                    const cacheEntry = {
+                        fetchedAt: Date.now(),
+                        data: payload
+                    };
+                    inventoryMemoryCache = cacheEntry;
+                    setSafeSessionStorageItem(INVENTORY_CACHE_KEY, JSON.stringify(cacheEntry));
+                    return payload;
+                } catch (error) {
+                    if (storedCache && storedCache.data && Array.isArray(storedCache.data.actors)) {
+                        console.warn('Inventory API non raggiungibile, uso cache precedente.', error);
+                        return storedCache.data;
+                    }
+                    throw error;
+                } finally {
+                    inventoryRequestPromise = null;
+                }
+            })();
+
+            return inventoryRequestPromise;
+        }
+
+        function findPlayerActor(payload, character) {
+            const actors = Array.isArray(payload && payload.actors) ? payload.actors : [];
+            if (!actors.length || !character) return null;
+
+            const nameKeys = new Set();
+            nameKeys.add(normalizeText(character.name));
+            if (character.inventory_api_name) {
+                nameKeys.add(normalizeText(character.inventory_api_name));
+            }
+            if (Array.isArray(character.inventory_api_aliases)) {
+                character.inventory_api_aliases.forEach((alias) => nameKeys.add(normalizeText(alias)));
+            }
+            const aliases = PLAYER_NAME_ALIASES[character.id] || [];
+            aliases.forEach((alias) => nameKeys.add(normalizeText(alias)));
+
+            const byExactName = actors.find((actor) => nameKeys.has(normalizeText(actor.name)));
+            if (byExactName) return byExactName;
+
+            return actors.find((actor) => {
+                const actorKey = normalizeText(actor.name);
+                if (!actorKey) return false;
+                for (const key of nameKeys) {
+                    if (!key) continue;
+                    if (actorKey.includes(key) || key.includes(actorKey)) return true;
+                }
+                return false;
+            }) || null;
+        }
+
+        function splitActorLoadout(actor) {
+            const sourceEntries = Array.isArray(actor && actor.inventory) ? actor.inventory : [];
+            const spells = [];
+            const inventory = [];
+
+            sourceEntries.forEach((entry) => {
+                if (!entry || typeof entry !== 'object') return;
+                if (entry.type === 'spell') {
+                    spells.push(entry);
+                    return;
+                }
+                if (!INVENTORY_EXCLUDED_TYPES.has(entry.type)) {
+                    inventory.push(entry);
+                }
+            });
+
+            inventory.sort((a, b) => {
+                const typeOrder = String(a.type || '').localeCompare(String(b.type || ''), 'it');
+                if (typeOrder !== 0) return typeOrder;
+                return String(a.name || '').localeCompare(String(b.name || ''), 'it');
+            });
+
+            spells.sort((a, b) => {
+                const parsedA = Number(a.level);
+                const parsedB = Number(b.level);
+                const levelA = Number.isFinite(parsedA) ? parsedA : 99;
+                const levelB = Number.isFinite(parsedB) ? parsedB : 99;
+                if (levelA !== levelB) return levelA - levelB;
+                return String(a.name || '').localeCompare(String(b.name || ''), 'it');
+            });
+
+            return { inventory, spells };
+        }
+
+        function cleanDescription(value) {
+            const simplifyFoundryInlineCommand = (command, args) => {
+                const cmd = String(command || '').toLowerCase();
+                const rawArgs = String(args || '').trim();
+                if (!rawArgs) return '';
+
+                const tokens = rawArgs.split(/\s+/);
+                const valueTokens = [];
+                for (const token of tokens) {
+                    if (/^[\w-]+=/.test(token)) break;
+                    valueTokens.push(token);
+                }
+
+                const baseValue = (valueTokens.length > 0 ? valueTokens.join(' ') : rawArgs).trim();
+
+                if (cmd === 'damage' || cmd === 'r' || cmd === 'roll' || cmd === 'heal') {
+                    const diceMatch = baseValue.match(/\b\d*d\d+(?:\s*[+\-]\s*\d*d?\d+)*\b/i);
+                    if (diceMatch) {
+                        return diceMatch[0].replace(/\s+/g, ' ').trim();
+                    }
+                }
+
+                return baseValue;
+            };
+
+            const simplifyFoundryReference = (rawReference) => {
+                const content = String(rawReference || '').trim();
+                if (!content) return '';
+
+                const match = content.match(/([a-z0-9_-]+)\s*=\s*("[^"]+"|'[^']+'|[^,\]|]+)/i);
+                const rawLabel = match && match[2]
+                    ? match[2]
+                    : content.replace(/^[a-z0-9_-]+\s*=\s*/i, '');
+
+                const label = String(rawLabel || '')
+                    .trim()
+                    .replace(/^["']|["']$/g, '')
+                    .replace(/[_-]+/g, ' ')
+                    .trim();
+
+                if (!label) return '';
+                return `<strong>${label}</strong>`;
+            };
+
+            return String(value || '')
+                .replace(/\(\s*\[\[\s*\/([a-z0-9_-]+)\s+([^\]]+?)\s*\]\]\s*\)/gi, (_, command, args) => simplifyFoundryInlineCommand(command, args))
+                .replace(/\[\[\s*\/([a-z0-9_-]+)\s+([^\]]+?)\s*\]\]/gi, (_, command, args) => simplifyFoundryInlineCommand(command, args))
+                .replace(/\[\[[^\]]+\]\]/g, '')
+                .replace(/@[\w-]+\[([^\]|]+)(?:\|[^\]]+)?\]/g, '$1')
+                .replace(/&(?:amp;)?Reference\s*\[([^\]]+)\]/gi, (_, rawReference) => simplifyFoundryReference(rawReference))
+                .trim();
+        }
+
+        function renderPlainDescriptionHtml(text) {
+            const normalized = String(text || '').replace(/\r\n?/g, '\n').trim();
+            if (!normalized) return '';
+
+            return normalized
+                .split(/\n{2,}/)
+                .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
+                .join('');
+        }
+
+        function sanitizeDescriptionHtml(html) {
+            if (!html) return '';
+
+            const ALLOWED_TAGS = new Set(['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'a', 'h4', 'h5']);
+            const BLOCKED_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'button']);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
+            const root = doc.body.firstElementChild;
+            if (!root) return '';
+
+            const sanitizeNode = (node) => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    return escapeHtml(node.textContent || '');
+                }
+
+                if (node.nodeType !== Node.ELEMENT_NODE) {
+                    return '';
+                }
+
+                const tag = node.tagName.toLowerCase();
+                if (BLOCKED_TAGS.has(tag)) {
+                    return '';
+                }
+
+                const inner = Array.from(node.childNodes).map(sanitizeNode).join('');
+                if (!ALLOWED_TAGS.has(tag)) {
+                    return inner;
+                }
+
+                if (tag === 'br') {
+                    return '<br>';
+                }
+
+                if (tag === 'a') {
+                    const href = (node.getAttribute('href') || '').trim();
+                    const isSafeHref = /^(https?:|mailto:|\/|#)/i.test(href);
+                    if (isSafeHref) {
+                        return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${inner || escapeHtml(href)}</a>`;
+                    }
+                    return inner;
+                }
+
+                return `<${tag}>${inner}</${tag}>`;
+            };
+
+            return Array.from(root.childNodes).map(sanitizeNode).join('').trim();
+        }
+
+        function renderDescriptionHtml(value) {
+            const cleaned = cleanDescription(value);
+            if (!cleaned) return '';
+
+            const hasHtmlTag = /<[^>]+>/.test(cleaned);
+            if (!hasHtmlTag) {
+                return renderPlainDescriptionHtml(cleaned);
+            }
+
+            const sanitized = sanitizeDescriptionHtml(cleaned);
+            return sanitized || renderPlainDescriptionHtml(cleaned);
+        }
+
+        function getQuantityLabel(entry) {
+            const quantity = Number(entry && entry.quantity);
+            if (!Number.isFinite(quantity) || quantity <= 1) return '';
+            return `x${quantity}`;
+        }
+
+        function formatSpellLevel(level) {
+            if (!Number.isFinite(level)) return 'Livello ?';
+            if (level === 0) return 'Trucchetto';
+            return `Livello ${level}`;
+        }
+
+        function formatDuration(duration) {
+            if (!duration || typeof duration !== 'object') return '';
+            const rawUnits = String(duration.units || '').toLowerCase();
+            if (!rawUnits) return '';
+            if (rawUnits === 'inst') return DURATION_UNITS_LABELS.inst;
+            const unitLabel = DURATION_UNITS_LABELS[rawUnits] || rawUnits;
+            const value = Number(duration.value);
+            if (!Number.isFinite(value)) return formatToken(unitLabel);
+            const plural = value > 1 && unitLabel === 'ora' ? 'ore' : (value > 1 && unitLabel === 'giorno' ? 'giorni' : unitLabel);
+            return `${value} ${plural}`;
+        }
+
+        function formatRange(range) {
+            if (!range || typeof range !== 'object') return '';
+            const rawUnits = String(range.units || '').toLowerCase();
+            if (!rawUnits) return '';
+            const unitLabel = RANGE_UNITS_LABELS[rawUnits] || rawUnits;
+            const value = Number(range.value);
+            if (!Number.isFinite(value)) return formatToken(unitLabel);
+            return `${value} ${unitLabel}`;
+        }
+
+        function formatGeneratedAtLabel(payload) {
+            if (!payload || !payload.generatedAt) return 'Aggiornamento: non disponibile';
+            const date = new Date(payload.generatedAt);
+            if (Number.isNaN(date.getTime())) return 'Aggiornamento: non disponibile';
+            const formatted = new Intl.DateTimeFormat('it-IT', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).format(date);
+            return `Aggiornamento: ${formatted}`;
+        }
+
+        function getSpellLevelMeta(level) {
+            const parsedLevel = Number(level);
+            if (!Number.isFinite(parsedLevel)) {
+                return {
+                    key: 'unknown',
+                    label: '?',
+                    tooltip: 'Livello sconosciuto',
+                    sortOrder: 99
+                };
+            }
+
+            if (parsedLevel === 0) {
+                return {
+                    key: 'cantrip',
+                    label: 'C',
+                    tooltip: 'Cantrip',
+                    sortOrder: 0
+                };
+            }
+
+            return {
+                key: `lvl-${parsedLevel}`,
+                label: String(parsedLevel),
+                tooltip: `Slot livello ${parsedLevel}`,
+                sortOrder: parsedLevel
+            };
+        }
+
+        function getInventoryTypeMeta(type) {
+            const rawType = String(type || '').trim();
+            if (!rawType) {
+                return {
+                    key: 'unknown',
+                    label: 'Altro'
+                };
+            }
+
+            return {
+                key: normalizeText(rawType) || 'unknown',
+                label: formatToken(rawType)
+            };
+        }
+
+        function renderInventoryTypeFilters(entries) {
+            if (!entries.length) return '';
+
+            const typeMap = new Map();
+            entries.forEach((entry) => {
+                const meta = getInventoryTypeMeta(entry.type);
+                if (!typeMap.has(meta.key)) {
+                    typeMap.set(meta.key, meta);
+                }
+            });
+
+            const types = Array.from(typeMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'it'));
+            const buttons = types.map((typeMeta) => `
+                <button
+                    class="inventory-type-filter"
+                    type="button"
+                    data-inventory-filter="${typeMeta.key}"
+                    aria-label="Mostra solo ${escapeHtml(typeMeta.label)}"
+                    title="Mostra solo ${escapeHtml(typeMeta.label)}"
+                >
+                    ${escapeHtml(typeMeta.label)}
+                </button>
+            `).join('');
+
+            return `
+                <div class="inventory-type-filters" role="group" aria-label="Filtri tipo oggetto">
+                    <button class="inventory-type-filter is-active" type="button" data-inventory-filter="all" aria-label="Tutti i tipi" title="Tutti i tipi">Tutti</button>
+                    ${buttons}
+                </div>
+            `;
+        }
+
+        function renderSpellLevelFilters(entries) {
+            if (!entries.length) return '';
+
+            const levelsMap = new Map();
+            entries.forEach((entry) => {
+                const meta = getSpellLevelMeta(entry.level);
+                if (!levelsMap.has(meta.key)) {
+                    levelsMap.set(meta.key, meta);
+                }
+            });
+
+            const levels = Array.from(levelsMap.values()).sort((a, b) => a.sortOrder - b.sortOrder);
+            const buttons = levels.map((levelMeta) => `
+                <button
+                    class="spell-level-filter"
+                    type="button"
+                    data-level-filter="${levelMeta.key}"
+                    aria-label="${levelMeta.tooltip}"
+                    title="${levelMeta.tooltip}"
+                >
+                    ${levelMeta.label}
+                </button>
+            `).join('');
+
+            return `
+                <div class="spell-level-filters" role="group" aria-label="Filtri livello incantesimi">
+                    <button class="spell-level-filter is-active" type="button" data-level-filter="all" aria-label="Tutti i livelli" title="Tutti i livelli">All</button>
+                    ${buttons}
+                </div>
+            `;
+        }
+
+        function renderLoadoutDisclosure(title, quantityLabel, description, badges, extraClass = '', dataAttributes = '') {
+            const bodyParts = [];
+            if (description) {
+                const descriptionHtml = renderDescriptionHtml(description);
+                if (descriptionHtml) {
+                    bodyParts.push(`<div class="loadout-entry-description">${descriptionHtml}</div>`);
+                }
+            }
+            if (badges.length > 0) {
+                bodyParts.push(`<div class="loadout-chip-row">${badges.map((badge) => `<span class="loadout-chip">${escapeHtml(badge)}</span>`).join('')}</div>`);
+            }
+            if (bodyParts.length === 0) {
+                bodyParts.push('<p class="loadout-entry-description">Nessun dettaglio disponibile.</p>');
+            }
+
+            return `
+                <details class="loadout-entry ${extraClass}" ${dataAttributes}>
+                    <summary class="loadout-entry-toggle">
+                        <span class="loadout-entry-title">${escapeHtml(title || 'Elemento senza nome')}</span>
+                        <span class="loadout-entry-controls">
+                            ${quantityLabel ? `<span class="loadout-qty">${escapeHtml(quantityLabel)}</span>` : ''}
+                            <span class="loadout-entry-chevron" aria-hidden="true"><i class="fas fa-chevron-down"></i></span>
+                        </span>
+                    </summary>
+                    <div class="loadout-entry-body">
+                        ${bodyParts.join('')}
+                    </div>
+                </details>
+            `;
+        }
+
+        function renderInventoryEntries(entries) {
+            if (!entries.length) {
+                return '<p class="loadout-empty">Nessun oggetto disponibile.</p>';
+            }
+
+            const groupsMap = new Map();
+            entries.forEach((entry) => {
+                const containerId = entry.container && entry.container.id ? String(entry.container.id) : '__loose__';
+                const containerName = entry.container && entry.container.name
+                    ? String(entry.container.name)
+                    : 'Senza contenitore';
+
+                if (!groupsMap.has(containerId)) {
+                    groupsMap.set(containerId, {
+                        id: containerId,
+                        name: containerName,
+                        isLoose: containerId === '__loose__',
+                        entries: []
+                    });
+                }
+                groupsMap.get(containerId).entries.push(entry);
+            });
+
+            const groups = Array.from(groupsMap.values());
+            groups.forEach((group) => {
+                group.entries.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'it'));
+            });
+
+            groups.sort((a, b) => {
+                if (a.isLoose !== b.isLoose) return a.isLoose ? -1 : 1;
+                return a.name.localeCompare(b.name, 'it');
+            });
+
+            const renderedGroups = groups.map((group) => {
+                const entriesHtml = group.entries.map((entry) => {
+                    const badges = [];
+                    const typeMeta = getInventoryTypeMeta(entry.type);
+                    badges.push(typeMeta.label);
+                    if (entry.rarity) badges.push(`Rarita: ${formatToken(entry.rarity)}`);
+                    if (entry.equipped) badges.push('Equipaggiato');
+                    if (entry.attuned) badges.push('Sintonizzato');
+
+                    const description = cleanDescription(entry.description);
+                    const quantityLabel = getQuantityLabel(entry);
+
+                    return renderLoadoutDisclosure(
+                        entry.name || 'Oggetto senza nome',
+                        quantityLabel,
+                        description,
+                        badges,
+                        '',
+                        `data-inventory-type="${typeMeta.key}"`
+                    );
+                }).join('');
+
+                const icon = group.isLoose ? 'fa-hand-holding' : 'fa-box-archive';
+                const groupName = group.isLoose ? 'Senza contenitore' : group.name;
+
+                return `
+                    <details class="inventory-group" data-inventory-group open>
+                        <summary class="inventory-group-header">
+                            <div class="inventory-group-title">
+                                <i class="fas ${icon}" aria-hidden="true"></i>
+                                <span>${escapeHtml(groupName)}</span>
+                            </div>
+                            <span class="inventory-group-controls">
+                                <span class="inventory-group-count" data-group-count>${group.entries.length}</span>
+                                <span class="inventory-group-chevron" aria-hidden="true"><i class="fas fa-chevron-down"></i></span>
+                            </span>
+                        </summary>
+                        <div class="inventory-group-body">
+                            ${entriesHtml}
+                        </div>
+                    </details>
+                `;
+            }).join('');
+
+            return `<div class="inventory-groups">${renderedGroups}</div>`;
+        }
+
+        function renderSpellEntries(entries) {
+            if (!entries.length) {
+                return '<p class="loadout-empty">Nessun incantesimo preparato.</p>';
+            }
+
+            return entries.map((entry) => {
+                const badges = [formatSpellLevel(Number(entry.level))];
+                const schoolCode = String(entry.school || '').toLowerCase();
+                if (schoolCode) badges.push(SPELL_SCHOOL_LABELS[schoolCode] || formatToken(schoolCode));
+                if (entry.prepared) badges.push('Preparato');
+                if (entry.concentration) badges.push('Concentrazione');
+
+                if (entry.activation && entry.activation.type) {
+                    badges.push(`Attivazione: ${formatToken(entry.activation.type)}`);
+                }
+
+                const rangeLabel = formatRange(entry.range);
+                if (rangeLabel) badges.push(`Raggio: ${rangeLabel}`);
+
+                const durationLabel = formatDuration(entry.duration);
+                if (durationLabel) badges.push(`Durata: ${durationLabel}`);
+
+                const description = cleanDescription(entry.description);
+                const quantityLabel = getQuantityLabel(entry);
+                const levelMeta = getSpellLevelMeta(entry.level);
+
+                return renderLoadoutDisclosure(
+                    entry.name || 'Incantesimo senza nome',
+                    quantityLabel,
+                    description,
+                    badges,
+                    'loadout-entry--spell',
+                    `data-spell-level="${levelMeta.key}"`
+                );
+            }).join('');
+        }
+
+        function buildPlayerLoadoutHtml(character, payload) {
+            const actor = findPlayerActor(payload, character);
+            if (!actor) {
+                return `
+                    <h3><i class="fas fa-box-open"></i> Inventario e Incantesimi</h3>
+                    <p class="loadout-empty">Nessun inventario trovato per ${escapeHtml(character.name)} nella risposta API.</p>
+                `;
+            }
+
+            const { inventory, spells } = splitActorLoadout(actor);
+            const owners = Array.isArray(actor.owners) ? actor.owners.map((owner) => owner.name).filter(Boolean) : [];
+            const preparedSpells = spells.filter((spell) => spell.prepared);
+
+            return `
+                <h3><i class="fas fa-box-open"></i> Inventario e Incantesimi</h3>
+                <div class="loadout-meta">
+                    <span>${escapeHtml(formatGeneratedAtLabel(payload))}</span>
+                    <span>${owners.length > 0 ? `Giocatore: ${escapeHtml(owners.join(', '))}` : 'Giocatore: non disponibile'}</span>
+                </div>
+                <div class="loadout-tabs" role="tablist" aria-label="Schede inventario">
+                    <button class="loadout-tab is-active" type="button" role="tab" aria-selected="true" data-panel-target="inventory">
+                        Inventario <span class="loadout-count">${inventory.length}</span>
+                    </button>
+                    <button class="loadout-tab" type="button" role="tab" aria-selected="false" data-panel-target="spells">
+                        Incantesimi <span class="loadout-count">${preparedSpells.length}</span>
+                    </button>
+                </div>
+                <section class="loadout-panel is-active" data-panel="inventory" role="tabpanel">
+                    ${renderInventoryTypeFilters(inventory)}
+                    ${renderInventoryEntries(inventory)}
+                </section>
+                <section class="loadout-panel" data-panel="spells" role="tabpanel" hidden>
+                    ${renderSpellLevelFilters(preparedSpells)}
+                    ${renderSpellEntries(preparedSpells)}
+                </section>
+            `;
+        }
+
+        function initializeInventoryTypeFilters(cardElement) {
+            const inventoryPanel = cardElement.querySelector('[data-panel="inventory"]');
+            if (!inventoryPanel) return;
+
+            const filterButtons = Array.from(inventoryPanel.querySelectorAll('.inventory-type-filter'));
+            const inventoryEntries = Array.from(inventoryPanel.querySelectorAll('.loadout-entry[data-inventory-type]'));
+            const inventoryGroups = Array.from(inventoryPanel.querySelectorAll('[data-inventory-group]'));
+
+            if (!filterButtons.length || !inventoryEntries.length) return;
+
+            const applyFilter = (filterValue) => {
+                filterButtons.forEach((button) => {
+                    const isActive = button.dataset.inventoryFilter === filterValue;
+                    button.classList.toggle('is-active', isActive);
+                    button.setAttribute('aria-pressed', String(isActive));
+                });
+
+                inventoryEntries.forEach((entry) => {
+                    const entryType = entry.dataset.inventoryType || 'unknown';
+                    entry.hidden = filterValue !== 'all' && entryType !== filterValue;
+                });
+
+                inventoryGroups.forEach((group) => {
+                    const visibleEntries = group.querySelectorAll('.loadout-entry[data-inventory-type]:not([hidden])').length;
+                    group.hidden = visibleEntries === 0;
+                    const countEl = group.querySelector('[data-group-count]');
+                    if (countEl) {
+                        countEl.textContent = String(visibleEntries);
+                    }
+                });
+            };
+
+            filterButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    applyFilter(button.dataset.inventoryFilter || 'all');
+                });
+            });
+
+            applyFilter('all');
+        }
+
+        function initializeSpellLevelFilters(cardElement) {
+            const spellPanel = cardElement.querySelector('[data-panel="spells"]');
+            if (!spellPanel) return;
+
+            const filterButtons = Array.from(spellPanel.querySelectorAll('.spell-level-filter'));
+            const spellEntries = Array.from(spellPanel.querySelectorAll('.loadout-entry--spell'));
+
+            if (!filterButtons.length || !spellEntries.length) return;
+
+            const applyFilter = (filterValue) => {
+                filterButtons.forEach((button) => {
+                    const isActive = button.dataset.levelFilter === filterValue;
+                    button.classList.toggle('is-active', isActive);
+                    button.setAttribute('aria-pressed', String(isActive));
+                });
+
+                spellEntries.forEach((entry) => {
+                    const entryLevel = entry.dataset.spellLevel || 'unknown';
+                    entry.hidden = filterValue !== 'all' && entryLevel !== filterValue;
+                });
+            };
+
+            filterButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    applyFilter(button.dataset.levelFilter || 'all');
+                });
+            });
+
+            applyFilter('all');
+        }
+
+        function initializeLoadoutTabs(cardElement) {
+            const tabButtons = Array.from(cardElement.querySelectorAll('.loadout-tab'));
+            const panels = Array.from(cardElement.querySelectorAll('.loadout-panel'));
+
+            if (!tabButtons.length || !panels.length) return;
+
+            const setActivePanel = (panelName) => {
+                tabButtons.forEach((button) => {
+                    const isActive = button.dataset.panelTarget === panelName;
+                    button.classList.toggle('is-active', isActive);
+                    button.setAttribute('aria-selected', String(isActive));
+                });
+
+                panels.forEach((panel) => {
+                    const isActive = panel.dataset.panel === panelName;
+                    panel.classList.toggle('is-active', isActive);
+                    panel.hidden = !isActive;
+                });
+            };
+
+            tabButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    setActivePanel(button.dataset.panelTarget);
+                });
+            });
+
+            initializeInventoryTypeFilters(cardElement);
+            initializeSpellLevelFilters(cardElement);
+        }
+
         document.addEventListener("DOMContentLoaded", async function () {
             const container = document.getElementById('character-content-container');
             const charNameEl = document.getElementById('char-name');
@@ -382,6 +1161,26 @@ function parseYamlLite(yamlText) {
                 return card;
             }
 
+            async function hydratePlayerLoadout(character) {
+                const loadoutCard = document.getElementById('player-loadout-card');
+                if (!loadoutCard) return;
+
+                try {
+                    const inventoryPayload = await loadInventoryData();
+                    loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload);
+                    initializeLoadoutTabs(loadoutCard);
+                } catch (error) {
+                    console.error('Errore nel caricamento inventario API:', error);
+                    loadoutCard.innerHTML = `
+                        <h3><i class="fas fa-box-open"></i> Inventario e Incantesimi</h3>
+                        <div class="loadout-state is-error">
+                            <i class="fas fa-triangle-exclamation"></i>
+                            <span>Impossibile sincronizzare l'inventario dal server.</span>
+                        </div>
+                    `;
+                }
+            }
+
             function renderCharacterPage(character, allCharacters, npcQuests) {
                 // Set page title and header
                 document.title = `${character.name} | Cripta di Sangue`;
@@ -411,6 +1210,20 @@ function parseYamlLite(yamlText) {
                     leftCol.appendChild(placeholder);
                 }
 
+                if (charType === 'player') {
+                    const playerLoadoutCard = document.createElement('div');
+                    playerLoadoutCard.className = 'content-card player-loadout-card';
+                    playerLoadoutCard.id = 'player-loadout-card';
+                    playerLoadoutCard.innerHTML = `
+                        <h3><i class="fas fa-box-open"></i> Inventario e Incantesimi</h3>
+                        <div class="loadout-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Sincronizzazione con il Sigillo API in corso...</span>
+                        </div>
+                    `;
+                    leftCol.appendChild(playerLoadoutCard);
+                }
+
                 // Render relationships if they exist
                 // MOVED TO getRightColumnHtml
                 // if(character.relationships && character.relationships.length > 0) {
@@ -424,6 +1237,11 @@ function parseYamlLite(yamlText) {
                 grid.appendChild(leftCol);
                 grid.appendChild(rightCol);
                 container.appendChild(grid);
+
+                if (charType === 'player') {
+                    hydratePlayerLoadout(character);
+                }
+
                 // After rendering everything, initialize modal logic
                 initializeImageModal();
             }

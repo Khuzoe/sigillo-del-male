@@ -53,10 +53,21 @@ function resolveImagePath(imagePath) {
                     const personName = person.unnamed ? '???' : person.name;
                     const personImage = person.unknown ? 'https://placehold.co/100/333/fff?text=?' : resolveImagePath(person.image);
                     const vonTClass = person.von_t ? 'von-t' : '';
+                    const isLocked = Boolean(person.hidden || person.unknown || person.unnamed);
+                    const baseClasses = `family-member ${vonTClass} ${isLocked ? 'family-member--locked' : ''}`.trim();
 
-                    // Corrected link to character page
+                    if (isLocked) {
+                        return `
+                            <div class="${baseClasses}" data-person-id="${personId}" aria-disabled="true">
+                                <img src="${personImage}" alt="${personName}" class="member-image">
+                                <div class="member-separator"></div>
+                                <span class="member-name">${personName}</span>
+                            </div>
+                        `;
+                    }
+
                     return `
-                        <a href="./characters/character.html?id=${personId}" class="family-member ${vonTClass}" data-person-id="${personId}">
+                        <a href="./characters/character.html?id=${personId}" class="${baseClasses}" data-person-id="${personId}">
                             <img src="${personImage}" alt="${personName}" class="member-image">
                             <div class="member-separator"></div>
                             <span class="member-name">${personName}</span>
