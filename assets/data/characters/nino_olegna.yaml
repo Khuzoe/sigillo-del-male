@@ -73,5 +73,7 @@ relationships:
     description: "Moglie"
   - id: "karla"
     description: "Figlia"
+  - id: "tokka"
+    description: "Figlia"
 hidden: false
 type: "npc"

@@ -1,5 +1,5 @@
 {
-  "itemCount": 47,
+  "itemCount": 50,
   "items": [
     {
       "id": "player:apothecary",
@@ -12,7 +12,7 @@
         "player",
         "Kenku"
       ],
-      "content": "Portatrice di luce e guarigione. Ha stretto un legame particolare con Rabberduscolanderson e la sua magia divina è stata fondamentale per spezzare le maledizioni della cripta. Kenku N/A 70cm 14 N/A"
+      "content": "Guaritrice e guida spirituale del gruppo, ha spezzato maledizioni e tenuto unito il party nei momenti piu critici. Dopo avere sviluppato un forte legame con Rabberduscolanderson, si e sacrificata durante l'incubo del sigillo: ora il suo corpo e svenuto e la sua anima e rinchiusa in un Prisma di Luce Cristallizzata. Kenku N/A 70cm 14 N/A"
     },
     {
       "id": "npc:deborah",
@@ -27,6 +27,19 @@
         "npc"
       ],
       "content": "Dolore. Biografia Deborah Von T è ricordata come l'Ultima Foglia della stirpe. Bambina dai capelli bianchi, porta con sé un potere antico che la casata Von T ha temuto e desiderato insieme. Nel silenzio della cripta, la sua presenza è percepita come un peso costante: il suo nome ricorre nei sussurri e nei documenti, legato a un destino che potrebbe ridisegnare il sangue dei Von T. Particolarità Molti la considerano la minaccia più grande del luogo. Si dice che la linea più vicina alla realtà sia legata a lei, e che le sue scelte possano alterare l'equilibrio dell'intera cripta. Per questo è v..."
+    },
+    {
+      "id": "family:deborah",
+      "type": "family",
+      "entityId": "deborah",
+      "title": "Deborah Von T",
+      "subtitle": "Famiglia Von T",
+      "url": "pages/famiglia-von-t.html",
+      "tags": [
+        "family",
+        "von-t"
+      ],
+      "content": "Deborah Von T Membro della Famiglia Von T"
     },
     {
       "id": "npc:elena",
@@ -105,7 +118,7 @@
         "player",
         "Umano"
       ],
-      "content": "Padre di Ran'Dra e combattente instancabile. Ha subito sulla sua pelle le peggiori maledizioni dei Von T, ma la sua tenacia e la sua forza bruta non hanno mai vacillato. Umano N/A 1.95m Contemporaneo N/A"
+      "content": "Padre di Ran'Dra e prima linea del gruppo, affronta ogni scontro con tenacia brutale e istinto protettivo. Tra maledizioni, rituali e battaglie contro le creature della cripta, resta il pilastro fisico della compagnia anche quando la situazione precipita. Umano N/A 1.95m Contemporaneo N/A"
     },
     {
       "id": "npc:ginevra",
@@ -133,6 +146,19 @@
         "npc"
       ],
       "content": "Liberare Ginevra dalla sua forma Ricordo Costruito"
+    },
+    {
+      "id": "family:ginevra",
+      "type": "family",
+      "entityId": "ginevra",
+      "title": "Ginevra Von T",
+      "subtitle": "Famiglia Von T",
+      "url": "pages/famiglia-von-t.html",
+      "tags": [
+        "family",
+        "von-t"
+      ],
+      "content": "Ginevra Von T Membro della Famiglia Von T"
     },
     {
       "id": "npc:karla",
@@ -182,7 +208,8 @@
       "subtitle": "Famiglia Von T",
       "url": "pages/famiglia-von-t.html",
       "tags": [
-        "family"
+        "family",
+        "von-t"
       ],
       "content": "Leonora Membro della Famiglia Von T"
     },
@@ -276,7 +303,7 @@
         "player",
         "Eladrin (Estate)"
       ],
-      "content": "Figlia di Ga'Run, esperta nel muoversi non vista e nel sottrarre oggetti preziosi. Le sue illusioni hanno spesso permesso al gruppo di sfuggire a mostri gargantueschi. Eladrin (Estate) N/A 1.65m Contemporaneo N/A"
+      "content": "Maga dallo stile imprevedibile, unisce astuzia, illusioni e iniziativa per aprire strade dove sembrano non essercene. Tra furti decisivi, scelte rischiose e combattimenti al limite, continua a essere una risorsa tattica centrale per il gruppo. Eladrin (Estate) N/A 1.65m Contemporaneo N/A"
     },
     {
       "id": "family:rendar",
@@ -438,6 +465,18 @@
       "content": "Ga'Run e Ran'Dra concludono il loro primo dialogo con X, scoprendo qualche informazione di base e che vende alcune pergamene per incantesimi. Ga'Run minaccia Rabberduscolanderson prima di abbandonare la stanza, infastidito dal fatto che abbia fumato con Valdor. Vedete il giardino di fiori fuori dalla stanza di Rabberduscolanderson, incluso un grosso fiore nero al centro di una pozza rossa. Decidete di non interagire con essi. Apothecary prova a tirare i petali che fuoriescono da un cumulo di terra, rivelando una testa parzialmente fantasma e parzialmente coperta di petali di rosa. Vi imbattet..."
     },
     {
+      "id": "session:20",
+      "type": "session",
+      "entityId": "20",
+      "title": "Sessione 20",
+      "subtitle": "01/03/2026",
+      "url": "pages/sessioni.html#session-20",
+      "tags": [
+        "session"
+      ],
+      "content": "Slegate le gambe della donna, la aiutate ad alzarsi, e la accompagnate - legata ed imbavagliata - verso il piano inferiore. Durante il cammino, Apothecary ha una visione: il padre della bambina prepara un decotto di erbe per curare il suo mal di testa. Vedete la donna commuoversi mentre Apothecary descrive la sua visione, decidete di toglierle il bavaglio dalla bocca e di parlare con lei. Vi rivela di essere Ginevra Von T, la madre di Deborah, compagna di Rendar e figlia di Yuris e Leonora Von T. La accompagnate fino alla stanza di Rabberduscolanderson e la fate esaminare da X per capire la n..."
+    },
+    {
       "id": "session:3",
       "type": "session",
       "entityId": "3",
@@ -533,7 +572,7 @@
         "player",
         "Nano"
       ],
-      "content": "Maestro delle arti arcane e creatore di sigilli magici. La sua intelligenza ha salvato il gruppo innumerevoli volte, risolvendo enigmi letali e intrappolando nemici potenti. Nano N/A 1.50m 74 N/A"
+      "content": "Artefice e mente tecnica del party, combina studio arcano, invenzione e sangue freddo per gestire minacce fuori scala. Ha risolto enigmi, sigillato aree letali e recuperato risorse cruciali, diventando il principale riferimento strategico nelle decisioni operative. Nano N/A 1.50m 74 N/A"
     },
     {
       "id": "npc:x",

@@ -1,28 +1,9 @@
 [
   {
-    "id": "apothecary",
-    "name": "Apothecary",
-    "role": "Chierica della Vita",
-    "description": "Portatrice di luce e guarigione. Ha stretto un legame particolare con Rabberduscolanderson e la sua magia divina è stata fondamentale per spezzare le maledizioni della cripta.",
-    "images": {
-      "avatar": "img/players/apothecary_transp.webp",
-      "hover": "img/players/apothecary_animation.webp",
-      "portrait": "img/players/apothecary.webp"
-    },
-    "summary": {
-      "race": "Kenku",
-      "age_at_death": "N/A",
-      "height": "70cm",
-      "period": "14",
-      "cause_of_death": "N/A"
-    },
-    "content_blocks": []
-  },
-  {
     "id": "garun",
     "name": "Ga'Run",
     "role": "Barbaro",
-    "description": "Padre di Ran'Dra e combattente instancabile. Ha subito sulla sua pelle le peggiori maledizioni dei Von T, ma la sua tenacia e la sua forza bruta non hanno mai vacillato.",
+    "description": "Padre di Ran'Dra e prima linea del gruppo, affronta ogni scontro con tenacia brutale e istinto protettivo. Tra maledizioni, rituali e battaglie contro le creature della cripta, resta il pilastro fisico della compagnia anche quando la situazione precipita.",
     "images": {
       "avatar": "img/players/garun_transp.webp",
       "hover": "img/players/garun_animation.webp",
@@ -41,7 +22,7 @@
     "id": "randra",
     "name": "Ran'Dra",
     "role": "Maga (Evocazione)",
-    "description": "Figlia di Ga'Run, esperta nel muoversi non vista e nel sottrarre oggetti preziosi. Le sue illusioni hanno spesso permesso al gruppo di sfuggire a mostri gargantueschi.",
+    "description": "Maga dallo stile imprevedibile, unisce astuzia, illusioni e iniziativa per aprire strade dove sembrano non essercene. Tra furti decisivi, scelte rischiose e combattimenti al limite, continua a essere una risorsa tattica centrale per il gruppo.",
     "images": {
       "avatar": "img/players/randra_transp.webp",
       "hover": "img/players/randra_animation.webp",
@@ -60,7 +41,7 @@
     "id": "valdor",
     "name": "Valdor",
     "role": "Artificiere",
-    "description": "Maestro delle arti arcane e creatore di sigilli magici. La sua intelligenza ha salvato il gruppo innumerevoli volte, risolvendo enigmi letali e intrappolando nemici potenti.",
+    "description": "Artefice e mente tecnica del party, combina studio arcano, invenzione e sangue freddo per gestire minacce fuori scala. Ha risolto enigmi, sigillato aree letali e recuperato risorse cruciali, diventando il principale riferimento strategico nelle decisioni operative.",
     "images": {
       "avatar": "img/players/valdor_transp.webp",
       "hover": "img/players/valdor_animation.webp",
@@ -71,6 +52,27 @@
       "age_at_death": "N/A",
       "height": "1.50m",
       "period": "74",
+      "cause_of_death": "N/A"
+    },
+    "content_blocks": []
+  },
+  {
+    "id": "apothecary",
+    "name": "Apothecary",
+    "role": "Chierica della Vita",
+    "isActive": false,
+    "statusLabel": "Fuori dal gruppo",
+    "description": "Guaritrice e guida spirituale del gruppo, ha spezzato maledizioni e tenuto unito il party nei momenti piu critici. Dopo avere sviluppato un forte legame con Rabberduscolanderson, si e sacrificata durante l'incubo del sigillo: ora il suo corpo e svenuto e la sua anima e rinchiusa in un Prisma di Luce Cristallizzata.",
+    "images": {
+      "avatar": "img/players/apothecary_transp.webp",
+      "hover": "img/players/apothecary_animation.webp",
+      "portrait": "img/players/apothecary.webp"
+    },
+    "summary": {
+      "race": "Kenku",
+      "age_at_death": "N/A",
+      "height": "70cm",
+      "period": "14",
       "cause_of_death": "N/A"
     },
     "content_blocks": []

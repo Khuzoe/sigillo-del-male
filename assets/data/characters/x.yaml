@@ -30,13 +30,19 @@ content_blocks:
     hidden: true
 relationships:
   - id: "rabberduscolanderson"
-    description: "Fratello maggiore"
+    description: "Fratello"
+  - id: "ginevra"
+    description: "Sorella"
   - id: "leonora"
     description: "Madre"
   - id: "nino_olegna"
     description: "Marito"
   - id: "karla"
     description: "Figlia"
+  - id: "tokka"
+    description: "Figlia"
+  - id: "deborah"
+    description: "Nipote"
 summary:
   race: "Non Morto"
   age_at_death: "58 anni"

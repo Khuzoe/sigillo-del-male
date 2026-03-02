@@ -35,4 +35,6 @@ relationships:
     description: "Madre"
   - id: "nino_olegna"
     description: "Padre"
+  - id: "tokka"
+    description: "Sorella"
 type: "npc"

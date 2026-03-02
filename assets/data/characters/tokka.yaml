@@ -19,7 +19,13 @@ content_blocks:
     title: "Aspetto Fisico"
     icon: "fa-user"
     markdown: "characters/tokka/aspetto_fisico.md"
-relationships: []
+relationships:
+  - id: "x"
+    description: "Madre"
+  - id: "nino_olegna"
+    description: "Padre"
+  - id: "karla"
+    description: "Sorella"
 summary:
   race: "Non Morto"
 type: "npc"

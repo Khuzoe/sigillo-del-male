@@ -26,6 +26,8 @@ relationships:
     description: "Figlia"
   - id: "rabberduscolanderson"
     description: "Figlio"
+  - id: "ginevra"
+    description: "Figlia"
 summary:
   race: "Non Morto"
 type: "npc"

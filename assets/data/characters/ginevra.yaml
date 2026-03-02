@@ -2,7 +2,7 @@ id: "ginevra"
 name: "Ginevra Von T"
 aliases:
   - "Ginevra"
-role: "La Madre"
+role: "L'Alambicco Vivente"
 status: "vivo"
 hidden: false
 quote: ""
@@ -22,5 +22,13 @@ content_blocks:
     hidden: true
 summary:
   height: "1.82m | 240kg"
-relationships: []
+relationships:
+  - id: "leonora"
+    description: "Madre"
+  - id: "x"
+    description: "Sorella"
+  - id: "rabberduscolanderson"
+    description: "Fratello"
+  - id: "deborah"
+    description: "Figlia"
 type: "npc"

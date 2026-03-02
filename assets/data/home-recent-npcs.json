@@ -1,18 +1,33 @@
 {
   "itemCount": 4,
   "sessionIds": [
-    17,
-    18,
-    19
+    19,
+    20
   ],
   "items": [
     {
-      "id": "karla",
-      "name": "Karla Von T",
-      "role": "La Vampira",
-      "avatar": "img/creatures/transp/karla_transp.webp",
-      "url": "pages/characters/character.html?id=karla",
-      "score": 10
+      "id": "deborah",
+      "name": "Deborah Von T",
+      "role": "L'Ultima Foglia",
+      "avatar": "img/creatures/transp/deborah_transp.webp",
+      "url": "pages/characters/character.html?id=deborah",
+      "score": 4
+    },
+    {
+      "id": "ginevra",
+      "name": "Ginevra Von T",
+      "role": "La Madre",
+      "avatar": "img/creatures/transp/ginevra_transp.webp",
+      "url": "pages/characters/character.html?id=ginevra",
+      "score": 4
+    },
+    {
+      "id": "rabberduscolanderson",
+      "name": "Rabberduscolanderson Von T",
+      "role": "Il Reietto",
+      "avatar": "img/creatures/transp/rabberduscolanderson_transp.webp",
+      "url": "pages/characters/character.html?id=rabberduscolanderson",
+      "score": 4
     },
     {
       "id": "x",
@@ -20,22 +35,6 @@
       "role": "La Studiosa",
       "avatar": "img/creatures/transp/x_transp.webp",
       "url": "pages/characters/character.html?id=x",
-      "score": 6
-    },
-    {
-      "id": "elena",
-      "name": "Elena Erbadath",
-      "role": "La Fantasma",
-      "avatar": "img/creatures/transp/elena_transp.webp",
-      "url": "pages/characters/character.html?id=elena",
-      "score": 4
-    },
-    {
-      "id": "nino_olegna",
-      "name": "Nino Olegna",
-      "role": "Il Tessimorte",
-      "avatar": "img/creatures/transp/nino_olegna_transp.webp",
-      "url": "pages/characters/character.html?id=nino_olegna",
       "score": 4
     }
   ]

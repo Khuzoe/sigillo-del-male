@@ -1,4 +1,6 @@
 const SIDEBAR_CACHE_KEY = "wiki_sidebar_html_v1";
+const DISCORD_WORKER_URL = "https://sigillo-api.khuzoe.workers.dev";
+const DISCORD_TOKEN_KEY = "discord_jwt";
 const prefetchedUrls = new Set();
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -81,6 +83,7 @@ function initSidebar(html, basePath) {
     fixPaths(container, basePath);
     setActiveLink();
     bindPrefetchForLinks(container);
+    initDiscordAuth(container);
 }
 
 function renderSidebarSkeleton() {
@@ -182,5 +185,121 @@ function prefetchUrl(absoluteUrl, rawHref) {
         prefetchedUrls.add(target.href);
     } catch (_) {
         // Ignore malformed URLs
+    }
+}
+
+function initDiscordAuth(scope) {
+    const status = scope.querySelector("#auth-status");
+    const loginBtn = scope.querySelector("#discord-login");
+    const logoutBtn = scope.querySelector("#discord-logout");
+    if (!status || !loginBtn || !logoutBtn) return;
+
+    consumeTokenFromHash();
+
+    loginBtn.addEventListener("click", () => {
+        window.location.href = `${DISCORD_WORKER_URL}/auth/discord/login`;
+    });
+
+    logoutBtn.addEventListener("click", () => {
+        clearStoredToken();
+        refreshAuthUI(scope);
+    });
+
+    refreshAuthUI(scope);
+}
+
+function tokenFromHash() {
+    const hash = window.location.hash.startsWith("#")
+        ? window.location.hash.slice(1)
+        : "";
+    if (!hash) return "";
+
+    const params = new URLSearchParams(hash);
+    return params.get("token") || "";
+}
+
+function consumeTokenFromHash() {
+    const token = tokenFromHash();
+    if (!token) return;
+
+    storeToken(token);
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+}
+
+async function refreshAuthUI(scope) {
+    const status = scope.querySelector("#auth-status");
+    const loginBtn = scope.querySelector("#discord-login");
+    const logoutBtn = scope.querySelector("#discord-logout");
+    if (!status || !loginBtn || !logoutBtn) return;
+
+    const token = readStoredToken();
+    if (!token) {
+        setLoggedOutState(status, loginBtn, logoutBtn);
+        return;
+    }
+
+    status.textContent = "Verifica login...";
+    loginBtn.hidden = true;
+    logoutBtn.hidden = false;
+
+    try {
+        const response = await fetch(`${DISCORD_WORKER_URL}/auth/discord/verify`, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                clearStoredToken();
+            }
+            setLoggedOutState(status, loginBtn, logoutBtn);
+            return;
+        }
+
+        const data = await response.json();
+        if (!data?.user) {
+            clearStoredToken();
+            setLoggedOutState(status, loginBtn, logoutBtn);
+            return;
+        }
+
+        const username = data.user.global_name || data.user.username || "utente Discord";
+        status.textContent = `Loggato come ${username}`;
+        loginBtn.hidden = true;
+        logoutBtn.hidden = false;
+    } catch (_) {
+        status.textContent = "Errore verifica login";
+        loginBtn.hidden = true;
+        logoutBtn.hidden = false;
+    }
+}
+
+function setLoggedOutState(status, loginBtn, logoutBtn) {
+    status.textContent = "Non loggato";
+    loginBtn.hidden = false;
+    logoutBtn.hidden = true;
+}
+
+function readStoredToken() {
+    try {
+        return window.localStorage.getItem(DISCORD_TOKEN_KEY) || "";
+    } catch (_) {
+        return "";
+    }
+}
+
+function storeToken(token) {
+    try {
+        window.localStorage.setItem(DISCORD_TOKEN_KEY, token);
+    } catch (_) {
+        // Ignore storage restrictions
+    }
+}
+
+function clearStoredToken() {
+    try {
+        window.localStorage.removeItem(DISCORD_TOKEN_KEY);
+    } catch (_) {
+        // Ignore storage restrictions
     }
 }
