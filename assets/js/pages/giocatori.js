@@ -19,11 +19,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            visiblePlayers.sort((a, b) => a.name.localeCompare(b.name));
+            visiblePlayers.sort((a, b) => {
+                const aInactive = a.isActive === false ? 1 : 0;
+                const bInactive = b.isActive === false ? 1 : 0;
+                if (aInactive !== bInactive) {
+                    return aInactive - bInactive;
+                }
+                return a.name.localeCompare(b.name);
+            });
 
             visiblePlayers.forEach(player => {
+                const isInactive = player.isActive === false;
+                const cardClasses = `npc-card player-card ${isInactive ? 'player-card--inactive' : ''}`.trim();
+                const statusBadge = isInactive
+                    ? `<span class="player-status-badge">${player.statusLabel || 'Fuori dal gruppo'}</span>`
+                    : '';
+
                 const playerCard = `
-                    <a href="../pages/characters/character.html?id=${player.id}&type=player" class="npc-card">
+                    <a href="../pages/characters/character.html?id=${player.id}&type=player" class="${cardClasses}">
                         <div class="npc-avatar-container">
                             <img src="${base_path}${player.images.avatar}" alt="${player.name}" class="npc-img-pop img-main" onerror="this.src='httpshttps://placehold.co/200x200/1a1a1a/gold?text=${player.name.charAt(0)}'">
                             <img src="${base_path}${player.images.hover}" alt="${player.name} Full" class="npc-img-pop img-hover" onerror="this.style.display='none'">
@@ -31,7 +44,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="npc-info">
                             <div class="npc-header">
                                 <h3 class="npc-name">${player.name}</h3>
-                                <span class="npc-role">${player.role}</span>
+                                <div class="player-card-meta">
+                                    <span class="npc-role">${player.role}</span>
+                                    ${statusBadge}
+                                </div>
                             </div>
                             <p class="npc-desc">
                                 ${player.description}

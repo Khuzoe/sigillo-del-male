@@ -201,6 +201,45 @@ ul {
     border-left: 3px solid var(--accent-primary);
 }
 
+.discord-auth {
+    margin-top: auto;
+    padding-top: 1.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.discord-auth-status {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-family: var(--font-ui);
+}
+
+.discord-auth-btn {
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    background: rgba(212, 175, 55, 0.08);
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.45rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.discord-auth-btn:hover {
+    background: rgba(212, 175, 55, 0.2);
+    border-color: var(--gold);
+}
+
+.discord-auth-btn:focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 1px;
+}
+
 /* =========================================
    MAIN CONTENT
    ========================================= */
@@ -642,6 +681,91 @@ ul {
     color: var(--gold);
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+.player-card-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+}
+
+.player-status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid rgba(235, 88, 88, 0.65);
+    background: rgba(128, 26, 26, 0.32);
+    color: #ffb0b0;
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1;
+}
+
+.player-card--inactive {
+    border-color: rgba(180, 180, 180, 0.25);
+    background-color: rgba(20, 20, 20, 0.6);
+}
+
+.player-card--inactive .npc-avatar-container {
+    border-color: rgba(180, 180, 180, 0.55);
+}
+
+.player-card--inactive .npc-img-pop {
+    filter: grayscale(1) saturate(0.15) brightness(0.82);
+}
+
+.player-card--inactive .npc-name {
+    background: none;
+    -webkit-background-clip: initial;
+    -webkit-text-fill-color: rgba(205, 205, 205, 0.95);
+    color: rgba(205, 205, 205, 0.95);
+    filter: none;
+}
+
+.player-card--inactive .npc-role {
+    color: rgba(175, 175, 175, 0.95);
+}
+
+.player-card--inactive .npc-desc {
+    color: rgba(180, 180, 180, 0.82);
+}
+
+.player-card--inactive .arrow-icon {
+    color: rgba(170, 170, 170, 0.8);
+}
+
+.player-card--inactive:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: rgba(180, 180, 180, 0.25);
+}
+
+.player-card--inactive:hover .npc-avatar-container {
+    z-index: auto;
+    box-shadow: none;
+    border-color: rgba(180, 180, 180, 0.55);
+}
+
+.player-card--inactive:hover .npc-img-pop {
+    transform: none;
+}
+
+.player-card--inactive:hover .img-main {
+    opacity: 1;
+}
+
+.player-card--inactive:hover .img-hover {
+    opacity: 0;
+}
+
+.player-card--inactive:hover .arrow-icon {
+    transform: none;
+    color: rgba(170, 170, 170, 0.8);
 }
 
 .npc-desc {
@@ -1802,6 +1926,8 @@ ul {
     flex-direction: column;
     align-items: center;
     position: relative;
+    width: max-content;
+    min-width: 100%;
 }
 
 .family-tree-connections {
@@ -1825,12 +1951,13 @@ ul {
 .generation {
     display: flex;
     justify-content: center;
-    gap: 50px;
+    gap: 30px;
     /* Space between family units in the same generation */
     margin-bottom: 80px;
     /* Space between generations */
     position: relative;
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
 }
 
 .family-unit-wrapper {
@@ -1843,7 +1970,7 @@ ul {
 
 .family-unit {
     display: flex;
-    gap: 20px;
+    gap: 16px;
     /* Space between spouses */
     background-color: transparent;
     border: none;
@@ -1861,7 +1988,7 @@ ul {
     align-items: center;
     justify-content: center;
     background-color: rgba(255, 255, 255, 0.02);
-    padding: 15px;
+    padding: 12px;
     border-radius: 12px;
     border: 1px solid var(--gold-dim);
 }
@@ -1878,8 +2005,8 @@ ul {
     border-radius: 8px;
     padding: 15px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    width: 300px;
-    height: 200px;
+    width: 240px;
+    height: 190px;
     justify-content: center;
 }
 
@@ -1931,7 +2058,7 @@ ul {
     width: 100%;
     min-height: 800px;
     /* Adjust as needed */
-    padding: 20px;
+    padding: 24px 36px;
     box-sizing: border-box;
     background-color: var(--bg-dark);
     /* Or any suitable background */
@@ -1939,6 +2066,19 @@ ul {
     margin-top: 20px;
     overflow: auto;
     /* Allow scrolling if tree is too wide */
+}
+
+.generation-children-by-branch {
+    align-items: flex-start;
+}
+
+.generation-branch {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 24px;
+    min-height: 1px;
 }
 
 /* SVG styles for lines */

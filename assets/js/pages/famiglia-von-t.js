@@ -44,6 +44,7 @@ function resolveImagePath(imagePath) {
             function renderFamilyTree(data) {
                 const people = new Map(data.map(p => [p.id, p]));
                 const connectionsToDraw = [];
+                const getParentUnitId = (parent1Id, parent2Id = null) => `parent-unit-${parent1Id}${parent2Id ? `-${parent2Id}` : ''}`;
 
                 // Helper to create a member node
                 const createMemberNode = (personId) => {
@@ -79,7 +80,7 @@ function resolveImagePath(imagePath) {
                 const renderParentUnitWithConnectors = (parent1, parent2 = null, children = []) => {
                     let unitHtml = `<div class="family-unit-wrapper">`;
                     let unitContent;
-                    const parentUnitId = `parent-unit-${parent1.id}${parent2 ? `-${parent2.id}` : ''}`;
+                    const parentUnitId = getParentUnitId(parent1.id, parent2 ? parent2.id : null);
 
                     if (parent2) { // Spouse unit
                         unitContent = `
@@ -152,23 +153,19 @@ function resolveImagePath(imagePath) {
                 }
 
                 // --- Generation 2: Grandchildren ---
-                const gen2_members_data = [];
+                const gen2_branches_data = [];
                 if (gen1_members_data.length > 0) {
                     gen1_members_data.forEach(parentData => {
-                        if (parentData.children) {
-                            parentData.children.forEach(grandchild => {
-                                if (grandchild) {
-                                    gen2_members_data.push({ type: 'single', p1: grandchild, children: [] });
-                                }
-                            });
-                        }
-                    });
-                    if (gen2_members_data.length > 0) {
-                        allGenerationsData.push({
-                            id: 'generation-2',
-                            members: gen2_members_data
+                        const parentUnitId = getParentUnitId(
+                            parentData.p1.id,
+                            parentData.type === 'couple' && parentData.p2 ? parentData.p2.id : null
+                        );
+                        gen2_branches_data.push({
+                            parentUnitId,
+                            parentType: parentData.type,
+                            children: (parentData.children || []).filter(Boolean)
                         });
-                    }
+                    });
                 }
                 
                 allGenerationsData.forEach(gen => {
@@ -182,6 +179,18 @@ function resolveImagePath(imagePath) {
                     });
                     treeHtml += `</div>`;
                 });
+
+                if (gen2_branches_data.some(branch => branch.children.length > 0)) {
+                    treeHtml += `<div class="generation generation-2 generation-children-by-branch">`;
+                    gen2_branches_data.forEach(branch => {
+                        treeHtml += `<div class="generation-branch" data-parent-unit-id="${branch.parentUnitId}" data-parent-type="${branch.parentType}">`;
+                        branch.children.forEach(grandchild => {
+                            treeHtml += renderParentUnitWithConnectors(grandchild, null, []);
+                        });
+                        treeHtml += `</div>`;
+                    });
+                    treeHtml += `</div>`;
+                }
 
                 treeHtml += `</div>`;
 
@@ -198,15 +207,14 @@ function resolveImagePath(imagePath) {
                     treeContainer.appendChild(tempDiv.firstChild);
                 }
 
+                const familyTreeElement = treeContainer.querySelector('.family-tree');
                 const spouseLinesSVG = document.getElementById('family-tree-spouses-svg');
                 const childLinesSVG = document.getElementById('family-tree-children-svg');
-                spouseLinesSVG.innerHTML = '';
-                childLinesSVG.innerHTML = '';
 
                 function drawLine(startElement, endElement, type) {
-                    if (!startElement || !endElement) return;
+                    if (!startElement || !endElement || !familyTreeElement) return;
     
-                    const containerRect = treeContainer.getBoundingClientRect();
+                    const treeRect = familyTreeElement.getBoundingClientRect();
                     const startRect = startElement.getBoundingClientRect();
                     const endRect = endElement.getBoundingClientRect();
     
@@ -214,23 +222,23 @@ function resolveImagePath(imagePath) {
                     let targetSVG;
     
                     if (type === 'spouse') {
-                        x1 = ((startRect.left + startRect.width / 2 - containerRect.left) / containerRect.width) * 100;
-                        y1 = ((startRect.top + startRect.height / 2 - containerRect.top) / containerRect.height) * 100;
-                        x2 = ((endRect.left + endRect.width / 2 - containerRect.left) / containerRect.width) * 100;
-                        y2 = ((endRect.top + endRect.height / 2 - containerRect.top) / containerRect.height) * 100;
+                        x1 = ((startRect.left + startRect.width / 2 - treeRect.left) / treeRect.width) * 100;
+                        y1 = ((startRect.top + startRect.height / 2 - treeRect.top) / treeRect.height) * 100;
+                        x2 = ((endRect.left + endRect.width / 2 - treeRect.left) / treeRect.width) * 100;
+                        y2 = ((endRect.top + endRect.height / 2 - treeRect.top) / treeRect.height) * 100;
                         targetSVG = spouseLinesSVG;
                     } else if (type === 'parent-child') {
-                        x1 = ((startRect.left + startRect.width / 2 - containerRect.left) / containerRect.width) * 100;
-                        y1 = ((startRect.bottom - containerRect.top) / containerRect.height) * 100;
-                        x2 = ((endRect.left + endRect.width / 2 - containerRect.left) / containerRect.width) * 100;
-                        y2 = ((endRect.top - containerRect.top) / containerRect.height) * 100;
+                        x1 = ((startRect.left + startRect.width / 2 - treeRect.left) / treeRect.width) * 100;
+                        y1 = ((startRect.bottom - treeRect.top) / treeRect.height) * 100;
+                        x2 = ((endRect.left + endRect.width / 2 - treeRect.left) / treeRect.width) * 100;
+                        y2 = ((endRect.top - treeRect.top) / treeRect.height) * 100;
                         targetSVG = childLinesSVG;
                     } else {
                         // Fallback or other types
-                        x1 = ((startRect.left + startRect.width / 2 - containerRect.left) / containerRect.width) * 100;
-                        y1 = ((startRect.top + startRect.height / 2 - containerRect.top) / containerRect.height) * 100;
-                        x2 = ((endRect.left + endRect.width / 2 - containerRect.left) / containerRect.width) * 100;
-                        y2 = ((endRect.top + endRect.height / 2 - containerRect.top) / containerRect.height) * 100;
+                        x1 = ((startRect.left + startRect.width / 2 - treeRect.left) / treeRect.width) * 100;
+                        y1 = ((startRect.top + startRect.height / 2 - treeRect.top) / treeRect.height) * 100;
+                        x2 = ((endRect.left + endRect.width / 2 - treeRect.left) / treeRect.width) * 100;
+                        y2 = ((endRect.top + endRect.height / 2 - treeRect.top) / treeRect.height) * 100;
                         targetSVG = spouseLinesSVG;
                     }
                     
@@ -263,7 +271,35 @@ function resolveImagePath(imagePath) {
                     }
                 }
 
-                setTimeout(() => {
+                const syncGenerationBranchWidths = () => {
+                    const branches = treeContainer.querySelectorAll('.generation-children-by-branch .generation-branch');
+                    branches.forEach(branch => {
+                        const parentUnitId = branch.getAttribute('data-parent-unit-id');
+                        if (!parentUnitId) return;
+                        const parentUnit = treeContainer.querySelector(`#${parentUnitId}`);
+                        if (!parentUnit) return;
+                        branch.style.width = `${parentUnit.getBoundingClientRect().width}px`;
+                    });
+                };
+
+                const syncSvgBoundsToTree = () => {
+                    if (!familyTreeElement) return;
+                    const left = familyTreeElement.offsetLeft;
+                    const top = familyTreeElement.offsetTop;
+                    const width = familyTreeElement.offsetWidth;
+                    const height = familyTreeElement.offsetHeight;
+
+                    [spouseLinesSVG, childLinesSVG].forEach(svg => {
+                        svg.style.left = `${left}px`;
+                        svg.style.top = `${top}px`;
+                        svg.style.width = `${width}px`;
+                        svg.style.height = `${height}px`;
+                    });
+                };
+
+                const drawAllConnections = () => {
+                    spouseLinesSVG.innerHTML = '';
+                    childLinesSVG.innerHTML = '';
                     connectionsToDraw.forEach(conn => {
                         let startElement, endElement;
                         if (conn.type === 'spouse') {
@@ -276,7 +312,23 @@ function resolveImagePath(imagePath) {
                             drawLine(startElement, endElement, 'parent-child');
                         }
                     });
-                }, 100); // 100ms delay to allow for render
+                };
+
+                const layoutAndDraw = () => {
+                    syncGenerationBranchWidths();
+                    syncSvgBoundsToTree();
+                    drawAllConnections();
+                };
+
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(layoutAndDraw);
+                });
+
+                let resizeDebounce;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeDebounce);
+                    resizeDebounce = setTimeout(layoutAndDraw, 120);
+                });
 
             }
         });

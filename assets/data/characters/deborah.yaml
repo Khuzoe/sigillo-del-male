@@ -34,5 +34,11 @@ content_blocks:
     icon: "fa-eye"
     image: "img/documents/visione_randra.png"
     markdown: "characters/deborah/visione-randra.md"
-relationships: []
+relationships:
+  - id: "ginevra"
+    description: "Madre"
+  - id: "x"
+    description: "Zia"
+  - id: "rabberduscolanderson"
+    description: "Zio"
 type: "npc"

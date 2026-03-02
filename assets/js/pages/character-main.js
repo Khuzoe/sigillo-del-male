@@ -1101,7 +1101,7 @@ function parseYamlLite(yamlText) {
                 const groupName = group.isLoose ? 'Senza contenitore' : group.name;
 
                 return `
-                    <details class="inventory-group" data-inventory-group open>
+                    <details class="inventory-group" data-inventory-group>
                         <summary class="inventory-group-header">
                             <div class="inventory-group-title">
                                 <i class="fas ${icon}" aria-hidden="true"></i>

@@ -31,7 +31,7 @@
     ],
     "hidden": false,
     "unknown": true,
-    "unnamed": true
+    "von_t": true
   },
   {
     "id": "x",
@@ -69,7 +69,7 @@
   {
     "id": "ginevra",
     "name": "Ginevra Von T",
-    "image": "img/creatures/transp/ginevra_transp.webp",
+    "image": "img/creatures/transp/ginevra_animation.webp",
     "parents": [
       "yuris",
       "leonora"
@@ -80,10 +80,9 @@
     "children": [
       "deborah"
     ],
-    "hidden": true,
-    "von_t": true,
-    "unknown": true,
-    "unnamed": true
+    "hidden": false,
+    "unknown": false,
+    "von_t": true
   },
   {
     "id": "nino_olegna",
@@ -140,19 +139,19 @@
     ],
     "hidden": false,
     "unknown": true,
-    "unnamed": true
+    "unnamed": false
   },
   {
     "id": "deborah",
     "name": "Deborah Von T",
-    "image": "img/creatures/deborah_zombie.webp",
+    "image": "img/creatures/transp/deborah_animation.webp",
     "parents": [
       "ginevra",
       "rendar"
     ],
     "spouses": [],
     "children": [],
-    "hidden": true,
+    "hidden": false,
     "von_t": true
   },
   {
