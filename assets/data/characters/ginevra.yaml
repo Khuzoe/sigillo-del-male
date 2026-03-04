@@ -5,7 +5,7 @@ aliases:
 role: "L'Alambicco Vivente"
 status: "vivo"
 hidden: false
-quote: ""
+quote: "Se non metti il tuo amore nel pestello, l'erba resta solo erba."
 images:
   avatar: "img/creatures/transp/ginevra_transp.webp"
   hover: "img/creatures/transp/ginevra_animation.webp"
@@ -15,6 +15,10 @@ content_blocks:
     title: "Aspetto Fisico"
     icon: "fa-user"
     markdown: "characters/ginevra/aspetto_fisico.md"
+  - type: "lore"
+    title: "Biografia"
+    icon: "fa-user"
+    markdown: "characters/ginevra/biografia.md"
   - type: "image_box"
     title: "Healing Fetus"
     image: "img/items/ginevra_healing_fetus.webp"
@@ -22,6 +26,7 @@ content_blocks:
     hidden: true
 summary:
   height: "1.82m | 240kg"
+  cause_of_death: "Morte Materna"
 relationships:
   - id: "leonora"
     description: "Madre"
