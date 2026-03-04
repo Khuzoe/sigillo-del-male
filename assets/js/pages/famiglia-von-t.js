@@ -211,65 +211,75 @@ function resolveImagePath(imagePath) {
                 const spouseLinesSVG = document.getElementById('family-tree-spouses-svg');
                 const childLinesSVG = document.getElementById('family-tree-children-svg');
 
-                function drawLine(startElement, endElement, type) {
-                    if (!startElement || !endElement || !familyTreeElement) return;
-    
-                    const treeRect = familyTreeElement.getBoundingClientRect();
-                    const startRect = startElement.getBoundingClientRect();
-                    const endRect = endElement.getBoundingClientRect();
-    
-                    let x1, y1, x2, y2;
-                    let targetSVG;
-    
-                    if (type === 'spouse') {
-                        x1 = ((startRect.left + startRect.width / 2 - treeRect.left) / treeRect.width) * 100;
-                        y1 = ((startRect.top + startRect.height / 2 - treeRect.top) / treeRect.height) * 100;
-                        x2 = ((endRect.left + endRect.width / 2 - treeRect.left) / treeRect.width) * 100;
-                        y2 = ((endRect.top + endRect.height / 2 - treeRect.top) / treeRect.height) * 100;
-                        targetSVG = spouseLinesSVG;
-                    } else if (type === 'parent-child') {
-                        x1 = ((startRect.left + startRect.width / 2 - treeRect.left) / treeRect.width) * 100;
-                        y1 = ((startRect.bottom - treeRect.top) / treeRect.height) * 100;
-                        x2 = ((endRect.left + endRect.width / 2 - treeRect.left) / treeRect.width) * 100;
-                        y2 = ((endRect.top - treeRect.top) / treeRect.height) * 100;
-                        targetSVG = childLinesSVG;
-                    } else {
-                        // Fallback or other types
-                        x1 = ((startRect.left + startRect.width / 2 - treeRect.left) / treeRect.width) * 100;
-                        y1 = ((startRect.top + startRect.height / 2 - treeRect.top) / treeRect.height) * 100;
-                        x2 = ((endRect.left + endRect.width / 2 - treeRect.left) / treeRect.width) * 100;
-                        y2 = ((endRect.top + endRect.height / 2 - treeRect.top) / treeRect.height) * 100;
-                        targetSVG = spouseLinesSVG;
-                    }
-                    
+                const toPercent = (valuePx, startPx, sizePx) => ((valuePx - startPx) / sizePx) * 100;
+
+                const drawConnectionLine = (targetSVG, x1, y1, x2, y2) => {
                     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    line.setAttribute('x1', x1 + '%');
-                    line.setAttribute('y1', y1 + '%');
-                    line.setAttribute('x2', x2 + '%');
-                    line.setAttribute('y2', y2 + '%');
+                    line.setAttribute('x1', `${x1}%`);
+                    line.setAttribute('y1', `${y1}%`);
+                    line.setAttribute('x2', `${x2}%`);
+                    line.setAttribute('y2', `${y2}%`);
                     line.setAttribute('stroke', 'var(--gold-dim)');
                     line.setAttribute('stroke-width', '0.3%');
                     line.setAttribute('class', 'family-connection-line');
-                    
                     targetSVG.appendChild(line);
+                };
 
-                    // Only add dots for parent-child connections
-                    if (type === 'parent-child') {
-                        const startDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                        startDot.setAttribute('cx', x1 + '%');
-                        startDot.setAttribute('cy', y1 + '%');
-                        startDot.setAttribute('r', '0.5%');
-                        startDot.setAttribute('fill', 'var(--gold)');
-                        targetSVG.appendChild(startDot);
+                const drawConnectionDot = (targetSVG, x, y) => {
+                    const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    dot.setAttribute('class', 'family-connection-dot');
+                    dot.setAttribute('cx', `${x}%`);
+                    dot.setAttribute('cy', `${y}%`);
+                    dot.setAttribute('r', '0.5%');
+                    dot.setAttribute('fill', 'var(--gold)');
+                    targetSVG.appendChild(dot);
+                };
 
-                        const endDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                        endDot.setAttribute('cx', x2 + '%');
-                        endDot.setAttribute('cy', y2 + '%');
-                        endDot.setAttribute('r', '0.5%');
-                        endDot.setAttribute('fill', 'var(--gold)');
-                        targetSVG.appendChild(endDot);
+                function drawLine(startElement, endElement, type) {
+                    if (!startElement || !endElement || !familyTreeElement) return;
+
+                    const treeRect = familyTreeElement.getBoundingClientRect();
+                    const startRect = startElement.getBoundingClientRect();
+                    const endRect = endElement.getBoundingClientRect();
+
+                    if (type === 'spouse') {
+                        const startIsLeft = startRect.left <= endRect.left;
+                        const startEdgeX = startIsLeft ? (startRect.left + startRect.width) : startRect.left;
+                        const endEdgeX = startIsLeft ? endRect.left : (endRect.left + endRect.width);
+                        const y = (startRect.top + startRect.height / 2 + endRect.top + endRect.height / 2) / 2;
+                        const x1 = toPercent(startEdgeX, treeRect.left, treeRect.width);
+                        const y1 = toPercent(y, treeRect.top, treeRect.height);
+                        const x2 = toPercent(endEdgeX, treeRect.left, treeRect.width);
+                        const y2 = y1;
+                        drawConnectionLine(spouseLinesSVG, x1, y1, x2, y2);
                     }
                 }
+
+                const drawParentChildrenBranch = (parentElement, childElements) => {
+                    if (!parentElement || !childElements.length || !familyTreeElement) return;
+
+                    const treeRect = familyTreeElement.getBoundingClientRect();
+                    const parentRect = parentElement.getBoundingClientRect();
+                    const parentX = toPercent(parentRect.left + parentRect.width / 2, treeRect.left, treeRect.width);
+                    const parentY = toPercent(parentRect.bottom, treeRect.top, treeRect.height);
+
+                    const childPoints = childElements.map(childEl => {
+                        const childRect = childEl.getBoundingClientRect();
+                        return {
+                            x: toPercent(childRect.left + childRect.width / 2, treeRect.left, treeRect.width),
+                            y: toPercent(childRect.top, treeRect.top, treeRect.height)
+                        };
+                    });
+
+                    if (!childPoints.length) return;
+
+                    drawConnectionDot(childLinesSVG, parentX, parentY);
+
+                    childPoints.forEach(child => {
+                        drawConnectionLine(childLinesSVG, parentX, parentY, child.x, child.y);
+                        drawConnectionDot(childLinesSVG, child.x, child.y);
+                    });
+                };
 
                 const syncGenerationBranchWidths = () => {
                     const branches = treeContainer.querySelectorAll('.generation-children-by-branch .generation-branch');
@@ -300,6 +310,8 @@ function resolveImagePath(imagePath) {
                 const drawAllConnections = () => {
                     spouseLinesSVG.innerHTML = '';
                     childLinesSVG.innerHTML = '';
+                    const parentChildGroups = new Map();
+
                     connectionsToDraw.forEach(conn => {
                         let startElement, endElement;
                         if (conn.type === 'spouse') {
@@ -307,10 +319,25 @@ function resolveImagePath(imagePath) {
                             endElement = treeContainer.querySelector(`[data-person-id="${conn.toId}"]`);
                             drawLine(startElement, endElement, 'spouse');
                         } else if (conn.type === 'parent-child') {
-                            startElement = treeContainer.querySelector(`#${conn.fromId}`);
-                            endElement = treeContainer.querySelector(`[data-person-id="${conn.toId}"]`);
-                            drawLine(startElement, endElement, 'parent-child');
+                            if (!parentChildGroups.has(conn.fromId)) {
+                                parentChildGroups.set(conn.fromId, []);
+                            }
+                            parentChildGroups.get(conn.fromId).push(conn.toId);
                         }
+                    });
+
+                    parentChildGroups.forEach((childIds, parentUnitId) => {
+                        const parentElement = treeContainer.querySelector(`#${parentUnitId}`);
+                        const uniqueChildIds = [...new Set(childIds)];
+                        const childElements = uniqueChildIds
+                            .map(childId => treeContainer.querySelector(`[data-person-id="${childId}"]`))
+                            .filter(Boolean);
+                        drawParentChildrenBranch(parentElement, childElements);
+                    });
+
+                    // Keep dots always above all lines by moving them at the end of each SVG.
+                    [spouseLinesSVG, childLinesSVG].forEach(svg => {
+                        svg.querySelectorAll('.family-connection-dot').forEach(dot => svg.appendChild(dot));
                     });
                 };
 
@@ -322,6 +349,13 @@ function resolveImagePath(imagePath) {
 
                 requestAnimationFrame(() => {
                     requestAnimationFrame(layoutAndDraw);
+                });
+
+                familyTreeElement.querySelectorAll('.member-image').forEach(img => {
+                    if (!img.complete) {
+                        img.addEventListener('load', layoutAndDraw, { once: true });
+                        img.addEventListener('error', layoutAndDraw, { once: true });
+                    }
                 });
 
                 let resizeDebounce;

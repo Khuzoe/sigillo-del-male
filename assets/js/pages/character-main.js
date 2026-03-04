@@ -282,15 +282,31 @@ function parseYamlLite(yamlText) {
             ft: 'ft',
             m: 'm'
         };
+        const DND5E_XP_THRESHOLDS = [
+            0, 300, 900, 2700, 6500,
+            14000, 23000, 34000, 48000, 64000,
+            85000, 100000, 120000, 140000, 165000,
+            195000, 225000, 265000, 305000, 355000
+        ];
         const PLAYER_NAME_ALIASES = {
             apothecary: ['apothecary'],
             garun: ["ga'run", 'ga run', 'garun'],
             randra: ["ran'dra", 'ran dra', 'randra'],
             valdor: ['valdor']
         };
+        const SKILLS_DATA_URL = '../../assets/data/skills.json';
+        const SKILLS_ASSET_BASE = '../../assets/img/skill_trees/';
+        const PLAYER_SKILL_TREE_KEYS = {
+            apothecary: 'apothecary',
+            garun: 'garun',
+            randra: 'randra',
+            valdor: 'valdor'
+        };
 
         let inventoryRequestPromise = null;
         let inventoryMemoryCache = null;
+        let skillsRequestPromise = null;
+        let skillsMemoryCache = null;
 
         function escapeHtml(value) {
             return String(value || '')
@@ -348,6 +364,35 @@ function parseYamlLite(yamlText) {
         function isInventoryCacheFresh(cache) {
             if (!cache || typeof cache.fetchedAt !== 'number') return false;
             return (Date.now() - cache.fetchedAt) < INVENTORY_CACHE_TTL_MS;
+        }
+
+        function resolveSkillAssetPath(path) {
+            if (!path) return '';
+            if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/') || path.startsWith('data:')) {
+                return path;
+            }
+            return `${SKILLS_ASSET_BASE}${path}`;
+        }
+
+        async function loadSkillsData() {
+            if (skillsMemoryCache) return skillsMemoryCache;
+            if (skillsRequestPromise) return skillsRequestPromise;
+
+            skillsRequestPromise = (async () => {
+                const response = await fetch(SKILLS_DATA_URL);
+                if (!response.ok) {
+                    throw new Error(`File skill tree non trovato (${response.status}).`);
+                }
+                const payload = await response.json();
+                skillsMemoryCache = payload && typeof payload === 'object' ? payload : {};
+                return skillsMemoryCache;
+            })();
+
+            try {
+                return await skillsRequestPromise;
+            } finally {
+                skillsRequestPromise = null;
+            }
         }
 
         async function loadInventoryData() {
@@ -736,15 +781,60 @@ function parseYamlLite(yamlText) {
         function getXpOverviewData(actor) {
             const xpCurrent = toFiniteNumber(actor.xp && actor.xp.current);
             const xpNext = toFiniteNumber(actor.xp && actor.xp.nextLevel);
-            const xpMissing = toFiniteNumber(actor.xp && actor.xp.missingToLevel);
+            const rawXpMissing = toFiniteNumber(actor.xp && actor.xp.missingToLevel);
             const hasXp = xpCurrent !== null && xpNext !== null && xpNext > 0;
-            const xpRatio = hasXp ? Math.min(100, Math.max(0, (xpCurrent / xpNext) * 100)) : 0;
-            const xpLevelReady = hasXp && ((xpMissing !== null && xpMissing <= 0) || xpCurrent >= xpNext);
+
+            let xpPreviousLevel = 0;
+            let xpRangeTotal = hasXp ? Math.max(0, xpNext) : 0;
+            let xpCurrentInRange = hasXp ? Math.max(0, xpCurrent) : 0;
+
+            if (hasXp) {
+                const thresholdIndex = DND5E_XP_THRESHOLDS.findIndex((threshold) => threshold === xpNext);
+                if (thresholdIndex > 0) {
+                    xpPreviousLevel = DND5E_XP_THRESHOLDS[thresholdIndex - 1];
+                } else {
+                    for (let i = 0; i < DND5E_XP_THRESHOLDS.length; i++) {
+                        const threshold = DND5E_XP_THRESHOLDS[i];
+                        if (threshold <= xpCurrent) {
+                            xpPreviousLevel = threshold;
+                            continue;
+                        }
+                        if (threshold > xpCurrent) {
+                            if (!Number.isFinite(xpNext) || xpNext <= xpPreviousLevel) {
+                                xpRangeTotal = threshold - xpPreviousLevel;
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                if (xpNext > xpPreviousLevel) {
+                    xpRangeTotal = xpNext - xpPreviousLevel;
+                    xpCurrentInRange = Math.min(
+                        xpRangeTotal,
+                        Math.max(0, xpCurrent - xpPreviousLevel)
+                    );
+                } else {
+                    xpRangeTotal = Math.max(1, xpRangeTotal);
+                    xpCurrentInRange = Math.min(xpRangeTotal, Math.max(0, xpCurrentInRange));
+                }
+            }
+
+            const xpMissing = hasXp
+                ? Math.max(0, xpRangeTotal - xpCurrentInRange)
+                : (rawXpMissing !== null ? rawXpMissing : 0);
+            const xpRatio = hasXp
+                ? Math.min(100, Math.max(0, (xpCurrentInRange / Math.max(1, xpRangeTotal)) * 100))
+                : 0;
+            const xpLevelReady = hasXp && ((rawXpMissing !== null && rawXpMissing <= 0) || xpCurrent >= xpNext);
 
             return {
                 hasXp,
                 xpCurrent,
                 xpNext,
+                xpPreviousLevel,
+                xpCurrentInRange,
+                xpRangeTotal,
                 xpMissing,
                 xpRatio,
                 xpLevelReady
@@ -763,9 +853,10 @@ function parseYamlLite(yamlText) {
 
             return `
                 <p class="player-overview-main">
-                    <strong>${formatNumberIt(xpData.xpCurrent)}</strong>
-                    <span>/ ${formatNumberIt(xpData.xpNext)} XP</span>
+                    <strong>${formatNumberIt(xpData.xpCurrentInRange)}</strong>
+                    <span>/ ${formatNumberIt(xpData.xpRangeTotal)} XP</span>
                 </p>
+                <p class="player-overview-note">Totale: ${formatNumberIt(xpData.xpCurrent)} XP</p>
                 <div class="xp-progress ${xpData.xpLevelReady ? 'is-level-ready' : ''}">
                     <div class="xp-progress-fill" style="width: ${xpData.xpRatio.toFixed(2)}%"></div>
                 </div>
@@ -1303,6 +1394,122 @@ function parseYamlLite(yamlText) {
             initializeSpellLevelFilters(cardElement);
         }
 
+        function buildPlayerSkillTreeCard(playerId, allSkillTrees) {
+            const treeKey = PLAYER_SKILL_TREE_KEYS[playerId] || playerId;
+            const treeData = allSkillTrees && allSkillTrees[treeKey];
+            const card = document.createElement('div');
+            card.className = 'content-card player-skill-tree-card';
+            card.id = 'player-skill-tree-card';
+
+            if (!treeData || !Array.isArray(treeData.nodes) || treeData.nodes.length === 0) {
+                card.innerHTML = `
+                    <h3><i class="fas fa-crown"></i> Albero Abilita</h3>
+                    <p class="loadout-empty">Albero abilita non disponibile per questo personaggio.</p>
+                `;
+                return card;
+            }
+
+            card.innerHTML = `
+                <h3><i class="fas fa-crown"></i> Albero Abilita</h3>
+                <div class="player-skill-tree-layout">
+                    <div class="player-skill-tree-column">
+                        <div class="player-skill-tree-wrapper" data-skill-tree>
+                            <svg class="player-skill-tree-connections" data-skill-tree-lines></svg>
+                        </div>
+                    </div>
+                    <aside class="player-skill-info" data-skill-info></aside>
+                </div>
+            `;
+
+            const treeContainer = card.querySelector('[data-skill-tree]');
+            const linesLayer = card.querySelector('[data-skill-tree-lines]');
+            const infoPanel = card.querySelector('[data-skill-info]');
+            if (!treeContainer || !linesLayer || !infoPanel) return card;
+
+            const bgImage = resolveSkillAssetPath(treeData.bgImage);
+            treeContainer.style.backgroundImage = bgImage
+                ? `url('${bgImage}'), radial-gradient(circle at 50% 50%, rgba(56, 22, 22, 0.45), rgba(0, 0, 0, 0.92))`
+                : 'radial-gradient(circle at 50% 50%, rgba(56, 22, 22, 0.45), rgba(0, 0, 0, 0.92))';
+
+            const nodeById = new Map(treeData.nodes.map((node) => [node.id, node]));
+            const setDefaultInfo = () => {
+                infoPanel.innerHTML = `
+                    <div class="player-skill-info-empty">
+                        <i class="fas fa-hand-pointer" aria-hidden="true"></i>
+                        <p>Passa il cursore su un nodo per vedere i dettagli dell'abilita.</p>
+                    </div>
+                `;
+            };
+
+            const updateInfo = (node) => {
+                if (!node) {
+                    setDefaultInfo();
+                    return;
+                }
+
+                const icon = resolveSkillAssetPath(node.icon);
+                infoPanel.innerHTML = `
+                    <header class="player-skill-info-header">
+                        ${icon ? `<img src="${icon}" alt="${escapeHtml(node.title || 'Abilita')}" class="player-skill-info-icon">` : ''}
+                        <h4 class="player-skill-info-title">${escapeHtml(node.title || 'Abilita')}</h4>
+                    </header>
+                    ${node.flavor ? `<p class="player-skill-info-flavor">${escapeHtml(node.flavor)}</p>` : ''}
+                    <div class="player-skill-info-desc">${node.desc || '<p>Nessun dettaglio disponibile.</p>'}</div>
+                `;
+            };
+
+            setDefaultInfo();
+
+            treeData.nodes.forEach((startNode) => {
+                if (!Array.isArray(startNode.connections)) return;
+                startNode.connections.forEach((targetId) => {
+                    const targetNode = nodeById.get(targetId);
+                    if (!targetNode) return;
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', `${startNode.x}%`);
+                    line.setAttribute('y1', `${startNode.y}%`);
+                    line.setAttribute('x2', `${targetNode.x}%`);
+                    line.setAttribute('y2', `${targetNode.y}%`);
+
+                    const lineState = targetNode.state === 'unlocked' || targetNode.state === 'unlockable'
+                        ? targetNode.state
+                        : 'locked';
+                    line.setAttribute('class', `player-skill-connection is-${lineState}`);
+                    linesLayer.appendChild(line);
+                });
+            });
+
+            treeData.nodes.forEach((node) => {
+                const nodeElement = document.createElement('button');
+                nodeElement.type = 'button';
+                const stateClass = node.state === 'unlocked' || node.state === 'unlockable' ? node.state : 'locked';
+                nodeElement.className = `player-skill-node is-${stateClass}${node.keyNode ? ' is-key' : ''}`;
+                nodeElement.style.left = `${node.x}%`;
+                nodeElement.style.top = `${node.y}%`;
+                const icon = resolveSkillAssetPath(node.icon);
+                if (icon) {
+                    nodeElement.style.backgroundImage = `url('${icon}')`;
+                }
+                nodeElement.setAttribute('aria-label', node.title || 'Abilita');
+
+                const onSelect = () => {
+                    updateInfo(node);
+                };
+
+                nodeElement.addEventListener('mouseenter', onSelect);
+                nodeElement.addEventListener('focus', onSelect);
+                nodeElement.addEventListener('click', onSelect);
+
+                treeContainer.appendChild(nodeElement);
+            });
+
+            const firstNode = treeData.nodes.find((node) => node.state === 'unlocked' || node.state === 'unlockable') || treeData.nodes[0];
+            if (firstNode) updateInfo(firstNode);
+
+            return card;
+        }
+
         document.addEventListener("DOMContentLoaded", async function () {
             const container = document.getElementById('character-content-container');
             const charNameEl = document.getElementById('char-name');
@@ -1370,7 +1577,16 @@ function parseYamlLite(yamlText) {
                     });
                 }
 
-                renderCharacterPage(character, allCharacters, npcQuests);
+                let playerSkillTrees = null;
+                if (charType === 'player') {
+                    try {
+                        playerSkillTrees = await loadSkillsData();
+                    } catch (skillError) {
+                        console.warn('Impossibile caricare gli alberi abilita:', skillError);
+                    }
+                }
+
+                renderCharacterPage(character, allCharacters, npcQuests, playerSkillTrees);
 
             } catch (error) {
                 console.error("Errore nel caricamento del personaggio:", error);
@@ -1452,7 +1668,7 @@ function parseYamlLite(yamlText) {
                 }
             }
 
-            function renderCharacterPage(character, allCharacters, npcQuests) {
+            function renderCharacterPage(character, allCharacters, npcQuests, playerSkillTrees) {
                 // Set page title and header
                 document.title = `${character.name} | Cripta di Sangue`;
                 charNameEl.textContent = character.name;
@@ -1467,21 +1683,25 @@ function parseYamlLite(yamlText) {
                 const leftCol = document.createElement('div');
                 leftCol.className = 'left-col';
 
-                const visibleBlocks = (character.content_blocks || []).filter(block => !block.hidden);
+                if (charType !== 'player') {
+                    const visibleBlocks = (character.content_blocks || []).filter(block => !block.hidden);
 
-                if (visibleBlocks.length > 0) {
-                    visibleBlocks.forEach(block => {
-                        leftCol.appendChild(renderContentBlock(block));
-                    });
-                } else {
-                    // Display a placeholder if content_blocks is empty or doesn't exist
-                    const placeholder = document.createElement('div');
-                    placeholder.className = 'content-card';
-                    placeholder.innerHTML = '<h3><i class="fas fa-scroll"></i> Storia</h3><p>Dettagli sulla storia di questo personaggio non ancora disponibili.</p>';
-                    leftCol.appendChild(placeholder);
+                    if (visibleBlocks.length > 0) {
+                        visibleBlocks.forEach(block => {
+                            leftCol.appendChild(renderContentBlock(block));
+                        });
+                    } else {
+                        // Display a placeholder if content_blocks is empty or doesn't exist
+                        const placeholder = document.createElement('div');
+                        placeholder.className = 'content-card';
+                        placeholder.innerHTML = '<h3><i class="fas fa-scroll"></i> Storia</h3><p>Dettagli sulla storia di questo personaggio non ancora disponibili.</p>';
+                        leftCol.appendChild(placeholder);
+                    }
                 }
 
                 if (charType === 'player') {
+                    leftCol.appendChild(buildPlayerSkillTreeCard(character.id, playerSkillTrees));
+
                     const playerLoadoutCard = document.createElement('div');
                     playerLoadoutCard.className = 'content-card player-loadout-card';
                     playerLoadoutCard.id = 'player-loadout-card';
@@ -1519,6 +1739,7 @@ function parseYamlLite(yamlText) {
 
             function getRightColumnHtml(character, allCharacters, npcQuests) {
                 const summary = character.summary || {};
+                const isPlayerView = charType === 'player';
 
                 // --- CALCOLO ANNO DI NASCITA E ETA' ---
                 // --- CALCOLO ANNO DI NASCITA E ETA' ---
@@ -1526,9 +1747,10 @@ function parseYamlLite(yamlText) {
                 let periodLabel = "Anno di Nascita";
                 let periodValue = "Non disponibile";
                 let age = "Non disponibile";
+                const race = summary.race || "Non disponibile";
 
                 // Parsing Period field (expected format: "Birth-Death" or "Birth")
-                if (summary.period) {
+                if (summary.period && !isPlayerView) {
                     const parts = summary.period.toString().split('-');
                     const bYear = parseInt(parts[0].trim());
 
@@ -1555,23 +1777,48 @@ function parseYamlLite(yamlText) {
                     }
                 }
 
+                if (summary.age) {
+                    age = summary.age;
+                }
+
                 // --- ALTRI CAMPI ---
-                // Height is already combined in YAML usually ("1.62m | 9kg")
-                const heightWeight = summary.height || "Non disponibile";
+                let height = summary.height || "Non disponibile";
+                let weight = summary.weight || "Non disponibile";
 
+                // Backward compatibility: legacy format "height | weight"
+                if (typeof summary.height === 'string' && summary.height.includes('|')) {
+                    const [legacyHeight, legacyWeight] = summary.height.split('|').map((part) => part.trim());
+                    height = legacyHeight || height;
+                    if (!summary.weight) {
+                        weight = legacyWeight || weight;
+                    }
+                }
 
-                const statsHtml = `
+                const periodStatHtml = isPlayerView ? '' : `
                     <div class="stat-box">
                         <span class="stat-label">${periodLabel}</span>
                         <span class="stat-value">${periodValue}</span>
                     </div>
+                `;
+
+
+                const statsHtml = `
                     <div class="stat-box">
-                        <span class="stat-label">Età</span>
+                        <span class="stat-label">Razza</span>
+                        <span class="stat-value">${race}</span>
+                    </div>
+                    ${periodStatHtml}
+                    <div class="stat-box">
+                        <span class="stat-label">Eta</span>
                         <span class="stat-value">${age}</span>
                     </div>
                     <div class="stat-box">
-                        <span class="stat-label">Altezza | Peso</span>
-                        <span class="stat-value">${heightWeight}</span>
+                        <span class="stat-label">Altezza</span>
+                        <span class="stat-value">${height}</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-label">Peso</span>
+                        <span class="stat-value">${weight}</span>
                     </div>
                 `;
 
@@ -1722,3 +1969,4 @@ function parseYamlLite(yamlText) {
                 return card;
             }
         });
+

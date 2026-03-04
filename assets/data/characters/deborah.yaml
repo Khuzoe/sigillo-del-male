@@ -6,7 +6,7 @@ order_slot: 1
 role: "L'Ultima Foglia"
 status: "vivo"
 hidden: false
-quote: "Dolore."
+quote: "Una vita normale - Io non la ho."
 images:
   avatar: "img/creatures/transp/deborah_transp.webp"
   hover: "img/creatures/transp/deborah_animation.webp"
@@ -34,6 +34,11 @@ content_blocks:
     icon: "fa-eye"
     image: "img/documents/visione_randra.png"
     markdown: "characters/deborah/visione-randra.md"
+  - type: "image_box"
+    title: "Visione di Apothecary"
+    icon: "fa-eye"
+    image: "img/documents/visione_apothecary.webp"
+    markdown: "characters/deborah/visione-apothecary.md"
 relationships:
   - id: "ginevra"
     description: "Madre"
