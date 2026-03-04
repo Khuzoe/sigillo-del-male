@@ -12,7 +12,7 @@
         "player",
         "Kenku"
       ],
-      "content": "Guaritrice e guida spirituale del gruppo, ha spezzato maledizioni e tenuto unito il party nei momenti piu critici. Dopo avere sviluppato un forte legame con Rabberduscolanderson, si e sacrificata durante l'incubo del sigillo: ora il suo corpo e svenuto e la sua anima e rinchiusa in un Prisma di Luce Cristallizzata. Kenku N/A 70cm 14 N/A"
+      "content": "Guaritrice e guida spirituale del gruppo, ha spezzato maledizioni e tenuto unito il party nei momenti piu critici. Dopo avere sviluppato un forte legame con Rabberduscolanderson, si e sacrificata durante l'incubo del sigillo: ora il suo corpo e svenuto e la sua anima e rinchiusa in un Prisma di Luce Cristallizzata. Kenku N/A 70cm Non disponibile 14 N/A"
     },
     {
       "id": "npc:deborah",
@@ -26,7 +26,7 @@
         "vivo",
         "npc"
       ],
-      "content": "Dolore. Biografia Deborah Von T è ricordata come l'Ultima Foglia della stirpe. Bambina dai capelli bianchi, porta con sé un potere antico che la casata Von T ha temuto e desiderato insieme. Nel silenzio della cripta, la sua presenza è percepita come un peso costante: il suo nome ricorre nei sussurri e nei documenti, legato a un destino che potrebbe ridisegnare il sangue dei Von T. Particolarità Molti la considerano la minaccia più grande del luogo. Si dice che la linea più vicina alla realtà sia legata a lei, e che le sue scelte possano alterare l'equilibrio dell'intera cripta. Per questo è v..."
+      "content": "Una vita normale - Io non la ho. Biografia Deborah Von T è ricordata come l'Ultima Foglia della stirpe. Bambina dai capelli bianchi, porta con sé un potere antico che la casata Von T ha temuto e desiderato insieme. Nel silenzio della cripta, la sua presenza è percepita come un peso costante: il suo nome ricorre nei sussurri e nei documenti, legato a un destino che potrebbe ridisegnare il sangue dei Von T. Particolarità Molti la considerano la minaccia più grande del luogo. Si dice che la linea più vicina alla realtà sia legata a lei, e che le sue scelte possano alterare l'equilibrio dell'inte..."
     },
     {
       "id": "family:deborah",
@@ -118,7 +118,7 @@
         "player",
         "Umano"
       ],
-      "content": "Padre di Ran'Dra e prima linea del gruppo, affronta ogni scontro con tenacia brutale e istinto protettivo. Tra maledizioni, rituali e battaglie contro le creature della cripta, resta il pilastro fisico della compagnia anche quando la situazione precipita. Umano N/A 1.95m Contemporaneo N/A"
+      "content": "Padre di Ran'Dra e prima linea del gruppo, affronta ogni scontro con tenacia brutale e istinto protettivo. Tra maledizioni, rituali e battaglie contro le creature della cripta, resta il pilastro fisico della compagnia anche quando la situazione precipita. Umano 54 anni N/A 210 cm 130 kg Contemporaneo N/A"
     },
     {
       "id": "npc:ginevra",
@@ -132,7 +132,7 @@
         "vivo",
         "npc"
       ],
-      "content": "1.82m | 240kg Aspetto Fisico La pelle è spenta, quasi cinerea, attraversata da sfumature fredde che ricordano la pietra umida della cripta. I suoi occhi chiari, innaturalmente luminosi, restano fissi e vigili, con uno sguardo che comunica insieme stanchezza e minaccia. I capelli lunghi, marroni e disordinati, scendono sulle spalle e incorniciano un volto severo, segnato da un'espressione dura e distante. Una corona di fiori scuri appassiti spezza appena l'insieme, come un residuo di bellezza conservato oltre il tempo. Indossa vesti logore e strappate, pesanti di polvere e muffa, e si muove co..."
+      "content": "Se non metti il tuo amore nel pestello, l'erba resta solo erba. 1.82m | 240kg Morte Materna Aspetto Fisico È una figura femminile dall’aspetto inquietante e soprannaturale. La pelle ha un tono grigio-verdastro, opaco e leggermente screziato, che le conferisce un’aria fredda e marmorea. Il viso è dai lineamenti delicati ma severi: zigomi pronunciati, labbra piene ma pallide e un’espressione impassibile. Gli occhi sono di un giallo intenso e luminoso, quasi fosforescenti. I capelli sono lunghi, folti e ondulati, di un rosso ramato che contrasta con l’incarnato spento. Incorniciano il volto e sc..."
     },
     {
       "id": "quest-group:ginevra_quests",
@@ -145,7 +145,7 @@
         "quest",
         "npc"
       ],
-      "content": "Liberare Ginevra dalla sua forma Ricordo Costruito"
+      "content": "Liberare Ginevra dalla sua forma Ricordo Costruito Trovare un appetitoso minerale grezzo"
     },
     {
       "id": "family:ginevra",
@@ -208,8 +208,7 @@
       "subtitle": "Famiglia Von T",
       "url": "pages/famiglia-von-t.html",
       "tags": [
-        "family",
-        "von-t"
+        "family"
       ],
       "content": "Leonora Membro della Famiglia Von T"
     },
@@ -301,9 +300,9 @@
       "url": "pages/characters/character.html?id=randra&type=player",
       "tags": [
         "player",
-        "Eladrin (Estate)"
+        "Eladrin"
       ],
-      "content": "Maga dallo stile imprevedibile, unisce astuzia, illusioni e iniziativa per aprire strade dove sembrano non essercene. Tra furti decisivi, scelte rischiose e combattimenti al limite, continua a essere una risorsa tattica centrale per il gruppo. Eladrin (Estate) N/A 1.65m Contemporaneo N/A"
+      "content": "Maga dallo stile imprevedibile, unisce astuzia, illusioni e iniziativa per aprire strade dove sembrano non essercene. Tra furti decisivi, scelte rischiose e combattimenti al limite, continua a essere una risorsa tattica centrale per il gruppo. Eladrin 16 anni N/A 1,67 m 59 kg Contemporaneo N/A"
     },
     {
       "id": "family:rendar",
@@ -572,7 +571,7 @@
         "player",
         "Nano"
       ],
-      "content": "Artefice e mente tecnica del party, combina studio arcano, invenzione e sangue freddo per gestire minacce fuori scala. Ha risolto enigmi, sigillato aree letali e recuperato risorse cruciali, diventando il principale riferimento strategico nelle decisioni operative. Nano N/A 1.50m 74 N/A"
+      "content": "Artefice e mente tecnica del party, combina studio arcano, invenzione e sangue freddo per gestire minacce fuori scala. Ha risolto enigmi, sigillato aree letali e recuperato risorse cruciali, diventando il principale riferimento strategico nelle decisioni operative. Nano 74 anni N/A 1,50 m 150 lbs (68 kg) 74 N/A"
     },
     {
       "id": "npc:x",
