@@ -588,5 +588,145 @@
         "connections": []
       }
     ]
+  },
+  "theldarion": {
+    "bgImage": "tree_theldarion.webp",
+    "nodes": [
+      {
+        "id": 1,
+        "x": 50,
+        "y": 65,
+        "icon": "tree_theldarion.webp",
+        "title": "Intelletto Arcano",
+        "flavor": "Trasformi la logica in istinto da battaglia.",
+        "desc": "<p>Quando effettui un tiro per colpire o per i danni con un'arma finesse (o che ti consentirebbe di usare Destrezza), puoi usare il tuo modificatore di Intelligenza al posto di Destrezza.</p><p>Inoltre, Intelligenza è la tua caratteristica da incantatore per tutti gli incantesimi che lanci, indipendentemente dalla classe, razza o origine.</p><p>Infine, quando i tuoi punti ferita scendono a 0, puoi usare la tua reazione per trasformarti immediatamente in forma gassosa, muoverti fino a 60 piedi verso uno spazio libero che puoi occupare, tornare materiale e recuperare 1d10 + modificatore di Intelligenza punti ferita.</p><p>Dopo l'uso, non puoi riutilizzare questa capacità finché non completi un riposo lungo.</p>",
+        "keyNode": true,
+        "state": "unlocked",
+        "connections": [
+          2
+        ]
+      },
+      {
+        "id": 2,
+        "x": 50,
+        "y": 55,
+        "icon": "tree_theldarion.webp",
+        "title": "Ragionamento Preciso",
+        "flavor": "Analizzi il caos in tempo reale e correggi l'errore.",
+        "desc": "<p>Quando effettui una prova di caratteristica, un tiro salvezza o un tiro per colpire, puoi scegliere di applicare Ragionamento Preciso prima di conoscere l'esito del tiro.</p><p>Tira 1d6 e aggiungi il risultato al tiro.</p><p>Puoi usare questa capacità un numero di volte pari al tuo modificatore di Intelligenza (minimo 1). Recuperi tutti gli usi spesi quando completi un riposo lungo.</p><p>Ogni volta che ottieni un 20 naturale su un tiro salvezza o su un tiro per colpire, recuperi un uso di Ragionamento Preciso.</p>",
+        "state": "unlockable",
+        "connections": [
+          3,
+          4
+        ]
+      },
+      {
+        "id": 3,
+        "x": 28,
+        "y": 55,
+        "icon": "tree_theldarion.webp",
+        "title": "Attività Ragionata",
+        "flavor": "Ogni azione viene perfezionata prima ancora di compiersi.",
+        "desc": "<p>Quando usi Ragionamento Preciso per migliorare una prova di caratteristica, puoi scegliere di ottenere anche vantaggio su quel tiro.</p><p>Inoltre, puoi lanciare Counterspell una volta senza spendere uno slot incantesimo. Recuperi questa capacità al riposo lungo.</p>",
+        "connections": [
+          5
+        ]
+      },
+      {
+        "id": 4,
+        "x": 72,
+        "y": 55,
+        "icon": "tree_theldarion.webp",
+        "title": "Salvaculo Ragionato",
+        "flavor": "Anche quando tutto crolla, il tuo calcolo ti tiene in piedi.",
+        "desc": "<p>Quando usi Ragionamento Preciso per migliorare un tiro salvezza, puoi scegliere di ottenere anche vantaggio su quel tiro.</p><p>Inoltre, se possiedi Eludere (Evasion), si applica anche agli effetti che consentono un tiro salvezza su Intelligenza per dimezzare i danni.</p>",
+        "connections": [
+          5
+        ]
+      },
+      {
+        "id": 5,
+        "x": 50,
+        "y": 45,
+        "icon": "tree_theldarion.webp",
+        "title": "Colpo Ragionato",
+        "flavor": "La precisione diventa offensiva pura.",
+        "desc": "<p>Quando usi Ragionamento Preciso per migliorare un tiro per colpire, puoi scegliere di ottenere anche vantaggio su quel tiro.</p><p>Inoltre, ogni volta che metti a segno un colpo critico con un attacco che infligge anche i danni del tuo Attacco Furtivo, recuperi un uso di Ragionamento Preciso.</p>",
+        "connections": [
+          6
+        ]
+      },
+      {
+        "id": 6,
+        "x": 50,
+        "y": 35,
+        "icon": "tree_theldarion.webp",
+        "title": "Egocentrismo Altruista",
+        "flavor": "Correggi gli altri per istinto, e funziona.",
+        "desc": "<p>Quando una creatura che puoi vedere entro 60 piedi da te effettua una prova di caratteristica, un tiro salvezza o un tiro per colpire, puoi usare la tua reazione e spendere 1 uso di Ragionamento Preciso per guidarla mentalmente.</p><p>Quella creatura ottiene vantaggio sul tiro e può aggiungere il tuo dado di Ragionamento Preciso al risultato.</p><p>Puoi usare questa capacità prima di vedere il tiro per colpire.</p>",
+        "connections": [
+          7,
+          8
+        ]
+      },
+      {
+        "id": 7,
+        "x": 25,
+        "y": 45,
+        "icon": "tree_theldarion.webp",
+        "title": "Egocentrismo Altruista Migliorato",
+        "flavor": "La tua guida mentale diventa dominante.",
+        "desc": "<p>Il tuo dado di Ragionamento Preciso aumenta di una categoria: da d6 a d8.</p><p>Quando usi Egocentrismo Altruista, la creatura bersaglio tira 3d20 invece di 2d20 per il vantaggio e usa il risultato più alto.</p><p>Ogni volta che una creatura sotto l'effetto del tuo Egocentrismo Altruista ottiene un 20 naturale, recuperi un uso di Ragionamento Preciso.</p>",
+        "connections": [
+          9
+        ]
+      },
+      {
+        "id": 8,
+        "x": 75,
+        "y": 45,
+        "icon": "tree_theldarion.webp",
+        "title": "Egocentrismo e Basta",
+        "flavor": "Ora la tua logica serve solo a vincere.",
+        "desc": "<p>Quando una creatura che puoi vedere effettua un tiro per colpire contro di te, puoi usare la tua reazione e spendere 1 uso di Ragionamento Preciso per sabotarne mentalmente l'azione.</p><p>La creatura tira 3d20 per il tiro per colpire e usa il risultato più basso. Inoltre, sottrai il tuo dado di Ragionamento Preciso dal tiro per colpire.</p><p>Se usi questa capacità, quell'attacco non può beneficiare di vantaggio.</p><p>Se la creatura ottiene un 1 naturale su questo tiro, recuperi un uso di Ragionamento Preciso.</p>",
+        "connections": [
+          10
+        ]
+      },
+      {
+        "id": 9,
+        "x": 28,
+        "y": 35,
+        "icon": "tree_theldarion.webp",
+        "title": "Spiegazione Inconscia",
+        "flavor": "I tuoi alleati seguono i tuoi processi mentali senza rendersene conto.",
+        "desc": "<p><strong>Prerequisito:</strong> Egocentrismo Altruista Migliorato.</p><p>Quando tiri per l'iniziativa o partecipi a una prova di caratteristica di gruppo, puoi spendere 1 uso di Ragionamento Preciso per trasmettere inconsciamente ai tuoi alleati il tuo processo mentale.</p><p>Scegli un numero di creature alleate entro 60 piedi da te pari al tuo modificatore di Intelligenza (minimo 1), oppure tutti i tuoi alleati entro gittata, a discrezione del DM per bilanciamento.</p><p>Entro il minuto successivo, ciascuna creatura scelta può consumare questo beneficio per ottenere gli effetti di Egocentrismo Altruista su un proprio tiro, senza richiedere la tua reazione.</p><p>Una creatura può beneficiare di Spiegazione Inconscia una sola volta per utilizzo della capacità.</p>",
+        "connections": [
+          11
+        ]
+      },
+      {
+        "id": 10,
+        "x": 72,
+        "y": 35,
+        "icon": "tree_theldarion.webp",
+        "title": "Cazzi degli Altri",
+        "flavor": "Ribalti l'offensiva altrui analizzandone ogni falla.",
+        "desc": "<p><strong>Prerequisito:</strong> Egocentrismo e Basta.</p><p>Quando una creatura che puoi vedere entro 60 piedi da te ti colpisce con un attacco, puoi usare la tua reazione e spendere 1 uso di Ragionamento Preciso per analizzarne ogni errore.</p><p>Tira il tuo dado di Ragionamento Preciso e riduci i danni che subisci di un ammontare pari al risultato + il tuo modificatore di Intelligenza.</p><p>Se riduci i danni dell'attacco a 0, l'attaccante subisce danni psichici pari al tuo modificatore di Intelligenza e recuperi un uso di Ragionamento Preciso.</p>",
+        "connections": [
+          11
+        ]
+      },
+      {
+        "id": 11,
+        "x": 50,
+        "y": 25,
+        "icon": "tree_theldarion.webp",
+        "title": "Mente Oltre il Tempo",
+        "flavor": "La tua mente accelera oltre il ritmo naturale del mondo.",
+        "desc": "<p>Il tuo dado di Ragionamento Preciso aumenta di una categoria: da d6 a d8, oppure da d8 a d10.</p><p>Inoltre, una volta per riposo breve, quando tiri per l'iniziativa, puoi lanciare Time Stop senza spendere uno slot incantesimo.</p><p>Fino al termine di quell'incantesimo, ogni tua prova di caratteristica, tiro per colpire e tiro salvezza beneficia automaticamente degli effetti di Ragionamento Preciso, senza consumarne usi.</p>",
+        "connections": []
+      }
+    ]
   }
 }

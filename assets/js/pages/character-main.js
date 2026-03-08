@@ -1562,7 +1562,8 @@ function parseYamlLite(yamlText) {
                     displayError(`Personaggio con ID '${charId}' non trovato.`);
                     return;
                 }
-                if (window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers() && !window.WikiSpoiler.isVisible(character)) {
+                // Keep spoiler lock for NPCs, but allow direct links to hidden players.
+                if (charType !== 'player' && window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers() && !window.WikiSpoiler.isVisible(character)) {
                     displayError(`Personaggio con ID '${charId}' non trovato.`);
                     return;
                 }

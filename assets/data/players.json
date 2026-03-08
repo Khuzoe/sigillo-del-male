@@ -83,5 +83,27 @@
       "cause_of_death": "N/A"
     },
     "content_blocks": []
+  },
+  {
+    "id": "theldarion",
+    "name": "Theldarion",
+    "role": "Incantatore Tattico",
+    "hidden": true,
+    "description": "Mente analitica e spietata: trasforma intuizione, logica e autocontrollo in vantaggi concreti sul campo di battaglia.",
+    "images": {
+      "avatar": "img/players/theldarion_transp.webp",
+      "hover": "img/players/theldarion.webp",
+      "portrait": "img/players/theldarion.webp"
+    },
+    "summary": {
+      "race": "Non disponibile",
+      "age": "Non disponibile",
+      "age_at_death": "N/A",
+      "height": "Non disponibile",
+      "weight": "Non disponibile",
+      "period": "Contemporaneo",
+      "cause_of_death": "N/A"
+    },
+    "content_blocks": []
   }
 ]
