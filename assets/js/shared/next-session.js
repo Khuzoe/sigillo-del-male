@@ -1009,9 +1009,6 @@
                             <i class="fas fa-pen"></i>
                         </button>
                     ` : ''}
-                    <button type="button" class="next-session-export-trigger" data-export-session-card="scheduled" aria-label="Esporta card sessione">
-                        <i class="fas fa-download"></i>
-                    </button>
                     ${config.availabilityOptions?.length ? `
                         <button type="button" class="next-session-view-trigger" data-view-mode="${VIEW_MODES.poll}" aria-label="Mostra sondaggio disponibilita">
                             <i class="fas fa-table"></i>
