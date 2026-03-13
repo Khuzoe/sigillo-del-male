@@ -1231,6 +1231,12 @@
         const authToken = typeof window.CriptaDiscordAuth?.getToken === 'function'
             ? window.CriptaDiscordAuth.getToken()
             : '';
+        const orderedPlayers = [...players].sort((left, right) => {
+            const leftIsCurrent = Boolean(currentDiscordId) && Boolean(left.discordId) && left.discordId === currentDiscordId;
+            const rightIsCurrent = Boolean(currentDiscordId) && Boolean(right.discordId) && right.discordId === currentDiscordId;
+            if (leftIsCurrent === rightIsCurrent) return 0;
+            return leftIsCurrent ? -1 : 1;
+        });
         const canConfigureSession = (
             Boolean(currentDiscordId)
             && Boolean(effectiveConfig.dmDiscordId)
@@ -1245,7 +1251,7 @@
             console.warn('Session votes API non raggiungibile, uso fallback locale.', error);
         }
 
-        let votes = players.map((player) => {
+        let votes = orderedPlayers.map((player) => {
             const existingVote = baseVotes.find((vote) => vote.playerId === player.id);
             return existingVote || {
                 playerId: player.id,
@@ -1270,7 +1276,7 @@
         };
 
         function decorateVotes(baseVoteList) {
-            return players.map((player) => {
+            return orderedPlayers.map((player) => {
                 const existingVote = baseVoteList.find((vote) => vote.playerId === player.id);
                 return existingVote || {
                     playerId: player.id,
@@ -1324,9 +1330,18 @@
         }
 
         function rerender() {
+            const previousTableWrap = container.querySelector('.availability-table-wrap');
+            const previousScroll = {
+                pageX: window.scrollX,
+                pageY: window.scrollY,
+                tableLeft: previousTableWrap ? previousTableWrap.scrollLeft : 0,
+                tableTop: previousTableWrap ? previousTableWrap.scrollTop : 0
+            };
+
             container.innerHTML = buildPollMarkup(effectiveConfig, options, votes, statusMessage, canConfigureSession, editorState);
             const table = container.querySelector('.availability-table');
             const card = container.querySelector('.next-session-card-poll');
+            const tableWrap = container.querySelector('.availability-table-wrap');
             const existingModal = document.querySelector('.next-session-editor-modal');
             if (existingModal) {
                 existingModal.remove();
@@ -1337,6 +1352,18 @@
                 document.body.insertAdjacentHTML('beforeend', buildEditorModalMarkup(editorState));
             }
             const modal = document.querySelector('.next-session-editor-modal');
+
+            if (tableWrap) {
+                window.requestAnimationFrame(() => {
+                    tableWrap.scrollLeft = previousScroll.tableLeft;
+                    tableWrap.scrollTop = previousScroll.tableTop;
+                    window.scrollTo(previousScroll.pageX, previousScroll.pageY);
+                });
+            } else {
+                window.requestAnimationFrame(() => {
+                    window.scrollTo(previousScroll.pageX, previousScroll.pageY);
+                });
+            }
 
             if (table) {
                 table.addEventListener('click', async (event) => {
