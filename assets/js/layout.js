@@ -2,6 +2,8 @@ const SIDEBAR_CACHE_KEY = "wiki_sidebar_html_v1";
 const DISCORD_WORKER_URL = "https://sigillo-api.khuzoe.workers.dev";
 const DISCORD_TOKEN_KEY = "discord_jwt";
 const prefetchedUrls = new Set();
+let discordAuthCache = null;
+let discordAuthPromise = null;
 
 document.addEventListener("DOMContentLoaded", function () {
     const scriptTag = document.querySelector('script[src*="layout.js"]');
@@ -243,27 +245,13 @@ async function refreshAuthUI(scope) {
     logoutBtn.hidden = false;
 
     try {
-        const response = await fetch(`${DISCORD_WORKER_URL}/auth/discord/verify`, {
-            method: "GET",
-            headers: { Authorization: `Bearer ${token}` }
-        });
-
-        if (!response.ok) {
-            if (response.status === 401 || response.status === 403) {
-                clearStoredToken();
-            }
+        const authState = await verifyDiscordAuth();
+        if (!authState?.user) {
             setLoggedOutState(status, loginBtn, logoutBtn);
             return;
         }
 
-        const data = await response.json();
-        if (!data?.user) {
-            clearStoredToken();
-            setLoggedOutState(status, loginBtn, logoutBtn);
-            return;
-        }
-
-        const username = data.user.global_name || data.user.username || "utente Discord";
+        const username = authState.user.global_name || authState.user.username || "utente Discord";
         status.textContent = `Loggato come ${username}`;
         loginBtn.hidden = true;
         logoutBtn.hidden = false;
@@ -291,6 +279,8 @@ function readStoredToken() {
 function storeToken(token) {
     try {
         window.localStorage.setItem(DISCORD_TOKEN_KEY, token);
+        discordAuthCache = null;
+        discordAuthPromise = null;
     } catch (_) {
         // Ignore storage restrictions
     }
@@ -299,7 +289,58 @@ function storeToken(token) {
 function clearStoredToken() {
     try {
         window.localStorage.removeItem(DISCORD_TOKEN_KEY);
+        discordAuthCache = null;
+        discordAuthPromise = null;
     } catch (_) {
         // Ignore storage restrictions
     }
 }
+
+async function verifyDiscordAuth() {
+    if (discordAuthCache?.user) {
+        return discordAuthCache;
+    }
+
+    if (discordAuthPromise) {
+        return discordAuthPromise;
+    }
+
+    const token = readStoredToken();
+    if (!token) {
+        return null;
+    }
+
+    discordAuthPromise = (async () => {
+        try {
+            const response = await fetch(`${DISCORD_WORKER_URL}/auth/discord/verify`, {
+                method: "GET",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    clearStoredToken();
+                }
+                return null;
+            }
+
+            const data = await response.json();
+            if (!data?.user) {
+                clearStoredToken();
+                return null;
+            }
+
+            discordAuthCache = data;
+            return data;
+        } finally {
+            discordAuthPromise = null;
+        }
+    })();
+
+    return discordAuthPromise;
+}
+
+window.CriptaDiscordAuth = {
+    getToken: readStoredToken,
+    verify: verifyDiscordAuth
+};
