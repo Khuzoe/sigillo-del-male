@@ -116,7 +116,7 @@
             ? aggregateFlatVotes(votes)
             : votes;
 
-        return normalizedVotes
+        const sanitized = normalizedVotes
             .map((vote) => {
                 const rawPlayerId = String(vote?.playerId || vote?.id || '').trim();
                 const rawName = String(vote?.name || '').trim();
@@ -149,6 +149,26 @@
                 };
             })
             .filter(Boolean);
+
+        const mergedByPlayerId = new Map();
+        sanitized.forEach((vote) => {
+            const existing = mergedByPlayerId.get(vote.playerId);
+            if (!existing) {
+                mergedByPlayerId.set(vote.playerId, vote);
+                return;
+            }
+
+            mergedByPlayerId.set(vote.playerId, {
+                ...existing,
+                ...vote,
+                selections: {
+                    ...existing.selections,
+                    ...vote.selections
+                }
+            });
+        });
+
+        return Array.from(mergedByPlayerId.values());
     }
 
     function aggregateFlatVotes(votes) {
