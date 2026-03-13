@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         const sessions = data.sessions.slice().reverse();
         const nextSessionConfig = data.nextSession;
 
-        renderNextSession(nextSessionConfig);
+        window.CriptaNextSession?.render(nextSessionConfig, document.getElementById('next-session-container'));
         renderSessionNav(sessions);
         renderTimeline(sessions);
 
@@ -18,87 +18,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         document.getElementById('timeline-container').innerHTML = '<p style="color: var(--red);">Impossibile caricare le sessioni.</p>';
     }
 });
-
-function renderNextSession(config) {
-    const container = document.getElementById('next-session-container');
-    if (!container) return;
-
-    const monthMap = {
-        "Gennaio": "January", "Febbraio": "February", "Marzo": "March",
-        "Aprile": "April", "Maggio": "May", "Giugno": "June",
-        "Luglio": "July", "Agosto": "August", "Settembre": "September",
-        "Ottobre": "October", "Novembre": "November", "Dicembre": "December"
-    };
-
-    if (config.isScheduled) {
-        let dateStr = config.date;
-        for (let [it, en] of Object.entries(monthMap)) {
-            dateStr = dateStr.replace(it, en);
-        }
-        const targetDate = new Date(`${dateStr} ${config.timeStart}:00`).getTime();
-
-        container.innerHTML = `
-            <div class="next-session-card">
-                <span class="next-label">Prossima Sessione</span>
-                <h2 class="next-title text-gold-gradient">Sessione ${config.number}</h2>
-                <div class="next-details">
-                    <div class="detail-item">
-                        <span class="detail-label">Data</span>
-                        <span class="detail-value"><i class="far fa-calendar-alt" style="margin-right: 8px; color: var(--gold);"></i> ${config.date}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Orario</span>
-                        <span class="detail-value"><i class="far fa-clock" style="margin-right: 8px; color: var(--gold);"></i> ${config.timeStart} - ${config.timeEnd}</span>
-                    </div>
-                </div>
-                <div class="countdown-container" id="countdown">
-                    <div class="countdown-box"><span class="count-number" id="d">00</span><span class="count-label">Giorni</span></div>
-                    <div class="countdown-box"><span class="count-number" id="h">00</span><span class="count-label">Ore</span></div>
-                    <div class="countdown-box"><span class="count-number" id="m">00</span><span class="count-label">Minuti</span></div>
-                    <div class="countdown-box"><span class="count-number" id="s">00</span><span class="count-label">Secondi</span></div>
-                </div>
-            </div>
-        `;
-        startCountdown(targetDate);
-    } else {
-        container.innerHTML = `
-            <div class="next-session-card" style="border-color: #555;">
-                <span class="next-label">Prossima Sessione</span>
-                <h2 class="next-title" style="color: #aaa;">Sessione ${config.number}</h2>
-                <div class="tbd-message">
-                    <i class="fas fa-hourglass-half" style="margin-right: 10px;"></i>
-                    Da Fissare
-                </div>
-            </div>
-        `;
-    }
-}
-
-function startCountdown(targetDate) {
-    const countdownEl = document.getElementById('countdown');
-    if (!countdownEl) return;
-
-    function update() {
-        const now = new Date().getTime();
-        const distance = targetDate - now;
-
-        if (distance < 0) {
-            if (distance > -14400000) {
-                countdownEl.innerHTML = '<div class="session-live">SESSIONE IN CORSO!</div>';
-            } else {
-                countdownEl.innerHTML = '<div class="session-live" style="color:#aaa">SESSIONE CONCLUSA</div>';
-            }
-            return;
-        }
-
-        document.getElementById('d').innerText = Math.floor(distance / (1000 * 60 * 60 * 24)).toString().padStart(2, '0');
-        document.getElementById('h').innerText = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)).toString().padStart(2, '0');
-        document.getElementById('m').innerText = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)).toString().padStart(2, '0');
-        document.getElementById('s').innerText = Math.floor((distance % (1000 * 60)) / 1000).toString().padStart(2, '0');
-    }
-    update();
-    setInterval(update, 1000);
-}
 
 function renderSessionNav(sessions) {
     const navContainer = document.getElementById('session-nav-container');
