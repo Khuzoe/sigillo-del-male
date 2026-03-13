@@ -4,7 +4,7 @@
         : 'https://sigillo-api.khuzoe.workers.dev';
     const SESSION_API_URL = `${API_BASE_URL}/api/session`;
     const SESSION_VOTES_API_URL = `${API_BASE_URL}/api/session-votes`;
-    const SESSION_CARD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1389662474076291162/v2ovyl75_90JRYzQOZqMxMRHV8SE04GVHOxvu-WyZpqbcDPtOCi96wysEBpRJp8rW3l2';
+    const SESSION_CARD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1482056374731931860/7ls24iTa_HMAgwwTbY8Qc96tf79LOxk3f6epN_iW6PHDgI51Dg70UkKgFT5aVQSZRM03';
     const STORAGE_PREFIX = 'cripta-next-session-votes';
     const NEXT_SESSION_CONFIG_OVERRIDE_KEY = 'cripta-next-session-config-override';
     const PLAYERS_DATA_PATH = 'data/players.json';
@@ -441,7 +441,7 @@
         const { blob, filename } = await renderSessionCardPngBlob(effectiveConfig, viewMode);
         const formData = new FormData();
         const content = effectiveConfig.isScheduled
-            ? `Sessione ${effectiveConfig.number} fissata: ${effectiveConfig.date} · ${effectiveConfig.timeStart} - ${effectiveConfig.timeEnd}`
+            ? `@everyone Sessione ${effectiveConfig.number} fissata: ${effectiveConfig.date} · ${effectiveConfig.timeStart} - ${effectiveConfig.timeEnd}`
             : `Sessione ${effectiveConfig.number} - card generata`;
 
         formData.append('content', content);
