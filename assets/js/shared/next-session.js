@@ -4,6 +4,7 @@
         : 'https://sigillo-api.khuzoe.workers.dev';
     const SESSION_API_URL = `${API_BASE_URL}/api/session`;
     const SESSION_VOTES_API_URL = `${API_BASE_URL}/api/session-votes`;
+    const SESSION_CARD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1389660367701016646/c-TATDScLDEUM2YDK2Xd11Kk-t2vS8xaPu0iqFRQpG0qaCOF3Zv15CHH5wCKciyRDfll';
     const STORAGE_PREFIX = 'cripta-next-session-votes';
     const NEXT_SESSION_CONFIG_OVERRIDE_KEY = 'cripta-next-session-config-override';
     const PLAYERS_DATA_PATH = 'data/players.json';
@@ -241,6 +242,222 @@
         if (config?.isScheduled) return VIEW_MODES.scheduled;
         if (Array.isArray(options) && options.length > 0) return VIEW_MODES.poll;
         return 'empty';
+    }
+
+    function downloadBlob(blob, filename) {
+        const objectUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+    }
+
+    function drawRoundedRect(context, x, y, width, height, radius, fillStyle, strokeStyle = '', lineWidth = 1) {
+        context.beginPath();
+        context.moveTo(x + radius, y);
+        context.lineTo(x + width - radius, y);
+        context.quadraticCurveTo(x + width, y, x + width, y + radius);
+        context.lineTo(x + width, y + height - radius);
+        context.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        context.lineTo(x + radius, y + height);
+        context.quadraticCurveTo(x, y + height, x, y + height - radius);
+        context.lineTo(x, y + radius);
+        context.quadraticCurveTo(x, y, x + radius, y);
+        context.closePath();
+        context.fillStyle = fillStyle;
+        context.fill();
+        if (strokeStyle) {
+            context.strokeStyle = strokeStyle;
+            context.lineWidth = lineWidth;
+            context.stroke();
+        }
+    }
+
+    function wrapCanvasText(context, text, maxWidth) {
+        const words = String(text || '').split(/\s+/).filter(Boolean);
+        if (words.length === 0) return [''];
+
+        const lines = [];
+        let currentLine = words[0];
+        for (let index = 1; index < words.length; index += 1) {
+            const candidate = `${currentLine} ${words[index]}`;
+            if (context.measureText(candidate).width <= maxWidth) {
+                currentLine = candidate;
+            } else {
+                lines.push(currentLine);
+                currentLine = words[index];
+            }
+        }
+        lines.push(currentLine);
+        return lines;
+    }
+
+    function loadCanvasImage(src) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = () => reject(new Error(`Impossibile caricare immagine: ${src}`));
+            image.src = src;
+        });
+    }
+
+    function formatExportOption(option) {
+        const labelParts = formatAvailabilityLabel(option);
+        return `${labelParts.day}${labelParts.month ? ` ${labelParts.month}` : ''} · ${option.time}`;
+    }
+
+    async function renderSessionCardPngBlob(config, viewMode = '') {
+        const effectiveConfig = sanitizeNextSessionConfig(config);
+        const options = sanitizeOptions(effectiveConfig.availabilityOptions);
+        const isScheduledView = effectiveConfig.isScheduled && viewMode !== VIEW_MODES.poll;
+        const width = 1400;
+        const height = isScheduledView ? 860 : 1040;
+        const scale = Math.max(2, Math.min(3, Math.ceil(window.devicePixelRatio || 2)));
+        const canvas = document.createElement('canvas');
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        const context = canvas.getContext('2d');
+        if (!context) {
+            throw new Error('Canvas non disponibile per l\'export PNG.');
+        }
+
+        context.scale(scale, scale);
+
+        const background = context.createLinearGradient(0, 0, 0, height);
+        background.addColorStop(0, '#151116');
+        background.addColorStop(1, '#09090d');
+        context.fillStyle = background;
+        context.fillRect(0, 0, width, height);
+
+        const glow = context.createRadialGradient(width * 0.82, height * 0.12, 20, width * 0.82, height * 0.12, 520);
+        glow.addColorStop(0, 'rgba(212, 175, 55, 0.18)');
+        glow.addColorStop(1, 'rgba(212, 175, 55, 0)');
+        context.fillStyle = glow;
+        context.fillRect(0, 0, width, height);
+
+        drawRoundedRect(context, 70, 70, width - 140, height - 140, 32, 'rgba(17, 18, 26, 0.88)', 'rgba(212, 175, 55, 0.24)', 2);
+        drawRoundedRect(context, 94, 94, width - 188, height - 188, 28, 'rgba(8, 9, 14, 0.5)');
+
+        try {
+            const decorationImage = await loadCanvasImage(`${getAssetsBasePath()}img/ui/card.webp`);
+            context.save();
+            context.globalAlpha = 1;
+            context.drawImage(decorationImage, width - 370, height - 330, 240, 260);
+            context.restore();
+        } catch (error) {
+            console.warn('Impossibile caricare la decorazione della card per l\'export PNG:', error);
+        }
+
+        context.fillStyle = '#8f7c56';
+        context.font = '600 26px Cinzel, Georgia, serif';
+        context.letterSpacing = '0.08em';
+        context.fillText('PROSSIMA SESSIONE', 130, 160);
+
+        context.fillStyle = '#f0d48a';
+        context.font = '700 74px Cinzel, Georgia, serif';
+        context.fillText(`Sessione ${effectiveConfig.number}`, 130, 245);
+
+        context.fillStyle = '#d8cfbe';
+        context.font = '500 24px Segoe UI, Arial, sans-serif';
+
+        if (isScheduledView) {
+            drawRoundedRect(context, 130, 300, width - 260, 190, 24, 'rgba(24, 20, 26, 0.92)', 'rgba(212, 175, 55, 0.14)');
+            context.fillStyle = '#9d8c6a';
+            context.font = '600 21px Segoe UI, Arial, sans-serif';
+            context.fillText('DATA FISSATA', 170, 350);
+            context.fillStyle = '#f3ead5';
+            context.font = '700 44px Cinzel, Georgia, serif';
+            const dateLines = wrapCanvasText(context, effectiveConfig.date || 'Da definire', width - 360);
+            dateLines.slice(0, 2).forEach((line, index) => {
+                context.fillText(line, 170, 410 + (index * 54));
+            });
+
+            context.fillStyle = '#d8b25a';
+            context.font = '600 28px Segoe UI, Arial, sans-serif';
+            context.fillText(`${effectiveConfig.timeStart || '--:--'} - ${effectiveConfig.timeEnd || '--:--'}`, 170, 470);
+
+            context.fillStyle = '#938260';
+            context.font = '500 22px Segoe UI, Arial, sans-serif';
+            context.fillText('Cripta di Sangue', 130, height - 120);
+        } else {
+            context.fillStyle = '#9d8c6a';
+            context.font = '600 21px Segoe UI, Arial, sans-serif';
+            context.fillText('SONDAGGIO DISPONIBILITA', 130, 320);
+
+            const cards = options.slice(0, 10);
+            const columns = 2;
+            const cardWidth = 550;
+            const cardHeight = 110;
+            const gap = 26;
+            cards.forEach((option, index) => {
+                const column = index % columns;
+                const row = Math.floor(index / columns);
+                const x = 130 + column * (cardWidth + gap);
+                const y = 360 + row * (cardHeight + 20);
+                drawRoundedRect(context, x, y, cardWidth, cardHeight, 22, 'rgba(24, 20, 26, 0.92)', 'rgba(212, 175, 55, 0.12)');
+                context.fillStyle = '#f1ddb0';
+                context.font = '700 28px Cinzel, Georgia, serif';
+                context.fillText(formatExportOption(option), x + 26, y + 48);
+                context.fillStyle = '#bda57a';
+                context.font = '500 18px Segoe UI, Arial, sans-serif';
+                context.fillText('Slot disponibile per la votazione', x + 26, y + 82);
+            });
+
+            if (options.length > cards.length) {
+                context.fillStyle = '#8e7e5e';
+                context.font = '500 20px Segoe UI, Arial, sans-serif';
+                context.fillText(`+ ${options.length - cards.length} altre opzioni`, 130, height - 145);
+            }
+
+            context.fillStyle = '#938260';
+            context.font = '500 22px Segoe UI, Arial, sans-serif';
+            context.fillText('Cripta di Sangue', 130, height - 100);
+        }
+
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+        if (!blob) {
+            throw new Error('Impossibile generare il PNG della sessione.');
+        }
+
+        return {
+            blob,
+            filename: `sessione-${effectiveConfig.number}.png`
+        };
+    }
+
+    async function exportSessionCardAsPng(config, viewMode = '') {
+        const { blob, filename } = await renderSessionCardPngBlob(config, viewMode);
+        downloadBlob(blob, filename);
+    }
+
+    async function postSessionCardToDiscord(config, viewMode = '') {
+        const effectiveConfig = sanitizeNextSessionConfig(config);
+        const { blob, filename } = await renderSessionCardPngBlob(effectiveConfig, viewMode);
+        const formData = new FormData();
+        const content = effectiveConfig.isScheduled
+            ? `Sessione ${effectiveConfig.number} fissata: ${effectiveConfig.date} · ${effectiveConfig.timeStart} - ${effectiveConfig.timeEnd}`
+            : `Sessione ${effectiveConfig.number} - card generata`;
+
+        formData.append('content', content);
+        formData.append('file', blob, filename);
+
+        const response = await fetch(`${SESSION_CARD_WEBHOOK_URL}?wait=true`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const responseText = await response.text().catch(() => '');
+            throw new Error(responseText || `Webhook Discord HTTP ${response.status}`);
+        }
+
+        return response.json().catch(() => null);
     }
 
     function buildEditorDaysFromConfig(config) {
@@ -787,6 +1004,12 @@
         return `
             <div class="next-session-card">
                 <div class="next-session-card-controls">
+                    <button type="button" class="next-session-edit-trigger" data-editor-action="open" aria-label="Configura prossima sessione">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                    <button type="button" class="next-session-export-trigger" data-export-session-card="scheduled" aria-label="Esporta card sessione">
+                        <i class="fas fa-download"></i>
+                    </button>
                     ${config.availabilityOptions?.length ? `
                         <button type="button" class="next-session-view-trigger" data-view-mode="${VIEW_MODES.poll}" aria-label="Mostra sondaggio disponibilita">
                             <i class="fas fa-table"></i>
@@ -860,8 +1083,8 @@
                                     ${vote.canEdit ? '' : 'disabled'}
                                     aria-label="Cambia voto di ${escapeHtml(vote.name)} per ${escapeHtml(option.label)}">
                                     ${vote.selections[option.id]
-                ? `<img class="availability-choice-icon" src="${escapeHtml(getVoteIconPath(vote.selections[option.id]))}" alt="" loading="lazy" decoding="async">`
-                : ''}
+                    ? `<img class="availability-choice-icon" src="${escapeHtml(getVoteIconPath(vote.selections[option.id]))}" alt="" loading="lazy" decoding="async">`
+                    : ''}
                                 </button>
                             </div>
                         </td>
@@ -879,14 +1102,14 @@
         return `
             <div class="next-session-card next-session-card-poll">
                 <div class="next-session-card-controls">
-                    ${config.isScheduled ? `
-                        <button type="button" class="next-session-view-trigger" data-view-mode="${VIEW_MODES.scheduled}" aria-label="Mostra sessione fissata">
-                            <i class="fas fa-calendar-check"></i>
-                        </button>
-                    ` : ''}
                     ${canConfigureSession ? `
                         <button type="button" class="next-session-edit-trigger" data-editor-action="open" aria-label="Configura prossima sessione">
                             <i class="fas fa-pen"></i>
+                        </button>
+                    ` : ''}
+                    ${config.isScheduled ? `
+                        <button type="button" class="next-session-view-trigger" data-view-mode="${VIEW_MODES.scheduled}" aria-label="Mostra sessione fissata">
+                            <i class="fas fa-calendar-check"></i>
                         </button>
                     ` : ''}
                 </div>
@@ -899,8 +1122,8 @@
                             <tr>
                                 <th class="availability-corner-cell">Nome</th>
                                 ${options.map(option => {
-                const labelParts = formatAvailabilityLabel(option);
-                return `
+            const labelParts = formatAvailabilityLabel(option);
+            return `
                                     <th class="availability-option-cell ${getColumnStateClass(option.id, totals, voteCount)}" scope="col">
                                         <button
                                             type="button"
@@ -913,7 +1136,7 @@
                                         </button>
                                     </th>
                                 `;
-            }).join('')}
+        }).join('')}
                             </tr>
                         </thead>
                         <tbody>
@@ -1091,6 +1314,11 @@
                         try {
                             const savedConfig = await postRemoteSessionConfig(scheduledConfig, authToken);
                             persistNextSessionConfig(savedConfig);
+                            try {
+                                await postSessionCardToDiscord(savedConfig, VIEW_MODES.scheduled);
+                            } catch (discordError) {
+                                console.error('Impossibile inviare la card su Discord:', discordError);
+                            }
                             container.dataset.nextSessionView = VIEW_MODES.scheduled;
                             renderNextSession(savedConfig, container);
                         } catch (error) {
@@ -1362,10 +1590,31 @@
         if (shouldShowScheduled) {
             container.innerHTML = buildScheduledMarkup(effectiveConfig);
             const toggleButton = container.querySelector('[data-view-mode]');
+            const exportButton = container.querySelector('[data-export-session-card]');
+            const editButton = container.querySelector('[data-editor-action="open"]');
             if (toggleButton) {
                 toggleButton.addEventListener('click', () => {
                     container.dataset.nextSessionView = VIEW_MODES.poll;
                     renderNextSession(effectiveConfig, container);
+                });
+            }
+            if (editButton) {
+                editButton.addEventListener('click', () => {
+                    container.dataset.nextSessionView = VIEW_MODES.poll;
+                    renderNextSession(effectiveConfig, container);
+                    window.setTimeout(() => {
+                        const pollEditButton = container.querySelector('[data-editor-action="open"]');
+                        if (pollEditButton) {
+                            pollEditButton.click();
+                        }
+                    }, 0);
+                });
+            }
+            if (exportButton) {
+                exportButton.addEventListener('click', () => {
+                    exportSessionCardAsPng(effectiveConfig, VIEW_MODES.scheduled).catch((error) => {
+                        console.error('Impossibile esportare la card della sessione:', error);
+                    });
                 });
             }
             const targetDate = parseScheduledDate(effectiveConfig.date, effectiveConfig.timeStart);

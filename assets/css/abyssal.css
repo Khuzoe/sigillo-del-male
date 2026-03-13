@@ -355,6 +355,7 @@ ul {
 }
 
 .next-session-card {
+    position: relative;
     height: 100%;
     display: flex;
     flex-direction: column;
@@ -2989,6 +2990,7 @@ ul {
 }
 
 .next-session-edit-trigger,
+.next-session-export-trigger,
 .next-session-view-trigger {
     width: 34px;
     height: 34px;
@@ -3004,6 +3006,7 @@ ul {
 }
 
 .next-session-edit-trigger:hover,
+.next-session-export-trigger:hover,
 .next-session-view-trigger:hover {
     transform: translateY(-1px);
     background: rgba(212, 175, 55, 0.12);
