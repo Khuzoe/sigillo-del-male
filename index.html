@@ -24,6 +24,17 @@
         }
 
         /* DASHBOARD LAYOUT */
+        .dashboard-wrapper {
+            min-height: 100vh;
+            height: auto;
+            overflow: visible;
+        }
+
+        .dashboard-container {
+            height: auto;
+            min-height: 100%;
+        }
+
         .dashboard-grid {
             display: grid;
             grid-template-columns: 1.5fr 1fr;
@@ -31,15 +42,18 @@
             grid-template-rows: auto 1fr;
             /* Top row auto height, bottom fills rest */
             gap: 2rem;
-            height: calc(100vh - 140px);
-            /* Adjust for header */
+            min-height: 0;
+            height: auto;
             padding-bottom: 2rem;
+            align-items: start;
         }
 
         /* Row 1: Session spans all columns */
         .next-session-area {
             grid-column: 1 / -1;
             width: 100%;
+            min-width: 0;
+            overflow: visible;
         }
 
         /* Row 2: Characters (Left) and Events (Right) */

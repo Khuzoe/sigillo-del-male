@@ -7,9 +7,9 @@
     const PLAYERS_DATA_PATH = 'data/players.json';
     const DM_PLAYER = { id: 'dm', name: 'DM', discordId: '' };
     const VOTE_STATES = [
-        { value: 'yes', label: 'SI', className: 'is-yes' },
-        { value: 'maybe', label: 'FORSE', className: 'is-maybe' },
-        { value: 'no', label: 'NO', className: 'is-no' }
+        { value: 'yes', label: 'SI', className: 'is-yes', icon: 'yes.webp' },
+        { value: 'maybe', label: 'FORSE', className: 'is-maybe', icon: 'maybe.webp' },
+        { value: 'no', label: 'NO', className: 'is-no', icon: 'no.webp' }
     ];
 
     function escapeHtml(value) {
@@ -60,6 +60,12 @@
 
     function getAssetsBasePath() {
         return window.location.pathname.includes('/pages/') ? '../assets/' : 'assets/';
+    }
+
+    function getVoteIconPath(value) {
+        const state = getVoteState(value);
+        if (!state?.icon) return '';
+        return `${getAssetsBasePath()}img/ui/${state.icon}`;
     }
 
     async function loadEligiblePlayers(config) {
@@ -293,6 +299,56 @@
         return VOTE_STATES.find((state) => state.value === value) || null;
     }
 
+    function formatAvailabilityLabel(option) {
+        const rawId = String(option?.id || '').trim().toLowerCase();
+        const match = rawId.match(/^(lun|mar|mer|gio|ven|sab|dom)-(\d{1,2})-(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)-\d+/);
+        if (match) {
+            const dayNames = {
+                lun: "LUNEDI'",
+                mar: "MARTEDI'",
+                mer: "MERCOLEDI'",
+                gio: "GIOVEDI'",
+                ven: "VENERDI'",
+                sab: "SABATO",
+                dom: "DOMENICA"
+            };
+            const monthNames = {
+                gen: 'GENNAIO',
+                feb: 'FEBBRAIO',
+                mar: 'MARZO',
+                apr: 'APRILE',
+                mag: 'MAGGIO',
+                giu: 'GIUGNO',
+                lug: 'LUGLIO',
+                ago: 'AGOSTO',
+                set: 'SETTEMBRE',
+                ott: 'OTTOBRE',
+                nov: 'NOVEMBRE',
+                dic: 'DICEMBRE'
+            };
+            return {
+                day: `${dayNames[match[1]]} ${Number(match[2])}`,
+                month: monthNames[match[3]]
+            };
+        }
+
+        return {
+            day: String(option?.label || '').trim().toUpperCase(),
+            month: ''
+        };
+    }
+
+    function getColumnStateClass(optionId, totals, voteCount) {
+        const optionTotals = totals[optionId] || { yes: 0, no: 0 };
+        if (voteCount > 0 && optionTotals.yes === voteCount) {
+            return 'is-all-yes';
+        }
+        if (optionTotals.no > 0) {
+            return 'has-no';
+        }
+        return '';
+    }
+
     function renderCountdown(targetDate, root) {
         const countdownEl = root.querySelector('[data-countdown]');
         if (!countdownEl) return;
@@ -372,6 +428,7 @@
 
     function buildPollMarkup(config, options, votes, statusMessage) {
         const totals = computeTotals(votes, options);
+        const voteCount = votes.length;
         const rowsMarkup = votes.length > 0
             ? votes.map((vote, rowIndex) => `
                 <tr class="${vote.canEdit ? 'availability-row-is-own' : 'availability-row-is-readonly'}">
@@ -379,18 +436,19 @@
                         <span class="availability-name-text">${escapeHtml(vote.name)}</span>
                     </th>
                     ${options.map(option => `
-                        <td class="availability-vote-cell">
+                        <td class="availability-vote-cell ${getColumnStateClass(option.id, totals, voteCount)}">
                             <div class="availability-choice-slot" role="group" aria-label="Voto ${escapeHtml(vote.name)} per ${escapeHtml(option.label)} ${escapeHtml(option.time)}">
-                                <button
-                                    type="button"
-                                    class="availability-clear-vote"
-                                    data-row-index="${rowIndex}"
-                                    data-option-id="${escapeHtml(option.id)}"
-                                    data-action="clear"
-                                    ${vote.canEdit ? '' : 'disabled'}
-                                    aria-label="Rimuovi voto di ${escapeHtml(vote.name)} per ${escapeHtml(option.label)}">
-                                    <i class="fas fa-times"></i>
-                                </button>
+                                ${vote.canEdit ? `
+                                    <button
+                                        type="button"
+                                        class="availability-clear-vote"
+                                        data-row-index="${rowIndex}"
+                                        data-option-id="${escapeHtml(option.id)}"
+                                        data-action="clear"
+                                        aria-label="Rimuovi voto di ${escapeHtml(vote.name)} per ${escapeHtml(option.label)}">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                ` : ''}
                                 <button
                                     type="button"
                                     class="availability-choice availability-choice-single${vote.selections[option.id] ? ` ${getVoteState(vote.selections[option.id]).className} is-active` : ' is-empty'}"
@@ -399,7 +457,9 @@
                                     data-action="cycle"
                                     ${vote.canEdit ? '' : 'disabled'}
                                     aria-label="Cambia voto di ${escapeHtml(vote.name)} per ${escapeHtml(option.label)}">
-                                    ${vote.selections[option.id] ? getVoteState(vote.selections[option.id]).label : ''}
+                                    ${vote.selections[option.id]
+                ? `<img class="availability-choice-icon" src="${escapeHtml(getVoteIconPath(vote.selections[option.id]))}" alt="" loading="lazy" decoding="async">`
+                : ''}
                                 </button>
                             </div>
                         </td>
@@ -424,18 +484,21 @@
                         <thead>
                             <tr>
                                 <th class="availability-corner-cell">Nome</th>
-                                ${options.map(option => `
-                                    <th class="availability-option-cell" scope="col">
-                                        <span class="availability-option-label">${escapeHtml(option.label)}</span>
+                                ${options.map(option => {
+                const labelParts = formatAvailabilityLabel(option);
+                return `
+                                    <th class="availability-option-cell ${getColumnStateClass(option.id, totals, voteCount)}" scope="col">
+                                        <span class="availability-option-label">${escapeHtml(labelParts.day)}</span>
+                                        ${labelParts.month ? `<span class="availability-option-month">${escapeHtml(labelParts.month)}</span>` : ''}
                                         ${option.time ? `<span class="availability-option-time">${escapeHtml(option.time)}</span>` : ''}
-                                        ${option.meta ? `<span class="availability-option-meta">${escapeHtml(option.meta)}</span>` : ''}
                                         <div class="availability-option-totals">
                                             <span class="availability-total availability-total-yes">SI ${totals[option.id].yes}</span>
                                             <span class="availability-total availability-total-maybe">FORSE ${totals[option.id].maybe}</span>
                                             <span class="availability-total availability-total-no">NO ${totals[option.id].no}</span>
                                         </div>
                                     </th>
-                                `).join('')}
+                                `;
+            }).join('')}
                             </tr>
                         </thead>
                         <tbody>
@@ -505,9 +568,7 @@
             canEdit: Boolean(currentDiscordId) && Boolean(vote.discordId) && vote.discordId === currentDiscordId
         }));
 
-        let statusMessage = currentDiscordId
-            ? ''
-            : 'Accedi con Discord per modificare il tuo voto.';
+        let statusMessage = '';
 
         function decorateVotes(baseVoteList) {
             return players.map((player) => {
@@ -545,8 +606,6 @@
 
                     const targetVote = votes[rowIndex];
                     if (!targetVote.canEdit || !targetVote.discordId || !authToken) {
-                        statusMessage = 'Puoi modificare solo la tua riga dopo il login Discord.';
-                        rerender();
                         return;
                     }
 
@@ -564,7 +623,6 @@
                             }
                         };
                     });
-                    statusMessage = 'Salvataggio in corso...';
                     rerender();
 
                     try {
