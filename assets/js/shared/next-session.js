@@ -1000,13 +1000,15 @@
         window.setInterval(update, 1000);
     }
 
-    function buildScheduledMarkup(config) {
+    function buildScheduledMarkup(config, canConfigureSession) {
         return `
             <div class="next-session-card">
                 <div class="next-session-card-controls">
-                    <button type="button" class="next-session-edit-trigger" data-editor-action="open" aria-label="Configura prossima sessione">
-                        <i class="fas fa-pen"></i>
-                    </button>
+                    ${canConfigureSession ? `
+                        <button type="button" class="next-session-edit-trigger" data-editor-action="open" aria-label="Configura prossima sessione">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                    ` : ''}
                     <button type="button" class="next-session-export-trigger" data-export-session-card="scheduled" aria-label="Esporta card sessione">
                         <i class="fas fa-download"></i>
                     </button>
@@ -1036,6 +1038,56 @@
                 </div>
             </div>
         `;
+    }
+
+    async function renderScheduledSession(container, config) {
+        let authState = null;
+        try {
+            authState = window.CriptaDiscordAuth?.verify ? await window.CriptaDiscordAuth.verify().catch(() => null) : null;
+        } catch (_) {
+            authState = null;
+        }
+
+        const currentDiscordId = String(authState?.user?.id || authState?.user?.sub || '').trim();
+        const canConfigureSession = (
+            Boolean(currentDiscordId)
+            && Boolean(config?.dmDiscordId)
+            && currentDiscordId === String(config.dmDiscordId).trim()
+        );
+
+        container.innerHTML = buildScheduledMarkup(config, canConfigureSession);
+        const toggleButton = container.querySelector('[data-view-mode]');
+        const exportButton = container.querySelector('[data-export-session-card]');
+        const editButton = container.querySelector('[data-editor-action="open"]');
+        if (toggleButton) {
+            toggleButton.addEventListener('click', () => {
+                container.dataset.nextSessionView = VIEW_MODES.poll;
+                renderNextSession(config, container);
+            });
+        }
+        if (editButton) {
+            editButton.addEventListener('click', () => {
+                container.dataset.nextSessionView = VIEW_MODES.poll;
+                renderNextSession(config, container);
+                window.setTimeout(() => {
+                    const pollEditButton = container.querySelector('[data-editor-action="open"]');
+                    if (pollEditButton) {
+                        pollEditButton.click();
+                    }
+                }, 0);
+            });
+        }
+        if (exportButton) {
+            exportButton.addEventListener('click', () => {
+                exportSessionCardAsPng(config, VIEW_MODES.scheduled).catch((error) => {
+                    console.error('Impossibile esportare la card della sessione:', error);
+                });
+            });
+        }
+        const targetDate = parseScheduledDate(config.date, config.timeStart);
+        if (targetDate) {
+            renderCountdown(targetDate.getTime(), container);
+        }
     }
 
     function buildEmptyMarkup(config) {
@@ -1182,7 +1234,11 @@
         const authToken = typeof window.CriptaDiscordAuth?.getToken === 'function'
             ? window.CriptaDiscordAuth.getToken()
             : '';
-        const canConfigureSession = true;
+        const canConfigureSession = (
+            Boolean(currentDiscordId)
+            && Boolean(effectiveConfig.dmDiscordId)
+            && currentDiscordId === effectiveConfig.dmDiscordId
+        );
         const localFallbackVotes = readStoredVotes(effectiveConfig.number, effectiveConfig.availabilityVotes, options, players);
         let baseVotes = localFallbackVotes;
         try {
@@ -1588,39 +1644,7 @@
             && (requestedViewMode === VIEW_MODES.poll || (!requestedViewMode && defaultViewMode === VIEW_MODES.poll));
 
         if (shouldShowScheduled) {
-            container.innerHTML = buildScheduledMarkup(effectiveConfig);
-            const toggleButton = container.querySelector('[data-view-mode]');
-            const exportButton = container.querySelector('[data-export-session-card]');
-            const editButton = container.querySelector('[data-editor-action="open"]');
-            if (toggleButton) {
-                toggleButton.addEventListener('click', () => {
-                    container.dataset.nextSessionView = VIEW_MODES.poll;
-                    renderNextSession(effectiveConfig, container);
-                });
-            }
-            if (editButton) {
-                editButton.addEventListener('click', () => {
-                    container.dataset.nextSessionView = VIEW_MODES.poll;
-                    renderNextSession(effectiveConfig, container);
-                    window.setTimeout(() => {
-                        const pollEditButton = container.querySelector('[data-editor-action="open"]');
-                        if (pollEditButton) {
-                            pollEditButton.click();
-                        }
-                    }, 0);
-                });
-            }
-            if (exportButton) {
-                exportButton.addEventListener('click', () => {
-                    exportSessionCardAsPng(effectiveConfig, VIEW_MODES.scheduled).catch((error) => {
-                        console.error('Impossibile esportare la card della sessione:', error);
-                    });
-                });
-            }
-            const targetDate = parseScheduledDate(effectiveConfig.date, effectiveConfig.timeStart);
-            if (targetDate) {
-                renderCountdown(targetDate.getTime(), container);
-            }
+            renderScheduledSession(container, effectiveConfig);
             return;
         }
 

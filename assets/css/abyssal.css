@@ -230,6 +230,10 @@ ul {
     transition: all 0.2s ease;
 }
 
+.discord-auth-btn[hidden] {
+    display: none !important;
+}
+
 .discord-auth-btn--login {
     align-self: flex-start;
     width: 42px;
