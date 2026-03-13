@@ -448,7 +448,7 @@
             return;
         }
 
-        const currentDiscordId = String(authState?.user?.id || '').trim();
+        const currentDiscordId = String(authState?.user?.id || authState?.user?.sub || '').trim();
         const authToken = typeof window.CriptaDiscordAuth?.getToken === 'function'
             ? window.CriptaDiscordAuth.getToken()
             : '';
