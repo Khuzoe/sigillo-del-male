@@ -196,7 +196,11 @@ function initDiscordAuth(scope) {
     const logoutBtn = scope.querySelector("#discord-logout");
     if (!status || !loginBtn || !logoutBtn) return;
 
-    consumeTokenFromHash();
+    const didConsumeToken = consumeTokenFromHash();
+    if (didConsumeToken) {
+        window.location.replace(window.location.pathname + window.location.search);
+        return;
+    }
 
     loginBtn.addEventListener("click", () => {
         window.location.href = `${DISCORD_WORKER_URL}/auth/discord/login`;
@@ -204,7 +208,7 @@ function initDiscordAuth(scope) {
 
     logoutBtn.addEventListener("click", () => {
         clearStoredToken();
-        refreshAuthUI(scope);
+        window.location.replace(window.location.pathname + window.location.search);
     });
 
     refreshAuthUI(scope);
@@ -222,10 +226,11 @@ function tokenFromHash() {
 
 function consumeTokenFromHash() {
     const token = tokenFromHash();
-    if (!token) return;
+    if (!token) return false;
 
     storeToken(token);
     history.replaceState(null, "", window.location.pathname + window.location.search);
+    return true;
 }
 
 async function refreshAuthUI(scope) {
