@@ -219,7 +219,7 @@
         const date = new Date(`${dateValue}T12:00:00`);
         if (Number.isNaN(date.getTime())) return '';
 
-        const dayNames = ['Domenica', 'Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato'];
+        const dayNames = ['Domenica', 'Luned\u00ec', 'Marted\u00ec', 'Mercoled\u00ec', 'Gioved\u00ec', 'Venerd\u00ec', 'Sabato'];
         const monthNames = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
         return `${dayNames[date.getDay()]} ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
     }
@@ -384,7 +384,7 @@
 
             context.fillStyle = '#938260';
             context.font = '500 22px Segoe UI, Arial, sans-serif';
-            context.fillText('Cripta di Sangue', 130, height - 120);
+            context.fillText('Sigillo del Male', 130, height - 120);
         } else {
             context.fillStyle = '#9d8c6a';
             context.font = '600 21px Segoe UI, Arial, sans-serif';
@@ -916,11 +916,11 @@
         const match = rawId.match(/^(lun|mar|mer|gio|ven|sab|dom)-(\d{1,2})-(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)-\d+/);
         if (match) {
             const dayNames = {
-                lun: 'LUNEDI',
-                mar: 'MARTEDI',
-                mer: 'MERCOLEDI',
-                gio: 'GIOVEDI',
-                ven: 'VENERDI',
+                lun: 'LUNED\u00cc',
+                mar: 'MARTED\u00cc',
+                mer: 'MERCOLED\u00cc',
+                gio: 'GIOVED\u00cc',
+                ven: 'VENERD\u00cc',
                 sab: 'SABATO',
                 dom: 'DOMENICA'
             };
