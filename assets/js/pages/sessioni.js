@@ -1,13 +1,25 @@
 document.addEventListener("DOMContentLoaded", async function () {
     try {
-        const response = await fetch('../assets/data/sessions.json');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        const [sessionsResponse, nextSessionResponse] = await Promise.all([
+            fetch('../assets/data/sessions.json'),
+            window.CriptaNextSession?.loadConfig
+                ? window.CriptaNextSession.loadConfig({ fallbackPath: '../assets/data/next-session.json' })
+                : fetch('../assets/data/next-session.json')
+        ]);
+        if (!sessionsResponse.ok) {
+            throw new Error(`HTTP error sessions.json: ${sessionsResponse.status}`);
         }
-        const data = await response.json();
+        const sessionsData = await sessionsResponse.json();
+        const nextSessionConfig = window.CriptaNextSession?.loadConfig
+            ? nextSessionResponse
+            : await (async () => {
+                if (!nextSessionResponse.ok) {
+                    throw new Error(`HTTP error next-session.json: ${nextSessionResponse.status}`);
+                }
+                return nextSessionResponse.json();
+            })();
 
-        const sessions = data.sessions.slice().reverse();
-        const nextSessionConfig = data.nextSession;
+        const sessions = sessionsData.sessions.slice().reverse();
 
         window.CriptaNextSession?.render(nextSessionConfig, document.getElementById('next-session-container'));
         renderSessionNav(sessions);
