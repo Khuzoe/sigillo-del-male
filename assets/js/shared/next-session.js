@@ -2,10 +2,28 @@
     const API_BASE_URL = typeof DISCORD_WORKER_URL === 'string'
         ? DISCORD_WORKER_URL
         : 'https://sigillo-api.khuzoe.workers.dev';
+    const SESSION_API_URL = `${API_BASE_URL}/api/session`;
     const SESSION_VOTES_API_URL = `${API_BASE_URL}/api/session-votes`;
     const STORAGE_PREFIX = 'cripta-next-session-votes';
+    const NEXT_SESSION_CONFIG_OVERRIDE_KEY = 'cripta-next-session-config-override';
     const PLAYERS_DATA_PATH = 'data/players.json';
     const DM_PLAYER = { id: 'dm', name: 'DM', discordId: '' };
+    const VIEW_MODES = {
+        poll: 'poll',
+        scheduled: 'scheduled'
+    };
+    const PRESET_SLOTS = {
+        afternoon: {
+            label: 'POMERIGGIO',
+            start: '15:00',
+            end: '18:30'
+        },
+        evening: {
+            label: 'SERA',
+            start: '20:30',
+            end: '23:30'
+        }
+    };
     const VOTE_STATES = [
         { value: 'yes', label: 'SI', className: 'is-yes', icon: 'yes.webp' },
         { value: 'maybe', label: 'FORSE', className: 'is-maybe', icon: 'maybe.webp' },
@@ -58,6 +76,31 @@
         return `${STORAGE_PREFIX}-${sessionNumber}`;
     }
 
+    function getMonthIndex(monthId) {
+        return ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'].indexOf(monthId);
+    }
+
+    function sanitizeNextSessionConfig(config) {
+        return {
+            number: Number(config?.number) || 1,
+            dmDiscordId: String(config?.dmDiscordId || '').trim(),
+            date: String(config?.date || '').trim(),
+            timeStart: String(config?.timeStart || '').trim(),
+            timeEnd: String(config?.timeEnd || '').trim(),
+            isScheduled: Boolean(config?.isScheduled),
+            availabilityOptions: sanitizeOptions(config?.availabilityOptions || []),
+            availabilityVotes: Array.isArray(config?.availabilityVotes) ? config.availabilityVotes : []
+        };
+    }
+
+    function readStoredNextSessionConfig(baseConfig) {
+        return sanitizeNextSessionConfig(baseConfig);
+    }
+
+    function persistNextSessionConfig(config) {
+        return sanitizeNextSessionConfig(config);
+    }
+
     function getAssetsBasePath() {
         return window.location.pathname.includes('/pages/') ? '../assets/' : 'assets/';
     }
@@ -103,6 +146,319 @@
                 return { id, label, time, meta };
             })
             .filter(Boolean);
+    }
+
+    function parseDateValueFromOptionId(optionId) {
+        const match = String(optionId || '').trim().toLowerCase().match(/^(lun|mar|mer|gio|ven|sab|dom)-(\d{1,2})-(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)-(\d{4})/);
+        if (!match) return '';
+        const day = String(Number(match[2])).padStart(2, '0');
+        const monthIndex = getMonthIndex(match[3]);
+        if (monthIndex < 0) return '';
+        const month = String(monthIndex + 1).padStart(2, '0');
+        const suffix = Number(match[4]);
+        const year = Number.isFinite(suffix) && suffix <= 2359 ? new Date().getFullYear() : suffix;
+        return `${year}-${month}-${day}`;
+    }
+
+    function parseTimeRange(timeRange) {
+        const match = String(timeRange || '').trim().match(/^(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})$/);
+        if (!match) return null;
+        return { start: match[1], end: match[2] };
+    }
+
+    function minutesFromTime(timeValue) {
+        const match = String(timeValue || '').trim().match(/^(\d{2}):(\d{2})$/);
+        if (!match) return Number.NaN;
+        return Number(match[1]) * 60 + Number(match[2]);
+    }
+
+    function computeDurationMeta(startTime, endTime) {
+        const startMinutes = minutesFromTime(startTime);
+        const endMinutes = minutesFromTime(endTime);
+        if (!Number.isFinite(startMinutes) || !Number.isFinite(endMinutes) || endMinutes <= startMinutes) {
+            return '';
+        }
+
+        const duration = endMinutes - startMinutes;
+        const hours = Math.floor(duration / 60);
+        const minutes = duration % 60;
+        return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+    }
+
+    function buildOptionLabelFromDate(dateValue) {
+        const date = new Date(`${dateValue}T12:00:00`);
+        if (Number.isNaN(date.getTime())) return '';
+        const shortDays = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+        const shortMonths = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+        return `${shortDays[date.getDay()]} ${date.getDate()} ${shortMonths[date.getMonth()]}`;
+    }
+
+    function buildOptionId(dateValue, startTime) {
+        const date = new Date(`${dateValue}T12:00:00`);
+        if (Number.isNaN(date.getTime())) return '';
+        const dayIds = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
+        const monthIds = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+        const dayId = dayIds[date.getDay()];
+        const day = String(date.getDate()).padStart(2, '0');
+        const monthId = monthIds[date.getMonth()];
+        const compactTime = String(startTime || '').replace(':', '');
+        return `${dayId}-${day}-${monthId}-${compactTime}`;
+    }
+
+    function buildOptionFromDateSlot(dateValue, startTime, endTime) {
+        return {
+            id: buildOptionId(dateValue, startTime),
+            label: buildOptionLabelFromDate(dateValue),
+            time: `${startTime} - ${endTime}`,
+            meta: computeDurationMeta(startTime, endTime)
+        };
+    }
+
+    function formatLongItalianDate(dateValue) {
+        const date = new Date(`${dateValue}T12:00:00`);
+        if (Number.isNaN(date.getTime())) return '';
+
+        const dayNames = ['Domenica', 'Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato'];
+        const monthNames = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
+        return `${dayNames[date.getDay()]} ${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+    }
+
+    function buildScheduledConfigFromOption(config, option) {
+        const dateValue = parseDateValueFromOptionId(option?.id || '');
+        const timeRange = parseTimeRange(option?.time || '');
+        if (!dateValue || !timeRange) return null;
+
+        return sanitizeNextSessionConfig({
+            ...config,
+            date: formatLongItalianDate(dateValue),
+            timeStart: timeRange.start,
+            timeEnd: timeRange.end,
+            isScheduled: true
+        });
+    }
+
+    function getDefaultViewMode(config, options) {
+        if (config?.isScheduled) return VIEW_MODES.scheduled;
+        if (Array.isArray(options) && options.length > 0) return VIEW_MODES.poll;
+        return 'empty';
+    }
+
+    function buildEditorDaysFromConfig(config) {
+        const grouped = new Map();
+        sanitizeOptions(config?.availabilityOptions || []).forEach((option) => {
+            const dateValue = parseDateValueFromOptionId(option.id);
+            const parsedRange = parseTimeRange(option.time);
+            if (!dateValue || !parsedRange) return;
+
+            if (!grouped.has(dateValue)) {
+                grouped.set(dateValue, {
+                    dateValue,
+                    afternoon: false,
+                    evening: false,
+                    customEnabled: false,
+                    customStart: '19:00',
+                    customEnd: '22:00'
+                });
+            }
+
+            const dayEntry = grouped.get(dateValue);
+            if (parsedRange.start === PRESET_SLOTS.afternoon.start && parsedRange.end === PRESET_SLOTS.afternoon.end) {
+                dayEntry.afternoon = true;
+            } else if (parsedRange.start === PRESET_SLOTS.evening.start && parsedRange.end === PRESET_SLOTS.evening.end) {
+                dayEntry.evening = true;
+            } else {
+                dayEntry.customEnabled = true;
+                dayEntry.customStart = parsedRange.start;
+                dayEntry.customEnd = parsedRange.end;
+            }
+        });
+
+        return Array.from(grouped.values()).sort((left, right) => left.dateValue.localeCompare(right.dateValue));
+    }
+
+    function buildDefaultEditorDays() {
+        const now = new Date();
+        const todayDay = now.getDay();
+        const daysUntilNextMonday = todayDay === 0 ? 1 : 8 - todayDay;
+        const nextMonday = new Date(now);
+        nextMonday.setHours(12, 0, 0, 0);
+        nextMonday.setDate(now.getDate() + daysUntilNextMonday);
+
+        return Array.from({ length: 7 }, (_, offset) => {
+            const date = new Date(nextMonday);
+            date.setDate(nextMonday.getDate() + offset);
+            const dateValue = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const isWeekend = offset >= 5;
+            return {
+                dateValue,
+                afternoon: isWeekend,
+                evening: true,
+                customEnabled: false,
+                customStart: '19:00',
+                customEnd: '22:00'
+            };
+        });
+    }
+
+    function shiftDateValueByDays(dateValue, daysToAdd) {
+        const date = new Date(`${dateValue}T12:00:00`);
+        if (Number.isNaN(date.getTime())) return dateValue;
+        date.setDate(date.getDate() + daysToAdd);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }
+
+    function shiftEditorDaysByWeek(days) {
+        return days.map((day) => ({
+            ...day,
+            dateValue: shiftDateValueByDays(day.dateValue, 7)
+        }));
+    }
+
+    function buildEditorModalMarkup(editorState) {
+        return `
+            <div class="next-session-editor-modal visible" data-editor-action="close-overlay">
+                <div class="next-session-editor-dialog" role="dialog" aria-modal="true" aria-label="Configura prossima sessione">
+                    <div class="next-session-editor-header">
+                        <div>
+                            <span class="next-session-editor-kicker">Configurazione DM</span>
+                            <h3 class="next-session-editor-title">Nuova Prossima Sessione</h3>
+                        </div>
+                        <button type="button" class="next-session-editor-close" data-editor-action="close" aria-label="Chiudi editor">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="next-session-editor-toolbar">
+                        <div class="next-session-editor-toolbar-field">
+                            <label for="next-session-editor-new-date">Aggiungi giorno</label>
+                            <input id="next-session-editor-new-date" type="date" value="${escapeHtml(editorState.pendingDate || '')}" data-editor-field="pending-date">
+                        </div>
+                        <div class="next-session-editor-toolbar-actions">
+                            <button type="button" class="next-session-editor-secondary" data-editor-action="shift-week">+1 settimana</button>
+                            <button type="button" class="next-session-editor-add" data-editor-action="add-day">Aggiungi</button>
+                        </div>
+                    </div>
+                    ${editorState.error ? `<p class="next-session-editor-error">${escapeHtml(editorState.error)}</p>` : ''}
+                    <div class="next-session-editor-day-list">
+                        ${editorState.days.length > 0 ? editorState.days.map((day, index) => `
+                            <section class="next-session-editor-day">
+                                <div class="next-session-editor-day-top">
+                                    <input type="date" value="${escapeHtml(day.dateValue)}" data-editor-day-index="${index}" data-editor-field="date">
+                                    <button type="button" class="next-session-editor-remove-day" data-editor-day-index="${index}" data-editor-action="remove-day" aria-label="Rimuovi giorno">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                                <div class="next-session-editor-slot-grid">
+                                    <label class="next-session-editor-slot">
+                                        <input type="checkbox" ${day.afternoon ? 'checked' : ''} data-editor-day-index="${index}" data-editor-field="afternoon">
+                                        <span>${PRESET_SLOTS.afternoon.label}</span>
+                                        <small>${PRESET_SLOTS.afternoon.start} - ${PRESET_SLOTS.afternoon.end}</small>
+                                    </label>
+                                    <label class="next-session-editor-slot">
+                                        <input type="checkbox" ${day.evening ? 'checked' : ''} data-editor-day-index="${index}" data-editor-field="evening">
+                                        <span>${PRESET_SLOTS.evening.label}</span>
+                                        <small>${PRESET_SLOTS.evening.start} - ${PRESET_SLOTS.evening.end}</small>
+                                    </label>
+                                    <label class="next-session-editor-slot next-session-editor-slot-custom">
+                                        <input type="checkbox" ${day.customEnabled ? 'checked' : ''} data-editor-day-index="${index}" data-editor-field="custom-enabled">
+                                        <span>CUSTOM</span>
+                                        <div class="next-session-editor-custom-times">
+                                            <input type="time" value="${escapeHtml(day.customStart)}" ${day.customEnabled ? '' : 'disabled'} data-editor-day-index="${index}" data-editor-field="custom-start">
+                                            <span>-</span>
+                                            <input type="time" value="${escapeHtml(day.customEnd)}" ${day.customEnabled ? '' : 'disabled'} data-editor-day-index="${index}" data-editor-field="custom-end">
+                                        </div>
+                                    </label>
+                                </div>
+                            </section>
+                        `).join('') : '<p class="next-session-editor-empty">Seleziona almeno un giorno dal calendario per iniziare.</p>'}
+                    </div>
+                    <div class="next-session-editor-footer">
+                        <button type="button" class="next-session-editor-secondary" data-editor-action="close">Annulla</button>
+                        <button type="button" class="next-session-editor-primary" data-editor-action="save">Salva</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function extractSessionConfigFromApiPayload(payload) {
+        if (!payload || typeof payload !== 'object') return null;
+        if (payload.session && typeof payload.session === 'object') return payload.session;
+        if (payload.data && typeof payload.data === 'object') {
+            if (payload.data.session && typeof payload.data.session === 'object') return payload.data.session;
+            if ('number' in payload.data || 'availabilityOptions' in payload.data) return payload.data;
+        }
+        if ('number' in payload || 'availabilityOptions' in payload) return payload;
+        return null;
+    }
+
+    async function loadRemoteSessionConfig(sessionNumber) {
+        const response = await fetch(`${SESSION_API_URL}?number=${encodeURIComponent(sessionNumber)}`, {
+            method: 'GET',
+            headers: {
+                Accept: 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Session API HTTP ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const sessionConfig = extractSessionConfigFromApiPayload(payload);
+        if (!sessionConfig) {
+            throw new Error('Session API: payload non valido');
+        }
+
+        return sanitizeNextSessionConfig(sessionConfig);
+    }
+
+    async function postRemoteSessionConfig(config, token = '') {
+        const response = await fetch(SESSION_API_URL, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify(sanitizeNextSessionConfig(config))
+        });
+
+        let payload = null;
+        try {
+            payload = await response.json();
+        } catch (_) {
+            payload = null;
+        }
+
+        if (!response.ok) {
+            const apiMessage = payload?.error || payload?.message || payload?.details || '';
+            throw new Error(apiMessage ? `Session API POST HTTP ${response.status}: ${apiMessage}` : `Session API POST HTTP ${response.status}`);
+        }
+
+        const sessionConfig = extractSessionConfigFromApiPayload(payload);
+        return sanitizeNextSessionConfig(sessionConfig || config);
+    }
+
+    async function loadSessionConfig({ fallbackPath }) {
+        let fallbackConfig = null;
+
+        if (fallbackPath) {
+            const fallbackResponse = await fetch(fallbackPath);
+            if (!fallbackResponse.ok) {
+                throw new Error(`Errore caricamento fallback next session (${fallbackResponse.status})`);
+            }
+            fallbackConfig = sanitizeNextSessionConfig(await fallbackResponse.json());
+        }
+
+        const sessionNumber = Number(fallbackConfig?.number) || 1;
+
+        try {
+            return await loadRemoteSessionConfig(sessionNumber);
+        } catch (error) {
+            console.warn('Session API non raggiungibile, uso fallback locale.', error);
+            if (fallbackConfig) return fallbackConfig;
+            throw error;
+        }
     }
 
     function sanitizeVotes(votes, options, players) {
@@ -304,13 +660,52 @@
         const match = rawId.match(/^(lun|mar|mer|gio|ven|sab|dom)-(\d{1,2})-(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)-\d+/);
         if (match) {
             const dayNames = {
-                lun: "LUNEDI'",
-                mar: "MARTEDI'",
-                mer: "MERCOLEDI'",
-                gio: "GIOVEDI'",
-                ven: "VENERDI'",
+                lun: "LUNEDÌ",
+                mar: "MARTEDÌ",
+                mer: "MERCOLEDÌ",
+                gio: "GIOVEDÌ",
+                ven: "VENERDÌ",
                 sab: "SABATO",
                 dom: "DOMENICA"
+            };
+            const monthNames = {
+                gen: 'GENNAIO',
+                feb: 'FEBBRAIO',
+                mar: 'MARZO',
+                apr: 'APRILE',
+                mag: 'MAGGIO',
+                giu: 'GIUGNO',
+                lug: 'LUGLIO',
+                ago: 'AGOSTO',
+                set: 'SETTEMBRE',
+                ott: 'OTTOBRE',
+                nov: 'NOVEMBRE',
+                dic: 'DICEMBRE'
+            };
+            return {
+                day: `${dayNames[match[1]]} ${Number(match[2])}`,
+                month: monthNames[match[3]]
+            };
+        }
+
+        return {
+            day: String(option?.label || '').trim().toUpperCase(),
+            month: ''
+        };
+    }
+
+    function formatAvailabilityLabel(option) {
+        const rawId = String(option?.id || '').trim().toLowerCase();
+        const match = rawId.match(/^(lun|mar|mer|gio|ven|sab|dom)-(\d{1,2})-(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)-\d+/);
+        if (match) {
+            const dayNames = {
+                lun: 'LUNEDI',
+                mar: 'MARTEDI',
+                mer: 'MERCOLEDI',
+                gio: 'GIOVEDI',
+                ven: 'VENERDI',
+                sab: 'SABATO',
+                dom: 'DOMENICA'
             };
             const monthNames = {
                 gen: 'GENNAIO',
@@ -391,6 +786,13 @@
     function buildScheduledMarkup(config) {
         return `
             <div class="next-session-card">
+                <div class="next-session-card-controls">
+                    ${config.availabilityOptions?.length ? `
+                        <button type="button" class="next-session-view-trigger" data-view-mode="${VIEW_MODES.poll}" aria-label="Mostra sondaggio disponibilita">
+                            <i class="fas fa-table"></i>
+                        </button>
+                    ` : ''}
+                </div>
                 <span class="next-label">Prossima Sessione</span>
                 <h2 class="next-title text-gold-gradient">Sessione ${escapeHtml(config.number)}</h2>
                 <div class="next-details">
@@ -426,7 +828,7 @@
         `;
     }
 
-    function buildPollMarkup(config, options, votes, statusMessage) {
+    function buildPollMarkup(config, options, votes, statusMessage, canConfigureSession, editorState) {
         const totals = computeTotals(votes, options);
         const voteCount = votes.length;
         const rowsMarkup = votes.length > 0
@@ -476,6 +878,18 @@
 
         return `
             <div class="next-session-card next-session-card-poll">
+                <div class="next-session-card-controls">
+                    ${config.isScheduled ? `
+                        <button type="button" class="next-session-view-trigger" data-view-mode="${VIEW_MODES.scheduled}" aria-label="Mostra sessione fissata">
+                            <i class="fas fa-calendar-check"></i>
+                        </button>
+                    ` : ''}
+                    ${canConfigureSession ? `
+                        <button type="button" class="next-session-edit-trigger" data-editor-action="open" aria-label="Configura prossima sessione">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                    ` : ''}
+                </div>
                 <span class="next-label">Prossima Sessione</span>
                 <h2 class="next-title text-gold-gradient">Sessione ${escapeHtml(config.number)}</h2>
                 ${statusMessage ? `<div class="availability-feedback">${escapeHtml(statusMessage)}</div>` : ''}
@@ -488,14 +902,15 @@
                 const labelParts = formatAvailabilityLabel(option);
                 return `
                                     <th class="availability-option-cell ${getColumnStateClass(option.id, totals, voteCount)}" scope="col">
-                                        <span class="availability-option-label">${escapeHtml(labelParts.day)}</span>
-                                        ${labelParts.month ? `<span class="availability-option-month">${escapeHtml(labelParts.month)}</span>` : ''}
-                                        ${option.time ? `<span class="availability-option-time">${escapeHtml(option.time)}</span>` : ''}
-                                        <div class="availability-option-totals">
-                                            <span class="availability-total availability-total-yes">SI ${totals[option.id].yes}</span>
-                                            <span class="availability-total availability-total-maybe">FORSE ${totals[option.id].maybe}</span>
-                                            <span class="availability-total availability-total-no">NO ${totals[option.id].no}</span>
-                                        </div>
+                                        <button
+                                            type="button"
+                                            class="availability-option-trigger${canConfigureSession ? ' is-confirmable' : ''}"
+                                            ${canConfigureSession ? `data-confirm-option-id="${escapeHtml(option.id)}"` : 'disabled'}
+                                            aria-label="Conferma la prossima sessione su ${escapeHtml(labelParts.day)} ${labelParts.month ? escapeHtml(labelParts.month) : ''} ${escapeHtml(option.time || '')}">
+                                            <span class="availability-option-label">${escapeHtml(labelParts.day)}</span>
+                                            ${labelParts.month ? `<span class="availability-option-month">${escapeHtml(labelParts.month)}</span>` : ''}
+                                            ${option.time ? `<span class="availability-option-time">${escapeHtml(option.time)}</span>` : ''}
+                                        </button>
                                     </th>
                                 `;
             }).join('')}
@@ -511,11 +926,12 @@
     }
 
     async function renderAvailabilityPoll(container, config) {
-        const options = sanitizeOptions(config.availabilityOptions);
+        const effectiveConfig = sanitizeNextSessionConfig(config);
+        const options = sanitizeOptions(effectiveConfig.availabilityOptions);
         container.innerHTML = `
             <div class="next-session-card next-session-card-poll">
                 <span class="next-label">Prossima Sessione</span>
-                <h2 class="next-title text-gold-gradient">Sessione ${escapeHtml(config.number)}</h2>
+                <h2 class="next-title text-gold-gradient">Sessione ${escapeHtml(effectiveConfig.number)}</h2>
                 <p class="availability-intro">Caricamento giocatori...</p>
             </div>
         `;
@@ -524,7 +940,7 @@
         let authState = null;
         try {
             [players, authState] = await Promise.all([
-                loadEligiblePlayers(config),
+                loadEligiblePlayers(effectiveConfig),
                 window.CriptaDiscordAuth?.verify ? window.CriptaDiscordAuth.verify().catch(() => null) : Promise.resolve(null)
             ]);
         } catch (error) {
@@ -532,7 +948,7 @@
             container.innerHTML = `
                 <div class="next-session-card next-session-card-poll">
                     <span class="next-label">Prossima Sessione</span>
-                    <h2 class="next-title text-gold-gradient">Sessione ${escapeHtml(config.number)}</h2>
+                    <h2 class="next-title text-gold-gradient">Sessione ${escapeHtml(effectiveConfig.number)}</h2>
                     <p class="availability-intro">Impossibile caricare i player del gruppo.</p>
                 </div>
             `;
@@ -543,11 +959,12 @@
         const authToken = typeof window.CriptaDiscordAuth?.getToken === 'function'
             ? window.CriptaDiscordAuth.getToken()
             : '';
-        const localFallbackVotes = readStoredVotes(config.number, config.availabilityVotes, options, players);
+        const canConfigureSession = true;
+        const localFallbackVotes = readStoredVotes(effectiveConfig.number, effectiveConfig.availabilityVotes, options, players);
         let baseVotes = localFallbackVotes;
         try {
-            baseVotes = await loadRemoteVotes(config.number, options, players);
-            persistVotes(config.number, baseVotes);
+            baseVotes = await loadRemoteVotes(effectiveConfig.number, options, players);
+            persistVotes(effectiveConfig.number, baseVotes);
         } catch (error) {
             console.warn('Session votes API non raggiungibile, uso fallback locale.', error);
         }
@@ -569,6 +986,12 @@
         }));
 
         let statusMessage = '';
+        let editorState = {
+            open: false,
+            pendingDate: '',
+            error: '',
+            days: buildDefaultEditorDays()
+        };
 
         function decorateVotes(baseVoteList) {
             return players.map((player) => {
@@ -588,14 +1011,95 @@
             }));
         }
 
+        function updateEditorDay(index, patch) {
+            editorState = {
+                ...editorState,
+                error: '',
+                days: editorState.days.map((day, dayIndex) => dayIndex === index ? { ...day, ...patch } : day)
+            };
+        }
+
+        function buildConfigFromEditorState() {
+            const availabilityOptions = [];
+            const normalizedDays = [...editorState.days].sort((left, right) => left.dateValue.localeCompare(right.dateValue));
+
+            normalizedDays.forEach((day) => {
+                if (day.afternoon) {
+                    availabilityOptions.push(buildOptionFromDateSlot(day.dateValue, PRESET_SLOTS.afternoon.start, PRESET_SLOTS.afternoon.end));
+                }
+                if (day.evening) {
+                    availabilityOptions.push(buildOptionFromDateSlot(day.dateValue, PRESET_SLOTS.evening.start, PRESET_SLOTS.evening.end));
+                }
+                if (day.customEnabled) {
+                    availabilityOptions.push(buildOptionFromDateSlot(day.dateValue, day.customStart, day.customEnd));
+                }
+            });
+
+            return sanitizeNextSessionConfig({
+                ...effectiveConfig,
+                number: Number(effectiveConfig.number) + 1,
+                date: '',
+                timeStart: '',
+                timeEnd: '',
+                isScheduled: false,
+                availabilityOptions,
+                availabilityVotes: []
+            });
+        }
+
         function rerender() {
-            container.innerHTML = buildPollMarkup(config, options, votes, statusMessage);
+            container.innerHTML = buildPollMarkup(effectiveConfig, options, votes, statusMessage, canConfigureSession, editorState);
             const table = container.querySelector('.availability-table');
+            const card = container.querySelector('.next-session-card-poll');
+            const existingModal = document.querySelector('.next-session-editor-modal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            document.body.classList.toggle('next-session-editor-open', Boolean(editorState.open));
+
+            if (canConfigureSession && editorState.open) {
+                document.body.insertAdjacentHTML('beforeend', buildEditorModalMarkup(editorState));
+            }
+            const modal = document.querySelector('.next-session-editor-modal');
 
             if (table) {
                 table.addEventListener('click', async (event) => {
                     const target = event.target.closest('button');
                     if (!target) return;
+
+                    const confirmOptionId = target.getAttribute('data-confirm-option-id');
+                    if (confirmOptionId) {
+                        const selectedOption = options.find((option) => option.id === confirmOptionId);
+                        if (!selectedOption || !canConfigureSession) {
+                            return;
+                        }
+
+                        const labelParts = formatAvailabilityLabel(selectedOption);
+                        const confirmationLabel = `${labelParts.day}${labelParts.month ? ` ${labelParts.month}` : ''} ${selectedOption.time || ''}`.trim();
+                        const shouldSchedule = window.confirm(`Confermare la prossima sessione su ${confirmationLabel}?`);
+                        if (!shouldSchedule) {
+                            return;
+                        }
+
+                        const scheduledConfig = buildScheduledConfigFromOption(effectiveConfig, selectedOption);
+                        if (!scheduledConfig) {
+                            statusMessage = 'Impossibile confermare questa data.';
+                            rerender();
+                            return;
+                        }
+
+                        try {
+                            const savedConfig = await postRemoteSessionConfig(scheduledConfig, authToken);
+                            persistNextSessionConfig(savedConfig);
+                            container.dataset.nextSessionView = VIEW_MODES.scheduled;
+                            renderNextSession(savedConfig, container);
+                        } catch (error) {
+                            console.error('Impossibile confermare la prossima sessione:', error);
+                            statusMessage = error?.message || 'Impossibile confermare la sessione sul server.';
+                            rerender();
+                        }
+                        return;
+                    }
 
                     const rowIndex = Number(target.getAttribute('data-row-index'));
                     const optionId = target.getAttribute('data-option-id');
@@ -627,7 +1131,7 @@
 
                     try {
                         const payload = await postRemoteVote({
-                            sessionNumber: config.number,
+                            sessionNumber: effectiveConfig.number,
                             playerDiscordId: targetVote.discordId,
                             optionId,
                             value: nextChoice,
@@ -635,7 +1139,7 @@
                         });
                         const remoteVotes = sanitizeVotes(extractVotesFromApiPayload(payload?.data || payload), options, players);
                         votes = remoteVotes.length > 0 ? decorateVotes(remoteVotes) : decorateVotes(votes.map(({ canEdit, ...vote }) => vote));
-                        persistVotes(config.number, votes.map(({ canEdit, ...vote }) => vote));
+                        persistVotes(effectiveConfig.number, votes.map(({ canEdit, ...vote }) => vote));
                         statusMessage = '';
                         rerender();
                     } catch (error) {
@@ -646,6 +1150,192 @@
                     }
                 });
             }
+
+            if (card) {
+                card.addEventListener('click', (event) => {
+                    const button = event.target.closest('button');
+                    if (!button) return;
+
+                    const action = button.getAttribute('data-editor-action');
+                    const viewMode = button.getAttribute('data-view-mode');
+                    if (viewMode === VIEW_MODES.scheduled || viewMode === VIEW_MODES.poll) {
+                        container.dataset.nextSessionView = viewMode;
+                        renderNextSession(effectiveConfig, container);
+                        return;
+                    }
+
+                    if (!action || !canConfigureSession) return;
+
+                    if (action === 'open') {
+                        editorState = {
+                            ...editorState,
+                            open: true,
+                            error: '',
+                            pendingDate: '',
+                            days: buildDefaultEditorDays()
+                        };
+                        rerender();
+                        return;
+                    }
+                });
+            }
+
+            if (modal) {
+                modal.addEventListener('click', async (event) => {
+                    const button = event.target.closest('[data-editor-action]');
+                    if (!button) return;
+
+                    const action = button.getAttribute('data-editor-action');
+                    if (!action || !canConfigureSession) return;
+                    if (action === 'close-overlay' && event.target !== button) return;
+
+                    if (action === 'close' || action === 'close-overlay') {
+                        editorState = {
+                            ...editorState,
+                            open: false,
+                            error: ''
+                        };
+                        rerender();
+                        return;
+                    }
+
+                    if (action === 'add-day') {
+                        const pendingDate = String(editorState.pendingDate || '').trim();
+                        if (!pendingDate) {
+                            editorState = { ...editorState, error: 'Seleziona un giorno dal calendario.' };
+                            rerender();
+                            return;
+                        }
+                        if (editorState.days.some((day) => day.dateValue === pendingDate)) {
+                            editorState = { ...editorState, error: 'Questo giorno è già presente.' };
+                            rerender();
+                            return;
+                        }
+                        editorState = {
+                            ...editorState,
+                            error: '',
+                            pendingDate: '',
+                            days: [...editorState.days, {
+                                dateValue: pendingDate,
+                                afternoon: false,
+                                evening: true,
+                                customEnabled: false,
+                                customStart: '19:00',
+                                customEnd: '22:00'
+                            }].sort((left, right) => left.dateValue.localeCompare(right.dateValue))
+                        };
+                        rerender();
+                        return;
+                    }
+
+                    if (action === 'shift-week') {
+                        editorState = {
+                            ...editorState,
+                            error: '',
+                            days: shiftEditorDaysByWeek(editorState.days),
+                            pendingDate: editorState.pendingDate ? shiftDateValueByDays(editorState.pendingDate, 7) : ''
+                        };
+                        rerender();
+                        return;
+                    }
+
+                    if (action === 'remove-day') {
+                        const index = Number(button.getAttribute('data-editor-day-index'));
+                        if (!Number.isInteger(index)) return;
+                        editorState = {
+                            ...editorState,
+                            error: '',
+                            days: editorState.days.filter((_, dayIndex) => dayIndex !== index)
+                        };
+                        rerender();
+                        return;
+                    }
+
+                    if (action === 'save') {
+                        if (editorState.days.length === 0) {
+                            editorState = { ...editorState, error: 'Aggiungi almeno un giorno prima di salvare.' };
+                            rerender();
+                            return;
+                        }
+
+                        if (editorState.days.some((day) => !day.dateValue)) {
+                            editorState = { ...editorState, error: 'Ogni riga deve avere una data valida.' };
+                            rerender();
+                            return;
+                        }
+
+                        if (editorState.days.some((day) => !day.afternoon && !day.evening && !day.customEnabled)) {
+                            editorState = { ...editorState, error: 'Ogni giorno deve avere almeno uno slot attivo.' };
+                            rerender();
+                            return;
+                        }
+
+                        if (editorState.days.some((day) => day.customEnabled && (!day.customStart || !day.customEnd || minutesFromTime(day.customEnd) <= minutesFromTime(day.customStart)))) {
+                            editorState = { ...editorState, error: 'Gli orari custom devono avere una fine successiva all\'inizio.' };
+                            rerender();
+                            return;
+                        }
+
+                        const nextConfig = buildConfigFromEditorState();
+                        if (nextConfig.availabilityOptions.length === 0) {
+                            editorState = { ...editorState, error: 'La nuova sessione non contiene slot validi.' };
+                            rerender();
+                            return;
+                        }
+
+                        try {
+                            const savedConfig = await postRemoteSessionConfig(nextConfig, authToken);
+                            persistNextSessionConfig(savedConfig);
+                            renderNextSession(savedConfig, container);
+                        } catch (error) {
+                            console.error('Impossibile salvare la prossima sessione:', error);
+                            editorState = { ...editorState, error: error?.message || 'Impossibile salvare la sessione sul server.' };
+                            rerender();
+                        }
+                    }
+                });
+
+                modal.querySelectorAll('[data-editor-field]').forEach((field) => {
+                    field.addEventListener('change', (event) => {
+                        if (!canConfigureSession) return;
+                        const target = event.currentTarget;
+                        const fieldName = target.getAttribute('data-editor-field');
+                        const index = Number(target.getAttribute('data-editor-day-index'));
+
+                        if (fieldName === 'pending-date') {
+                            editorState = { ...editorState, pendingDate: target.value, error: '' };
+                            return;
+                        }
+
+                        if (!Number.isInteger(index) || !editorState.days[index]) return;
+
+                        if (fieldName === 'date') {
+                            updateEditorDay(index, { dateValue: target.value });
+                            return;
+                        }
+                        if (fieldName === 'afternoon') {
+                            updateEditorDay(index, { afternoon: target.checked });
+                            return;
+                        }
+                        if (fieldName === 'evening') {
+                            updateEditorDay(index, { evening: target.checked });
+                            return;
+                        }
+                        if (fieldName === 'custom-enabled') {
+                            updateEditorDay(index, { customEnabled: target.checked });
+                            rerender();
+                            return;
+                        }
+                        if (fieldName === 'custom-start') {
+                            updateEditorDay(index, { customStart: target.value });
+                            return;
+                        }
+                        if (fieldName === 'custom-end') {
+                            updateEditorDay(index, { customEnd: target.value });
+                        }
+                    });
+                });
+            }
         }
 
         rerender();
@@ -654,25 +1344,47 @@
     function renderNextSession(config, container) {
         if (!container || !config) return;
 
-        const availabilityOptions = sanitizeOptions(config.availabilityOptions);
-        if (availabilityOptions.length > 0) {
-            renderAvailabilityPoll(container, config);
-            return;
+        const effectiveConfig = readStoredNextSessionConfig(config);
+        const availabilityOptions = sanitizeOptions(effectiveConfig.availabilityOptions);
+        let requestedViewMode = String(container.dataset.nextSessionView || '').trim();
+        if (requestedViewMode === VIEW_MODES.scheduled && !effectiveConfig.isScheduled) {
+            requestedViewMode = '';
         }
+        if (requestedViewMode === VIEW_MODES.poll && availabilityOptions.length === 0) {
+            requestedViewMode = '';
+        }
+        const defaultViewMode = getDefaultViewMode(effectiveConfig, availabilityOptions);
+        const shouldShowScheduled = effectiveConfig.isScheduled
+            && (requestedViewMode === VIEW_MODES.scheduled || (!requestedViewMode && defaultViewMode === VIEW_MODES.scheduled));
+        const shouldShowPoll = availabilityOptions.length > 0
+            && (requestedViewMode === VIEW_MODES.poll || (!requestedViewMode && defaultViewMode === VIEW_MODES.poll));
 
-        if (config.isScheduled) {
-            container.innerHTML = buildScheduledMarkup(config);
-            const targetDate = parseScheduledDate(config.date, config.timeStart);
+        if (shouldShowScheduled) {
+            container.innerHTML = buildScheduledMarkup(effectiveConfig);
+            const toggleButton = container.querySelector('[data-view-mode]');
+            if (toggleButton) {
+                toggleButton.addEventListener('click', () => {
+                    container.dataset.nextSessionView = VIEW_MODES.poll;
+                    renderNextSession(effectiveConfig, container);
+                });
+            }
+            const targetDate = parseScheduledDate(effectiveConfig.date, effectiveConfig.timeStart);
             if (targetDate) {
                 renderCountdown(targetDate.getTime(), container);
             }
             return;
         }
 
-        container.innerHTML = buildEmptyMarkup(config);
+        if (shouldShowPoll) {
+            renderAvailabilityPoll(container, effectiveConfig);
+            return;
+        }
+
+        container.innerHTML = buildEmptyMarkup(effectiveConfig);
     }
 
     window.CriptaNextSession = {
-        render: renderNextSession
+        render: renderNextSession,
+        loadConfig: loadSessionConfig
     };
 })();

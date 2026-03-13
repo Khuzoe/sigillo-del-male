@@ -1,12 +1,25 @@
 document.addEventListener('DOMContentLoaded', () => {
-    fetch('assets/data/sessions.json')
-        .then(response => response.json())
-        .then(data => {
-            const nextSessionConfig = data.nextSession;
+    Promise.all([
+        fetch('assets/data/sessions.json').then(response => {
+            if (!response.ok) {
+                throw new Error(`Errore caricamento sessions.json (${response.status})`);
+            }
+            return response.json();
+        }),
+        window.CriptaNextSession?.loadConfig
+            ? window.CriptaNextSession.loadConfig({ fallbackPath: 'assets/data/next-session.json' })
+            : fetch('assets/data/next-session.json').then(response => {
+                if (!response.ok) {
+                    throw new Error(`Errore caricamento next-session.json (${response.status})`);
+                }
+                return response.json();
+            })
+    ])
+        .then(([sessionsData, nextSessionConfig]) => {
             const sessionContainer = document.getElementById('next-session-container');
             window.CriptaNextSession?.render(nextSessionConfig, sessionContainer);
 
-            const lastSession = data.sessions[data.sessions.length - 1];
+            const lastSession = sessionsData.sessions[sessionsData.sessions.length - 1];
             const latestEventsContainer = document.getElementById('latest-events-section');
             setupLatestSession(lastSession, latestEventsContainer);
 
@@ -15,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .catch(error => {
             console.error("Errore nel caricamento delle sessioni:", error);
             const sessionContainer = document.getElementById('next-session-container');
-            sessionContainer.innerHTML = `<p style="color:red; text-align:center;">Impossibile caricare i dati delle sessioni.</p>`;
+            sessionContainer.innerHTML = `<p style="color:red; text-align:center;">Impossibile caricare i dati della prossima sessione.</p>`;
         });
 
     function setupLatestSession(session, container) {

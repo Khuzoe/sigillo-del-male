@@ -61,6 +61,7 @@ function validateCoreJsonFiles() {
     "players.json",
     "quests.json",
     "sessions.json",
+    "next-session.json",
     "skills.json",
     "family_von_t.json",
   ];
@@ -303,16 +304,6 @@ function validateSessions() {
     return;
   }
 
-  if (!isObject(data.nextSession)) {
-    pushError(`${rel(sessionsPath)}: nextSession non valido`);
-  } else {
-    ["number", "date", "timeStart", "timeEnd", "isScheduled"].forEach((key) => {
-      if (!(key in data.nextSession)) {
-        pushError(`${rel(sessionsPath)}: nextSession.${key} mancante`);
-      }
-    });
-  }
-
   if (!Array.isArray(data.sessions)) {
     pushError(`${rel(sessionsPath)}: sessions deve essere una lista`);
     return;
@@ -360,6 +351,48 @@ function validateSessions() {
   });
 }
 
+function validateNextSession() {
+  const nextSessionPath = path.join(DATA_DIR, "next-session.json");
+  const data = readJson(nextSessionPath);
+  if (!isObject(data)) {
+    pushError(`${rel(nextSessionPath)}: radice non valida`);
+    return;
+  }
+
+  ["number", "date", "timeStart", "timeEnd", "isScheduled", "availabilityOptions"].forEach((key) => {
+    if (!(key in data)) {
+      pushError(`${rel(nextSessionPath)}: ${key} mancante`);
+    }
+  });
+
+  if (typeof data.number !== "number") {
+    pushError(`${rel(nextSessionPath)}: number deve essere numerico`);
+  }
+
+  if (typeof data.isScheduled !== "boolean") {
+    pushError(`${rel(nextSessionPath)}: isScheduled deve essere boolean`);
+  }
+
+  if (!Array.isArray(data.availabilityOptions)) {
+    pushError(`${rel(nextSessionPath)}: availabilityOptions deve essere una lista`);
+    return;
+  }
+
+  data.availabilityOptions.forEach((option, idx) => {
+    const ctx = `${rel(nextSessionPath)}.availabilityOptions[${idx}]`;
+    if (!isObject(option)) {
+      pushError(`${ctx}: opzione non valida`);
+      return;
+    }
+
+    ["id", "label", "time"].forEach((key) => {
+      if (!option[key]) {
+        pushError(`${ctx}: ${key} mancante`);
+      }
+    });
+  });
+}
+
 function validateUnreferencedMarkdown(markdownRefs) {
   const markdownFiles = [];
   const walk = (dir) => {
@@ -389,6 +422,7 @@ function main() {
   const { npcById, markdownRefs } = validateCharacters(playersById);
   validateQuests(new Set(npcById.keys()), new Set(playersById.keys()));
   validateSessions();
+  validateNextSession();
   validateUnreferencedMarkdown(markdownRefs);
 
   if (warnings.length > 0) {
