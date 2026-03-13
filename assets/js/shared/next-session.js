@@ -226,11 +226,19 @@
             })
         });
 
-        if (!response.ok) {
-            throw new Error(`Session votes API POST HTTP ${response.status}`);
+        let payload = null;
+        try {
+            payload = await response.json();
+        } catch (_) {
+            payload = null;
         }
 
-        return response;
+        if (!response.ok) {
+            const apiMessage = payload?.error || payload?.message || payload?.details || '';
+            throw new Error(apiMessage ? `Session votes API POST HTTP ${response.status}: ${apiMessage}` : `Session votes API POST HTTP ${response.status}`);
+        }
+
+        return payload;
     }
 
     function persistVotes(sessionNumber, votes) {
@@ -481,6 +489,24 @@
             ? ''
             : 'Accedi con Discord per modificare il tuo voto.';
 
+        function decorateVotes(baseVoteList) {
+            return players.map((player) => {
+                const existingVote = baseVoteList.find((vote) => vote.playerId === player.id);
+                return existingVote || {
+                    playerId: player.id,
+                    discordId: player.discordId || '',
+                    name: player.name,
+                    selections: options.reduce((acc, option) => {
+                        acc[option.id] = '';
+                        return acc;
+                    }, {})
+                };
+            }).map((vote) => ({
+                ...vote,
+                canEdit: Boolean(currentDiscordId) && Boolean(vote.discordId) && vote.discordId === currentDiscordId
+            }));
+        }
+
         function rerender() {
             container.innerHTML = buildPollMarkup(config, options, votes, statusMessage);
             const table = container.querySelector('.availability-table');
@@ -522,20 +548,22 @@
                     rerender();
 
                     try {
-                        await postRemoteVote({
+                        const payload = await postRemoteVote({
                             sessionNumber: config.number,
                             playerDiscordId: targetVote.discordId,
                             optionId,
                             value: nextChoice,
                             token: authToken
                         });
+                        const remoteVotes = sanitizeVotes(extractVotesFromApiPayload(payload?.data || payload), options, players);
+                        votes = remoteVotes.length > 0 ? decorateVotes(remoteVotes) : decorateVotes(votes.map(({ canEdit, ...vote }) => vote));
                         persistVotes(config.number, votes.map(({ canEdit, ...vote }) => vote));
                         statusMessage = '';
                         rerender();
                     } catch (error) {
                         console.error('Impossibile salvare il voto della prossima sessione:', error);
                         votes = previousVotes;
-                        statusMessage = 'Impossibile salvare il voto sul server.';
+                        statusMessage = error?.message || 'Impossibile salvare il voto sul server.';
                         rerender();
                     }
                 });
