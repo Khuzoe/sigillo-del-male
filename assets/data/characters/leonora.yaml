@@ -35,4 +35,6 @@ relationships:
     description: "Figlia"
 summary:
   race: "Non Morto"
+  height: "5 ft 8 in (1.73 m)"
+  weight: "132 lbs (60 kg)"
 type: "npc"

@@ -42,4 +42,8 @@ relationships:
     description: "Padre"
   - id: "tokka"
     description: "Sorella"
+summary:
+  race: "Vampira"
+  height: "5 ft 9 in (1.75 m)"
+  weight: "143 lbs (65 kg)"
 type: "npc"

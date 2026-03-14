@@ -51,7 +51,8 @@ relationships:
 summary:
   race: "Non Morto"
   age_at_death: "58 anni"
-  height: "1.68m | 8kg"
+  height: "5 ft 6 in (1.68 m)"
+  weight: "18 lbs (8 kg)"
   period: "42-100"
   cause_of_death: "Uccisa da Karla (???)"
 type: "npc"

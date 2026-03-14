@@ -14,8 +14,8 @@
       "race": "Umano",
       "age": "54 anni",
       "age_at_death": "N/A",
-      "height": "210 cm",
-      "weight": "130 kg",
+      "height": "6 ft 11 in (2.10 m)",
+      "weight": "287 lbs (130 kg)",
       "period": "Contemporaneo",
       "cause_of_death": "N/A"
     },
@@ -36,8 +36,8 @@
       "race": "Eladrin",
       "age": "16 anni",
       "age_at_death": "N/A",
-      "height": "1,67 m",
-      "weight": "59 kg",
+      "height": "5 ft 6 in (1.67 m)",
+      "weight": "130 lbs (59 kg)",
       "period": "Contemporaneo",
       "cause_of_death": "N/A"
     },
@@ -58,7 +58,7 @@
       "race": "Nano",
       "age": "74 anni",
       "age_at_death": "N/A",
-      "height": "1,50 m",
+      "height": "4 ft 11 in (1.50 m)",
       "weight": "150 lbs (68 kg)",
       "period": "74",
       "cause_of_death": "N/A"
@@ -80,8 +80,8 @@
     "summary": {
       "race": "Kenku",
       "age_at_death": "N/A",
-      "height": "70cm",
-      "weight": "Non disponibile",
+      "height": "2 ft 4 in (0.70 m)",
+      "weight": "22 lbs (10 kg)",
       "period": "14",
       "cause_of_death": "N/A"
     },
@@ -102,8 +102,8 @@
       "race": "Non disponibile",
       "age": "Non disponibile",
       "age_at_death": "N/A",
-      "height": "Non disponibile",
-      "weight": "Non disponibile",
+      "height": "5 ft 11 in (1.80 m)",
+      "weight": "165 lbs (75 kg)",
       "period": "Contemporaneo",
       "cause_of_death": "N/A"
     },

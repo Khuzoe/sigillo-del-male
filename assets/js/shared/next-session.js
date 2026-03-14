@@ -26,10 +26,32 @@
         }
     };
     const VOTE_STATES = [
-        { value: 'yes', label: 'SI', className: 'is-yes', icon: 'yes.webp' },
-        { value: 'maybe', label: 'FORSE', className: 'is-maybe', icon: 'maybe.webp' },
-        { value: 'no', label: 'NO', className: 'is-no', icon: 'no.webp' }
+        { value: 'yes', label: 'SI', className: 'is-yes' },
+        { value: 'maybe', label: 'FORSE', className: 'is-maybe' },
+        { value: 'no', label: 'NO', className: 'is-no' }
     ];
+    const VOTE_ICON_SETS = {
+        dm: {
+            yes: 'dm_yes.webp',
+            maybe: 'dm_maybe.webp',
+            no: 'dm_no.webp'
+        },
+        garun: {
+            yes: 'garun_yes.webp',
+            maybe: 'garun_maybe.webp',
+            no: 'garun_no.webp'
+        },
+        randra: {
+            yes: 'randra_yes.webp',
+            maybe: 'randra_maybe.webp',
+            no: 'randra_no.webp'
+        },
+        valdor: {
+            yes: 'valdor_yes.webp',
+            maybe: 'valdor_maybe.webp',
+            no: 'valdor_no.webp'
+        }
+    };
 
     function escapeHtml(value) {
         return String(value ?? '')
@@ -106,10 +128,14 @@
         return window.location.pathname.includes('/pages/') ? '../assets/' : 'assets/';
     }
 
-    function getVoteIconPath(value) {
+    function getVoteIconPath(value, playerId) {
         const state = getVoteState(value);
-        if (!state?.icon) return '';
-        return `${getAssetsBasePath()}img/ui/${state.icon}`;
+        if (!state?.value) return '';
+        const normalizedPlayerId = String(playerId || '').trim().toLowerCase();
+        const iconSet = VOTE_ICON_SETS[normalizedPlayerId] || VOTE_ICON_SETS.dm;
+        const iconFile = iconSet?.[state.value];
+        if (!iconFile) return '';
+        return `${getAssetsBasePath()}img/ui/${iconFile}`;
     }
 
     async function loadEligiblePlayers(config) {
@@ -1132,7 +1158,7 @@
                                     ${vote.canEdit ? '' : 'disabled'}
                                     aria-label="Cambia voto di ${escapeHtml(vote.name)} per ${escapeHtml(option.label)}">
                                     ${vote.selections[option.id]
-                    ? `<img class="availability-choice-icon" src="${escapeHtml(getVoteIconPath(vote.selections[option.id]))}" alt="" loading="lazy" decoding="async">`
+                    ? `<img class="availability-choice-icon" src="${escapeHtml(getVoteIconPath(vote.selections[option.id], vote.playerId))}" alt="" loading="lazy" decoding="async">`
                     : ''}
                                 </button>
                             </div>

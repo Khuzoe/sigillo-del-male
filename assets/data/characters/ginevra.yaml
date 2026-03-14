@@ -30,7 +30,8 @@ content_blocks:
     markdown: "characters/ginevra/healing_fetus.md"
     hidden: true
 summary:
-  height: "1.82m | 240kg"
+  height: "6 ft 0 in (1.82 m)"
+  weight: "529 lbs (240 kg)"
   cause_of_death: "Morte Materna"
 relationships:
   - id: "leonora"
