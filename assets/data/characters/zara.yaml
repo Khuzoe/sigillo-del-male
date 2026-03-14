@@ -43,4 +43,8 @@ content_blocks:
     markdown: "characters/zara/marionetta_tete.md"
 
 relationships: - {}
+summary:
+  race: "Umana"
+  height: "5 ft 7 in (1.70 m)"
+  weight: "132 lbs (60 kg)"
 type: "npc"

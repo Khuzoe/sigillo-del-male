@@ -10,6 +10,10 @@ images:
   avatar: "img/creatures/transp/franky_transp.webp"
   hover: "img/creatures/transp/franky_animation.webp"
   portrait: "img/creatures/franky.webp"
+summary:
+  race: "Topo Parlante"
+  height: "1 ft 10 in (0.55 m)"
+  weight: "4 lbs (2 kg)"
 content_blocks:
   - type: "lore"
     title: "Biografia"

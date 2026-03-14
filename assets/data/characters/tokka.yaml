@@ -33,4 +33,6 @@ relationships:
     description: "Sorella"
 summary:
   race: "Non Morto"
+  height: "5 ft 10 in (1.78 m)"
+  weight: "154 lbs (70 kg)"
 type: "npc"

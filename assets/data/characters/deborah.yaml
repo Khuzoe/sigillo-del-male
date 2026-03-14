@@ -51,4 +51,8 @@ relationships:
     description: "Zia"
   - id: "rabberduscolanderson"
     description: "Zio"
+summary:
+  race: "Non Morto"
+  height: "4 ft 5 in (1.35 m)"
+  weight: "66 lbs (30 kg)"
 type: "npc"
