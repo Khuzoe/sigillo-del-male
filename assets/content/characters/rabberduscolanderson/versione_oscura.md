@@ -1,0 +1,1 @@
+Rabberduscolanderson appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. La sua immagine accentua il lato piu disfatto e malinconico della sua figura, rendendolo piu spettrale, piu stanco e insieme piu disturbante da osservare.
