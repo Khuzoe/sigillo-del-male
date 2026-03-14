@@ -1,0 +1,1 @@
+Nino Olegna appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. La sua figura risulta ancora piu severa e monumentale, con una presenza funebre e autoritaria che lo fa sembrare una sentenza vivente piu che un semplice corpo corrotto.

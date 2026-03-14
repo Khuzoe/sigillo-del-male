@@ -1,0 +1,1 @@
+Tokka appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. La sua forma appare piu brutale e contaminata, con un equilibrio disturbante tra forza fisica, ferocia e un'evidente degenerazione del corpo.

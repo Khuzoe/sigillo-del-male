@@ -1,0 +1,1 @@
+Leonora appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. Il suo aspetto conserva un'aura enigmatica, ma viene attraversato da un senso di minaccia piu netto, come se il mistero che la circonda avesse finalmente preso una forma visibile.

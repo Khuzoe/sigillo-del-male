@@ -14,9 +14,29 @@ document.addEventListener("DOMContentLoaded", function () {
         basePath = src.replace("assets/js/layout.js", "");
     }
 
+    ensureFavicon(basePath);
     bindPrefetchForLinks(document);
     loadSidebar(basePath);
 });
+
+function ensureFavicon(basePath) {
+    const faviconHref = `${basePath}assets/img/ui/tab_icon.webp`;
+    const iconSelectors = [
+        { rel: "icon", type: "image/webp" },
+        { rel: "shortcut icon", type: "image/webp" }
+    ];
+
+    iconSelectors.forEach(({ rel, type }) => {
+        let link = document.head.querySelector(`link[rel="${rel}"]`);
+        if (!link) {
+            link = document.createElement("link");
+            link.rel = rel;
+            document.head.appendChild(link);
+        }
+        link.type = type;
+        link.href = faviconHref;
+    });
+}
 
 function loadSidebar(basePath) {
     if (window.SIDEBAR_HTML) {

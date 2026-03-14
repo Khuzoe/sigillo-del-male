@@ -1,0 +1,1 @@
+Deborah appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. La sua figura mantiene un'eleganza composta, ma il volto e la postura trasmettono una freddezza innaturale, come se qualcosa di piu feroce stesse cercando di emergere da sotto la superficie.

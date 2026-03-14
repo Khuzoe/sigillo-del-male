@@ -1,0 +1,1 @@
+Ginevra appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. La sua presenza e piu massiccia e minacciosa, con linee del corpo e del volto che sembrano spinte verso qualcosa di piu antico, viscerale e profondamente corrotto.

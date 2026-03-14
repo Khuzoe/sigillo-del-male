@@ -1,0 +1,1 @@
+Karla appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. Mantiene la sua imponenza aristocratica, ma lo sguardo, i contrasti del volto e l'intera silhouette suggeriscono una versione piu predatoria e apertamente dominatrice di lei.

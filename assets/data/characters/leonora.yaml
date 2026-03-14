@@ -19,6 +19,11 @@ content_blocks:
     title: "Aspetto Fisico"
     icon: "fa-user"
     markdown: "characters/leonora/aspetto_fisico.md"
+  - type: "image_box"
+    title: "Versione Oscura"
+    icon: "fa-moon"
+    image: "img/creatures/leonora_dark.webp"
+    markdown: "characters/leonora/versione_oscura.md"
 relationships:
   - id: "yuris"
     description: "Marito"
