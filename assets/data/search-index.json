@@ -12,7 +12,7 @@
         "player",
         "Kenku"
       ],
-      "content": "Guaritrice e guida spirituale del gruppo, ha spezzato maledizioni e tenuto unito il party nei momenti piu critici. Dopo avere sviluppato un forte legame con Rabberduscolanderson, si e sacrificata durante l'incubo del sigillo: ora il suo corpo e svenuto e la sua anima e rinchiusa in un Prisma di Luce Cristallizzata. Kenku N/A 70cm Non disponibile 14 N/A"
+      "content": "Guaritrice e guida spirituale del gruppo, ha spezzato maledizioni e tenuto unito il party nei momenti piu critici. Dopo avere sviluppato un forte legame con Rabberduscolanderson, si e sacrificata durante l'incubo del sigillo: ora il suo corpo e svenuto e la sua anima e rinchiusa in un Prisma di Luce Cristallizzata. Kenku N/A 2 ft 4 in (0.70 m) 22 lbs (10 kg) 14 N/A"
     },
     {
       "id": "npc:deborah",
@@ -26,7 +26,7 @@
         "vivo",
         "npc"
       ],
-      "content": "Una vita normale - Io non la ho. Biografia Deborah Von T è ricordata come l'Ultima Foglia della stirpe. Bambina dai capelli bianchi, porta con sé un potere antico che la casata Von T ha temuto e desiderato insieme. Nel silenzio della cripta, la sua presenza è percepita come un peso costante: il suo nome ricorre nei sussurri e nei documenti, legato a un destino che potrebbe ridisegnare il sangue dei Von T. Particolarità Molti la considerano la minaccia più grande del luogo. Si dice che la linea più vicina alla realtà sia legata a lei, e che le sue scelte possano alterare l'equilibrio dell'inte..."
+      "content": "Una vita normale - Io non la ho. Non Morto 4 ft 5 in (1.35 m) 66 lbs (30 kg) Biografia Deborah Von T è ricordata come l'Ultima Foglia della stirpe. Bambina dai capelli bianchi, porta con sé un potere antico che la casata Von T ha temuto e desiderato insieme. Nel silenzio della cripta, la sua presenza è percepita come un peso costante: il suo nome ricorre nei sussurri e nei documenti, legato a un destino che potrebbe ridisegnare il sangue dei Von T. Particolarità Molti la considerano la minaccia più grande del luogo. Si dice che la linea più vicina alla realtà sia legata a lei, e che le sue sc..."
     },
     {
       "id": "family:deborah",
@@ -53,7 +53,7 @@
         "vivo",
         "npc"
       ],
-      "content": "I ricordi sono annebbiati... ma il mio amore per lui è eterno. Fantasma 34 anni 1.61m | 750g 56-90 Uccisa da Karla (Pugnalata al petto) Biografia Elena Erbadath nacque in una famiglia ricca, circondata da comodità, cure e attenzioni costanti. Nulla le mancava, tranne una cosa fondamentale: non camminò mai. Le sue gambe non la portarono mai da nessuna parte, e quella mancanza segnò tutta la sua vita. Il denaro le offrì ciò che a molti era negato: una sedia a rotelle costruita con cura, medici preparati, una casa sicura. La sua esistenza era protetta, ordinata, controllata. Ma col tempo Elena c..."
+      "content": "I ricordi sono annebbiati... ma il mio amore per lui è eterno. Fantasma 34 anni 5 ft 3 in (1.61 m) 2 lbs (0.75 kg) 56-90 Uccisa da Karla (Pugnalata al petto) Biografia Elena Erbadath nacque in una famiglia ricca, circondata da comodità, cure e attenzioni costanti. Nulla le mancava, tranne una cosa fondamentale: non camminò mai. Le sue gambe non la portarono mai da nessuna parte, e quella mancanza segnò tutta la sua vita. Il denaro le offrì ciò che a molti era negato: una sedia a rotelle costruita con cura, medici preparati, una casa sicura. La sua esistenza era protetta, ordinata, controllata..."
     },
     {
       "id": "quest-group:elena_quests",
@@ -92,7 +92,7 @@
         "vivo",
         "npc"
       ],
-      "content": "She volete dei shieri, io shi shono! Biografia Franky è uno scienziato dalla mente instabile: un topo parlante affiancato da un essere di carne cucita. Nel suo laboratorio macabro prepara sieri e innesti, trattando corpi e organi come componenti. La sua ossessione è un golem gigantesco, un colosso che vorrebbe animare con un cuore capace di sostenerne il potere. Particolarità Tra i segreti che cerca, Franky brama un cuore che funzioni da batteria arcana. Le voci parlano di un cuore particolare, appartenuto ad Albert, che pulserebbe ancora di magia. Per lui quel cuore è la chiave per dare vita..."
+      "content": "She volete dei shieri, io shi shono! Topo Parlante 1 ft 10 in (0.55 m) 4 lbs (2 kg) Biografia Franky è uno scienziato dalla mente instabile: un topo parlante affiancato da un essere di carne cucita. Nel suo laboratorio macabro prepara sieri e innesti, trattando corpi e organi come componenti. La sua ossessione è un golem gigantesco, un colosso che vorrebbe animare con un cuore capace di sostenerne il potere. Particolarità Tra i segreti che cerca, Franky brama un cuore che funzioni da batteria arcana. Le voci parlano di un cuore particolare, appartenuto ad Albert, che pulserebbe ancora di magi..."
     },
     {
       "id": "quest-group:franky_quests",
@@ -118,7 +118,7 @@
         "player",
         "Umano"
       ],
-      "content": "Padre di Ran'Dra e prima linea del gruppo, affronta ogni scontro con tenacia brutale e istinto protettivo. Tra maledizioni, rituali e battaglie contro le creature della cripta, resta il pilastro fisico della compagnia anche quando la situazione precipita. Umano 54 anni N/A 210 cm 130 kg Contemporaneo N/A"
+      "content": "Padre di Ran'Dra e prima linea del gruppo, affronta ogni scontro con tenacia brutale e istinto protettivo. Tra maledizioni, rituali e battaglie contro le creature della cripta, resta il pilastro fisico della compagnia anche quando la situazione precipita. Umano 54 anni N/A 6 ft 11 in (2.10 m) 287 lbs (130 kg) Contemporaneo N/A"
     },
     {
       "id": "npc:ginevra",
@@ -132,7 +132,7 @@
         "vivo",
         "npc"
       ],
-      "content": "Se non metti il tuo amore nel pestello, l'erba resta solo erba. 1.82m | 240kg Morte Materna Aspetto Fisico È una figura femminile dall’aspetto inquietante e soprannaturale. La pelle ha un tono grigio-verdastro, opaco e leggermente screziato, che le conferisce un’aria fredda e marmorea. Il viso è dai lineamenti delicati ma severi: zigomi pronunciati, labbra piene ma pallide e un’espressione impassibile. Gli occhi sono di un giallo intenso e luminoso, quasi fosforescenti. I capelli sono lunghi, folti e ondulati, di un rosso ramato che contrasta con l’incarnato spento. Incorniciano il volto e sc..."
+      "content": "Se non metti il tuo amore nel pestello, l'erba resta solo erba. 6 ft 0 in (1.82 m) 529 lbs (240 kg) Morte Materna Aspetto Fisico È una figura femminile dall’aspetto inquietante e soprannaturale. La pelle ha un tono grigio-verdastro, opaco e leggermente screziato, che le conferisce un’aria fredda e marmorea. Il viso è dai lineamenti delicati ma severi: zigomi pronunciati, labbra piene ma pallide e un’espressione impassibile. Gli occhi sono di un giallo intenso e luminoso, quasi fosforescenti. I capelli sono lunghi, folti e ondulati, di un rosso ramato che contrasta con l’incarnato spento. Inco..."
     },
     {
       "id": "quest-group:ginevra_quests",
@@ -172,7 +172,7 @@
         "vivo",
         "npc"
       ],
-      "content": "Insieme possiamo raggiungere il nostro obiettivo, lo sento. Biografia Karla Von T appare quando viene chiamata dalle sue progenie o quando la sua volontà decide di imporsi. La sua presenza spezza le violenze: uno sguardo basta a piegare la volontà e a imporre silenzio. Si mostra criptica ma interessata, soprattutto verso chi proviene da linee vicine a quella dei Von T, perché ritiene che il loro destino sia intrecciato al suo. Particolarità Karla conduce un rituale macabro che simula la morte. Chi vi si sottopone attraversa un'ombra breve e poi si risveglia con un potere nuovo, legato al sang..."
+      "content": "Insieme possiamo raggiungere il nostro obiettivo, lo sento. Vampira 5 ft 9 in (1.75 m) 143 lbs (65 kg) Biografia Karla Von T appare quando viene chiamata dalle sue progenie o quando la sua volontà decide di imporsi. La sua presenza spezza le violenze: uno sguardo basta a piegare la volontà e a imporre silenzio. Si mostra criptica ma interessata, soprattutto verso chi proviene da linee vicine a quella dei Von T, perché ritiene che il loro destino sia intrecciato al suo. Particolarità Karla conduce un rituale macabro che simula la morte. Chi vi si sottopone attraversa un'ombra breve e poi si ri..."
     },
     {
       "id": "quest-group:karla_quests",
@@ -224,7 +224,7 @@
         "morto",
         "npc"
       ],
-      "content": "Il tradimento è inaccettabile. Pagherai. Non Morto 60 anni 2.60m | 210kg 25-85 Gettato in gabbia con un Ratto delle Sabbie a Chult Biografia Nino Olegna, chiamato Tessimorte, è un alchimista macabro che intreccia ragnatele, tendini e corpi per generare creature innaturali. Il suo laboratorio è un labirinto di fascicoli e rituali oscuri. I suoi documenti parlano dell'Assistente, detto Bacio Mortale, e di una creatura colossale dalle capacità incalcolabili. Le Creature Tela sono descritte come base per ulteriori creazioni, a testimonianza di una ricerca senza scrupoli. Di lui restano appunti e ..."
+      "content": "Il tradimento è inaccettabile. Pagherai. Non Morto 60 anni 8 ft 6 in (2.60 m) 463 lbs (210 kg) 25-85 Gettato in gabbia con un Ratto delle Sabbie a Chult Biografia Nino Olegna, chiamato Tessimorte, è un alchimista macabro che intreccia ragnatele, tendini e corpi per generare creature innaturali. Il suo laboratorio è un labirinto di fascicoli e rituali oscuri. I suoi documenti parlano dell'Assistente, detto Bacio Mortale, e di una creatura colossale dalle capacità incalcolabili. Le Creature Tela sono descritte come base per ulteriori creazioni, a testimonianza di una ricerca senza scrupoli. Di ..."
     },
     {
       "id": "family:nino_olegna",
@@ -263,7 +263,7 @@
         "vivo",
         "npc"
       ],
-      "content": "Io volevo solo starmene seduto nella mia stanza, perché sono finito su questo sito?! Non Morto 49 anni 1.62m | 9kg 41-90 Suicidio (gettandosi in un baratro) Biografia Rabberduscolanderson nacque come primogenito della nobile casata Von T. Il suo destino fu segnato fin dal battesimo: suo padre, Yuris, gli impose il nome \"Rabberduscolanderson\" contro la ferma volontà della madre, Leonora. Questo atto di prepotenza trasformò il figlio in un simbolo vivente dei conflitti coniugali. Leonora, incapace di separare il bambino dall'odio per il marito, lo ignorò per gran parte della sua infanzia, river..."
+      "content": "Io volevo solo starmene seduto nella mia stanza, perché sono finito su questo sito?! Non Morto 49 anni 5 ft 4 in (1.62 m) 20 lbs (9 kg) 41-90 Suicidio (gettandosi in un baratro) Biografia Rabberduscolanderson nacque come primogenito della nobile casata Von T. Il suo destino fu segnato fin dal battesimo: suo padre, Yuris, gli impose il nome \"Rabberduscolanderson\" contro la ferma volontà della madre, Leonora. Questo atto di prepotenza trasformò il figlio in un simbolo vivente dei conflitti coniugali. Leonora, incapace di separare il bambino dall'odio per il marito, lo ignorò per gran parte dell..."
     },
     {
       "id": "quest-group:rabber_quests",
@@ -302,7 +302,7 @@
         "player",
         "Eladrin"
       ],
-      "content": "Maga dallo stile imprevedibile, unisce astuzia, illusioni e iniziativa per aprire strade dove sembrano non essercene. Tra furti decisivi, scelte rischiose e combattimenti al limite, continua a essere una risorsa tattica centrale per il gruppo. Eladrin 16 anni N/A 1,67 m 59 kg Contemporaneo N/A"
+      "content": "Maga dallo stile imprevedibile, unisce astuzia, illusioni e iniziativa per aprire strade dove sembrano non essercene. Tra furti decisivi, scelte rischiose e combattimenti al limite, continua a essere una risorsa tattica centrale per il gruppo. Eladrin 16 anni N/A 5 ft 6 in (1.67 m) 130 lbs (59 kg) Contemporaneo N/A"
     },
     {
       "id": "family:rendar",
@@ -571,7 +571,7 @@
         "player",
         "Nano"
       ],
-      "content": "Artefice e mente tecnica del party, combina studio arcano, invenzione e sangue freddo per gestire minacce fuori scala. Ha risolto enigmi, sigillato aree letali e recuperato risorse cruciali, diventando il principale riferimento strategico nelle decisioni operative. Nano 74 anni N/A 1,50 m 150 lbs (68 kg) 74 N/A"
+      "content": "Artefice e mente tecnica del party, combina studio arcano, invenzione e sangue freddo per gestire minacce fuori scala. Ha risolto enigmi, sigillato aree letali e recuperato risorse cruciali, diventando il principale riferimento strategico nelle decisioni operative. Nano 74 anni N/A 4 ft 11 in (1.50 m) 150 lbs (68 kg) 74 N/A"
     },
     {
       "id": "npc:x",
@@ -585,7 +585,7 @@
         "vivo",
         "npc"
       ],
-      "content": "Il sapere sopravvive dove il potere consuma. Non Morto 58 anni 1.68m | 8kg 42-100 Uccisa da Karla (???) Biografia Figlia di Yuris e Leonora Von T, X porta un nome nato per ripicca. Dopo che il primogenito fu chiamato Rabberduscolanderson contro la volontà della madre, Leonora scelse per la figlia successiva un nome ridotto all'essenziale: una sola lettera, un rifiuto silenzioso verso le imposizioni del marito. Crescendo, X osservò i conflitti familiari da un angolo distante, trasformando la freddezza domestica in curiosità. Il sangue dei Von T le offriva privilegi, ma lei li usò soltanto per ..."
+      "content": "Il sapere sopravvive dove il potere consuma. Non Morto 58 anni 5 ft 6 in (1.68 m) 18 lbs (8 kg) 42-100 Uccisa da Karla (???) Biografia Figlia di Yuris e Leonora Von T, X porta un nome nato per ripicca. Dopo che il primogenito fu chiamato Rabberduscolanderson contro la volontà della madre, Leonora scelse per la figlia successiva un nome ridotto all'essenziale: una sola lettera, un rifiuto silenzioso verso le imposizioni del marito. Crescendo, X osservò i conflitti familiari da un angolo distante, trasformando la freddezza domestica in curiosità. Il sangue dei Von T le offriva privilegi, ma lei..."
     },
     {
       "id": "quest-group:x_quests",
@@ -638,7 +638,7 @@
         "ignoto",
         "npc"
       ],
-      "content": "Buuuu! Ahahaha! Biografia Il nome di Zara compare tra i ritratti e le targhette del palazzo, come un ricordo fissato nel tempo. È conosciuta come La Giullare, una presenza legata alle stranezze del piano. Chi ne parla la descrive come creatrice di inganni e distorsioni, un'ombra che prende forma tra le sale. Particolarità Le sue apparizioni sono teatrali: una figura enorme che urla \"Booo!\" e poi esplode in coriandoli colorati. Ogni volta si dissolve senza lasciare tracce, tornando con forme diverse, più piccole e più beffarde. È difficile distinguere dove finisca l'illusione e dove inizi il p..."
+      "content": "Buuuu! Ahahaha! Umana 5 ft 7 in (1.70 m) 132 lbs (60 kg) Biografia Il nome di Zara compare tra i ritratti e le targhette del palazzo, come un ricordo fissato nel tempo. È conosciuta come La Giullare, una presenza legata alle stranezze del piano. Chi ne parla la descrive come creatrice di inganni e distorsioni, un'ombra che prende forma tra le sale. Particolarità Le sue apparizioni sono teatrali: una figura enorme che urla \"Booo!\" e poi esplode in coriandoli colorati. Ogni volta si dissolve senza lasciare tracce, tornando con forme diverse, più piccole e più beffarde. È difficile distinguere d..."
     }
   ]
 }
