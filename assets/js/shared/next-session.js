@@ -50,6 +50,11 @@
             yes: 'valdor_yes.webp',
             maybe: 'valdor_maybe.webp',
             no: 'valdor_no.webp'
+        },
+        theldarion: {
+            yes: 'theldarion_yes.webp',
+            maybe: 'theldarion_maybe.webp',
+            no: 'theldarion_no.webp'
         }
     };
 
@@ -374,7 +379,12 @@
             const decorationImage = await loadCanvasImage(`${getAssetsBasePath()}img/ui/card.webp`);
             context.save();
             context.globalAlpha = 1;
-            context.drawImage(decorationImage, width - 370, height - 330, 240, 260);
+            const decorationX = width - 700;
+            const decorationY = height - 347;
+            const decorationScale = 0.24;
+            const decorationWidth = decorationImage.width * decorationScale;
+            const decorationHeight = decorationImage.height * decorationScale;
+            context.drawImage(decorationImage, decorationX, decorationY, decorationWidth, decorationHeight);
             context.restore();
         } catch (error) {
             console.warn('Impossibile caricare la decorazione della card per l\'export PNG:', error);
@@ -977,12 +987,15 @@
     }
 
     function getColumnStateClass(optionId, totals, voteCount) {
-        const optionTotals = totals[optionId] || { yes: 0, no: 0 };
+        const optionTotals = totals[optionId] || { yes: 0, maybe: 0, no: 0 };
         if (voteCount > 0 && optionTotals.yes === voteCount) {
             return 'is-all-yes';
         }
         if (optionTotals.no > 0) {
             return 'has-no';
+        }
+        if ((optionTotals.yes + optionTotals.maybe) > 0 && optionTotals.maybe > 0) {
+            return 'is-yes-maybe';
         }
         return '';
     }
@@ -1035,6 +1048,9 @@
                             <i class="fas fa-pen"></i>
                         </button>
                     ` : ''}
+                    <button type="button" class="next-session-export-trigger" data-export-session-card aria-label="Scarica card sessione">
+                        <i class="fas fa-download"></i>
+                    </button>
                     ${config.availabilityOptions?.length ? `
                         <button type="button" class="next-session-view-trigger" data-view-mode="${VIEW_MODES.poll}" aria-label="Mostra sondaggio disponibilita">
                             <i class="fas fa-table"></i>
