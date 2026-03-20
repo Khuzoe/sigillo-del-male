@@ -1,5 +1,5 @@
 {
-  "itemCount": 50,
+  "itemCount": 51,
   "items": [
     {
       "id": "player:apothecary",
@@ -559,6 +559,19 @@
         "levelup"
       ],
       "content": "Continuate il vostro combattimento contro gli scheletri animati dopo che Valdor ha raccolto il libro, e riuscite ad uscirne vincitori senza perdite. Una volta sconfitti gli scheletri di Rosskar, Okbrax e Lumilla, il sacrofago all'interno della stanza si sblocca, rivelando al suo interno numerosi oggetti magici (armature e armi). Date un'occhiata veloce al libro e capite che questo contiene parti della storia dei Klaren, narrati con un linguaggio piuttosto arcaico. XP totali 8004 XP ciascuno 2001 level up 6"
+    },
+    {
+      "id": "player:theldarion",
+      "type": "player",
+      "entityId": "theldarion",
+      "title": "Theldarion",
+      "subtitle": "Incantatore Tattico",
+      "url": "pages/characters/character.html?id=theldarion&type=player",
+      "tags": [
+        "player",
+        "Non disponibile"
+      ],
+      "content": "Mente analitica e spietata: trasforma intuizione, logica e autocontrollo in vantaggi concreti sul campo di battaglia. Non disponibile Non disponibile N/A 5 ft 11 in (1.80 m) 165 lbs (75 kg) Contemporaneo N/A"
     },
     {
       "id": "player:valdor",
