@@ -91,7 +91,7 @@
     "id": "theldarion",
     "name": "Theldarion",
     "role": "Incantatore Tattico",
-    "hidden": true,
+    "hidden": false,
     "description": "Mente analitica e spietata: trasforma intuizione, logica e autocontrollo in vantaggi concreti sul campo di battaglia.",
     "images": {
       "avatar": "img/players/theldarion_transp.webp",
