@@ -15,6 +15,10 @@
         poll: 'poll',
         scheduled: 'scheduled'
     };
+    const EDITOR_MODES = {
+        editCurrent: 'edit-current',
+        createNext: 'create-next'
+    };
     const PRESET_SLOTS = {
         afternoon: {
             label: 'POMERIGGIO',
@@ -589,14 +593,31 @@
         }));
     }
 
-    function buildEditorModalMarkup(editorState) {
+    function getEditorModeMeta(mode, sessionNumber) {
+        if (mode === EDITOR_MODES.editCurrent) {
+            return {
+                title: `Modifica Sondaggio Sessione ${sessionNumber}`,
+                ariaLabel: `Modifica sondaggio sessione ${sessionNumber}`,
+                saveLabel: 'Salva modifiche'
+            };
+        }
+
+        return {
+            title: `Nuova Sessione ${Number(sessionNumber) + 1}`,
+            ariaLabel: `Crea sessione ${Number(sessionNumber) + 1}`,
+            saveLabel: 'Crea sessione'
+        };
+    }
+
+    function buildEditorModalMarkup(editorState, config) {
+        const modeMeta = getEditorModeMeta(editorState.mode, config?.number || 1);
         return `
             <div class="next-session-editor-modal visible" data-editor-action="close-overlay">
-                <div class="next-session-editor-dialog" role="dialog" aria-modal="true" aria-label="Configura prossima sessione">
+                <div class="next-session-editor-dialog" role="dialog" aria-modal="true" aria-label="${escapeHtml(modeMeta.ariaLabel)}">
                     <div class="next-session-editor-header">
                         <div>
                             <span class="next-session-editor-kicker">Configurazione DM</span>
-                            <h3 class="next-session-editor-title">Nuova Prossima Sessione</h3>
+                            <h3 class="next-session-editor-title">${escapeHtml(modeMeta.title)}</h3>
                         </div>
                         <button type="button" class="next-session-editor-close" data-editor-action="close" aria-label="Chiudi editor">
                             <i class="fas fa-times"></i>
@@ -648,7 +669,7 @@
                     </div>
                     <div class="next-session-editor-footer">
                         <button type="button" class="next-session-editor-secondary" data-editor-action="close">Annulla</button>
-                        <button type="button" class="next-session-editor-primary" data-editor-action="save">Salva</button>
+                        <button type="button" class="next-session-editor-primary" data-editor-action="save">${escapeHtml(modeMeta.saveLabel)}</button>
                     </div>
                 </div>
             </div>
@@ -1064,8 +1085,11 @@
             <div class="next-session-card">
                 <div class="next-session-card-controls">
                     ${canConfigureSession ? `
-                        <button type="button" class="next-session-edit-trigger" data-editor-action="open" aria-label="Configura prossima sessione">
+                        <button type="button" class="next-session-edit-trigger" data-editor-action="${EDITOR_MODES.editCurrent}" aria-label="Modifica sondaggio corrente">
                             <i class="fas fa-pen"></i>
+                        </button>
+                        <button type="button" class="next-session-add-trigger" data-editor-action="${EDITOR_MODES.createNext}" aria-label="Crea nuova sessione">
+                            <i class="fas fa-plus"></i>
                         </button>
                     ` : ''}
                     <button type="button" class="next-session-export-trigger" data-export-session-card aria-label="Scarica card sessione">
@@ -1117,7 +1141,8 @@
         container.innerHTML = buildScheduledMarkup(config, canConfigureSession);
         const toggleButton = container.querySelector('[data-view-mode]');
         const exportButton = container.querySelector('[data-export-session-card]');
-        const editButton = container.querySelector('[data-editor-action="open"]');
+        const editButton = container.querySelector(`[data-editor-action="${EDITOR_MODES.editCurrent}"]`);
+        const createButton = container.querySelector(`[data-editor-action="${EDITOR_MODES.createNext}"]`);
         if (toggleButton) {
             toggleButton.addEventListener('click', () => {
                 container.dataset.nextSessionView = VIEW_MODES.poll;
@@ -1129,9 +1154,21 @@
                 container.dataset.nextSessionView = VIEW_MODES.poll;
                 renderNextSession(config, container);
                 window.setTimeout(() => {
-                    const pollEditButton = container.querySelector('[data-editor-action="open"]');
+                    const pollEditButton = container.querySelector(`[data-editor-action="${EDITOR_MODES.editCurrent}"]`);
                     if (pollEditButton) {
                         pollEditButton.click();
+                    }
+                }, 0);
+            });
+        }
+        if (createButton) {
+            createButton.addEventListener('click', () => {
+                container.dataset.nextSessionView = VIEW_MODES.poll;
+                renderNextSession(config, container);
+                window.setTimeout(() => {
+                    const pollCreateButton = container.querySelector(`[data-editor-action="${EDITOR_MODES.createNext}"]`);
+                    if (pollCreateButton) {
+                        pollCreateButton.click();
                     }
                 }, 0);
             });
@@ -1214,8 +1251,11 @@
             <div class="next-session-card next-session-card-poll">
                 <div class="next-session-card-controls">
                     ${canConfigureSession ? `
-                        <button type="button" class="next-session-edit-trigger" data-editor-action="open" aria-label="Configura prossima sessione">
+                        <button type="button" class="next-session-edit-trigger" data-editor-action="${EDITOR_MODES.editCurrent}" aria-label="Modifica sondaggio corrente">
                             <i class="fas fa-pen"></i>
+                        </button>
+                        <button type="button" class="next-session-add-trigger" data-editor-action="${EDITOR_MODES.createNext}" aria-label="Crea nuova sessione">
+                            <i class="fas fa-plus"></i>
                         </button>
                     ` : ''}
                     ${config.isScheduled ? `
@@ -1332,6 +1372,7 @@
         let statusMessage = '';
         let editorState = {
             open: false,
+            mode: EDITOR_MODES.createNext,
             pendingDate: '',
             error: '',
             days: buildDefaultEditorDays()
@@ -1379,9 +1420,11 @@
                 }
             });
 
+            const isEditingCurrent = editorState.mode === EDITOR_MODES.editCurrent;
+
             return sanitizeNextSessionConfig({
                 ...effectiveConfig,
-                number: Number(effectiveConfig.number) + 1,
+                number: isEditingCurrent ? Number(effectiveConfig.number) : Number(effectiveConfig.number) + 1,
                 date: '',
                 timeStart: '',
                 timeEnd: '',
@@ -1411,7 +1454,7 @@
             document.body.classList.toggle('next-session-editor-open', Boolean(editorState.open));
 
             if (canConfigureSession && editorState.open) {
-                document.body.insertAdjacentHTML('beforeend', buildEditorModalMarkup(editorState));
+                document.body.insertAdjacentHTML('beforeend', buildEditorModalMarkup(editorState, effectiveConfig));
             }
             const modal = document.querySelector('.next-session-editor-modal');
 
@@ -1536,13 +1579,17 @@
 
                     if (!action || !canConfigureSession) return;
 
-                    if (action === 'open') {
+                    if (action === EDITOR_MODES.editCurrent || action === EDITOR_MODES.createNext) {
+                        const initialDays = action === EDITOR_MODES.editCurrent
+                            ? buildEditorDaysFromConfig(effectiveConfig)
+                            : buildDefaultEditorDays();
                         editorState = {
                             ...editorState,
+                            mode: action,
                             open: true,
                             error: '',
                             pendingDate: '',
-                            days: buildDefaultEditorDays()
+                            days: initialDays.length > 0 ? initialDays : buildDefaultEditorDays()
                         };
                         rerender();
                         return;
@@ -1648,7 +1695,12 @@
 
                         const nextConfig = buildConfigFromEditorState();
                         if (nextConfig.availabilityOptions.length === 0) {
-                            editorState = { ...editorState, error: 'La nuova sessione non contiene slot validi.' };
+                            editorState = {
+                                ...editorState,
+                                error: editorState.mode === EDITOR_MODES.editCurrent
+                                    ? 'Il sondaggio corrente non contiene slot validi.'
+                                    : 'La nuova sessione non contiene slot validi.'
+                            };
                             rerender();
                             return;
                         }
@@ -1656,14 +1708,16 @@
                         try {
                             const savedConfig = await postRemoteSessionConfig(nextConfig, authToken);
                             persistNextSessionConfig(savedConfig);
-                            try {
-                                await postSessionPollLinkToDiscord(savedConfig);
-                            } catch (discordError) {
-                                console.error('Impossibile inviare il link del sondaggio su Discord:', discordError);
+                            if (editorState.mode === EDITOR_MODES.createNext) {
+                                try {
+                                    await postSessionPollLinkToDiscord(savedConfig);
+                                } catch (discordError) {
+                                    console.error('Impossibile inviare il link del sondaggio su Discord:', discordError);
+                                }
                             }
                             renderNextSession(savedConfig, container);
                         } catch (error) {
-                            console.error('Impossibile salvare la prossima sessione:', error);
+                            console.error('Impossibile salvare la configurazione della sessione:', error);
                             editorState = { ...editorState, error: error?.message || 'Impossibile salvare la sessione sul server.' };
                             rerender();
                         }
