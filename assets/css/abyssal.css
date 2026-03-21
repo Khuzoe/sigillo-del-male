@@ -2994,6 +2994,7 @@ ul {
 }
 
 .next-session-edit-trigger,
+.next-session-add-trigger,
 .next-session-export-trigger,
 .next-session-view-trigger {
     width: 34px;
@@ -3010,6 +3011,7 @@ ul {
 }
 
 .next-session-edit-trigger:hover,
+.next-session-add-trigger:hover,
 .next-session-export-trigger:hover,
 .next-session-view-trigger:hover {
     transform: translateY(-1px);
@@ -3722,7 +3724,8 @@ body.next-session-editor-open {
         padding: 1.35rem;
     }
 
-    .next-session-edit-trigger {
+    .next-session-edit-trigger,
+    .next-session-add-trigger {
         top: 0.8rem;
         right: 0.8rem;
     }

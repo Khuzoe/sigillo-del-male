@@ -32,9 +32,29 @@
         .poll-page-topbar {
             display: flex;
             align-items: center;
-            justify-content: flex-end;
+            justify-content: space-between;
             gap: 0.75rem;
             padding: 0 0 0.75rem;
+        }
+
+        .poll-page-home-link {
+            width: 34px;
+            height: 34px;
+            border: 1px solid rgba(212, 175, 55, 0.24);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--gold);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+        }
+
+        .poll-page-home-link:hover {
+            transform: translateY(-1px);
+            background: rgba(212, 175, 55, 0.12);
+            border-color: rgba(212, 175, 55, 0.5);
         }
 
         .poll-page-auth {
@@ -87,7 +107,7 @@
             }
 
             .poll-page-topbar {
-                justify-content: stretch;
+                justify-content: space-between;
             }
 
             .poll-page-auth {
@@ -105,6 +125,9 @@
 <body class="poll-page">
     <div class="poll-page-shell">
         <header class="poll-page-topbar">
+            <a href="../index.html" class="poll-page-home-link" aria-label="Torna alla home" title="Torna alla home">
+                <i class="fas fa-house" aria-hidden="true"></i>
+            </a>
             <div class="discord-auth poll-page-auth" aria-label="Accesso Discord">
                 <p id="auth-status" class="discord-auth-status">Non loggato</p>
                 <button id="discord-login" type="button" class="discord-auth-btn discord-auth-btn--login" aria-label="Login con Discord" title="Login con Discord">
