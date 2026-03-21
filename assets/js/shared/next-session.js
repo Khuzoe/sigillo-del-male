@@ -3,8 +3,10 @@
         ? DISCORD_WORKER_URL
         : 'https://sigillo-api.khuzoe.workers.dev';
     const SESSION_API_URL = `${API_BASE_URL}/api/session`;
+    const SESSION_CURRENT_API_URL = `${SESSION_API_URL}/current`;
     const SESSION_VOTES_API_URL = `${API_BASE_URL}/api/session-votes`;
     const SESSION_CARD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1482056374731931860/7ls24iTa_HMAgwwTbY8Qc96tf79LOxk3f6epN_iW6PHDgI51Dg70UkKgFT5aVQSZRM03';
+    const SESSION_POLL_URL = 'https://khuzoe.github.io/sigillo-del-male/pages/sondaggio.html';
     const STORAGE_PREFIX = 'cripta-next-session-votes';
     const NEXT_SESSION_CONFIG_OVERRIDE_KEY = 'cripta-next-session-config-override';
     const PLAYERS_DATA_PATH = 'data/players.json';
@@ -496,6 +498,26 @@
         return response.json().catch(() => null);
     }
 
+    async function postSessionPollLinkToDiscord(config) {
+        const effectiveConfig = sanitizeNextSessionConfig(config);
+        const response = await fetch(`${SESSION_CARD_WEBHOOK_URL}?wait=true`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                content: `@everyone Nuova sessione ${effectiveConfig.number} creata.\nVota qui: ${SESSION_POLL_URL}`
+            })
+        });
+
+        if (!response.ok) {
+            const responseText = await response.text().catch(() => '');
+            throw new Error(responseText || `Webhook Discord HTTP ${response.status}`);
+        }
+
+        return response.json().catch(() => null);
+    }
+
     function buildEditorDaysFromConfig(config) {
         const grouped = new Map();
         sanitizeOptions(config?.availabilityOptions || []).forEach((option) => {
@@ -644,8 +666,8 @@
         return null;
     }
 
-    async function loadRemoteSessionConfig(sessionNumber) {
-        const response = await fetch(`${SESSION_API_URL}?number=${encodeURIComponent(sessionNumber)}`, {
+    async function loadRemoteSessionConfig() {
+        const response = await fetch(SESSION_CURRENT_API_URL, {
             method: 'GET',
             headers: {
                 Accept: 'application/json'
@@ -703,10 +725,8 @@
             fallbackConfig = sanitizeNextSessionConfig(await fallbackResponse.json());
         }
 
-        const sessionNumber = Number(fallbackConfig?.number) || 1;
-
         try {
-            return await loadRemoteSessionConfig(sessionNumber);
+            return await loadRemoteSessionConfig();
         } catch (error) {
             console.warn('Session API non raggiungibile, uso fallback locale.', error);
             if (fallbackConfig) return fallbackConfig;
@@ -1636,6 +1656,11 @@
                         try {
                             const savedConfig = await postRemoteSessionConfig(nextConfig, authToken);
                             persistNextSessionConfig(savedConfig);
+                            try {
+                                await postSessionPollLinkToDiscord(savedConfig);
+                            } catch (discordError) {
+                                console.error('Impossibile inviare il link del sondaggio su Discord:', discordError);
+                            }
                             renderNextSession(savedConfig, container);
                         } catch (error) {
                             console.error('Impossibile salvare la prossima sessione:', error);
