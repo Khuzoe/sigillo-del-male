@@ -8,6 +8,11 @@
     "images": {
       "avatar": "img/players/garun_transp.webp",
       "hover": "img/players/garun_animation.webp",
+      "hoverAdjust": {
+        "x": 0,
+        "y": 0,
+        "size": 1.25
+      },
       "portrait": "img/players/garun.webp"
     },
     "summary": {
@@ -29,7 +34,17 @@
     "description": "Maga dallo stile imprevedibile, unisce astuzia, illusioni e iniziativa per aprire strade dove sembrano non essercene. Tra furti decisivi, scelte rischiose e combattimenti al limite, continua a essere una risorsa tattica centrale per il gruppo.",
     "images": {
       "avatar": "img/players/randra_transp.webp",
+      "avatarAdjust": {
+        "x": 0,
+        "y": 0,
+        "size": 1
+      },
       "hover": "img/players/randra_animation.webp",
+      "hoverAdjust": {
+        "x": 0,
+        "y": 0,
+        "size": 1.15
+      },
       "portrait": "img/players/randra.webp"
     },
     "summary": {
@@ -96,7 +111,17 @@
     "description": "Mente analitica e spietata: trasforma intuizione, logica e autocontrollo in vantaggi concreti sul campo di battaglia.",
     "images": {
       "avatar": "img/players/theldarion_transp.webp",
-      "hover": "img/players/theldarion.webp",
+      "avatarAdjust": {
+        "x": 0,
+        "y": -7,
+        "size": 1.085
+      },
+      "hover": "img/players/theldarion_animation.webp",
+      "hoverAdjust": {
+        "x": 0,
+        "y": -7,
+        "size": 1.27
+      },
       "portrait": "img/players/theldarion.webp"
     },
     "summary": {
