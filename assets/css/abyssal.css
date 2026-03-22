@@ -594,6 +594,12 @@ ul {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    --img-x: 0px;
+    --img-y: 0px;
+    --img-scale-rest: 1;
+    --img-scale-hover: 1.20;
+    transform: translate(var(--img-x), var(--img-y)) scale(var(--img-scale-rest));
+    transform-origin: center center;
     /* border-radius: 50%; <--- RIMOSSO DA QUI: Non forziamo il cerchio su tutte */
     /* Transizione per Transform (zoom) e Opacity (swap) */
     transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s ease;
@@ -631,7 +637,7 @@ ul {
 
 /* Hover: ZOOM per entrambe le immagini */
 .npc-card:hover .npc-img-pop {
-    transform: scale(1.20);
+    transform: translate(var(--img-x), var(--img-y)) scale(var(--img-scale-hover));
 }
 
 /* Hover: SWAP delle immagini (Crossfade) */
@@ -3453,10 +3459,11 @@ ul {
 .availability-option-cell.has-no,
 .availability-vote-cell.has-no {
     background:
-        linear-gradient(180deg, rgba(54, 58, 67, 0.58), rgba(25, 28, 35, 0.88));
+        linear-gradient(180deg, rgba(103, 42, 46, 0.56), rgba(43, 18, 23, 0.88));
     box-shadow:
-        inset 0 0 0 1px rgba(165, 172, 184, 0.14),
-        inset 0 14px 26px rgba(255, 255, 255, 0.02);
+        inset 0 0 0 1px rgba(218, 118, 124, 0.16),
+        inset 0 14px 26px rgba(255, 255, 255, 0.02),
+        0 0 14px rgba(118, 34, 42, 0.05);
 }
 
 .availability-option-cell.is-all-yes,
