@@ -285,166 +285,142 @@
   },
   "garun": {
     "bgImage": "tree_garun.webp",
+    "bgOpacity": 0.38,
     "nodes": [
       {
         "id": 1,
         "x": 50,
-        "y": 72,
-        "icon": "skill_garun_impulso_premonitore.webp",
+        "y": 80,
+        "icon": "skill_garun_istinto_premonitore.webp",
         "title": "Impulso Premonitore",
-        "flavor": "Alcuni battiti del tuo cuore mandano impulsi al tuo cervello. Ti permettono di vedere in anticipo eventi dell'immediato futuro.",
-        "desc": "<p>Puoi aggiungere la metà del tuo modificatore di Saggezza (arrotondata per difetto) alla CA.</p><p>Una volta al giorno, la prima volta che raggiungi 0 punti vita anche se non sei in ira, rimani invece con 1 punto vita. Poi, per 1 round completo oltre che nel resto del round in cui l'effetto si attiva, eviti automaticamente tutti gli attacchi di cui sei il bersaglio. Non superi automaticamente i tiri salvezza su Destrezza. Questo effetto finisce se la tua ira termina.</p>",
+        "flavor": "Alcuni battiti del tuo cuore inviano impulsi al cervello, permettendoti di cogliere frammenti dell'immediato futuro.",
+        "desc": "<p>Ottieni un bonus alla Classe Armatura pari a met? del tuo modificatore di Saggezza, arrotondato per difetto.</p><p>Una volta per riposo lungo, mentre sei in Ira, quando i tuoi punti ferita verrebbero ridotti a 0 ma non vieni ucciso sul colpo, scendi invece a 1 punto ferita. Fino alla fine del tuo turno successivo, gli attacchi contro di te falliscono automaticamente e superi automaticamente i tiri salvezza su Destrezza. Questo effetto termina immediatamente se la tua Ira termina.</p>",
         "state": "unlocked",
         "keyNode": true,
         "connections": [
-          2,
-          3
+          2
         ]
       },
       {
         "id": 2,
-        "x": 35,
-        "y": 72,
-        "icon": "skill_garun_premonizione_ripetuta.webp",
+        "x": 50,
+        "y": 65,
+        "icon": "skill_garun_premonizione_ripetuta_nuova.webp",
         "title": "Premonizione Ripetuta",
-        "flavor": "Ogni volta che vieni colpito, la frequenza degli impulsi aumenta.",
-        "desc": "<p>Ogni volta che vieni colpito da un attacco di una creatura nemica, ottieni un bonus di +1 alla CA, fino ad un massimo pari al tuo modificatore di Saggezza.</p><p>Il bonus termina all'inizio del tuo prossimo turno.</p>",
-        "state": "unlockable",
+        "flavor": "Ogni colpo ricevuto accelera gli impulsi e rende il tuo corpo pi? pronto a evitare il successivo.",
+        "desc": "<p>Quando una creatura ostile ti colpisce con un attacco, ottieni un bonus di +1 alla Classe Armatura fino all'inizio del tuo turno successivo.</p><p>Questo bonus pu? accumularsi fino a un massimo pari al tuo modificatore di Saggezza.</p>",
+        "state": "unlocked",
         "connections": [
-          4
+          3
         ]
       },
       {
         "id": 3,
-        "x": 65,
-        "y": 72,
-        "icon": "skill_garun_premonizione_istantanea.webp",
-        "title": "Premonizione Istantanea",
-        "flavor": "Il tuo cuore rilascia istintivamente un impulso immediato. Nei momenti di pericolo improvvisi, reagisci prima ancora di capire.",
-        "desc": "<p>Ogni volta che sei soggetto ad un tiro salvezza di qualsiasi tipo, puoi aggiungere la metà del tuo modificatore di Saggezza (arrotondata per difetto, minimo 1) a quel tiro salvezza.</p>",
-        "state": "unlocked",
-        "connections": [
-          4
-        ]
-      },
-      {
-        "id": 4,
         "x": 50,
         "y": 50,
-        "icon": "skill_garun_impulso_antico.webp",
-        "title": "Impulso Antico",
-        "flavor": "Nei momenti in cui provi dolore, gli impulsi del tuo cuore diventano gelidi.",
-        "desc": "<p>Dopo aver subito danni, puoi usare la tua reazione per ottenere 1d10 + il tuo modificatore di Saggezza punti vita temporanei.</p><p>All'inizio del tuo turno puoi decidere di convertire tutti i tuoi punti vita temporanei in punti vita. Non puoi superare i tuoi punti vita massimi; l'eventuale eccedenza va persa.</p>",
+        "icon": "skill_garun_nightmare_form.webp",
+        "title": "Forma d'Incubo",
+        "flavor": "Il sigillo deforma la tua ferocia e la spezza in due incarnazioni da incubo.",
+        "desc": "<p>Una volta per riposo lungo, puoi assumere la forma di Lupo Incubo per 10 minuti.</p><p>Per la durata, puoi continuare a usare la tua arma impugnandola con la bocca. Quell'arma ? considerata impugnata a due mani. Il resto del tuo equipaggiamento si fonde con la nuova forma, come nella capacit? Forma Selvatica. In questa forma, l'attacco con la tua arma sostituisce il Morso del lupo.</p><p>Una volta per riposo lungo, puoi assumere la forma di Orso Incubo per 10 minuti.</p><p>Per la durata, puoi continuare a usare normalmente il tuo scudo e a beneficiare di tutti i suoi bonus. Il resto del tuo equipaggiamento si fonde con la nuova forma, come nella capacit? Forma Selvatica.</p>",
         "state": "unlockable",
         "connections": [
+          4,
           5
         ]
       },
       {
-        "id": 5,
-        "x": 50,
-        "y": 30,
-        "icon": "skill_garun_impulso_primordiale.webp",
-        "title": "Impulso Primordiale",
-        "flavor": "Gli impulsi gelidi del tuo cuore risvegliano un potere antico che ti lega alla tua terra natale.",
-        "desc": "<p>Come azione bonus, ti trasformi nella Forma Primordiale: la tua taglia diventa Grande, ottieni immunità ai danni da Gelo e 30 punti vita temporanei.</p><p>Mantieni questa forma per 1 minuto o finché i tuoi punti vita temporanei non scendono a 0.</p><p>Puoi entrare in questa forma una volta per riposo lungo.</p>",
+        "id": 4,
+        "x": 35,
+        "y": 50,
+        "icon": "skill_garun_lama_necrotica.webp",
+        "title": "Lama Necrotica",
+        "flavor": "La ferocia del lupo si riversa nella lama e la trasforma in un'arma da incubo.",
+        "desc": "<p>Mentre sei in forma di Lupo Incubo, quando colpisci con la tua spada, l'attacco infligge 2d6 danni necrotici extra.</p><p>Inoltre, in questa forma aggiungi il tuo modificatore di Saggezza ai tiri per colpire con la spada e ai danni necrotici inflitti da quegli attacchi.</p>",
         "connections": [
-          6,
-          7,
-          8,
-          9
+          6
+        ]
+      },
+      {
+        "id": 5,
+        "x": 65,
+        "y": 50,
+        "icon": "skill_garun_guardia_infrangibile.webp",
+        "title": "Guardia Infrangibile",
+        "flavor": "La massa dell'orso incubo assorbe gli urti e spezza il ritmo dell'assalto nemico.",
+        "desc": "<p>Mentre sei in forma di Orso Incubo, la prima volta in ogni round in cui subisci danni, riduci quei danni di 2d6.</p><p>Inoltre, quando colpisci una creatura con Zampata, puoi spostarla in uno spazio libero a tua scelta entro la tua portata.</p>",
+        "connections": [
+          6
         ]
       },
       {
         "id": 6,
-        "x": 35,
-        "y": 20,
-        "icon": "skill_garun_impulso_d_ira.webp",
-        "title": "Impulso d'Ira",
-        "flavor": "Gli impulsi del tuo cuore e della tua mente si allineano perfettamente.",
-        "desc": "<p>Puoi entrare nella tua Forma Primordiale con la stessa azione bonus con cui entri in ira, consumando un utilizzo di entrambe le abilità.</p>",
+        "x": 50,
+        "y": 35,
+        "icon": "skill_garun_vigore_dell_incubo.webp",
+        "title": "Vigore dell'Incubo",
+        "flavor": "Ogni metamorfosi lascia sulla tua carne una traccia di vigore innaturale.",
+        "desc": "<p>Ogni volta che assumi una forma animale, i tuoi punti ferita massimi aumentano di un ammontare pari a 3 volte il grado di sfida della creatura.</p><p>Se assumi invece una forma Incubo, i tuoi punti ferita massimi aumentano di un ammontare pari a 3 volte il tuo livello.</p>",
         "connections": [
-          10
+          7,
+          8
         ]
       },
       {
         "id": 7,
-        "x": 35,
+        "x": 30,
         "y": 40,
-        "icon": "skill_garun_istinto_improvviso.webp",
-        "title": "Istinto Improvviso",
-        "flavor": "Qualcosa dentro ti suggerisce di andare contro le regole.",
-        "desc": "<p>Puoi usare il tuo scudo come arma da mischia (1d8 danni contundenti).</p><p>Mentre sei nella tua Forma Primordiale e non stai impugnando armi, ottieni inoltre i seguenti benefici:</p><ul><li>Mentre attacchi con uno scudo, puoi aggiungere 2 volte il tuo modificatore di Forza ai danni.</li><li>Puoi brandire due scudi ottenendo i benefici di entrambi solo se stai eseguendo l'azione di Schivare (Dodge): in quel caso sommi i bonus alla CA di entrambi gli scudi.</li><li>Se attacchi mentre brandisci due scudi, il secondo scudo segue le normali regole del combattere con due armi (dual wielding).</li></ul>",
+        "icon": "skill_garun_bersaglio_del_branco.webp",
+        "title": "Bersaglio del Branco",
+        "flavor": "Il lupo incubo espone la preda e trascina il branco al massacro.",
+        "desc": "<p>Mentre sei in forma di Lupo Incubo, quando colpisci una creatura con un attacco, quella creatura deve superare un tiro salvezza su Costituzione o essere marchiata come Bersaglio del Branco fino all'inizio del tuo turno successivo.</p><p>La prima volta che ciascuno dei tuoi alleati colpisce una creatura marchiata prima della fine dell'effetto, quell'attacco infligge 2d6 danni necrotici extra.</p>",
+        "connections": [
+          9
+        ]
+      },
+      {
+        "id": 8,
+        "x": 70,
+        "y": 40,
+        "icon": "skill_garun_guardia_dell_orso.webp",
+        "title": "Guardia dell'Orso",
+        "flavor": "Il tuo istinto protettivo si addensa fino a diventare una muraglia vivente.",
+        "desc": "<p>Mentre sei in forma di Orso Incubo, quando una creatura ostile infligge danni a un tuo alleato, ottieni un bonus di +1 alla Classe Armatura e ai tiri salvezza fino alla fine del tuo turno successivo.</p><p>Questo bonus pu? accumularsi fino a un massimo di +3.</p><p>Finch? questo bonus ? pari a +3, ogni creatura ostile entro 60 piedi da te deve superare un tiro salvezza su Saggezza o avere svantaggio ai tiri per colpire contro creature diverse da te fino alla fine del tuo turno successivo.</p>",
         "connections": [
           10
         ]
       },
       {
-        "id": 8,
-        "x": 65,
-        "y": 20,
-        "icon": "skill_garun_saggezza_risvegliata.webp",
-        "title": "Saggezza Risvegliata",
-        "flavor": "Il tuo istinto precognitivo guida ogni tuo movimento.",
-        "desc": "<p>Mentre sei nella tua Forma Primordiale e non indossi un'armatura, se vieni colpito da un attacco puoi usare la tua reazione per guadagnare CA pari al tuo modificatore di Saggezza fino alla fine del turno della creatura che ti ha attaccato. Attivare questo effetto può far mancare l'attacco che lo ha attivato.</p><p>Puoi usare questa abilità un numero massimo di volte pari al tuo modificatore di Saggezza ogni riposo lungo.</p>",
-        "connections": [
-          12
-        ]
-      },
-      {
         "id": 9,
-        "x": 65,
-        "y": 40,
-        "icon": "skill_garun_resistenza_risvegliata.webp",
-        "title": "Resistenza Risvegliata",
-        "flavor": "La tua carne si indurisce come ghiaccio antico.",
-        "desc": "<p>Mentre sei nella tua Forma Primordiale, quando subisci danni, li riduci di un ammontare pari al tuo modificatore di Saggezza, prima di applicare resistenze e vulnerabilità.</p>",
+        "x": 25,
+        "y": 30,
+        "icon": "skill_garun_fame_spiritica.webp",
+        "title": "Fame Spiritica",
+        "flavor": "Il lupo si nutre dell'energia che lacera e la richiama dentro di s?.",
+        "desc": "<p>Mentre sei in forma di Lupo Incubo, i tuoi attacchi infliggono 1d6 danni necrotici extra.</p><p>Inoltre, quando infliggi danni necrotici con una tua capacit? da Lupo Incubo, recuperi un numero di punti ferita pari ai danni necrotici inflitti. Questo recupero si applica sia alla tua forma di Lupo Incubo sia alla tua forma normale.</p>",
         "connections": [
-          12
+          11
         ]
       },
       {
         "id": 10,
-        "x": 30,
+        "x": 75,
         "y": 30,
-        "icon": "skill_garun_impulso_demoniaco.webp",
-        "title": "Impulso Demoniaco",
-        "flavor": "L'impulso del tuo cuore si fa ardente e famelico. Senti che la tua forma primordiale inizia a prendere il sopravvento.",
-        "desc": "<p>Quando entri nella tua Forma Primordiale, ottieni 75 punti vita temporanei al posto di 50.</p><p>Inoltre, ti curi immediatamente di un ammontare di punti vita pari a 10 × il tuo modificatore di Forza.</p>",
+        "icon": "skill_garun_assalto_schiacciante.webp",
+        "title": "Assalto Schiacciante",
+        "flavor": "Ogni zampata dell'orso incubo abbatte, travolge e finisce chi ? gi? a terra.",
+        "desc": "<p>Mentre sei in forma di Orso Incubo, puoi effettuare un attacco con Zampata al posto del tuo Morso.</p><p>Le tue Zampate ottengono un bonus ai tiri per colpire pari alla somma dei bonus alla tua Classe Armatura concessi da Premonizione Ripetuta e Guardia dell'Orso.</p><p>Quando colpisci una creatura con Zampata, quella creatura deve superare un tiro salvezza su Forza o cadere prona.</p><p>Se colpisci con Zampata una creatura prona, l'attacco ? un colpo critico automatico. Inoltre, aggiungi ai danni dell'attacco un bonus pari alla somma dei bonus alla tua Classe Armatura concessi da Premonizione Ripetuta e Guardia dell'Orso.</p>",
         "connections": [
           11
         ]
       },
       {
         "id": 11,
-        "x": 20,
-        "y": 30,
-        "icon": "skill_garun_demone_primordiale.webp",
-        "title": "Demone Primordiale",
-        "flavor": "Gli impulsi tra il tuo cuore e cervello vanno a ritmo dell'Abisso.",
-        "desc": "<p>Ottieni +4 Forza, fino a un massimo di 30.</p><p>Quando entri nella tua Forma Primordiale, diventi un Demone Primordiale: il tuo tipo cambia in Demone, la tua taglia diventa Enorme e ottieni vulnerabilità ai danni Radiosi.</p><p>Finché resti in questa forma, ogni volta che colpisci una creatura ostile con un attacco, ti curi di punti vita pari al modificatore di Forza aggiunto ai danni di quell'attacco.</p>",
-        "connections": []
-      },
-      {
-        "id": 12,
-        "x": 70,
-        "y": 30,
-        "icon": "skill_garun_impulso_di_nonmorte.webp",
-        "title": "Impulso di Non-morte",
-        "flavor": "Il tuo cuore smette quasi di battere, ma continua a pulsare potere freddo.",
-        "desc": "<p>Quando entri nella tua Forma Primordiale, ottieni 100 punti vita temporanei al posto di 50.</p>",
-        "connections": [
-          13
-        ]
-      },
-      {
-        "id": 13,
-        "x": 80,
-        "y": 30,
-        "icon": "skill_garun_nonmorto_primordiale.webp",
-        "title": "Non Morto Primordiale",
-        "flavor": "I tuoi impulsi sono pochi ma precisi. Respiri in modo estremamente lento, ma calcolato.",
-        "desc": "<p>Ottieni +4 Saggezza, fino a un massimo di 30.</p><p>Quando entri nella tua Forma Primordiale, diventi un Non Morto Primordiale: il tuo tipo cambia in Non Morto, la tua taglia diventa Enorme e ottieni vulnerabilità ai danni Radiosi.</p><p>Una volta per turno, quando colpisci una creatura con un attacco, puoi sacrificare 20 punti vita temporanei per creare una reazione del ghiaccio sulla tua pelle che investe un'area di 5 piedi intorno a te. Le creature nell'area devono superare un tiro salvezza Destrezza, o subire 3d6 danni da gelo e 3d6 danni da fuoco. Superare il tiro salvezza dimezza i danni subiti. </p><p>All'inizio di ciascuno dei tuoi turni, ottieni 10 punti vita temporanei, fino a un massimo di 100.</p>",
+        "x": 50,
+        "y": 20,
+        "icon": "skill_garun_apoteosi_dell_incubo.webp",
+        "title": "Apoteosi dell'Incubo",
+        "flavor": "Lupo e orso si fondono in una sola forma sovrana del sigillo.",
+        "desc": "<p>Mentre sei in forma Incubo, la tua taglia diventa Enorme, la tua portata aumenta di 5 piedi e ottieni un bonus di +4 a Forza, Destrezza e Saggezza.</p><p>Inoltre, sei considerato permanentemente in Ira e puoi lanciare incantesimi normalmente, anche mantenendo la concentrazione.</p><p>I tuoi attacchi in forma Incubo sono considerati magici.</p>",
         "connections": []
       }
     ]

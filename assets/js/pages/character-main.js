@@ -1427,9 +1427,15 @@ function parseYamlLite(yamlText) {
             if (!treeContainer || !linesLayer || !infoPanel) return card;
 
             const bgImage = resolveSkillAssetPath(treeData.bgImage);
-            treeContainer.style.backgroundImage = bgImage
-                ? `url('${bgImage}'), radial-gradient(circle at 50% 50%, rgba(56, 22, 22, 0.45), rgba(0, 0, 0, 0.92))`
-                : 'radial-gradient(circle at 50% 50%, rgba(56, 22, 22, 0.45), rgba(0, 0, 0, 0.92))';
+            const bgOpacity = Number.isFinite(Number(treeData.bgOpacity))
+                ? Math.max(0, Math.min(1, Number(treeData.bgOpacity)))
+                : 1;
+            treeContainer.style.setProperty('--skill-tree-bg-image', bgImage ? `url('${bgImage}')` : 'none');
+            treeContainer.style.setProperty('--skill-tree-bg-opacity', String(bgOpacity));
+            treeContainer.style.setProperty(
+                '--skill-tree-bg-overlay',
+                'radial-gradient(circle at 50% 50%, rgba(56, 22, 22, 0.45), rgba(0, 0, 0, 0.92))'
+            );
 
             const nodeById = new Map(treeData.nodes.map((node) => [node.id, node]));
             const setDefaultInfo = () => {
