@@ -294,7 +294,7 @@
         "icon": "skill_garun_istinto_premonitore.webp",
         "title": "Impulso Premonitore",
         "flavor": "Alcuni battiti del tuo cuore inviano impulsi al cervello, permettendoti di cogliere frammenti dell'immediato futuro.",
-        "desc": "<p>Ottieni un bonus alla Classe Armatura pari a met? del tuo modificatore di Saggezza, arrotondato per difetto.</p><p>Una volta per riposo lungo, mentre sei in Ira, quando i tuoi punti ferita verrebbero ridotti a 0 ma non vieni ucciso sul colpo, scendi invece a 1 punto ferita. Fino alla fine del tuo turno successivo, gli attacchi contro di te falliscono automaticamente e superi automaticamente i tiri salvezza su Destrezza. Questo effetto termina immediatamente se la tua Ira termina.</p>",
+        "desc": "<p>Ottieni un bonus alla Classe Armatura pari a metà del tuo modificatore di Saggezza, arrotondato per difetto.</p><p>Una volta per riposo lungo, mentre sei in Ira, quando i tuoi punti ferita verrebbero ridotti a 0 ma non vieni ucciso sul colpo, scendi invece a 1 punto ferita. Fino alla fine del tuo turno successivo, gli attacchi contro di te falliscono automaticamente e superi automaticamente i tiri salvezza su Destrezza. Questo effetto termina immediatamente se la tua Ira termina.</p>",
         "state": "unlocked",
         "keyNode": true,
         "connections": [
@@ -307,8 +307,8 @@
         "y": 65,
         "icon": "skill_garun_premonizione_ripetuta_nuova.webp",
         "title": "Premonizione Ripetuta",
-        "flavor": "Ogni colpo ricevuto accelera gli impulsi e rende il tuo corpo pi? pronto a evitare il successivo.",
-        "desc": "<p>Quando una creatura ostile ti colpisce con un attacco, ottieni un bonus di +1 alla Classe Armatura fino all'inizio del tuo turno successivo.</p><p>Questo bonus pu? accumularsi fino a un massimo pari al tuo modificatore di Saggezza.</p>",
+        "flavor": "Ogni colpo ricevuto accelera gli impulsi e rende il tuo corpo più pronto a evitare il successivo.",
+        "desc": "<p>Quando una creatura ostile ti colpisce con un attacco, ottieni un bonus di +1 alla Classe Armatura fino all'inizio del tuo turno successivo.</p><p>Questo bonus può accumularsi fino a un massimo pari al tuo modificatore di Saggezza.</p>",
         "state": "unlocked",
         "connections": [
           3
@@ -321,7 +321,7 @@
         "icon": "skill_garun_nightmare_form.webp",
         "title": "Forma d'Incubo",
         "flavor": "Il sigillo deforma la tua ferocia e la spezza in due incarnazioni da incubo.",
-        "desc": "<p>Una volta per riposo lungo, puoi assumere la forma di Lupo Incubo per 10 minuti.</p><p>Per la durata, puoi continuare a usare la tua arma impugnandola con la bocca. Quell'arma ? considerata impugnata a due mani. Il resto del tuo equipaggiamento si fonde con la nuova forma, come nella capacit? Forma Selvatica. In questa forma, l'attacco con la tua arma sostituisce il Morso del lupo.</p><p>Una volta per riposo lungo, puoi assumere la forma di Orso Incubo per 10 minuti.</p><p>Per la durata, puoi continuare a usare normalmente il tuo scudo e a beneficiare di tutti i suoi bonus. Il resto del tuo equipaggiamento si fonde con la nuova forma, come nella capacit? Forma Selvatica.</p>",
+        "desc": "<p>Una volta per riposo lungo, puoi assumere la forma di Lupo Incubo per 10 minuti.</p><p>Per la durata, puoi continuare a usare la tua arma impugnandola con la bocca. Quell'arma è considerata impugnata a due mani. Il resto del tuo equipaggiamento si fonde con la nuova forma, come nella capacità Forma Selvatica. In questa forma, l'attacco con la tua arma sostituisce il Morso del lupo.</p><p>Una volta per riposo lungo, puoi assumere la forma di Orso Incubo per 10 minuti.</p><p>Per la durata, puoi continuare a usare normalmente il tuo scudo e a beneficiare di tutti i suoi bonus. Il resto del tuo equipaggiamento si fonde con la nuova forma, come nella capacità Forma Selvatica.</p>",
         "state": "unlockable",
         "connections": [
           4,
@@ -384,7 +384,7 @@
         "icon": "skill_garun_guardia_dell_orso.webp",
         "title": "Guardia dell'Orso",
         "flavor": "Il tuo istinto protettivo si addensa fino a diventare una muraglia vivente.",
-        "desc": "<p>Mentre sei in forma di Orso Incubo, quando una creatura ostile infligge danni a un tuo alleato, ottieni un bonus di +1 alla Classe Armatura e ai tiri salvezza fino alla fine del tuo turno successivo.</p><p>Questo bonus pu? accumularsi fino a un massimo di +3.</p><p>Finch? questo bonus ? pari a +3, ogni creatura ostile entro 60 piedi da te deve superare un tiro salvezza su Saggezza o avere svantaggio ai tiri per colpire contro creature diverse da te fino alla fine del tuo turno successivo.</p>",
+        "desc": "<p>Mentre sei in forma di Orso Incubo, quando una creatura ostile infligge danni a un tuo alleato, ottieni un bonus di +1 alla Classe Armatura e ai tiri salvezza fino alla fine del tuo turno successivo.</p><p>Questo bonus può accumularsi fino a un massimo di +3.</p><p>Finché questo bonus è pari a +3, ogni creatura ostile entro 60 piedi da te deve superare un tiro salvezza su Saggezza o avere svantaggio ai tiri per colpire contro creature diverse da te fino alla fine del tuo turno successivo.</p>",
         "connections": [
           10
         ]
@@ -395,8 +395,8 @@
         "y": 30,
         "icon": "skill_garun_fame_spiritica.webp",
         "title": "Fame Spiritica",
-        "flavor": "Il lupo si nutre dell'energia che lacera e la richiama dentro di s?.",
-        "desc": "<p>Mentre sei in forma di Lupo Incubo, i tuoi attacchi infliggono 1d6 danni necrotici extra.</p><p>Inoltre, quando infliggi danni necrotici con una tua capacit? da Lupo Incubo, recuperi un numero di punti ferita pari ai danni necrotici inflitti. Questo recupero si applica sia alla tua forma di Lupo Incubo sia alla tua forma normale.</p>",
+        "flavor": "Il lupo si nutre dell'energia che lacera e la richiama dentro di sé.",
+        "desc": "<p>Mentre sei in forma di Lupo Incubo, i tuoi attacchi infliggono 1d6 danni necrotici extra.</p><p>Inoltre, quando infliggi danni necrotici con una tua capacità da Lupo Incubo, recuperi un numero di punti ferita pari ai danni necrotici inflitti. Questo recupero si applica sia alla tua forma di Lupo Incubo sia alla tua forma normale.</p>",
         "connections": [
           11
         ]
@@ -407,8 +407,8 @@
         "y": 30,
         "icon": "skill_garun_assalto_schiacciante.webp",
         "title": "Assalto Schiacciante",
-        "flavor": "Ogni zampata dell'orso incubo abbatte, travolge e finisce chi ? gi? a terra.",
-        "desc": "<p>Mentre sei in forma di Orso Incubo, puoi effettuare un attacco con Zampata al posto del tuo Morso.</p><p>Le tue Zampate ottengono un bonus ai tiri per colpire pari alla somma dei bonus alla tua Classe Armatura concessi da Premonizione Ripetuta e Guardia dell'Orso.</p><p>Quando colpisci una creatura con Zampata, quella creatura deve superare un tiro salvezza su Forza o cadere prona.</p><p>Se colpisci con Zampata una creatura prona, l'attacco ? un colpo critico automatico. Inoltre, aggiungi ai danni dell'attacco un bonus pari alla somma dei bonus alla tua Classe Armatura concessi da Premonizione Ripetuta e Guardia dell'Orso.</p>",
+        "flavor": "Ogni zampata dell'orso incubo abbatte, travolge e finisce chi è già a terra.",
+        "desc": "<p>Mentre sei in forma di Orso Incubo, puoi effettuare un attacco con Zampata al posto del tuo Morso.</p><p>Le tue Zampate ottengono un bonus ai tiri per colpire pari alla somma dei bonus alla tua Classe Armatura concessi da Premonizione Ripetuta e Guardia dell'Orso.</p><p>Quando colpisci una creatura con Zampata, quella creatura deve superare un tiro salvezza su Forza o cadere prona.</p><p>Se colpisci con Zampata una creatura prona, l'attacco è un colpo critico automatico. Inoltre, aggiungi ai danni dell'attacco un bonus pari alla somma dei bonus alla tua Classe Armatura concessi da Premonizione Ripetuta e Guardia dell'Orso.</p>",
         "connections": [
           11
         ]
