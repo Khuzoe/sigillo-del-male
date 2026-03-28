@@ -57,6 +57,7 @@
 
             // Sfondo dinamico
             const bgUrl = resolvePath(data.bgImage);
+            const bgOpacity = Number.isFinite(Number(data.bgOpacity)) ? Math.max(0, Math.min(1, Number(data.bgOpacity))) : 1;
             
             // Imposta sfumatura in base al personaggio
             let gradientColor = '#000';
@@ -64,7 +65,9 @@
             else if(charKey === 'apothecary') gradientColor = '#4a0000';
             else gradientColor = '#002200';
 
-            container.style.backgroundImage = `url('${bgUrl}'), radial-gradient(circle, ${gradientColor}, #000)`;
+            container.style.setProperty('--tree-bg-image', bgUrl ? `url('${bgUrl}')` : 'none');
+            container.style.setProperty('--tree-bg-opacity', String(bgOpacity));
+            container.style.setProperty('--tree-bg-overlay', `radial-gradient(circle, ${gradientColor}, #000)`);
 
             // Disegna Linee
             data.nodes.forEach(node => {

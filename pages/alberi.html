@@ -70,19 +70,41 @@
         /* Contenitore Albero */
         .tree-wrapper {
             position: relative;
+            isolation: isolate;
             width: 100%;
             /* Aspect ratio verticale fisso per mantenere le proporzioni dell'immagine */
             aspect-ratio: 4 / 5;
             /* min-height rimosso o ridotto per permettere il ridimensionamento su mobile */
-            
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
             border-radius: 12px;
             background-color: rgba(0,0,0,0.5); 
             border: 2px solid rgba(138, 28, 28, 0.3);
-            box-shadow: inset 0 0 80px #000;
             overflow: hidden; 
+            --tree-bg-image: none;
+            --tree-bg-opacity: 1;
+            --tree-bg-overlay: radial-gradient(circle, rgba(58, 0, 0, 0.55), #000);
+        }
+
+        .tree-wrapper::before,
+        .tree-wrapper::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .tree-wrapper::before {
+            background-image: var(--tree-bg-image);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: var(--tree-bg-opacity);
+            z-index: 0;
+        }
+
+        .tree-wrapper::after {
+            background: var(--tree-bg-overlay);
+            box-shadow: inset 0 0 80px #000;
+            z-index: 0;
         }
 
         /* SVG per le linee */
