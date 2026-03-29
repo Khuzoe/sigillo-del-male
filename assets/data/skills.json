@@ -71,7 +71,7 @@
       },
       {
         "id": 6,
-        "x": 25,
+        "x": 30,
         "y": 44,
         "icon": "skill_valdor_raffica_di_schiaffi.webp",
         "title": "Raffica di Schiaffi",
@@ -83,7 +83,7 @@
       },
       {
         "id": 7,
-        "x": 75,
+        "x": 70,
         "y": 44,
         "icon": "skill_valdor_schiaffo_assordante.webp",
         "title": "Schiaffo Assordante",
@@ -108,7 +108,7 @@
       },
       {
         "id": 9,
-        "x": 30,
+        "x": 28,
         "y": 32,
         "icon": "skill_valdor_raffica_di_schiaffi_plus.webp",
         "title": "Raffica di Schiaffi+",
@@ -120,7 +120,7 @@
       },
       {
         "id": 10,
-        "x": 70,
+        "x": 72,
         "y": 32,
         "icon": "skill_valdor_abiurazione_tonante.webp",
         "title": "Abiurazione Tonante",
@@ -133,7 +133,7 @@
       {
         "id": 11,
         "x": 50,
-        "y": 12,
+        "y": 27,
         "icon": "skill_valdor_schiaffone_finale.webp",
         "title": "Schiaffone Finale",
         "flavor": "Il colpo conclusivo che fa tremare cielo e terra.",
@@ -347,7 +347,7 @@
         "icon": "skill_garun_guardia_infrangibile.webp",
         "title": "Guardia Infrangibile",
         "flavor": "La massa dell'orso incubo assorbe gli urti e spezza il ritmo dell'assalto nemico.",
-        "desc": "<p>Mentre sei in forma di Orso Incubo, la prima volta in ogni round in cui subisci danni, riduci quei danni di 2d6.</p><p>Inoltre, quando colpisci una creatura con Zampata, puoi spostarla in uno spazio libero a tua scelta entro la tua portata.</p>",
+        "desc": "<p>Mentre sei in forma di Orso Incubo, la prima volta in ogni round in cui subisci danni, riduci quei danni di 2d6.</p><p>Quando riduci i danni in questo modo, puoi usare la tua reazione per ottenere un numero di punti ferita temporanei pari al tuo modificatore di Saggezza, oppure per effettuare una Zampata contro la creatura attaccante, purché si trovi entro la tua portata.</p><p>Inoltre, quando colpisci una creatura con Zampata, puoi spostarla in uno spazio libero a tua scelta entro la tua portata.</p>",
         "connections": [
           6
         ]
@@ -408,7 +408,7 @@
         "icon": "skill_garun_assalto_schiacciante.webp",
         "title": "Assalto Schiacciante",
         "flavor": "Ogni zampata dell'orso incubo abbatte, travolge e finisce chi è già a terra.",
-        "desc": "<p>Mentre sei in forma di Orso Incubo, puoi effettuare un attacco con Zampata al posto del tuo Morso.</p><p>Le tue Zampate ottengono un bonus ai tiri per colpire pari alla somma dei bonus alla tua Classe Armatura concessi da Premonizione Ripetuta e Guardia dell'Orso.</p><p>Quando colpisci una creatura con Zampata, quella creatura deve superare un tiro salvezza su Forza o cadere prona.</p><p>Se colpisci con Zampata una creatura prona, l'attacco è un colpo critico automatico. Inoltre, aggiungi ai danni dell'attacco un bonus pari alla somma dei bonus alla tua Classe Armatura concessi da Premonizione Ripetuta e Guardia dell'Orso.</p>",
+        "desc": "<p>Mentre sei in forma di Orso Incubo, puoi effettuare un attacco con Zampata al posto del tuo Morso.</p><p>Le tue Zampate ottengono un bonus ai tiri per colpire pari alla somma di tutti i bonus alla tua Classe Armatura che non derivano dal tuo equipaggiamento.</p><p>Quando colpisci una creatura con Zampata, quella creatura deve superare un tiro salvezza su Forza o cadere prona. Se la creatura è di taglia inferiore alla tua, effettua questo tiro salvezza con svantaggio.</p><p>Se colpisci con Zampata una creatura prona, l'attacco è un colpo critico automatico. Inoltre, aggiungi ai danni dell'attacco un bonus pari alla somma di tutti i bonus alla tua Classe Armatura che non derivano dal tuo equipaggiamento.</p>",
         "connections": [
           11
         ]
@@ -509,7 +509,7 @@
       {
         "id": 7,
         "x": 50,
-        "y": 40,
+        "y": 50,
         "icon": "skill_randra_energia_incanalata.webp",
         "title": "Energia Incanalata",
         "flavor": "Riesci ad infondere magia aggiuntiva nei tuoi Firebolt, rendendoli estremamente ustionanti.",
@@ -521,7 +521,7 @@
       {
         "id": 8,
         "x": 50,
-        "y": 30,
+        "y": 40,
         "icon": "skill_randra_fuocus.webp",
         "title": "Fuocus",
         "flavor": "Riesci a mettere il focus su ciò che stai facendo, concentrandoti profondamente.",
@@ -533,7 +533,7 @@
       {
         "id": 9,
         "x": 50,
-        "y": 20,
+        "y": 30,
         "icon": "skill_randra_fiamma_rinata.webp",
         "title": "Fiamma Rinata",
         "flavor": "Riesci ad interagire più facilmente con il tuo Spirito Interiore.",
@@ -546,7 +546,7 @@
       {
         "id": 10,
         "x": 35,
-        "y": 20,
+        "y": 30,
         "icon": "skill_randra_spirito_interiore_lontano.webp",
         "title": "Spirito Interiore Lontano",
         "flavor": "Il tuo Spirito Interiore desidera restare in sicurezza, osservando i nemici bruciare da lontano.",
@@ -556,7 +556,7 @@
       {
         "id": 11,
         "x": 65,
-        "y": 20,
+        "y": 30,
         "icon": "skill_randra_spirito_interiore_vicino.webp",
         "title": "Spirito Interiore Vicino",
         "flavor": "Il tuo Spirito Interiore desidera sentire i nemici bruciare da vicino.",
@@ -571,7 +571,7 @@
       {
         "id": 1,
         "x": 50,
-        "y": 65,
+        "y": 75,
         "icon": "tree_theldarion.webp",
         "title": "Intelletto Arcano",
         "flavor": "Trasformi la logica in istinto da battaglia.",
@@ -585,7 +585,7 @@
       {
         "id": 2,
         "x": 50,
-        "y": 55,
+        "y": 65,
         "icon": "tree_theldarion.webp",
         "title": "Ragionamento Preciso",
         "flavor": "Analizzi il caos in tempo reale e correggi l'errore.",
@@ -598,8 +598,8 @@
       },
       {
         "id": 3,
-        "x": 28,
-        "y": 55,
+        "x": 30,
+        "y": 60,
         "icon": "tree_theldarion.webp",
         "title": "Attività Ragionata",
         "flavor": "Ogni azione viene perfezionata prima ancora di compiersi.",
@@ -610,8 +610,8 @@
       },
       {
         "id": 4,
-        "x": 72,
-        "y": 55,
+        "x": 70,
+        "y": 60,
         "icon": "tree_theldarion.webp",
         "title": "Salvaculo Ragionato",
         "flavor": "Anche quando tutto crolla, il tuo calcolo ti tiene in piedi.",
@@ -623,7 +623,7 @@
       {
         "id": 5,
         "x": 50,
-        "y": 45,
+        "y": 55,
         "icon": "tree_theldarion.webp",
         "title": "Colpo Ragionato",
         "flavor": "La precisione diventa offensiva pura.",
@@ -635,7 +635,7 @@
       {
         "id": 6,
         "x": 50,
-        "y": 35,
+        "y": 43,
         "icon": "tree_theldarion.webp",
         "title": "Egocentrismo Altruista",
         "flavor": "Correggi gli altri per istinto, e funziona.",
@@ -648,7 +648,7 @@
       {
         "id": 7,
         "x": 25,
-        "y": 45,
+        "y": 50,
         "icon": "tree_theldarion.webp",
         "title": "Egocentrismo Altruista Migliorato",
         "flavor": "La tua guida mentale diventa dominante.",
@@ -660,7 +660,7 @@
       {
         "id": 8,
         "x": 75,
-        "y": 45,
+        "y": 50,
         "icon": "tree_theldarion.webp",
         "title": "Egocentrismo e Basta",
         "flavor": "Ora la tua logica serve solo a vincere.",
@@ -671,8 +671,8 @@
       },
       {
         "id": 9,
-        "x": 28,
-        "y": 35,
+        "x": 30,
+        "y": 38,
         "icon": "tree_theldarion.webp",
         "title": "Spiegazione Inconscia",
         "flavor": "I tuoi alleati seguono i tuoi processi mentali senza rendersene conto.",
@@ -683,8 +683,8 @@
       },
       {
         "id": 10,
-        "x": 72,
-        "y": 35,
+        "x": 70,
+        "y": 38,
         "icon": "tree_theldarion.webp",
         "title": "Cazzi degli Altri",
         "flavor": "Ribalti l'offensiva altrui analizzandone ogni falla.",
@@ -696,7 +696,7 @@
       {
         "id": 11,
         "x": 50,
-        "y": 25,
+        "y": 30,
         "icon": "tree_theldarion.webp",
         "title": "Mente Oltre il Tempo",
         "flavor": "La tua mente accelera oltre il ritmo naturale del mondo.",
