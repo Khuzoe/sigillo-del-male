@@ -269,10 +269,6 @@
         // Caricamento e renderizzazione delle missioni
         document.addEventListener("DOMContentLoaded", async function () {
             try {
-                if (window.WikiSpoiler?.ready) {
-                    await window.WikiSpoiler.ready;
-                }
-
                 // 1. Preload images
                 await loadCharacterAssets();
 
