@@ -20,7 +20,8 @@
     17,
     18,
     19,
-    20
+    20,
+    21
   ],
   "items": [
     {
@@ -34,29 +35,36 @@
       "id": "x",
       "name": "X Von T",
       "order_slot": null,
-      "lastMentionSessionId": 20,
-      "mentions": 17
-    },
-    {
-      "id": "rabberduscolanderson",
-      "name": "Rabberduscolanderson Von T",
-      "order_slot": null,
-      "lastMentionSessionId": 20,
-      "mentions": 15
-    },
-    {
-      "id": "ginevra",
-      "name": "Ginevra Von T",
-      "order_slot": null,
-      "lastMentionSessionId": 20,
-      "mentions": 1
+      "lastMentionSessionId": 21,
+      "mentions": 20
     },
     {
       "id": "karla",
       "name": "Karla Von T",
       "order_slot": null,
-      "lastMentionSessionId": 18,
+      "lastMentionSessionId": 21,
+      "mentions": 18
+    },
+    {
+      "id": "rabberduscolanderson",
+      "name": "Rabberduscolanderson Von T",
+      "order_slot": null,
+      "lastMentionSessionId": 21,
       "mentions": 17
+    },
+    {
+      "id": "elena",
+      "name": "Elena Erbadath",
+      "order_slot": null,
+      "lastMentionSessionId": 21,
+      "mentions": 5
+    },
+    {
+      "id": "ginevra",
+      "name": "Ginevra Von T",
+      "order_slot": null,
+      "lastMentionSessionId": 21,
+      "mentions": 3
     },
     {
       "id": "nino_olegna",
@@ -64,13 +72,6 @@
       "order_slot": null,
       "lastMentionSessionId": 17,
       "mentions": 8
-    },
-    {
-      "id": "elena",
-      "name": "Elena Erbadath",
-      "order_slot": null,
-      "lastMentionSessionId": 17,
-      "mentions": 4
     },
     {
       "id": "zara",
