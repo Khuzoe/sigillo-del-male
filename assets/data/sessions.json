@@ -173,8 +173,7 @@
             "xp": {
                 "total": "10700",
                 "each": "2675"
-            },
-            "levelup": 7
+            }
         },
         {
             "id": 20,
@@ -183,7 +182,29 @@
             "xp": {
                 "total": "0",
                 "each": "0"
-            }
+            },
+            "partyChanges": [
+                {
+                    "type": "out",
+                    "name": "Apothecary"
+                }
+            ],
+            "levelup": 7
+        },
+        {
+            "id": 21,
+            "date": "20/03/2026",
+            "summary": "<p>Iniziate a recuperare nuovamente le forze dopo l'incubo dal quale Apothecary vi ha salvati. Piano piano anche Ran'Dra si risveglia, rendendosi conto che la vostra compagna non potrà più continuare l'avventura con voi.</p><p>Le urla di Ran'Dra, rimbombando nel corridoio, attirano i servitori di Karla, i quali si erano spinti nel primo livello per accompagnare un nuovo arrivato.</p><p>Quando aprite la porta, questo si presenta come \"Theldarion Tessaryn. Quattro sillabe, accento sulla seconda. Non Thel. Non Darion\". Dopo aver scambiato qualche parola con lui, decidete di collaborare al fine di raggiungere il vostro obiettivo comune: salvarvi da quel sigillo. Salvarvi da quel posto.</p><p>Tornate da Rabberduscolanderson, Elena, X e Ginevra, accertandovi che stessero tutti bene. Poi, parlando con loro, Ga'Run si scusa con Rabberduscolanderson per via della frattura causatagli la giornata precedente e, parlando con X, capite che Ginevra sembra essere un Alambicco Vivente, in grado di assimilare reagenti e creare prodotti.</p><p>Infine, volendo scoprire più dettagli riguardo alla situazione di Apothecary, decidete di portarla da X. Ga'Run va a prendere il suo corpo e, durante il cammino di ritorno, si trova nuovamente immerso in un incubo. Gli spiriti di un lupo e di un orso gli mostrano lati di sé che fino a quel momento aveva considerato naturali, ma che forse in realtà possono essere cambiati in meglio. Qualcosa in Ga'Run è cambiato: una forza sopita si è risvegliata, fragile come un cucciolo, e ora sta a lui decidere se nutrirla o lasciarla spegnere.</p>",
+            "xp": {
+                "total": "0",
+                "each": "0"
+            },
+            "partyChanges": [
+                {
+                    "type": "in",
+                    "name": "Theldarion"
+                }
+            ]
         }
     ]
 }
