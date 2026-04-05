@@ -3,6 +3,27 @@
   const DISCORD_TOKEN_KEY = "discord_jwt";
   const DM_HIDDEN_ACCESS_KEY = "wiki_dm_hidden_access";
 
+  function readTokenFromHash() {
+    try {
+      const hash = window.location.hash.startsWith("#")
+        ? window.location.hash.slice(1)
+        : "";
+      if (!hash) return "";
+      const params = new URLSearchParams(hash);
+      return params.get("token") || "";
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function readDiscordToken() {
+    try {
+      return window.localStorage.getItem(DISCORD_TOKEN_KEY) || readTokenFromHash();
+    } catch (_) {
+      return readTokenFromHash();
+    }
+  }
+
   function resolveBasePath() {
     try {
       const scriptTag = document.querySelector('script[src*="spoiler-policy.js"]');
@@ -45,7 +66,7 @@
     try {
       if (allowSpoilers()) return true;
 
-      const token = window.localStorage.getItem(DISCORD_TOKEN_KEY) || "";
+      const token = readDiscordToken();
       if (!token) return false;
 
       const basePath = resolveBasePath();
