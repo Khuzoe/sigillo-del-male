@@ -1,5 +1,5 @@
 {
-  "itemCount": 52,
+  "itemCount": 55,
   "items": [
     {
       "id": "player:apothecary",
@@ -211,6 +211,21 @@
         "family"
       ],
       "content": "Leonora Membro della Famiglia Von T"
+    },
+    {
+      "id": "npc:leonora",
+      "type": "npc",
+      "entityId": "leonora",
+      "title": "Leonora Von T",
+      "subtitle": "Figura Misteriosa",
+      "url": "pages/characters/character.html?id=leonora",
+      "tags": [
+        "npc",
+        "vivo",
+        "npc",
+        "hidden"
+      ],
+      "content": "Non Morto 5 ft 8 in (1.73 m) 132 lbs (60 kg) Biografia Leonora compare tra le presenze legate alla Cripta di Sangue, ma le informazioni sulla sua storia sono ancora incomplete. Il suo nome e associato alla linea Von T, e la sua apparizione lascia supporre un ruolo rilevante negli eventi piu recenti. Dettagli aggiuntivi su passato, obiettivi e legami devono ancora emergere. Aspetto Fisico Leonora presenta tratti pallidi e un portamento fermo, con uno sguardo che comunica freddezza e controllo. L'abbigliamento e segnato da elementi usurati e tonalita scure, coerenti con l'atmosfera della cripta..."
     },
     {
       "id": "npc:nino_olegna",
@@ -588,6 +603,35 @@
         "Non disponibile"
       ],
       "content": "Mente analitica e spietata: trasforma intuizione, logica e autocontrollo in vantaggi concreti sul campo di battaglia. Non disponibile Non disponibile N/A 5 ft 11 in (1.80 m) 165 lbs (75 kg) Contemporaneo N/A"
+    },
+    {
+      "id": "npc:tokka",
+      "type": "npc",
+      "entityId": "tokka",
+      "title": "Tokka Von T",
+      "subtitle": "Il Cuore Corrotto",
+      "url": "pages/characters/character.html?id=tokka",
+      "tags": [
+        "npc",
+        "vivo",
+        "npc",
+        "hidden"
+      ],
+      "content": "Non Morto 5 ft 10 in (1.78 m) 154 lbs (70 kg) Biografia Tokka Von T e una presenza recente tra le figure legate alla cripta. Le informazioni sulla sua storia sono ancora frammentarie, ma i segni sul corpo e l'energia violacea che lo attraversa suggeriscono un legame diretto con rituali di sangue e innesti arcani. La sua comparsa e da considerare un elemento ad alto rischio per gli equilibri gia instabili della famiglia Von T. Aspetto Fisico Tokka presenta una corporatura asciutta e tesa, con pelle pallida attraversata da cicatrici sottili. Una pesante placca metallica ricopre parte del volto ..."
+    },
+    {
+      "id": "family:tokka",
+      "type": "family",
+      "entityId": "tokka",
+      "title": "Tokka Von T",
+      "subtitle": "Famiglia Von T",
+      "url": "pages/famiglia-von-t.html",
+      "tags": [
+        "family",
+        "von-t",
+        "hidden"
+      ],
+      "content": "Tokka Von T Membro della Famiglia Von T"
     },
     {
       "id": "player:valdor",

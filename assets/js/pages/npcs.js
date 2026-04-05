@@ -135,6 +135,10 @@ function parseYamlLite(yamlText) {
             const npcListContainer = document.querySelector('.npc-list');
             if (!npcListContainer) return;
 
+            if (window.WikiSpoiler?.ready) {
+                await window.WikiSpoiler.ready;
+            }
+
             try {
                 let npcs = [];
                 // IBRIDO: Se abbiamo dati statici, usiamoli.

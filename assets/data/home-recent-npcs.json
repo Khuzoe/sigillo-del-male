@@ -10,6 +10,7 @@
       "name": "X Von T",
       "role": "La Studiosa",
       "avatar": "img/creatures/transp/x_transp.webp",
+      "hidden": false,
       "url": "pages/characters/character.html?id=x",
       "score": 14
     },
@@ -18,6 +19,7 @@
       "name": "Ginevra Von T",
       "role": "L'Alambicco Vivente",
       "avatar": "img/creatures/transp/ginevra_transp.webp",
+      "hidden": false,
       "url": "pages/characters/character.html?id=ginevra",
       "score": 10
     },
@@ -26,6 +28,7 @@
       "name": "Rabberduscolanderson Von T",
       "role": "Il Reietto",
       "avatar": "img/creatures/transp/rabberduscolanderson_transp.webp",
+      "hidden": false,
       "url": "pages/characters/character.html?id=rabberduscolanderson",
       "score": 10
     },
@@ -34,6 +37,7 @@
       "name": "Elena Erbadath",
       "role": "La Fantasma",
       "avatar": "img/creatures/transp/elena_transp.webp",
+      "hidden": false,
       "url": "pages/characters/character.html?id=elena",
       "score": 4
     }

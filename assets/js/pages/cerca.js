@@ -14,6 +14,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const qFromUrl = (params.get("q") || "").trim();
   if (qFromUrl) input.value = qFromUrl;
 
+  if (window.WikiSpoiler?.ready) {
+    await window.WikiSpoiler.ready;
+  }
+
   let items = [];
   try {
     const resp = await fetch("../assets/data/search-index.json");
@@ -22,7 +26,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     items = Array.isArray(data.items)
       ? data.items.filter(item => {
         if (window.WikiSpoiler && !window.WikiSpoiler.isVisible(item)) return false;
-        return !(item.tags || []).includes("hidden");
+        if (!window.WikiSpoiler?.allowSpoilers() && (item.tags || []).includes("hidden")) return false;
+        return true;
       })
       : [];
   } catch (err) {

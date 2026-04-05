@@ -1,6 +1,10 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     const container = document.getElementById('player-list-container');
     const base_path = '../assets/';
+
+    if (window.WikiSpoiler?.ready) {
+        await window.WikiSpoiler.ready;
+    }
 
     function normalizeImageAdjust(adjust) {
         const x = Number(adjust?.x);
