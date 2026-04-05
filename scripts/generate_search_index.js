@@ -58,10 +58,11 @@ function buildNpcItems() {
     .map((entry) => {
       const charPath = path.join(DATA_DIR, entry.file || `characters/${entry.id}.yaml`);
       const character = readYaml(charPath);
+      if (character.hidden) return null;
       const blocks = Array.isArray(character.content_blocks) ? character.content_blocks : [];
-      const visibleBlocks = character.hidden ? blocks : blocks.filter((block) => !block.hidden);
 
-      const blockSummaries = visibleBlocks
+      const blockSummaries = blocks
+        .filter((block) => !block.hidden)
         .map((block) => {
           const parts = [];
           if (block.title) parts.push(block.title);
@@ -86,7 +87,7 @@ function buildNpcItems() {
         title: character.name || character.id,
         subtitle: character.role || "",
         url: `pages/characters/character.html?id=${character.id}`,
-        tags: ["npc", character.status || "", character.type || "npc", character.hidden ? "hidden" : ""].filter(Boolean),
+        tags: ["npc", character.status || "", character.type || "npc"].filter(Boolean),
         content: truncate(
           [character.quote, summaryText, blockSummaries].map((v) => String(v || "")).join(" ")
         ),
@@ -100,6 +101,7 @@ function buildPlayerItems() {
   if (!Array.isArray(players)) return [];
 
   return players
+    .filter((player) => !player.hidden)
     .map((player) => ({
       id: `player:${player.id}`,
       type: "player",
@@ -107,7 +109,7 @@ function buildPlayerItems() {
       title: player.name || player.id,
       subtitle: player.role || "",
       url: `pages/characters/character.html?id=${player.id}&type=player`,
-      tags: ["player", player.summary?.race || "", player.hidden ? "hidden" : ""].filter(Boolean),
+      tags: ["player", player.summary?.race || ""].filter(Boolean),
       content: truncate(
         [
           player.description,
@@ -138,8 +140,9 @@ function buildQuestItems() {
   if (!Array.isArray(groups)) return [];
 
   return groups
+    .filter((group) => !group.hidden)
     .map((group) => {
-      const content = truncate(collectQuestTexts(group.quests || []).join(" ") || String(group.title || ""));
+      const content = truncate(collectQuestTexts(group.quests || []).join(" "));
       if (!content) return null;
       return {
         id: `quest-group:${group.id || group.title}`,
@@ -148,7 +151,7 @@ function buildQuestItems() {
         title: group.title || "Missioni",
         subtitle: group.npc_id ? `NPC: ${group.npc_id}` : "Trama principale",
         url: "pages/missioni.html",
-        tags: ["quest", group.npc_id ? "npc" : "main", group.hidden ? "hidden" : ""].filter(Boolean),
+        tags: ["quest", group.npc_id ? "npc" : "main"].filter(Boolean),
         content,
       };
     })
@@ -199,6 +202,7 @@ function buildFamilyItems() {
   if (!Array.isArray(entries)) return [];
 
   return entries
+    .filter((entry) => !entry.hidden)
     .map((entry) => ({
       id: `family:${entry.id}`,
       type: "family",
@@ -206,7 +210,7 @@ function buildFamilyItems() {
       title: entry.name || entry.id,
       subtitle: "Famiglia Von T",
       url: "pages/famiglia-von-t.html",
-      tags: ["family", entry.von_t ? "von-t" : "", entry.hidden ? "hidden" : ""].filter(Boolean),
+      tags: ["family", entry.von_t ? "von-t" : ""].filter(Boolean),
       // Evita spoiler di legami familiari nella ricerca globale.
       content: truncate([entry.name, "Membro della Famiglia Von T"].join(" ")),
     }));

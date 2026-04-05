@@ -1,9 +1,4 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const start = async () => {
-    if (window.WikiSpoiler?.ready) {
-        await window.WikiSpoiler.ready;
-    }
-
     Promise.all([
         fetch('assets/data/sessions.json').then(response => {
             if (!response.ok) {
@@ -76,9 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(`Lista NPC recenti non trovata (${response.status})`);
             }
             const data = await response.json();
-            const items = Array.isArray(data.items)
-                ? data.items.filter((npc) => (window.WikiSpoiler ? window.WikiSpoiler.isVisible(npc) : !npc.hidden))
-                : [];
+            const items = Array.isArray(data.items) ? data.items : [];
             if (items.length === 0) {
                 container.innerHTML = '';
                 return;
@@ -96,10 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container) return;
 
         const items = Array.isArray(players)
-            ? players
-                .filter((player) => (window.WikiSpoiler ? window.WikiSpoiler.isVisible(player) : !player.hidden))
-                .filter((player) => player.isActive !== false || (window.WikiSpoiler && window.WikiSpoiler.allowSpoilers()))
-                .slice(0, 4)
+            ? players.filter((player) => !player.hidden && player.isActive !== false).slice(0, 4)
             : [];
 
         if (items.length === 0) {
@@ -134,7 +124,4 @@ document.addEventListener('DOMContentLoaded', () => {
             </a>
         `;
     }
-    };
-
-    start();
 });

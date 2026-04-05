@@ -8,10 +8,6 @@ function resolveImagePath(imagePath) {
 
         document.addEventListener("DOMContentLoaded", async function() {
             const treeContainer = document.getElementById('family-tree-container');
-
-            if (window.WikiSpoiler?.ready) {
-                await window.WikiSpoiler.ready;
-            }
             
             try {
                 const response = await fetch('../assets/data/family_von_t.json');
@@ -58,7 +54,7 @@ function resolveImagePath(imagePath) {
                     const personName = person.unnamed ? '???' : person.name;
                     const personImage = person.unknown ? 'https://placehold.co/100/333/fff?text=?' : resolveImagePath(person.image);
                     const vonTClass = person.von_t ? 'von-t' : '';
-                    const isLocked = Boolean((person.hidden && !(window.WikiSpoiler && window.WikiSpoiler.allowSpoilers())) || person.unknown || person.unnamed);
+                    const isLocked = Boolean(person.hidden || person.unknown || person.unnamed);
                     const baseClasses = `family-member ${vonTClass} ${isLocked ? 'family-member--locked' : ''}`.trim();
 
                     if (isLocked) {
