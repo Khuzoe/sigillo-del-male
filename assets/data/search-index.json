@@ -1,5 +1,5 @@
 {
-  "itemCount": 51,
+  "itemCount": 52,
   "items": [
     {
       "id": "player:apothecary",
@@ -447,7 +447,9 @@
       "url": "pages/sessioni.html#session-19",
       "tags": [
         "session",
-        "levelup"
+        "levelup",
+        "party-out",
+        "Apothecary"
       ],
       "content": "Riuscite a sconfiggere la non morta gigante ed i vari non-morti che uscivano ininterrottamente dalla sua pancia. Alla sua morte, vi rendete conto che l'equipaggiamento che indossava è magico. Dalla sua pancia è poi caduta anche una donna, apparentemente non-morta anche lei, con una pancia sproporzionatamente grande. La avete imbavagliata e legata, ed avete iniziato dei riposi brevi per entrare in sintonia con gli oggetti, così da trasportarli più facilmente. Durante i riposi, la donna si risveglia. Impaurita e sorpresa, fa dei versi per attirare l'attenzione. La tranquillizzate leggermente, a..."
     },
@@ -471,9 +473,23 @@
       "subtitle": "01/03/2026",
       "url": "pages/sessioni.html#session-20",
       "tags": [
-        "session"
+        "session",
+        "party-in",
+        "Theldarion"
       ],
       "content": "Slegate le gambe della donna, la aiutate ad alzarsi, e la accompagnate - legata ed imbavagliata - verso il piano superiore. Durante il cammino, Apothecary ha una visione: il padre della bambina prepara un decotto di erbe per curare il suo mal di testa. Vedete la donna commuoversi mentre Apothecary descrive la sua visione, decidete di toglierle il bavaglio dalla bocca e di parlare con lei. Vi rivela di essere Ginevra Von T, la madre di Deborah, compagna di Rendar e figlia di Yuris e Leonora Von T. La accompagnate fino alla stanza di Rabberduscolanderson e la fate esaminare da X per capire la n..."
+    },
+    {
+      "id": "session:21",
+      "type": "session",
+      "entityId": "21",
+      "title": "Sessione 21",
+      "subtitle": "20/03/2026",
+      "url": "pages/sessioni.html#session-21",
+      "tags": [
+        "session"
+      ],
+      "content": "Iniziate a recuperare nuovamente le forze dopo l'incubo dal quale Apothecary vi ha salvati. Piano piano anche Ran'Dra si risveglia, rendendosi conto che la vostra compagna non potrà più continuare l'avventura con voi. Le urla di Ran'Dra, rimbombando nel corridoio, attirano i servitori di Karla, i quali si erano spinti nel primo livello per accompagnare un nuovo arrivato. Quando aprite la porta, questo si presenta come \"Theldarion Tessaryn. Quattro sillabe, accento sulla seconda. Non Thel. Non Darion\". Dopo aver scambiato qualche parola con lui, decidete di collaborare al fine di raggiungere i..."
     },
     {
       "id": "session:3",

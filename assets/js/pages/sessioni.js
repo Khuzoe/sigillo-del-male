@@ -68,6 +68,11 @@ function renderTimeline(sessions) {
         if (session.skillPoint) {
             headerBadges += `<span class="levelup-badge">+1 SKILL POINT</span>`;
         }
+        if (Array.isArray(session.partyChanges)) {
+            headerBadges += session.partyChanges
+                .map((change) => renderPartyChangeBadge(change))
+                .join('');
+        }
 
         let xpFooter = '';
         if (session.xp) {
@@ -106,4 +111,15 @@ function renderTimeline(sessions) {
         `;
         timelineContainer.appendChild(card);
     });
+}
+
+function renderPartyChangeBadge(change) {
+    const type = String(change?.type || '').toLowerCase();
+    const name = String(change?.name || '').trim();
+    if (!name || (type !== 'in' && type !== 'out')) {
+        return '';
+    }
+
+    const icon = type === 'in' ? 'fa-right-to-bracket' : 'fa-right-from-bracket';
+    return `<span class="party-change-badge party-change-${type}"><i class="fas ${icon}"></i>${name}</span>`;
 }

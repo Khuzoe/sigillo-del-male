@@ -163,6 +163,7 @@ function buildSessionItems() {
   if (!data || !Array.isArray(data.sessions)) return [];
 
   return data.sessions.map((session) => {
+    const partyChanges = Array.isArray(session.partyChanges) ? session.partyChanges : [];
     const xpPart = session.xp
       ? `XP totali ${session.xp.total} XP ciascuno ${session.xp.each}`
       : "";
@@ -170,6 +171,9 @@ function buildSessionItems() {
       session.skillPoint ? "punto abilita" : "",
       session.levelup ? `level up ${session.levelup}` : "",
       session.reward || "",
+      partyChanges
+        .map((change) => `${change.name || ""} ${change.type || ""}`.trim())
+        .join(" "),
     ].join(" ");
     return {
       id: `session:${session.id}`,
@@ -178,9 +182,16 @@ function buildSessionItems() {
       title: `Sessione ${session.id}`,
       subtitle: session.date || "",
       url: `pages/sessioni.html#session-${session.id}`,
-      tags: ["session", session.skillPoint ? "skill-point" : "", session.levelup ? "levelup" : ""].filter(
-        Boolean
-      ),
+      tags: [
+        "session",
+        session.skillPoint ? "skill-point" : "",
+        session.levelup ? "levelup" : "",
+        ...partyChanges.flatMap((change) => [
+          change.type === "in" ? "party-in" : "",
+          change.type === "out" ? "party-out" : "",
+          change.name || "",
+        ]),
+      ].filter(Boolean),
       content: truncate(`${stripHtml(session.summary)} ${xpPart} ${extra}`),
     };
   });
