@@ -1,8 +1,19 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const start = async () => {
+    if (window.WikiSpoiler?.ready) {
+        await window.WikiSpoiler.ready;
+    }
+
     Promise.all([
         fetch('assets/data/sessions.json').then(response => {
             if (!response.ok) {
                 throw new Error(`Errore caricamento sessions.json (${response.status})`);
+            }
+            return response.json();
+        }),
+        fetch('assets/data/players.json').then(response => {
+            if (!response.ok) {
+                throw new Error(`Errore caricamento players.json (${response.status})`);
             }
             return response.json();
         }),
@@ -15,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return response.json();
             })
     ])
-        .then(([sessionsData, nextSessionConfig]) => {
+        .then(([sessionsData, playersData, nextSessionConfig]) => {
             const sessionContainer = document.getElementById('next-session-container');
             window.CriptaNextSession?.render(nextSessionConfig, sessionContainer);
 
@@ -23,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const latestEventsContainer = document.getElementById('latest-events-section');
             setupLatestSession(lastSession, latestEventsContainer);
 
+            setupHomePlayers(playersData);
             setupRecentNpcs();
         })
         .catch(error => {
@@ -64,7 +76,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(`Lista NPC recenti non trovata (${response.status})`);
             }
             const data = await response.json();
-            const items = Array.isArray(data.items) ? data.items : [];
+            const items = Array.isArray(data.items)
+                ? data.items.filter((npc) => (window.WikiSpoiler ? window.WikiSpoiler.isVisible(npc) : !npc.hidden))
+                : [];
             if (items.length === 0) {
                 container.innerHTML = '';
                 return;
@@ -75,6 +89,37 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('Impossibile caricare NPC recenti:', error);
             container.innerHTML = '';
         }
+    }
+
+    function setupHomePlayers(players) {
+        const container = document.getElementById('home-players-row');
+        if (!container) return;
+
+        const items = Array.isArray(players)
+            ? players
+                .filter((player) => (window.WikiSpoiler ? window.WikiSpoiler.isVisible(player) : !player.hidden))
+                .filter((player) => player.isActive !== false || (window.WikiSpoiler && window.WikiSpoiler.allowSpoilers()))
+                .slice(0, 4)
+            : [];
+
+        if (items.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        container.innerHTML = items.map((player) => renderHomePlayerCard(player)).join('');
+    }
+
+    function renderHomePlayerCard(player) {
+        const avatarPath = player.images?.avatar ? `assets/${player.images.avatar}` : 'assets/img/logo.webp';
+        return `
+            <a href="pages/characters/character.html?id=${player.id}&type=player" class="home-char-card mini">
+                <div class="home-char-avatar"><img src="${avatarPath}" alt="${player.name}"></div>
+                <div class="home-char-info">
+                    <h4 class="name">${player.name}</h4><span class="role">${player.role || 'Protagonista'}</span>
+                </div>
+            </a>
+        `;
     }
 
     function renderRecentNpcCard(npc) {
@@ -89,4 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </a>
         `;
     }
+    };
+
+    start();
 });

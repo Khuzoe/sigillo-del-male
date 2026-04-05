@@ -1,9 +1,12 @@
 const SIDEBAR_CACHE_KEY = "wiki_sidebar_html_v1";
 const DISCORD_WORKER_URL = "https://sigillo-api.khuzoe.workers.dev";
 const DISCORD_TOKEN_KEY = "discord_jwt";
+const DM_HIDDEN_ACCESS_KEY = "wiki_dm_hidden_access";
 const prefetchedUrls = new Set();
 let discordAuthCache = null;
 let discordAuthPromise = null;
+let dmDiscordIdCache = null;
+let dmDiscordIdPromise = null;
 
 document.addEventListener("DOMContentLoaded", function () {
     const scriptTag = document.querySelector('script[src*="layout.js"]');
@@ -261,6 +264,7 @@ async function refreshAuthUI(scope) {
 
     const token = readStoredToken();
     if (!token) {
+        setDmHiddenAccess(false);
         setLoggedOutState(status, loginBtn, logoutBtn);
         return;
     }
@@ -272,15 +276,18 @@ async function refreshAuthUI(scope) {
     try {
         const authState = await verifyDiscordAuth();
         if (!authState?.user) {
+            setDmHiddenAccess(false);
             setLoggedOutState(status, loginBtn, logoutBtn);
             return;
         }
 
+        await syncDmHiddenAccess(scope);
         const username = authState.user.global_name || authState.user.username || "utente Discord";
         status.textContent = `Loggato come ${username}`;
         loginBtn.hidden = true;
         logoutBtn.hidden = false;
     } catch (_) {
+        setDmHiddenAccess(false);
         status.textContent = "Errore verifica login";
         loginBtn.hidden = true;
         logoutBtn.hidden = false;
@@ -314,11 +321,64 @@ function storeToken(token) {
 function clearStoredToken() {
     try {
         window.localStorage.removeItem(DISCORD_TOKEN_KEY);
+        window.localStorage.removeItem(DM_HIDDEN_ACCESS_KEY);
         discordAuthCache = null;
         discordAuthPromise = null;
     } catch (_) {
         // Ignore storage restrictions
     }
+}
+
+async function loadDmDiscordId(scope) {
+    if (dmDiscordIdCache) {
+        return dmDiscordIdCache;
+    }
+
+    if (dmDiscordIdPromise) {
+        return dmDiscordIdPromise;
+    }
+
+    const scriptTag = document.querySelector('script[src*="layout.js"]');
+    let basePath = "";
+    if (scriptTag) {
+        const src = scriptTag.getAttribute("src") || "";
+        basePath = src.replace("assets/js/layout.js", "");
+    }
+
+    dmDiscordIdPromise = (async () => {
+        try {
+            const response = await fetch(`${basePath}assets/data/next-session.json`);
+            if (!response.ok) return "";
+            const data = await response.json();
+            dmDiscordIdCache = String(data?.dmDiscordId || "").trim();
+            return dmDiscordIdCache;
+        } catch (_) {
+            return "";
+        } finally {
+            dmDiscordIdPromise = null;
+        }
+    })();
+
+    return dmDiscordIdPromise;
+}
+
+function setDmHiddenAccess(enabled) {
+    try {
+        if (enabled) {
+            window.localStorage.setItem(DM_HIDDEN_ACCESS_KEY, "1");
+        } else {
+            window.localStorage.removeItem(DM_HIDDEN_ACCESS_KEY);
+        }
+    } catch (_) {
+        // Ignore storage restrictions
+    }
+}
+
+async function syncDmHiddenAccess(scope) {
+    const authState = await verifyDiscordAuth();
+    const currentDiscordId = String(authState?.user?.id || "").trim();
+    const dmDiscordId = await loadDmDiscordId(scope);
+    setDmHiddenAccess(Boolean(currentDiscordId) && Boolean(dmDiscordId) && currentDiscordId === dmDiscordId);
 }
 
 async function verifyDiscordAuth() {

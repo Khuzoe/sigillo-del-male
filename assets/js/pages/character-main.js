@@ -1530,6 +1530,10 @@ function parseYamlLite(yamlText) {
                 return;
             }
 
+            if (window.WikiSpoiler?.ready) {
+                await window.WikiSpoiler.ready;
+            }
+
             try {
                 let character = null;
                 let allCharacters = [];
@@ -1716,7 +1720,9 @@ function parseYamlLite(yamlText) {
                 leftCol.className = 'left-col';
 
                 if (charType !== 'player') {
-                    const visibleBlocks = (character.content_blocks || []).filter(block => !block.hidden);
+                    const visibleBlocks = (character.content_blocks || []).filter(block =>
+                        window.WikiSpoiler ? window.WikiSpoiler.isVisible(block) : !block.hidden
+                    );
 
                     if (visibleBlocks.length > 0) {
                         visibleBlocks.forEach(block => {
@@ -1857,7 +1863,9 @@ function parseYamlLite(yamlText) {
                 // Render Quests if available
                 let questsHtml = '';
                 if (npcQuests && npcQuests.quests && npcQuests.quests.length > 0) {
-                    const visibleQuests = npcQuests.quests.filter(q => q.status !== 'hidden');
+                    const visibleQuests = npcQuests.quests.filter(q =>
+                        window.WikiSpoiler ? window.WikiSpoiler.isVisible(q) : q.status !== 'hidden'
+                    );
                     if (visibleQuests.length > 0) {
                         const questsList = visibleQuests.map(q => {
                             const isCompleted = q.status === 'completed';

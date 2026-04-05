@@ -55,7 +55,6 @@ function loadNpcCharacters() {
       if (!fs.existsSync(filePath)) return null;
       const npc = readYaml(filePath);
       if (!npc || typeof npc !== "object") return null;
-      if (npc.hidden === true) return null;
 
       const aliases = Array.isArray(npc.aliases) && npc.aliases.length > 0
         ? npc.aliases
@@ -66,6 +65,7 @@ function loadNpcCharacters() {
         name: npc.name || entry.id,
         role: npc.role || "NPC",
         avatar: npc.images?.avatar || "",
+        hidden: npc.hidden === true,
         aliases: aliases.filter(Boolean),
       };
     })
@@ -130,6 +130,7 @@ function main() {
       name: item.npc.name,
       role: item.npc.role,
       avatar: item.npc.avatar,
+      hidden: item.npc.hidden === true,
       url: `pages/characters/character.html?id=${item.npc.id}`,
       score: item.score,
     }));
