@@ -1,33 +1,33 @@
 {
   "itemCount": 4,
   "sessionIds": [
-    20,
-    21
+    21,
+    22
   ],
   "items": [
-    {
-      "id": "x",
-      "name": "X Von T",
-      "role": "La Studiosa",
-      "avatar": "img/creatures/transp/x_transp.webp",
-      "url": "pages/characters/character.html?id=x",
-      "score": 14
-    },
-    {
-      "id": "ginevra",
-      "name": "Ginevra Von T",
-      "role": "L'Alambicco Vivente",
-      "avatar": "img/creatures/transp/ginevra_transp.webp",
-      "url": "pages/characters/character.html?id=ginevra",
-      "score": 10
-    },
     {
       "id": "rabberduscolanderson",
       "name": "Rabberduscolanderson Von T",
       "role": "Il Reietto",
       "avatar": "img/creatures/transp/rabberduscolanderson_transp.webp",
       "url": "pages/characters/character.html?id=rabberduscolanderson",
+      "score": 12
+    },
+    {
+      "id": "karla",
+      "name": "Karla Von T",
+      "role": "La Vampira",
+      "avatar": "img/creatures/transp/karla_transp.webp",
+      "url": "pages/characters/character.html?id=karla",
       "score": 10
+    },
+    {
+      "id": "franky",
+      "name": "Franky",
+      "role": "Lo Scienziato",
+      "avatar": "img/creatures/transp/franky_transp.webp",
+      "url": "pages/characters/character.html?id=franky",
+      "score": 8
     },
     {
       "id": "elena",
@@ -35,7 +35,7 @@
       "role": "La Fantasma",
       "avatar": "img/creatures/transp/elena_transp.webp",
       "url": "pages/characters/character.html?id=elena",
-      "score": 4
+      "score": 6
     }
   ]
 }

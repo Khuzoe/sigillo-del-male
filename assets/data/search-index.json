@@ -1,5 +1,5 @@
 {
-  "itemCount": 52,
+  "itemCount": 53,
   "items": [
     {
       "id": "player:apothecary",
@@ -490,6 +490,18 @@
         "Theldarion"
       ],
       "content": "Iniziate a recuperare nuovamente le forze dopo l'incubo dal quale Apothecary vi ha salvati. Piano piano anche Ran'Dra si risveglia, rendendosi conto che la vostra compagna non potrà più continuare l'avventura con voi. Le urla di Ran'Dra, rimbombando nel corridoio, attirano i servitori di Karla, i quali si erano spinti nel primo livello per accompagnare un nuovo arrivato. Quando aprite la porta, questo si presenta come \"Theldarion Tessaryn. Quattro sillabe, accento sulla seconda. Non Thel. Non Darion\". Dopo aver scambiato qualche parola con lui, decidete di collaborare al fine di raggiungere i..."
+    },
+    {
+      "id": "session:22",
+      "type": "session",
+      "entityId": "22",
+      "title": "Sessione 22",
+      "subtitle": "07/04/2026",
+      "url": "pages/sessioni.html#session-22",
+      "tags": [
+        "session"
+      ],
+      "content": "Decidete di dirigervi da Franky, il topo che avevate incontrato diversi giorni prima, pronti eventualmente a combattere contro di lui e le sue creazioni. Giunti lì, però, rimanete sorpresi: sembra più ragionevole del previsto. Scoprite che ha creato nuovi golem di carne usando parti dei cani mostruosi e di Gianni rimasti nel livello. Venite inoltre a sapere che è stato usato come cavia da Karla, la quale lo ha sfruttato per scoprire di più sui rituali di tramutazione in non-morto. Lui la odia e mira a distruggerla usando le sue creazioni, per poi trasformarla in un golem di Kar- di carne. Ran..."
     },
     {
       "id": "session:3",
