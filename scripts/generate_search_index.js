@@ -164,8 +164,13 @@ function buildSessionItems() {
 
   return data.sessions.map((session) => {
     const partyChanges = Array.isArray(session.partyChanges) ? session.partyChanges : [];
+    const xpBonus = Array.isArray(session.xp?.bonus)
+      ? session.xp.bonus
+          .map((bonus) => `${bonus.name || ""} ${bonus.amount || ""} XP bonus`.trim())
+          .join(" ")
+      : "";
     const xpPart = session.xp
-      ? `XP totali ${session.xp.total} XP ciascuno ${session.xp.each}`
+      ? `XP totali ${session.xp.total} XP ciascuno ${session.xp.each} ${xpBonus}`
       : "";
     const extra = [
       session.skillPoint ? "punto abilita" : "",

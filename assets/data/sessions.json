@@ -214,6 +214,29 @@
                 "total": "0",
                 "each": "0"
             }
+        },
+        {
+            "id": 23,
+            "date": "19/04/2026",
+            "summary": "<p>Zara vi invita a partecipare ad un gioco insieme, ma tentate di non assecondarla. Ad un certo punto, lei tenta di far sorridere magicamente Ga'Run, il quale reagisce violentemente e prova ad attaccarla.</p><p>La giullare evita l'attacco, scambiandosi di posto di Valdor e insiste con l'invitarvi a giocare, evocando alcune bambole di pezza con sembianze da infermiera.</p><p>Le bambole tentano di raggiungere Theldarion per perforarlo con le loro siringhe. Alcune di loro ci riescono, curandolo, prima di essere sconfitte.</p><p>A questo punto accettate di partecipare al gioco, Zara utilizza un'abilita simile ad un Muro di Forza e vi divide in due squadre: \"I Magnifici Tessarin\" e i \"Fatti una Risata\". Rispondete quindi ad alcuni indovinelli e vi trovate poi a combattere contro un paio di scarpe e guanti.</p><p>Finito il combattimento, vincono \"I Magnifici Tessarin\" dopo la resa di Ga'Run. Il gioco termina e Zara trasforma Ran'Dra in una bambola di pezza animata. Poi, vi lascia un invito prima di svanire. Siete ufficialmente invitati ad un teatro per bere un te insieme, forse Dino sapra darvi qualche informazione in piu a riguardo.</p>",
+            "xp": {
+                "total": "1000",
+                "each": "250",
+                "bonus": [
+                    {
+                        "name": "Ga'Run",
+                        "amount": "450"
+                    },
+                    {
+                        "name": "Theldarion",
+                        "amount": "450"
+                    },
+                    {
+                        "name": "Valdor",
+                        "amount": "450"
+                    }
+                ]
+            }
         }
     ]
 }

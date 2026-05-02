@@ -143,5 +143,16 @@
                 "status": "active"
             }
         ]
+    },
+    {
+        "id": "zara_quests",
+        "title": "Zara",
+        "npc_id": "zara",
+        "quests": [
+            {
+                "title": "Bere un te insieme al grande teatro",
+                "status": "active"
+            }
+        ]
     }
 ]

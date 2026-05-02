@@ -346,6 +346,21 @@ function validateSessions() {
             pushError(`${ctx}: xp.${key} mancante`);
           }
         });
+        if ("bonus" in session.xp) {
+          if (!Array.isArray(session.xp.bonus)) {
+            pushError(`${ctx}: xp.bonus deve essere una lista`);
+          } else {
+            session.xp.bonus.forEach((bonus, bonusIdx) => {
+              const bonusCtx = `${ctx}: xp.bonus[${bonusIdx}]`;
+              if (!isObject(bonus)) {
+                pushError(`${bonusCtx} non valido`);
+                return;
+              }
+              if (!bonus.name) pushError(`${bonusCtx}: name mancante`);
+              if (!("amount" in bonus)) pushError(`${bonusCtx}: amount mancante`);
+            });
+          }
+        }
       }
     }
   });

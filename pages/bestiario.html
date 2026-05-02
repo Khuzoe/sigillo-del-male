@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="it" data-head-include="../_includes/head.html">
+
+<head>
+    <title>Bestiario | Cripta di Sangue</title>
+    <script src="../assets/js/head.js" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="../assets/css/abyssal.css">
+</head>
+
+<body class="page-bestiario">
+    <nav class="sidebar" id="sidebar-container"></nav>
+
+    <main class="main-content">
+        <header class="hero-mini">
+            <div class="hero-title">
+                <h1>Bestiario</h1>
+                <div class="subtitle">Forme, mostri e anomalie registrate nella cripta</div>
+            </div>
+        </header>
+
+        <div class="container">
+            <section class="bestiary-shell" aria-labelledby="bestiary-title">
+                <div class="bestiary-heading">
+                    <h2 id="bestiary-title">Archivio delle Creature</h2>
+                    <span id="bestiary-count" class="bestiary-count">0 reperti</span>
+                </div>
+
+                <div class="bestiary-grid" id="bestiary-grid">
+                    <p class="bestiary-state">Caricamento del bestiario...</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div class="bestiary-modal" id="bestiary-modal" hidden>
+        <button class="bestiary-modal-backdrop" type="button" data-close-bestiary aria-label="Chiudi"></button>
+        <article class="bestiary-modal-card" role="dialog" aria-modal="true" aria-labelledby="bestiary-modal-title">
+            <button class="bestiary-modal-close" type="button" data-close-bestiary aria-label="Chiudi">
+                <i class="fas fa-xmark" aria-hidden="true"></i>
+            </button>
+            <img id="bestiary-modal-image" class="bestiary-modal-image" src="" alt="">
+            <div class="bestiary-modal-content">
+                <p id="bestiary-modal-kicker" class="bestiary-modal-kicker">Creatura</p>
+                <h2 id="bestiary-modal-title"></h2>
+                <div id="bestiary-modal-details" class="bestiary-modal-details"></div>
+                <a id="bestiary-modal-link" class="button-gold-outline" href="#" hidden>Apri scheda</a>
+            </div>
+        </article>
+    </div>
+
+    <script src="../assets/js/spoiler-policy.js"></script>
+    <script src="../assets/js/layout.js"></script>
+    <script src="../assets/js/pages/bestiario.js"></script>
+</body>
+
+</html>
