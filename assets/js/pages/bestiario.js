@@ -4,6 +4,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const search = document.getElementById("bestiary-search");
     const categoryFilters = document.getElementById("bestiary-category-filters");
     const rankFilters = document.getElementById("bestiary-rank-filters");
+    const typeFilters = document.getElementById("bestiary-type-filters");
+    const groupToggle = document.getElementById("bestiary-group-toggle");
     if (!grid) return;
 
     try {
@@ -15,6 +17,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         const state = {
             category: "all",
             rank: "all",
+            type: "all",
+            groupByCategory: groupToggle?.checked !== false,
             query: ""
         };
 
@@ -23,7 +27,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             count,
             search,
             categoryFilters,
-            rankFilters
+            rankFilters,
+            typeFilters,
+            groupToggle
         });
         updateBestiaryView(visibleCreatures, state, grid, count);
         initBestiaryModal();
@@ -32,6 +38,24 @@ document.addEventListener("DOMContentLoaded", async () => {
         grid.innerHTML = '<p class="bestiary-state bestiary-state--error">Impossibile caricare il bestiario.</p>';
     }
 });
+
+const BESTIARY_CREATURE_TYPES = [
+    { value: "Aberrazione", icon: "fa-brain" },
+    { value: "Bestia", icon: "fa-paw" },
+    { value: "Celestiale", icon: "fa-sun" },
+    { value: "Costrutto", icon: "fa-gear" },
+    { value: "Drago", icon: "fa-dragon" },
+    { value: "Elementale", icon: "fa-fire-flame-curved" },
+    { value: "Folletto", icon: "fa-wand-sparkles" },
+    { value: "Genio", icon: "fa-wind" },
+    { value: "Gigante", icon: "fa-mountain" },
+    { value: "Immondo", icon: "fa-fire" },
+    { value: "Melma", icon: "fa-droplet" },
+    { value: "Mostruosità", icon: "fa-burst" },
+    { value: "Non morto", icon: "fa-skull" },
+    { value: "Pianta", icon: "fa-seedling" },
+    { value: "Umanoide", icon: "fa-user" },
+];
 
 function filterVisibleBestiaryCreatures(creatures) {
     if (window.WikiSpoiler) {
@@ -44,6 +68,7 @@ function filterVisibleBestiaryCreatures(creatures) {
 function initBestiaryFilters(creatures, state, elements) {
     renderCategoryFilters(creatures, state, elements.categoryFilters);
     renderRankFilters(state, elements.rankFilters);
+    renderTypeFilters(creatures, state, elements.typeFilters);
 
     elements.search?.addEventListener("input", event => {
         state.query = event.target.value.trim();
@@ -63,6 +88,19 @@ function initBestiaryFilters(creatures, state, elements) {
         if (!button) return;
         state.rank = button.dataset.bestiaryRank;
         updateActiveFilter(elements.rankFilters, "[data-bestiary-rank]", state.rank);
+        updateBestiaryView(creatures, state, elements.grid, elements.count);
+    });
+
+    elements.typeFilters?.addEventListener("click", event => {
+        const button = event.target.closest("[data-bestiary-type]");
+        if (!button) return;
+        state.type = button.dataset.bestiaryType;
+        updateActiveFilter(elements.typeFilters, "[data-bestiary-type]", state.type);
+        updateBestiaryView(creatures, state, elements.grid, elements.count);
+    });
+
+    elements.groupToggle?.addEventListener("change", event => {
+        state.groupByCategory = event.target.checked;
         updateBestiaryView(creatures, state, elements.grid, elements.count);
     });
 }
@@ -102,6 +140,21 @@ function renderRankFilters(state, container) {
     )).join("");
 }
 
+function renderTypeFilters(creatures, state, container) {
+    if (!container) return;
+    const filters = [
+        { value: "all", label: "Tutti", icon: "fa-dna" },
+        ...BESTIARY_CREATURE_TYPES.map(type => ({ value: type.value, label: type.value, icon: type.icon }))
+    ];
+    container.innerHTML = filters.map(filter => renderFilterButton(
+        "bestiary-type",
+        filter.value,
+        filter.label,
+        state.type === filter.value,
+        filter.icon
+    )).join("");
+}
+
 function renderFilterButton(type, value, label, active, icon) {
     return `
         <button class="bestiary-filter ${active ? "is-active" : ""}" type="button" data-${type}="${escapeHtml(value)}" aria-pressed="${active ? "true" : "false"}">
@@ -121,7 +174,7 @@ function updateActiveFilter(container, selector, activeValue) {
 
 function updateBestiaryView(creatures, state, grid, count) {
     const filteredCreatures = filterBestiaryCreatures(creatures, state);
-    renderBestiary(filteredCreatures, grid, count);
+    renderBestiary(filteredCreatures, grid, count, state);
 }
 
 function filterBestiaryCreatures(creatures, state) {
@@ -129,6 +182,7 @@ function filterBestiaryCreatures(creatures, state) {
     return creatures.filter(creature => {
         if (state.category !== "all" && getBestiaryCategory(creature) !== state.category) return false;
         if (state.rank !== "all" && getBestiaryStatus(creature) !== state.rank) return false;
+        if (state.type !== "all" && getBestiaryType(creature) !== state.type) return false;
         if (!query) return true;
         return getBestiarySearchText(creature).includes(query);
     });
@@ -154,7 +208,7 @@ function normalizeSearchText(value) {
         .replace(/[\u0300-\u036f]/g, "");
 }
 
-function renderBestiary(creatures, grid, count) {
+function renderBestiary(creatures, grid, count, state = {}) {
     window.currentBestiaryCreatures = Array.isArray(creatures) ? creatures : [];
 
     if (!Array.isArray(creatures) || creatures.length === 0) {
@@ -168,6 +222,16 @@ function renderBestiary(creatures, grid, count) {
     }
 
     const indexedCreatures = creatures.map((creature, index) => ({ creature, index }));
+    if (state.groupByCategory === false) {
+        const items = indexedCreatures.sort(compareBestiaryItems);
+        grid.innerHTML = `
+            <div class="bestiary-section-grid bestiary-section-grid--flat">
+                ${items.map(({ creature, index }) => renderBestiaryCard(creature, index)).join("")}
+            </div>
+        `;
+        return;
+    }
+
     const groups = groupBestiaryCreatures(indexedCreatures);
 
     grid.innerHTML = groups.map(group => `
@@ -213,6 +277,8 @@ function compareBestiaryItems(a, b) {
 function compareBestiaryCategoryNames(a, b) {
     if (a === "Senza Categoria" && b !== "Senza Categoria") return -1;
     if (b === "Senza Categoria" && a !== "Senza Categoria") return 1;
+    if (a === "Speciale" && b !== "Speciale") return 1;
+    if (b === "Speciale" && a !== "Speciale") return -1;
     return a.localeCompare(b, "it", { sensitivity: "base" });
 }
 
@@ -260,6 +326,28 @@ function getBestiaryRank(rank) {
         special: { label: "Speciale", className: "special", icon: "fas fa-star" }
     };
     return ranks[rank] || null;
+}
+
+function getBestiaryType(creature) {
+    return normalizeBestiaryType(creature.details?.dndType);
+}
+
+function getBestiaryTypeMeta(type) {
+    const normalizedType = normalizeBestiaryType(type);
+    const meta = BESTIARY_CREATURE_TYPES.find(item => item.value === normalizedType);
+    return meta
+        ? { label: meta.value, icon: meta.icon }
+        : { label: normalizedType || "Tipo ignoto", icon: "fa-dna" };
+}
+
+function normalizeBestiaryType(type) {
+    const legacyTypes = {
+        "Bestia mostruosa": "Mostruosità",
+        "Umanoide corrotto": "Umanoide",
+        "Vegetale": "Pianta",
+        "Vegetale non morto": "Non morto"
+    };
+    return legacyTypes[type] || type || "";
 }
 
 function getBestiaryCategory(creature) {
@@ -328,7 +416,7 @@ function renderBestiaryDetails(details) {
     if (!details) return "";
 
     const stats = [
-        ["Tipo", details.dndType],
+        ["Tipo", details.dndType, "type"],
         ["Taglia", details.size],
         ["Altezza", details.height],
         ["Peso", details.weight]
@@ -352,7 +440,7 @@ function renderBestiaryDetails(details) {
                 ${stats.map(([label, value]) => `
                     <div>
                         <dt>${escapeHtml(label)}</dt>
-                        <dd>${escapeHtml(value)}</dd>
+                        <dd>${label === "Tipo" ? renderBestiaryType(value) : escapeHtml(value)}</dd>
                     </div>
                 `).join("")}
             </dl>
@@ -385,6 +473,16 @@ function renderBestiaryDetails(details) {
                 </ul>
             </div>
         ` : ""}
+    `;
+}
+
+function renderBestiaryType(type) {
+    const meta = getBestiaryTypeMeta(type);
+    return `
+        <span class="bestiary-type-value">
+            <i class="fas ${escapeHtml(meta.icon)}" aria-hidden="true"></i>
+            <span>${escapeHtml(meta.label)}</span>
+        </span>
     `;
 }
 

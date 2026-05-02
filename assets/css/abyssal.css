@@ -5040,6 +5040,31 @@ body.page-bestiario .hero-mini {
     color: #f6df9b;
 }
 
+.bestiary-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: fit-content;
+    min-height: 2rem;
+    color: rgba(232, 219, 188, 0.72);
+    font-family: var(--font-ui);
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.bestiary-option input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--gold);
+    cursor: pointer;
+}
+
+.bestiary-option:hover,
+.bestiary-option:focus-within {
+    color: #f2dfae;
+}
+
 .bestiary-grid {
     position: relative;
     z-index: 1;
@@ -5408,6 +5433,17 @@ body.page-bestiario .hero-mini {
     color: #f2dfae;
     font-size: 0.9rem;
     line-height: 1.25;
+}
+
+.bestiary-type-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+}
+
+.bestiary-type-value i {
+    color: rgba(212, 175, 55, 0.82);
+    font-size: 0.86rem;
 }
 
 .bestiary-modal-block h3 {
