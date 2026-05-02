@@ -680,20 +680,6 @@
       "content": "Yuris Von T Membro della Famiglia Von T"
     },
     {
-      "id": "npc:zara",
-      "type": "npc",
-      "entityId": "zara",
-      "title": "Zara",
-      "subtitle": "La Giullare",
-      "url": "pages/characters/character.html?id=zara",
-      "tags": [
-        "npc",
-        "vivo",
-        "npc"
-      ],
-      "content": "Buuuu! Ahahaha! Umana 5 ft 7 in (1.70 m) 132 lbs (60 kg) Biografia Il nome di Zara compare tra i ritratti e le targhette del palazzo, come un ricordo fissato nel tempo. È conosciuta come La Giullare, una presenza legata alle stranezze del piano. Chi ne parla la descrive come creatrice di inganni e distorsioni, un'ombra che prende forma tra le sale. Particolarità Le sue apparizioni sono teatrali: una figura enorme che urla \"Booo!\" e poi esplode in coriandoli colorati. Ogni volta si dissolve senza lasciare tracce, tornando con forme diverse, più piccole e più beffarde. È difficile distinguere d..."
-    },
-    {
       "id": "quest-group:zara_quests",
       "type": "quest",
       "entityId": "zara_quests",
@@ -705,6 +691,20 @@
         "npc"
       ],
       "content": "Bere un te insieme al grande teatro"
+    },
+    {
+      "id": "npc:zara",
+      "type": "npc",
+      "entityId": "zara",
+      "title": "Zara Klaren",
+      "subtitle": "La Giullare",
+      "url": "pages/characters/character.html?id=zara",
+      "tags": [
+        "npc",
+        "vivo",
+        "npc"
+      ],
+      "content": "Buuuu! Ahahaha! Umana 5 ft 7 in (1.70 m) 132 lbs (60 kg) Biografia Il nome di Zara compare tra i ritratti e le targhette del palazzo, come un ricordo fissato nel tempo. È conosciuta come La Giullare, una presenza legata alle stranezze del piano. Chi ne parla la descrive come creatrice di inganni e distorsioni, un'ombra che prende forma tra le sale. Particolarità Le sue apparizioni sono teatrali: una figura enorme che urla \"Booo!\" e poi esplode in coriandoli colorati. Ogni volta si dissolve senza lasciare tracce, tornando con forme diverse, più piccole e più beffarde. È difficile distinguere d..."
     }
   ]
 }
