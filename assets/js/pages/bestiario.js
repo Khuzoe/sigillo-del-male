@@ -65,7 +65,13 @@ function groupBestiaryCreatures(indexedCreatures) {
         }
         groupMap.get(title).items.push(item);
     });
-    return [...groupMap.values()];
+    return [...groupMap.values()].sort(compareBestiaryGroups);
+}
+
+function compareBestiaryGroups(a, b) {
+    if (a.title === "Senza Categoria" && b.title !== "Senza Categoria") return -1;
+    if (b.title === "Senza Categoria" && a.title !== "Senza Categoria") return 1;
+    return a.title.localeCompare(b.title, "it", { sensitivity: "base" });
 }
 
 function renderBestiaryCard(creature, index) {
