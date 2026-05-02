@@ -76,13 +76,17 @@ function renderTimeline(sessions) {
 
         let xpFooter = '';
         if (session.xp) {
+            const xpBonusHtml = renderXpBonusList(session.xp.bonus);
             xpFooter = `
             <div class="xp-footer">
-                <i class="fas fa-star" style="color: var(--gold); font-size: 1.2rem;"></i>
-                <div>
-                    <span class="xp-value">${session.xp.total} XP Totali</span>
-                    <span class="xp-sub">(${session.xp.each} a testa)</span>
+                <div class="xp-main">
+                    <i class="fas fa-star" style="color: var(--gold); font-size: 1.2rem;"></i>
+                    <div>
+                        <span class="xp-value">${session.xp.total} XP Totali</span>
+                        <span class="xp-sub">(${session.xp.each} a testa)</span>
+                    </div>
                 </div>
+                ${xpBonusHtml}
             </div>`;
         } else if (session.reward) {
             xpFooter = `
@@ -122,4 +126,33 @@ function renderPartyChangeBadge(change) {
 
     const icon = type === 'in' ? 'fa-right-to-bracket' : 'fa-right-from-bracket';
     return `<span class="party-change-badge party-change-${type}"><i class="fas ${icon}"></i>${name}</span>`;
+}
+
+function renderXpBonusList(bonuses) {
+    if (!Array.isArray(bonuses) || bonuses.length === 0) {
+        return '';
+    }
+
+    const items = bonuses
+        .filter((bonus) => bonus && bonus.name && bonus.amount !== undefined && bonus.amount !== null)
+        .map((bonus) => `
+            <li class="xp-bonus-item">
+                <span class="xp-bonus-name">${bonus.name}</span>
+                <span class="xp-bonus-amount">+${bonus.amount} XP</span>
+            </li>
+        `)
+        .join('');
+
+    if (!items) {
+        return '';
+    }
+
+    return `
+        <div class="xp-bonus-panel">
+            <span class="xp-bonus-label">Bonus individuali</span>
+            <ul class="xp-bonus-list">
+                ${items}
+            </ul>
+        </div>
+    `;
 }

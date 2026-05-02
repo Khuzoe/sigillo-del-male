@@ -17,6 +17,9 @@ document.addEventListener("DOMContentLoaded", function () {
     ensureFavicon(basePath);
     bindPrefetchForLinks(document);
     loadSidebar(basePath);
+    window.requestAnimationFrame(() => {
+        document.body.classList.add("page-ready");
+    });
 });
 
 function ensureFavicon(basePath) {

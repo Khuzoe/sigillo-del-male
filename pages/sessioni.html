@@ -224,7 +224,7 @@
         /* STILI SPECIFICI PER LA TIMELINE DELLE SESSIONI - MODALITA' WIDE */
         .timeline {
             position: relative;
-            max-width: 1280px;
+            max-width: 1460px;
             margin: 0 auto;
             padding: 2.5rem 0 3rem;
         }
@@ -235,21 +235,21 @@
             position: absolute;
             top: 0;
             bottom: 0;
-            left: 36px;
+            left: 30px;
             width: 1px;
             background: linear-gradient(to bottom, transparent, rgba(212, 175, 55, 0.18), rgba(212, 175, 55, 0.48), rgba(212, 175, 55, 0.18), transparent);
         }
 
         .session-card {
             position: relative;
-            margin-left: 96px;
+            margin-left: 82px;
             margin-bottom: 3.75rem;
-            max-width: 980px;
-            width: auto;
+            max-width: none;
+            width: calc(100% - 82px);
             background: linear-gradient(180deg, rgba(24, 23, 24, 0.94), rgba(18, 17, 18, 0.98));
             border: 1px solid rgba(255, 255, 255, 0.05);
             border-radius: 14px;
-            padding: 2.15rem 2.35rem;
+            padding: 2.2rem 2.7rem;
             box-shadow: 0 16px 28px rgba(0, 0, 0, 0.24);
             transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
             scroll-margin-top: 2rem;
@@ -264,7 +264,7 @@
         /* Pallino sulla timeline */
         .timeline-marker {
             position: absolute;
-            left: -67px;
+            left: -58px;
             top: 28px;
             width: 18px;
             height: 18px;
@@ -320,7 +320,7 @@
         }
 
         .session-body {
-            max-width: 70ch;
+            max-width: none;
             font-size: 1.02rem;
             color: var(--text-main);
             margin-bottom: 1.75rem;
@@ -339,6 +339,7 @@
         .xp-footer {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 1.5rem;
             font-family: var(--font-ui);
             font-size: 1rem;
@@ -349,6 +350,13 @@
             border-left: 2px solid rgba(212, 175, 55, 0.24);
         }
 
+        .xp-main {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            min-width: 0;
+        }
+
         .xp-value {
             color: var(--text-main);
             font-weight: bold;
@@ -357,6 +365,48 @@
         .xp-sub {
             color: var(--text-muted);
             font-size: 0.85rem;
+        }
+
+        .xp-bonus-panel {
+            min-width: min(100%, 360px);
+            padding-left: 1.25rem;
+            border-left: 1px solid rgba(212, 175, 55, 0.14);
+        }
+
+        .xp-bonus-label {
+            display: block;
+            margin-bottom: 0.55rem;
+            color: var(--ink-warm);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .xp-bonus-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 0.45rem;
+        }
+
+        .xp-bonus-item {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 1rem;
+            color: var(--text-main);
+        }
+
+        .xp-bonus-name {
+            color: var(--text-muted);
+        }
+
+        .xp-bonus-amount {
+            color: var(--gold);
+            font-weight: 700;
+            white-space: nowrap;
         }
 
         .levelup-badge {
@@ -403,6 +453,7 @@
 
             .session-card {
                 margin-left: 56px;
+                width: calc(100% - 56px);
                 padding: 1.5rem;
             }
 
@@ -417,6 +468,15 @@
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 0.5rem;
+            }
+
+            .xp-bonus-panel {
+                width: 100%;
+                min-width: 0;
+                padding-left: 0;
+                padding-top: 0.75rem;
+                border-left: 0;
+                border-top: 1px solid rgba(212, 175, 55, 0.14);
             }
 
             .next-session-card {
@@ -443,7 +503,7 @@
     </style>
 </head>
 
-<body>
+<body class="page-sessioni">
 
     <!-- NAVIGAZIONE LATERALE -->
     <nav class="sidebar" id="sidebar-container">

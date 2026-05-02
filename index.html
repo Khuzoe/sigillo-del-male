@@ -297,7 +297,7 @@
             transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
             text-decoration: none;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
         }
 
         .home-char-card::before {
@@ -323,6 +323,12 @@
             opacity: 1;
         }
 
+        .home-char-avatar {
+            position: relative;
+            overflow: visible;
+            flex: 0 0 auto;
+        }
+
         .home-char-avatar img {
             width: 80px;
             height: 80px;
@@ -334,7 +340,7 @@
         }
 
         .home-char-card:hover .home-char-avatar img {
-            transform: scale(1.04);
+            transform: scale(1.08);
             border-color: rgba(212, 175, 55, 0.42);
         }
 
@@ -361,7 +367,7 @@
     </style>
 </head>
 
-<body>
+<body class="page-home">
 
 
     <!-- NAVIGAZIONE LATERALE (Vuota - Gestita da layout.js) -->

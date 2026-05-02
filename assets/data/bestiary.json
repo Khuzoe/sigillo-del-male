@@ -1,0 +1,418 @@
+[
+  {
+    "name": "Cane I",
+    "image": "img/creatures/bestiary/cane_1.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 36
+    },
+    "category": "Franky",
+    "details": {
+      "description": "Segugio di carne ricucita, addestrato a presidiare soglie e corridoi. Conserva un istinto da branco sufficiente a coordinarsi con altre creature simili, ma ogni movimento tradisce la natura artificiale del suo corpo.",
+      "dndType": "Non morto",
+      "size": "Grande",
+      "height": "2,75 m",
+      "weight": "260 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Cane II",
+    "image": "img/creatures/bestiary/cane_2.webp",
+    "imageAdjust": {
+      "x": 54,
+      "y": 36
+    },
+    "category": "Franky",
+    "details": {
+      "description": "Variante piu pesante dei cani mostruosi, composta da masse muscolari innestate su una struttura canina deformata. Avanza con furia ostinata e colpisce come un ariete vivo.",
+      "dndType": "Non morto",
+      "size": "Grande",
+      "height": "2,55 m",
+      "weight": "310 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Cane Non Morto",
+    "image": "img/creatures/bestiary/cane_non_morto.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 46
+    },
+    "category": "Franky",
+    "details": {
+      "description": "Carcassa canina rianimata, tenuta insieme da ossa, tendini e fame residua. Non caccia per nutrirsi: insegue calore, rumore e movimento fino a spegnerli.",
+      "dndType": "Non morto",
+      "size": "Grande",
+      "height": "1,65 m al garrese",
+      "weight": "180 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Golem Micidiale della Morte",
+    "image": "img/creatures/bestiary/golem_micidiale_della_morte.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 40,
+      "size": 1.02
+    },
+    "category": "Franky",
+    "rank": "mini_boss",
+    "details": {
+      "description": "Imponente golem di carne progettato come arma definitiva. Parti di bestie e cadaveri vengono saldate attorno a un nucleo arcano, trasformando la morte in forza bruta e obbedienza cieca.",
+      "dndType": "Costrutto",
+      "size": "Enorme",
+      "height": "8 m",
+      "weight": "6.500 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Topo Morto",
+    "image": "img/creatures/bestiary/topo_morto.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 30
+    },
+    "category": "Franky",
+    "rank": "unique_monster",
+    "details": {
+      "description": "Piccola creatura non morta da laboratorio, piu utile come guardiano che come predatore. Le sue dimensioni ridotte le permettono di insinuarsi tra fessure, ferri chirurgici e resti abbandonati.",
+      "dndType": "Non morto",
+      "size": "Grande",
+      "height": "2,65 m",
+      "weight": "240 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Abominio Tela",
+    "image": "img/creatures/bestiary/abominio_tela.webp",
+    "imageAdjust": {
+      "x": 42,
+      "y": 42
+    },
+    "category": "Nino Olegna",
+    "details": {
+      "description": "Creatura allungata e piegata, nata da ragnatele organiche, tendini e carne stirata. Lascia dietro di se filamenti appiccicosi e si muove come se fosse tirata da mani invisibili.",
+      "dndType": "Aberrazione",
+      "size": "Grande",
+      "height": "2,8 m",
+      "weight": "210 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Assistente",
+    "image": "img/creatures/bestiary/assistente.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 50
+    },
+    "category": "Nino Olegna",
+    "details": {
+      "description": "Aberrazione tentacolare creata per assistere rituali e procedure mostruose. Osserva, trattiene e prepara la materia vivente, come uno strumento chirurgico dotato di volontà propria.",
+      "dndType": "Aberrazione",
+      "size": "Enorme",
+      "height": "5,50 m",
+      "weight": "1.800 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Creatura Tela",
+    "image": "img/creatures/bestiary/creatura_tela.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 32
+    },
+    "category": "Nino Olegna",
+    "details": {
+      "description": "Umanoide essiccato e rinforzato da fibre di tela necromantica. Viene spesso impiegato come materiale di partenza per creazioni piu complesse, ma resta pericoloso anche quando agisce da solo.",
+      "dndType": "Aberrazione",
+      "size": "Media",
+      "height": "1,9 m",
+      "weight": "55 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Muro Tela",
+    "image": "img/creatures/bestiary/muro_tela.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 50
+    },
+    "category": "Nino Olegna",
+    "rank": "mini_boss",
+    "details": {
+      "description": "Parete vivente di filamenti, carne e occhio vigile. Non separa soltanto gli ambienti: li sorveglia, li soffoca e li trasforma lentamente in una trappola organica.",
+      "dndType": "Aberrazione",
+      "size": "Media",
+      "height": "1 m di diametro",
+      "weight": "35 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Ragno Tela",
+    "image": "img/creatures/bestiary/ragno_tela.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 42
+    },
+    "category": "Nino Olegna",
+    "details": {
+      "description": "Predatore pallido generato da fibre tese e arti innaturali. Si annida nei passaggi alti o bui, attendendo che la preda finisca nel punto esatto in cui la tela puo chiudersi.",
+      "dndType": "Aberrazione",
+      "size": "Grande",
+      "height": "1,5 m al corpo",
+      "weight": "140 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Bambola Infermiera",
+    "image": "img/creatures/bestiary/bambola_infermiera.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 42
+    },
+    "category": "Zara",
+    "details": {
+      "description": "Bambola animata con abiti da infermiera e strumenti appuntiti. Imita la cura con gesti dolci e precisi, ma ogni attenzione nasconde un impulso crudele e invasivo.",
+      "dndType": "Costrutto",
+      "size": "Minuscola",
+      "height": "0,45 m",
+      "weight": "3 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Bambolina Gamba Fine",
+    "image": "img/creatures/bestiary/bambolina_gamba_fine.webp",
+    "imageAdjust": {
+      "x": 48,
+      "y": 42
+    },
+    "category": "Zara",
+    "details": {
+      "description": "Piccola bambola dalle gambe sottili e dagli occhi accesi. Corre con scatti improvvisi, ride nei punti ciechi e sfrutta la propria taglia per sfuggire alle reazioni piu lente.",
+      "dndType": "Costrutto",
+      "size": "Minuscola",
+      "height": "0,40 m",
+      "weight": "2 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Bambolotto Mammone",
+    "image": "img/creatures/bestiary/bambolotto_mammone.webp",
+    "imageAdjust": {
+      "x": 48,
+      "y": 44
+    },
+    "category": "Zara",
+    "details": {
+      "description": "Pupazzo imbottito di stoffa, cera e bisogno infantile. Cerca contatto con insistenza soffocante, stringendo la preda in un abbraccio che diventa rapidamente una presa.",
+      "dndType": "Costrutto",
+      "size": "Minuscola",
+      "height": "0,35 m",
+      "weight": "2,5 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Guanto di Zara",
+    "image": "img/creatures/bestiary/guanto_di_zara.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 48
+    },
+    "category": "Zara",
+    "details": {
+      "description": "Guanto animato privo di braccio, mosso da volontà teatrale. Fluttua, afferra e trascina come una mano invisibile, spesso agendo in concerto con altri oggetti incantati.",
+      "dndType": "Costrutto",
+      "size": "Minuscola",
+      "height": "0,35 m",
+      "weight": "1 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Pantofola di Zara",
+    "image": "img/creatures/bestiary/pantofola_di_zara.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 50
+    },
+    "category": "Zara",
+    "details": {
+      "description": "Calzatura animata e grottesca, rapida nei balzi e difficile da prevedere. Colpisce basso, distrae e trasforma anche il gesto piu ridicolo in una minaccia reale.",
+      "dndType": "Costrutto",
+      "size": "Minuscola",
+      "height": "0,30 m",
+      "weight": "1 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Scrigno Rosa",
+    "image": "img/creatures/bestiary/scrigno_rosa.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 48
+    },
+    "category": "Zara",
+    "details": {
+      "description": "Mimic decorato con rose, denti e falsa promessa di ricompensa. Attende che la curiosità faccia il primo passo, poi chiude la trappola con pazienza famelica.",
+      "dndType": "Costrutto",
+      "size": "Media",
+      "height": "0,9 m",
+      "weight": "90 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Albert",
+    "image": "img/creatures/bestiary/albert.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 30
+    },
+    "rank": "mini_boss",
+    "details": {
+      "description": "Massa muscolare senza testa, guidata da impulsi grezzi e da un cuore esposto. Non minaccia e non contratta: avanza finche qualcosa davanti a lui non cede.",
+      "dndType": "Aberrazione",
+      "size": "Enorme",
+      "height": "6 m",
+      "weight": "2.800 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Ammasso di Morte",
+    "image": "img/creatures/bestiary/ammasso_di_morte.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 44
+    },
+    "rank": "mini_boss",
+    "details": {
+      "description": "Cumulo di cadaveri fusi in un unico organismo non morto. Ogni corpo aggiunto ne aumenta peso e orrore, mentre le bocche sepolte nella carne sembrano urlare in ritardo.",
+      "dndType": "Non morto",
+      "size": "Enorme",
+      "height": "4,2 m",
+      "weight": "3.600 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Coltura Danzante",
+    "image": "img/creatures/bestiary/coltura_danzante.webp",
+    "imageAdjust": {
+      "x": 48,
+      "y": 40
+    },
+    "details": {
+      "description": "Fiore predatorio cresciuto su una struttura quasi umanoide. Danza tra petali, spine e radici mobili, trasformando il terreno vicino in un giardino ostile.",
+      "dndType": "Vegetale",
+      "size": "Media",
+      "height": "1,8 m",
+      "weight": "45 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Coltura Danzante Necrotica",
+    "image": "img/creatures/bestiary/coltura_danzante_necrotica.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 42
+    },
+    "rank": "unique_monster",
+    "details": {
+      "description": "Variante funerea della coltura danzante, impregnata di energia morta. I petali si muovono come veli da lutto e ogni passo diffonde l'odore dolciastro della decomposizione.",
+      "dndType": "Vegetale non morto",
+      "size": "Grande",
+      "height": "2,80 m",
+      "weight": "180 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Torre di Carne",
+    "image": "img/creatures/bestiary/torre_di_carne.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 46
+    },
+    "hidden": true,
+    "rank": "mini_boss",
+    "details": {
+      "description": "Pilastro di carne, denti e capelli cresciuto come un tumulo verticale. Non insegue la preda: domina lo spazio, attira l'attenzione e costringe chiunque ad affrontarne la massa.",
+      "dndType": "Aberrazione",
+      "size": "Grande",
+      "height": "2,8 m",
+      "weight": "430 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Webber",
+    "image": "img/creatures/bestiary/webber.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 48
+    },
+    "details": {
+      "description": "Bozzolo senziente dotato di occhio, bocca e tentacoli. Sembra una creatura incompleta, ma la sua fragilità apparente nasconde una presa tenace e un appetito metodico.",
+      "dndType": "Aberrazione",
+      "size": "Grande",
+      "height": "3 m",
+      "weight": "260 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Zombie Becchino",
+    "image": "img/creatures/bestiary/zombie_becchino.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 34
+    },
+    "details": {
+      "description": "Non morto che conserva strumenti e gesti del mestiere funebre. Scava, trascina e colpisce con pazienza da sepoltura, come se ogni scontro fosse una tomba da completare.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1,8 m",
+      "weight": "75 kg",
+      "traits": [],
+      "drops": []
+    }
+  }
+]

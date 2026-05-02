@@ -1,5 +1,5 @@
 {
-  "itemCount": 53,
+  "itemCount": 55,
   "items": [
     {
       "id": "player:apothecary",
@@ -504,6 +504,18 @@
       "content": "Decidete di dirigervi da Franky, il topo che avevate incontrato diversi giorni prima, pronti eventualmente a combattere contro di lui e le sue creazioni. Giunti lì, però, rimanete sorpresi: sembra più ragionevole del previsto. Scoprite che ha creato nuovi golem di carne usando parti dei cani mostruosi e di Gianni rimasti nel livello. Venite inoltre a sapere che è stato usato come cavia da Karla, la quale lo ha sfruttato per scoprire di più sui rituali di tramutazione in non-morto. Lui la odia e mira a distruggerla usando le sue creazioni, per poi trasformarla in un golem di Kar- di carne. Ran..."
     },
     {
+      "id": "session:23",
+      "type": "session",
+      "entityId": "23",
+      "title": "Sessione 23",
+      "subtitle": "19/04/2026",
+      "url": "pages/sessioni.html#session-23",
+      "tags": [
+        "session"
+      ],
+      "content": "Zara vi invita a partecipare ad un gioco insieme, ma tentate di non assecondarla. Ad un certo punto, lei tenta di far sorridere magicamente Ga'Run, il quale reagisce violentemente e prova ad attaccarla. La giullare evita l'attacco, scambiandosi di posto di Valdor e insiste con l'invitarvi a giocare, evocando alcune bambole di pezza con sembianze da infermiera. Le bambole tentano di raggiungere Theldarion per perforarlo con le loro siringhe. Alcune di loro ci riescono, curandolo, prima di essere sconfitte. A questo punto accettate di partecipare al gioco, Zara utilizza un'abilita simile ad un ..."
+    },
+    {
       "id": "session:3",
       "type": "session",
       "entityId": "3",
@@ -676,10 +688,23 @@
       "url": "pages/characters/character.html?id=zara",
       "tags": [
         "npc",
-        "ignoto",
+        "vivo",
         "npc"
       ],
       "content": "Buuuu! Ahahaha! Umana 5 ft 7 in (1.70 m) 132 lbs (60 kg) Biografia Il nome di Zara compare tra i ritratti e le targhette del palazzo, come un ricordo fissato nel tempo. È conosciuta come La Giullare, una presenza legata alle stranezze del piano. Chi ne parla la descrive come creatrice di inganni e distorsioni, un'ombra che prende forma tra le sale. Particolarità Le sue apparizioni sono teatrali: una figura enorme che urla \"Booo!\" e poi esplode in coriandoli colorati. Ogni volta si dissolve senza lasciare tracce, tornando con forme diverse, più piccole e più beffarde. È difficile distinguere d..."
+    },
+    {
+      "id": "quest-group:zara_quests",
+      "type": "quest",
+      "entityId": "zara_quests",
+      "title": "Zara",
+      "subtitle": "NPC: zara",
+      "url": "pages/missioni.html",
+      "tags": [
+        "quest",
+        "npc"
+      ],
+      "content": "Bere un te insieme al grande teatro"
     }
   ]
 }
