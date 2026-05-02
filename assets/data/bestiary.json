@@ -14,7 +14,14 @@
       "height": "6 m",
       "weight": "2.800 kg",
       "traits": [],
-      "drops": []
+      "drops": [
+        {
+          "name": "Cuore di Albert",
+          "image": "img/drops/cuore_albert.webp",
+          "rarity": "Unico",
+          "note": "Organo anomalo ancora intriso di forza vitale residua."
+        }
+      ]
     }
   },
   {
@@ -32,7 +39,10 @@
       "height": "4,2 m",
       "weight": "3.600 kg",
       "traits": [],
-      "drops": []
+      "drops": [],
+      "immunities": [
+        "Necrotico"
+      ]
     }
   },
   {
@@ -49,7 +59,10 @@
       "height": "1,8 m",
       "weight": "45 kg",
       "traits": [],
-      "drops": []
+      "drops": [],
+      "vulnerabilities": [
+        "Fuoco"
+      ]
     }
   },
   {
@@ -67,7 +80,13 @@
       "height": "2,80 m",
       "weight": "180 kg",
       "traits": [],
-      "drops": []
+      "drops": [],
+      "immunities": [
+        "Necrotico"
+      ],
+      "vulnerabilities": [
+        "Fuoco"
+      ]
     }
   },
   {
@@ -103,24 +122,6 @@
       "size": "Grande",
       "height": "2,8 m",
       "weight": "430 kg",
-      "traits": [],
-      "drops": []
-    }
-  },
-  {
-    "name": "Webber",
-    "image": "img/creatures/bestiary/webber.webp",
-    "imageAdjust": {
-      "x": 50,
-      "y": 48
-    },
-    "category": "Nino Olegna",
-    "details": {
-      "description": "Bozzolo senziente dotato di occhio, bocca e tentacoli. Sembra una creatura incompleta, ma la sua fragilità apparente nasconde una presa tenace e un appetito metodico.",
-      "dndType": "Aberrazione",
-      "size": "Grande",
-      "height": "3 m",
-      "weight": "260 kg",
       "traits": [],
       "drops": []
     }
@@ -267,8 +268,16 @@
       "size": "Media",
       "height": "1,85 m",
       "weight": "55 kg",
-      "traits": [],
-      "drops": []
+      "traits": [
+        {
+          "name": "Rigenerazione",
+          "icon": "fa-heart-pulse"
+        }
+      ],
+      "drops": [],
+      "immunities": [
+        "Necrotico"
+      ]
     }
   },
   {
@@ -401,13 +410,14 @@
     }
   },
   {
-    "name": "Assistente",
+    "name": "Bacio Mortale",
     "image": "img/creatures/bestiary/assistente.webp",
     "imageAdjust": {
       "x": 50,
       "y": 50
     },
     "category": "Nino Olegna",
+    "rank": "mini_boss",
     "details": {
       "description": "Aberrazione tentacolare creata per assistere rituali e procedure mostruose. Osserva, trattiene e prepara la materia vivente, come uno strumento chirurgico dotato di volontà propria.",
       "dndType": "Aberrazione",
@@ -469,6 +479,255 @@
       "size": "Grande",
       "height": "1,5 m al corpo",
       "weight": "140 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Webber",
+    "image": "img/creatures/bestiary/webber.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 48
+    },
+    "category": "Nino Olegna",
+    "details": {
+      "description": "Bozzolo senziente dotato di occhio, bocca e tentacoli. Sembra una creatura incompleta, ma la sua fragilità apparente nasconde una presa tenace e un appetito metodico.",
+      "dndType": "Aberrazione",
+      "size": "Grande",
+      "height": "3 m",
+      "weight": "260 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Deborah Von T",
+    "image": "img/creatures/bestiary/deborah_von_t.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 22
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "deborah",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta L'Ultima Foglia.",
+      "dndType": "Non Morto",
+      "size": "Media",
+      "height": "4 ft 5 in (1.35 m)",
+      "weight": "66 lbs (30 kg)",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Elena Erbadath",
+    "image": "img/creatures/bestiary/elena_erbadath.webp",
+    "imageAdjust": {
+      "x": 56,
+      "y": 28
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "elena",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta La Fantasma.",
+      "dndType": "Fantasma",
+      "size": "Media",
+      "height": "5 ft 3 in (1.61 m)",
+      "weight": "2 lbs (0.75 kg)",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Franky",
+    "image": "img/creatures/bestiary/franky.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 2,
+      "size": 1.1
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "franky",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta Lo Scienziato.",
+      "dndType": "Topo Parlante",
+      "size": "Minuscola",
+      "height": "1 ft 10 in (0.55 m)",
+      "weight": "4 lbs (2 kg)",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Ginevra Von T",
+    "image": "img/creatures/bestiary/ginevra_von_t.webp",
+    "imageAdjust": {
+      "x": 44,
+      "y": 15
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "ginevra",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta L'Alambicco Vivente.",
+      "dndType": "NPC",
+      "size": "Media",
+      "height": "6 ft 0 in (1.82 m)",
+      "weight": "529 lbs (240 kg)",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Karla Von T",
+    "image": "img/creatures/bestiary/karla_von_t.webp",
+    "imageAdjust": {
+      "x": 43,
+      "y": 4,
+      "size": 1.9
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "karla",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta La Vampira.",
+      "dndType": "Vampira",
+      "size": "Media",
+      "height": "5 ft 9 in (1.75 m)",
+      "weight": "143 lbs (65 kg)",
+      "traits": [
+        {
+          "name": "Rigenerazione",
+          "icon": "fa-heart-pulse"
+        }
+      ],
+      "drops": []
+    }
+  },
+  {
+    "name": "Leonora Von T",
+    "image": "img/creatures/bestiary/leonora_von_t.webp",
+    "imageAdjust": {
+      "x": 38,
+      "y": 45
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "leonora",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta Figura Misteriosa.",
+      "dndType": "Non Morto",
+      "size": "Media",
+      "height": "5 ft 8 in (1.73 m)",
+      "weight": "132 lbs (60 kg)",
+      "traits": [],
+      "drops": []
+    },
+    "hidden": true
+  },
+  {
+    "name": "Nino Olegna",
+    "image": "img/creatures/bestiary/nino_olegna_npc.webp",
+    "imageAdjust": {
+      "x": 38,
+      "y": 12
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "nino_olegna",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta Il Tessimorte.",
+      "dndType": "Non Morto",
+      "size": "Media",
+      "height": "8 ft 6 in (2.60 m)",
+      "weight": "463 lbs (210 kg)",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Rabberduscolanderson Von T",
+    "image": "img/creatures/bestiary/rabberduscolanderson_von_t.webp",
+    "imageAdjust": {
+      "x": 34,
+      "y": 31
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "rabberduscolanderson",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta Il Reietto.",
+      "dndType": "Non Morto",
+      "size": "Media",
+      "height": "5 ft 4 in (1.62 m)",
+      "weight": "20 lbs (9 kg)",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Tokka Von T",
+    "image": "img/creatures/bestiary/tokka_von_t.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 18,
+      "size": 1.05
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "tokka",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta Il Cuore Corrotto.",
+      "dndType": "Non Morto",
+      "size": "Media",
+      "height": "5 ft 10 in (1.78 m)",
+      "weight": "154 lbs (70 kg)",
+      "traits": [],
+      "drops": []
+    },
+    "hidden": true
+  },
+  {
+    "name": "X Von T",
+    "image": "img/creatures/bestiary/x_von_t.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 8
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "x",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta La Studiosa.",
+      "dndType": "Non Morto",
+      "size": "Media",
+      "height": "5 ft 6 in (1.68 m)",
+      "weight": "18 lbs (8 kg)",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Zara Klaren",
+    "image": "img/creatures/bestiary/zara_klaren.webp",
+    "imageAdjust": {
+      "x": 41,
+      "y": 41,
+      "size": 1.05
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "zara",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta La Giullare.",
+      "dndType": "Umana",
+      "size": "Media",
+      "height": "5 ft 7 in (1.70 m)",
+      "weight": "132 lbs (60 kg)",
       "traits": [],
       "drops": []
     }
