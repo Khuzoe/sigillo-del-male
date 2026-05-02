@@ -4930,6 +4930,116 @@ body.page-bestiario .hero-mini {
     color: rgba(232, 219, 188, 0.68);
 }
 
+.bestiary-tools {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 0.8rem;
+    margin: 0 0 1.25rem;
+}
+
+.bestiary-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.bestiary-search i {
+    position: absolute;
+    left: 0.9rem;
+    color: rgba(212, 175, 55, 0.58);
+    pointer-events: none;
+}
+
+.bestiary-search input {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.72rem 0.9rem 0.72rem 2.55rem;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 8px;
+    background:
+        linear-gradient(180deg, rgba(15, 14, 13, 0.92), rgba(7, 7, 7, 0.9));
+    color: #f2dfae;
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+}
+
+.bestiary-search input::placeholder {
+    color: rgba(232, 219, 188, 0.42);
+}
+
+.bestiary-search input:focus {
+    outline: 2px solid rgba(212, 175, 55, 0.35);
+    outline-offset: 2px;
+    border-color: rgba(212, 175, 55, 0.42);
+}
+
+.bestiary-filter-row {
+    display: grid;
+    grid-template-columns: 6.8rem minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+}
+
+.bestiary-filter-row > span {
+    padding-top: 0.55rem;
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: rgba(232, 219, 188, 0.52);
+}
+
+.bestiary-filter-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.bestiary-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    min-height: 2rem;
+    padding: 0.42rem 0.68rem;
+    border: 1px solid rgba(212, 175, 55, 0.13);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.22);
+    color: rgba(232, 219, 188, 0.72);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    transition:
+        border-color 160ms ease,
+        background 160ms ease,
+        color 160ms ease,
+        transform 160ms ease;
+}
+
+.bestiary-filter:hover,
+.bestiary-filter:focus-visible {
+    border-color: rgba(212, 175, 55, 0.38);
+    color: #f2dfae;
+    transform: translateY(-1px);
+}
+
+.bestiary-filter:focus-visible {
+    outline: 2px solid rgba(212, 175, 55, 0.34);
+    outline-offset: 2px;
+}
+
+.bestiary-filter.is-active {
+    border-color: rgba(212, 175, 55, 0.5);
+    background:
+        linear-gradient(180deg, rgba(72, 49, 22, 0.72), rgba(37, 22, 14, 0.72));
+    color: #f6df9b;
+}
+
 .bestiary-grid {
     position: relative;
     z-index: 1;
@@ -5027,6 +5137,13 @@ body.page-bestiario .hero-mini {
         radial-gradient(circle at 50% 0%, rgba(138, 28, 28, 0.14), transparent 44%);
 }
 
+.bestiary-card--undiscovered {
+    border-color: rgba(132, 122, 101, 0.24);
+    background:
+        linear-gradient(180deg, rgba(24, 24, 23, 0.92), rgba(11, 11, 11, 0.98)),
+        radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.07), transparent 44%);
+}
+
 .bestiary-card:focus-visible {
     outline: 2px solid rgba(212, 175, 55, 0.48);
     outline-offset: 3px;
@@ -5077,6 +5194,15 @@ body.page-bestiario .hero-mini {
     filter: saturate(1.08) contrast(1.08);
 }
 
+.bestiary-card--undiscovered .bestiary-image-frame img {
+    filter: grayscale(0.85) contrast(1.18) brightness(0.42) blur(1px);
+}
+
+.bestiary-card--undiscovered:hover .bestiary-image-frame img,
+.bestiary-card--undiscovered:focus-visible .bestiary-image-frame img {
+    filter: grayscale(0.72) contrast(1.25) brightness(0.5) blur(0.5px);
+}
+
 .bestiary-card-name {
     flex: 0 0 3.95em;
     display: block;
@@ -5116,6 +5242,12 @@ body.page-bestiario .hero-mini {
     border: 1px solid rgba(255, 218, 111, 0.48);
     background: rgba(93, 55, 15, 0.76);
     color: #ffd86f;
+}
+
+.bestiary-rank-icon--undiscovered {
+    border: 1px solid rgba(232, 219, 188, 0.34);
+    background: rgba(18, 18, 18, 0.78);
+    color: rgba(232, 219, 188, 0.82);
 }
 
 .bestiary-state {
@@ -5317,6 +5449,15 @@ body.bestiary-modal-open {
 
     .bestiary-grid {
         gap: 1.55rem;
+    }
+
+    .bestiary-filter-row {
+        grid-template-columns: 1fr;
+        gap: 0.35rem;
+    }
+
+    .bestiary-filter-row > span {
+        padding-top: 0;
     }
 
     .bestiary-section-grid {

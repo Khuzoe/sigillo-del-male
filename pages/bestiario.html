@@ -29,7 +29,24 @@
             <section class="bestiary-shell" aria-labelledby="bestiary-title">
                 <div class="bestiary-heading">
                     <h2 id="bestiary-title">Archivio delle Creature</h2>
-                    <span id="bestiary-count" class="bestiary-count">0 reperti</span>
+                    <span id="bestiary-count" class="bestiary-count">0 voci</span>
+                </div>
+
+                <div class="bestiary-tools" aria-label="Filtri bestiario">
+                    <label class="bestiary-search">
+                        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                        <input id="bestiary-search" type="search" placeholder="Cerca creatura, tipo, descrizione..."
+                            autocomplete="off">
+                    </label>
+                    <div class="bestiary-filter-row">
+                        <span>Categoria</span>
+                        <div id="bestiary-category-filters" class="bestiary-filter-group" aria-label="Filtro categoria">
+                        </div>
+                    </div>
+                    <div class="bestiary-filter-row">
+                        <span>Status</span>
+                        <div id="bestiary-rank-filters" class="bestiary-filter-group" aria-label="Filtro status"></div>
+                    </div>
                 </div>
 
                 <div class="bestiary-grid" id="bestiary-grid">
