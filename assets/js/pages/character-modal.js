@@ -24,8 +24,7 @@ function initializeImageModal() {
 
             closeBtn.addEventListener('click', closeModal);
             modal.addEventListener('click', (e) => {
-                // Close if clicking on the background, not the image itself
-                if (e.target === modal) {
+                if (!modalImg.contains(e.target) && !closeBtn.contains(e.target)) {
                     closeModal();
                 }
             });

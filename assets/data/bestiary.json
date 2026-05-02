@@ -513,7 +513,7 @@
     "sourceCharacterId": "deborah",
     "details": {
       "description": "Figura speciale registrata tra gli NPC principali della cripta L'Ultima Foglia.",
-      "dndType": "Non Morto",
+      "dndType": "Non morto",
       "size": "Media",
       "height": "4 ft 5 in (1.35 m)",
       "weight": "66 lbs (30 kg)",
@@ -533,7 +533,7 @@
     "sourceCharacterId": "elena",
     "details": {
       "description": "Figura speciale registrata tra gli NPC principali della cripta La Fantasma.",
-      "dndType": "Fantasma",
+      "dndType": "Non morto",
       "size": "Media",
       "height": "5 ft 3 in (1.61 m)",
       "weight": "2 lbs (0.75 kg)",
@@ -554,7 +554,7 @@
     "sourceCharacterId": "franky",
     "details": {
       "description": "Figura speciale registrata tra gli NPC principali della cripta Lo Scienziato.",
-      "dndType": "Topo Parlante",
+      "dndType": "Non morto",
       "size": "Minuscola",
       "height": "1 ft 10 in (0.55 m)",
       "weight": "4 lbs (2 kg)",
@@ -574,7 +574,7 @@
     "sourceCharacterId": "ginevra",
     "details": {
       "description": "Figura speciale registrata tra gli NPC principali della cripta L'Alambicco Vivente.",
-      "dndType": "NPC",
+      "dndType": "Non morto",
       "size": "Media",
       "height": "6 ft 0 in (1.82 m)",
       "weight": "529 lbs (240 kg)",
@@ -595,7 +595,7 @@
     "sourceCharacterId": "karla",
     "details": {
       "description": "Figura speciale registrata tra gli NPC principali della cripta La Vampira.",
-      "dndType": "Vampira",
+      "dndType": "Non morto",
       "size": "Media",
       "height": "5 ft 9 in (1.75 m)",
       "weight": "143 lbs (65 kg)",
@@ -620,7 +620,7 @@
     "sourceCharacterId": "leonora",
     "details": {
       "description": "Figura speciale registrata tra gli NPC principali della cripta Figura Misteriosa.",
-      "dndType": "Non Morto",
+      "dndType": "Non morto",
       "size": "Media",
       "height": "5 ft 8 in (1.73 m)",
       "weight": "132 lbs (60 kg)",
@@ -641,7 +641,7 @@
     "sourceCharacterId": "nino_olegna",
     "details": {
       "description": "Figura speciale registrata tra gli NPC principali della cripta Il Tessimorte.",
-      "dndType": "Non Morto",
+      "dndType": "Non morto",
       "size": "Media",
       "height": "8 ft 6 in (2.60 m)",
       "weight": "463 lbs (210 kg)",
@@ -661,7 +661,7 @@
     "sourceCharacterId": "rabberduscolanderson",
     "details": {
       "description": "Figura speciale registrata tra gli NPC principali della cripta Il Reietto.",
-      "dndType": "Non Morto",
+      "dndType": "Non morto",
       "size": "Media",
       "height": "5 ft 4 in (1.62 m)",
       "weight": "20 lbs (9 kg)",
@@ -682,7 +682,7 @@
     "sourceCharacterId": "tokka",
     "details": {
       "description": "Figura speciale registrata tra gli NPC principali della cripta Il Cuore Corrotto.",
-      "dndType": "Non Morto",
+      "dndType": "Non morto",
       "size": "Media",
       "height": "5 ft 10 in (1.78 m)",
       "weight": "154 lbs (70 kg)",
@@ -703,7 +703,7 @@
     "sourceCharacterId": "x",
     "details": {
       "description": "Figura speciale registrata tra gli NPC principali della cripta La Studiosa.",
-      "dndType": "Non Morto",
+      "dndType": "Non morto",
       "size": "Media",
       "height": "5 ft 6 in (1.68 m)",
       "weight": "18 lbs (8 kg)",
@@ -724,7 +724,7 @@
     "sourceCharacterId": "zara",
     "details": {
       "description": "Figura speciale registrata tra gli NPC principali della cripta La Giullare.",
-      "dndType": "Umana",
+      "dndType": "Non morto",
       "size": "Media",
       "height": "5 ft 7 in (1.70 m)",
       "weight": "132 lbs (60 kg)",
