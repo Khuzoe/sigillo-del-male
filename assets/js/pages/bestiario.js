@@ -90,6 +90,7 @@ function renderRankFilters(state, container) {
         { value: "normal", label: "Normali", icon: "fa-circle" },
         { value: "mini_boss", label: "Creature Maggiori", icon: "fa-skull" },
         { value: "unique_monster", label: "Creature Uniche", icon: "fa-crown" },
+        { value: "special", label: "Speciali", icon: "fa-star" },
         { value: "undiscovered", label: "Misteriose", icon: "fa-eye-slash" }
     ];
     container.innerHTML = filters.map(filter => renderFilterButton(
@@ -249,13 +250,14 @@ function normalizePercent(value, fallback) {
 function normalizeScale(value, fallback) {
     const number = Number(value);
     if (!Number.isFinite(number) || number <= 0) return fallback;
-    return Math.max(0.75, Math.min(1.35, number));
+    return Math.max(0.75, number);
 }
 
 function getBestiaryRank(rank) {
     const ranks = {
         mini_boss: { label: "Creatura Maggiore", className: "mini-boss", icon: "fas fa-skull" },
-        unique_monster: { label: "Creatura Unica", className: "unique-monster", icon: "fas fa-crown" }
+        unique_monster: { label: "Creatura Unica", className: "unique-monster", icon: "fas fa-crown" },
+        special: { label: "Speciale", className: "special", icon: "fas fa-star" }
     };
     return ranks[rank] || null;
 }
@@ -270,7 +272,7 @@ function isBestiaryDiscovered(creature) {
 
 function getBestiaryStatus(creature) {
     if (!isBestiaryDiscovered(creature)) return "undiscovered";
-    if (creature.rank === "mini_boss" || creature.rank === "unique_monster") return creature.rank;
+    if (creature.rank === "mini_boss" || creature.rank === "unique_monster" || creature.rank === "special") return creature.rank;
     return "normal";
 }
 
@@ -280,15 +282,14 @@ function initBestiaryModal() {
     const title = document.getElementById("bestiary-modal-title");
     const kicker = document.getElementById("bestiary-modal-kicker");
     const details = document.getElementById("bestiary-modal-details");
-    const link = document.getElementById("bestiary-modal-link");
-    if (!modal || !image || !title || !kicker || !details || !link) return;
+    if (!modal || !image || !title || !kicker || !details) return;
 
     document.addEventListener("click", event => {
         const card = event.target.closest("[data-bestiary-index]");
         if (!card) return;
         const creature = window.currentBestiaryCreatures?.[Number(card.dataset.bestiaryIndex)];
         if (!creature) return;
-        openBestiaryModal(creature, modal, image, title, kicker, details, link);
+        openBestiaryModal(creature, modal, image, title, kicker, details);
     });
 
     modal.querySelectorAll("[data-close-bestiary]").forEach(button => {
@@ -302,7 +303,7 @@ function initBestiaryModal() {
     });
 }
 
-function openBestiaryModal(creature, modal, image, title, kicker, details, link) {
+function openBestiaryModal(creature, modal, image, title, kicker, details) {
     const rank = getBestiaryRank(creature.rank);
     const discovered = isBestiaryDiscovered(creature);
     const displayName = discovered ? creature.name : (creature.mysteryName || "Creatura Misteriosa");
@@ -313,13 +314,6 @@ function openBestiaryModal(creature, modal, image, title, kicker, details, link)
     details.innerHTML = discovered
         ? renderBestiaryDetails(creature.details)
         : renderUndiscoveredBestiaryDetails(creature);
-
-    if (discovered && creature.url) {
-        link.href = creature.url;
-        link.hidden = false;
-    } else {
-        link.hidden = true;
-    }
 
     modal.hidden = false;
     document.body.classList.add("bestiary-modal-open");
@@ -342,6 +336,14 @@ function renderBestiaryDetails(details) {
 
     const traits = Array.isArray(details.traits) ? details.traits.filter(Boolean) : [];
     const drops = Array.isArray(details.drops) ? details.drops.filter(Boolean) : [];
+    const defenses = [
+        ["Resistenze", details.resistances],
+        ["Immunità", details.immunities],
+        ["Vulnerabilità", details.vulnerabilities]
+    ].map(([label, values]) => [
+        label,
+        Array.isArray(values) ? values.filter(Boolean) : []
+    ]).filter(([, values]) => values.length);
 
     return `
         ${details.description ? `<p class="bestiary-modal-description">${escapeHtml(details.description)}</p>` : ""}
@@ -355,11 +357,23 @@ function renderBestiaryDetails(details) {
                 `).join("")}
             </dl>
         ` : ""}
+        ${defenses.length ? `
+            <div class="bestiary-modal-defense-grid">
+                ${defenses.map(([label, values]) => `
+                    <div class="bestiary-modal-defense bestiary-modal-defense--${slugify(label)}">
+                        <h3>${escapeHtml(label)}</h3>
+                        <ul class="bestiary-modal-list">
+                            ${values.map(value => `<li>${escapeHtml(value)}</li>`).join("")}
+                        </ul>
+                    </div>
+                `).join("")}
+            </div>
+        ` : ""}
         ${traits.length ? `
             <div class="bestiary-modal-block">
                 <h3>Tratti</h3>
                 <ul class="bestiary-modal-list">
-                    ${traits.map(trait => `<li>${escapeHtml(trait)}</li>`).join("")}
+                    ${traits.map(trait => `<li>${renderBestiaryTrait(trait)}</li>`).join("")}
                 </ul>
             </div>
         ` : ""}
@@ -374,12 +388,40 @@ function renderBestiaryDetails(details) {
     `;
 }
 
+function renderBestiaryTrait(trait) {
+    if (typeof trait === "string") return escapeHtml(trait);
+    const name = escapeHtml(trait.name || "Tratto");
+    const icon = trait.icon ? `<i class="fas ${escapeHtml(trait.icon)}" aria-hidden="true"></i>` : "";
+    const note = trait.note ? `<span>${escapeHtml(trait.note)}</span>` : "";
+    return `
+        <span class="bestiary-trait">
+            ${icon}
+            <span>
+                <strong>${name}</strong>
+                ${note}
+            </span>
+        </span>
+    `;
+}
+
 function renderBestiaryDrop(drop) {
     if (typeof drop === "string") return escapeHtml(drop);
     const name = escapeHtml(drop.name || "Oggetto");
-    const note = drop.note ? ` <span>${escapeHtml(drop.note)}</span>` : "";
-    const rarity = drop.rarity ? ` <em>${escapeHtml(drop.rarity)}</em>` : "";
-    return `<strong>${name}</strong>${rarity}${note}`;
+    const note = drop.note ? `<span>${escapeHtml(drop.note)}</span>` : "";
+    const rarity = drop.rarity ? `<em>${escapeHtml(drop.rarity)}</em>` : "";
+    const image = drop.image
+        ? `<img src="../assets/${escapeHtml(drop.image)}" alt="" loading="lazy">`
+        : "";
+    return `
+        <span class="bestiary-drop">
+            ${image}
+            <span class="bestiary-drop-text">
+                <strong>${name}</strong>
+                ${rarity}
+                ${note}
+            </span>
+        </span>
+    `;
 }
 
 function closeBestiaryModal(modal) {
