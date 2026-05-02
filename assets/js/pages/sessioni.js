@@ -24,12 +24,25 @@ document.addEventListener("DOMContentLoaded", async function () {
         window.CriptaNextSession?.render(nextSessionConfig, document.getElementById('next-session-container'));
         renderSessionNav(sessions);
         renderTimeline(sessions);
+        scrollToLinkedSession();
 
     } catch (error) {
         console.error("Errore nel caricamento delle sessioni:", error);
         document.getElementById('timeline-container').innerHTML = '<p style="color: var(--red);">Impossibile caricare le sessioni.</p>';
     }
 });
+
+function scrollToLinkedSession() {
+    if (!window.location.hash) return;
+    const target = document.getElementById(window.location.hash.slice(1));
+    if (!target) return;
+
+    window.requestAnimationFrame(() => {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        target.classList.add('session-card--linked');
+        window.setTimeout(() => target.classList.remove('session-card--linked'), 1800);
+    });
+}
 
 function renderSessionNav(sessions) {
     const navContainer = document.getElementById('session-nav-container');
