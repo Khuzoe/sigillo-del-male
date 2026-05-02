@@ -4158,11 +4158,16 @@ body.page-character .right-col {
 }
 
 .char-portrait {
-    aspect-ratio: 4 / 5;
-    object-fit: cover;
+    aspect-ratio: auto;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
     border-radius: 12px;
     margin-bottom: 1.4rem;
     border: 1px solid rgba(212, 175, 55, 0.14);
+    background:
+        radial-gradient(circle at 50% 18%, rgba(212, 175, 55, 0.08), transparent 36%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.18));
     box-shadow:
         0 18px 30px rgba(0, 0, 0, 0.34),
         0 0 0 0.6rem rgba(0, 0, 0, 0.16);
@@ -4639,7 +4644,7 @@ body.page-sessioni .session-card:nth-child(3n) {
     }
 
     body.page-character .char-portrait {
-        aspect-ratio: 4 / 4.9;
+        aspect-ratio: auto;
         margin-bottom: 1rem;
     }
 
