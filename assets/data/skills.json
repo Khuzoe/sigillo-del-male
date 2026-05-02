@@ -572,7 +572,7 @@
         "id": 1,
         "x": 50,
         "y": 75,
-        "icon": "tree_theldarion.webp",
+        "icon": "skill_theldarion_intelletto_arcano.webp",
         "title": "Intelletto Arcano",
         "flavor": "Trasformi la logica in istinto da battaglia.",
         "desc": "<p>Quando effettui un tiro per colpire o per i danni con un'arma finesse (o che ti consentirebbe di usare Destrezza), puoi usare il tuo modificatore di Intelligenza al posto di Destrezza.</p><p>Inoltre, Intelligenza è la tua caratteristica da incantatore per tutti gli incantesimi che lanci, indipendentemente dalla classe, razza o origine.</p><p>Infine, quando i tuoi punti ferita scendono a 0, puoi usare la tua reazione per trasformarti immediatamente in forma gassosa, muoverti fino a 60 piedi verso uno spazio libero che puoi occupare, tornare materiale e recuperare 1d10 + modificatore di Intelligenza punti ferita.</p><p>Dopo l'uso, non puoi riutilizzare questa capacità finché non completi un riposo lungo.</p>",

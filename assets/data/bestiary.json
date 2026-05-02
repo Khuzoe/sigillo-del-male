@@ -54,7 +54,7 @@
     },
     "details": {
       "description": "Fiore predatorio cresciuto su una struttura quasi umanoide. Danza tra petali, spine e radici mobili, trasformando il terreno vicino in un giardino ostile.",
-      "dndType": "Vegetale",
+      "dndType": "Pianta",
       "size": "Media",
       "height": "1,8 m",
       "weight": "45 kg",
@@ -75,7 +75,7 @@
     "rank": "unique_monster",
     "details": {
       "description": "Variante funerea della coltura danzante, impregnata di energia morta. I petali si muovono come veli da lutto e ogni passo diffonde l'odore dolciastro della decomposizione.",
-      "dndType": "Vegetale non morto",
+      "dndType": "Non morto",
       "size": "Grande",
       "height": "2,80 m",
       "weight": "180 kg",
@@ -246,7 +246,7 @@
     "category": "Karla",
     "details": {
       "description": "Predatore ematofago dalle ali membranose e dagli occhi gonfi di sangue. Non caccia come un animale comune: segue odore, battito e calore, scegliendo il momento in cui la preda non può più distinguere il fruscio dal respiro.",
-      "dndType": "Bestia mostruosa",
+      "dndType": "Mostruosità",
       "size": "Media",
       "height": "1,2 m al corpo",
       "weight": "45 kg",
@@ -290,7 +290,7 @@
     "category": "Klaren",
     "details": {
       "description": "Devoto deformato da un culto di carne e putrefazione. Il corpo conserva brandelli di disciplina rituale, ma la fede rimasta è una fame cieca che lo spinge verso sangue, voce e movimento.",
-      "dndType": "Umanoide corrotto",
+      "dndType": "Non morto",
       "size": "Media",
       "height": "1,85 m",
       "weight": "80 kg",
@@ -383,7 +383,7 @@
     "category": "Klaren",
     "details": {
       "description": "Officiante corrotta che brandisce resti sacri come strumenti di dominio. Il suo corpo è consunto dal rito, ma la voce conserva autorità sufficiente a guidare fanatici, morti e cose peggiori.",
-      "dndType": "Umanoide corrotto",
+      "dndType": "Non morto",
       "size": "Media",
       "height": "1,60 m",
       "weight": "48 kg",
