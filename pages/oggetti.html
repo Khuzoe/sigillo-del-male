@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="it" data-head-include="../_includes/head.html">
+
+<head>
+    <title>Oggetti | Cripta di Sangue</title>
+    <script src="../assets/js/head.js" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="../assets/css/abyssal.css">
+</head>
+
+<body class="page-oggetti">
+    <nav class="sidebar" id="sidebar-container"></nav>
+
+    <main class="main-content">
+        <header class="hero-mini">
+            <div class="hero-title">
+                <h1>Oggetti</h1>
+                <div class="subtitle">Reliquie, strumenti e oggetti magici registrati nella cripta</div>
+            </div>
+        </header>
+
+        <div class="container">
+            <section class="items-shell" aria-labelledby="items-title">
+                <div class="items-heading">
+                    <h2 id="items-title">Archivio degli Oggetti</h2>
+                    <div class="items-heading-actions">
+                        <a class="items-admin-link" href="../tools/items-editor.html">
+                            <i class="fas fa-table-list" aria-hidden="true"></i>
+                            <span>Editor</span>
+                        </a>
+                        <span id="items-count" class="items-count">0 voci</span>
+                    </div>
+                </div>
+
+                <div class="items-tools" aria-label="Filtri oggetti">
+                    <label class="items-search">
+                        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                        <input id="items-search" type="search" placeholder="Cerca oggetto, proprieta, proprietario..."
+                            autocomplete="off">
+                    </label>
+                    <div class="items-filter-row">
+                        <span>Rarita</span>
+                        <div id="items-rarity-filters" class="items-filter-group" aria-label="Filtro rarita"></div>
+                    </div>
+                    <div class="items-filter-row">
+                        <span>Tipo</span>
+                        <div id="items-type-filters" class="items-filter-group" aria-label="Filtro tipo"></div>
+                    </div>
+                    <div class="items-filter-row">
+                        <span>Sintonia</span>
+                        <div id="items-attunement-filters" class="items-filter-group" aria-label="Filtro sintonia"></div>
+                    </div>
+                </div>
+
+                <div class="items-grid" id="items-grid">
+                    <p class="items-state">Caricamento degli oggetti...</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script src="../assets/js/spoiler-policy.js"></script>
+    <script src="../assets/js/layout.js"></script>
+    <script src="../assets/js/pages/oggetti.js"></script>
+</body>
+
+</html>

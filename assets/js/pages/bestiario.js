@@ -57,6 +57,22 @@ const BESTIARY_CREATURE_TYPES = [
     { value: "Umanoide", icon: "fa-user" },
 ];
 
+const BESTIARY_DAMAGE_TYPES = [
+    { value: "Acido", icon: "fa-flask-vial" },
+    { value: "Contundente", icon: "fa-hammer" },
+    { value: "Freddo", icon: "fa-snowflake" },
+    { value: "Fuoco", icon: "fa-fire-flame-curved" },
+    { value: "Forza", icon: "fa-burst" },
+    { value: "Fulmine", icon: "fa-bolt" },
+    { value: "Necrotico", icon: "fa-skull" },
+    { value: "Perforante", icon: "fa-crosshairs" },
+    { value: "Psichico", icon: "fa-brain" },
+    { value: "Radiante", icon: "fa-sun" },
+    { value: "Tagliente", icon: "fa-scissors" },
+    { value: "Tuono", icon: "fa-volume-high" },
+    { value: "Veleno", icon: "fa-skull-crossbones" },
+];
+
 function filterVisibleBestiaryCreatures(creatures) {
     if (window.WikiSpoiler) {
         return window.WikiSpoiler.filterVisible(creatures);
@@ -440,7 +456,7 @@ function renderBestiaryDetails(details) {
                 ${stats.map(([label, value]) => `
                     <div>
                         <dt>${escapeHtml(label)}</dt>
-                        <dd>${label === "Tipo" ? renderBestiaryType(value) : escapeHtml(value)}</dd>
+                        <dd>${renderBestiaryStatValue(label, value)}</dd>
                     </div>
                 `).join("")}
             </dl>
@@ -451,7 +467,7 @@ function renderBestiaryDetails(details) {
                     <div class="bestiary-modal-defense bestiary-modal-defense--${slugify(label)}">
                         <h3>${escapeHtml(label)}</h3>
                         <ul class="bestiary-modal-list">
-                            ${values.map(value => `<li>${escapeHtml(value)}</li>`).join("")}
+                            ${values.map(value => `<li>${renderBestiaryDefenseValue(value)}</li>`).join("")}
                         </ul>
                     </div>
                 `).join("")}
@@ -476,6 +492,75 @@ function renderBestiaryDetails(details) {
     `;
 }
 
+function renderBestiaryStatValue(label, value) {
+    if (label === "Tipo") return renderBestiaryType(value);
+    if (label === "Altezza") return renderMetricMeasure(value, "height");
+    if (label === "Peso") return renderMetricMeasure(value, "weight");
+    return escapeHtml(value);
+}
+
+function renderMetricMeasure(value, kind) {
+    const parsed = parseMetricMeasure(value, kind);
+    if (!parsed) return escapeHtml(value);
+
+    const converted = kind === "height"
+        ? formatMetersAsFeetInches(parsed.amount)
+        : formatKgAsPounds(parsed.amount);
+    const note = parsed.note ? ` <span class="bestiary-measure-note">(${escapeHtml(parsed.note)})</span>` : "";
+    return `
+        <span class="bestiary-measure">
+            <span class="bestiary-measure-primary">${escapeHtml(parsed.metricText)}${note}</span>
+            <span class="bestiary-measure-converted">${escapeHtml(converted)}</span>
+        </span>
+    `;
+}
+
+function parseMetricMeasure(value, kind) {
+    const unit = kind === "height" ? "m" : "kg";
+    const pattern = kind === "height"
+        ? /^(\d+(?:[,.]\d+)?)\s*m\b(.*)$/i
+        : /^(\d+(?:[,.]\d{1,3})*(?:[,.]\d+)?)\s*kg\b(.*)$/i;
+    const match = String(value || "").trim().match(pattern);
+    if (!match) return null;
+
+    const amount = parseItalianNumber(match[1]);
+    if (!Number.isFinite(amount)) return null;
+
+    return {
+        amount,
+        metricText: `${match[1].trim()} ${unit}`,
+        note: String(match[2] || "").trim()
+    };
+}
+
+function parseItalianNumber(value) {
+    const raw = String(value || "").trim();
+    if (raw.includes(",") && raw.includes(".")) {
+        return Number(raw.replace(/\./g, "").replace(",", "."));
+    }
+    if (raw.includes(",")) {
+        return Number(raw.replace(",", "."));
+    }
+    const parts = raw.split(".");
+    if (parts.length > 1 && parts[parts.length - 1].length === 3) {
+        return Number(raw.replace(/\./g, ""));
+    }
+    return Number(raw);
+}
+
+function formatMetersAsFeetInches(meters) {
+    const totalInches = Math.round(meters * 39.3700787);
+    const feet = Math.floor(totalInches / 12);
+    const inches = totalInches % 12;
+    return `${feet} ft ${inches} in`;
+}
+
+function formatKgAsPounds(kg) {
+    const pounds = kg * 2.20462262;
+    const rounded = pounds < 10 ? Math.round(pounds * 10) / 10 : Math.round(pounds);
+    return `${String(rounded).replace(".", ",")} lbs`;
+}
+
 function renderBestiaryType(type) {
     const meta = getBestiaryTypeMeta(type);
     return `
@@ -484,6 +569,24 @@ function renderBestiaryType(type) {
             <span>${escapeHtml(meta.label)}</span>
         </span>
     `;
+}
+
+function renderBestiaryDefenseValue(value) {
+    const meta = getBestiaryDamageMeta(value);
+    return `
+        <span class="bestiary-defense-value">
+            <i class="fas ${escapeHtml(meta.icon)}" aria-hidden="true"></i>
+            <span>${escapeHtml(meta.label)}</span>
+        </span>
+    `;
+}
+
+function getBestiaryDamageMeta(value) {
+    const label = String(value || "").trim();
+    const meta = BESTIARY_DAMAGE_TYPES.find(item => item.value.toLowerCase() === label.toLowerCase());
+    return meta
+        ? { label: meta.value, icon: meta.icon }
+        : { label: label || "Danno", icon: "fa-shield-halved" };
 }
 
 function renderBestiaryTrait(trait) {

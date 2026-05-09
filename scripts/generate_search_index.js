@@ -221,6 +221,30 @@ function buildFamilyItems() {
     }));
 }
 
+function buildMagicItemItems() {
+  const itemsPath = path.join(DATA_DIR, "items.json");
+  if (!fs.existsSync(itemsPath)) return [];
+  const items = readJson(itemsPath);
+  if (!Array.isArray(items)) return [];
+
+  return items
+    .filter((item) => item && item.hidden !== true && item.status !== "hidden")
+    .map((item) => ({
+      id: `item:${item.id || item.name}`,
+      type: "item",
+      entityId: item.id || "",
+      title: item.name || item.id || "Oggetto",
+      subtitle: [item.type || "Oggetto magico", item.rarity || ""].filter(Boolean).join(" | "),
+      url: "pages/oggetti.html",
+      tags: ["item", item.type || "", item.rarity || "", item.owner || ""].filter(Boolean),
+      content: truncate([
+        item.summary,
+        item.notes,
+        Array.isArray(item.properties) ? item.properties.join(" ") : "",
+      ].join(" ")),
+    }));
+}
+
 function main() {
   const items = [
     ...buildNpcItems(),
@@ -228,6 +252,7 @@ function main() {
     ...buildQuestItems(),
     ...buildSessionItems(),
     ...buildFamilyItems(),
+    ...buildMagicItemItems(),
   ].sort((a, b) => a.title.localeCompare(b.title, "it"));
 
   const payload = {

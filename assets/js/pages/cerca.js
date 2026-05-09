@@ -7,7 +7,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     player: "Giocatore",
     quest: "Missione",
     session: "Sessione",
-    family: "Famiglia"
+    family: "Famiglia",
+    item: "Oggetto"
   };
 
   const params = new URLSearchParams(window.location.search);

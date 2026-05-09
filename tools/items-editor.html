@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <title>Editor Oggetti | Cripta di Sangue</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="../assets/css/abyssal.css">
+    <style>
+        body { overflow-y: auto; }
+
+        .items-editor-page {
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .items-editor-shell {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(22rem, 30rem);
+            gap: 1rem;
+            min-height: calc(100vh - 2rem);
+        }
+
+        .items-editor-main,
+        .items-editor-side {
+            border: 1px solid rgba(212, 175, 55, 0.16);
+            border-radius: 8px;
+            background: var(--surface-panel);
+            box-shadow: 0 18px 52px rgba(0, 0, 0, 0.42);
+            overflow: hidden;
+        }
+
+        .items-editor-main {
+            display: grid;
+            grid-template-rows: auto auto minmax(0, 1fr);
+        }
+
+        .items-editor-topbar,
+        .items-editor-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .items-editor-toolbar {
+            align-items: stretch;
+            flex-wrap: wrap;
+        }
+
+        .items-editor-title h1 {
+            margin: 0;
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: clamp(1.25rem, 2vw, 1.8rem);
+            line-height: 1.1;
+        }
+
+        .items-editor-title p,
+        .items-editor-status {
+            margin: 0.25rem 0 0;
+            color: rgba(232, 219, 188, 0.58);
+            font-family: var(--font-ui);
+            font-size: 0.76rem;
+        }
+
+        .items-editor-actions,
+        .items-editor-filter-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            align-items: center;
+        }
+
+        .items-editor-btn {
+            min-height: 2.25rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.45rem 0.68rem;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.24);
+            color: rgba(232, 219, 188, 0.78);
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .items-editor-btn:hover,
+        .items-editor-btn:focus-visible {
+            border-color: rgba(212, 175, 55, 0.48);
+            color: var(--gold);
+            background: rgba(212, 175, 55, 0.1);
+        }
+
+        .items-editor-btn--danger {
+            border-color: rgba(231, 76, 60, 0.28);
+            color: rgba(255, 180, 170, 0.82);
+        }
+
+        .items-editor-input,
+        .items-editor-select,
+        .items-editor-area {
+            width: 100%;
+            min-width: 0;
+            border: 1px solid rgba(212, 175, 55, 0.14);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.24);
+            color: var(--text-main);
+            font-family: var(--font-ui);
+            font-size: 0.78rem;
+        }
+
+        .items-editor-input,
+        .items-editor-select {
+            min-height: 2.2rem;
+            padding: 0.42rem 0.55rem;
+        }
+
+        .items-editor-select {
+            color-scheme: dark;
+        }
+
+        .items-editor-select option {
+            background: #141111;
+            color: #eadfca;
+        }
+
+        .items-editor-area {
+            min-height: 5rem;
+            padding: 0.55rem;
+            resize: vertical;
+            line-height: 1.45;
+        }
+
+        .items-editor-path-cell {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.35rem;
+            align-items: center;
+        }
+
+        .items-editor-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+            clip-path: inset(50%);
+            white-space: nowrap;
+        }
+
+        .items-editor-table-wrap {
+            overflow: auto;
+            min-height: 0;
+        }
+
+        .items-editor-table {
+            width: 100%;
+            min-width: 1320px;
+            border-collapse: collapse;
+            font-family: var(--font-ui);
+            font-size: 0.75rem;
+        }
+
+        .items-editor-table th,
+        .items-editor-table td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 0.42rem;
+            vertical-align: middle;
+        }
+
+        .items-editor-table th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: rgba(16, 14, 14, 0.98);
+            color: var(--ink-warm);
+            text-align: left;
+            font-size: 0.68rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .items-editor-table tr.is-selected {
+            background: rgba(212, 175, 55, 0.08);
+        }
+
+        .items-editor-table .col-name { min-width: 12rem; }
+        .items-editor-table .col-image { min-width: 14rem; }
+        .items-editor-table .col-medium { min-width: 9rem; }
+        .items-editor-table .col-small { min-width: 5rem; }
+        .items-editor-table .col-actions { width: 7rem; }
+
+        .items-editor-side {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) minmax(12rem, 26vh);
+            position: sticky;
+            top: 1rem;
+            max-height: calc(100vh - 2rem);
+        }
+
+        .items-editor-panel {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            overflow: auto;
+        }
+
+        .items-editor-panel h2 {
+            margin: 0 0 0.85rem;
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: 1.05rem;
+        }
+
+        .items-editor-preview {
+            display: grid;
+            grid-template-columns: 7rem minmax(0, 1fr);
+            gap: 0.8rem;
+            align-items: center;
+        }
+
+        .items-editor-preview img {
+            width: 7rem;
+            aspect-ratio: 1;
+            object-fit: cover;
+            border: 1px solid rgba(212, 175, 55, 0.16);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.28);
+        }
+
+        .items-editor-preview strong {
+            display: block;
+            color: var(--ink-ivory);
+            font-family: var(--font-heading);
+            font-size: 1.1rem;
+            line-height: 1.1;
+        }
+
+        .items-editor-preview span {
+            display: block;
+            margin-top: 0.3rem;
+            color: rgba(232, 219, 188, 0.58);
+            font-family: var(--font-ui);
+            font-size: 0.78rem;
+        }
+
+        .items-editor-form-grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .items-editor-field {
+            display: grid;
+            gap: 0.32rem;
+        }
+
+        .items-editor-field label,
+        .items-editor-check {
+            color: rgba(232, 219, 188, 0.68);
+            font-family: var(--font-ui);
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .items-editor-check {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .items-editor-output {
+            display: grid;
+            grid-template-rows: auto auto minmax(0, 1fr);
+            gap: 0.7rem;
+            border-bottom: 0;
+        }
+
+        #json-output {
+            min-height: 100%;
+            resize: none;
+            font-family: Consolas, monospace;
+            font-size: 0.72rem;
+        }
+
+        @media (max-width: 1100px) {
+            .items-editor-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .items-editor-side {
+                grid-template-rows: auto auto 22rem;
+                position: static;
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="items-editor-page">
+        <div class="items-editor-shell">
+            <section class="items-editor-main" aria-label="Tabella oggetti">
+                <header class="items-editor-topbar">
+                    <div class="items-editor-title">
+                        <h1>Editor Oggetti</h1>
+                        <p id="editor-status">Caricamento dati...</p>
+                    </div>
+                    <div class="items-editor-actions">
+                        <a class="items-editor-btn" href="../pages/oggetti.html"><i class="fas fa-arrow-left"></i> Oggetti</a>
+                        <button class="items-editor-btn" id="add-item-btn" type="button"><i class="fas fa-plus"></i> Nuovo</button>
+                        <button class="items-editor-btn" id="duplicate-item-btn" type="button"><i class="fas fa-copy"></i> Duplica</button>
+                        <button class="items-editor-btn items-editor-btn--danger" id="delete-item-btn" type="button"><i class="fas fa-trash"></i> Elimina</button>
+                    </div>
+                </header>
+
+                <div class="items-editor-toolbar">
+                    <label class="items-editor-filter-group">
+                        <span class="items-editor-status">Cerca</span>
+                        <input class="items-editor-input" id="search-input" type="search" autocomplete="off" placeholder="Nome, tipo, proprietario...">
+                    </label>
+                    <div class="items-editor-filter-group">
+                        <select class="items-editor-select" id="rarity-filter" aria-label="Filtro rarita"></select>
+                        <select class="items-editor-select" id="type-filter" aria-label="Filtro tipo"></select>
+                    </div>
+                </div>
+
+                <div class="items-editor-table-wrap">
+                    <table class="items-editor-table">
+                        <thead>
+                            <tr>
+                                <th class="col-name">Nome</th>
+                                <th class="col-image">Immagine</th>
+                                <th class="col-medium">Tipo</th>
+                                <th class="col-medium">Rarita</th>
+                                <th class="col-medium">Proprietario</th>
+                                <th class="col-medium">Icona</th>
+                                <th class="col-medium">Status</th>
+                                <th class="col-small">Sintonia</th>
+                                <th class="col-small">Nascosto</th>
+                                <th class="col-actions">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <aside class="items-editor-side" aria-label="Dettagli ed export">
+                <section class="items-editor-panel">
+                    <h2>Oggetto Selezionato</h2>
+                    <div class="items-editor-preview">
+                        <img id="preview-image" src="" alt="">
+                        <div>
+                            <strong id="preview-name">Nessun oggetto</strong>
+                            <span id="preview-meta">Seleziona una riga per modificare i dettagli.</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="items-editor-panel">
+                    <h2>Dettagli</h2>
+                    <form id="detail-form" class="items-editor-form-grid">
+                        <div class="items-editor-field">
+                            <label for="field-summary">Descrizione breve</label>
+                            <textarea class="items-editor-area" id="field-summary" data-field="summary"></textarea>
+                        </div>
+                        <div class="items-editor-field">
+                            <label for="field-properties">Proprieta (una per riga)</label>
+                            <textarea class="items-editor-area" id="field-properties" data-list-field="properties" spellcheck="false"></textarea>
+                        </div>
+                        <div class="items-editor-field">
+                            <label for="field-notes">Note</label>
+                            <textarea class="items-editor-area" id="field-notes" data-field="notes"></textarea>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="items-editor-panel items-editor-output">
+                    <h2>Export</h2>
+                    <div class="items-editor-actions">
+                        <button class="items-editor-btn" id="connect-json-btn" type="button"><i class="fas fa-link"></i> Collega JSON</button>
+                        <button class="items-editor-btn" id="save-json-btn" type="button"><i class="fas fa-floppy-disk"></i> Salva JSON</button>
+                        <button class="items-editor-btn" id="copy-json-btn" type="button"><i class="fas fa-copy"></i> Copia JSON</button>
+                        <button class="items-editor-btn" id="download-json-btn" type="button"><i class="fas fa-download"></i> Scarica JSON</button>
+                    </div>
+                    <textarea class="items-editor-area" id="json-output" readonly spellcheck="false"></textarea>
+                </section>
+            </aside>
+        </div>
+    </main>
+
+    <script src="../assets/js/tools/items-editor.js"></script>
+</body>
+</html>

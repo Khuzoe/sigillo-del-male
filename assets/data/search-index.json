@@ -1,5 +1,5 @@
 {
-  "itemCount": 56,
+  "itemCount": 59,
   "items": [
     {
       "id": "player:apothecary",
@@ -161,6 +161,21 @@
       "content": "Ginevra Von T Membro della Famiglia Von T"
     },
     {
+      "id": "item:guanti-zara",
+      "type": "item",
+      "entityId": "guanti-zara",
+      "title": "Guanti di Zara",
+      "subtitle": "Oggetto meraviglioso | Sconosciuta",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Sconosciuta",
+        "Zara"
+      ],
+      "content": "Guanti dalle proprieta magiche insolite, analizzati da Valdor durante l'esplorazione della cripta. Oggetto emerso durante la Sessione 24. Proprieta complete da definire."
+    },
+    {
       "id": "npc:karla",
       "type": "npc",
       "entityId": "karla",
@@ -239,6 +254,20 @@
       "content": "Nino Olegna Membro della Famiglia Von T"
     },
     {
+      "id": "item:prisma-luce-cristallizzata",
+      "type": "item",
+      "entityId": "prisma-luce-cristallizzata",
+      "title": "Prisma di Luce Cristallizzata",
+      "subtitle": "Oggetto meraviglioso | Artefatto",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Artefatto"
+      ],
+      "content": "Un prisma legato all'anima di Apothecary, citato tra gli eventi piu critici del gruppo. Contiene o vincola un'anima. La sua natura precisa resta da approfondire."
+    },
+    {
       "id": "quest-group:main_quest",
       "type": "quest",
       "entityId": "main_quest",
@@ -315,6 +344,21 @@
         "family"
       ],
       "content": "Rendar Membro della Famiglia Von T"
+    },
+    {
+      "id": "item:scarpa-zara",
+      "type": "item",
+      "entityId": "scarpa-zara",
+      "title": "Scarpa di Zara",
+      "subtitle": "Oggetto meraviglioso | Sconosciuta",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Sconosciuta",
+        "Zara"
+      ],
+      "content": "Una scarpa dotata di proprieta magiche sorprendenti, studiata insieme ai guanti di Zara. Oggetto emerso durante la Sessione 24. Proprieta complete da definire."
     },
     {
       "id": "session:1",
