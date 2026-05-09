@@ -1,5 +1,5 @@
 {
-  "itemCount": 55,
+  "itemCount": 56,
   "items": [
     {
       "id": "player:apothecary",
@@ -514,6 +514,18 @@
         "session"
       ],
       "content": "Zara vi invita a partecipare ad un gioco insieme, ma tentate di non assecondarla. Ad un certo punto, lei tenta di far sorridere magicamente Ga'Run, il quale reagisce violentemente e prova ad attaccarla. La giullare evita l'attacco, scambiandosi di posto di Valdor e insiste con l'invitarvi a giocare, evocando alcune bambole di pezza con sembianze da infermiera. Le bambole tentano di raggiungere Theldarion per perforarlo con le loro siringhe. Alcune di loro ci riescono, curandolo, prima di essere sconfitte. A questo punto accettate di partecipare al gioco, Zara utilizza un'abilita simile ad un ..."
+    },
+    {
+      "id": "session:24",
+      "type": "session",
+      "entityId": "24",
+      "title": "Sessione 24",
+      "subtitle": "08/05/2026",
+      "url": "pages/sessioni.html#session-24",
+      "tags": [
+        "session"
+      ],
+      "content": "Dopo aver analizzato brevemente la situazione di Ran'Dra, avete richiamato Dinosauro Spaziale Distruttore Assoluto per farvi dare più informazioni riguardo al terzo livello. Scoprite che dovrete affrontare pozze di sangue, robot metallici e trappole mortali per raggiungere l'ingresso del Teatro, nella zona più a nord del livello. Valdor analizza i guanti e la scarpa di Zara, scoprendo delle proprietà magiche piuttosto sorprendenti. Inoltre, scoprite che i grossi pupazzi nella stanza sono legati a voi: se subite danni, li subiranno i pupazzi. Se i pupazzi subiscono danni, li subirete voi. Deci..."
     },
     {
       "id": "session:3",
