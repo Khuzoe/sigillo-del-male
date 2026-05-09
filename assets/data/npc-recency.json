@@ -23,7 +23,8 @@
     20,
     21,
     22,
-    23
+    23,
+    24
   ],
   "items": [
     {
@@ -37,8 +38,15 @@
       "id": "zara",
       "name": "Zara Klaren",
       "order_slot": null,
-      "lastMentionSessionId": 23,
-      "mentions": 11
+      "lastMentionSessionId": 24,
+      "mentions": 12
+    },
+    {
+      "id": "franky",
+      "name": "Franky",
+      "order_slot": null,
+      "lastMentionSessionId": 24,
+      "mentions": 6
     },
     {
       "id": "karla",
@@ -60,13 +68,6 @@
       "order_slot": null,
       "lastMentionSessionId": 22,
       "mentions": 6
-    },
-    {
-      "id": "franky",
-      "name": "Franky",
-      "order_slot": null,
-      "lastMentionSessionId": 22,
-      "mentions": 5
     },
     {
       "id": "x",

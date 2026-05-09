@@ -2,7 +2,8 @@
   "itemCount": 4,
   "sessionIds": [
     22,
-    23
+    23,
+    24
   ],
   "items": [
     {
@@ -11,7 +12,7 @@
       "role": "La Giullare",
       "avatar": "img/creatures/transp/zara_transp.webp",
       "url": "pages/characters/character.html?id=zara",
-      "score": 18
+      "score": 24
     },
     {
       "id": "franky",
@@ -19,7 +20,7 @@
       "role": "Lo Scienziato",
       "avatar": "img/creatures/transp/franky_transp.webp",
       "url": "pages/characters/character.html?id=franky",
-      "score": 4
+      "score": 10
     },
     {
       "id": "karla",
