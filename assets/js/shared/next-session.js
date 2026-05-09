@@ -949,6 +949,35 @@
         return VOTE_STATES.find((state) => state.value === value) || null;
     }
 
+    function getVoteChoiceClass(value) {
+        const state = getVoteState(value);
+        return `availability-choice availability-choice-single${state ? ` ${state.className} is-active` : ' is-empty'}`;
+    }
+
+    function buildVoteChoiceContent(value, playerId) {
+        return value
+            ? `<img class="availability-choice-icon" src="${escapeHtml(getVoteIconPath(value, playerId))}" alt="" loading="lazy" decoding="async">`
+            : '';
+    }
+
+    function preloadVoteIcons(players) {
+        if (typeof window.Image !== 'function') return;
+        const playerIds = new Set(['dm']);
+        players.forEach((player) => {
+            const playerId = String(player?.id || '').trim().toLowerCase();
+            if (playerId) playerIds.add(playerId);
+        });
+
+        playerIds.forEach((playerId) => {
+            VOTE_STATES.forEach((state) => {
+                const iconPath = getVoteIconPath(state.value, playerId);
+                if (!iconPath) return;
+                const image = new window.Image();
+                image.src = iconPath;
+            });
+        });
+    }
+
     function formatAvailabilityLabel(option) {
         const rawId = String(option?.id || '').trim().toLowerCase();
         const match = rawId.match(/^(lun|mar|mer|gio|ven|sab|dom)-(\d{1,2})-(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)-\d+/);
@@ -1224,15 +1253,13 @@
                                 ` : ''}
                                 <button
                                     type="button"
-                                    class="availability-choice availability-choice-single${vote.selections[option.id] ? ` ${getVoteState(vote.selections[option.id]).className} is-active` : ' is-empty'}"
+                                    class="${getVoteChoiceClass(vote.selections[option.id])}"
                                     data-row-index="${rowIndex}"
                                     data-option-id="${escapeHtml(option.id)}"
                                     data-action="cycle"
                                     ${vote.canEdit ? '' : 'disabled'}
                                     aria-label="Cambia voto di ${escapeHtml(vote.name)} per ${escapeHtml(option.label)}">
-                                    ${vote.selections[option.id]
-                    ? `<img class="availability-choice-icon" src="${escapeHtml(getVoteIconPath(vote.selections[option.id], vote.playerId))}" alt="" loading="lazy" decoding="async">`
-                    : ''}
+                                    ${buildVoteChoiceContent(vote.selections[option.id], vote.playerId)}
                                 </button>
                             </div>
                         </td>
@@ -1339,6 +1366,7 @@
             if (leftIsCurrent === rightIsCurrent) return 0;
             return leftIsCurrent ? -1 : 1;
         });
+        preloadVoteIcons(orderedPlayers);
         const canConfigureSession = (
             Boolean(currentDiscordId)
             && Boolean(effectiveConfig.dmDiscordId)
@@ -1394,6 +1422,77 @@
                 ...vote,
                 canEdit: Boolean(currentDiscordId) && Boolean(vote.discordId) && vote.discordId === currentDiscordId
             }));
+        }
+
+        function setColumnStateClass(element, optionId, totals, voteCount) {
+            if (!element) return;
+            element.classList.remove('is-all-yes', 'has-no', 'is-yes-maybe');
+            const stateClass = getColumnStateClass(optionId, totals, voteCount);
+            if (stateClass) {
+                element.classList.add(stateClass);
+            }
+        }
+
+        function getOptionButton(row, optionId, action = 'cycle') {
+            return Array.from(row.querySelectorAll('[data-option-id]'))
+                .find((button) => button.getAttribute('data-option-id') === optionId && button.getAttribute('data-action') === action);
+        }
+
+        function updateStatusMessage() {
+            const title = container.querySelector('.next-title');
+            let feedback = container.querySelector('.availability-feedback');
+            if (!statusMessage) {
+                if (feedback) feedback.remove();
+                return;
+            }
+
+            if (!feedback && title) {
+                title.insertAdjacentHTML('afterend', '<div class="availability-feedback"></div>');
+                feedback = container.querySelector('.availability-feedback');
+            }
+            if (feedback) {
+                feedback.textContent = statusMessage;
+            }
+        }
+
+        function refreshPollVotesDom() {
+            const table = container.querySelector('.availability-table');
+            if (!table) {
+                rerender();
+                return;
+            }
+
+            const totals = computeTotals(votes, options);
+            const voteCount = votes.length;
+
+            options.forEach((option, optionIndex) => {
+                setColumnStateClass(table.querySelectorAll('.availability-option-cell')[optionIndex], option.id, totals, voteCount);
+            });
+
+            const rows = Array.from(table.tBodies[0]?.rows || []);
+            votes.forEach((vote, rowIndex) => {
+                const row = rows[rowIndex];
+                if (!row) return;
+
+                row.className = vote.canEdit ? 'availability-row-is-own' : 'availability-row-is-readonly';
+                const nameCell = row.querySelector('.availability-name-cell');
+                if (nameCell) {
+                    nameCell.classList.toggle('is-own', Boolean(vote.canEdit));
+                }
+
+                options.forEach((option) => {
+                    const button = getOptionButton(row, option.id);
+                    if (!button) return;
+
+                    const value = vote.selections[option.id] || '';
+                    const cell = button.closest('.availability-vote-cell');
+                    setColumnStateClass(cell, option.id, totals, voteCount);
+                    button.className = getVoteChoiceClass(value);
+                    button.innerHTML = buildVoteChoiceContent(value, vote.playerId);
+                });
+            });
+
+            updateStatusMessage();
         }
 
         function updateEditorDay(index, patch) {
@@ -1540,7 +1639,8 @@
                             }
                         };
                     });
-                    rerender();
+                    statusMessage = '';
+                    refreshPollVotesDom();
 
                     try {
                         const payload = await postRemoteVote({
@@ -1554,12 +1654,12 @@
                         votes = remoteVotes.length > 0 ? decorateVotes(remoteVotes) : decorateVotes(votes.map(({ canEdit, ...vote }) => vote));
                         persistVotes(effectiveConfig.number, votes.map(({ canEdit, ...vote }) => vote));
                         statusMessage = '';
-                        rerender();
+                        refreshPollVotesDom();
                     } catch (error) {
                         console.error('Impossibile salvare il voto della prossima sessione:', error);
                         votes = previousVotes;
                         statusMessage = error?.message || 'Impossibile salvare il voto sul server.';
-                        rerender();
+                        refreshPollVotesDom();
                     }
                 });
             }
