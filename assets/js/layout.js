@@ -1,4 +1,4 @@
-const SIDEBAR_CACHE_KEY = "wiki_sidebar_html_v1";
+const SIDEBAR_CACHE_KEY = "wiki_sidebar_html_v2";
 const DISCORD_WORKER_URL = "https://sigillo-api.khuzoe.workers.dev";
 const DISCORD_TOKEN_KEY = "discord_jwt";
 const prefetchedUrls = new Set();

@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <title>Editor Mappa | Cripta di Sangue</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="../assets/css/abyssal.css">
+    <style>
+        body {
+            overflow-y: auto;
+        }
+
+        .map-editor-page {
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .map-editor-shell {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(22rem, 28rem);
+            gap: 1rem;
+            min-height: calc(100vh - 2rem);
+        }
+
+        .map-editor-main,
+        .map-editor-side {
+            border: 1px solid rgba(212, 175, 55, 0.16);
+            border-radius: 8px;
+            background: var(--surface-panel);
+            box-shadow: 0 18px 52px rgba(0, 0, 0, 0.42);
+            overflow: hidden;
+        }
+
+        .map-editor-main {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+        }
+
+        .map-editor-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .map-editor-title h1 {
+            margin: 0;
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: clamp(1.25rem, 2vw, 1.8rem);
+            line-height: 1.1;
+        }
+
+        .map-editor-title p {
+            margin: 0.25rem 0 0;
+            color: rgba(232, 219, 188, 0.58);
+            font-family: var(--font-ui);
+            font-size: 0.76rem;
+        }
+
+        .map-editor-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            justify-content: flex-end;
+        }
+
+        .map-editor-btn {
+            min-height: 2.25rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.45rem 0.68rem;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.24);
+            color: rgba(232, 219, 188, 0.78);
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: border-color 160ms ease, color 160ms ease, background 160ms ease, transform 160ms ease;
+        }
+
+        .map-editor-btn:hover,
+        .map-editor-btn:focus-visible {
+            border-color: rgba(212, 175, 55, 0.48);
+            color: var(--gold);
+            background: rgba(212, 175, 55, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .map-editor-btn--danger {
+            border-color: rgba(231, 76, 60, 0.28);
+            color: rgba(255, 180, 170, 0.82);
+        }
+
+        .map-editor-btn--danger:hover {
+            border-color: rgba(231, 76, 60, 0.58);
+            color: #ffb4aa;
+            background: rgba(231, 76, 60, 0.1);
+        }
+
+        .map-editor-canvas-wrap {
+            min-height: 0;
+            overflow: auto;
+            padding: 1rem;
+            background:
+                radial-gradient(circle at 20% 25%, rgba(138, 28, 28, 0.12), transparent 28%),
+                #050505;
+        }
+
+        .map-editor-canvas {
+            position: relative;
+            width: min(100%, 1400px);
+            margin: 0 auto;
+            border: 1px solid rgba(212, 175, 55, 0.18);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+            box-shadow: 0 18px 44px rgba(0, 0, 0, 0.54);
+            cursor: crosshair;
+        }
+
+        .map-editor-canvas::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 35% 30%, rgba(24, 24, 24, 0.8), rgba(2, 2, 2, 0.98)),
+                repeating-linear-gradient(45deg, rgba(255,255,255,0.025) 0 1px, transparent 1px 7px);
+            opacity: var(--global-fog-opacity, 0);
+        }
+
+        .map-editor-canvas img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        .editor-marker {
+            position: absolute;
+            z-index: 8;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.86);
+            border-radius: 50% 50% 50% 0;
+            background: var(--marker-color, var(--gold));
+            transform: translate(-50%, -100%) rotate(-45deg);
+            box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.68), 0 0 12px rgba(0, 0, 0, 0.6);
+            cursor: grab;
+        }
+
+        .editor-marker::after {
+            content: "";
+            position: absolute;
+            inset: 4px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.85);
+        }
+
+        .editor-marker-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            z-index: 2;
+            color: #17110c;
+            font-size: 0.62rem;
+            text-shadow: 0 1px 0 rgba(255,255,255,0.42);
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+
+        .editor-marker.is-active {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.72), 0 0 24px rgba(212, 175, 55, 0.82);
+            z-index: 10;
+        }
+
+        .editor-fog {
+            position: absolute;
+            z-index: 4;
+            border: 1px solid rgba(212, 175, 55, 0.28);
+            background: rgba(212, 175, 55, 0.16);
+            box-shadow: inset 0 0 24px rgba(212, 175, 55, 0.22), 0 0 18px rgba(212, 175, 55, 0.24);
+            cursor: move;
+        }
+
+        .editor-fog--circle {
+            border-radius: 50%;
+        }
+
+        .editor-fog.is-active {
+            outline: 2px solid rgba(212, 175, 55, 0.72);
+            outline-offset: 2px;
+            z-index: 5;
+        }
+
+        .map-editor-canvas.is-poi-mode .editor-fog,
+        .map-editor-canvas.is-brush-mode .editor-fog,
+        .map-editor-canvas.is-erase-mode .editor-fog {
+            pointer-events: none;
+        }
+
+        .editor-marker-label {
+            position: absolute;
+            left: 50%;
+            bottom: 145%;
+            transform: translateX(-50%) rotate(45deg);
+            max-width: 12rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 0.28rem 0.48rem;
+            border: 1px solid rgba(212, 175, 55, 0.22);
+            border-radius: 5px;
+            background: rgba(7, 7, 7, 0.9);
+            color: var(--gold);
+            font-family: var(--font-ui);
+            font-size: 0.68rem;
+            font-weight: 800;
+            pointer-events: none;
+        }
+
+        .map-editor-side {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            min-height: 0;
+        }
+
+        .map-editor-panel {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .map-editor-panel h2 {
+            margin: 0 0 0.75rem;
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: 1.05rem;
+        }
+
+        .map-editor-field {
+            display: grid;
+            gap: 0.32rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .map-editor-field label {
+            color: rgba(232, 219, 188, 0.58);
+            font-family: var(--font-ui);
+            font-size: 0.66rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .map-editor-field input,
+        .map-editor-field select,
+        .map-editor-field textarea {
+            width: 100%;
+            border: 1px solid rgba(212, 175, 55, 0.14);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.24);
+            color: #f2dfae;
+            font-family: var(--font-ui);
+            font-size: 0.82rem;
+            padding: 0.55rem 0.62rem;
+        }
+
+        .map-editor-field select option {
+            background: #141414;
+            color: #f2dfae;
+        }
+
+        .map-editor-path-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.45rem;
+            align-items: center;
+        }
+
+        .map-editor-file-pick {
+            min-height: 2.2rem;
+            padding: 0.45rem 0.62rem;
+            white-space: nowrap;
+        }
+
+        .map-editor-field textarea {
+            min-height: 5.5rem;
+            resize: vertical;
+        }
+
+        .map-icon-picker {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+            gap: 0.42rem;
+        }
+
+        .map-icon-choice {
+            min-height: 2.35rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.42rem;
+            padding: 0.45rem 0.55rem;
+            border: 1px solid rgba(212, 175, 55, 0.13);
+            border-radius: 7px;
+            background: rgba(0, 0, 0, 0.22);
+            color: rgba(232, 219, 188, 0.72);
+            font-family: var(--font-ui);
+            font-size: 0.7rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 160ms ease, background 160ms ease, color 160ms ease, transform 160ms ease;
+        }
+
+        .map-icon-choice:hover,
+        .map-icon-choice:focus-visible {
+            border-color: rgba(212, 175, 55, 0.38);
+            color: #f2dfae;
+            transform: translateY(-1px);
+        }
+
+        .map-icon-choice.is-active {
+            border-color: rgba(212, 175, 55, 0.5);
+            background: rgba(212, 175, 55, 0.12);
+            color: var(--gold);
+        }
+
+        .map-icon-choice i {
+            width: 1rem;
+            text-align: center;
+        }
+
+        .map-editor-coords {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.55rem;
+        }
+
+        .map-editor-scroll {
+            min-height: 0;
+            overflow-y: auto;
+        }
+
+        .map-editor-list {
+            display: grid;
+            gap: 0.35rem;
+            max-height: 15rem;
+            overflow-y: auto;
+            padding-right: 0.25rem;
+        }
+
+        .map-editor-list button {
+            width: 100%;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 0.55rem;
+            align-items: center;
+            padding: 0.5rem 0.55rem;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            background: transparent;
+            color: rgba(232, 219, 188, 0.76);
+            cursor: pointer;
+            text-align: left;
+        }
+
+        .map-editor-list button:hover,
+        .map-editor-list button.is-active {
+            border-color: rgba(212, 175, 55, 0.24);
+            background: rgba(212, 175, 55, 0.08);
+            color: #f2dfae;
+        }
+
+        .map-editor-mode {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.45rem;
+            margin-top: 0.65rem;
+        }
+
+        .map-editor-mode button.is-active {
+            border-color: rgba(212, 175, 55, 0.5);
+            background: rgba(212, 175, 55, 0.12);
+            color: var(--gold);
+        }
+
+        .map-editor-dot {
+            width: 0.6rem;
+            height: 0.6rem;
+            border-radius: 50%;
+            background: var(--dot-color, var(--gold));
+        }
+
+        .map-editor-list-title {
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-family: var(--font-ui);
+            font-size: 0.78rem;
+            font-weight: 800;
+        }
+
+        .map-editor-list-meta {
+            display: block;
+            color: rgba(232, 219, 188, 0.48);
+            font-family: var(--font-ui);
+            font-size: 0.64rem;
+        }
+
+        .map-editor-output {
+            display: grid;
+            gap: 0.65rem;
+        }
+
+        .map-editor-output textarea {
+            min-height: 9rem;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 0.74rem;
+        }
+
+        .map-editor-status {
+            min-height: 1.2rem;
+            color: rgba(232, 219, 188, 0.62);
+            font-family: var(--font-ui);
+            font-size: 0.74rem;
+        }
+
+        .map-editor-status.is-error {
+            color: #ffb4aa;
+        }
+
+        .map-editor-status.is-ok {
+            color: #b9e6b3;
+        }
+
+        .map-editor-hidden {
+            display: none;
+        }
+
+        @media (max-width: 1050px) {
+            .map-editor-shell {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="map-editor-page">
+        <div class="map-editor-shell">
+            <section class="map-editor-main" aria-label="Area editor mappa">
+                <header class="map-editor-topbar">
+                    <div class="map-editor-title">
+                        <h1>Editor Mappa</h1>
+                        <p>Clicca sulla mappa per aggiungere un POI. Trascina un marker per spostarlo.</p>
+                    </div>
+                    <div class="map-editor-actions">
+                        <button class="map-editor-btn" id="add-poi-btn" type="button"><i class="fas fa-plus" aria-hidden="true"></i>Nuovo</button>
+                        <button class="map-editor-btn" id="duplicate-poi-btn" type="button"><i class="fas fa-copy" aria-hidden="true"></i>Duplica</button>
+                        <button class="map-editor-btn map-editor-btn--danger" id="delete-poi-btn" type="button"><i class="fas fa-trash" aria-hidden="true"></i>Elimina</button>
+                    </div>
+                </header>
+
+                <div class="map-editor-canvas-wrap">
+                    <div class="map-editor-canvas" id="map-editor-canvas">
+                        <img id="map-editor-image" src="../assets/img/maps/world_map.webp" alt="Mappa in modifica" draggable="false">
+                    </div>
+                </div>
+            </section>
+
+            <aside class="map-editor-side" aria-label="Dati punto di interesse">
+                <div class="map-editor-panel">
+                    <h2>Origine dati</h2>
+                    <div class="map-editor-actions">
+                        <button class="map-editor-btn" id="reload-default-btn" type="button">Carica mondo</button>
+                        <label class="map-editor-btn" for="json-file-input">Importa JSON</label>
+                        <input class="map-editor-hidden" id="json-file-input" type="file" accept="application/json,.json">
+                    </div>
+                    <p class="map-editor-status" id="editor-status">Pronto.</p>
+                    <div class="map-editor-mode" aria-label="Modalità editor">
+                        <button class="map-editor-btn is-active" id="mode-poi-btn" type="button">POI</button>
+                        <button class="map-editor-btn" id="mode-fog-btn" type="button">Rivela</button>
+                        <button class="map-editor-btn" id="mode-brush-btn" type="button">Pennello</button>
+                        <button class="map-editor-btn" id="mode-erase-btn" type="button">Gomma</button>
+                    </div>
+                </div>
+
+                <div class="map-editor-scroll">
+                    <div class="map-editor-panel">
+                        <h2>POI</h2>
+                        <div class="map-editor-list" id="poi-editor-list"></div>
+                    </div>
+
+                    <div class="map-editor-panel">
+                        <h2>Nebbia</h2>
+                        <div class="map-editor-field">
+                            <label for="fog-enabled">Nebbia globale</label>
+                            <select id="fog-enabled">
+                                <option value="false">Disattivata</option>
+                                <option value="true">Attiva</option>
+                            </select>
+                        </div>
+                        <div class="map-editor-field">
+                            <label for="fog-global-opacity">Oscurità globale</label>
+                            <input id="fog-global-opacity" type="range" min="0.25" max="1" step="0.01">
+                        </div>
+                        <div class="map-editor-actions">
+                            <button class="map-editor-btn" id="add-fog-btn" type="button">Aggiungi area rivelata</button>
+                            <button class="map-editor-btn map-editor-btn--danger" id="delete-fog-btn" type="button">Elimina area</button>
+                        </div>
+                        <div class="map-editor-coords" style="margin-top: 0.75rem;">
+                            <div class="map-editor-field">
+                                <label for="brush-size">Dimensione pennello</label>
+                                <input id="brush-size" type="range" min="2" max="30" step="0.5" value="8">
+                            </div>
+                            <div class="map-editor-field">
+                                <label for="brush-softness">Morbidezza</label>
+                                <input id="brush-softness" type="range" min="0" max="30" step="1" value="10">
+                            </div>
+                        </div>
+                        <div class="map-editor-actions">
+                            <button class="map-editor-btn" id="simplify-reveal-btn" type="button">Semplifica</button>
+                            <button class="map-editor-btn map-editor-btn--danger" id="clear-reveal-btn" type="button">Cancella reveal</button>
+                        </div>
+                        <div class="map-editor-list" id="fog-editor-list" style="margin-top: 0.65rem;"></div>
+                    </div>
+
+                    <form class="map-editor-panel" id="fog-form">
+                        <h2>Area Rivelata</h2>
+                        <div class="map-editor-field">
+                            <label for="fog-id">ID</label>
+                            <input id="fog-id" name="fogId" type="text" autocomplete="off">
+                        </div>
+                        <div class="map-editor-field">
+                            <label for="fog-shape">Forma</label>
+                            <select id="fog-shape" name="fogShape">
+                                <option value="rect">Rettangolo</option>
+                                <option value="circle">Cerchio</option>
+                            </select>
+                        </div>
+                        <div class="map-editor-coords">
+                            <div class="map-editor-field">
+                                <label for="fog-x">X %</label>
+                                <input id="fog-x" name="fogX" type="number" min="0" max="100" step="0.01">
+                            </div>
+                            <div class="map-editor-field">
+                                <label for="fog-y">Y %</label>
+                                <input id="fog-y" name="fogY" type="number" min="0" max="100" step="0.01">
+                            </div>
+                        </div>
+                        <div class="map-editor-coords">
+                            <div class="map-editor-field">
+                                <label for="fog-width">Larghezza %</label>
+                                <input id="fog-width" name="fogWidth" type="number" min="1" max="100" step="0.01">
+                            </div>
+                            <div class="map-editor-field">
+                                <label for="fog-height">Altezza %</label>
+                                <input id="fog-height" name="fogHeight" type="number" min="1" max="100" step="0.01">
+                            </div>
+                        </div>
+                        <div class="map-editor-field">
+                            <label for="fog-softness">Morbidezza bordo</label>
+                            <input id="fog-softness" name="fogSoftness" type="range" min="0" max="30" step="1">
+                        </div>
+                    </form>
+
+                    <form class="map-editor-panel" id="poi-form">
+                        <h2>Dettagli</h2>
+                        <div class="map-editor-field">
+                            <label for="poi-id">ID</label>
+                            <input id="poi-id" name="id" type="text" autocomplete="off">
+                        </div>
+                        <div class="map-editor-field">
+                            <label for="poi-title">Titolo</label>
+                            <input id="poi-title" name="title" type="text" autocomplete="off">
+                        </div>
+                        <div class="map-editor-field">
+                            <label for="poi-type">Tipo</label>
+                            <select id="poi-type" name="type">
+                                <option value="Area">Area</option>
+                                <option value="Città">Città</option>
+                                <option value="Luogo Generico">Luogo Generico</option>
+                            </select>
+                        </div>
+                        <div class="map-editor-field">
+                            <label for="poi-visibility">Visibilità</label>
+                            <select id="poi-visibility" name="visibility">
+                                <option value="known">Visibile</option>
+                                <option value="rumored">Rumor</option>
+                                <option value="hidden">Nascosto</option>
+                                <option value="dm">Solo DM</option>
+                            </select>
+                        </div>
+                        <div class="map-editor-coords">
+                            <div class="map-editor-field">
+                                <label for="poi-x">X %</label>
+                                <input id="poi-x" name="x" type="number" min="0" max="100" step="0.01">
+                            </div>
+                            <div class="map-editor-field">
+                                <label for="poi-y">Y %</label>
+                                <input id="poi-y" name="y" type="number" min="0" max="100" step="0.01">
+                            </div>
+                        </div>
+                        <div class="map-editor-field">
+                            <label for="poi-flavor">Flavor</label>
+                            <textarea id="poi-flavor" name="flavor"></textarea>
+                        </div>
+                        <div class="map-editor-field">
+                            <label for="poi-desc">Descrizione HTML</label>
+                            <textarea id="poi-desc" name="desc"></textarea>
+                        </div>
+                        <div class="map-editor-field">
+                            <label for="poi-image">Immagine</label>
+                            <div class="map-editor-path-row">
+                                <input id="poi-image" name="image" type="text" placeholder="../assets/img/maps/tmp.webp">
+                                <label class="map-editor-btn map-editor-file-pick" for="poi-image-file">Scegli</label>
+                            </div>
+                            <input class="map-editor-hidden" id="poi-image-file" type="file" accept="image/*">
+                        </div>
+                        <div class="map-editor-field">
+                            <label>Icone</label>
+                            <div class="map-icon-picker" id="poi-icon-picker"></div>
+                        </div>
+                        <div class="map-editor-field">
+                            <label for="poi-submap-data">Sottomappa dati</label>
+                            <input id="poi-submap-data" name="subMapData" type="text" placeholder="../assets/data/maps/main_maps/area_map.json">
+                        </div>
+                        <div class="map-editor-field">
+                            <label for="poi-submap-image">Sottomappa immagine</label>
+                            <div class="map-editor-path-row">
+                                <input id="poi-submap-image" name="subMapImage" type="text" placeholder="../assets/img/maps/main_maps/area.webp">
+                                <label class="map-editor-btn map-editor-file-pick" for="poi-submap-image-file">Scegli</label>
+                            </div>
+                            <input class="map-editor-hidden" id="poi-submap-image-file" type="file" accept="image/*">
+                        </div>
+                    </form>
+                </div>
+
+                <div class="map-editor-panel map-editor-output">
+                    <h2>Export</h2>
+                    <div class="map-editor-actions">
+                        <button class="map-editor-btn" id="copy-json-btn" type="button">Copia JSON</button>
+                        <button class="map-editor-btn" id="download-json-btn" type="button">Scarica JSON</button>
+                    </div>
+                    <textarea id="json-output" readonly spellcheck="false"></textarea>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <script src="../assets/js/shared/map-icons.js"></script>
+    <script src="../assets/js/tools/map-editor.js"></script>
+</body>
+</html>

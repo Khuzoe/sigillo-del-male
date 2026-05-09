@@ -39,10 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Funzione per mostrare/nascondere i POI
     const togglePois = () => {
         poisVisible = !poisVisible;
-        const poiElements = mapContent.querySelectorAll('.poi');
-        poiElements.forEach(poi => {
-            poi.style.display = poisVisible ? 'block' : 'none';
-        });
+        mapContent.classList.toggle('pois-suppressed', !poisVisible);
 
         // Aggiorna lo stile del pulsante per dare un feedback visivo
         if (poisVisible) {
