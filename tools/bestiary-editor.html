@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <title>Editor Bestiario | Cripta di Sangue</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="../assets/css/abyssal.css">
+    <style>
+        body {
+            overflow-y: auto;
+        }
+
+        .bestiary-editor-page {
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .bestiary-editor-shell {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(22rem, 30rem);
+            gap: 1rem;
+            min-height: calc(100vh - 2rem);
+        }
+
+        .bestiary-editor-main,
+        .bestiary-editor-side {
+            border: 1px solid rgba(212, 175, 55, 0.16);
+            border-radius: 8px;
+            background: var(--surface-panel);
+            box-shadow: 0 18px 52px rgba(0, 0, 0, 0.42);
+            overflow: hidden;
+        }
+
+        .bestiary-editor-main {
+            display: grid;
+            grid-template-rows: auto auto minmax(0, 1fr);
+        }
+
+        .bestiary-editor-topbar,
+        .bestiary-editor-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .bestiary-editor-toolbar {
+            align-items: stretch;
+            flex-wrap: wrap;
+        }
+
+        .bestiary-editor-title h1 {
+            margin: 0;
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: clamp(1.25rem, 2vw, 1.8rem);
+            line-height: 1.1;
+        }
+
+        .bestiary-editor-title p,
+        .bestiary-editor-status {
+            margin: 0.25rem 0 0;
+            color: rgba(232, 219, 188, 0.58);
+            font-family: var(--font-ui);
+            font-size: 0.76rem;
+        }
+
+        .bestiary-editor-actions,
+        .bestiary-editor-filter-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            align-items: center;
+        }
+
+        .bestiary-editor-btn {
+            min-height: 2.25rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.45rem 0.68rem;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.24);
+            color: rgba(232, 219, 188, 0.78);
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+            transition: border-color 160ms ease, color 160ms ease, background 160ms ease, transform 160ms ease;
+        }
+
+        .bestiary-editor-btn:hover,
+        .bestiary-editor-btn:focus-visible {
+            border-color: rgba(212, 175, 55, 0.48);
+            color: var(--gold);
+            background: rgba(212, 175, 55, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .bestiary-editor-btn--danger {
+            border-color: rgba(231, 76, 60, 0.28);
+            color: rgba(255, 180, 170, 0.82);
+        }
+
+        .bestiary-editor-btn--danger:hover {
+            border-color: rgba(231, 76, 60, 0.58);
+            color: #ffb4aa;
+            background: rgba(231, 76, 60, 0.1);
+        }
+
+        .bestiary-editor-input,
+        .bestiary-editor-select,
+        .bestiary-editor-area {
+            width: 100%;
+            min-width: 0;
+            border: 1px solid rgba(212, 175, 55, 0.14);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.24);
+            color: var(--text-main);
+            font-family: var(--font-ui);
+            font-size: 0.78rem;
+        }
+
+        .bestiary-editor-input,
+        .bestiary-editor-select {
+            min-height: 2.2rem;
+            padding: 0.42rem 0.55rem;
+        }
+
+        .bestiary-editor-select {
+            color-scheme: dark;
+        }
+
+        .bestiary-editor-select option {
+            background: #141111;
+            color: #eadfca;
+        }
+
+        .bestiary-editor-area {
+            min-height: 5rem;
+            padding: 0.55rem;
+            resize: vertical;
+            line-height: 1.45;
+        }
+
+        .bestiary-defense-picker {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+            gap: 0.42rem;
+        }
+
+        .bestiary-defense-option {
+            min-width: 0;
+            cursor: pointer;
+        }
+
+        .bestiary-defense-option input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+            clip-path: inset(50%);
+            white-space: nowrap;
+        }
+
+        .bestiary-defense-option span {
+            min-height: 2.15rem;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.42rem 0.55rem;
+            border: 1px solid rgba(212, 175, 55, 0.13);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.18);
+            color: rgba(232, 219, 188, 0.74);
+            font-family: var(--font-ui);
+            font-size: 0.74rem;
+            font-weight: 700;
+            transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+        }
+
+        .bestiary-defense-option i {
+            width: 1rem;
+            color: rgba(212, 175, 55, 0.72);
+            text-align: center;
+        }
+
+        .bestiary-defense-option input:checked + span {
+            border-color: rgba(212, 175, 55, 0.48);
+            background: rgba(212, 175, 55, 0.11);
+            color: var(--ink-ivory);
+        }
+
+        .bestiary-defense-option input:focus-visible + span {
+            outline: 2px solid rgba(212, 175, 55, 0.52);
+            outline-offset: 2px;
+        }
+
+        .bestiary-editor-path-cell {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.35rem;
+            align-items: center;
+        }
+
+        .bestiary-editor-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0 0 0 0);
+            clip-path: inset(50%);
+            white-space: nowrap;
+        }
+
+        .bestiary-editor-file-pick {
+            min-width: 2.2rem;
+            padding-inline: 0.55rem;
+        }
+
+        .bestiary-editor-table-wrap {
+            overflow: auto;
+            min-height: 0;
+        }
+
+        .bestiary-editor-table {
+            width: 100%;
+            min-width: 1180px;
+            border-collapse: collapse;
+            font-family: var(--font-ui);
+            font-size: 0.75rem;
+        }
+
+        .bestiary-editor-table th,
+        .bestiary-editor-table td {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 0.42rem;
+            vertical-align: middle;
+        }
+
+        .bestiary-editor-table th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: rgba(16, 14, 14, 0.98);
+            color: var(--ink-warm);
+            text-align: left;
+            font-size: 0.68rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .bestiary-editor-table tr.is-selected {
+            background: rgba(212, 175, 55, 0.08);
+        }
+
+        .bestiary-editor-table .col-name { min-width: 12rem; }
+        .bestiary-editor-table .col-image { min-width: 14rem; }
+        .bestiary-editor-table .col-small { min-width: 5rem; }
+        .bestiary-editor-table .col-medium { min-width: 8rem; }
+        .bestiary-editor-table .col-actions { width: 7rem; }
+
+        .bestiary-editor-row-actions {
+            display: flex;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+        }
+
+        .bestiary-editor-side {
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) minmax(12rem, 26vh);
+            position: sticky;
+            top: 1rem;
+            max-height: calc(100vh - 2rem);
+        }
+
+        .bestiary-editor-panel {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            overflow: auto;
+        }
+
+        .bestiary-editor-panel h2 {
+            margin: 0 0 0.85rem;
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: 1.05rem;
+        }
+
+        .bestiary-editor-form-grid {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .bestiary-editor-field {
+            display: grid;
+            gap: 0.32rem;
+        }
+
+        .bestiary-editor-field label,
+        .bestiary-editor-check {
+            color: rgba(232, 219, 188, 0.68);
+            font-family: var(--font-ui);
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .bestiary-editor-check {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .bestiary-editor-preview {
+            display: grid;
+            grid-template-columns: 7rem minmax(0, 1fr);
+            gap: 0.8rem;
+            align-items: center;
+        }
+
+        .bestiary-editor-preview img {
+            width: 7rem;
+            aspect-ratio: 1;
+            object-fit: cover;
+            object-position: var(--preview-x, 50%) var(--preview-y, 50%);
+            transform: scale(var(--preview-size, 1));
+            transform-origin: var(--preview-x, 50%) var(--preview-y, 50%);
+            filter: saturate(0.95) contrast(1.05);
+            border: 1px solid rgba(212, 175, 55, 0.16);
+            border-radius: 6px;
+            background:
+                radial-gradient(circle at 50% 34%, rgba(212, 175, 55, 0.14), transparent 32%),
+                linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.64));
+        }
+
+        .bestiary-editor-preview strong {
+            display: block;
+            color: var(--ink-ivory);
+            font-family: var(--font-heading);
+            font-size: 1.1rem;
+            line-height: 1.1;
+        }
+
+        .bestiary-editor-preview span {
+            display: block;
+            margin-top: 0.3rem;
+            color: rgba(232, 219, 188, 0.58);
+            font-family: var(--font-ui);
+            font-size: 0.78rem;
+        }
+
+        .bestiary-editor-output {
+            display: grid;
+            grid-template-rows: auto auto minmax(0, 1fr);
+            gap: 0.7rem;
+            border-bottom: 0;
+        }
+
+        #json-output {
+            min-height: 100%;
+            resize: none;
+            font-family: Consolas, monospace;
+            font-size: 0.72rem;
+        }
+
+        .bestiary-adjust-modal[hidden] {
+            display: none;
+        }
+
+        .bestiary-adjust-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: grid;
+            place-items: center;
+            padding: 1rem;
+        }
+
+        .bestiary-adjust-backdrop {
+            position: absolute;
+            inset: 0;
+            border: 0;
+            background: rgba(0, 0, 0, 0.72);
+        }
+
+        .bestiary-adjust-dialog {
+            position: relative;
+            z-index: 1;
+            width: min(960px, 100%);
+            max-height: calc(100vh - 2rem);
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 18rem;
+            gap: 1rem;
+            padding: 1rem;
+            border: 1px solid rgba(212, 175, 55, 0.22);
+            border-radius: 8px;
+            background: #121010;
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.62);
+            overflow: auto;
+        }
+
+        .bestiary-adjust-preview-frame {
+            position: relative;
+            justify-self: center;
+            align-self: center;
+            width: min(100%, 34rem);
+            aspect-ratio: 1 / 1;
+            background:
+                radial-gradient(circle at 50% 34%, rgba(212, 175, 55, 0.14), transparent 32%),
+                linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.64));
+            border-radius: 6px;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+                0 12px 20px rgba(0, 0, 0, 0.28);
+            overflow: hidden;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .bestiary-adjust-preview-frame.is-dragging {
+            cursor: grabbing;
+        }
+
+        .bestiary-adjust-preview-frame::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 34%, rgba(0, 0, 0, 0.34)),
+                linear-gradient(135deg, rgba(212, 175, 55, 0.12), transparent 26%);
+            opacity: 0.82;
+        }
+
+        .bestiary-adjust-preview-frame img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: var(--adjust-x, 50%) var(--adjust-y, 50%);
+            transform: scale(var(--adjust-size, 1));
+            transform-origin: var(--adjust-x, 50%) var(--adjust-y, 50%);
+            filter: saturate(0.95) contrast(1.05);
+        }
+
+        .bestiary-adjust-controls {
+            display: grid;
+            gap: 0.8rem;
+            align-content: start;
+        }
+
+        .bestiary-adjust-controls h2 {
+            margin: 0;
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: 1.1rem;
+        }
+
+        .bestiary-adjust-field {
+            display: grid;
+            gap: 0.35rem;
+        }
+
+        .bestiary-adjust-field label {
+            color: rgba(232, 219, 188, 0.68);
+            font-family: var(--font-ui);
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .bestiary-adjust-field input[type="range"] {
+            width: 100%;
+        }
+
+        .bestiary-adjust-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.45rem;
+            flex-wrap: wrap;
+            margin-top: 0.25rem;
+        }
+
+        @media (max-width: 1100px) {
+            .bestiary-editor-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .bestiary-editor-side {
+                grid-template-rows: auto auto 22rem;
+                position: static;
+                max-height: none;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .bestiary-adjust-dialog {
+                grid-template-columns: 1fr;
+            }
+
+            .bestiary-adjust-preview-frame {
+                width: min(100%, 24rem);
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="bestiary-editor-page">
+        <div class="bestiary-editor-shell">
+            <section class="bestiary-editor-main" aria-label="Tabella bestiario">
+                <header class="bestiary-editor-topbar">
+                    <div class="bestiary-editor-title">
+                        <h1>Editor Bestiario</h1>
+                        <p id="editor-status">Caricamento dati...</p>
+                    </div>
+                    <div class="bestiary-editor-actions">
+                        <a class="bestiary-editor-btn" href="../pages/bestiario.html"><i class="fas fa-arrow-left"></i> Bestiario</a>
+                        <button class="bestiary-editor-btn" id="add-creature-btn" type="button"><i class="fas fa-plus"></i> Nuova</button>
+                        <button class="bestiary-editor-btn" id="duplicate-creature-btn" type="button"><i class="fas fa-copy"></i> Duplica</button>
+                        <button class="bestiary-editor-btn bestiary-editor-btn--danger" id="delete-creature-btn" type="button"><i class="fas fa-trash"></i> Elimina</button>
+                    </div>
+                </header>
+
+                <div class="bestiary-editor-toolbar">
+                    <label class="bestiary-editor-filter-group">
+                        <span class="bestiary-editor-status">Cerca</span>
+                        <input class="bestiary-editor-input" id="search-input" type="search" autocomplete="off" placeholder="Nome, categoria, tipo...">
+                    </label>
+                    <div class="bestiary-editor-filter-group">
+                        <select class="bestiary-editor-select" id="category-filter" aria-label="Filtro categoria"></select>
+                        <select class="bestiary-editor-select" id="rank-filter" aria-label="Filtro rango"></select>
+                        <label class="bestiary-editor-check"><input id="show-hidden-toggle" type="checkbox" checked> Mostra nascosti</label>
+                    </div>
+                </div>
+
+                <div class="bestiary-editor-table-wrap">
+                    <table class="bestiary-editor-table">
+                        <thead>
+                            <tr>
+                                <th class="col-name">Nome</th>
+                                <th class="col-image">Immagine</th>
+                                <th class="col-medium">Categoria</th>
+                                <th class="col-medium">Rank</th>
+                                <th class="col-medium">Tipo</th>
+                                <th class="col-medium">Taglia</th>
+                                <th class="col-medium">Altezza (m)</th>
+                                <th class="col-medium">Peso (kg)</th>
+                                <th class="col-small">Nascosta</th>
+                                <th class="col-small">Scoperta</th>
+                                <th class="col-actions">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bestiary-table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <aside class="bestiary-editor-side" aria-label="Dettagli ed export">
+                <section class="bestiary-editor-panel">
+                    <h2>Creatura Selezionata</h2>
+                    <div class="bestiary-editor-preview">
+                        <img id="preview-image" src="" alt="">
+                        <div>
+                            <strong id="preview-name">Nessuna creatura</strong>
+                            <span id="preview-meta">Seleziona una riga per modificare i dettagli.</span>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="bestiary-editor-panel">
+                    <h2>Dettagli Avanzati</h2>
+                    <form id="detail-form" class="bestiary-editor-form-grid">
+                        <div class="bestiary-editor-field">
+                            <label for="field-description">Descrizione</label>
+                            <textarea class="bestiary-editor-area" id="field-description" data-detail-field="description"></textarea>
+                        </div>
+                        <div class="bestiary-editor-field">
+                            <label for="field-source-character">Source Character ID</label>
+                            <input class="bestiary-editor-input" id="field-source-character" data-creature-field="sourceCharacterId" type="text">
+                        </div>
+                        <div class="bestiary-editor-field">
+                            <label for="field-mystery-name">Nome Misterioso</label>
+                            <input class="bestiary-editor-input" id="field-mystery-name" data-creature-field="mysteryName" type="text">
+                        </div>
+                        <div class="bestiary-editor-field">
+                            <label for="field-mystery-description">Descrizione Misteriosa</label>
+                            <textarea class="bestiary-editor-area" id="field-mystery-description" data-creature-field="mysteryDescription"></textarea>
+                        </div>
+                        <div class="bestiary-editor-field">
+                            <label>Resistenze</label>
+                            <div class="bestiary-defense-picker" data-defense-field="resistances"></div>
+                        </div>
+                        <div class="bestiary-editor-field">
+                            <label>Immunità</label>
+                            <div class="bestiary-defense-picker" data-defense-field="immunities"></div>
+                        </div>
+                        <div class="bestiary-editor-field">
+                            <label>Vulnerabilità</label>
+                            <div class="bestiary-defense-picker" data-defense-field="vulnerabilities"></div>
+                        </div>
+                        <div class="bestiary-editor-field">
+                            <label for="field-traits">Tratti: nome | icona | nota</label>
+                            <textarea class="bestiary-editor-area" id="field-traits" data-complex-field="traits" spellcheck="false"></textarea>
+                        </div>
+                        <div class="bestiary-editor-field">
+                            <label for="field-drops">Drop: nome | immagine | rarità | nota</label>
+                            <textarea class="bestiary-editor-area" id="field-drops" data-complex-field="drops" spellcheck="false"></textarea>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="bestiary-editor-panel bestiary-editor-output">
+                    <h2>Export</h2>
+                    <div class="bestiary-editor-actions">
+                        <button class="bestiary-editor-btn" id="connect-json-btn" type="button"><i class="fas fa-link"></i> Collega JSON</button>
+                        <button class="bestiary-editor-btn" id="save-json-btn" type="button"><i class="fas fa-floppy-disk"></i> Salva JSON</button>
+                        <button class="bestiary-editor-btn" id="copy-json-btn" type="button"><i class="fas fa-copy"></i> Copia JSON</button>
+                        <button class="bestiary-editor-btn" id="download-json-btn" type="button"><i class="fas fa-download"></i> Scarica JSON</button>
+                    </div>
+                    <textarea class="bestiary-editor-area" id="json-output" readonly spellcheck="false"></textarea>
+                </section>
+            </aside>
+        </div>
+    </main>
+
+    <div class="bestiary-adjust-modal" id="image-adjust-modal" hidden>
+        <button class="bestiary-adjust-backdrop" type="button" data-adjust-action="close" aria-label="Chiudi"></button>
+        <div class="bestiary-adjust-dialog" role="dialog" aria-modal="true" aria-labelledby="image-adjust-title">
+            <div class="bestiary-adjust-preview-frame" id="image-adjust-frame" title="Trascina per regolare X e Y">
+                <img id="image-adjust-preview" src="" alt="" draggable="false">
+            </div>
+            <section class="bestiary-adjust-controls">
+                <h2 id="image-adjust-title">Regola Immagine</h2>
+                <div class="bestiary-adjust-field">
+                    <label for="adjust-x">X</label>
+                    <input id="adjust-x" data-adjust-field="x" type="range" min="0" max="100" step="1">
+                    <input class="bestiary-editor-input" data-adjust-number="x" type="number" min="0" max="100" step="1">
+                </div>
+                <div class="bestiary-adjust-field">
+                    <label for="adjust-y">Y</label>
+                    <input id="adjust-y" data-adjust-field="y" type="range" min="0" max="100" step="1">
+                    <input class="bestiary-editor-input" data-adjust-number="y" type="number" min="0" max="100" step="1">
+                </div>
+                <div class="bestiary-adjust-field">
+                    <label for="adjust-size">Zoom</label>
+                    <input id="adjust-size" data-adjust-field="size" type="range" min="0.75" max="2.5" step="0.01">
+                    <input class="bestiary-editor-input" data-adjust-number="size" type="number" min="0.75" max="2.5" step="0.01">
+                </div>
+                <div class="bestiary-adjust-actions">
+                    <button class="bestiary-editor-btn" type="button" data-adjust-action="reset">Reset</button>
+                    <button class="bestiary-editor-btn" type="button" data-adjust-action="close">Chiudi</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="../assets/js/tools/bestiary-editor.js"></script>
+</body>
+</html>

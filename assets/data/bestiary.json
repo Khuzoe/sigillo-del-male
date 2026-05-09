@@ -11,8 +11,8 @@
       "description": "Massa muscolare senza testa, guidata da impulsi grezzi e da un cuore esposto. Non minaccia e non contratta: avanza finche qualcosa davanti a lui non cede.",
       "dndType": "Aberrazione",
       "size": "Enorme",
-      "height": "6 m",
-      "weight": "2.800 kg",
+      "height": "6.00 m",
+      "weight": "2800.00 kg",
       "traits": [],
       "drops": [
         {
@@ -36,8 +36,8 @@
       "description": "Cumulo di cadaveri fusi in un unico organismo non morto. Ogni corpo aggiunto ne aumenta peso e orrore, mentre le bocche sepolte nella carne sembrano urlare in ritardo.",
       "dndType": "Non morto",
       "size": "Enorme",
-      "height": "4,2 m",
-      "weight": "3.600 kg",
+      "height": "4.20 m",
+      "weight": "3600.00 kg",
       "traits": [],
       "drops": [],
       "immunities": [
@@ -56,8 +56,8 @@
       "description": "Fiore predatorio cresciuto su una struttura quasi umanoide. Danza tra petali, spine e radici mobili, trasformando il terreno vicino in un giardino ostile.",
       "dndType": "Pianta",
       "size": "Media",
-      "height": "1,8 m",
-      "weight": "45 kg",
+      "height": "1.80 m",
+      "weight": "45.00 kg",
       "traits": [],
       "drops": [],
       "vulnerabilities": [
@@ -77,8 +77,8 @@
       "description": "Variante funerea della coltura danzante, impregnata di energia morta. I petali si muovono come veli da lutto e ogni passo diffonde l'odore dolciastro della decomposizione.",
       "dndType": "Non morto",
       "size": "Grande",
-      "height": "2,80 m",
-      "weight": "180 kg",
+      "height": "2.80 m",
+      "weight": "180.00 kg",
       "traits": [],
       "drops": [],
       "immunities": [
@@ -101,8 +101,8 @@
       "description": "Bruto massiccio di muscoli grigi, tendini esposti e forza compressa. Il nome è quasi una beffa: quando stringe una preda, la carne cede come frutta matura sotto una pressione inesorabile.",
       "dndType": "Aberrazione",
       "size": "Enorme",
-      "height": "7,50 m",
-      "weight": "8.500 kg",
+      "height": "7.50 m",
+      "weight": "8500.00 kg",
       "traits": [],
       "drops": []
     }
@@ -111,17 +111,17 @@
     "name": "Torre di Carne",
     "image": "img/creatures/bestiary/torre_di_carne.webp",
     "imageAdjust": {
-      "x": 50,
-      "y": 46
+      "x": 53,
+      "y": 39,
+      "size": 1.3
     },
-    "hidden": true,
     "rank": "mini_boss",
     "details": {
       "description": "Pilastro di carne, denti e capelli cresciuto come un tumulo verticale. Non insegue la preda: domina lo spazio, attira l'attenzione e costringe chiunque ad affrontarne la massa.",
       "dndType": "Aberrazione",
-      "size": "Grande",
-      "height": "2,8 m",
-      "weight": "430 kg",
+      "size": "Enorme",
+      "height": "2.80",
+      "weight": "830.00 kg",
       "traits": [],
       "drops": []
     }
@@ -137,8 +137,8 @@
       "description": "Non morto che conserva strumenti e gesti del mestiere funebre. Scava, trascina e colpisce con pazienza da sepoltura, come se ogni scontro fosse una tomba da completare.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "1,8 m",
-      "weight": "75 kg",
+      "height": "1.80 m",
+      "weight": "75.00 kg",
       "traits": [],
       "drops": []
     }
@@ -155,8 +155,8 @@
       "description": "Segugio di carne ricucita, addestrato a presidiare soglie e corridoi. Conserva un istinto da branco sufficiente a coordinarsi con altre creature simili, ma ogni movimento tradisce la natura artificiale del suo corpo.",
       "dndType": "Non morto",
       "size": "Grande",
-      "height": "2,75 m",
-      "weight": "260 kg",
+      "height": "2.75 m",
+      "weight": "260.00 kg",
       "traits": [],
       "drops": []
     }
@@ -173,8 +173,8 @@
       "description": "Variante più pesante dei cani mostruosi, composta da masse muscolari innestate su una struttura canina deformata. Avanza con furia ostinata e colpisce come un ariete vivo.",
       "dndType": "Non morto",
       "size": "Grande",
-      "height": "2,55 m",
-      "weight": "310 kg",
+      "height": "2.55 m",
+      "weight": "310.00 kg",
       "traits": [],
       "drops": []
     }
@@ -191,8 +191,8 @@
       "description": "Carcassa canina rianimata, tenuta insieme da ossa, tendini e fame residua. Non caccia per nutrirsi: insegue calore, rumore e movimento fino a spegnerli.",
       "dndType": "Non morto",
       "size": "Grande",
-      "height": "1,65 m al garrese",
-      "weight": "180 kg",
+      "height": "1.65 m",
+      "weight": "180.00 kg",
       "traits": [],
       "drops": []
     }
@@ -211,8 +211,8 @@
       "description": "Imponente golem di carne progettato come arma definitiva. Parti di bestie e cadaveri vengono saldate attorno a un nucleo arcano, trasformando la morte in forza bruta e obbedienza cieca.",
       "dndType": "Costrutto",
       "size": "Enorme",
-      "height": "8 m",
-      "weight": "6.500 kg",
+      "height": "8.00 m",
+      "weight": "6500.00 kg",
       "traits": [],
       "drops": []
     }
@@ -230,8 +230,8 @@
       "description": "Piccola creatura non morta da laboratorio, più utile come guardiano che come predatore. Le sue dimensioni ridotte le permettono di insinuarsi tra fessure, ferri chirurgici e resti abbandonati.",
       "dndType": "Non morto",
       "size": "Grande",
-      "height": "2,65 m",
-      "weight": "240 kg",
+      "height": "2.65 m",
+      "weight": "240.00 kg",
       "traits": [],
       "drops": []
     }
@@ -248,8 +248,8 @@
       "description": "Predatore ematofago dalle ali membranose e dagli occhi gonfi di sangue. Non caccia come un animale comune: segue odore, battito e calore, scegliendo il momento in cui la preda non può più distinguere il fruscio dal respiro.",
       "dndType": "Mostruosità",
       "size": "Media",
-      "height": "1,2 m al corpo",
-      "weight": "45 kg",
+      "height": "1.20 m",
+      "weight": "45.00 kg",
       "traits": [],
       "drops": []
     }
@@ -266,8 +266,8 @@
       "description": "Servitore dissanguato e reso dipendente dalla fame altrui. Non possiede la nobiltà del vampiro, soltanto una sua eco magra e servile, abbastanza forte da obbedire e abbastanza vuota da non esitare.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "1,85 m",
-      "weight": "55 kg",
+      "height": "1.85 m",
+      "weight": "55.00 kg",
       "traits": [
         {
           "name": "Rigenerazione",
@@ -292,8 +292,8 @@
       "description": "Devoto deformato da un culto di carne e putrefazione. Il corpo conserva brandelli di disciplina rituale, ma la fede rimasta è una fame cieca che lo spinge verso sangue, voce e movimento.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "1,85 m",
-      "weight": "80 kg",
+      "height": "1.85 m",
+      "weight": "80.00 kg",
       "traits": [],
       "drops": []
     }
@@ -310,8 +310,8 @@
       "description": "Figura scheletrica avvolta da una luce dorata e malata. La sua presenza non illumina: consuma l'ombra, scalda l'aria e trasforma la devozione in una pressione quasi fisica.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "1,75 m",
-      "weight": "35 kg",
+      "height": "1.75 m",
+      "weight": "35.00 kg",
       "traits": [],
       "drops": []
     },
@@ -328,8 +328,8 @@
       "description": "Cadavere fasciato e preservato da rituali antichi. Si muove con lentezza solenne, lasciando dietro di sé polvere secca, bende vive e un rancore che non conosce decomposizione.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "1,9 m",
-      "weight": "55 kg",
+      "height": "1.90 m",
+      "weight": "55.00 kg",
       "traits": [],
       "drops": []
     },
@@ -347,8 +347,8 @@
       "description": "Spadaccino non morto avvolto da fiamme violacee, più simile a un comando rimasto inciso nelle ossa che a un guerriero vivente. Ogni gesto è controllato, misurato e intriso di energia funerea.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "1,95 m",
-      "weight": "45 kg",
+      "height": "1.95 m",
+      "weight": "45.00 kg",
       "traits": [],
       "drops": []
     },
@@ -366,8 +366,8 @@
       "description": "Guerriero scheletrico in armatura rovente, circondato da fiamme che sembrano nascere direttamente dalle ossa. Avanza come una sentenza marziale, portando calore, acciaio e odio disciplinato.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "2,05 m",
-      "weight": "50 kg",
+      "height": "2.05 m",
+      "weight": "50.00 kg",
       "traits": [],
       "drops": []
     },
@@ -385,8 +385,8 @@
       "description": "Officiante corrotta che brandisce resti sacri come strumenti di dominio. Il suo corpo è consunto dal rito, ma la voce conserva autorità sufficiente a guidare fanatici, morti e cose peggiori.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "1,60 m",
-      "weight": "48 kg",
+      "height": "1.60 m",
+      "weight": "48.00 kg",
       "traits": [],
       "drops": []
     }
@@ -403,8 +403,8 @@
       "description": "Creatura allungata e piegata, nata da ragnatele organiche, tendini e carne stirata. Lascia dietro di sé filamenti appiccicosi e si muove come se fosse tirata da mani invisibili.",
       "dndType": "Aberrazione",
       "size": "Grande",
-      "height": "2,8 m",
-      "weight": "210 kg",
+      "height": "2.80 m",
+      "weight": "210.00 kg",
       "traits": [],
       "drops": []
     }
@@ -422,8 +422,8 @@
       "description": "Aberrazione tentacolare creata per assistere rituali e procedure mostruose. Osserva, trattiene e prepara la materia vivente, come uno strumento chirurgico dotato di volontà propria.",
       "dndType": "Aberrazione",
       "size": "Enorme",
-      "height": "5,50 m",
-      "weight": "1.800 kg",
+      "height": "5.50 m",
+      "weight": "1800.00 kg",
       "traits": [],
       "drops": []
     }
@@ -440,8 +440,8 @@
       "description": "Umanoide essiccato e rinforzato da fibre di tela necromantica. Viene spesso impiegato come materiale di partenza per creazioni più complesse, ma resta pericoloso anche quando agisce da solo.",
       "dndType": "Aberrazione",
       "size": "Media",
-      "height": "1,9 m",
-      "weight": "55 kg",
+      "height": "1.90 m",
+      "weight": "55.00 kg",
       "traits": [],
       "drops": []
     }
@@ -459,8 +459,8 @@
       "description": "Parete vivente di filamenti, carne e occhio vigile. Non separa soltanto gli ambienti: li sorveglia, li soffoca e li trasforma lentamente in una trappola organica.",
       "dndType": "Aberrazione",
       "size": "Media",
-      "height": "1 m di diametro",
-      "weight": "35 kg",
+      "height": "1.00 m",
+      "weight": "35.00 kg",
       "traits": [],
       "drops": []
     }
@@ -477,8 +477,8 @@
       "description": "Predatore pallido generato da fibre tese e arti innaturali. Si annida nei passaggi alti o bui, attendendo che la preda finisca nel punto esatto in cui la tela può chiudersi.",
       "dndType": "Aberrazione",
       "size": "Grande",
-      "height": "1,5 m al corpo",
-      "weight": "140 kg",
+      "height": "1.50 m",
+      "weight": "140.00 kg",
       "traits": [],
       "drops": []
     }
@@ -495,8 +495,8 @@
       "description": "Bozzolo senziente dotato di occhio, bocca e tentacoli. Sembra una creatura incompleta, ma la sua fragilità apparente nasconde una presa tenace e un appetito metodico.",
       "dndType": "Aberrazione",
       "size": "Grande",
-      "height": "3 m",
-      "weight": "260 kg",
+      "height": "3.00 m",
+      "weight": "260.00 kg",
       "traits": [],
       "drops": []
     }
@@ -515,8 +515,8 @@
       "description": "Figura speciale registrata tra gli NPC principali della cripta L'Ultima Foglia.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "4 ft 5 in (1.35 m)",
-      "weight": "66 lbs (30 kg)",
+      "height": "1.35 m",
+      "weight": "30.00 kg",
       "traits": [],
       "drops": []
     }
@@ -535,8 +535,8 @@
       "description": "Figura speciale registrata tra gli NPC principali della cripta La Fantasma.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "5 ft 3 in (1.61 m)",
-      "weight": "2 lbs (0.75 kg)",
+      "height": "1.61 m",
+      "weight": "0.75 kg",
       "traits": [],
       "drops": []
     }
@@ -556,8 +556,8 @@
       "description": "Figura speciale registrata tra gli NPC principali della cripta Lo Scienziato.",
       "dndType": "Non morto",
       "size": "Minuscola",
-      "height": "1 ft 10 in (0.55 m)",
-      "weight": "4 lbs (2 kg)",
+      "height": "0.55 m",
+      "weight": "2.00 kg",
       "traits": [],
       "drops": []
     }
@@ -576,8 +576,8 @@
       "description": "Figura speciale registrata tra gli NPC principali della cripta L'Alambicco Vivente.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "6 ft 0 in (1.82 m)",
-      "weight": "529 lbs (240 kg)",
+      "height": "1.82 m",
+      "weight": "240.00 kg",
       "traits": [],
       "drops": []
     }
@@ -597,8 +597,8 @@
       "description": "Figura speciale registrata tra gli NPC principali della cripta La Vampira.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "5 ft 9 in (1.75 m)",
-      "weight": "143 lbs (65 kg)",
+      "height": "1.75 m",
+      "weight": "65.00 kg",
       "traits": [
         {
           "name": "Rigenerazione",
@@ -622,8 +622,8 @@
       "description": "Figura speciale registrata tra gli NPC principali della cripta Figura Misteriosa.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "5 ft 8 in (1.73 m)",
-      "weight": "132 lbs (60 kg)",
+      "height": "1.73 m",
+      "weight": "60.00 kg",
       "traits": [],
       "drops": []
     },
@@ -643,8 +643,8 @@
       "description": "Figura speciale registrata tra gli NPC principali della cripta Il Tessimorte.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "8 ft 6 in (2.60 m)",
-      "weight": "463 lbs (210 kg)",
+      "height": "2.60 m",
+      "weight": "210.00 kg",
       "traits": [],
       "drops": []
     }
@@ -663,8 +663,8 @@
       "description": "Figura speciale registrata tra gli NPC principali della cripta Il Reietto.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "5 ft 4 in (1.62 m)",
-      "weight": "20 lbs (9 kg)",
+      "height": "1.62 m",
+      "weight": "9.00 kg",
       "traits": [],
       "drops": []
     }
@@ -673,9 +673,9 @@
     "name": "Tokka Von T",
     "image": "img/creatures/bestiary/tokka_von_t.webp",
     "imageAdjust": {
-      "x": 50,
-      "y": 18,
-      "size": 1.05
+      "x": 41,
+      "y": 1,
+      "size": 2.2
     },
     "category": "Speciale",
     "rank": "special",
@@ -684,12 +684,11 @@
       "description": "Figura speciale registrata tra gli NPC principali della cripta Il Cuore Corrotto.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "5 ft 10 in (1.78 m)",
-      "weight": "154 lbs (70 kg)",
+      "height": "1.78",
+      "weight": "70.00",
       "traits": [],
       "drops": []
-    },
-    "hidden": true
+    }
   },
   {
     "name": "X Von T",
@@ -705,8 +704,8 @@
       "description": "Figura speciale registrata tra gli NPC principali della cripta La Studiosa.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "5 ft 6 in (1.68 m)",
-      "weight": "18 lbs (8 kg)",
+      "height": "1.68 m",
+      "weight": "8.00 kg",
       "traits": [],
       "drops": []
     }
@@ -726,8 +725,8 @@
       "description": "Figura speciale registrata tra gli NPC principali della cripta La Giullare.",
       "dndType": "Non morto",
       "size": "Media",
-      "height": "5 ft 7 in (1.70 m)",
-      "weight": "132 lbs (60 kg)",
+      "height": "1.70 m",
+      "weight": "60.00 kg",
       "traits": [],
       "drops": []
     }
@@ -744,8 +743,8 @@
       "description": "Bambola animata con abiti da infermiera e strumenti appuntiti. Imita la cura con gesti dolci e precisi, ma ogni attenzione nasconde un impulso crudele e invasivo.",
       "dndType": "Costrutto",
       "size": "Minuscola",
-      "height": "0,45 m",
-      "weight": "3 kg",
+      "height": "0.45 m",
+      "weight": "3.00 kg",
       "traits": [],
       "drops": []
     }
@@ -762,8 +761,8 @@
       "description": "Piccola bambola dalle gambe sottili e dagli occhi accesi. Corre con scatti improvvisi, ride nei punti ciechi e sfrutta la propria taglia per sfuggire alle reazioni più lente.",
       "dndType": "Costrutto",
       "size": "Minuscola",
-      "height": "0,40 m",
-      "weight": "2 kg",
+      "height": "0.40 m",
+      "weight": "2.00 kg",
       "traits": [],
       "drops": []
     }
@@ -780,8 +779,8 @@
       "description": "Pupazzo imbottito di stoffa, cera e bisogno infantile. Cerca contatto con insistenza soffocante, stringendo la preda in un abbraccio che diventa rapidamente una presa.",
       "dndType": "Costrutto",
       "size": "Minuscola",
-      "height": "0,35 m",
-      "weight": "2,5 kg",
+      "height": "0.35 m",
+      "weight": "2.50 kg",
       "traits": [],
       "drops": []
     }
@@ -798,8 +797,8 @@
       "description": "Guanto animato privo di braccio, mosso da volontà teatrale. Fluttua, afferra e trascina come una mano invisibile, spesso agendo in concerto con altri oggetti incantati.",
       "dndType": "Costrutto",
       "size": "Minuscola",
-      "height": "0,35 m",
-      "weight": "1 kg",
+      "height": "0.35 m",
+      "weight": "1.00 kg",
       "traits": [],
       "drops": []
     }
@@ -816,8 +815,8 @@
       "description": "Testa gonfia e lucida sospesa a un filo sottile, animata da capriccio infantile e magia crudele. Piange, ondeggia e distrae con un volto troppo espressivo per essere soltanto un giocattolo.",
       "dndType": "Costrutto",
       "size": "Minuscola",
-      "height": "0,60 m di diametro",
-      "weight": "1 kg",
+      "height": "0.60 m diametro",
+      "weight": "1.00 kg",
       "traits": [],
       "drops": []
     }
@@ -834,8 +833,8 @@
       "description": "Calzatura animata e grottesca, rapida nei balzi e difficile da prevedere. Colpisce basso, distrae e trasforma anche il gesto piu ridicolo in una minaccia reale.",
       "dndType": "Costrutto",
       "size": "Minuscola",
-      "height": "0,30 m",
-      "weight": "1 kg",
+      "height": "0.30 m",
+      "weight": "1.00 kg",
       "traits": [],
       "drops": []
     }
@@ -852,10 +851,52 @@
       "description": "Mimic decorato con rose, denti e falsa promessa di ricompensa. Attende che la curiosità faccia il primo passo, poi chiude la trappola con pazienza famelica.",
       "dndType": "Costrutto",
       "size": "Media",
-      "height": "0,9 m",
-      "weight": "90 kg",
+      "height": "0.90 m",
+      "weight": "90.00 kg",
       "traits": [],
       "drops": []
     }
+  },
+  {
+    "name": "Velkarya Klaren",
+    "image": "img/creatures/bestiary/velkarya.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 10,
+      "size": 2
+    },
+    "details": {
+      "traits": [],
+      "drops": [],
+      "dndType": "Costrutto",
+      "height": "2.86 m",
+      "weight": "1250.00 kg",
+      "size": "Grande"
+    },
+    "category": "Tokka",
+    "rank": "unique_monster",
+    "mysteryName": "Vergine di Ferro",
+    "discovered": false
+  },
+  {
+    "name": "Carro Trivellante",
+    "image": "img/creatures/bestiary/cart.webp",
+    "imageAdjust": {
+      "x": 55,
+      "y": 52,
+      "size": 1.01
+    },
+    "details": {
+      "traits": [],
+      "drops": [],
+      "dndType": "Costrutto",
+      "size": "Medio",
+      "height": "1.28",
+      "weight": "75.00",
+      "immunities": [
+        "Psichico"
+      ]
+    },
+    "category": "Tokka"
   }
 ]

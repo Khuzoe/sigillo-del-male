@@ -64,6 +64,7 @@ function validateCoreJsonFiles() {
     "next-session.json",
     "skills.json",
     "family_von_t.json",
+    "items.json",
   ];
 
   files.forEach((name) => {
@@ -296,6 +297,73 @@ function validateQuests(validNpcIds, validPlayerIds) {
   });
 }
 
+function validateMagicItems() {
+  const itemsPath = path.join(DATA_DIR, "items.json");
+  const items = readJson(itemsPath);
+  if (!Array.isArray(items)) {
+    pushError(`${rel(itemsPath)}: deve essere una lista`);
+    return;
+  }
+
+  const ids = new Set();
+  const validTypes = new Set([
+    "Arma",
+    "Armatura",
+    "Anello",
+    "Bacchetta",
+    "Bastone",
+    "Oggetto meraviglioso",
+    "Pergamena",
+    "Pozione",
+    "Verga",
+  ]);
+  const validRarities = new Set([
+    "Comune",
+    "Non comune",
+    "Raro",
+    "Molto raro",
+    "Leggendario",
+    "Artefatto",
+    "Sconosciuta",
+  ]);
+
+  items.forEach((item, idx) => {
+    const context = `${rel(itemsPath)}[${idx}]`;
+    if (!isObject(item)) {
+      pushError(`${context}: entry non valida`);
+      return;
+    }
+    assert(item.id, `${context}: id mancante`);
+    assert(item.name, `${context}: name mancante`);
+    assert(item.image, `${context}: image mancante`);
+    if (item.id) {
+      if (ids.has(item.id)) pushError(`${context}: id duplicato "${item.id}"`);
+      ids.add(item.id);
+    }
+    if (item.image && !/^https?:\/\//.test(item.image)) {
+      const imagePath = path.join(ASSETS_DIR, item.image);
+      if (!fileExists(imagePath)) {
+        pushError(`${context}: immagine non trovata -> assets/${item.image}`);
+      }
+    }
+    if (item.type && !validTypes.has(item.type)) {
+      pushWarning(`${context}: tipo oggetto non standard "${item.type}"`);
+    }
+    if (item.rarity && !validRarities.has(item.rarity)) {
+      pushWarning(`${context}: rarita non standard "${item.rarity}"`);
+    }
+    if ("attunement" in item && typeof item.attunement !== "boolean") {
+      pushError(`${context}: attunement deve essere booleano`);
+    }
+    if (item.icon && typeof item.icon === "string" && !item.icon.startsWith("fa-")) {
+      pushWarning(`${context}: icona sospetta "${item.icon}"`);
+    }
+    if (item.properties && !Array.isArray(item.properties)) {
+      pushError(`${context}: properties deve essere una lista`);
+    }
+  });
+}
+
 function validateSessions() {
   const sessionsPath = path.join(DATA_DIR, "sessions.json");
   const data = readJson(sessionsPath);
@@ -436,6 +504,7 @@ function main() {
   const playersById = validatePlayers();
   const { npcById, markdownRefs } = validateCharacters(playersById);
   validateQuests(new Set(npcById.keys()), new Set(playersById.keys()));
+  validateMagicItems();
   validateSessions();
   validateNextSession();
   validateUnreferencedMarkdown(markdownRefs);

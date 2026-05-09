@@ -1,0 +1,49 @@
+[
+  {
+    "id": "guanti-zara",
+    "name": "Guanti di Zara",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Sconosciuta",
+    "attunement": true,
+    "owner": "Zara",
+    "status": "identified",
+    "icon": "fa-hand-sparkles",
+    "image": "img/items/zara_necklace.webp",
+    "summary": "Guanti dalle proprieta magiche insolite, analizzati da Valdor durante l'esplorazione della cripta.",
+    "properties": [
+      "Proprieta complete da definire."
+    ],
+    "notes": "Oggetto emerso durante la Sessione 24."
+  },
+  {
+    "id": "scarpa-zara",
+    "name": "Scarpa di Zara",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Sconosciuta",
+    "attunement": false,
+    "owner": "Zara",
+    "status": "identified",
+    "icon": "fa-shoe-prints",
+    "image": "img/items/zara_shoes.webp",
+    "summary": "Una scarpa dotata di proprieta magiche sorprendenti, studiata insieme ai guanti di Zara.",
+    "properties": [
+      "Proprieta complete da definire."
+    ],
+    "notes": "Oggetto emerso durante la Sessione 24."
+  },
+  {
+    "id": "prisma-luce-cristallizzata",
+    "name": "Prisma di Luce Cristallizzata",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Artefatto",
+    "attunement": false,
+    "status": "known",
+    "icon": "fa-gem",
+    "image": "img/ui/tab_icon.webp",
+    "summary": "Un prisma legato all'anima di Apothecary, citato tra gli eventi piu critici del gruppo.",
+    "properties": [
+      "Contiene o vincola un'anima.",
+      "La sua natura precisa resta da approfondire."
+    ]
+  }
+]
