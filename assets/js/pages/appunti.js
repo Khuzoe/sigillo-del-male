@@ -174,8 +174,10 @@
             const note = getSelectedNote();
             if (!note) return;
             note.links = (note.links || []).filter((link) => link.key !== button.dataset.removeLink);
+            const merged = promptDuplicateTagMerge(note);
             markDirty();
-            renderLinks(note);
+            if (merged) renderAll();
+            else renderLinks(note);
         });
 
         els.notesPickerSearch?.addEventListener("input", renderPickerResults);
@@ -373,6 +375,7 @@
         };
         state.notes.unshift(copy);
         state.selectedId = copy.id;
+        const merged = promptDuplicateTagMerge(copy);
         markDirty();
         renderAll();
     }
@@ -489,9 +492,85 @@
             image: entry.image || "",
             icon: entry.icon || getEntityIcon(entry.type)
         });
+        const merged = promptDuplicateTagMerge(note);
         markDirty();
-        renderLinks(note);
+        if (merged) renderAll();
+        else renderLinks(note);
         closePicker();
+    }
+
+    function promptDuplicateTagMerge(sourceNote) {
+        if (!canWriteNotes() || !sourceNote || sourceNote.shared === true) return false;
+        const signature = getNoteTagSignature(sourceNote);
+        if (!signature) return false;
+
+        const targetNote = state.notes.find((note) => (
+            note.id !== sourceNote.id
+            && note.shared !== true
+            && getNoteTagSignature(note) === signature
+        ));
+        if (!targetNote) return false;
+
+        const tagNames = getNoteTagLabels(sourceNote).join(", ");
+        const confirmed = window.confirm(
+            `Esiste gia un blocco appunti non condiviso con gli stessi tag (${tagNames}). Vuoi unificarli?`
+        );
+        if (!confirmed) return false;
+
+        mergeNotes(targetNote, sourceNote);
+        state.notes = state.notes.filter((note) => note.id !== sourceNote.id);
+        state.selectedId = targetNote.id;
+        return true;
+    }
+
+    function mergeNotes(targetNote, sourceNote) {
+        const now = new Date().toISOString();
+        targetNote.links = mergeNoteLinks(targetNote.links, sourceNote.links);
+        targetNote.html = mergeNoteHtml(targetNote, sourceNote);
+        targetNote.updatedAt = now;
+        if (!targetNote.title || targetNote.title === "Nuovo appunto") {
+            targetNote.title = sourceNote.title || targetNote.title;
+        }
+    }
+
+    function mergeNoteLinks(left, right) {
+        const byKey = new Map();
+        [...normalizeLinks(left), ...normalizeLinks(right)].forEach((link) => {
+            byKey.set(link.key, link);
+        });
+        return [...byKey.values()];
+    }
+
+    function mergeNoteHtml(targetNote, sourceNote) {
+        const targetHtml = sanitizeNoteHtml(targetNote.html || "");
+        const sourceHtml = sanitizeNoteHtml(sourceNote.html || "");
+        if (!htmlToText(sourceHtml)) return targetHtml;
+        if (!htmlToText(targetHtml)) return sourceHtml;
+
+        const sourceTitle = sourceNote.title && sourceNote.title !== targetNote.title
+            ? `<p><strong>${escapeHtml(sourceNote.title)}</strong></p>`
+            : "";
+        return sanitizeNoteHtml(`${targetHtml}<p><br></p>${sourceTitle}${sourceHtml}`);
+    }
+
+    function getNoteTagSignature(note) {
+        const keys = getNoteTagKeys(note);
+        return keys.length ? keys.join("|") : "";
+    }
+
+    function getNoteTagKeys(note) {
+        return [...new Set((note?.links || [])
+            .map((link) => String(link.key || "").trim())
+            .filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b));
+    }
+
+    function getNoteTagLabels(note) {
+        return [...new Map((note?.links || [])
+            .filter((link) => link?.key && link?.label)
+            .map((link) => [String(link.key), String(link.label)]))
+            .values()]
+            .sort((a, b) => a.localeCompare(b, "it", { sensitivity: "base" }));
     }
 
     async function loadLinkableEntities() {
