@@ -1,6 +1,19 @@
 {
-  "itemCount": 59,
+  "itemCount": 74,
   "items": [
+    {
+      "id": "item:cuore-di-albert",
+      "type": "item",
+      "entityId": "cuore-di-albert",
+      "title": "Albert: Cuore",
+      "subtitle": "Oggetto magico",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Albert"
+      ],
+      "content": "Cuore di Albert; il file Foundry non contiene una descrizione meccanica. Peso indicato nel file Foundry: 8 kg. Nessuna proprietà meccanica definita nel file sorgente."
+    },
     {
       "id": "player:apothecary",
       "type": "player",
@@ -13,6 +26,20 @@
         "Kenku"
       ],
       "content": "Guaritrice e guida spirituale del gruppo, ha spezzato maledizioni e tenuto unito il party nei momenti piu critici. Dopo avere sviluppato un forte legame con Rabberduscolanderson, si e sacrificata durante l'incubo del sigillo: ora il suo corpo e svenuto e la sua anima e rinchiusa in un Prisma di Luce Cristallizzata. Kenku N/A 2 ft 4 in (0.70 m) 22 lbs (10 kg) 14 N/A"
+    },
+    {
+      "id": "item:bracciale-metallico",
+      "type": "item",
+      "entityId": "bracciale-metallico",
+      "title": "Bracciale Metallico",
+      "subtitle": "Oggetto meraviglioso | Raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Raro"
+      ],
+      "content": "Oggetto associato a resistenza necrotica; in Foundry deriva da Ring Mail of Necrotic Resistance. Nel file Foundry il nome identificato è \"Ring of Necrotic Resistance\", ma il nome non identificato è \"Bracciale Metallico\". Resistenza Necrotica Hai resistenza ai danni necrotici mentre indossi questo oggetto. Descrizione Non Identificata Appare come cuoio rinforzato da pesanti anelli metallici, pensato per proteggere dai colpi di spade e asce."
     },
     {
       "id": "npc:deborah",
@@ -161,19 +188,49 @@
       "content": "Ginevra Von T Membro della Famiglia Von T"
     },
     {
-      "id": "item:guanti-zara",
+      "id": "item:armatura-ginevra",
       "type": "item",
-      "entityId": "guanti-zara",
-      "title": "Guanti di Zara",
+      "entityId": "armatura-ginevra",
+      "title": "Ginevra: Armatura",
+      "subtitle": "Armatura | Molto raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Armatura",
+        "Molto raro",
+        "Ginevra"
+      ],
+      "content": "Armatura pesante che aumenta la CA, trasforma i colpi critici subiti in PF temporanei e permette di proteggere un alleato prendendo i danni al suo posto. Parte dell’equipaggiamento di Ginevra. Difesa Rinforzata Ottieni un bonus di +1 alla tua CA. Ventre Scoperto La tua soglia per subire un colpo critico aumenta di 1 (19-20). Dopo aver subito un colpo critico, se hai ancora almeno 1 punto vita, ottieni punti vita temporanei pari a metà del danno subito da quel colpo critico, arrotondato per eccesso. Reazione Spontanea 1/riposo breve Quando una creatura alleata che puoi vedere entro 30 piedi da..."
+    },
+    {
+      "id": "item:scudo-ginevra",
+      "type": "item",
+      "entityId": "scudo-ginevra",
+      "title": "Ginevra: Scudo",
+      "subtitle": "Scudo | Molto raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Scudo",
+        "Molto raro",
+        "Ginevra"
+      ],
+      "content": "Scudo molto raro che concede un forte bonus alla CA e consente di marchiare un nemico con un Marchio di Vendetta. Parte dell’equipaggiamento di Ginevra. Scudo Potenziato Ottieni un bonus di +2 alla tua CA, oltre al bonus base dello scudo. Vendetta Siglata Reazione Quando vieni colpito da un attacco, puoi usare la tua reazione per marchiare l’attaccante con un Marchio di Vendetta. Il marchio resta attivo finché non lo consumi o finché la creatura non muore. Marchio di Vendetta Finché la creatura è marchiata, tutte le creature alleate entro 30 piedi da te hanno un bonus di +2 per colpirla. Non ..."
+    },
+    {
+      "id": "item:stivali-ginevra",
+      "type": "item",
+      "entityId": "stivali-ginevra",
+      "title": "Ginevra: Stivali",
       "subtitle": "Oggetto meraviglioso | Molto raro",
       "url": "pages/oggetti.html",
       "tags": [
         "item",
         "Oggetto meraviglioso",
         "Molto raro",
-        "Zara"
+        "Ginevra"
       ],
-      "content": "Guanti magici da buffone, capaci di aumentare la Destrezza e scatenare trucchi di posizione, mano invisibile ed energia comica. Oggetto emerso durante la Sessione 24. Destrezza del Buffone Il tuo punteggio di Destrezza aumenta di 2, fino a un massimo di 24 mentre indossi i guanti. Inoltre, hai vantaggio alle prove di Carisma (Performance) e Destrezza (Sleight of Hand). I guanti possiedono 3 cariche e recuperano tutte le cariche spese ogni giorno all'alba. L'Invisibile Tocco 1 Come azione bonus, lanci Mage Hand senza componenti. La mano e invisibile. Quando utilizzi la mano per l'azione Aiuto,..."
+      "content": "Stivali pesanti che aumentano la CA, rendono il portatore inarrestabile su terreno solido e possono convertire PF temporanei in movimento. Parte dell’equipaggiamento di Ginevra. Difesa Pesante Ottieni un bonus di +1 alla tua CA. Peso degli Stivali Mentre li indossi, la tua velocità di movimento si riduce di 10, a meno che la tua Forza non sia pari o superiore a 20. Inarrestabile Se sei in piedi su una superficie solida, sei immune a terreno difficile, spostamento forzato, condizione prono e non puoi essere sollevato da terra contro la tua volontà. Se un effetto impedisce il tuo movimento, com..."
     },
     {
       "id": "npc:karla",
@@ -228,6 +285,36 @@
       "content": "Leonora Membro della Famiglia Von T"
     },
     {
+      "id": "item:martello-guerra-lumilla",
+      "type": "item",
+      "entityId": "martello-guerra-lumilla",
+      "title": "Lumilla: Martello da Guerra",
+      "subtitle": "Arma | Raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Arma",
+        "Raro",
+        "Lumilla"
+      ],
+      "content": "Martello da guerra +1 che si carica quando curi una creatura, aggiungendo danni radiosi al prossimo colpo. Non identificato come \"Martello Sacro\"; testa d’argento con simboli solari e bagliore dorato. Arma +1 Ottieni un bonus di +1 ai tiri per colpire e ai tiri per i danni effettuati con quest’arma. Carica Radiosa 1 carica massima Ogni volta che curi una creatura usando incantesimi o abilità, il martello si carica. Il prossimo attacco effettuato con il martello infligge 1d8 danni radiosi aggiuntivi. Il martello mantiene una sola carica alla volta."
+    },
+    {
+      "id": "item:veste-radiosa-lumilla",
+      "type": "item",
+      "entityId": "veste-radiosa-lumilla",
+      "title": "Lumilla: Veste Radiosa",
+      "subtitle": "Armatura | Raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Armatura",
+        "Raro",
+        "Lumilla"
+      ],
+      "content": "Veste radiosa che protegge come mage armor e converte gli attacchi del portatore in piccole cure per gli alleati vicini. Non identificata come \"Veste Bianca\"; bianca, leggera, con ricami argentati e aura tranquilla. Protezione Arcana Mentre indossi questa veste, sei considerato sotto l’effetto di mage armor: la tua CA diventa 13 + il tuo modificatore di Destrezza se non indossi altra armatura. Radiosità Guaritrice Ogni volta che infliggi danni a una creatura ostile con un attacco, la creatura alleata più vicina a te entro 20 piedi recupera 1d4 punti ferita. Se l’attacco è un colpo critico, re..."
+    },
+    {
       "id": "npc:nino_olegna",
       "type": "npc",
       "entityId": "nino_olegna",
@@ -252,6 +339,50 @@
         "family"
       ],
       "content": "Nino Olegna Membro della Famiglia Von T"
+    },
+    {
+      "id": "item:mantello-okbrax",
+      "type": "item",
+      "entityId": "mantello-okbrax",
+      "title": "Okbrax: Mantello",
+      "subtitle": "Oggetto meraviglioso | Raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Raro",
+        "Okbrax"
+      ],
+      "content": "Mantello illusorio che rende imprecisa la posizione del portatore, imponendo svantaggio agli attacchi contro di lui. Non identificato come \"Mantello Nero\"; lungo e scuro, sembra muoversi anche senza vento. Spostamento Illusorio Mentre lo indossi, il mantello proietta un’illusione che ti fa sembrare in piedi in un punto vicino alla tua posizione reale, causando svantaggio ai tiri per colpire contro di te. Interruzione Se subisci danni, la proprietà cessa di funzionare fino all’inizio del tuo turno successivo. È inattiva mentre sei incapacitato, trattenuto o impossibilitato a muoverti."
+    },
+    {
+      "id": "item:pugnale-okbrax",
+      "type": "item",
+      "entityId": "pugnale-okbrax",
+      "title": "Okbrax: Pugnale",
+      "subtitle": "Arma | Raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Arma",
+        "Raro",
+        "Okbrax"
+      ],
+      "content": "Pugnale +1 che permette al portatore di riposizionarsi quando un attacco con svantaggio lo manca. Non identificato come \"Pugnale Nero\"; lama sottile e scura, difficile da vedere quando impugnato. Arma +1 Ottieni un bonus di +1 ai tiri per colpire e ai tiri per i danni con questo pugnale. Scatto nell’Ombra Reazione Se un attaccante ha svantaggio nell’attaccarti e manca il colpo, puoi usare la tua reazione per muoverti fino alla tua velocità."
+    },
+    {
+      "id": "item:pala-non-morta",
+      "type": "item",
+      "entityId": "pala-non-morta",
+      "title": "Pala Non-Morta",
+      "subtitle": "Oggetto meraviglioso | Raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Raro"
+      ],
+      "content": "Pala incantata su cui è inciso un glifo di energia necrotica Importata come non identificata in Foundry. Rinascita Tombale Slot incantesimo 4°+ Se usi la pala per creare una tomba per una creatura morta e la seppellisci al suo interno, puoi usare uno slot incantesimo di 4° livello o superiore per infondere la tomba. Dopo 24 ore, la creatura rinasce sotto forma di non-morto senziente come se fosse stata sottoposta a Raise Dead. Un cadavere di una creatura non-morta non può essere soggetto a questo effetto."
     },
     {
       "id": "item:prisma-luce-cristallizzata",
@@ -346,19 +477,34 @@
       "content": "Rendar Membro della Famiglia Von T"
     },
     {
-      "id": "item:scarpa-zara",
+      "id": "item:corazza-piastre-rosskar",
       "type": "item",
-      "entityId": "scarpa-zara",
-      "title": "Scarpa di Zara",
-      "subtitle": "Oggetto meraviglioso | Sconosciuta",
+      "entityId": "corazza-piastre-rosskar",
+      "title": "Rosskar: Corazza a Piastre",
+      "subtitle": "Armatura | Raro",
       "url": "pages/oggetti.html",
       "tags": [
         "item",
-        "Oggetto meraviglioso",
-        "Sconosciuta",
-        "Zara"
+        "Armatura",
+        "Raro",
+        "Rosskar"
       ],
-      "content": "Una scarpa dotata di proprieta magiche sorprendenti, studiata insieme ai guanti di Zara. Oggetto emerso durante la Sessione 24. Proprieta complete da definire."
+      "content": "Corazza rossa magica che aumenta la CA e potenzia i danni da fuoco inflitti dal portatore. Non identificata come \"Armatura Rossa\"; descritta come metallo rosso scuro con incisioni dorate, calda al tatto. Difesa Incantata Conferisce un bonus di +1 alla CA. Fiamma Amplificata Ogni volta che infliggi danni da fuoco, tali danni aumentano di 1d6."
+    },
+    {
+      "id": "item:spada-lunga-lingua-di-fiamma",
+      "type": "item",
+      "entityId": "spada-lunga-lingua-di-fiamma",
+      "title": "Rosskar: Spada Infuocata",
+      "subtitle": "Arma | Raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Arma",
+        "Raro",
+        "Rosskar"
+      ],
+      "content": "Spada lunga magica che può incendiarsi a comando, illuminando l’area e infliggendo danni da fuoco extra. Non identificata come \"Spada di Fuoco\"; lama con rune rosse incise. Parola di Comando Azione bonus Puoi pronunciare la parola di comando per far erompere fiamme dalla lama. Le fiamme diffondono luce intensa entro 40 piedi e luce fioca per altri 40 piedi. Lama Infuocata Finché la spada è infuocata, infligge 2d6 danni da fuoco extra a qualsiasi bersaglio colpito. Spegnimento Azione bonus Le fiamme durano finché non usi nuovamente un’azione bonus per ripetere la parola di comando o finché non..."
     },
     {
       "id": "session:1",
@@ -657,6 +803,34 @@
       "content": "Continuate il vostro combattimento contro gli scheletri animati dopo che Valdor ha raccolto il libro, e riuscite ad uscirne vincitori senza perdite. Una volta sconfitti gli scheletri di Rosskar, Okbrax e Lumilla, il sacrofago all'interno della stanza si sblocca, rivelando al suo interno numerosi oggetti magici (armature e armi). Date un'occhiata veloce al libro e capite che questo contiene parti della storia dei Klaren, narrati con un linguaggio piuttosto arcaico. XP totali 8004 XP ciascuno 2001 level up 6"
     },
     {
+      "id": "item:specchio-rotto",
+      "type": "item",
+      "entityId": "specchio-rotto",
+      "title": "Specchio Rotto",
+      "subtitle": "Oggetto meraviglioso | Comune",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Comune"
+      ],
+      "content": "Specchio rotto che riflette il volto delle persone mostrandole con emozioni estreme. La descrizione non identificata parla di uno strano specchio rotto con cornice vecchia e rovinata. Riflesso Emotivo Riflette il volto delle persone che lo guardano, mostrandole con espressioni estremamente tristi o estremamente contente."
+    },
+    {
+      "id": "item:spilla-rosa",
+      "type": "item",
+      "entityId": "spilla-rosa",
+      "title": "Spilla Rosa",
+      "subtitle": "Oggetto meraviglioso | Raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Raro"
+      ],
+      "content": "Spilla magica che consente di convertire slot incantesimo di livello superiore in slot di 1° livello. Importato da Foundry; il nome non identificato è \"Unidentified Equipment\". Conversione degli Slot Slot incantesimo 2°+ Come azione puoi consumare uno slot incantesimo di 2° livello o superiore per ottenere un numero di slot incantesimo di 1° livello pari al livello dello slot consumato."
+    },
+    {
       "id": "player:theldarion",
       "type": "player",
       "entityId": "theldarion",
@@ -761,6 +935,50 @@
         "npc"
       ],
       "content": "Buuuu! Ahahaha! Umana 5 ft 7 in (1.70 m) 132 lbs (60 kg) Biografia Il nome di Zara compare tra i ritratti e le targhette del palazzo, come un ricordo fissato nel tempo. È conosciuta come La Giullare, una presenza legata alle stranezze del piano. Chi ne parla la descrive come creatrice di inganni e distorsioni, un'ombra che prende forma tra le sale. Particolarità Le sue apparizioni sono teatrali: una figura enorme che urla \"Booo!\" e poi esplode in coriandoli colorati. Ogni volta si dissolve senza lasciare tracce, tornando con forme diverse, più piccole e più beffarde. È difficile distinguere d..."
+    },
+    {
+      "id": "item:collana-buffa-zara",
+      "type": "item",
+      "entityId": "collana-buffa-zara",
+      "title": "Zara: Collana Buffa",
+      "subtitle": "Oggetto meraviglioso | Raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Raro",
+        "Zara"
+      ],
+      "content": "Una collana composta da palloncini legati tra loro e decorata da una placca di stoffa su cui è disegnato il volto sorridente di un giullare. Piccola Bambola Sintonia Quando ti sintonizzi con questa collana compare una Piccola Bambola che ti assiste in combattimento. La bambola divora i caduti, accrescendo la propria forza, imparando nuove abilità e aumentando i propri punti vita del 25% di quelli delle creature divorate. Maledizione La collana non può essere rimossa finché non viene lanciato rimuovi maledizione sul portatore o la Bambola viene distrutta. Crescita della Bambola +25% PF della c..."
+    },
+    {
+      "id": "item:guanti-zara",
+      "type": "item",
+      "entityId": "guanti-zara",
+      "title": "Zara: Guanti",
+      "subtitle": "Oggetto meraviglioso | Non comune",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Non comune",
+        "Zara"
+      ],
+      "content": "Guanti magici da buffone, capaci di aumentare la Destrezza e scatenare trucchi di posizione, mano invisibile ed energia comica. Oggetto emerso durante la Sessione 24. Destrezza del Buffone Il tuo punteggio di Destrezza aumenta di 2, fino a un massimo di 24 mentre indossi i guanti. Inoltre, hai vantaggio alle prove di Carisma (Performance) e Destrezza (Sleight of Hand). I guanti possiedono 3 cariche e recuperano tutte le cariche spese ogni giorno all'alba. L'Invisibile Tocco 1 Come azione bonus, lanci Mage Hand senza componenti. La mano e invisibile. Quando utilizzi la mano per l'azione Aiuto,..."
+    },
+    {
+      "id": "item:scarpa-zara",
+      "type": "item",
+      "entityId": "scarpa-zara",
+      "title": "Zara: Pantofole",
+      "subtitle": "Oggetto meraviglioso",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Zara"
+      ],
+      "content": "Una scarpa dotata di proprieta magiche sorprendenti, studiata insieme ai guanti di Zara. Oggetto emerso durante la Sessione 24. Proprieta complete da definire."
     }
   ]
 }
