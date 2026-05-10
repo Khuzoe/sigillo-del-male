@@ -1,12 +1,17 @@
 (function () {
     const STORAGE_KEY = "cripta-appunti-v1";
-    const AUTOSAVE_DELAY = 900;
-    const PERIODIC_SAVE_MS = 15000;
+    const AUTOSAVE_DELAY = 4000;
+    const PERIODIC_SAVE_MS = 30000;
     const NOTE_PLACEHOLDER = "<p></p>";
     const NOTES_CONTENT_VERSION = 1;
+    const NOTES_PAGE_ID = "appunti";
 
     const state = {
-        pageKey: "",
+        currentDiscordId: "",
+        currentUsername: "",
+        ownerDiscordId: "",
+        isDm: false,
+        owners: [],
         notes: [],
         selectedId: "",
         query: "",
@@ -28,18 +33,23 @@
         bindElements();
         bindEvents();
         setEditorEnabled(false);
-        state.pageKey = getCurrentPageKey();
 
-        const [notes] = await Promise.all([
-            notesStore.load(),
+        const authState = await getVerifiedAuth();
+        state.currentDiscordId = getDiscordId(authState);
+        state.currentUsername = authState?.user?.global_name || authState?.user?.username || "Utente";
+        state.ownerDiscordId = state.currentDiscordId;
+        if (!state.currentDiscordId) {
+            renderLoggedOutState();
+            return;
+        }
+
+        await loadAccessContext();
+        renderOwnerSelector();
+
+        await Promise.all([
+            loadNotesForCurrentOwner(),
             loadLinkableEntities()
         ]);
-
-        state.notes = normalizeNotes(notes);
-        if (!state.notes.length) state.notes = [createNote()];
-        state.selectedId = state.notes[0].id;
-        renderAll();
-        setStatus(`Pronto: ${state.pageKey}`);
 
         window.setInterval(() => {
             if (state.dirty) saveNow();
@@ -51,6 +61,8 @@
             "note-new-btn",
             "notes-sync-status",
             "notes-search",
+            "notes-owner-field",
+            "notes-owner-select",
             "notes-list",
             "note-title",
             "note-duplicate-btn",
@@ -74,20 +86,32 @@
         els.noteDeleteBtn?.addEventListener("click", deleteSelectedNote);
         els.noteSaveBtn?.addEventListener("click", saveNow);
 
+        els.notesOwnerSelect?.addEventListener("change", async () => {
+            if (!state.isDm) return;
+            const nextOwner = String(els.notesOwnerSelect.value || "").trim();
+            if (!nextOwner || nextOwner === state.ownerDiscordId) return;
+            if (state.dirty) await saveNow();
+            state.ownerDiscordId = nextOwner;
+            await loadNotesForCurrentOwner();
+        });
+
         els.notesSearch?.addEventListener("input", (event) => {
+            if (!canUseNotes()) return;
             state.query = event.target.value.trim();
             renderNotesList();
         });
 
         els.notesList?.addEventListener("click", (event) => {
+            if (!canUseNotes()) return;
             const button = event.target.closest("[data-note-id]");
             if (!button) return;
-            commitEditorToState();
+            commitEditorToState({ touch: false });
             state.selectedId = button.dataset.noteId;
             renderAll();
         });
 
         els.noteTitle?.addEventListener("input", () => {
+            if (!canUseNotes()) return;
             const note = getSelectedNote();
             if (!note) return;
             note.title = els.noteTitle.value.trim();
@@ -96,6 +120,7 @@
         });
 
         els.noteEditor?.addEventListener("input", () => {
+            if (!canUseNotes()) return;
             const note = getSelectedNote();
             if (!note) return;
             note.html = sanitizeNoteHtml(els.noteEditor.innerHTML);
@@ -105,6 +130,7 @@
 
         document.querySelectorAll("[data-format-command]").forEach((button) => {
             button.addEventListener("click", () => {
+                if (!canUseNotes()) return;
                 els.noteEditor?.focus();
                 document.execCommand(button.dataset.formatCommand, false, button.dataset.formatValue || null);
                 const note = getSelectedNote();
@@ -119,6 +145,7 @@
         });
 
         els.noteLinks?.addEventListener("click", (event) => {
+            if (!canUseNotes()) return;
             const button = event.target.closest("[data-remove-link]");
             if (!button) return;
             const note = getSelectedNote();
@@ -130,6 +157,7 @@
 
         els.notesPickerSearch?.addEventListener("input", renderPickerResults);
         els.notesPickerResults?.addEventListener("click", (event) => {
+            if (!canUseNotes()) return;
             const button = event.target.closest("[data-picker-key]");
             if (!button) return;
             attachEntity(button.dataset.pickerKey);
@@ -149,6 +177,49 @@
         renderEditor();
     }
 
+    function renderLoggedOutState() {
+        state.notes = [];
+        state.selectedId = "";
+        state.dirty = false;
+        window.clearTimeout(state.saveTimer);
+        setEditorEnabled(false);
+        setStatus("Login richiesto", "error");
+        if (els.notesList) {
+            els.notesList.innerHTML = '<p class="notes-empty">Accedi con Discord per leggere e scrivere i tuoi appunti.</p>';
+        }
+        if (els.noteTitle) els.noteTitle.value = "";
+        if (els.noteEditor) els.noteEditor.innerHTML = "";
+        if (els.noteLinks) els.noteLinks.innerHTML = '<p class="notes-link-empty">Login richiesto.</p>';
+        if (els.noteUpdatedAt) els.noteUpdatedAt.textContent = "Nessun appunto caricato";
+    }
+
+    function renderOwnerSelector() {
+        if (!els.notesOwnerField || !els.notesOwnerSelect) return;
+        if (!state.isDm) {
+            els.notesOwnerField.hidden = true;
+            return;
+        }
+
+        els.notesOwnerField.hidden = false;
+        els.notesOwnerSelect.innerHTML = state.owners.map((owner) => `
+            <option value="${escapeHtml(owner.discordId)}"${owner.discordId === state.ownerDiscordId ? " selected" : ""}>
+                ${escapeHtml(owner.name)}
+            </option>
+        `).join("");
+    }
+
+    async function loadNotesForCurrentOwner() {
+        setEditorEnabled(false);
+        setStatus("Caricamento...");
+        state.notes = normalizeNotes(await notesStore.load());
+        if (!state.notes.length) state.notes = [createNote()];
+        state.selectedId = state.notes[0].id;
+        state.dirty = false;
+        renderAll();
+        renderOwnerSelector();
+        setStatus(state.isDm && state.ownerDiscordId !== state.currentDiscordId ? "Pronto DM" : "Pronto");
+    }
+
     function renderNotesList() {
         const query = normalizeText(state.query);
         const notes = state.notes
@@ -156,7 +227,7 @@
                 if (!query) return true;
                 return normalizeText([note.title, htmlToText(note.html), ...(note.links || []).map((link) => link.label)].join(" ")).includes(query);
             })
-            .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+            .sort(compareNotesForList);
 
         if (!notes.length) {
             els.notesList.innerHTML = '<p class="notes-empty">Nessun appunto trovato.</p>';
@@ -192,7 +263,7 @@
         els.noteLinks.innerHTML = links.map((link) => `
             <span class="notes-entity-chip notes-entity-chip--${escapeHtml(link.type)}">
                 <a href="${escapeHtml(link.url || "#")}" title="Apri ${escapeHtml(link.label)}">
-                    <i class="fas ${escapeHtml(getEntityIcon(link.type))}" aria-hidden="true"></i>
+                    ${renderEntityThumb(link)}
                     <span>${escapeHtml(link.label)}</span>
                 </a>
                 <button type="button" data-remove-link="${escapeHtml(link.key)}" aria-label="Rimuovi collegamento ${escapeHtml(link.label)}">
@@ -203,7 +274,8 @@
     }
 
     function createAndSelectNote() {
-        commitEditorToState();
+        if (!canUseNotes()) return;
+        commitEditorToState({ touch: false });
         const note = createNote();
         state.notes.unshift(note);
         state.selectedId = note.id;
@@ -213,9 +285,10 @@
     }
 
     function duplicateSelectedNote() {
+        if (!canUseNotes()) return;
         const note = getSelectedNote();
         if (!note) return;
-        commitEditorToState();
+        commitEditorToState({ touch: false });
         const now = new Date().toISOString();
         const copy = {
             ...structuredCloneSafe(note),
@@ -231,6 +304,7 @@
     }
 
     function deleteSelectedNote() {
+        if (!canUseNotes()) return;
         const note = getSelectedNote();
         if (!note) return;
         const confirmed = window.confirm(`Eliminare "${note.title || "Appunto senza titolo"}"?`);
@@ -242,15 +316,17 @@
         renderAll();
     }
 
-    function commitEditorToState() {
+    function commitEditorToState(options = {}) {
         const note = getSelectedNote();
         if (!note) return;
+        const { touch = true } = options;
         note.title = els.noteTitle?.value.trim() || note.title || "Appunto senza titolo";
         note.html = sanitizeNoteHtml(els.noteEditor?.innerHTML || "");
-        note.updatedAt = new Date().toISOString();
+        if (touch) note.updatedAt = new Date().toISOString();
     }
 
     function markDirty() {
+        if (!canUseNotes()) return;
         const note = getSelectedNote();
         if (note) note.updatedAt = new Date().toISOString();
         state.dirty = true;
@@ -260,8 +336,9 @@
     }
 
     async function saveNow() {
+        if (!canUseNotes()) return;
         window.clearTimeout(state.saveTimer);
-        commitEditorToState();
+        commitEditorToState({ touch: false });
         try {
             await notesStore.save(state.notes);
             state.dirty = false;
@@ -276,6 +353,7 @@
     }
 
     function openPicker(type) {
+        if (!canUseNotes()) return;
         state.pickerType = type;
         const titleMap = {
             npc: "Collega NPC",
@@ -295,6 +373,7 @@
     }
 
     function renderPickerResults() {
+        if (!canUseNotes()) return;
         const type = state.pickerType;
         const query = normalizeText(els.notesPickerSearch?.value || "");
         const note = getSelectedNote();
@@ -310,17 +389,17 @@
         }
 
         els.notesPickerResults.innerHTML = entries.map((entry) => `
-            <button class="notes-picker-result" type="button" data-picker-key="${escapeHtml(entry.key)}">
-                <i class="fas ${escapeHtml(getEntityIcon(entry.type))}" aria-hidden="true"></i>
-                <span>
+            <button class="notes-picker-result" type="button" data-picker-key="${escapeHtml(entry.key)}" title="${escapeHtml([entry.label, entry.meta].filter(Boolean).join(" - "))}">
+                ${renderEntityThumb(entry)}
+                <span class="notes-picker-copy">
                     <strong>${escapeHtml(entry.label)}</strong>
-                    <em>${escapeHtml(entry.meta || getEntityTypeLabel(entry.type))}</em>
                 </span>
             </button>
         `).join("");
     }
 
     function attachEntity(key) {
+        if (!canUseNotes()) return;
         const note = getSelectedNote();
         if (!note) return;
         const entry = Object.values(state.entities).flat().find((item) => item.key === key);
@@ -331,7 +410,9 @@
             type: entry.type,
             id: entry.id,
             label: entry.label,
-            url: entry.url
+            url: entry.url,
+            image: entry.image || "",
+            icon: entry.icon || getEntityIcon(entry.type)
         });
         markDirty();
         renderLinks(note);
@@ -354,7 +435,9 @@
                 id: entry.entityId || entry.id,
                 label: entry.title || entry.entityId || "NPC",
                 meta: entry.subtitle || "NPC",
-                url: `characters/character.html?id=${encodeURIComponent(entry.entityId || "")}`
+                url: `characters/character.html?id=${encodeURIComponent(entry.entityId || "")}`,
+                image: getNpcThumb(entry.entityId || entry.id),
+                icon: "fa-skull"
             }))
             .sort(compareEntityLabels);
 
@@ -366,7 +449,9 @@
                 id: item.id || slugify(item.name),
                 label: item.name || "Oggetto",
                 meta: [item.type, item.rarity, item.owner].filter(Boolean).join(" | "),
-                url: `oggetti.html#${encodeURIComponent(item.id || slugify(item.name))}`
+                url: `oggetti.html#${encodeURIComponent(item.id || slugify(item.name))}`,
+                image: item.image ? `../assets/${item.image}` : "",
+                icon: item.icon || "fa-wand-sparkles"
             }))
             .sort(compareEntityLabels);
 
@@ -381,7 +466,9 @@
                     id: slugify(creature.name || label),
                     label,
                     meta: [creature.category || "Bestiario", creature.details?.dndType].filter(Boolean).join(" | "),
-                    url: "bestiario.html"
+                    url: "bestiario.html",
+                    image: creature.image ? `../assets/${creature.image}` : "",
+                    icon: "fa-book-dead"
                 };
             })
             .sort(compareEntityLabels);
@@ -389,6 +476,8 @@
 
     function setEditorEnabled(enabled) {
         [
+            els.noteNewBtn,
+            els.notesSearch,
             els.noteTitle,
             els.noteDuplicateBtn,
             els.noteDeleteBtn,
@@ -398,6 +487,10 @@
             if (!node) return;
             if (node === els.noteEditor) node.setAttribute("contenteditable", enabled ? "true" : "false");
             else node.disabled = !enabled;
+        });
+
+        document.querySelectorAll("[data-format-command], [data-link-type]").forEach((button) => {
+            button.disabled = !enabled;
         });
     }
 
@@ -424,7 +517,9 @@
                 type: String(link.type || ""),
                 id: String(link.id || ""),
                 label: String(link.label || link.id || "Voce"),
-                url: String(link.url || "#")
+                url: String(link.url || "#"),
+                image: String(link.image || ""),
+                icon: String(link.icon || getEntityIcon(link.type))
             }))
             .filter((link) => link.type && link.id);
     }
@@ -508,19 +603,27 @@
     const notesStore = {
         async load() {
             const token = getAuthToken();
-            if (token) {
-                try {
-                    const response = await fetch(`${getApiBase()}/api/notes?page=${encodeURIComponent(state.pageKey)}`, {
-                        method: "GET",
-                        headers: { Authorization: `Bearer ${token}` }
-                    });
-                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                    const data = await response.json();
-                    return parseRemoteNoteContent(data?.note?.content || "");
-                } catch (error) {
-                    console.error("Errore caricamento appunti remoti:", error);
-                    setStatus("Cloud non raggiungibile, uso copia locale", "error");
+            if (!token || !state.ownerDiscordId) {
+                throw new Error("Login richiesto");
+            }
+
+            try {
+                const url = new URL(`${getApiBase()}/api/notes`);
+                url.searchParams.set("page", NOTES_PAGE_ID);
+                if (state.isDm && state.ownerDiscordId !== state.currentDiscordId) {
+                    url.searchParams.set("ownerDiscordId", state.ownerDiscordId);
                 }
+
+                const response = await fetch(url.toString(), {
+                    method: "GET",
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                return parseRemoteNoteContent(data?.note?.content || "");
+            } catch (error) {
+                console.error("Errore caricamento appunti remoti:", error);
+                setStatus("Cloud non raggiungibile, uso copia locale", "error");
             }
 
             try {
@@ -531,26 +634,33 @@
             }
         },
         async save(notes) {
+            if (!state.ownerDiscordId) {
+                throw new Error("Login richiesto");
+            }
+
             const payload = serializeRemoteNoteContent(notes);
             window.localStorage.setItem(getLocalStorageKey(), JSON.stringify(notes, null, 2));
 
             const token = getAuthToken();
-            if (token) {
-                const response = await fetch(`${getApiBase()}/api/notes`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        page: state.pageKey,
-                        content: payload
-                    })
-                });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json().catch(() => null);
-                if (!data?.ok) throw new Error("Risposta API non valida");
-            }
+            if (!token) throw new Error("Login richiesto");
+
+            const response = await fetch(`${getApiBase()}/api/notes`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    page: NOTES_PAGE_ID,
+                    content: payload,
+                    ...(state.isDm && state.ownerDiscordId !== state.currentDiscordId
+                        ? { ownerDiscordId: state.ownerDiscordId }
+                        : {})
+                })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json().catch(() => null);
+            if (!data?.ok) throw new Error("Risposta API non valida");
         }
     };
 
@@ -579,28 +689,69 @@
     function serializeRemoteNoteContent(notes) {
         return JSON.stringify({
             version: NOTES_CONTENT_VERSION,
-            page: state.pageKey,
+            page: NOTES_PAGE_ID,
+            ownerDiscordId: state.ownerDiscordId,
             notes
         });
     }
 
-    function getCurrentPageKey() {
-        const params = new URLSearchParams(window.location.search);
-        const explicitPage = params.get("page");
-        if (explicitPage) return slugify(explicitPage);
-
-        const path = window.location.pathname.split("/").pop() || "appunti";
-        return slugify(path.replace(/\.html$/i, "")) || "appunti";
+    function getLocalStorageKey() {
+        return `${STORAGE_KEY}:${state.ownerDiscordId}:${NOTES_PAGE_ID}`;
     }
 
-    function getLocalStorageKey() {
-        return `${STORAGE_KEY}:${state.pageKey}`;
+    async function loadAccessContext() {
+        const [config, players] = await Promise.all([
+            fetchJson("../assets/data/next-session.json").catch(() => ({})),
+            fetchJson("../assets/data/players.json").catch(() => [])
+        ]);
+
+        const dmDiscordId = String(config?.dmDiscordId || "").trim();
+        state.isDm = Boolean(dmDiscordId) && state.currentDiscordId === dmDiscordId;
+
+        const ownersById = new Map();
+        ownersById.set(state.currentDiscordId, {
+            discordId: state.currentDiscordId,
+            name: state.isDm ? "DM" : state.currentUsername
+        });
+
+        if (state.isDm) {
+            (Array.isArray(players) ? players : [])
+                .filter((player) => player?.discordId)
+                .forEach((player) => {
+                    ownersById.set(String(player.discordId).trim(), {
+                        discordId: String(player.discordId).trim(),
+                        name: player.name || player.id || String(player.discordId).trim()
+                    });
+                });
+        }
+
+        state.owners = [...ownersById.values()]
+            .filter((owner) => owner.discordId)
+            .sort((a, b) => {
+                if (a.discordId === state.currentDiscordId) return -1;
+                if (b.discordId === state.currentDiscordId) return 1;
+                return String(a.name || "").localeCompare(String(b.name || ""), "it", { sensitivity: "base" });
+            });
     }
 
     function getAuthToken() {
         return typeof window.CriptaDiscordAuth?.getToken === "function"
             ? window.CriptaDiscordAuth.getToken()
             : "";
+    }
+
+    async function getVerifiedAuth() {
+        return typeof window.CriptaDiscordAuth?.verify === "function"
+            ? window.CriptaDiscordAuth.verify().catch(() => null)
+            : null;
+    }
+
+    function getDiscordId(authState) {
+        return String(authState?.user?.id || authState?.user?.sub || "").trim();
+    }
+
+    function canUseNotes() {
+        return Boolean(state.ownerDiscordId);
     }
 
     function getApiBase() {
@@ -619,12 +770,43 @@
         return String(a.label || "").localeCompare(String(b.label || ""), "it", { sensitivity: "base" });
     }
 
+    function compareNotesForList(a, b) {
+        const createdDiff = String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+        if (createdDiff !== 0) return createdDiff;
+        return String(b.id || "").localeCompare(String(a.id || ""));
+    }
+
     function getEntityIcon(type) {
         return {
             npc: "fa-skull",
             item: "fa-wand-sparkles",
             creature: "fa-book-dead"
         }[type] || "fa-link";
+    }
+
+    function renderEntityThumb(entry) {
+        const icon = escapeHtml(entry.icon || getEntityIcon(entry.type));
+        const label = escapeHtml(entry.label || getEntityTypeLabel(entry.type));
+        const image = String(entry.image || "");
+        if (image) {
+            return `
+                <span class="notes-entity-thumb notes-entity-thumb--${escapeHtml(entry.type)}">
+                    <img src="${escapeHtml(image)}" alt="${label}" loading="lazy" onerror="this.hidden=true; this.nextElementSibling.hidden=false;">
+                    <i class="fas ${icon}" aria-hidden="true" hidden></i>
+                </span>
+            `;
+        }
+
+        return `
+            <span class="notes-entity-thumb notes-entity-thumb--${escapeHtml(entry.type)}">
+                <i class="fas ${icon}" aria-hidden="true"></i>
+            </span>
+        `;
+    }
+
+    function getNpcThumb(id) {
+        const cleanId = slugify(id).replace(/-/g, "_");
+        return cleanId ? `../assets/img/creatures/transp/${cleanId}_transp.webp` : "";
     }
 
     function getEntityTypeLabel(type) {

@@ -111,7 +111,6 @@ function initSidebar(html, basePath) {
 
     container.innerHTML = html;
     fixPaths(container, basePath);
-    updateNotesLink(container);
     setActiveLink();
     bindPrefetchForLinks(container);
     initDiscordAuth(container);
@@ -181,34 +180,6 @@ function setActiveLink() {
     if (targetLink) {
         targetLink.classList.add("active");
     }
-}
-
-function updateNotesLink(container) {
-    const notesLink = container.querySelector('.nav-links a[data-page="appunti"]');
-    if (!notesLink) return;
-
-    const currentPage = getCurrentNotesPageKey();
-    if (!currentPage || currentPage === "appunti") return;
-
-    const href = notesLink.getAttribute("href") || "pages/appunti.html";
-    const [path] = href.split("?");
-    notesLink.setAttribute("href", `${path}?page=${encodeURIComponent(currentPage)}`);
-}
-
-function getCurrentNotesPageKey() {
-    const page = (window.location.pathname.split("/").pop() || "index.html").replace(/\.html$/i, "");
-    const params = new URLSearchParams(window.location.search);
-    const entityId = params.get("id") || params.get("page") || params.get("sessione") || "";
-    return slugifyForNotes([page, entityId].filter(Boolean).join("-")) || "home";
-}
-
-function slugifyForNotes(value) {
-    return String(value || "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
 }
 
 function bindPrefetchForLinks(scope) {
