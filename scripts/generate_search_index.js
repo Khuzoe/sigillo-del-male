@@ -240,7 +240,15 @@ function buildMagicItemItems() {
       content: truncate([
         item.summary,
         item.notes,
-        Array.isArray(item.properties) ? item.properties.join(" ") : "",
+        Array.isArray(item.properties)
+          ? item.properties
+              .map((property) => {
+                if (typeof property === "string") return property;
+                if (!property || typeof property !== "object") return "";
+                return [property.name, property.charges, property.description].filter(Boolean).join(" ");
+              })
+              .join(" ")
+          : "",
       ].join(" ")),
     }));
 }

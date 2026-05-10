@@ -1,5 +1,6 @@
 (function () {
     const DATA_URL = '../assets/data/bestiary.json';
+    const ITEMS_URL = '../assets/data/items.json';
     const DB_NAME = 'cripta-bestiary-editor';
     const DB_VERSION = 1;
     const DB_STORE = 'file-handles';
@@ -55,7 +56,8 @@
         showHidden: true,
         fileHandle: null,
         imageAdjustIndex: -1,
-        adjustDrag: null
+        adjustDrag: null,
+        wikiItems: []
     };
 
     const els = {};
@@ -73,6 +75,7 @@
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             state.creatures = await response.json();
             if (!Array.isArray(state.creatures)) throw new Error('Formato bestiary.json non valido.');
+            state.wikiItems = await loadWikiItems();
             state.selectedIndex = state.creatures.length ? 0 : -1;
             renderAll();
             const restoredHandle = await restoreLinkedJsonFile();
@@ -97,6 +100,8 @@
             'show-hidden-toggle',
             'bestiary-table-body',
             'detail-form',
+            'wiki-drop-select',
+            'add-wiki-drop-btn',
             'preview-image',
             'preview-name',
             'preview-meta',
@@ -178,6 +183,7 @@
         els.bestiaryTableBody?.addEventListener('click', handleFilePickClick);
         els.detailForm?.addEventListener('input', handleDetailInput);
         els.detailForm?.addEventListener('change', handleDetailInput);
+        els.detailForm?.addEventListener('click', handleDetailClick);
         els.imageAdjustModal?.addEventListener('input', handleAdjustInput);
         els.imageAdjustModal?.addEventListener('change', handleAdjustInput);
         els.imageAdjustModal?.addEventListener('click', handleAdjustClick);
@@ -481,6 +487,31 @@
         });
     }
 
+    async function loadWikiItems() {
+        try {
+            const response = await fetch(ITEMS_URL);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const items = await response.json();
+            return Array.isArray(items) ? items.filter((item) => item && item.name) : [];
+        } catch (error) {
+            console.warn('Impossibile caricare items.json per i drop wiki:', error);
+            return [];
+        }
+    }
+
+    function renderWikiDropSelect() {
+        if (!els.wikiDropSelect) return;
+        const options = state.wikiItems
+            .slice()
+            .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'it', { sensitivity: 'base' }))
+            .map((item) => `<option value="${escapeHtml(item.id || item.name)}">${escapeHtml(item.name)}${item.rarity ? ` (${escapeHtml(item.rarity)})` : ''}</option>`);
+        els.wikiDropSelect.innerHTML = [
+            '<option value="">Scegli oggetto dalla wiki...</option>',
+            ...options
+        ].join('');
+        if (els.addWikiDropBtn) els.addWikiDropBtn.disabled = options.length === 0;
+    }
+
     function renderDetails() {
         const creature = getSelectedCreature();
         const fields = els.detailForm.querySelectorAll('[data-detail-field], [data-creature-field], [data-list-field], [data-complex-field], [data-defense-option]');
@@ -516,6 +547,7 @@
         syncDefensePicker('vulnerabilities', creature.details?.vulnerabilities);
         els.detailForm.querySelector('[data-complex-field="traits"]').value = traitsToText(creature.details?.traits);
         els.detailForm.querySelector('[data-complex-field="drops"]').value = dropsToText(creature.details?.drops);
+        renderWikiDropSelect();
     }
 
     function syncDefensePicker(fieldName, values) {
@@ -730,6 +762,31 @@
         updatePreview();
         updateOutput();
         setStatus('Modifiche non salvate esportate nel JSON.');
+    }
+
+    function handleDetailClick(event) {
+        const addButton = event.target.closest('#add-wiki-drop-btn');
+        if (!addButton) return;
+        const creature = getSelectedCreature();
+        if (!creature || !els.wikiDropSelect?.value) return;
+        const item = state.wikiItems.find((entry) => String(entry.id || entry.name) === els.wikiDropSelect.value);
+        if (!item) return;
+
+        ensureDetails(creature);
+        const drop = pruneObject({
+            itemId: item.id,
+            name: item.name,
+            image: item.image,
+            rarity: item.rarity,
+            note: item.attunement ? 'Richiede sintonia' : ''
+        });
+        const drops = Array.isArray(creature.details.drops) ? creature.details.drops : [];
+        creature.details.drops = [...drops, drop];
+        const dropField = els.detailForm.querySelector('[data-complex-field="drops"]');
+        if (dropField) dropField.value = dropsToText(creature.details.drops);
+        pruneCreature(creature);
+        updateOutput();
+        setStatus(`Drop aggiunto da Oggetti: ${item.name}.`);
     }
 
     function getSelectedDefenseValues(fieldName) {
@@ -1094,7 +1151,10 @@
         if (!Array.isArray(value)) return '';
         return value.map((drop) => {
             if (typeof drop === 'string') return drop;
-            return [drop.name, drop.image, drop.rarity, drop.note].map((part) => part || '').join(' | ').replace(/\s+\|\s+$/g, '');
+            const note = drop.itemId
+                ? [drop.note, `wiki:${drop.itemId}`].filter(Boolean).join(' ')
+                : drop.note;
+            return [drop.name, drop.image, drop.rarity, note].map((part) => part || '').join(' | ').replace(/\s+\|\s+$/g, '');
         }).join('\n');
     }
 
@@ -1106,11 +1166,14 @@
             .map((line) => {
                 const parts = line.split('|').map((part) => part.trim());
                 if (parts.length === 1) return parts[0];
+                const note = parts[3] || '';
+                const itemMatch = note.match(/\bwiki:([a-z0-9_-]+)\b/i);
                 return pruneObject({
                     name: parts[0],
                     image: parts[1],
                     rarity: parts[2],
-                    note: parts[3]
+                    note: note.replace(/\bwiki:[a-z0-9_-]+\b/i, '').trim(),
+                    itemId: itemMatch?.[1]
                 });
             });
     }

@@ -1,7 +1,7 @@
 [
   {
     "id": "guanti-zara",
-    "name": "Zara: Guanti",
+    "name": "Guanti di Zara",
     "type": "Oggetto meraviglioso",
     "rarity": "Non comune",
     "attunement": true,
@@ -32,12 +32,11 @@
         "description": "Come azione, evochi un'esplosione di energia comica. Ogni creatura a tua scelta in un cono di 18 metri deve superare un TS di Saggezza con CD = 8 + bonus di competenza + tuo modificatore di Carisma oppure cade prona ed e affetta come da Tasha's Hideous Laughter per 1 minuto (TS alla fine di ogni turno). Per tutta la durata, la creatura e anche sotto l'effetto di Faerie Fire. Una creatura che supera il tiro salvezza e immune a questo effetto per 24 ore."
       }
     ],
-    "notes": "Oggetto emerso durante la Sessione 24.",
-    "subtype": "Guanti"
+    "notes": "Oggetto emerso durante la Sessione 24."
   },
   {
     "id": "scarpa-zara",
-    "name": "Zara: Pantofole",
+    "name": "Scarpa di Zara",
     "type": "Oggetto meraviglioso",
     "owner": "Zara",
     "status": "identified",
@@ -51,8 +50,7 @@
         "description": "Proprieta complete da definire."
       }
     ],
-    "notes": "Oggetto emerso durante la Sessione 24.",
-    "subtype": "Scarpe"
+    "notes": "Oggetto emerso durante la Sessione 24."
   },
   {
     "id": "prisma-luce-cristallizzata",
@@ -74,15 +72,17 @@
         "charges": "",
         "description": "La sua natura precisa resta da approfondire."
       }
-    ],
-    "subtype": "Prisma"
+    ]
   },
   {
+    "file": "fvtt-Item-unidentified-equipment-iZjTzv0mlgj6oxXo.json",
     "id": "spilla-rosa",
     "name": "Spilla Rosa",
     "type": "Oggetto meraviglioso",
     "rarity": "Raro",
     "attunement": true,
+    "owner": "",
+    "status": "unidentified",
     "icon": "fa-ribbon",
     "summary": "Spilla magica che consente di convertire slot incantesimo di livello superiore in slot di 1° livello.",
     "properties": [
@@ -93,13 +93,13 @@
       }
     ],
     "notes": "Importato da Foundry; il nome non identificato è \"Unidentified Equipment\".",
-    "subtype": "Spilla",
-    "image": "img/items/rose_brooch.png"
+    "image": "Cripta di Sangue/items/item_rose_brooch.png"
   },
   {
+    "file": "fvtt-Item-[non-identificato]-armatura-rossa-ndYf6khFHJQN9EZY.json",
     "id": "corazza-piastre-rosskar",
-    "name": "Rosskar: Corazza a Piastre",
-    "type": "Armatura",
+    "name": "Corazza a Piastre di Rosskar",
+    "type": "Armatura media (breastplate)",
     "rarity": "Raro",
     "attunement": true,
     "owner": "Rosskar",
@@ -119,15 +119,13 @@
       }
     ],
     "notes": "Non identificata come \"Armatura Rossa\"; descritta come metallo rosso scuro con incisioni dorate, calda al tatto.",
-    "image": "img/items/rosskar_breastplate.png",
-    "subtype": "Corazza",
-    "unidentifiedName": "[Non Identificato] Armatura Rossa",
-    "unidentifiedDescription": "Un’armatura di metallo rosso scuro con incisioni dorate. Sembra calda al tatto, come se trattenesse sempre un po’ di calore al suo interno."
+    "image": "Cripta di Sangue/items/rosskar_breastplate.png"
   },
   {
+    "file": "fvtt-Item-[non-identificato]-mantello-nero-F1b9nneK1gNTV6y2.json",
     "id": "mantello-okbrax",
-    "name": "Okbrax: Mantello",
-    "type": "Oggetto meraviglioso",
+    "name": "Mantello di Okbrax",
+    "type": "Oggetto meraviglioso (mantello)",
     "rarity": "Raro",
     "attunement": true,
     "owner": "Okbrax",
@@ -147,15 +145,13 @@
       }
     ],
     "notes": "Non identificato come \"Mantello Nero\"; lungo e scuro, sembra muoversi anche senza vento.",
-    "image": "img/items/okbrax_cloak.png",
-    "subtype": "Mantello",
-    "unidentifiedName": "[Non Identificato] Mantello Nero",
-    "unidentifiedDescription": "Un mantello lungo e scuro, che sembra muoversi leggermente anche quando non c’è vento."
+    "image": "Cripta di Sangue/items/okbrax_cloak.png"
   },
   {
+    "file": "fvtt-Item-[non-identificato]-martello-sacro-1hgVhSRaCTwo0gTL.json",
     "id": "martello-guerra-lumilla",
-    "name": "Lumilla: Martello da Guerra",
-    "type": "Arma",
+    "name": "Martello da Guerra di Lumilla",
+    "type": "Arma (martello da guerra)",
     "rarity": "Raro",
     "attunement": true,
     "owner": "Lumilla",
@@ -175,15 +171,13 @@
       }
     ],
     "notes": "Non identificato come \"Martello Sacro\"; testa d’argento con simboli solari e bagliore dorato.",
-    "image": "img/items/lumilla_warhammer.png",
-    "subtype": "Martello da guerra",
-    "unidentifiedName": "[Non Identificato] Martello Sacro",
-    "unidentifiedDescription": "Un martello da guerra robusto, con una testa d’argento decorata da simboli solari. L’impugnatura è avvolta in cuoio bianco e ogni tanto emette un leggero bagliore dorato."
+    "image": "Cripta di Sangue/items/lumilla_warhammer.png"
   },
   {
+    "file": "fvtt-Item-[non-identificato]-pugnale-nero-xs5TdtTXgLDuPY8u.json",
     "id": "pugnale-okbrax",
-    "name": "Okbrax: Pugnale",
-    "type": "Arma",
+    "name": "Pugnale di Okbrax",
+    "type": "Arma (pugnale)",
     "rarity": "Raro",
     "attunement": true,
     "owner": "Okbrax",
@@ -203,15 +197,13 @@
       }
     ],
     "notes": "Non identificato come \"Pugnale Nero\"; lama sottile e scura, difficile da vedere quando impugnato.",
-    "image": "img/items/okbrax_dagger.png",
-    "subtype": "Pugnale",
-    "unidentifiedName": "[Non Identificato] Pugnale Nero",
-    "unidentifiedDescription": "Un pugnale affilato con una lama sottile e scura. Ha un’impugnatura avvolta in cuoio nero e sembra diventare più difficile da vedere quando lo si impugna."
+    "image": "Cripta di Sangue/items/okbrax_dagger.png"
   },
   {
+    "file": "fvtt-Item-[non-identificato]-spada-di-fuoco-lfpTsoh06puwr1KR.json",
     "id": "spada-lunga-lingua-di-fiamma",
-    "name": "Rosskar: Spada Infuocata",
-    "type": "Arma",
+    "name": "Flame Tongue Longsword",
+    "type": "Arma (spada lunga)",
     "rarity": "Raro",
     "attunement": true,
     "owner": "Rosskar",
@@ -236,15 +228,13 @@
       }
     ],
     "notes": "Non identificata come \"Spada di Fuoco\"; lama con rune rosse incise.",
-    "image": "img/items/rosskar_longsword.png",
-    "subtype": "Spada lunga",
-    "unidentifiedName": "[Non Identificato] Spada di Fuoco",
-    "unidentifiedDescription": "Una spada dalla lama affilata, con rune rosse incise lungo la superficie."
+    "image": "Cripta di Sangue/items/rosskar_longsword.png"
   },
   {
+    "file": "fvtt-Item-[non-identificato]-veste-bianca-iO5fB7A0pj8pufBK.json",
     "id": "veste-radiosa-lumilla",
-    "name": "Lumilla: Veste Radiosa",
-    "type": "Armatura",
+    "name": "Veste Radiosa di Lumilla",
+    "type": "Oggetto meraviglioso / armatura leggera",
     "rarity": "Raro",
     "attunement": true,
     "owner": "Lumilla",
@@ -264,15 +254,13 @@
       }
     ],
     "notes": "Non identificata come \"Veste Bianca\"; bianca, leggera, con ricami argentati e aura tranquilla.",
-    "image": "img/items/lumilla_vest.png",
-    "subtype": "Veste",
-    "unidentifiedName": "[Non Identificato] Veste Bianca",
-    "unidentifiedDescription": "Una veste bianca leggera e fluida, con sottili ricami argentati lungo i bordi. Ha un’aura di tranquillità e sembra quasi brillare leggermente alla luce."
+    "image": "Cripta di Sangue/items/lumilla_vest.png"
   },
   {
+    "file": "fvtt-Item-stivali-di-ginevra-JFtgBi8hfUkIZ8ZL.json",
     "id": "stivali-ginevra",
-    "name": "Ginevra: Stivali",
-    "type": "Oggetto meraviglioso",
+    "name": "Stivali di Ginevra",
+    "type": "Oggetto meraviglioso (stivali)",
     "rarity": "Molto raro",
     "attunement": true,
     "owner": "Ginevra",
@@ -307,12 +295,12 @@
       }
     ],
     "notes": "Parte dell’equipaggiamento di Ginevra.",
-    "image": "img/items/ginevra_boots.webp",
-    "subtype": "Stivali"
+    "image": "Cripta%20di%20Sangue/items/ginevra_boots.webp"
   },
   {
+    "file": "fvtt-Item-scudo-di-ginevra-leIsk15cbSMaVWZJ.json",
     "id": "scudo-ginevra",
-    "name": "Ginevra: Scudo",
+    "name": "Scudo di Ginevra",
     "type": "Scudo",
     "rarity": "Molto raro",
     "attunement": true,
@@ -353,13 +341,15 @@
       }
     ],
     "notes": "Parte dell’equipaggiamento di Ginevra.",
-    "image": "img/items/ginevra_shield.webp"
+    "image": "Cripta%20di%20Sangue/items/ginevra_shield.webp"
   },
   {
+    "file": "fvtt-Item-armatura-di-ginevra-KdDKmXNGVHcyp6BB.json",
     "id": "armatura-ginevra",
-    "name": "Ginevra: Armatura",
-    "type": "Armatura",
+    "name": "Armatura di Ginevra",
+    "type": "Armatura pesante (splint armor)",
     "rarity": "Molto raro",
+    "attunement": false,
     "owner": "Ginevra",
     "status": "identified",
     "icon": "fa-vest",
@@ -387,15 +377,16 @@
       }
     ],
     "notes": "Parte dell’equipaggiamento di Ginevra.",
-    "image": "img/items/ginevra_armor.webp",
-    "subtype": "Splint Armor"
+    "image": "Cripta%20di%20Sangue/items/ginevra_armor.webp"
   },
   {
+    "file": "fvtt-Item-bracciale-metallico-QVgRrsu12V4jKkvN.json",
     "id": "bracciale-metallico",
     "name": "Bracciale Metallico",
-    "type": "Oggetto meraviglioso",
+    "type": "Oggetto meraviglioso / armatura",
     "rarity": "Raro",
     "attunement": true,
+    "owner": "",
     "status": "unidentified",
     "icon": "fa-ring",
     "summary": "Oggetto associato a resistenza necrotica; in Foundry deriva da Ring Mail of Necrotic Resistance.",
@@ -412,15 +403,16 @@
       }
     ],
     "notes": "Nel file Foundry il nome identificato è \"Ring of Necrotic Resistance\", ma il nome non identificato è \"Bracciale Metallico\".",
-    "image": "img/items/necrotic_resistance.webp",
-    "subtype": "Anello",
-    "unidentifiedName": "Bracciale Metallico",
-    "unidentifiedDescription": "This armor is leather armor with heavy rings sewn into it. The rings help reinforce the armor against blows from swords and axes. Ring mail is inferior to chain mail, and it's usually worn only by those who can't afford better armor."
+    "image": "Cripta%20di%20Sangue/items/necrotic_resistance.webp"
   },
   {
+    "file": "fvtt-Item-specchio-rotto-ftadf3hphiIUxNkq.json",
     "id": "specchio-rotto",
     "name": "Specchio Rotto",
+    "type": "Oggetto magico",
     "rarity": "Comune",
+    "attunement": false,
+    "owner": "",
     "status": "identified",
     "icon": "fa-mirror",
     "summary": "Specchio rotto che riflette il volto delle persone mostrandole con emozioni estreme.",
@@ -432,19 +424,19 @@
       }
     ],
     "notes": "La descrizione non identificata parla di uno strano specchio rotto con cornice vecchia e rovinata.",
-    "subtype": "Specchio",
-    "unidentifiedDescription": "Uno strano specchio rotto, con una cornice vecchia e rovinata.",
-    "image": "img/items/broken_mirror.png",
-    "type": "Oggetto meraviglioso"
+    "image": "Cripta%20di%20Sangue/items/specchio_rotto.png"
   },
   {
+    "file": "fvtt-Item-unidentified-equipment-gg7NMutkQBLWYBLN.json",
     "id": "pala-non-morta",
     "name": "Pala Non-Morta",
-    "type": "Oggetto meraviglioso",
+    "type": "Oggetto meraviglioso (pala)",
     "rarity": "Raro",
+    "attunement": false,
+    "owner": "",
     "status": "unidentified",
     "icon": "fa-shovel",
-    "summary": "Pala incantata su cui è inciso un glifo di energia necrotica",
+    "summary": "Pala rara capace di trasformare una sepoltura rituale in una rinascita tombale non-morta.",
     "properties": [
       {
         "name": "Rinascita Tombale",
@@ -453,16 +445,17 @@
       }
     ],
     "notes": "Importata come non identificata in Foundry.",
-    "image": "img/items/item_undead_shovel.webp",
-    "subtype": "Pala",
-    "unidentified": true
+    "image": "Cripta%20di%20Sangue/items/item_undead_shovel.webp"
   },
   {
+    "file": "fvtt-Item-corona-del-controllo-rONRES0hBKZteaTI.json",
     "id": "corona-del-controllo",
     "name": "Corona del Controllo",
     "type": "Oggetto meraviglioso",
     "rarity": "Raro",
-    "status": "hidden",
+    "attunement": false,
+    "owner": "",
+    "status": "identified",
     "icon": "fa-crown",
     "summary": "Corona per costrutti progettata per limitare comportamenti violenti contro il loro creatore.",
     "properties": [
@@ -478,14 +471,15 @@
       }
     ],
     "notes": "Descrizione non identificata: corona metallica composta da due filamenti incisi con glifi spenti.",
-    "image": "img/items/control_crown.png",
-    "subtype": "Corona",
-    "unidentifiedDescription": "Una strana corona metallica composta da due filamenti incisi con qualche glifo spento.",
-    "hidden": true
+    "image": "Cripta%20di%20Sangue/items/control_crown.png"
   },
   {
+    "file": "fvtt-Item-cuore-di-albert-sdtzqnEXYkDx8GvV.json",
     "id": "cuore-di-albert",
-    "name": "Albert: Cuore",
+    "name": "Cuore di Albert",
+    "type": "Oggetto / bottino",
+    "rarity": "",
+    "attunement": false,
     "owner": "Albert",
     "status": "identified",
     "icon": "fa-heart",
@@ -498,19 +492,19 @@
       }
     ],
     "notes": "Peso indicato nel file Foundry: 8 kg.",
-    "subtype": "Cuore",
-    "image": "img/items/heart_albert.png"
+    "image": "Cripta%20di%20Sangue/items/heart_albert.png"
   },
   {
+    "file": "fvtt-Item-[non-identificato]-collana-buffa-mex27kdwpBisNH0S.json",
     "id": "collana-buffa-zara",
-    "name": "Zara: Collana Buffa",
-    "type": "Oggetto meraviglioso",
+    "name": "Collana Buffa di Zara",
+    "type": "Oggetto meraviglioso (trinket)",
     "rarity": "Raro",
     "attunement": true,
     "owner": "Zara",
     "status": "unidentified",
     "icon": "fa-gem",
-    "summary": "Una collana composta da palloncini legati tra loro e decorata da una placca di stoffa su cui è disegnato il volto sorridente di un giullare.",
+    "summary": "Collana maledetta del Buffone Errante che evoca una bambola combattente capace di crescere divorando i caduti.",
     "properties": [
       {
         "name": "Piccola Bambola",
@@ -533,10 +527,7 @@
         "description": "La collana è associata alla Gemma del Buffone Errante."
       }
     ],
-    "image": "img/items/zara_necklace.webp",
-    "subtype": "Collana",
-    "unidentifiedName": "[Non Identificato] Collana Buffa",
-    "unidentifiedDescription": "Una graziosa collana di fili multicolore con un buffone sorridente disegnato nel ciondolo.",
-    "unidentified": true
+    "notes": "Non identificata come \"Collana Buffa\"; collana multicolore con buffone sorridente sul ciondolo.",
+    "image": "Cripta di Sangue/items/zara's_necklace.png"
   }
 ]

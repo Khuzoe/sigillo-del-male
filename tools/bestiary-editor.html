@@ -213,6 +213,13 @@
             align-items: center;
         }
 
+        .bestiary-editor-drop-tools {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.45rem;
+            align-items: center;
+        }
+
         .bestiary-editor-hidden {
             position: absolute;
             width: 1px;
@@ -618,6 +625,13 @@
                         </div>
                         <div class="bestiary-editor-field">
                             <label for="field-drops">Drop: nome | immagine | rarità | nota</label>
+                            <div class="bestiary-editor-drop-tools">
+                                <select class="bestiary-editor-select" id="wiki-drop-select"></select>
+                                <button class="bestiary-editor-btn" id="add-wiki-drop-btn" type="button">
+                                    <i class="fas fa-plus" aria-hidden="true"></i>
+                                    Aggiungi da Oggetti
+                                </button>
+                            </div>
                             <textarea class="bestiary-editor-area" id="field-drops" data-complex-field="drops" spellcheck="false"></textarea>
                         </div>
                     </form>

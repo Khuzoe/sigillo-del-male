@@ -321,6 +321,7 @@ function validateMagicItems() {
     "Comune",
     "Non comune",
     "Raro",
+    "Epico",
     "Molto raro",
     "Leggendario",
     "Artefatto",
@@ -360,6 +361,18 @@ function validateMagicItems() {
     }
     if (item.properties && !Array.isArray(item.properties)) {
       pushError(`${context}: properties deve essere una lista`);
+    } else if (Array.isArray(item.properties)) {
+      item.properties.forEach((property, propIdx) => {
+        const propContext = `${context}.properties[${propIdx}]`;
+        if (typeof property === "string") return;
+        if (!isObject(property)) {
+          pushError(`${propContext}: proprieta non valida`);
+          return;
+        }
+        if (!property.name && !property.description) {
+          pushWarning(`${propContext}: proprieta senza nome e descrizione`);
+        }
+      });
     }
   });
 }
