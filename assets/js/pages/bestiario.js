@@ -9,10 +9,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!grid) return;
 
     try {
-        const response = await fetch("../assets/data/bestiary.json");
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const [bestiaryResponse, itemsResponse] = await Promise.all([
+            fetch("../assets/data/bestiary.json"),
+            fetch("../assets/data/items.json").catch(() => null)
+        ]);
+        if (!bestiaryResponse.ok) throw new Error(`HTTP ${bestiaryResponse.status}`);
 
-        const creatures = await response.json();
+        const creatures = await bestiaryResponse.json();
+        const items = itemsResponse?.ok ? await itemsResponse.json() : [];
+        window.bestiaryItemsById = new Map((Array.isArray(items) ? items : [])
+            .map((item) => [String(item.id || slugify(item.name || "")).trim(), item])
+            .filter(([id]) => Boolean(id)));
         const visibleCreatures = filterVisibleBestiaryCreatures(creatures);
         const state = {
             category: "all",
@@ -33,6 +40,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
         updateBestiaryView(visibleCreatures, state, grid, count);
         initBestiaryModal();
+        initBestiaryItemModal();
     } catch (error) {
         console.error("Errore nel caricamento del bestiario:", error);
         grid.innerHTML = '<p class="bestiary-state bestiary-state--error">Impossibile caricare il bestiario.</p>';
@@ -607,16 +615,17 @@ function renderBestiaryTrait(trait) {
 
 function renderBestiaryDrop(drop) {
     if (typeof drop === "string") return escapeHtml(drop);
+    const itemId = resolveBestiaryDropItemId(drop);
     const name = escapeHtml(drop.name || "Oggetto");
     const note = drop.note ? `<span>${escapeHtml(drop.note)}</span>` : "";
     const rarity = drop.rarity ? `<em>${escapeHtml(drop.rarity)}</em>` : "";
     const image = drop.image
         ? `<img src="../assets/${escapeHtml(drop.image)}" alt="" loading="lazy">`
         : "";
-    const openTag = drop.itemId
-        ? `<a class="bestiary-drop" href="../pages/oggetti.html#${escapeHtml(drop.itemId)}">`
+    const openTag = itemId
+        ? `<button class="bestiary-drop" type="button" data-bestiary-item-id="${escapeHtml(itemId)}">`
         : '<span class="bestiary-drop">';
-    const closeTag = drop.itemId ? '</a>' : '</span>';
+    const closeTag = itemId ? '</button>' : '</span>';
     return `
         ${openTag}
             ${image}
@@ -627,6 +636,87 @@ function renderBestiaryDrop(drop) {
             </span>
         ${closeTag}
     `;
+}
+
+function resolveBestiaryDropItemId(drop) {
+    const explicitId = String(drop?.itemId || "").trim();
+    if (explicitId && window.bestiaryItemsById?.has(explicitId)) return explicitId;
+    const nameId = slugify(drop?.name || "");
+    if (nameId && window.bestiaryItemsById?.has(nameId)) return nameId;
+    return explicitId;
+}
+
+function initBestiaryItemModal() {
+    let modal = document.getElementById("bestiary-item-modal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "bestiary-item-modal";
+        modal.className = "bestiary-item-modal";
+        modal.hidden = true;
+        modal.innerHTML = `
+            <button class="bestiary-item-modal-backdrop" type="button" data-close-bestiary-item aria-label="Chiudi"></button>
+            <article class="bestiary-item-modal-card" role="dialog" aria-modal="true" aria-labelledby="bestiary-item-modal-title">
+                <button class="bestiary-modal-close" type="button" data-close-bestiary-item aria-label="Chiudi">
+                    <i class="fas fa-xmark" aria-hidden="true"></i>
+                </button>
+                <div id="bestiary-item-modal-content"></div>
+            </article>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    document.addEventListener("click", (event) => {
+        const trigger = event.target.closest("[data-bestiary-item-id]");
+        if (!trigger) return;
+        event.preventDefault();
+        const item = window.bestiaryItemsById?.get(trigger.dataset.bestiaryItemId);
+        if (!item) return;
+        openBestiaryItemModal(modal, item);
+    });
+
+    modal.addEventListener("click", (event) => {
+        if (!event.target.closest("[data-close-bestiary-item]")) return;
+        closeBestiaryItemModal(modal);
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !modal.hidden) closeBestiaryItemModal(modal);
+    });
+}
+
+function openBestiaryItemModal(modal, item) {
+    const content = modal.querySelector("#bestiary-item-modal-content");
+    if (!content) return;
+    const image = item.image ? `<img class="bestiary-item-modal-image" src="../assets/${escapeHtml(item.image)}" alt="${escapeHtml(item.name || "Oggetto")}">` : "";
+    const properties = Array.isArray(item.properties) ? item.properties.filter(property => property && property.hidden !== true) : [];
+    content.innerHTML = `
+        ${image}
+        <div class="bestiary-item-modal-body">
+            <p class="bestiary-modal-kicker">${escapeHtml([item.type, item.rarity].filter(Boolean).join(" | ") || "Oggetto")}</p>
+            <h2 id="bestiary-item-modal-title">${escapeHtml(item.name || "Oggetto")}</h2>
+            ${item.summary ? `<p class="bestiary-modal-description">${escapeHtml(item.summary)}</p>` : ""}
+            ${properties.length ? `
+                <ul class="bestiary-modal-list">
+                    ${properties.map((property) => `<li>${renderBestiaryItemProperty(property)}</li>`).join("")}
+                </ul>
+            ` : ""}
+            ${item.notes ? `<p class="item-notes">${escapeHtml(item.notes)}</p>` : ""}
+        </div>
+    `;
+    modal.hidden = false;
+    document.body.classList.add("bestiary-item-modal-open");
+}
+
+function renderBestiaryItemProperty(property) {
+    if (typeof property === "string") return escapeHtml(property);
+    const name = property.name ? `<strong>${escapeHtml(property.name)}</strong>` : "";
+    const description = property.description ? `<span>${escapeHtml(property.description)}</span>` : "";
+    return `${name}${description}`;
+}
+
+function closeBestiaryItemModal(modal) {
+    modal.hidden = true;
+    document.body.classList.remove("bestiary-item-modal-open");
 }
 
 function closeBestiaryModal(modal) {

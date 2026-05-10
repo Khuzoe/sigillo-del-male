@@ -20,6 +20,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     ensureFavicon(basePath);
     bindPrefetchForLinks(document);
+    setDmOnlyVisibility(false);
     loadSidebar(basePath);
     initPageAccessControls(basePath);
     window.requestAnimationFrame(() => {
@@ -114,6 +115,7 @@ function initSidebar(html, basePath) {
     setActiveLink();
     bindPrefetchForLinks(container);
     initDiscordAuth(container);
+    initPageAccessControls(basePath);
 }
 
 function renderSidebarSkeleton() {

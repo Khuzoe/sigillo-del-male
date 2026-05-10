@@ -15,11 +15,13 @@
         notes: [],
         selectedId: "",
         query: "",
+        linkTypeFilter: "all",
         dirty: false,
         saveTimer: null,
         pickerType: "",
         entities: {
             npc: [],
+            player: [],
             item: [],
             creature: []
         }
@@ -63,8 +65,10 @@
             "notes-search",
             "notes-owner-field",
             "notes-owner-select",
+            "notes-tag-filters",
             "notes-list",
             "note-title",
+            "note-shared",
             "note-duplicate-btn",
             "note-delete-btn",
             "note-links",
@@ -101,6 +105,14 @@
             renderNotesList();
         });
 
+        els.notesTagFilters?.addEventListener("click", (event) => {
+            if (!canUseNotes()) return;
+            const button = event.target.closest("[data-note-link-filter]");
+            if (!button) return;
+            state.linkTypeFilter = button.dataset.noteLinkFilter || "all";
+            renderNotesList();
+        });
+
         els.notesList?.addEventListener("click", (event) => {
             if (!canUseNotes()) return;
             const button = event.target.closest("[data-note-id]");
@@ -115,6 +127,15 @@
             const note = getSelectedNote();
             if (!note) return;
             note.title = els.noteTitle.value.trim();
+            markDirty();
+            renderNotesList();
+        });
+
+        els.noteShared?.addEventListener("change", () => {
+            if (!canUseNotes()) return;
+            const note = getSelectedNote();
+            if (!note) return;
+            note.shared = els.noteShared.checked;
             markDirty();
             renderNotesList();
         });
@@ -222,10 +243,19 @@
 
     function renderNotesList() {
         const query = normalizeText(state.query);
-        const notes = state.notes
+        const queryMatchedNotes = state.notes
             .filter((note) => {
                 if (!query) return true;
                 return normalizeText([note.title, htmlToText(note.html), ...(note.links || []).map((link) => link.label)].join(" ")).includes(query);
+            });
+
+        renderNoteTagFilters(queryMatchedNotes);
+
+        const notes = queryMatchedNotes
+            .filter((note) => {
+                if (state.linkTypeFilter === "all") return true;
+                if (state.linkTypeFilter === "shared") return note.shared === true;
+                return (note.links || []).some((link) => link.type === state.linkTypeFilter);
             })
             .sort(compareNotesForList);
 
@@ -236,9 +266,35 @@
 
         els.notesList.innerHTML = notes.map((note) => `
             <button class="notes-list-item ${note.id === state.selectedId ? "is-active" : ""}" type="button" data-note-id="${escapeHtml(note.id)}">
-                <strong>${escapeHtml(note.title || "Appunto senza titolo")}</strong>
+                <strong>${note.shared ? '<i class="fas fa-users" aria-hidden="true"></i>' : ""}${escapeHtml(note.title || "Appunto senza titolo")}</strong>
                 <span>${escapeHtml(buildNoteExcerpt(note))}</span>
                 <em>${escapeHtml(formatDateTime(note.updatedAt))}</em>
+            </button>
+        `).join("");
+    }
+
+    function renderNoteTagFilters(notes) {
+        if (!els.notesTagFilters) return;
+        const counts = new Map();
+        notes.forEach((note) => {
+            if (note.shared === true) counts.set("shared", (counts.get("shared") || 0) + 1);
+            (note.links || []).forEach((link) => {
+                if (!link.type) return;
+                counts.set(link.type, (counts.get(link.type) || 0) + 1);
+            });
+        });
+
+        const filters = [
+            { type: "all", label: "Tutti", count: notes.length },
+            ...["npc", "player", "creature", "item", "shared"]
+                .filter((type) => counts.has(type))
+                .map((type) => ({ type, label: getEntityTypeLabel(type), count: counts.get(type) }))
+        ];
+
+        els.notesTagFilters.innerHTML = filters.map((filter) => `
+            <button class="notes-tag-filter ${state.linkTypeFilter === filter.type ? "is-active" : ""}" type="button" data-note-link-filter="${escapeHtml(filter.type)}">
+                <span>${escapeHtml(filter.label)}</span>
+                <em>${escapeHtml(filter.count)}</em>
             </button>
         `).join("");
     }
@@ -248,6 +304,7 @@
         setEditorEnabled(Boolean(note));
         if (!note) return;
         els.noteTitle.value = note.title || "";
+        if (els.noteShared) els.noteShared.checked = note.shared === true;
         els.noteEditor.innerHTML = note.html || NOTE_PLACEHOLDER;
         renderLinks(note);
         els.noteUpdatedAt.textContent = `Ultima modifica: ${formatDateTime(note.updatedAt)}`;
@@ -330,7 +387,7 @@
         const note = getSelectedNote();
         if (note) note.updatedAt = new Date().toISOString();
         state.dirty = true;
-        setStatus("Modifiche non salvate");
+        setStatus("Modifiche non salvate", "dirty");
         window.clearTimeout(state.saveTimer);
         state.saveTimer = window.setTimeout(saveNow, AUTOSAVE_DELAY);
     }
@@ -342,7 +399,7 @@
         try {
             await notesStore.save(state.notes);
             state.dirty = false;
-            setStatus(`Salvato ${formatTime(new Date())}`);
+            setStatus(`Salvato ${formatTime(new Date())}`, "saved");
             renderNotesList();
             const note = getSelectedNote();
             if (note) els.noteUpdatedAt.textContent = `Ultima modifica: ${formatDateTime(note.updatedAt)}`;
@@ -358,7 +415,8 @@
         const titleMap = {
             npc: "Collega NPC",
             item: "Collega oggetto",
-            creature: "Collega creatura"
+            creature: "Collega creatura",
+            player: "Collega giocatore"
         };
         els.notesPickerTitle.textContent = titleMap[type] || "Collega voce";
         els.notesPickerSearch.value = "";
@@ -420,10 +478,11 @@
     }
 
     async function loadLinkableEntities() {
-        const [searchIndex, items, creatures] = await Promise.all([
+        const [searchIndex, items, creatures, players] = await Promise.all([
             fetchJson("../assets/data/search-index.json").catch(() => ({ items: [] })),
             fetchJson("../assets/data/items.json").catch(() => []),
-            fetchJson("../assets/data/bestiary.json").catch(() => [])
+            fetchJson("../assets/data/bestiary.json").catch(() => []),
+            fetchJson("../assets/data/players.json").catch(() => [])
         ]);
 
         state.entities.npc = (Array.isArray(searchIndex.items) ? searchIndex.items : [])
@@ -438,6 +497,20 @@
                 url: `characters/character.html?id=${encodeURIComponent(entry.entityId || "")}`,
                 image: getNpcThumb(entry.entityId || entry.id),
                 icon: "fa-skull"
+            }))
+            .sort(compareEntityLabels);
+
+        state.entities.player = (Array.isArray(players) ? players : [])
+            .filter((player) => !window.WikiSpoiler || window.WikiSpoiler.isVisible(player))
+            .map((player) => ({
+                key: `player:${player.id || slugify(player.name)}`,
+                type: "player",
+                id: player.id || slugify(player.name),
+                label: player.name || player.id || "Giocatore",
+                meta: player.role || "Giocatore",
+                url: `characters/character.html?id=${encodeURIComponent(player.id || "")}&type=player`,
+                image: player.images?.avatar ? `../assets/${player.images.avatar}` : "",
+                icon: "fa-dice-d20"
             }))
             .sort(compareEntityLabels);
 
@@ -478,6 +551,7 @@
         [
             els.noteNewBtn,
             els.notesSearch,
+            els.noteShared,
             els.noteTitle,
             els.noteDuplicateBtn,
             els.noteDeleteBtn,
@@ -503,6 +577,7 @@
                 title: String(note.title || "Appunto senza titolo"),
                 html: sanitizeNoteHtml(note.html || ""),
                 links: normalizeLinks(note.links),
+                shared: note.shared === true,
                 createdAt: note.createdAt || new Date().toISOString(),
                 updatedAt: note.updatedAt || note.createdAt || new Date().toISOString()
             }));
@@ -531,6 +606,7 @@
             title: "Nuovo appunto",
             html: NOTE_PLACEHOLDER,
             links: [],
+            shared: false,
             createdAt: now,
             updatedAt: now
         };
@@ -548,6 +624,7 @@
         const text = htmlToText(note.html);
         if (text) return text.slice(0, 96);
         if (note.links?.length) return note.links.map((link) => link.label).join(", ").slice(0, 96);
+        if (note.shared) return "Blocco condiviso";
         return "Appunto vuoto";
     }
 
@@ -788,6 +865,7 @@
     function getEntityIcon(type) {
         return {
             npc: "fa-skull",
+            player: "fa-dice-d20",
             item: "fa-wand-sparkles",
             creature: "fa-book-dead"
         }[type] || "fa-link";
@@ -821,8 +899,10 @@
     function getEntityTypeLabel(type) {
         return {
             npc: "NPC",
+            player: "Giocatore",
             item: "Oggetto",
-            creature: "Creatura"
+            creature: "Creatura",
+            shared: "Condivisi"
         }[type] || "Voce";
     }
 
