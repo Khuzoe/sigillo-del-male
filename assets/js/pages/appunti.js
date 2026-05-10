@@ -610,8 +610,8 @@
             try {
                 const url = new URL(`${getApiBase()}/api/notes`);
                 url.searchParams.set("page", NOTES_PAGE_ID);
-                if (state.isDm && state.ownerDiscordId !== state.currentDiscordId) {
-                    url.searchParams.set("ownerDiscordId", state.ownerDiscordId);
+                url.searchParams.set("ownerDiscordId", state.currentDiscordId);
+                if (state.isDm) {
                     url.searchParams.set("targetDiscordId", state.ownerDiscordId);
                 }
 
@@ -622,7 +622,7 @@
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 const responseOwner = String(data?.note?.ownerDiscordId || "").trim();
-                if (responseOwner && responseOwner !== state.ownerDiscordId) {
+                if (responseOwner && responseOwner !== state.ownerDiscordId && responseOwner !== state.currentDiscordId) {
                     throw new Error(`Owner appunti inatteso: ${responseOwner}`);
                 }
                 return parseRemoteNoteContent(data?.note?.content || "");
@@ -658,9 +658,9 @@
                 body: JSON.stringify({
                     page: NOTES_PAGE_ID,
                     content: payload,
-                    ...(state.isDm && state.ownerDiscordId !== state.currentDiscordId
+                    ownerDiscordId: state.currentDiscordId,
+                    ...(state.isDm
                         ? {
-                            ownerDiscordId: state.ownerDiscordId,
                             targetDiscordId: state.ownerDiscordId
                         }
                         : {})
@@ -698,7 +698,8 @@
         return JSON.stringify({
             version: NOTES_CONTENT_VERSION,
             page: NOTES_PAGE_ID,
-            ownerDiscordId: state.ownerDiscordId,
+            ownerDiscordId: state.currentDiscordId,
+            targetDiscordId: state.ownerDiscordId,
             notes
         });
     }
