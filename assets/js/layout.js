@@ -4,6 +4,8 @@ const DISCORD_TOKEN_KEY = "discord_jwt";
 const prefetchedUrls = new Set();
 let discordAuthCache = null;
 let discordAuthPromise = null;
+let dmDiscordIdCache = null;
+let dmDiscordIdPromise = null;
 
 document.addEventListener("DOMContentLoaded", function () {
     const scriptTag = document.querySelector('script[src*="layout.js"]');
@@ -14,9 +16,12 @@ document.addEventListener("DOMContentLoaded", function () {
         basePath = src.replace("assets/js/layout.js", "");
     }
 
+    window.CriptaBasePath = basePath;
+
     ensureFavicon(basePath);
     bindPrefetchForLinks(document);
     loadSidebar(basePath);
+    initPageAccessControls(basePath);
     window.requestAnimationFrame(() => {
         document.body.classList.add("page-ready");
     });
@@ -106,6 +111,7 @@ function initSidebar(html, basePath) {
 
     container.innerHTML = html;
     fixPaths(container, basePath);
+    updateNotesLink(container);
     setActiveLink();
     bindPrefetchForLinks(container);
     initDiscordAuth(container);
@@ -175,6 +181,34 @@ function setActiveLink() {
     if (targetLink) {
         targetLink.classList.add("active");
     }
+}
+
+function updateNotesLink(container) {
+    const notesLink = container.querySelector('.nav-links a[data-page="appunti"]');
+    if (!notesLink) return;
+
+    const currentPage = getCurrentNotesPageKey();
+    if (!currentPage || currentPage === "appunti") return;
+
+    const href = notesLink.getAttribute("href") || "pages/appunti.html";
+    const [path] = href.split("?");
+    notesLink.setAttribute("href", `${path}?page=${encodeURIComponent(currentPage)}`);
+}
+
+function getCurrentNotesPageKey() {
+    const page = (window.location.pathname.split("/").pop() || "index.html").replace(/\.html$/i, "");
+    const params = new URLSearchParams(window.location.search);
+    const entityId = params.get("id") || params.get("page") || params.get("sessione") || "";
+    return slugifyForNotes([page, entityId].filter(Boolean).join("-")) || "home";
+}
+
+function slugifyForNotes(value) {
+    return String(value || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
 }
 
 function bindPrefetchForLinks(scope) {
@@ -265,6 +299,7 @@ async function refreshAuthUI(scope) {
     const token = readStoredToken();
     if (!token) {
         setLoggedOutState(status, loginBtn, logoutBtn);
+        setDmOnlyVisibility(false);
         return;
     }
 
@@ -276,16 +311,19 @@ async function refreshAuthUI(scope) {
         const authState = await verifyDiscordAuth();
         if (!authState?.user) {
             setLoggedOutState(status, loginBtn, logoutBtn);
+            setDmOnlyVisibility(false);
             return;
         }
         const username = authState.user.global_name || authState.user.username || "utente Discord";
         status.textContent = `Loggato come ${username}`;
         loginBtn.hidden = true;
         logoutBtn.hidden = false;
+        await updateDmOnlyVisibility(window.CriptaBasePath || "");
     } catch (_) {
         status.textContent = "Errore verifica login";
         loginBtn.hidden = true;
         logoutBtn.hidden = false;
+        setDmOnlyVisibility(false);
     }
 }
 
@@ -365,6 +403,57 @@ async function verifyDiscordAuth() {
     })();
 
     return discordAuthPromise;
+}
+
+function initPageAccessControls(basePath) {
+    const dmOnlyNodes = document.querySelectorAll("[data-requires-dm]");
+    if (!dmOnlyNodes.length) return;
+    setDmOnlyVisibility(false);
+    updateDmOnlyVisibility(basePath).catch(() => {
+        setDmOnlyVisibility(false);
+    });
+}
+
+function setDmOnlyVisibility(isVisible) {
+    document.querySelectorAll("[data-requires-dm]").forEach((node) => {
+        node.hidden = !isVisible;
+    });
+}
+
+async function updateDmOnlyVisibility(basePath) {
+    const authState = await verifyDiscordAuth().catch(() => null);
+    const currentDiscordId = String(authState?.user?.id || authState?.user?.sub || "").trim();
+    if (!currentDiscordId) {
+        setDmOnlyVisibility(false);
+        return false;
+    }
+
+    const dmDiscordId = await getDmDiscordId(basePath);
+    const isDm = Boolean(dmDiscordId) && currentDiscordId === dmDiscordId;
+    setDmOnlyVisibility(isDm);
+    return isDm;
+}
+
+async function getDmDiscordId(basePath) {
+    if (typeof dmDiscordIdCache === "string") return dmDiscordIdCache;
+    if (dmDiscordIdPromise) return dmDiscordIdPromise;
+
+    dmDiscordIdPromise = (async () => {
+        try {
+            const response = await fetch(`${basePath}assets/data/next-session.json`);
+            if (!response.ok) return "";
+            const data = await response.json();
+            dmDiscordIdCache = String(data?.dmDiscordId || "").trim();
+            return dmDiscordIdCache;
+        } catch (_) {
+            dmDiscordIdCache = "";
+            return "";
+        } finally {
+            dmDiscordIdPromise = null;
+        }
+    })();
+
+    return dmDiscordIdPromise;
 }
 
 window.CriptaDiscordAuth = {

@@ -30,7 +30,7 @@ content_blocks:
     markdown: "characters/zara/collana.md"
   - type: "image_box"
     title: "I Passi della Follia"
-    image: "img/items/zara_shoes.webp"
+    image: "img/items/zara-shoes.webp"
     hidden: true
     markdown: "characters/zara/i-passi-della-follia.md"
   - type: "image_box"

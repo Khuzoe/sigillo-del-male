@@ -8,7 +8,7 @@
     },
     "rank": "mini_boss",
     "details": {
-      "description": "Massa muscolare senza testa, guidata da impulsi grezzi e da un cuore esposto. Non minaccia e non contratta: avanza finche qualcosa davanti a lui non cede.",
+      "description": "Creatura aberrante dall'altezza sorprendente e corporatura massiccia. Priva di testa, individua i propri bersagli usando meccanismi di percezione alternativi. Il suo cuore è esposto, fuoriuscendo parzialmente dal petto. Alla schiena, collegato al suo corpo, ha un sacco nella quale inserisce le sue vittime.",
       "dndType": "Aberrazione",
       "size": "Enorme",
       "height": "6.00 m",
@@ -19,7 +19,7 @@
           "name": "Cuore di Albert",
           "image": "img/drops/cuore_albert.webp",
           "rarity": "Unico",
-          "note": "Organo anomalo ancora intriso di forza vitale residua."
+          "note": "Organo anomalo ancora intriso di forte energia arcana residua. Sembra essere pregno di magia."
         }
       ]
     }
@@ -104,7 +104,15 @@
       "height": "7.50 m",
       "weight": "8500.00 kg",
       "traits": [],
-      "drops": []
+      "drops": [
+        {
+          "itemId": "guanti-zara",
+          "name": "Guanti di Zara",
+          "image": "img/items/zara-gloves.webp",
+          "rarity": "Non comune",
+          "note": "Richiede sintonia"
+        }
+      ]
     }
   },
   {

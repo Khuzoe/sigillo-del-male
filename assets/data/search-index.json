@@ -165,15 +165,15 @@
       "type": "item",
       "entityId": "guanti-zara",
       "title": "Guanti di Zara",
-      "subtitle": "Oggetto meraviglioso | Sconosciuta",
+      "subtitle": "Oggetto meraviglioso | Molto raro",
       "url": "pages/oggetti.html",
       "tags": [
         "item",
         "Oggetto meraviglioso",
-        "Sconosciuta",
+        "Molto raro",
         "Zara"
       ],
-      "content": "Guanti dalle proprieta magiche insolite, analizzati da Valdor durante l'esplorazione della cripta. Oggetto emerso durante la Sessione 24. Proprieta complete da definire."
+      "content": "Guanti magici da buffone, capaci di aumentare la Destrezza e scatenare trucchi di posizione, mano invisibile ed energia comica. Oggetto emerso durante la Sessione 24. Destrezza del Buffone Il tuo punteggio di Destrezza aumenta di 2, fino a un massimo di 24 mentre indossi i guanti. Inoltre, hai vantaggio alle prove di Carisma (Performance) e Destrezza (Sleight of Hand). I guanti possiedono 3 cariche e recuperano tutte le cariche spese ogni giorno all'alba. L'Invisibile Tocco 1 Come azione bonus, lanci Mage Hand senza componenti. La mano e invisibile. Quando utilizzi la mano per l'azione Aiuto,..."
     },
     {
       "id": "npc:karla",

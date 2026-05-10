@@ -613,15 +613,19 @@ function renderBestiaryDrop(drop) {
     const image = drop.image
         ? `<img src="../assets/${escapeHtml(drop.image)}" alt="" loading="lazy">`
         : "";
+    const openTag = drop.itemId
+        ? `<a class="bestiary-drop" href="../pages/oggetti.html#${escapeHtml(drop.itemId)}">`
+        : '<span class="bestiary-drop">';
+    const closeTag = drop.itemId ? '</a>' : '</span>';
     return `
-        <span class="bestiary-drop">
+        ${openTag}
             ${image}
             <span class="bestiary-drop-text">
                 <strong>${name}</strong>
                 ${rarity}
                 ${note}
             </span>
-        </span>
+        ${closeTag}
     `;
 }
 

@@ -198,6 +198,7 @@
         .items-editor-table .col-name { min-width: 12rem; }
         .items-editor-table .col-image { min-width: 14rem; }
         .items-editor-table .col-medium { min-width: 9rem; }
+        .items-editor-table .col-subtype { min-width: 10rem; }
         .items-editor-table .col-small { min-width: 5rem; }
         .items-editor-table .col-actions { width: 7rem; }
 
@@ -280,6 +281,37 @@
             gap: 0.5rem;
         }
 
+        .items-property-list {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .items-property-row {
+            display: grid;
+            gap: 0.55rem;
+            padding: 0.75rem;
+            border: 1px solid rgba(212, 175, 55, 0.12);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.18);
+        }
+
+        .items-property-row--negative {
+            border-color: rgba(214, 86, 86, 0.34);
+            background: rgba(66, 18, 18, 0.28);
+            box-shadow: inset 0 0 0 1px rgba(214, 86, 86, 0.08);
+        }
+
+        .items-property-row-top {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 5rem auto;
+            gap: 0.45rem;
+            align-items: center;
+        }
+
+        .items-property-row textarea {
+            min-height: 4.5rem;
+        }
+
         .items-editor-output {
             display: grid;
             grid-template-rows: auto auto minmax(0, 1fr);
@@ -327,10 +359,10 @@
                 <div class="items-editor-toolbar">
                     <label class="items-editor-filter-group">
                         <span class="items-editor-status">Cerca</span>
-                        <input class="items-editor-input" id="search-input" type="search" autocomplete="off" placeholder="Nome, tipo, proprietario...">
+                        <input class="items-editor-input" id="search-input" type="search" autocomplete="off" placeholder="Nome, tipo, provenienza...">
                     </label>
                     <div class="items-editor-filter-group">
-                        <select class="items-editor-select" id="rarity-filter" aria-label="Filtro rarita"></select>
+                        <select class="items-editor-select" id="rarity-filter" aria-label="Filtro rarità"></select>
                         <select class="items-editor-select" id="type-filter" aria-label="Filtro tipo"></select>
                     </div>
                 </div>
@@ -342,10 +374,12 @@
                                 <th class="col-name">Nome</th>
                                 <th class="col-image">Immagine</th>
                                 <th class="col-medium">Tipo</th>
-                                <th class="col-medium">Rarita</th>
-                                <th class="col-medium">Proprietario</th>
+                                <th class="col-subtype">Tipo secondario</th>
+                                <th class="col-medium">Rarità</th>
+                                <th class="col-medium">Provenienza</th>
                                 <th class="col-medium">Icona</th>
                                 <th class="col-medium">Status</th>
+                                <th class="col-small">Non ID</th>
                                 <th class="col-small">Sintonia</th>
                                 <th class="col-small">Nascosto</th>
                                 <th class="col-actions">Azioni</th>
@@ -376,8 +410,12 @@
                             <textarea class="items-editor-area" id="field-summary" data-field="summary"></textarea>
                         </div>
                         <div class="items-editor-field">
-                            <label for="field-properties">Proprieta (una per riga)</label>
-                            <textarea class="items-editor-area" id="field-properties" data-list-field="properties" spellcheck="false"></textarea>
+                            <label>Proprietà</label>
+                            <div class="items-property-list" id="property-list"></div>
+                            <button class="items-editor-btn" id="add-property-btn" type="button">
+                                <i class="fas fa-plus" aria-hidden="true"></i>
+                                Aggiungi proprietà
+                            </button>
                         </div>
                         <div class="items-editor-field">
                             <label for="field-notes">Note</label>

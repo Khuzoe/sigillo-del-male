@@ -13,9 +13,11 @@
         'Anello',
         'Bacchetta',
         'Bastone',
+        'Bottino',
         'Oggetto meraviglioso',
         'Pergamena',
         'Pozione',
+        'Scudo',
         'Verga'
     ];
     const RARITY_OPTIONS = [
@@ -23,6 +25,7 @@
         'Comune',
         'Non comune',
         'Raro',
+        'Epico',
         'Molto raro',
         'Leggendario',
         'Artefatto',
@@ -81,7 +84,9 @@
             'rarity-filter',
             'type-filter',
             'items-table-body',
-            'detail-form',
+        'detail-form',
+            'property-list',
+            'add-property-btn',
             'preview-image',
             'preview-name',
             'preview-meta',
@@ -151,6 +156,7 @@
         els.itemsTableBody?.addEventListener('click', handleFilePickClick);
         els.detailForm?.addEventListener('input', handleDetailInput);
         els.detailForm?.addEventListener('change', handleDetailInput);
+        els.detailForm?.addEventListener('click', handleDetailClick);
 
         els.connectJsonBtn?.addEventListener('click', connectJsonFile);
         els.saveJsonBtn?.addEventListener('click', saveJsonToFile);
@@ -326,7 +332,7 @@
 
     function renderFilters() {
         if (els.searchInput) els.searchInput.value = state.query;
-        renderFilterSelect(els.rarityFilter, 'Tutte le rarita', RARITY_OPTIONS, state.rarity);
+        renderFilterSelect(els.rarityFilter, 'Tutte le rarità', RARITY_OPTIONS, state.rarity);
         renderFilterSelect(els.typeFilter, 'Tutti i tipi', TYPE_OPTIONS, state.type);
     }
 
@@ -342,7 +348,7 @@
     function renderTable() {
         const items = getFilteredItems();
         if (!items.length) {
-            els.itemsTableBody.innerHTML = '<tr><td colspan="10">Nessun oggetto corrisponde ai filtri.</td></tr>';
+            els.itemsTableBody.innerHTML = '<tr><td colspan="12">Nessun oggetto corrisponde ai filtri.</td></tr>';
             return;
         }
 
@@ -359,10 +365,12 @@
                     </div>
                 </td>
                 <td>${renderSelect('type', TYPE_OPTIONS.map((value) => [value, value || 'Tipo vuoto']), item.type || '')}</td>
-                <td>${renderSelect('rarity', RARITY_OPTIONS.map((value) => [value, value || 'Rarita vuota']), item.rarity || '')}</td>
+                <td><input class="items-editor-input" data-field="subtype" value="${escapeHtml(item.subtype || '')}" placeholder="Secondario"></td>
+                <td>${renderSelect('rarity', RARITY_OPTIONS.map((value) => [value, value || 'Rarità vuota']), item.rarity || '')}</td>
                 <td><input class="items-editor-input" data-field="owner" value="${escapeHtml(item.owner || '')}"></td>
                 <td><input class="items-editor-input" data-field="icon" value="${escapeHtml(item.icon || '')}"></td>
                 <td>${renderSelect('status', STATUS_OPTIONS, item.status || '')}</td>
+                <td><input type="checkbox" data-field="unidentified" ${item.unidentified === true ? 'checked' : ''}></td>
                 <td><input type="checkbox" data-field="attunement" ${item.attunement === true ? 'checked' : ''}></td>
                 <td><input type="checkbox" data-field="hidden" ${item.hidden === true || item.status === 'hidden' ? 'checked' : ''}></td>
                 <td><button class="items-editor-btn" type="button" data-action="select">Dettagli</button></td>
@@ -382,21 +390,56 @@
 
     function renderDetails() {
         const item = getSelectedItem();
-        const fields = els.detailForm.querySelectorAll('[data-field], [data-list-field]');
+        const fields = els.detailForm.querySelectorAll('[data-field], [data-property-field]');
         fields.forEach((field) => { field.disabled = !item; });
+        if (els.addPropertyBtn) els.addPropertyBtn.disabled = !item;
 
         if (!item) {
             els.previewImage.removeAttribute('src');
             els.previewName.textContent = 'Nessun oggetto';
             els.previewMeta.textContent = 'Aggiungi o seleziona un oggetto.';
             fields.forEach((field) => { field.value = ''; });
+            if (els.propertyList) els.propertyList.innerHTML = '';
             return;
         }
 
         updatePreview();
-        els.detailForm.querySelector('[data-field="summary"]').value = item.summary || '';
-        els.detailForm.querySelector('[data-list-field="properties"]').value = listToText(item.properties);
-        els.detailForm.querySelector('[data-field="notes"]').value = item.notes || '';
+        const summaryField = els.detailForm.querySelector('[data-field="summary"]');
+        if (summaryField) summaryField.value = item.summary || '';
+        renderPropertiesEditor(item);
+        const notesField = els.detailForm.querySelector('[data-field="notes"]');
+        if (notesField) notesField.value = item.notes || '';
+    }
+
+    function renderPropertiesEditor(item) {
+        if (!els.propertyList) return;
+        const properties = normalizeProperties(item.properties, { keepEmpty: true });
+        item.properties = properties;
+        if (!properties.length) {
+            els.propertyList.innerHTML = '<p class="items-editor-status">Nessuna proprietà aggiunta.</p>';
+            return;
+        }
+
+        els.propertyList.innerHTML = properties.map((property, index) => `
+            <div class="items-property-row ${property.negative === true ? 'items-property-row--negative' : ''}" data-property-index="${index}">
+                <div class="items-property-row-top">
+                    <input class="items-editor-input" data-property-field="name" placeholder="Nome" value="${escapeHtml(property.name || '')}">
+                    <input class="items-editor-input" data-property-field="charges" placeholder="Cariche" value="${escapeHtml(property.charges || '')}">
+                    <button class="items-editor-btn items-editor-btn--danger" type="button" data-action="remove-property" title="Rimuovi proprietà">
+                        <i class="fas fa-trash" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <label class="items-editor-check">
+                    <input type="checkbox" data-property-field="negative" ${property.negative === true ? 'checked' : ''}>
+                    Effetto negativo
+                </label>
+                <label class="items-editor-check">
+                    <input type="checkbox" data-property-field="hidden" ${property.hidden === true ? 'checked' : ''}>
+                    Proprietà nascosta
+                </label>
+                <textarea class="items-editor-area" data-property-field="description" placeholder="Descrizione">${escapeHtml(property.description || '')}</textarea>
+            </div>
+        `).join('');
     }
 
     function updatePreview() {
@@ -405,7 +448,11 @@
         els.previewImage.src = `../assets/${item.image || 'img/ui/card.webp'}`;
         els.previewImage.alt = item.name || '';
         els.previewName.textContent = item.name || 'Oggetto senza nome';
-        els.previewMeta.textContent = [item.type || 'Oggetto', item.rarity || 'Rarita ignota'].join(' | ');
+        els.previewMeta.textContent = [
+            formatItemTypeLabel(item),
+            item.rarity || 'Rarità ignota',
+            item.unidentified === true ? 'Non identificato' : ''
+        ].filter(Boolean).join(' | ');
     }
 
     function handleTableClick(event) {
@@ -509,12 +556,24 @@
         if (!item) return;
         const target = event.target;
         const field = target.dataset.field;
-        const listField = target.dataset.listField;
+        const propertyField = target.dataset.propertyField;
 
         if (field) {
             writeItemField(item, field, target.value);
-        } else if (listField) {
-            item[listField] = textToList(target.value);
+        } else if (propertyField) {
+            const row = target.closest('[data-property-index]');
+            const index = Number(row?.dataset.propertyIndex);
+            if (!Number.isInteger(index)) return;
+            item.properties = normalizeProperties(item.properties, { keepEmpty: true });
+            if (!item.properties[index]) item.properties[index] = {};
+            item.properties[index][propertyField] = (propertyField === 'negative' || propertyField === 'hidden')
+                ? target.checked === true
+                : String(target.value || '').trim();
+            updatePreview();
+            if (propertyField === 'negative' || propertyField === 'hidden') renderPropertiesEditor(item);
+            updateOutput();
+            setStatus('Modifiche non salvate esportate nel JSON.');
+            return;
         }
 
         pruneItem(item);
@@ -523,22 +582,56 @@
         setStatus('Modifiche non salvate esportate nel JSON.');
     }
 
+    function handleDetailClick(event) {
+        const item = getSelectedItem();
+        if (!item) return;
+
+        if (event.target.closest('#add-property-btn')) {
+            item.properties = normalizeProperties(item.properties, { keepEmpty: true });
+            item.properties.push({ name: '', charges: '', description: '' });
+            renderPropertiesEditor(item);
+            updateOutput();
+            setStatus('Proprietà aggiunta.');
+            return;
+        }
+
+        const removeButton = event.target.closest('[data-action="remove-property"]');
+        if (!removeButton) return;
+        const row = removeButton.closest('[data-property-index]');
+        const index = Number(row?.dataset.propertyIndex);
+        if (!Number.isInteger(index)) return;
+        item.properties = normalizeProperties(item.properties, { keepEmpty: true });
+        item.properties.splice(index, 1);
+        pruneItem(item);
+        renderPropertiesEditor(item);
+        updateOutput();
+        setStatus('Proprietà rimossa.');
+    }
+
     function getFilteredItems() {
         const query = normalizeSearch(state.query);
         return state.items
             .map((item, index) => ({ item, index }))
             .filter(({ item }) => {
+                const searchableProperties = item.unidentified === true
+                    ? []
+                    : normalizeProperties(item.properties).filter((property) => property.hidden !== true);
                 if (state.rarity !== 'all' && (item.rarity || '') !== state.rarity) return false;
                 if (state.type !== 'all' && (item.type || '') !== state.type) return false;
                 if (!query) return true;
                 return normalizeSearch([
                     item.name,
                     item.type,
+                    item.subtype,
                     item.rarity,
                     item.owner,
                     item.summary,
                     item.notes,
-                    ...(Array.isArray(item.properties) ? item.properties : [])
+                    ...searchableProperties.flatMap((property) => [
+                        property.name,
+                        property.charges,
+                        property.description
+                    ])
                 ].filter(Boolean).join(' ')).includes(query);
             });
     }
@@ -552,7 +645,9 @@
             id: uniqueId('nuovo-oggetto'),
             name: 'Nuovo Oggetto',
             type: 'Oggetto meraviglioso',
+            subtype: '',
             rarity: 'Sconosciuta',
+            unidentified: false,
             attunement: false,
             image: 'img/items/nuovo_oggetto.webp',
             icon: 'fa-wand-sparkles',
@@ -565,6 +660,10 @@
     function writeItemField(item, field, value) {
         if (field === 'attunement') {
             item.attunement = value === true ? true : undefined;
+            return;
+        }
+        if (field === 'unidentified') {
+            item.unidentified = value === true ? true : undefined;
             return;
         }
         if (field === 'hidden') {
@@ -581,13 +680,14 @@
     }
 
     function pruneItem(item) {
-        ['id', 'name', 'type', 'rarity', 'owner', 'status', 'icon', 'image', 'summary', 'notes'].forEach((key) => {
+        ['id', 'name', 'type', 'subtype', 'rarity', 'owner', 'status', 'icon', 'image', 'summary', 'notes'].forEach((key) => {
             if (item[key] === undefined || item[key] === '') delete item[key];
         });
         if (item.attunement !== true) delete item.attunement;
+        if (item.unidentified !== true) delete item.unidentified;
         if (item.hidden !== true) delete item.hidden;
-        if (!Array.isArray(item.properties)) item.properties = [];
-        item.properties = item.properties.filter(Boolean);
+        item.properties = normalizeProperties(item.properties);
+        if (item.properties.length === 0) delete item.properties;
     }
 
     function updateOutput({ commitActive = true } = {}) {
@@ -647,14 +747,25 @@
         setStatus('Export JSON scaricato.');
     }
 
-    function listToText(value) {
-        return Array.isArray(value) ? value.join('\n') : '';
-    }
-
-    function textToList(value) {
-        return String(value || '')
-            .split(/\n|,/)
-            .map((item) => item.trim())
+    function normalizeProperties(properties, { keepEmpty = false } = {}) {
+        if (!Array.isArray(properties)) return [];
+        return properties
+            .map((property) => {
+                if (typeof property === 'string') {
+                    const description = property.trim();
+                    return description ? { name: '', charges: '', description } : null;
+                }
+                if (!property || typeof property !== 'object') return null;
+                const normalized = {
+                    name: String(property.name || '').trim(),
+                    charges: String(property.charges || '').trim(),
+                    description: String(property.description || '').trim()
+                };
+                if (property.negative === true) normalized.negative = true;
+                if (property.hidden === true) normalized.hidden = true;
+                if (normalized.name || normalized.charges || normalized.description) return normalized;
+                return keepEmpty ? normalized : null;
+            })
             .filter(Boolean);
     }
 
@@ -666,22 +777,26 @@
     function normalizeImagePathForData(value) {
         const path = String(value || '').trim().replace(/\\/g, '/');
         if (!path) return '';
-        const webpPath = path.replace(/\.(png|jpe?g)$/i, '.webp');
-        if (webpPath.startsWith('assets/')) return webpPath.slice('assets/'.length);
-        if (webpPath.startsWith('img/')) return webpPath;
-        return `${ITEM_IMAGE_PREFIX}${webpPath}`;
+        if (path.startsWith('assets/')) return path.slice('assets/'.length);
+        if (path.startsWith('img/')) return path;
+        return `${ITEM_IMAGE_PREFIX}${path}`;
     }
 
     function normalizeAssetPath(file) {
         const rawPath = String(file?.webkitRelativePath || file?.name || '').replace(/\\/g, '/');
-        const webpPath = rawPath.replace(/\.(png|jpe?g)$/i, '.webp');
         const assetsIndex = rawPath.indexOf('assets/');
-        if (assetsIndex >= 0) return webpPath.slice(assetsIndex + 'assets/'.length);
+        if (assetsIndex >= 0) return rawPath.slice(assetsIndex + 'assets/'.length);
         const itemsIndex = rawPath.indexOf('img/items/');
-        if (itemsIndex >= 0) return webpPath.slice(itemsIndex);
+        if (itemsIndex >= 0) return rawPath.slice(itemsIndex);
         const imgIndex = rawPath.indexOf('img/');
-        if (imgIndex >= 0) return webpPath.slice(imgIndex);
-        return `${ITEM_IMAGE_PREFIX}${webpPath.split('/').pop()}`;
+        if (imgIndex >= 0) return rawPath.slice(imgIndex);
+        return `${ITEM_IMAGE_PREFIX}${rawPath.split('/').pop()}`;
+    }
+
+    function formatItemTypeLabel(item) {
+        const type = String(item?.type || 'Oggetto').trim() || 'Oggetto';
+        const subtype = String(item?.subtype || '').trim();
+        return subtype ? `${type} (${subtype})` : type;
     }
 
     function uniqueId(base) {
