@@ -612,6 +612,7 @@
                 url.searchParams.set("page", NOTES_PAGE_ID);
                 if (state.isDm && state.ownerDiscordId !== state.currentDiscordId) {
                     url.searchParams.set("ownerDiscordId", state.ownerDiscordId);
+                    url.searchParams.set("targetDiscordId", state.ownerDiscordId);
                 }
 
                 const response = await fetch(url.toString(), {
@@ -620,6 +621,10 @@
                 });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
+                const responseOwner = String(data?.note?.ownerDiscordId || "").trim();
+                if (responseOwner && responseOwner !== state.ownerDiscordId) {
+                    throw new Error(`Owner appunti inatteso: ${responseOwner}`);
+                }
                 return parseRemoteNoteContent(data?.note?.content || "");
             } catch (error) {
                 console.error("Errore caricamento appunti remoti:", error);
@@ -654,7 +659,10 @@
                     page: NOTES_PAGE_ID,
                     content: payload,
                     ...(state.isDm && state.ownerDiscordId !== state.currentDiscordId
-                        ? { ownerDiscordId: state.ownerDiscordId }
+                        ? {
+                            ownerDiscordId: state.ownerDiscordId,
+                            targetDiscordId: state.ownerDiscordId
+                        }
                         : {})
                 })
             });
