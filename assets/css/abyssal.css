@@ -6417,15 +6417,23 @@ body.page-appunti .hero-mini {
 .notes-tag-filters {
     display: flex;
     flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: flex-start;
+    align-content: flex-start;
     gap: 0.35rem;
-    min-height: 1.7rem;
+}
+
+.notes-tag-filters[hidden] {
+    display: none;
 }
 
 .notes-tag-filter {
     display: inline-flex;
     align-items: center;
+    flex: 0 0 auto;
     gap: 0.32rem;
     min-height: 1.55rem;
+    max-width: 100%;
     padding: 0.2rem 0.45rem;
     border: 1px solid rgba(212, 175, 55, 0.14);
     border-radius: 999px;
@@ -6435,6 +6443,14 @@ body.page-appunti .hero-mini {
     font-size: 0.66rem;
     font-weight: 800;
     cursor: pointer;
+}
+
+.notes-tag-filter span {
+    min-width: 0;
+    max-width: 9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .notes-tag-filter em {
