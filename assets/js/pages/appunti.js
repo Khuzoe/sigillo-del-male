@@ -15,7 +15,7 @@
         notes: [],
         selectedId: "",
         query: "",
-        linkTypeFilter: "all",
+        linkFilter: "",
         dirty: false,
         saveTimer: null,
         pickerType: "",
@@ -54,7 +54,7 @@
         ]);
 
         window.setInterval(() => {
-            if (state.dirty) saveNow();
+            if (state.dirty && canWriteNotes()) saveNow();
         }, PERIODIC_SAVE_MS);
     }
 
@@ -94,14 +94,16 @@
             if (!state.isDm) return;
             const nextOwner = String(els.notesOwnerSelect.value || "").trim();
             if (!nextOwner || nextOwner === state.ownerDiscordId) return;
-            if (state.dirty) await saveNow();
+            if (state.dirty && canWriteNotes()) await saveNow();
             state.ownerDiscordId = nextOwner;
+            state.linkFilter = "";
             await loadNotesForCurrentOwner();
         });
 
         els.notesSearch?.addEventListener("input", (event) => {
             if (!canUseNotes()) return;
             state.query = event.target.value.trim();
+            state.linkFilter = "";
             renderNotesList();
         });
 
@@ -109,7 +111,7 @@
             if (!canUseNotes()) return;
             const button = event.target.closest("[data-note-link-filter]");
             if (!button) return;
-            state.linkTypeFilter = button.dataset.noteLinkFilter || "all";
+            state.linkFilter = button.dataset.noteLinkFilter || "";
             renderNotesList();
         });
 
@@ -117,13 +119,13 @@
             if (!canUseNotes()) return;
             const button = event.target.closest("[data-note-id]");
             if (!button) return;
-            commitEditorToState({ touch: false });
+            if (canWriteNotes()) commitEditorToState({ touch: false });
             state.selectedId = button.dataset.noteId;
             renderAll();
         });
 
         els.noteTitle?.addEventListener("input", () => {
-            if (!canUseNotes()) return;
+            if (!canWriteNotes()) return;
             const note = getSelectedNote();
             if (!note) return;
             note.title = els.noteTitle.value.trim();
@@ -132,7 +134,7 @@
         });
 
         els.noteShared?.addEventListener("change", () => {
-            if (!canUseNotes()) return;
+            if (!canWriteNotes()) return;
             const note = getSelectedNote();
             if (!note) return;
             note.shared = els.noteShared.checked;
@@ -141,7 +143,7 @@
         });
 
         els.noteEditor?.addEventListener("input", () => {
-            if (!canUseNotes()) return;
+            if (!canWriteNotes()) return;
             const note = getSelectedNote();
             if (!note) return;
             note.html = sanitizeNoteHtml(els.noteEditor.innerHTML);
@@ -151,7 +153,7 @@
 
         document.querySelectorAll("[data-format-command]").forEach((button) => {
             button.addEventListener("click", () => {
-                if (!canUseNotes()) return;
+                if (!canWriteNotes()) return;
                 els.noteEditor?.focus();
                 document.execCommand(button.dataset.formatCommand, false, button.dataset.formatValue || null);
                 const note = getSelectedNote();
@@ -166,7 +168,7 @@
         });
 
         els.noteLinks?.addEventListener("click", (event) => {
-            if (!canUseNotes()) return;
+            if (!canWriteNotes()) return;
             const button = event.target.closest("[data-remove-link]");
             if (!button) return;
             const note = getSelectedNote();
@@ -204,6 +206,7 @@
         state.dirty = false;
         window.clearTimeout(state.saveTimer);
         setEditorEnabled(false);
+        if (els.notesSearch) els.notesSearch.disabled = true;
         setStatus("Login richiesto", "error");
         if (els.notesList) {
             els.notesList.innerHTML = '<p class="notes-empty">Accedi con Discord per leggere e scrivere i tuoi appunti.</p>';
@@ -232,13 +235,14 @@
     async function loadNotesForCurrentOwner() {
         setEditorEnabled(false);
         setStatus("Caricamento...");
+        if (els.notesSearch) els.notesSearch.disabled = false;
         state.notes = normalizeNotes(await notesStore.load());
         if (!state.notes.length) state.notes = [createNote()];
         state.selectedId = state.notes[0].id;
         state.dirty = false;
         renderAll();
         renderOwnerSelector();
-        setStatus(state.isDm && state.ownerDiscordId !== state.currentDiscordId ? "Pronto DM" : "Pronto");
+        setStatus(state.isDm && state.ownerDiscordId !== state.currentDiscordId ? "Sola lettura DM" : "Pronto");
     }
 
     function renderNotesList() {
@@ -249,13 +253,17 @@
                 return normalizeText([note.title, htmlToText(note.html), ...(note.links || []).map((link) => link.label)].join(" ")).includes(query);
             });
 
-        renderNoteTagFilters(queryMatchedNotes);
+        const availableFilters = getAvailableNoteLinkFilters(queryMatchedNotes);
+        if (state.linkFilter && !availableFilters.some((filter) => filter.key === state.linkFilter)) {
+            state.linkFilter = "";
+        }
+        renderNoteTagFilters(availableFilters);
 
         const notes = queryMatchedNotes
             .filter((note) => {
-                if (state.linkTypeFilter === "all") return true;
-                if (state.linkTypeFilter === "shared") return note.shared === true;
-                return (note.links || []).some((link) => link.type === state.linkTypeFilter);
+                if (!state.linkFilter) return true;
+                if (state.linkFilter === "shared") return note.shared === true;
+                return (note.links || []).some((link) => link.key === state.linkFilter);
             })
             .sort(compareNotesForList);
 
@@ -273,35 +281,44 @@
         `).join("");
     }
 
-    function renderNoteTagFilters(notes) {
-        if (!els.notesTagFilters) return;
-        const counts = new Map();
+    function getAvailableNoteLinkFilters(notes) {
+        const query = normalizeText(state.query);
+        if (!query) return [];
+        const byKey = new Map();
         notes.forEach((note) => {
-            if (note.shared === true) counts.set("shared", (counts.get("shared") || 0) + 1);
+            if (note.shared === true) {
+                byKey.set("shared", { key: "shared", label: "Condivisi", count: (byKey.get("shared")?.count || 0) + 1 });
+            }
             (note.links || []).forEach((link) => {
-                if (!link.type) return;
-                counts.set(link.type, (counts.get(link.type) || 0) + 1);
+                if (!link.key || !link.label) return;
+                const current = byKey.get(link.key) || { key: link.key, label: link.label, type: link.type, count: 0 };
+                current.count += 1;
+                byKey.set(link.key, current);
             });
         });
+        return [...byKey.values()].sort((a, b) => String(a.label || "").localeCompare(String(b.label || ""), "it", { sensitivity: "base" }));
+    }
 
-        const filters = [
-            { type: "all", label: "Tutti", count: notes.length },
-            ...["npc", "player", "creature", "item", "shared"]
-                .filter((type) => counts.has(type))
-                .map((type) => ({ type, label: getEntityTypeLabel(type), count: counts.get(type) }))
-        ];
+    function renderNoteTagFilters(filters) {
+        if (!els.notesTagFilters) return;
+        if (!filters.length) {
+            els.notesTagFilters.innerHTML = "";
+            els.notesTagFilters.hidden = true;
+            return;
+        }
 
         els.notesTagFilters.innerHTML = filters.map((filter) => `
-            <button class="notes-tag-filter ${state.linkTypeFilter === filter.type ? "is-active" : ""}" type="button" data-note-link-filter="${escapeHtml(filter.type)}">
+            <button class="notes-tag-filter notes-tag-filter--${escapeHtml(filter.type || "tag")} ${state.linkFilter === filter.key ? "is-active" : ""}" type="button" data-note-link-filter="${escapeHtml(filter.key)}">
                 <span>${escapeHtml(filter.label)}</span>
                 <em>${escapeHtml(filter.count)}</em>
             </button>
         `).join("");
+        els.notesTagFilters.hidden = false;
     }
 
     function renderEditor() {
         const note = getSelectedNote();
-        setEditorEnabled(Boolean(note));
+        setEditorEnabled(Boolean(note) && canWriteNotes());
         if (!note) return;
         els.noteTitle.value = note.title || "";
         if (els.noteShared) els.noteShared.checked = note.shared === true;
@@ -331,7 +348,7 @@
     }
 
     function createAndSelectNote() {
-        if (!canUseNotes()) return;
+        if (!canWriteNotes()) return;
         commitEditorToState({ touch: false });
         const note = createNote();
         state.notes.unshift(note);
@@ -342,7 +359,7 @@
     }
 
     function duplicateSelectedNote() {
-        if (!canUseNotes()) return;
+        if (!canWriteNotes()) return;
         const note = getSelectedNote();
         if (!note) return;
         commitEditorToState({ touch: false });
@@ -361,7 +378,7 @@
     }
 
     function deleteSelectedNote() {
-        if (!canUseNotes()) return;
+        if (!canWriteNotes()) return;
         const note = getSelectedNote();
         if (!note) return;
         const confirmed = window.confirm(`Eliminare "${note.title || "Appunto senza titolo"}"?`);
@@ -383,7 +400,7 @@
     }
 
     function markDirty() {
-        if (!canUseNotes()) return;
+        if (!canWriteNotes()) return;
         const note = getSelectedNote();
         if (note) note.updatedAt = new Date().toISOString();
         state.dirty = true;
@@ -393,7 +410,7 @@
     }
 
     async function saveNow() {
-        if (!canUseNotes()) return;
+        if (!canWriteNotes()) return;
         window.clearTimeout(state.saveTimer);
         commitEditorToState({ touch: false });
         try {
@@ -410,7 +427,7 @@
     }
 
     function openPicker(type) {
-        if (!canUseNotes()) return;
+        if (!canWriteNotes()) return;
         state.pickerType = type;
         const titleMap = {
             npc: "Collega NPC",
@@ -457,7 +474,7 @@
     }
 
     function attachEntity(key) {
-        if (!canUseNotes()) return;
+        if (!canWriteNotes()) return;
         const note = getSelectedNote();
         if (!note) return;
         const entry = Object.values(state.entities).flat().find((item) => item.key === key);
@@ -550,7 +567,6 @@
     function setEditorEnabled(enabled) {
         [
             els.noteNewBtn,
-            els.notesSearch,
             els.noteShared,
             els.noteTitle,
             els.noteDuplicateBtn,
@@ -716,7 +732,7 @@
             }
         },
         async save(notes) {
-            if (!state.ownerDiscordId) {
+            if (!canWriteNotes()) {
                 throw new Error("Login richiesto");
             }
 
@@ -838,6 +854,10 @@
 
     function canUseNotes() {
         return Boolean(state.ownerDiscordId);
+    }
+
+    function canWriteNotes() {
+        return Boolean(state.ownerDiscordId) && state.ownerDiscordId === state.currentDiscordId;
     }
 
     function getApiBase() {
