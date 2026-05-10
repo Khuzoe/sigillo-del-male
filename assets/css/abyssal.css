@@ -6284,11 +6284,12 @@ body.page-appunti .hero-mini {
 }
 
 .notes-owner-field {
-    display: grid;
-    gap: 0.35rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     color: rgba(232, 219, 188, 0.58);
     font-family: var(--font-ui);
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-weight: 800;
     text-transform: uppercase;
 }
@@ -6298,15 +6299,21 @@ body.page-appunti .hero-mini {
 }
 
 .notes-owner-field select {
-    width: 100%;
-    min-height: 2.15rem;
+    min-width: 0;
+    flex: 1;
+    min-height: 1.85rem;
     border: 1px solid rgba(212, 175, 55, 0.18);
     border-radius: 6px;
-    background: rgba(0, 0, 0, 0.24);
-    color: var(--text-main);
+    background-color: #151211;
+    color: #eadcbd;
     font-family: var(--font-ui);
-    font-size: 0.82rem;
+    font-size: 0.76rem;
     outline: 0;
+}
+
+.notes-owner-field option {
+    background-color: #151211;
+    color: #eadcbd;
 }
 
 .notes-search i {
