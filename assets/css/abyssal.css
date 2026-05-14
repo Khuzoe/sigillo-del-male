@@ -6609,6 +6609,42 @@ body.page-appunti .hero-mini {
     min-height: 3.15rem;
 }
 
+.notes-merged-filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.notes-merged-author-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 1.9rem;
+    padding: 0.28rem 0.58rem;
+    border: 1px solid rgba(212, 175, 55, 0.24);
+    border-radius: 999px;
+    background: rgba(212, 175, 55, 0.1);
+    color: var(--ink-ivory);
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.notes-merged-author-filter em {
+    color: rgba(212, 175, 55, 0.72);
+    font-size: 0.62rem;
+    font-style: normal;
+    text-transform: uppercase;
+}
+
+.notes-merged-author-filter.is-muted {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.16);
+    color: rgba(232, 219, 188, 0.48);
+}
+
 .notes-entity-chip {
     display: inline-flex;
     align-items: center;
@@ -6726,6 +6762,47 @@ body.page-appunti .hero-mini {
     color: rgba(232, 219, 188, 0.72);
 }
 
+.notes-merged-author-block {
+    margin: 0 0 1rem;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+}
+
+.notes-merged-author-heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    align-items: baseline;
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(212, 175, 55, 0.08);
+    font-family: var(--font-ui);
+    line-height: 1.25;
+}
+
+.notes-merged-author-heading strong {
+    color: var(--gold);
+    font-size: 0.78rem;
+}
+
+.notes-merged-author-heading span {
+    color: rgba(232, 219, 188, 0.56);
+    font-size: 0.68rem;
+    font-weight: 800;
+}
+
+.notes-merged-author-body {
+    padding: 0.75rem 0.85rem 0.2rem;
+}
+
+.notes-merged-empty {
+    color: rgba(232, 219, 188, 0.58);
+    font-family: var(--font-ui);
+    font-size: 0.84rem;
+}
+
 .notes-editor-footer {
     border-top: 1px solid rgba(255, 255, 255, 0.06);
     border-bottom: 0;
@@ -6767,6 +6844,34 @@ body.page-appunti .hero-mini {
     border-radius: 8px;
     background: var(--surface-panel);
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.62);
+}
+
+.notes-login-card {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 0.85rem;
+    width: min(28rem, 92vw);
+    padding: 1rem;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 8px;
+    background: var(--surface-panel);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.62);
+}
+
+.notes-login-card p {
+    margin: 0;
+    color: rgba(232, 219, 188, 0.76);
+    font-family: var(--font-ui);
+    font-size: 0.86rem;
+    line-height: 1.45;
+}
+
+.notes-login-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    justify-content: flex-end;
 }
 
 .notes-picker-header {

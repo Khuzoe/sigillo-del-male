@@ -139,6 +139,28 @@
         </section>
     </div>
 
+    <div id="notes-login-modal" class="notes-picker-modal notes-login-modal" hidden>
+        <button class="notes-picker-backdrop" type="button" data-close-notes-login aria-label="Chiudi"></button>
+        <section class="notes-login-card" role="dialog" aria-modal="true" aria-labelledby="notes-login-title">
+            <header class="notes-picker-header">
+                <h2 id="notes-login-title">Login richiesto</h2>
+                <button class="notes-icon-btn" type="button" data-close-notes-login aria-label="Chiudi">
+                    <i class="fas fa-xmark" aria-hidden="true"></i>
+                </button>
+            </header>
+            <p>Vuoi accedere con Discord per leggere e modificare i tuoi appunti?</p>
+            <div class="notes-login-actions">
+                <button class="notes-command notes-command--primary" type="button" data-notes-login>
+                    <i class="fab fa-discord" aria-hidden="true"></i>
+                    <span>Accedi</span>
+                </button>
+                <button class="notes-command" type="button" data-close-notes-login>
+                    <span>Non ora</span>
+                </button>
+            </div>
+        </section>
+    </div>
+
     <script src="../assets/js/spoiler-policy.js"></script>
     <script src="../assets/js/layout.js"></script>
     <script src="../assets/js/pages/appunti.js"></script>
