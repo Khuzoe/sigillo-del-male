@@ -19,6 +19,7 @@
         dirty: false,
         saveTimer: null,
         pickerType: "",
+        mergedHiddenAuthors: new Set(),
         entities: {
             npc: [],
             player: [],
@@ -42,6 +43,7 @@
         state.ownerDiscordId = state.currentDiscordId;
         if (!state.currentDiscordId) {
             renderLoggedOutState();
+            openLoginPrompt();
             return;
         }
 
@@ -78,7 +80,8 @@
             "notes-picker-modal",
             "notes-picker-title",
             "notes-picker-search",
-            "notes-picker-results"
+            "notes-picker-results",
+            "notes-login-modal"
         ].forEach((id) => {
             els[toCamel(id)] = document.getElementById(id);
         });
@@ -174,6 +177,12 @@
         });
 
         els.noteLinks?.addEventListener("click", (event) => {
+            const authorToggle = event.target.closest("[data-merged-author-toggle]");
+            if (authorToggle) {
+                toggleMergedAuthor(authorToggle.dataset.mergedAuthorToggle || "");
+                return;
+            }
+
             if (!canWriteSelectedNote()) return;
             const button = event.target.closest("[data-remove-link]");
             if (!button) return;
@@ -198,8 +207,19 @@
             button.addEventListener("click", closePicker);
         });
 
+        document.querySelectorAll("[data-close-notes-login]").forEach((button) => {
+            button.addEventListener("click", closeLoginPrompt);
+        });
+
+        document.querySelectorAll("[data-notes-login]").forEach((button) => {
+            button.addEventListener("click", () => {
+                window.location.href = `${getApiBase()}/auth/discord/login`;
+            });
+        });
+
         document.addEventListener("keydown", (event) => {
             if (event.key === "Escape" && els.notesPickerModal && !els.notesPickerModal.hidden) closePicker();
+            if (event.key === "Escape" && els.notesLoginModal && !els.notesLoginModal.hidden) closeLoginPrompt();
         });
     }
 
@@ -331,11 +351,36 @@
         if (!note) return;
         els.noteTitle.value = note.title || "";
         if (els.noteShared) els.noteShared.checked = note.shared === true;
-        els.noteEditor.innerHTML = note.html || NOTE_PLACEHOLDER;
-        renderLinks(note);
+        els.noteEditor.innerHTML = note.virtual === true
+            ? renderMergedSharedNoteHtml(note)
+            : note.html || NOTE_PLACEHOLDER;
+        if (note.virtual === true) renderMergedAuthorFilters(note);
+        else renderLinks(note);
         els.noteUpdatedAt.textContent = note.virtual === true
             ? "Vista unita degli appunti condivisi"
             : `Ultima modifica: ${formatDateTime(note.updatedAt)}`;
+    }
+
+    function renderMergedAuthorFilters(note) {
+        const authors = Array.isArray(note.mergedAuthors) ? note.mergedAuthors : [];
+        if (!authors.length) {
+            els.noteLinks.innerHTML = '<p class="notes-link-empty">Nessun autore collegato.</p>';
+            return;
+        }
+
+        els.noteLinks.innerHTML = `
+            <div class="notes-merged-filter-bar" aria-label="Filtri autori appunto unito">
+                ${authors.map((author) => {
+                    const hidden = state.mergedHiddenAuthors.has(author.id);
+                    return `
+                        <button class="notes-merged-author-filter ${hidden ? "is-muted" : "is-active"}" type="button" data-merged-author-toggle="${escapeHtml(author.id)}">
+                            <span>${escapeHtml(author.name)}</span>
+                            <em>${hidden ? "nascosto" : "visibile"}</em>
+                        </button>
+                    `;
+                }).join("")}
+            </div>
+        `;
     }
 
     function renderLinks(note) {
@@ -462,6 +507,14 @@
     function closePicker() {
         els.notesPickerModal.hidden = true;
         state.pickerType = "";
+    }
+
+    function openLoginPrompt() {
+        if (els.notesLoginModal) els.notesLoginModal.hidden = false;
+    }
+
+    function closeLoginPrompt() {
+        if (els.notesLoginModal) els.notesLoginModal.hidden = true;
     }
 
     function renderPickerResults() {
@@ -784,27 +837,63 @@
         const title = tagLabels.length
             ? `Appunto condiviso: ${tagLabels.join(", ")}`
             : "Appunto condiviso unito";
+        const sourceNotes = notes.map((note) => ({
+            ...note,
+            authorKey: getNormalizedNoteOwner(note),
+            authorName: note.authorUsername || note.ownerUsername || getOwnerNameById(getNormalizedNoteOwner(note)) || "Utente"
+        }));
+        const authorsById = new Map();
+        sourceNotes.forEach((note) => {
+            if (!authorsById.has(note.authorKey)) {
+                authorsById.set(note.authorKey, {
+                    id: note.authorKey,
+                    name: note.authorName
+                });
+            }
+        });
 
         return {
             id: `shared-merged:${signature}`,
             title,
-            html: mergeSharedNotesHtml(notes),
+            html: "",
             links: notes.reduce((links, note) => mergeNoteLinks(links, note.links), []),
             shared: true,
             virtual: true,
+            sourceNotes,
+            mergedAuthors: [...authorsById.values()].sort((a, b) => a.name.localeCompare(b.name, "it", { sensitivity: "base" })),
             createdAt: notes.map((note) => note.createdAt || "").sort()[0] || "",
             updatedAt: notes.map((note) => note.updatedAt || "").sort().pop() || ""
         };
     }
 
-    function mergeSharedNotesHtml(notes) {
+    function renderMergedSharedNoteHtml(note) {
+        const notes = Array.isArray(note.sourceNotes) ? note.sourceNotes : [];
         const blocks = notes
+            .filter((sourceNote) => !state.mergedHiddenAuthors.has(sourceNote.authorKey))
             .filter((note) => htmlToText(note.html || ""))
             .map((note) => {
-                const author = note.authorUsername || note.ownerUsername || getOwnerNameById(getNormalizedNoteOwner(note)) || "Utente";
-                return `<p><strong>${escapeHtml(author)}</strong></p>${sanitizeNoteHtml(note.html || "")}`;
+                const title = note.title && note.title !== "Nuovo appunto"
+                    ? `<span>${escapeHtml(note.title)}</span>`
+                    : "";
+                return `
+                    <div class="notes-merged-author-block">
+                        <div class="notes-merged-author-heading">
+                            <strong>${escapeHtml(note.authorName || "Utente")}</strong>
+                            ${title}
+                        </div>
+                        <div class="notes-merged-author-body">${sanitizeNoteHtml(note.html || "")}</div>
+                    </div>
+                `;
             });
-        return blocks.length ? sanitizeNoteHtml(blocks.join("<p><br></p>")) : NOTE_PLACEHOLDER;
+        return blocks.length ? blocks.join("") : '<p class="notes-merged-empty">Tutte le parti sono nascoste.</p>';
+    }
+
+    function toggleMergedAuthor(authorKey) {
+        const key = String(authorKey || "").trim();
+        if (!key) return;
+        if (state.mergedHiddenAuthors.has(key)) state.mergedHiddenAuthors.delete(key);
+        else state.mergedHiddenAuthors.add(key);
+        renderEditor();
     }
 
     function getNormalizedNoteOwner(note) {
