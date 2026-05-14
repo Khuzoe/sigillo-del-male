@@ -363,8 +363,9 @@
 
     function renderMergedAuthorFilters(note) {
         const authors = Array.isArray(note.mergedAuthors) ? note.mergedAuthors : [];
+        const linksHtml = renderLinksMarkup(note, { removable: false });
         if (!authors.length) {
-            els.noteLinks.innerHTML = '<p class="notes-link-empty">Nessun autore collegato.</p>';
+            els.noteLinks.innerHTML = linksHtml || '<p class="notes-link-empty">Nessun collegamento.</p>';
             return;
         }
 
@@ -380,6 +381,7 @@
                     `;
                 }).join("")}
             </div>
+            ${linksHtml ? `<div class="notes-merged-link-row">${linksHtml}</div>` : ""}
         `;
     }
 
@@ -391,13 +393,21 @@
             return;
         }
 
-        els.noteLinks.innerHTML = links.map((link) => `
+        els.noteLinks.innerHTML = renderLinksMarkup(note, { removable: canEditLinks });
+    }
+
+    function renderLinksMarkup(note, options = {}) {
+        const links = Array.isArray(note.links) ? note.links : [];
+        const { removable = false } = options;
+        if (!links.length) return "";
+
+        return links.map((link) => `
             <span class="notes-entity-chip notes-entity-chip--${escapeHtml(link.type)}">
                 <a href="${escapeHtml(link.url || "#")}" title="Apri ${escapeHtml(link.label)}">
                     ${renderEntityThumb(link)}
                     <span>${escapeHtml(link.label)}</span>
                 </a>
-                <button type="button" data-remove-link="${escapeHtml(link.key)}" aria-label="Rimuovi collegamento ${escapeHtml(link.label)}" ${canEditLinks ? "" : "disabled"}>
+                <button type="button" data-remove-link="${escapeHtml(link.key)}" aria-label="Rimuovi collegamento ${escapeHtml(link.label)}" ${removable ? "" : "disabled"}>
                     <i class="fas fa-xmark" aria-hidden="true"></i>
                 </button>
             </span>
