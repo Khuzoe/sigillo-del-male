@@ -6614,6 +6614,7 @@ body.page-appunti .hero-mini {
     flex-wrap: wrap;
     gap: 0.4rem;
     align-items: center;
+    width: 100%;
 }
 
 .notes-merged-author-filter {
@@ -6643,6 +6644,14 @@ body.page-appunti .hero-mini {
     border-color: rgba(255, 255, 255, 0.1);
     background: rgba(0, 0, 0, 0.16);
     color: rgba(232, 219, 188, 0.48);
+}
+
+.notes-merged-link-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    align-items: center;
+    width: 100%;
 }
 
 .notes-entity-chip {
