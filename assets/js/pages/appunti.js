@@ -142,8 +142,10 @@
             const note = getSelectedNote();
             if (!note) return;
             note.shared = els.noteShared.checked;
+            const merged = promptDuplicateTagMerge(note);
             markDirty();
-            renderNotesList();
+            if (merged) renderAll();
+            else renderNotesList();
         });
 
         els.noteEditor?.addEventListener("input", () => {
@@ -253,7 +255,8 @@
 
     function renderNotesList() {
         const query = normalizeText(state.query);
-        const queryMatchedNotes = state.notes
+        const visibleNotes = getVisibleNotesForCurrentUser();
+        const queryMatchedNotes = visibleNotes
             .filter((note) => {
                 if (!query) return true;
                 return normalizeText([note.title, htmlToText(note.html), ...(note.links || []).map((link) => link.label)].join(" ")).includes(query);
@@ -330,7 +333,9 @@
         if (els.noteShared) els.noteShared.checked = note.shared === true;
         els.noteEditor.innerHTML = note.html || NOTE_PLACEHOLDER;
         renderLinks(note);
-        els.noteUpdatedAt.textContent = `Ultima modifica: ${formatDateTime(note.updatedAt)}`;
+        els.noteUpdatedAt.textContent = note.virtual === true
+            ? "Vista unita degli appunti condivisi"
+            : `Ultima modifica: ${formatDateTime(note.updatedAt)}`;
     }
 
     function renderLinks(note) {
@@ -509,20 +514,22 @@
     }
 
     function promptDuplicateTagMerge(sourceNote) {
-        if (!canWriteNotes() || !sourceNote || sourceNote.shared === true) return false;
+        if (!canWriteNotes() || !sourceNote || !isNoteOwnedByCurrentUser(sourceNote) || sourceNote.virtual === true) return false;
         const signature = getNoteTagSignature(sourceNote);
         if (!signature) return false;
 
         const targetNote = state.notes.find((note) => (
             note.id !== sourceNote.id
-            && note.shared !== true
+            && note.shared === sourceNote.shared
+            && isNoteOwnedByCurrentUser(note)
             && getNoteTagSignature(note) === signature
         ));
         if (!targetNote) return false;
 
         const tagNames = getNoteTagLabels(sourceNote).join(", ");
+        const scope = sourceNote.shared === true ? "condiviso" : "non condiviso";
         const confirmed = window.confirm(
-            `Esiste gia un blocco appunti non condiviso con gli stessi tag (${tagNames}). Vuoi unificarli?`
+            `Esiste gia un blocco appunti ${scope} tuo con gli stessi tag (${tagNames}). Vuoi unificarli?`
         );
         if (!confirmed) return false;
 
@@ -731,7 +738,73 @@
     }
 
     function getSelectedNote() {
-        return state.notes.find((note) => note.id === state.selectedId) || null;
+        return state.notes.find((note) => note.id === state.selectedId)
+            || getVisibleNotesForCurrentUser().find((note) => note.id === state.selectedId)
+            || null;
+    }
+
+    function getVisibleNotesForCurrentUser() {
+        const visible = [];
+        const sharedBySignature = new Map();
+
+        state.notes.forEach((note) => {
+            if (note.shared !== true) {
+                visible.push(note);
+                return;
+            }
+
+            const signature = getNoteTagSignature(note);
+            if (!signature) {
+                visible.push(note);
+                return;
+            }
+
+            const group = sharedBySignature.get(signature) || [];
+            group.push(note);
+            sharedBySignature.set(signature, group);
+        });
+
+        sharedBySignature.forEach((group, signature) => {
+            if (group.length === 1) {
+                visible.push(group[0]);
+                return;
+            }
+
+            const ownNotes = group.filter((note) => isNoteOwnedByCurrentUser(note));
+            visible.push(...ownNotes);
+            visible.push(createMergedSharedNote(signature, group));
+        });
+
+        return visible;
+    }
+
+    function createMergedSharedNote(signature, notes) {
+        const first = notes[0] || {};
+        const tagLabels = getNoteTagLabels(first);
+        const title = tagLabels.length
+            ? `Appunto condiviso: ${tagLabels.join(", ")}`
+            : "Appunto condiviso unito";
+
+        return {
+            id: `shared-merged:${signature}`,
+            title,
+            html: mergeSharedNotesHtml(notes),
+            links: notes.reduce((links, note) => mergeNoteLinks(links, note.links), []),
+            shared: true,
+            virtual: true,
+            createdAt: notes.map((note) => note.createdAt || "").sort()[0] || "",
+            updatedAt: notes.map((note) => note.updatedAt || "").sort().pop() || ""
+        };
+    }
+
+    function mergeSharedNotesHtml(notes) {
+        const blocks = notes
+            .filter((note) => htmlToText(note.html || ""))
+            .map((note) => {
+                const author = note.authorUsername || note.ownerUsername || getOwnerNameById(getNormalizedNoteOwner(note)) || "Utente";
+                return `<p><strong>${escapeHtml(author)}</strong></p>${sanitizeNoteHtml(note.html || "")}`;
+            });
+        return blocks.length ? sanitizeNoteHtml(blocks.join("<p><br></p>")) : NOTE_PLACEHOLDER;
     }
 
     function getNormalizedNoteOwner(note) {
@@ -984,6 +1057,7 @@
     function canWriteSelectedNote() {
         const note = getSelectedNote();
         if (!note || !canWriteNotes()) return false;
+        if (note.virtual === true) return false;
         return isNoteOwnedByCurrentUser(note);
     }
 
@@ -1004,6 +1078,8 @@
     }
 
     function compareNotesForList(a, b) {
+        if (a.virtual === true && b.virtual !== true) return 1;
+        if (a.virtual !== true && b.virtual === true) return -1;
         const createdDiff = String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
         if (createdDiff !== 0) return createdDiff;
         return String(b.id || "").localeCompare(String(a.id || ""));
