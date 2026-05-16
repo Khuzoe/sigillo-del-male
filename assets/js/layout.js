@@ -10,6 +10,7 @@ const jsonCache = new Map();
 const isEmbedMode = new URLSearchParams(window.location.search).get("embed") === "1";
 const isEmbeddedRuntime = isEmbedMode || window.self !== window.top;
 let embeddedDiscordToken = "";
+let embeddedDiscordPopup = null;
 
 document.addEventListener("DOMContentLoaded", function () {
     const scriptTag = document.querySelector('script[src*="layout.js"]');
@@ -364,6 +365,15 @@ function getSitePollUrl() {
 function redirectToDiscordLogin() {
     const loginUrl = buildWorkerUrl("auth/discord/login");
     if (isEmbeddedRuntime) {
+        embeddedDiscordPopup = window.open(
+            "about:blank",
+            "cripta-discord-auth",
+            "popup=yes,width=640,height=900,resizable=yes,scrollbars=yes"
+        );
+        if (!embeddedDiscordPopup) {
+            window.alert("Consenti i popup in Foundry per completare il login Discord.");
+            return;
+        }
         window.parent?.postMessage({
             type: "cripta-discord-login",
             url: loginUrl
@@ -375,9 +385,27 @@ function redirectToDiscordLogin() {
 
 function handleEmbeddedAuthMessage(event) {
     const data = event?.data;
+    if (data?.type === "cripta-discord-auth-start" && data?.authUrl) {
+        if (embeddedDiscordPopup && !embeddedDiscordPopup.closed) {
+            embeddedDiscordPopup.location.href = String(data.authUrl);
+            try {
+                embeddedDiscordPopup.focus();
+            } catch (_) {
+                // Ignore focus errors.
+            }
+        }
+        return;
+    }
+
     if (data?.type !== "cripta-auth-token" || !data?.token) return;
 
     storeToken(String(data.token));
+    try {
+        embeddedDiscordPopup?.close();
+    } catch (_) {
+        // Ignore close errors.
+    }
+    embeddedDiscordPopup = null;
     window.location.reload();
 }
 
