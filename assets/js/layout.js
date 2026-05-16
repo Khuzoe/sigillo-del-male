@@ -8,6 +8,7 @@ let dmDiscordIdCache = null;
 let dmDiscordIdPromise = null;
 const jsonCache = new Map();
 const isEmbedMode = new URLSearchParams(window.location.search).get("embed") === "1";
+const isEmbeddedRuntime = isEmbedMode || window.self !== window.top;
 let embeddedDiscordToken = "";
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -20,14 +21,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     window.CriptaBasePath = basePath;
-    document.body.classList.toggle("is-embed", isEmbedMode);
+    document.body.classList.toggle("is-embed", isEmbeddedRuntime);
     consumeEmbeddedTokenFromQuery();
 
     ensureFavicon(basePath);
     bindPrefetchForLinks(document);
     setDmOnlyVisibility(false);
     window.addEventListener("message", handleEmbeddedAuthMessage);
-    if (!isEmbedMode) {
+    if (!isEmbeddedRuntime) {
         loadSidebar(basePath);
     }
     initPageAccessControls(basePath);
@@ -364,7 +365,7 @@ function getSitePollUrl() {
 
 function redirectToDiscordLogin() {
     const loginUrl = buildWorkerUrl("auth/discord/login");
-    if (isEmbedMode) {
+    if (isEmbeddedRuntime) {
         try {
             window.parent?.postMessage({
                 type: "cripta-discord-login",
