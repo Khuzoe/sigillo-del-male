@@ -8,6 +8,7 @@ let dmDiscordIdCache = null;
 let dmDiscordIdPromise = null;
 const jsonCache = new Map();
 const isEmbedMode = new URLSearchParams(window.location.search).get("embed") === "1";
+let embeddedDiscordToken = "";
 
 document.addEventListener("DOMContentLoaded", function () {
     const scriptTag = document.querySelector('script[src*="layout.js"]');
@@ -20,6 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     window.CriptaBasePath = basePath;
     document.body.classList.toggle("is-embed", isEmbedMode);
+    consumeEmbeddedTokenFromQuery();
 
     ensureFavicon(basePath);
     bindPrefetchForLinks(document);
@@ -312,6 +314,7 @@ function setLoggedOutState(status, loginBtn, logoutBtn) {
 }
 
 function readStoredToken() {
+    if (embeddedDiscordToken) return embeddedDiscordToken;
     try {
         return window.localStorage.getItem(DISCORD_TOKEN_KEY) || "";
     } catch (_) {
@@ -320,6 +323,7 @@ function readStoredToken() {
 }
 
 function storeToken(token) {
+    embeddedDiscordToken = String(token || "");
     try {
         window.localStorage.setItem(DISCORD_TOKEN_KEY, token);
         discordAuthCache = null;
@@ -330,6 +334,7 @@ function storeToken(token) {
 }
 
 function clearStoredToken() {
+    embeddedDiscordToken = "";
     try {
         window.localStorage.removeItem(DISCORD_TOKEN_KEY);
         discordAuthCache = null;
@@ -381,6 +386,18 @@ function handleEmbeddedAuthMessage(event) {
 
     storeToken(String(data.token));
     window.location.reload();
+}
+
+function consumeEmbeddedTokenFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("foundryJwt") || "";
+    if (!token) return;
+
+    storeToken(token);
+    params.delete("foundryJwt");
+    const nextSearch = params.toString();
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash || ""}`;
+    history.replaceState(null, "", nextUrl);
 }
 
 function logoutDiscord() {
