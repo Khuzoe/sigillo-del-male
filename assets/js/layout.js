@@ -24,6 +24,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ensureFavicon(basePath);
     bindPrefetchForLinks(document);
     setDmOnlyVisibility(false);
+    window.addEventListener("message", handleEmbeddedAuthMessage);
     if (!isEmbedMode) {
         loadSidebar(basePath);
     }
@@ -372,6 +373,14 @@ function redirectToDiscordLogin() {
         return;
     }
     window.location.href = loginUrl;
+}
+
+function handleEmbeddedAuthMessage(event) {
+    const data = event?.data;
+    if (data?.type !== "cripta-auth-token" || !data?.token) return;
+
+    storeToken(String(data.token));
+    window.location.reload();
 }
 
 function logoutDiscord() {
