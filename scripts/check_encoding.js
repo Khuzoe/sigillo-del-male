@@ -17,6 +17,7 @@ const textExtensions = new Set([
 const excludedDirs = new Set([
   ".git",
   "node_modules",
+  ".wrangler",
   ".vscode",
   "assets/img",
   "assets/data/reports",
@@ -36,7 +37,15 @@ function relative(filePath) {
 
 function shouldExclude(dirPath) {
   const rel = relative(dirPath);
-  return [...excludedDirs].some((entry) => rel === entry || rel.startsWith(`${entry}/`));
+  const segments = rel.split("/").filter(Boolean);
+
+  return [...excludedDirs].some((entry) => {
+    if (entry.includes("/")) {
+      return rel === entry || rel.startsWith(`${entry}/`);
+    }
+
+    return segments.includes(entry);
+  });
 }
 
 function listFiles(dirPath, output = []) {
