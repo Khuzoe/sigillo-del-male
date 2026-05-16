@@ -1,25 +1,23 @@
 document.addEventListener('DOMContentLoaded', () => {
+    const fetchJson = (url, label) => {
+        if (typeof window.CriptaApp?.fetchJson === "function") {
+            return window.CriptaApp.fetchJson(url);
+        }
+
+        return fetch(url).then(response => {
+            if (!response.ok) {
+                throw new Error(`${label} (${response.status})`);
+            }
+            return response.json();
+        });
+    };
+
     Promise.all([
-        fetch('assets/data/sessions.json').then(response => {
-            if (!response.ok) {
-                throw new Error(`Errore caricamento sessions.json (${response.status})`);
-            }
-            return response.json();
-        }),
-        fetch('assets/data/players.json').then(response => {
-            if (!response.ok) {
-                throw new Error(`Errore caricamento players.json (${response.status})`);
-            }
-            return response.json();
-        }),
+        fetchJson('assets/data/sessions.json', 'Errore caricamento sessions.json'),
+        fetchJson('assets/data/players.json', 'Errore caricamento players.json'),
         window.CriptaNextSession?.loadConfig
             ? window.CriptaNextSession.loadConfig({ fallbackPath: 'assets/data/next-session.json' })
-            : fetch('assets/data/next-session.json').then(response => {
-                if (!response.ok) {
-                    throw new Error(`Errore caricamento next-session.json (${response.status})`);
-                }
-                return response.json();
-            })
+            : fetchJson('assets/data/next-session.json', 'Errore caricamento next-session.json')
     ])
         .then(([sessionsData, playersData, nextSessionConfig]) => {
             const sessionContainer = document.getElementById('next-session-container');
@@ -66,11 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!container) return;
 
         try {
-            const response = await fetch('assets/data/home-recent-npcs.json');
-            if (!response.ok) {
-                throw new Error(`Lista NPC recenti non trovata (${response.status})`);
-            }
-            const data = await response.json();
+            const data = await fetchJson('assets/data/home-recent-npcs.json', 'Lista NPC recenti non trovata');
             const items = Array.isArray(data.items) ? data.items : [];
             if (items.length === 0) {
                 container.innerHTML = '';

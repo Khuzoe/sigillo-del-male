@@ -1,12 +1,11 @@
 (function () {
-    const API_BASE_URL = typeof DISCORD_WORKER_URL === 'string'
-        ? DISCORD_WORKER_URL
-        : 'https://sigillo-api.khuzoe.workers.dev';
-    const SESSION_API_URL = `${API_BASE_URL}/api/session`;
-    const SESSION_CURRENT_API_URL = `${SESSION_API_URL}/current`;
-    const SESSION_VOTES_API_URL = `${API_BASE_URL}/api/session-votes`;
+    const API_BASE_URL = typeof window.CriptaApp?.config?.workerOrigin === 'string'
+        ? window.CriptaApp.config.workerOrigin
+        : (typeof DISCORD_WORKER_URL === 'string' ? DISCORD_WORKER_URL : 'https://sigillo-api.khuzoe.workers.dev');
     const SESSION_CARD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1482056374731931860/7ls24iTa_HMAgwwTbY8Qc96tf79LOxk3f6epN_iW6PHDgI51Dg70UkKgFT5aVQSZRM03';
-    const SESSION_POLL_URL = 'https://khuzoe.github.io/sigillo-del-male/pages/sondaggio.html';
+    const SESSION_POLL_URL = typeof window.CriptaApp?.urls?.pollPage === 'function'
+        ? window.CriptaApp.urls.pollPage()
+        : 'https://khuzoe.github.io/sigillo-del-male/pages/sondaggio.html';
     const STORAGE_PREFIX = 'cripta-next-session-votes';
     const NEXT_SESSION_CONFIG_OVERRIDE_KEY = 'cripta-next-session-config-override';
     const PLAYERS_DATA_PATH = 'data/players.json';
@@ -61,6 +60,112 @@
             yes: 'theldarion_yes.webp',
             maybe: 'theldarion_maybe.webp',
             no: 'theldarion_no.webp'
+        }
+    };
+
+    const authService = {
+        async verify() {
+            return window.CriptaDiscordAuth?.verify
+                ? window.CriptaDiscordAuth.verify().catch(() => null)
+                : null;
+        },
+        getToken() {
+            return typeof window.CriptaDiscordAuth?.getToken === 'function'
+                ? window.CriptaDiscordAuth.getToken()
+                : '';
+        },
+        getDiscordId(authState) {
+            return String(authState?.user?.id || authState?.user?.sub || '').trim();
+        }
+    };
+
+    const dataService = {
+        async fetchJson(url, label = 'Errore caricamento JSON') {
+            if (typeof window.CriptaApp?.fetchJson === 'function') {
+                try {
+                    return await window.CriptaApp.fetchJson(url);
+                } catch (error) {
+                    const statusMatch = String(error?.message || '').match(/HTTP\s+(\d+)/i);
+                    if (statusMatch) {
+                        throw new Error(`${label} (${statusMatch[1]})`);
+                    }
+                    throw error;
+                }
+            }
+
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`${label} (${response.status})`);
+            }
+            return response.json();
+        }
+    };
+
+    const sessionApiService = {
+        async request(pathname, options = {}, label = 'Worker API') {
+            if (typeof window.CriptaApp?.api?.request === 'function') {
+                try {
+                    return await window.CriptaApp.api.request(pathname, options);
+                } catch (error) {
+                    const message = String(error?.message || error || '').trim();
+                    throw new Error(message ? `${label} ${message}` : `${label} errore sconosciuto`);
+                }
+            }
+
+            const cleanPath = String(pathname || '').replace(/^\/+/, '');
+            const url = new URL(`${API_BASE_URL}/${cleanPath}`);
+            if (options.query && typeof options.query === 'object') {
+                Object.entries(options.query).forEach(([key, value]) => {
+                    if (value === undefined || value === null || value === '') return;
+                    url.searchParams.set(key, String(value));
+                });
+            }
+
+            const response = await fetch(url.toString(), {
+                method: options.method || 'GET',
+                headers: {
+                    Accept: 'application/json',
+                    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+                    ...(options.token ? { Authorization: `Bearer ${options.token}` } : {})
+                },
+                ...(options.body ? { body: JSON.stringify(options.body) } : {})
+            });
+
+            const payload = await response.json().catch(() => null);
+            if (!response.ok) {
+                const apiMessage = payload?.error || payload?.message || payload?.details || '';
+                throw new Error(apiMessage ? `${label} HTTP ${response.status}: ${apiMessage}` : `${label} HTTP ${response.status}`);
+            }
+
+            return payload;
+        },
+        getCurrentSession() {
+            return this.request('api/session/current', { method: 'GET' }, 'Session API');
+        },
+        saveSession(config, token = '') {
+            return this.request('api/session', {
+                method: 'POST',
+                token,
+                body: sanitizeNextSessionConfig(config)
+            }, 'Session API POST');
+        },
+        getVotes(sessionNumber) {
+            return this.request('api/session-votes', {
+                method: 'GET',
+                query: { session: sessionNumber }
+            }, 'Session votes API');
+        },
+        saveVote({ sessionNumber, playerDiscordId, optionId, value, token }) {
+            return this.request('api/session-votes', {
+                method: 'POST',
+                token,
+                body: {
+                    sessionNumber,
+                    playerId: playerDiscordId,
+                    optionId,
+                    value
+                }
+            }, 'Session votes API POST');
         }
     };
 
@@ -150,12 +255,7 @@
     }
 
     async function loadEligiblePlayers(config) {
-        const response = await fetch(`${getAssetsBasePath()}${PLAYERS_DATA_PATH}`);
-        if (!response.ok) {
-            throw new Error(`File dati players non trovato (${response.status})`);
-        }
-
-        const players = await response.json();
+        const players = await dataService.fetchJson(`${getAssetsBasePath()}${PLAYERS_DATA_PATH}`, 'File dati players non trovato');
         if (!Array.isArray(players)) return [];
 
         const eligiblePlayers = players
@@ -688,18 +788,7 @@
     }
 
     async function loadRemoteSessionConfig() {
-        const response = await fetch(SESSION_CURRENT_API_URL, {
-            method: 'GET',
-            headers: {
-                Accept: 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`Session API HTTP ${response.status}`);
-        }
-
-        const payload = await response.json();
+        const payload = await sessionApiService.getCurrentSession();
         const sessionConfig = extractSessionConfigFromApiPayload(payload);
         if (!sessionConfig) {
             throw new Error('Session API: payload non valido');
@@ -709,27 +798,7 @@
     }
 
     async function postRemoteSessionConfig(config, token = '') {
-        const response = await fetch(SESSION_API_URL, {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Bearer ${token}` } : {})
-            },
-            body: JSON.stringify(sanitizeNextSessionConfig(config))
-        });
-
-        let payload = null;
-        try {
-            payload = await response.json();
-        } catch (_) {
-            payload = null;
-        }
-
-        if (!response.ok) {
-            const apiMessage = payload?.error || payload?.message || payload?.details || '';
-            throw new Error(apiMessage ? `Session API POST HTTP ${response.status}: ${apiMessage}` : `Session API POST HTTP ${response.status}`);
-        }
+        const payload = await sessionApiService.saveSession(config, token);
 
         const sessionConfig = extractSessionConfigFromApiPayload(payload);
         return sanitizeNextSessionConfig(sessionConfig || config);
@@ -739,11 +808,9 @@
         let fallbackConfig = null;
 
         if (fallbackPath) {
-            const fallbackResponse = await fetch(fallbackPath);
-            if (!fallbackResponse.ok) {
-                throw new Error(`Errore caricamento fallback next session (${fallbackResponse.status})`);
-            }
-            fallbackConfig = sanitizeNextSessionConfig(await fallbackResponse.json());
+            fallbackConfig = sanitizeNextSessionConfig(
+                await dataService.fetchJson(fallbackPath, 'Errore caricamento fallback next session')
+            );
         }
 
         try {
@@ -871,50 +938,12 @@
     }
 
     async function loadRemoteVotes(sessionNumber, options, players) {
-        const response = await fetch(`${SESSION_VOTES_API_URL}?session=${encodeURIComponent(sessionNumber)}`, {
-            method: 'GET',
-            headers: {
-                Accept: 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`Session votes API HTTP ${response.status}`);
-        }
-
-        const payload = await response.json();
+        const payload = await sessionApiService.getVotes(sessionNumber);
         return sanitizeVotes(extractVotesFromApiPayload(payload), options, players);
     }
 
     async function postRemoteVote({ sessionNumber, playerDiscordId, optionId, value, token }) {
-        const response = await fetch(SESSION_VOTES_API_URL, {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                sessionNumber,
-                playerId: playerDiscordId,
-                optionId,
-                value
-            })
-        });
-
-        let payload = null;
-        try {
-            payload = await response.json();
-        } catch (_) {
-            payload = null;
-        }
-
-        if (!response.ok) {
-            const apiMessage = payload?.error || payload?.message || payload?.details || '';
-            throw new Error(apiMessage ? `Session votes API POST HTTP ${response.status}: ${apiMessage}` : `Session votes API POST HTTP ${response.status}`);
-        }
-
-        return payload;
+        return sessionApiService.saveVote({ sessionNumber, playerDiscordId, optionId, value, token });
     }
 
     function persistVotes(sessionNumber, votes) {
@@ -1155,12 +1184,12 @@
     async function renderScheduledSession(container, config) {
         let authState = null;
         try {
-            authState = window.CriptaDiscordAuth?.verify ? await window.CriptaDiscordAuth.verify().catch(() => null) : null;
+            authState = await authService.verify();
         } catch (_) {
             authState = null;
         }
 
-        const currentDiscordId = String(authState?.user?.id || authState?.user?.sub || '').trim();
+        const currentDiscordId = authService.getDiscordId(authState);
         const canConfigureSession = (
             Boolean(currentDiscordId)
             && Boolean(config?.dmDiscordId)
@@ -1342,7 +1371,7 @@
         try {
             [players, authState] = await Promise.all([
                 loadEligiblePlayers(effectiveConfig),
-                window.CriptaDiscordAuth?.verify ? window.CriptaDiscordAuth.verify().catch(() => null) : Promise.resolve(null)
+                authService.verify()
             ]);
         } catch (error) {
             console.error('Impossibile caricare i player per il planner della prossima sessione:', error);
@@ -1356,10 +1385,8 @@
             return;
         }
 
-        const currentDiscordId = String(authState?.user?.id || authState?.user?.sub || '').trim();
-        const authToken = typeof window.CriptaDiscordAuth?.getToken === 'function'
-            ? window.CriptaDiscordAuth.getToken()
-            : '';
+        const currentDiscordId = authService.getDiscordId(authState);
+        const authToken = authService.getToken();
         const orderedPlayers = [...players].sort((left, right) => {
             const leftIsCurrent = Boolean(currentDiscordId) && Boolean(left.discordId) && left.discordId === currentDiscordId;
             const rightIsCurrent = Boolean(currentDiscordId) && Boolean(right.discordId) && right.discordId === currentDiscordId;

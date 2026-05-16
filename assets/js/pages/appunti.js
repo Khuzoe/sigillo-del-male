@@ -37,8 +37,8 @@
         bindEvents();
         setEditorEnabled(false);
 
-        const authState = await getVerifiedAuth();
-        state.currentDiscordId = getDiscordId(authState);
+        const authState = await authService.verify();
+        state.currentDiscordId = authService.getDiscordId(authState);
         state.currentUsername = authState?.user?.global_name || authState?.user?.username || "Utente";
         state.ownerDiscordId = state.currentDiscordId;
         if (!state.currentDiscordId) {
@@ -47,7 +47,7 @@
             return;
         }
 
-        await loadAccessContext();
+        await accessContextService.load();
         renderOwnerSelector();
 
         await Promise.all([
@@ -213,7 +213,11 @@
 
         document.querySelectorAll("[data-notes-login]").forEach((button) => {
             button.addEventListener("click", () => {
-                window.location.href = `${getApiBase()}/auth/discord/login`;
+                if (window.CriptaDiscordAuth?.login) {
+                    window.CriptaDiscordAuth.login();
+                } else {
+                    window.location.href = `${dataService.getApiBase()}/auth/discord/login`;
+                }
             });
         });
 
@@ -654,10 +658,10 @@
 
     async function loadLinkableEntities() {
         const [searchIndex, items, creatures, players] = await Promise.all([
-            fetchJson("../assets/data/search-index.json").catch(() => ({ items: [] })),
-            fetchJson("../assets/data/items.json").catch(() => []),
-            fetchJson("../assets/data/bestiary.json").catch(() => []),
-            fetchJson("../assets/data/players.json").catch(() => [])
+            dataService.fetchJson("../assets/data/search-index.json").catch(() => ({ items: [] })),
+            dataService.fetchJson("../assets/data/items.json").catch(() => []),
+            dataService.fetchJson("../assets/data/bestiary.json").catch(() => []),
+            dataService.fetchJson("../assets/data/players.json").catch(() => [])
         ]);
 
         state.entities.npc = (Array.isArray(searchIndex.items) ? searchIndex.items : [])
@@ -976,27 +980,125 @@
         els.notesSyncStatus.dataset.status = type;
     }
 
+    const authService = {
+        getToken() {
+            return typeof window.CriptaDiscordAuth?.getToken === "function"
+                ? window.CriptaDiscordAuth.getToken()
+                : "";
+        },
+        async verify() {
+            return typeof window.CriptaDiscordAuth?.verify === "function"
+                ? window.CriptaDiscordAuth.verify().catch(() => null)
+                : null;
+        },
+        getDiscordId(authState) {
+            return String(authState?.user?.id || authState?.user?.sub || "").trim();
+        }
+    };
+
+    const dataService = {
+        getApiBase() {
+            if (typeof window.CriptaApp?.config?.workerOrigin === "string") {
+                return window.CriptaApp.config.workerOrigin;
+            }
+            return typeof DISCORD_WORKER_URL === "string"
+                ? DISCORD_WORKER_URL
+                : "https://sigillo-api.khuzoe.workers.dev";
+        },
+        async fetchJson(url) {
+            if (typeof window.CriptaApp?.fetchJson === "function") {
+                return window.CriptaApp.fetchJson(url);
+            }
+
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        },
+        async requestWorkerApi(pathname, options = {}) {
+            if (typeof window.CriptaApp?.api?.request === "function") {
+                return window.CriptaApp.api.request(pathname, options);
+            }
+
+            const url = new URL(`${this.getApiBase()}/${String(pathname || "").replace(/^\/+/, "")}`);
+            if (options.query && typeof options.query === "object") {
+                Object.entries(options.query).forEach(([key, value]) => {
+                    if (value === undefined || value === null || value === "") return;
+                    url.searchParams.set(key, String(value));
+                });
+            }
+
+            const response = await fetch(url.toString(), {
+                method: options.method || "GET",
+                headers: {
+                    Accept: "application/json",
+                    ...(options.body ? { "Content-Type": "application/json" } : {}),
+                    ...(options.token ? { Authorization: `Bearer ${options.token}` } : {})
+                },
+                ...(options.body ? { body: JSON.stringify(options.body) } : {})
+            });
+            const data = await response.json().catch(() => null);
+            if (!response.ok) {
+                const message = data?.error || data?.message || `HTTP ${response.status}`;
+                throw new Error(message);
+            }
+            return data;
+        }
+    };
+
+    const accessContextService = {
+        async load() {
+            const [config, players] = await Promise.all([
+                dataService.fetchJson("../assets/data/next-session.json").catch(() => ({})),
+                dataService.fetchJson("../assets/data/players.json").catch(() => [])
+            ]);
+
+            const dmDiscordId = String(config?.dmDiscordId || "").trim();
+            state.isDm = Boolean(dmDiscordId) && state.currentDiscordId === dmDiscordId;
+
+            const ownersById = new Map();
+            ownersById.set(state.currentDiscordId, {
+                discordId: state.currentDiscordId,
+                name: state.isDm ? "DM" : state.currentUsername
+            });
+
+            if (state.isDm) {
+                (Array.isArray(players) ? players : [])
+                    .filter((player) => player?.discordId)
+                    .forEach((player) => {
+                        ownersById.set(String(player.discordId).trim(), {
+                            discordId: String(player.discordId).trim(),
+                            name: player.name || player.id || String(player.discordId).trim()
+                        });
+                    });
+            }
+
+            state.owners = [...ownersById.values()]
+                .filter((owner) => owner.discordId)
+                .sort((a, b) => {
+                    if (a.discordId === state.currentDiscordId) return -1;
+                    if (b.discordId === state.currentDiscordId) return 1;
+                    return String(a.name || "").localeCompare(String(b.name || ""), "it", { sensitivity: "base" });
+                });
+        }
+    };
+
     const notesStore = {
         async load() {
-            const token = getAuthToken();
+            const token = authService.getToken();
             if (!token || !state.ownerDiscordId) {
                 throw new Error("Login richiesto");
             }
 
             try {
-                const url = new URL(`${getApiBase()}/api/notes`);
-                url.searchParams.set("page", NOTES_PAGE_ID);
-                url.searchParams.set("ownerDiscordId", state.currentDiscordId);
-                if (state.isDm) {
-                    url.searchParams.set("targetDiscordId", state.ownerDiscordId);
-                }
-
-                const response = await fetch(url.toString(), {
+                const data = await dataService.requestWorkerApi("api/notes", {
                     method: "GET",
-                    headers: { Authorization: `Bearer ${token}` }
+                    token,
+                    query: {
+                        page: NOTES_PAGE_ID,
+                        ownerDiscordId: state.currentDiscordId,
+                        ...(state.isDm ? { targetDiscordId: state.ownerDiscordId } : {})
+                    }
                 });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
                 const responseOwner = String(data?.note?.ownerDiscordId || "").trim();
                 if (responseOwner && responseOwner !== state.ownerDiscordId && responseOwner !== state.currentDiscordId) {
                     throw new Error(`Owner appunti inatteso: ${responseOwner}`);
@@ -1023,16 +1125,13 @@
             const payload = serializeRemoteNoteContent(writableNotes);
             window.localStorage.setItem(getLocalStorageKey(), JSON.stringify(notes, null, 2));
 
-            const token = getAuthToken();
+            const token = authService.getToken();
             if (!token) throw new Error("Login richiesto");
 
-            const response = await fetch(`${getApiBase()}/api/notes`, {
+            const data = await dataService.requestWorkerApi("api/notes", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
+                token,
+                body: {
                     page: NOTES_PAGE_ID,
                     content: payload,
                     ownerDiscordId: state.currentDiscordId,
@@ -1041,10 +1140,8 @@
                             targetDiscordId: state.ownerDiscordId
                         }
                         : {})
-                })
+                }
             });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const data = await response.json().catch(() => null);
             if (!data?.ok) throw new Error("Risposta API non valida");
         }
     };
@@ -1094,57 +1191,6 @@
         return `${STORAGE_KEY}:${state.ownerDiscordId}:${NOTES_PAGE_ID}`;
     }
 
-    async function loadAccessContext() {
-        const [config, players] = await Promise.all([
-            fetchJson("../assets/data/next-session.json").catch(() => ({})),
-            fetchJson("../assets/data/players.json").catch(() => [])
-        ]);
-
-        const dmDiscordId = String(config?.dmDiscordId || "").trim();
-        state.isDm = Boolean(dmDiscordId) && state.currentDiscordId === dmDiscordId;
-
-        const ownersById = new Map();
-        ownersById.set(state.currentDiscordId, {
-            discordId: state.currentDiscordId,
-            name: state.isDm ? "DM" : state.currentUsername
-        });
-
-        if (state.isDm) {
-            (Array.isArray(players) ? players : [])
-                .filter((player) => player?.discordId)
-                .forEach((player) => {
-                    ownersById.set(String(player.discordId).trim(), {
-                        discordId: String(player.discordId).trim(),
-                        name: player.name || player.id || String(player.discordId).trim()
-                    });
-                });
-        }
-
-        state.owners = [...ownersById.values()]
-            .filter((owner) => owner.discordId)
-            .sort((a, b) => {
-                if (a.discordId === state.currentDiscordId) return -1;
-                if (b.discordId === state.currentDiscordId) return 1;
-                return String(a.name || "").localeCompare(String(b.name || ""), "it", { sensitivity: "base" });
-            });
-    }
-
-    function getAuthToken() {
-        return typeof window.CriptaDiscordAuth?.getToken === "function"
-            ? window.CriptaDiscordAuth.getToken()
-            : "";
-    }
-
-    async function getVerifiedAuth() {
-        return typeof window.CriptaDiscordAuth?.verify === "function"
-            ? window.CriptaDiscordAuth.verify().catch(() => null)
-            : null;
-    }
-
-    function getDiscordId(authState) {
-        return String(authState?.user?.id || authState?.user?.sub || "").trim();
-    }
-
     function canUseNotes() {
         return Boolean(state.ownerDiscordId);
     }
@@ -1160,17 +1206,6 @@
         return isNoteOwnedByCurrentUser(note);
     }
 
-    function getApiBase() {
-        return typeof DISCORD_WORKER_URL === "string"
-            ? DISCORD_WORKER_URL
-            : "https://sigillo-api.khuzoe.workers.dev";
-    }
-
-    async function fetchJson(url) {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-    }
 
     function compareEntityLabels(a, b) {
         return String(a.label || "").localeCompare(String(b.label || ""), "it", { sensitivity: "base" });

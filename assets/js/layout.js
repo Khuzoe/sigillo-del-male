@@ -6,6 +6,7 @@ let discordAuthCache = null;
 let discordAuthPromise = null;
 let dmDiscordIdCache = null;
 let dmDiscordIdPromise = null;
+const jsonCache = new Map();
 
 document.addEventListener("DOMContentLoaded", function () {
     const scriptTag = document.querySelector('script[src*="layout.js"]');
@@ -233,12 +234,11 @@ function initDiscordAuth(scope) {
     }
 
     loginBtn.addEventListener("click", () => {
-        window.location.href = `${DISCORD_WORKER_URL}/auth/discord/login`;
+        redirectToDiscordLogin();
     });
 
     logoutBtn.addEventListener("click", () => {
-        clearStoredToken();
-        window.location.replace(window.location.pathname + window.location.search);
+        logoutDiscord();
     });
 
     refreshAuthUI(scope);
@@ -334,6 +334,122 @@ function clearStoredToken() {
     }
 }
 
+function getBasePath() {
+    return typeof window.CriptaBasePath === "string" ? window.CriptaBasePath : "";
+}
+
+function resolveSiteUrl(relativePath) {
+    const cleanPath = String(relativePath || "").replace(/^\/+/, "");
+    return new URL(`${getBasePath()}${cleanPath}`, window.location.href).toString();
+}
+
+function buildWorkerUrl(pathname) {
+    const cleanPath = String(pathname || "").replace(/^\/+/, "");
+    return `${DISCORD_WORKER_URL}/${cleanPath}`;
+}
+
+function getSitePollUrl() {
+    return resolveSiteUrl("pages/sondaggio.html");
+}
+
+function redirectToDiscordLogin() {
+    window.location.href = buildWorkerUrl("auth/discord/login");
+}
+
+function logoutDiscord() {
+    clearStoredToken();
+    window.location.replace(window.location.pathname + window.location.search);
+}
+
+async function fetchJsonWithCache(url, options = {}) {
+    const key = String(url || "");
+    const useCache = options.cache !== false;
+
+    if (useCache && jsonCache.has(key)) {
+        return jsonCache.get(key);
+    }
+
+    const requestPromise = fetch(key, options.fetchOptions)
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .catch((error) => {
+            if (useCache) {
+                jsonCache.delete(key);
+            }
+            throw error;
+        });
+
+    if (useCache) {
+        jsonCache.set(key, requestPromise);
+    }
+
+    return requestPromise;
+}
+
+async function requestApi(pathname, options = {}) {
+    const {
+        method = "GET",
+        headers = {},
+        body,
+        token,
+        expectJson = true,
+        query
+    } = options;
+
+    const url = new URL(buildWorkerUrl(pathname));
+    if (query && typeof query === "object") {
+        Object.entries(query).forEach(([key, value]) => {
+            if (value === undefined || value === null || value === "") return;
+            url.searchParams.set(key, String(value));
+        });
+    }
+
+    const requestHeaders = {
+        Accept: "application/json",
+        ...headers
+    };
+
+    if (token) {
+        requestHeaders.Authorization = `Bearer ${token}`;
+    }
+
+    let requestBody = body;
+    if (body !== undefined && body !== null && typeof body === "object" && !(body instanceof FormData)) {
+        requestHeaders["Content-Type"] = requestHeaders["Content-Type"] || "application/json";
+        requestBody = requestHeaders["Content-Type"].includes("application/json")
+            ? JSON.stringify(body)
+            : body;
+    }
+
+    const response = await fetch(url.toString(), {
+        method,
+        headers: requestHeaders,
+        ...(requestBody !== undefined ? { body: requestBody } : {})
+    });
+
+    if (!expectJson) {
+        return response;
+    }
+
+    let payload = null;
+    try {
+        payload = await response.json();
+    } catch (_) {
+        payload = null;
+    }
+
+    if (!response.ok) {
+        const apiMessage = payload?.error || payload?.message || payload?.details || "";
+        throw new Error(apiMessage ? `HTTP ${response.status}: ${apiMessage}` : `HTTP ${response.status}`);
+    }
+
+    return payload;
+}
+
 async function verifyDiscordAuth() {
     if (discordAuthCache?.user) {
         return discordAuthCache;
@@ -413,9 +529,7 @@ async function getDmDiscordId(basePath) {
 
     dmDiscordIdPromise = (async () => {
         try {
-            const response = await fetch(`${basePath}assets/data/next-session.json`);
-            if (!response.ok) return "";
-            const data = await response.json();
+            const data = await fetchJsonWithCache(`${basePath}assets/data/next-session.json`);
             dmDiscordIdCache = String(data?.dmDiscordId || "").trim();
             return dmDiscordIdCache;
         } catch (_) {
@@ -431,5 +545,39 @@ async function getDmDiscordId(basePath) {
 
 window.CriptaDiscordAuth = {
     getToken: readStoredToken,
-    verify: verifyDiscordAuth
+    verify: verifyDiscordAuth,
+    consumeTokenFromHash,
+    clearToken: clearStoredToken,
+    login: redirectToDiscordLogin,
+    logout: logoutDiscord
+};
+
+window.CriptaApp = {
+    auth: window.CriptaDiscordAuth,
+    api: {
+        request: requestApi,
+        get(pathname, options = {}) {
+            return requestApi(pathname, { ...options, method: "GET" });
+        },
+        post(pathname, body, options = {}) {
+            return requestApi(pathname, { ...options, method: "POST", body });
+        }
+    },
+    config: {
+        workerOrigin: DISCORD_WORKER_URL,
+        tokenStorageKey: DISCORD_TOKEN_KEY
+    },
+    urls: {
+        api(pathname) {
+            return buildWorkerUrl(pathname);
+        },
+        site(pathname) {
+            return resolveSiteUrl(pathname);
+        },
+        pollPage() {
+            return getSitePollUrl();
+        }
+    },
+    fetchJson: fetchJsonWithCache,
+    getBasePath
 };

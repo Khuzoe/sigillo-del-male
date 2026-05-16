@@ -1,23 +1,27 @@
 document.addEventListener("DOMContentLoaded", async function () {
     try {
-        const [sessionsResponse, nextSessionResponse] = await Promise.all([
-            fetch('../assets/data/sessions.json'),
+        const fetchJson = (url, label) => {
+            if (typeof window.CriptaApp?.fetchJson === "function") {
+                return window.CriptaApp.fetchJson(url);
+            }
+
+            return fetch(url).then((response) => {
+                if (!response.ok) {
+                    throw new Error(`${label} (${response.status})`);
+                }
+                return response.json();
+            });
+        };
+
+        const [sessionsData, nextSessionResponse] = await Promise.all([
+            fetchJson('../assets/data/sessions.json', 'HTTP error sessions.json'),
             window.CriptaNextSession?.loadConfig
                 ? window.CriptaNextSession.loadConfig({ fallbackPath: '../assets/data/next-session.json' })
-                : fetch('../assets/data/next-session.json')
+                : fetchJson('../assets/data/next-session.json', 'HTTP error next-session.json')
         ]);
-        if (!sessionsResponse.ok) {
-            throw new Error(`HTTP error sessions.json: ${sessionsResponse.status}`);
-        }
-        const sessionsData = await sessionsResponse.json();
         const nextSessionConfig = window.CriptaNextSession?.loadConfig
             ? nextSessionResponse
-            : await (async () => {
-                if (!nextSessionResponse.ok) {
-                    throw new Error(`HTTP error next-session.json: ${nextSessionResponse.status}`);
-                }
-                return nextSessionResponse.json();
-            })();
+            : nextSessionResponse;
 
         const sessions = sessionsData.sessions.slice().reverse();
 

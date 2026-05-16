@@ -255,7 +255,9 @@ function parseYamlLite(yamlText) {
             return [];
         }
 
-        const INVENTORY_API_URL = 'https://sigillo-api.khuzoe.workers.dev/api/inventory';
+        const INVENTORY_API_URL = typeof window.CriptaApp?.urls?.api === 'function'
+            ? window.CriptaApp.urls.api('api/inventory')
+            : 'https://sigillo-api.khuzoe.workers.dev/api/inventory';
         const INVENTORY_CACHE_KEY = 'cds_inventory_api_cache_v1';
         const INVENTORY_CACHE_TTL_MS = 5 * 60 * 1000;
         const INVENTORY_EXCLUDED_TYPES = new Set(['class', 'subclass', 'feat', 'background', 'race', 'spell']);
@@ -412,18 +414,7 @@ function parseYamlLite(yamlText) {
 
             inventoryRequestPromise = (async () => {
                 try {
-                    const response = await fetch(INVENTORY_API_URL, {
-                        method: 'GET',
-                        headers: {
-                            Accept: 'application/json'
-                        }
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`Inventory API HTTP ${response.status}`);
-                    }
-
-                    const payload = await response.json();
+                    const payload = await requestInventoryApi();
                     if (!payload || !Array.isArray(payload.actors)) {
                         throw new Error('Inventory API: formato non valido.');
                     }
@@ -447,6 +438,30 @@ function parseYamlLite(yamlText) {
             })();
 
             return inventoryRequestPromise;
+        }
+
+        async function requestInventoryApi() {
+            if (typeof window.CriptaApp?.api?.get === 'function') {
+                try {
+                    return await window.CriptaApp.api.get('api/inventory');
+                } catch (error) {
+                    const message = String(error?.message || error || '').trim();
+                    throw new Error(message ? `Inventory API ${message}` : 'Inventory API errore sconosciuto.');
+                }
+            }
+
+            const response = await fetch(INVENTORY_API_URL, {
+                method: 'GET',
+                headers: {
+                    Accept: 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Inventory API HTTP ${response.status}`);
+            }
+
+            return response.json();
         }
 
         function findPlayerActor(payload, character) {

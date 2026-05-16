@@ -1,40 +1,3 @@
-const POLL_DISCORD_WORKER_URL = "https://sigillo-api.khuzoe.workers.dev";
-const POLL_DISCORD_TOKEN_KEY = "discord_jwt";
-
-function pollTokenFromHash() {
-    const hash = window.location.hash.startsWith("#")
-        ? window.location.hash.slice(1)
-        : "";
-    if (!hash) return "";
-
-    const params = new URLSearchParams(hash);
-    return params.get("token") || "";
-}
-
-function pollStoreToken(token) {
-    try {
-        window.localStorage.setItem(POLL_DISCORD_TOKEN_KEY, token);
-    } catch (_) {
-        // Ignore storage issues
-    }
-}
-
-function pollClearToken() {
-    try {
-        window.localStorage.removeItem(POLL_DISCORD_TOKEN_KEY);
-    } catch (_) {
-        // Ignore storage issues
-    }
-}
-
-function pollConsumeTokenFromHash() {
-    const token = pollTokenFromHash();
-    if (!token) return false;
-    pollStoreToken(token);
-    history.replaceState(null, "", window.location.pathname + window.location.search);
-    return true;
-}
-
 async function refreshPollAuthUI() {
     const status = document.getElementById("auth-status");
     const loginBtn = document.getElementById("discord-login");
@@ -59,7 +22,7 @@ async function refreshPollAuthUI() {
     try {
         const authState = await (window.CriptaDiscordAuth?.verify ? window.CriptaDiscordAuth.verify() : Promise.resolve(null));
         if (!authState?.user) {
-            pollClearToken();
+            window.CriptaDiscordAuth?.clearToken?.();
             status.textContent = "Non loggato";
             loginBtn.hidden = false;
             logoutBtn.hidden = true;
@@ -100,7 +63,7 @@ async function renderPollPage() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    if (pollConsumeTokenFromHash()) {
+    if (window.CriptaDiscordAuth?.consumeTokenFromHash?.()) {
         window.location.replace(window.location.pathname + window.location.search);
         return;
     }
@@ -110,14 +73,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     if (loginBtn) {
         loginBtn.addEventListener("click", () => {
-            window.location.href = `${POLL_DISCORD_WORKER_URL}/auth/discord/login`;
+            window.CriptaDiscordAuth?.login?.();
         });
     }
 
     if (logoutBtn) {
         logoutBtn.addEventListener("click", () => {
-            pollClearToken();
-            window.location.replace(window.location.pathname + window.location.search);
+            window.CriptaDiscordAuth?.logout?.();
         });
     }
 
