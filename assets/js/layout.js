@@ -28,9 +28,7 @@ document.addEventListener("DOMContentLoaded", function () {
     bindPrefetchForLinks(document);
     setDmOnlyVisibility(false);
     window.addEventListener("message", handleEmbeddedAuthMessage);
-    if (!isEmbeddedRuntime) {
-        loadSidebar(basePath);
-    }
+    loadSidebar(basePath);
     initPageAccessControls(basePath);
     window.requestAnimationFrame(() => {
         document.body.classList.add("page-ready");

@@ -285,14 +285,8 @@ body.is-embed {
     overflow-y: auto;
 }
 
-body.is-embed .grain-overlay,
-body.is-embed .sidebar {
+body.is-embed .grain-overlay {
     display: none !important;
-}
-
-body.is-embed .main-content {
-    margin-left: 0 !important;
-    min-height: 100vh;
 }
 
 body.is-embed .container {
