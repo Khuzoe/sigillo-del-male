@@ -7,6 +7,7 @@ let discordAuthPromise = null;
 let dmDiscordIdCache = null;
 let dmDiscordIdPromise = null;
 const jsonCache = new Map();
+const isEmbedMode = new URLSearchParams(window.location.search).get("embed") === "1";
 
 document.addEventListener("DOMContentLoaded", function () {
     const scriptTag = document.querySelector('script[src*="layout.js"]');
@@ -18,11 +19,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     window.CriptaBasePath = basePath;
+    document.body.classList.toggle("is-embed", isEmbedMode);
 
     ensureFavicon(basePath);
     bindPrefetchForLinks(document);
     setDmOnlyVisibility(false);
-    loadSidebar(basePath);
+    if (!isEmbedMode) {
+        loadSidebar(basePath);
+    }
     initPageAccessControls(basePath);
     window.requestAnimationFrame(() => {
         document.body.classList.add("page-ready");
@@ -353,7 +357,14 @@ function getSitePollUrl() {
 }
 
 function redirectToDiscordLogin() {
-    window.location.href = buildWorkerUrl("auth/discord/login");
+    const loginUrl = buildWorkerUrl("auth/discord/login");
+    if (isEmbedMode) {
+        const popup = window.open(loginUrl, "_blank", "noopener,noreferrer");
+        if (popup) return;
+        window.alert("Il login Discord non puo aprirsi dentro Foundry. Consenti i popup per aprire l'autenticazione in una nuova finestra.");
+        return;
+    }
+    window.location.href = loginUrl;
 }
 
 function logoutDiscord() {

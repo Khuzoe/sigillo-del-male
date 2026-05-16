@@ -59,7 +59,7 @@
     "rarity": "Artefatto",
     "status": "known",
     "icon": "fa-gem",
-    "image": "img/items/luce-cristallizzata.webp",
+    "image": "img/items/luce_cristallizzata.webp",
     "summary": "Un prisma legato all'anima di Apothecary, citato tra gli eventi piu critici del gruppo.",
     "properties": [
       {
@@ -93,7 +93,7 @@
       }
     ],
     "notes": "Importato da Foundry; il nome non identificato è \"Unidentified Equipment\".",
-    "image": "Cripta di Sangue/items/item_rose_brooch.png"
+    "image": "Cripta di Sangue/items/item_rose_brooch.webp"
   },
   {
     "file": "fvtt-Item-[non-identificato]-armatura-rossa-ndYf6khFHJQN9EZY.json",
@@ -119,7 +119,7 @@
       }
     ],
     "notes": "Non identificata come \"Armatura Rossa\"; descritta come metallo rosso scuro con incisioni dorate, calda al tatto.",
-    "image": "Cripta di Sangue/items/rosskar_breastplate.png"
+    "image": "Cripta di Sangue/items/rosskar_breastplate.webp"
   },
   {
     "file": "fvtt-Item-[non-identificato]-mantello-nero-F1b9nneK1gNTV6y2.json",
@@ -145,7 +145,7 @@
       }
     ],
     "notes": "Non identificato come \"Mantello Nero\"; lungo e scuro, sembra muoversi anche senza vento.",
-    "image": "Cripta di Sangue/items/okbrax_cloak.png"
+    "image": "Cripta di Sangue/items/okbrax_cloak.webp"
   },
   {
     "file": "fvtt-Item-[non-identificato]-martello-sacro-1hgVhSRaCTwo0gTL.json",
@@ -171,7 +171,7 @@
       }
     ],
     "notes": "Non identificato come \"Martello Sacro\"; testa d’argento con simboli solari e bagliore dorato.",
-    "image": "Cripta di Sangue/items/lumilla_warhammer.png"
+    "image": "Cripta di Sangue/items/lumilla_warhammer.webp"
   },
   {
     "file": "fvtt-Item-[non-identificato]-pugnale-nero-xs5TdtTXgLDuPY8u.json",
@@ -197,7 +197,7 @@
       }
     ],
     "notes": "Non identificato come \"Pugnale Nero\"; lama sottile e scura, difficile da vedere quando impugnato.",
-    "image": "Cripta di Sangue/items/okbrax_dagger.png"
+    "image": "Cripta di Sangue/items/okbrax_dagger.webp"
   },
   {
     "file": "fvtt-Item-[non-identificato]-spada-di-fuoco-lfpTsoh06puwr1KR.json",
@@ -228,7 +228,7 @@
       }
     ],
     "notes": "Non identificata come \"Spada di Fuoco\"; lama con rune rosse incise.",
-    "image": "Cripta di Sangue/items/rosskar_longsword.png"
+    "image": "Cripta di Sangue/items/rosskar_longsword.webp"
   },
   {
     "file": "fvtt-Item-[non-identificato]-veste-bianca-iO5fB7A0pj8pufBK.json",
@@ -254,7 +254,7 @@
       }
     ],
     "notes": "Non identificata come \"Veste Bianca\"; bianca, leggera, con ricami argentati e aura tranquilla.",
-    "image": "Cripta di Sangue/items/lumilla_vest.png"
+    "image": "Cripta di Sangue/items/lumilla_vest.webp"
   },
   {
     "file": "fvtt-Item-stivali-di-ginevra-JFtgBi8hfUkIZ8ZL.json",
@@ -424,7 +424,7 @@
       }
     ],
     "notes": "La descrizione non identificata parla di uno strano specchio rotto con cornice vecchia e rovinata.",
-    "image": "Cripta%20di%20Sangue/items/specchio_rotto.png"
+    "image": "Cripta%20di%20Sangue/items/broken_mirror.webp"
   },
   {
     "file": "fvtt-Item-unidentified-equipment-gg7NMutkQBLWYBLN.json",
@@ -471,7 +471,7 @@
       }
     ],
     "notes": "Descrizione non identificata: corona metallica composta da due filamenti incisi con glifi spenti.",
-    "image": "Cripta%20di%20Sangue/items/control_crown.png"
+    "image": "Cripta%20di%20Sangue/items/control_crown.webp"
   },
   {
     "file": "fvtt-Item-cuore-di-albert-sdtzqnEXYkDx8GvV.json",
@@ -492,7 +492,7 @@
       }
     ],
     "notes": "Peso indicato nel file Foundry: 8 kg.",
-    "image": "Cripta%20di%20Sangue/items/heart_albert.png"
+    "image": "Cripta%20di%20Sangue/items/heart_albert.webp"
   },
   {
     "file": "fvtt-Item-[non-identificato]-collana-buffa-mex27kdwpBisNH0S.json",
@@ -528,6 +528,6 @@
       }
     ],
     "notes": "Non identificata come \"Collana Buffa\"; collana multicolore con buffone sorridente sul ciondolo.",
-    "image": "Cripta di Sangue/items/zara's_necklace.png"
+    "image": "Cripta di Sangue/items/zara_necklace.webp"
   }
 ]

@@ -43,15 +43,15 @@
     "status": "identified",
     "icon": "fa-shoe-prints",
     "image": "img/items/zara-shoes.webp",
-    "summary": "Una scarpa dotata di proprieta magiche sorprendenti, studiata insieme ai guanti di Zara.",
+    "summary": "Un paio di pantofole animate e magiche legate all'equipaggiamento teatrale di Zara.",
     "properties": [
       {
-        "name": "",
+        "name": "Proprieta non ancora catalogate",
         "charges": "",
-        "description": "Proprieta complete da definire."
+        "description": "Le pantofole sono state analizzate durante la Sessione 24 insieme ai guanti di Zara, ma le loro proprieta complete non sono ancora state riportate nel catalogo."
       }
     ],
-    "notes": "Oggetto emerso durante la Sessione 24.",
+    "notes": "Oggetto emerso e analizzato durante la Sessione 24.",
     "subtype": "Scarpe"
   },
   {
@@ -61,20 +61,21 @@
     "rarity": "Artefatto",
     "status": "known",
     "icon": "fa-gem",
-    "image": "img/items/luce-cristallizzata.webp",
-    "summary": "Un prisma legato all'anima di Apothecary, citato tra gli eventi piu critici del gruppo.",
+    "image": "img/items/luce_cristallizzata.webp",
+    "summary": "Un prisma nato dall'esplosione radiosa dell'incubo del sigillo, che ora custodisce l'anima di Apothecary separata dal suo corpo.",
     "properties": [
       {
-        "name": "",
+        "name": "Anima Vincolata",
         "charges": "",
-        "description": "Contiene o vincola un'anima."
+        "description": "Il prisma contiene l'anima di Apothecary, rimasta intrappolata al suo interno mentre il corpo e rimasto privo di sensi."
       },
       {
-        "name": "",
+        "name": "Origine Radiosa",
         "charges": "",
-        "description": "La sua natura precisa resta da approfondire."
+        "description": "Si e formato durante l'incubo del sigillo, nel momento in cui Apothecary si e sacrificata per salvare il gruppo con un'esplosione di luce cristallizzata."
       }
     ],
+    "notes": "Oggetto emerso dopo il sacrificio di Apothecary; X e il gruppo stanno ancora cercando di comprenderne la natura precisa.",
     "subtype": "Prisma"
   },
   {
@@ -94,7 +95,7 @@
     ],
     "notes": "Importato da Foundry; il nome non identificato è \"Unidentified Equipment\".",
     "subtype": "Spilla",
-    "image": "img/items/rose_brooch.png"
+    "image": "img/items/rose_brooch.webp"
   },
   {
     "id": "corazza-piastre-rosskar",
@@ -119,7 +120,7 @@
       }
     ],
     "notes": "Non identificata come \"Armatura Rossa\"; descritta come metallo rosso scuro con incisioni dorate, calda al tatto.",
-    "image": "img/items/rosskar_breastplate.png",
+    "image": "img/items/rosskar_breastplate.webp",
     "subtype": "Corazza",
     "unidentifiedName": "[Non Identificato] Armatura Rossa",
     "unidentifiedDescription": "Un’armatura di metallo rosso scuro con incisioni dorate. Sembra calda al tatto, come se trattenesse sempre un po’ di calore al suo interno."
@@ -147,7 +148,7 @@
       }
     ],
     "notes": "Non identificato come \"Mantello Nero\"; lungo e scuro, sembra muoversi anche senza vento.",
-    "image": "img/items/okbrax_cloak.png",
+    "image": "img/items/okbrax_cloak.webp",
     "subtype": "Mantello",
     "unidentifiedName": "[Non Identificato] Mantello Nero",
     "unidentifiedDescription": "Un mantello lungo e scuro, che sembra muoversi leggermente anche quando non c’è vento."
@@ -175,7 +176,7 @@
       }
     ],
     "notes": "Non identificato come \"Martello Sacro\"; testa d’argento con simboli solari e bagliore dorato.",
-    "image": "img/items/lumilla_warhammer.png",
+    "image": "img/items/lumilla_warhammer.webp",
     "subtype": "Martello da guerra",
     "unidentifiedName": "[Non Identificato] Martello Sacro",
     "unidentifiedDescription": "Un martello da guerra robusto, con una testa d’argento decorata da simboli solari. L’impugnatura è avvolta in cuoio bianco e ogni tanto emette un leggero bagliore dorato."
@@ -203,7 +204,7 @@
       }
     ],
     "notes": "Non identificato come \"Pugnale Nero\"; lama sottile e scura, difficile da vedere quando impugnato.",
-    "image": "img/items/okbrax_dagger.png",
+    "image": "img/items/okbrax_dagger.webp",
     "subtype": "Pugnale",
     "unidentifiedName": "[Non Identificato] Pugnale Nero",
     "unidentifiedDescription": "Un pugnale affilato con una lama sottile e scura. Ha un’impugnatura avvolta in cuoio nero e sembra diventare più difficile da vedere quando lo si impugna."
@@ -236,7 +237,7 @@
       }
     ],
     "notes": "Non identificata come \"Spada di Fuoco\"; lama con rune rosse incise.",
-    "image": "img/items/rosskar_longsword.png",
+    "image": "img/items/rosskar_longsword.webp",
     "subtype": "Spada lunga",
     "unidentifiedName": "[Non Identificato] Spada di Fuoco",
     "unidentifiedDescription": "Una spada dalla lama affilata, con rune rosse incise lungo la superficie."
@@ -264,7 +265,7 @@
       }
     ],
     "notes": "Non identificata come \"Veste Bianca\"; bianca, leggera, con ricami argentati e aura tranquilla.",
-    "image": "img/items/lumilla_vest.png",
+    "image": "img/items/lumilla_vest.webp",
     "subtype": "Veste",
     "unidentifiedName": "[Non Identificato] Veste Bianca",
     "unidentifiedDescription": "Una veste bianca leggera e fluida, con sottili ricami argentati lungo i bordi. Ha un’aura di tranquillità e sembra quasi brillare leggermente alla luce."
@@ -434,7 +435,7 @@
     "notes": "La descrizione non identificata parla di uno strano specchio rotto con cornice vecchia e rovinata.",
     "subtype": "Specchio",
     "unidentifiedDescription": "Uno strano specchio rotto, con una cornice vecchia e rovinata.",
-    "image": "img/items/broken_mirror.png",
+    "image": "img/items/broken_mirror.webp",
     "type": "Oggetto meraviglioso"
   },
   {
@@ -478,7 +479,7 @@
       }
     ],
     "notes": "Descrizione non identificata: corona metallica composta da due filamenti incisi con glifi spenti.",
-    "image": "img/items/control_crown.png",
+    "image": "img/items/control_crown.webp",
     "subtype": "Corona",
     "unidentifiedDescription": "Una strana corona metallica composta da due filamenti incisi con qualche glifo spento.",
     "hidden": true
@@ -499,7 +500,7 @@
     ],
     "notes": "Peso indicato nel file Foundry: 8 kg.",
     "subtype": "Cuore",
-    "image": "img/items/heart_albert.png"
+    "image": "img/items/heart_albert.webp"
   },
   {
     "id": "collana-buffa-zara",
@@ -538,5 +539,179 @@
     "unidentifiedName": "[Non Identificato] Collana Buffa",
     "unidentifiedDescription": "Una graziosa collana di fili multicolore con un buffone sorridente disegnato nel ciondolo.",
     "unidentified": true
+  },
+  {
+    "id": "ciondolo-etereo-elena",
+    "name": "Elena: Ciondolo Etereo",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Raro",
+    "attunement": false,
+    "owner": "Elena",
+    "status": "known",
+    "icon": "fa-gem",
+    "summary": "Un piccolo ciondolo rosso, leggermente etereo, legato a Elena e al ricordo della sua vita con Rabberduscolanderson.",
+    "properties": [
+      {
+        "name": "Ricordo Perduto",
+        "charges": "",
+        "description": "Oggetto associato a Elena Erbadath e al filo emotivo che la lega ancora al mondo dei vivi, abbastanza significativo da essere riconosciuto come qualcosa che poteva ricondurla a Rabberduscolanderson."
+      }
+    ],
+    "notes": "Recuperato vicino al braccio gigantesco e collegato alla quest 'Trovare l'oggetto perduto di Elena'.",
+    "image": "img/items/elena_necklace.webp",
+    "subtype": "Ciondolo"
+  },
+  {
+    "id": "sieri-instabili-franky",
+    "name": "Franky: Sieri Instabili",
+    "type": "Pozione",
+    "rarity": "Raro",
+    "attunement": false,
+    "owner": "Franky",
+    "status": "known",
+    "hidden": true,
+    "icon": "fa-flask-vial",
+    "summary": "Una collezione di sieri alchemici instabili trasportati da Franky e offerti come merce di scambio in cambio di un cuore per il suo golem di carne.",
+    "properties": [
+      {
+        "name": "Miscela Variabile",
+        "charges": "",
+        "description": "Ogni fiala puo produrre effetti diversi; la distinzione tra cura, potenziamento e disastro dipende spesso solo dalla miscela contenuta."
+      }
+    ],
+    "notes": "Franky porta sempre con se una vasta gamma di sieri instabili; il gruppo ne ha trovati anche nel laboratorio di Nino Olegna.",
+    "image": "img/items/franky_sierums.webp",
+    "subtype": "Sieri"
+  },
+  {
+    "id": "feto-curativo-ginevra",
+    "name": "Ginevra: Feto Curativo",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Molto raro",
+    "attunement": false,
+    "owner": "Ginevra",
+    "status": "known",
+    "hidden": true,
+    "icon": "fa-droplet",
+    "summary": "Un reagente organico anomalo che Ginevra, come alambicco vivente, puo creare assimilando gli ingredienti adatti per produrre sostanze estremamente curative.",
+    "properties": [
+      {
+        "name": "Reagente Alchemico",
+        "charges": "",
+        "description": "Se trattato correttamente, puo essere usato come base per produrre una sostanza di guarigione straordinariamente potente."
+      }
+    ],
+    "notes": "Oggetto collegato alla natura di Ginevra come alambicco vivente, capace di assimilare reagenti e trasformarli in nuovi prodotti.",
+    "image": "img/items/ginevra_healing_fetus.webp",
+    "subtype": "Reagente"
+  },
+  {
+    "id": "cuore-rabberduscolanderson",
+    "name": "Rabberduscolanderson: Cuore",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Leggendario",
+    "attunement": true,
+    "owner": "Rabberduscolanderson",
+    "status": "identified",
+    "icon": "fa-heart",
+    "summary": "Una piccola sfera di vetro che custodisce il cuore di Rabberduscolanderson e un potere arcano plasmato da dolore, rame e memoria.",
+    "properties": [
+      {
+        "name": "Istinti del Reietto",
+        "charges": "",
+        "description": "Ottieni vantaggio alle prove di Stealth, Perception per trovare oggetti nascosti vicini ad almeno una moneta di rame, e Animal Handling contro le bestie."
+      },
+      {
+        "name": "Peso del Baratro",
+        "charges": "",
+        "description": "Hai svantaggio ai tiri salvezza contro la paura, svantaggio ai tiri per colpire contro creature di taglia superiore alla tua e vulnerabilita ai danni da caduta."
+      }
+    ],
+    "notes": "Ricompensa ottenuta dopo aver riunito Rabberduscolanderson con Elena.",
+    "image": "img/items/heart-rabberduscolanderson.webp",
+    "subtype": "Cuore"
+  },
+  {
+    "id": "cuore-x",
+    "name": "X: Cuore",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Leggendario",
+    "attunement": true,
+    "owner": "X",
+    "status": "identified",
+    "hidden": true,
+    "icon": "fa-heart",
+    "summary": "Una sfera che contiene il cuore di X intrecciato a filamenti arcani, dedicata allo studio di testi, rituali e conoscenza occulta.",
+    "properties": [
+      {
+        "name": "Erudizione Sigillata",
+        "charges": "",
+        "description": "Ottieni vantaggio alle prove di Arcana, History e Investigation quando studi libri, pergamene o rituali."
+      },
+      {
+        "name": "Comprensione Incompleta",
+        "charges": "",
+        "description": "Quando analizzi un testo magico, puoi comprenderne l'intento generale anche se incompleto o criptico."
+      },
+      {
+        "name": "Fragilita del Sapere",
+        "charges": "",
+        "description": "Hai svantaggio ai tiri salvezza contro veleno e agli effetti legati agli aracnidi."
+      }
+    ],
+    "notes": "Oggetto associato agli studi di X e alla sua storia con rituali e conoscenza proibita.",
+    "image": "img/items/heart-x.webp",
+    "subtype": "Cuore"
+  },
+  {
+    "id": "diadema-adamantino",
+    "name": "Ran'Dra: Cerchietto Adamantino",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Raro",
+    "attunement": true,
+    "owner": "Ran'Dra",
+    "status": "identified",
+    "icon": "fa-crown",
+    "summary": "Un cerchietto adamantino appartenente a Ran'Dra, capace di smorzare i colpi peggiori e assorbire parte dei danni fisici consumando cariche interne.",
+    "properties": [
+      {
+        "name": "Riserva Adamantina",
+        "charges": "12 cariche",
+        "description": "Il cerchietto possiede 12 cariche e recupera 3d4 cariche spese ogni giorno all'alba."
+      },
+      {
+        "name": "Adamantino",
+        "charges": "",
+        "description": "Quando subisci un colpo critico, puoi spendere 1 carica per trasformarlo in un colpo normale. La reazione e automatica e non richiede azione."
+      },
+      {
+        "name": "Robusto",
+        "charges": "Reazione, 1 carica",
+        "description": "Quando subisci danni contundenti, taglienti o perforanti, puoi usare la tua reazione per spendere 1 carica e ridurre i danni di 2d4."
+      }
+    ],
+    "notes": "Collegato alla missione di Rabberduscolanderson su cio che Ran'Dra nascondeva in tasca.",
+    "image": "img/items/adamantine_headband.webp",
+    "subtype": "Cerchietto"
+  },
+  {
+    "id": "regno-klaren",
+    "name": "Regno dei Klaren",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Raro",
+    "attunement": false,
+    "status": "known",
+    "icon": "fa-chess-rook",
+    "summary": "Una reliquia iconografica collegata ai Klaren, utile per riconoscere il loro simbolo e i riferimenti al popolo di Abrak sparsi nella cripta.",
+    "properties": [
+      {
+        "name": "Memoria dei Klaren",
+        "charges": "",
+        "description": "Richiama il simbolo Klaren visto su medaglioni, testi e non-morti del livello inferiore; il gruppo ha appreso che mostrare quel simbolo puo consentire l'accesso al piano sottostante."
+      }
+    ],
+    "notes": "Voce di contesto costruita a partire dai documenti su Abrak, dal medaglione Klaren recuperato e dalle informazioni ottenute da X.",
+    "image": "img/items/klaren_reign.webp",
+    "subtype": "Reliquia"
   }
 ]

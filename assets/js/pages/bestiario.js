@@ -41,11 +41,42 @@ document.addEventListener("DOMContentLoaded", async () => {
         updateBestiaryView(visibleCreatures, state, grid, count);
         initBestiaryModal();
         initBestiaryItemModal();
+        openLinkedBestiaryEntry(visibleCreatures);
     } catch (error) {
         console.error("Errore nel caricamento del bestiario:", error);
         grid.innerHTML = '<p class="bestiary-state bestiary-state--error">Impossibile caricare il bestiario.</p>';
     }
 });
+
+function openLinkedBestiaryEntry(creatures) {
+    const list = Array.isArray(creatures) ? creatures : [];
+    if (!list.length) return;
+    const target = getBestiaryLocationTarget();
+    if (!target) return;
+
+    const creature = list.find(entry => {
+        const slug = slugify(entry?.id || entry?.name || "");
+        return slug === target || normalizeSearchText(entry?.name || "") === target;
+    });
+    if (!creature) return;
+
+    const modal = document.getElementById("bestiary-modal");
+    const image = document.getElementById("bestiary-modal-image");
+    const title = document.getElementById("bestiary-modal-title");
+    const kicker = document.getElementById("bestiary-modal-kicker");
+    const details = document.getElementById("bestiary-modal-details");
+    if (!modal || !image || !title || !kicker || !details) return;
+    openBestiaryModal(creature, modal, image, title, kicker, details);
+}
+
+function getBestiaryLocationTarget() {
+    const params = new URLSearchParams(window.location.search);
+    const fromQuery = params.get("creature");
+    if (fromQuery) return normalizeSearchText(fromQuery).replace(/\s+/g, "-");
+    const fromHash = decodeURIComponent(window.location.hash || "").replace(/^#/, "");
+    if (fromHash) return normalizeSearchText(fromHash).replace(/\s+/g, "-");
+    return "";
+}
 
 const BESTIARY_CREATURE_TYPES = [
     { value: "Aberrazione", icon: "fa-brain" },
