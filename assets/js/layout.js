@@ -364,16 +364,10 @@ function getSitePollUrl() {
 function redirectToDiscordLogin() {
     const loginUrl = buildWorkerUrl("auth/discord/login");
     if (isEmbeddedRuntime) {
-        try {
-            window.parent?.postMessage({
-                type: "cripta-discord-login",
-                url: loginUrl
-            }, "*");
-            return;
-        } catch (_) {
-            window.alert("Il login Discord deve essere aperto dal modulo Foundry.");
-            return;
-        }
+        window.parent?.postMessage({
+            type: "cripta-discord-login",
+            url: loginUrl
+        }, "*");
         return;
     }
     window.location.href = loginUrl;
