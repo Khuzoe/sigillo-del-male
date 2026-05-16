@@ -359,9 +359,16 @@ function getSitePollUrl() {
 function redirectToDiscordLogin() {
     const loginUrl = buildWorkerUrl("auth/discord/login");
     if (isEmbedMode) {
-        const popup = window.open(loginUrl, "_blank", "noopener,noreferrer");
-        if (popup) return;
-        window.alert("Il login Discord non puo aprirsi dentro Foundry. Consenti i popup per aprire l'autenticazione in una nuova finestra.");
+        try {
+            window.parent?.postMessage({
+                type: "cripta-discord-login",
+                url: loginUrl
+            }, "*");
+            return;
+        } catch (_) {
+            window.alert("Il login Discord deve essere aperto dal modulo Foundry.");
+            return;
+        }
         return;
     }
     window.location.href = loginUrl;
