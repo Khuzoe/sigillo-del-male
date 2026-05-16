@@ -1,5 +1,5 @@
 {
-  "itemCount": 74,
+  "itemCount": 78,
   "items": [
     {
       "id": "item:cuore-di-albert",
@@ -106,6 +106,21 @@
         "family"
       ],
       "content": "Elena Erbadath Membro della Famiglia Von T"
+    },
+    {
+      "id": "item:ciondolo-etereo-elena",
+      "type": "item",
+      "entityId": "ciondolo-etereo-elena",
+      "title": "Elena: Ciondolo Etereo",
+      "subtitle": "Oggetto meraviglioso | Raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Raro",
+        "Elena"
+      ],
+      "content": "Un piccolo ciondolo rosso, leggermente etereo, legato a Elena e al ricordo della sua vita con Rabberduscolanderson. Recuperato vicino al braccio gigantesco e collegato alla quest 'Trovare l'oggetto perduto di Elena'. Ricordo Perduto Oggetto associato a Elena Erbadath e al filo emotivo che la lega ancora al mondo dei vivi, abbastanza significativo da essere riconosciuto come qualcosa che poteva ricondurla a Rabberduscolanderson."
     },
     {
       "id": "npc:franky",
@@ -396,7 +411,7 @@
         "Oggetto meraviglioso",
         "Artefatto"
       ],
-      "content": "Un prisma legato all'anima di Apothecary, citato tra gli eventi piu critici del gruppo. Contiene o vincola un'anima. La sua natura precisa resta da approfondire."
+      "content": "Un prisma nato dall'esplosione radiosa dell'incubo del sigillo, che ora custodisce l'anima di Apothecary separata dal suo corpo. Oggetto emerso dopo il sacrificio di Apothecary; X e il gruppo stanno ancora cercando di comprenderne la natura precisa. Anima Vincolata Il prisma contiene l'anima di Apothecary, rimasta intrappolata al suo interno mentre il corpo e rimasto privo di sensi. Origine Radiosa Si e formato durante l'incubo del sigillo, nel momento in cui Apothecary si e sacrificata per salvare il gruppo con un'esplosione di luce cristallizzata."
     },
     {
       "id": "quest-group:main_quest",
@@ -452,6 +467,21 @@
       "content": "Rabberduscolanderson Von T Membro della Famiglia Von T"
     },
     {
+      "id": "item:cuore-rabberduscolanderson",
+      "type": "item",
+      "entityId": "cuore-rabberduscolanderson",
+      "title": "Rabberduscolanderson: Cuore",
+      "subtitle": "Oggetto meraviglioso | Leggendario",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Leggendario",
+        "Rabberduscolanderson"
+      ],
+      "content": "Una piccola sfera di vetro che custodisce il cuore di Rabberduscolanderson e un potere arcano plasmato da dolore, rame e memoria. Ricompensa ottenuta dopo aver riunito Rabberduscolanderson con Elena. Istinti del Reietto Ottieni vantaggio alle prove di Stealth, Perception per trovare oggetti nascosti vicini ad almeno una moneta di rame, e Animal Handling contro le bestie. Peso del Baratro Hai svantaggio ai tiri salvezza contro la paura, svantaggio ai tiri per colpire contro creature di taglia superiore alla tua e vulnerabilita ai danni da caduta."
+    },
+    {
       "id": "player:randra",
       "type": "player",
       "entityId": "randra",
@@ -463,6 +493,35 @@
         "Eladrin"
       ],
       "content": "Maga dallo stile imprevedibile, unisce astuzia, illusioni e iniziativa per aprire strade dove sembrano non essercene. Tra furti decisivi, scelte rischiose e combattimenti al limite, continua a essere una risorsa tattica centrale per il gruppo. Eladrin 16 anni N/A 5 ft 6 in (1.67 m) 130 lbs (59 kg) Contemporaneo N/A"
+    },
+    {
+      "id": "item:diadema-adamantino",
+      "type": "item",
+      "entityId": "diadema-adamantino",
+      "title": "Ran'Dra: Cerchietto Adamantino",
+      "subtitle": "Oggetto meraviglioso | Raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Raro",
+        "Ran'Dra"
+      ],
+      "content": "Un cerchietto adamantino appartenente a Ran'Dra, capace di smorzare i colpi peggiori e assorbire parte dei danni fisici consumando cariche interne. Collegato alla missione di Rabberduscolanderson su cio che Ran'Dra nascondeva in tasca. Riserva Adamantina 12 cariche Il cerchietto possiede 12 cariche e recupera 3d4 cariche spese ogni giorno all'alba. Adamantino Quando subisci un colpo critico, puoi spendere 1 carica per trasformarlo in un colpo normale. La reazione e automatica e non richiede azione. Robusto Reazione, 1 carica Quando subisci danni contundenti, taglienti o perforanti, puoi usare..."
+    },
+    {
+      "id": "item:regno-klaren",
+      "type": "item",
+      "entityId": "regno-klaren",
+      "title": "Regno dei Klaren",
+      "subtitle": "Oggetto meraviglioso | Raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Raro"
+      ],
+      "content": "Una reliquia iconografica collegata ai Klaren, utile per riconoscere il loro simbolo e i riferimenti al popolo di Abrak sparsi nella cripta. Voce di contesto costruita a partire dai documenti su Abrak, dal medaglione Klaren recuperato e dalle informazioni ottenute da X. Memoria dei Klaren Richiama il simbolo Klaren visto su medaglioni, testi e non-morti del livello inferiore; il gruppo ha appreso che mostrare quel simbolo puo consentire l'accesso al piano sottostante."
     },
     {
       "id": "family:rendar",
@@ -978,7 +1037,7 @@
         "Oggetto meraviglioso",
         "Zara"
       ],
-      "content": "Una scarpa dotata di proprieta magiche sorprendenti, studiata insieme ai guanti di Zara. Oggetto emerso durante la Sessione 24. Proprieta complete da definire."
+      "content": "Un paio di pantofole animate e magiche legate all'equipaggiamento teatrale di Zara. Oggetto emerso e analizzato durante la Sessione 24. Proprieta non ancora catalogate Le pantofole sono state analizzate durante la Sessione 24 insieme ai guanti di Zara, ma le loro proprieta complete non sono ancora state riportate nel catalogo."
     }
   ]
 }
