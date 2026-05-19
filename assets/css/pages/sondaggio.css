@@ -1,0 +1,106 @@
+body.poll-page {
+            min-height: 100vh;
+            margin: 0;
+            background:
+                radial-gradient(circle at top, rgba(138, 28, 28, 0.16), transparent 36%),
+                radial-gradient(circle at bottom right, rgba(212, 175, 55, 0.08), transparent 28%),
+                linear-gradient(180deg, #09090d 0%, #120f16 100%);
+            color: var(--text-main);
+        }
+
+        .poll-page-shell {
+            width: min(1520px, calc(100vw - 1rem));
+            margin: 0 auto;
+            padding: 0.75rem 0 1.5rem;
+        }
+
+        .poll-page-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0 0 0.75rem;
+        }
+
+        .poll-page-home-link {
+            width: 34px;
+            height: 34px;
+            border: 1px solid rgba(212, 175, 55, 0.24);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--gold);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+        }
+
+        .poll-page-home-link:hover {
+            transform: translateY(-1px);
+            background: rgba(212, 175, 55, 0.12);
+            border-color: rgba(212, 175, 55, 0.5);
+        }
+
+        .poll-page-auth {
+            min-width: 0;
+            margin-top: 0;
+            padding-top: 0;
+            border-top: 0;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.6rem;
+        }
+
+        .poll-page-auth .discord-auth-status {
+            text-align: right;
+            margin: 0;
+        }
+
+        .poll-page-main {
+            display: block;
+        }
+
+        .poll-page-panel {
+            padding: 0;
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+            overflow: visible;
+        }
+
+        .poll-page-panel .next-session-card-controls {
+            display: none;
+        }
+
+        .poll-page-panel .next-label,
+        .poll-page-panel .next-title,
+        .poll-page-panel .availability-feedback {
+            display: none;
+        }
+
+        .poll-page-panel .next-session-card,
+        .poll-page-panel .next-session-card-poll {
+            margin-bottom: 0;
+        }
+
+        @media (max-width: 900px) {
+            .poll-page-shell {
+                width: min(100vw, calc(100vw - 1rem));
+                padding: 0.5rem 0 1rem;
+            }
+
+            .poll-page-topbar {
+                justify-content: space-between;
+            }
+
+            .poll-page-auth {
+                align-items: flex-start;
+                justify-content: flex-start;
+            }
+
+            .poll-page-auth .discord-auth-status {
+                text-align: left;
+            }
+        }

@@ -42,6 +42,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     markInitialInlineHeadStyles();
     ensureFavicon(basePath);
+    if (!isEmbeddedRuntime) {
+        ensureTopAuthBar();
+    }
     bindPrefetchForLinks(document);
     setDmOnlyVisibility(false);
     window.addEventListener("message", handleEmbeddedAuthMessage);
@@ -174,6 +177,8 @@ async function navigateSpa(targetUrl, options = {}) {
         const importedMain = document.importNode(nextMain, true);
         const nextScripts = getSpaScriptSources(nextDocument, target);
 
+        await runSpaExitTransition(currentMain);
+
         if (push) {
             history.pushState({}, "", target.toString());
         }
@@ -193,6 +198,7 @@ async function navigateSpa(targetUrl, options = {}) {
         setActiveLink();
         setDmOnlyVisibility(false);
         initPageAccessControls(window.CriptaBasePath);
+        runSpaEnterTransition();
 
         await loadSpaScripts(nextScripts);
         document.dispatchEvent(new CustomEvent("cripta:spa-ready", {
@@ -241,7 +247,7 @@ function markInitialInlineHeadStyles() {
 }
 
 function syncSpaHead(nextDocument, targetUrl) {
-    document.head.querySelectorAll("[data-spa-head]").forEach((node) => node.remove());
+    document.head.querySelectorAll("[data-spa-head], link[data-page-style]").forEach((node) => node.remove());
     removeInitialPageStyles();
 
     nextDocument.head.querySelectorAll("style").forEach((style) => {
@@ -346,6 +352,33 @@ function scrollToCurrentHash() {
     if (target) {
         target.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+}
+
+function prefersReducedMotion() {
+    return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+}
+
+function wait(ms) {
+    return new Promise(resolve => window.setTimeout(resolve, ms));
+}
+
+async function runSpaExitTransition(main) {
+    if (prefersReducedMotion()) return;
+    main.classList.add("spa-page-exit");
+    await wait(110);
+}
+
+function runSpaEnterTransition() {
+    if (prefersReducedMotion()) return;
+    const main = document.querySelector("main");
+    if (!main) return;
+    main.classList.add("spa-page-enter");
+    window.requestAnimationFrame(() => {
+        main.classList.add("spa-page-enter-active");
+        window.setTimeout(() => {
+            main.classList.remove("spa-page-enter", "spa-page-enter-active");
+        }, 260);
+    });
 }
 
 function notifyEmbeddedLocation() {
@@ -471,8 +504,42 @@ function initSidebar(html, basePath) {
     fixPaths(container, basePath);
     setActiveLink();
     bindPrefetchForLinks(container);
-    initDiscordAuth(container);
     initPageAccessControls(basePath);
+}
+
+function ensureTopAuthBar() {
+    let authBar = document.getElementById("top-auth-bar");
+    if (!authBar) {
+        authBar = document.createElement("div");
+        authBar.id = "top-auth-bar";
+        authBar.className = "top-auth-bar discord-auth";
+        authBar.setAttribute("aria-label", "Accesso wiki");
+        authBar.innerHTML = `
+            <p class="discord-auth-status" data-auth-status>Non loggato</p>
+            <div class="discord-auth-actions">
+                <button type="button" class="discord-auth-btn discord-auth-btn--login" data-discord-login aria-label="Login con Discord" title="Login con Discord">
+                    <i class="fab fa-discord" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="discord-auth-btn discord-auth-btn--login" data-device-login aria-label="Login con codice" title="Login con codice">
+                    <i class="fas fa-user" aria-hidden="true"></i>
+                </button>
+            </div>
+            <button type="button" class="discord-auth-account-btn" data-auth-menu-toggle aria-label="Menu account" title="Menu account" hidden>
+                <i class="fas fa-user" aria-hidden="true"></i>
+            </button>
+            <div class="discord-auth-menu" data-auth-menu hidden>
+                <div class="discord-auth-menu__user" data-auth-menu-user>Account wiki</div>
+                <button type="button" class="discord-auth-menu__logout" data-discord-logout>
+                    <i class="fas fa-right-from-bracket" aria-hidden="true"></i>
+                    Logout
+                </button>
+            </div>
+        `;
+        document.body.appendChild(authBar);
+    }
+
+    initDiscordAuth(authBar);
+    return authBar;
 }
 
 function renderSidebarSkeleton() {
@@ -603,6 +670,306 @@ function warmEmbedSectionScripts(basePath) {
     }
 }
 
+function initCommandPalette() {
+    ensureCommandPalette();
+
+    document.addEventListener("keydown", (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+            event.preventDefault();
+            openCommandPalette();
+        }
+        if (event.key === "Escape") {
+            closeCommandPalette();
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        if (event.target.closest("[data-command-palette-open]")) {
+            event.preventDefault();
+            openCommandPalette();
+            return;
+        }
+
+        if (event.target.closest("[data-command-result]")) {
+            closeCommandPalette();
+            return;
+        }
+
+        const overlay = document.getElementById("command-palette");
+        if (overlay && event.target === overlay) {
+            closeCommandPalette();
+        }
+    });
+}
+
+function ensureCommandPalette() {
+    if (document.getElementById("command-palette")) return;
+
+    const overlay = document.createElement("div");
+    overlay.id = "command-palette";
+    overlay.className = "command-palette";
+    overlay.hidden = true;
+    overlay.innerHTML = `
+        <div class="command-palette__panel" role="dialog" aria-modal="true" aria-label="Cerca nella wiki">
+            <div class="command-palette__search">
+                <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                <input type="search" data-command-input placeholder="Cerca NPC, missioni, oggetti, sessioni..." autocomplete="off">
+                <kbd>Esc</kbd>
+            </div>
+            <div class="command-palette__meta" data-command-meta>Scrivi almeno due lettere.</div>
+            <div class="command-palette__results" data-command-results></div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const input = overlay.querySelector("[data-command-input]");
+    input.addEventListener("input", () => {
+        renderCommandResults(input.value);
+    });
+}
+
+async function openCommandPalette() {
+    const overlay = ensureCommandPalette() || document.getElementById("command-palette");
+    const palette = document.getElementById("command-palette");
+    if (!palette) return;
+
+    palette.hidden = false;
+    document.body.classList.add("command-palette-open");
+    const input = palette.querySelector("[data-command-input]");
+    input.value = "";
+    renderCommandResults("");
+    window.setTimeout(() => input.focus(), 0);
+    loadSearchIndex().then(() => renderCommandResults(input.value)).catch(() => {
+        const meta = palette.querySelector("[data-command-meta]");
+        if (meta) meta.textContent = "Indice ricerca non disponibile.";
+    });
+}
+
+function closeCommandPalette() {
+    const palette = document.getElementById("command-palette");
+    if (!palette || palette.hidden) return;
+    palette.hidden = true;
+    document.body.classList.remove("command-palette-open");
+}
+
+async function renderCommandResults(query) {
+    const palette = document.getElementById("command-palette");
+    if (!palette || palette.hidden) return;
+
+    const resultsEl = palette.querySelector("[data-command-results]");
+    const metaEl = palette.querySelector("[data-command-meta]");
+    const raw = String(query || "").trim();
+    if (!raw || raw.length < 2) {
+        metaEl.textContent = "Scrivi almeno due lettere.";
+        resultsEl.innerHTML = renderCommandQuickLinks();
+        return;
+    }
+
+    metaEl.textContent = "Ricerca...";
+    const { items, fuse } = await loadSearchIndex();
+    const results = fuse
+        ? fuse.search(raw).slice(0, 10).map(result => result.item)
+        : fallbackSearch(items, raw).slice(0, 10);
+
+    metaEl.textContent = results.length ? `${results.length} risultati` : "Nessun risultato.";
+    resultsEl.innerHTML = results.map(renderCommandItem).join("");
+}
+
+function renderCommandQuickLinks() {
+    const links = [
+        { title: "Home", subtitle: "Dashboard campagna", type: "Pagina", url: "index.html", icon: "fa-house" },
+        { title: "Sessioni", subtitle: "Diario delle sessioni", type: "Pagina", url: "pages/sessioni.html", icon: "fa-scroll" },
+        { title: "Missioni", subtitle: "Registro delle imprese", type: "Pagina", url: "pages/missioni.html", icon: "fa-flag" },
+        { title: "Appunti", subtitle: "Note personali e condivise", type: "Pagina", url: "pages/appunti.html", icon: "fa-note-sticky" }
+    ];
+    return links.map(renderCommandItem).join("");
+}
+
+function renderCommandItem(item) {
+    const type = item.type || "Voce";
+    const icon = item.icon || getCommandIcon(type);
+    return `
+        <a class="command-palette__item" href="${resolveSiteUrl(item.url || "index.html")}" data-command-result>
+            <i class="fas ${escapeHtml(icon)}" aria-hidden="true"></i>
+            <span>
+                <strong>${escapeHtml(item.title || "Senza titolo")}</strong>
+                <small>${escapeHtml(item.subtitle || type)}${item.content ? ` · ${escapeHtml(trimPreviewText(item.content, 96))}` : ""}</small>
+            </span>
+            <em>${escapeHtml(type)}</em>
+        </a>
+    `;
+}
+
+function getCommandIcon(type) {
+    const normalized = String(type || "").toLowerCase();
+    if (normalized.includes("npc")) return "fa-skull";
+    if (normalized.includes("gioc")) return "fa-dice-d20";
+    if (normalized.includes("mission") || normalized.includes("quest")) return "fa-flag";
+    if (normalized.includes("session")) return "fa-scroll";
+    if (normalized.includes("oggetto") || normalized.includes("item")) return "fa-wand-sparkles";
+    if (normalized.includes("creature")) return "fa-book-dead";
+    return "fa-circle-dot";
+}
+
+async function loadSearchIndex() {
+    if (searchIndexPromise) return searchIndexPromise;
+
+    searchIndexPromise = (async () => {
+        const data = await fetchJsonWithCache(resolveSiteUrl("assets/data/search-index.json"));
+        const items = Array.isArray(data?.items)
+            ? data.items.filter(item => !window.WikiSpoiler || window.WikiSpoiler.isVisible(item))
+            : [];
+        const FuseCtor = await loadFuse().catch(() => null);
+        const fuse = FuseCtor
+            ? new FuseCtor(items, {
+                keys: [
+                    { name: "title", weight: 0.55 },
+                    { name: "subtitle", weight: 0.25 },
+                    { name: "tags", weight: 0.15 },
+                    { name: "content", weight: 0.05 }
+                ],
+                threshold: 0.36,
+                ignoreLocation: true,
+                minMatchCharLength: 2
+            })
+            : null;
+        return { items, fuse };
+    })();
+
+    return searchIndexPromise;
+}
+
+function loadFuse() {
+    if (window.Fuse) return Promise.resolve(window.Fuse);
+    if (fuseLoadPromise) return fuseLoadPromise;
+
+    fuseLoadPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = FUSE_CDN_URL;
+        script.async = true;
+        script.addEventListener("load", () => resolve(window.Fuse || null), { once: true });
+        script.addEventListener("error", () => reject(new Error("Fuse.js non disponibile")), { once: true });
+        document.head.appendChild(script);
+    });
+    return fuseLoadPromise;
+}
+
+function fallbackSearch(items, query) {
+    const term = normalizeText(query);
+    if (!term) return [];
+    return items
+        .map(item => {
+            const haystack = normalizeText(`${item.title || ""} ${item.subtitle || ""} ${(item.tags || []).join(" ")} ${item.content || ""}`);
+            const title = normalizeText(item.title || "");
+            let score = 0;
+            if (title.startsWith(term)) score += 80;
+            if (title.includes(term)) score += 40;
+            if (haystack.includes(term)) score += 15;
+            return { item, score };
+        })
+        .filter(result => result.score > 0)
+        .sort((left, right) => right.score - left.score)
+        .map(result => result.item);
+}
+
+function initLinkPreviews() {
+    const preview = document.createElement("div");
+    preview.id = "link-preview";
+    preview.className = "link-preview";
+    preview.hidden = true;
+    document.body.appendChild(preview);
+
+    let hoverTimer = null;
+    let activeLink = null;
+
+    document.addEventListener("mouseover", (event) => {
+        const link = event.target.closest("a[href]");
+        if (!link || !isPreviewableLink(link)) return;
+        activeLink = link;
+        window.clearTimeout(hoverTimer);
+        hoverTimer = window.setTimeout(() => showLinkPreview(link, preview), 260);
+    });
+
+    document.addEventListener("mouseout", (event) => {
+        if (!activeLink || !event.target.closest?.("a[href]")) return;
+        if (activeLink.contains(event.relatedTarget)) return;
+        activeLink = null;
+        window.clearTimeout(hoverTimer);
+        hideLinkPreview(preview);
+    });
+
+    document.addEventListener("scroll", () => hideLinkPreview(preview), { passive: true });
+}
+
+function isPreviewableLink(link) {
+    if (link.closest(".sidebar, .top-auth-bar, .command-palette")) return false;
+    try {
+        const target = new URL(link.href, window.location.href);
+        return target.origin === window.location.origin && target.pathname.endsWith(".html");
+    } catch (_) {
+        return false;
+    }
+}
+
+async function showLinkPreview(link, preview) {
+    try {
+        const match = await findPreviewItem(link.href);
+        if (!match) return;
+
+        preview.innerHTML = `
+            <div class="link-preview__type">${escapeHtml(match.type || "Voce")}</div>
+            <strong>${escapeHtml(match.title || "Senza titolo")}</strong>
+            <p>${escapeHtml(trimPreviewText(match.content || match.subtitle || "", 180))}</p>
+        `;
+        const rect = link.getBoundingClientRect();
+        const top = Math.min(window.innerHeight - 170, Math.max(16, rect.bottom + 10));
+        const left = Math.min(window.innerWidth - 340, Math.max(16, rect.left));
+        preview.style.top = `${top}px`;
+        preview.style.left = `${left}px`;
+        preview.hidden = false;
+    } catch (_) {
+        hideLinkPreview(preview);
+    }
+}
+
+function hideLinkPreview(preview) {
+    preview.hidden = true;
+}
+
+async function findPreviewItem(href) {
+    const { items } = await loadSearchIndex();
+    const target = new URL(href, window.location.href);
+    const targetPath = normalizePreviewUrl(target);
+    return items.find(item => normalizePreviewUrl(new URL(resolveSiteUrl(item.url || ""), window.location.href)) === targetPath)
+        || items.find(item => targetPath.endsWith(normalizePreviewUrl(new URL(resolveSiteUrl(item.url || ""), window.location.href))));
+}
+
+function normalizePreviewUrl(url) {
+    return `${url.pathname.replace(/\/index\.html$/i, "/")}${url.search || ""}${url.hash || ""}`.replace(/\/+/g, "/");
+}
+
+function normalizeText(value) {
+    return String(value || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+}
+
+function trimPreviewText(value, maxLength) {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    return text.length > maxLength ? `${text.slice(0, maxLength).trim()}...` : text;
+}
+
+function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "\"": "&quot;",
+        "'": "&#039;"
+    })[char]);
+}
+
 function warmEmbedScript(basePath, path) {
     const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
     const timeout = controller
@@ -620,10 +987,12 @@ function warmEmbedScript(basePath, path) {
 }
 
 function initDiscordAuth(scope) {
-    const status = scope.querySelector("#auth-status");
-    const loginBtn = scope.querySelector("#discord-login");
-    const deviceLoginBtn = scope.querySelector("#device-login");
-    const logoutBtn = scope.querySelector("#discord-logout");
+    const status = scope.querySelector("[data-auth-status], #auth-status");
+    const loginBtn = scope.querySelector("[data-discord-login], #discord-login");
+    const deviceLoginBtn = scope.querySelector("[data-device-login], #device-login");
+    const logoutBtn = scope.querySelector("[data-discord-logout], #discord-logout");
+    const menuToggle = scope.querySelector("[data-auth-menu-toggle]");
+    const menu = scope.querySelector("[data-auth-menu]");
     if (!status || !loginBtn || !logoutBtn) return;
 
     const didConsumeToken = consumeTokenFromHash();
@@ -640,7 +1009,17 @@ function initDiscordAuth(scope) {
         promptDeviceLogin();
     });
 
+    menuToggle?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        toggleAuthMenu(scope);
+    });
+
+    document.addEventListener("click", (event) => {
+        if (!scope.contains(event.target)) closeAuthMenu(scope);
+    });
+
     logoutBtn.addEventListener("click", () => {
+        closeAuthMenu(scope);
         logoutDiscord();
     });
 
@@ -667,10 +1046,12 @@ function consumeTokenFromHash() {
 }
 
 async function refreshAuthUI(scope) {
-    const status = scope.querySelector("#auth-status");
-    const loginBtn = scope.querySelector("#discord-login");
-    const deviceLoginBtn = scope.querySelector("#device-login");
-    const logoutBtn = scope.querySelector("#discord-logout");
+    const status = scope.querySelector("[data-auth-status], #auth-status");
+    const loginBtn = scope.querySelector("[data-discord-login], #discord-login");
+    const deviceLoginBtn = scope.querySelector("[data-device-login], #device-login");
+    const logoutBtn = scope.querySelector("[data-discord-logout], #discord-logout");
+    const menuToggle = scope.querySelector("[data-auth-menu-toggle]");
+    const menuUser = scope.querySelector("[data-auth-menu-user]");
     if (!status || !loginBtn || !logoutBtn) return;
 
     const token = readStoredToken();
@@ -680,10 +1061,11 @@ async function refreshAuthUI(scope) {
         return;
     }
 
+    setAuthState(status, "checking");
     status.textContent = "Verifica login...";
     loginBtn.hidden = true;
     if (deviceLoginBtn) deviceLoginBtn.hidden = true;
-    logoutBtn.hidden = false;
+    if (menuToggle) menuToggle.hidden = false;
 
     try {
         const authState = await verifyDiscordAuth();
@@ -693,26 +1075,49 @@ async function refreshAuthUI(scope) {
             return;
         }
         const username = authState.user.global_name || authState.user.username || "utente Discord";
+        setAuthState(status, "logged-in");
         status.textContent = `Loggato come ${username}`;
+        if (menuUser) menuUser.textContent = username;
         loginBtn.hidden = true;
         if (deviceLoginBtn) deviceLoginBtn.hidden = true;
-        logoutBtn.hidden = false;
+        if (menuToggle) menuToggle.hidden = false;
         await updateDmOnlyVisibility(window.CriptaBasePath || "");
     } catch (_) {
+        setAuthState(status, "error");
         status.textContent = "Errore verifica login";
         loginBtn.hidden = true;
         if (deviceLoginBtn) deviceLoginBtn.hidden = true;
-        logoutBtn.hidden = false;
+        if (menuToggle) menuToggle.hidden = false;
         setDmOnlyVisibility(false);
     }
 }
 
 function setLoggedOutState(status, loginBtn, logoutBtn) {
+    setAuthState(status, "logged-out");
+    const scope = status.closest(".discord-auth");
+    const menuToggle = scope?.querySelector("[data-auth-menu-toggle]");
     status.textContent = "Non loggato";
     loginBtn.hidden = false;
-    const deviceLoginBtn = loginBtn.parentElement?.querySelector("#device-login");
+    const deviceLoginBtn = loginBtn.parentElement?.querySelector("[data-device-login], #device-login");
     if (deviceLoginBtn) deviceLoginBtn.hidden = false;
-    logoutBtn.hidden = true;
+    if (logoutBtn) logoutBtn.hidden = false;
+    if (menuToggle) menuToggle.hidden = true;
+    closeAuthMenu(scope);
+}
+
+function setAuthState(status, state) {
+    status?.closest?.(".discord-auth")?.setAttribute("data-auth-state", state);
+}
+
+function toggleAuthMenu(scope) {
+    const menu = scope?.querySelector("[data-auth-menu]");
+    if (!menu) return;
+    menu.hidden = !menu.hidden;
+}
+
+function closeAuthMenu(scope) {
+    const menu = scope?.querySelector("[data-auth-menu]");
+    if (menu) menu.hidden = true;
 }
 
 function readStoredToken() {
