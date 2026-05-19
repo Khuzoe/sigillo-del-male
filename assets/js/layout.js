@@ -57,6 +57,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
 function getCurrentPageId(url = window.location.href) {
     const target = new URL(url, window.location.href);
+    if (target.pathname.endsWith("/")) return "index";
+
     const pathname = target.pathname.replace(/\/+$/, "");
     const filename = pathname.split("/").pop() || "index.html";
     if (!filename || filename === "index.html") return "index";
