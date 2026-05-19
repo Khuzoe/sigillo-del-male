@@ -1,4 +1,5 @@
 assets/data/foundry.json
+module/
 workers/*/node_modules/
 workers/*/.wrangler/
 workers/*/.dev.vars
