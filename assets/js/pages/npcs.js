@@ -158,6 +158,7 @@ function parseYamlLite(yamlText) {
                     return;
                 }
 
+                npcListContainer.innerHTML = '';
                 sortedNpcs.forEach(npc => {
                     const card = createNpcCard(npc, base_path);
                     npcListContainer.appendChild(card);

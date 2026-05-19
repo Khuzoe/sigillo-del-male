@@ -4222,6 +4222,19 @@ body.page-character .right-col {
     overflow: visible;
 }
 
+.npc-card--loading {
+    min-height: 132px;
+    background: linear-gradient(180deg, rgba(30, 30, 30, 0.62), rgba(16, 16, 16, 0.82));
+    border-color: rgba(212, 175, 55, 0.12);
+    pointer-events: none;
+}
+
+.npc-card--loading .npc-avatar-container {
+    background:
+        radial-gradient(circle at 35% 30%, rgba(212, 175, 55, 0.12), transparent 42%),
+        rgba(0, 0, 0, 0.35);
+}
+
 .home-char-avatar {
     position: relative;
     overflow: visible;

@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="it" data-head-include="../_includes/head.html">
+<html lang="it">
 
 <head>
     <title>Cripta di Sangue - NPCs</title>
-    <script src="../assets/js/head.js" defer></script>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>html,body{background:#121212;color:#e0e0e0;}</style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -19,7 +20,7 @@
 
 </head>
 
-<body>
+<body class="page-npcs" style="background:#121212;color:#e0e0e0;">
 
     <!-- NAVIGAZIONE LATERALE (Vuota - Gestita da layout.js) -->
     <nav class="sidebar" id="sidebar-container">
@@ -27,7 +28,7 @@
     </nav>
 
     <!-- CONTENUTO PRINCIPALE -->
-    <main class="main-content">
+    <main class="main-content" style="background-color:#121212;">
         <header class="hero-mini">
             <div class="hero-title">
                 <h1>NPCs</h1>
@@ -38,7 +39,13 @@
         <div class="container">
 
             <div class="npc-list">
-                <!-- NPC cards will be dynamically inserted here -->
+                <div class="npc-card npc-card--loading" aria-hidden="true">
+                    <div class="npc-avatar-container"></div>
+                    <div class="npc-info">
+                        <div class="npc-name">Caricamento NPC...</div>
+                        <p class="npc-desc">Le anime della cripta stanno emergendo dall'oscurita.</p>
+                    </div>
+                </div>
             </div>
 
             <div style="text-align: center; margin-top: 4rem; opacity: 0.4;">
