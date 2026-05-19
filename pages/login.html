@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <title>Login rapido | Cripta di Sangue</title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="../assets/css/abyssal.css">
+    <link rel="stylesheet" href="../assets/css/pages/login.css" data-page-style>
+</head>
+
+<body class="login-page">
+    <main class="login-page-shell">
+        <section class="login-card" aria-labelledby="login-title">
+            <div class="login-card__mark" aria-hidden="true">
+                <i class="fas fa-user"></i>
+            </div>
+
+            <p class="login-card__kicker">Cripta di Sangue</p>
+            <h1 id="login-title">Login rapido</h1>
+            <p id="login-message" class="login-card__message">Verifico il link personale...</p>
+
+            <form id="quick-login-form" class="quick-login-form" hidden>
+                <label for="quick-login-code">Codice personale</label>
+                <div class="quick-login-form__row">
+                    <input id="quick-login-code" name="code" type="text" autocomplete="off" placeholder="GARUN-LNHU-JS9D">
+                    <button type="submit">Accedi</button>
+                </div>
+            </form>
+
+            <a class="login-card__home" href="../index.html">
+                <i class="fas fa-house" aria-hidden="true"></i>
+                Torna alla home
+            </a>
+        </section>
+    </main>
+
+    <script src="../assets/js/layout.js"></script>
+    <script src="../assets/js/pages/login.js"></script>
+</body>
+
+</html>
