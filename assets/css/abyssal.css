@@ -244,6 +244,12 @@ ul {
     display: none !important;
 }
 
+.discord-auth-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .discord-auth-btn--login {
     align-self: flex-start;
     width: 42px;

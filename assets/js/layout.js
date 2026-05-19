@@ -133,6 +133,7 @@ function initSidebar(html, basePath) {
     container.innerHTML = html;
     fixPaths(container, basePath);
     setActiveLink();
+    bindEmbedNavigation(container);
     bindPrefetchForLinks(container);
     initDiscordAuth(container);
     initPageAccessControls(basePath);
@@ -202,6 +203,22 @@ function setActiveLink() {
     if (targetLink) {
         targetLink.classList.add("active");
     }
+}
+
+function bindEmbedNavigation(scope) {
+    if (!isEmbeddedRuntime) return;
+
+    scope.querySelectorAll("a[href]").forEach((link) => {
+        link.addEventListener("click", (event) => {
+            const href = link.href || "";
+            if (!href || href.startsWith("#") || link.target === "_blank") return;
+            event.preventDefault();
+            window.parent?.postMessage({
+                type: "cripta-wiki-navigate",
+                url: href
+            }, "*");
+        });
+    });
 }
 
 function bindPrefetchForLinks(scope) {
@@ -276,6 +293,7 @@ function warmEmbedScript(basePath, path) {
 function initDiscordAuth(scope) {
     const status = scope.querySelector("#auth-status");
     const loginBtn = scope.querySelector("#discord-login");
+    const deviceLoginBtn = scope.querySelector("#device-login");
     const logoutBtn = scope.querySelector("#discord-logout");
     if (!status || !loginBtn || !logoutBtn) return;
 
@@ -287,6 +305,10 @@ function initDiscordAuth(scope) {
 
     loginBtn.addEventListener("click", () => {
         redirectToDiscordLogin();
+    });
+
+    deviceLoginBtn?.addEventListener("click", () => {
+        promptDeviceLogin();
     });
 
     logoutBtn.addEventListener("click", () => {
@@ -318,6 +340,7 @@ function consumeTokenFromHash() {
 async function refreshAuthUI(scope) {
     const status = scope.querySelector("#auth-status");
     const loginBtn = scope.querySelector("#discord-login");
+    const deviceLoginBtn = scope.querySelector("#device-login");
     const logoutBtn = scope.querySelector("#discord-logout");
     if (!status || !loginBtn || !logoutBtn) return;
 
@@ -330,6 +353,7 @@ async function refreshAuthUI(scope) {
 
     status.textContent = "Verifica login...";
     loginBtn.hidden = true;
+    if (deviceLoginBtn) deviceLoginBtn.hidden = true;
     logoutBtn.hidden = false;
 
     try {
@@ -342,11 +366,13 @@ async function refreshAuthUI(scope) {
         const username = authState.user.global_name || authState.user.username || "utente Discord";
         status.textContent = `Loggato come ${username}`;
         loginBtn.hidden = true;
+        if (deviceLoginBtn) deviceLoginBtn.hidden = true;
         logoutBtn.hidden = false;
         await updateDmOnlyVisibility(window.CriptaBasePath || "");
     } catch (_) {
         status.textContent = "Errore verifica login";
         loginBtn.hidden = true;
+        if (deviceLoginBtn) deviceLoginBtn.hidden = true;
         logoutBtn.hidden = false;
         setDmOnlyVisibility(false);
     }
@@ -355,6 +381,8 @@ async function refreshAuthUI(scope) {
 function setLoggedOutState(status, loginBtn, logoutBtn) {
     status.textContent = "Non loggato";
     loginBtn.hidden = false;
+    const deviceLoginBtn = loginBtn.parentElement?.querySelector("#device-login");
+    if (deviceLoginBtn) deviceLoginBtn.hidden = false;
     logoutBtn.hidden = true;
 }
 
@@ -423,6 +451,48 @@ function redirectToDiscordLogin() {
         return;
     }
     window.location.href = loginUrl;
+}
+
+async function loginWithDeviceCode(code) {
+    const cleanCode = String(code || "").trim();
+    if (!cleanCode) {
+        throw new Error("Inserisci un codice accesso.");
+    }
+
+    const response = await requestApi("auth/device/login", {
+        method: "POST",
+        body: { code: cleanCode }
+    });
+
+    if (!response?.token) {
+        throw new Error("Risposta login non valida.");
+    }
+
+    storeToken(String(response.token));
+    discordAuthCache = response.user ? { ok: true, user: response.user } : null;
+
+    if (isEmbeddedRuntime) {
+        window.parent?.postMessage({
+            type: "cripta-auth-token",
+            token: response.token,
+            user: response.user || null
+        }, "*");
+    }
+
+    return response;
+}
+
+function promptDeviceLogin() {
+    const code = window.prompt("Codice accesso personale");
+    if (code === null) return;
+
+    loginWithDeviceCode(code)
+        .then(() => {
+            window.location.reload();
+        })
+        .catch((error) => {
+            window.alert(error?.message || String(error || "Login non riuscito."));
+        });
 }
 
 function handleEmbeddedAuthMessage(event) {
@@ -656,6 +726,8 @@ window.CriptaDiscordAuth = {
     consumeTokenFromHash,
     clearToken: clearStoredToken,
     login: redirectToDiscordLogin,
+    loginWithDeviceCode,
+    promptDeviceLogin,
     logout: logoutDiscord
 };
 

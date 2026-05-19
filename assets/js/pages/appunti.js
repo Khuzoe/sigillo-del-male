@@ -221,6 +221,14 @@
             });
         });
 
+        document.querySelectorAll("[data-notes-device-login]").forEach((button) => {
+            button.addEventListener("click", () => {
+                if (window.CriptaDiscordAuth?.promptDeviceLogin) {
+                    window.CriptaDiscordAuth.promptDeviceLogin();
+                }
+            });
+        });
+
         document.addEventListener("keydown", (event) => {
             if (event.key === "Escape" && els.notesPickerModal && !els.notesPickerModal.hidden) closePicker();
             if (event.key === "Escape" && els.notesLoginModal && !els.notesLoginModal.hidden) closeLoginPrompt();
