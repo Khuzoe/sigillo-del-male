@@ -18,6 +18,8 @@
         linkFilter: "",
         dirty: false,
         saveTimer: null,
+        periodicSaveTimer: null,
+        pageScope: null,
         pickerType: "",
         mergedHiddenAuthors: new Set(),
         entities: {
@@ -30,9 +32,10 @@
 
     const els = {};
 
-    document.addEventListener("DOMContentLoaded", init);
+    window.CriptaApp.onPageReady(NOTES_PAGE_ID, init);
 
     async function init() {
+        state.pageScope = window.CriptaApp.createPageScope(NOTES_PAGE_ID);
         bindElements();
         bindEvents();
         setEditorEnabled(false);
@@ -55,9 +58,13 @@
             loadLinkableEntities()
         ]);
 
-        window.setInterval(() => {
+        window.clearInterval(state.periodicSaveTimer);
+        state.periodicSaveTimer = window.setInterval(() => {
             if (state.dirty && canWriteNotes()) saveNow();
         }, PERIODIC_SAVE_MS);
+        state.pageScope.signal.addEventListener("abort", () => {
+            window.clearInterval(state.periodicSaveTimer);
+        }, { once: true });
     }
 
     function bindElements() {
@@ -229,7 +236,7 @@
             });
         });
 
-        document.addEventListener("keydown", (event) => {
+        state.pageScope.listen(document, "keydown", (event) => {
             if (event.key === "Escape" && els.notesPickerModal && !els.notesPickerModal.hidden) closePicker();
             if (event.key === "Escape" && els.notesLoginModal && !els.notesLoginModal.hidden) closeLoginPrompt();
         });

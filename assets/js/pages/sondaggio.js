@@ -62,7 +62,7 @@ async function renderPollPage() {
     }
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
+window.CriptaApp.onPageReady("sondaggio", async () => {
     if (window.CriptaDiscordAuth?.consumeTokenFromHash?.()) {
         window.location.replace(window.location.pathname + window.location.search);
         return;

@@ -1,6 +1,14 @@
 /* MAPPA IMMAGINI (Cache) */
         const characterImages = {};
 
+        function siteUrl(path) {
+            const cleanPath = String(path || '').replace(/^\/+/, '');
+            if (typeof window.CriptaApp?.urls?.site === 'function') {
+                return window.CriptaApp.urls.site(cleanPath);
+            }
+            return new URL(`../${cleanPath}`, window.location.href).toString();
+        }
+
         // Funzione helper per parsare YAML (molto semplificata, solo per estrarre immagini)
         function extractImagesFromYaml(yamlText) {
             const avatarMatch = yamlText.match(/avatar:\s*["']?([^"'\n]+)["']?/);
@@ -15,8 +23,9 @@
         // Carica dati giocatori e NPC per le immagini
         async function loadCharacterAssets() {
             try {
+                Object.keys(characterImages).forEach(key => delete characterImages[key]);
                 // 1. Carica Players
-                const respPlayers = await fetch('../assets/data/players.json');
+                const respPlayers = await fetch(siteUrl('assets/data/players.json'));
                 if (respPlayers.ok) {
                     const players = await respPlayers.json();
                     players.forEach(p => {
@@ -29,7 +38,7 @@
                 // 2. Carica NPC (dall'index)
                 // Nota: In produzione sarebbe meglio un singolo file JSON generato.
                 // Qui facciamo fetch multiple ma sono pochi file.
-                const respIndex = await fetch('../assets/data/characters/index.yaml');
+                const respIndex = await fetch(siteUrl('assets/data/characters/index.yaml'));
                 if (respIndex.ok) {
                     const text = await respIndex.text();
                     // Parsing brutale dell'index YAML per trovare i file
@@ -50,7 +59,7 @@
                     // Fetch parallelo dei singoli file NPC
                     await Promise.all(entries.map(async (entry) => {
                         try {
-                            const r = await fetch(`../assets/data/${entry.file}`);
+                            const r = await fetch(siteUrl(`assets/data/${entry.file}`));
                             if (r.ok) {
                                 const t = await r.text();
                                 if (window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers() && isHiddenFromYaml(t)) {
@@ -71,12 +80,12 @@
         function resolveImagePath(path) {
             if (!path) return '';
             if (path.startsWith('http') || path.startsWith('data:')) return path;
-            return `../assets/${path}`;
+            return siteUrl(`assets/${path}`);
         }
 
         async function loadNpcRecencyMap() {
             try {
-                const response = await fetch('../assets/data/npc-recency.json');
+                const response = await fetch(siteUrl('assets/data/npc-recency.json'));
                 if (!response.ok) return {};
                 const payload = await response.json();
                 const map = {};
@@ -267,13 +276,13 @@
         }
 
         // Caricamento e renderizzazione delle missioni
-        document.addEventListener("DOMContentLoaded", async function () {
+        window.CriptaApp.onPageReady("missioni", async function () {
             try {
                 // 1. Preload images
                 await loadCharacterAssets();
 
                 // 2. Load Quests
-                const response = await fetch('../assets/data/quests.json');
+                const response = await fetch(siteUrl('assets/data/quests.json'));
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const groups = await response.json();
                 const recencyMap = await loadNpcRecencyMap();

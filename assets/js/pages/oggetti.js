@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", async () => {
+window.CriptaApp.onPageReady("oggetti", async () => {
     const grid = document.getElementById("items-grid");
     const count = document.getElementById("items-count");
     const search = document.getElementById("items-search");

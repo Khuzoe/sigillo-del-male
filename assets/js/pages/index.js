@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+window.CriptaApp.onPageReady("index", () => {
     const fetchJson = (url, label) => {
         if (typeof window.CriptaApp?.fetchJson === "function") {
             return window.CriptaApp.fetchJson(url);

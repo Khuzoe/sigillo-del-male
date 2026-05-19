@@ -13,6 +13,9 @@ const EMBED_SCRIPT_WARMUP_PATHS = [
     "assets/js/pages/famiglia-von-t.js"
 ];
 const prefetchedUrls = new Set();
+const loadedSpaScripts = new Set();
+const pageScopes = new Map();
+const initialInlineHeadStyles = new WeakSet();
 let discordAuthCache = null;
 let discordAuthPromise = null;
 let dmDiscordIdCache = null;
@@ -22,6 +25,7 @@ const isEmbedMode = new URLSearchParams(window.location.search).get("embed") ===
 const isEmbeddedRuntime = isEmbedMode || window.self !== window.top;
 let embeddedDiscordToken = "";
 let embeddedDiscordPopup = null;
+let spaNavigationInProgress = false;
 
 document.addEventListener("DOMContentLoaded", function () {
     const scriptTag = document.querySelector('script[src*="layout.js"]');
@@ -36,6 +40,7 @@ document.addEventListener("DOMContentLoaded", function () {
     document.body.classList.toggle("is-embed", isEmbeddedRuntime);
     consumeEmbeddedTokenFromQuery();
 
+    markInitialInlineHeadStyles();
     ensureFavicon(basePath);
     bindPrefetchForLinks(document);
     setDmOnlyVisibility(false);
@@ -43,10 +48,329 @@ document.addEventListener("DOMContentLoaded", function () {
     loadSidebar(basePath);
     warmEmbedSectionScripts(basePath);
     initPageAccessControls(basePath);
+    markInitialSpaScripts();
+    initSpaNavigation();
     window.requestAnimationFrame(() => {
         document.body.classList.add("page-ready");
     });
 });
+
+function getCurrentPageId(url = window.location.href) {
+    const target = new URL(url, window.location.href);
+    const pathname = target.pathname.replace(/\/+$/, "");
+    const filename = pathname.split("/").pop() || "index.html";
+    if (!filename || filename === "index.html") return "index";
+    if (filename === "character.html") return "character";
+    return filename.replace(/\.html$/i, "");
+}
+
+function onPageReady(pageId, init) {
+    if (typeof init !== "function") return;
+
+    const run = (event) => {
+        if (pageId && getCurrentPageId() !== pageId) return;
+        init(event);
+    };
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else if (!spaNavigationInProgress) {
+        run({ type: "initial" });
+    }
+
+    document.addEventListener("cripta:spa-ready", run);
+}
+
+function initSpaNavigation() {
+    document.addEventListener("click", (event) => {
+        const link = event.target?.closest?.("a[href]");
+        if (!shouldHandleSpaClick(event, link)) return;
+
+        const targetUrl = buildSpaTargetUrl(link.href);
+        if (!targetUrl) return;
+
+        event.preventDefault();
+        navigateSpa(targetUrl, { push: true });
+    });
+
+    window.addEventListener("popstate", () => {
+        navigateSpa(window.location.href, { push: false });
+    });
+}
+
+function shouldHandleSpaClick(event, link) {
+    if (!link) return false;
+    if (event.defaultPrevented || event.button !== 0) return false;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
+    if (link.target && link.target !== "_self") return false;
+    if (link.hasAttribute("download")) return false;
+
+    const rawHref = link.getAttribute("href") || "";
+    if (!rawHref || rawHref.startsWith("#")) return false;
+    if (/^(mailto|tel|javascript):/i.test(rawHref)) return false;
+
+    try {
+        const target = new URL(link.href, window.location.href);
+        const current = new URL(window.location.href);
+        if (target.origin !== current.origin) return false;
+        if (!/\.html$/i.test(target.pathname) && !target.pathname.endsWith("/")) return false;
+        if (target.pathname === current.pathname && target.search === current.search) {
+            return Boolean(target.hash && target.hash !== current.hash);
+        }
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+function buildSpaTargetUrl(href) {
+    try {
+        const target = new URL(href, window.location.href);
+        if (isEmbedMode && !target.searchParams.has("embed")) {
+            target.searchParams.set("embed", "1");
+        }
+        return target.toString();
+    } catch (_) {
+        return "";
+    }
+}
+
+async function navigateSpa(targetUrl, options = {}) {
+    const { push = true } = options;
+    const target = new URL(targetUrl, window.location.href);
+    const current = new URL(window.location.href);
+
+    if (target.pathname === current.pathname && target.search === current.search && target.hash) {
+        if (push) history.pushState({}, "", target.toString());
+        scrollToCurrentHash();
+        return;
+    }
+
+    const currentMain = document.querySelector("main");
+    if (!currentMain || spaNavigationInProgress) {
+        window.location.href = target.toString();
+        return;
+    }
+
+    spaNavigationInProgress = true;
+    document.body.classList.add("spa-loading");
+    currentMain.setAttribute("aria-busy", "true");
+
+    try {
+        const response = await fetch(target.toString(), {
+            headers: { Accept: "text/html" },
+            credentials: "same-origin"
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const html = await response.text();
+        const nextDocument = new DOMParser().parseFromString(html, "text/html");
+        const nextMain = nextDocument.querySelector("main");
+        if (!nextMain) throw new Error("Pagina senza contenuto principale.");
+
+        const importedMain = document.importNode(nextMain, true);
+        const nextScripts = getSpaScriptSources(nextDocument, target);
+
+        if (push) {
+            history.pushState({}, "", target.toString());
+        }
+
+        document.title = nextDocument.title || document.title;
+        syncSpaHead(nextDocument, target);
+        syncBodyState(nextDocument);
+        disposePageScopes();
+        removeSpaExtras();
+        currentMain.replaceWith(importedMain);
+        appendSpaExtras(nextDocument);
+
+        window.CriptaBasePath = computeBasePathForUrl(target);
+        ensureFavicon(window.CriptaBasePath);
+        fixPaths(document.getElementById("sidebar-container"), window.CriptaBasePath);
+        bindPrefetchForLinks(document.querySelector("main"));
+        setActiveLink();
+        setDmOnlyVisibility(false);
+        initPageAccessControls(window.CriptaBasePath);
+
+        await loadSpaScripts(nextScripts);
+        document.dispatchEvent(new CustomEvent("cripta:spa-ready", {
+            detail: {
+                pageId: getCurrentPageId(target.toString()),
+                url: target.toString()
+            }
+        }));
+
+        if (target.hash) scrollToCurrentHash();
+        else window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    } catch (error) {
+        console.error("Errore navigazione SPA:", error);
+        window.location.href = target.toString();
+    } finally {
+        spaNavigationInProgress = false;
+        document.body.classList.remove("spa-loading");
+        document.querySelector("main")?.removeAttribute("aria-busy");
+    }
+}
+
+function computeBasePathForUrl(url) {
+    const target = new URL(url, window.location.href);
+    const parts = target.pathname.split("/").filter(Boolean);
+    const file = parts[parts.length - 1] || "";
+    if (!file || file === "index.html") return "";
+    const pageIndex = parts.lastIndexOf("pages");
+    if (pageIndex === -1) return "";
+    const depthBelowPages = Math.max(0, parts.length - pageIndex - 2);
+    return "../".repeat(depthBelowPages + 1);
+}
+
+function syncBodyState(nextDocument) {
+    const nextClassName = nextDocument.body?.className || "";
+    document.body.className = nextClassName;
+    document.body.classList.toggle("is-embed", isEmbeddedRuntime);
+    document.body.classList.add("page-ready");
+    document.body.style.cssText = nextDocument.body?.style?.cssText || "";
+}
+
+function markInitialInlineHeadStyles() {
+    document.head.querySelectorAll("style").forEach((style) => {
+        initialInlineHeadStyles.add(style);
+    });
+}
+
+function syncSpaHead(nextDocument, targetUrl) {
+    document.head.querySelectorAll("[data-spa-head]").forEach((node) => node.remove());
+    removeInitialPageStyles();
+
+    nextDocument.head.querySelectorAll("style").forEach((style) => {
+        const clone = document.importNode(style, true);
+        clone.dataset.spaHead = "true";
+        document.head.appendChild(clone);
+    });
+
+    nextDocument.head.querySelectorAll('link[rel~="stylesheet"]').forEach((link) => {
+        const href = link.getAttribute("href") || "";
+        if (!href) return;
+
+        const absoluteHref = new URL(href, targetUrl || window.location.href).toString();
+        const alreadyLoaded = Array.from(document.head.querySelectorAll('link[rel~="stylesheet"]'))
+            .some((currentLink) => currentLink.href === absoluteHref);
+        if (alreadyLoaded) return;
+
+        const clone = document.importNode(link, true);
+        clone.href = absoluteHref;
+        clone.dataset.spaHead = "true";
+        document.head.appendChild(clone);
+    });
+}
+
+function removeInitialPageStyles() {
+    document.head.querySelectorAll("style").forEach((style) => {
+        if (initialInlineHeadStyles.has(style)) {
+            style.remove();
+        }
+    });
+}
+
+function removeSpaExtras() {
+    document.querySelectorAll("[data-spa-extra]").forEach((node) => node.remove());
+}
+
+function appendSpaExtras(nextDocument) {
+    const bodyChildren = Array.from(nextDocument.body?.children || []);
+    const firstScript = Array.from(document.body.children).find((node) => node.tagName === "SCRIPT") || null;
+
+    bodyChildren.forEach((child) => {
+        if (child.matches?.("main, script, #sidebar-container")) return;
+        const clone = document.importNode(child, true);
+        clone.dataset.spaExtra = "true";
+        document.body.insertBefore(clone, firstScript);
+    });
+}
+
+function getSpaScriptSources(nextDocument, targetUrl) {
+    return Array.from(nextDocument.querySelectorAll("script[src]"))
+        .map((script) => script.getAttribute("src") || "")
+        .filter((src) => src && src.includes("assets/js/") && !src.includes("assets/js/layout.js"))
+        .map((src) => new URL(src, targetUrl).toString());
+}
+
+function markInitialSpaScripts() {
+    document.querySelectorAll("script[src]").forEach((script) => {
+        const src = script.getAttribute("src") || "";
+        if (src.includes("assets/js/") && !src.includes("assets/js/layout.js")) {
+            loadedSpaScripts.add(normalizeScriptUrl(script.src));
+        }
+    });
+}
+
+async function loadSpaScripts(scriptUrls) {
+    for (const scriptUrl of scriptUrls) {
+        await loadSpaScript(scriptUrl);
+    }
+}
+
+function loadSpaScript(scriptUrl) {
+    const normalizedUrl = normalizeScriptUrl(scriptUrl);
+    if (loadedSpaScripts.has(normalizedUrl)) {
+        return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = scriptUrl;
+        script.async = false;
+        script.dataset.spaScript = "true";
+        script.addEventListener("load", () => {
+            loadedSpaScripts.add(normalizedUrl);
+            resolve();
+        }, { once: true });
+        script.addEventListener("error", () => reject(new Error(`Impossibile caricare ${scriptUrl}`)), { once: true });
+        document.body.appendChild(script);
+    });
+}
+
+function normalizeScriptUrl(scriptUrl) {
+    const url = new URL(scriptUrl, window.location.href);
+    url.hash = "";
+    url.search = "";
+    return url.toString();
+}
+
+function scrollToCurrentHash() {
+    const id = decodeURIComponent(window.location.hash || "").replace(/^#/, "");
+    if (!id) return;
+    const target = document.getElementById(id);
+    if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+}
+
+function createPageScope(pageId) {
+    const id = String(pageId || getCurrentPageId());
+    pageScopes.get(id)?.abort();
+
+    const controller = new AbortController();
+    pageScopes.set(id, controller);
+
+    return {
+        signal: controller.signal,
+        listen(target, type, handler, options = {}) {
+            if (!target || typeof target.addEventListener !== "function") return;
+            target.addEventListener(type, handler, {
+                ...options,
+                signal: controller.signal
+            });
+        }
+    };
+}
+
+function disposePageScopes() {
+    pageScopes.forEach((controller) => controller.abort());
+    pageScopes.clear();
+}
+
+function getPageSignal(pageId) {
+    return createPageScope(pageId).signal;
+}
 
 function ensureFavicon(basePath) {
     const faviconHref = `${basePath}assets/img/ui/tab_icon.webp`;
@@ -160,23 +484,32 @@ function renderSidebarSkeleton() {
 }
 
 function fixPaths(container, basePath) {
-    if (!basePath) return;
+    if (!container) return;
 
     const links = container.querySelectorAll("a");
     links.forEach(link => {
-        const href = link.getAttribute("href");
-        if (href && !href.startsWith("http") && !href.startsWith("#") && !href.startsWith("mailto:")) {
-            link.setAttribute("href", basePath + href);
+        const href = link.dataset.originalHref || link.getAttribute("href") || "";
+        if (!href) return;
+        link.dataset.originalHref = href;
+        if (isUnresolvedRelativePath(href)) {
+            link.setAttribute("href", new URL(`${basePath || ""}${href}`, window.location.href).toString());
         }
     });
 
     const images = container.querySelectorAll("img");
     images.forEach(img => {
-        const src = img.getAttribute("src");
-        if (src && !src.startsWith("http") && !src.startsWith("data:")) {
-            img.setAttribute("src", basePath + src);
+        const src = img.dataset.originalSrc || img.getAttribute("src") || "";
+        if (!src) return;
+        img.dataset.originalSrc = src;
+        if (isUnresolvedRelativePath(src)) {
+            img.setAttribute("src", new URL(`${basePath || ""}${src}`, window.location.href).toString());
         }
     });
+}
+
+function isUnresolvedRelativePath(value) {
+    return Boolean(value)
+        && !/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(value);
 }
 
 function setActiveLink() {
@@ -741,5 +1074,8 @@ window.CriptaApp = {
         }
     },
     fetchJson: fetchJsonWithCache,
-    getBasePath
+    getBasePath,
+    onPageReady,
+    createPageScope,
+    getPageSignal
 };

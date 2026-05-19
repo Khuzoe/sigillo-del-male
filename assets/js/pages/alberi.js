@@ -151,4 +151,4 @@
         }
 
         // Avvio al caricamento della pagina
-        document.addEventListener('DOMContentLoaded', loadSkillsData);
+        window.CriptaApp.onPageReady("alberi", loadSkillsData);

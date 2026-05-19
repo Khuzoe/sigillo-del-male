@@ -1,4 +1,5 @@
-document.addEventListener('DOMContentLoaded', () => {
+window.CriptaApp.onPageReady("mappa", () => {
+    const pageScope = window.CriptaApp.createPageScope("mappa:fullscreen");
     const mapModal = document.getElementById('map-modal');
     const openBtn = document.getElementById('open-fullscreen-btn');
     const closeBtn = document.getElementById('close-fullscreen-btn');
@@ -57,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     togglePoiBtn.addEventListener('click', togglePois);
 
     // Chiudi il modal anche premendo il tasto 'Escape'
-    document.addEventListener('keydown', (e) => {
+    pageScope.listen(document, 'keydown', (e) => {
         if (e.key === 'Escape' && mapModal.classList.contains('visible')) {
             closeFullscreen();
         }

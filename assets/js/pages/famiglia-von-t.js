@@ -6,7 +6,8 @@ function resolveImagePath(imagePath) {
             return `../assets/${imagePath}`;
         }
 
-        document.addEventListener("DOMContentLoaded", async function() {
+        window.CriptaApp.onPageReady("famiglia-von-t", async function() {
+            const pageScope = window.CriptaApp.createPageScope("famiglia-von-t");
             const treeContainer = document.getElementById('family-tree-container');
             
             try {
@@ -359,7 +360,7 @@ function resolveImagePath(imagePath) {
                 });
 
                 let resizeDebounce;
-                window.addEventListener('resize', () => {
+                pageScope.listen(window, 'resize', () => {
                     clearTimeout(resizeDebounce);
                     resizeDebounce = setTimeout(layoutAndDraw, 120);
                 });

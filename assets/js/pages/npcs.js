@@ -130,7 +130,7 @@ function parseYamlLite(yamlText) {
             return `--img-x:${normalized.x}px; --img-y:${normalized.y}px; --img-scale-rest:${restScale}; --img-scale-hover:${hoverScale};`;
         }
 
-        document.addEventListener("DOMContentLoaded", async function () {
+        window.CriptaApp.onPageReady("npcs", async function () {
             const base_path = '../assets/'; // Path from npcs.html to assets folder
             const npcListContainer = document.querySelector('.npc-list');
             if (!npcListContainer) return;

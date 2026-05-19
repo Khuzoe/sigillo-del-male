@@ -1,4 +1,4 @@
-document.addEventListener("DOMContentLoaded", async () => {
+window.CriptaApp.onPageReady("bestiario", async () => {
     const grid = document.getElementById("bestiary-grid");
     const count = document.getElementById("bestiary-count");
     const search = document.getElementById("bestiary-search");

@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+window.CriptaApp.onPageReady("giocatori", function() {
     const container = document.getElementById('player-list-container');
     const base_path = '../assets/';
 

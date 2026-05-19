@@ -1,7 +1,16 @@
-document.addEventListener("DOMContentLoaded", async () => {
+window.CriptaApp.onPageReady("cerca", async () => {
   const input = document.getElementById("search-input");
   const list = document.getElementById("result-list");
   const meta = document.getElementById("search-meta");
+  if (!input || !list || !meta) return;
+
+  const siteUrl = (path) => {
+    if (typeof window.CriptaApp?.urls?.site === "function") {
+      return window.CriptaApp.urls.site(path);
+    }
+    return new URL(`../${path}`, window.location.href).toString();
+  };
+
   const typeMap = {
     npc: "NPC",
     player: "Giocatore",
@@ -17,7 +26,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   let items = [];
   try {
-    const resp = await fetch("../assets/data/search-index.json");
+    const resp = await fetch(siteUrl("assets/data/search-index.json"));
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     items = Array.isArray(data.items)
@@ -79,7 +88,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     list.innerHTML = ranked.map(item => `
-      <a class="result-item" href="../${item.url}">
+      <a class="result-item" href="${siteUrl(item.url || "")}">
         <div class="result-top">
           <h3 class="result-title">${item.title || ""}</h3>
           <span class="result-type">${typeMap[item.type] || item.type || "Voce"}</span>

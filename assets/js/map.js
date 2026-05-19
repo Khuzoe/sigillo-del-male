@@ -1,6 +1,7 @@
 const devMode = false;
 
-document.addEventListener('DOMContentLoaded', function() {
+window.CriptaApp.onPageReady("mappa", function() {
+    const pageScope = window.CriptaApp.createPageScope("mappa:map");
     const mainMapContainer = document.getElementById('map-container');
     const fullscreenMapContainer = document.getElementById('fullscreen-map-container');
     const mapContent = document.getElementById('map-content');
@@ -493,7 +494,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loadMap(previousMap.data, previousMap.image, previousMap.title);
     });
 
-    document.body.addEventListener('wheel', (event) => {
+    pageScope.listen(document.body, 'wheel', (event) => {
         if (!event.target.closest('.map-container')) return;
         event.preventDefault();
 
@@ -501,7 +502,7 @@ document.addEventListener('DOMContentLoaded', function() {
         zoomAt({ x: event.clientX, y: event.clientY }, scale + delta);
     }, { passive: false });
 
-    document.body.addEventListener('mousedown', (event) => {
+    pageScope.listen(document.body, 'mousedown', (event) => {
         if (!event.target.closest('#map-content') || scale <= minScale) return;
         if (event.button !== 0 || event.target.closest('.poi')) return;
 
@@ -513,13 +514,13 @@ document.addEventListener('DOMContentLoaded', function() {
         dragOrigin = { x: event.clientX, y: event.clientY };
     });
 
-    document.addEventListener('mouseup', () => {
+    pageScope.listen(document, 'mouseup', () => {
         if (!isPanning) return;
         isPanning = false;
         activeMapContainer.style.cursor = scale > minScale ? 'grab' : 'default';
     });
 
-    document.addEventListener('mousemove', (event) => {
+    pageScope.listen(document, 'mousemove', (event) => {
         if (!isPanning) return;
         event.preventDefault();
         didDrag = Math.abs(event.clientX - dragOrigin.x) > 2 || Math.abs(event.clientY - dragOrigin.y) > 2;
@@ -564,7 +565,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (mapImage.complete) {
         mapImage.onload();
     }
-    window.addEventListener('resize', setInitialPosition);
+    pageScope.listen(window, 'resize', setInitialPosition);
 
     let selectedDevPoi = null;
 

@@ -1531,7 +1531,7 @@ function parseYamlLite(yamlText) {
             return card;
         }
 
-        document.addEventListener("DOMContentLoaded", async function () {
+        window.CriptaApp.onPageReady("character", async function () {
             const container = document.getElementById('character-content-container');
             const charNameEl = document.getElementById('char-name');
             const charRoleEl = document.getElementById('char-role');
