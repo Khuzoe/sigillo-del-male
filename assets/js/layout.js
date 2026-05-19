@@ -133,7 +133,6 @@ function initSidebar(html, basePath) {
     container.innerHTML = html;
     fixPaths(container, basePath);
     setActiveLink();
-    bindEmbedNavigation(container);
     bindPrefetchForLinks(container);
     initDiscordAuth(container);
     initPageAccessControls(basePath);
@@ -203,22 +202,6 @@ function setActiveLink() {
     if (targetLink) {
         targetLink.classList.add("active");
     }
-}
-
-function bindEmbedNavigation(scope) {
-    if (!isEmbeddedRuntime) return;
-
-    scope.querySelectorAll("a[href]").forEach((link) => {
-        link.addEventListener("click", (event) => {
-            const href = link.href || "";
-            if (!href || href.startsWith("#") || link.target === "_blank") return;
-            event.preventDefault();
-            window.parent?.postMessage({
-                type: "cripta-wiki-navigate",
-                url: href
-            }, "*");
-        });
-    });
 }
 
 function bindPrefetchForLinks(scope) {
