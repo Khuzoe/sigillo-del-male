@@ -193,6 +193,7 @@ function setActiveLink() {
 }
 
 function bindPrefetchForLinks(scope) {
+    if (isEmbeddedRuntime) return;
     const links = scope.querySelectorAll ? scope.querySelectorAll("a[href]") : [];
     links.forEach(link => {
         const prime = () => prefetchUrl(link.href, link.getAttribute("href") || "");
@@ -370,13 +371,10 @@ function redirectToDiscordLogin() {
             "cripta-discord-auth",
             "popup=yes,width=640,height=900,resizable=yes,scrollbars=yes"
         );
-        if (!embeddedDiscordPopup) {
-            window.alert("Consenti i popup in Foundry per completare il login Discord.");
-            return;
-        }
         window.parent?.postMessage({
             type: "cripta-discord-login",
-            url: loginUrl
+            url: loginUrl,
+            popupOpened: Boolean(embeddedDiscordPopup)
         }, "*");
         return;
     }
