@@ -52,6 +52,7 @@ document.addEventListener("DOMContentLoaded", function () {
     initSpaNavigation();
     window.requestAnimationFrame(() => {
         document.body.classList.add("page-ready");
+        notifyEmbeddedLocation();
     });
 });
 
@@ -200,6 +201,7 @@ async function navigateSpa(targetUrl, options = {}) {
                 url: target.toString()
             }
         }));
+        notifyEmbeddedLocation();
 
         if (target.hash) scrollToCurrentHash();
         else window.scrollTo({ top: 0, left: 0, behavior: "auto" });
@@ -344,6 +346,15 @@ function scrollToCurrentHash() {
     if (target) {
         target.scrollIntoView({ behavior: "smooth", block: "start" });
     }
+}
+
+function notifyEmbeddedLocation() {
+    if (!isEmbeddedRuntime) return;
+    window.parent?.postMessage({
+        type: "cripta-spa-navigate",
+        url: window.location.href,
+        pageId: getCurrentPageId()
+    }, "*");
 }
 
 function createPageScope(pageId) {
