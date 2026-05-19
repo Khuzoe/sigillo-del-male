@@ -1,6 +1,17 @@
 const SIDEBAR_CACHE_KEY = "wiki_sidebar_html_v2";
 const DISCORD_WORKER_URL = "https://sigillo-api.khuzoe.workers.dev";
 const DISCORD_TOKEN_KEY = "discord_jwt";
+const EMBED_SCRIPT_WARMUP_PATHS = [
+    "assets/js/pages/index.js",
+    "assets/js/pages/npcs.js",
+    "assets/js/pages/giocatori.js",
+    "assets/js/pages/missioni.js",
+    "assets/js/pages/sessioni.js",
+    "assets/js/pages/bestiario.js",
+    "assets/js/pages/oggetti.js",
+    "assets/js/pages/appunti.js",
+    "assets/js/pages/famiglia-von-t.js"
+];
 const prefetchedUrls = new Set();
 let discordAuthCache = null;
 let discordAuthPromise = null;
@@ -30,6 +41,7 @@ document.addEventListener("DOMContentLoaded", function () {
     setDmOnlyVisibility(false);
     window.addEventListener("message", handleEmbeddedAuthMessage);
     loadSidebar(basePath);
+    warmEmbedSectionScripts(basePath);
     initPageAccessControls(basePath);
     window.requestAnimationFrame(() => {
         document.body.classList.add("page-ready");
@@ -227,6 +239,38 @@ function prefetchUrl(absoluteUrl, rawHref) {
     } catch (_) {
         // Ignore malformed URLs
     }
+}
+
+function warmEmbedSectionScripts(basePath) {
+    if (!isEmbeddedRuntime) return;
+
+    const run = () => {
+        EMBED_SCRIPT_WARMUP_PATHS.forEach((path, index) => {
+            window.setTimeout(() => warmEmbedScript(basePath, path), 250 + index * 350);
+        });
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+        window.requestIdleCallback(run, { timeout: 1500 });
+    } else {
+        window.setTimeout(run, 750);
+    }
+}
+
+function warmEmbedScript(basePath, path) {
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timeout = controller
+        ? window.setTimeout(() => controller.abort(), 8000)
+        : null;
+
+    fetch(new URL(path, new URL(basePath || "./", window.location.href)).toString(), {
+        cache: "force-cache",
+        ...(controller ? { signal: controller.signal } : {})
+    })
+        .catch(() => {})
+        .finally(() => {
+            if (timeout) window.clearTimeout(timeout);
+        });
 }
 
 function initDiscordAuth(scope) {
