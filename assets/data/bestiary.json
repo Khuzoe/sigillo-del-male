@@ -22,7 +22,11 @@
           "note": "Organo anomalo ancora intriso di forte energia arcana residua. Sembra essere pregno di magia."
         }
       ]
-    }
+    },
+    "foundryName": [
+      "Albert (Gianni)",
+      "Albert"
+    ]
   },
   {
     "name": "Ammasso di Morte",
@@ -43,7 +47,8 @@
       "immunities": [
         "Necrotico"
       ]
-    }
+    },
+    "foundryName": "Ammasso di Morte"
   },
   {
     "name": "Coltura Danzante",
@@ -63,7 +68,11 @@
       "vulnerabilities": [
         "Fuoco"
       ]
-    }
+    },
+    "foundryName": [
+      "Black Rose Warrior",
+      "Black Rose"
+    ]
   },
   {
     "name": "Coltura Danzante Necrotica",
@@ -87,7 +96,11 @@
       "vulnerabilities": [
         "Fuoco"
       ]
-    }
+    },
+    "foundryName": [
+      "Blood Rose",
+      "Blood Rose Warrior"
+    ]
   },
   {
     "name": "Spremi Agrumi",
@@ -113,7 +126,8 @@
           "note": "Richiede sintonia"
         }
       ]
-    }
+    },
+    "foundryName": "Spremi Agrumi"
   },
   {
     "name": "Torre di Carne",
@@ -132,7 +146,8 @@
       "weight": "830.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": "Meat Tower"
   },
   {
     "name": "Zombie Becchino",
@@ -149,7 +164,8 @@
       "weight": "75.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": "Zombie Grave Digger"
   },
   {
     "name": "Cane I",
@@ -167,7 +183,11 @@
       "weight": "260.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Cane di Franky Incompleto",
+      "Cane di Franky"
+    ]
   },
   {
     "name": "Cane II",
@@ -203,7 +223,8 @@
       "weight": "180.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": "Corpse Dog"
   },
   {
     "name": "Golem Micidiale della Morte",
@@ -223,7 +244,11 @@
       "weight": "6500.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Incomplete Flesh Golem",
+      "Flesh Golem Abomination"
+    ]
   },
   {
     "name": "Topo Morto",
@@ -242,7 +267,11 @@
       "weight": "240.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Golem Topo Morto",
+      "Flesh Golem"
+    ]
   },
   {
     "name": "Pipistrello Vampirico",
@@ -260,7 +289,12 @@
       "weight": "45.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Bat Mosquito [Tiny]",
+      "Carrier Mosquito",
+      "Bat Mosquito"
+    ]
   },
   {
     "name": "Seguace Vampirico",
@@ -286,7 +320,20 @@
       "immunities": [
         "Necrotico"
       ]
-    }
+    },
+    "foundryName": [
+      "Seguace Prosciugato 1",
+      "Seguace Prosciugato",
+      "Seguace Prosciugato 7",
+      "Seguace Prosciugato 6",
+      "Seguace Prosciugato Preferito",
+      "Seguace Prosciugato 5",
+      "Seguace Prosciugato 4",
+      "Seguace Prosciugata Preferita",
+      "Vampire Spawn",
+      "Seguace Prosciugato 3",
+      "Seguace Prosciugato 2"
+    ]
   },
   {
     "name": "Cultista Klaren",
@@ -323,7 +370,11 @@
       "traits": [],
       "drops": []
     },
-    "category": "Klaren"
+    "category": "Klaren",
+    "foundryName": [
+      "Generale Lumilla",
+      "Radiant Sister"
+    ]
   },
   {
     "name": "Mummia Klaren",
@@ -341,7 +392,8 @@
       "traits": [],
       "drops": []
     },
-    "category": "Klaren"
+    "category": "Klaren",
+    "foundryName": "Mummy"
   },
   {
     "name": "Okbrax Klaren",
@@ -360,7 +412,11 @@
       "traits": [],
       "drops": []
     },
-    "category": "Klaren"
+    "category": "Klaren",
+    "foundryName": [
+      "Generale Okbrax",
+      "Okkar Magur"
+    ]
   },
   {
     "name": "Rosskar Klaren",
@@ -379,7 +435,11 @@
       "traits": [],
       "drops": []
     },
-    "category": "Klaren"
+    "category": "Klaren",
+    "foundryName": [
+      "Generale Rosskar",
+      "Flaming Skeleton"
+    ]
   },
   {
     "name": "Sacerdotessa Klaren",
@@ -397,7 +457,8 @@
       "weight": "48.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": "Klaren Priestess"
   },
   {
     "name": "Abominio Tela",
@@ -415,7 +476,8 @@
       "weight": "210.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": "Abominio di Tela"
   },
   {
     "name": "Bacio Mortale",
@@ -434,7 +496,8 @@
       "weight": "1800.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": "Death Kiss"
   },
   {
     "name": "Creatura Tela",
@@ -452,7 +515,8 @@
       "weight": "55.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": "Creatura Tela"
   },
   {
     "name": "Muro Tela",
@@ -471,7 +535,8 @@
       "weight": "35.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": "Braccio Tela"
   },
   {
     "name": "Ragno Tela",
@@ -489,7 +554,11 @@
       "weight": "140.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Ragno Tela",
+      "Tendon Spider"
+    ]
   },
   {
     "name": "Webber",
@@ -527,7 +596,12 @@
       "weight": "30.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Deborah Zombie",
+      "Darkness",
+      "Dark Deborah"
+    ]
   },
   {
     "name": "Elena Erbadath",
@@ -547,7 +621,12 @@
       "weight": "0.75 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Elena Erbadath",
+      "Ghost",
+      "Dark Elena"
+    ]
   },
   {
     "name": "Franky",
@@ -568,7 +647,12 @@
       "weight": "2.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Franky",
+      "Frankie",
+      "Dark Franky"
+    ]
   },
   {
     "name": "Ginevra Von T",
@@ -588,7 +672,12 @@
       "weight": "240.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Ginevra Von T",
+      "Frost Giant Revenant",
+      "Dark Ginevra"
+    ]
   },
   {
     "name": "Karla Von T",
@@ -614,7 +703,12 @@
         }
       ],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Dark Karla",
+      "Karla Von T",
+      "Karla"
+    ]
   },
   {
     "name": "Leonora Von T",
@@ -635,7 +729,11 @@
       "traits": [],
       "drops": []
     },
-    "hidden": true
+    "hidden": true,
+    "foundryName": [
+      "Dark ???",
+      "Leonora"
+    ]
   },
   {
     "name": "Nino Olegna",
@@ -655,7 +753,11 @@
       "weight": "210.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Nino Olegna",
+      "Dark Nino Olegna"
+    ]
   },
   {
     "name": "Rabberduscolanderson Von T",
@@ -675,7 +777,11 @@
       "weight": "9.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Rabberruduscolanderson Von T",
+      "Dark Rabberduscolanderson"
+    ]
   },
   {
     "name": "Tokka Von T",
@@ -696,7 +802,11 @@
       "weight": "70.00",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Tokka Von T",
+      "Tokka"
+    ]
   },
   {
     "name": "X Von T",
@@ -716,7 +826,11 @@
       "weight": "8.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Dark X",
+      "X  Von T"
+    ]
   },
   {
     "name": "Zara Klaren",
@@ -737,7 +851,12 @@
       "weight": "60.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Zara Klaren :)",
+      "Zara",
+      "Zara Klaren"
+    ]
   },
   {
     "name": "Bambola Infermiera",
@@ -755,7 +874,8 @@
       "weight": "3.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": "Zara, Infermiera di Pezza"
   },
   {
     "name": "Bambolina Gamba Fine",
@@ -773,7 +893,12 @@
       "weight": "2.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Living Doll",
+      "Dolly",
+      "Piccola Bambola"
+    ]
   },
   {
     "name": "Bambolotto Mammone",
@@ -791,7 +916,11 @@
       "weight": "2.50 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Bambola Assolutamente Non Piccola",
+      "Bambola Non Piccola"
+    ]
   },
   {
     "name": "Guanto di Zara",
@@ -809,7 +938,8 @@
       "weight": "1.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": "Guanto Animato"
   },
   {
     "name": "Palloncino di Zara",
@@ -827,7 +957,14 @@
       "weight": "1.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Palloncino Randra",
+      "Palloncino Valdor",
+      "Palloncino Apothecary",
+      "Balloon",
+      "Palloncino Garun"
+    ]
   },
   {
     "name": "Pantofola di Zara",
@@ -845,7 +982,8 @@
       "weight": "1.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": "Scarpa Animata"
   },
   {
     "name": "Scrigno Rosa",
@@ -863,7 +1001,11 @@
       "weight": "90.00 kg",
       "traits": [],
       "drops": []
-    }
+    },
+    "foundryName": [
+      "Rose Chest",
+      "Baule Malefico"
+    ]
   },
   {
     "name": "Velkarya Klaren",
@@ -905,6 +1047,10 @@
         "Psichico"
       ]
     },
-    "category": "Tokka"
+    "category": "Tokka",
+    "foundryName": [
+      "Robot Trivella",
+      "Robot Minatore"
+    ]
   }
 ]
