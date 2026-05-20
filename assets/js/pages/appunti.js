@@ -16,6 +16,7 @@
         selectedId: "",
         query: "",
         linkFilter: "",
+        pendingNoteLink: "",
         dirty: false,
         saveTimer: null,
         periodicSaveTimer: null,
@@ -39,6 +40,7 @@
         bindElements();
         bindEvents();
         setEditorEnabled(false);
+        state.pendingNoteLink = getRequestedNoteLink();
 
         const authState = await authService.verify();
         state.currentDiscordId = authService.getDiscordId(authState);
@@ -57,6 +59,7 @@
             loadNotesForCurrentOwner(),
             loadLinkableEntities()
         ]);
+        applyRequestedNoteLink();
 
         window.clearInterval(state.periodicSaveTimer);
         state.periodicSaveTimer = window.setInterval(() => {
@@ -292,6 +295,58 @@
         setStatus(state.isDm && state.ownerDiscordId !== state.currentDiscordId ? "Sola lettura DM" : "Pronto");
     }
 
+    function getRequestedNoteLink() {
+        const params = new URLSearchParams(window.location.search);
+        return String(params.get("noteLink") || params.get("link") || "").trim();
+    }
+
+    function applyRequestedNoteLink() {
+        const linkKey = String(state.pendingNoteLink || "").trim();
+        if (!linkKey) return;
+
+        let matchingNote = state.notes.find((note) => (
+            note.shared !== true
+            && Array.isArray(note.links)
+            && note.links.some((link) => link.key === linkKey)
+        ));
+
+        if (!matchingNote && canWriteNotes()) {
+            matchingNote = createNoteForLinkKey(linkKey);
+            if (matchingNote) {
+                state.notes.unshift(matchingNote);
+                state.dirty = true;
+                setStatus("Blocco appunti creato", "dirty");
+            }
+        }
+
+        matchingNote = matchingNote || state.notes.find((note) => (
+            Array.isArray(note.links)
+            && note.links.some((link) => link.key === linkKey)
+        ));
+
+        state.linkFilter = linkKey;
+        if (matchingNote) state.selectedId = matchingNote.id;
+        renderAll();
+    }
+
+    function createNoteForLinkKey(linkKey) {
+        const entry = Object.values(state.entities).flat().find((item) => item.key === linkKey);
+        if (!entry) return null;
+
+        const note = createNote();
+        note.title = `Appunti: ${entry.label || "Voce"}`;
+        note.links = [{
+            key: entry.key,
+            type: entry.type,
+            id: entry.id,
+            label: entry.label,
+            url: entry.url,
+            image: entry.image || "",
+            icon: entry.icon || getEntityIcon(entry.type)
+        }];
+        return note;
+    }
+
     function renderNotesList() {
         const query = normalizeText(state.query);
         const visibleNotes = getVisibleNotesForCurrentUser();
@@ -331,7 +386,7 @@
 
     function getAvailableNoteLinkFilters(notes) {
         const query = normalizeText(state.query);
-        if (!query) return [];
+        if (!query && !state.linkFilter) return [];
         const byKey = new Map();
         notes.forEach((note) => {
             if (note.shared === true) {
