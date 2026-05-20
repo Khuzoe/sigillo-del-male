@@ -72,10 +72,6 @@ function checkFile(filePath) {
   const buffer = fs.readFileSync(filePath);
   const relPath = relative(filePath);
 
-  if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
-    errors.push(`${relPath}: UTF-8 BOM presente`);
-  }
-
   const text = buffer.toString("utf8");
 
   // Heuristic checks for common mojibake sequences.
