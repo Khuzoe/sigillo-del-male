@@ -1,5 +1,5 @@
 {
-  "itemCount": 78,
+  "itemCount": 79,
   "items": [
     {
       "id": "item:cuore-di-albert",
@@ -328,6 +328,20 @@
         "Lumilla"
       ],
       "content": "Veste radiosa che protegge come mage armor e converte gli attacchi del portatore in piccole cure per gli alleati vicini. Non identificata come \"Veste Bianca\"; bianca, leggera, con ricami argentati e aura tranquilla. Protezione Arcana Mentre indossi questa veste, sei considerato sotto l’effetto di mage armor: la tua CA diventa 13 + il tuo modificatore di Destrezza se non indossi altra armatura. Radiosità Guaritrice Ogni volta che infliggi danni a una creatura ostile con un attacco, la creatura alleata più vicina a te entro 20 piedi recupera 1d4 punti ferita. Se l’attacco è un colpo critico, re..."
+    },
+    {
+      "id": "item:mantello-della-protezione",
+      "type": "item",
+      "entityId": "mantello-della-protezione",
+      "title": "Mantello della Protezione",
+      "subtitle": "Oggetto meraviglioso | Non comune",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Non comune"
+      ],
+      "content": ""
     },
     {
       "id": "npc:nino_olegna",

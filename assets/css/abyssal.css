@@ -6093,7 +6093,7 @@ body.page-bestiario .hero-mini {
 .bestiary-modal-card {
     position: relative;
     z-index: 1;
-    width: min(1040px, calc(100vw - 2rem));
+    width: min(1400px, calc(100vw - 2rem));
     max-height: calc(100dvh - clamp(2rem, 6vh, 4rem));
     overflow: auto;
     overscroll-behavior: contain;
@@ -6126,7 +6126,7 @@ body.page-bestiario .hero-mini {
 .bestiary-modal-image {
     display: block;
     width: 100%;
-    height: min(72dvh, 760px);
+    height: min(76dvh, 860px);
     max-height: calc(100dvh - 11rem);
     object-fit: contain;
     background:
@@ -6705,7 +6705,7 @@ body.page-oggetti .hero-mini {
 .item-image-modal-frame {
     position: relative;
     z-index: 1;
-    max-width: min(92vw, 58rem);
+    width: min(96vw, 92rem);
     max-height: calc(100vh - 2rem);
     display: grid;
     gap: 0.75rem;
@@ -6719,8 +6719,8 @@ body.page-oggetti .hero-mini {
 
 .item-image-modal-frame img {
     display: block;
-    max-width: 100%;
-    max-height: calc(100vh - 8rem);
+    width: 100%;
+    height: min(78dvh, calc(100vh - 8rem));
     object-fit: contain;
     border-radius: 6px;
 }
@@ -6939,10 +6939,10 @@ body.bestiary-modal-open {
     position: relative;
     z-index: 1;
     display: grid;
-    grid-template-columns: minmax(11rem, 15rem) minmax(0, 1fr);
+    grid-template-columns: minmax(18rem, min(42vw, 34rem)) minmax(0, 1fr);
     gap: 1rem;
-    width: min(48rem, calc(100vw - 2rem));
-    max-height: min(34rem, calc(100dvh - 2rem));
+    width: min(80rem, calc(100vw - 2rem));
+    max-height: min(46rem, calc(100dvh - 2rem));
     overflow: auto;
     padding: 1rem;
     border: 1px solid rgba(212, 175, 55, 0.22);
@@ -6957,7 +6957,7 @@ body.bestiary-modal-open {
 
 .bestiary-item-modal-image {
     width: 100%;
-    aspect-ratio: 1 / 1;
+    height: min(62dvh, 34rem);
     object-fit: contain;
     object-position: 50% 50%;
     border: 1px solid rgba(212, 175, 55, 0.16);
@@ -7803,6 +7803,30 @@ body.page-appunti .hero-mini {
 
     .bestiary-modal-defense-grid {
         grid-template-columns: 1fr;
+    }
+
+    .item-image-modal {
+        padding: 0.75rem;
+    }
+
+    .item-image-modal-frame {
+        width: 100%;
+        max-height: calc(100dvh - 1.5rem);
+        padding: 0.75rem;
+    }
+
+    .item-image-modal-frame img {
+        height: min(74dvh, calc(100dvh - 7rem));
+    }
+
+    .bestiary-item-modal-card {
+        grid-template-columns: 1fr;
+        width: 100%;
+        max-height: calc(100dvh - 1.5rem);
+    }
+
+    .bestiary-item-modal-image {
+        height: min(52dvh, 24rem);
     }
 
     body.page-character .document-body {

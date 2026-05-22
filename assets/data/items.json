@@ -766,5 +766,30 @@
     "image": "img/items/cloak-of-protection.webp",
     "icon": "fa-wand-sparkles",
     "subtype": "Mantello"
+  },
+  {
+    "id": "anello-di-protezione-mentale",
+    "name": "Anello di Protezione Mentale",
+    "foundryNames": [
+      "Ring of Mind Shielding"
+    ],
+    "type": "Oggetto meraviglioso",
+    "rarity": "Non comune",
+    "image": "img/items/ring-of-mind-shielding.webp",
+    "icon": "fa-wand-sparkles",
+    "subtype": "Anello",
+    "owner": "Rabberduscolanderson"
+  },
+  {
+    "id": "poesia-di-nino",
+    "name": "Nino Olegna: Poesia",
+    "foundryNames": [
+      "Poesia"
+    ],
+    "image": "img/items/nino-poesia.webp",
+    "icon": "fa-wand-sparkles",
+    "type": "Bottino",
+    "subtype": "Documento",
+    "owner": "Nino Olegna"
   }
 ]
