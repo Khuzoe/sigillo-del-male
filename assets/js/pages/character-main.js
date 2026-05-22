@@ -987,6 +987,168 @@ function parseYamlLite(yamlText) {
             `;
         }
 
+        function getActorHpData(actor) {
+            const hp = actor && actor.vitals && actor.vitals.hp ? actor.vitals.hp : {};
+            return {
+                value: toFiniteNumber(hp.value),
+                max: toFiniteNumber(hp.max),
+                temp: toFiniteNumber(hp.temp)
+            };
+        }
+
+        function renderVitalOverview(actor) {
+            const hp = getActorHpData(actor);
+            const ac = toFiniteNumber(actor && actor.vitals && actor.vitals.ac);
+            const initiative = toFiniteNumber(actor && actor.vitals && actor.vitals.initiative);
+            const speed = actor && actor.vitals ? actor.vitals.speed : null;
+            const movement = speed && typeof speed === 'object'
+                ? [speed.walk ? `${speed.walk} ft` : '', speed.fly ? `volo ${speed.fly} ft` : ''].filter(Boolean).join(' | ')
+                : '';
+
+            return `
+                <div class="character-live-kpis">
+                    <div class="character-live-kpi character-live-kpi--hp">
+                        <span>PF</span>
+                        <strong>${formatNumberIt(hp.value)} / ${formatNumberIt(hp.max)}</strong>
+                        ${hp.temp ? `<em>+${formatNumberIt(hp.temp)} temp</em>` : ''}
+                    </div>
+                    <div class="character-live-kpi">
+                        <span>CA</span>
+                        <strong>${formatNumberIt(ac)}</strong>
+                    </div>
+                    <div class="character-live-kpi">
+                        <span>Iniziativa</span>
+                        <strong>${initiative !== null && initiative >= 0 ? '+' : ''}${formatNumberIt(initiative)}</strong>
+                    </div>
+                    ${movement ? `
+                    <div class="character-live-kpi">
+                        <span>Movimento</span>
+                        <strong>${escapeHtml(movement)}</strong>
+                    </div>` : ''}
+                </div>
+            `;
+        }
+
+        function renderAbilityOverview(actor) {
+            const labels = {
+                str: 'FOR',
+                dex: 'DES',
+                con: 'COS',
+                int: 'INT',
+                wis: 'SAG',
+                cha: 'CAR'
+            };
+            const abilities = actor && actor.abilities && typeof actor.abilities === 'object' ? actor.abilities : {};
+            const entries = Object.entries(labels)
+                .map(([key, label]) => {
+                    const ability = abilities[key] || {};
+                    const value = toFiniteNumber(ability.value);
+                    const mod = toFiniteNumber(ability.mod);
+                    if (value === null && mod === null) return '';
+                    return `
+                        <span class="character-ability-pill">
+                            <em>${label}</em>
+                            <strong>${formatNumberIt(value)}</strong>
+                            <small>${mod !== null && mod >= 0 ? '+' : ''}${formatNumberIt(mod)}</small>
+                        </span>
+                    `;
+                })
+                .filter(Boolean);
+            return entries.length ? `<div class="character-ability-grid">${entries.join('')}</div>` : '';
+        }
+
+        function renderResourceOverview(actor) {
+            const resources = actor && actor.resources && typeof actor.resources === 'object' ? actor.resources : {};
+            const entries = Object.values(resources)
+                .filter((resource) => resource && (resource.label || resource.value !== null || resource.max !== null))
+                .slice(0, 4)
+                .map((resource) => `
+                    <span class="character-resource-pill">
+                        <strong>${escapeHtml(resource.label || 'Risorsa')}</strong>
+                        <em>${formatNumberIt(resource.value)} / ${formatNumberIt(resource.max)}</em>
+                    </span>
+                `);
+            return entries.length ? `<div class="character-resource-list">${entries.join('')}</div>` : '';
+        }
+
+        function renderCurrencyOverview(actor) {
+            const currency = actor && actor.currency && typeof actor.currency === 'object' ? actor.currency : {};
+            const labels = { pp: 'PP', gp: 'MO', ep: 'ME', sp: 'MA', cp: 'MR' };
+            const entries = Object.entries(labels)
+                .map(([key, label]) => {
+                    const amount = toFiniteNumber(currency[key]);
+                    if (amount === null || amount <= 0) return '';
+                    return `<span><strong>${escapeHtml(label)}</strong> ${formatNumberIt(amount)}</span>`;
+                })
+                .filter(Boolean);
+            return entries.length ? `<div class="character-currency-list">${entries.join('')}</div>` : '';
+        }
+
+        function renderCompactSlotOverview(actor) {
+            const spellSlots = actor && actor.spellSlots ? actor.spellSlots : {};
+            const totalSlots = toFiniteNumber(spellSlots.totals && spellSlots.totals.total);
+            if (totalSlots === null || totalSlots <= 0) return '<p class="player-overview-empty">Nessuno slot disponibile.</p>';
+            return renderSpellSlotsOverview(actor);
+        }
+
+        function renderCharacterLiveSummary(actor, payload) {
+            if (!actor || typeof actor !== 'object') return '';
+            const attunedItems = getAttunedItems(actor);
+            const equippedItems = getUniqueItemList(Array.isArray(actor.equippedItems) ? actor.equippedItems : []);
+            const resourceHtml = renderResourceOverview(actor);
+            const currencyHtml = renderCurrencyOverview(actor);
+            const abilityHtml = renderAbilityOverview(actor);
+
+            return `
+                <section class="character-live-summary" aria-label="Dati live Foundry">
+                    <div class="character-live-heading">
+                        <div>
+                            <p>Snapshot Foundry</p>
+                            <h3>Stato Personaggio</h3>
+                        </div>
+                        <span>${escapeHtml(formatGeneratedAtLabel(payload))}</span>
+                    </div>
+                    ${renderVitalOverview(actor)}
+                    <div class="character-live-grid">
+                        <section class="character-live-card">
+                            <h4><i class="fas fa-star"></i> Esperienza</h4>
+                            ${renderXpOverviewBody(actor)}
+                        </section>
+                        <section class="character-live-card">
+                            <h4><i class="fas fa-weight-hanging"></i> Carico</h4>
+                            ${renderWeightOverviewBody(actor)}
+                        </section>
+                        <section class="character-live-card">
+                            <h4><i class="fas fa-bolt"></i> Magia</h4>
+                            ${renderCompactSlotOverview(actor)}
+                        </section>
+                        <section class="character-live-card">
+                            <h4><i class="fas fa-dumbbell"></i> Caratteristiche</h4>
+                            ${abilityHtml || '<p class="player-overview-empty">Caratteristiche non disponibili.</p>'}
+                        </section>
+                        ${resourceHtml ? `
+                        <section class="character-live-card">
+                            <h4><i class="fas fa-gauge-high"></i> Risorse</h4>
+                            ${resourceHtml}
+                        </section>` : ''}
+                        ${currencyHtml ? `
+                        <section class="character-live-card">
+                            <h4><i class="fas fa-coins"></i> Denaro</h4>
+                            ${currencyHtml}
+                        </section>` : ''}
+                        <section class="character-live-card character-live-card--wide">
+                            <h4><i class="fas fa-shirt"></i> Equipaggiato</h4>
+                            ${renderOverviewItemPills(equippedItems, 'Nessun oggetto equipaggiato.')}
+                        </section>
+                        <section class="character-live-card character-live-card--wide">
+                            <h4><i class="fas fa-gem"></i> Sintonizzati</h4>
+                            ${renderOverviewItemPills(attunedItems, 'Nessun oggetto sintonizzato.')}
+                        </section>
+                    </div>
+                </section>
+            `;
+        }
+
         function renderPlayerXpSidebarHtml(actor) {
             return `
                 <h4><i class="fas fa-star"></i> Esperienza</h4>
@@ -1277,11 +1439,13 @@ function parseYamlLite(yamlText) {
             const { inventory, spells } = splitActorLoadout(actor);
             const owners = Array.isArray(actor.owners) ? actor.owners.map((owner) => owner.name).filter(Boolean) : [];
             const preparedSpells = spells.filter((spell) => spell.prepared);
+            const liveSummaryHtml = renderCharacterLiveSummary(actor, payload);
             const inventorySummaryHtml = renderInventoryPanelSummary(actor);
             const spellsSummaryHtml = renderSpellsPanelSummary(actor, preparedSpells);
 
             return `
-                <h3><i class="fas fa-box-open"></i> Inventario e Incantesimi</h3>
+                ${liveSummaryHtml}
+                <h3><i class="fas fa-box-open"></i> Dettaglio Inventario e Incantesimi</h3>
                 <div class="loadout-meta">
                     <span>${escapeHtml(formatGeneratedAtLabel(payload))}</span>
                     <span>${owners.length > 0 ? `Giocatore: ${escapeHtml(owners.join(', '))}` : 'Giocatore: non disponibile'}</span>
