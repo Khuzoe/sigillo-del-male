@@ -2154,6 +2154,12 @@ body.is-embed .container {
     line-height: 1.4;
 }
 
+.loadout-wiki-content .loadout-foundry-name {
+    color: rgba(232, 219, 188, 0.48);
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+}
+
 .loadout-wiki-content ul {
     margin: 0.45rem 0 0;
     padding-left: 1.05rem;

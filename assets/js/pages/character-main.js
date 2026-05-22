@@ -1,1007 +1,1008 @@
 function parseYamlLite(yamlText) {
-            const text = yamlText.replace(/^\uFEFF/, '');
-            const lines = text.split(/\r?\n/);
+    const text = yamlText.replace(/^\uFEFF/, '');
+    const lines = text.split(/\r?\n/);
 
-            const firstNonEmpty = lines.find(l => {
-                const t = l.trim();
-                return t !== '' && !t.startsWith('#');
-            });
-            const isArrayRoot = firstNonEmpty ? firstNonEmpty.trim().startsWith('- ') : true;
+    const firstNonEmpty = lines.find(l => {
+        const t = l.trim();
+        return t !== '' && !t.startsWith('#');
+    });
+    const isArrayRoot = firstNonEmpty ? firstNonEmpty.trim().startsWith('- ') : true;
 
-            const root = isArrayRoot ? [] : {};
-            const stack = [{ type: isArrayRoot ? 'array' : 'object', value: root, indent: -1 }];
+    const root = isArrayRoot ? [] : {};
+    const stack = [{ type: isArrayRoot ? 'array' : 'object', value: root, indent: -1 }];
 
-            const parseScalar = (v) => {
-                const val = v.trim();
-                if (val === '[]') return [];
-                if (val === '{}') return {};
-                if (val === 'null') return null;
-                if (val === 'true' || val === 'false') return val === 'true';
-                if (/^-?\d+(\.\d+)?$/.test(val)) return Number(val);
-                if (val.startsWith('"') && val.endsWith('"')) {
-                    try { return JSON.parse(val); } catch (_) { return val.slice(1, -1); }
-                }
-                if (val.startsWith('\'') && val.endsWith('\'')) return val.slice(1, -1);
-                if (val.startsWith('- ')) return [parseScalar(val.slice(2))];
-                return val;
-            };
+    const parseScalar = (v) => {
+        const val = v.trim();
+        if (val === '[]') return [];
+        if (val === '{}') return {};
+        if (val === 'null') return null;
+        if (val === 'true' || val === 'false') return val === 'true';
+        if (/^-?\d+(\.\d+)?$/.test(val)) return Number(val);
+        if (val.startsWith('"') && val.endsWith('"')) {
+            try { return JSON.parse(val); } catch (_) { return val.slice(1, -1); }
+        }
+        if (val.startsWith('\'') && val.endsWith('\'')) return val.slice(1, -1);
+        if (val.startsWith('- ')) return [parseScalar(val.slice(2))];
+        return val;
+    };
 
-            const nextNonEmpty = (idx) => {
-                for (let i = idx + 1; i < lines.length; i++) {
-                    const raw = lines[i];
-                    const trimmed = raw.trim();
-                    if (trimmed === '' || trimmed.startsWith('#')) continue;
-                    const indent = raw.match(/^ */)[0].length;
-                    return { indent, trimmed };
-                }
-                return null;
-            };
+    const nextNonEmpty = (idx) => {
+        for (let i = idx + 1; i < lines.length; i++) {
+            const raw = lines[i];
+            const trimmed = raw.trim();
+            if (trimmed === '' || trimmed.startsWith('#')) continue;
+            const indent = raw.match(/^ */)[0].length;
+            return { indent, trimmed };
+        }
+        return null;
+    };
 
-            lines.forEach((raw, idx) => {
-                const trimmed = raw.trim();
-                if (trimmed === '' || trimmed.startsWith('#')) return;
-                const indent = raw.match(/^ */)[0].length;
-                while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
-                    stack.pop();
-                }
-                const parent = stack[stack.length - 1];
+    lines.forEach((raw, idx) => {
+        const trimmed = raw.trim();
+        if (trimmed === '' || trimmed.startsWith('#')) return;
+        const indent = raw.match(/^ */)[0].length;
+        while (stack.length > 1 && indent <= stack[stack.length - 1].indent) {
+            stack.pop();
+        }
+        const parent = stack[stack.length - 1];
 
-                if (trimmed.startsWith('- ')) {
-                    if (parent.type !== 'array') throw new Error('YAML: elemento lista fuori contesto');
-                    const entryText = trimmed.slice(2).trim();
-                    let item;
-                    let pushItem = false;
+        if (trimmed.startsWith('- ')) {
+            if (parent.type !== 'array') throw new Error('YAML: elemento lista fuori contesto');
+            const entryText = trimmed.slice(2).trim();
+            let item;
+            let pushItem = false;
 
-                    if (entryText === '') {
-                        item = {};
+            if (entryText === '') {
+                item = {};
+                pushItem = true;
+            } else {
+                const m = entryText.match(/^([^:]+):\s*(.*)$/);
+                if (m) {
+                    const key = m[1].trim();
+                    const valStr = m[2];
+                    item = {};
+                    if (valStr === '') {
+                        const next = nextNonEmpty(idx);
+                        const container = next && next.indent > indent && next.trimmed.startsWith('-') ? [] : {};
+                        item[key] = container;
                         pushItem = true;
+                        stack.push({ type: Array.isArray(container) ? 'array' : 'object', value: container, indent });
                     } else {
-                        const m = entryText.match(/^([^:]+):\s*(.*)$/);
-                        if (m) {
-                            const key = m[1].trim();
-                            const valStr = m[2];
-                            item = {};
-                            if (valStr === '') {
-                                const next = nextNonEmpty(idx);
-                                const container = next && next.indent > indent && next.trimmed.startsWith('-') ? [] : {};
-                                item[key] = container;
-                                pushItem = true;
-                                stack.push({ type: Array.isArray(container) ? 'array' : 'object', value: container, indent });
-                            } else {
-                                item[key] = parseScalar(valStr);
-                                pushItem = true;
-                            }
-                        } else {
-                            item = parseScalar(entryText);
-                        }
+                        item[key] = parseScalar(valStr);
+                        pushItem = true;
                     }
-                    parent.value.push(item);
-                    if (pushItem && typeof item === 'object' && item !== null && !Array.isArray(item)) {
-                        stack.push({ type: 'object', value: item, indent });
-                    }
-                    return;
-                }
-
-                if (parent.type !== 'object') throw new Error('YAML: chiave fuori contesto');
-                const match = trimmed.match(/^([^:]+):\s*(.*)$/);
-                if (!match) throw new Error('YAML: riga non valida');
-                const key = match[1].trim();
-                const valStr = match[2];
-
-                if (valStr === '') {
-                    const next = nextNonEmpty(idx);
-                    const container = next && next.indent > indent && next.trimmed.startsWith('-') ? [] : {};
-                    parent.value[key] = container;
-                    stack.push({ type: Array.isArray(container) ? 'array' : 'object', value: container, indent });
                 } else {
-                    const value = parseScalar(valStr);
-                    parent.value[key] = value;
-                    if (typeof value === 'object' && value !== null) {
-                        stack.push({ type: Array.isArray(value) ? 'array' : 'object', value, indent });
-                    }
+                    item = parseScalar(entryText);
                 }
-            });
-
-            return root;
+            }
+            parent.value.push(item);
+            if (pushItem && typeof item === 'object' && item !== null && !Array.isArray(item)) {
+                stack.push({ type: 'object', value: item, indent });
+            }
+            return;
         }
 
-        function renderMarkdown(md, options = {}) {
-            const context = options.context || null;
-            if (!md) return '';
-            const inline = (text) => {
-                const escaped = text
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;');
-                return escaped
-                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-                    .replace(/`(.+?)`/g, '<code>$1</code>');
+        if (parent.type !== 'object') throw new Error('YAML: chiave fuori contesto');
+        const match = trimmed.match(/^([^:]+):\s*(.*)$/);
+        if (!match) throw new Error('YAML: riga non valida');
+        const key = match[1].trim();
+        const valStr = match[2];
+
+        if (valStr === '') {
+            const next = nextNonEmpty(idx);
+            const container = next && next.indent > indent && next.trimmed.startsWith('-') ? [] : {};
+            parent.value[key] = container;
+            stack.push({ type: Array.isArray(container) ? 'array' : 'object', value: container, indent });
+        } else {
+            const value = parseScalar(valStr);
+            parent.value[key] = value;
+            if (typeof value === 'object' && value !== null) {
+                stack.push({ type: Array.isArray(value) ? 'array' : 'object', value, indent });
+            }
+        }
+    });
+
+    return root;
+}
+
+function renderMarkdown(md, options = {}) {
+    const context = options.context || null;
+    if (!md) return '';
+    const inline = (text) => {
+        const escaped = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        return escaped
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.+?)\*/g, '<em>$1</em>')
+            .replace(/`(.+?)`/g, '<code>$1</code>');
+    };
+
+    const lines = md.replace(/\r\n?/g, '\n').split('\n');
+    const out = [];
+    let i = 0;
+    while (i < lines.length) {
+        if (/^\s*$/.test(lines[i])) { i++; continue; }
+
+        // Subtitle as a single italic line at start (image_box, etc.)
+        if (context === 'image_box' && i === 0) {
+            const m = lines[i].trim().match(/^\*(.+)\*$/);
+            if (m) {
+                out.push(`<p class="doc-subtitle">${inline(m[1])}</p>`);
+                i++; continue;
+            }
+        }
+
+        if (/^###\s+/.test(lines[i])) {
+            out.push(`<h4 class="doc-heading">${inline(lines[i].replace(/^###\s+/, ''))}</h4>`);
+            i++; continue;
+        }
+        if (/^##\s+/.test(lines[i])) {
+            out.push(`<h3 class="doc-heading">${inline(lines[i].replace(/^##\s+/, ''))}</h3>`);
+            i++; continue;
+        }
+        if (/^#\s+/.test(lines[i])) {
+            out.push(`<h2 class="doc-heading">${inline(lines[i].replace(/^#\s+/, ''))}</h2>`);
+            i++; continue;
+        }
+
+        if (/^>\s?/.test(lines[i])) {
+            const quote = [];
+            while (i < lines.length && /^>\s?/.test(lines[i])) {
+                quote.push(lines[i].replace(/^>\s?/, ''));
+                i++;
+            }
+            const rawQuote = quote.join('\n').trim();
+            const quoteText = inline(rawQuote).replace(/\n/g, '<br>');
+            out.push(`<div class="document-quote"><i class="fas fa-feather-alt"></i><span>${quoteText}</span></div>`);
+            continue;
+        }
+
+        if (/^- /.test(lines[i])) {
+            const items = [];
+            while (i < lines.length && /^- /.test(lines[i])) {
+                items.push(lines[i].replace(/^- /, ''));
+                i++;
+            }
+            const lis = items.map(t => `<li>${inline(t)}</li>`).join('');
+            out.push(`<ul class="doc-list">${lis}</ul>`);
+            continue;
+        }
+
+        const para = [];
+        while (i < lines.length && !/^\s*$/.test(lines[i])) {
+            para.push(lines[i]);
+            i++;
+        }
+        const paraClass = context === 'image_box' ? ' class="doc-paragraph"' : '';
+        out.push(`<p${paraClass}>${inline(para.join(' '))}</p>`);
+    }
+    return out.join('\n');
+}
+
+async function loadCharactersManifest() {
+    const yamlUrl = '../../assets/data/characters/index.yaml';
+    try {
+        const resp = await fetch(yamlUrl);
+        if (resp.ok) {
+            const text = await resp.text();
+            const parsed = parseYamlLite(text);
+            if (Array.isArray(parsed)) return parsed;
+        }
+    } catch (err) {
+        console.warn('Impossibile leggere manifest YAML, provo JSON:', err);
+    }
+
+    const jsonUrl = '../../assets/data/characters/index.json';
+    const jsonResp = await fetch(jsonUrl);
+    if (jsonResp.ok) return jsonResp.json();
+    throw new Error('Impossibile caricare il manifest dei personaggi.');
+}
+
+async function loadCharacterYaml(entry) {
+    const base = '../../assets/data/';
+    const filePath = entry.file || `characters/${entry.id}.yaml`;
+    const yamlUrl = base + filePath;
+    try {
+        const resp = await fetch(yamlUrl);
+        if (resp.ok) {
+            const text = await resp.text();
+            const parsed = parseYamlLite(text);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+        }
+    } catch (err) {
+        console.warn(`Impossibile leggere YAML per ${entry.id}, provo JSON:`, err);
+    }
+
+    const jsonUrl = yamlUrl.replace(/\\.yaml$/, '.json');
+    const jsonResp = await fetch(jsonUrl);
+    if (jsonResp.ok) return jsonResp.json();
+    throw new Error(`Impossibile caricare i dati del personaggio ${entry.id}`);
+}
+
+async function loadPlayersData() {
+    const resp = await fetch('../../assets/data/players.json');
+    if (!resp.ok) throw new Error(`File dati players (${resp.status}) non trovato.`);
+    return resp.json();
+}
+
+async function hydrateContentBlocks(character) {
+    if (!character || !Array.isArray(character.content_blocks)) return;
+    const base = '../../assets/content/';
+    await Promise.all(character.content_blocks.map(async (block) => {
+        if (!block.markdown) return;
+        const url = base + block.markdown;
+        try {
+            const resp = await fetch(url);
+            const md = resp.ok ? await resp.text() : '';
+            block.markdownText = md;
+            block.markdownHtml = md ? renderMarkdown(md, { context: block.type }) : `<p>Impossibile caricare ${block.markdown}</p>`;
+        } catch (err) {
+            console.warn(`Errore nel caricare ${block.markdown}:`, err);
+            block.markdownHtml = `<p>Impossibile caricare ${block.markdown}</p>`;
+        }
+    }));
+}
+
+async function loadQuestsData() {
+    try {
+        const resp = await fetch('../../assets/data/quests.json');
+        if (resp.ok) return resp.json();
+    } catch (e) {
+        console.warn("Impossibile caricare quests.json", e);
+    }
+    return [];
+}
+
+const INVENTORY_API_URL = typeof window.CriptaApp?.urls?.api === 'function'
+    ? window.CriptaApp.urls.api('api/inventory')
+    : 'https://sigillo-api.khuzoe.workers.dev/api/inventory';
+const WIKI_ITEMS_DATA_URL = '../../assets/data/items.json';
+const INVENTORY_CACHE_KEY = 'cds_inventory_api_cache_v1';
+const INVENTORY_CACHE_TTL_MS = 5 * 60 * 1000;
+const INVENTORY_EXCLUDED_TYPES = new Set(['class', 'subclass', 'feat', 'background', 'race', 'spell']);
+const SPELL_SCHOOL_LABELS = {
+    abj: 'Abiurazione',
+    con: 'Evocazione',
+    div: 'Divinazione',
+    enc: 'Ammaliamento',
+    evo: 'Invocazione',
+    ill: 'Illusione',
+    nec: 'Necromanzia',
+    trs: 'Trasmutazione'
+};
+const DURATION_UNITS_LABELS = {
+    inst: 'Istantanea',
+    round: 'round',
+    minute: 'min',
+    hour: 'ora',
+    day: 'giorno'
+};
+const RANGE_UNITS_LABELS = {
+    touch: 'Contatto',
+    self: 'Se stesso',
+    ft: 'ft',
+    m: 'm'
+};
+const DND5E_XP_THRESHOLDS = [
+    0, 300, 900, 2700, 6500,
+    14000, 23000, 34000, 48000, 64000,
+    85000, 100000, 120000, 140000, 165000,
+    195000, 225000, 265000, 305000, 355000
+];
+const PLAYER_NAME_ALIASES = {
+    apothecary: ['apothecary'],
+    garun: ["ga'run", 'ga run', 'garun'],
+    randra: ["ran'dra", 'ran dra', 'randra'],
+    valdor: ['valdor']
+};
+const SKILLS_DATA_URL = '../../assets/data/skills.json';
+const SKILLS_ASSET_BASE = '../../assets/img/skill_trees/';
+const PLAYER_SKILL_TREE_KEYS = {
+    apothecary: 'apothecary',
+    garun: 'garun',
+    randra: 'randra',
+    valdor: 'valdor'
+};
+
+let inventoryRequestPromise = null;
+let inventoryMemoryCache = null;
+let skillsRequestPromise = null;
+let skillsMemoryCache = null;
+let wikiItemsRequestPromise = null;
+let wikiItemsMemoryCache = null;
+
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function normalizeText(value) {
+    return String(value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '');
+}
+
+function normalizeWords(value) {
+    return String(value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+}
+
+function slugify(value) {
+    return normalizeWords(value).join('-') || 'item';
+}
+
+function formatToken(value) {
+    const text = String(value || '')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .trim();
+    if (!text) return '';
+    return text.replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function getSafeSessionStorageItem(key) {
+    try {
+        return window.sessionStorage.getItem(key);
+    } catch (_) {
+        return null;
+    }
+}
+
+function setSafeSessionStorageItem(key, value) {
+    try {
+        window.sessionStorage.setItem(key, value);
+    } catch (_) {
+        // Ignore storage quota / privacy mode errors.
+    }
+}
+
+function parseInventoryCache(rawValue) {
+    if (!rawValue) return null;
+    try {
+        const parsed = JSON.parse(rawValue);
+        if (!parsed || typeof parsed.fetchedAt !== 'number' || !parsed.data) return null;
+        return parsed;
+    } catch (_) {
+        return null;
+    }
+}
+
+function isInventoryCacheFresh(cache) {
+    if (!cache || typeof cache.fetchedAt !== 'number') return false;
+    return (Date.now() - cache.fetchedAt) < INVENTORY_CACHE_TTL_MS;
+}
+
+function resolveSkillAssetPath(path) {
+    if (!path) return '';
+    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/') || path.startsWith('data:')) {
+        return path;
+    }
+    return `${SKILLS_ASSET_BASE}${path}`;
+}
+
+async function loadSkillsData() {
+    if (skillsMemoryCache) return skillsMemoryCache;
+    if (skillsRequestPromise) return skillsRequestPromise;
+
+    skillsRequestPromise = (async () => {
+        const response = await fetch(SKILLS_DATA_URL);
+        if (!response.ok) {
+            throw new Error(`File skill tree non trovato (${response.status}).`);
+        }
+        const payload = await response.json();
+        skillsMemoryCache = payload && typeof payload === 'object' ? payload : {};
+        return skillsMemoryCache;
+    })();
+
+    try {
+        return await skillsRequestPromise;
+    } finally {
+        skillsRequestPromise = null;
+    }
+}
+
+async function loadInventoryData() {
+    if (inventoryMemoryCache && isInventoryCacheFresh(inventoryMemoryCache)) {
+        return inventoryMemoryCache.data;
+    }
+
+    const storedCache = parseInventoryCache(getSafeSessionStorageItem(INVENTORY_CACHE_KEY));
+    if (storedCache && isInventoryCacheFresh(storedCache)) {
+        inventoryMemoryCache = storedCache;
+        return storedCache.data;
+    }
+
+    if (inventoryRequestPromise) {
+        return inventoryRequestPromise;
+    }
+
+    inventoryRequestPromise = (async () => {
+        try {
+            const payload = await requestInventoryApi();
+            if (!payload || !Array.isArray(payload.actors)) {
+                throw new Error('Inventory API: formato non valido.');
+            }
+
+            const cacheEntry = {
+                fetchedAt: Date.now(),
+                data: payload
             };
-
-            const lines = md.replace(/\r\n?/g, '\n').split('\n');
-            const out = [];
-            let i = 0;
-            while (i < lines.length) {
-                if (/^\s*$/.test(lines[i])) { i++; continue; }
-
-                // Subtitle as a single italic line at start (image_box, etc.)
-                if (context === 'image_box' && i === 0) {
-                    const m = lines[i].trim().match(/^\*(.+)\*$/);
-                    if (m) {
-                        out.push(`<p class="doc-subtitle">${inline(m[1])}</p>`);
-                        i++; continue;
-                    }
-                }
-
-                if (/^###\s+/.test(lines[i])) {
-                    out.push(`<h4 class="doc-heading">${inline(lines[i].replace(/^###\s+/, ''))}</h4>`);
-                    i++; continue;
-                }
-                if (/^##\s+/.test(lines[i])) {
-                    out.push(`<h3 class="doc-heading">${inline(lines[i].replace(/^##\s+/, ''))}</h3>`);
-                    i++; continue;
-                }
-                if (/^#\s+/.test(lines[i])) {
-                    out.push(`<h2 class="doc-heading">${inline(lines[i].replace(/^#\s+/, ''))}</h2>`);
-                    i++; continue;
-                }
-
-                if (/^>\s?/.test(lines[i])) {
-                    const quote = [];
-                    while (i < lines.length && /^>\s?/.test(lines[i])) {
-                        quote.push(lines[i].replace(/^>\s?/, ''));
-                        i++;
-                    }
-                    const rawQuote = quote.join('\n').trim();
-                    const quoteText = inline(rawQuote).replace(/\n/g, '<br>');
-                    out.push(`<div class="document-quote"><i class="fas fa-feather-alt"></i><span>${quoteText}</span></div>`);
-                    continue;
-                }
-
-                if (/^- /.test(lines[i])) {
-                    const items = [];
-                    while (i < lines.length && /^- /.test(lines[i])) {
-                        items.push(lines[i].replace(/^- /, ''));
-                        i++;
-                    }
-                    const lis = items.map(t => `<li>${inline(t)}</li>`).join('');
-                    out.push(`<ul class="doc-list">${lis}</ul>`);
-                    continue;
-                }
-
-                const para = [];
-                while (i < lines.length && !/^\s*$/.test(lines[i])) {
-                    para.push(lines[i]);
-                    i++;
-                }
-                const paraClass = context === 'image_box' ? ' class="doc-paragraph"' : '';
-                out.push(`<p${paraClass}>${inline(para.join(' '))}</p>`);
-            }
-            return out.join('\n');
-        }
-
-        async function loadCharactersManifest() {
-            const yamlUrl = '../../assets/data/characters/index.yaml';
-            try {
-                const resp = await fetch(yamlUrl);
-                if (resp.ok) {
-                    const text = await resp.text();
-                    const parsed = parseYamlLite(text);
-                    if (Array.isArray(parsed)) return parsed;
-                }
-            } catch (err) {
-                console.warn('Impossibile leggere manifest YAML, provo JSON:', err);
-            }
-
-            const jsonUrl = '../../assets/data/characters/index.json';
-            const jsonResp = await fetch(jsonUrl);
-            if (jsonResp.ok) return jsonResp.json();
-            throw new Error('Impossibile caricare il manifest dei personaggi.');
-        }
-
-        async function loadCharacterYaml(entry) {
-            const base = '../../assets/data/';
-            const filePath = entry.file || `characters/${entry.id}.yaml`;
-            const yamlUrl = base + filePath;
-            try {
-                const resp = await fetch(yamlUrl);
-                if (resp.ok) {
-                    const text = await resp.text();
-                    const parsed = parseYamlLite(text);
-                    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
-                }
-            } catch (err) {
-                console.warn(`Impossibile leggere YAML per ${entry.id}, provo JSON:`, err);
-            }
-
-            const jsonUrl = yamlUrl.replace(/\\.yaml$/, '.json');
-            const jsonResp = await fetch(jsonUrl);
-            if (jsonResp.ok) return jsonResp.json();
-            throw new Error(`Impossibile caricare i dati del personaggio ${entry.id}`);
-        }
-
-        async function loadPlayersData() {
-            const resp = await fetch('../../assets/data/players.json');
-            if (!resp.ok) throw new Error(`File dati players (${resp.status}) non trovato.`);
-            return resp.json();
-        }
-
-        async function hydrateContentBlocks(character) {
-            if (!character || !Array.isArray(character.content_blocks)) return;
-            const base = '../../assets/content/';
-            await Promise.all(character.content_blocks.map(async (block) => {
-                if (!block.markdown) return;
-                const url = base + block.markdown;
-                try {
-                    const resp = await fetch(url);
-                    const md = resp.ok ? await resp.text() : '';
-                    block.markdownText = md;
-                    block.markdownHtml = md ? renderMarkdown(md, { context: block.type }) : `<p>Impossibile caricare ${block.markdown}</p>`;
-                } catch (err) {
-                    console.warn(`Errore nel caricare ${block.markdown}:`, err);
-                    block.markdownHtml = `<p>Impossibile caricare ${block.markdown}</p>`;
-                }
-            }));
-        }
-
-        async function loadQuestsData() {
-            try {
-                const resp = await fetch('../../assets/data/quests.json');
-                if (resp.ok) return resp.json();
-            } catch (e) {
-                console.warn("Impossibile caricare quests.json", e);
-            }
-            return [];
-        }
-
-        const INVENTORY_API_URL = typeof window.CriptaApp?.urls?.api === 'function'
-            ? window.CriptaApp.urls.api('api/inventory')
-            : 'https://sigillo-api.khuzoe.workers.dev/api/inventory';
-        const WIKI_ITEMS_DATA_URL = '../../assets/data/items.json';
-        const INVENTORY_CACHE_KEY = 'cds_inventory_api_cache_v1';
-        const INVENTORY_CACHE_TTL_MS = 5 * 60 * 1000;
-        const INVENTORY_EXCLUDED_TYPES = new Set(['class', 'subclass', 'feat', 'background', 'race', 'spell']);
-        const SPELL_SCHOOL_LABELS = {
-            abj: 'Abiurazione',
-            con: 'Evocazione',
-            div: 'Divinazione',
-            enc: 'Ammaliamento',
-            evo: 'Invocazione',
-            ill: 'Illusione',
-            nec: 'Necromanzia',
-            trs: 'Trasmutazione'
-        };
-        const DURATION_UNITS_LABELS = {
-            inst: 'Istantanea',
-            round: 'round',
-            minute: 'min',
-            hour: 'ora',
-            day: 'giorno'
-        };
-        const RANGE_UNITS_LABELS = {
-            touch: 'Contatto',
-            self: 'Se stesso',
-            ft: 'ft',
-            m: 'm'
-        };
-        const DND5E_XP_THRESHOLDS = [
-            0, 300, 900, 2700, 6500,
-            14000, 23000, 34000, 48000, 64000,
-            85000, 100000, 120000, 140000, 165000,
-            195000, 225000, 265000, 305000, 355000
-        ];
-        const PLAYER_NAME_ALIASES = {
-            apothecary: ['apothecary'],
-            garun: ["ga'run", 'ga run', 'garun'],
-            randra: ["ran'dra", 'ran dra', 'randra'],
-            valdor: ['valdor']
-        };
-        const SKILLS_DATA_URL = '../../assets/data/skills.json';
-        const SKILLS_ASSET_BASE = '../../assets/img/skill_trees/';
-        const PLAYER_SKILL_TREE_KEYS = {
-            apothecary: 'apothecary',
-            garun: 'garun',
-            randra: 'randra',
-            valdor: 'valdor'
-        };
-
-        let inventoryRequestPromise = null;
-        let inventoryMemoryCache = null;
-        let skillsRequestPromise = null;
-        let skillsMemoryCache = null;
-        let wikiItemsRequestPromise = null;
-        let wikiItemsMemoryCache = null;
-
-        function escapeHtml(value) {
-            return String(value || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        }
-
-        function normalizeText(value) {
-            return String(value || '')
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9]+/g, '');
-        }
-
-        function normalizeWords(value) {
-            return String(value || '')
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9]+/g, ' ')
-                .trim()
-                .split(/\s+/)
-                .filter(Boolean);
-        }
-
-        function slugify(value) {
-            return normalizeWords(value).join('-') || 'item';
-        }
-
-        function formatToken(value) {
-            const text = String(value || '')
-                .replace(/([a-z])([A-Z])/g, '$1 $2')
-                .replace(/[_-]+/g, ' ')
-                .trim();
-            if (!text) return '';
-            return text.replace(/\b\w/g, (letter) => letter.toUpperCase());
-        }
-
-        function getSafeSessionStorageItem(key) {
-            try {
-                return window.sessionStorage.getItem(key);
-            } catch (_) {
-                return null;
-            }
-        }
-
-        function setSafeSessionStorageItem(key, value) {
-            try {
-                window.sessionStorage.setItem(key, value);
-            } catch (_) {
-                // Ignore storage quota / privacy mode errors.
-            }
-        }
-
-        function parseInventoryCache(rawValue) {
-            if (!rawValue) return null;
-            try {
-                const parsed = JSON.parse(rawValue);
-                if (!parsed || typeof parsed.fetchedAt !== 'number' || !parsed.data) return null;
-                return parsed;
-            } catch (_) {
-                return null;
-            }
-        }
-
-        function isInventoryCacheFresh(cache) {
-            if (!cache || typeof cache.fetchedAt !== 'number') return false;
-            return (Date.now() - cache.fetchedAt) < INVENTORY_CACHE_TTL_MS;
-        }
-
-        function resolveSkillAssetPath(path) {
-            if (!path) return '';
-            if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/') || path.startsWith('data:')) {
-                return path;
-            }
-            return `${SKILLS_ASSET_BASE}${path}`;
-        }
-
-        async function loadSkillsData() {
-            if (skillsMemoryCache) return skillsMemoryCache;
-            if (skillsRequestPromise) return skillsRequestPromise;
-
-            skillsRequestPromise = (async () => {
-                const response = await fetch(SKILLS_DATA_URL);
-                if (!response.ok) {
-                    throw new Error(`File skill tree non trovato (${response.status}).`);
-                }
-                const payload = await response.json();
-                skillsMemoryCache = payload && typeof payload === 'object' ? payload : {};
-                return skillsMemoryCache;
-            })();
-
-            try {
-                return await skillsRequestPromise;
-            } finally {
-                skillsRequestPromise = null;
-            }
-        }
-
-        async function loadInventoryData() {
-            if (inventoryMemoryCache && isInventoryCacheFresh(inventoryMemoryCache)) {
-                return inventoryMemoryCache.data;
-            }
-
-            const storedCache = parseInventoryCache(getSafeSessionStorageItem(INVENTORY_CACHE_KEY));
-            if (storedCache && isInventoryCacheFresh(storedCache)) {
-                inventoryMemoryCache = storedCache;
+            inventoryMemoryCache = cacheEntry;
+            setSafeSessionStorageItem(INVENTORY_CACHE_KEY, JSON.stringify(cacheEntry));
+            return payload;
+        } catch (error) {
+            if (storedCache && storedCache.data && Array.isArray(storedCache.data.actors)) {
+                console.warn('Inventory API non raggiungibile, uso cache precedente.', error);
                 return storedCache.data;
             }
+            throw error;
+        } finally {
+            inventoryRequestPromise = null;
+        }
+    })();
 
-            if (inventoryRequestPromise) {
-                return inventoryRequestPromise;
+    return inventoryRequestPromise;
+}
+
+async function loadWikiItemsData() {
+    if (wikiItemsMemoryCache) return wikiItemsMemoryCache;
+    if (wikiItemsRequestPromise) return wikiItemsRequestPromise;
+
+    wikiItemsRequestPromise = (async () => {
+        const response = await fetch(WIKI_ITEMS_DATA_URL);
+        if (!response.ok) throw new Error(`Items wiki HTTP ${response.status}`);
+        const payload = await response.json();
+        const list = Array.isArray(payload) ? payload : [];
+        wikiItemsMemoryCache = window.WikiSpoiler
+            ? window.WikiSpoiler.filterVisible(list)
+            : list.filter((item) => item.hidden !== true && item.status !== 'hidden');
+        return wikiItemsMemoryCache;
+    })();
+
+    try {
+        return await wikiItemsRequestPromise;
+    } finally {
+        wikiItemsRequestPromise = null;
+    }
+}
+
+async function requestInventoryApi() {
+    if (typeof window.CriptaApp?.api?.get === 'function') {
+        try {
+            return await window.CriptaApp.api.get('api/inventory');
+        } catch (error) {
+            const message = String(error?.message || error || '').trim();
+            throw new Error(message ? `Inventory API ${message}` : 'Inventory API errore sconosciuto.');
+        }
+    }
+
+    const response = await fetch(INVENTORY_API_URL, {
+        method: 'GET',
+        headers: {
+            Accept: 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`Inventory API HTTP ${response.status}`);
+    }
+
+    return response.json();
+}
+
+function findPlayerActor(payload, character) {
+    const actors = Array.isArray(payload && payload.actors) ? payload.actors : [];
+    if (!actors.length || !character) return null;
+
+    const nameKeys = new Set();
+    nameKeys.add(normalizeText(character.name));
+    if (character.inventory_api_name) {
+        nameKeys.add(normalizeText(character.inventory_api_name));
+    }
+    if (Array.isArray(character.inventory_api_aliases)) {
+        character.inventory_api_aliases.forEach((alias) => nameKeys.add(normalizeText(alias)));
+    }
+    const aliases = PLAYER_NAME_ALIASES[character.id] || [];
+    aliases.forEach((alias) => nameKeys.add(normalizeText(alias)));
+
+    const byExactName = actors.find((actor) => nameKeys.has(normalizeText(actor.name)));
+    if (byExactName) return byExactName;
+
+    return actors.find((actor) => {
+        const actorKey = normalizeText(actor.name);
+        if (!actorKey) return false;
+        for (const key of nameKeys) {
+            if (!key) continue;
+            if (actorKey.includes(key) || key.includes(actorKey)) return true;
+        }
+        return false;
+    }) || null;
+}
+
+function splitActorLoadout(actor) {
+    const sourceEntries = Array.isArray(actor && actor.inventory) ? actor.inventory : [];
+    const spells = [];
+    const inventory = [];
+
+    sourceEntries.forEach((entry) => {
+        if (!entry || typeof entry !== 'object') return;
+        if (entry.type === 'spell') {
+            spells.push(entry);
+            return;
+        }
+        if (!INVENTORY_EXCLUDED_TYPES.has(entry.type)) {
+            inventory.push(entry);
+        }
+    });
+
+    inventory.sort((a, b) => {
+        const typeOrder = String(a.type || '').localeCompare(String(b.type || ''), 'it');
+        if (typeOrder !== 0) return typeOrder;
+        return String(a.name || '').localeCompare(String(b.name || ''), 'it');
+    });
+
+    spells.sort((a, b) => {
+        const parsedA = Number(a.level);
+        const parsedB = Number(b.level);
+        const levelA = Number.isFinite(parsedA) ? parsedA : 99;
+        const levelB = Number.isFinite(parsedB) ? parsedB : 99;
+        if (levelA !== levelB) return levelA - levelB;
+        return String(a.name || '').localeCompare(String(b.name || ''), 'it');
+    });
+
+    return { inventory, spells };
+}
+
+function getWikiItemAliases(item) {
+    const aliases = new Set([
+        item.id,
+        item.name,
+        item.unidentifiedName,
+        item.foundryName
+    ].filter(Boolean));
+
+    if (Array.isArray(item.foundryNames)) {
+        item.foundryNames.forEach((name) => aliases.add(name));
+    }
+    if (Array.isArray(item.aliases)) {
+        item.aliases.forEach((name) => aliases.add(name));
+    }
+    if (item.owner && item.name && item.name.includes(':')) {
+        const localName = item.name.split(':').slice(1).join(':').trim();
+        if (localName) aliases.add(`${localName} di ${item.owner}`);
+    }
+    return Array.from(aliases).filter(Boolean);
+}
+
+function buildWikiItemIndex(items) {
+    const byKey = new Map();
+    const records = (Array.isArray(items) ? items : []).map((item) => {
+        const aliases = getWikiItemAliases(item);
+        aliases.forEach((alias) => {
+            const key = normalizeText(alias);
+            if (key && !byKey.has(key)) byKey.set(key, item);
+        });
+        return {
+            item,
+            keys: aliases.map(normalizeText).filter(Boolean),
+            words: new Set(aliases.flatMap(normalizeWords))
+        };
+    });
+    return { byKey, records };
+}
+
+function findWikiItemForInventoryEntry(entry, index) {
+    if (!entry || !index) return null;
+    const candidateNames = [entry.name, entry.wikiItemId, entry.foundryName].filter(Boolean);
+    for (const name of candidateNames) {
+        const key = normalizeText(name);
+        if (key && index.byKey.has(key)) return index.byKey.get(key);
+    }
+
+    const entryKey = normalizeText(entry.name);
+    if (!entryKey || entryKey.length < 5) return null;
+    const directContains = index.records.find((record) => (
+        record.keys.some((key) => key.length >= 5 && entryKey.includes(key))
+    ));
+    if (directContains) return directContains.item;
+
+    const entryWords = new Set(normalizeWords(entry.name).filter((word) => word.length > 2 && word !== 'di'));
+    if (entryWords.size < 2) return null;
+    let best = null;
+    let bestScore = 0;
+    index.records.forEach((record) => {
+        let score = 0;
+        entryWords.forEach((word) => {
+            if (record.words.has(word)) score += 1;
+        });
+        if (score > bestScore) {
+            bestScore = score;
+            best = record.item;
+        }
+    });
+    return bestScore >= Math.min(2, entryWords.size) ? best : null;
+}
+
+function getWikiItemUrl(item) {
+    if (!item) return '';
+    return `../oggetti.html#${encodeURIComponent(item.id || slugify(item.name))}`;
+}
+
+function getWikiItemImageUrl(item) {
+    if (!item || !item.image) return '';
+    return `../../assets/${item.image}`;
+}
+
+function renderWikiItemThumb(item, className, label = 'Oggetto wiki') {
+    if (!item) return '';
+    const safeLabel = escapeHtml(item.name || label);
+    const image = getWikiItemImageUrl(item);
+    if (image) {
+        return `<span class="${escapeHtml(className)}"><img src="${escapeHtml(image)}" alt="${safeLabel}"></span>`;
+    }
+    return `<span class="${escapeHtml(className)}" aria-hidden="true"><i class="fas ${escapeHtml(item.icon || 'fa-wand-sparkles')}"></i></span>`;
+}
+
+function cleanDescription(value) {
+    const simplifyFoundryInlineCommand = (command, args) => {
+        const cmd = String(command || '').toLowerCase();
+        const rawArgs = String(args || '').trim();
+        if (!rawArgs) return '';
+
+        const tokens = rawArgs.split(/\s+/);
+        const valueTokens = [];
+        for (const token of tokens) {
+            if (/^[\w-]+=/.test(token)) break;
+            valueTokens.push(token);
+        }
+
+        const baseValue = (valueTokens.length > 0 ? valueTokens.join(' ') : rawArgs).trim();
+
+        if (cmd === 'damage' || cmd === 'r' || cmd === 'roll' || cmd === 'heal') {
+            const diceMatch = baseValue.match(/\b\d*d\d+(?:\s*[+\-]\s*\d*d?\d+)*\b/i);
+            if (diceMatch) {
+                return diceMatch[0].replace(/\s+/g, ' ').trim();
             }
-
-            inventoryRequestPromise = (async () => {
-                try {
-                    const payload = await requestInventoryApi();
-                    if (!payload || !Array.isArray(payload.actors)) {
-                        throw new Error('Inventory API: formato non valido.');
-                    }
-
-                    const cacheEntry = {
-                        fetchedAt: Date.now(),
-                        data: payload
-                    };
-                    inventoryMemoryCache = cacheEntry;
-                    setSafeSessionStorageItem(INVENTORY_CACHE_KEY, JSON.stringify(cacheEntry));
-                    return payload;
-                } catch (error) {
-                    if (storedCache && storedCache.data && Array.isArray(storedCache.data.actors)) {
-                        console.warn('Inventory API non raggiungibile, uso cache precedente.', error);
-                        return storedCache.data;
-                    }
-                    throw error;
-                } finally {
-                    inventoryRequestPromise = null;
-                }
-            })();
-
-            return inventoryRequestPromise;
         }
 
-        async function loadWikiItemsData() {
-            if (wikiItemsMemoryCache) return wikiItemsMemoryCache;
-            if (wikiItemsRequestPromise) return wikiItemsRequestPromise;
+        return baseValue;
+    };
 
-            wikiItemsRequestPromise = (async () => {
-                const response = await fetch(WIKI_ITEMS_DATA_URL);
-                if (!response.ok) throw new Error(`Items wiki HTTP ${response.status}`);
-                const payload = await response.json();
-                const list = Array.isArray(payload) ? payload : [];
-                wikiItemsMemoryCache = window.WikiSpoiler
-                    ? window.WikiSpoiler.filterVisible(list)
-                    : list.filter((item) => item.hidden !== true && item.status !== 'hidden');
-                return wikiItemsMemoryCache;
-            })();
+    const simplifyFoundryReference = (rawReference) => {
+        const content = String(rawReference || '').trim();
+        if (!content) return '';
 
-            try {
-                return await wikiItemsRequestPromise;
-            } finally {
-                wikiItemsRequestPromise = null;
+        const match = content.match(/([a-z0-9_-]+)\s*=\s*("[^"]+"|'[^']+'|[^,\]|]+)/i);
+        const rawLabel = match && match[2]
+            ? match[2]
+            : content.replace(/^[a-z0-9_-]+\s*=\s*/i, '');
+
+        const label = String(rawLabel || '')
+            .trim()
+            .replace(/^["']|["']$/g, '')
+            .replace(/[_-]+/g, ' ')
+            .trim();
+
+        if (!label) return '';
+        return `<strong>${label}</strong>`;
+    };
+
+    return String(value || '')
+        .replace(/\(\s*\[\[\s*\/([a-z0-9_-]+)\s+([^\]]+?)\s*\]\]\s*\)/gi, (_, command, args) => simplifyFoundryInlineCommand(command, args))
+        .replace(/\[\[\s*\/([a-z0-9_-]+)\s+([^\]]+?)\s*\]\]/gi, (_, command, args) => simplifyFoundryInlineCommand(command, args))
+        .replace(/\[\[[^\]]+\]\]/g, '')
+        .replace(/@[\w-]+\[([^\]|]+)(?:\|[^\]]+)?\]/g, '$1')
+        .replace(/&(?:amp;)?Reference\s*\[([^\]]+)\]/gi, (_, rawReference) => simplifyFoundryReference(rawReference))
+        .trim();
+}
+
+function renderPlainDescriptionHtml(text) {
+    const normalized = String(text || '').replace(/\r\n?/g, '\n').trim();
+    if (!normalized) return '';
+
+    return normalized
+        .split(/\n{2,}/)
+        .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
+        .join('');
+}
+
+function sanitizeDescriptionHtml(html) {
+    if (!html) return '';
+
+    const ALLOWED_TAGS = new Set(['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'a', 'h4', 'h5']);
+    const BLOCKED_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'button']);
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
+    const root = doc.body.firstElementChild;
+    if (!root) return '';
+
+    const sanitizeNode = (node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            return escapeHtml(node.textContent || '');
+        }
+
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+            return '';
+        }
+
+        const tag = node.tagName.toLowerCase();
+        if (BLOCKED_TAGS.has(tag)) {
+            return '';
+        }
+
+        const inner = Array.from(node.childNodes).map(sanitizeNode).join('');
+        if (!ALLOWED_TAGS.has(tag)) {
+            return inner;
+        }
+
+        if (tag === 'br') {
+            return '<br>';
+        }
+
+        if (tag === 'a') {
+            const href = (node.getAttribute('href') || '').trim();
+            const isSafeHref = /^(https?:|mailto:|\/|#)/i.test(href);
+            if (isSafeHref) {
+                return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${inner || escapeHtml(href)}</a>`;
             }
+            return inner;
         }
 
-        async function requestInventoryApi() {
-            if (typeof window.CriptaApp?.api?.get === 'function') {
-                try {
-                    return await window.CriptaApp.api.get('api/inventory');
-                } catch (error) {
-                    const message = String(error?.message || error || '').trim();
-                    throw new Error(message ? `Inventory API ${message}` : 'Inventory API errore sconosciuto.');
-                }
-            }
+        return `<${tag}>${inner}</${tag}>`;
+    };
 
-            const response = await fetch(INVENTORY_API_URL, {
-                method: 'GET',
-                headers: {
-                    Accept: 'application/json'
-                }
-            });
+    return Array.from(root.childNodes).map(sanitizeNode).join('').trim();
+}
 
-            if (!response.ok) {
-                throw new Error(`Inventory API HTTP ${response.status}`);
-            }
+function renderDescriptionHtml(value) {
+    const cleaned = cleanDescription(value);
+    if (!cleaned) return '';
 
-            return response.json();
-        }
+    const hasHtmlTag = /<[^>]+>/.test(cleaned);
+    if (!hasHtmlTag) {
+        return renderPlainDescriptionHtml(cleaned);
+    }
 
-        function findPlayerActor(payload, character) {
-            const actors = Array.isArray(payload && payload.actors) ? payload.actors : [];
-            if (!actors.length || !character) return null;
+    const sanitized = sanitizeDescriptionHtml(cleaned);
+    return sanitized || renderPlainDescriptionHtml(cleaned);
+}
 
-            const nameKeys = new Set();
-            nameKeys.add(normalizeText(character.name));
-            if (character.inventory_api_name) {
-                nameKeys.add(normalizeText(character.inventory_api_name));
-            }
-            if (Array.isArray(character.inventory_api_aliases)) {
-                character.inventory_api_aliases.forEach((alias) => nameKeys.add(normalizeText(alias)));
-            }
-            const aliases = PLAYER_NAME_ALIASES[character.id] || [];
-            aliases.forEach((alias) => nameKeys.add(normalizeText(alias)));
+function getQuantityLabel(entry) {
+    const quantity = Number(entry && entry.quantity);
+    if (!Number.isFinite(quantity) || quantity <= 1) return '';
+    return `x${quantity}`;
+}
 
-            const byExactName = actors.find((actor) => nameKeys.has(normalizeText(actor.name)));
-            if (byExactName) return byExactName;
+function formatSpellLevel(level) {
+    if (!Number.isFinite(level)) return 'Livello ?';
+    if (level === 0) return 'Trucchetto';
+    return `Livello ${level}`;
+}
 
-            return actors.find((actor) => {
-                const actorKey = normalizeText(actor.name);
-                if (!actorKey) return false;
-                for (const key of nameKeys) {
-                    if (!key) continue;
-                    if (actorKey.includes(key) || key.includes(actorKey)) return true;
-                }
-                return false;
-            }) || null;
-        }
+function formatDuration(duration) {
+    if (!duration || typeof duration !== 'object') return '';
+    const rawUnits = String(duration.units || '').toLowerCase();
+    if (!rawUnits) return '';
+    if (rawUnits === 'inst') return DURATION_UNITS_LABELS.inst;
+    const unitLabel = DURATION_UNITS_LABELS[rawUnits] || rawUnits;
+    const value = Number(duration.value);
+    if (!Number.isFinite(value)) return formatToken(unitLabel);
+    const plural = value > 1 && unitLabel === 'ora' ? 'ore' : (value > 1 && unitLabel === 'giorno' ? 'giorni' : unitLabel);
+    return `${value} ${plural}`;
+}
 
-        function splitActorLoadout(actor) {
-            const sourceEntries = Array.isArray(actor && actor.inventory) ? actor.inventory : [];
-            const spells = [];
-            const inventory = [];
+function formatRange(range) {
+    if (!range || typeof range !== 'object') return '';
+    const rawUnits = String(range.units || '').toLowerCase();
+    if (!rawUnits) return '';
+    const unitLabel = RANGE_UNITS_LABELS[rawUnits] || rawUnits;
+    const value = Number(range.value);
+    if (!Number.isFinite(value)) return formatToken(unitLabel);
+    return `${value} ${unitLabel}`;
+}
 
-            sourceEntries.forEach((entry) => {
-                if (!entry || typeof entry !== 'object') return;
-                if (entry.type === 'spell') {
-                    spells.push(entry);
-                    return;
-                }
-                if (!INVENTORY_EXCLUDED_TYPES.has(entry.type)) {
-                    inventory.push(entry);
-                }
-            });
+function formatGeneratedAtLabel(payload) {
+    if (!payload || !payload.generatedAt) return 'Aggiornamento: non disponibile';
+    const date = new Date(payload.generatedAt);
+    if (Number.isNaN(date.getTime())) return 'Aggiornamento: non disponibile';
+    const formatted = new Intl.DateTimeFormat('it-IT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }).format(date);
+    return `Aggiornamento: ${formatted}`;
+}
 
-            inventory.sort((a, b) => {
-                const typeOrder = String(a.type || '').localeCompare(String(b.type || ''), 'it');
-                if (typeOrder !== 0) return typeOrder;
-                return String(a.name || '').localeCompare(String(b.name || ''), 'it');
-            });
+function toFiniteNumber(value) {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+}
 
-            spells.sort((a, b) => {
-                const parsedA = Number(a.level);
-                const parsedB = Number(b.level);
-                const levelA = Number.isFinite(parsedA) ? parsedA : 99;
-                const levelB = Number.isFinite(parsedB) ? parsedB : 99;
-                if (levelA !== levelB) return levelA - levelB;
-                return String(a.name || '').localeCompare(String(b.name || ''), 'it');
-            });
+function formatNumberIt(value, maxFractionDigits = 0) {
+    const num = toFiniteNumber(value);
+    if (num === null) return '—';
+    return new Intl.NumberFormat('it-IT', { maximumFractionDigits: maxFractionDigits }).format(num);
+}
 
-            return { inventory, spells };
-        }
+function formatWeightIt(value) {
+    const num = toFiniteNumber(value);
+    if (num === null) return '—';
+    return new Intl.NumberFormat('it-IT', { maximumFractionDigits: 1 }).format(num);
+}
 
-        function getWikiItemAliases(item) {
-            const aliases = new Set([
-                item.id,
-                item.name,
-                item.unidentifiedName,
-                item.foundryName
-            ].filter(Boolean));
+function getUniqueItemList(items) {
+    const seen = new Set();
+    return (Array.isArray(items) ? items : []).filter((item) => {
+        if (!item || typeof item !== 'object') return false;
+        const key = String(item.id || item.name || '').toLowerCase();
+        if (!key) return false;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+}
 
-            if (Array.isArray(item.foundryNames)) {
-                item.foundryNames.forEach((name) => aliases.add(name));
-            }
-            if (Array.isArray(item.aliases)) {
-                item.aliases.forEach((name) => aliases.add(name));
-            }
-            if (item.owner && item.name && item.name.includes(':')) {
-                const localName = item.name.split(':').slice(1).join(':').trim();
-                if (localName) aliases.add(`${localName} di ${item.owner}`);
-            }
-            return Array.from(aliases).filter(Boolean);
-        }
+function renderOverviewItemPills(items, emptyLabel) {
+    const list = getUniqueItemList(items);
+    if (!list.length) {
+        return `<p class="player-overview-empty">${escapeHtml(emptyLabel)}</p>`;
+    }
 
-        function buildWikiItemIndex(items) {
-            const byKey = new Map();
-            const records = (Array.isArray(items) ? items : []).map((item) => {
-                const aliases = getWikiItemAliases(item);
-                aliases.forEach((alias) => {
-                    const key = normalizeText(alias);
-                    if (key && !byKey.has(key)) byKey.set(key, item);
-                });
-                return {
-                    item,
-                    keys: aliases.map(normalizeText).filter(Boolean),
-                    words: new Set(aliases.flatMap(normalizeWords))
-                };
-            });
-            return { byKey, records };
-        }
-
-        function findWikiItemForInventoryEntry(entry, index) {
-            if (!entry || !index) return null;
-            const candidateNames = [entry.name, entry.wikiItemId, entry.foundryName].filter(Boolean);
-            for (const name of candidateNames) {
-                const key = normalizeText(name);
-                if (key && index.byKey.has(key)) return index.byKey.get(key);
-            }
-
-            const entryKey = normalizeText(entry.name);
-            if (!entryKey || entryKey.length < 5) return null;
-            const directContains = index.records.find((record) => (
-                record.keys.some((key) => key.length >= 5 && entryKey.includes(key))
-            ));
-            if (directContains) return directContains.item;
-
-            const entryWords = new Set(normalizeWords(entry.name).filter((word) => word.length > 2 && word !== 'di'));
-            if (entryWords.size < 2) return null;
-            let best = null;
-            let bestScore = 0;
-            index.records.forEach((record) => {
-                let score = 0;
-                entryWords.forEach((word) => {
-                    if (record.words.has(word)) score += 1;
-                });
-                if (score > bestScore) {
-                    bestScore = score;
-                    best = record.item;
-                }
-            });
-            return bestScore >= Math.min(2, entryWords.size) ? best : null;
-        }
-
-        function getWikiItemUrl(item) {
-            if (!item) return '';
-            return `../oggetti.html#${encodeURIComponent(item.id || slugify(item.name))}`;
-        }
-
-        function getWikiItemImageUrl(item) {
-            if (!item || !item.image) return '';
-            return `../../assets/${item.image}`;
-        }
-
-        function renderWikiItemThumb(item, className, label = 'Oggetto wiki') {
-            if (!item) return '';
-            const safeLabel = escapeHtml(item.name || label);
-            const image = getWikiItemImageUrl(item);
-            if (image) {
-                return `<span class="${escapeHtml(className)}"><img src="${escapeHtml(image)}" alt="${safeLabel}"></span>`;
-            }
-            return `<span class="${escapeHtml(className)}" aria-hidden="true"><i class="fas ${escapeHtml(item.icon || 'fa-wand-sparkles')}"></i></span>`;
-        }
-
-        function cleanDescription(value) {
-            const simplifyFoundryInlineCommand = (command, args) => {
-                const cmd = String(command || '').toLowerCase();
-                const rawArgs = String(args || '').trim();
-                if (!rawArgs) return '';
-
-                const tokens = rawArgs.split(/\s+/);
-                const valueTokens = [];
-                for (const token of tokens) {
-                    if (/^[\w-]+=/.test(token)) break;
-                    valueTokens.push(token);
-                }
-
-                const baseValue = (valueTokens.length > 0 ? valueTokens.join(' ') : rawArgs).trim();
-
-                if (cmd === 'damage' || cmd === 'r' || cmd === 'roll' || cmd === 'heal') {
-                    const diceMatch = baseValue.match(/\b\d*d\d+(?:\s*[+\-]\s*\d*d?\d+)*\b/i);
-                    if (diceMatch) {
-                        return diceMatch[0].replace(/\s+/g, ' ').trim();
-                    }
-                }
-
-                return baseValue;
-            };
-
-            const simplifyFoundryReference = (rawReference) => {
-                const content = String(rawReference || '').trim();
-                if (!content) return '';
-
-                const match = content.match(/([a-z0-9_-]+)\s*=\s*("[^"]+"|'[^']+'|[^,\]|]+)/i);
-                const rawLabel = match && match[2]
-                    ? match[2]
-                    : content.replace(/^[a-z0-9_-]+\s*=\s*/i, '');
-
-                const label = String(rawLabel || '')
-                    .trim()
-                    .replace(/^["']|["']$/g, '')
-                    .replace(/[_-]+/g, ' ')
-                    .trim();
-
-                if (!label) return '';
-                return `<strong>${label}</strong>`;
-            };
-
-            return String(value || '')
-                .replace(/\(\s*\[\[\s*\/([a-z0-9_-]+)\s+([^\]]+?)\s*\]\]\s*\)/gi, (_, command, args) => simplifyFoundryInlineCommand(command, args))
-                .replace(/\[\[\s*\/([a-z0-9_-]+)\s+([^\]]+?)\s*\]\]/gi, (_, command, args) => simplifyFoundryInlineCommand(command, args))
-                .replace(/\[\[[^\]]+\]\]/g, '')
-                .replace(/@[\w-]+\[([^\]|]+)(?:\|[^\]]+)?\]/g, '$1')
-                .replace(/&(?:amp;)?Reference\s*\[([^\]]+)\]/gi, (_, rawReference) => simplifyFoundryReference(rawReference))
-                .trim();
-        }
-
-        function renderPlainDescriptionHtml(text) {
-            const normalized = String(text || '').replace(/\r\n?/g, '\n').trim();
-            if (!normalized) return '';
-
-            return normalized
-                .split(/\n{2,}/)
-                .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
-                .join('');
-        }
-
-        function sanitizeDescriptionHtml(html) {
-            if (!html) return '';
-
-            const ALLOWED_TAGS = new Set(['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'a', 'h4', 'h5']);
-            const BLOCKED_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'button']);
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
-            const root = doc.body.firstElementChild;
-            if (!root) return '';
-
-            const sanitizeNode = (node) => {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    return escapeHtml(node.textContent || '');
-                }
-
-                if (node.nodeType !== Node.ELEMENT_NODE) {
-                    return '';
-                }
-
-                const tag = node.tagName.toLowerCase();
-                if (BLOCKED_TAGS.has(tag)) {
-                    return '';
-                }
-
-                const inner = Array.from(node.childNodes).map(sanitizeNode).join('');
-                if (!ALLOWED_TAGS.has(tag)) {
-                    return inner;
-                }
-
-                if (tag === 'br') {
-                    return '<br>';
-                }
-
-                if (tag === 'a') {
-                    const href = (node.getAttribute('href') || '').trim();
-                    const isSafeHref = /^(https?:|mailto:|\/|#)/i.test(href);
-                    if (isSafeHref) {
-                        return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${inner || escapeHtml(href)}</a>`;
-                    }
-                    return inner;
-                }
-
-                return `<${tag}>${inner}</${tag}>`;
-            };
-
-            return Array.from(root.childNodes).map(sanitizeNode).join('').trim();
-        }
-
-        function renderDescriptionHtml(value) {
-            const cleaned = cleanDescription(value);
-            if (!cleaned) return '';
-
-            const hasHtmlTag = /<[^>]+>/.test(cleaned);
-            if (!hasHtmlTag) {
-                return renderPlainDescriptionHtml(cleaned);
-            }
-
-            const sanitized = sanitizeDescriptionHtml(cleaned);
-            return sanitized || renderPlainDescriptionHtml(cleaned);
-        }
-
-        function getQuantityLabel(entry) {
-            const quantity = Number(entry && entry.quantity);
-            if (!Number.isFinite(quantity) || quantity <= 1) return '';
-            return `x${quantity}`;
-        }
-
-        function formatSpellLevel(level) {
-            if (!Number.isFinite(level)) return 'Livello ?';
-            if (level === 0) return 'Trucchetto';
-            return `Livello ${level}`;
-        }
-
-        function formatDuration(duration) {
-            if (!duration || typeof duration !== 'object') return '';
-            const rawUnits = String(duration.units || '').toLowerCase();
-            if (!rawUnits) return '';
-            if (rawUnits === 'inst') return DURATION_UNITS_LABELS.inst;
-            const unitLabel = DURATION_UNITS_LABELS[rawUnits] || rawUnits;
-            const value = Number(duration.value);
-            if (!Number.isFinite(value)) return formatToken(unitLabel);
-            const plural = value > 1 && unitLabel === 'ora' ? 'ore' : (value > 1 && unitLabel === 'giorno' ? 'giorni' : unitLabel);
-            return `${value} ${plural}`;
-        }
-
-        function formatRange(range) {
-            if (!range || typeof range !== 'object') return '';
-            const rawUnits = String(range.units || '').toLowerCase();
-            if (!rawUnits) return '';
-            const unitLabel = RANGE_UNITS_LABELS[rawUnits] || rawUnits;
-            const value = Number(range.value);
-            if (!Number.isFinite(value)) return formatToken(unitLabel);
-            return `${value} ${unitLabel}`;
-        }
-
-        function formatGeneratedAtLabel(payload) {
-            if (!payload || !payload.generatedAt) return 'Aggiornamento: non disponibile';
-            const date = new Date(payload.generatedAt);
-            if (Number.isNaN(date.getTime())) return 'Aggiornamento: non disponibile';
-            const formatted = new Intl.DateTimeFormat('it-IT', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            }).format(date);
-            return `Aggiornamento: ${formatted}`;
-        }
-
-        function toFiniteNumber(value) {
-            const num = Number(value);
-            return Number.isFinite(num) ? num : null;
-        }
-
-        function formatNumberIt(value, maxFractionDigits = 0) {
-            const num = toFiniteNumber(value);
-            if (num === null) return '—';
-            return new Intl.NumberFormat('it-IT', { maximumFractionDigits: maxFractionDigits }).format(num);
-        }
-
-        function formatWeightIt(value) {
-            const num = toFiniteNumber(value);
-            if (num === null) return '—';
-            return new Intl.NumberFormat('it-IT', { maximumFractionDigits: 1 }).format(num);
-        }
-
-        function getUniqueItemList(items) {
-            const seen = new Set();
-            return (Array.isArray(items) ? items : []).filter((item) => {
-                if (!item || typeof item !== 'object') return false;
-                const key = String(item.id || item.name || '').toLowerCase();
-                if (!key) return false;
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            });
-        }
-
-        function renderOverviewItemPills(items, emptyLabel) {
-            const list = getUniqueItemList(items);
-            if (!list.length) {
-                return `<p class="player-overview-empty">${escapeHtml(emptyLabel)}</p>`;
-            }
-
-            return `
+    return `
                 <div class="player-overview-chip-list">
                     ${list.map((item) => {
-                        const quantityLabel = getQuantityLabel(item);
-                        const icon = item.wikiItem ? renderWikiItemThumb(item.wikiItem, 'player-overview-chip-icon') : '';
-                        const label = `${icon}<span>${escapeHtml(item.name || 'Elemento')}</span> ${quantityLabel ? `<small>${escapeHtml(quantityLabel)}</small>` : ''}`;
-                        if (item.wikiItem) {
-                            return `<a class="player-overview-chip player-overview-chip--link" href="${escapeHtml(getWikiItemUrl(item.wikiItem))}">${label}</a>`;
-                        }
-                        return `<span class="player-overview-chip">${label}</span>`;
-                    }).join('')}
+        const quantityLabel = getQuantityLabel(item);
+        const icon = item.wikiItem ? renderWikiItemThumb(item.wikiItem, 'player-overview-chip-icon') : '';
+        const displayName = item.wikiItem?.name || item.name || 'Elemento';
+        const label = `${icon}<span>${escapeHtml(displayName)}</span> ${quantityLabel ? `<small>${escapeHtml(quantityLabel)}</small>` : ''}`;
+        if (item.wikiItem) {
+            return `<a class="player-overview-chip player-overview-chip--link" href="${escapeHtml(getWikiItemUrl(item.wikiItem))}">${label}</a>`;
+        }
+        return `<span class="player-overview-chip">${label}</span>`;
+    }).join('')}
                 </div>
             `;
-        }
+}
 
-        function renderSpellSlotsOverview(actor) {
-            const spellSlots = actor && actor.spellSlots ? actor.spellSlots : {};
-            const perLevel = Array.isArray(spellSlots.perLevel)
-                ? spellSlots.perLevel
-                    .filter((slot) => toFiniteNumber(slot.total) !== null && Number(slot.total) > 0)
-                    .sort((a, b) => Number(a.level || 0) - Number(b.level || 0))
-                : [];
+function renderSpellSlotsOverview(actor) {
+    const spellSlots = actor && actor.spellSlots ? actor.spellSlots : {};
+    const perLevel = Array.isArray(spellSlots.perLevel)
+        ? spellSlots.perLevel
+            .filter((slot) => toFiniteNumber(slot.total) !== null && Number(slot.total) > 0)
+            .sort((a, b) => Number(a.level || 0) - Number(b.level || 0))
+        : [];
 
-            const totalSlots = toFiniteNumber(spellSlots.totals && spellSlots.totals.total);
-            const usedSlots = toFiniteNumber(spellSlots.totals && spellSlots.totals.used);
-            const availableSlots = toFiniteNumber(spellSlots.totals && spellSlots.totals.available);
-            const hasUsableTotals = totalSlots !== null && totalSlots > 0;
+    const totalSlots = toFiniteNumber(spellSlots.totals && spellSlots.totals.total);
+    const usedSlots = toFiniteNumber(spellSlots.totals && spellSlots.totals.used);
+    const availableSlots = toFiniteNumber(spellSlots.totals && spellSlots.totals.available);
+    const hasUsableTotals = totalSlots !== null && totalSlots > 0;
 
-            if (!perLevel.length && !hasUsableTotals) {
-                return '';
-            }
+    if (!perLevel.length && !hasUsableTotals) {
+        return '';
+    }
 
-            const slotsSummary = hasUsableTotals
-                ? `
+    const slotsSummary = hasUsableTotals
+        ? `
                 <div class="slots-overview-summary slots-overview-summary--compact">
                     <strong>${formatNumberIt(availableSlots !== null ? availableSlots : Math.max(0, totalSlots - (usedSlots || 0)))} / ${formatNumberIt(totalSlots)}</strong>
                 </div>
                 `
-                : '';
+        : '';
 
-            const levelTiles = perLevel.length
-                ? `
+    const levelTiles = perLevel.length
+        ? `
                 <div class="slots-overview-grid">
                     ${perLevel.map((slot) => {
-                        const level = toFiniteNumber(slot.level);
-                        const total = toFiniteNumber(slot.total) || 0;
-                        const available = toFiniteNumber(slot.available);
-                        const used = toFiniteNumber(slot.used);
-                        const shownAvailable = available !== null ? available : Math.max(0, total - (used || 0));
-                        const isEmpty = shownAvailable <= 0;
-                        return `
+            const level = toFiniteNumber(slot.level);
+            const total = toFiniteNumber(slot.total) || 0;
+            const available = toFiniteNumber(slot.available);
+            const used = toFiniteNumber(slot.used);
+            const shownAvailable = available !== null ? available : Math.max(0, total - (used || 0));
+            const isEmpty = shownAvailable <= 0;
+            return `
                             <div class="slot-level-tile ${isEmpty ? 'is-empty' : ''}">
-                                <span class="slot-level-title">${level === 0 ? 'C' : `L${level || '?'}`}</span>
+                                <span class="slot-level-title">${level === 0 ? 'Trucchetto' : `Livello ${level || '?'}`}</span>
                                 <span class="slot-level-ratio">${formatNumberIt(shownAvailable)} / ${formatNumberIt(total)}</span>
                             </div>
                         `;
-                    }).join('')}
+        }).join('')}
                 </div>
                 `
-                : '';
+        : '';
 
-            return `${slotsSummary}${levelTiles}`;
-        }
+    return `${slotsSummary}${levelTiles}`;
+}
 
-        function getXpOverviewData(actor) {
-            const xpCurrent = toFiniteNumber(actor.xp && actor.xp.current);
-            const xpNext = toFiniteNumber(actor.xp && actor.xp.nextLevel);
-            const rawXpMissing = toFiniteNumber(actor.xp && actor.xp.missingToLevel);
-            const hasXp = xpCurrent !== null && xpNext !== null && xpNext > 0;
+function getXpOverviewData(actor) {
+    const xpCurrent = toFiniteNumber(actor.xp && actor.xp.current);
+    const xpNext = toFiniteNumber(actor.xp && actor.xp.nextLevel);
+    const rawXpMissing = toFiniteNumber(actor.xp && actor.xp.missingToLevel);
+    const hasXp = xpCurrent !== null && xpNext !== null && xpNext > 0;
 
-            let xpPreviousLevel = 0;
-            let xpRangeTotal = hasXp ? Math.max(0, xpNext) : 0;
-            let xpCurrentInRange = hasXp ? Math.max(0, xpCurrent) : 0;
+    let xpPreviousLevel = 0;
+    let xpRangeTotal = hasXp ? Math.max(0, xpNext) : 0;
+    let xpCurrentInRange = hasXp ? Math.max(0, xpCurrent) : 0;
 
-            if (hasXp) {
-                const thresholdIndex = DND5E_XP_THRESHOLDS.findIndex((threshold) => threshold === xpNext);
-                if (thresholdIndex > 0) {
-                    xpPreviousLevel = DND5E_XP_THRESHOLDS[thresholdIndex - 1];
-                } else {
-                    for (let i = 0; i < DND5E_XP_THRESHOLDS.length; i++) {
-                        const threshold = DND5E_XP_THRESHOLDS[i];
-                        if (threshold <= xpCurrent) {
-                            xpPreviousLevel = threshold;
-                            continue;
-                        }
-                        if (threshold > xpCurrent) {
-                            if (!Number.isFinite(xpNext) || xpNext <= xpPreviousLevel) {
-                                xpRangeTotal = threshold - xpPreviousLevel;
-                            }
-                            break;
-                        }
+    if (hasXp) {
+        const thresholdIndex = DND5E_XP_THRESHOLDS.findIndex((threshold) => threshold === xpNext);
+        if (thresholdIndex > 0) {
+            xpPreviousLevel = DND5E_XP_THRESHOLDS[thresholdIndex - 1];
+        } else {
+            for (let i = 0; i < DND5E_XP_THRESHOLDS.length; i++) {
+                const threshold = DND5E_XP_THRESHOLDS[i];
+                if (threshold <= xpCurrent) {
+                    xpPreviousLevel = threshold;
+                    continue;
+                }
+                if (threshold > xpCurrent) {
+                    if (!Number.isFinite(xpNext) || xpNext <= xpPreviousLevel) {
+                        xpRangeTotal = threshold - xpPreviousLevel;
                     }
-                }
-
-                if (xpNext > xpPreviousLevel) {
-                    xpRangeTotal = xpNext - xpPreviousLevel;
-                    xpCurrentInRange = Math.min(
-                        xpRangeTotal,
-                        Math.max(0, xpCurrent - xpPreviousLevel)
-                    );
-                } else {
-                    xpRangeTotal = Math.max(1, xpRangeTotal);
-                    xpCurrentInRange = Math.min(xpRangeTotal, Math.max(0, xpCurrentInRange));
+                    break;
                 }
             }
-
-            const xpMissing = hasXp
-                ? Math.max(0, xpRangeTotal - xpCurrentInRange)
-                : (rawXpMissing !== null ? rawXpMissing : 0);
-            const xpRatio = hasXp
-                ? Math.min(100, Math.max(0, (xpCurrentInRange / Math.max(1, xpRangeTotal)) * 100))
-                : 0;
-            const xpLevelReady = hasXp && ((rawXpMissing !== null && rawXpMissing <= 0) || xpCurrent >= xpNext);
-
-            return {
-                hasXp,
-                xpCurrent,
-                xpNext,
-                xpPreviousLevel,
-                xpCurrentInRange,
-                xpRangeTotal,
-                xpMissing,
-                xpRatio,
-                xpLevelReady
-            };
         }
 
-        function renderXpOverviewBody(actor) {
-            if (!actor || typeof actor !== 'object') {
-                return '<p class="player-overview-empty">Dati XP non disponibili.</p>';
-            }
+        if (xpNext > xpPreviousLevel) {
+            xpRangeTotal = xpNext - xpPreviousLevel;
+            xpCurrentInRange = Math.min(
+                xpRangeTotal,
+                Math.max(0, xpCurrent - xpPreviousLevel)
+            );
+        } else {
+            xpRangeTotal = Math.max(1, xpRangeTotal);
+            xpCurrentInRange = Math.min(xpRangeTotal, Math.max(0, xpCurrentInRange));
+        }
+    }
 
-            const xpData = getXpOverviewData(actor);
-            if (!xpData.hasXp) {
-                return '<p class="player-overview-empty">Dati XP non disponibili.</p>';
-            }
+    const xpMissing = hasXp
+        ? Math.max(0, xpRangeTotal - xpCurrentInRange)
+        : (rawXpMissing !== null ? rawXpMissing : 0);
+    const xpRatio = hasXp
+        ? Math.min(100, Math.max(0, (xpCurrentInRange / Math.max(1, xpRangeTotal)) * 100))
+        : 0;
+    const xpLevelReady = hasXp && ((rawXpMissing !== null && rawXpMissing <= 0) || xpCurrent >= xpNext);
 
-            return `
+    return {
+        hasXp,
+        xpCurrent,
+        xpNext,
+        xpPreviousLevel,
+        xpCurrentInRange,
+        xpRangeTotal,
+        xpMissing,
+        xpRatio,
+        xpLevelReady
+    };
+}
+
+function renderXpOverviewBody(actor) {
+    if (!actor || typeof actor !== 'object') {
+        return '<p class="player-overview-empty">Dati XP non disponibili.</p>';
+    }
+
+    const xpData = getXpOverviewData(actor);
+    if (!xpData.hasXp) {
+        return '<p class="player-overview-empty">Dati XP non disponibili.</p>';
+    }
+
+    return `
                 <p class="player-overview-main">
                     <strong>${formatNumberIt(xpData.xpCurrentInRange)}</strong>
                     <span>/ ${formatNumberIt(xpData.xpRangeTotal)} XP</span>
@@ -1014,55 +1015,55 @@ function parseYamlLite(yamlText) {
                     ${xpData.xpLevelReady ? 'Pronto per il level up' : `${formatNumberIt(xpData.xpMissing || 0)} XP al prossimo livello`}
                 </p>
             `;
-        }
+}
 
-        function getWeightOverviewData(actor) {
-            const weightCarried = toFiniteNumber(actor.weight && actor.weight.carried);
-            const weightCapacity = toFiniteNumber(actor.weight && actor.weight.capacity);
-            const weightPercent = toFiniteNumber(actor.weight && actor.weight.percent);
-            const computedPercent = (weightCarried !== null && weightCapacity && weightCapacity > 0)
-                ? (weightCarried / weightCapacity) * 100
-                : null;
-            const normalizedWeightPercent = computedPercent !== null
-                ? Math.max(0, Math.min(100, computedPercent))
-                : (weightPercent !== null ? Math.max(0, Math.min(100, weightPercent)) : 0);
+function getWeightOverviewData(actor) {
+    const weightCarried = toFiniteNumber(actor.weight && actor.weight.carried);
+    const weightCapacity = toFiniteNumber(actor.weight && actor.weight.capacity);
+    const weightPercent = toFiniteNumber(actor.weight && actor.weight.percent);
+    const computedPercent = (weightCarried !== null && weightCapacity && weightCapacity > 0)
+        ? (weightCarried / weightCapacity) * 100
+        : null;
+    const normalizedWeightPercent = computedPercent !== null
+        ? Math.max(0, Math.min(100, computedPercent))
+        : (weightPercent !== null ? Math.max(0, Math.min(100, weightPercent)) : 0);
 
-            let encumbranceTier = 'regular';
-            if (normalizedWeightPercent > (2 / 3) * 100) {
-                encumbranceTier = 'heavy';
-            } else if (normalizedWeightPercent >= (1 / 3) * 100) {
-                encumbranceTier = 'encumbered';
-            }
+    let encumbranceTier = 'regular';
+    if (normalizedWeightPercent > (2 / 3) * 100) {
+        encumbranceTier = 'heavy';
+    } else if (normalizedWeightPercent >= (1 / 3) * 100) {
+        encumbranceTier = 'encumbered';
+    }
 
-            return {
-                weightCarried,
-                weightCapacity,
-                encumbranceTier,
-                normalizedWeightPercent
-            };
-        }
+    return {
+        weightCarried,
+        weightCapacity,
+        encumbranceTier,
+        normalizedWeightPercent
+    };
+}
 
-        function renderWeightOverviewBody(actor) {
-            if (!actor || typeof actor !== 'object') {
-                return '<p class="player-overview-empty">Dati peso non disponibili.</p>';
-            }
+function renderWeightOverviewBody(actor) {
+    if (!actor || typeof actor !== 'object') {
+        return '<p class="player-overview-empty">Dati peso non disponibili.</p>';
+    }
 
-            const weightData = getWeightOverviewData(actor);
-            if (weightData.weightCarried === null || weightData.weightCapacity === null) {
-                return '<p class="player-overview-empty">Dati peso non disponibili.</p>';
-            }
+    const weightData = getWeightOverviewData(actor);
+    if (weightData.weightCarried === null || weightData.weightCapacity === null) {
+        return '<p class="player-overview-empty">Dati peso non disponibili.</p>';
+    }
 
-            const progressClass = weightData.encumbranceTier === 'heavy'
-                ? 'is-heavily-encumbered'
-                : (weightData.encumbranceTier === 'encumbered' ? 'is-encumbered' : '');
-            const noteClass = weightData.encumbranceTier === 'heavy'
-                ? 'is-danger'
-                : (weightData.encumbranceTier === 'encumbered' ? 'is-warning' : '');
-            const noteLabel = weightData.encumbranceTier === 'heavy'
-                ? 'Gravemente Appesantito'
-                : (weightData.encumbranceTier === 'encumbered' ? 'Appesantito' : 'Regolare');
+    const progressClass = weightData.encumbranceTier === 'heavy'
+        ? 'is-heavily-encumbered'
+        : (weightData.encumbranceTier === 'encumbered' ? 'is-encumbered' : '');
+    const noteClass = weightData.encumbranceTier === 'heavy'
+        ? 'is-danger'
+        : (weightData.encumbranceTier === 'encumbered' ? 'is-warning' : '');
+    const noteLabel = weightData.encumbranceTier === 'heavy'
+        ? 'Gravemente Appesantito'
+        : (weightData.encumbranceTier === 'encumbered' ? 'Appesantito' : 'Regolare');
 
-            return `
+    return `
                 <p class="player-overview-main">
                     <strong>${formatWeightIt(weightData.weightCarried)}</strong>
                     <span>/ ${formatWeightIt(weightData.weightCapacity)} kg</span>
@@ -1074,23 +1075,23 @@ function parseYamlLite(yamlText) {
                     ${noteLabel}
                 </p>
             `;
-        }
+}
 
-        function getAttunedItems(actor) {
-            const attunedItems = getUniqueItemList(
-                (Array.isArray(actor.attunementItems) && actor.attunementItems.length > 0)
-                    ? actor.attunementItems
-                    : (Array.isArray(actor.inventory) ? actor.inventory.filter((item) => item && item.attuned) : [])
-            );
+function getAttunedItems(actor) {
+    const attunedItems = getUniqueItemList(
+        (Array.isArray(actor.attunementItems) && actor.attunementItems.length > 0)
+            ? actor.attunementItems
+            : (Array.isArray(actor.inventory) ? actor.inventory.filter((item) => item && item.attuned) : [])
+    );
 
-            return attunedItems;
-        }
+    return attunedItems;
+}
 
-        function renderInventoryPanelSummary(actor) {
-            if (!actor || typeof actor !== 'object') return '';
-            const attunedItems = getAttunedItems(actor);
+function renderInventoryPanelSummary(actor) {
+    if (!actor || typeof actor !== 'object') return '';
+    const attunedItems = getAttunedItems(actor);
 
-            return `
+    return `
                 <div class="player-overview-grid loadout-panel-summary">
                     <section class="player-overview-card">
                         <h4><i class="fas fa-weight-hanging"></i> Carico</h4>
@@ -1098,21 +1099,21 @@ function parseYamlLite(yamlText) {
                     </section>
 
                     <section class="player-overview-card player-overview-card--wide">
-                        <h4><i class="fas fa-gem"></i> Sintonizzati</h4>
+                        <h4><i class="fas fa-gem"></i> IN SINTONIA</h4>
                         ${renderOverviewItemPills(attunedItems, 'Nessun oggetto sintonizzato.')}
                     </section>
                 </div>
             `;
-        }
+}
 
-        function renderSpellsPanelSummary(actor, spellEntries) {
-            if (!actor || typeof actor !== 'object') return '';
-            if (!Array.isArray(spellEntries) || spellEntries.length === 0) return '';
+function renderSpellsPanelSummary(actor, spellEntries) {
+    if (!actor || typeof actor !== 'object') return '';
+    if (!Array.isArray(spellEntries) || spellEntries.length === 0) return '';
 
-            const slotOverviewHtml = renderSpellSlotsOverview(actor);
-            if (!slotOverviewHtml) return '';
+    const slotOverviewHtml = renderSpellSlotsOverview(actor);
+    if (!slotOverviewHtml) return '';
 
-            return `
+    return `
                 <div class="player-overview-grid loadout-panel-summary">
                     <section class="player-overview-card player-overview-card--wide">
                         <h4><i class="fas fa-bolt"></i> Slot Incantesimi</h4>
@@ -1120,27 +1121,27 @@ function parseYamlLite(yamlText) {
                     </section>
                 </div>
             `;
-        }
+}
 
-        function getActorHpData(actor) {
-            const hp = actor && actor.vitals && actor.vitals.hp ? actor.vitals.hp : {};
-            return {
-                value: toFiniteNumber(hp.value),
-                max: toFiniteNumber(hp.max),
-                temp: toFiniteNumber(hp.temp)
-            };
-        }
+function getActorHpData(actor) {
+    const hp = actor && actor.vitals && actor.vitals.hp ? actor.vitals.hp : {};
+    return {
+        value: toFiniteNumber(hp.value),
+        max: toFiniteNumber(hp.max),
+        temp: toFiniteNumber(hp.temp)
+    };
+}
 
-        function renderVitalOverview(actor) {
-            const hp = getActorHpData(actor);
-            const ac = toFiniteNumber(actor && actor.vitals && actor.vitals.ac);
-            const initiative = toFiniteNumber(actor && actor.vitals && actor.vitals.initiative);
-            const speed = actor && actor.vitals ? actor.vitals.speed : null;
-            const movement = speed && typeof speed === 'object'
-                ? [speed.walk ? `${speed.walk} ft` : '', speed.fly ? `volo ${speed.fly} ft` : ''].filter(Boolean).join(' | ')
-                : '';
+function renderVitalOverview(actor) {
+    const hp = getActorHpData(actor);
+    const ac = toFiniteNumber(actor && actor.vitals && actor.vitals.ac);
+    const initiative = toFiniteNumber(actor && actor.vitals && actor.vitals.initiative);
+    const speed = actor && actor.vitals ? actor.vitals.speed : null;
+    const movement = speed && typeof speed === 'object'
+        ? [speed.walk ? `${speed.walk} ft` : '', speed.fly ? `volo ${speed.fly} ft` : ''].filter(Boolean).join(' | ')
+        : '';
 
-            return `
+    return `
                 <div class="character-live-kpis">
                     <div class="character-live-kpi character-live-kpi--hp">
                         <span>PF</span>
@@ -1162,79 +1163,79 @@ function parseYamlLite(yamlText) {
                     </div>` : ''}
                 </div>
             `;
-        }
+}
 
-        function renderAbilityOverview(actor) {
-            const labels = {
-                str: 'FOR',
-                dex: 'DES',
-                con: 'COS',
-                int: 'INT',
-                wis: 'SAG',
-                cha: 'CAR'
-            };
-            const abilities = actor && actor.abilities && typeof actor.abilities === 'object' ? actor.abilities : {};
-            const entries = Object.entries(labels)
-                .map(([key, label]) => {
-                    const ability = abilities[key] || {};
-                    const value = toFiniteNumber(ability.value);
-                    const mod = toFiniteNumber(ability.mod);
-                    if (value === null && mod === null) return '';
-                    return `
+function renderAbilityOverview(actor) {
+    const labels = {
+        str: 'FOR',
+        dex: 'DES',
+        con: 'COS',
+        int: 'INT',
+        wis: 'SAG',
+        cha: 'CAR'
+    };
+    const abilities = actor && actor.abilities && typeof actor.abilities === 'object' ? actor.abilities : {};
+    const entries = Object.entries(labels)
+        .map(([key, label]) => {
+            const ability = abilities[key] || {};
+            const value = toFiniteNumber(ability.value);
+            const mod = toFiniteNumber(ability.mod);
+            if (value === null && mod === null) return '';
+            return `
                         <span class="character-ability-pill">
                             <em>${label}</em>
                             <strong>${formatNumberIt(value)}</strong>
                             <small>${mod !== null && mod >= 0 ? '+' : ''}${formatNumberIt(mod)}</small>
                         </span>
                     `;
-                })
-                .filter(Boolean);
-            return entries.length ? `<div class="character-ability-grid">${entries.join('')}</div>` : '';
-        }
+        })
+        .filter(Boolean);
+    return entries.length ? `<div class="character-ability-grid">${entries.join('')}</div>` : '';
+}
 
-        function renderResourceOverview(actor) {
-            const resources = actor && actor.resources && typeof actor.resources === 'object' ? actor.resources : {};
-            const entries = Object.values(resources)
-                .filter((resource) => resource && (resource.label || resource.value !== null || resource.max !== null))
-                .slice(0, 4)
-                .map((resource) => `
+function renderResourceOverview(actor) {
+    const resources = actor && actor.resources && typeof actor.resources === 'object' ? actor.resources : {};
+    const entries = Object.values(resources)
+        .filter((resource) => resource && (resource.label || resource.value !== null || resource.max !== null))
+        .slice(0, 4)
+        .map((resource) => `
                     <span class="character-resource-pill">
                         <strong>${escapeHtml(resource.label || 'Risorsa')}</strong>
                         <em>${formatNumberIt(resource.value)} / ${formatNumberIt(resource.max)}</em>
                     </span>
                 `);
-            return entries.length ? `<div class="character-resource-list">${entries.join('')}</div>` : '';
-        }
+    return entries.length ? `<div class="character-resource-list">${entries.join('')}</div>` : '';
+}
 
-        function renderCurrencyOverview(actor) {
-            const currency = actor && actor.currency && typeof actor.currency === 'object' ? actor.currency : {};
-            const labels = { pp: 'PP', gp: 'MO', ep: 'ME', sp: 'MA', cp: 'MR' };
-            const entries = Object.entries(labels)
-                .map(([key, label]) => {
-                    const amount = toFiniteNumber(currency[key]);
-                    if (amount === null || amount <= 0) return '';
-                    return `<span><strong>${escapeHtml(label)}</strong> ${formatNumberIt(amount)}</span>`;
-                })
-                .filter(Boolean);
-            return entries.length ? `<div class="character-currency-list">${entries.join('')}</div>` : '';
-        }
+function renderCurrencyOverview(actor) {
+    const currency = actor && actor.currency && typeof actor.currency === 'object' ? actor.currency : {};
+    const labels = { pp: 'PP', gp: 'MO', ep: 'ME', sp: 'MA', cp: 'MR' };
+    const entries = Object.entries(labels)
+        .map(([key, label]) => {
+            const amount = toFiniteNumber(currency[key]);
+            if (amount === null || amount <= 0) return '';
+            return `<span><strong>${escapeHtml(label)}</strong> ${formatNumberIt(amount)}</span>`;
+        })
+        .filter(Boolean);
+    return entries.length ? `<div class="character-currency-list">${entries.join('')}</div>` : '';
+}
 
-        function renderCompactSlotOverview(actor) {
-            const spellSlots = actor && actor.spellSlots ? actor.spellSlots : {};
-            const totalSlots = toFiniteNumber(spellSlots.totals && spellSlots.totals.total);
-            if (totalSlots === null || totalSlots <= 0) return '<p class="player-overview-empty">Nessuno slot disponibile.</p>';
-            return renderSpellSlotsOverview(actor);
-        }
+function renderCompactSlotOverview(actor) {
+    const spellSlots = actor && actor.spellSlots ? actor.spellSlots : {};
+    const totalSlots = toFiniteNumber(spellSlots.totals && spellSlots.totals.total);
+    if (totalSlots === null || totalSlots <= 0) return '<p class="player-overview-empty">Nessuno slot disponibile.</p>';
+    return renderSpellSlotsOverview(actor);
+}
 
-        function renderCharacterLiveSummary(actor, payload) {
-            if (!actor || typeof actor !== 'object') return '';
-            const attunedItems = getAttunedItems(actor);
-            const equippedItems = getUniqueItemList(Array.isArray(actor.equippedItems) ? actor.equippedItems : []);
-            const resourceHtml = renderResourceOverview(actor);
-            const currencyHtml = renderCurrencyOverview(actor);
-            const abilityHtml = renderAbilityOverview(actor);
+function renderCharacterLiveSummary(actor, payload) {
+    if (!actor || typeof actor !== 'object') return '';
+    const attunedItems = getAttunedItems(actor);
+    const equippedItems = getUniqueItemList(Array.isArray(actor.equippedItems) ? actor.equippedItems : []);
+    const resourceHtml = renderResourceOverview(actor);
+    const currencyHtml = renderCurrencyOverview(actor);
+    const abilityHtml = renderAbilityOverview(actor);
 
-            return `
+    return `
                 <section class="character-live-summary" aria-label="Dati live Foundry">
                     <div class="character-live-heading">
                         <div>
@@ -1276,94 +1277,94 @@ function parseYamlLite(yamlText) {
                             ${renderOverviewItemPills(equippedItems, 'Nessun oggetto equipaggiato.')}
                         </section>
                         <section class="character-live-card character-live-card--wide">
-                            <h4><i class="fas fa-gem"></i> Sintonizzati</h4>
+                            <h4><i class="fas fa-gem"></i> IN SINTONIA</h4>
                             ${renderOverviewItemPills(attunedItems, 'Nessun oggetto sintonizzato.')}
                         </section>
                     </div>
                 </section>
             `;
-        }
+}
 
-        function renderPlayerXpSidebarHtml(actor) {
-            return `
+function renderPlayerXpSidebarHtml(actor) {
+    return `
                 <h4><i class="fas fa-star"></i> Esperienza</h4>
                 ${renderXpOverviewBody(actor)}
             `;
-        }
+}
 
-        function renderPlayerXpSidebarError(message) {
-            const xpCard = document.getElementById('player-xp-right-card');
-            if (!xpCard) return;
-            xpCard.innerHTML = `
+function renderPlayerXpSidebarError(message) {
+    const xpCard = document.getElementById('player-xp-right-card');
+    if (!xpCard) return;
+    xpCard.innerHTML = `
                 <h4><i class="fas fa-star"></i> Esperienza</h4>
                 <p class="player-overview-empty">${escapeHtml(message || 'Dati XP non disponibili.')}</p>
             `;
+}
+
+function hydratePlayerRightOverview(character, payload) {
+    const xpCard = document.getElementById('player-xp-right-card');
+    if (!xpCard) return;
+
+    const actor = findPlayerActor(payload, character);
+    xpCard.innerHTML = renderPlayerXpSidebarHtml(actor);
+}
+
+function getSpellLevelMeta(level) {
+    const parsedLevel = Number(level);
+    if (!Number.isFinite(parsedLevel)) {
+        return {
+            key: 'unknown',
+            label: '?',
+            tooltip: 'Livello sconosciuto',
+            sortOrder: 99
+        };
+    }
+
+    if (parsedLevel === 0) {
+        return {
+            key: 'cantrip',
+            label: 'C',
+            tooltip: 'Cantrip',
+            sortOrder: 0
+        };
+    }
+
+    return {
+        key: `lvl-${parsedLevel}`,
+        label: String(parsedLevel),
+        tooltip: `Slot livello ${parsedLevel}`,
+        sortOrder: parsedLevel
+    };
+}
+
+function getInventoryTypeMeta(type) {
+    const rawType = String(type || '').trim();
+    if (!rawType) {
+        return {
+            key: 'unknown',
+            label: 'Altro'
+        };
+    }
+
+    return {
+        key: normalizeText(rawType) || 'unknown',
+        label: formatToken(rawType)
+    };
+}
+
+function renderInventoryTypeFilters(entries) {
+    if (!entries.length) return '';
+
+    const typeMap = new Map();
+    entries.forEach((entry) => {
+        const meta = getInventoryTypeMeta(entry.type);
+        if (!typeMap.has(meta.key)) {
+            typeMap.set(meta.key, meta);
         }
+    });
 
-        function hydratePlayerRightOverview(character, payload) {
-            const xpCard = document.getElementById('player-xp-right-card');
-            if (!xpCard) return;
-
-            const actor = findPlayerActor(payload, character);
-            xpCard.innerHTML = renderPlayerXpSidebarHtml(actor);
-        }
-
-        function getSpellLevelMeta(level) {
-            const parsedLevel = Number(level);
-            if (!Number.isFinite(parsedLevel)) {
-                return {
-                    key: 'unknown',
-                    label: '?',
-                    tooltip: 'Livello sconosciuto',
-                    sortOrder: 99
-                };
-            }
-
-            if (parsedLevel === 0) {
-                return {
-                    key: 'cantrip',
-                    label: 'C',
-                    tooltip: 'Cantrip',
-                    sortOrder: 0
-                };
-            }
-
-            return {
-                key: `lvl-${parsedLevel}`,
-                label: String(parsedLevel),
-                tooltip: `Slot livello ${parsedLevel}`,
-                sortOrder: parsedLevel
-            };
-        }
-
-        function getInventoryTypeMeta(type) {
-            const rawType = String(type || '').trim();
-            if (!rawType) {
-                return {
-                    key: 'unknown',
-                    label: 'Altro'
-                };
-            }
-
-            return {
-                key: normalizeText(rawType) || 'unknown',
-                label: formatToken(rawType)
-            };
-        }
-
-        function renderInventoryTypeFilters(entries) {
-            if (!entries.length) return '';
-
-            const typeMap = new Map();
-            entries.forEach((entry) => {
-                const meta = getInventoryTypeMeta(entry.type);
-                if (!typeMap.has(meta.key)) {
-                    typeMap.set(meta.key, meta);
-                }
-            });
-
-            const types = Array.from(typeMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'it'));
-            const buttons = types.map((typeMeta) => `
+    const types = Array.from(typeMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'it'));
+    const buttons = types.map((typeMeta) => `
                 <button
                     class="inventory-type-filter"
                     type="button"
@@ -1375,27 +1376,27 @@ function parseYamlLite(yamlText) {
                 </button>
             `).join('');
 
-            return `
+    return `
                 <div class="inventory-type-filters" role="group" aria-label="Filtri tipo oggetto">
                     <button class="inventory-type-filter is-active" type="button" data-inventory-filter="all" aria-label="Tutti i tipi" title="Tutti i tipi">Tutti</button>
                     ${buttons}
                 </div>
             `;
+}
+
+function renderSpellLevelFilters(entries) {
+    if (!entries.length) return '';
+
+    const levelsMap = new Map();
+    entries.forEach((entry) => {
+        const meta = getSpellLevelMeta(entry.level);
+        if (!levelsMap.has(meta.key)) {
+            levelsMap.set(meta.key, meta);
         }
+    });
 
-        function renderSpellLevelFilters(entries) {
-            if (!entries.length) return '';
-
-            const levelsMap = new Map();
-            entries.forEach((entry) => {
-                const meta = getSpellLevelMeta(entry.level);
-                if (!levelsMap.has(meta.key)) {
-                    levelsMap.set(meta.key, meta);
-                }
-            });
-
-            const levels = Array.from(levelsMap.values()).sort((a, b) => a.sortOrder - b.sortOrder);
-            const buttons = levels.map((levelMeta) => `
+    const levels = Array.from(levelsMap.values()).sort((a, b) => a.sortOrder - b.sortOrder);
+    const buttons = levels.map((levelMeta) => `
                 <button
                     class="spell-level-filter"
                     type="button"
@@ -1407,20 +1408,23 @@ function parseYamlLite(yamlText) {
                 </button>
             `).join('');
 
-            return `
+    return `
                 <div class="spell-level-filters" role="group" aria-label="Filtri livello incantesimi">
                     <button class="spell-level-filter is-active" type="button" data-level-filter="all" aria-label="Tutti i livelli" title="Tutti i livelli">All</button>
                     ${buttons}
                 </div>
             `;
-        }
+}
 
-        function renderWikiItemBridge(wikiItem) {
-            if (!wikiItem) return '';
-            const url = getWikiItemUrl(wikiItem);
-            const properties = Array.isArray(wikiItem.properties) ? wikiItem.properties.filter((property) => property && property.hidden !== true) : [];
-            const previewProperties = properties.slice(0, 2);
-            return `
+function renderWikiItemBridge(wikiItem, foundryName = '') {
+    if (!wikiItem) return '';
+    const url = getWikiItemUrl(wikiItem);
+    const properties = Array.isArray(wikiItem.properties) ? wikiItem.properties.filter((property) => property && property.hidden !== true) : [];
+    const previewProperties = properties.slice(0, 2);
+    const normalizedWikiName = normalizeText(wikiItem.name);
+    const normalizedFoundryName = normalizeText(foundryName);
+    const showFoundryName = normalizedFoundryName && normalizedFoundryName !== normalizedWikiName;
+    return `
                 <aside class="loadout-wiki-card" aria-label="Voce collegata dalla wiki">
                     ${renderWikiItemThumb(wikiItem, 'loadout-wiki-icon', 'Oggetto wiki')}
                     <div class="loadout-wiki-content">
@@ -1429,6 +1433,7 @@ function parseYamlLite(yamlText) {
                             ${wikiItem.rarity ? `<span>${escapeHtml(wikiItem.rarity)}</span>` : ''}
                         </div>
                         <a class="loadout-wiki-title" href="${escapeHtml(url)}">${escapeHtml(wikiItem.name || 'Oggetto wiki')}</a>
+                        ${showFoundryName ? `<p class="loadout-foundry-name">Nome Foundry: ${escapeHtml(foundryName)}</p>` : ''}
                         ${wikiItem.summary ? `<p>${escapeHtml(wikiItem.summary)}</p>` : ''}
                         ${previewProperties.length ? `
                             <ul>
@@ -1443,26 +1448,26 @@ function parseYamlLite(yamlText) {
                     </div>
                 </aside>
             `;
+}
+
+function renderLoadoutDisclosure(title, quantityLabel, description, badges, extraClass = '', dataAttributes = '', wikiItem = null, foundryName = '') {
+    const bodyParts = [];
+    const wikiBridge = renderWikiItemBridge(wikiItem, foundryName);
+    if (wikiBridge) bodyParts.push(wikiBridge);
+    if (!wikiItem && description) {
+        const descriptionHtml = renderDescriptionHtml(description);
+        if (descriptionHtml) {
+            bodyParts.push(`<div class="loadout-entry-description">${descriptionHtml}</div>`);
         }
+    }
+    if (badges.length > 0) {
+        bodyParts.push(`<div class="loadout-chip-row">${badges.map((badge) => `<span class="loadout-chip">${escapeHtml(badge)}</span>`).join('')}</div>`);
+    }
+    if (bodyParts.length === 0) {
+        bodyParts.push('<p class="loadout-entry-description">Nessun dettaglio disponibile.</p>');
+    }
 
-        function renderLoadoutDisclosure(title, quantityLabel, description, badges, extraClass = '', dataAttributes = '', wikiItem = null) {
-            const bodyParts = [];
-            const wikiBridge = renderWikiItemBridge(wikiItem);
-            if (wikiBridge) bodyParts.push(wikiBridge);
-            if (description) {
-                const descriptionHtml = renderDescriptionHtml(description);
-                if (descriptionHtml) {
-                    bodyParts.push(`<div class="loadout-entry-description">${descriptionHtml}</div>`);
-                }
-            }
-            if (badges.length > 0) {
-                bodyParts.push(`<div class="loadout-chip-row">${badges.map((badge) => `<span class="loadout-chip">${escapeHtml(badge)}</span>`).join('')}</div>`);
-            }
-            if (bodyParts.length === 0) {
-                bodyParts.push('<p class="loadout-entry-description">Nessun dettaglio disponibile.</p>');
-            }
-
-            return `
+    return `
                 <details class="loadout-entry ${extraClass}" ${dataAttributes}>
                     <summary class="loadout-entry-toggle">
                         <span class="loadout-entry-title">
@@ -1479,69 +1484,70 @@ function parseYamlLite(yamlText) {
                     </div>
                 </details>
             `;
+}
+
+function renderInventoryEntries(entries) {
+    if (!entries.length) {
+        return '<p class="loadout-empty">Nessun oggetto disponibile.</p>';
+    }
+
+    const groupsMap = new Map();
+    entries.forEach((entry) => {
+        const containerId = entry.container && entry.container.id ? String(entry.container.id) : '__loose__';
+        const containerName = entry.container && entry.container.name
+            ? String(entry.container.name)
+            : 'Senza contenitore';
+
+        if (!groupsMap.has(containerId)) {
+            groupsMap.set(containerId, {
+                id: containerId,
+                name: containerName,
+                isLoose: containerId === '__loose__',
+                entries: []
+            });
         }
+        groupsMap.get(containerId).entries.push(entry);
+    });
 
-        function renderInventoryEntries(entries) {
-            if (!entries.length) {
-                return '<p class="loadout-empty">Nessun oggetto disponibile.</p>';
-            }
+    const groups = Array.from(groupsMap.values());
+    groups.forEach((group) => {
+        group.entries.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'it'));
+    });
 
-            const groupsMap = new Map();
-            entries.forEach((entry) => {
-                const containerId = entry.container && entry.container.id ? String(entry.container.id) : '__loose__';
-                const containerName = entry.container && entry.container.name
-                    ? String(entry.container.name)
-                    : 'Senza contenitore';
+    groups.sort((a, b) => {
+        if (a.isLoose !== b.isLoose) return a.isLoose ? -1 : 1;
+        return a.name.localeCompare(b.name, 'it');
+    });
 
-                if (!groupsMap.has(containerId)) {
-                    groupsMap.set(containerId, {
-                        id: containerId,
-                        name: containerName,
-                        isLoose: containerId === '__loose__',
-                        entries: []
-                    });
-                }
-                groupsMap.get(containerId).entries.push(entry);
-            });
+    const renderedGroups = groups.map((group) => {
+        const entriesHtml = group.entries.map((entry) => {
+            const badges = [];
+            const typeMeta = getInventoryTypeMeta(entry.type);
+            const wikiItem = entry.wikiItem || null;
+            badges.push(typeMeta.label);
+            if (wikiItem) badges.push('Wiki');
+            if (entry.rarity) badges.push(`Rarita: ${formatToken(entry.rarity)}`);
+            if (entry.attuned) badges.push('Sintonizzato');
 
-            const groups = Array.from(groupsMap.values());
-            groups.forEach((group) => {
-                group.entries.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'it'));
-            });
+            const description = cleanDescription(entry.description);
+            const quantityLabel = getQuantityLabel(entry);
 
-            groups.sort((a, b) => {
-                if (a.isLoose !== b.isLoose) return a.isLoose ? -1 : 1;
-                return a.name.localeCompare(b.name, 'it');
-            });
+            return renderLoadoutDisclosure(
+                wikiItem?.name || entry.name || 'Oggetto senza nome',
+                quantityLabel,
+                description,
+                badges,
+                wikiItem ? 'loadout-entry--wiki-linked' : '',
+                `data-inventory-type="${typeMeta.key}"`,
+                wikiItem,
+                entry.name || ''
+            );
+        }).join('');
 
-            const renderedGroups = groups.map((group) => {
-                const entriesHtml = group.entries.map((entry) => {
-                    const badges = [];
-                    const typeMeta = getInventoryTypeMeta(entry.type);
-                    const wikiItem = entry.wikiItem || null;
-                    badges.push(typeMeta.label);
-                    if (wikiItem) badges.push('Wiki');
-                    if (entry.rarity) badges.push(`Rarita: ${formatToken(entry.rarity)}`);
-                    if (entry.attuned) badges.push('Sintonizzato');
+        const icon = group.isLoose ? 'fa-hand-holding' : 'fa-box-archive';
+        const groupName = group.isLoose ? 'Senza contenitore' : group.name;
 
-                    const description = cleanDescription(entry.description);
-                    const quantityLabel = getQuantityLabel(entry);
-
-                    return renderLoadoutDisclosure(
-                        entry.name || 'Oggetto senza nome',
-                        quantityLabel,
-                        description,
-                        badges,
-                        wikiItem ? 'loadout-entry--wiki-linked' : '',
-                        `data-inventory-type="${typeMeta.key}"`,
-                        wikiItem
-                    );
-                }).join('');
-
-                const icon = group.isLoose ? 'fa-hand-holding' : 'fa-box-archive';
-                const groupName = group.isLoose ? 'Senza contenitore' : group.name;
-
-                return `
+        return `
                     <details class="inventory-group" data-inventory-group>
                         <summary class="inventory-group-header">
                             <div class="inventory-group-title">
@@ -1558,75 +1564,75 @@ function parseYamlLite(yamlText) {
                         </div>
                     </details>
                 `;
-            }).join('');
+    }).join('');
 
-            return `<div class="inventory-groups">${renderedGroups}</div>`;
+    return `<div class="inventory-groups">${renderedGroups}</div>`;
+}
+
+function renderSpellEntries(entries) {
+    if (!entries.length) {
+        return '<p class="loadout-empty">Nessun incantesimo preparato.</p>';
+    }
+
+    return entries.map((entry) => {
+        const badges = [formatSpellLevel(Number(entry.level))];
+        const schoolCode = String(entry.school || '').toLowerCase();
+        if (schoolCode) badges.push(SPELL_SCHOOL_LABELS[schoolCode] || formatToken(schoolCode));
+        if (entry.prepared) badges.push('Preparato');
+        if (entry.concentration) badges.push('Concentrazione');
+
+        if (entry.activation && entry.activation.type) {
+            badges.push(`Attivazione: ${formatToken(entry.activation.type)}`);
         }
 
-        function renderSpellEntries(entries) {
-            if (!entries.length) {
-                return '<p class="loadout-empty">Nessun incantesimo preparato.</p>';
-            }
+        const rangeLabel = formatRange(entry.range);
+        if (rangeLabel) badges.push(`Raggio: ${rangeLabel}`);
 
-            return entries.map((entry) => {
-                const badges = [formatSpellLevel(Number(entry.level))];
-                const schoolCode = String(entry.school || '').toLowerCase();
-                if (schoolCode) badges.push(SPELL_SCHOOL_LABELS[schoolCode] || formatToken(schoolCode));
-                if (entry.prepared) badges.push('Preparato');
-                if (entry.concentration) badges.push('Concentrazione');
+        const durationLabel = formatDuration(entry.duration);
+        if (durationLabel) badges.push(`Durata: ${durationLabel}`);
 
-                if (entry.activation && entry.activation.type) {
-                    badges.push(`Attivazione: ${formatToken(entry.activation.type)}`);
-                }
+        const description = cleanDescription(entry.description);
+        const quantityLabel = getQuantityLabel(entry);
+        const levelMeta = getSpellLevelMeta(entry.level);
 
-                const rangeLabel = formatRange(entry.range);
-                if (rangeLabel) badges.push(`Raggio: ${rangeLabel}`);
+        return renderLoadoutDisclosure(
+            entry.name || 'Incantesimo senza nome',
+            quantityLabel,
+            description,
+            badges,
+            'loadout-entry--spell',
+            `data-spell-level="${levelMeta.key}"`
+        );
+    }).join('');
+}
 
-                const durationLabel = formatDuration(entry.duration);
-                if (durationLabel) badges.push(`Durata: ${durationLabel}`);
-
-                const description = cleanDescription(entry.description);
-                const quantityLabel = getQuantityLabel(entry);
-                const levelMeta = getSpellLevelMeta(entry.level);
-
-                return renderLoadoutDisclosure(
-                    entry.name || 'Incantesimo senza nome',
-                    quantityLabel,
-                    description,
-                    badges,
-                    'loadout-entry--spell',
-                    `data-spell-level="${levelMeta.key}"`
-                );
-            }).join('');
-        }
-
-        function buildPlayerLoadoutHtml(character, payload, wikiItems = []) {
-            const actor = findPlayerActor(payload, character);
-            if (!actor) {
-                return `
+function buildPlayerLoadoutHtml(character, payload, wikiItems = []) {
+    const actor = findPlayerActor(payload, character);
+    if (!actor) {
+        return `
                     <h3><i class="fas fa-box-open"></i> Inventario e Incantesimi</h3>
                     <p class="loadout-empty">Nessun inventario trovato per ${escapeHtml(character.name)} nella risposta API.</p>
                 `;
-            }
+    }
 
-            const wikiItemIndex = buildWikiItemIndex(wikiItems);
-            const { inventory, spells } = splitActorLoadout(actor);
-            inventory.forEach((entry) => {
-                entry.wikiItem = findWikiItemForInventoryEntry(entry, wikiItemIndex);
-            });
-            [actor.equippedItems, actor.attunementItems].forEach((items) => {
-                if (!Array.isArray(items)) return;
-                items.forEach((entry) => {
-                    entry.wikiItem = findWikiItemForInventoryEntry(entry, wikiItemIndex);
-                });
-            });
-            const owners = Array.isArray(actor.owners) ? actor.owners.map((owner) => owner.name).filter(Boolean) : [];
-            const preparedSpells = spells.filter((spell) => spell.prepared);
-            const liveSummaryHtml = renderCharacterLiveSummary(actor, payload);
-            const inventorySummaryHtml = renderInventoryPanelSummary(actor);
-            const spellsSummaryHtml = renderSpellsPanelSummary(actor, preparedSpells);
+    const wikiItemIndex = buildWikiItemIndex(wikiItems);
+    const { inventory, spells } = splitActorLoadout(actor);
+    inventory.forEach((entry) => {
+        entry.wikiItem = findWikiItemForInventoryEntry(entry, wikiItemIndex);
+    });
+    [actor.equippedItems, actor.attunementItems].forEach((items) => {
+        if (!Array.isArray(items)) return;
+        items.forEach((entry) => {
+            entry.wikiItem = findWikiItemForInventoryEntry(entry, wikiItemIndex);
+        });
+    });
+    const owners = Array.isArray(actor.owners) ? actor.owners.map((owner) => owner.name).filter(Boolean) : [];
+    const preparedSpells = spells.filter((spell) => spell.prepared);
+    const liveSummaryHtml = renderCharacterLiveSummary(actor, payload);
+    const inventorySummaryHtml = renderInventoryPanelSummary(actor);
+    const spellsSummaryHtml = renderSpellsPanelSummary(actor, preparedSpells);
 
-            return `
+    return `
                 ${liveSummaryHtml}
                 <h3><i class="fas fa-box-open"></i> Dettaglio Inventario e Incantesimi</h3>
                 <div class="loadout-meta">
@@ -1652,126 +1658,126 @@ function parseYamlLite(yamlText) {
                     ${renderSpellEntries(preparedSpells)}
                 </section>
             `;
-        }
+}
 
-        function initializeInventoryTypeFilters(cardElement) {
-            const inventoryPanel = cardElement.querySelector('[data-panel="inventory"]');
-            if (!inventoryPanel) return;
+function initializeInventoryTypeFilters(cardElement) {
+    const inventoryPanel = cardElement.querySelector('[data-panel="inventory"]');
+    if (!inventoryPanel) return;
 
-            const filterButtons = Array.from(inventoryPanel.querySelectorAll('.inventory-type-filter'));
-            const inventoryEntries = Array.from(inventoryPanel.querySelectorAll('.loadout-entry[data-inventory-type]'));
-            const inventoryGroups = Array.from(inventoryPanel.querySelectorAll('[data-inventory-group]'));
+    const filterButtons = Array.from(inventoryPanel.querySelectorAll('.inventory-type-filter'));
+    const inventoryEntries = Array.from(inventoryPanel.querySelectorAll('.loadout-entry[data-inventory-type]'));
+    const inventoryGroups = Array.from(inventoryPanel.querySelectorAll('[data-inventory-group]'));
 
-            if (!filterButtons.length || !inventoryEntries.length) return;
+    if (!filterButtons.length || !inventoryEntries.length) return;
 
-            const applyFilter = (filterValue) => {
-                filterButtons.forEach((button) => {
-                    const isActive = button.dataset.inventoryFilter === filterValue;
-                    button.classList.toggle('is-active', isActive);
-                    button.setAttribute('aria-pressed', String(isActive));
-                });
+    const applyFilter = (filterValue) => {
+        filterButtons.forEach((button) => {
+            const isActive = button.dataset.inventoryFilter === filterValue;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-pressed', String(isActive));
+        });
 
-                inventoryEntries.forEach((entry) => {
-                    const entryType = entry.dataset.inventoryType || 'unknown';
-                    entry.hidden = filterValue !== 'all' && entryType !== filterValue;
-                });
+        inventoryEntries.forEach((entry) => {
+            const entryType = entry.dataset.inventoryType || 'unknown';
+            entry.hidden = filterValue !== 'all' && entryType !== filterValue;
+        });
 
-                inventoryGroups.forEach((group) => {
-                    const visibleEntries = group.querySelectorAll('.loadout-entry[data-inventory-type]:not([hidden])').length;
-                    group.hidden = visibleEntries === 0;
-                    const countEl = group.querySelector('[data-group-count]');
-                    if (countEl) {
-                        countEl.textContent = String(visibleEntries);
-                    }
-                });
-            };
+        inventoryGroups.forEach((group) => {
+            const visibleEntries = group.querySelectorAll('.loadout-entry[data-inventory-type]:not([hidden])').length;
+            group.hidden = visibleEntries === 0;
+            const countEl = group.querySelector('[data-group-count]');
+            if (countEl) {
+                countEl.textContent = String(visibleEntries);
+            }
+        });
+    };
 
-            filterButtons.forEach((button) => {
-                button.addEventListener('click', () => {
-                    applyFilter(button.dataset.inventoryFilter || 'all');
-                });
-            });
+    filterButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            applyFilter(button.dataset.inventoryFilter || 'all');
+        });
+    });
 
-            applyFilter('all');
-        }
+    applyFilter('all');
+}
 
-        function initializeSpellLevelFilters(cardElement) {
-            const spellPanel = cardElement.querySelector('[data-panel="spells"]');
-            if (!spellPanel) return;
+function initializeSpellLevelFilters(cardElement) {
+    const spellPanel = cardElement.querySelector('[data-panel="spells"]');
+    if (!spellPanel) return;
 
-            const filterButtons = Array.from(spellPanel.querySelectorAll('.spell-level-filter'));
-            const spellEntries = Array.from(spellPanel.querySelectorAll('.loadout-entry--spell'));
+    const filterButtons = Array.from(spellPanel.querySelectorAll('.spell-level-filter'));
+    const spellEntries = Array.from(spellPanel.querySelectorAll('.loadout-entry--spell'));
 
-            if (!filterButtons.length || !spellEntries.length) return;
+    if (!filterButtons.length || !spellEntries.length) return;
 
-            const applyFilter = (filterValue) => {
-                filterButtons.forEach((button) => {
-                    const isActive = button.dataset.levelFilter === filterValue;
-                    button.classList.toggle('is-active', isActive);
-                    button.setAttribute('aria-pressed', String(isActive));
-                });
+    const applyFilter = (filterValue) => {
+        filterButtons.forEach((button) => {
+            const isActive = button.dataset.levelFilter === filterValue;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-pressed', String(isActive));
+        });
 
-                spellEntries.forEach((entry) => {
-                    const entryLevel = entry.dataset.spellLevel || 'unknown';
-                    entry.hidden = filterValue !== 'all' && entryLevel !== filterValue;
-                });
-            };
+        spellEntries.forEach((entry) => {
+            const entryLevel = entry.dataset.spellLevel || 'unknown';
+            entry.hidden = filterValue !== 'all' && entryLevel !== filterValue;
+        });
+    };
 
-            filterButtons.forEach((button) => {
-                button.addEventListener('click', () => {
-                    applyFilter(button.dataset.levelFilter || 'all');
-                });
-            });
+    filterButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            applyFilter(button.dataset.levelFilter || 'all');
+        });
+    });
 
-            applyFilter('all');
-        }
+    applyFilter('all');
+}
 
-        function initializeLoadoutTabs(cardElement) {
-            const tabButtons = Array.from(cardElement.querySelectorAll('.loadout-tab'));
-            const panels = Array.from(cardElement.querySelectorAll('.loadout-panel'));
+function initializeLoadoutTabs(cardElement) {
+    const tabButtons = Array.from(cardElement.querySelectorAll('.loadout-tab'));
+    const panels = Array.from(cardElement.querySelectorAll('.loadout-panel'));
 
-            if (!tabButtons.length || !panels.length) return;
+    if (!tabButtons.length || !panels.length) return;
 
-            const setActivePanel = (panelName) => {
-                tabButtons.forEach((button) => {
-                    const isActive = button.dataset.panelTarget === panelName;
-                    button.classList.toggle('is-active', isActive);
-                    button.setAttribute('aria-selected', String(isActive));
-                });
+    const setActivePanel = (panelName) => {
+        tabButtons.forEach((button) => {
+            const isActive = button.dataset.panelTarget === panelName;
+            button.classList.toggle('is-active', isActive);
+            button.setAttribute('aria-selected', String(isActive));
+        });
 
-                panels.forEach((panel) => {
-                    const isActive = panel.dataset.panel === panelName;
-                    panel.classList.toggle('is-active', isActive);
-                    panel.hidden = !isActive;
-                });
-            };
+        panels.forEach((panel) => {
+            const isActive = panel.dataset.panel === panelName;
+            panel.classList.toggle('is-active', isActive);
+            panel.hidden = !isActive;
+        });
+    };
 
-            tabButtons.forEach((button) => {
-                button.addEventListener('click', () => {
-                    setActivePanel(button.dataset.panelTarget);
-                });
-            });
+    tabButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            setActivePanel(button.dataset.panelTarget);
+        });
+    });
 
-            initializeInventoryTypeFilters(cardElement);
-            initializeSpellLevelFilters(cardElement);
-        }
+    initializeInventoryTypeFilters(cardElement);
+    initializeSpellLevelFilters(cardElement);
+}
 
-        function buildPlayerSkillTreeCard(playerId, allSkillTrees) {
-            const treeKey = PLAYER_SKILL_TREE_KEYS[playerId] || playerId;
-            const treeData = allSkillTrees && allSkillTrees[treeKey];
-            const card = document.createElement('div');
-            card.className = 'content-card player-skill-tree-card';
-            card.id = 'player-skill-tree-card';
+function buildPlayerSkillTreeCard(playerId, allSkillTrees) {
+    const treeKey = PLAYER_SKILL_TREE_KEYS[playerId] || playerId;
+    const treeData = allSkillTrees && allSkillTrees[treeKey];
+    const card = document.createElement('div');
+    card.className = 'content-card player-skill-tree-card';
+    card.id = 'player-skill-tree-card';
 
-            if (!treeData || !Array.isArray(treeData.nodes) || treeData.nodes.length === 0) {
-                card.innerHTML = `
+    if (!treeData || !Array.isArray(treeData.nodes) || treeData.nodes.length === 0) {
+        card.innerHTML = `
                     <h3><i class="fas fa-crown"></i> Albero Abilita</h3>
                     <p class="loadout-empty">Albero abilita non disponibile per questo personaggio.</p>
                 `;
-                return card;
-            }
+        return card;
+    }
 
-            card.innerHTML = `
+    card.innerHTML = `
                 <h3><i class="fas fa-crown"></i> Albero Abilita</h3>
                 <div class="player-skill-tree-layout">
                     <div class="player-skill-tree-column">
@@ -1783,40 +1789,40 @@ function parseYamlLite(yamlText) {
                 </div>
             `;
 
-            const treeContainer = card.querySelector('[data-skill-tree]');
-            const linesLayer = card.querySelector('[data-skill-tree-lines]');
-            const infoPanel = card.querySelector('[data-skill-info]');
-            if (!treeContainer || !linesLayer || !infoPanel) return card;
+    const treeContainer = card.querySelector('[data-skill-tree]');
+    const linesLayer = card.querySelector('[data-skill-tree-lines]');
+    const infoPanel = card.querySelector('[data-skill-info]');
+    if (!treeContainer || !linesLayer || !infoPanel) return card;
 
-            const bgImage = resolveSkillAssetPath(treeData.bgImage);
-            const bgOpacity = Number.isFinite(Number(treeData.bgOpacity))
-                ? Math.max(0, Math.min(1, Number(treeData.bgOpacity)))
-                : 1;
-            treeContainer.style.setProperty('--skill-tree-bg-image', bgImage ? `url('${bgImage}')` : 'none');
-            treeContainer.style.setProperty('--skill-tree-bg-opacity', String(bgOpacity));
-            treeContainer.style.setProperty(
-                '--skill-tree-bg-overlay',
-                'radial-gradient(circle at 50% 50%, rgba(56, 22, 22, 0.45), rgba(0, 0, 0, 0.92))'
-            );
+    const bgImage = resolveSkillAssetPath(treeData.bgImage);
+    const bgOpacity = Number.isFinite(Number(treeData.bgOpacity))
+        ? Math.max(0, Math.min(1, Number(treeData.bgOpacity)))
+        : 1;
+    treeContainer.style.setProperty('--skill-tree-bg-image', bgImage ? `url('${bgImage}')` : 'none');
+    treeContainer.style.setProperty('--skill-tree-bg-opacity', String(bgOpacity));
+    treeContainer.style.setProperty(
+        '--skill-tree-bg-overlay',
+        'radial-gradient(circle at 50% 50%, rgba(56, 22, 22, 0.45), rgba(0, 0, 0, 0.92))'
+    );
 
-            const nodeById = new Map(treeData.nodes.map((node) => [node.id, node]));
-            const setDefaultInfo = () => {
-                infoPanel.innerHTML = `
+    const nodeById = new Map(treeData.nodes.map((node) => [node.id, node]));
+    const setDefaultInfo = () => {
+        infoPanel.innerHTML = `
                     <div class="player-skill-info-empty">
                         <i class="fas fa-hand-pointer" aria-hidden="true"></i>
                         <p>Passa il cursore su un nodo per vedere i dettagli dell'abilita.</p>
                     </div>
                 `;
-            };
+    };
 
-            const updateInfo = (node) => {
-                if (!node) {
-                    setDefaultInfo();
-                    return;
-                }
+    const updateInfo = (node) => {
+        if (!node) {
+            setDefaultInfo();
+            return;
+        }
 
-                const icon = resolveSkillAssetPath(node.icon);
-                infoPanel.innerHTML = `
+        const icon = resolveSkillAssetPath(node.icon);
+        infoPanel.innerHTML = `
                     <header class="player-skill-info-header">
                         ${icon ? `<img src="${icon}" alt="${escapeHtml(node.title || 'Abilita')}" class="player-skill-info-icon">` : ''}
                         <h4 class="player-skill-info-title">${escapeHtml(node.title || 'Abilita')}</h4>
@@ -1824,194 +1830,194 @@ function parseYamlLite(yamlText) {
                     ${node.flavor ? `<p class="player-skill-info-flavor">${escapeHtml(node.flavor)}</p>` : ''}
                     <div class="player-skill-info-desc">${node.desc || '<p>Nessun dettaglio disponibile.</p>'}</div>
                 `;
-            };
+    };
 
-            setDefaultInfo();
+    setDefaultInfo();
 
-            treeData.nodes.forEach((startNode) => {
-                if (!Array.isArray(startNode.connections)) return;
-                startNode.connections.forEach((targetId) => {
-                    const targetNode = nodeById.get(targetId);
-                    if (!targetNode) return;
+    treeData.nodes.forEach((startNode) => {
+        if (!Array.isArray(startNode.connections)) return;
+        startNode.connections.forEach((targetId) => {
+            const targetNode = nodeById.get(targetId);
+            if (!targetNode) return;
 
-                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    line.setAttribute('x1', `${startNode.x}%`);
-                    line.setAttribute('y1', `${startNode.y}%`);
-                    line.setAttribute('x2', `${targetNode.x}%`);
-                    line.setAttribute('y2', `${targetNode.y}%`);
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', `${startNode.x}%`);
+            line.setAttribute('y1', `${startNode.y}%`);
+            line.setAttribute('x2', `${targetNode.x}%`);
+            line.setAttribute('y2', `${targetNode.y}%`);
 
-                    const lineState = targetNode.state === 'unlocked' || targetNode.state === 'unlockable'
-                        ? targetNode.state
-                        : 'locked';
-                    line.setAttribute('class', `player-skill-connection is-${lineState}`);
-                    linesLayer.appendChild(line);
-                });
-            });
+            const lineState = targetNode.state === 'unlocked' || targetNode.state === 'unlockable'
+                ? targetNode.state
+                : 'locked';
+            line.setAttribute('class', `player-skill-connection is-${lineState}`);
+            linesLayer.appendChild(line);
+        });
+    });
 
-            treeData.nodes.forEach((node) => {
-                const nodeElement = document.createElement('button');
-                nodeElement.type = 'button';
-                const stateClass = node.state === 'unlocked' || node.state === 'unlockable' ? node.state : 'locked';
-                nodeElement.className = `player-skill-node is-${stateClass}${node.keyNode ? ' is-key' : ''}`;
-                nodeElement.style.left = `${node.x}%`;
-                nodeElement.style.top = `${node.y}%`;
-                const icon = resolveSkillAssetPath(node.icon);
-                if (icon) {
-                    nodeElement.style.backgroundImage = `url('${icon}')`;
+    treeData.nodes.forEach((node) => {
+        const nodeElement = document.createElement('button');
+        nodeElement.type = 'button';
+        const stateClass = node.state === 'unlocked' || node.state === 'unlockable' ? node.state : 'locked';
+        nodeElement.className = `player-skill-node is-${stateClass}${node.keyNode ? ' is-key' : ''}`;
+        nodeElement.style.left = `${node.x}%`;
+        nodeElement.style.top = `${node.y}%`;
+        const icon = resolveSkillAssetPath(node.icon);
+        if (icon) {
+            nodeElement.style.backgroundImage = `url('${icon}')`;
+        }
+        nodeElement.setAttribute('aria-label', node.title || 'Abilita');
+
+        const onSelect = () => {
+            updateInfo(node);
+        };
+
+        nodeElement.addEventListener('mouseenter', onSelect);
+        nodeElement.addEventListener('focus', onSelect);
+        nodeElement.addEventListener('click', onSelect);
+
+        treeContainer.appendChild(nodeElement);
+    });
+
+    const firstNode = treeData.nodes.find((node) => node.state === 'unlocked' || node.state === 'unlockable') || treeData.nodes[0];
+    if (firstNode) updateInfo(firstNode);
+
+    return card;
+}
+
+window.CriptaApp.onPageReady("character", async function () {
+    const container = document.getElementById('character-content-container');
+    const charNameEl = document.getElementById('char-name');
+    const charRoleEl = document.getElementById('char-role');
+
+    const params = new URLSearchParams(window.location.search);
+    const charId = params.get('id');
+    const charType = params.get('type') || 'npc'; // Default to 'npc'
+
+    if (!charId) {
+        displayError("ID del personaggio non specificato.");
+        return;
+    }
+
+    try {
+        let character = null;
+        let allCharacters = [];
+
+        // Load Quests Data separately
+        const questsData = await loadQuestsData();
+        const npcQuests = questsData.find(g => g.npc_id === charId);
+
+        // IBRIDO: Se abbiamo dati statici, usiamoli.
+        if (window.NPC_DATA && window.NPC_DATA.length > 0) {
+            console.log("Using static NPC data for character details");
+            allCharacters = window.NPC_DATA;
+            character = allCharacters.find(c => c.id === charId);
+        } else {
+            // Fallback Fetch Logic
+            let characters;
+            if (charType === 'player') {
+                characters = await loadPlayersData();
+            } else {
+                const manifest = await loadCharactersManifest();
+                const npcEntries = manifest.filter(entry => (entry.type || 'npc') === 'npc');
+                characters = [];
+                for (const entry of npcEntries) {
+                    const char = await loadCharacterYaml(entry);
+                    if (char) characters.push(char);
                 }
-                nodeElement.setAttribute('aria-label', node.title || 'Abilita');
+            }
+            allCharacters = characters;
+            character = characters.find(c => c.id === charId);
 
-                const onSelect = () => {
-                    updateInfo(node);
-                };
-
-                nodeElement.addEventListener('mouseenter', onSelect);
-                nodeElement.addEventListener('focus', onSelect);
-                nodeElement.addEventListener('click', onSelect);
-
-                treeContainer.appendChild(nodeElement);
-            });
-
-            const firstNode = treeData.nodes.find((node) => node.state === 'unlocked' || node.state === 'unlockable') || treeData.nodes[0];
-            if (firstNode) updateInfo(firstNode);
-
-            return card;
+            // Fetch Markdown content if not static
+            await hydrateContentBlocks(character);
         }
 
-        window.CriptaApp.onPageReady("character", async function () {
-            const container = document.getElementById('character-content-container');
-            const charNameEl = document.getElementById('char-name');
-            const charRoleEl = document.getElementById('char-role');
+        if (!character) {
+            displayError(`Personaggio con ID '${charId}' non trovato.`);
+            return;
+        }
+        // Keep spoiler lock for NPCs, but allow direct links to hidden players.
+        if (charType !== 'player' && window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers() && !window.WikiSpoiler.isVisible(character)) {
+            displayError(`Personaggio con ID '${charId}' non trovato.`);
+            return;
+        }
 
-            const params = new URLSearchParams(window.location.search);
-            const charId = params.get('id');
-            const charType = params.get('type') || 'npc'; // Default to 'npc'
+        // If using static data, we might need to convert markdownText to HTML on the fly
+        // because build script only loads text.
+        if (character.content_blocks) {
+            character.content_blocks.forEach(block => {
+                if (block.markdownText && !block.markdownHtml) {
+                    block.markdownHtml = renderMarkdown(block.markdownText, { context: block.type });
+                }
+            });
+        }
 
-            if (!charId) {
-                displayError("ID del personaggio non specificato.");
-                return;
-            }
-
+        let playerSkillTrees = null;
+        if (charType === 'player') {
             try {
-                let character = null;
-                let allCharacters = [];
-
-                // Load Quests Data separately
-                const questsData = await loadQuestsData();
-                const npcQuests = questsData.find(g => g.npc_id === charId);
-
-                // IBRIDO: Se abbiamo dati statici, usiamoli.
-                if (window.NPC_DATA && window.NPC_DATA.length > 0) {
-                    console.log("Using static NPC data for character details");
-                    allCharacters = window.NPC_DATA;
-                    character = allCharacters.find(c => c.id === charId);
-                } else {
-                    // Fallback Fetch Logic
-                    let characters;
-                    if (charType === 'player') {
-                        characters = await loadPlayersData();
-                    } else {
-                        const manifest = await loadCharactersManifest();
-                        const npcEntries = manifest.filter(entry => (entry.type || 'npc') === 'npc');
-                        characters = [];
-                        for (const entry of npcEntries) {
-                            const char = await loadCharacterYaml(entry);
-                            if (char) characters.push(char);
-                        }
-                    }
-                    allCharacters = characters;
-                    character = characters.find(c => c.id === charId);
-
-                    // Fetch Markdown content if not static
-                    await hydrateContentBlocks(character);
-                }
-
-                if (!character) {
-                    displayError(`Personaggio con ID '${charId}' non trovato.`);
-                    return;
-                }
-                // Keep spoiler lock for NPCs, but allow direct links to hidden players.
-                if (charType !== 'player' && window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers() && !window.WikiSpoiler.isVisible(character)) {
-                    displayError(`Personaggio con ID '${charId}' non trovato.`);
-                    return;
-                }
-
-                // If using static data, we might need to convert markdownText to HTML on the fly
-                // because build script only loads text.
-                if (character.content_blocks) {
-                    character.content_blocks.forEach(block => {
-                        if (block.markdownText && !block.markdownHtml) {
-                            block.markdownHtml = renderMarkdown(block.markdownText, { context: block.type });
-                        }
-                    });
-                }
-
-                let playerSkillTrees = null;
-                if (charType === 'player') {
-                    try {
-                        playerSkillTrees = await loadSkillsData();
-                    } catch (skillError) {
-                        console.warn('Impossibile caricare gli alberi abilita:', skillError);
-                    }
-                }
-
-                renderCharacterPage(character, allCharacters, npcQuests, playerSkillTrees);
-
-            } catch (error) {
-                console.error("Errore nel caricamento del personaggio:", error);
-                displayError("Impossibile caricare i dati del personaggio.");
+                playerSkillTrees = await loadSkillsData();
+            } catch (skillError) {
+                console.warn('Impossibile caricare gli alberi abilita:', skillError);
             }
+        }
 
-            function displayError(message) {
-                charNameEl.textContent = "Errore";
-                container.innerHTML = `<p style="text-align: center; color: var(--status-dead);">${message}</p>`;
-            }
+        renderCharacterPage(character, allCharacters, npcQuests, playerSkillTrees);
 
-            function resolveImagePath(imagePath) {
-                if (!imagePath) return '';
-                // Check if the path is already absolute or starts with a protocol
-                if (imagePath.startsWith('http://') || imagePath.startsWith('https://') || imagePath.startsWith('/') || imagePath.startsWith('data:')) {
-                    return imagePath;
-                }
-                // Prepend the base path for relative asset images
-                return `../../assets/${imagePath}`;
-            }
+    } catch (error) {
+        console.error("Errore nel caricamento del personaggio:", error);
+        displayError("Impossibile caricare i dati del personaggio.");
+    }
 
-            function normalizeImageAdjust(adjust) {
-                const x = Number(adjust?.x);
-                const y = Number(adjust?.y);
-                const size = Number(adjust?.size);
-                return {
-                    x: Number.isFinite(x) ? x : 0,
-                    y: Number.isFinite(y) ? y : 0,
-                    size: Number.isFinite(size) && size > 0 ? size : null
-                };
-            }
+    function displayError(message) {
+        charNameEl.textContent = "Errore";
+        container.innerHTML = `<p style="text-align: center; color: var(--status-dead);">${message}</p>`;
+    }
 
-            function buildImageStyle(kind, adjust, counterpartAdjust) {
-                const normalized = normalizeImageAdjust(adjust);
-                const counterpart = normalizeImageAdjust(counterpartAdjust);
-                const isHover = kind === 'hover';
-                const restScale = isHover
-                    ? (counterpart.size || 1)
-                    : (normalized.size || 1);
-                const hoverScale = isHover
-                    ? (normalized.size || 1.20)
-                    : (counterpart.size || (normalized.size ? normalized.size * 1.20 : 1.20));
+    function resolveImagePath(imagePath) {
+        if (!imagePath) return '';
+        // Check if the path is already absolute or starts with a protocol
+        if (imagePath.startsWith('http://') || imagePath.startsWith('https://') || imagePath.startsWith('/') || imagePath.startsWith('data:')) {
+            return imagePath;
+        }
+        // Prepend the base path for relative asset images
+        return `../../assets/${imagePath}`;
+    }
 
-                return `--img-x:${normalized.x}px; --img-y:${normalized.y}px; --img-scale-rest:${restScale}; --img-scale-hover:${hoverScale};`;
-            }
+    function normalizeImageAdjust(adjust) {
+        const x = Number(adjust?.x);
+        const y = Number(adjust?.y);
+        const size = Number(adjust?.size);
+        return {
+            x: Number.isFinite(x) ? x : 0,
+            y: Number.isFinite(y) ? y : 0,
+            size: Number.isFinite(size) && size > 0 ? size : null
+        };
+    }
 
-            function renderRelationships(relationships, allCharacters) {
-                const card = document.createElement('div');
-                card.className = 'content-card';
+    function buildImageStyle(kind, adjust, counterpartAdjust) {
+        const normalized = normalizeImageAdjust(adjust);
+        const counterpart = normalizeImageAdjust(counterpartAdjust);
+        const isHover = kind === 'hover';
+        const restScale = isHover
+            ? (counterpart.size || 1)
+            : (normalized.size || 1);
+        const hoverScale = isHover
+            ? (normalized.size || 1.20)
+            : (counterpart.size || (normalized.size ? normalized.size * 1.20 : 1.20));
 
-                const relationshipsHtml = relationships.map(rel => {
-                    const relatedChar = allCharacters.find(c => c.id === rel.id);
-                    if (!relatedChar) return '';
-                    if (window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers() && !window.WikiSpoiler.isVisible(relatedChar)) return '';
+        return `--img-x:${normalized.x}px; --img-y:${normalized.y}px; --img-scale-rest:${restScale}; --img-scale-hover:${hoverScale};`;
+    }
 
-                    return `
+    function renderRelationships(relationships, allCharacters) {
+        const card = document.createElement('div');
+        card.className = 'content-card';
+
+        const relationshipsHtml = relationships.map(rel => {
+            const relatedChar = allCharacters.find(c => c.id === rel.id);
+            if (!relatedChar) return '';
+            if (window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers() && !window.WikiSpoiler.isVisible(relatedChar)) return '';
+
+            return `
                         <a href="?id=${relatedChar.id}" class="npc-card">
                             <div class="npc-avatar-container">
                                 <img src="${resolveImagePath(relatedChar.images.avatar)}" alt="${relatedChar.name}" class="npc-img-pop img-main" style="${buildImageStyle('avatar', relatedChar.images.avatarAdjust, relatedChar.images.hoverAdjust)}" onerror="this.style.display='none'">
@@ -2029,172 +2035,172 @@ function parseYamlLite(yamlText) {
                             <i class="fas fa-chevron-right arrow-icon"></i>
                         </a>
                     `;
-                }).filter(Boolean).join('');
+        }).filter(Boolean).join('');
 
-                card.innerHTML = `
+        card.innerHTML = `
                     <h3><i class="fas fa-users"></i> Legami</h3>
                     <div class="npc-list">
                         ${relationshipsHtml}
                     </div>
                 `;
-                return card;
-            }
+        return card;
+    }
 
-            async function hydratePlayerLoadout(character) {
-                const loadoutCard = document.getElementById('player-loadout-card');
-                if (!loadoutCard) return;
+    async function hydratePlayerLoadout(character) {
+        const loadoutCard = document.getElementById('player-loadout-card');
+        if (!loadoutCard) return;
 
-                try {
-                    const [inventoryPayload, wikiItems] = await Promise.all([
-                        loadInventoryData(),
-                        loadWikiItemsData().catch((error) => {
-                            console.warn('Impossibile caricare items.json per collegare gli oggetti:', error);
-                            return [];
-                        })
-                    ]);
-                    loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload, wikiItems);
-                    initializeLoadoutTabs(loadoutCard);
-                    hydratePlayerRightOverview(character, inventoryPayload);
-                } catch (error) {
-                    console.error('Errore nel caricamento inventario API:', error);
-                    loadoutCard.innerHTML = `
+        try {
+            const [inventoryPayload, wikiItems] = await Promise.all([
+                loadInventoryData(),
+                loadWikiItemsData().catch((error) => {
+                    console.warn('Impossibile caricare items.json per collegare gli oggetti:', error);
+                    return [];
+                })
+            ]);
+            loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload, wikiItems);
+            initializeLoadoutTabs(loadoutCard);
+            hydratePlayerRightOverview(character, inventoryPayload);
+        } catch (error) {
+            console.error('Errore nel caricamento inventario API:', error);
+            loadoutCard.innerHTML = `
                         <h3><i class="fas fa-box-open"></i> Inventario e Incantesimi</h3>
                         <div class="loadout-state is-error">
                             <i class="fas fa-triangle-exclamation"></i>
                             <span>Impossibile sincronizzare l'inventario dal server.</span>
                         </div>
                     `;
-                    renderPlayerXpSidebarError("Impossibile sincronizzare l'XP dal server.");
-                }
+            renderPlayerXpSidebarError("Impossibile sincronizzare l'XP dal server.");
+        }
+    }
+
+    function renderCharacterPage(character, allCharacters, npcQuests, playerSkillTrees) {
+        // Set page title and header
+        document.title = `${character.name} | Cripta di Sangue`;
+        charNameEl.textContent = character.name;
+        charRoleEl.textContent = character.role;
+
+        // Build the main grid structure
+        const grid = document.createElement('div');
+        grid.className = 'char-grid';
+
+        // Build left (lore) and right (image/stats) columns
+        // Build left (lore) and right (image/stats) columns
+        const leftCol = document.createElement('div');
+        leftCol.className = 'left-col';
+
+        if (charType !== 'player') {
+            const visibleBlocks = (character.content_blocks || []).filter(block => !block.hidden);
+
+            if (visibleBlocks.length > 0) {
+                visibleBlocks.forEach(block => {
+                    leftCol.appendChild(renderContentBlock(block));
+                });
+            } else {
+                // Display a placeholder if content_blocks is empty or doesn't exist
+                const placeholder = document.createElement('div');
+                placeholder.className = 'content-card';
+                placeholder.innerHTML = '<h3><i class="fas fa-scroll"></i> Storia</h3><p>Dettagli sulla storia di questo personaggio non ancora disponibili.</p>';
+                leftCol.appendChild(placeholder);
             }
+        }
 
-            function renderCharacterPage(character, allCharacters, npcQuests, playerSkillTrees) {
-                // Set page title and header
-                document.title = `${character.name} | Cripta di Sangue`;
-                charNameEl.textContent = character.name;
-                charRoleEl.textContent = character.role;
+        if (charType === 'player') {
+            leftCol.appendChild(buildPlayerSkillTreeCard(character.id, playerSkillTrees));
 
-                // Build the main grid structure
-                const grid = document.createElement('div');
-                grid.className = 'char-grid';
-
-                // Build left (lore) and right (image/stats) columns
-                // Build left (lore) and right (image/stats) columns
-                const leftCol = document.createElement('div');
-                leftCol.className = 'left-col';
-
-                if (charType !== 'player') {
-                    const visibleBlocks = (character.content_blocks || []).filter(block => !block.hidden);
-
-                    if (visibleBlocks.length > 0) {
-                        visibleBlocks.forEach(block => {
-                            leftCol.appendChild(renderContentBlock(block));
-                        });
-                    } else {
-                        // Display a placeholder if content_blocks is empty or doesn't exist
-                        const placeholder = document.createElement('div');
-                        placeholder.className = 'content-card';
-                        placeholder.innerHTML = '<h3><i class="fas fa-scroll"></i> Storia</h3><p>Dettagli sulla storia di questo personaggio non ancora disponibili.</p>';
-                        leftCol.appendChild(placeholder);
-                    }
-                }
-
-                if (charType === 'player') {
-                    leftCol.appendChild(buildPlayerSkillTreeCard(character.id, playerSkillTrees));
-
-                    const playerLoadoutCard = document.createElement('div');
-                    playerLoadoutCard.className = 'content-card player-loadout-card';
-                    playerLoadoutCard.id = 'player-loadout-card';
-                    playerLoadoutCard.innerHTML = `
+            const playerLoadoutCard = document.createElement('div');
+            playerLoadoutCard.className = 'content-card player-loadout-card';
+            playerLoadoutCard.id = 'player-loadout-card';
+            playerLoadoutCard.innerHTML = `
                         <h3><i class="fas fa-box-open"></i> Inventario e Incantesimi</h3>
                         <div class="loadout-state">
                             <i class="fas fa-spinner fa-spin"></i>
                             <span>Sincronizzazione con il Sigillo API in corso...</span>
                         </div>
                     `;
-                    leftCol.appendChild(playerLoadoutCard);
+            leftCol.appendChild(playerLoadoutCard);
+        }
+
+        // Render relationships if they exist
+        // MOVED TO getRightColumnHtml
+        // if(character.relationships && character.relationships.length > 0) {
+        //     leftCol.appendChild(renderRelationships(character.relationships, allCharacters));
+        // }
+
+        const rightCol = document.createElement('div');
+        rightCol.className = 'right-col';
+        rightCol.innerHTML = getRightColumnHtml(character, allCharacters, npcQuests);
+
+        grid.appendChild(leftCol);
+        grid.appendChild(rightCol);
+        container.appendChild(grid);
+
+        if (charType === 'player') {
+            hydratePlayerLoadout(character);
+        }
+
+        // After rendering everything, initialize modal logic
+        initializeImageModal();
+    }
+
+    function getRightColumnHtml(character, allCharacters, npcQuests) {
+        const summary = character.summary || {};
+        const isPlayerView = charType === 'player';
+
+        // --- CALCOLO ANNO DI NASCITA E ETA' ---
+        // --- CALCOLO ANNO DI NASCITA E ETA' ---
+        const CURRENT_YEAR = 2026;
+        let periodLabel = "Anno di Nascita";
+        let periodValue = "Non disponibile";
+        let age = "Non disponibile";
+        const race = summary.race || "Non disponibile";
+
+        // Parsing Period field (expected format: "Birth-Death" or "Birth")
+        if (summary.period && !isPlayerView) {
+            const parts = summary.period.toString().split('-');
+            const bYear = parseInt(parts[0].trim());
+
+            if (!isNaN(bYear)) {
+                periodValue = bYear; // Default to just birth year
+
+                // Calculate Age
+                if (parts.length > 1 && parts[1].trim() !== '') {
+                    // Dead: Age = Death - Birth
+                    const dYear = parseInt(parts[1].trim());
+                    if (!isNaN(dYear)) {
+                        age = `${dYear - bYear} anni`;
+                        // UPDATE: Use range for label and value if dead
+                        periodLabel = "Nascita - Morte";
+                        periodValue = `${bYear} - ${dYear}`;
+                    }
+                } else {
+                    // Alive/Unknown Death: Age = Current - Birth
+                    age = `${CURRENT_YEAR - bYear} anni`;
                 }
-
-                // Render relationships if they exist
-                // MOVED TO getRightColumnHtml
-                // if(character.relationships && character.relationships.length > 0) {
-                //     leftCol.appendChild(renderRelationships(character.relationships, allCharacters));
-                // }
-
-                const rightCol = document.createElement('div');
-                rightCol.className = 'right-col';
-                rightCol.innerHTML = getRightColumnHtml(character, allCharacters, npcQuests);
-
-                grid.appendChild(leftCol);
-                grid.appendChild(rightCol);
-                container.appendChild(grid);
-
-                if (charType === 'player') {
-                    hydratePlayerLoadout(character);
-                }
-
-                // After rendering everything, initialize modal logic
-                initializeImageModal();
+            } else {
+                // Fallback if period is just text (e.g. "Sconosciuto")
+                periodValue = summary.period;
             }
+        }
 
-            function getRightColumnHtml(character, allCharacters, npcQuests) {
-                const summary = character.summary || {};
-                const isPlayerView = charType === 'player';
+        if (summary.age) {
+            age = summary.age;
+        }
 
-                // --- CALCOLO ANNO DI NASCITA E ETA' ---
-                // --- CALCOLO ANNO DI NASCITA E ETA' ---
-                const CURRENT_YEAR = 2026;
-                let periodLabel = "Anno di Nascita";
-                let periodValue = "Non disponibile";
-                let age = "Non disponibile";
-                const race = summary.race || "Non disponibile";
+        // --- ALTRI CAMPI ---
+        let height = summary.height || "Non disponibile";
+        let weight = summary.weight || "Non disponibile";
 
-                // Parsing Period field (expected format: "Birth-Death" or "Birth")
-                if (summary.period && !isPlayerView) {
-                    const parts = summary.period.toString().split('-');
-                    const bYear = parseInt(parts[0].trim());
+        // Backward compatibility: legacy format "height | weight"
+        if (typeof summary.height === 'string' && summary.height.includes('|')) {
+            const [legacyHeight, legacyWeight] = summary.height.split('|').map((part) => part.trim());
+            height = legacyHeight || height;
+            if (!summary.weight) {
+                weight = legacyWeight || weight;
+            }
+        }
 
-                    if (!isNaN(bYear)) {
-                        periodValue = bYear; // Default to just birth year
-
-                        // Calculate Age
-                        if (parts.length > 1 && parts[1].trim() !== '') {
-                            // Dead: Age = Death - Birth
-                            const dYear = parseInt(parts[1].trim());
-                            if (!isNaN(dYear)) {
-                                age = `${dYear - bYear} anni`;
-                                // UPDATE: Use range for label and value if dead
-                                periodLabel = "Nascita - Morte";
-                                periodValue = `${bYear} - ${dYear}`;
-                            }
-                        } else {
-                            // Alive/Unknown Death: Age = Current - Birth
-                            age = `${CURRENT_YEAR - bYear} anni`;
-                        }
-                    } else {
-                        // Fallback if period is just text (e.g. "Sconosciuto")
-                        periodValue = summary.period;
-                    }
-                }
-
-                if (summary.age) {
-                    age = summary.age;
-                }
-
-                // --- ALTRI CAMPI ---
-                let height = summary.height || "Non disponibile";
-                let weight = summary.weight || "Non disponibile";
-
-                // Backward compatibility: legacy format "height | weight"
-                if (typeof summary.height === 'string' && summary.height.includes('|')) {
-                    const [legacyHeight, legacyWeight] = summary.height.split('|').map((part) => part.trim());
-                    height = legacyHeight || height;
-                    if (!summary.weight) {
-                        weight = legacyWeight || weight;
-                    }
-                }
-
-                const periodStatHtml = isPlayerView ? '' : `
+        const periodStatHtml = isPlayerView ? '' : `
                     <div class="stat-box">
                         <span class="stat-label">${periodLabel}</span>
                         <span class="stat-value">${periodValue}</span>
@@ -2202,7 +2208,7 @@ function parseYamlLite(yamlText) {
                 `;
 
 
-                const statsHtml = `
+        const statsHtml = `
                     <div class="stat-box">
                         <span class="stat-label">Razza</span>
                         <span class="stat-value">${race}</span>
@@ -2222,14 +2228,14 @@ function parseYamlLite(yamlText) {
                     </div>
                 `;
 
-                // Render Quests if available
-                let questsHtml = '';
-                if (npcQuests && npcQuests.quests && npcQuests.quests.length > 0) {
-                    const visibleQuests = npcQuests.quests.filter(q => q.status !== 'hidden');
-                    if (visibleQuests.length > 0) {
-                        const questsList = visibleQuests.map(q => {
-                            const isCompleted = q.status === 'completed';
-                            return `
+        // Render Quests if available
+        let questsHtml = '';
+        if (npcQuests && npcQuests.quests && npcQuests.quests.length > 0) {
+            const visibleQuests = npcQuests.quests.filter(q => q.status !== 'hidden');
+            if (visibleQuests.length > 0) {
+                const questsList = visibleQuests.map(q => {
+                    const isCompleted = q.status === 'completed';
+                    return `
                             <div class="quest-item">
                                 <span class="quest-text" style="${isCompleted ? 'opacity: 0.7;' : ''}">${q.title}</span>
                                 <span class="quest-status ${isCompleted ? 'status-completed' : 'status-inprogress'}">
@@ -2238,9 +2244,9 @@ function parseYamlLite(yamlText) {
                                 </span>
                             </div>
                            `;
-                        }).join('');
+                }).join('');
 
-                        questsHtml = `
+                questsHtml = `
                         <div class="content-card questline-card" style="margin-top: 2rem;">
                             <h3><i class="fas fa-scroll"></i> Missioni</h3>
                             <div class="quest-category">
@@ -2251,22 +2257,22 @@ function parseYamlLite(yamlText) {
                             </div>
                         </div>
                         `;
-                    }
-                }
+            }
+        }
 
-                // Causa del Decesso (Solo se presente)
-                let causeOfDeathHtml = '';
-                if (summary.cause_of_death) {
-                    causeOfDeathHtml = `
+        // Causa del Decesso (Solo se presente)
+        let causeOfDeathHtml = '';
+        if (summary.cause_of_death) {
+            causeOfDeathHtml = `
                         <div style="padding: 1rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.1);">
                             <span class="stat-label" style="margin-bottom: 5px;">Causa del Decesso</span>
                             <span style="color: var(--accent-primary); font-family: 'Cinzel';">${summary.cause_of_death}</span>
                         </div>
                     `;
-                }
+        }
 
-                const playerXpHtml = charType === 'player'
-                    ? `
+        const playerXpHtml = charType === 'player'
+            ? `
                         <section id="player-xp-right-card" class="player-overview-card player-overview-card--sidebar">
                             <h4><i class="fas fa-star"></i> Esperienza</h4>
                             <div class="loadout-state">
@@ -2275,9 +2281,9 @@ function parseYamlLite(yamlText) {
                             </div>
                         </section>
                     `
-                    : '';
+            : '';
 
-                return `
+        return `
                     <div class="image-card">
                         <img src="${resolveImagePath(character.images.portrait)}" class="char-portrait" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
                         <div class="stats-grid">${statsHtml}</div>
@@ -2287,32 +2293,32 @@ function parseYamlLite(yamlText) {
                     ${questsHtml}
                     ${character.relationships && character.relationships.length > 0 ? renderRelationships(character.relationships, allCharacters).outerHTML : ''}
                 `;
-            }
+    }
 
-            function renderContentBlock(block) {
-                const card = document.createElement('div');
-                card.className = 'content-card';
-                if (block.type) {
-                    card.classList.add(`content-card--${block.type}`);
-                }
-                const wrapMarkdown = (html, extraClass = '') => {
-                    if (!html) return '';
-                    const className = extraClass ? `chapter-content ${extraClass}` : 'chapter-content';
-                    return `<div class="${className}">${html}</div>`;
-                };
+    function renderContentBlock(block) {
+        const card = document.createElement('div');
+        card.className = 'content-card';
+        if (block.type) {
+            card.classList.add(`content-card--${block.type}`);
+        }
+        const wrapMarkdown = (html, extraClass = '') => {
+            if (!html) return '';
+            const className = extraClass ? `chapter-content ${extraClass}` : 'chapter-content';
+            return `<div class="${className}">${html}</div>`;
+        };
 
-                // Use a switch to handle different block types
-                switch (block.type) {
-                    case 'lore':
-                        card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-book-open'}"></i> ${block.title}</h3>${wrapMarkdown(block.markdownHtml)}`;
-                        break;
+        // Use a switch to handle different block types
+        switch (block.type) {
+            case 'lore':
+                card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-book-open'}"></i> ${block.title}</h3>${wrapMarkdown(block.markdownHtml)}`;
+                break;
 
-                    case 'secret_dossier':
-                        // This block is initially commented out or hidden in the original file. 
-                        // For the template, we can render it directly or add a mechanism to reveal it.
-                        // For now, let's render it styled as a secret.
-                        card.classList.add('secret'); // You can style this class
-                        card.innerHTML = `
+            case 'secret_dossier':
+                // This block is initially commented out or hidden in the original file. 
+                // For the template, we can render it directly or add a mechanism to reveal it.
+                // For now, let's render it styled as a secret.
+                card.classList.add('secret'); // You can style this class
+                card.innerHTML = `
                         <h3><i class="fas fa-user-secret"></i> ${block.title}</h3>
                         <div class="secret-dossier">
                             <div class="secret-badge">${block.badge}</div>
@@ -2321,10 +2327,10 @@ function parseYamlLite(yamlText) {
                                 ${wrapMarkdown(block.markdownHtml, 'chapter-content--compact')}
                             </div>
                         </div>`;
-                        break;
+                break;
 
-                    case 'banner_box':
-                        card.innerHTML = `
+            case 'banner_box':
+                card.innerHTML = `
                              <div class="banner-header">
                                  <img src="${resolveImagePath(block.banner)}" class="banner-img" alt="${block.title}">
                              </div>
@@ -2333,20 +2339,20 @@ function parseYamlLite(yamlText) {
                                  ${wrapMarkdown(block.markdownHtml)}
                              </div>
                          `;
-                        break;
+                break;
 
-                    case 'custom_box':
-                        if (block.borderColor) {
-                            card.style.borderColor = block.borderColor;
-                        }
-                        card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-box'}"></i> ${block.title}</h3>${wrapMarkdown(block.markdownHtml)}`;
-                        break;
+            case 'custom_box':
+                if (block.borderColor) {
+                    card.style.borderColor = block.borderColor;
+                }
+                card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-box'}"></i> ${block.title}</h3>${wrapMarkdown(block.markdownHtml)}`;
+                break;
 
-                    case 'image_box':
-                        const docTags = (block.tags || []).map(tag => `<span class="doc-tag">${tag}</span>`).join('');
+            case 'image_box':
+                const docTags = (block.tags || []).map(tag => `<span class="doc-tag">${tag}</span>`).join('');
 
-                        card.classList.add('document-card');
-                        card.innerHTML = `
+                card.classList.add('document-card');
+                card.innerHTML = `
                         <div class="document-header">
                             <div class="doc-label"><i class="fas ${block.icon || 'fa-book-dead'}"></i> ${block.title}</div>
                             <div class="document-tags">${docTags}</div>
@@ -2360,13 +2366,13 @@ function parseYamlLite(yamlText) {
                                 ${wrapMarkdown(block.markdownHtml, 'chapter-content--compact')}
                             </div>
                         </div>`;
-                        break;
+                break;
 
-                    default:
-                        // Default handler for unknown block types
-                        card.innerHTML = `<h3>${block.title || 'Informazioni'}</h3>${wrapMarkdown(block.markdownHtml || block.content || '')}`;
-                }
-                return card;
-            }
-        });
+            default:
+                // Default handler for unknown block types
+                card.innerHTML = `<h3>${block.title || 'Informazioni'}</h3>${wrapMarkdown(block.markdownHtml || block.content || '')}`;
+        }
+        return card;
+    }
+});
 

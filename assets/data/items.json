@@ -584,7 +584,6 @@
     "name": "Elena: Ciondolo Etereo",
     "type": "Oggetto meraviglioso",
     "rarity": "Raro",
-    "attunement": false,
     "owner": "Elena",
     "status": "known",
     "icon": "fa-gem",
@@ -605,7 +604,6 @@
     "name": "Franky: Sieri Instabili",
     "type": "Pozione",
     "rarity": "Raro",
-    "attunement": false,
     "owner": "Franky",
     "status": "known",
     "hidden": true,
@@ -627,7 +625,6 @@
     "name": "Ginevra: Feto Curativo",
     "type": "Oggetto meraviglioso",
     "rarity": "Molto raro",
-    "attunement": false,
     "owner": "Ginevra",
     "status": "known",
     "hidden": true,
@@ -744,7 +741,6 @@
     "name": "Regno dei Klaren",
     "type": "Oggetto meraviglioso",
     "rarity": "Raro",
-    "attunement": false,
     "status": "known",
     "icon": "fa-chess-rook",
     "summary": "Una reliquia iconografica collegata ai Klaren, utile per riconoscere il loro simbolo e i riferimenti al popolo di Abrak sparsi nella cripta.",
@@ -758,5 +754,17 @@
     "notes": "Voce di contesto costruita a partire dai documenti su Abrak, dal medaglione Klaren recuperato e dalle informazioni ottenute da X.",
     "image": "img/items/klaren_reign.webp",
     "subtype": "Reliquia"
+  },
+  {
+    "id": "mantello-della-protezione",
+    "name": "Mantello della Protezione",
+    "foundryNames": [
+      "Cloak of Protection"
+    ],
+    "type": "Oggetto meraviglioso",
+    "rarity": "Non comune",
+    "image": "img/items/cloak-of-protection.webp",
+    "icon": "fa-wand-sparkles",
+    "subtype": "Mantello"
   }
 ]
