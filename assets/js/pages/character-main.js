@@ -258,6 +258,7 @@ function parseYamlLite(yamlText) {
         const INVENTORY_API_URL = typeof window.CriptaApp?.urls?.api === 'function'
             ? window.CriptaApp.urls.api('api/inventory')
             : 'https://sigillo-api.khuzoe.workers.dev/api/inventory';
+        const WIKI_ITEMS_DATA_URL = '../../assets/data/items.json';
         const INVENTORY_CACHE_KEY = 'cds_inventory_api_cache_v1';
         const INVENTORY_CACHE_TTL_MS = 5 * 60 * 1000;
         const INVENTORY_EXCLUDED_TYPES = new Set(['class', 'subclass', 'feat', 'background', 'race', 'spell']);
@@ -309,6 +310,8 @@ function parseYamlLite(yamlText) {
         let inventoryMemoryCache = null;
         let skillsRequestPromise = null;
         let skillsMemoryCache = null;
+        let wikiItemsRequestPromise = null;
+        let wikiItemsMemoryCache = null;
 
         function escapeHtml(value) {
             return String(value || '')
@@ -325,6 +328,21 @@ function parseYamlLite(yamlText) {
                 .normalize('NFD')
                 .replace(/[\u0300-\u036f]/g, '')
                 .replace(/[^a-z0-9]+/g, '');
+        }
+
+        function normalizeWords(value) {
+            return String(value || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, ' ')
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean);
+        }
+
+        function slugify(value) {
+            return normalizeWords(value).join('-') || 'item';
         }
 
         function formatToken(value) {
@@ -440,6 +458,28 @@ function parseYamlLite(yamlText) {
             return inventoryRequestPromise;
         }
 
+        async function loadWikiItemsData() {
+            if (wikiItemsMemoryCache) return wikiItemsMemoryCache;
+            if (wikiItemsRequestPromise) return wikiItemsRequestPromise;
+
+            wikiItemsRequestPromise = (async () => {
+                const response = await fetch(WIKI_ITEMS_DATA_URL);
+                if (!response.ok) throw new Error(`Items wiki HTTP ${response.status}`);
+                const payload = await response.json();
+                const list = Array.isArray(payload) ? payload : [];
+                wikiItemsMemoryCache = window.WikiSpoiler
+                    ? window.WikiSpoiler.filterVisible(list)
+                    : list.filter((item) => item.hidden !== true && item.status !== 'hidden');
+                return wikiItemsMemoryCache;
+            })();
+
+            try {
+                return await wikiItemsRequestPromise;
+            } finally {
+                wikiItemsRequestPromise = null;
+            }
+        }
+
         async function requestInventoryApi() {
             if (typeof window.CriptaApp?.api?.get === 'function') {
                 try {
@@ -525,6 +565,96 @@ function parseYamlLite(yamlText) {
             });
 
             return { inventory, spells };
+        }
+
+        function getWikiItemAliases(item) {
+            const aliases = new Set([
+                item.id,
+                item.name,
+                item.unidentifiedName,
+                item.foundryName
+            ].filter(Boolean));
+
+            if (Array.isArray(item.foundryNames)) {
+                item.foundryNames.forEach((name) => aliases.add(name));
+            }
+            if (Array.isArray(item.aliases)) {
+                item.aliases.forEach((name) => aliases.add(name));
+            }
+            if (item.owner && item.name && item.name.includes(':')) {
+                const localName = item.name.split(':').slice(1).join(':').trim();
+                if (localName) aliases.add(`${localName} di ${item.owner}`);
+            }
+            return Array.from(aliases).filter(Boolean);
+        }
+
+        function buildWikiItemIndex(items) {
+            const byKey = new Map();
+            const records = (Array.isArray(items) ? items : []).map((item) => {
+                const aliases = getWikiItemAliases(item);
+                aliases.forEach((alias) => {
+                    const key = normalizeText(alias);
+                    if (key && !byKey.has(key)) byKey.set(key, item);
+                });
+                return {
+                    item,
+                    keys: aliases.map(normalizeText).filter(Boolean),
+                    words: new Set(aliases.flatMap(normalizeWords))
+                };
+            });
+            return { byKey, records };
+        }
+
+        function findWikiItemForInventoryEntry(entry, index) {
+            if (!entry || !index) return null;
+            const candidateNames = [entry.name, entry.wikiItemId, entry.foundryName].filter(Boolean);
+            for (const name of candidateNames) {
+                const key = normalizeText(name);
+                if (key && index.byKey.has(key)) return index.byKey.get(key);
+            }
+
+            const entryKey = normalizeText(entry.name);
+            if (!entryKey || entryKey.length < 5) return null;
+            const directContains = index.records.find((record) => (
+                record.keys.some((key) => key.length >= 5 && entryKey.includes(key))
+            ));
+            if (directContains) return directContains.item;
+
+            const entryWords = new Set(normalizeWords(entry.name).filter((word) => word.length > 2 && word !== 'di'));
+            if (entryWords.size < 2) return null;
+            let best = null;
+            let bestScore = 0;
+            index.records.forEach((record) => {
+                let score = 0;
+                entryWords.forEach((word) => {
+                    if (record.words.has(word)) score += 1;
+                });
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = record.item;
+                }
+            });
+            return bestScore >= Math.min(2, entryWords.size) ? best : null;
+        }
+
+        function getWikiItemUrl(item) {
+            if (!item) return '';
+            return `../oggetti.html#${encodeURIComponent(item.id || slugify(item.name))}`;
+        }
+
+        function getWikiItemImageUrl(item) {
+            if (!item || !item.image) return '';
+            return `../../assets/${item.image}`;
+        }
+
+        function renderWikiItemThumb(item, className, label = 'Oggetto wiki') {
+            if (!item) return '';
+            const safeLabel = escapeHtml(item.name || label);
+            const image = getWikiItemImageUrl(item);
+            if (image) {
+                return `<span class="${escapeHtml(className)}"><img src="${escapeHtml(image)}" alt="${safeLabel}"></span>`;
+            }
+            return `<span class="${escapeHtml(className)}" aria-hidden="true"><i class="fas ${escapeHtml(item.icon || 'fa-wand-sparkles')}"></i></span>`;
         }
 
         function cleanDescription(value) {
@@ -738,7 +868,12 @@ function parseYamlLite(yamlText) {
                 <div class="player-overview-chip-list">
                     ${list.map((item) => {
                         const quantityLabel = getQuantityLabel(item);
-                        return `<span class="player-overview-chip">${escapeHtml(item.name || 'Elemento')} ${quantityLabel ? `<small>${escapeHtml(quantityLabel)}</small>` : ''}</span>`;
+                        const icon = item.wikiItem ? renderWikiItemThumb(item.wikiItem, 'player-overview-chip-icon') : '';
+                        const label = `${icon}<span>${escapeHtml(item.name || 'Elemento')}</span> ${quantityLabel ? `<small>${escapeHtml(quantityLabel)}</small>` : ''}`;
+                        if (item.wikiItem) {
+                            return `<a class="player-overview-chip player-overview-chip--link" href="${escapeHtml(getWikiItemUrl(item.wikiItem))}">${label}</a>`;
+                        }
+                        return `<span class="player-overview-chip">${label}</span>`;
                     }).join('')}
                 </div>
             `;
@@ -1280,8 +1415,40 @@ function parseYamlLite(yamlText) {
             `;
         }
 
-        function renderLoadoutDisclosure(title, quantityLabel, description, badges, extraClass = '', dataAttributes = '') {
+        function renderWikiItemBridge(wikiItem) {
+            if (!wikiItem) return '';
+            const url = getWikiItemUrl(wikiItem);
+            const properties = Array.isArray(wikiItem.properties) ? wikiItem.properties.filter((property) => property && property.hidden !== true) : [];
+            const previewProperties = properties.slice(0, 2);
+            return `
+                <aside class="loadout-wiki-card" aria-label="Voce collegata dalla wiki">
+                    ${renderWikiItemThumb(wikiItem, 'loadout-wiki-icon', 'Oggetto wiki')}
+                    <div class="loadout-wiki-content">
+                        <div class="loadout-wiki-kicker">
+                            <span>Voce ITEMS collegata</span>
+                            ${wikiItem.rarity ? `<span>${escapeHtml(wikiItem.rarity)}</span>` : ''}
+                        </div>
+                        <a class="loadout-wiki-title" href="${escapeHtml(url)}">${escapeHtml(wikiItem.name || 'Oggetto wiki')}</a>
+                        ${wikiItem.summary ? `<p>${escapeHtml(wikiItem.summary)}</p>` : ''}
+                        ${previewProperties.length ? `
+                            <ul>
+                                ${previewProperties.map((property) => `
+                                    <li>
+                                        ${property.name ? `<strong>${escapeHtml(property.name)}.</strong> ` : ''}
+                                        ${escapeHtml(property.description || '')}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        ` : ''}
+                    </div>
+                </aside>
+            `;
+        }
+
+        function renderLoadoutDisclosure(title, quantityLabel, description, badges, extraClass = '', dataAttributes = '', wikiItem = null) {
             const bodyParts = [];
+            const wikiBridge = renderWikiItemBridge(wikiItem);
+            if (wikiBridge) bodyParts.push(wikiBridge);
             if (description) {
                 const descriptionHtml = renderDescriptionHtml(description);
                 if (descriptionHtml) {
@@ -1298,7 +1465,10 @@ function parseYamlLite(yamlText) {
             return `
                 <details class="loadout-entry ${extraClass}" ${dataAttributes}>
                     <summary class="loadout-entry-toggle">
-                        <span class="loadout-entry-title">${escapeHtml(title || 'Elemento senza nome')}</span>
+                        <span class="loadout-entry-title">
+                            ${wikiItem ? renderWikiItemThumb(wikiItem, 'loadout-entry-icon', title || 'Elemento senza nome') : ''}
+                            <span>${escapeHtml(title || 'Elemento senza nome')}</span>
+                        </span>
                         <span class="loadout-entry-controls">
                             ${quantityLabel ? `<span class="loadout-qty">${escapeHtml(quantityLabel)}</span>` : ''}
                             <span class="loadout-entry-chevron" aria-hidden="true"><i class="fas fa-chevron-down"></i></span>
@@ -1348,7 +1518,9 @@ function parseYamlLite(yamlText) {
                 const entriesHtml = group.entries.map((entry) => {
                     const badges = [];
                     const typeMeta = getInventoryTypeMeta(entry.type);
+                    const wikiItem = entry.wikiItem || null;
                     badges.push(typeMeta.label);
+                    if (wikiItem) badges.push('Wiki');
                     if (entry.rarity) badges.push(`Rarita: ${formatToken(entry.rarity)}`);
                     if (entry.attuned) badges.push('Sintonizzato');
 
@@ -1360,8 +1532,9 @@ function parseYamlLite(yamlText) {
                         quantityLabel,
                         description,
                         badges,
-                        '',
-                        `data-inventory-type="${typeMeta.key}"`
+                        wikiItem ? 'loadout-entry--wiki-linked' : '',
+                        `data-inventory-type="${typeMeta.key}"`,
+                        wikiItem
                     );
                 }).join('');
 
@@ -1427,7 +1600,7 @@ function parseYamlLite(yamlText) {
             }).join('');
         }
 
-        function buildPlayerLoadoutHtml(character, payload) {
+        function buildPlayerLoadoutHtml(character, payload, wikiItems = []) {
             const actor = findPlayerActor(payload, character);
             if (!actor) {
                 return `
@@ -1436,7 +1609,17 @@ function parseYamlLite(yamlText) {
                 `;
             }
 
+            const wikiItemIndex = buildWikiItemIndex(wikiItems);
             const { inventory, spells } = splitActorLoadout(actor);
+            inventory.forEach((entry) => {
+                entry.wikiItem = findWikiItemForInventoryEntry(entry, wikiItemIndex);
+            });
+            [actor.equippedItems, actor.attunementItems].forEach((items) => {
+                if (!Array.isArray(items)) return;
+                items.forEach((entry) => {
+                    entry.wikiItem = findWikiItemForInventoryEntry(entry, wikiItemIndex);
+                });
+            });
             const owners = Array.isArray(actor.owners) ? actor.owners.map((owner) => owner.name).filter(Boolean) : [];
             const preparedSpells = spells.filter((spell) => spell.prepared);
             const liveSummaryHtml = renderCharacterLiveSummary(actor, payload);
@@ -1862,8 +2045,14 @@ function parseYamlLite(yamlText) {
                 if (!loadoutCard) return;
 
                 try {
-                    const inventoryPayload = await loadInventoryData();
-                    loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload);
+                    const [inventoryPayload, wikiItems] = await Promise.all([
+                        loadInventoryData(),
+                        loadWikiItemsData().catch((error) => {
+                            console.warn('Impossibile caricare items.json per collegare gli oggetti:', error);
+                            return [];
+                        })
+                    ]);
+                    loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload, wikiItems);
                     initializeLoadoutTabs(loadoutCard);
                     hydratePlayerRightOverview(character, inventoryPayload);
                 } catch (error) {

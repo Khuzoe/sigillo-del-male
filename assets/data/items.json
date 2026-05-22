@@ -2,6 +2,9 @@
   {
     "id": "guanti-zara",
     "name": "Zara: Guanti",
+    "foundryNames": [
+      "Guanti di Zara"
+    ],
     "type": "Oggetto meraviglioso",
     "rarity": "Non comune",
     "attunement": true,
@@ -38,6 +41,9 @@
   {
     "id": "scarpa-zara",
     "name": "Zara: Pantofole",
+    "foundryNames": [
+      "Pantofole di Zara"
+    ],
     "type": "Oggetto meraviglioso",
     "owner": "Zara",
     "status": "identified",
@@ -100,6 +106,9 @@
   {
     "id": "corazza-piastre-rosskar",
     "name": "Rosskar: Corazza a Piastre",
+    "foundryNames": [
+      "Corazza a Piastre di Rosskar"
+    ],
     "type": "Armatura",
     "rarity": "Raro",
     "attunement": true,
@@ -128,6 +137,9 @@
   {
     "id": "mantello-okbrax",
     "name": "Okbrax: Mantello",
+    "foundryNames": [
+      "Mantello di Okbrax"
+    ],
     "type": "Oggetto meraviglioso",
     "rarity": "Raro",
     "attunement": true,
@@ -156,6 +168,9 @@
   {
     "id": "martello-guerra-lumilla",
     "name": "Lumilla: Martello da Guerra",
+    "foundryNames": [
+      "Martello da Guerra di Lumilla"
+    ],
     "type": "Arma",
     "rarity": "Raro",
     "attunement": true,
@@ -184,6 +199,9 @@
   {
     "id": "pugnale-okbrax",
     "name": "Okbrax: Pugnale",
+    "foundryNames": [
+      "Pugnale di Okbrax"
+    ],
     "type": "Arma",
     "rarity": "Raro",
     "attunement": true,
@@ -212,6 +230,9 @@
   {
     "id": "spada-lunga-lingua-di-fiamma",
     "name": "Rosskar: Spada Infuocata",
+    "foundryNames": [
+      "Flame Tongue Longsword"
+    ],
     "type": "Arma",
     "rarity": "Raro",
     "attunement": true,
@@ -245,6 +266,9 @@
   {
     "id": "veste-radiosa-lumilla",
     "name": "Lumilla: Veste Radiosa",
+    "foundryNames": [
+      "Veste Radiosa di Lumilla"
+    ],
     "type": "Armatura",
     "rarity": "Raro",
     "attunement": true,
@@ -273,6 +297,9 @@
   {
     "id": "stivali-ginevra",
     "name": "Ginevra: Stivali",
+    "foundryNames": [
+      "Stivali di Ginevra"
+    ],
     "type": "Oggetto meraviglioso",
     "rarity": "Molto raro",
     "attunement": true,
@@ -314,6 +341,9 @@
   {
     "id": "scudo-ginevra",
     "name": "Ginevra: Scudo",
+    "foundryNames": [
+      "Scudo di Ginevra"
+    ],
     "type": "Scudo",
     "rarity": "Molto raro",
     "attunement": true,
@@ -359,6 +389,9 @@
   {
     "id": "armatura-ginevra",
     "name": "Ginevra: Armatura",
+    "foundryNames": [
+      "Armatura di Ginevra"
+    ],
     "type": "Armatura",
     "rarity": "Molto raro",
     "owner": "Ginevra",
@@ -394,6 +427,9 @@
   {
     "id": "bracciale-metallico",
     "name": "Bracciale Metallico",
+    "foundryNames": [
+      "Ring of Necrotic Resistance"
+    ],
     "type": "Oggetto meraviglioso",
     "rarity": "Raro",
     "attunement": true,
@@ -505,6 +541,9 @@
   {
     "id": "collana-buffa-zara",
     "name": "Zara: Collana Buffa",
+    "foundryNames": [
+      "[Non Identificato] Collana Buffa"
+    ],
     "type": "Oggetto meraviglioso",
     "rarity": "Raro",
     "attunement": true,
@@ -608,6 +647,9 @@
   {
     "id": "cuore-rabberduscolanderson",
     "name": "Rabberduscolanderson: Cuore",
+    "foundryNames": [
+      "Cuore di Rabberduscolanderson"
+    ],
     "type": "Oggetto meraviglioso",
     "rarity": "Leggendario",
     "attunement": true,
@@ -666,6 +708,9 @@
   {
     "id": "diadema-adamantino",
     "name": "Ran'Dra: Cerchietto Adamantino",
+    "foundryNames": [
+      "Cerchietto Adamantino"
+    ],
     "type": "Oggetto meraviglioso",
     "rarity": "Raro",
     "attunement": true,
