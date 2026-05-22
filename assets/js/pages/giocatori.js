@@ -1,6 +1,24 @@
-window.CriptaApp.onPageReady("giocatori", function() {
-    const container = document.getElementById('player-list-container');
-    const base_path = '../assets/';
+window.CriptaApp.onPageReady("giocatori", async function() {
+    const container = document.getElementById("player-list-container");
+    const basePath = "../assets/";
+    if (!container) return;
+
+    function escapeHtml(value) {
+        return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function normalizeText(value) {
+        return String(value || "")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]+/g, "");
+    }
 
     function normalizeImageAdjust(adjust) {
         const x = Number(adjust?.x);
@@ -16,76 +34,212 @@ window.CriptaApp.onPageReady("giocatori", function() {
     function buildImageStyle(kind, adjust, counterpartAdjust) {
         const normalized = normalizeImageAdjust(adjust);
         const counterpart = normalizeImageAdjust(counterpartAdjust);
-        const isHover = kind === 'hover';
-        const restScale = isHover
-            ? (counterpart.size || 1)
-            : (normalized.size || 1);
+        const isHover = kind === "hover";
+        const restScale = isHover ? (counterpart.size || 1) : (normalized.size || 1);
         const hoverScale = isHover
             ? (normalized.size || 1.20)
             : (counterpart.size || (normalized.size ? normalized.size * 1.20 : 1.20));
-
         return `--img-x:${normalized.x}px; --img-y:${normalized.y}px; --img-scale-rest:${restScale}; --img-scale-hover:${hoverScale};`;
     }
 
-    fetch(base_path + 'data/players.json')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+    async function fetchJson(url, fallback) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return response.json();
-        })
-        .then(players => {
-            const visiblePlayers = window.WikiSpoiler
-                ? window.WikiSpoiler.filterVisible(players)
-                : players;
+        } catch (error) {
+            console.warn(`Impossibile caricare ${url}`, error);
+            return fallback;
+        }
+    }
 
-            if (visiblePlayers.length === 0) {
-                container.innerHTML = '<p>Nessun giocatore trovato.</p>';
-                return;
+    async function loadInventorySnapshot() {
+        try {
+            if (typeof window.CriptaApp?.api?.get === "function") {
+                return await window.CriptaApp.api.get("api/inventory");
             }
+            const response = await fetch("https://sigillo-api.khuzoe.workers.dev/api/inventory");
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+        } catch (error) {
+            console.warn("Inventory API non disponibile per lista giocatori.", error);
+            return null;
+        }
+    }
 
-            visiblePlayers.sort((a, b) => {
-                const aInactive = a.isActive === false ? 1 : 0;
-                const bInactive = b.isActive === false ? 1 : 0;
-                if (aInactive !== bInactive) {
-                    return aInactive - bInactive;
-                }
-                return a.name.localeCompare(b.name);
-            });
+    function findPlayerActor(inventorySnapshot, player) {
+        const actors = Array.isArray(inventorySnapshot?.actors) ? inventorySnapshot.actors : [];
+        if (!actors.length) return null;
 
-            visiblePlayers.forEach(player => {
-                const isInactive = player.isActive === false;
-                const cardClasses = `npc-card player-card ${isInactive ? 'player-card--inactive' : ''}`.trim();
-                const statusBadge = isInactive
-                    ? `<span class="player-status-badge">${player.statusLabel || 'Fuori dal gruppo'}</span>`
-                    : '';
+        const keys = new Set([
+            normalizeText(player.name),
+            normalizeText(player.id),
+            normalizeText(player.inventory_api_name)
+        ].filter(Boolean));
 
-                const playerCard = `
-                    <a href="../pages/characters/character.html?id=${player.id}&type=player" class="${cardClasses}">
-                        <div class="npc-avatar-container">
-                            <img src="${base_path}${player.images.avatar}" alt="${player.name}" class="npc-img-pop img-main" style="${buildImageStyle('avatar', player.images.avatarAdjust, player.images.hoverAdjust)}" onerror="this.src='httpshttps://placehold.co/200x200/1a1a1a/gold?text=${player.name.charAt(0)}'">
-                            <img src="${base_path}${player.images.hover}" alt="${player.name} Full" class="npc-img-pop img-hover" style="${buildImageStyle('hover', player.images.hoverAdjust, player.images.avatarAdjust)}" onerror="this.style.display='none'">
+        if (Array.isArray(player.inventory_api_aliases)) {
+            player.inventory_api_aliases.forEach((alias) => keys.add(normalizeText(alias)));
+        }
+
+        const exact = actors.find((actor) => keys.has(normalizeText(actor.name)));
+        if (exact) return exact;
+
+        return actors.find((actor) => {
+            const actorKey = normalizeText(actor.name);
+            if (!actorKey) return false;
+            return [...keys].some((key) => key && (actorKey.includes(key) || key.includes(actorKey)));
+        }) || null;
+    }
+
+    function formatNumber(value, fallback = "-") {
+        const number = Number(value);
+        return Number.isFinite(number) ? String(Math.round(number)) : fallback;
+    }
+
+    function formatDateTime(value) {
+        if (!value) return "mai";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "data non valida";
+        return new Intl.DateTimeFormat("it-IT", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit"
+        }).format(date);
+    }
+
+    function getHp(actor) {
+        const hp = actor?.vitals?.hp || {};
+        return {
+            value: hp.value,
+            max: hp.max,
+            temp: hp.temp
+        };
+    }
+
+    function getSlots(actor) {
+        const totals = actor?.spellSlots?.totals || {};
+        const total = Number(totals.total);
+        const available = Number(totals.available);
+        if (!Number.isFinite(total) || total <= 0) return null;
+        return { total, available: Number.isFinite(available) ? available : 0 };
+    }
+
+    function getWeight(actor) {
+        const weight = actor?.weight || {};
+        const carried = Number(weight.carried);
+        const capacity = Number(weight.capacity);
+        if (!Number.isFinite(carried) || !Number.isFinite(capacity)) return null;
+        return {
+            carried,
+            capacity,
+            percent: capacity > 0 ? Math.min(999, (carried / capacity) * 100) : null,
+            encumbered: weight.encumbered === true
+        };
+    }
+
+    function renderLiveStats(actor) {
+        if (!actor) {
+            return `
+                <div class="player-live-panel player-live-panel--empty">
+                    <span><i class="fas fa-cloud-slash" aria-hidden="true"></i> Dati Foundry non sincronizzati</span>
+                </div>
+            `;
+        }
+
+        const hp = getHp(actor);
+        const slots = getSlots(actor);
+        const weight = getWeight(actor);
+        const equipped = Array.isArray(actor.equippedItems) ? actor.equippedItems : [];
+        const attuned = Array.isArray(actor.attunementItems) ? actor.attunementItems : [];
+        const ac = actor?.vitals?.ac;
+
+        return `
+            <div class="player-live-panel">
+                <div class="player-live-stats">
+                    <span><i class="fas fa-heart-pulse" aria-hidden="true"></i> ${formatNumber(hp.value)}/${formatNumber(hp.max)} PF${Number(hp.temp) > 0 ? ` +${formatNumber(hp.temp)} temp` : ""}</span>
+                    <span><i class="fas fa-shield-halved" aria-hidden="true"></i> CA ${formatNumber(ac)}</span>
+                    ${slots ? `<span><i class="fas fa-wand-sparkles" aria-hidden="true"></i> Slot ${formatNumber(slots.available)}/${formatNumber(slots.total)}</span>` : ""}
+                    ${weight ? `<span class="${weight.encumbered ? "is-warning" : ""}"><i class="fas fa-weight-hanging" aria-hidden="true"></i> ${formatNumber(weight.carried)}/${formatNumber(weight.capacity)} kg</span>` : ""}
+                </div>
+                <div class="player-live-lists">
+                    ${renderCompactItemList("Equip", equipped)}
+                    ${renderCompactItemList("Sintonia", attuned)}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderCompactItemList(label, items) {
+        const list = (Array.isArray(items) ? items : []).slice(0, 4);
+        if (!list.length) return "";
+        const extra = items.length > list.length ? ` +${items.length - list.length}` : "";
+        return `
+            <span class="player-live-items">
+                <strong>${escapeHtml(label)}</strong>
+                ${list.map((item) => `<em>${escapeHtml(item.name || "Oggetto")}</em>`).join("")}
+                ${extra ? `<small>${escapeHtml(extra)}</small>` : ""}
+            </span>
+        `;
+    }
+
+    function renderPlayerCard(player, actor, inventorySnapshot) {
+        const isInactive = player.isActive === false;
+        const cardClasses = `npc-card player-card ${isInactive ? "player-card--inactive" : ""}`.trim();
+        const statusBadge = isInactive
+            ? `<span class="player-status-badge">${escapeHtml(player.statusLabel || "Fuori dal gruppo")}</span>`
+            : "";
+        const syncInfo = inventorySnapshot?.savedAt || inventorySnapshot?.generatedAt
+            ? `<span class="player-sync-stamp" title="Ultimo sync Foundry"><i class="fas fa-rotate" aria-hidden="true"></i> ${escapeHtml(formatDateTime(inventorySnapshot.savedAt || inventorySnapshot.generatedAt))}</span>`
+            : "";
+
+        return `
+            <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player" class="${cardClasses}">
+                <div class="npc-avatar-container">
+                    <img src="${basePath}${escapeHtml(player.images?.avatar)}" alt="${escapeHtml(player.name)}" class="npc-img-pop img-main" style="${buildImageStyle("avatar", player.images?.avatarAdjust, player.images?.hoverAdjust)}" onerror="this.src='https://placehold.co/200x200/1a1a1a/gold?text=${encodeURIComponent(String(player.name || "?").charAt(0))}'">
+                    <img src="${basePath}${escapeHtml(player.images?.hover)}" alt="${escapeHtml(player.name)} Full" class="npc-img-pop img-hover" style="${buildImageStyle("hover", player.images?.hoverAdjust, player.images?.avatarAdjust)}" onerror="this.style.display='none'">
+                </div>
+                <div class="npc-info">
+                    <div class="npc-header">
+                        <h3 class="npc-name">${escapeHtml(player.name)}</h3>
+                        <div class="player-card-meta">
+                            <span class="npc-role">${escapeHtml(player.role)}</span>
+                            ${statusBadge}
+                            ${syncInfo}
                         </div>
-                        <div class="npc-info">
-                            <div class="npc-header">
-                                <h3 class="npc-name">${player.name}</h3>
-                                <div class="player-card-meta">
-                                    <span class="npc-role">${player.role}</span>
-                                    ${statusBadge}
-                                </div>
-                            </div>
-                            <p class="npc-desc">
-                                ${player.description}
-                            </p>
-                        </div>
-                        <i class="fas fa-chevron-right arrow-icon"></i>
-                    </a>
-                `;
-                container.insertAdjacentHTML('beforeend', playerCard);
-            });
-        })
-        .catch(error => {
-            console.error('Errore nel caricamento dei dati dei giocatori:', error);
-            container.innerHTML = '<p style="color: var(--status-dead);">Impossibile caricare i dati dei giocatori. Controlla la console per maggiori dettagli.</p>';
+                    </div>
+                    <p class="npc-desc">${escapeHtml(player.description)}</p>
+                    ${renderLiveStats(actor)}
+                </div>
+                <i class="fas fa-chevron-right arrow-icon"></i>
+            </a>
+        `;
+    }
+
+    try {
+        const [players, inventorySnapshot] = await Promise.all([
+            fetchJson(`${basePath}data/players.json`, []),
+            loadInventorySnapshot()
+        ]);
+        const visiblePlayers = window.WikiSpoiler ? window.WikiSpoiler.filterVisible(players) : players;
+
+        if (!visiblePlayers.length) {
+            container.innerHTML = "<p>Nessun giocatore trovato.</p>";
+            return;
+        }
+
+        visiblePlayers.sort((a, b) => {
+            const aInactive = a.isActive === false ? 1 : 0;
+            const bInactive = b.isActive === false ? 1 : 0;
+            if (aInactive !== bInactive) return aInactive - bInactive;
+            return String(a.name || "").localeCompare(String(b.name || ""), "it");
         });
+
+        container.innerHTML = visiblePlayers
+            .map((player) => renderPlayerCard(player, findPlayerActor(inventorySnapshot, player), inventorySnapshot))
+            .join("");
+    } catch (error) {
+        console.error("Errore nel caricamento dei dati dei giocatori:", error);
+        container.innerHTML = '<p style="color: var(--status-dead);">Impossibile caricare i dati dei giocatori. Controlla la console per maggiori dettagli.</p>';
+    }
 });
