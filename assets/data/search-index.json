@@ -1,5 +1,5 @@
 {
-  "itemCount": 79,
+  "itemCount": 81,
   "items": [
     {
       "id": "item:cuore-di-albert",
@@ -13,6 +13,21 @@
         "Albert"
       ],
       "content": "Cuore di Albert; il file Foundry non contiene una descrizione meccanica. Peso indicato nel file Foundry: 8 kg. Nessuna proprietà meccanica definita nel file sorgente."
+    },
+    {
+      "id": "item:anello-di-protezione-mentale",
+      "type": "item",
+      "entityId": "anello-di-protezione-mentale",
+      "title": "Anello di Protezione Mentale",
+      "subtitle": "Oggetto meraviglioso | Non comune",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Non comune",
+        "Rabberduscolanderson"
+      ],
+      "content": ""
     },
     {
       "id": "player:apothecary",
@@ -368,6 +383,20 @@
         "family"
       ],
       "content": "Nino Olegna Membro della Famiglia Von T"
+    },
+    {
+      "id": "item:poesia-di-nino",
+      "type": "item",
+      "entityId": "poesia-di-nino",
+      "title": "Nino Olegna: Poesia",
+      "subtitle": "Bottino",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Bottino",
+        "Nino Olegna"
+      ],
+      "content": ""
     },
     {
       "id": "item:mantello-okbrax",
