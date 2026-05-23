@@ -1,5 +1,5 @@
 {
-  "itemCount": 81,
+  "itemCount": 82,
   "items": [
     {
       "id": "item:cuore-di-albert",
@@ -903,6 +903,21 @@
         "levelup"
       ],
       "content": "Continuate il vostro combattimento contro gli scheletri animati dopo che Valdor ha raccolto il libro, e riuscite ad uscirne vincitori senza perdite. Una volta sconfitti gli scheletri di Rosskar, Okbrax e Lumilla, il sacrofago all'interno della stanza si sblocca, rivelando al suo interno numerosi oggetti magici (armature e armi). Date un'occhiata veloce al libro e capite che questo contiene parti della storia dei Klaren, narrati con un linguaggio piuttosto arcaico. XP totali 8004 XP ciascuno 2001 level up 6"
+    },
+    {
+      "id": "item:nuovo-oggetto",
+      "type": "item",
+      "entityId": "nuovo-oggetto",
+      "title": "Sigaro Energetico",
+      "subtitle": "Oggetto meraviglioso | Molto raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Molto raro",
+        "Tokka"
+      ],
+      "content": ""
     },
     {
       "id": "item:specchio-rotto",
