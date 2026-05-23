@@ -12,7 +12,7 @@
         "item",
         "Albert"
       ],
-      "content": "Cuore di Albert; il file Foundry non contiene una descrizione meccanica. Peso indicato nel file Foundry: 8 kg. Nessuna proprietà meccanica definita nel file sorgente."
+      "content": "Cuore ancora intriso di magia, appartenuto ad Albert e bramato da Franky come possibile batteria arcana per dare vita al suo progetto. Voce di contesto popolata dai riferimenti di Franky e dalle sessioni. Il file Foundry non definisce bonus meccanici; peso indicato: 8 kg. Batteria Arcana Le voci raccolte indicano che il cuore di Albert pulsa ancora di magia e potrebbe funzionare come nucleo energetico per animare una creatura o un costrutto di carne. Interesse di X Dopo essere stato consegnato a X, il cuore è stato studiato insieme allo strano libro rubato a Franky, suggerendo un legame con r..."
     },
     {
       "id": "item:anello-di-protezione-mentale",
@@ -27,7 +27,7 @@
         "Non comune",
         "Rabberduscolanderson"
       ],
-      "content": ""
+      "content": "Anello che protegge la mente del portatore da lettura del pensiero, rilevazione della menzogna e identificazione magica della sua natura. Descrizione popolata dal dato Foundry \"Ring of Mind Shielding\". Schermo Mentale Mentre indossi l'anello, sei immune alla magia che permette ad altre creature di leggere i tuoi pensieri, determinare se stai mentendo, conoscere il tuo allineamento o conoscere il tuo tipo di creatura. Le creature possono comunicare telepaticamente con te solo se lo permetti. Anello Invisibile Azione Puoi usare un'azione per rendere invisibile l'anello. Torna visibile quando us..."
     },
     {
       "id": "player:apothecary",
@@ -54,7 +54,7 @@
         "Oggetto meraviglioso",
         "Raro"
       ],
-      "content": "Oggetto associato a resistenza necrotica; in Foundry deriva da Ring Mail of Necrotic Resistance. Nel file Foundry il nome identificato è \"Ring of Necrotic Resistance\", ma il nome non identificato è \"Bracciale Metallico\". Resistenza Necrotica Hai resistenza ai danni necrotici mentre indossi questo oggetto. Descrizione Non Identificata Appare come cuoio rinforzato da pesanti anelli metallici, pensato per proteggere dai colpi di spade e asce."
+      "content": "Bracciale/anello magico associato alla resistenza necrotica, manifestato come un ornamento metallico scuro e protettivo. Nel dato Foundry il nome identificato è \"Ring of Necrotic Resistance\", mentre la forma non identificata è \"Bracciale Metallico\". Resistenza Necrotica Hai resistenza ai danni necrotici mentre indossi questo oggetto. Nel dato Foundry identificato l'oggetto è un Ring of Necrotic Resistance. Descrizione Non Identificata Appare come cuoio rinforzato da pesanti anelli metallici, pensato per proteggere dai colpi di spade e asce."
     },
     {
       "id": "npc:deborah",
@@ -356,7 +356,7 @@
         "Oggetto meraviglioso",
         "Non comune"
       ],
-      "content": ""
+      "content": "Mantello protettivo che rafforza le difese del portatore con un bonus costante alla CA e ai tiri salvezza. Descrizione popolata dal dato Foundry \"Cloak of Protection\". Protezione Costante Mentre indossi questo mantello, ottieni un bonus di +1 alla Classe Armatura e ai tiri salvezza."
     },
     {
       "id": "npc:nino_olegna",
@@ -396,7 +396,7 @@
         "Bottino",
         "Nino Olegna"
       ],
-      "content": ""
+      "content": "Poesia ritrovata tra gli oggetti di Nino Olegna: un messaggio incompleto di vendetta, rancore familiare e minaccia velata verso Karla. Descrizione popolata dal dato Foundry \"Poesia\". Messaggio di Vendetta Il testo parla di un padre tradito, di un patto familiare infranto e di una vendetta legata alla tela, ai ragni e al ritorno dal buio. Testo Recuperato Documento incompleto Nel fondo della tomba, continuamente mi rigiravo, per quell'azione ignobile che da te non m'aspettavo. Ora dal buio ritorno, con in mano il mio cuore, da padre tradito, sento ancora il dolore. Un dolore antico, che in me ..."
     },
     {
       "id": "item:mantello-okbrax",
@@ -1080,7 +1080,7 @@
         "Oggetto meraviglioso",
         "Zara"
       ],
-      "content": "Un paio di pantofole animate e magiche legate all'equipaggiamento teatrale di Zara. Oggetto emerso e analizzato durante la Sessione 24. Proprieta non ancora catalogate Le pantofole sono state analizzate durante la Sessione 24 insieme ai guanti di Zara, ma le loro proprieta complete non sono ancora state riportate nel catalogo."
+      "content": "Pantofole di velluto incredibilmente soffici che accelerano il portatore come un Haste costante, ma con un contraccolpo fisico pesante. Descrizione popolata dal dato Foundry \"Pantofole di Zara\". Accelerazione Incessante Sempre attivo Mentre indossi queste pantofole sei costantemente sotto l'effetto di Haste. L'effetto non richiede concentrazione e termina immediatamente se smetti di indossarle. Contraccolpo di Stanchezza Fine dell'effetto Quando l'effetto di Haste termina, o se vieni incapacitato mentre indossi le pantofole, sei paralizzato per 1d4 round e subisci 1 livello di exhaustion. Una..."
     }
   ]
 }

@@ -1,6 +1,14 @@
 #!/usr/bin/env sh
 
 echo "[pre-commit] Running QA checks..."
+npm run check:webp-only
+STATUS=$?
+
+if [ $STATUS -ne 0 ]; then
+  echo "[pre-commit] Image format check failed. Commit aborted."
+  exit $STATUS
+fi
+
 npm run qa
 STATUS=$?
 

@@ -11,6 +11,7 @@
     "build:derived": "npm run build:search && npm run build:npc-recency && npm run build:home-recent && npm run build:foundry",
     "validate:data": "node scripts/validate_data.js",
     "check:encoding": "node scripts/check_encoding.js",
+    "check:webp-only": "node scripts/check_webp_only.js",
     "check:all": "npm run validate:data && npm run check:encoding",
     "qa": "npm run check:all && npm run build:search && npm run build:npc-recency && npm run build:home-recent",
     "hooks:run": "npm run qa",

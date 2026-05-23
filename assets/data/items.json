@@ -49,15 +49,25 @@
     "status": "identified",
     "icon": "fa-shoe-prints",
     "image": "img/items/zara-shoes.webp",
-    "summary": "Un paio di pantofole animate e magiche legate all'equipaggiamento teatrale di Zara.",
+    "summary": "Pantofole di velluto incredibilmente soffici che accelerano il portatore come un Haste costante, ma con un contraccolpo fisico pesante.",
     "properties": [
       {
-        "name": "Proprieta non ancora catalogate",
-        "charges": "",
-        "description": "Le pantofole sono state analizzate durante la Sessione 24 insieme ai guanti di Zara, ma le loro proprieta complete non sono ancora state riportate nel catalogo."
+        "name": "Accelerazione Incessante",
+        "charges": "Sempre attivo",
+        "description": "Mentre indossi queste pantofole sei costantemente sotto l'effetto di Haste. L'effetto non richiede concentrazione e termina immediatamente se smetti di indossarle."
+      },
+      {
+        "name": "Contraccolpo di Stanchezza",
+        "charges": "Fine dell'effetto",
+        "description": "Quando l'effetto di Haste termina, o se vieni incapacitato mentre indossi le pantofole, sei paralizzato per 1d4 round e subisci 1 livello di exhaustion. Una creatura immune a exhaustion ignora questi effetti negativi."
+      },
+      {
+        "name": "Logorio del Corpo",
+        "charges": "Sintonia prolungata",
+        "description": "Per ogni mese consecutivo in cui resti in sintonia con le pantofole, il tuo corpo invecchia di 1 anno."
       }
     ],
-    "notes": "Oggetto emerso e analizzato durante la Sessione 24.",
+    "notes": "Descrizione popolata dal dato Foundry \"Pantofole di Zara\".",
     "subtype": "Scarpe"
   },
   {
@@ -435,12 +445,12 @@
     "attunement": true,
     "status": "unidentified",
     "icon": "fa-ring",
-    "summary": "Oggetto associato a resistenza necrotica; in Foundry deriva da Ring Mail of Necrotic Resistance.",
+    "summary": "Bracciale/anello magico associato alla resistenza necrotica, manifestato come un ornamento metallico scuro e protettivo.",
     "properties": [
       {
         "name": "Resistenza Necrotica",
         "charges": "",
-        "description": "Hai resistenza ai danni necrotici mentre indossi questo oggetto."
+        "description": "Hai resistenza ai danni necrotici mentre indossi questo oggetto. Nel dato Foundry identificato l'oggetto è un Ring of Necrotic Resistance."
       },
       {
         "name": "Descrizione Non Identificata",
@@ -448,7 +458,7 @@
         "description": "Appare come cuoio rinforzato da pesanti anelli metallici, pensato per proteggere dai colpi di spade e asce."
       }
     ],
-    "notes": "Nel file Foundry il nome identificato è \"Ring of Necrotic Resistance\", ma il nome non identificato è \"Bracciale Metallico\".",
+    "notes": "Nel dato Foundry il nome identificato è \"Ring of Necrotic Resistance\", mentre la forma non identificata è \"Bracciale Metallico\".",
     "image": "img/items/necrotic_resistance.webp",
     "subtype": "Anello",
     "unidentifiedName": "Bracciale Metallico",
@@ -526,15 +536,20 @@
     "owner": "Albert",
     "status": "identified",
     "icon": "fa-heart",
-    "summary": "Cuore di Albert; il file Foundry non contiene una descrizione meccanica.",
+    "summary": "Cuore ancora intriso di magia, appartenuto ad Albert e bramato da Franky come possibile batteria arcana per dare vita al suo progetto.",
     "properties": [
       {
-        "name": "",
+        "name": "Batteria Arcana",
         "charges": "",
-        "description": "Nessuna proprietà meccanica definita nel file sorgente."
+        "description": "Le voci raccolte indicano che il cuore di Albert pulsa ancora di magia e potrebbe funzionare come nucleo energetico per animare una creatura o un costrutto di carne."
+      },
+      {
+        "name": "Interesse di X",
+        "charges": "",
+        "description": "Dopo essere stato consegnato a X, il cuore è stato studiato insieme allo strano libro rubato a Franky, suggerendo un legame con rituali di animazione e conoscenze necromantiche."
       }
     ],
-    "notes": "Peso indicato nel file Foundry: 8 kg.",
+    "notes": "Voce di contesto popolata dai riferimenti di Franky e dalle sessioni. Il file Foundry non definisce bonus meccanici; peso indicato: 8 kg.",
     "subtype": "Cuore",
     "image": "img/items/heart_albert.webp"
   },
@@ -763,8 +778,18 @@
     ],
     "type": "Oggetto meraviglioso",
     "rarity": "Non comune",
+    "attunement": true,
     "image": "img/items/cloak-of-protection.webp",
     "icon": "fa-wand-sparkles",
+    "summary": "Mantello protettivo che rafforza le difese del portatore con un bonus costante alla CA e ai tiri salvezza.",
+    "properties": [
+      {
+        "name": "Protezione Costante",
+        "charges": "",
+        "description": "Mentre indossi questo mantello, ottieni un bonus di +1 alla Classe Armatura e ai tiri salvezza."
+      }
+    ],
+    "notes": "Descrizione popolata dal dato Foundry \"Cloak of Protection\".",
     "subtype": "Mantello"
   },
   {
@@ -775,10 +800,30 @@
     ],
     "type": "Oggetto meraviglioso",
     "rarity": "Non comune",
+    "attunement": true,
     "image": "img/items/ring-of-mind-shielding.webp",
     "icon": "fa-wand-sparkles",
     "subtype": "Anello",
-    "owner": "Rabberduscolanderson"
+    "owner": "Rabberduscolanderson",
+    "summary": "Anello che protegge la mente del portatore da lettura del pensiero, rilevazione della menzogna e identificazione magica della sua natura.",
+    "properties": [
+      {
+        "name": "Schermo Mentale",
+        "charges": "",
+        "description": "Mentre indossi l'anello, sei immune alla magia che permette ad altre creature di leggere i tuoi pensieri, determinare se stai mentendo, conoscere il tuo allineamento o conoscere il tuo tipo di creatura. Le creature possono comunicare telepaticamente con te solo se lo permetti."
+      },
+      {
+        "name": "Anello Invisibile",
+        "charges": "Azione",
+        "description": "Puoi usare un'azione per rendere invisibile l'anello. Torna visibile quando usi un'altra azione per renderlo visibile, quando lo rimuovi o quando muori."
+      },
+      {
+        "name": "Custodia dell'Anima",
+        "charges": "Alla morte",
+        "description": "Se muori mentre indossi l'anello, la tua anima entra nell'anello, a meno che esso non ospiti già un'anima. Puoi restare nell'anello o partire per l'aldilà. Finché la tua anima è nell'anello, puoi comunicare telepaticamente con qualsiasi creatura che lo indossi, e il portatore non può impedirlo."
+      }
+    ],
+    "notes": "Descrizione popolata dal dato Foundry \"Ring of Mind Shielding\"."
   },
   {
     "id": "poesia-di-nino",
@@ -790,6 +835,31 @@
     "icon": "fa-wand-sparkles",
     "type": "Bottino",
     "subtype": "Documento",
-    "owner": "Nino Olegna"
+    "owner": "Nino Olegna",
+    "summary": "Poesia ritrovata tra gli oggetti di Nino Olegna: un messaggio incompleto di vendetta, rancore familiare e minaccia velata verso Karla.",
+    "properties": [
+      {
+        "name": "Messaggio di Vendetta",
+        "charges": "",
+        "description": "Il testo parla di un padre tradito, di un patto familiare infranto e di una vendetta legata alla tela, ai ragni e al ritorno dal buio."
+      },
+      {
+        "name": "Testo Recuperato",
+        "charges": "Documento incompleto",
+        "description": "Nel fondo della tomba, continuamente mi rigiravo, per quell'azione ignobile che da te non m'aspettavo. Ora dal buio ritorno, con in mano il mio cuore, da padre tradito, sento ancora il dolore. Un dolore antico, che in me non si placa, ingannato ed ucciso dalla mia figlia ingrata. Ma ascolta l'avviso che la bianca tela ti porta, perché qualcosa nel tuo piano stavolta è andata storta. Tra densi fili di tenebra sarai imprigionata, nessuna salvezza, nessuna pietà mostrata. Ti troveranno, lo sai... vedrai le loro zanne e la seta sarà la mia vendetta a prendere forma... e sarà completa. Karla, figlia ingrata, quel giorno il rispetto è mancato, il mio sangue è colato, ed il mio onore si è spezzato. Ma a chi spezza il sacro ed antico patto familiare, resta solo la notte, e i ragni che..."
+      }
+    ],
+    "notes": "Descrizione popolata dal dato Foundry \"Poesia\"."
+  },
+  {
+    "id": "nuovo-oggetto",
+    "name": "Sigaro Energetico",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Molto raro",
+    "image": "img/items/sigaro-energetico.webp",
+    "icon": "fa-wand-sparkles",
+    "subtype": "Sigaro",
+    "owner": "Tokka",
+    "unidentified": true
   }
 ]
