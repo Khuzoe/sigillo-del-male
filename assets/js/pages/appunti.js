@@ -729,8 +729,8 @@
     async function loadLinkableEntities() {
         const [searchIndex, items, creatures, players] = await Promise.all([
             dataService.fetchJson("../assets/data/search-index.json").catch(() => ({ items: [] })),
-            dataService.fetchJson("../assets/data/items.json").catch(() => []),
-            dataService.fetchJson("../assets/data/bestiary.json").catch(() => []),
+            loadDataCollection("items", "../assets/data/items.json"),
+            loadDataCollection("bestiary", "../assets/data/bestiary.json"),
             dataService.fetchJson("../assets/data/players.json").catch(() => [])
         ]);
 
@@ -758,7 +758,7 @@
                 label: player.name || player.id || "Giocatore",
                 meta: player.role || "Giocatore",
                 url: `characters/character.html?id=${encodeURIComponent(player.id || "")}&type=player`,
-                image: player.images?.avatar ? `../assets/${player.images.avatar}` : "",
+                image: player.images?.avatar || "",
                 icon: "fa-dice-d20"
             }))
             .sort(compareEntityLabels);
@@ -772,7 +772,7 @@
                 label: item.name || "Oggetto",
                 meta: [item.type, item.rarity, item.owner].filter(Boolean).join(" | "),
                 url: `oggetti.html#${encodeURIComponent(item.id || slugify(item.name))}`,
-                image: item.image ? `../assets/${item.image}` : "",
+                image: item.image || "",
                 icon: item.icon || "fa-wand-sparkles"
             }))
             .sort(compareEntityLabels);
@@ -789,11 +789,21 @@
                     label,
                     meta: [creature.category || "Bestiario", creature.details?.dndType].filter(Boolean).join(" | "),
                     url: "bestiario.html",
-                    image: creature.image ? `../assets/${creature.image}` : "",
+                    image: creature.image || "",
                     icon: "fa-book-dead"
                 };
             })
             .sort(compareEntityLabels);
+    }
+
+    async function loadDataCollection(collection, fallbackUrl) {
+        try {
+            const payload = await dataService.requestWorkerApi(`api/data/${collection}`);
+            if (Array.isArray(payload?.data)) return payload.data;
+        } catch (error) {
+            console.warn(`KV ${collection} non disponibile per appunti, uso JSON statico.`, error);
+        }
+        return dataService.fetchJson(fallbackUrl).catch(() => []);
     }
 
     function setEditorEnabled(enabled) {
@@ -1324,12 +1334,23 @@
     }
 
     function resolveImageUrl(path) {
-        const value = String(path || "").trim();
+        const value = normalizeStoredImagePath(path);
         if (!value) return "";
         if (/^(https?:|data:|blob:)/i.test(value)) return value;
         if (value.startsWith("media/")) return window.CriptaApp.urls.api(value);
         if (value.startsWith("/media/")) return window.CriptaApp.urls.api(value.slice(1));
         if (value.startsWith("assets/")) return `../${value}`;
+        return value;
+    }
+
+    function normalizeStoredImagePath(path) {
+        let value = String(path || "").trim().replace(/\\/g, "/");
+        if (!value) return "";
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        value = value.replace(/^(\.\.\/)+assets\//, "");
+        value = value.replace(/^\.\/assets\//, "");
+        value = value.replace(/^\/assets\//, "");
+        value = value.replace(/^img\/items\//, "media/items/");
         return value;
     }
 

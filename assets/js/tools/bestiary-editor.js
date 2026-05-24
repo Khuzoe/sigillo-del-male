@@ -63,7 +63,9 @@
         fileHandle: null,
         imageAdjustIndex: -1,
         adjustDrag: null,
-        wikiItems: []
+        wikiItems: [],
+        loadedVersion: null,
+        loadedUpdatedAt: null
     };
 
     const els = {};
@@ -97,6 +99,8 @@
         try {
             const loaded = await loadBestiaryData();
             state.creatures = loaded.creatures;
+            state.loadedVersion = loaded.version ?? null;
+            state.loadedUpdatedAt = loaded.updatedAt || null;
             if (!Array.isArray(state.creatures)) throw new Error('Formato bestiary.json non valido.');
             state.wikiItems = await loadWikiItems();
             state.selectedIndex = state.creatures.length ? 0 : -1;
@@ -118,7 +122,12 @@
             if (response.ok) {
                 const payload = await response.json();
                 if (Array.isArray(payload?.data)) {
-                    return { creatures: payload.data, source: payload.source || 'kv' };
+                    return {
+                        creatures: payload.data,
+                        source: payload.source || 'kv',
+                        version: Number(payload.version || 0),
+                        updatedAt: payload.updatedAt || null
+                    };
                 }
             }
         } catch (error) {
@@ -127,7 +136,7 @@
 
         const response = await fetch(DATA_URL);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return { creatures: await response.json(), source: 'static' };
+        return { creatures: await response.json(), source: 'static', version: 0, updatedAt: null };
     }
 
     function bindElements() {
@@ -333,6 +342,13 @@
         try {
             const draft = JSON.parse(window.localStorage.getItem(DRAFT_STORAGE_KEY) || 'null');
             if (!draft || !Array.isArray(draft.creatures)) return false;
+            if (!Number.isFinite(Number(draft.loadedVersion)) || Number(draft.loadedVersion) !== Number(state.loadedVersion ?? 0)) {
+                console.warn('Bozza editor bestiario ignorata: versione online diversa o sconosciuta.', {
+                    draftVersion: draft.loadedVersion,
+                    loadedVersion: state.loadedVersion
+                });
+                return false;
+            }
             state.creatures = draft.creatures;
             state.selectedIndex = Number.isInteger(draft.selectedIndex)
                 ? Math.min(Math.max(draft.selectedIndex, -1), state.creatures.length - 1)
@@ -349,6 +365,7 @@
             window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
                 updatedAt: new Date().toISOString(),
                 selectedIndex: state.selectedIndex,
+                loadedVersion: state.loadedVersion,
                 creatures: creatures || state.creatures
             }));
         } catch (error) {
@@ -474,11 +491,18 @@
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`
                 },
-                body: JSON.stringify({ data })
+                body: JSON.stringify({ data, expectedVersion: state.loadedVersion ?? 0 })
             });
             const payload = await response.json().catch(() => null);
             if (!response.ok || payload?.ok === false) {
                 throw new Error(payload?.error || `HTTP ${response.status}`);
+            }
+            state.loadedVersion = payload.version ?? state.loadedVersion;
+            state.loadedUpdatedAt = payload.updatedAt || state.loadedUpdatedAt;
+            try {
+                window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+            } catch (_) {
+                // Ignore storage errors.
             }
             setStatus(`Bestiario salvato online (${payload.count ?? data.length}). Versione KV ${payload.version ?? '?'}.`);
         } catch (error) {
@@ -760,7 +784,8 @@
         els.detailForm.querySelector('[data-detail-field="weight"]').value = formatMetricForEditor(creature.details?.weight, 'details.weight');
         els.detailForm.querySelector('[data-creature-field="hidden"]').checked = creature.hidden === true;
         els.detailForm.querySelector('[data-creature-field="discovered"]').checked = creature.discovered !== false;
-        els.detailForm.querySelector('[data-creature-list-field="foundryName"]').value = creatureListToText(creature.foundryName);
+        els.detailForm.querySelector('[data-creature-list-field="foundryName"]').value = creatureListToText(getCreatureFoundryNames(creature));
+        els.detailForm.querySelector('[data-creature-list-field="aliases"]').value = creatureListToText(creature.aliases);
         if (els.detailImagePreview) {
             els.detailImagePreview.src = resolveImageUrl(creature.image || 'img/ui/card.webp');
             els.detailImagePreview.alt = creature.name || '';
@@ -1075,7 +1100,12 @@
             const value = target.type === 'checkbox' ? target.checked : target.value;
             writeCreatureField(creature, creatureField, value);
         } else if (creatureListField) {
-            creature[creatureListField] = textToList(target.value);
+            if (creatureListField === 'foundryName') {
+                creature.foundryName = textToList(target.value);
+                delete creature.foundryNames;
+            } else {
+                creature[creatureListField] = textToList(target.value);
+            }
         } else if (listField) {
             creature.details[listField] = textToList(target.value);
         } else if (defenseField && target.dataset.defenseOption !== undefined) {
@@ -1262,8 +1292,13 @@
                 if (!query) return true;
                 return normalizeSearch([
                     creature.name,
+                    ...getCreatureFoundryNames(creature),
+                    ...creatureListToArray(creature.aliases),
                     creature.category,
                     creature.rank,
+                    creature.sourceCharacterId,
+                    creature.mysteryName,
+                    creature.mysteryDescription,
                     creature.details?.dndType,
                     creature.details?.description
                 ].filter(Boolean).join(' ')).includes(query);
@@ -1365,7 +1400,14 @@
         ['category', 'rank', 'sourceCharacterId', 'mysteryName', 'mysteryDescription'].forEach((key) => {
             if (creature[key] === undefined || creature[key] === '') delete creature[key];
         });
+        if (creature.foundryNames !== undefined) {
+            const merged = [...creatureListToArray(creature.foundryName), ...creatureListToArray(creature.foundryNames)]
+                .filter((value, index, list) => list.indexOf(value) === index);
+            creature.foundryName = merged.length ? merged : undefined;
+            delete creature.foundryNames;
+        }
         if (Array.isArray(creature.foundryName) && creature.foundryName.length === 0) delete creature.foundryName;
+        if (Array.isArray(creature.aliases) && creature.aliases.length === 0) delete creature.aliases;
         if (creature.hidden !== true) delete creature.hidden;
         if (creature.discovered !== false) delete creature.discovered;
 
@@ -1476,8 +1518,18 @@
     }
 
     function creatureListToText(value) {
-        if (Array.isArray(value)) return value.join('\n');
-        return value ? String(value) : '';
+        return creatureListToArray(value).join('\n');
+    }
+
+    function creatureListToArray(value) {
+        if (Array.isArray(value)) return value.map((entry) => String(entry || '').trim()).filter(Boolean);
+        const single = String(value || '').trim();
+        return single ? [single] : [];
+    }
+
+    function getCreatureFoundryNames(creature) {
+        return [...creatureListToArray(creature?.foundryName), ...creatureListToArray(creature?.foundryNames)]
+            .filter((value, index, list) => list.indexOf(value) === index);
     }
 
     function textToList(value) {

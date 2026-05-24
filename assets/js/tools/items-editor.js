@@ -50,7 +50,9 @@
         query: '',
         rarity: 'all',
         type: 'all',
-        fileHandle: null
+        fileHandle: null,
+        loadedVersion: null,
+        loadedUpdatedAt: null
     };
 
     const els = {};
@@ -82,6 +84,8 @@
         try {
             const loaded = await loadItemsData();
             state.items = loaded.items;
+            state.loadedVersion = loaded.version ?? null;
+            state.loadedUpdatedAt = loaded.updatedAt || null;
             if (!Array.isArray(state.items)) throw new Error('Formato items.json non valido.');
             state.selectedIndex = state.items.length ? 0 : -1;
             const restoredDraft = restoreDraft();
@@ -101,7 +105,12 @@
             if (response.ok) {
                 const payload = await response.json();
                 if (Array.isArray(payload?.data)) {
-                    return { items: payload.data, source: payload.source || 'kv' };
+                    return {
+                        items: payload.data,
+                        source: payload.source || 'kv',
+                        version: Number(payload.version || 0),
+                        updatedAt: payload.updatedAt || null
+                    };
                 }
             }
         } catch (error) {
@@ -110,7 +119,7 @@
 
         const response = await fetch(DATA_URL);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return { items: await response.json(), source: 'static' };
+        return { items: await response.json(), source: 'static', version: 0, updatedAt: null };
     }
 
     function bindElements() {
@@ -282,6 +291,13 @@
         try {
             const draft = JSON.parse(window.localStorage.getItem(DRAFT_STORAGE_KEY) || 'null');
             if (!draft || !Array.isArray(draft.items)) return false;
+            if (!Number.isFinite(Number(draft.loadedVersion)) || Number(draft.loadedVersion) !== Number(state.loadedVersion ?? 0)) {
+                console.warn('Bozza editor oggetti ignorata: versione online diversa o sconosciuta.', {
+                    draftVersion: draft.loadedVersion,
+                    loadedVersion: state.loadedVersion
+                });
+                return false;
+            }
             state.items = draft.items;
             state.selectedIndex = Number.isInteger(draft.selectedIndex)
                 ? Math.min(Math.max(draft.selectedIndex, -1), state.items.length - 1)
@@ -298,6 +314,7 @@
             window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
                 updatedAt: new Date().toISOString(),
                 selectedIndex: state.selectedIndex,
+                loadedVersion: state.loadedVersion,
                 items: items || state.items
             }));
         } catch (error) {
@@ -586,7 +603,12 @@
 
     function formatDetailFieldValue(item, key) {
         if (key === 'foundryNames' || key === 'aliases') {
-            return Array.isArray(item[key]) ? item[key].join('\n') : '';
+            if (key === 'foundryNames') {
+                return [...itemNameList(item.foundryNames), ...itemNameList(item.foundryName)]
+                    .filter((value, index, list) => list.indexOf(value) === index)
+                    .join('\n');
+            }
+            return itemNameList(item[key]).join('\n');
         }
         if (key === 'image') return formatImagePathForEditor(item.image);
         return item[key] || '';
@@ -895,11 +917,16 @@
                 if (!query) return true;
                 return normalizeSearch([
                     item.name,
+                    ...itemNameList(item.foundryNames),
+                    ...itemNameList(item.foundryName),
+                    ...itemNameList(item.aliases),
                     item.type,
                     item.subtype,
                     item.rarity,
                     item.owner,
                     item.summary,
+                    item.unidentifiedName,
+                    item.unidentifiedDescription,
                     item.notes,
                     ...searchableProperties.flatMap((property) => [
                         property.name,
@@ -956,6 +983,7 @@
                 .map((entry) => entry.trim())
                 .filter(Boolean);
             item[field] = values.length ? Array.from(new Set(values)) : undefined;
+            if (field === 'foundryNames') delete item.foundryName;
             return;
         }
         item[field] = String(value || '').trim() || undefined;
@@ -965,6 +993,12 @@
         ['id', 'name', 'type', 'subtype', 'rarity', 'owner', 'status', 'icon', 'image', 'summary', 'notes', 'unidentifiedName', 'unidentifiedDescription'].forEach((key) => {
             if (item[key] === undefined || item[key] === '') delete item[key];
         });
+        if (item.foundryName !== undefined) {
+            const merged = [...itemNameList(item.foundryNames), ...itemNameList(item.foundryName)]
+                .filter((value, index, list) => list.indexOf(value) === index);
+            item.foundryNames = merged.length ? merged : undefined;
+            delete item.foundryName;
+        }
         ['foundryNames', 'aliases'].forEach((key) => {
             if (!Array.isArray(item[key]) || !item[key].length) delete item[key];
         });
@@ -973,6 +1007,12 @@
         if (item.hidden !== true) delete item.hidden;
         item.properties = normalizeProperties(item.properties);
         if (item.properties.length === 0) delete item.properties;
+    }
+
+    function itemNameList(value) {
+        if (Array.isArray(value)) return value.map((entry) => String(entry || '').trim()).filter(Boolean);
+        const single = String(value || '').trim();
+        return single ? [single] : [];
     }
 
     function updateOutput({ commitActive = true } = {}) {
@@ -1062,12 +1102,14 @@
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`
                 },
-                body: JSON.stringify({ data })
+                body: JSON.stringify({ data, expectedVersion: state.loadedVersion ?? 0 })
             });
             const payload = await response.json().catch(() => null);
             if (!response.ok || payload?.ok === false) {
                 throw new Error(payload?.error || `HTTP ${response.status}`);
             }
+            state.loadedVersion = payload.version ?? state.loadedVersion;
+            state.loadedUpdatedAt = payload.updatedAt || state.loadedUpdatedAt;
             try {
                 window.localStorage.removeItem(DRAFT_STORAGE_KEY);
             } catch (_) {
