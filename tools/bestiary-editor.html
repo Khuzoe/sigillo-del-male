@@ -525,8 +525,17 @@
         }
     </style>
 </head>
-<body>
-    <main class="bestiary-editor-page">
+<body class="page-bestiary-editor">
+    <nav class="sidebar" id="sidebar-container"></nav>
+
+    <main class="main-content bestiary-editor-page">
+        <header class="hero-mini">
+            <div class="hero-title">
+                <h1>Editor Bestiario</h1>
+                <div class="subtitle">Modifica forme, mostri e anomalie registrate nella cripta</div>
+            </div>
+        </header>
+
         <div class="bestiary-editor-shell">
             <section class="bestiary-editor-main" aria-label="Tabella bestiario">
                 <header class="bestiary-editor-topbar">
@@ -680,6 +689,7 @@
         </div>
     </div>
 
+    <script src="../assets/js/layout.js"></script>
     <script src="../assets/js/tools/bestiary-editor.js"></script>
 </body>
 </html>

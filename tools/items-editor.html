@@ -77,6 +77,10 @@
             align-items: center;
         }
 
+        .items-editor-quick-select {
+            min-width: min(24rem, 100%);
+        }
+
         .items-editor-btn {
             min-height: 2.25rem;
             display: inline-flex;
@@ -399,6 +403,10 @@
             display: none;
         }
 
+        .items-editor-shell:not(.is-focus-mode) .items-editor-quick-select {
+            display: none;
+        }
+
         .items-editor-shell.is-focus-mode .items-editor-side {
             display: grid;
             grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
@@ -414,11 +422,11 @@
 
         .items-editor-shell.is-focus-mode .items-editor-output {
             grid-column: 1;
-            min-height: 18rem;
+            min-height: auto;
         }
 
         .items-editor-shell.is-focus-mode #json-output {
-            min-height: 14rem;
+            display: none;
         }
 
         @media (max-width: 1100px) {
@@ -452,8 +460,17 @@
         }
     </style>
 </head>
-<body>
-    <main class="items-editor-page">
+<body class="page-items-editor">
+    <nav class="sidebar" id="sidebar-container"></nav>
+
+    <main class="main-content items-editor-page">
+        <header class="hero-mini">
+            <div class="hero-title">
+                <h1>Editor Oggetti</h1>
+                <div class="subtitle">Modifica reliquie, strumenti e oggetti magici registrati nella cripta</div>
+            </div>
+        </header>
+
         <div class="items-editor-shell">
             <section class="items-editor-main" aria-label="Tabella oggetti">
                 <header class="items-editor-topbar">
@@ -463,6 +480,7 @@
                     </div>
                     <div class="items-editor-actions">
                         <a class="items-editor-btn" href="../pages/oggetti.html"><i class="fas fa-arrow-left"></i> Oggetti</a>
+                        <select class="items-editor-select items-editor-quick-select" id="item-picker" aria-label="Oggetto da modificare"></select>
                         <button class="items-editor-btn" id="add-item-btn" type="button"><i class="fas fa-plus"></i> Nuovo</button>
                         <button class="items-editor-btn" id="focus-mode-btn" type="button"><i class="fas fa-pen-to-square"></i> Scheda</button>
                         <button class="items-editor-btn" id="duplicate-item-btn" type="button"><i class="fas fa-copy"></i> Duplica</button>
@@ -619,6 +637,7 @@
         </div>
     </main>
 
+    <script src="../assets/js/layout.js"></script>
     <script src="../assets/js/tools/items-editor.js"></script>
 </body>
 </html>

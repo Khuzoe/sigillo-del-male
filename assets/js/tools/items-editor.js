@@ -120,6 +120,7 @@
             'focus-mode-btn',
             'duplicate-item-btn',
             'delete-item-btn',
+            'item-picker',
             'search-input',
             'rarity-filter',
             'type-filter',
@@ -168,11 +169,21 @@
             state.selectedIndex = state.items.length - 1;
             setFocusMode(true);
             renderAll();
-            setStatus('Nuovo oggetto aggiunto.');
+            focusPrimaryDetailField();
+            setStatus('Nuovo oggetto aggiunto. Compila la scheda e poi salva online.');
         });
 
         els.focusModeBtn?.addEventListener('click', () => {
             setFocusMode(!isFocusMode());
+        });
+
+        els.itemPicker?.addEventListener('change', (event) => {
+            const index = Number(event.target.value);
+            if (!Number.isInteger(index) || !state.items[index]) return;
+            commitActiveDetailField();
+            state.selectedIndex = index;
+            renderAll();
+            setFocusMode(true);
         });
 
         els.duplicateItemBtn?.addEventListener('click', () => {
@@ -234,7 +245,8 @@
     }
 
     function restoreFocusMode() {
-        return window.localStorage.getItem(FOCUS_MODE_STORAGE_KEY) === '1';
+        const saved = window.localStorage.getItem(FOCUS_MODE_STORAGE_KEY);
+        return saved === null ? true : saved === '1';
     }
 
     function setFocusMode(enabled) {
@@ -444,9 +456,26 @@
     function renderAll() {
         setFocusMode(restoreFocusMode());
         renderFilters();
+        renderItemPicker();
         renderTable();
         renderDetails();
         updateOutput({ commitActive: false });
+    }
+
+    function renderItemPicker() {
+        if (!els.itemPicker) return;
+        if (!state.items.length) {
+            els.itemPicker.innerHTML = '<option value="-1">Nessun oggetto</option>';
+            els.itemPicker.value = '-1';
+            return;
+        }
+        els.itemPicker.innerHTML = state.items.map((item, index) => {
+            const label = [item.name || 'Oggetto senza nome', item.rarity || '', item.type || '']
+                .filter(Boolean)
+                .join(' - ');
+            return `<option value="${index}">${escapeHtml(label)}</option>`;
+        }).join('');
+        els.itemPicker.value = String(Math.max(0, state.selectedIndex));
     }
 
     function renderFilters() {
@@ -683,6 +712,7 @@
         if (field === 'image') target.value = formatImagePathForEditor(item.image);
         pruneItem(item);
         renderDetails();
+        renderItemPicker();
         updateOutput();
         setStatus('Modifiche non salvate esportate nel JSON.');
     }
@@ -702,9 +732,18 @@
 
     async function applyPickedImageFile(row, index, file) {
         if (!file) return;
+        if (!Number.isInteger(index) || !state.items[index]) {
+            setStatus('Seleziona o crea un oggetto prima di caricare un’immagine.', 'error');
+            return;
+        }
         commitActiveTableField();
-        const path = await uploadImageFileToMediaBucket(file, state.items[index], index);
-        applyPickedImagePath(row, index, path);
+        commitActiveDetailField();
+        const item = state.items[index];
+        const outputName = buildWebpImageFileName(file, item);
+        const expectedPath = `media/items/${outputName}`;
+        applyPickedImagePath(row, index, expectedPath, { alreadySaved: false });
+        const path = await uploadImageFileToMediaBucket(file, item, index, outputName);
+        if (path) applyPickedImagePath(row, index, path);
     }
 
     function applyPickedImagePath(row, index, path, { alreadySaved = true } = {}) {
@@ -722,9 +761,10 @@
         if (pathInput) pathInput.value = formatImagePathForEditor(path);
         updatePreview();
         updateDetailImagePreview(item);
+        renderItemPicker();
         renderTable();
         updateOutput({ commitActive: false });
-        setStatus(`Immagine aggiornata: ${path}`);
+        setStatus(alreadySaved ? `Immagine aggiornata: ${path}` : `Immagine associata. Upload in corso: ${path}`);
     }
 
     async function pickDetailImage() {
@@ -810,6 +850,7 @@
         pruneItem(item);
         updatePreview();
         updateDetailImagePreview(item);
+        renderItemPicker();
         renderTable();
         updateOutput();
         setStatus('Modifiche non salvate esportate nel JSON.');
@@ -957,6 +998,23 @@
         pruneItem(item);
     }
 
+    function commitActiveDetailField() {
+        const field = document.activeElement;
+        if (!field?.dataset?.field || field.dataset.fileField) return;
+        if (!els.detailForm?.contains(field)) return;
+        const item = getSelectedItem();
+        if (!item) return;
+        writeItemField(item, field.dataset.field, field.type === 'checkbox' ? field.checked : field.value);
+        if (field.dataset.field === 'image') field.value = formatImagePathForEditor(item.image);
+        pruneItem(item);
+    }
+
+    function focusPrimaryDetailField() {
+        window.requestAnimationFrame(() => {
+            els.detailForm?.querySelector('[data-field="name"]')?.focus();
+        });
+    }
+
     function commitTableRow(row) {
         const index = Number(row?.dataset.index);
         const item = state.items[index];
@@ -1085,14 +1143,14 @@
         return `${ITEM_IMAGE_PREFIX}${rawPath.split('/').pop()}`;
     }
 
-    async function uploadImageFileToMediaBucket(file, item, index) {
+    async function uploadImageFileToMediaBucket(file, item, index, outputName = '') {
         try {
-            const outputName = buildWebpImageFileName(file, item);
-            const outputPath = `media/items/${outputName}`;
+            const finalOutputName = outputName || buildWebpImageFileName(file, item);
+            const outputPath = `media/items/${finalOutputName}`;
             setStatus(isWebpPath(file.name) ? 'Upload immagine su R2...' : 'Conversione WebP e upload su R2...');
             const blob = isWebpPath(file.name) ? file : await convertImageFileToWebpBlob(file);
             persistDraftWithImagePath(index, outputPath);
-            return await uploadWebpBlob(blob, outputName);
+            return await uploadWebpBlob(blob, finalOutputName);
         } catch (error) {
             console.error('Upload immagine R2 fallito:', error);
             setStatus(`Upload immagine fallito: ${error?.message || error}`, 'error');
