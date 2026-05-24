@@ -9,14 +9,10 @@ window.CriptaApp.onPageReady("bestiario", async () => {
     if (!grid) return;
 
     try {
-        const [bestiaryResponse, itemsResponse] = await Promise.all([
-            fetch("../assets/data/bestiary.json"),
-            fetch("../assets/data/items.json").catch(() => null)
+        const [creatures, items] = await Promise.all([
+            loadBestiaryData(),
+            loadItemsDataForBestiary()
         ]);
-        if (!bestiaryResponse.ok) throw new Error(`HTTP ${bestiaryResponse.status}`);
-
-        const creatures = await bestiaryResponse.json();
-        const items = itemsResponse?.ok ? await itemsResponse.json() : [];
         window.bestiaryItemsById = new Map((Array.isArray(items) ? items : [])
             .map((item) => [String(item.id || slugify(item.name || "")).trim(), item])
             .filter(([id]) => Boolean(id)));
@@ -47,6 +43,35 @@ window.CriptaApp.onPageReady("bestiario", async () => {
         grid.innerHTML = '<p class="bestiary-state bestiary-state--error">Impossibile caricare il bestiario.</p>';
     }
 });
+
+async function loadBestiaryData() {
+    try {
+        if (typeof window.CriptaApp?.api?.get === "function") {
+            const payload = await window.CriptaApp.api.get("api/data/bestiary");
+            if (Array.isArray(payload?.data)) return payload.data;
+        }
+    } catch (error) {
+        console.warn("KV bestiary non disponibile, uso JSON statico.", error);
+    }
+
+    const response = await fetch("../assets/data/bestiary.json");
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+}
+
+async function loadItemsDataForBestiary() {
+    try {
+        if (typeof window.CriptaApp?.api?.get === "function") {
+            const payload = await window.CriptaApp.api.get("api/data/items");
+            if (Array.isArray(payload?.data)) return payload.data;
+        }
+    } catch (error) {
+        console.warn("KV items non disponibile per bestiario, uso JSON statico.", error);
+    }
+
+    const response = await fetch("../assets/data/items.json").catch(() => null);
+    return response?.ok ? response.json() : [];
+}
 
 function resolveImageUrl(path) {
     const value = String(path || "").trim();

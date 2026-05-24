@@ -1,12 +1,16 @@
 (function () {
     const DATA_URL = '../assets/data/bestiary.json';
     const ITEMS_URL = '../assets/data/items.json';
+    const MEDIA_WORKER_URL = 'https://sigillo-api.khuzoe.workers.dev';
+    const DATA_API_URL = `${MEDIA_WORKER_URL}/api/data/bestiary`;
+    const ITEMS_API_URL = `${MEDIA_WORKER_URL}/api/data/items`;
+    const DISCORD_TOKEN_KEY = 'discord_jwt';
     const DB_NAME = 'cripta-bestiary-editor';
     const DB_VERSION = 1;
     const DB_STORE = 'file-handles';
     const BESTIARY_HANDLE_KEY = 'bestiary-json';
     const FILTER_STORAGE_KEY = 'cripta-bestiary-editor-filters';
-    const BESTIARY_IMAGE_PREFIX = 'img/creatures/bestiary/';
+    const BESTIARY_IMAGE_PREFIX = 'media/creatures/bestiary/';
     const RANK_OPTIONS = [
         ['', 'Normale'],
         ['mini_boss', 'Maggiore'],
@@ -71,21 +75,35 @@
         bindEvents();
 
         try {
-            const response = await fetch(DATA_URL);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            state.creatures = await response.json();
+            const loaded = await loadBestiaryData();
+            state.creatures = loaded.creatures;
             if (!Array.isArray(state.creatures)) throw new Error('Formato bestiary.json non valido.');
             state.wikiItems = await loadWikiItems();
             state.selectedIndex = state.creatures.length ? 0 : -1;
             renderAll();
-            const restoredHandle = await restoreLinkedJsonFile();
-            setStatus(restoredHandle
-                ? `${state.creatures.length} creature caricate. File collegato: ${restoredHandle.name}.`
-                : `${state.creatures.length} creature caricate.`);
+            setStatus(`${state.creatures.length} creature caricate da ${loaded.source === 'kv' ? 'KV online' : 'JSON statico'}.`);
         } catch (error) {
             console.error('Errore caricamento bestiario:', error);
-            setStatus('Impossibile caricare assets/data/bestiary.json.');
+            setStatus('Impossibile caricare il bestiario.', 'error');
         }
+    }
+
+    async function loadBestiaryData() {
+        try {
+            const response = await fetch(DATA_API_URL);
+            if (response.ok) {
+                const payload = await response.json();
+                if (Array.isArray(payload?.data)) {
+                    return { creatures: payload.data, source: payload.source || 'kv' };
+                }
+            }
+        } catch (error) {
+            console.warn('KV bestiary non disponibile, uso JSON statico.', error);
+        }
+
+        const response = await fetch(DATA_URL);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return { creatures: await response.json(), source: 'static' };
     }
 
     function bindElements() {
@@ -193,20 +211,7 @@
         els.imageAdjustFrame?.addEventListener('pointercancel', handleAdjustPointerUp);
         els.imageAdjustFrame?.addEventListener('wheel', handleAdjustWheel, { passive: false });
 
-        els.connectJsonBtn?.addEventListener('click', connectJsonFile);
-        els.saveJsonBtn?.addEventListener('click', saveJsonToFile);
-
-        els.copyJsonBtn?.addEventListener('click', async () => {
-            updateOutput();
-            try {
-                await navigator.clipboard.writeText(els.jsonOutput.value);
-                setStatus('JSON copiato negli appunti.');
-            } catch (_) {
-                els.jsonOutput.select();
-                document.execCommand('copy');
-                setStatus('JSON selezionato e copiato.');
-            }
-        });
+        els.saveJsonBtn?.addEventListener('click', saveOnlineData);
 
         els.downloadJsonBtn?.addEventListener('click', () => {
             updateOutput();
@@ -325,6 +330,51 @@
             }
             console.error('Errore salvataggio JSON:', error);
             setStatus('Impossibile salvare direttamente il JSON.', 'error');
+        }
+    }
+
+    async function saveOnlineData(event) {
+        updateOutput({ commitActive: event?.type === 'change' });
+        const token = readAuthToken();
+        if (!token) {
+            setStatus('Login richiesto: accedi come admin prima di salvare online.', 'error');
+            return;
+        }
+
+        let data;
+        try {
+            data = JSON.parse(els.jsonOutput.value);
+        } catch (_) {
+            setStatus('JSON non valido, impossibile salvare online.', 'error');
+            return;
+        }
+
+        try {
+            setStatus('Salvataggio online in corso...');
+            const response = await fetch(DATA_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ data })
+            });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || payload?.ok === false) {
+                throw new Error(payload?.error || `HTTP ${response.status}`);
+            }
+            setStatus(`Bestiario salvato online (${payload.count ?? data.length}). Versione KV ${payload.version ?? '?'}.`);
+        } catch (error) {
+            console.error('Errore salvataggio online bestiario:', error);
+            setStatus(`Salvataggio online fallito: ${error?.message || error}`, 'error');
+        }
+    }
+
+    function readAuthToken() {
+        try {
+            return window.localStorage.getItem(DISCORD_TOKEN_KEY) || '';
+        } catch (_) {
+            return '';
         }
     }
 
@@ -489,6 +539,18 @@
 
     async function loadWikiItems() {
         try {
+            const response = await fetch(ITEMS_API_URL);
+            if (response.ok) {
+                const payload = await response.json();
+                if (Array.isArray(payload?.data)) {
+                    return payload.data.filter((item) => item && item.name);
+                }
+            }
+        } catch (error) {
+            console.warn('KV items non disponibile per i drop wiki, uso JSON statico.', error);
+        }
+
+        try {
             const response = await fetch(ITEMS_URL);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const items = await response.json();
@@ -530,7 +592,7 @@
             return;
         }
 
-        els.previewImage.src = `../assets/${creature.image || ''}`;
+        els.previewImage.src = resolveImageUrl(creature.image || '');
         els.previewImage.alt = creature.name || '';
         els.previewImage.style.setProperty('--preview-x', `${normalizeNumber(creature.imageAdjust?.x, 50)}%`);
         els.previewImage.style.setProperty('--preview-y', `${normalizeNumber(creature.imageAdjust?.y, 50)}%`);
@@ -568,7 +630,7 @@
     function updatePreviewImage() {
         const creature = getSelectedCreature();
         if (!creature) return;
-        els.previewImage.src = `../assets/${creature.image || ''}`;
+        els.previewImage.src = resolveImageUrl(creature.image || '');
         els.previewImage.alt = creature.name || '';
         els.previewImage.style.setProperty('--preview-x', `${normalizeNumber(creature.imageAdjust?.x, 50)}%`);
         els.previewImage.style.setProperty('--preview-y', `${normalizeNumber(creature.imageAdjust?.y, 50)}%`);
@@ -586,7 +648,7 @@
         creature.imageAdjust.y = normalizeNumber(creature.imageAdjust.y, 50);
         creature.imageAdjust.size = normalizeNumber(creature.imageAdjust.size, 1);
 
-        els.imageAdjustPreview.src = `../assets/${creature.image || ''}`;
+        els.imageAdjustPreview.src = resolveImageUrl(creature.image || '');
         els.imageAdjustPreview.alt = creature.name || '';
         els.imageAdjustModal.hidden = false;
         syncAdjustControls(creature);
@@ -1202,9 +1264,22 @@
     function normalizeImagePathForData(value) {
         const path = String(value || '').trim().replace(/\\/g, '/');
         if (!path) return '';
+        if (path.startsWith('media/')) return path;
+        if (path.startsWith('/media/')) return path.slice(1);
+        if (/^https?:\/\//i.test(path)) return path;
         if (path.startsWith('assets/')) return path.slice('assets/'.length);
         if (path.startsWith('img/')) return path;
         return `${BESTIARY_IMAGE_PREFIX}${path}`;
+    }
+
+    function resolveImageUrl(path) {
+        const value = String(path || '').trim();
+        if (!value) return '';
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith('media/')) return `${MEDIA_WORKER_URL}/${value}`;
+        if (value.startsWith('/media/')) return `${MEDIA_WORKER_URL}${value}`;
+        if (value.startsWith('assets/')) return `../${value}`;
+        return `../assets/${value}`;
     }
 
     function normalizeNumber(value, fallback) {
@@ -1219,6 +1294,10 @@
         if (assetsIndex >= 0) {
             return webpPath.slice(assetsIndex + 'assets/'.length);
         }
+        const mediaIndex = rawPath.indexOf('media/creatures/bestiary/');
+        if (mediaIndex >= 0) {
+            return webpPath.slice(mediaIndex);
+        }
         const bestiaryIndex = rawPath.indexOf('img/creatures/bestiary/');
         if (bestiaryIndex >= 0) {
             return webpPath.slice(bestiaryIndex);
@@ -1227,7 +1306,7 @@
         if (imgIndex >= 0) {
             return webpPath.slice(imgIndex);
         }
-        return `img/creatures/bestiary/${webpPath.split('/').pop()}`;
+        return `${BESTIARY_IMAGE_PREFIX}${webpPath.split('/').pop()}`;
     }
 
     function structuredCloneSafe(value) {

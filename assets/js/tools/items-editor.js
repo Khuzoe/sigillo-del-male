@@ -1,6 +1,7 @@
 (function () {
     const DATA_URL = '../assets/data/items.json';
     const MEDIA_WORKER_URL = 'https://sigillo-api.khuzoe.workers.dev';
+    const DATA_API_URL = `${MEDIA_WORKER_URL}/api/data/items`;
     const DISCORD_TOKEN_KEY = 'discord_jwt';
     const DB_NAME = 'cripta-items-editor';
     const DB_VERSION = 1;
@@ -9,7 +10,7 @@
     const FILTER_STORAGE_KEY = 'cripta-items-editor-filters';
     const DRAFT_STORAGE_KEY = 'cripta-items-editor-draft';
     const FOCUS_MODE_STORAGE_KEY = 'cripta-items-editor-focus-mode';
-    const ITEM_IMAGE_PREFIX = 'img/items/';
+    const ITEM_IMAGE_PREFIX = 'media/items/';
     const TYPE_OPTIONS = [
         '',
         'Arma',
@@ -62,22 +63,37 @@
         bindEvents();
 
         try {
-            const response = await fetch(DATA_URL);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            state.items = await response.json();
+            const loaded = await loadItemsData();
+            state.items = loaded.items;
             if (!Array.isArray(state.items)) throw new Error('Formato items.json non valido.');
             state.selectedIndex = state.items.length ? 0 : -1;
             const restoredDraft = restoreDraft();
             renderAll();
-            const restoredHandle = await restoreLinkedJsonFile();
-            const statusParts = [`${state.items.length} oggetti caricati.`];
+            const statusParts = [`${state.items.length} oggetti caricati da ${loaded.source === 'kv' ? 'KV online' : 'JSON statico'}.`];
             if (restoredDraft) statusParts.push('Bozza locale ripristinata dopo reload.');
-            if (restoredHandle) statusParts.push(`File collegato: ${restoredHandle.name}.`);
             setStatus(statusParts.join(' '));
         } catch (error) {
             console.error('Errore caricamento oggetti:', error);
-            setStatus('Impossibile caricare assets/data/items.json.', 'error');
+            setStatus('Impossibile caricare gli oggetti.', 'error');
         }
+    }
+
+    async function loadItemsData() {
+        try {
+            const response = await fetch(DATA_API_URL);
+            if (response.ok) {
+                const payload = await response.json();
+                if (Array.isArray(payload?.data)) {
+                    return { items: payload.data, source: payload.source || 'kv' };
+                }
+            }
+        } catch (error) {
+            console.warn('KV items non disponibile, uso JSON statico.', error);
+        }
+
+        const response = await fetch(DATA_URL);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return { items: await response.json(), source: 'static' };
     }
 
     function bindElements() {
@@ -181,9 +197,7 @@
         window.addEventListener('dragover', preventFileDropNavigation);
         window.addEventListener('drop', preventFileDropNavigation);
 
-        els.connectJsonBtn?.addEventListener('click', connectJsonFile);
-        els.saveJsonBtn?.addEventListener('click', saveJsonToFile);
-        els.copyJsonBtn?.addEventListener('click', copyJson);
+        els.saveJsonBtn?.addEventListener('click', saveOnlineData);
         els.downloadJsonBtn?.addEventListener('click', downloadJson);
     }
 
@@ -851,7 +865,7 @@
             rarity: 'Sconosciuta',
             unidentified: false,
             attunement: false,
-            image: 'img/items/nuovo_oggetto.webp',
+            image: 'media/items/nuovo_oggetto.webp',
             icon: 'fa-wand-sparkles',
             summary: '',
             properties: [],
@@ -949,6 +963,48 @@
         }
     }
 
+    async function saveOnlineData(event) {
+        updateOutput({ commitActive: event?.type === 'change' });
+        const token = readAuthToken();
+        if (!token) {
+            setStatus('Login richiesto: accedi come admin prima di salvare online.', 'error');
+            return;
+        }
+
+        let data;
+        try {
+            data = JSON.parse(els.jsonOutput.value);
+        } catch (error) {
+            setStatus('JSON non valido, impossibile salvare online.', 'error');
+            return;
+        }
+
+        try {
+            setStatus('Salvataggio online in corso...');
+            const response = await fetch(DATA_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ data })
+            });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || payload?.ok === false) {
+                throw new Error(payload?.error || `HTTP ${response.status}`);
+            }
+            try {
+                window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+            } catch (_) {
+                // Ignore storage errors.
+            }
+            setStatus(`Oggetti salvati online (${payload.count ?? data.length}). Versione KV ${payload.version ?? '?'}.`);
+        } catch (error) {
+            console.error('Errore salvataggio online oggetti:', error);
+            setStatus(`Salvataggio online fallito: ${error?.message || error}`, 'error');
+        }
+    }
+
     function downloadJson() {
         updateOutput();
         const blob = new Blob([els.jsonOutput.value], { type: 'application/json' });
@@ -1003,6 +1059,8 @@
         const rawPath = String(file?.webkitRelativePath || file?.name || '').replace(/\\/g, '/');
         const assetsIndex = rawPath.indexOf('assets/');
         if (assetsIndex >= 0) return rawPath.slice(assetsIndex + 'assets/'.length);
+        const mediaIndex = rawPath.indexOf('media/items/');
+        if (mediaIndex >= 0) return rawPath.slice(mediaIndex);
         const itemsIndex = rawPath.indexOf('img/items/');
         if (itemsIndex >= 0) return rawPath.slice(itemsIndex);
         const imgIndex = rawPath.indexOf('img/');

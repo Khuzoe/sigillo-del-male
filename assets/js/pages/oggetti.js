@@ -8,9 +8,7 @@ window.CriptaApp.onPageReady("oggetti", async () => {
     if (!grid) return;
 
     try {
-        const response = await fetch("../assets/data/items.json");
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const items = filterVisibleItems(await response.json());
+        const items = filterVisibleItems(await loadItemsData());
         const state = {
             query: "",
             rarity: "all",
@@ -27,6 +25,21 @@ window.CriptaApp.onPageReady("oggetti", async () => {
         grid.innerHTML = '<p class="items-state items-state--error">Impossibile caricare gli oggetti.</p>';
     }
 });
+
+async function loadItemsData() {
+    try {
+        if (typeof window.CriptaApp?.api?.get === "function") {
+            const payload = await window.CriptaApp.api.get("api/data/items");
+            if (Array.isArray(payload?.data)) return payload.data;
+        }
+    } catch (error) {
+        console.warn("KV items non disponibile, uso JSON statico.", error);
+    }
+
+    const response = await fetch("../assets/data/items.json");
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+}
 
 const ITEM_TYPES = [
     { value: "Arma", icon: "fa-khanda" },

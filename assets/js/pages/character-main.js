@@ -396,6 +396,17 @@ function resolveSkillAssetPath(path) {
     return window.CriptaApp.urls.api(`${SKILLS_ASSET_BASE}${value}`);
 }
 
+function resolveCharacterAssetPath(imagePath) {
+    const value = String(imagePath || '').trim();
+    if (!value) return '';
+    if (/^(https?:|data:|blob:)/i.test(value)) return value;
+    if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
+    if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
+    if (value.startsWith('/')) return value;
+    if (value.startsWith('assets/')) return `../../${value}`;
+    return `../../assets/${value}`;
+}
+
 async function loadSkillsData() {
     if (skillsMemoryCache) return skillsMemoryCache;
     if (skillsRequestPromise) return skillsRequestPromise;
@@ -465,9 +476,20 @@ async function loadWikiItemsData() {
     if (wikiItemsRequestPromise) return wikiItemsRequestPromise;
 
     wikiItemsRequestPromise = (async () => {
-        const response = await fetch(WIKI_ITEMS_DATA_URL);
-        if (!response.ok) throw new Error(`Items wiki HTTP ${response.status}`);
-        const payload = await response.json();
+        let payload = null;
+        try {
+            if (typeof window.CriptaApp?.api?.get === 'function') {
+                const apiPayload = await window.CriptaApp.api.get('api/data/items');
+                if (Array.isArray(apiPayload?.data)) payload = apiPayload.data;
+            }
+        } catch (error) {
+            console.warn('KV items non disponibile per scheda giocatore, uso JSON statico.', error);
+        }
+        if (!payload) {
+            const response = await fetch(WIKI_ITEMS_DATA_URL);
+            if (!response.ok) throw new Error(`Items wiki HTTP ${response.status}`);
+            payload = await response.json();
+        }
         const list = Array.isArray(payload) ? payload : [];
         wikiItemsMemoryCache = window.WikiSpoiler
             ? window.WikiSpoiler.filterVisible(list)
@@ -646,7 +668,7 @@ function getWikiItemUrl(item) {
 
 function getWikiItemImageUrl(item) {
     if (!item || !item.image) return '';
-    return `../../assets/${item.image}`;
+    return resolveCharacterAssetPath(item.image);
 }
 
 function renderWikiItemThumb(item, className, label = 'Oggetto wiki') {
@@ -1976,14 +1998,7 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     function resolveImagePath(imagePath) {
-        const value = String(imagePath || '').trim();
-        if (!value) return '';
-        if (/^(https?:|data:|blob:)/i.test(value)) return value;
-        if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
-        if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
-        if (value.startsWith('/')) return value;
-        if (value.startsWith('assets/')) return `../../${value}`;
-        return `../../assets/${value}`;
+        return resolveCharacterAssetPath(imagePath);
     }
 
     function normalizeImageAdjust(adjust) {
