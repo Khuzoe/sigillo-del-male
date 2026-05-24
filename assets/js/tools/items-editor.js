@@ -54,8 +54,25 @@
     };
 
     const els = {};
+    let initializedRoot = null;
 
-    document.addEventListener('DOMContentLoaded', init);
+    bootWhenReady();
+    document.addEventListener('cripta:spa-ready', bootEditor);
+
+    function bootWhenReady() {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', bootEditor, { once: true });
+        } else {
+            bootEditor();
+        }
+    }
+
+    function bootEditor() {
+        const root = document.querySelector('.items-editor-page');
+        if (!root || root === initializedRoot) return;
+        initializedRoot = root;
+        init();
+    }
 
     async function init() {
         bindElements();

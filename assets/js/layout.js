@@ -226,6 +226,11 @@ function computeBasePathForUrl(url) {
     const parts = target.pathname.split("/").filter(Boolean);
     const file = parts[parts.length - 1] || "";
     if (!file || file === "index.html") return "";
+    const toolsIndex = parts.lastIndexOf("tools");
+    if (toolsIndex !== -1) {
+        const depthBelowTools = Math.max(0, parts.length - toolsIndex - 2);
+        return "../".repeat(depthBelowTools + 1);
+    }
     const pageIndex = parts.lastIndexOf("pages");
     if (pageIndex === -1) return "";
     const depthBelowPages = Math.max(0, parts.length - pageIndex - 2);
