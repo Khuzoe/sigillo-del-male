@@ -10,6 +10,8 @@
     const DB_STORE = 'file-handles';
     const BESTIARY_HANDLE_KEY = 'bestiary-json';
     const FILTER_STORAGE_KEY = 'cripta-bestiary-editor-filters';
+    const DRAFT_STORAGE_KEY = 'cripta-bestiary-editor-draft';
+    const FOCUS_MODE_STORAGE_KEY = 'cripta-bestiary-editor-focus-mode';
     const BESTIARY_IMAGE_PREFIX = 'media/creatures/bestiary/';
     const RANK_OPTIONS = [
         ['', 'Normale'],
@@ -88,6 +90,7 @@
     async function init() {
         bindElements();
         renderDefensePickers();
+        renderStaticDetailSelects();
         restoreFilters();
         bindEvents();
 
@@ -97,8 +100,12 @@
             if (!Array.isArray(state.creatures)) throw new Error('Formato bestiary.json non valido.');
             state.wikiItems = await loadWikiItems();
             state.selectedIndex = state.creatures.length ? 0 : -1;
+            const restoredDraft = restoreDraft();
             renderAll();
-            setStatus(`${state.creatures.length} creature caricate da ${loaded.source === 'kv' ? 'KV online' : 'JSON statico'}.`);
+            setFocusMode(restoreFocusMode());
+            const statusParts = [`${state.creatures.length} creature caricate da ${loaded.source === 'kv' ? 'KV online' : 'JSON statico'}.`];
+            if (restoredDraft) statusParts.push('Bozza locale ripristinata dopo reload.');
+            setStatus(statusParts.join(' '));
         } catch (error) {
             console.error('Errore caricamento bestiario:', error);
             setStatus('Impossibile caricare il bestiario.', 'error');
@@ -127,8 +134,10 @@
         [
             'editor-status',
             'add-creature-btn',
+            'focus-mode-btn',
             'duplicate-creature-btn',
             'delete-creature-btn',
+            'creature-picker',
             'search-input',
             'category-filter',
             'rank-filter',
@@ -140,6 +149,10 @@
             'preview-image',
             'preview-name',
             'preview-meta',
+            'detail-image-dropzone',
+            'detail-image-preview',
+            'detail-image-path',
+            'detail-image-file',
             'json-output',
             'connect-json-btn',
             'save-json-btn',
@@ -185,8 +198,23 @@
             const creature = createEmptyCreature();
             state.creatures.push(creature);
             state.selectedIndex = state.creatures.length - 1;
+            setFocusMode(true);
             renderAll();
-            setStatus('Nuova creatura aggiunta.');
+            focusPrimaryDetailField();
+            setStatus('Nuova creatura aggiunta. Compila la scheda e poi salva online.');
+        });
+
+        els.focusModeBtn?.addEventListener('click', () => {
+            setFocusMode(!isFocusMode());
+        });
+
+        els.creaturePicker?.addEventListener('change', (event) => {
+            const index = Number(event.target.value);
+            if (!Number.isInteger(index) || !state.creatures[index]) return;
+            commitActiveDetailField();
+            state.selectedIndex = index;
+            renderAll();
+            setFocusMode(true);
         });
 
         els.duplicateCreatureBtn?.addEventListener('click', () => {
@@ -219,6 +247,13 @@
         els.detailForm?.addEventListener('input', handleDetailInput);
         els.detailForm?.addEventListener('change', handleDetailInput);
         els.detailForm?.addEventListener('click', handleDetailClick);
+        els.detailImageDropzone?.addEventListener('click', () => pickDetailImage());
+        els.detailImageFile?.addEventListener('change', handleDetailImageFile);
+        els.detailImageDropzone?.addEventListener('dragover', handleDetailImageDrag);
+        els.detailImageDropzone?.addEventListener('dragleave', handleDetailImageDrag);
+        els.detailImageDropzone?.addEventListener('drop', handleDetailImageDrop);
+        window.addEventListener('dragover', preventFileDropNavigation);
+        window.addEventListener('drop', preventFileDropNavigation);
         els.imageAdjustModal?.addEventListener('input', handleAdjustInput);
         els.imageAdjustModal?.addEventListener('change', handleAdjustInput);
         els.imageAdjustModal?.addEventListener('click', handleAdjustClick);
@@ -266,6 +301,71 @@
         } catch (_) {
             // Ignore storage errors.
         }
+    }
+
+    function isFocusMode() {
+        return document.querySelector('.bestiary-editor-shell')?.classList.contains('is-focus-mode') === true;
+    }
+
+    function restoreFocusMode() {
+        const saved = window.localStorage.getItem(FOCUS_MODE_STORAGE_KEY);
+        return saved === null ? true : saved === '1';
+    }
+
+    function setFocusMode(enabled) {
+        const shell = document.querySelector('.bestiary-editor-shell');
+        shell?.classList.toggle('is-focus-mode', enabled);
+        if (els.focusModeBtn) {
+            els.focusModeBtn.innerHTML = enabled
+                ? '<i class="fas fa-table-list"></i> Tabella'
+                : '<i class="fas fa-pen-to-square"></i> Scheda';
+            els.focusModeBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+            els.focusModeBtn.title = enabled ? 'Torna alla tabella bestiario' : 'Usa tutta la pagina per la scheda creatura';
+        }
+        try {
+            window.localStorage.setItem(FOCUS_MODE_STORAGE_KEY, enabled ? '1' : '0');
+        } catch (_) {
+            // Ignore storage errors.
+        }
+    }
+
+    function restoreDraft() {
+        try {
+            const draft = JSON.parse(window.localStorage.getItem(DRAFT_STORAGE_KEY) || 'null');
+            if (!draft || !Array.isArray(draft.creatures)) return false;
+            state.creatures = draft.creatures;
+            state.selectedIndex = Number.isInteger(draft.selectedIndex)
+                ? Math.min(Math.max(draft.selectedIndex, -1), state.creatures.length - 1)
+                : (state.creatures.length ? 0 : -1);
+            return true;
+        } catch (error) {
+            console.warn('Bozza editor bestiario non valida, ignorata.', error);
+            return false;
+        }
+    }
+
+    function persistDraft(creatures = null) {
+        try {
+            window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+                updatedAt: new Date().toISOString(),
+                selectedIndex: state.selectedIndex,
+                creatures: creatures || state.creatures
+            }));
+        } catch (error) {
+            console.warn('Impossibile salvare la bozza editor bestiario.', error);
+        }
+    }
+
+    function persistDraftWithImagePath(index, path) {
+        const creatures = state.creatures.map((creature, creatureIndex) => {
+            const copy = structuredCloneSafe(creature);
+            if (creatureIndex === index) {
+                copy.image = path;
+                pruneCreature(copy);
+            }
+            return copy;
+        });
+        persistDraft(creatures);
     }
 
     async function connectJsonFile() {
@@ -466,8 +566,23 @@
     function renderAll() {
         renderFilters();
         renderTable();
+        renderCreaturePicker();
         renderDetails();
         updateOutput();
+    }
+
+    function renderCreaturePicker() {
+        if (!els.creaturePicker) return;
+        if (!state.creatures.length) {
+            els.creaturePicker.innerHTML = '<option value="-1">Nessuna creatura</option>';
+            els.creaturePicker.value = '-1';
+            return;
+        }
+        els.creaturePicker.innerHTML = state.creatures.map((creature, index) => {
+            const label = [creature.name || 'Creatura senza nome', creature.category].filter(Boolean).join(' | ');
+            return `<option value="${index}">${escapeHtml(label)}</option>`;
+        }).join('');
+        els.creaturePicker.value = String(Math.max(0, state.selectedIndex));
     }
 
     function renderFilters() {
@@ -554,6 +669,22 @@
         });
     }
 
+    function renderStaticDetailSelects() {
+        const rankSelect = document.getElementById('field-rank');
+        if (rankSelect) {
+            rankSelect.innerHTML = RANK_OPTIONS.map(([value, label]) => `
+                <option value="${escapeHtml(value)}">${escapeHtml(label || 'Normale')}</option>
+            `).join('');
+        }
+
+        const typeSelect = document.getElementById('field-type');
+        if (typeSelect) {
+            typeSelect.innerHTML = TYPE_OPTIONS.map((type) => `
+                <option value="${escapeHtml(type)}">${escapeHtml(type || 'Tipo vuoto')}</option>
+            `).join('');
+        }
+    }
+
     async function loadWikiItems() {
         try {
             const response = await fetch(ITEMS_API_URL);
@@ -593,10 +724,11 @@
 
     function renderDetails() {
         const creature = getSelectedCreature();
-        const fields = els.detailForm.querySelectorAll('[data-detail-field], [data-creature-field], [data-list-field], [data-complex-field], [data-defense-option]');
+        const fields = els.detailForm.querySelectorAll('[data-detail-field], [data-creature-field], [data-creature-list-field], [data-list-field], [data-complex-field], [data-defense-option]');
         fields.forEach((field) => {
             field.disabled = !creature;
         });
+        if (els.detailImageDropzone) els.detailImageDropzone.disabled = !creature;
 
         if (!creature) {
             els.previewImage.removeAttribute('src');
@@ -606,6 +738,8 @@
                 if (field.type !== 'checkbox') field.value = '';
             });
             els.detailForm.querySelectorAll('[data-defense-option]').forEach((field) => { field.checked = false; });
+            if (els.detailImagePreview) els.detailImagePreview.src = '../assets/img/ui/card.webp';
+            if (els.detailImagePath) els.detailImagePath.textContent = 'Nessuna immagine selezionata.';
             return;
         }
 
@@ -617,6 +751,23 @@
         els.previewName.textContent = creature.name || 'Creatura senza nome';
         els.previewMeta.textContent = [creature.category || 'Senza categoria', creature.details?.dndType || 'Tipo ignoto'].join(' | ');
 
+        els.detailForm.querySelector('[data-creature-field="name"]').value = creature.name || '';
+        els.detailForm.querySelector('[data-creature-field="category"]').value = creature.category || '';
+        els.detailForm.querySelector('[data-creature-field="rank"]').value = creature.rank || '';
+        els.detailForm.querySelector('[data-detail-field="dndType"]').value = creature.details?.dndType || '';
+        els.detailForm.querySelector('[data-detail-field="size"]').value = creature.details?.size || '';
+        els.detailForm.querySelector('[data-detail-field="height"]').value = formatMetricForEditor(creature.details?.height, 'details.height');
+        els.detailForm.querySelector('[data-detail-field="weight"]').value = formatMetricForEditor(creature.details?.weight, 'details.weight');
+        els.detailForm.querySelector('[data-creature-field="hidden"]').checked = creature.hidden === true;
+        els.detailForm.querySelector('[data-creature-field="discovered"]').checked = creature.discovered !== false;
+        els.detailForm.querySelector('[data-creature-list-field="foundryName"]').value = creatureListToText(creature.foundryName);
+        if (els.detailImagePreview) {
+            els.detailImagePreview.src = resolveImageUrl(creature.image || 'img/ui/card.webp');
+            els.detailImagePreview.alt = creature.name || '';
+        }
+        if (els.detailImagePath) {
+            els.detailImagePath.textContent = creature.image || 'Nessuna immagine selezionata.';
+        }
         els.detailForm.querySelector('[data-detail-field="description"]').value = creature.details?.description || '';
         els.detailForm.querySelector('[data-creature-field="sourceCharacterId"]').value = creature.sourceCharacterId || '';
         els.detailForm.querySelector('[data-creature-field="mysteryName"]').value = creature.mysteryName || '';
@@ -653,6 +804,16 @@
         els.previewImage.style.setProperty('--preview-y', `${normalizeNumber(creature.imageAdjust?.y, 50)}%`);
         els.previewImage.style.setProperty('--preview-size', normalizeNumber(creature.imageAdjust?.size, 1));
         updatePreview();
+    }
+
+    function updateDetailImagePreview(creature) {
+        if (els.detailImagePreview) {
+            els.detailImagePreview.src = resolveImageUrl(creature?.image || 'img/ui/card.webp');
+            els.detailImagePreview.alt = creature?.name || '';
+        }
+        if (els.detailImagePath) {
+            els.detailImagePath.textContent = creature?.image || 'Nessuna immagine selezionata.';
+        }
     }
 
     function openImageAdjustModal(index) {
@@ -737,7 +898,7 @@
                         }
                     ]
                 });
-                applyPickedImagePath(row, index, normalizeAssetPath({ name: handle.name }));
+                applyPickedImageFile(row, index, await handle.getFile());
                 return;
             } catch (error) {
                 if (error?.name !== 'AbortError') {
@@ -792,23 +953,102 @@
         const creature = state.creatures[index];
         if (!row || !creature) return;
 
-        applyPickedImagePath(row, index, normalizeAssetPath(target.files[0]));
+        applyPickedImageFile(row, index, target.files[0]);
+        target.value = '';
     }
 
-    function applyPickedImagePath(row, index, path) {
+    async function applyPickedImageFile(row, index, file) {
+        if (!file) return;
+        if (!Number.isInteger(index) || !state.creatures[index]) {
+            setStatus('Seleziona o crea una creatura prima di caricare un\'immagine.', 'error');
+            return;
+        }
+        commitActiveTableField();
+        commitActiveDetailField();
         const creature = state.creatures[index];
-        if (!row || !creature || !path) return;
+        const outputName = buildWebpImageFileName(file, creature);
+        const expectedPath = `${BESTIARY_IMAGE_PREFIX}${outputName}`;
+        applyPickedImagePath(row, index, expectedPath, { alreadySaved: false });
+        const path = await uploadImageFileToMediaBucket(file, creature, index, outputName);
+        if (path) applyPickedImagePath(row, index, path);
+    }
+
+    function applyPickedImagePath(row, index, path, { alreadySaved = true } = {}) {
+        const creature = state.creatures[index];
+        if (!creature || !path) return;
+        if (!isWebpPath(path)) {
+            setStatus('Immagine non applicata: conversione WebP non riuscita.', 'error');
+            return;
+        }
 
         writeCreatureField(creature, 'image', path);
         state.selectedIndex = index;
         pruneCreature(creature);
-        const pathInput = row.querySelector('[data-field="image"]');
+        const pathInput = row?.querySelector('[data-field="image"]');
         if (pathInput) {
             pathInput.value = formatImagePathForEditor(path);
         }
         updatePreviewImage();
+        updateDetailImagePreview(creature);
+        renderCreaturePicker();
+        renderTable();
         updateOutput({ commitActive: false });
-        setStatus(`Path immagine aggiornato: ${path}`);
+        setStatus(alreadySaved ? `Immagine aggiornata: ${path}` : `Immagine associata. Upload in corso: ${path}`);
+    }
+
+    async function pickDetailImage() {
+        const creature = getSelectedCreature();
+        if (!creature) return;
+
+        if (typeof window.showOpenFilePicker === 'function') {
+            try {
+                const [handle] = await window.showOpenFilePicker({
+                    multiple: false,
+                    types: [{
+                        description: 'Immagini',
+                        accept: { 'image/webp': ['.webp'], 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.avif'] }
+                    }]
+                });
+                applyPickedImageFile(null, state.selectedIndex, await handle.getFile());
+                return;
+            } catch (error) {
+                if (error?.name === 'AbortError') return;
+                console.warn('Picker immagini non disponibile, uso input file.', error);
+            }
+        }
+
+        els.detailImageFile?.click();
+    }
+
+    function handleDetailImageFile(event) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        applyPickedImageFile(null, state.selectedIndex, file);
+        event.target.value = '';
+    }
+
+    function handleDetailImageDrag(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.type === 'dragover') {
+            els.detailImageDropzone?.classList.add('is-dragging');
+        } else {
+            els.detailImageDropzone?.classList.remove('is-dragging');
+        }
+    }
+
+    function handleDetailImageDrop(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        els.detailImageDropzone?.classList.remove('is-dragging');
+        const file = event.dataTransfer?.files?.[0];
+        if (!file) return;
+        applyPickedImageFile(null, state.selectedIndex, file);
+    }
+
+    function preventFileDropNavigation(event) {
+        if (!Array.from(event.dataTransfer?.types || []).includes('Files')) return;
+        event.preventDefault();
     }
 
     function handleDetailInput(event) {
@@ -819,14 +1059,23 @@
         const target = event.target;
         const detailField = target.dataset.detailField;
         const creatureField = target.dataset.creatureField;
+        const creatureListField = target.dataset.creatureListField;
         const listField = target.dataset.listField;
         const complexField = target.dataset.complexField;
         const defenseField = target.closest('[data-defense-field]')?.dataset.defenseField;
 
         if (detailField) {
-            writeCreatureField(creature, `details.${detailField}`, target.value);
+            const fieldPath = `details.${detailField}`;
+            const value = target.type === 'checkbox' ? target.checked : target.value;
+            writeCreatureField(creature, fieldPath, value, { normalizeMetric: event.type === 'change' });
+            if (event.type === 'change' && isMetricField(fieldPath)) {
+                target.value = formatMetricForEditor(readCreatureField(creature, fieldPath), fieldPath);
+            }
         } else if (creatureField) {
-            writeCreatureField(creature, creatureField, target.value);
+            const value = target.type === 'checkbox' ? target.checked : target.value;
+            writeCreatureField(creature, creatureField, value);
+        } else if (creatureListField) {
+            creature[creatureListField] = textToList(target.value);
         } else if (listField) {
             creature.details[listField] = textToList(target.value);
         } else if (defenseField && target.dataset.defenseOption !== undefined) {
@@ -839,6 +1088,7 @@
 
         pruneCreature(creature);
         updatePreview();
+        renderCreaturePicker();
         updateOutput();
         setStatus('Modifiche non salvate esportate nel JSON.');
     }
@@ -1027,7 +1277,7 @@
     function createEmptyCreature() {
         return {
             name: 'Nuova Creatura',
-            image: 'img/creatures/bestiary/nuova_creatura.webp',
+            image: `${BESTIARY_IMAGE_PREFIX}nuova_creatura.webp`,
             imageAdjust: { x: 50, y: 50 },
             details: {
                 description: '',
@@ -1115,6 +1365,7 @@
         ['category', 'rank', 'sourceCharacterId', 'mysteryName', 'mysteryDescription'].forEach((key) => {
             if (creature[key] === undefined || creature[key] === '') delete creature[key];
         });
+        if (Array.isArray(creature.foundryName) && creature.foundryName.length === 0) delete creature.foundryName;
         if (creature.hidden !== true) delete creature.hidden;
         if (creature.discovered !== false) delete creature.discovered;
 
@@ -1143,7 +1394,36 @@
             pruneCreature(copy);
             return copy;
         });
+        persistDraft(cleanCreatures);
         els.jsonOutput.value = `${JSON.stringify(cleanCreatures, null, 2)}\n`;
+    }
+
+    function commitActiveDetailField() {
+        const field = document.activeElement;
+        if (!field?.dataset || field.dataset.fileField) return;
+        if (!els.detailForm?.contains(field)) return;
+        const creature = getSelectedCreature();
+        if (!creature) return;
+
+        const detailField = field.dataset.detailField;
+        const creatureField = field.dataset.creatureField;
+        const creatureListField = field.dataset.creatureListField;
+        if (detailField) {
+            const path = `details.${detailField}`;
+            writeCreatureField(creature, path, field.type === 'checkbox' ? field.checked : field.value, { normalizeMetric: true });
+            if (isMetricField(path)) field.value = formatMetricForEditor(readCreatureField(creature, path), path);
+        } else if (creatureField) {
+            writeCreatureField(creature, creatureField, field.type === 'checkbox' ? field.checked : field.value);
+        } else if (creatureListField) {
+            creature[creatureListField] = textToList(field.value);
+        }
+        pruneCreature(creature);
+    }
+
+    function focusPrimaryDetailField() {
+        window.requestAnimationFrame(() => {
+            els.detailForm?.querySelector('[data-creature-field="name"]')?.focus();
+        });
     }
 
     function commitActiveTableField() {
@@ -1193,6 +1473,11 @@
 
     function listToText(value) {
         return Array.isArray(value) ? value.join('\n') : '';
+    }
+
+    function creatureListToText(value) {
+        if (Array.isArray(value)) return value.join('\n');
+        return value ? String(value) : '';
     }
 
     function textToList(value) {
@@ -1324,6 +1609,93 @@
             return webpPath.slice(imgIndex);
         }
         return `${BESTIARY_IMAGE_PREFIX}${webpPath.split('/').pop()}`;
+    }
+
+    async function uploadImageFileToMediaBucket(file, creature, index, outputName = '') {
+        try {
+            const finalOutputName = outputName || buildWebpImageFileName(file, creature);
+            const outputPath = `${BESTIARY_IMAGE_PREFIX}${finalOutputName}`;
+            setStatus(isWebpPath(file.name) ? 'Upload immagine su R2...' : 'Conversione WebP e upload su R2...');
+            const blob = isWebpPath(file.name) ? file : await convertImageFileToWebpBlob(file);
+            persistDraftWithImagePath(index, outputPath);
+            return await uploadWebpBlob(blob, finalOutputName);
+        } catch (error) {
+            console.error('Upload immagine bestiario R2 fallito:', error);
+            setStatus(`Upload immagine fallito: ${error?.message || error}`, 'error');
+            return '';
+        }
+    }
+
+    async function convertImageFileToWebpBlob(file) {
+        const bitmap = await createImageBitmap(file);
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const context = canvas.getContext('2d');
+        context.drawImage(bitmap, 0, 0);
+        bitmap.close?.();
+
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    reject(new Error('Il browser non ha prodotto un file WebP.'));
+                    return;
+                }
+                resolve(blob);
+            }, 'image/webp', 0.88);
+        });
+    }
+
+    async function uploadWebpBlob(blob, fileName) {
+        const token = readAuthToken();
+        if (!token) {
+            throw new Error('Login richiesto: accedi alla wiki prima di caricare immagini.');
+        }
+
+        const form = new FormData();
+        form.set('folder', 'creatures/bestiary');
+        form.set('filename', fileName);
+        form.set('file', new File([blob], fileName, { type: 'image/webp' }));
+
+        const response = await fetch(`${MEDIA_WORKER_URL}/media/upload?folder=creatures/bestiary`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+            body: form
+        });
+
+        let payload = null;
+        try {
+            payload = await response.json();
+        } catch (_) {
+            payload = null;
+        }
+
+        if (!response.ok || !payload?.path) {
+            throw new Error(payload?.error || `HTTP ${response.status}`);
+        }
+
+        return payload.path;
+    }
+
+    function buildWebpImageFileName(file, creature) {
+        const originalName = String(file?.name || '').replace(/\.[^.]+$/, '');
+        const base = slugify(creature?.name || originalName || 'creatura');
+        return `${base || 'creatura'}.webp`;
+    }
+
+    function isWebpPath(path) {
+        return /\.webp$/i.test(String(path || '').trim());
+    }
+
+    function slugify(value) {
+        return String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
     }
 
     function structuredCloneSafe(value) {

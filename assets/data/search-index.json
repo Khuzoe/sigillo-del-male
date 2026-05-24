@@ -1,5 +1,5 @@
 {
-  "itemCount": 83,
+  "itemCount": 84,
   "items": [
     {
       "id": "item:cuore-di-albert",
@@ -261,6 +261,20 @@
         "Ginevra"
       ],
       "content": "Stivali pesanti che aumentano la CA, rendono il portatore inarrestabile su terreno solido e possono convertire PF temporanei in movimento. Parte dell’equipaggiamento di Ginevra. Difesa Pesante Ottieni un bonus di +1 alla tua CA. Peso degli Stivali Mentre li indossi, la tua velocità di movimento si riduce di 10, a meno che la tua Forza non sia pari o superiore a 20. Inarrestabile Se sei in piedi su una superficie solida, sei immune a terreno difficile, spostamento forzato, condizione prono e non puoi essere sollevato da terra contro la tua volontà. Se un effetto impedisce il tuo movimento, com..."
+    },
+    {
+      "id": "item:globo-d-anima",
+      "type": "item",
+      "entityId": "globo-d-anima",
+      "title": "Globo d'Anima",
+      "subtitle": "Oggetto meraviglioso | Artefatto",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Artefatto"
+      ],
+      "content": "Globo traslucido che lega e custodisce l'anima della creatura in sintonia, permettendole di tornare in vita dopo 33 giorni. Oggetto artefatto homebrew. L'immagine prevista e media/items/globo-d-anima.webp. Sintonia Eccezionale Mentre sei in sintonia con il Globo d'Anima, esso non conta contro il numero massimo di oggetti magici con cui puoi essere in sintonia. La sintonia non termina a causa della distanza, ne se il globo si trova su un altro piano di esistenza. Termina solo se un'altra creatura entra in sintonia con il globo, se la creatura legata muore e torna in vita tramite il globo, oppu..."
     },
     {
       "id": "npc:karla",

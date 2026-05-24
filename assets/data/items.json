@@ -852,6 +852,46 @@
     "notes": "Descrizione popolata dal dato Foundry \"Poesia\"."
   },
   {
+    "id": "globo-d-anima",
+    "name": "Globo d'Anima",
+    "type": "Oggetto meraviglioso",
+    "subtype": "Globo",
+    "rarity": "Artefatto",
+    "attunement": true,
+    "status": "known",
+    "image": "media/items/globo-d-anima.webp",
+    "icon": "fa-circle-dot",
+    "summary": "Globo traslucido che lega e custodisce l'anima della creatura in sintonia, permettendole di tornare in vita dopo 33 giorni.",
+    "properties": [
+      {
+        "name": "Sintonia Eccezionale",
+        "charges": "",
+        "description": "Mentre sei in sintonia con il Globo d'Anima, esso non conta contro il numero massimo di oggetti magici con cui puoi essere in sintonia. La sintonia non termina a causa della distanza, ne se il globo si trova su un altro piano di esistenza. Termina solo se un'altra creatura entra in sintonia con il globo, se la creatura legata muore e torna in vita tramite il globo, oppure se il globo viene distrutto."
+      },
+      {
+        "name": "Legame dell'Anima",
+        "charges": "Alla morte",
+        "description": "Mentre sei in sintonia con il globo, la tua anima e legata ad esso. Se muori, la tua anima viene immediatamente trasportata all'interno del globo, indipendentemente dalla distanza o dal piano di esistenza in cui ti trovi. Nel globo l'anima e cosciente, conserva identita, ricordi, memorie e consapevolezza del tempo. Non puo essere bersaglio, intrappolata, consumata, corrotta, evocata, interrogata, divinata, riportata in vita o influenzata da magie o capacita soprannaturali esterne al globo."
+      },
+      {
+        "name": "Ritorno alla Vita",
+        "charges": "Dopo 33 giorni",
+        "description": "Dopo che la tua anima e rimasta nel globo per 33 giorni, puoi scegliere di ricreare il tuo corpo in uno spazio libero entro 1,5 metri dal globo. Ritorni in vita con tutti i tuoi punti ferita. Il corpo ricreato e integro e nella stessa forma che avevi al momento della morte, privo di ferite, veleni, malattie e condizioni. Non include equipaggiamento od oggetti trasportati. Il corpo originale, se esiste ancora, diventa un cadavere inanimato e non puo piu essere usato per riportarti in vita. Dopo l'uso, il globo diventa inattivo per 24 ore."
+      },
+      {
+        "name": "Sarcofago Profano",
+        "charges": "",
+        "description": "Se sei un vampiro o una creatura con un tratto che richiede un sarcofago, una bara, un luogo di riposo o un ricettacolo per rigenerarsi o riformarsi, il Globo d'Anima puo sostituire quel luogo o ricettacolo. Se una creatura vampirica legata al globo viene ridotta a 0 punti ferita e normalmente dovrebbe tornare alla propria bara, torna invece al Globo d'Anima, purche il globo non sia inattivo."
+      },
+      {
+        "name": "Distruzione dell'Artefatto",
+        "charges": "",
+        "description": "Il Globo d'Anima non puo essere distrutto con mezzi ordinari o magici. L'artefatto viene distrutto soltanto se il suo creatore si pente sinceramente di averlo creato. Quando il globo viene distrutto, ogni anima contenuta al suo interno viene liberata. Se contiene l'anima di una creatura, quella creatura muore definitivamente e la sua anima non e piu protetta dal globo."
+      }
+    ],
+    "notes": "Oggetto artefatto homebrew. L'immagine prevista e media/items/globo-d-anima.webp."
+  },
+  {
     "id": "nuovo-oggetto",
     "name": "Sigaro Energetico",
     "type": "Oggetto meraviglioso",
