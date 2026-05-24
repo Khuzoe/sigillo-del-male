@@ -1301,7 +1301,7 @@
     function renderEntityThumb(entry) {
         const icon = escapeHtml(entry.icon || getEntityIcon(entry.type));
         const label = escapeHtml(entry.label || getEntityTypeLabel(entry.type));
-        const image = String(entry.image || "");
+        const image = resolveImageUrl(entry.image);
         if (image) {
             return `
                 <span class="notes-entity-thumb notes-entity-thumb--${escapeHtml(entry.type)}">
@@ -1320,7 +1320,17 @@
 
     function getNpcThumb(id) {
         const cleanId = slugify(id).replace(/-/g, "_");
-        return cleanId ? `../assets/img/creatures/transp/${cleanId}_transp.webp` : "";
+        return cleanId ? `media/creatures/transp/${cleanId}_transp.webp` : "";
+    }
+
+    function resolveImageUrl(path) {
+        const value = String(path || "").trim();
+        if (!value) return "";
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith("media/")) return window.CriptaApp.urls.api(value);
+        if (value.startsWith("/media/")) return window.CriptaApp.urls.api(value.slice(1));
+        if (value.startsWith("assets/")) return `../${value}`;
+        return value;
     }
 
     function getEntityTypeLabel(type) {

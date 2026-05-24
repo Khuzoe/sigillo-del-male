@@ -1,7 +1,7 @@
-﻿[
+[
   {
     "name": "Albert",
-    "image": "img/creatures/bestiary/albert.webp",
+    "image": "media/creatures/bestiary/albert.webp",
     "imageAdjust": {
       "x": 50,
       "y": 30
@@ -17,7 +17,7 @@
       "drops": [
         {
           "name": "Cuore di Albert",
-          "image": "img/drops/cuore_albert.webp",
+          "image": "media/drops/cuore_albert.webp",
           "rarity": "Unico",
           "note": "Organo anomalo ancora intriso di forte energia arcana residua. Sembra essere pregno di magia."
         }
@@ -30,7 +30,7 @@
   },
   {
     "name": "Ammasso di Morte",
-    "image": "img/creatures/bestiary/ammasso_di_morte.webp",
+    "image": "media/creatures/bestiary/ammasso_di_morte.webp",
     "imageAdjust": {
       "x": 50,
       "y": 44
@@ -52,7 +52,7 @@
   },
   {
     "name": "Coltura Danzante",
-    "image": "img/creatures/bestiary/coltura_danzante.webp",
+    "image": "media/creatures/bestiary/coltura_danzante.webp",
     "imageAdjust": {
       "x": 48,
       "y": 40
@@ -76,7 +76,7 @@
   },
   {
     "name": "Coltura Danzante Necrotica",
-    "image": "img/creatures/bestiary/coltura_danzante_necrotica.webp",
+    "image": "media/creatures/bestiary/coltura_danzante_necrotica.webp",
     "imageAdjust": {
       "x": 50,
       "y": 42
@@ -104,7 +104,7 @@
   },
   {
     "name": "Spremi Agrumi",
-    "image": "img/creatures/bestiary/spremi_agrumi.webp",
+    "image": "media/creatures/bestiary/spremi_agrumi.webp",
     "imageAdjust": {
       "x": 50,
       "y": 40
@@ -121,7 +121,7 @@
         {
           "itemId": "guanti-zara",
           "name": "Guanti di Zara",
-          "image": "img/items/zara-gloves.webp",
+          "image": "media/items/zara-gloves.webp",
           "rarity": "Non comune",
           "note": "Richiede sintonia"
         }
@@ -131,7 +131,7 @@
   },
   {
     "name": "Torre di Carne",
-    "image": "img/creatures/bestiary/torre_di_carne.webp",
+    "image": "media/creatures/bestiary/torre_di_carne.webp",
     "imageAdjust": {
       "x": 53,
       "y": 39,
@@ -151,7 +151,7 @@
   },
   {
     "name": "Zombie Becchino",
-    "image": "img/creatures/bestiary/zombie_becchino.webp",
+    "image": "media/creatures/bestiary/zombie_becchino.webp",
     "imageAdjust": {
       "x": 50,
       "y": 34
@@ -169,7 +169,7 @@
   },
   {
     "name": "Cane I",
-    "image": "img/creatures/bestiary/cane_1.webp",
+    "image": "media/creatures/bestiary/cane_1.webp",
     "imageAdjust": {
       "x": 50,
       "y": 36
@@ -191,7 +191,7 @@
   },
   {
     "name": "Cane II",
-    "image": "img/creatures/bestiary/cane_2.webp",
+    "image": "media/creatures/bestiary/cane_2.webp",
     "imageAdjust": {
       "x": 54,
       "y": 36
@@ -209,7 +209,7 @@
   },
   {
     "name": "Cane Non Morto",
-    "image": "img/creatures/bestiary/cane_non_morto.webp",
+    "image": "media/creatures/bestiary/cane_non_morto.webp",
     "imageAdjust": {
       "x": 50,
       "y": 46
@@ -228,7 +228,7 @@
   },
   {
     "name": "Golem Micidiale della Morte",
-    "image": "img/creatures/bestiary/golem_micidiale_della_morte.webp",
+    "image": "media/creatures/bestiary/golem_micidiale_della_morte.webp",
     "imageAdjust": {
       "x": 50,
       "y": 40,
@@ -252,7 +252,7 @@
   },
   {
     "name": "Topo Morto",
-    "image": "img/creatures/bestiary/topo_morto.webp",
+    "image": "media/creatures/bestiary/topo_morto.webp",
     "imageAdjust": {
       "x": 50,
       "y": 30
@@ -275,7 +275,7 @@
   },
   {
     "name": "Pipistrello Vampirico",
-    "image": "img/creatures/bestiary/pipistrello_vampirico.webp",
+    "image": "media/creatures/bestiary/pipistrello_vampirico.webp",
     "imageAdjust": {
       "x": 50,
       "y": 42
@@ -298,7 +298,7 @@
   },
   {
     "name": "Seguace Vampirico",
-    "image": "img/creatures/bestiary/seguace_vampirico.webp",
+    "image": "media/creatures/bestiary/seguace_vampirico.webp",
     "imageAdjust": {
       "x": 50,
       "y": 34
@@ -337,7 +337,7 @@
   },
   {
     "name": "Cultista Klaren",
-    "image": "img/creatures/bestiary/cultista_klaren.webp",
+    "image": "media/creatures/bestiary/cultista_klaren.webp",
     "imageAdjust": {
       "x": 52,
       "y": 36
@@ -355,7 +355,7 @@
   },
   {
     "name": "Lumilla Klaren",
-    "image": "img/creatures/bestiary/lumilla.webp",
+    "image": "media/creatures/bestiary/lumilla.webp",
     "imageAdjust": {
       "x": 50,
       "y": 34
@@ -378,7 +378,7 @@
   },
   {
     "name": "Mummia Klaren",
-    "image": "img/creatures/bestiary/mummia.webp",
+    "image": "media/creatures/bestiary/mummia.webp",
     "imageAdjust": {
       "x": 50,
       "y": 34
@@ -397,7 +397,7 @@
   },
   {
     "name": "Okbrax Klaren",
-    "image": "img/creatures/bestiary/okbrax.webp",
+    "image": "media/creatures/bestiary/okbrax.webp",
     "imageAdjust": {
       "x": 47,
       "y": 35
@@ -420,7 +420,7 @@
   },
   {
     "name": "Rosskar Klaren",
-    "image": "img/creatures/bestiary/rosskar.webp",
+    "image": "media/creatures/bestiary/rosskar.webp",
     "imageAdjust": {
       "x": 50,
       "y": 35
@@ -443,7 +443,7 @@
   },
   {
     "name": "Sacerdotessa Klaren",
-    "image": "img/creatures/bestiary/sacerdotessa_klaren.webp",
+    "image": "media/creatures/bestiary/sacerdotessa_klaren.webp",
     "imageAdjust": {
       "x": 50,
       "y": 36
@@ -462,7 +462,7 @@
   },
   {
     "name": "Abominio Tela",
-    "image": "img/creatures/bestiary/abominio_tela.webp",
+    "image": "media/creatures/bestiary/abominio_tela.webp",
     "imageAdjust": {
       "x": 42,
       "y": 42
@@ -481,7 +481,7 @@
   },
   {
     "name": "Bacio Mortale",
-    "image": "img/creatures/bestiary/assistente.webp",
+    "image": "media/creatures/bestiary/assistente.webp",
     "imageAdjust": {
       "x": 50,
       "y": 50
@@ -501,7 +501,7 @@
   },
   {
     "name": "Creatura Tela",
-    "image": "img/creatures/bestiary/creatura_tela.webp",
+    "image": "media/creatures/bestiary/creatura_tela.webp",
     "imageAdjust": {
       "x": 50,
       "y": 32
@@ -520,7 +520,7 @@
   },
   {
     "name": "Muro Tela",
-    "image": "img/creatures/bestiary/muro_tela.webp",
+    "image": "media/creatures/bestiary/muro_tela.webp",
     "imageAdjust": {
       "x": 50,
       "y": 50
@@ -540,7 +540,7 @@
   },
   {
     "name": "Ragno Tela",
-    "image": "img/creatures/bestiary/ragno_tela.webp",
+    "image": "media/creatures/bestiary/ragno_tela.webp",
     "imageAdjust": {
       "x": 50,
       "y": 42
@@ -562,7 +562,7 @@
   },
   {
     "name": "Webber",
-    "image": "img/creatures/bestiary/webber.webp",
+    "image": "media/creatures/bestiary/webber.webp",
     "imageAdjust": {
       "x": 50,
       "y": 48
@@ -580,7 +580,7 @@
   },
   {
     "name": "Deborah Von T",
-    "image": "img/creatures/bestiary/deborah_von_t.webp",
+    "image": "media/creatures/bestiary/deborah_von_t.webp",
     "imageAdjust": {
       "x": 50,
       "y": 22
@@ -605,7 +605,7 @@
   },
   {
     "name": "Elena Erbadath",
-    "image": "img/creatures/bestiary/elena_erbadath.webp",
+    "image": "media/creatures/bestiary/elena_erbadath.webp",
     "imageAdjust": {
       "x": 56,
       "y": 28
@@ -630,7 +630,7 @@
   },
   {
     "name": "Franky",
-    "image": "img/creatures/bestiary/franky.webp",
+    "image": "media/creatures/bestiary/franky.webp",
     "imageAdjust": {
       "x": 50,
       "y": 2,
@@ -656,7 +656,7 @@
   },
   {
     "name": "Ginevra Von T",
-    "image": "img/creatures/bestiary/ginevra_von_t.webp",
+    "image": "media/creatures/bestiary/ginevra_von_t.webp",
     "imageAdjust": {
       "x": 44,
       "y": 15
@@ -681,7 +681,7 @@
   },
   {
     "name": "Karla Von T",
-    "image": "img/creatures/bestiary/karla_von_t.webp",
+    "image": "media/creatures/bestiary/karla_von_t.webp",
     "imageAdjust": {
       "x": 43,
       "y": 4,
@@ -712,7 +712,7 @@
   },
   {
     "name": "Leonora Von T",
-    "image": "img/creatures/bestiary/leonora_von_t.webp",
+    "image": "media/creatures/bestiary/leonora_von_t.webp",
     "imageAdjust": {
       "x": 38,
       "y": 45
@@ -737,7 +737,7 @@
   },
   {
     "name": "Nino Olegna",
-    "image": "img/creatures/bestiary/nino_olegna_npc.webp",
+    "image": "media/creatures/bestiary/nino_olegna_npc.webp",
     "imageAdjust": {
       "x": 38,
       "y": 12
@@ -761,7 +761,7 @@
   },
   {
     "name": "Rabberduscolanderson Von T",
-    "image": "img/creatures/bestiary/rabberduscolanderson_von_t.webp",
+    "image": "media/creatures/bestiary/rabberduscolanderson_von_t.webp",
     "imageAdjust": {
       "x": 34,
       "y": 31
@@ -785,7 +785,7 @@
   },
   {
     "name": "Tokka Von T",
-    "image": "img/creatures/bestiary/tokka_von_t.webp",
+    "image": "media/creatures/bestiary/tokka_von_t.webp",
     "imageAdjust": {
       "x": 41,
       "y": 1,
@@ -810,7 +810,7 @@
   },
   {
     "name": "X Von T",
-    "image": "img/creatures/bestiary/x_von_t.webp",
+    "image": "media/creatures/bestiary/x_von_t.webp",
     "imageAdjust": {
       "x": 50,
       "y": 8
@@ -834,7 +834,7 @@
   },
   {
     "name": "Zara Klaren",
-    "image": "img/creatures/bestiary/zara_klaren.webp",
+    "image": "media/creatures/bestiary/zara_klaren.webp",
     "imageAdjust": {
       "x": 41,
       "y": 41,
@@ -860,7 +860,7 @@
   },
   {
     "name": "Bambola Infermiera",
-    "image": "img/creatures/bestiary/bambola_infermiera.webp",
+    "image": "media/creatures/bestiary/bambola_infermiera.webp",
     "imageAdjust": {
       "x": 50,
       "y": 42
@@ -879,7 +879,7 @@
   },
   {
     "name": "Bambolina Gamba Fine",
-    "image": "img/creatures/bestiary/bambolina_gamba_fine.webp",
+    "image": "media/creatures/bestiary/bambolina_gamba_fine.webp",
     "imageAdjust": {
       "x": 48,
       "y": 42
@@ -902,7 +902,7 @@
   },
   {
     "name": "Bambolotto Mammone",
-    "image": "img/creatures/bestiary/bambolotto_mammone.webp",
+    "image": "media/creatures/bestiary/bambolotto_mammone.webp",
     "imageAdjust": {
       "x": 48,
       "y": 44
@@ -924,7 +924,7 @@
   },
   {
     "name": "Guanto di Zara",
-    "image": "img/creatures/bestiary/guanto_di_zara.webp",
+    "image": "media/creatures/bestiary/guanto_di_zara.webp",
     "imageAdjust": {
       "x": 50,
       "y": 48
@@ -943,7 +943,7 @@
   },
   {
     "name": "Palloncino di Zara",
-    "image": "img/creatures/bestiary/palloncino_di_zara.webp",
+    "image": "media/creatures/bestiary/palloncino_di_zara.webp",
     "imageAdjust": {
       "x": 50,
       "y": 42
@@ -968,7 +968,7 @@
   },
   {
     "name": "Pantofola di Zara",
-    "image": "img/creatures/bestiary/pantofola_di_zara.webp",
+    "image": "media/creatures/bestiary/pantofola_di_zara.webp",
     "imageAdjust": {
       "x": 50,
       "y": 50
@@ -987,7 +987,7 @@
   },
   {
     "name": "Scrigno Rosa",
-    "image": "img/creatures/bestiary/scrigno_rosa.webp",
+    "image": "media/creatures/bestiary/scrigno_rosa.webp",
     "imageAdjust": {
       "x": 50,
       "y": 48
@@ -1009,7 +1009,7 @@
   },
   {
     "name": "Velkarya Klaren",
-    "image": "img/creatures/bestiary/velkarya.webp",
+    "image": "media/creatures/bestiary/velkarya.webp",
     "imageAdjust": {
       "x": 50,
       "y": 10,
@@ -1035,7 +1035,7 @@
   },
   {
     "name": "Carro Trivellante",
-    "image": "img/creatures/bestiary/cart.webp",
+    "image": "media/creatures/bestiary/cart.webp",
     "imageAdjust": {
       "x": 55,
       "y": 52,

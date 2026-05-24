@@ -1,10 +1,14 @@
 (function () {
     const DATA_URL = '../assets/data/items.json';
+    const MEDIA_WORKER_URL = 'https://sigillo-api.khuzoe.workers.dev';
+    const DISCORD_TOKEN_KEY = 'discord_jwt';
     const DB_NAME = 'cripta-items-editor';
     const DB_VERSION = 1;
     const DB_STORE = 'file-handles';
     const ITEMS_HANDLE_KEY = 'items-json';
     const FILTER_STORAGE_KEY = 'cripta-items-editor-filters';
+    const DRAFT_STORAGE_KEY = 'cripta-items-editor-draft';
+    const FOCUS_MODE_STORAGE_KEY = 'cripta-items-editor-focus-mode';
     const ITEM_IMAGE_PREFIX = 'img/items/';
     const TYPE_OPTIONS = [
         '',
@@ -63,11 +67,13 @@
             state.items = await response.json();
             if (!Array.isArray(state.items)) throw new Error('Formato items.json non valido.');
             state.selectedIndex = state.items.length ? 0 : -1;
+            const restoredDraft = restoreDraft();
             renderAll();
             const restoredHandle = await restoreLinkedJsonFile();
-            setStatus(restoredHandle
-                ? `${state.items.length} oggetti caricati. File collegato: ${restoredHandle.name}.`
-                : `${state.items.length} oggetti caricati.`);
+            const statusParts = [`${state.items.length} oggetti caricati.`];
+            if (restoredDraft) statusParts.push('Bozza locale ripristinata dopo reload.');
+            if (restoredHandle) statusParts.push(`File collegato: ${restoredHandle.name}.`);
+            setStatus(statusParts.join(' '));
         } catch (error) {
             console.error('Errore caricamento oggetti:', error);
             setStatus('Impossibile caricare assets/data/items.json.', 'error');
@@ -78,6 +84,7 @@
         [
             'editor-status',
             'add-item-btn',
+            'focus-mode-btn',
             'duplicate-item-btn',
             'delete-item-btn',
             'search-input',
@@ -90,6 +97,10 @@
             'preview-image',
             'preview-name',
             'preview-meta',
+            'detail-image-dropzone',
+            'detail-image-preview',
+            'detail-image-path',
+            'detail-image-file',
             'json-output',
             'connect-json-btn',
             'save-json-btn',
@@ -122,8 +133,13 @@
         els.addItemBtn?.addEventListener('click', () => {
             state.items.push(createEmptyItem());
             state.selectedIndex = state.items.length - 1;
+            setFocusMode(true);
             renderAll();
             setStatus('Nuovo oggetto aggiunto.');
+        });
+
+        els.focusModeBtn?.addEventListener('click', () => {
+            setFocusMode(!isFocusMode());
         });
 
         els.duplicateItemBtn?.addEventListener('click', () => {
@@ -157,6 +173,13 @@
         els.detailForm?.addEventListener('input', handleDetailInput);
         els.detailForm?.addEventListener('change', handleDetailInput);
         els.detailForm?.addEventListener('click', handleDetailClick);
+        els.detailImageDropzone?.addEventListener('click', () => pickDetailImage());
+        els.detailImageFile?.addEventListener('change', handleDetailImageFile);
+        els.detailImageDropzone?.addEventListener('dragover', handleDetailImageDrag);
+        els.detailImageDropzone?.addEventListener('dragleave', handleDetailImageDrag);
+        els.detailImageDropzone?.addEventListener('drop', handleDetailImageDrop);
+        window.addEventListener('dragover', preventFileDropNavigation);
+        window.addEventListener('drop', preventFileDropNavigation);
 
         els.connectJsonBtn?.addEventListener('click', connectJsonFile);
         els.saveJsonBtn?.addEventListener('click', saveJsonToFile);
@@ -175,6 +198,31 @@
         }
     }
 
+    function isFocusMode() {
+        return document.querySelector('.items-editor-shell')?.classList.contains('is-focus-mode') === true;
+    }
+
+    function restoreFocusMode() {
+        return window.localStorage.getItem(FOCUS_MODE_STORAGE_KEY) === '1';
+    }
+
+    function setFocusMode(enabled) {
+        const shell = document.querySelector('.items-editor-shell');
+        shell?.classList.toggle('is-focus-mode', enabled);
+        if (els.focusModeBtn) {
+            els.focusModeBtn.innerHTML = enabled
+                ? '<i class="fas fa-table-list"></i> Tabella'
+                : '<i class="fas fa-pen-to-square"></i> Scheda';
+            els.focusModeBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+            els.focusModeBtn.title = enabled ? 'Torna alla tabella oggetti' : 'Usa tutta la pagina per la scheda oggetto';
+        }
+        try {
+            window.localStorage.setItem(FOCUS_MODE_STORAGE_KEY, enabled ? '1' : '0');
+        } catch (_) {
+            // Ignore storage errors.
+        }
+    }
+
     function persistFilters() {
         try {
             window.localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify({
@@ -185,6 +233,45 @@
         } catch (_) {
             // Ignore storage errors.
         }
+    }
+
+    function restoreDraft() {
+        try {
+            const draft = JSON.parse(window.localStorage.getItem(DRAFT_STORAGE_KEY) || 'null');
+            if (!draft || !Array.isArray(draft.items)) return false;
+            state.items = draft.items;
+            state.selectedIndex = Number.isInteger(draft.selectedIndex)
+                ? Math.min(Math.max(draft.selectedIndex, -1), state.items.length - 1)
+                : (state.items.length ? 0 : -1);
+            return true;
+        } catch (error) {
+            console.warn('Bozza editor oggetti non valida, ignorata.', error);
+            return false;
+        }
+    }
+
+    function persistDraft(items = null) {
+        try {
+            window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({
+                updatedAt: new Date().toISOString(),
+                selectedIndex: state.selectedIndex,
+                items: items || state.items
+            }));
+        } catch (error) {
+            console.warn('Impossibile salvare la bozza editor oggetti.', error);
+        }
+    }
+
+    function persistDraftWithImagePath(index, path) {
+        const items = state.items.map((item, itemIndex) => {
+            const copy = structuredCloneSafe(item);
+            if (itemIndex === index) {
+                copy.image = path;
+                pruneItem(copy);
+            }
+            return copy;
+        });
+        persistDraft(items);
     }
 
     async function connectJsonFile() {
@@ -324,6 +411,7 @@
     }
 
     function renderAll() {
+        setFocusMode(restoreFocusMode());
         renderFilters();
         renderTable();
         renderDetails();
@@ -393,22 +481,66 @@
         const fields = els.detailForm.querySelectorAll('[data-field], [data-property-field]');
         fields.forEach((field) => { field.disabled = !item; });
         if (els.addPropertyBtn) els.addPropertyBtn.disabled = !item;
+        if (els.detailImageDropzone) els.detailImageDropzone.disabled = !item;
 
         if (!item) {
             els.previewImage.removeAttribute('src');
             els.previewName.textContent = 'Nessun oggetto';
             els.previewMeta.textContent = 'Aggiungi o seleziona un oggetto.';
             fields.forEach((field) => { field.value = ''; });
+            updateDetailImagePreview(null);
             if (els.propertyList) els.propertyList.innerHTML = '';
             return;
         }
 
+        renderDetailSelects();
         updatePreview();
-        const summaryField = els.detailForm.querySelector('[data-field="summary"]');
-        if (summaryField) summaryField.value = item.summary || '';
+        updateDetailImagePreview(item);
+        els.detailForm.querySelectorAll('[data-field]').forEach((field) => {
+            const key = field.dataset.field;
+            if (!key) return;
+            if (field.type === 'checkbox') {
+                field.checked = item[key] === true || (key === 'hidden' && item.status === 'hidden');
+                return;
+            }
+            field.value = formatDetailFieldValue(item, key);
+        });
         renderPropertiesEditor(item);
-        const notesField = els.detailForm.querySelector('[data-field="notes"]');
-        if (notesField) notesField.value = item.notes || '';
+    }
+
+    function renderDetailSelects() {
+        renderDetailSelect('type', TYPE_OPTIONS.map((value) => [value, value || 'Tipo vuoto']));
+        renderDetailSelect('rarity', RARITY_OPTIONS.map((value) => [value, value || 'Rarità vuota']));
+        renderDetailSelect('status', STATUS_OPTIONS);
+    }
+
+    function renderDetailSelect(field, options) {
+        const select = els.detailForm?.querySelector(`select[data-field="${field}"]`);
+        if (!select) return;
+        const currentValue = select.value;
+        select.innerHTML = options.map(([value, label]) => `
+            <option value="${escapeHtml(value)}">${escapeHtml(label)}</option>
+        `).join('');
+        select.value = currentValue;
+    }
+
+    function formatDetailFieldValue(item, key) {
+        if (key === 'foundryNames' || key === 'aliases') {
+            return Array.isArray(item[key]) ? item[key].join('\n') : '';
+        }
+        if (key === 'image') return formatImagePathForEditor(item.image);
+        return item[key] || '';
+    }
+
+    function updateDetailImagePreview(item) {
+        const imagePath = item?.image || 'img/ui/card.webp';
+        if (els.detailImagePreview) {
+            els.detailImagePreview.src = resolveImageUrl(imagePath);
+            els.detailImagePreview.alt = item?.name || '';
+        }
+        if (els.detailImagePath) {
+            els.detailImagePath.textContent = item?.image || 'Nessuna immagine selezionata.';
+        }
     }
 
     function renderPropertiesEditor(item) {
@@ -445,7 +577,7 @@
     function updatePreview() {
         const item = getSelectedItem();
         if (!item) return;
-        els.previewImage.src = `../assets/${item.image || 'img/ui/card.webp'}`;
+        els.previewImage.src = resolveImageUrl(item.image || 'img/ui/card.webp');
         els.previewImage.alt = item.name || '';
         els.previewName.textContent = item.name || 'Oggetto senza nome';
         els.previewMeta.textContent = [
@@ -487,7 +619,7 @@
                         accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif'] }
                     }]
                 });
-                applyPickedImagePath(row, index, normalizeAssetPath({ name: handle.name }));
+                applyPickedImageFile(row, index, await handle.getFile());
                 return;
             } catch (error) {
                 if (error?.name === 'AbortError') return;
@@ -534,21 +666,89 @@
         const item = state.items[index];
         if (!row || !item) return;
 
-        applyPickedImagePath(row, index, normalizeAssetPath(target.files[0]));
+        applyPickedImageFile(row, index, target.files[0]);
     }
 
-    function applyPickedImagePath(row, index, path) {
+    async function applyPickedImageFile(row, index, file) {
+        if (!file) return;
+        commitActiveTableField();
+        const path = await uploadImageFileToMediaBucket(file, state.items[index], index);
+        applyPickedImagePath(row, index, path);
+    }
+
+    function applyPickedImagePath(row, index, path, { alreadySaved = true } = {}) {
         const item = state.items[index];
-        if (!row || !item || !path) return;
+        if (!item || !path) return;
+        if (!isWebpPath(path)) {
+            setStatus('Immagine non applicata: conversione WebP non riuscita.', 'error');
+            return;
+        }
 
         writeItemField(item, 'image', path);
         state.selectedIndex = index;
         pruneItem(item);
-        const pathInput = row.querySelector('[data-field="image"]');
+        const pathInput = row?.querySelector('[data-field="image"]');
         if (pathInput) pathInput.value = formatImagePathForEditor(path);
         updatePreview();
+        updateDetailImagePreview(item);
+        renderTable();
         updateOutput({ commitActive: false });
-        setStatus(`Path immagine aggiornato: ${path}`);
+        setStatus(`Immagine aggiornata: ${path}`);
+    }
+
+    async function pickDetailImage() {
+        const item = getSelectedItem();
+        if (!item) return;
+
+        if (typeof window.showOpenFilePicker === 'function') {
+            try {
+                const [handle] = await window.showOpenFilePicker({
+                    multiple: false,
+                    types: [{
+                        description: 'Immagini',
+                        accept: { 'image/webp': ['.webp'], 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.avif'] }
+                    }]
+                });
+                applyPickedImageFile(null, state.selectedIndex, await handle.getFile());
+                return;
+            } catch (error) {
+                if (error?.name === 'AbortError') return;
+                console.warn('Picker immagini non disponibile, uso input file.', error);
+            }
+        }
+
+        els.detailImageFile?.click();
+    }
+
+    function handleDetailImageFile(event) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        applyPickedImageFile(null, state.selectedIndex, file);
+        event.target.value = '';
+    }
+
+    function handleDetailImageDrag(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.type === 'dragover') {
+            els.detailImageDropzone?.classList.add('is-dragging');
+        } else {
+            els.detailImageDropzone?.classList.remove('is-dragging');
+        }
+    }
+
+    function handleDetailImageDrop(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        els.detailImageDropzone?.classList.remove('is-dragging');
+        const file = event.dataTransfer?.files?.[0];
+        if (!file) return;
+        applyPickedImageFile(null, state.selectedIndex, file);
+    }
+
+    function preventFileDropNavigation(event) {
+        if (!Array.from(event.dataTransfer?.types || []).includes('Files')) return;
+        event.preventDefault();
     }
 
     function handleDetailInput(event) {
@@ -559,7 +759,7 @@
         const propertyField = target.dataset.propertyField;
 
         if (field) {
-            writeItemField(item, field, target.value);
+            writeItemField(item, field, target.type === 'checkbox' ? target.checked : target.value);
         } else if (propertyField) {
             const row = target.closest('[data-property-index]');
             const index = Number(row?.dataset.propertyIndex);
@@ -578,6 +778,8 @@
 
         pruneItem(item);
         updatePreview();
+        updateDetailImagePreview(item);
+        renderTable();
         updateOutput();
         setStatus('Modifiche non salvate esportate nel JSON.');
     }
@@ -676,12 +878,23 @@
             item.image = normalizeImagePathForData(value) || undefined;
             return;
         }
+        if (field === 'foundryNames' || field === 'aliases') {
+            const values = String(value || '')
+                .split(/\r?\n/)
+                .map((entry) => entry.trim())
+                .filter(Boolean);
+            item[field] = values.length ? Array.from(new Set(values)) : undefined;
+            return;
+        }
         item[field] = String(value || '').trim() || undefined;
     }
 
     function pruneItem(item) {
-        ['id', 'name', 'type', 'subtype', 'rarity', 'owner', 'status', 'icon', 'image', 'summary', 'notes'].forEach((key) => {
+        ['id', 'name', 'type', 'subtype', 'rarity', 'owner', 'status', 'icon', 'image', 'summary', 'notes', 'unidentifiedName', 'unidentifiedDescription'].forEach((key) => {
             if (item[key] === undefined || item[key] === '') delete item[key];
+        });
+        ['foundryNames', 'aliases'].forEach((key) => {
+            if (!Array.isArray(item[key]) || !item[key].length) delete item[key];
         });
         if (item.attunement !== true) delete item.attunement;
         if (item.unidentified !== true) delete item.unidentified;
@@ -698,6 +911,7 @@
             return copy;
         });
         els.jsonOutput.value = `${JSON.stringify(cleanItems, null, 2)}\n`;
+        persistDraft(cleanItems);
     }
 
     function commitActiveTableField() {
@@ -777,6 +991,9 @@
     function normalizeImagePathForData(value) {
         const path = String(value || '').trim().replace(/\\/g, '/');
         if (!path) return '';
+        if (path.startsWith('media/')) return path;
+        if (path.startsWith('/media/')) return path.slice(1);
+        if (/^https?:\/\//i.test(path)) return path;
         if (path.startsWith('assets/')) return path.slice('assets/'.length);
         if (path.startsWith('img/')) return path;
         return `${ITEM_IMAGE_PREFIX}${path}`;
@@ -791,6 +1008,102 @@
         const imgIndex = rawPath.indexOf('img/');
         if (imgIndex >= 0) return rawPath.slice(imgIndex);
         return `${ITEM_IMAGE_PREFIX}${rawPath.split('/').pop()}`;
+    }
+
+    async function uploadImageFileToMediaBucket(file, item, index) {
+        try {
+            const outputName = buildWebpImageFileName(file, item);
+            const outputPath = `media/items/${outputName}`;
+            setStatus(isWebpPath(file.name) ? 'Upload immagine su R2...' : 'Conversione WebP e upload su R2...');
+            const blob = isWebpPath(file.name) ? file : await convertImageFileToWebpBlob(file);
+            persistDraftWithImagePath(index, outputPath);
+            return await uploadWebpBlob(blob, outputName);
+        } catch (error) {
+            console.error('Upload immagine R2 fallito:', error);
+            setStatus(`Upload immagine fallito: ${error?.message || error}`, 'error');
+            return '';
+        }
+    }
+
+    async function convertImageFileToWebpBlob(file) {
+        const bitmap = await createImageBitmap(file);
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const context = canvas.getContext('2d');
+        context.drawImage(bitmap, 0, 0);
+        bitmap.close?.();
+
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    reject(new Error('Il browser non ha prodotto un file WebP.'));
+                    return;
+                }
+                resolve(blob);
+            }, 'image/webp', 0.88);
+        });
+    }
+
+    async function uploadWebpBlob(blob, fileName) {
+        const token = readAuthToken();
+        if (!token) {
+            throw new Error('Login richiesto: accedi alla wiki prima di caricare immagini.');
+        }
+
+        const form = new FormData();
+        form.set('folder', 'items');
+        form.set('filename', fileName);
+        form.set('file', new File([blob], fileName, { type: 'image/webp' }));
+
+        const response = await fetch(`${MEDIA_WORKER_URL}/media/upload?folder=items`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`
+            },
+            body: form
+        });
+
+        let payload = null;
+        try {
+            payload = await response.json();
+        } catch (_) {
+            payload = null;
+        }
+
+        if (!response.ok || !payload?.path) {
+            throw new Error(payload?.error || `HTTP ${response.status}`);
+        }
+
+        return payload.path;
+    }
+
+    function readAuthToken() {
+        try {
+            return window.localStorage.getItem(DISCORD_TOKEN_KEY) || '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function resolveImageUrl(path) {
+        const value = String(path || '').trim();
+        if (!value) return '../assets/img/ui/card.webp';
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith('media/')) return `${MEDIA_WORKER_URL}/${value}`;
+        if (value.startsWith('/media/')) return `${MEDIA_WORKER_URL}${value}`;
+        if (value.startsWith('assets/')) return `../${value}`;
+        return `../assets/${value}`;
+    }
+
+    function buildWebpImageFileName(file, item) {
+        const originalName = String(file?.name || '').replace(/\.[^.]+$/, '');
+        const base = slugify(item?.id || item?.name || originalName || 'oggetto');
+        return `${base || 'oggetto'}.webp`;
+    }
+
+    function isWebpPath(path) {
+        return /\.webp$/i.test(String(path || '').trim());
     }
 
     function formatItemTypeLabel(item) {

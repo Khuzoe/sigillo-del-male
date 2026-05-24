@@ -26,6 +26,10 @@ function fileExists(filePath) {
   return fs.existsSync(filePath);
 }
 
+function isExternalAssetPath(value) {
+  return /^(https?:|data:|blob:|media\/|\/media\/)/i.test(String(value || ""));
+}
+
 function readText(filePath) {
   return fs.readFileSync(filePath, "utf8");
 }
@@ -143,7 +147,7 @@ function validateCharacters(playersById) {
       ["avatar", "hover", "portrait"].forEach((key) => {
         const imgPath = character.images[key];
         assert(imgPath, `${rel(charFile)}: images.${key} mancante`);
-        if (imgPath && !/^https?:\/\//.test(imgPath)) {
+        if (imgPath && !isExternalAssetPath(imgPath)) {
           const resolved = path.join(ASSETS_DIR, imgPath);
           if (!fileExists(resolved)) {
             pushError(`${rel(charFile)}: immagine non trovata -> assets/${imgPath}`);
@@ -169,7 +173,7 @@ function validateCharacters(playersById) {
           }
         }
 
-        if (block.image && !/^https?:\/\//.test(block.image)) {
+        if (block.image && !isExternalAssetPath(block.image)) {
           const imagePath = path.join(ASSETS_DIR, block.image);
           if (!fileExists(imagePath)) {
             pushError(`${rel(charFile)}: image non trovata -> assets/${block.image}`);
@@ -238,7 +242,7 @@ function validatePlayers() {
     ["avatar", "hover", "portrait"].forEach((key) => {
       const image = player.images[key];
       assert(image, `${rel(playersPath)}: ${player.id} senza images.${key}`);
-      if (!image) return;
+      if (!image || isExternalAssetPath(image)) return;
       const imagePath = path.join(ASSETS_DIR, image);
       if (!fileExists(imagePath)) {
         pushError(`${rel(playersPath)}: ${player.id} immagine non trovata -> assets/${image}`);
@@ -341,7 +345,7 @@ function validateMagicItems() {
       if (ids.has(item.id)) pushError(`${context}: id duplicato "${item.id}"`);
       ids.add(item.id);
     }
-    if (item.image && !/^https?:\/\//.test(item.image)) {
+    if (item.image && !isExternalAssetPath(item.image)) {
       const imagePath = path.join(ASSETS_DIR, item.image);
       if (!fileExists(imagePath)) {
         pushError(`${context}: immagine non trovata -> assets/${item.image}`);

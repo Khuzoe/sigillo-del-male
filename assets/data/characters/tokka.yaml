@@ -7,9 +7,9 @@ status: "vivo"
 hidden: true
 quote: ""
 images:
-  avatar: "img/creatures/transp/tokka_transp.webp"
-  hover: "img/creatures/transp/tokka_animation.webp"
-  portrait: "img/creatures/tokka.webp"
+  avatar: "media/creatures/transp/tokka_transp.webp"
+  hover: "media/creatures/transp/tokka_animation.webp"
+  portrait: "media/creatures/tokka.webp"
 content_blocks:
   - type: "lore"
     title: "Biografia"
@@ -22,7 +22,7 @@ content_blocks:
   - type: "image_box"
     title: "Versione Oscura"
     icon: "fa-moon"
-    image: "img/creatures/tokka_dark.webp"
+    image: "media/creatures/tokka_dark.webp"
     markdown: "characters/tokka/versione_oscura.md"
 relationships:
   - id: "x"

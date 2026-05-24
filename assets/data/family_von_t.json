@@ -2,7 +2,7 @@
   {
     "id": "yuris",
     "name": "Yuris Von T",
-    "image": "img/creatures/transp/franky_transp.webp",
+    "image": "media/creatures/transp/franky_transp.webp",
     "parents": [],
     "spouses": [
       "leonora"
@@ -19,7 +19,7 @@
   {
     "id": "leonora",
     "name": "Leonora",
-    "image": "img/creatures/transp/leonora_transp.webp",
+    "image": "media/creatures/transp/leonora_transp.webp",
     "parents": [],
     "spouses": [
       "yuris"
@@ -36,7 +36,7 @@
   {
     "id": "x",
     "name": "X Von T",
-    "image": "img/creatures/transp/x_transp.webp",
+    "image": "media/creatures/transp/x_transp.webp",
     "parents": [
       "yuris",
       "leonora"
@@ -54,7 +54,7 @@
   {
     "id": "rabberduscolanderson",
     "name": "Rabberduscolanderson Von T",
-    "image": "img/creatures/transp/rabberduscolanderson_transp.webp",
+    "image": "media/creatures/transp/rabberduscolanderson_transp.webp",
     "parents": [
       "yuris",
       "leonora"
@@ -69,7 +69,7 @@
   {
     "id": "ginevra",
     "name": "Ginevra Von T",
-    "image": "img/creatures/transp/ginevra_animation.webp",
+    "image": "media/creatures/transp/ginevra_animation.webp",
     "parents": [
       "yuris",
       "leonora"
@@ -87,7 +87,7 @@
   {
     "id": "nino_olegna",
     "name": "Nino Olegna",
-    "image": "img/creatures/transp/nino_olegna_transp.webp",
+    "image": "media/creatures/transp/nino_olegna_transp.webp",
     "parents": [],
     "spouses": [
       "x"
@@ -101,7 +101,7 @@
   {
     "id": "karla",
     "name": "Karla Von T",
-    "image": "img/creatures/transp/karla_transp.webp",
+    "image": "media/creatures/transp/karla_transp.webp",
     "parents": [
       "x",
       "nino_olegna"
@@ -114,7 +114,7 @@
   {
     "id": "tokka",
     "name": "Tokka Von T",
-    "image": "img/creatures/transp/tokka_transp.webp",
+    "image": "media/creatures/transp/tokka_transp.webp",
     "parents": [
       "x",
       "nino_olegna"
@@ -129,7 +129,7 @@
   {
     "id": "rendar",
     "name": "Rendar",
-    "image": "img/creatures/transp/rendar_transp.webp",
+    "image": "media/creatures/transp/rendar_transp.webp",
     "parents": [],
     "spouses": [
       "ginevra"
@@ -144,7 +144,7 @@
   {
     "id": "deborah",
     "name": "Deborah Von T",
-    "image": "img/creatures/transp/deborah_animation.webp",
+    "image": "media/creatures/transp/deborah_animation.webp",
     "parents": [
       "ginevra",
       "rendar"
@@ -157,7 +157,7 @@
   {
     "id": "elena",
     "name": "Elena Erbadath",
-    "image": "img/creatures/transp/elena_transp.webp",
+    "image": "media/creatures/transp/elena_transp.webp",
     "parents": [],
     "spouses": [
       "rabberduscolanderson"

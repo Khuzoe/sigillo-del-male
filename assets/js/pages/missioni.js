@@ -78,9 +78,12 @@
         }
 
         function resolveImagePath(path) {
-            if (!path) return '';
-            if (path.startsWith('http') || path.startsWith('data:')) return path;
-            return siteUrl(`assets/${path}`);
+            const value = String(path || '').trim();
+            if (!value) return '';
+            if (/^(https?:|data:|blob:)/i.test(value)) return value;
+            if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
+            if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
+            return siteUrl(`assets/${value}`);
         }
 
         async function loadNpcRecencyMap() {

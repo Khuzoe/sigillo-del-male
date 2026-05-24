@@ -1,5 +1,5 @@
 // === CONFIGURAZIONE ===
-        const BASE_PATH = '../assets/img/skill_trees/';
+        const BASE_PATH = 'media/skill_trees/';
         const JSON_FILE = '../assets/data/skills.json';
         
         // Contenitore globale per i dati
@@ -104,13 +104,16 @@
         }
 
         function resolvePath(path) {
-            if (!path) return '';
+            const value = String(path || '').trim();
+            if (!value) return '';
             // Se è un URL completo o base64, usalo così com'è
-            if (path.startsWith('http') || path.startsWith('data:')) {
-                return path;
+            if (/^(https?:|data:|blob:)/i.test(value)) {
+                return value;
             }
             // Altrimenti aggiungi il percorso base
-            return BASE_PATH + path;
+            if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
+            if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
+            return window.CriptaApp.urls.api(BASE_PATH + value);
         }
 
         function drawLine(start, end) {

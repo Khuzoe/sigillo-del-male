@@ -48,6 +48,16 @@ window.CriptaApp.onPageReady("bestiario", async () => {
     }
 });
 
+function resolveImageUrl(path) {
+    const value = String(path || "").trim();
+    if (!value) return "";
+    if (/^(https?:|data:|blob:)/i.test(value)) return value;
+    if (value.startsWith("media/")) return window.CriptaApp.urls.api(value);
+    if (value.startsWith("/media/")) return window.CriptaApp.urls.api(value.slice(1));
+    if (value.startsWith("assets/")) return `../${value}`;
+    return `../assets/${value}`;
+}
+
 function openLinkedBestiaryEntry(creatures) {
     const list = Array.isArray(creatures) ? creatures : [];
     if (!list.length) return;
@@ -348,7 +358,7 @@ function renderBestiaryCard(creature, index) {
             <span class="bestiary-image-frame">
                 ${mysteryIcon}
                 ${rankIcon}
-                <img src="../assets/${escapeHtml(creature.image)}" alt="${escapeHtml(cardName)}" loading="lazy" style="${buildBestiaryImageStyle(creature.imageAdjust)}">
+                <img src="${escapeHtml(resolveImageUrl(creature.image))}" alt="${escapeHtml(cardName)}" loading="lazy" style="${buildBestiaryImageStyle(creature.imageAdjust)}">
             </span>
             <span class="bestiary-card-name">${escapeHtml(cardName)}</span>
         </button>
@@ -450,7 +460,7 @@ function openBestiaryModal(creature, modal, image, title, kicker, details) {
     const rank = getBestiaryRank(creature.rank);
     const discovered = isBestiaryDiscovered(creature);
     const displayName = discovered ? creature.name : (creature.mysteryName || "Creatura Misteriosa");
-    image.src = `../assets/${creature.image}`;
+    image.src = resolveImageUrl(creature.image);
     image.alt = displayName;
     title.textContent = displayName;
     kicker.textContent = [discovered ? rank?.label : "Non Scoperta", getBestiaryCategory(creature)].filter(Boolean).join(" | ");
@@ -651,7 +661,7 @@ function renderBestiaryDrop(drop) {
     const note = drop.note ? `<span>${escapeHtml(drop.note)}</span>` : "";
     const rarity = drop.rarity ? `<em>${escapeHtml(drop.rarity)}</em>` : "";
     const image = drop.image
-        ? `<img src="../assets/${escapeHtml(drop.image)}" alt="" loading="lazy">`
+        ? `<img src="${escapeHtml(resolveImageUrl(drop.image))}" alt="" loading="lazy">`
         : "";
     const openTag = itemId
         ? `<button class="bestiary-drop" type="button" data-bestiary-item-id="${escapeHtml(itemId)}">`
@@ -718,7 +728,7 @@ function initBestiaryItemModal() {
 function openBestiaryItemModal(modal, item) {
     const content = modal.querySelector("#bestiary-item-modal-content");
     if (!content) return;
-    const image = item.image ? `<img class="bestiary-item-modal-image" src="../assets/${escapeHtml(item.image)}" alt="${escapeHtml(item.name || "Oggetto")}">` : "";
+    const image = item.image ? `<img class="bestiary-item-modal-image" src="${escapeHtml(resolveImageUrl(item.image))}" alt="${escapeHtml(item.name || "Oggetto")}">` : "";
     const properties = Array.isArray(item.properties) ? item.properties.filter(property => property && property.hidden !== true) : [];
     content.innerHTML = `
         ${image}

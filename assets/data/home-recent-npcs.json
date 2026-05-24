@@ -10,7 +10,7 @@
       "id": "zara",
       "name": "Zara Klaren",
       "role": "La Giullare",
-      "avatar": "img/creatures/transp/zara_transp.webp",
+      "avatar": "media/creatures/transp/zara_transp.webp",
       "url": "pages/characters/character.html?id=zara",
       "score": 24
     },
@@ -18,7 +18,7 @@
       "id": "franky",
       "name": "Franky",
       "role": "Lo Scienziato",
-      "avatar": "img/creatures/transp/franky_transp.webp",
+      "avatar": "media/creatures/transp/franky_transp.webp",
       "url": "pages/characters/character.html?id=franky",
       "score": 10
     },
@@ -26,7 +26,7 @@
       "id": "karla",
       "name": "Karla Von T",
       "role": "La Vampira",
-      "avatar": "img/creatures/transp/karla_transp.webp",
+      "avatar": "media/creatures/transp/karla_transp.webp",
       "url": "pages/characters/character.html?id=karla",
       "score": 4
     },
@@ -34,7 +34,7 @@
       "id": "rabberduscolanderson",
       "name": "Rabberduscolanderson Von T",
       "role": "Il Reietto",
-      "avatar": "img/creatures/transp/rabberduscolanderson_transp.webp",
+      "avatar": "media/creatures/transp/rabberduscolanderson_transp.webp",
       "url": "pages/characters/character.html?id=rabberduscolanderson",
       "score": 4
     }

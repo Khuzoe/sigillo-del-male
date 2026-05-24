@@ -11,7 +11,7 @@
     "owner": "Zara",
     "status": "identified",
     "icon": "fa-hand-sparkles",
-    "image": "img/items/zara-gloves.webp",
+    "image": "media/items/zara-gloves.webp",
     "summary": "Guanti magici da buffone, capaci di aumentare la Destrezza e scatenare trucchi di posizione, mano invisibile ed energia comica.",
     "properties": [
       {
@@ -48,7 +48,7 @@
     "owner": "Zara",
     "status": "identified",
     "icon": "fa-shoe-prints",
-    "image": "img/items/zara-shoes.webp",
+    "image": "media/items/zara-shoes.webp",
     "summary": "Pantofole di velluto incredibilmente soffici che accelerano il portatore come un Haste costante, ma con un contraccolpo fisico pesante.",
     "properties": [
       {
@@ -77,7 +77,7 @@
     "rarity": "Artefatto",
     "status": "known",
     "icon": "fa-gem",
-    "image": "img/items/luce_cristallizzata.webp",
+    "image": "media/items/luce_cristallizzata.webp",
     "summary": "Un prisma nato dall'esplosione radiosa dell'incubo del sigillo, che ora custodisce l'anima di Apothecary separata dal suo corpo.",
     "properties": [
       {
@@ -111,7 +111,7 @@
     ],
     "notes": "Importato da Foundry; il nome non identificato è \"Unidentified Equipment\".",
     "subtype": "Spilla",
-    "image": "img/items/rose_brooch.webp"
+    "image": "media/items/rose_brooch.webp"
   },
   {
     "id": "corazza-piastre-rosskar",
@@ -139,7 +139,7 @@
       }
     ],
     "notes": "Non identificata come \"Armatura Rossa\"; descritta come metallo rosso scuro con incisioni dorate, calda al tatto.",
-    "image": "img/items/rosskar_breastplate.webp",
+    "image": "media/items/rosskar_breastplate.webp",
     "subtype": "Corazza",
     "unidentifiedName": "[Non Identificato] Armatura Rossa",
     "unidentifiedDescription": "Un’armatura di metallo rosso scuro con incisioni dorate. Sembra calda al tatto, come se trattenesse sempre un po’ di calore al suo interno."
@@ -170,7 +170,7 @@
       }
     ],
     "notes": "Non identificato come \"Mantello Nero\"; lungo e scuro, sembra muoversi anche senza vento.",
-    "image": "img/items/okbrax_cloak.webp",
+    "image": "media/items/okbrax_cloak.webp",
     "subtype": "Mantello",
     "unidentifiedName": "[Non Identificato] Mantello Nero",
     "unidentifiedDescription": "Un mantello lungo e scuro, che sembra muoversi leggermente anche quando non c’è vento."
@@ -201,7 +201,7 @@
       }
     ],
     "notes": "Non identificato come \"Martello Sacro\"; testa d’argento con simboli solari e bagliore dorato.",
-    "image": "img/items/lumilla_warhammer.webp",
+    "image": "media/items/lumilla_warhammer.webp",
     "subtype": "Martello da guerra",
     "unidentifiedName": "[Non Identificato] Martello Sacro",
     "unidentifiedDescription": "Un martello da guerra robusto, con una testa d’argento decorata da simboli solari. L’impugnatura è avvolta in cuoio bianco e ogni tanto emette un leggero bagliore dorato."
@@ -232,7 +232,7 @@
       }
     ],
     "notes": "Non identificato come \"Pugnale Nero\"; lama sottile e scura, difficile da vedere quando impugnato.",
-    "image": "img/items/okbrax_dagger.webp",
+    "image": "media/items/okbrax_dagger.webp",
     "subtype": "Pugnale",
     "unidentifiedName": "[Non Identificato] Pugnale Nero",
     "unidentifiedDescription": "Un pugnale affilato con una lama sottile e scura. Ha un’impugnatura avvolta in cuoio nero e sembra diventare più difficile da vedere quando lo si impugna."
@@ -268,7 +268,7 @@
       }
     ],
     "notes": "Non identificata come \"Spada di Fuoco\"; lama con rune rosse incise.",
-    "image": "img/items/rosskar_longsword.webp",
+    "image": "media/items/rosskar_longsword.webp",
     "subtype": "Spada lunga",
     "unidentifiedName": "[Non Identificato] Spada di Fuoco",
     "unidentifiedDescription": "Una spada dalla lama affilata, con rune rosse incise lungo la superficie."
@@ -299,7 +299,7 @@
       }
     ],
     "notes": "Non identificata come \"Veste Bianca\"; bianca, leggera, con ricami argentati e aura tranquilla.",
-    "image": "img/items/lumilla_vest.webp",
+    "image": "media/items/lumilla_vest.webp",
     "subtype": "Veste",
     "unidentifiedName": "[Non Identificato] Veste Bianca",
     "unidentifiedDescription": "Una veste bianca leggera e fluida, con sottili ricami argentati lungo i bordi. Ha un’aura di tranquillità e sembra quasi brillare leggermente alla luce."
@@ -345,7 +345,7 @@
       }
     ],
     "notes": "Parte dell’equipaggiamento di Ginevra.",
-    "image": "img/items/ginevra_boots.webp",
+    "image": "media/items/ginevra_boots.webp",
     "subtype": "Stivali"
   },
   {
@@ -394,7 +394,7 @@
       }
     ],
     "notes": "Parte dell’equipaggiamento di Ginevra.",
-    "image": "img/items/ginevra_shield.webp"
+    "image": "media/items/ginevra_shield.webp"
   },
   {
     "id": "armatura-ginevra",
@@ -431,7 +431,7 @@
       }
     ],
     "notes": "Parte dell’equipaggiamento di Ginevra.",
-    "image": "img/items/ginevra_armor.webp",
+    "image": "media/items/ginevra_armor.webp",
     "subtype": "Splint Armor"
   },
   {
@@ -459,7 +459,7 @@
       }
     ],
     "notes": "Nel dato Foundry il nome identificato è \"Ring of Necrotic Resistance\", mentre la forma non identificata è \"Bracciale Metallico\".",
-    "image": "img/items/necrotic_resistance.webp",
+    "image": "media/items/necrotic_resistance.webp",
     "subtype": "Anello",
     "unidentifiedName": "Bracciale Metallico",
     "unidentifiedDescription": "This armor is leather armor with heavy rings sewn into it. The rings help reinforce the armor against blows from swords and axes. Ring mail is inferior to chain mail, and it's usually worn only by those who can't afford better armor."
@@ -481,7 +481,7 @@
     "notes": "La descrizione non identificata parla di uno strano specchio rotto con cornice vecchia e rovinata.",
     "subtype": "Specchio",
     "unidentifiedDescription": "Uno strano specchio rotto, con una cornice vecchia e rovinata.",
-    "image": "img/items/broken_mirror.webp",
+    "image": "media/items/broken_mirror.webp",
     "type": "Oggetto meraviglioso"
   },
   {
@@ -500,7 +500,7 @@
       }
     ],
     "notes": "Importata come non identificata in Foundry.",
-    "image": "img/items/item_undead_shovel.webp",
+    "image": "media/items/item_undead_shovel.webp",
     "subtype": "Pala",
     "unidentified": true
   },
@@ -525,7 +525,7 @@
       }
     ],
     "notes": "Descrizione non identificata: corona metallica composta da due filamenti incisi con glifi spenti.",
-    "image": "img/items/control_crown.webp",
+    "image": "media/items/control_crown.webp",
     "subtype": "Corona",
     "unidentifiedDescription": "Una strana corona metallica composta da due filamenti incisi con qualche glifo spento.",
     "hidden": true
@@ -551,7 +551,7 @@
     ],
     "notes": "Voce di contesto popolata dai riferimenti di Franky e dalle sessioni. Il file Foundry non definisce bonus meccanici; peso indicato: 8 kg.",
     "subtype": "Cuore",
-    "image": "img/items/heart_albert.webp"
+    "image": "media/items/heart_albert.webp"
   },
   {
     "id": "collana-buffa-zara",
@@ -588,7 +588,7 @@
         "description": "La collana è associata alla Gemma del Buffone Errante."
       }
     ],
-    "image": "img/items/zara_necklace.webp",
+    "image": "media/items/zara_necklace.webp",
     "subtype": "Collana",
     "unidentifiedName": "[Non Identificato] Collana Buffa",
     "unidentifiedDescription": "Una graziosa collana di fili multicolore con un buffone sorridente disegnato nel ciondolo.",
@@ -611,7 +611,7 @@
       }
     ],
     "notes": "Recuperato vicino al braccio gigantesco e collegato alla quest 'Trovare l'oggetto perduto di Elena'.",
-    "image": "img/items/elena_necklace.webp",
+    "image": "media/items/elena_necklace.webp",
     "subtype": "Ciondolo"
   },
   {
@@ -632,7 +632,7 @@
       }
     ],
     "notes": "Franky porta sempre con se una vasta gamma di sieri instabili; il gruppo ne ha trovati anche nel laboratorio di Nino Olegna.",
-    "image": "img/items/franky_sierums.webp",
+    "image": "media/items/franky_sierums.webp",
     "subtype": "Sieri"
   },
   {
@@ -653,7 +653,7 @@
       }
     ],
     "notes": "Oggetto collegato alla natura di Ginevra come alambicco vivente, capace di assimilare reagenti e trasformarli in nuovi prodotti.",
-    "image": "img/items/ginevra_healing_fetus.webp",
+    "image": "media/items/ginevra_healing_fetus.webp",
     "subtype": "Reagente"
   },
   {
@@ -682,7 +682,7 @@
       }
     ],
     "notes": "Ricompensa ottenuta dopo aver riunito Rabberduscolanderson con Elena.",
-    "image": "img/items/heart-rabberduscolanderson.webp",
+    "image": "media/items/heart-rabberduscolanderson.webp",
     "subtype": "Cuore"
   },
   {
@@ -714,7 +714,7 @@
       }
     ],
     "notes": "Oggetto associato agli studi di X e alla sua storia con rituali e conoscenza proibita.",
-    "image": "img/items/heart-x.webp",
+    "image": "media/items/heart-x.webp",
     "subtype": "Cuore"
   },
   {
@@ -748,7 +748,7 @@
       }
     ],
     "notes": "Collegato alla missione di Rabberduscolanderson su cio che Ran'Dra nascondeva in tasca.",
-    "image": "img/items/adamantine_headband.webp",
+    "image": "media/items/adamantine_headband.webp",
     "subtype": "Cerchietto"
   },
   {
@@ -767,7 +767,7 @@
       }
     ],
     "notes": "Voce di contesto costruita a partire dai documenti su Abrak, dal medaglione Klaren recuperato e dalle informazioni ottenute da X.",
-    "image": "img/items/klaren_reign.webp",
+    "image": "media/items/klaren_reign.webp",
     "subtype": "Reliquia"
   },
   {
@@ -779,7 +779,7 @@
     "type": "Oggetto meraviglioso",
     "rarity": "Non comune",
     "attunement": true,
-    "image": "img/items/cloak-of-protection.webp",
+    "image": "media/items/cloak-of-protection.webp",
     "icon": "fa-wand-sparkles",
     "summary": "Mantello protettivo che rafforza le difese del portatore con un bonus costante alla CA e ai tiri salvezza.",
     "properties": [
@@ -801,7 +801,7 @@
     "type": "Oggetto meraviglioso",
     "rarity": "Non comune",
     "attunement": true,
-    "image": "img/items/ring-of-mind-shielding.webp",
+    "image": "media/items/ring-of-mind-shielding.webp",
     "icon": "fa-wand-sparkles",
     "subtype": "Anello",
     "owner": "Rabberduscolanderson",
@@ -831,7 +831,7 @@
     "foundryNames": [
       "Poesia"
     ],
-    "image": "img/items/nino-poesia.webp",
+    "image": "media/items/nino-poesia.webp",
     "icon": "fa-wand-sparkles",
     "type": "Bottino",
     "subtype": "Documento",
@@ -856,10 +856,18 @@
     "name": "Sigaro Energetico",
     "type": "Oggetto meraviglioso",
     "rarity": "Molto raro",
-    "image": "img/items/sigaro-energetico.webp",
+    "image": "media/items/sigaro-energetico.webp",
     "icon": "fa-wand-sparkles",
     "subtype": "Sigaro",
     "owner": "Tokka",
     "unidentified": true
+  },
+  {
+    "id": "nuovo-oggetto-2",
+    "name": "Nuovo Oggetto fd",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Sconosciuta",
+    "image": "media/items/nuovo-oggetto-2.webp",
+    "icon": "fa-wand-sparkles"
   }
 ]

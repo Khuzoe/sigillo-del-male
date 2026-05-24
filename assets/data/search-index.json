@@ -1,5 +1,5 @@
 {
-  "itemCount": 81,
+  "itemCount": 83,
   "items": [
     {
       "id": "item:cuore-di-albert",
@@ -397,6 +397,20 @@
         "Nino Olegna"
       ],
       "content": "Poesia ritrovata tra gli oggetti di Nino Olegna: un messaggio incompleto di vendetta, rancore familiare e minaccia velata verso Karla. Descrizione popolata dal dato Foundry \"Poesia\". Messaggio di Vendetta Il testo parla di un padre tradito, di un patto familiare infranto e di una vendetta legata alla tela, ai ragni e al ritorno dal buio. Testo Recuperato Documento incompleto Nel fondo della tomba, continuamente mi rigiravo, per quell'azione ignobile che da te non m'aspettavo. Ora dal buio ritorno, con in mano il mio cuore, da padre tradito, sento ancora il dolore. Un dolore antico, che in me ..."
+    },
+    {
+      "id": "item:nuovo-oggetto-2",
+      "type": "item",
+      "entityId": "nuovo-oggetto-2",
+      "title": "Nuovo Oggetto fd",
+      "subtitle": "Oggetto meraviglioso | Sconosciuta",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Sconosciuta"
+      ],
+      "content": ""
     },
     {
       "id": "item:mantello-okbrax",
@@ -903,6 +917,21 @@
         "levelup"
       ],
       "content": "Continuate il vostro combattimento contro gli scheletri animati dopo che Valdor ha raccolto il libro, e riuscite ad uscirne vincitori senza perdite. Una volta sconfitti gli scheletri di Rosskar, Okbrax e Lumilla, il sacrofago all'interno della stanza si sblocca, rivelando al suo interno numerosi oggetti magici (armature e armi). Date un'occhiata veloce al libro e capite che questo contiene parti della storia dei Klaren, narrati con un linguaggio piuttosto arcaico. XP totali 8004 XP ciascuno 2001 level up 6"
+    },
+    {
+      "id": "item:nuovo-oggetto",
+      "type": "item",
+      "entityId": "nuovo-oggetto",
+      "title": "Sigaro Energetico",
+      "subtitle": "Oggetto meraviglioso | Molto raro",
+      "url": "pages/oggetti.html",
+      "tags": [
+        "item",
+        "Oggetto meraviglioso",
+        "Molto raro",
+        "Tokka"
+      ],
+      "content": ""
     },
     {
       "id": "item:specchio-rotto",

@@ -8,9 +8,9 @@ status: "vivo"
 hidden: false
 quote: "Buuuu! Ahahaha!"
 images:
-  avatar: "img/creatures/transp/zara_transp.webp"
-  hover: "img/creatures/transp/zara_animation.webp"
-  portrait: "img/creatures/zara.webp"
+  avatar: "media/creatures/transp/zara_transp.webp"
+  hover: "media/creatures/transp/zara_animation.webp"
+  portrait: "media/creatures/zara.webp"
 content_blocks:
   - type: "lore"
     title: "Biografia"
@@ -26,20 +26,20 @@ content_blocks:
     markdown: "characters/zara/aspetto_fisico.md"
   - type: "image_box"
     title: "Il Girocollo Festoso"
-    image: "img/items/zara_necklace.webp"
+    image: "media/items/zara_necklace.webp"
     markdown: "characters/zara/collana.md"
   - type: "image_box"
     title: "I Passi della Follia"
-    image: "img/items/zara-shoes.webp"
+    image: "media/items/zara-shoes.webp"
     hidden: true
     markdown: "characters/zara/i-passi-della-follia.md"
   - type: "image_box"
     title: "Marionetta Rara"
-    image: "img/creatures/zara_puppet_1.webp"
+    image: "media/creatures/zara_puppet_1.webp"
     markdown: "characters/zara/marionetta_rara.md"
   - type: "image_box"
     title: "Marionetta Tete"
-    image: "img/creatures/zara_puppet_2.webp"
+    image: "media/creatures/zara_puppet_2.webp"
     markdown: "characters/zara/marionetta_tete.md"
 
 relationships: - {}

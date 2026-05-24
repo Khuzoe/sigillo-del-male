@@ -23,7 +23,7 @@ window.CriptaApp.onPageReady("mappa", function() {
     const backBtn = document.getElementById('back-btn');
 
     const defaultMapData = '../assets/data/maps/main_maps/map.json';
-    const defaultMapImage = '../assets/img/maps/world_map.webp';
+    const defaultMapImage = resolveImageUrl('media/maps/world_map.webp');
     const minScale = 1;
     const maxScale = 8;
     const typeColors = {
@@ -62,7 +62,16 @@ window.CriptaApp.onPageReady("mappa", function() {
         if (catalogIcon) {
             return `<i class="fas ${escapeHtml(catalogIcon.icon)} ${escapeHtml(className)}" aria-hidden="true" title="${escapeHtml(catalogIcon.label)}"></i>`;
         }
-        return `<img src="${escapeHtml(iconValue)}" class="${escapeHtml(className)}" alt="${escapeHtml(altText)}">`;
+        return `<img src="${escapeHtml(resolveImageUrl(iconValue))}" class="${escapeHtml(className)}" alt="${escapeHtml(altText)}">`;
+    }
+
+    function resolveImageUrl(path) {
+        const value = String(path || '').trim();
+        if (!value) return '';
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
+        if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
+        return value;
     }
 
     function normalizeText(value) {
@@ -146,7 +155,7 @@ window.CriptaApp.onPageReady("mappa", function() {
         currentMapTitle = title;
         updateBreadcrumb();
         mapImage.dataset.mapDataPath = mapDataPath;
-        mapImage.src = mapImagePath;
+        mapImage.src = resolveImageUrl(mapImagePath);
         backBtn.style.display = mapHistory.length > 0 ? 'inline-flex' : 'none';
     }
 
@@ -173,7 +182,7 @@ window.CriptaApp.onPageReady("mappa", function() {
                 if (catalogIcon) {
                     iconElement.innerHTML = `<i class="fas ${escapeHtml(catalogIcon.icon)}" aria-hidden="true"></i>`;
                 } else {
-                    iconElement.style.backgroundImage = `url('${poiData.icons[0]}')`;
+                    iconElement.style.backgroundImage = `url('${resolveImageUrl(poiData.icons[0])}')`;
                 }
                 poiElement.appendChild(iconElement);
             }
@@ -335,7 +344,7 @@ window.CriptaApp.onPageReady("mappa", function() {
         if (!infoPanelInner) return;
 
         const imageHtml = poiData.image
-            ? `<img src="${escapeHtml(poiData.image)}" alt="${escapeHtml(poiData.title)}" class="info-panel-image">`
+            ? `<img src="${escapeHtml(resolveImageUrl(poiData.image))}" alt="${escapeHtml(poiData.title)}" class="info-panel-image">`
             : '';
         const isRumored = poiData.visibility === 'rumored';
 
@@ -374,7 +383,7 @@ window.CriptaApp.onPageReady("mappa", function() {
             image: mapImage.src,
             title: currentMapTitle
         });
-        loadMap(poiData.subMap.data, poiData.subMap.image, poiData.title || 'Area');
+        loadMap(poiData.subMap.data, resolveImageUrl(poiData.subMap.image), poiData.title || 'Area');
     }
 
     function setInitialPosition() {

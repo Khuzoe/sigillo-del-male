@@ -170,6 +170,16 @@ function parseYamlLite(yamlText) {
             }
         });
 
+        function resolveImageUrl(path, base_path = '../assets/') {
+            const value = String(path || '').trim();
+            if (!value) return '';
+            if (/^(https?:|data:|blob:)/i.test(value)) return value;
+            if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
+            if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
+            if (value.startsWith('assets/')) return `../${value}`;
+            return `${base_path}${value}`;
+        }
+
         async function loadNpcRecencyData(base_path) {
             try {
                 const response = await fetch(base_path + 'data/npc-recency.json');
@@ -295,8 +305,8 @@ function parseYamlLite(yamlText) {
             card.innerHTML = `
                 <span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>
                 <div class="npc-avatar-container">
-                    <img src="${base_path}${npc.images.avatar}" alt="${npc.name}" class="npc-img-pop img-main" style="${buildImageStyle('avatar', npc.images.avatarAdjust, npc.images.hoverAdjust)}" onerror="this.style.display='none'">
-                    <img src="${base_path}${npc.images.hover}" alt="${npc.name} Reveal" class="npc-img-pop img-hover" style="${buildImageStyle('hover', npc.images.hoverAdjust, npc.images.avatarAdjust)}" onerror="this.style.display='none'">
+                    <img src="${resolveImageUrl(npc.images.avatar, base_path)}" alt="${npc.name}" class="npc-img-pop img-main" style="${buildImageStyle('avatar', npc.images.avatarAdjust, npc.images.hoverAdjust)}" onerror="this.style.display='none'">
+                    <img src="${resolveImageUrl(npc.images.hover, base_path)}" alt="${npc.name} Reveal" class="npc-img-pop img-hover" style="${buildImageStyle('hover', npc.images.hoverAdjust, npc.images.avatarAdjust)}" onerror="this.style.display='none'">
                 </div>
                 <div class="npc-info">
                     <div class="npc-header">

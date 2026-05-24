@@ -7,9 +7,9 @@ status: "vivo"
 hidden: false
 quote: "She volete dei shieri, io shi shono!"
 images:
-  avatar: "img/creatures/transp/franky_transp.webp"
-  hover: "img/creatures/transp/franky_animation.webp"
-  portrait: "img/creatures/franky.webp"
+  avatar: "media/creatures/transp/franky_transp.webp"
+  hover: "media/creatures/transp/franky_animation.webp"
+  portrait: "media/creatures/franky.webp"
 summary:
   race: "Topo Parlante"
   height: "1 ft 10 in (0.55 m)"
@@ -29,7 +29,7 @@ content_blocks:
     markdown: "characters/franky/aspetto_fisico.md"
   - type: "image_box"
     title: "I Sieri"
-    image: "img/items/franky_sierums.webp"
+    image: "media/items/franky_sierums.webp"
     image_caption: "Collezione di sieri instabili."
     tags:
       - "Oggetto"
@@ -37,7 +37,7 @@ content_blocks:
     markdown: "characters/franky/sieri.md"
   - type: "image_box"
     title: "Colossho di Carne"
-    image: "img/creatures/bestiary/golem_micidiale_della_morte.webp"
+    image: "media/creatures/bestiary/golem_micidiale_della_morte.webp"
     image_caption: "Costrutto di carne e metallo."
     tags:
       - "Creatura"

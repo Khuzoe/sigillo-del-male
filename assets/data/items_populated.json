@@ -8,7 +8,7 @@
     "owner": "Zara",
     "status": "identified",
     "icon": "fa-hand-sparkles",
-    "image": "img/items/zara-gloves.webp",
+    "image": "media/items/zara-gloves.webp",
     "summary": "Guanti magici da buffone, capaci di aumentare la Destrezza e scatenare trucchi di posizione, mano invisibile ed energia comica.",
     "properties": [
       {
@@ -41,7 +41,7 @@
     "owner": "Zara",
     "status": "identified",
     "icon": "fa-shoe-prints",
-    "image": "img/items/zara-shoes.webp",
+    "image": "media/items/zara-shoes.webp",
     "summary": "Una scarpa dotata di proprieta magiche sorprendenti, studiata insieme ai guanti di Zara.",
     "properties": [
       {
@@ -59,7 +59,7 @@
     "rarity": "Artefatto",
     "status": "known",
     "icon": "fa-gem",
-    "image": "img/items/luce_cristallizzata.webp",
+    "image": "media/items/luce_cristallizzata.webp",
     "summary": "Un prisma legato all'anima di Apothecary, citato tra gli eventi piu critici del gruppo.",
     "properties": [
       {

@@ -53,6 +53,16 @@ const ITEM_RARITIES = [
     { value: "Sconosciuta", icon: "fa-circle-question" }
 ];
 
+function resolveImageUrl(path) {
+    const value = String(path || "").trim();
+    if (!value) return "";
+    if (/^(https?:|data:|blob:)/i.test(value)) return value;
+    if (value.startsWith("media/")) return window.CriptaApp.urls.api(value);
+    if (value.startsWith("/media/")) return window.CriptaApp.urls.api(value.slice(1));
+    if (value.startsWith("assets/")) return `../${value}`;
+    return `../assets/${value}`;
+}
+
 function filterVisibleItems(items) {
     const list = Array.isArray(items) ? items : [];
     if (window.WikiSpoiler) return window.WikiSpoiler.filterVisible(list);
@@ -270,9 +280,10 @@ function renderItemProperty(property) {
 function renderItemMedia(item, type, rarity) {
     const rarityClass = getItemRarityFrameClass(rarity.label);
     if (item.image) {
+        const imageUrl = resolveImageUrl(item.image);
         return `
-            <button class="item-card-media ${escapeHtml(rarityClass)}" type="button" data-item-image="../assets/${escapeHtml(item.image)}" data-item-name="${escapeHtml(item.name || "Oggetto")}" aria-label="Ingrandisci immagine: ${escapeHtml(item.name || "Oggetto")}">
-                <img src="../assets/${escapeHtml(item.image)}" alt="${escapeHtml(item.name || "Oggetto")}">
+            <button class="item-card-media ${escapeHtml(rarityClass)}" type="button" data-item-image="${escapeHtml(imageUrl)}" data-item-name="${escapeHtml(item.name || "Oggetto")}" aria-label="Ingrandisci immagine: ${escapeHtml(item.name || "Oggetto")}">
+                <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name || "Oggetto")}">
             </button>
         `;
     }

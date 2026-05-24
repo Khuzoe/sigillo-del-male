@@ -12,6 +12,16 @@ window.CriptaApp.onPageReady("index", () => {
         });
     };
 
+    function resolveImageUrl(path, fallback = 'assets/img/logo.webp') {
+        const value = String(path || '').trim();
+        if (!value) return fallback;
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
+        if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
+        if (value.startsWith('assets/')) return value;
+        return `assets/${value}`;
+    }
+
     Promise.all([
         fetchJson('assets/data/sessions.json', 'Errore caricamento sessions.json'),
         fetchJson('assets/data/players.json', 'Errore caricamento players.json'),
@@ -95,7 +105,7 @@ window.CriptaApp.onPageReady("index", () => {
     }
 
     function renderHomePlayerCard(player) {
-        const avatarPath = player.images?.avatar ? `assets/${player.images.avatar}` : 'assets/img/logo.webp';
+        const avatarPath = resolveImageUrl(player.images?.avatar);
         return `
             <a href="pages/characters/character.html?id=${player.id}&type=player" class="home-char-card mini">
                 <div class="home-char-avatar"><img src="${avatarPath}" alt="${player.name}"></div>
@@ -107,7 +117,7 @@ window.CriptaApp.onPageReady("index", () => {
     }
 
     function renderRecentNpcCard(npc) {
-        const avatarPath = npc.avatar ? `assets/${npc.avatar}` : 'assets/img/logo.webp';
+        const avatarPath = resolveImageUrl(npc.avatar);
         const url = npc.url || `pages/characters/character.html?id=${npc.id}`;
         return `
             <a href="${url}" class="home-char-card mini">

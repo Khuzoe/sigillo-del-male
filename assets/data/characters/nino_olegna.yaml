@@ -6,9 +6,9 @@ role: "Il Tessimorte"
 status: "morto"
 quote: "Il tradimento è inaccettabile. Pagherai."
 images:
-  avatar: "img/creatures/transp/nino_olegna_transp.webp"
-  hover: "img/creatures/transp/nino_olegna_animation.webp"
-  portrait: "img/creatures/nino_olegna.webp"
+  avatar: "media/creatures/transp/nino_olegna_transp.webp"
+  hover: "media/creatures/transp/nino_olegna_animation.webp"
+  portrait: "media/creatures/nino_olegna.webp"
 summary:
   race: "Non Morto"
   age_at_death: "60 anni"
@@ -32,11 +32,11 @@ content_blocks:
   - type: "image_box"
     title: "Versione Oscura"
     icon: "fa-moon"
-    image: "img/creatures/nino_olegna_dark.webp"
+    image: "media/creatures/nino_olegna_dark.webp"
     markdown: "characters/nino_olegna/versione_oscura.md"
   - type: "image_box"
     title: "Tessimorfosi"
-    image: "img/documents/nino_fascicolo_creature_tela.webp"
+    image: "media/documents/nino_fascicolo_creature_tela.webp"
     image_caption: "Schema di sostituzione dei tessuti molli con fibre di seta."
     tags:
       - "Documento"
@@ -44,7 +44,7 @@ content_blocks:
     markdown: "characters/nino_olegna/tessimorfosi.md"
   - type: "image_box"
     title: "Evoluzione"
-    image: "img/documents/nino_fascicolo_webber.webp"
+    image: "media/documents/nino_fascicolo_webber.webp"
     image_caption: "Fusione di più creature in un unico organismo difensivo."
     tags:
       - "Documento"
@@ -52,7 +52,7 @@ content_blocks:
     markdown: "characters/nino_olegna/evoluzione.md"
   - type: "image_box"
     title: "Tessimorfosi Ciclica"
-    image: "img/documents/nino_fascicolo_bacio_mortale.webp"
+    image: "media/documents/nino_fascicolo_bacio_mortale.webp"
     image_caption: "Una figura umanoide composta di seta densa, china su un rituale."
     tags:
       - "Documento"
@@ -60,7 +60,7 @@ content_blocks:
     markdown: "characters/nino_olegna/tessimorfosi-ciclica.md"
   - type: "image_box"
     title: "Tessimorfosi Definitiva"
-    image: "img/documents/nino_fascicolo_colosso_tela.webp"
+    image: "media/documents/nino_fascicolo_colosso_tela.webp"
     image_caption: "Schizzi frenetici di una creatura immensa che assorbe corpi."
     tags:
       - "Documento"
@@ -68,7 +68,7 @@ content_blocks:
     markdown: "characters/nino_olegna/tessimorfosi-definitiva.md"
   - type: "image_box"
     title: "Pergamena: Il Lamento del Tradito"
-    image: "img/documents/nino_poesia.webp"
+    image: "media/documents/nino_poesia.webp"
     image_caption: "Versi tracciati con rabbia su pergamena antica."
     tags:
       - "Documento"

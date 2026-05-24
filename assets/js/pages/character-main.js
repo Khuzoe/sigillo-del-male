@@ -298,7 +298,7 @@ const PLAYER_NAME_ALIASES = {
     valdor: ['valdor']
 };
 const SKILLS_DATA_URL = '../../assets/data/skills.json';
-const SKILLS_ASSET_BASE = '../../assets/img/skill_trees/';
+const SKILLS_ASSET_BASE = 'media/skill_trees/';
 const PLAYER_SKILL_TREE_KEYS = {
     apothecary: 'apothecary',
     garun: 'garun',
@@ -387,11 +387,13 @@ function isInventoryCacheFresh(cache) {
 }
 
 function resolveSkillAssetPath(path) {
-    if (!path) return '';
-    if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('/') || path.startsWith('data:')) {
-        return path;
-    }
-    return `${SKILLS_ASSET_BASE}${path}`;
+    const value = String(path || '').trim();
+    if (!value) return '';
+    if (/^(https?:|data:|blob:)/i.test(value)) return value;
+    if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
+    if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
+    if (value.startsWith('/')) return value;
+    return window.CriptaApp.urls.api(`${SKILLS_ASSET_BASE}${value}`);
 }
 
 async function loadSkillsData() {
@@ -1974,13 +1976,14 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     function resolveImagePath(imagePath) {
-        if (!imagePath) return '';
-        // Check if the path is already absolute or starts with a protocol
-        if (imagePath.startsWith('http://') || imagePath.startsWith('https://') || imagePath.startsWith('/') || imagePath.startsWith('data:')) {
-            return imagePath;
-        }
-        // Prepend the base path for relative asset images
-        return `../../assets/${imagePath}`;
+        const value = String(imagePath || '').trim();
+        if (!value) return '';
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
+        if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
+        if (value.startsWith('/')) return value;
+        if (value.startsWith('assets/')) return `../../${value}`;
+        return `../../assets/${value}`;
     }
 
     function normalizeImageAdjust(adjust) {

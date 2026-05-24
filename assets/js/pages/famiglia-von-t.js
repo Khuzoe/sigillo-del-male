@@ -1,9 +1,12 @@
 function resolveImagePath(imagePath) {
-            if (!imagePath) return '';
-            if (imagePath.startsWith('http://') || imagePath.startsWith('https://') || imagePath.startsWith('/') || imagePath.startsWith('data:')) {
-                return imagePath;
-            }
-            return `../assets/${imagePath}`;
+            const value = String(imagePath || '').trim();
+            if (!value) return '';
+            if (/^(https?:|data:|blob:)/i.test(value)) return value;
+            if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
+            if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
+            if (value.startsWith('/')) return value;
+            if (value.startsWith('assets/')) return `../${value}`;
+            return `../assets/${value}`;
         }
 
         window.CriptaApp.onPageReady("famiglia-von-t", async function() {

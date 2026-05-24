@@ -6,14 +6,14 @@
     "role": "Barbaro",
     "description": "Padre di Ran'Dra e prima linea del gruppo, affronta ogni scontro con tenacia brutale e istinto protettivo. Tra maledizioni, rituali e battaglie contro le creature della cripta, resta il pilastro fisico della compagnia anche quando la situazione precipita.",
     "images": {
-      "avatar": "img/players/garun_transp.webp",
-      "hover": "img/players/garun_animation.webp",
+      "avatar": "media/players/garun_transp.webp",
+      "hover": "media/players/garun_animation.webp",
       "hoverAdjust": {
         "x": 0,
         "y": 0,
         "size": 1.25
       },
-      "portrait": "img/players/garun.webp"
+      "portrait": "media/players/garun.webp"
     },
     "summary": {
       "race": "Umano",
@@ -33,19 +33,19 @@
     "role": "Maga (Evocazione)",
     "description": "Maga dallo stile imprevedibile, unisce astuzia, illusioni e iniziativa per aprire strade dove sembrano non essercene. Tra furti decisivi, scelte rischiose e combattimenti al limite, continua a essere una risorsa tattica centrale per il gruppo.",
     "images": {
-      "avatar": "img/players/randra_transp.webp",
+      "avatar": "media/players/randra_transp.webp",
       "avatarAdjust": {
         "x": 0,
         "y": 0,
         "size": 1
       },
-      "hover": "img/players/randra_animation.webp",
+      "hover": "media/players/randra_animation.webp",
       "hoverAdjust": {
         "x": 0,
         "y": 0,
         "size": 1.15
       },
-      "portrait": "img/players/randra.webp"
+      "portrait": "media/players/randra.webp"
     },
     "summary": {
       "race": "Eladrin",
@@ -65,9 +65,9 @@
     "role": "Artificiere",
     "description": "Artefice e mente tecnica del party, combina studio arcano, invenzione e sangue freddo per gestire minacce fuori scala. Ha risolto enigmi, sigillato aree letali e recuperato risorse cruciali, diventando il principale riferimento strategico nelle decisioni operative.",
     "images": {
-      "avatar": "img/players/valdor_transp.webp",
-      "hover": "img/players/valdor_animation.webp",
-      "portrait": "img/players/valdor.webp"
+      "avatar": "media/players/valdor_transp.webp",
+      "hover": "media/players/valdor_animation.webp",
+      "portrait": "media/players/valdor.webp"
     },
     "summary": {
       "race": "Nano",
@@ -88,9 +88,9 @@
     "statusLabel": "Fuori dal gruppo",
     "description": "Guaritrice e guida spirituale del gruppo, ha spezzato maledizioni e tenuto unito il party nei momenti piu critici. Dopo avere sviluppato un forte legame con Rabberduscolanderson, si e sacrificata durante l'incubo del sigillo: ora il suo corpo e svenuto e la sua anima e rinchiusa in un Prisma di Luce Cristallizzata.",
     "images": {
-      "avatar": "img/players/apothecary_transp.webp",
-      "hover": "img/players/apothecary_animation.webp",
-      "portrait": "img/players/apothecary.webp"
+      "avatar": "media/players/apothecary_transp.webp",
+      "hover": "media/players/apothecary_animation.webp",
+      "portrait": "media/players/apothecary.webp"
     },
     "summary": {
       "race": "Kenku",
@@ -110,19 +110,19 @@
     "hidden": false,
     "description": "Mente analitica e spietata: trasforma intuizione, logica e autocontrollo in vantaggi concreti sul campo di battaglia.",
     "images": {
-      "avatar": "img/players/theldarion_transp.webp",
+      "avatar": "media/players/theldarion_transp.webp",
       "avatarAdjust": {
         "x": 0,
         "y": -7,
         "size": 1.085
       },
-      "hover": "img/players/theldarion_animation.webp",
+      "hover": "media/players/theldarion_animation.webp",
       "hoverAdjust": {
         "x": 0,
         "y": -7,
         "size": 1.27
       },
-      "portrait": "img/players/theldarion.webp"
+      "portrait": "media/players/theldarion.webp"
     },
     "summary": {
       "race": "Non disponibile",

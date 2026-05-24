@@ -7,9 +7,9 @@ status: "vivo"
 hidden: false
 quote: "Se non metti il tuo amore nel pestello, l'erba resta solo erba."
 images:
-  avatar: "img/creatures/transp/ginevra_transp.webp"
-  hover: "img/creatures/transp/ginevra_animation.webp"
-  portrait: "img/creatures/ginevra.webp"
+  avatar: "media/creatures/transp/ginevra_transp.webp"
+  hover: "media/creatures/transp/ginevra_animation.webp"
+  portrait: "media/creatures/ginevra.webp"
 content_blocks:
   - type: "lore"
     title: "Aspetto Fisico"
@@ -22,11 +22,11 @@ content_blocks:
   - type: "image_box"
     title: "Versione Oscura"
     icon: "fa-moon"
-    image: "img/creatures/ginevra_dark.webp"
+    image: "media/creatures/ginevra_dark.webp"
     markdown: "characters/ginevra/versione_oscura.md"
   - type: "image_box"
     title: "Healing Fetus"
-    image: "img/items/ginevra_healing_fetus.webp"
+    image: "media/items/ginevra_healing_fetus.webp"
     markdown: "characters/ginevra/healing_fetus.md"
     hidden: true
 summary:

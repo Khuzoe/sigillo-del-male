@@ -7,9 +7,9 @@ status: "vivo"
 hidden: false
 quote: "Insieme possiamo raggiungere il nostro obiettivo, lo sento."
 images:
-  avatar: "img/creatures/transp/karla_transp.webp"
-  hover: "img/creatures/transp/karla_animation.webp"
-  portrait: "img/creatures/karla.webp"
+  avatar: "media/creatures/transp/karla_transp.webp"
+  hover: "media/creatures/transp/karla_animation.webp"
+  portrait: "media/creatures/karla.webp"
 content_blocks:
   - type: "lore"
     title: "Biografia"
@@ -26,7 +26,7 @@ content_blocks:
   - type: "image_box"
     title: "Versione Oscura"
     icon: "fa-moon"
-    image: "img/creatures/karla_dark.webp"
+    image: "media/creatures/karla_dark.webp"
     markdown: "characters/karla/versione_oscura.md"
   - type: "custom_box"
     title: "Richieste e ambiguità"

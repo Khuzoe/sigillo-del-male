@@ -42,6 +42,16 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         return `--img-x:${normalized.x}px; --img-y:${normalized.y}px; --img-scale-rest:${restScale}; --img-scale-hover:${hoverScale};`;
     }
 
+    function resolveImageUrl(path) {
+        const value = String(path || "").trim();
+        if (!value) return "";
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith("media/")) return window.CriptaApp.urls.api(value);
+        if (value.startsWith("/media/")) return window.CriptaApp.urls.api(value.slice(1));
+        if (value.startsWith("assets/")) return `../${value}`;
+        return `${basePath}${value}`;
+    }
+
     async function fetchJson(url, fallback) {
         try {
             const response = await fetch(url);
@@ -196,8 +206,8 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         return `
             <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player" class="${cardClasses}">
                 <div class="npc-avatar-container">
-                    <img src="${basePath}${escapeHtml(player.images?.avatar)}" alt="${escapeHtml(player.name)}" class="npc-img-pop img-main" style="${buildImageStyle("avatar", player.images?.avatarAdjust, player.images?.hoverAdjust)}" onerror="this.src='https://placehold.co/200x200/1a1a1a/gold?text=${encodeURIComponent(String(player.name || "?").charAt(0))}'">
-                    <img src="${basePath}${escapeHtml(player.images?.hover)}" alt="${escapeHtml(player.name)} Full" class="npc-img-pop img-hover" style="${buildImageStyle("hover", player.images?.hoverAdjust, player.images?.avatarAdjust)}" onerror="this.style.display='none'">
+                    <img src="${escapeHtml(resolveImageUrl(player.images?.avatar))}" alt="${escapeHtml(player.name)}" class="npc-img-pop img-main" style="${buildImageStyle("avatar", player.images?.avatarAdjust, player.images?.hoverAdjust)}" onerror="this.src='https://placehold.co/200x200/1a1a1a/gold?text=${encodeURIComponent(String(player.name || "?").charAt(0))}'">
+                    <img src="${escapeHtml(resolveImageUrl(player.images?.hover))}" alt="${escapeHtml(player.name)} Full" class="npc-img-pop img-hover" style="${buildImageStyle("hover", player.images?.hoverAdjust, player.images?.avatarAdjust)}" onerror="this.style.display='none'">
                 </div>
                 <div class="npc-info">
                     <div class="npc-header">

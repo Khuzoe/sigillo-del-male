@@ -7,9 +7,9 @@ status: "vivo"
 hidden: false
 quote: "Il sapere sopravvive dove il potere consuma."
 images:
-  avatar: "img/creatures/transp/x_transp.webp"
-  hover: "img/creatures/transp/x_animation.webp"
-  portrait: "img/creatures/x.webp"
+  avatar: "media/creatures/transp/x_transp.webp"
+  hover: "media/creatures/transp/x_animation.webp"
+  portrait: "media/creatures/x.webp"
 content_blocks:
   - type: "lore"
     title: "Biografia"
@@ -26,11 +26,11 @@ content_blocks:
   - type: "image_box"
     title: "Versione Oscura"
     icon: "fa-moon"
-    image: "img/creatures/x_dark.webp"
+    image: "media/creatures/x_dark.webp"
     markdown: "characters/x/versione_oscura.md"
   - type: "image_box"
     title: "Cuore di X"
-    image: "img/items/heart-x.webp"
+    image: "media/items/heart-x.webp"
     markdown: "characters/x/cuore-di-x.md"
     hidden: true
 relationships:
