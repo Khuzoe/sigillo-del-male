@@ -126,6 +126,8 @@
         [
             'editor-status',
             'add-item-btn',
+            'import-json-btn',
+            'import-json-file',
             'focus-mode-btn',
             'duplicate-item-btn',
             'delete-item-btn',
@@ -181,6 +183,10 @@
             focusPrimaryDetailField();
             setStatus('Nuovo oggetto aggiunto. Compila la scheda e poi salva online.');
         });
+
+        els.importJsonBtn?.addEventListener('click', openImportJsonDialog);
+
+        els.importJsonFile?.addEventListener('change', handleImportJsonFile);
 
         els.focusModeBtn?.addEventListener('click', () => {
             setFocusMode(!isFocusMode());
@@ -956,6 +962,119 @@
             properties: [],
             notes: ''
         };
+    }
+
+    async function handleImportJsonFile(event) {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+
+        try {
+            importItemsJsonText(await file.text());
+        } catch (error) {
+            console.error('Import JSON oggetti fallito:', error);
+            setStatus(`Import JSON fallito: ${error?.message || error}`, 'error');
+        }
+    }
+
+    function openImportJsonDialog() {
+        const existing = document.querySelector('[data-items-import-dialog]');
+        if (existing) existing.remove();
+        const dialog = document.createElement('div');
+        dialog.dataset.itemsImportDialog = '1';
+        dialog.style.cssText = 'position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:1rem;background:rgba(0,0,0,.72);';
+        dialog.innerHTML = `
+            <section style="width:min(760px,100%);display:grid;gap:.75rem;padding:1rem;border:1px solid rgba(212,175,55,.28);border-radius:10px;background:#121010;box-shadow:0 24px 70px rgba(0,0,0,.62);">
+                <h2 style="margin:0;color:var(--gold);font-family:var(--font-heading);">Importa JSON Oggetto</h2>
+                <p class="items-editor-status">Incolla un singolo oggetto JSON oppure un array di oggetti. Se l'id esiste gia, ti verra chiesto se sostituirlo.</p>
+                <textarea class="items-editor-area" data-import-json-text rows="16" spellcheck="false" placeholder='{"id":"globo-d-anima","name":"Globo d&apos;Anima",...}'></textarea>
+                <div class="items-editor-actions" style="justify-content:flex-end;">
+                    <button class="items-editor-btn" type="button" data-import-file><i class="fas fa-folder-open"></i> Da file</button>
+                    <button class="items-editor-btn" type="button" data-import-cancel>Annulla</button>
+                    <button class="items-editor-btn" type="button" data-import-submit><i class="fas fa-file-import"></i> Importa</button>
+                </div>
+            </section>
+        `;
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog || event.target.closest('[data-import-cancel]')) {
+                dialog.remove();
+                return;
+            }
+            if (event.target.closest('[data-import-file]')) {
+                dialog.remove();
+                els.importJsonFile?.click();
+                return;
+            }
+            if (event.target.closest('[data-import-submit]')) {
+                try {
+                    importItemsJsonText(dialog.querySelector('[data-import-json-text]')?.value || '');
+                    dialog.remove();
+                } catch (error) {
+                    console.error('Import JSON oggetti fallito:', error);
+                    setStatus(`Import JSON fallito: ${error?.message || error}`, 'error');
+                }
+            }
+        });
+        document.body.appendChild(dialog);
+        dialog.querySelector('[data-import-json-text]')?.focus();
+    }
+
+    function importItemsJsonText(text) {
+        const imported = parseImportedItemsJson(text);
+        const result = upsertImportedItems(imported);
+        renderAll();
+        setFocusMode(true);
+        setStatus(`Import completato: ${result.added} aggiunti, ${result.replaced} sostituiti.`);
+    }
+
+    function parseImportedItemsJson(text) {
+        if (!String(text || '').trim()) throw new Error('Incolla o seleziona un JSON prima di importare.');
+        const parsed = JSON.parse(text);
+        const items = Array.isArray(parsed) ? parsed : [parsed];
+        const validItems = items.filter((item) => item && typeof item === 'object' && !Array.isArray(item));
+        if (!validItems.length) throw new Error('Il JSON deve contenere un oggetto o un array di oggetti.');
+        return validItems.map((item) => {
+            const copy = structuredCloneSafe(item);
+            if (!copy.id && copy.name) copy.id = uniqueId(copy.name);
+            if (!copy.name) copy.name = copy.id || 'Oggetto importato';
+            pruneItem(copy);
+            return copy;
+        });
+    }
+
+    function upsertImportedItems(importedItems) {
+        let added = 0;
+        let replaced = 0;
+        let lastIndex = state.selectedIndex;
+
+        importedItems.forEach((item) => {
+            const existingIndex = findItemIndexForImport(item);
+            if (existingIndex >= 0) {
+                const confirmed = window.confirm(`Esiste gia "${state.items[existingIndex].name || item.name}". Vuoi sostituirlo con il JSON importato?`);
+                if (!confirmed) return;
+                state.items[existingIndex] = item;
+                replaced += 1;
+                lastIndex = existingIndex;
+                return;
+            }
+
+            state.items.push(item);
+            added += 1;
+            lastIndex = state.items.length - 1;
+        });
+
+        state.selectedIndex = Math.max(-1, lastIndex);
+        updateOutput({ commitActive: false });
+        return { added, replaced };
+    }
+
+    function findItemIndexForImport(item) {
+        const id = String(item?.id || '').trim();
+        const nameKey = normalizeSearch(item?.name);
+        return state.items.findIndex((candidate) => {
+            if (id && String(candidate?.id || '').trim() === id) return true;
+            return nameKey && normalizeSearch(candidate?.name) === nameKey;
+        });
     }
 
     function writeItemField(item, field, value) {

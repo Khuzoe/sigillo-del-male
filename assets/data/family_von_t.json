@@ -14,7 +14,8 @@
     ],
     "hidden": false,
     "unknown": true,
-    "von_t": true
+    "von_t": true,
+    "birthOrder": 1
   },
   {
     "id": "leonora",
@@ -49,7 +50,8 @@
       "tokka"
     ],
     "hidden": false,
-    "von_t": true
+    "von_t": true,
+    "birthOrder": 4
   },
   {
     "id": "rabberduscolanderson",
@@ -64,7 +66,8 @@
     ],
     "children": [],
     "hidden": false,
-    "von_t": true
+    "von_t": true,
+    "birthOrder": 3
   },
   {
     "id": "ginevra",
@@ -82,7 +85,8 @@
     ],
     "hidden": false,
     "unknown": false,
-    "von_t": true
+    "von_t": true,
+    "birthOrder": 2
   },
   {
     "id": "nino_olegna",
@@ -109,7 +113,8 @@
     "spouses": [],
     "children": [],
     "hidden": false,
-    "von_t": true
+    "von_t": true,
+    "birthOrder": 6
   },
   {
     "id": "tokka",
@@ -121,10 +126,11 @@
     ],
     "spouses": [],
     "children": [],
-    "hidden": true,
+    "hidden": false,
     "von_t": true,
     "unknown": false,
-    "unnamed": false
+    "unnamed": false,
+    "birthOrder": 5
   },
   {
     "id": "rendar",
@@ -152,7 +158,8 @@
     "spouses": [],
     "children": [],
     "hidden": false,
-    "von_t": true
+    "von_t": true,
+    "birthOrder": 7
   },
   {
     "id": "elena",

@@ -2695,6 +2695,13 @@ body.is-embed .container {
    FAMILY TREE SECTION
    ========================================= */
 
+.family-page-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 24rem);
+    gap: 1.25rem;
+    align-items: start;
+}
+
 .family-tree {
     display: flex;
     flex-direction: column;
@@ -2852,6 +2859,131 @@ body.is-embed .container {
     /* Allow scrolling if tree is too wide */
 }
 
+.family-birth-order {
+    margin-top: 20px;
+    padding: 1.1rem;
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 20% 0%, rgba(212, 175, 55, 0.12), transparent 34%),
+        linear-gradient(180deg, rgba(45, 30, 18, 0.72), rgba(12, 10, 9, 0.94));
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.birth-order-header {
+    padding: 0.25rem 0.25rem 0.9rem;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.24);
+    margin-bottom: 0.85rem;
+}
+
+.birth-order-header .eyebrow {
+    display: block;
+    margin-bottom: 0.3rem;
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.birth-order-header h2 {
+    margin: 0;
+    color: var(--text-heading);
+    font-family: var(--font-heading);
+    font-size: 1.45rem;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+}
+
+.birth-order-header p {
+    margin: 0.45rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.birth-order-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.birth-card {
+    display: grid;
+    grid-template-columns: auto 3rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 4rem;
+    padding: 0.65rem;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 12px;
+    color: var(--text-main);
+    text-decoration: none;
+    background: rgba(255, 255, 255, 0.035);
+    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.birth-card:hover {
+    transform: translateX(-3px);
+    border-color: rgba(212, 175, 55, 0.72);
+    background: rgba(212, 175, 55, 0.08);
+    color: var(--text-main);
+}
+
+.birth-card--locked,
+.birth-card--locked:hover {
+    cursor: default;
+    transform: none;
+    color: var(--text-main);
+}
+
+.birth-rank {
+    min-width: 2.2rem;
+    color: var(--gold);
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    letter-spacing: 0.08em;
+    text-align: center;
+}
+
+.birth-avatar {
+    width: 3rem;
+    height: 3rem;
+    border: 1px solid rgba(212, 175, 55, 0.55);
+    border-radius: 50%;
+    object-fit: cover;
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.birth-copy {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.birth-name {
+    overflow: hidden;
+    color: var(--text-heading);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.birth-meta {
+    margin-top: 0.18rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+}
+
 .generation-children-by-branch {
     align-items: flex-start;
 }
@@ -2921,6 +3053,21 @@ body.is-embed .container {
 
 .family-member .member-image[src*="data:image/svg+xml"] {
     background-color: black;
+}
+
+@media (max-width: 1180px) {
+    .family-page-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .family-birth-order {
+        order: -1;
+    }
+
+    .birth-order-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    }
 }
 
 /* =========================================

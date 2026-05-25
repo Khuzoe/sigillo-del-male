@@ -143,6 +143,8 @@
         [
             'editor-status',
             'add-creature-btn',
+            'import-json-btn',
+            'import-json-file',
             'focus-mode-btn',
             'duplicate-creature-btn',
             'delete-creature-btn',
@@ -212,6 +214,10 @@
             focusPrimaryDetailField();
             setStatus('Nuova creatura aggiunta. Compila la scheda e poi salva online.');
         });
+
+        els.importJsonBtn?.addEventListener('click', openImportJsonDialog);
+
+        els.importJsonFile?.addEventListener('change', handleImportJsonFile);
 
         els.focusModeBtn?.addEventListener('click', () => {
             setFocusMode(!isFocusMode());
@@ -1324,6 +1330,120 @@
                 drops: []
             }
         };
+    }
+
+    async function handleImportJsonFile(event) {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+
+        try {
+            importCreaturesJsonText(await file.text());
+        } catch (error) {
+            console.error('Import JSON bestiario fallito:', error);
+            setStatus(`Import JSON fallito: ${error?.message || error}`);
+        }
+    }
+
+    function openImportJsonDialog() {
+        const existing = document.querySelector('[data-bestiary-import-dialog]');
+        if (existing) existing.remove();
+        const dialog = document.createElement('div');
+        dialog.dataset.bestiaryImportDialog = '1';
+        dialog.style.cssText = 'position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:1rem;background:rgba(0,0,0,.72);';
+        dialog.innerHTML = `
+            <section style="width:min(760px,100%);display:grid;gap:.75rem;padding:1rem;border:1px solid rgba(212,175,55,.28);border-radius:10px;background:#121010;box-shadow:0 24px 70px rgba(0,0,0,.62);">
+                <h2 style="margin:0;color:var(--gold);font-family:var(--font-heading);">Importa JSON Bestiario</h2>
+                <p class="bestiary-editor-status">Incolla una singola creatura JSON oppure un array di creature. Se il nome o un nome Foundry esiste gia, ti verra chiesto se sostituirla.</p>
+                <textarea class="bestiary-editor-area" data-import-json-text rows="16" spellcheck="false" placeholder='{"name":"Nuova Creatura","image":"media/creatures/bestiary/nuova.webp",...}'></textarea>
+                <div class="bestiary-editor-actions" style="justify-content:flex-end;">
+                    <button class="bestiary-editor-btn" type="button" data-import-file><i class="fas fa-folder-open"></i> Da file</button>
+                    <button class="bestiary-editor-btn" type="button" data-import-cancel>Annulla</button>
+                    <button class="bestiary-editor-btn" type="button" data-import-submit><i class="fas fa-file-import"></i> Importa</button>
+                </div>
+            </section>
+        `;
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog || event.target.closest('[data-import-cancel]')) {
+                dialog.remove();
+                return;
+            }
+            if (event.target.closest('[data-import-file]')) {
+                dialog.remove();
+                els.importJsonFile?.click();
+                return;
+            }
+            if (event.target.closest('[data-import-submit]')) {
+                try {
+                    importCreaturesJsonText(dialog.querySelector('[data-import-json-text]')?.value || '');
+                    dialog.remove();
+                } catch (error) {
+                    console.error('Import JSON bestiario fallito:', error);
+                    setStatus(`Import JSON fallito: ${error?.message || error}`);
+                }
+            }
+        });
+        document.body.appendChild(dialog);
+        dialog.querySelector('[data-import-json-text]')?.focus();
+    }
+
+    function importCreaturesJsonText(text) {
+        const imported = parseImportedCreaturesJson(text);
+        const result = upsertImportedCreatures(imported);
+        renderAll();
+        setFocusMode(true);
+        setStatus(`Import completato: ${result.added} aggiunte, ${result.replaced} sostituite.`);
+    }
+
+    function parseImportedCreaturesJson(text) {
+        if (!String(text || '').trim()) throw new Error('Incolla o seleziona un JSON prima di importare.');
+        const parsed = JSON.parse(text);
+        const creatures = Array.isArray(parsed) ? parsed : [parsed];
+        const validCreatures = creatures.filter((creature) => creature && typeof creature === 'object' && !Array.isArray(creature));
+        if (!validCreatures.length) throw new Error('Il JSON deve contenere una creatura o un array di creature.');
+        return validCreatures.map((creature) => {
+            const copy = structuredCloneSafe(creature);
+            if (!copy.name) copy.name = 'Creatura importata';
+            if (!copy.details || typeof copy.details !== 'object') copy.details = {};
+            pruneCreature(copy);
+            return copy;
+        });
+    }
+
+    function upsertImportedCreatures(importedCreatures) {
+        let added = 0;
+        let replaced = 0;
+        let lastIndex = state.selectedIndex;
+
+        importedCreatures.forEach((creature) => {
+            const existingIndex = findCreatureIndexForImport(creature);
+            if (existingIndex >= 0) {
+                const confirmed = window.confirm(`Esiste gia "${state.creatures[existingIndex].name || creature.name}". Vuoi sostituirla con il JSON importato?`);
+                if (!confirmed) return;
+                state.creatures[existingIndex] = creature;
+                replaced += 1;
+                lastIndex = existingIndex;
+                return;
+            }
+
+            state.creatures.push(creature);
+            added += 1;
+            lastIndex = state.creatures.length - 1;
+        });
+
+        state.selectedIndex = Math.max(-1, lastIndex);
+        updateOutput({ commitActive: false });
+        return { added, replaced };
+    }
+
+    function findCreatureIndexForImport(creature) {
+        const nameKey = normalizeSearch(creature?.name);
+        const foundryNames = new Set(getCreatureFoundryNames(creature).map(normalizeSearch));
+        return state.creatures.findIndex((candidate) => {
+            if (nameKey && normalizeSearch(candidate?.name) === nameKey) return true;
+            if (!foundryNames.size) return false;
+            return getCreatureFoundryNames(candidate).some((name) => foundryNames.has(normalizeSearch(name)));
+        });
     }
 
     function writeCreatureField(creature, path, value, options = {}) {

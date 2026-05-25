@@ -4,7 +4,7 @@ aliases:
   - "Tokka"
 role: "Il Cuore Corrotto"
 status: "vivo"
-hidden: true
+hidden: false
 quote: ""
 images:
   avatar: "media/creatures/transp/tokka_transp.webp"
