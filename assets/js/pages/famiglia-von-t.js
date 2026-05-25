@@ -15,8 +15,9 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
     const birthOrderContainer = document.getElementById('family-birth-order');
 
     try {
-        const response = await fetch('../assets/data/family_von_t.json');
-        if (!response.ok) throw new Error(`File dati (${'../assets/data/family_von_t.json'}) non trovato.`);
+        const familyDataUrl = window.CriptaApp?.urls?.data?.('family_von_t.json') || '../assets/data/family_von_t.json';
+        const response = await fetch(familyDataUrl);
+        if (!response.ok) throw new Error(`File dati (${familyDataUrl}) non trovato.`);
 
         let familyData = await response.json();
 

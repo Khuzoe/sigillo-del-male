@@ -54,7 +54,7 @@ async function loadBestiaryData() {
         console.warn("KV bestiary non disponibile, uso JSON statico.", error);
     }
 
-    const response = await fetch("../assets/data/bestiary.json");
+    const response = await fetch(window.CriptaApp?.urls?.data?.("bestiary.json") || "../assets/data/bestiary.json");
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return response.json();
 }
@@ -69,7 +69,7 @@ async function loadItemsDataForBestiary() {
         console.warn("KV items non disponibile per bestiario, uso JSON statico.", error);
     }
 
-    const response = await fetch("../assets/data/items.json").catch(() => null);
+    const response = await fetch(window.CriptaApp?.urls?.data?.("items.json") || "../assets/data/items.json").catch(() => null);
     return response?.ok ? response.json() : [];
 }
 

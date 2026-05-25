@@ -1,4 +1,8 @@
 window.CriptaApp.onPageReady("sessioni", async function () {
+    const timelineContainer = document.getElementById('timeline-container');
+    const navContainer = document.getElementById('session-nav-container');
+    const nextSessionContainer = document.getElementById('next-session-container');
+
     try {
         const fetchJson = (url, label) => {
             if (typeof window.CriptaApp?.fetchJson === "function") {
@@ -13,28 +17,65 @@ window.CriptaApp.onPageReady("sessioni", async function () {
             });
         };
 
-        const [sessionsData, nextSessionResponse] = await Promise.all([
-            fetchJson('../assets/data/sessions.json', 'HTTP error sessions.json'),
-            window.CriptaNextSession?.loadConfig
-                ? window.CriptaNextSession.loadConfig({ fallbackPath: '../assets/data/next-session.json' })
-                : fetchJson('../assets/data/next-session.json', 'HTTP error next-session.json')
-        ]);
+        let nextSessionResponse = null;
+        try {
+            nextSessionResponse = window.CriptaNextSession?.loadConfig
+                ? await window.CriptaNextSession.loadConfig({ fallbackPath: window.CriptaApp?.urls?.data?.('next-session.json') || '../assets/data/next-session.json' })
+                : await fetchJson(window.CriptaApp?.urls?.data?.('next-session.json') || '../assets/data/next-session.json', 'HTTP error next-session.json');
+        } catch (error) {
+            console.error("Errore nel caricamento della prossima sessione:", error);
+            if (nextSessionContainer) {
+                nextSessionContainer.innerHTML = '<p style="color: var(--red);">Impossibile caricare il sondaggio della prossima sessione.</p>';
+            }
+        }
+
         const nextSessionConfig = window.CriptaNextSession?.loadConfig
             ? nextSessionResponse
             : nextSessionResponse;
+        if (nextSessionConfig && nextSessionContainer) {
+            updatePageCampaignLabel(nextSessionConfig);
+            window.CriptaNextSession?.render(nextSessionConfig, nextSessionContainer);
+        }
 
-        const sessions = sessionsData.sessions.slice().reverse();
+        let sessions = [];
+        try {
+            const sessionsData = await fetchJson(window.CriptaApp?.urls?.data?.('sessions.json') || '../assets/data/sessions.json', 'HTTP error sessions.json');
+            sessions = Array.isArray(sessionsData?.sessions) ? sessionsData.sessions.slice().reverse() : [];
+        } catch (error) {
+            console.info("Archivio sessioni non disponibile per questa campagna:", error);
+        }
 
-        window.CriptaNextSession?.render(nextSessionConfig, document.getElementById('next-session-container'));
         renderSessionNav(sessions);
         renderTimeline(sessions);
+
         scrollToLinkedSession();
 
     } catch (error) {
         console.error("Errore nel caricamento delle sessioni:", error);
-        document.getElementById('timeline-container').innerHTML = '<p style="color: var(--red);">Impossibile caricare le sessioni.</p>';
+        if (timelineContainer) {
+            timelineContainer.innerHTML = '<p style="color: var(--red);">Impossibile caricare le sessioni.</p>';
+        }
+        if (navContainer) {
+            navContainer.style.display = 'none';
+        }
     }
 });
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function updatePageCampaignLabel(config) {
+    const campaignName = String(config?.campaignName || '').trim();
+    if (!campaignName) return;
+    const subtitle = document.querySelector('.hero-title .subtitle');
+    if (subtitle) subtitle.textContent = campaignName;
+}
 
 function scrollToLinkedSession() {
     if (!window.location.hash) return;
@@ -56,6 +97,13 @@ function renderSessionNav(sessions) {
     navContainer.innerHTML = '';
     if (title) navContainer.appendChild(title);
 
+    if (!sessions.length) {
+        navContainer.style.display = 'none';
+        return;
+    }
+
+    navContainer.style.display = '';
+
     sessions.forEach(session => {
         const link = document.createElement('a');
         link.href = `#session-${session.id}`;
@@ -72,6 +120,22 @@ function renderTimeline(sessions) {
     const timelineContainer = document.getElementById('timeline-container');
     if (!timelineContainer) return;
     timelineContainer.innerHTML = '';
+
+    if (!sessions.length) {
+        const pollUrl = window.CriptaApp?.urls?.pollPage?.() || 'sondaggio.html';
+        timelineContainer.innerHTML = `
+            <section class="session-card session-empty-state">
+                <div class="session-header">
+                    <h3 class="session-title text-gold-gradient">Nessun diario sessioni</h3>
+                </div>
+                <div class="session-body">
+                    <p>Questa campagna non ha ancora riassunti pubblicati. Puoi comunque usare il sondaggio della prossima sessione senza creare un archivio sessioni.</p>
+                    <p><a class="nav-item" href="${escapeHtml(pollUrl)}">Apri il sondaggio</a></p>
+                </div>
+            </section>
+        `;
+        return;
+    }
 
     sessions.forEach(session => {
         const card = document.createElement('div');

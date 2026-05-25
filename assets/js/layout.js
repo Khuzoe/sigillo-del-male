@@ -1,6 +1,7 @@
 const SIDEBAR_CACHE_KEY = "wiki_sidebar_html_v2";
 const DISCORD_WORKER_URL = "https://sigillo-api.khuzoe.workers.dev";
 const DISCORD_TOKEN_KEY = "discord_jwt";
+const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
 const EMBED_SCRIPT_WARMUP_PATHS = [
     "assets/js/pages/index.js",
     "assets/js/pages/npcs.js",
@@ -18,7 +19,7 @@ const pageScopes = new Map();
 const initialInlineHeadStyles = new WeakSet();
 let discordAuthCache = null;
 let discordAuthPromise = null;
-let dmDiscordIdCache = null;
+const dmDiscordIdCache = new Map();
 let dmDiscordIdPromise = null;
 const jsonCache = new Map();
 const isEmbedMode = new URLSearchParams(window.location.search).get("embed") === "1";
@@ -26,6 +27,7 @@ const isEmbeddedRuntime = isEmbedMode || window.self !== window.top;
 let embeddedDiscordToken = "";
 let embeddedDiscordPopup = null;
 let spaNavigationInProgress = false;
+let currentCampaignId = DEFAULT_CAMPAIGN_ID;
 
 document.addEventListener("DOMContentLoaded", function () {
     const scriptTag = document.querySelector('script[src*="layout.js"]');
@@ -37,6 +39,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     window.CriptaBasePath = basePath;
+    currentCampaignId = resolveCurrentCampaignId();
+    document.documentElement.dataset.campaign = currentCampaignId;
     document.body.classList.toggle("is-embed", isEmbeddedRuntime);
     consumeEmbeddedTokenFromQuery();
 
@@ -132,6 +136,7 @@ function shouldHandleSpaClick(event, link) {
 function buildSpaTargetUrl(href) {
     try {
         const target = new URL(href, window.location.href);
+        applyCampaignToUrl(target);
         if (isEmbedMode && !target.searchParams.has("embed")) {
             target.searchParams.set("embed", "1");
         }
@@ -183,6 +188,8 @@ async function navigateSpa(targetUrl, options = {}) {
             history.pushState({}, "", target.toString());
         }
 
+        currentCampaignId = resolveCurrentCampaignId(target);
+        document.documentElement.dataset.campaign = currentCampaignId;
         document.title = nextDocument.title || document.title;
         syncSpaHead(nextDocument, target);
         syncBodyState(nextDocument);
@@ -820,7 +827,7 @@ async function loadSearchIndex() {
     if (searchIndexPromise) return searchIndexPromise;
 
     searchIndexPromise = (async () => {
-        const data = await fetchJsonWithCache(resolveSiteUrl("assets/data/search-index.json"));
+        const data = await fetchJsonWithCache(resolveDataUrl("search-index.json"));
         const items = Array.isArray(data?.items)
             ? data.items.filter(item => !window.WikiSpoiler || window.WikiSpoiler.isVisible(item))
             : [];
@@ -1160,9 +1167,56 @@ function getBasePath() {
     return typeof window.CriptaBasePath === "string" ? window.CriptaBasePath : "";
 }
 
+function sanitizeCampaignId(value) {
+    const campaignId = String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    return campaignId || DEFAULT_CAMPAIGN_ID;
+}
+
+function resolveCurrentCampaignId(url = window.location.href) {
+    try {
+        const target = url instanceof URL ? url : new URL(url, window.location.href);
+        return sanitizeCampaignId(target.searchParams.get("campaign") || target.searchParams.get("campaignId") || DEFAULT_CAMPAIGN_ID);
+    } catch (_) {
+        return DEFAULT_CAMPAIGN_ID;
+    }
+}
+
+function getCampaignId() {
+    return currentCampaignId || DEFAULT_CAMPAIGN_ID;
+}
+
+function isDefaultCampaign(campaignId = getCampaignId()) {
+    return sanitizeCampaignId(campaignId) === DEFAULT_CAMPAIGN_ID;
+}
+
+function applyCampaignToUrl(url, options = {}) {
+    const campaignId = sanitizeCampaignId(options.campaignId || getCampaignId());
+    if (campaignId !== DEFAULT_CAMPAIGN_ID) {
+        url.searchParams.set("campaign", campaignId);
+    } else if (options.force === true) {
+        url.searchParams.set("campaign", campaignId);
+    }
+    return url;
+}
+
 function resolveSiteUrl(relativePath) {
     const cleanPath = String(relativePath || "").replace(/^\/+/, "");
-    return new URL(`${getBasePath()}${cleanPath}`, window.location.href).toString();
+    const url = new URL(`${getBasePath()}${cleanPath}`, window.location.href);
+    return applyCampaignToUrl(url).toString();
+}
+
+function resolveDataUrl(dataPath, options = {}) {
+    const cleanPath = String(dataPath || "").replace(/^\/+/, "").replace(/^assets\/data\//, "");
+    const campaignId = sanitizeCampaignId(options.campaignId || getCampaignId());
+    const baseDataPath = campaignId === DEFAULT_CAMPAIGN_ID
+        ? `assets/data/${cleanPath}`
+        : `campaigns/${campaignId}/data/${cleanPath}`;
+    return resolveSiteUrl(baseDataPath);
 }
 
 function buildWorkerUrl(pathname) {
@@ -1175,7 +1229,8 @@ function getSitePollUrl() {
 }
 
 function redirectToDiscordLogin() {
-    const loginUrl = buildWorkerUrl("auth/discord/login");
+    const loginUrl = new URL(buildWorkerUrl("auth/discord/login"));
+    applyCampaignToUrl(loginUrl, { force: true });
     if (isEmbeddedRuntime) {
         embeddedDiscordPopup = window.open(
             "about:blank",
@@ -1184,12 +1239,12 @@ function redirectToDiscordLogin() {
         );
         window.parent?.postMessage({
             type: "cripta-discord-login",
-            url: loginUrl,
+            url: loginUrl.toString(),
             popupOpened: Boolean(embeddedDiscordPopup)
         }, "*");
         return;
     }
-    window.location.href = loginUrl;
+    window.location.href = loginUrl.toString();
 }
 
 async function loginWithDeviceCode(code) {
@@ -1200,7 +1255,7 @@ async function loginWithDeviceCode(code) {
 
     const response = await requestApi("auth/device/login", {
         method: "POST",
-        body: { code: cleanCode }
+        body: { code: cleanCode, campaignId: getCampaignId() }
     });
 
     if (!response?.token) {
@@ -1238,7 +1293,9 @@ function handleEmbeddedAuthMessage(event) {
     const data = event?.data;
     if (data?.type === "cripta-discord-auth-start" && data?.authUrl) {
         if (embeddedDiscordPopup && !embeddedDiscordPopup.closed) {
-            embeddedDiscordPopup.location.href = String(data.authUrl);
+            const authUrl = new URL(String(data.authUrl), window.location.href);
+            applyCampaignToUrl(authUrl, { force: true });
+            embeddedDiscordPopup.location.href = authUrl.toString();
             try {
                 embeddedDiscordPopup.focus();
             } catch (_) {
@@ -1317,11 +1374,15 @@ async function requestApi(pathname, options = {}) {
     } = options;
 
     const url = new URL(buildWorkerUrl(pathname));
+    const campaignId = sanitizeCampaignId(options.campaignId || getCampaignId());
     if (query && typeof query === "object") {
         Object.entries(query).forEach(([key, value]) => {
             if (value === undefined || value === null || value === "") return;
             url.searchParams.set(key, String(value));
         });
+    }
+    if (options.withCampaign !== false && !url.searchParams.has("campaign")) {
+        url.searchParams.set("campaign", campaignId);
     }
 
     const requestHeaders = {
@@ -1336,8 +1397,11 @@ async function requestApi(pathname, options = {}) {
     let requestBody = body;
     if (body !== undefined && body !== null && typeof body === "object" && !(body instanceof FormData)) {
         requestHeaders["Content-Type"] = requestHeaders["Content-Type"] || "application/json";
+        if (!Array.isArray(requestBody) && !("campaignId" in requestBody) && options.withCampaign !== false) {
+            requestBody = { ...requestBody, campaignId };
+        }
         requestBody = requestHeaders["Content-Type"].includes("application/json")
-            ? JSON.stringify(body)
+            ? JSON.stringify(requestBody)
             : body;
     }
 
@@ -1382,7 +1446,9 @@ async function verifyDiscordAuth() {
 
     discordAuthPromise = (async () => {
         try {
-            const response = await fetch(`${DISCORD_WORKER_URL}/auth/discord/verify`, {
+            const verifyUrl = new URL(`${DISCORD_WORKER_URL}/auth/discord/verify`);
+            applyCampaignToUrl(verifyUrl, { force: true });
+            const response = await fetch(verifyUrl.toString(), {
                 method: "GET",
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -1440,16 +1506,18 @@ async function updateDmOnlyVisibility(basePath) {
 }
 
 async function getDmDiscordId(basePath) {
-    if (typeof dmDiscordIdCache === "string") return dmDiscordIdCache;
+    const campaignId = getCampaignId();
+    if (dmDiscordIdCache.has(campaignId)) return dmDiscordIdCache.get(campaignId);
     if (dmDiscordIdPromise) return dmDiscordIdPromise;
 
     dmDiscordIdPromise = (async () => {
         try {
-            const data = await fetchJsonWithCache(`${basePath}assets/data/next-session.json`);
-            dmDiscordIdCache = String(data?.dmDiscordId || "").trim();
-            return dmDiscordIdCache;
+            const data = await fetchJsonWithCache(resolveDataUrl("next-session.json"));
+            const dmDiscordId = String(data?.dmDiscordId || "").trim();
+            dmDiscordIdCache.set(campaignId, dmDiscordId);
+            return dmDiscordId;
         } catch (_) {
-            dmDiscordIdCache = "";
+            dmDiscordIdCache.set(campaignId, "");
             return "";
         } finally {
             dmDiscordIdPromise = null;
@@ -1492,9 +1560,19 @@ window.CriptaApp = {
         site(pathname) {
             return resolveSiteUrl(pathname);
         },
+        data(pathname, options) {
+            return resolveDataUrl(pathname, options);
+        },
         pollPage() {
             return getSitePollUrl();
         }
+    },
+    campaigns: {
+        defaultId: DEFAULT_CAMPAIGN_ID,
+        currentId: getCampaignId,
+        isDefault: isDefaultCampaign,
+        applyToUrl: applyCampaignToUrl,
+        dataUrl: resolveDataUrl
     },
     fetchJson: fetchJsonWithCache,
     getBasePath,

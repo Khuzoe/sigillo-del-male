@@ -1,7 +1,7 @@
 (function () {
-    const DATA_URL = '../assets/data/items.json';
-    const MEDIA_WORKER_URL = 'https://sigillo-api.khuzoe.workers.dev';
-    const DATA_API_URL = `${MEDIA_WORKER_URL}/api/data/items`;
+    const DATA_URL = () => window.CriptaApp?.urls?.data?.('items.json') || '../assets/data/items.json';
+    const MEDIA_WORKER_URL = window.CriptaApp?.config?.workerOrigin || 'https://sigillo-api.khuzoe.workers.dev';
+    const DATA_API_URL = () => window.CriptaApp?.urls?.api?.('api/data/items') || `${MEDIA_WORKER_URL}/api/data/items`;
     const DISCORD_TOKEN_KEY = 'discord_jwt';
     const DB_NAME = 'cripta-items-editor';
     const DB_VERSION = 1;
@@ -101,7 +101,7 @@
 
     async function loadItemsData() {
         try {
-            const response = await fetch(DATA_API_URL);
+            const response = await fetch(withCampaign(DATA_API_URL()));
             if (response.ok) {
                 const payload = await response.json();
                 if (Array.isArray(payload?.data)) {
@@ -117,7 +117,7 @@
             console.warn('KV items non disponibile, uso JSON statico.', error);
         }
 
-        const response = await fetch(DATA_URL);
+        const response = await fetch(DATA_URL());
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return { items: await response.json(), source: 'static', version: 0, updatedAt: null };
     }
@@ -1215,13 +1215,13 @@
 
         try {
             setStatus('Salvataggio online in corso...');
-            const response = await fetch(DATA_API_URL, {
+            const response = await fetch(withCampaign(DATA_API_URL(), { force: true }), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`
                 },
-                body: JSON.stringify({ data, expectedVersion: state.loadedVersion ?? 0 })
+                body: JSON.stringify({ data, expectedVersion: state.loadedVersion ?? 0, campaignId: getCampaignId() })
             });
             const payload = await response.json().catch(() => null);
             if (!response.ok || payload?.ok === false) {
@@ -1348,9 +1348,10 @@
         const form = new FormData();
         form.set('folder', 'items');
         form.set('filename', fileName);
+        form.set('campaignId', getCampaignId());
         form.set('file', new File([blob], fileName, { type: 'image/webp' }));
 
-        const response = await fetch(`${MEDIA_WORKER_URL}/media/upload?folder=items`, {
+        const response = await fetch(withCampaign(`${MEDIA_WORKER_URL}/media/upload?folder=items`, { force: true }), {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${token}`
@@ -1378,6 +1379,19 @@
         } catch (_) {
             return '';
         }
+    }
+
+    function getCampaignId() {
+        return window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
+    }
+
+    function withCampaign(url, options = {}) {
+        const target = new URL(url, window.location.href);
+        const campaignId = getCampaignId();
+        if (options.force === true || campaignId !== 'cripta-di-sangue') {
+            target.searchParams.set('campaign', campaignId);
+        }
+        return target.toString();
     }
 
     function resolveImageUrl(path) {

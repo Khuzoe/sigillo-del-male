@@ -1,6 +1,7 @@
 window.CriptaApp.onPageReady("giocatori", async function() {
     const container = document.getElementById("player-list-container");
     const basePath = "../assets/";
+    const dataUrl = (pathname) => window.CriptaApp?.urls?.data?.(pathname) || `../assets/data/${String(pathname || "").replace(/^\/+/, "")}`;
     if (!container) return;
 
     function escapeHtml(value) {
@@ -68,7 +69,9 @@ window.CriptaApp.onPageReady("giocatori", async function() {
             if (typeof window.CriptaApp?.api?.get === "function") {
                 return await window.CriptaApp.api.get("api/inventory");
             }
-            const response = await fetch("https://sigillo-api.khuzoe.workers.dev/api/inventory");
+            const inventoryUrl = new URL("https://sigillo-api.khuzoe.workers.dev/api/inventory");
+            inventoryUrl.searchParams.set("campaign", window.CriptaApp?.campaigns?.currentId?.() || "cripta-di-sangue");
+            const response = await fetch(inventoryUrl.toString());
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return response.json();
         } catch (error) {
@@ -228,7 +231,7 @@ window.CriptaApp.onPageReady("giocatori", async function() {
 
     try {
         const [players, inventorySnapshot] = await Promise.all([
-            fetchJson(`${basePath}data/players.json`, []),
+            fetchJson(dataUrl("players.json"), []),
             loadInventorySnapshot()
         ]);
         const visiblePlayers = window.WikiSpoiler ? window.WikiSpoiler.filterVisible(players) : players;

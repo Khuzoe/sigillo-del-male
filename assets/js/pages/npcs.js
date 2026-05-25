@@ -182,7 +182,7 @@ function parseYamlLite(yamlText) {
 
         async function loadNpcRecencyData(base_path) {
             try {
-                const response = await fetch(base_path + 'data/npc-recency.json');
+                const response = await fetch(window.CriptaApp?.urls?.data?.('npc-recency.json') || base_path + 'data/npc-recency.json');
                 if (!response.ok) return { byId: {} };
                 const payload = await response.json();
                 const byId = {};
@@ -250,7 +250,7 @@ function parseYamlLite(yamlText) {
         }
 
         async function loadCharactersManifest(base_path) {
-            const yamlUrl = base_path + 'data/characters/index.yaml';
+            const yamlUrl = window.CriptaApp?.urls?.data?.('characters/index.yaml') || base_path + 'data/characters/index.yaml';
             try {
                 const resp = await fetch(yamlUrl);
                 if (resp.ok) {
@@ -262,7 +262,7 @@ function parseYamlLite(yamlText) {
                 console.warn('Impossibile leggere manifest YAML, provo JSON:', err);
             }
 
-            const jsonUrl = base_path + 'data/characters/index.json';
+            const jsonUrl = window.CriptaApp?.urls?.data?.('characters/index.json') || base_path + 'data/characters/index.json';
             const jsonResp = await fetch(jsonUrl);
             if (jsonResp.ok) return jsonResp.json();
 
@@ -271,7 +271,7 @@ function parseYamlLite(yamlText) {
 
         async function loadCharacterYaml(entry, base_path) {
             const filePath = entry.file || `characters/${entry.id}.yaml`;
-            const yamlUrl = base_path + 'data/' + filePath;
+            const yamlUrl = window.CriptaApp?.urls?.data?.(filePath) || base_path + 'data/' + filePath;
             try {
                 const resp = await fetch(yamlUrl);
                 if (resp.ok) {

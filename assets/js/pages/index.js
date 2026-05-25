@@ -23,11 +23,11 @@ window.CriptaApp.onPageReady("index", () => {
     }
 
     Promise.all([
-        fetchJson('assets/data/sessions.json', 'Errore caricamento sessions.json'),
-        fetchJson('assets/data/players.json', 'Errore caricamento players.json'),
+        fetchJson(window.CriptaApp?.urls?.data?.('sessions.json') || 'assets/data/sessions.json', 'Errore caricamento sessions.json'),
+        fetchJson(window.CriptaApp?.urls?.data?.('players.json') || 'assets/data/players.json', 'Errore caricamento players.json'),
         window.CriptaNextSession?.loadConfig
-            ? window.CriptaNextSession.loadConfig({ fallbackPath: 'assets/data/next-session.json' })
-            : fetchJson('assets/data/next-session.json', 'Errore caricamento next-session.json')
+            ? window.CriptaNextSession.loadConfig({ fallbackPath: window.CriptaApp?.urls?.data?.('next-session.json') || 'assets/data/next-session.json' })
+            : fetchJson(window.CriptaApp?.urls?.data?.('next-session.json') || 'assets/data/next-session.json', 'Errore caricamento next-session.json')
     ])
         .then(([sessionsData, playersData, nextSessionConfig]) => {
             const sessionContainer = document.getElementById('next-session-container');
@@ -74,7 +74,7 @@ window.CriptaApp.onPageReady("index", () => {
         if (!container) return;
 
         try {
-            const data = await fetchJson('assets/data/home-recent-npcs.json', 'Lista NPC recenti non trovata');
+            const data = await fetchJson(window.CriptaApp?.urls?.data?.('home-recent-npcs.json') || 'assets/data/home-recent-npcs.json', 'Lista NPC recenti non trovata');
             const items = Array.isArray(data.items) ? data.items : [];
             if (items.length === 0) {
                 container.innerHTML = '';

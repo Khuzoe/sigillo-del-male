@@ -46,8 +46,8 @@ async function renderPollPage() {
 
     try {
         const nextSessionConfig = window.CriptaNextSession?.loadConfig
-            ? await window.CriptaNextSession.loadConfig({ fallbackPath: "../assets/data/next-session.json" })
-            : await fetch("../assets/data/next-session.json").then((response) => {
+            ? await window.CriptaNextSession.loadConfig({ fallbackPath: window.CriptaApp?.urls?.data?.("next-session.json") || "../assets/data/next-session.json" })
+            : await fetch(window.CriptaApp?.urls?.data?.("next-session.json") || "../assets/data/next-session.json").then((response) => {
                 if (!response.ok) {
                     throw new Error(`HTTP error next-session.json: ${response.status}`);
                 }

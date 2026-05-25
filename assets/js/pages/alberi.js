@@ -1,6 +1,6 @@
 // === CONFIGURAZIONE ===
         const BASE_PATH = 'media/skill_trees/';
-        const JSON_FILE = '../assets/data/skills.json';
+        const JSON_FILE = window.CriptaApp?.urls?.data?.('skills.json') || '../assets/data/skills.json';
         
         // Contenitore globale per i dati
         let skillsData = {}; 

@@ -182,7 +182,7 @@ function renderMarkdown(md, options = {}) {
 }
 
 async function loadCharactersManifest() {
-    const yamlUrl = '../../assets/data/characters/index.yaml';
+    const yamlUrl = dataUrl('characters/index.yaml');
     try {
         const resp = await fetch(yamlUrl);
         if (resp.ok) {
@@ -194,16 +194,15 @@ async function loadCharactersManifest() {
         console.warn('Impossibile leggere manifest YAML, provo JSON:', err);
     }
 
-    const jsonUrl = '../../assets/data/characters/index.json';
+    const jsonUrl = dataUrl('characters/index.json');
     const jsonResp = await fetch(jsonUrl);
     if (jsonResp.ok) return jsonResp.json();
     throw new Error('Impossibile caricare il manifest dei personaggi.');
 }
 
 async function loadCharacterYaml(entry) {
-    const base = '../../assets/data/';
     const filePath = entry.file || `characters/${entry.id}.yaml`;
-    const yamlUrl = base + filePath;
+    const yamlUrl = dataUrl(filePath);
     try {
         const resp = await fetch(yamlUrl);
         if (resp.ok) {
@@ -222,7 +221,7 @@ async function loadCharacterYaml(entry) {
 }
 
 async function loadPlayersData() {
-    const resp = await fetch('../../assets/data/players.json');
+    const resp = await fetch(dataUrl('players.json'));
     if (!resp.ok) throw new Error(`File dati players (${resp.status}) non trovato.`);
     return resp.json();
 }
@@ -247,7 +246,7 @@ async function hydrateContentBlocks(character) {
 
 async function loadQuestsData() {
     try {
-        const resp = await fetch('../../assets/data/quests.json');
+        const resp = await fetch(dataUrl('quests.json'));
         if (resp.ok) return resp.json();
     } catch (e) {
         console.warn("Impossibile caricare quests.json", e);
@@ -258,8 +257,8 @@ async function loadQuestsData() {
 const INVENTORY_API_URL = typeof window.CriptaApp?.urls?.api === 'function'
     ? window.CriptaApp.urls.api('api/inventory')
     : 'https://sigillo-api.khuzoe.workers.dev/api/inventory';
-const WIKI_ITEMS_DATA_URL = '../../assets/data/items.json';
-const INVENTORY_CACHE_KEY = 'cds_inventory_api_cache_v1';
+const WIKI_ITEMS_DATA_URL = dataUrl('items.json');
+const INVENTORY_CACHE_KEY = `cds_inventory_api_cache_v1:${window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue'}`;
 const INVENTORY_CACHE_TTL_MS = 5 * 60 * 1000;
 const INVENTORY_EXCLUDED_TYPES = new Set(['class', 'subclass', 'feat', 'background', 'race', 'spell']);
 const SPELL_SCHOOL_LABELS = {
@@ -297,7 +296,7 @@ const PLAYER_NAME_ALIASES = {
     randra: ["ran'dra", 'ran dra', 'randra'],
     valdor: ['valdor']
 };
-const SKILLS_DATA_URL = '../../assets/data/skills.json';
+const SKILLS_DATA_URL = dataUrl('skills.json');
 const SKILLS_ASSET_BASE = 'media/skill_trees/';
 const PLAYER_SKILL_TREE_KEYS = {
     apothecary: 'apothecary',
@@ -394,6 +393,10 @@ function resolveSkillAssetPath(path) {
     if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
     if (value.startsWith('/')) return value;
     return window.CriptaApp.urls.api(`${SKILLS_ASSET_BASE}${value}`);
+}
+
+function dataUrl(pathname) {
+    return window.CriptaApp?.urls?.data?.(pathname) || `../../assets/data/${String(pathname || '').replace(/^\/+/, '')}`;
 }
 
 function resolveCharacterAssetPath(imagePath) {
@@ -514,7 +517,9 @@ async function requestInventoryApi() {
         }
     }
 
-    const response = await fetch(INVENTORY_API_URL, {
+    const inventoryUrl = new URL(INVENTORY_API_URL, window.location.href);
+    inventoryUrl.searchParams.set('campaign', window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue');
+    const response = await fetch(inventoryUrl.toString(), {
         method: 'GET',
         headers: {
             Accept: 'application/json'

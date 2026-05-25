@@ -26,7 +26,7 @@ window.CriptaApp.onPageReady("cerca", async () => {
 
   let items = [];
   try {
-    const resp = await fetch(siteUrl("assets/data/search-index.json"));
+    const resp = await fetch(window.CriptaApp?.urls?.data?.("search-index.json") || siteUrl("assets/data/search-index.json"));
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     items = Array.isArray(data.items)

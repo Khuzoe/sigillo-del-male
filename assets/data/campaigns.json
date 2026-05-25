@@ -1,0 +1,13 @@
+{
+  "defaultCampaignId": "cripta-di-sangue",
+  "campaigns": [
+    {
+      "id": "cripta-di-sangue",
+      "name": "Cripta di Sangue",
+      "siteTitle": "Sigillo del Male",
+      "dataPath": "assets/data",
+      "mediaPath": "media",
+      "enabled": true
+    }
+  ]
+}

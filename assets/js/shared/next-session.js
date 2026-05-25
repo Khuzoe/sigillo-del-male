@@ -62,6 +62,7 @@
             no: 'theldarion_no.webp'
         }
     };
+    let currentVoteIconSets = VOTE_ICON_SETS;
 
     const authService = {
         async verify() {
@@ -119,6 +120,9 @@
                     if (value === undefined || value === null || value === '') return;
                     url.searchParams.set(key, String(value));
                 });
+            }
+            if (!url.searchParams.has('campaign')) {
+                url.searchParams.set('campaign', window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue');
             }
 
             const response = await fetch(url.toString(), {
@@ -212,7 +216,8 @@
     }
 
     function getStorageKey(sessionNumber) {
-        return `${STORAGE_PREFIX}-${sessionNumber}`;
+        const campaignId = window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
+        return `${STORAGE_PREFIX}-${campaignId}-${sessionNumber}`;
     }
 
     function getMonthIndex(monthId) {
@@ -221,6 +226,11 @@
 
     function sanitizeNextSessionConfig(config) {
         return {
+            campaignId: String(config?.campaignId || '').trim(),
+            campaignName: String(config?.campaignName || '').trim(),
+            pollTitle: String(config?.pollTitle || '').trim(),
+            pollSubtitle: String(config?.pollSubtitle || '').trim(),
+            discordWebhookUrl: String(config?.discordWebhookUrl || '').trim(),
             number: Number(config?.number) || 1,
             dmDiscordId: String(config?.dmDiscordId || '').trim(),
             date: String(config?.date || '').trim(),
@@ -228,7 +238,32 @@
             timeEnd: String(config?.timeEnd || '').trim(),
             isScheduled: Boolean(config?.isScheduled),
             availabilityOptions: sanitizeOptions(config?.availabilityOptions || []),
-            availabilityVotes: Array.isArray(config?.availabilityVotes) ? config.availabilityVotes : []
+            availabilityVotes: Array.isArray(config?.availabilityVotes) ? config.availabilityVotes : [],
+            voteIcons: sanitizeVoteIconSets(config?.voteIcons || config?.ui?.voteIcons || {})
+        };
+    }
+
+    function sanitizeVoteIconSets(value) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+        const out = {};
+        Object.entries(value).forEach(([rawPlayerId, rawIcons]) => {
+            if (!rawIcons || typeof rawIcons !== 'object' || Array.isArray(rawIcons)) return;
+            const playerId = String(rawPlayerId || '').trim().toLowerCase();
+            if (!playerId) return;
+            const icons = {};
+            VOTE_STATES.forEach((state) => {
+                const iconPath = String(rawIcons[state.value] || '').trim();
+                if (iconPath) icons[state.value] = iconPath;
+            });
+            if (Object.keys(icons).length) out[playerId] = icons;
+        });
+        return out;
+    }
+
+    function setCurrentVoteIconSets(config) {
+        currentVoteIconSets = {
+            ...VOTE_ICON_SETS,
+            ...(config?.voteIcons || {})
         };
     }
 
@@ -240,6 +275,16 @@
         return sanitizeNextSessionConfig(config);
     }
 
+    function getCurrentCampaignId() {
+        return String(window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue').trim() || 'cripta-di-sangue';
+    }
+
+    function getSessionWebhookUrl(config) {
+        const explicitWebhookUrl = String(config?.discordWebhookUrl || '').trim();
+        if (explicitWebhookUrl) return explicitWebhookUrl;
+        return getCurrentCampaignId() === 'cripta-di-sangue' ? SESSION_CARD_WEBHOOK_URL : '';
+    }
+
     function getAssetsBasePath() {
         return window.location.pathname.includes('/pages/') ? '../assets/' : 'assets/';
     }
@@ -248,14 +293,43 @@
         const state = getVoteState(value);
         if (!state?.value) return '';
         const normalizedPlayerId = String(playerId || '').trim().toLowerCase();
-        const iconSet = VOTE_ICON_SETS[normalizedPlayerId] || VOTE_ICON_SETS.dm;
+        const iconSet = currentVoteIconSets[normalizedPlayerId] || currentVoteIconSets.dm || VOTE_ICON_SETS.dm;
         const iconFile = iconSet?.[state.value];
         if (!iconFile) return '';
-        return `${getAssetsBasePath()}img/ui/${iconFile}`;
+        return resolveVoteIconUrl(iconFile);
+    }
+
+    function resolveVoteIconUrl(iconPath) {
+        const value = String(iconPath || '').trim();
+        if (!value) return '';
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith('media/')) {
+            return typeof window.CriptaApp?.urls?.api === 'function'
+                ? window.CriptaApp.urls.api(value)
+                : `${API_BASE_URL}/${value}`;
+        }
+        if (value.startsWith('/media/')) {
+            const cleanValue = value.replace(/^\/+/, '');
+            return typeof window.CriptaApp?.urls?.api === 'function'
+                ? window.CriptaApp.urls.api(cleanValue)
+                : `${API_BASE_URL}/${cleanValue}`;
+        }
+        if (value.startsWith('assets/')) {
+            return typeof window.CriptaApp?.urls?.site === 'function'
+                ? window.CriptaApp.urls.site(value)
+                : `${getAssetsBasePath()}${value.replace(/^assets\//, '')}`;
+        }
+        if (value.includes('/')) {
+            return typeof window.CriptaApp?.urls?.site === 'function'
+                ? window.CriptaApp.urls.site(value)
+                : value;
+        }
+        return `${getAssetsBasePath()}img/ui/${value}`;
     }
 
     async function loadEligiblePlayers(config) {
-        const players = await dataService.fetchJson(`${getAssetsBasePath()}${PLAYERS_DATA_PATH}`, 'File dati players non trovato');
+        const playersPath = window.CriptaApp?.urls?.data?.('players.json') || `${getAssetsBasePath()}${PLAYERS_DATA_PATH}`;
+        const players = await dataService.fetchJson(playersPath, 'File dati players non trovato');
         if (!Array.isArray(players)) return [];
 
         const eligiblePlayers = players
@@ -580,6 +654,8 @@
 
     async function postSessionCardToDiscord(config, viewMode = '') {
         const effectiveConfig = sanitizeNextSessionConfig(config);
+        const webhookUrl = getSessionWebhookUrl(effectiveConfig);
+        if (!webhookUrl) return null;
         const { blob, filename } = await renderSessionCardPngBlob(effectiveConfig, viewMode);
         const formData = new FormData();
         const content = effectiveConfig.isScheduled
@@ -589,7 +665,7 @@
         formData.append('content', content);
         formData.append('file', blob, filename);
 
-        const response = await fetch(`${SESSION_CARD_WEBHOOK_URL}?wait=true`, {
+        const response = await fetch(`${webhookUrl}?wait=true`, {
             method: 'POST',
             body: formData
         });
@@ -604,7 +680,9 @@
 
     async function postSessionPollLinkToDiscord(config) {
         const effectiveConfig = sanitizeNextSessionConfig(config);
-        const response = await fetch(`${SESSION_CARD_WEBHOOK_URL}?wait=true`, {
+        const webhookUrl = getSessionWebhookUrl(effectiveConfig);
+        if (!webhookUrl) return null;
+        const response = await fetch(`${webhookUrl}?wait=true`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -806,15 +884,30 @@
 
     async function loadSessionConfig({ fallbackPath }) {
         let fallbackConfig = null;
+        const campaignId = getCurrentCampaignId();
 
         if (fallbackPath) {
-            fallbackConfig = sanitizeNextSessionConfig(
-                await dataService.fetchJson(fallbackPath, 'Errore caricamento fallback next session')
-            );
+            fallbackConfig = {
+                ...sanitizeNextSessionConfig(
+                await dataService.fetchJson(
+                    window.CriptaApp?.urls?.data?.('next-session.json') || fallbackPath,
+                    'Errore caricamento fallback next session'
+                )
+                ),
+                campaignId
+            };
         }
 
         try {
-            return await loadRemoteSessionConfig();
+            const remoteConfig = await loadRemoteSessionConfig();
+            if (campaignId !== 'cripta-di-sangue' && remoteConfig.campaignId !== campaignId) {
+                if (fallbackConfig) return fallbackConfig;
+                throw new Error(`Session API: campagna "${remoteConfig.campaignId}" diversa da "${campaignId}"`);
+            }
+            return {
+                ...remoteConfig,
+                campaignId: remoteConfig.campaignId || campaignId
+            };
         } catch (error) {
             console.warn('Session API non raggiungibile, uso fallback locale.', error);
             if (fallbackConfig) return fallbackConfig;
@@ -1139,6 +1232,8 @@
     }
 
     function buildScheduledMarkup(config, canConfigureSession) {
+        const title = config.pollTitle || `Sessione ${config.number}`;
+        const subtitle = config.pollSubtitle || config.campaignName || 'Prossima Sessione';
         return `
             <div class="next-session-card">
                 <div class="next-session-card-controls">
@@ -1159,8 +1254,8 @@
                         </button>
                     ` : ''}
                 </div>
-                <span class="next-label">Prossima Sessione</span>
-                <h2 class="next-title text-gold-gradient">Sessione ${escapeHtml(config.number)}</h2>
+                <span class="next-label">${escapeHtml(subtitle)}</span>
+                <h2 class="next-title text-gold-gradient">${escapeHtml(title)}</h2>
                 <div class="next-details">
                     <div class="detail-item">
                         <span class="detail-label">Data</span>
@@ -1245,10 +1340,12 @@
     }
 
     function buildEmptyMarkup(config) {
+        const title = config.pollTitle || `Sessione ${config.number}`;
+        const subtitle = config.pollSubtitle || config.campaignName || 'Prossima Sessione';
         return `
             <div class="next-session-card" style="border-color: #555;">
-                <span class="next-label">Prossima Sessione</span>
-                <h2 class="next-title" style="color: #aaa;">Sessione ${escapeHtml(config.number)}</h2>
+                <span class="next-label">${escapeHtml(subtitle)}</span>
+                <h2 class="next-title" style="color: #aaa;">${escapeHtml(title)}</h2>
                 <div class="tbd-message">
                     <i class="fas fa-hourglass-half" style="margin-right: 10px;"></i>
                     Da Fissare
@@ -1260,6 +1357,8 @@
     function buildPollMarkup(config, options, votes, statusMessage, canConfigureSession, editorState) {
         const totals = computeTotals(votes, options);
         const voteCount = votes.length;
+        const title = config.pollTitle || `Sessione ${config.number}`;
+        const subtitle = config.pollSubtitle || config.campaignName || 'Prossima Sessione';
         const rowsMarkup = votes.length > 0
             ? votes.map((vote, rowIndex) => `
                 <tr class="${vote.canEdit ? 'availability-row-is-own' : 'availability-row-is-readonly'}">
@@ -1320,8 +1419,8 @@
                         </button>
                     ` : ''}
                 </div>
-                <span class="next-label">Prossima Sessione</span>
-                <h2 class="next-title text-gold-gradient">Sessione ${escapeHtml(config.number)}</h2>
+                <span class="next-label">${escapeHtml(subtitle)}</span>
+                <h2 class="next-title text-gold-gradient">${escapeHtml(title)}</h2>
                 ${statusMessage ? `<div class="availability-feedback">${escapeHtml(statusMessage)}</div>` : ''}
                 <div class="availability-table-wrap">
                     <table class="availability-table">
@@ -1357,11 +1456,14 @@
 
     async function renderAvailabilityPoll(container, config) {
         const effectiveConfig = sanitizeNextSessionConfig(config);
+        setCurrentVoteIconSets(effectiveConfig);
         const options = sanitizeOptions(effectiveConfig.availabilityOptions);
+        const title = effectiveConfig.pollTitle || `Sessione ${effectiveConfig.number}`;
+        const subtitle = effectiveConfig.pollSubtitle || effectiveConfig.campaignName || 'Prossima Sessione';
         container.innerHTML = `
             <div class="next-session-card next-session-card-poll">
-                <span class="next-label">Prossima Sessione</span>
-                <h2 class="next-title text-gold-gradient">Sessione ${escapeHtml(effectiveConfig.number)}</h2>
+                <span class="next-label">${escapeHtml(subtitle)}</span>
+                <h2 class="next-title text-gold-gradient">${escapeHtml(title)}</h2>
                 <p class="availability-intro">Caricamento giocatori...</p>
             </div>
         `;
@@ -1377,8 +1479,8 @@
             console.error('Impossibile caricare i player per il planner della prossima sessione:', error);
             container.innerHTML = `
                 <div class="next-session-card next-session-card-poll">
-                    <span class="next-label">Prossima Sessione</span>
-                    <h2 class="next-title text-gold-gradient">Sessione ${escapeHtml(effectiveConfig.number)}</h2>
+                    <span class="next-label">${escapeHtml(subtitle)}</span>
+                    <h2 class="next-title text-gold-gradient">${escapeHtml(title)}</h2>
                     <p class="availability-intro">Impossibile caricare i player del gruppo.</p>
                 </div>
             `;

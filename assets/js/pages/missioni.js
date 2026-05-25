@@ -3,6 +3,9 @@
 
         function siteUrl(path) {
             const cleanPath = String(path || '').replace(/^\/+/, '');
+            if (cleanPath.startsWith('assets/data/') && typeof window.CriptaApp?.urls?.data === 'function') {
+                return window.CriptaApp.urls.data(cleanPath.replace(/^assets\/data\//, ''));
+            }
             if (typeof window.CriptaApp?.urls?.site === 'function') {
                 return window.CriptaApp.urls.site(cleanPath);
             }

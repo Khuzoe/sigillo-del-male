@@ -22,7 +22,7 @@ window.CriptaApp.onPageReady("mappa", function() {
     const resetViewBtn = document.getElementById('reset-view-btn');
     const backBtn = document.getElementById('back-btn');
 
-    const defaultMapData = '../assets/data/maps/main_maps/map.json';
+    const defaultMapData = window.CriptaApp?.urls?.data?.('maps/main_maps/map.json') || '../assets/data/maps/main_maps/map.json';
     const defaultMapImage = resolveImageUrl('media/maps/world_map.webp');
     const minScale = 1;
     const maxScale = 8;

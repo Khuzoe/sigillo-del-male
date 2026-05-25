@@ -728,10 +728,10 @@
 
     async function loadLinkableEntities() {
         const [searchIndex, items, creatures, players] = await Promise.all([
-            dataService.fetchJson("../assets/data/search-index.json").catch(() => ({ items: [] })),
-            loadDataCollection("items", "../assets/data/items.json"),
-            loadDataCollection("bestiary", "../assets/data/bestiary.json"),
-            dataService.fetchJson("../assets/data/players.json").catch(() => [])
+            dataService.fetchJson(dataUrl("search-index.json")).catch(() => ({ items: [] })),
+            loadDataCollection("items", dataUrl("items.json")),
+            loadDataCollection("bestiary", dataUrl("bestiary.json")),
+            dataService.fetchJson(dataUrl("players.json")).catch(() => [])
         ]);
 
         state.entities.npc = (Array.isArray(searchIndex.items) ? searchIndex.items : [])
@@ -1106,6 +1106,9 @@
                     url.searchParams.set(key, String(value));
                 });
             }
+            if (!url.searchParams.has("campaign")) {
+                url.searchParams.set("campaign", window.CriptaApp?.campaigns?.currentId?.() || "cripta-di-sangue");
+            }
 
             const response = await fetch(url.toString(), {
                 method: options.method || "GET",
@@ -1125,11 +1128,15 @@
         }
     };
 
+    function dataUrl(pathname) {
+        return window.CriptaApp?.urls?.data?.(pathname) || `../assets/data/${String(pathname || "").replace(/^\/+/, "")}`;
+    }
+
     const accessContextService = {
         async load() {
             const [config, players] = await Promise.all([
-                dataService.fetchJson("../assets/data/next-session.json").catch(() => ({})),
-                dataService.fetchJson("../assets/data/players.json").catch(() => [])
+                dataService.fetchJson(dataUrl("next-session.json")).catch(() => ({})),
+                dataService.fetchJson(dataUrl("players.json")).catch(() => [])
             ]);
 
             const dmDiscordId = String(config?.dmDiscordId || "").trim();
@@ -1268,7 +1275,8 @@
     }
 
     function getLocalStorageKey() {
-        return `${STORAGE_KEY}:${state.ownerDiscordId}:${NOTES_PAGE_ID}`;
+        const campaignId = window.CriptaApp?.campaigns?.currentId?.() || "cripta-di-sangue";
+        return `${STORAGE_KEY}:${campaignId}:${state.ownerDiscordId}:${NOTES_PAGE_ID}`;
     }
 
     function canUseNotes() {

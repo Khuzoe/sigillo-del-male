@@ -1,0 +1,14 @@
+[
+  {
+    "id": "dm-folle",
+    "name": "DM-FOLLE",
+    "discordId": "142960432389423104",
+    "isActive": true
+  },
+  {
+    "id": "giocatore-1",
+    "name": "Giocatore 1",
+    "discordId": "",
+    "isActive": true
+  }
+]

@@ -1,5 +1,5 @@
 (function () {
-    const DEFAULT_DATA_URL = '../assets/data/maps/main_maps/map.json';
+    const DEFAULT_DATA_URL = window.CriptaApp?.urls?.data?.('maps/main_maps/map.json') || '../assets/data/maps/main_maps/map.json';
     const DEFAULT_OUTPUT_NAME = 'map.json';
     const TYPE_COLORS = {
         Area: '#4CAF50',
