@@ -43,8 +43,8 @@
         state.pendingNoteLink = getRequestedNoteLink();
 
         const authState = await authService.verify();
-        state.currentDiscordId = authService.getDiscordId(authState);
-        state.currentUsername = authState?.user?.global_name || authState?.user?.username || "Utente";
+        state.currentDiscordId = authService.getAccountId(authState);
+        state.currentUsername = authState?.user?.global_name || authState?.user?.username || state.currentDiscordId || "Utente";
         state.ownerDiscordId = state.currentDiscordId;
         if (!state.currentDiscordId) {
             renderLoggedOutState();
@@ -1071,8 +1071,16 @@
                 ? window.CriptaDiscordAuth.verify().catch(() => null)
                 : null;
         },
+        getAccountId(authState) {
+            const user = authState?.user || {};
+            return String(user.accountId || user.id || user.sub || "").trim();
+        },
         getDiscordId(authState) {
-            return String(authState?.user?.id || authState?.user?.sub || "").trim();
+            const user = authState?.user || {};
+            const explicitDiscordId = String(user.discordId || "").trim();
+            if (explicitDiscordId) return explicitDiscordId;
+            const id = String(user.id || user.sub || "").trim();
+            return /^\d{5,32}$/.test(id) ? id : "";
         }
     };
 
@@ -1132,15 +1140,23 @@
         return window.CriptaApp?.urls?.data?.(pathname) || `../assets/data/${String(pathname || "").replace(/^\/+/, "")}`;
     }
 
+    function globalDataUrl(pathname) {
+        return window.CriptaApp?.urls?.globalData?.(pathname) || `../assets/data/${String(pathname || "").replace(/^\/+/, "")}`;
+    }
+
     const accessContextService = {
         async load() {
-            const [config, players] = await Promise.all([
+            const [config, players, accounts] = await Promise.all([
                 dataService.fetchJson(dataUrl("next-session.json")).catch(() => ({})),
-                dataService.fetchJson(dataUrl("players.json")).catch(() => [])
+                dataService.fetchJson(dataUrl("players.json")).catch(() => []),
+                dataService.fetchJson(globalDataUrl("users.json")).catch(() => [])
             ]);
 
+            const dmAccountId = String(config?.dmAccountId || "").trim();
             const dmDiscordId = String(config?.dmDiscordId || "").trim();
-            state.isDm = Boolean(dmDiscordId) && state.currentDiscordId === dmDiscordId;
+            const currentDiscordId = authService.getDiscordId(await authService.verify());
+            state.isDm = Boolean(dmAccountId && state.currentDiscordId === dmAccountId)
+                || Boolean(dmDiscordId && currentDiscordId === dmDiscordId);
 
             const ownersById = new Map();
             ownersById.set(state.currentDiscordId, {
@@ -1150,11 +1166,12 @@
 
             if (state.isDm) {
                 (Array.isArray(players) ? players : [])
+                    .map((player) => resolveCampaignOwner(player, accounts))
                     .filter((player) => player?.discordId)
                     .forEach((player) => {
                         ownersById.set(String(player.discordId).trim(), {
                             discordId: String(player.discordId).trim(),
-                            name: player.name || player.id || String(player.discordId).trim()
+                            name: player.name || player.accountName || player.id || String(player.discordId).trim()
                         });
                     });
             }
@@ -1168,6 +1185,19 @@
                 });
         }
     };
+
+    function resolveCampaignOwner(player, accounts) {
+        const accountId = String(player?.accountId || "").trim();
+        const account = Array.isArray(accounts)
+            ? accounts.find((entry) => String(entry?.id || "").trim() === accountId)
+                || accounts.find((entry) => String(entry?.discordId || "").trim() === String(player?.discordId || "").trim())
+            : null;
+        return {
+            ...player,
+            accountName: String(account?.name || "").trim(),
+            discordId: String(accountId || account?.id || player?.id || player?.discordId || account?.discordId || "").trim()
+        };
+    }
 
     const notesStore = {
         async load() {

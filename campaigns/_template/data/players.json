@@ -1,0 +1,16 @@
+[
+  {
+    "id": "dm-campagna",
+    "accountId": "",
+    "name": "DM Campagna",
+    "campaignRole": "dm",
+    "isActive": true
+  },
+  {
+    "id": "personaggio-1",
+    "accountId": "",
+    "name": "Personaggio 1",
+    "campaignRole": "player",
+    "isActive": true
+  }
+]

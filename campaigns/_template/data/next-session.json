@@ -1,0 +1,37 @@
+{
+  "campaignName": "Nome Campagna",
+  "pollTitle": "Sondaggio disponibilità",
+  "pollSubtitle": "Prossima sessione",
+  "discordWebhookUrl": "",
+  "disableDiscordNotifications": false,
+  "number": 1,
+  "dmAccountId": "",
+  "dmDiscordId": "",
+  "pollManagerAccountIds": [],
+  "pollManagerDiscordIds": [],
+  "date": "",
+  "timeStart": "",
+  "timeEnd": "",
+  "isScheduled": false,
+  "availabilityOptions": [
+    {
+      "id": "ven-01-gen-2030-2030",
+      "label": "Ven 01 Gen",
+      "time": "20:30 - 23:30",
+      "meta": "3h"
+    }
+  ],
+  "availabilityVotes": [],
+  "voteIcons": {
+    "dm": {
+      "yes": "dm_yes.webp",
+      "maybe": "dm_maybe.webp",
+      "no": "dm_no.webp"
+    },
+    "personaggio-1": {
+      "yes": "media/ui/nome-campagna/personaggio-1_yes.webp",
+      "maybe": "media/ui/nome-campagna/personaggio-1_maybe.webp",
+      "no": "media/ui/nome-campagna/personaggio-1_no.webp"
+    }
+  }
+}

@@ -1,10 +1,18 @@
 {
   "campaignName": "Nome Campagna",
-  "pollTitle": "Sondaggio disponibilita",
+  "pollTitle": "Sondaggio disponibilità",
   "pollSubtitle": "Prossima sessione",
   "discordWebhookUrl": "",
-  "number": 1,
-  "dmDiscordId": "142960432389423104",
+  "disableDiscordNotifications": true,
+  "number": 0,
+  "dmAccountId": "sommo",
+  "dmDiscordId": "166518617083609088",
+  "pollManagerAccountIds": [
+    "andre"
+  ],
+  "pollManagerDiscordIds": [
+    "142960432389423104"
+  ],
   "date": "",
   "timeStart": "",
   "timeEnd": "",
@@ -19,15 +27,25 @@
   ],
   "availabilityVotes": [],
   "voteIcons": {
-    "dm": {
-      "yes": "dm_yes.webp",
-      "maybe": "dm_maybe.webp",
-      "no": "dm_no.webp"
+    "lila": {
+      "yes": "media/ui/mago-folle/lila_yes.webp",
+      "maybe": "media/ui/mago-folle/lila_maybe.webp",
+      "no": "media/ui/mago-folle/lila_no.webp"
     },
-    "giocatore-1": {
-      "yes": "media/ui/nome-campagna/giocatore-1_yes.webp",
-      "maybe": "media/ui/nome-campagna/giocatore-1_maybe.webp",
-      "no": "media/ui/nome-campagna/giocatore-1_no.webp"
+    "sir-elric": {
+      "yes": "media/ui/mago-folle/sir-elric_yes.webp",
+      "maybe": "media/ui/mago-folle/sir-elric_maybe.webp",
+      "no": "media/ui/mago-folle/sir-elric_no.webp"
+    },
+    "archimede": {
+      "yes": "media/ui/mago-folle/archimede_yes.webp",
+      "maybe": "media/ui/mago-folle/archimede_maybe.webp",
+      "no": "media/ui/mago-folle/archimede_no.webp"
+    },
+    "dm": {
+      "yes": "media/ui/mago-folle/dm-folle_yes.webp",
+      "maybe": "media/ui/mago-folle/dm-folle_maybe.webp",
+      "no": "media/ui/mago-folle/dm-folle_no.webp"
     }
   }
 }

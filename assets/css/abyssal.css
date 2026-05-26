@@ -3678,6 +3678,7 @@ body.is-embed .container {
 .next-session-card-poll {
     text-align: left;
     border-color: rgba(212, 175, 55, 0.28);
+    padding: 1.25rem;
     background:
         linear-gradient(180deg, rgba(18, 16, 21, 0.94), rgba(10, 10, 12, 0.92)),
         radial-gradient(circle at top right, rgba(212, 175, 55, 0.08), transparent 34%);
@@ -3730,6 +3731,14 @@ body.is-embed .container {
 .next-session-card-poll .next-label,
 .next-session-card-poll .next-title,
 .next-session-card-poll .availability-feedback {
+    text-align: center;
+}
+
+.next-session-card-poll .next-label-poll {
+    display: block;
+    margin: 0 4.5rem 0.75rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
     text-align: center;
 }
 
@@ -3868,9 +3877,9 @@ body.is-embed .container {
 }
 
 .availability-option-cell {
-    width: 118px;
-    min-width: 118px;
-    max-width: 118px;
+    width: clamp(118px, 7.5vw, 158px);
+    min-width: clamp(118px, 7.5vw, 158px);
+    max-width: clamp(118px, 7.5vw, 158px);
     text-align: center;
     vertical-align: top;
     background:
@@ -4033,9 +4042,11 @@ body.is-embed .container {
     background:
         linear-gradient(180deg, rgba(15, 18, 26, 0.9), rgba(10, 12, 18, 0.88));
     position: relative;
-    width: 118px;
-    min-width: 118px;
-    height: 118px;
+    width: clamp(118px, 7.5vw, 158px);
+    min-width: clamp(118px, 7.5vw, 158px);
+    max-width: clamp(118px, 7.5vw, 158px);
+    height: clamp(118px, 7.5vw, 158px);
+    min-height: clamp(118px, 7.5vw, 158px);
     padding: 0.32rem;
 }
 
@@ -4043,6 +4054,7 @@ body.is-embed .container {
     position: relative;
     width: 100%;
     height: 100%;
+    aspect-ratio: 1 / 1;
     min-height: 0;
 }
 

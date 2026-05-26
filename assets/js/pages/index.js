@@ -23,8 +23,14 @@ window.CriptaApp.onPageReady("index", () => {
     }
 
     Promise.all([
-        fetchJson(window.CriptaApp?.urls?.data?.('sessions.json') || 'assets/data/sessions.json', 'Errore caricamento sessions.json'),
-        fetchJson(window.CriptaApp?.urls?.data?.('players.json') || 'assets/data/players.json', 'Errore caricamento players.json'),
+        fetchJson(window.CriptaApp?.urls?.data?.('sessions.json') || 'assets/data/sessions.json', 'Errore caricamento sessions.json').catch((error) => {
+            console.info('Archivio sessioni non disponibile per questa campagna:', error);
+            return { sessions: [] };
+        }),
+        fetchJson(window.CriptaApp?.urls?.data?.('players.json') || 'assets/data/players.json', 'Errore caricamento players.json').catch((error) => {
+            console.info('Player non disponibili per questa campagna:', error);
+            return [];
+        }),
         window.CriptaNextSession?.loadConfig
             ? window.CriptaNextSession.loadConfig({ fallbackPath: window.CriptaApp?.urls?.data?.('next-session.json') || 'assets/data/next-session.json' })
             : fetchJson(window.CriptaApp?.urls?.data?.('next-session.json') || 'assets/data/next-session.json', 'Errore caricamento next-session.json')
@@ -33,7 +39,9 @@ window.CriptaApp.onPageReady("index", () => {
             const sessionContainer = document.getElementById('next-session-container');
             window.CriptaNextSession?.render(nextSessionConfig, sessionContainer);
 
-            const lastSession = sessionsData.sessions[sessionsData.sessions.length - 1];
+            updateHomeCampaignLabel(nextSessionConfig);
+            const sessions = Array.isArray(sessionsData?.sessions) ? sessionsData.sessions : [];
+            const lastSession = sessions[sessions.length - 1];
             const latestEventsContainer = document.getElementById('latest-events-section');
             setupLatestSession(lastSession, latestEventsContainer);
 
@@ -47,6 +55,7 @@ window.CriptaApp.onPageReady("index", () => {
         });
 
     function setupLatestSession(session, container) {
+        if (!container) return;
         const sessionCard = container.querySelector('.session-card');
         if (session && sessionCard) {
             const summaryElement = document.createElement('div');
@@ -67,6 +76,23 @@ window.CriptaApp.onPageReady("index", () => {
             <a href="pages/sessioni.html#session-${session.id}" class="read-more">Leggi il riassunto completo &rarr;</a>
         `;
         }
+        if (!session && sessionCard) {
+            sessionCard.innerHTML = `
+            <div class="session-header">
+                <h3 class="session-title text-gold-gradient">Nessuna sessione registrata</h3>
+            </div>
+            <div class="session-body">
+                <p>Questa campagna non ha ancora riassunti pubblicati.</p>
+            </div>
+        `;
+        }
+    }
+
+    function updateHomeCampaignLabel(config) {
+        const campaignName = String(config?.campaignName || '').trim();
+        if (!campaignName) return;
+        const title = document.querySelector('.dashboard-header h1');
+        if (title) title.textContent = campaignName;
     }
 
     async function setupRecentNpcs() {

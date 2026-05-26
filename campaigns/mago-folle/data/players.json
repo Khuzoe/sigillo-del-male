@@ -1,14 +1,23 @@
 [
   {
-    "id": "dm-folle",
-    "name": "DM-FOLLE",
-    "discordId": "142960432389423104",
+    "id": "lila",
+    "accountId": "andre",
+    "name": "Lila Devaren",
+    "campaignRole": "player",
     "isActive": true
   },
   {
-    "id": "giocatore-1",
-    "name": "Giocatore 1",
-    "discordId": "",
+    "id": "sir-elric",
+    "accountId": "dona",
+    "name": "Sir Elric",
+    "campaignRole": "player",
+    "isActive": true
+  },
+  {
+    "id": "archimede",
+    "accountId": "alle",
+    "name": "Archimede",
+    "campaignRole": "player",
     "isActive": true
   }
 ]

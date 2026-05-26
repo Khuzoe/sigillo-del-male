@@ -19,8 +19,8 @@ const pageScopes = new Map();
 const initialInlineHeadStyles = new WeakSet();
 let discordAuthCache = null;
 let discordAuthPromise = null;
-const dmDiscordIdCache = new Map();
-let dmDiscordIdPromise = null;
+const dmIdentityCache = new Map();
+let dmIdentityPromise = null;
 const jsonCache = new Map();
 const isEmbedMode = new URLSearchParams(window.location.search).get("embed") === "1";
 const isEmbeddedRuntime = isEmbedMode || window.self !== window.top;
@@ -196,9 +196,10 @@ async function navigateSpa(targetUrl, options = {}) {
         disposePageScopes();
         removeSpaExtras();
         currentMain.replaceWith(importedMain);
-        appendSpaExtras(nextDocument);
 
         window.CriptaBasePath = computeBasePathForUrl(target);
+        syncSidebarContainer(nextDocument, importedMain, window.CriptaBasePath);
+        appendSpaExtras(nextDocument);
         ensureFavicon(window.CriptaBasePath);
         fixPaths(document.getElementById("sidebar-container"), window.CriptaBasePath);
         bindPrefetchForLinks(document.querySelector("main"));
@@ -306,6 +307,29 @@ function appendSpaExtras(nextDocument) {
         clone.dataset.spaExtra = "true";
         document.body.insertBefore(clone, firstScript);
     });
+}
+
+function syncSidebarContainer(nextDocument, mainNode, basePath) {
+    const nextHasSidebar = Boolean(nextDocument.querySelector("#sidebar-container"));
+    const currentSidebar = document.getElementById("sidebar-container");
+
+    if (!nextHasSidebar) {
+        currentSidebar?.remove();
+        return;
+    }
+
+    if (!currentSidebar) {
+        const sidebar = document.createElement("nav");
+        sidebar.className = "sidebar";
+        sidebar.id = "sidebar-container";
+        mainNode?.parentNode?.insertBefore(sidebar, mainNode);
+        loadSidebar(basePath);
+        return;
+    }
+
+    if (!currentSidebar.children.length) {
+        loadSidebar(basePath);
+    }
 }
 
 function getSpaScriptSources(nextDocument, targetUrl) {
@@ -584,7 +608,11 @@ function fixPaths(container, basePath) {
         if (!href) return;
         link.dataset.originalHref = href;
         if (isUnresolvedRelativePath(href)) {
-            link.setAttribute("href", new URL(`${basePath || ""}${href}`, window.location.href).toString());
+            const target = new URL(`${basePath || ""}${href}`, window.location.href);
+            if (target.origin === window.location.origin && (/\.html$/i.test(target.pathname) || target.pathname.endsWith("/"))) {
+                applyCampaignToUrl(target);
+            }
+            link.setAttribute("href", target.toString());
         }
     });
 
@@ -1086,7 +1114,7 @@ async function refreshAuthUI(scope) {
             setDmOnlyVisibility(false);
             return;
         }
-        const username = authState.user.global_name || authState.user.username || "utente Discord";
+        const username = authState.user.global_name || authState.user.username || authState.user.accountId || "utente";
         setAuthState(status, "logged-in");
         status.textContent = `Loggato come ${username}`;
         if (menuUser) menuUser.textContent = username;
@@ -1217,6 +1245,11 @@ function resolveDataUrl(dataPath, options = {}) {
         ? `assets/data/${cleanPath}`
         : `campaigns/${campaignId}/data/${cleanPath}`;
     return resolveSiteUrl(baseDataPath);
+}
+
+function resolveGlobalDataUrl(dataPath) {
+    const cleanPath = String(dataPath || "").replace(/^\/+/, "").replace(/^assets\/data\//, "");
+    return resolveSiteUrl(`assets/data/${cleanPath}`);
 }
 
 function buildWorkerUrl(pathname) {
@@ -1493,38 +1526,55 @@ function setDmOnlyVisibility(isVisible) {
 
 async function updateDmOnlyVisibility(basePath) {
     const authState = await verifyDiscordAuth().catch(() => null);
-    const currentDiscordId = String(authState?.user?.id || authState?.user?.sub || "").trim();
-    if (!currentDiscordId) {
+    const currentAccountId = getAuthAccountId(authState);
+    const currentDiscordId = getAuthDiscordId(authState);
+    if (!currentAccountId && !currentDiscordId) {
         setDmOnlyVisibility(false);
         return false;
     }
 
-    const dmDiscordId = await getDmDiscordId(basePath);
-    const isDm = Boolean(dmDiscordId) && currentDiscordId === dmDiscordId;
+    const dmIdentity = await getDmIdentity(basePath);
+    const isDm = Boolean(dmIdentity.accountId && currentAccountId === dmIdentity.accountId)
+        || Boolean(dmIdentity.discordId && currentDiscordId === dmIdentity.discordId);
     setDmOnlyVisibility(isDm);
     return isDm;
 }
 
-async function getDmDiscordId(basePath) {
-    const campaignId = getCampaignId();
-    if (dmDiscordIdCache.has(campaignId)) return dmDiscordIdCache.get(campaignId);
-    if (dmDiscordIdPromise) return dmDiscordIdPromise;
+function getAuthAccountId(authState) {
+    return String(authState?.user?.accountId || authState?.user?.id || authState?.user?.sub || "").trim();
+}
 
-    dmDiscordIdPromise = (async () => {
+function getAuthDiscordId(authState) {
+    const explicitId = String(authState?.user?.discordId || "").trim();
+    if (explicitId) return explicitId;
+    const legacyId = String(authState?.user?.id || authState?.user?.sub || "").trim();
+    return /^\d{5,32}$/.test(legacyId) ? legacyId : "";
+}
+
+async function getDmIdentity(basePath) {
+    const campaignId = getCampaignId();
+    if (dmIdentityCache.has(campaignId)) return dmIdentityCache.get(campaignId);
+    if (dmIdentityPromise) return dmIdentityPromise;
+
+    dmIdentityPromise = (async () => {
         try {
             const data = await fetchJsonWithCache(resolveDataUrl("next-session.json"));
-            const dmDiscordId = String(data?.dmDiscordId || "").trim();
-            dmDiscordIdCache.set(campaignId, dmDiscordId);
-            return dmDiscordId;
+            const identity = {
+                accountId: String(data?.dmAccountId || "").trim(),
+                discordId: String(data?.dmDiscordId || "").trim()
+            };
+            dmIdentityCache.set(campaignId, identity);
+            return identity;
         } catch (_) {
-            dmDiscordIdCache.set(campaignId, "");
-            return "";
+            const identity = { accountId: "", discordId: "" };
+            dmIdentityCache.set(campaignId, identity);
+            return identity;
         } finally {
-            dmDiscordIdPromise = null;
+            dmIdentityPromise = null;
         }
     })();
 
-    return dmDiscordIdPromise;
+    return dmIdentityPromise;
 }
 
 window.CriptaDiscordAuth = {
@@ -1562,6 +1612,9 @@ window.CriptaApp = {
         },
         data(pathname, options) {
             return resolveDataUrl(pathname, options);
+        },
+        globalData(pathname) {
+            return resolveGlobalDataUrl(pathname);
         },
         pollPage() {
             return getSitePollUrl();

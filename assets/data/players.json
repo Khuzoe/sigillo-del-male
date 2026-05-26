@@ -1,6 +1,7 @@
 [
   {
     "id": "garun",
+    "accountId": "luca",
     "discordId": "146702612794834944",
     "name": "Ga'Run",
     "role": "Barbaro",
@@ -28,6 +29,7 @@
   },
   {
     "id": "randra",
+    "accountId": "eli",
     "discordId": "220189643981848576",
     "name": "Ran'Dra",
     "role": "Maga (Evocazione)",
@@ -60,6 +62,7 @@
   },
   {
     "id": "valdor",
+    "accountId": "sommo",
     "name": "Valdor",
     "discordId": "166518617083609088",
     "role": "Artificiere",
@@ -104,6 +107,7 @@
   },
   {
     "id": "theldarion",
+    "accountId": "dona",
     "name": "Theldarion",
     "discordId": "142958738247122944",
     "role": "Incantatore Tattico",

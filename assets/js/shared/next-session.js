@@ -75,8 +75,22 @@
                 ? window.CriptaDiscordAuth.getToken()
                 : '';
         },
+        getAccountId(authState, accounts = []) {
+            const user = authState?.user || {};
+            const explicitAccountId = String(user.accountId || '').trim();
+            if (explicitAccountId) return explicitAccountId;
+
+            const id = String(user.id || user.sub || '').trim();
+            const discordId = this.getDiscordId(authState);
+            const account = getAccountByDiscordId(accounts, discordId || id);
+            return String(account?.id || id || '').trim();
+        },
         getDiscordId(authState) {
-            return String(authState?.user?.id || authState?.user?.sub || '').trim();
+            const user = authState?.user || {};
+            const explicitDiscordId = String(user.discordId || '').trim();
+            if (explicitDiscordId) return explicitDiscordId;
+            const id = String(user.id || user.sub || '').trim();
+            return /^\d{5,32}$/.test(id) ? id : '';
         }
     };
 
@@ -150,7 +164,7 @@
             return this.request('api/session', {
                 method: 'POST',
                 token,
-                body: sanitizeNextSessionConfig(config)
+                body: buildSessionSavePayload(config)
             }, 'Session API POST');
         },
         getVotes(sessionNumber) {
@@ -159,13 +173,16 @@
                 query: { session: sessionNumber }
             }, 'Session votes API');
         },
-        saveVote({ sessionNumber, playerDiscordId, optionId, value, token }) {
+        saveVote({ sessionNumber, playerAccountId, playerDiscordId, optionId, value, token }) {
+            const accountId = String(playerAccountId || '').trim();
             return this.request('api/session-votes', {
                 method: 'POST',
                 token,
                 body: {
                     sessionNumber,
-                    playerId: playerDiscordId,
+                    accountId,
+                    playerId: accountId,
+                    discordId: playerDiscordId || '',
                     optionId,
                     value
                 }
@@ -228,11 +245,15 @@
         return {
             campaignId: String(config?.campaignId || '').trim(),
             campaignName: String(config?.campaignName || '').trim(),
-            pollTitle: String(config?.pollTitle || '').trim(),
-            pollSubtitle: String(config?.pollSubtitle || '').trim(),
+            pollTitle: normalizeItalianLabel(config?.pollTitle),
+            pollSubtitle: normalizeItalianLabel(config?.pollSubtitle),
             discordWebhookUrl: String(config?.discordWebhookUrl || '').trim(),
+            disableDiscordNotifications: Boolean(config?.disableDiscordNotifications),
             number: Number(config?.number) || 1,
+            dmAccountId: String(config?.dmAccountId || '').trim(),
             dmDiscordId: String(config?.dmDiscordId || '').trim(),
+            pollManagerAccountIds: sanitizeStringList(config?.pollManagerAccountIds || config?.sessionManagerAccountIds || []),
+            pollManagerDiscordIds: sanitizeStringList(config?.pollManagerDiscordIds || config?.sessionManagerDiscordIds || []),
             date: String(config?.date || '').trim(),
             timeStart: String(config?.timeStart || '').trim(),
             timeEnd: String(config?.timeEnd || '').trim(),
@@ -241,6 +262,17 @@
             availabilityVotes: Array.isArray(config?.availabilityVotes) ? config.availabilityVotes : [],
             voteIcons: sanitizeVoteIconSets(config?.voteIcons || config?.ui?.voteIcons || {})
         };
+    }
+
+    function normalizeItalianLabel(value) {
+        return String(value || '')
+            .trim()
+            .replace(/\bdisponibilita\b/gi, 'disponibilità');
+    }
+
+    function sanitizeStringList(value) {
+        if (!Array.isArray(value)) return [];
+        return [...new Set(value.map((entry) => String(entry || '').trim()).filter(Boolean))];
     }
 
     function sanitizeVoteIconSets(value) {
@@ -275,11 +307,34 @@
         return sanitizeNextSessionConfig(config);
     }
 
+    function buildSessionSavePayload(config) {
+        const cleanConfig = sanitizeNextSessionConfig(config);
+        return {
+            campaignId: cleanConfig.campaignId,
+            number: cleanConfig.number,
+            dmAccountId: cleanConfig.dmAccountId,
+            dmDiscordId: cleanConfig.dmDiscordId,
+            pollManagerAccountIds: cleanConfig.pollManagerAccountIds,
+            pollManagerDiscordIds: cleanConfig.pollManagerDiscordIds,
+            campaignName: cleanConfig.campaignName,
+            pollTitle: cleanConfig.pollTitle,
+            pollSubtitle: cleanConfig.pollSubtitle,
+            discordWebhookUrl: cleanConfig.discordWebhookUrl,
+            disableDiscordNotifications: cleanConfig.disableDiscordNotifications,
+            date: cleanConfig.date,
+            timeStart: cleanConfig.timeStart,
+            timeEnd: cleanConfig.timeEnd,
+            isScheduled: cleanConfig.isScheduled,
+            availabilityOptions: cleanConfig.availabilityOptions
+        };
+    }
+
     function getCurrentCampaignId() {
         return String(window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue').trim() || 'cripta-di-sangue';
     }
 
     function getSessionWebhookUrl(config) {
+        if (config?.disableDiscordNotifications) return '';
         const explicitWebhookUrl = String(config?.discordWebhookUrl || '').trim();
         if (explicitWebhookUrl) return explicitWebhookUrl;
         return getCurrentCampaignId() === 'cripta-di-sangue' ? SESSION_CARD_WEBHOOK_URL : '';
@@ -329,20 +384,96 @@
 
     async function loadEligiblePlayers(config) {
         const playersPath = window.CriptaApp?.urls?.data?.('players.json') || `${getAssetsBasePath()}${PLAYERS_DATA_PATH}`;
-        const players = await dataService.fetchJson(playersPath, 'File dati players non trovato');
+        const [players, accounts] = await Promise.all([
+            dataService.fetchJson(playersPath, 'File dati players non trovato'),
+            loadGlobalAccounts()
+        ]);
         if (!Array.isArray(players)) return [];
 
         const eligiblePlayers = players
             .filter((player) => !player.hidden && player.isActive !== false)
-            .map((player) => ({
-                ...player,
-                discordId: String(player.discordId || '').trim()
-            }));
+            .map((player) => normalizeCampaignPlayer(player, accounts));
         const dmPlayer = {
             ...DM_PLAYER,
-            discordId: String(config?.dmDiscordId || '').trim()
+            discordId: String(config?.dmDiscordId || '').trim(),
+            accountId: String(config?.dmAccountId || getAccountByDiscordId(accounts, config?.dmDiscordId)?.id || config?.dmDiscordId || '').trim(),
+            accountName: getAccountByDiscordId(accounts, config?.dmDiscordId)?.name || ''
         };
         return [dmPlayer, ...eligiblePlayers];
+    }
+
+    async function loadGlobalAccounts() {
+        const accountsPath = window.CriptaApp?.urls?.globalData?.('users.json') || `${getAssetsBasePath()}data/users.json`;
+        try {
+            const accounts = await dataService.fetchJson(accountsPath, 'File dati utenti non trovato');
+            return Array.isArray(accounts) ? accounts : [];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function normalizeCampaignPlayer(player, accounts) {
+        const rawAccountId = String(player?.accountId || '').trim();
+        const account = rawAccountId ? getAccountById(accounts, rawAccountId) : getAccountByDiscordId(accounts, player?.discordId);
+        const accountId = String(rawAccountId || account?.id || player?.discordId || '').trim();
+        const discordId = String(player?.discordId || account?.discordId || '').trim();
+        const characterName = String(player?.characterName || player?.name || '').trim();
+        return {
+            ...player,
+            id: String(player?.id || characterName || accountId || discordId).trim(),
+            name: characterName || account?.name || accountId || discordId,
+            accountId,
+            accountName: String(account?.name || '').trim(),
+            discordId,
+            campaignRole: String(player?.campaignRole || player?.role || 'player').trim()
+        };
+    }
+
+    function getAccountById(accounts, accountId) {
+        const id = String(accountId || '').trim();
+        return Array.isArray(accounts) ? accounts.find((account) => String(account?.id || '').trim() === id) : null;
+    }
+
+    function getAccountByDiscordId(accounts, discordId) {
+        const id = String(discordId || '').trim();
+        return Array.isArray(accounts) ? accounts.find((account) => String(account?.discordId || '').trim() === id) : null;
+    }
+
+    function getPollManagerIdentities(config, accounts = []) {
+        const accountIds = new Set();
+        const discordIds = new Set();
+        const addAccountId = (value) => {
+            const id = String(value || '').trim();
+            if (!id) return;
+            accountIds.add(id);
+            const account = getAccountById(accounts, id);
+            if (account?.discordId) discordIds.add(String(account.discordId).trim());
+        };
+        const addDiscordId = (value) => {
+            const id = String(value || '').trim();
+            if (!id) return;
+            discordIds.add(id);
+            const account = getAccountByDiscordId(accounts, id);
+            if (account?.id) accountIds.add(String(account.id).trim());
+        };
+
+        addAccountId(config?.dmAccountId);
+        addDiscordId(config?.dmDiscordId);
+        sanitizeStringList(config?.pollManagerAccountIds || []).forEach(addAccountId);
+        sanitizeStringList(config?.pollManagerDiscordIds || []).forEach(addDiscordId);
+
+        return {
+            accountIds: [...accountIds],
+            discordIds: [...discordIds]
+        };
+    }
+
+    function canManagePoll(config, currentAccountId, currentDiscordId, accounts = []) {
+        const accountId = String(currentAccountId || '').trim();
+        const discordId = String(currentDiscordId || '').trim();
+        const identities = getPollManagerIdentities(config, accounts);
+        return Boolean(accountId && identities.accountIds.includes(accountId))
+            || Boolean(discordId && identities.discordIds.includes(discordId));
     }
 
     function sanitizeOptions(options) {
@@ -889,10 +1020,10 @@
         if (fallbackPath) {
             fallbackConfig = {
                 ...sanitizeNextSessionConfig(
-                await dataService.fetchJson(
-                    window.CriptaApp?.urls?.data?.('next-session.json') || fallbackPath,
-                    'Errore caricamento fallback next session'
-                )
+                    await dataService.fetchJson(
+                        window.CriptaApp?.urls?.data?.('next-session.json') || fallbackPath,
+                        'Errore caricamento fallback next session'
+                    )
                 ),
                 campaignId
             };
@@ -904,8 +1035,19 @@
                 if (fallbackConfig) return fallbackConfig;
                 throw new Error(`Session API: campagna "${remoteConfig.campaignId}" diversa da "${campaignId}"`);
             }
+            const localOnlyConfig = fallbackConfig || {};
             return {
                 ...remoteConfig,
+                campaignName: localOnlyConfig.campaignName || remoteConfig.campaignName,
+                pollTitle: localOnlyConfig.pollTitle || remoteConfig.pollTitle,
+                pollSubtitle: localOnlyConfig.pollSubtitle || remoteConfig.pollSubtitle,
+                discordWebhookUrl: localOnlyConfig.discordWebhookUrl || remoteConfig.discordWebhookUrl,
+                disableDiscordNotifications: localOnlyConfig.disableDiscordNotifications || remoteConfig.disableDiscordNotifications,
+                dmAccountId: localOnlyConfig.dmAccountId || remoteConfig.dmAccountId,
+                dmDiscordId: localOnlyConfig.dmDiscordId || remoteConfig.dmDiscordId,
+                pollManagerAccountIds: localOnlyConfig.pollManagerAccountIds?.length ? localOnlyConfig.pollManagerAccountIds : remoteConfig.pollManagerAccountIds,
+                pollManagerDiscordIds: localOnlyConfig.pollManagerDiscordIds?.length ? localOnlyConfig.pollManagerDiscordIds : remoteConfig.pollManagerDiscordIds,
+                voteIcons: localOnlyConfig.voteIcons || {},
                 campaignId: remoteConfig.campaignId || campaignId
             };
         } catch (error) {
@@ -917,6 +1059,11 @@
 
     function sanitizeVotes(votes, options, players) {
         const allowedIds = new Set(options.map(option => option.id));
+        const playersByAccountId = new Map(
+            players
+                .filter((player) => player.accountId)
+                .map((player) => [String(player.accountId), player])
+        );
         const playersByDiscordId = new Map(
             players
                 .filter((player) => player.discordId)
@@ -935,8 +1082,13 @@
         const sanitized = normalizedVotes
             .map((vote) => {
                 const rawPlayerId = String(vote?.playerId || vote?.id || '').trim();
+                const rawAccountId = String(vote?.accountId || '').trim();
+                const rawDiscordId = String(vote?.discordId || '').trim();
                 const rawName = String(vote?.name || '').trim();
-                const matchedPlayer = playersByDiscordId.get(rawPlayerId)
+                const matchedPlayer = playersByAccountId.get(rawAccountId)
+                    || playersByAccountId.get(rawPlayerId)
+                    || playersByDiscordId.get(rawDiscordId)
+                    || playersByDiscordId.get(rawPlayerId)
                     || playersById.get(rawPlayerId)
                     || playersByName.get(rawName.toLowerCase());
                 if (!matchedPlayer) return null;
@@ -959,7 +1111,8 @@
 
                 return {
                     playerId: matchedPlayer.id,
-                    discordId: matchedPlayer.discordId || rawPlayerId,
+                    accountId: matchedPlayer.accountId || rawAccountId || '',
+                    discordId: matchedPlayer.discordId || rawDiscordId || (/^\d{5,32}$/.test(rawPlayerId) ? rawPlayerId : ''),
                     name: matchedPlayer.name,
                     selections
                 };
@@ -1001,6 +1154,8 @@
             if (!grouped.has(rawPlayerId)) {
                 grouped.set(rawPlayerId, {
                     playerId: rawPlayerId,
+                    accountId: String(vote?.accountId || '').trim(),
+                    discordId: String(vote?.discordId || '').trim(),
                     name: String(vote?.name || '').trim(),
                     selections: {}
                 });
@@ -1035,8 +1190,8 @@
         return sanitizeVotes(extractVotesFromApiPayload(payload), options, players);
     }
 
-    async function postRemoteVote({ sessionNumber, playerDiscordId, optionId, value, token }) {
-        return sessionApiService.saveVote({ sessionNumber, playerDiscordId, optionId, value, token });
+    async function postRemoteVote({ sessionNumber, playerAccountId, playerDiscordId, optionId, value, token }) {
+        return sessionApiService.saveVote({ sessionNumber, playerAccountId, playerDiscordId, optionId, value, token });
     }
 
     function persistVotes(sessionNumber, votes) {
@@ -1249,7 +1404,7 @@
                         <i class="fas fa-download"></i>
                     </button>
                     ${config.availabilityOptions?.length ? `
-                        <button type="button" class="next-session-view-trigger" data-view-mode="${VIEW_MODES.poll}" aria-label="Mostra sondaggio disponibilita">
+                        <button type="button" class="next-session-view-trigger" data-view-mode="${VIEW_MODES.poll}" aria-label="Mostra sondaggio disponibilità">
                             <i class="fas fa-table"></i>
                         </button>
                     ` : ''}
@@ -1278,18 +1433,20 @@
 
     async function renderScheduledSession(container, config) {
         let authState = null;
+        let accounts = [];
         try {
-            authState = await authService.verify();
+            [authState, accounts] = await Promise.all([
+                authService.verify(),
+                loadGlobalAccounts()
+            ]);
         } catch (_) {
             authState = null;
+            accounts = [];
         }
 
+        const currentAccountId = authService.getAccountId(authState, accounts);
         const currentDiscordId = authService.getDiscordId(authState);
-        const canConfigureSession = (
-            Boolean(currentDiscordId)
-            && Boolean(config?.dmDiscordId)
-            && currentDiscordId === String(config.dmDiscordId).trim()
-        );
+        const canConfigureSession = canManagePoll(config, currentAccountId, currentDiscordId, accounts);
 
         container.innerHTML = buildScheduledMarkup(config, canConfigureSession);
         const toggleButton = container.querySelector('[data-view-mode]');
@@ -1357,7 +1514,6 @@
     function buildPollMarkup(config, options, votes, statusMessage, canConfigureSession, editorState) {
         const totals = computeTotals(votes, options);
         const voteCount = votes.length;
-        const title = config.pollTitle || `Sessione ${config.number}`;
         const subtitle = config.pollSubtitle || config.campaignName || 'Prossima Sessione';
         const rowsMarkup = votes.length > 0
             ? votes.map((vote, rowIndex) => `
@@ -1419,8 +1575,7 @@
                         </button>
                     ` : ''}
                 </div>
-                <span class="next-label">${escapeHtml(subtitle)}</span>
-                <h2 class="next-title text-gold-gradient">${escapeHtml(title)}</h2>
+                <span class="next-label next-label-poll">${escapeHtml(subtitle)}</span>
                 ${statusMessage ? `<div class="availability-feedback">${escapeHtml(statusMessage)}</div>` : ''}
                 <div class="availability-table-wrap">
                     <table class="availability-table">
@@ -1470,10 +1625,12 @@
 
         let players = [];
         let authState = null;
+        let accounts = [];
         try {
-            [players, authState] = await Promise.all([
+            [players, authState, accounts] = await Promise.all([
                 loadEligiblePlayers(effectiveConfig),
-                authService.verify()
+                authService.verify(),
+                loadGlobalAccounts()
             ]);
         } catch (error) {
             console.error('Impossibile caricare i player per il planner della prossima sessione:', error);
@@ -1487,20 +1644,19 @@
             return;
         }
 
+        const currentAccountId = authService.getAccountId(authState, accounts);
         const currentDiscordId = authService.getDiscordId(authState);
         const authToken = authService.getToken();
         const orderedPlayers = [...players].sort((left, right) => {
-            const leftIsCurrent = Boolean(currentDiscordId) && Boolean(left.discordId) && left.discordId === currentDiscordId;
-            const rightIsCurrent = Boolean(currentDiscordId) && Boolean(right.discordId) && right.discordId === currentDiscordId;
+            const leftIsCurrent = (Boolean(currentAccountId) && Boolean(left.accountId) && left.accountId === currentAccountId)
+                || (Boolean(currentDiscordId) && Boolean(left.discordId) && left.discordId === currentDiscordId);
+            const rightIsCurrent = (Boolean(currentAccountId) && Boolean(right.accountId) && right.accountId === currentAccountId)
+                || (Boolean(currentDiscordId) && Boolean(right.discordId) && right.discordId === currentDiscordId);
             if (leftIsCurrent === rightIsCurrent) return 0;
             return leftIsCurrent ? -1 : 1;
         });
         preloadVoteIcons(orderedPlayers);
-        const canConfigureSession = (
-            Boolean(currentDiscordId)
-            && Boolean(effectiveConfig.dmDiscordId)
-            && currentDiscordId === effectiveConfig.dmDiscordId
-        );
+        const canConfigureSession = canManagePoll(effectiveConfig, currentAccountId, currentDiscordId, accounts);
         const localFallbackVotes = readStoredVotes(effectiveConfig.number, effectiveConfig.availabilityVotes, options, players);
         let baseVotes = localFallbackVotes;
         try {
@@ -1514,6 +1670,7 @@
             const existingVote = baseVotes.find((vote) => vote.playerId === player.id);
             return existingVote || {
                 playerId: player.id,
+                accountId: player.accountId || '',
                 discordId: player.discordId || '',
                 name: player.name,
                 selections: options.reduce((acc, option) => {
@@ -1523,7 +1680,8 @@
             };
         }).map((vote) => ({
             ...vote,
-            canEdit: Boolean(currentDiscordId) && Boolean(vote.discordId) && vote.discordId === currentDiscordId
+            canEdit: (Boolean(currentAccountId) && Boolean(vote.accountId) && vote.accountId === currentAccountId)
+                || (Boolean(currentDiscordId) && Boolean(vote.discordId) && vote.discordId === currentDiscordId)
         }));
 
         let statusMessage = '';
@@ -1540,6 +1698,7 @@
                 const existingVote = baseVoteList.find((vote) => vote.playerId === player.id);
                 return existingVote || {
                     playerId: player.id,
+                    accountId: player.accountId || '',
                     discordId: player.discordId || '',
                     name: player.name,
                     selections: options.reduce((acc, option) => {
@@ -1549,7 +1708,8 @@
                 };
             }).map((vote) => ({
                 ...vote,
-                canEdit: Boolean(currentDiscordId) && Boolean(vote.discordId) && vote.discordId === currentDiscordId
+                canEdit: (Boolean(currentAccountId) && Boolean(vote.accountId) && vote.accountId === currentAccountId)
+                    || (Boolean(currentDiscordId) && Boolean(vote.discordId) && vote.discordId === currentDiscordId)
             }));
         }
 
@@ -1750,7 +1910,7 @@
                     }
 
                     const targetVote = votes[rowIndex];
-                    if (!targetVote.canEdit || !targetVote.discordId || !authToken) {
+                    if (!targetVote.canEdit || !targetVote.accountId || !authToken) {
                         return;
                     }
 
@@ -1774,6 +1934,7 @@
                     try {
                         const payload = await postRemoteVote({
                             sessionNumber: effectiveConfig.number,
+                            playerAccountId: targetVote.accountId,
                             playerDiscordId: targetVote.discordId,
                             optionId,
                             value: nextChoice,

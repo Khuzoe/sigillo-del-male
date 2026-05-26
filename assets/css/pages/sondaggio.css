@@ -9,9 +9,9 @@ body.poll-page {
         }
 
         .poll-page-shell {
-            width: min(1520px, calc(100vw - 1rem));
+            width: min(1880px, calc(100vw - 0.75rem));
             margin: 0 auto;
-            padding: 0.75rem 0 1.5rem;
+            padding: 0.55rem 0 1.2rem;
         }
 
         .poll-page-topbar {
@@ -42,22 +42,6 @@ body.poll-page {
             border-color: rgba(212, 175, 55, 0.5);
         }
 
-        .poll-page-auth {
-            min-width: 0;
-            margin-top: 0;
-            padding-top: 0;
-            border-top: 0;
-            flex-direction: row;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 0.6rem;
-        }
-
-        .poll-page-auth .discord-auth-status {
-            text-align: right;
-            margin: 0;
-        }
-
         .poll-page-main {
             display: block;
         }
@@ -74,8 +58,6 @@ body.poll-page {
             display: none;
         }
 
-        .poll-page-panel .next-label,
-        .poll-page-panel .next-title,
         .poll-page-panel .availability-feedback {
             display: none;
         }
@@ -83,6 +65,38 @@ body.poll-page {
         .poll-page-panel .next-session-card,
         .poll-page-panel .next-session-card-poll {
             margin-bottom: 0;
+            padding: 0.7rem;
+        }
+
+        .poll-page-panel .next-session-card-poll .next-label-poll {
+            margin-bottom: 0.65rem;
+        }
+
+        .poll-page-panel .availability-table-wrap {
+            width: 100%;
+        }
+
+        .poll-page-panel .availability-table {
+            width: 100%;
+            min-width: max-content;
+        }
+
+        .poll-page-panel .availability-corner-cell {
+            width: clamp(120px, 8vw, 150px);
+            min-width: clamp(120px, 8vw, 150px);
+            max-width: clamp(120px, 8vw, 150px);
+        }
+
+        .poll-page-panel .availability-option-cell,
+        .poll-page-panel .availability-vote-cell {
+            width: clamp(108px, calc((100vw - 190px) / 9), 158px);
+            min-width: clamp(108px, calc((100vw - 190px) / 9), 158px);
+            max-width: clamp(108px, calc((100vw - 190px) / 9), 158px);
+        }
+
+        .poll-page-panel .availability-vote-cell {
+            height: clamp(108px, calc((100vw - 190px) / 9), 158px);
+            min-height: clamp(108px, calc((100vw - 190px) / 9), 158px);
         }
 
         @media (max-width: 900px) {
@@ -95,12 +109,4 @@ body.poll-page {
                 justify-content: space-between;
             }
 
-            .poll-page-auth {
-                align-items: flex-start;
-                justify-content: flex-start;
-            }
-
-            .poll-page-auth .discord-auth-status {
-                text-align: left;
-            }
         }
