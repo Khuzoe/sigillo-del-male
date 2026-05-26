@@ -538,9 +538,88 @@ function initSidebar(html, basePath) {
 
     container.innerHTML = html;
     fixPaths(container, basePath);
+    initCampaignSwitcher(container);
     setActiveLink();
     bindPrefetchForLinks(container);
     initPageAccessControls(basePath);
+}
+
+async function initCampaignSwitcher(container) {
+    const campaigns = await loadEnabledCampaigns();
+    if (!container || campaigns.length <= 1) {
+        container?.querySelector?.(".campaign-switcher")?.remove();
+        return;
+    }
+
+    const currentId = getCampaignId();
+    const currentCampaign = campaigns.find((campaign) => campaign.id === currentId) || campaigns[0];
+    const switcher = document.createElement("div");
+    switcher.className = "campaign-switcher";
+    switcher.innerHTML = `
+        <label class="campaign-switcher__label" for="campaign-switcher-select">
+            <i class="fas fa-layer-group" aria-hidden="true"></i>
+            Campagna
+        </label>
+        <div class="campaign-switcher__control">
+            <select id="campaign-switcher-select" class="campaign-switcher__select" aria-label="Cambia campagna">
+                ${campaigns.map((campaign) => `
+                    <option value="${escapeHtml(campaign.id)}"${campaign.id === currentCampaign.id ? " selected" : ""}>
+                        ${escapeHtml(campaign.name)}
+                    </option>
+                `).join("")}
+            </select>
+            <i class="fas fa-chevron-down" aria-hidden="true"></i>
+        </div>
+    `;
+
+    container.querySelector(".campaign-switcher")?.remove();
+    container.appendChild(switcher);
+
+    const select = switcher.querySelector("select");
+    select?.addEventListener("change", () => {
+        const campaignId = sanitizeCampaignId(select.value);
+        if (!campaignId || campaignId === getCampaignId()) return;
+        navigateToCampaign(campaignId);
+    });
+}
+
+async function loadEnabledCampaigns() {
+    try {
+        const data = await fetchJsonWithCache(resolveGlobalDataUrl("campaigns.json"));
+        const campaigns = Array.isArray(data?.campaigns) ? data.campaigns : [];
+        return campaigns
+            .filter((campaign) => campaign?.enabled !== false && campaign?.id)
+            .map((campaign) => ({
+                id: sanitizeCampaignId(campaign.id),
+                name: String(campaign.name || campaign.id).trim()
+            }))
+            .filter((campaign) => campaign.id && campaign.name);
+    } catch (error) {
+        console.warn("Impossibile caricare elenco campagne:", error);
+        return [];
+    }
+}
+
+function navigateToCampaign(campaignId) {
+    const target = new URL(window.location.href);
+    if (sanitizeCampaignId(campaignId) === DEFAULT_CAMPAIGN_ID) {
+        target.searchParams.delete("campaign");
+        target.searchParams.delete("campaignId");
+    } else {
+        target.searchParams.set("campaign", sanitizeCampaignId(campaignId));
+        target.searchParams.delete("campaignId");
+    }
+
+    if (isEmbedMode && !target.searchParams.has("embed")) {
+        target.searchParams.set("embed", "1");
+    }
+
+    if (typeof navigateSpa === "function" && !isEmbeddedRuntime) {
+        navigateSpa(target.toString(), { push: true });
+        return;
+    }
+
+    window.location.href = target.toString();
 }
 
 function ensureTopAuthBar() {

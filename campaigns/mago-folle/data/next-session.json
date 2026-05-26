@@ -33,9 +33,9 @@
       "no": "media/ui/mago-folle/lila_no.webp"
     },
     "sir-elric": {
-      "yes": "media/ui/mago-folle/sir-elric_yes.webp",
-      "maybe": "media/ui/mago-folle/sir-elric_maybe.webp",
-      "no": "media/ui/mago-folle/sir-elric_no.webp"
+      "yes": "media/ui/mago-folle/elric_yes.webp",
+      "maybe": "media/ui/mago-folle/elric_maybe.webp",
+      "no": "media/ui/mago-folle/elric_no.webp"
     },
     "archimede": {
       "yes": "media/ui/mago-folle/archimede_yes.webp",

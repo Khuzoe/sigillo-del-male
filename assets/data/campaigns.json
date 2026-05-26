@@ -8,6 +8,14 @@
       "dataPath": "assets/data",
       "mediaPath": "media",
       "enabled": true
+    },
+    {
+      "id": "mago-folle",
+      "name": "Mago Folle",
+      "siteTitle": "Mago Folle",
+      "dataPath": "campaigns/mago-folle/data",
+      "mediaPath": "campaigns/mago-folle/media",
+      "enabled": true
     }
   ]
 }

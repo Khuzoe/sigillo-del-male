@@ -4713,6 +4713,72 @@ body.page-character .main-content {
     box-shadow: inset 2px 0 0 rgba(212, 175, 55, 0.4);
 }
 
+.campaign-switcher {
+    position: relative;
+    z-index: 2;
+    margin-top: auto;
+    padding: 0.95rem;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 16px;
+    background:
+        linear-gradient(180deg, rgba(212, 175, 55, 0.08), rgba(255, 255, 255, 0.02)),
+        rgba(8, 8, 9, 0.7);
+    box-shadow:
+        0 16px 34px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.campaign-switcher__label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.62rem;
+    color: rgba(224, 224, 224, 0.62);
+    font-family: var(--font-body);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.campaign-switcher__label i {
+    color: var(--gold);
+}
+
+.campaign-switcher__control {
+    position: relative;
+}
+
+.campaign-switcher__select {
+    width: 100%;
+    min-height: 42px;
+    padding: 0.65rem 2.15rem 0.65rem 0.8rem;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 12px;
+    color: var(--ink-ivory);
+    background:
+        linear-gradient(180deg, rgba(18, 16, 16, 0.96), rgba(6, 6, 7, 0.96));
+    font-family: var(--font-heading);
+    font-size: 0.92rem;
+    letter-spacing: 0.04em;
+    appearance: none;
+    cursor: pointer;
+}
+
+.campaign-switcher__select:focus-visible {
+    outline: 2px solid rgba(212, 175, 55, 0.55);
+    outline-offset: 2px;
+}
+
+.campaign-switcher__control > i {
+    position: absolute;
+    top: 50%;
+    right: 0.78rem;
+    transform: translateY(-50%);
+    color: rgba(212, 175, 55, 0.82);
+    pointer-events: none;
+}
+
 .sidebar-divider {
     margin: 1rem 0 1.1rem;
     height: 1px;
@@ -5383,6 +5449,11 @@ body.page-sessioni .session-card:nth-child(3n) {
 
     .sidebar-divider {
         margin: 0.85rem 0;
+    }
+
+    .campaign-switcher {
+        margin-top: 0.9rem;
+        padding: 0.85rem;
     }
 
     .discord-auth {
