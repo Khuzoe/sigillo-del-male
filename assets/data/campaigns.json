@@ -7,6 +7,9 @@
       "siteTitle": "Sigillo del Male",
       "dataPath": "assets/data",
       "mediaPath": "media",
+      "theme": "cripta-di-sangue",
+      "logo": "assets/img/logo.webp",
+      "hiddenPages": [],
       "enabled": true
     },
     {
@@ -15,6 +18,11 @@
       "siteTitle": "Mago Folle",
       "dataPath": "campaigns/mago-folle/data",
       "mediaPath": "campaigns/mago-folle/media",
+      "theme": "mago-folle",
+      "logo": "assets/img/logo.webp",
+      "hiddenPages": [
+        "famiglia-von-t"
+      ],
       "enabled": true
     }
   ]

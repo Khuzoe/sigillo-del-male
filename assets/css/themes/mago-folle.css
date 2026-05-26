@@ -1,0 +1,256 @@
+html[data-campaign="mago-folle"] {
+    --gold: #8be7ff;
+    --gold-dark: #3aa9cf;
+    --blood: #7a4bc4;
+    --blood-dark: #46306f;
+    --bg-dark: #12243a;
+    --bg-darker: #0b1628;
+    --text-light: #f2fbff;
+    --text-muted: #bfd3df;
+    --ink-ivory: #fbfdff;
+    --border-color: rgba(139, 231, 255, 0.28);
+}
+
+html[data-campaign="mago-folle"] body {
+    background:
+        radial-gradient(circle at 76% 10%, rgba(139, 231, 255, 0.28), transparent 28rem),
+        radial-gradient(circle at 18% 76%, rgba(146, 107, 214, 0.24), transparent 32rem),
+        linear-gradient(180deg, #132b45 0%, #0f2037 52%, #10172d 100%);
+}
+
+html[data-campaign="mago-folle"] body.poll-page {
+    background:
+        radial-gradient(circle at 76% 10%, rgba(139, 231, 255, 0.3), transparent 30rem),
+        radial-gradient(circle at 20% 88%, rgba(146, 107, 214, 0.28), transparent 34rem),
+        linear-gradient(180deg, #142d49 0%, #10223b 58%, #111a31 100%);
+}
+
+html[data-campaign="mago-folle"] body::before {
+    opacity: 0.16;
+    background:
+        repeating-linear-gradient(135deg, rgba(139, 231, 255, 0.08) 0 1px, transparent 1px 20px),
+        radial-gradient(circle at center, transparent 38%, rgba(146, 107, 214, 0.16) 100%);
+}
+
+html[data-campaign="mago-folle"] .sidebar {
+    background:
+        linear-gradient(180deg, rgba(14, 31, 52, 0.98) 0%, rgba(21, 33, 61, 0.96) 54%, rgba(13, 21, 42, 0.98) 100%);
+    border-right-color: rgba(139, 231, 255, 0.22);
+}
+
+html[data-campaign="mago-folle"] .sidebar::before {
+    border-color: rgba(139, 231, 255, 0.18);
+    background:
+        linear-gradient(180deg, rgba(139, 231, 255, 0.055), transparent 20%, transparent 78%, rgba(146, 107, 214, 0.07)),
+        radial-gradient(circle at top, rgba(139, 231, 255, 0.16), transparent 34%);
+}
+
+html[data-campaign="mago-folle"] .sidebar::after {
+    opacity: 0.24;
+    background: linear-gradient(180deg, rgba(139, 231, 255, 0.34), transparent 62%);
+}
+
+html[data-campaign="mago-folle"] .logo-img {
+    filter:
+        hue-rotate(155deg)
+        saturate(0.92)
+        drop-shadow(0 0 16px rgba(139, 231, 255, 0.28))
+        drop-shadow(0 12px 24px rgba(146, 107, 214, 0.26));
+}
+
+html[data-campaign="mago-folle"] .nav-links a i,
+html[data-campaign="mago-folle"] .campaign-switcher__label i,
+html[data-campaign="mago-folle"] .campaign-switcher__control > i {
+    color: rgba(139, 231, 255, 0.86);
+}
+
+html[data-campaign="mago-folle"] .nav-links a:hover,
+html[data-campaign="mago-folle"] .nav-links a.active {
+    background: linear-gradient(90deg, rgba(139, 231, 255, 0.14), rgba(146, 107, 214, 0.07) 62%, transparent);
+}
+
+html[data-campaign="mago-folle"] .nav-links a:hover::before,
+html[data-campaign="mago-folle"] .nav-links a.active::before {
+    border-color: rgba(139, 231, 255, 0.26);
+}
+
+html[data-campaign="mago-folle"] .nav-links a.active {
+    box-shadow: inset 2px 0 0 rgba(139, 231, 255, 0.62);
+}
+
+html[data-campaign="mago-folle"] .campaign-switcher {
+    border-color: rgba(139, 231, 255, 0.24);
+    background:
+        linear-gradient(180deg, rgba(139, 231, 255, 0.14), rgba(146, 107, 214, 0.08)),
+        rgba(18, 34, 57, 0.82);
+}
+
+html[data-campaign="mago-folle"] .campaign-switcher__select {
+    border-color: rgba(139, 231, 255, 0.3);
+    background:
+        linear-gradient(180deg, rgba(25, 48, 76, 0.98), rgba(14, 25, 48, 0.98));
+}
+
+html[data-campaign="mago-folle"] .top-auth-bar {
+    border-color: rgba(139, 231, 255, 0.24);
+    box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.32),
+        0 0 28px rgba(139, 231, 255, 0.14);
+}
+
+html[data-campaign="mago-folle"] .text-gold-gradient,
+html[data-campaign="mago-folle"] .hero-mini h1,
+html[data-campaign="mago-folle"] .dashboard-header h1,
+html[data-campaign="mago-folle"] .dash-section-title h2,
+html[data-campaign="mago-folle"] .content-card h3,
+html[data-campaign="mago-folle"] .bestiary-heading h2,
+html[data-campaign="mago-folle"] .bestiary-section-header h3 {
+    background: linear-gradient(180deg, #ffffff 0%, #9bedff 46%, #a990ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 14px rgba(139, 231, 255, 0.22));
+}
+
+html[data-campaign="mago-folle"] .hero-mini,
+html[data-campaign="mago-folle"] body.page-npcs .hero-mini,
+html[data-campaign="mago-folle"] body.page-sessioni .hero-mini,
+html[data-campaign="mago-folle"] body.page-character .hero-mini,
+html[data-campaign="mago-folle"] body.page-bestiario .hero-mini,
+html[data-campaign="mago-folle"] body.page-oggetti .hero-mini,
+html[data-campaign="mago-folle"] body.page-appunti .hero-mini {
+    background:
+        radial-gradient(circle at 72% 16%, rgba(139, 231, 255, 0.24), transparent 24rem),
+        linear-gradient(90deg, rgba(42, 75, 115, 0.64), rgba(146, 107, 214, 0.14) 48%, rgba(16, 28, 50, 0.18));
+    border-bottom-color: rgba(139, 231, 255, 0.22);
+}
+
+html[data-campaign="mago-folle"] .hero-mini .subtitle,
+html[data-campaign="mago-folle"] .dashboard-header p {
+    color: rgba(232, 248, 255, 0.78);
+}
+
+html[data-campaign="mago-folle"] .hero-mini::before {
+    background:
+        repeating-linear-gradient(90deg, rgba(139, 231, 255, 0.05) 0 1px, transparent 1px 34px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 34%);
+}
+
+html[data-campaign="mago-folle"] body.page-home .dashboard-header::after,
+html[data-campaign="mago-folle"] .dash-section-title h2::before {
+    background: linear-gradient(90deg, transparent, rgba(139, 231, 255, 0.62), transparent);
+}
+
+html[data-campaign="mago-folle"] .next-session-card,
+html[data-campaign="mago-folle"] .content-card,
+html[data-campaign="mago-folle"] .lore-card,
+html[data-campaign="mago-folle"] .bestiary-shell,
+html[data-campaign="mago-folle"] .session-nav,
+html[data-campaign="mago-folle"] .session-card {
+    border-color: rgba(139, 231, 255, 0.24);
+    box-shadow:
+        0 22px 52px rgba(0, 0, 0, 0.28),
+        0 0 42px rgba(139, 231, 255, 0.1);
+}
+
+html[data-campaign="mago-folle"] .bestiary-shell,
+html[data-campaign="mago-folle"] .session-nav,
+html[data-campaign="mago-folle"] .session-card {
+    background:
+        radial-gradient(circle at top right, rgba(139, 231, 255, 0.14), transparent 24rem),
+        linear-gradient(180deg, rgba(24, 44, 72, 0.9), rgba(15, 28, 52, 0.94));
+    border-color: rgba(139, 231, 255, 0.2);
+}
+
+html[data-campaign="mago-folle"] .bestiary-heading,
+html[data-campaign="mago-folle"] .session-header {
+    border-bottom-color: rgba(139, 231, 255, 0.18);
+}
+
+html[data-campaign="mago-folle"] .session-title.text-gold-gradient,
+html[data-campaign="mago-folle"] .session-nav-title {
+    color: #f2fbff;
+}
+
+html[data-campaign="mago-folle"] .session-date,
+html[data-campaign="mago-folle"] .detail-item,
+html[data-campaign="mago-folle"] .countdown-box,
+html[data-campaign="mago-folle"] .nav-item {
+    background: rgba(20, 39, 66, 0.78);
+    border-color: rgba(139, 231, 255, 0.16);
+}
+
+html[data-campaign="mago-folle"] .timeline::before {
+    background: linear-gradient(to bottom, transparent, rgba(139, 231, 255, 0.22), rgba(139, 231, 255, 0.54), rgba(139, 231, 255, 0.22), transparent);
+}
+
+html[data-campaign="mago-folle"] .timeline-marker {
+    background: linear-gradient(180deg, rgba(32, 58, 88, 1), rgba(15, 27, 51, 1));
+    border-color: rgba(139, 231, 255, 0.74);
+    box-shadow: 0 0 0 5px rgba(16, 28, 52, 0.88);
+}
+
+html[data-campaign="mago-folle"] .next-session-card,
+html[data-campaign="mago-folle"] .next-session-card-poll,
+html[data-campaign="mago-folle"] .poll-page-panel .next-session-card,
+html[data-campaign="mago-folle"] .poll-page-panel .next-session-card-poll {
+    background:
+        radial-gradient(circle at 82% 8%, rgba(139, 231, 255, 0.26), transparent 24rem),
+        radial-gradient(circle at 18% 92%, rgba(146, 107, 214, 0.18), transparent 28rem),
+        linear-gradient(180deg, rgba(25, 47, 76, 0.95), rgba(16, 28, 52, 0.94));
+    border-color: rgba(139, 231, 255, 0.3);
+    box-shadow:
+        0 28px 54px rgba(0, 0, 0, 0.26),
+        0 0 46px rgba(139, 231, 255, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 0 0 1px rgba(139, 231, 255, 0.1);
+}
+
+html[data-campaign="mago-folle"] .next-session-card::before,
+html[data-campaign="mago-folle"] .next-session-card-poll::before {
+    opacity: 0.18;
+    background:
+        repeating-linear-gradient(135deg, rgba(139, 231, 255, 0.08) 0 1px, transparent 1px 16px);
+}
+
+html[data-campaign="mago-folle"] .availability-table {
+    background: rgba(17, 31, 55, 0.58);
+    border-color: rgba(139, 231, 255, 0.18);
+}
+
+html[data-campaign="mago-folle"] .availability-table thead th,
+html[data-campaign="mago-folle"] .availability-corner-cell,
+html[data-campaign="mago-folle"] .availability-name-cell {
+    background: linear-gradient(180deg, rgba(32, 58, 88, 0.96), rgba(18, 31, 57, 0.98));
+}
+
+html[data-campaign="mago-folle"] .availability-table th,
+html[data-campaign="mago-folle"] .availability-table td {
+    border-color: rgba(139, 231, 255, 0.14);
+}
+
+html[data-campaign="mago-folle"] .availability-option-label,
+html[data-campaign="mago-folle"] .availability-option-time,
+html[data-campaign="mago-folle"] .availability-name-text {
+    color: #eaf9ff;
+}
+
+html[data-campaign="mago-folle"] .next-session-edit-trigger,
+html[data-campaign="mago-folle"] .next-session-add-trigger,
+html[data-campaign="mago-folle"] .next-session-export-trigger,
+html[data-campaign="mago-folle"] .next-session-view-trigger,
+html[data-campaign="mago-folle"] .poll-page-home-link {
+    border-color: rgba(139, 231, 255, 0.36);
+    color: #8be7ff;
+    background: rgba(139, 231, 255, 0.1);
+}
+
+html[data-campaign="mago-folle"] .next-session-edit-trigger:hover,
+html[data-campaign="mago-folle"] .next-session-add-trigger:hover,
+html[data-campaign="mago-folle"] .next-session-export-trigger:hover,
+html[data-campaign="mago-folle"] .next-session-view-trigger:hover,
+html[data-campaign="mago-folle"] .poll-page-home-link:hover {
+    background: rgba(139, 231, 255, 0.18);
+    border-color: rgba(139, 231, 255, 0.64);
+}

@@ -28,8 +28,10 @@ let embeddedDiscordToken = "";
 let embeddedDiscordPopup = null;
 let spaNavigationInProgress = false;
 let currentCampaignId = DEFAULT_CAMPAIGN_ID;
+let currentCampaignConfig = null;
+let campaignConfigPromise = null;
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
     const scriptTag = document.querySelector('script[src*="layout.js"]');
     let basePath = "";
 
@@ -43,6 +45,8 @@ document.addEventListener("DOMContentLoaded", function () {
     document.documentElement.dataset.campaign = currentCampaignId;
     document.body.classList.toggle("is-embed", isEmbeddedRuntime);
     consumeEmbeddedTokenFromQuery();
+    await consumeDeviceCodeFromQuery();
+    await applyCurrentCampaignConfig(basePath);
 
     markInitialInlineHeadStyles();
     ensureFavicon(basePath);
@@ -191,6 +195,7 @@ async function navigateSpa(targetUrl, options = {}) {
         currentCampaignId = resolveCurrentCampaignId(target);
         document.documentElement.dataset.campaign = currentCampaignId;
         document.title = nextDocument.title || document.title;
+        await applyCurrentCampaignConfig(computeBasePathForUrl(target));
         syncSpaHead(nextDocument, target);
         syncBodyState(nextDocument);
         disposePageScopes();
@@ -199,6 +204,8 @@ async function navigateSpa(targetUrl, options = {}) {
 
         window.CriptaBasePath = computeBasePathForUrl(target);
         syncSidebarContainer(nextDocument, importedMain, window.CriptaBasePath);
+        applyCampaignSidebarConfig(document.getElementById("sidebar-container"), window.CriptaBasePath);
+        initCampaignSwitcher(document.getElementById("sidebar-container"));
         appendSpaExtras(nextDocument);
         ensureFavicon(window.CriptaBasePath);
         fixPaths(document.getElementById("sidebar-container"), window.CriptaBasePath);
@@ -259,8 +266,37 @@ function markInitialInlineHeadStyles() {
     });
 }
 
+async function applyCurrentCampaignConfig(basePath = getBasePath()) {
+    currentCampaignConfig = await loadCampaignConfig(getCampaignId());
+    document.documentElement.dataset.campaign = currentCampaignConfig.id || getCampaignId();
+    loadCampaignTheme(currentCampaignConfig, basePath);
+}
+
+async function loadCampaignConfig(campaignId = getCampaignId()) {
+    const campaigns = await loadEnabledCampaigns();
+    const id = sanitizeCampaignId(campaignId);
+    return campaigns.find((campaign) => campaign.id === id)
+        || campaigns.find((campaign) => campaign.id === DEFAULT_CAMPAIGN_ID)
+        || { id, name: id, theme: id, hiddenPages: [] };
+}
+
+function loadCampaignTheme(campaign, basePath = getBasePath()) {
+    const theme = sanitizeCampaignId(campaign?.theme || campaign?.id || "");
+    document.querySelectorAll("link[data-campaign-theme]").forEach((node) => node.remove());
+    if (!theme || theme === DEFAULT_CAMPAIGN_ID) return;
+
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = new URL(`${basePath || ""}assets/css/themes/${theme}.css`, window.location.href).toString();
+    link.dataset.campaignTheme = theme;
+    document.head.appendChild(link);
+}
+
 function syncSpaHead(nextDocument, targetUrl) {
-    document.head.querySelectorAll("[data-spa-head], link[data-page-style]").forEach((node) => node.remove());
+    document.head.querySelectorAll("[data-spa-head], link[data-page-style]").forEach((node) => {
+        if (node.dataset.campaignTheme) return;
+        node.remove();
+    });
     removeInitialPageStyles();
 
     nextDocument.head.querySelectorAll("style").forEach((style) => {
@@ -538,10 +574,30 @@ function initSidebar(html, basePath) {
 
     container.innerHTML = html;
     fixPaths(container, basePath);
+    applyCampaignSidebarConfig(container, basePath);
     initCampaignSwitcher(container);
     setActiveLink();
     bindPrefetchForLinks(container);
     initPageAccessControls(basePath);
+}
+
+function applyCampaignSidebarConfig(container, basePath) {
+    if (!container) return;
+    const campaign = currentCampaignConfig || {};
+    const hiddenPages = new Set(Array.isArray(campaign.hiddenPages) ? campaign.hiddenPages.map((page) => String(page || "").trim()) : []);
+
+    container.querySelectorAll("[data-page]").forEach((node) => {
+        const page = String(node.getAttribute("data-page") || "").trim();
+        const item = node.closest("li") || node;
+        item.hidden = hiddenPages.has(page);
+    });
+
+    const logoPath = String(campaign.logo || "").trim();
+    const logoImg = container.querySelector(".logo-img");
+    if (logoImg && logoPath) {
+        logoImg.dataset.originalSrc = logoPath;
+        logoImg.setAttribute("src", new URL(`${basePath || ""}${logoPath}`, window.location.href).toString());
+    }
 }
 
 async function initCampaignSwitcher(container) {
@@ -584,6 +640,9 @@ async function initCampaignSwitcher(container) {
 }
 
 async function loadEnabledCampaigns() {
+    if (campaignConfigPromise) return campaignConfigPromise;
+
+    campaignConfigPromise = (async () => {
     try {
         const data = await fetchJsonWithCache(resolveGlobalDataUrl("campaigns.json"));
         const campaigns = Array.isArray(data?.campaigns) ? data.campaigns : [];
@@ -591,13 +650,20 @@ async function loadEnabledCampaigns() {
             .filter((campaign) => campaign?.enabled !== false && campaign?.id)
             .map((campaign) => ({
                 id: sanitizeCampaignId(campaign.id),
-                name: String(campaign.name || campaign.id).trim()
+                name: String(campaign.name || campaign.id).trim(),
+                siteTitle: String(campaign.siteTitle || campaign.name || "").trim(),
+                theme: String(campaign.theme || campaign.id || "").trim(),
+                logo: String(campaign.logo || "").trim(),
+                hiddenPages: Array.isArray(campaign.hiddenPages) ? campaign.hiddenPages : []
             }))
             .filter((campaign) => campaign.id && campaign.name);
     } catch (error) {
         console.warn("Impossibile caricare elenco campagne:", error);
         return [];
     }
+    })();
+
+    return campaignConfigPromise;
 }
 
 function navigateToCampaign(campaignId) {
@@ -1176,6 +1242,7 @@ async function refreshAuthUI(scope) {
     const token = readStoredToken();
     if (!token) {
         setLoggedOutState(status, loginBtn, logoutBtn);
+        showPendingDeviceCodeLoginError(status);
         setDmOnlyVisibility(false);
         return;
     }
@@ -1190,6 +1257,7 @@ async function refreshAuthUI(scope) {
         const authState = await verifyDiscordAuth();
         if (!authState?.user) {
             setLoggedOutState(status, loginBtn, logoutBtn);
+            showPendingDeviceCodeLoginError(status);
             setDmOnlyVisibility(false);
             return;
         }
@@ -1209,6 +1277,20 @@ async function refreshAuthUI(scope) {
         if (menuToggle) menuToggle.hidden = false;
         setDmOnlyVisibility(false);
     }
+}
+
+function showPendingDeviceCodeLoginError(status) {
+    let message = "";
+    try {
+        message = window.sessionStorage.getItem("cripta-device-code-login-error") || "";
+        window.sessionStorage.removeItem("cripta-device-code-login-error");
+    } catch (_) {
+        message = "";
+    }
+
+    if (!message || !status) return;
+    setAuthState(status, "error");
+    status.textContent = message;
 }
 
 function setLoggedOutState(status, loginBtn, logoutBtn) {
@@ -1386,6 +1468,26 @@ async function loginWithDeviceCode(code) {
     }
 
     return response;
+}
+
+async function consumeDeviceCodeFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code") || "";
+    if (!code) return false;
+
+    params.delete("code");
+    const cleanUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}${window.location.hash || ""}`;
+
+    try {
+        await loginWithDeviceCode(code);
+    } catch (error) {
+        console.error("Login con codice da URL non riuscito:", error);
+        window.sessionStorage?.setItem?.("cripta-device-code-login-error", error?.message || "Login non riuscito.");
+    } finally {
+        history.replaceState(null, "", cleanUrl);
+    }
+
+    return true;
 }
 
 function promptDeviceLogin() {
