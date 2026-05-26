@@ -4765,6 +4765,11 @@ body.page-character .main-content {
     cursor: pointer;
 }
 
+.campaign-switcher__select option {
+    color: #f2ead8;
+    background: #101010;
+}
+
 .campaign-switcher__select:focus-visible {
     outline: 2px solid rgba(212, 175, 55, 0.55);
     outline-offset: 2px;

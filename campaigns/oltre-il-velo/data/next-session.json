@@ -1,0 +1,47 @@
+{
+  "campaignName": "Oltre il Velo",
+  "pollTitle": "Sondaggio disponibilità",
+  "pollSubtitle": "Prossima sessione",
+  "discordWebhookUrl": "",
+  "disableDiscordNotifications": true,
+  "number": 1,
+  "dmAccountId": "dona",
+  "dmDiscordId": "142958738247122944",
+  "pollManagerAccountIds": [],
+  "pollManagerDiscordIds": [],
+  "date": "",
+  "timeStart": "",
+  "timeEnd": "",
+  "isScheduled": false,
+  "availabilityOptions": [
+    {
+      "id": "ven-01-gen-2030-2030",
+      "label": "Ven 01 Gen",
+      "time": "20:30 - 23:30",
+      "meta": "3h"
+    }
+  ],
+  "availabilityVotes": [],
+  "voteIcons": {
+    "dm": {
+      "yes": "media/ui/oltre-il-velo/dm_yes.webp",
+      "maybe": "media/ui/oltre-il-velo/dm_maybe.webp",
+      "no": "media/ui/oltre-il-velo/dm_no.webp"
+    },
+    "orion": {
+      "yes": "media/ui/oltre-il-velo/orion_yes.webp",
+      "maybe": "media/ui/oltre-il-velo/orion_maybe.webp",
+      "no": "media/ui/oltre-il-velo/orion_no.webp"
+    },
+    "mena": {
+      "yes": "media/ui/oltre-il-velo/mena_yes.webp",
+      "maybe": "media/ui/oltre-il-velo/mena_maybe.webp",
+      "no": "media/ui/oltre-il-velo/mena_no.webp"
+    },
+    "sion": {
+      "yes": "media/ui/oltre-il-velo/sion_yes.webp",
+      "maybe": "media/ui/oltre-il-velo/sion_maybe.webp",
+      "no": "media/ui/oltre-il-velo/sion_no.webp"
+    }
+  }
+}

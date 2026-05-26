@@ -24,6 +24,19 @@
         "famiglia-von-t"
       ],
       "enabled": true
+    },
+    {
+      "id": "oltre-il-velo",
+      "name": "Oltre il Velo",
+      "siteTitle": "Oltre il Velo",
+      "dataPath": "campaigns/oltre-il-velo/data",
+      "mediaPath": "campaigns/oltre-il-velo/media",
+      "theme": "oltre-il-velo",
+      "logo": "assets/img/logo.webp",
+      "hiddenPages": [
+        "famiglia-von-t"
+      ],
+      "enabled": true
     }
   ]
 }

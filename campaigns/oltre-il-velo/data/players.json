@@ -1,0 +1,23 @@
+[
+  {
+    "id": "orion",
+    "accountId": "luca",
+    "name": "Orion",
+    "campaignRole": "player",
+    "isActive": true
+  },
+  {
+    "id": "mena",
+    "accountId": "andre",
+    "name": "Mena",
+    "campaignRole": "player",
+    "isActive": true
+  },
+  {
+    "id": "sion",
+    "accountId": "sommo",
+    "name": "Sion",
+    "campaignRole": "player",
+    "isActive": true
+  }
+]

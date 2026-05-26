@@ -87,8 +87,14 @@ html[data-campaign="mago-folle"] .campaign-switcher {
 
 html[data-campaign="mago-folle"] .campaign-switcher__select {
     border-color: rgba(139, 231, 255, 0.3);
+    color: #f2fbff;
     background:
         linear-gradient(180deg, rgba(25, 48, 76, 0.98), rgba(14, 25, 48, 0.98));
+}
+
+html[data-campaign="mago-folle"] .campaign-switcher__select option {
+    color: #f2fbff;
+    background: #152947;
 }
 
 html[data-campaign="mago-folle"] .top-auth-bar {

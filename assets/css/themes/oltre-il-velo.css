@@ -1,0 +1,192 @@
+html[data-campaign="oltre-il-velo"] {
+    --gold: #f3c96a;
+    --gold-dark: #b98222;
+    --blood: #8f5a22;
+    --blood-dark: #4d2c16;
+    --bg-dark: #241a13;
+    --bg-darker: #140f0b;
+    --text-light: #fff7e5;
+    --text-muted: #d7c4a0;
+    --ink-ivory: #fff9ea;
+    --border-color: rgba(243, 201, 106, 0.3);
+}
+
+html[data-campaign="oltre-il-velo"] body {
+    background:
+        radial-gradient(circle at 74% 12%, rgba(243, 201, 106, 0.28), transparent 28rem),
+        radial-gradient(circle at 18% 76%, rgba(178, 104, 38, 0.18), transparent 30rem),
+        linear-gradient(180deg, #2c2117 0%, #211710 52%, #17110c 100%);
+}
+
+html[data-campaign="oltre-il-velo"] body.poll-page {
+    background:
+        radial-gradient(circle at 74% 10%, rgba(255, 218, 123, 0.34), transparent 30rem),
+        radial-gradient(circle at 20% 88%, rgba(176, 93, 33, 0.22), transparent 34rem),
+        linear-gradient(180deg, #312416 0%, #241911 58%, #17110c 100%);
+}
+
+html[data-campaign="oltre-il-velo"] body::before {
+    opacity: 0.14;
+    background:
+        repeating-linear-gradient(135deg, rgba(243, 201, 106, 0.1) 0 1px, transparent 1px 22px),
+        radial-gradient(circle at center, transparent 38%, rgba(176, 93, 33, 0.16) 100%);
+}
+
+html[data-campaign="oltre-il-velo"] .sidebar {
+    background:
+        linear-gradient(180deg, rgba(44, 31, 19, 0.98) 0%, rgba(35, 24, 16, 0.96) 54%, rgba(22, 16, 11, 0.98) 100%);
+    border-right-color: rgba(243, 201, 106, 0.24);
+}
+
+html[data-campaign="oltre-il-velo"] .sidebar::before {
+    border-color: rgba(243, 201, 106, 0.18);
+    background:
+        linear-gradient(180deg, rgba(243, 201, 106, 0.07), transparent 20%, transparent 78%, rgba(176, 93, 33, 0.07)),
+        radial-gradient(circle at top, rgba(243, 201, 106, 0.16), transparent 34%);
+}
+
+html[data-campaign="oltre-il-velo"] .sidebar::after {
+    opacity: 0.28;
+    background: linear-gradient(180deg, rgba(243, 201, 106, 0.36), transparent 62%);
+}
+
+html[data-campaign="oltre-il-velo"] .logo-img {
+    filter:
+        sepia(0.45)
+        saturate(1.2)
+        hue-rotate(338deg)
+        drop-shadow(0 0 18px rgba(243, 201, 106, 0.3))
+        drop-shadow(0 12px 24px rgba(176, 93, 33, 0.22));
+}
+
+html[data-campaign="oltre-il-velo"] .nav-links a i,
+html[data-campaign="oltre-il-velo"] .campaign-switcher__label i,
+html[data-campaign="oltre-il-velo"] .campaign-switcher__control > i {
+    color: rgba(243, 201, 106, 0.9);
+}
+
+html[data-campaign="oltre-il-velo"] .nav-links a:hover,
+html[data-campaign="oltre-il-velo"] .nav-links a.active {
+    background: linear-gradient(90deg, rgba(243, 201, 106, 0.14), rgba(176, 93, 33, 0.07) 62%, transparent);
+}
+
+html[data-campaign="oltre-il-velo"] .nav-links a:hover::before,
+html[data-campaign="oltre-il-velo"] .nav-links a.active::before {
+    border-color: rgba(243, 201, 106, 0.28);
+}
+
+html[data-campaign="oltre-il-velo"] .nav-links a.active {
+    box-shadow: inset 2px 0 0 rgba(243, 201, 106, 0.66);
+}
+
+html[data-campaign="oltre-il-velo"] .campaign-switcher {
+    border-color: rgba(243, 201, 106, 0.26);
+    background:
+        linear-gradient(180deg, rgba(243, 201, 106, 0.14), rgba(176, 93, 33, 0.08)),
+        rgba(44, 31, 19, 0.82);
+}
+
+html[data-campaign="oltre-il-velo"] .campaign-switcher__select {
+    border-color: rgba(243, 201, 106, 0.34);
+    color: #fff9ea;
+    background:
+        linear-gradient(180deg, rgba(72, 49, 27, 0.98), rgba(35, 24, 16, 0.98));
+}
+
+html[data-campaign="oltre-il-velo"] .campaign-switcher__select option {
+    color: #fff9ea;
+    background: #3a2818;
+}
+
+html[data-campaign="oltre-il-velo"] .text-gold-gradient,
+html[data-campaign="oltre-il-velo"] .hero-mini h1,
+html[data-campaign="oltre-il-velo"] .dashboard-header h1,
+html[data-campaign="oltre-il-velo"] .dash-section-title h2,
+html[data-campaign="oltre-il-velo"] .content-card h3,
+html[data-campaign="oltre-il-velo"] .bestiary-heading h2,
+html[data-campaign="oltre-il-velo"] .bestiary-section-header h3 {
+    background: linear-gradient(180deg, #fff9e8 0%, #f3c96a 48%, #b98222 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 14px rgba(243, 201, 106, 0.22));
+}
+
+html[data-campaign="oltre-il-velo"] .hero-mini,
+html[data-campaign="oltre-il-velo"] body.page-npcs .hero-mini,
+html[data-campaign="oltre-il-velo"] body.page-sessioni .hero-mini,
+html[data-campaign="oltre-il-velo"] body.page-character .hero-mini,
+html[data-campaign="oltre-il-velo"] body.page-bestiario .hero-mini,
+html[data-campaign="oltre-il-velo"] body.page-oggetti .hero-mini,
+html[data-campaign="oltre-il-velo"] body.page-appunti .hero-mini {
+    background:
+        radial-gradient(circle at 72% 16%, rgba(243, 201, 106, 0.25), transparent 24rem),
+        linear-gradient(90deg, rgba(74, 50, 27, 0.68), rgba(176, 93, 33, 0.14) 48%, rgba(32, 22, 14, 0.18));
+    border-bottom-color: rgba(243, 201, 106, 0.24);
+}
+
+html[data-campaign="oltre-il-velo"] .hero-mini::before {
+    background:
+        repeating-linear-gradient(90deg, rgba(243, 201, 106, 0.055) 0 1px, transparent 1px 34px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 34%);
+}
+
+html[data-campaign="oltre-il-velo"] .hero-mini .subtitle,
+html[data-campaign="oltre-il-velo"] .dashboard-header p {
+    color: rgba(255, 247, 229, 0.78);
+}
+
+html[data-campaign="oltre-il-velo"] .next-session-card,
+html[data-campaign="oltre-il-velo"] .next-session-card-poll,
+html[data-campaign="oltre-il-velo"] .poll-page-panel .next-session-card,
+html[data-campaign="oltre-il-velo"] .poll-page-panel .next-session-card-poll,
+html[data-campaign="oltre-il-velo"] .content-card,
+html[data-campaign="oltre-il-velo"] .lore-card,
+html[data-campaign="oltre-il-velo"] .bestiary-shell,
+html[data-campaign="oltre-il-velo"] .session-nav,
+html[data-campaign="oltre-il-velo"] .session-card {
+    background:
+        radial-gradient(circle at 82% 8%, rgba(243, 201, 106, 0.24), transparent 24rem),
+        radial-gradient(circle at 18% 92%, rgba(176, 93, 33, 0.16), transparent 28rem),
+        linear-gradient(180deg, rgba(62, 42, 24, 0.94), rgba(34, 24, 17, 0.95));
+    border-color: rgba(243, 201, 106, 0.28);
+    box-shadow:
+        0 28px 54px rgba(0, 0, 0, 0.26),
+        0 0 42px rgba(243, 201, 106, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 0 0 1px rgba(243, 201, 106, 0.09);
+}
+
+html[data-campaign="oltre-il-velo"] .availability-table {
+    background: rgba(49, 34, 21, 0.58);
+    border-color: rgba(243, 201, 106, 0.18);
+}
+
+html[data-campaign="oltre-il-velo"] .availability-table thead th,
+html[data-campaign="oltre-il-velo"] .availability-corner-cell,
+html[data-campaign="oltre-il-velo"] .availability-name-cell,
+html[data-campaign="oltre-il-velo"] .session-date,
+html[data-campaign="oltre-il-velo"] .detail-item,
+html[data-campaign="oltre-il-velo"] .countdown-box,
+html[data-campaign="oltre-il-velo"] .nav-item {
+    background: rgba(67, 45, 25, 0.78);
+    border-color: rgba(243, 201, 106, 0.18);
+}
+
+html[data-campaign="oltre-il-velo"] .availability-table th,
+html[data-campaign="oltre-il-velo"] .availability-table td,
+html[data-campaign="oltre-il-velo"] .bestiary-heading,
+html[data-campaign="oltre-il-velo"] .session-header {
+    border-color: rgba(243, 201, 106, 0.16);
+}
+
+html[data-campaign="oltre-il-velo"] .timeline::before {
+    background: linear-gradient(to bottom, transparent, rgba(243, 201, 106, 0.24), rgba(243, 201, 106, 0.58), rgba(243, 201, 106, 0.24), transparent);
+}
+
+html[data-campaign="oltre-il-velo"] .timeline-marker {
+    background: linear-gradient(180deg, rgba(75, 51, 29, 1), rgba(34, 24, 17, 1));
+    border-color: rgba(243, 201, 106, 0.78);
+    box-shadow: 0 0 0 5px rgba(34, 24, 17, 0.88);
+}
