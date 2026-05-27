@@ -1789,7 +1789,8 @@ window.CriptaApp = {
     },
     urls: {
         api(pathname) {
-            return buildWorkerUrl(pathname);
+            const url = new URL(buildWorkerUrl(pathname));
+            return applyCampaignToUrl(url).toString();
         },
         site(pathname) {
             return resolveSiteUrl(pathname);
