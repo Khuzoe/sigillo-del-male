@@ -54,8 +54,10 @@
             'field-quote',
             'field-portrait',
             'field-avatar',
+            'field-hover',
             'portrait-preview',
             'avatar-preview',
+            'hover-preview',
             'blocks-list',
             'add-block-btn'
         ].forEach((id) => {
@@ -256,6 +258,7 @@
         els.fieldQuote.value = character.quote || '';
         els.fieldPortrait.value = character.images?.portrait || '';
         els.fieldAvatar.value = character.images?.avatar || '';
+        els.fieldHover.value = character.images?.hover || '';
         syncImagePreviews();
         renderBlocks();
     }
@@ -526,7 +529,6 @@
         if (!path) return;
         character.images = character.images || {};
         character.images[field] = path;
-        if (field === 'avatar' && !character.images.hover) character.images.hover = path;
         renderDetail();
     }
 
@@ -619,6 +621,7 @@
         if (!character) return;
         els.portraitPreview.src = resolveImageUrl(character.images?.portrait || PLACEHOLDER_IMAGE);
         els.avatarPreview.src = resolveImageUrl(character.images?.avatar || PLACEHOLDER_IMAGE);
+        els.hoverPreview.src = resolveImageUrl(character.images?.hover || character.images?.avatar || PLACEHOLDER_IMAGE);
     }
 
     function getSelectedCharacter() {

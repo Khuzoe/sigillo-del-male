@@ -366,12 +366,17 @@ function parseYamlLite(yamlText) {
             const card = document.createElement('a');
             card.href = `./characters/character.html?id=${npc.id}`;
             card.className = 'npc-card';
+            const avatarImage = npc.images.avatar || npc.images.portrait || npc.images.hover || '';
+            const hoverImage = npc.images.hover || avatarImage;
+            if (normalizeImageIdentity(avatarImage) === normalizeImageIdentity(hoverImage)) {
+                card.classList.add('npc-card--no-avatar-swap');
+            }
 
             card.innerHTML = `
                 <span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>
                 <div class="npc-avatar-container">
-                    <img src="${resolveImageUrl(npc.images.avatar, base_path)}" alt="${npc.name}" class="npc-img-pop img-main" style="${buildImageStyle('avatar', npc.images.avatarAdjust, npc.images.hoverAdjust)}" onerror="this.style.display='none'">
-                    <img src="${resolveImageUrl(npc.images.hover, base_path)}" alt="${npc.name} Reveal" class="npc-img-pop img-hover" style="${buildImageStyle('hover', npc.images.hoverAdjust, npc.images.avatarAdjust)}" onerror="this.style.display='none'">
+                    <img src="${resolveImageUrl(avatarImage, base_path)}" alt="${npc.name}" class="npc-img-pop img-main" style="${buildImageStyle('avatar', npc.images.avatarAdjust, npc.images.hoverAdjust)}" onerror="this.style.display='none'">
+                    <img src="${resolveImageUrl(hoverImage, base_path)}" alt="${npc.name} Reveal" class="npc-img-pop img-hover" style="${buildImageStyle('hover', npc.images.hoverAdjust, npc.images.avatarAdjust)}" onerror="this.style.display='none'">
                 </div>
                 <div class="npc-info">
                     <div class="npc-header">
@@ -383,4 +388,13 @@ function parseYamlLite(yamlText) {
                 <i class="fas fa-chevron-right arrow-icon"></i>
             `;
             return card;
+        }
+
+        function normalizeImageIdentity(path) {
+            return String(path || '')
+                .trim()
+                .replace(/[?#].*$/, '')
+                .replace(/^https?:\/\/[^/]+\/?/i, '')
+                .replace(/^\/+/, '')
+                .toLowerCase();
         }

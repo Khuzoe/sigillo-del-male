@@ -691,6 +691,18 @@ body.is-embed .container {
     opacity: 1;
 }
 
+.npc-card--no-avatar-swap:hover .npc-img-pop {
+    transform: translate(var(--img-x), var(--img-y)) scale(var(--img-scale-rest));
+}
+
+.npc-card--no-avatar-swap:hover .img-main {
+    opacity: 1;
+}
+
+.npc-card--no-avatar-swap:hover .img-hover {
+    opacity: 0;
+}
+
 /* --- FINE LOGICA AVATAR --- */
 
 .npc-info {
