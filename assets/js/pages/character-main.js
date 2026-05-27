@@ -1984,15 +1984,34 @@ window.CriptaApp.onPageReady("character", async function () {
     const container = document.getElementById('character-content-container');
     const charNameEl = document.getElementById('char-name');
     const charRoleEl = document.getElementById('char-role');
+    const editLinkEl = document.getElementById('character-edit-link');
 
     const params = new URLSearchParams(window.location.search);
     const charId = params.get('id');
     const charType = params.get('type') || 'npc'; // Default to 'npc'
+    let currentCharacter = null;
+    let currentAllCharacters = [];
+    let currentNpcQuests = null;
+    let currentPlayerSkillTrees = null;
+    let isInlineEditing = false;
+    let inlineEditDirty = false;
+    let inlineEditBlocks = [];
+    const inlineImageVersions = new Map();
 
     if (!charId) {
         displayError("ID del personaggio non specificato.");
         return;
     }
+
+    editLinkEl?.addEventListener('click', (event) => {
+        if (charType === 'player') return;
+        event.preventDefault();
+        enterInlineEditMode();
+    });
+
+    container.addEventListener('input', handleInlineEditInput);
+    container.addEventListener('change', handleInlineEditChange);
+    container.addEventListener('click', handleInlineEditClick);
 
     try {
         let character = null;
@@ -2041,6 +2060,7 @@ window.CriptaApp.onPageReady("character", async function () {
             return;
         }
 
+        setupCharacterEditLink(character.id || charId, charType);
         // If using static data, we might need to convert markdownText to HTML on the fly
         // because build script only loads text.
         if (character.content_blocks) {
@@ -2060,6 +2080,10 @@ window.CriptaApp.onPageReady("character", async function () {
             }
         }
 
+        currentCharacter = character;
+        currentAllCharacters = allCharacters;
+        currentNpcQuests = npcQuests;
+        currentPlayerSkillTrees = playerSkillTrees;
         renderCharacterPage(character, allCharacters, npcQuests, playerSkillTrees);
 
     } catch (error) {
@@ -2067,13 +2091,458 @@ window.CriptaApp.onPageReady("character", async function () {
         displayError("Impossibile caricare i dati del personaggio.");
     }
 
+    function setupCharacterEditLink(id, type) {
+        if (!editLinkEl) return;
+        if (type === 'player') {
+            editLinkEl.hidden = true;
+            return;
+        }
+        const editUrl = new URL('../../tools/characters-editor.html', window.location.href);
+        editUrl.searchParams.set('id', id);
+        const campaignId = window.CriptaApp?.campaigns?.currentId?.() || params.get('campaign') || '';
+        if (campaignId) editUrl.searchParams.set('campaign', campaignId);
+        editLinkEl.href = editUrl.toString();
+    }
+
+    function enterInlineEditMode() {
+        if (!currentCharacter || charType === 'player') return;
+        isInlineEditing = true;
+        inlineEditDirty = false;
+        inlineEditBlocks = normalizeInlineEditBlocks(currentCharacter);
+        editLinkEl?.classList.add('is-editing');
+        renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+    }
+
+    function exitInlineEditMode() {
+        isInlineEditing = false;
+        inlineEditDirty = false;
+        inlineEditBlocks = [];
+        editLinkEl?.classList.remove('is-editing');
+        renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+    }
+
+    function normalizeInlineEditBlocks(character) {
+        const blocks = Array.isArray(character?.content_blocks) ? character.content_blocks : [];
+        return blocks
+            .filter((block) => !block.hidden)
+            .map((block, index) => ({
+                id: slugify(block.id || block.title || `blocco-${index + 1}`),
+                type: block.type === 'image_box' || block.type === 'image' || block.image ? 'image' : 'text',
+                title: block.title || 'Informazioni',
+                icon: block.icon || 'fa-book-open',
+                image: block.image || '',
+                text: block.markdownText || stripHtmlToText(block.markdownHtml || block.content || '')
+            }));
+    }
+
+    function handleInlineEditInput(event) {
+        const target = event.target;
+        const characterField = target?.dataset?.inlineCharacterField;
+        const characterImageField = target?.dataset?.inlineCharacterImageField;
+        const characterSummaryField = target?.dataset?.inlineCharacterSummaryField;
+        if (characterField || characterImageField || characterSummaryField) {
+            updateInlineCharacterField(target, { characterField, characterImageField, characterSummaryField });
+            return;
+        }
+
+        const blockIndex = Number(target?.dataset?.inlineBlockIndex);
+        const blockField = target?.dataset?.inlineBlockField;
+        if (!Number.isInteger(blockIndex) || !blockField || !inlineEditBlocks[blockIndex]) return;
+        inlineEditBlocks[blockIndex][blockField] = blockField === 'text' || blockField === 'title'
+            ? target.innerText.replace(/\u00a0/g, ' ').trimEnd()
+            : target.value;
+        inlineEditDirty = true;
+    }
+
+    function handleInlineEditChange(event) {
+        const target = event.target;
+        const characterField = target?.dataset?.inlineCharacterField;
+        const characterImageField = target?.dataset?.inlineCharacterImageField;
+        const characterSummaryField = target?.dataset?.inlineCharacterSummaryField;
+        if (characterField || characterImageField || characterSummaryField) {
+            updateInlineCharacterField(target, { characterField, characterImageField, characterSummaryField });
+            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+            return;
+        }
+
+        const blockIndex = Number(target?.dataset?.inlineBlockIndex);
+        const blockField = target?.dataset?.inlineBlockField;
+        if (!Number.isInteger(blockIndex) || !blockField || !inlineEditBlocks[blockIndex]) return;
+        inlineEditBlocks[blockIndex][blockField] = target.value;
+        inlineEditDirty = true;
+        renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+    }
+
+    function handleInlineEditClick(event) {
+        const actionButton = event.target.closest('[data-inline-edit-action]');
+        if (!actionButton || !isInlineEditing) return;
+        event.preventDefault();
+        const action = actionButton.dataset.inlineEditAction;
+        const blockIndex = Number(actionButton.dataset.inlineBlockIndex);
+
+        if (action === 'cancel') {
+            if (inlineEditDirty && !window.confirm('Annullare le modifiche non salvate?')) return;
+            exitInlineEditMode();
+            return;
+        }
+        if (action === 'save') {
+            saveInlineCharacterEdits();
+            return;
+        }
+        if (action === 'upload-character-image') {
+            uploadInlineCharacterImage(actionButton.dataset.inlineCharacterImageTarget || 'portrait');
+            return;
+        }
+        if (action === 'upload-block-image') {
+            if (!Number.isInteger(blockIndex) || !inlineEditBlocks[blockIndex]) return;
+            uploadInlineBlockImage(blockIndex);
+            return;
+        }
+        if (action === 'set-icon') {
+            if (!Number.isInteger(blockIndex) || !inlineEditBlocks[blockIndex]) return;
+            inlineEditBlocks[blockIndex].icon = actionButton.dataset.inlineIcon || 'fa-book-open';
+            inlineEditDirty = true;
+            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+            return;
+        }
+        if (action === 'add-block') {
+            inlineEditBlocks.push({
+                id: uniqueInlineBlockId('nuovo-blocco'),
+                type: 'text',
+                title: 'Nuovo blocco',
+                icon: 'fa-book-open',
+                image: '',
+                text: ''
+            });
+            inlineEditDirty = true;
+            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+            return;
+        }
+        if (!Number.isInteger(blockIndex) || !inlineEditBlocks[blockIndex]) return;
+        if (action === 'delete-block') {
+            if (!window.confirm('Eliminare questo blocco?')) return;
+            inlineEditBlocks.splice(blockIndex, 1);
+        } else if (action === 'move-up' && blockIndex > 0) {
+            [inlineEditBlocks[blockIndex - 1], inlineEditBlocks[blockIndex]] = [inlineEditBlocks[blockIndex], inlineEditBlocks[blockIndex - 1]];
+        } else if (action === 'move-down' && blockIndex < inlineEditBlocks.length - 1) {
+            [inlineEditBlocks[blockIndex + 1], inlineEditBlocks[blockIndex]] = [inlineEditBlocks[blockIndex], inlineEditBlocks[blockIndex + 1]];
+        }
+        inlineEditDirty = true;
+        renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+    }
+
+    async function uploadInlineCharacterImage(field) {
+        if (!currentCharacter) return;
+        const file = await pickInlineImageFile();
+        if (!file) return;
+        const fileName = `${field}.webp`;
+        const path = await uploadInlineImageFile(file, currentCharacter.id || charId, fileName);
+        if (!path) return;
+        markInlineImageUpdated(path);
+        currentCharacter.images = currentCharacter.images || {};
+        currentCharacter.images[field] = path;
+        if (field === 'avatar' && !currentCharacter.images.hover) currentCharacter.images.hover = path;
+        inlineEditDirty = true;
+        renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+    }
+
+    async function uploadInlineBlockImage(index) {
+        const block = inlineEditBlocks[index];
+        if (!currentCharacter || !block) return;
+        const file = await pickInlineImageFile();
+        if (!file) return;
+        const fileName = `${slugify(block.id || block.title || `blocco-${index + 1}`)}.webp`;
+        const path = await uploadInlineImageFile(file, currentCharacter.id || charId, fileName);
+        if (!path) return;
+        markInlineImageUpdated(path);
+        block.image = path;
+        block.type = 'image';
+        inlineEditDirty = true;
+        renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+    }
+
+    async function pickInlineImageFile() {
+        if (window.showOpenFilePicker) {
+            const [handle] = await window.showOpenFilePicker({
+                multiple: false,
+                types: [{ description: 'Immagini', accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif'] } }]
+            }).catch(() => []);
+            return handle ? handle.getFile() : null;
+        }
+        return new Promise((resolve) => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.addEventListener('change', () => resolve(input.files?.[0] || null), { once: true });
+            input.click();
+        });
+    }
+
+    async function uploadInlineImageFile(file, characterId, fileName) {
+        const token = readAuthToken();
+        if (!token) {
+            alert('Login richiesto per caricare immagini.');
+            return '';
+        }
+        const toolbar = container.querySelector('[data-inline-edit-toolbar]');
+        toolbar?.setAttribute('data-saving', 'true');
+        try {
+            const blob = /\.webp$/i.test(file.name) ? file : await convertInlineImageFileToWebpBlob(file);
+            const folder = `characters/${slugify(characterId || 'npc')}`;
+            const form = new FormData();
+            form.set('folder', folder);
+            form.set('filename', fileName);
+            form.set('campaignId', getCurrentCampaignId());
+            form.set('file', new File([blob], fileName, { type: 'image/webp' }));
+
+            const uploadUrl = new URL(window.CriptaApp?.urls?.api?.('media/upload') || 'https://sigillo-api.khuzoe.workers.dev/media/upload');
+            uploadUrl.searchParams.set('folder', folder);
+            uploadUrl.searchParams.set('campaign', getCurrentCampaignId());
+
+            const response = await fetch(uploadUrl.toString(), {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: form
+            });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+            return payload.path || payload.key || '';
+        } catch (error) {
+            console.error('Upload immagine inline fallito:', error);
+            alert(`Upload immagine fallito: ${error?.message || error}`);
+            return '';
+        } finally {
+            toolbar?.removeAttribute('data-saving');
+        }
+    }
+
+    async function convertInlineImageFileToWebpBlob(file) {
+        const bitmap = await createImageBitmap(file);
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const context = canvas.getContext('2d');
+        context.drawImage(bitmap, 0, 0);
+        bitmap.close?.();
+
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    reject(new Error('Il browser non ha prodotto un file WebP.'));
+                    return;
+                }
+                resolve(blob);
+            }, 'image/webp', 0.88);
+        });
+    }
+
+    function updateInlineCharacterField(target, fields) {
+        if (!currentCharacter) return;
+        const value = target.value;
+        if (fields.characterField) {
+            currentCharacter[fields.characterField] = value;
+            if (fields.characterField === 'name') charNameEl.textContent = value;
+            if (fields.characterField === 'role') charRoleEl.textContent = value;
+        }
+        if (fields.characterImageField) {
+            currentCharacter.images = currentCharacter.images || {};
+            currentCharacter.images[fields.characterImageField] = value;
+            if (fields.characterImageField === 'portrait') {
+                const preview = container.querySelector('[data-inline-portrait-preview]');
+                if (preview) preview.src = resolveInlineImagePath(value);
+            }
+        }
+        if (fields.characterSummaryField) {
+            currentCharacter.summary = currentCharacter.summary || {};
+            currentCharacter.summary[fields.characterSummaryField] = value;
+        }
+        inlineEditDirty = true;
+    }
+
+    async function saveInlineCharacterEdits() {
+        const token = readAuthToken();
+        if (!token) {
+            alert('Login richiesto: accedi come DM prima di salvare.');
+            return;
+        }
+
+        const toolbar = container.querySelector('[data-inline-edit-toolbar]');
+        toolbar?.setAttribute('data-saving', 'true');
+
+        try {
+            const loaded = await loadCharactersDocumentForSave();
+            const updatedCharacter = serializeInlineEditedCharacter(currentCharacter);
+            const nextData = Array.isArray(loaded.data) ? loaded.data.slice() : [];
+            const targetIndex = nextData.findIndex((entry) => String(entry?.id || '') === String(updatedCharacter.id));
+            if (targetIndex >= 0) {
+                const mergedCharacter = { ...nextData[targetIndex], ...updatedCharacter };
+                delete mergedCharacter.content_blocks;
+                nextData[targetIndex] = mergedCharacter;
+            } else {
+                nextData.push(updatedCharacter);
+            }
+
+            const response = await fetch(getCharactersApiUrl(), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    data: nextData,
+                    expectedVersion: loaded.source === 'kv' ? (loaded.version ?? 0) : 0,
+                    campaignId: getCurrentCampaignId()
+                })
+            });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+
+            currentCharacter = normalizeCharactersCollection([updatedCharacter])[0];
+            const allIndex = currentAllCharacters.findIndex((entry) => entry.id === currentCharacter.id);
+            if (allIndex >= 0) currentAllCharacters[allIndex] = currentCharacter;
+            isInlineEditing = false;
+            inlineEditDirty = false;
+            inlineEditBlocks = [];
+            editLinkEl?.classList.remove('is-editing');
+            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+        } catch (error) {
+            console.error('Salvataggio inline NPC fallito:', error);
+            alert(`Salvataggio fallito: ${error?.message || error}`);
+        } finally {
+            toolbar?.removeAttribute('data-saving');
+        }
+    }
+
+    async function loadCharactersDocumentForSave() {
+        try {
+            const response = await fetch(getCharactersApiUrl());
+            if (response.ok) {
+                const payload = await response.json();
+                if (Array.isArray(payload?.data)) {
+                    return {
+                        data: payload.data,
+                        version: Number(payload.version || 0),
+                        source: payload.source || 'kv'
+                    };
+                }
+            }
+        } catch (error) {
+            console.warn('KV characters non disponibile per salvataggio inline, uso JSON statico.', error);
+        }
+
+        const response = await fetch(dataUrl('characters.json'));
+        if (!response.ok) throw new Error(`Impossibile caricare characters.json (${response.status}).`);
+        const payload = await response.json();
+        const data = Array.isArray(payload) ? payload : payload?.data;
+        if (!Array.isArray(data)) throw new Error('Formato characters.json non valido.');
+        return { data, version: 0, source: 'static' };
+    }
+
+    function serializeInlineEditedCharacter(character) {
+        const serialized = { ...character };
+        delete serialized.content_blocks;
+        serialized.id = character.id || charId;
+        serialized.name = character.name || 'NPC senza nome';
+        serialized.type = character.type || 'npc';
+        serialized.blocks = inlineEditBlocks.map((block) => ({
+            id: slugify(block.id || block.title || 'blocco'),
+            type: block.type === 'image' ? 'image' : 'text',
+            title: block.title || 'Informazioni',
+            icon: block.icon || 'fa-book-open',
+            image: block.type === 'image' ? (block.image || '') : '',
+            text: block.text || ''
+        }));
+        return serialized;
+    }
+
+    function getCharactersApiUrl() {
+        return window.CriptaApp?.urls?.api?.('api/data/characters') || 'https://sigillo-api.khuzoe.workers.dev/api/data/characters';
+    }
+
+    function getCurrentCampaignId() {
+        return window.CriptaApp?.campaigns?.currentId?.() || params.get('campaign') || 'cripta-di-sangue';
+    }
+
+    function readAuthToken() {
+        try {
+            return window.localStorage.getItem('discord_jwt') || window.sessionStorage.getItem('discord_jwt') || '';
+        } catch (_) {
+            return '';
+        }
+    }
+
+    function stripHtmlToText(html) {
+        const div = document.createElement('div');
+        div.innerHTML = html || '';
+        return div.innerText || '';
+    }
+
+    function uniqueInlineBlockId(base) {
+        const used = new Set(inlineEditBlocks.map((block) => block.id));
+        let id = slugify(base);
+        let index = 2;
+        while (used.has(id)) id = `${slugify(base)}-${index++}`;
+        return id;
+    }
+
+    function renderIconPicker(selectedIcon, blockIndex) {
+        const options = [
+            ['fa-book-open', 'Libro'],
+            ['fa-scroll', 'Pergamena'],
+            ['fa-feather-alt', 'Nota / diario'],
+            ['fa-user-secret', 'Segreto'],
+            ['fa-crown', 'Corona'],
+            ['fa-skull', 'Pericolo'],
+            ['fa-book-dead', 'Bestiario'],
+            ['fa-gem', 'Reliquia'],
+            ['fa-hand-sparkles', 'Magia'],
+            ['fa-heart', 'Cuore'],
+            ['fa-shield-halved', 'Difesa'],
+            ['fa-flag', 'Bandiera'],
+            ['fa-box', 'Generico']
+        ];
+        const normalizedIcon = selectedIcon || 'fa-book-open';
+        const known = options.some(([value]) => value === normalizedIcon);
+        const effectiveOptions = known ? options : [[normalizedIcon, 'Attuale'], ...options];
+        return effectiveOptions.map(([value, label]) => `
+            <button type="button" class="character-inline-icon-choice ${value === normalizedIcon ? 'is-selected' : ''}" data-inline-edit-action="set-icon" data-inline-block-index="${blockIndex}" data-inline-icon="${escapeHtml(value)}" title="${escapeHtml(label)}">
+                <i class="fas ${escapeHtml(value)}"></i>
+                <span>${escapeHtml(label)}</span>
+            </button>
+        `).join('');
+    }
+
     function displayError(message) {
+        if (editLinkEl) editLinkEl.hidden = true;
         charNameEl.textContent = "Errore";
         container.innerHTML = `<p style="text-align: center; color: var(--status-dead);">${message}</p>`;
     }
 
     function resolveImagePath(imagePath) {
-        return resolveCharacterAssetPath(imagePath);
+        return appendInlineImageVersion(resolveCharacterAssetPath(imagePath), imagePath);
+    }
+
+    function markInlineImageUpdated(path) {
+        const key = String(path || '').trim();
+        if (key) inlineImageVersions.set(key, Date.now());
+    }
+
+    function resolveInlineImagePath(imagePath) {
+        const resolved = resolveImagePath(imagePath);
+        return appendInlineImageVersion(resolved, imagePath);
+    }
+
+    function appendInlineImageVersion(resolved, imagePath) {
+        const version = inlineImageVersions.get(String(imagePath || '').trim());
+        if (!version || !resolved) return resolved;
+        try {
+            const url = new URL(resolved, window.location.href);
+            url.searchParams.set('v', String(version));
+            return url.toString();
+        } catch (_) {
+            const separator = resolved.includes('?') ? '&' : '?';
+            return `${resolved}${separator}v=${version}`;
+        }
     }
 
     function normalizeImageAdjust(adjust) {
@@ -2172,6 +2641,7 @@ window.CriptaApp.onPageReady("character", async function () {
         document.title = `${character.name} | Cripta di Sangue`;
         charNameEl.textContent = character.name;
         charRoleEl.textContent = character.role;
+        container.innerHTML = '';
 
         // Build the main grid structure
         const grid = document.createElement('div');
@@ -2183,18 +2653,31 @@ window.CriptaApp.onPageReady("character", async function () {
         leftCol.className = 'left-col';
 
         if (charType !== 'player') {
-            const visibleBlocks = (character.content_blocks || []).filter(block => !block.hidden);
-
-            if (visibleBlocks.length > 0) {
-                visibleBlocks.forEach(block => {
-                    leftCol.appendChild(renderContentBlock(block));
+            if (isInlineEditing) {
+                leftCol.appendChild(renderInlineEditToolbar());
+                inlineEditBlocks.forEach((block, index) => {
+                    leftCol.appendChild(renderInlineEditBlock(block, index));
                 });
+                const addCard = document.createElement('button');
+                addCard.className = 'character-inline-add-block';
+                addCard.type = 'button';
+                addCard.dataset.inlineEditAction = 'add-block';
+                addCard.innerHTML = '<i class="fas fa-plus"></i><span>Aggiungi blocco</span>';
+                leftCol.appendChild(addCard);
             } else {
-                // Display a placeholder if content_blocks is empty or doesn't exist
-                const placeholder = document.createElement('div');
-                placeholder.className = 'content-card';
-                placeholder.innerHTML = '<h3><i class="fas fa-scroll"></i> Storia</h3><p>Dettagli sulla storia di questo personaggio non ancora disponibili.</p>';
-                leftCol.appendChild(placeholder);
+                const visibleBlocks = (character.content_blocks || []).filter(block => !block.hidden);
+
+                if (visibleBlocks.length > 0) {
+                    visibleBlocks.forEach(block => {
+                        leftCol.appendChild(renderContentBlock(block));
+                    });
+                } else {
+                    // Display a placeholder if content_blocks is empty or doesn't exist
+                    const placeholder = document.createElement('div');
+                    placeholder.className = 'content-card';
+                    placeholder.innerHTML = '<h3><i class="fas fa-scroll"></i> Storia</h3><p>Dettagli sulla storia di questo personaggio non ancora disponibili.</p>';
+                    leftCol.appendChild(placeholder);
+                }
             }
         }
 
@@ -2222,7 +2705,9 @@ window.CriptaApp.onPageReady("character", async function () {
 
         const rightCol = document.createElement('div');
         rightCol.className = 'right-col';
-        rightCol.innerHTML = getRightColumnHtml(character, allCharacters, npcQuests);
+        rightCol.innerHTML = isInlineEditing && charType !== 'player'
+            ? getEditableRightColumnHtml(character)
+            : getRightColumnHtml(character, allCharacters, npcQuests);
 
         grid.appendChild(leftCol);
         grid.appendChild(rightCol);
@@ -2234,6 +2719,151 @@ window.CriptaApp.onPageReady("character", async function () {
 
         // After rendering everything, initialize modal logic
         initializeImageModal();
+    }
+
+    function renderInlineEditToolbar() {
+        const toolbar = document.createElement('div');
+        toolbar.className = 'character-inline-toolbar';
+        toolbar.dataset.inlineEditToolbar = 'true';
+        toolbar.innerHTML = `
+                    <div>
+                        <strong>Modifica pagina NPC</strong>
+                        <span>Scrivi nei blocchi, aggiungi sezioni o elimina quelle inutili.</span>
+                    </div>
+                    <div class="character-inline-toolbar__actions">
+                        <button type="button" class="character-inline-btn character-inline-btn--ghost" data-inline-edit-action="cancel">
+                            <i class="fas fa-xmark"></i> Annulla
+                        </button>
+                        <button type="button" class="character-inline-btn character-inline-btn--primary" data-inline-edit-action="save">
+                            <i class="fas fa-cloud-arrow-up"></i> Salva
+                        </button>
+                    </div>
+                `;
+        return toolbar;
+    }
+
+    function renderInlineEditBlock(block, index) {
+        const card = document.createElement('article');
+        card.className = `content-card character-inline-block ${block.type === 'image' ? 'document-card' : ''}`;
+        card.dataset.inlineBlock = String(index);
+
+        const imageControls = block.type === 'image' ? `
+                    <label class="character-inline-field character-inline-field--full">
+                        <span>Immagine</span>
+                        <input type="text" value="${escapeHtml(block.image || '')}" data-inline-block-index="${index}" data-inline-block-field="image" placeholder="media/characters/...webp">
+                    </label>
+                ` : '';
+
+        const previewHtml = renderMarkdown(block.text || '', { context: block.type === 'image' ? 'image_box' : 'lore' });
+        card.innerHTML = `
+                    <div class="character-inline-controls">
+                        <div class="character-inline-field character-inline-field--icons">
+                            <span>Icona</span>
+                            <div class="character-inline-icon-grid">
+                                ${renderIconPicker(block.icon || 'fa-book-open', index)}
+                            </div>
+                        </div>
+                        <label class="character-inline-field">
+                            <span>Tipo</span>
+                            <select data-inline-block-index="${index}" data-inline-block-field="type">
+                                <option value="text"${block.type !== 'image' ? ' selected' : ''}>Testo</option>
+                                <option value="image"${block.type === 'image' ? ' selected' : ''}>Testo + immagine</option>
+                            </select>
+                        </label>
+                        ${imageControls}
+                        <div class="character-inline-actions">
+                            <button type="button" class="character-inline-icon-btn" data-inline-edit-action="move-up" data-inline-block-index="${index}" title="Sposta su"><i class="fas fa-arrow-up"></i></button>
+                            <button type="button" class="character-inline-icon-btn" data-inline-edit-action="move-down" data-inline-block-index="${index}" title="Sposta giu"><i class="fas fa-arrow-down"></i></button>
+                            <button type="button" class="character-inline-icon-btn character-inline-icon-btn--danger" data-inline-edit-action="delete-block" data-inline-block-index="${index}" title="Elimina"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div class="character-inline-final">
+                        ${block.type === 'image' ? `
+                            <div class="document-header">
+                                <div class="doc-label">
+                                    <i class="fas ${escapeHtml(block.icon || 'fa-book-dead')}"></i>
+                                    <span class="character-inline-title" contenteditable="plaintext-only" spellcheck="true" data-inline-block-index="${index}" data-inline-block-field="title">${escapeHtml(block.title || 'Informazioni')}</span>
+                                </div>
+                            </div>
+                            <div class="document-body">
+                                <div class="document-image">
+                                    <button type="button" class="character-inline-image-upload" data-inline-edit-action="upload-block-image" data-inline-block-index="${index}" title="Carica nuova immagine">
+                                        ${block.image ? `<img src="${resolveInlineImagePath(block.image)}" alt="${escapeHtml(block.title || '')}" onerror="this.style.display='none'">` : '<span class="character-inline-image-placeholder">Nessuna immagine</span>'}
+                                        <span class="character-inline-upload-hint"><i class="fas fa-upload"></i> Cambia immagine</span>
+                                    </button>
+                                </div>
+                                <div class="document-content">
+                                    <div class="chapter-content chapter-content--compact character-inline-editable" contenteditable="plaintext-only" spellcheck="true" data-inline-block-index="${index}" data-inline-block-field="text">${previewHtml || '<p></p>'}</div>
+                                </div>
+                            </div>
+                        ` : `
+                            <h3>
+                                <i class="fas ${escapeHtml(block.icon || 'fa-book-open')}"></i>
+                                <span class="character-inline-title" contenteditable="plaintext-only" spellcheck="true" data-inline-block-index="${index}" data-inline-block-field="title">${escapeHtml(block.title || 'Informazioni')}</span>
+                            </h3>
+                            <div class="chapter-content character-inline-editable" contenteditable="plaintext-only" spellcheck="true" data-inline-block-index="${index}" data-inline-block-field="text">${previewHtml || '<p></p>'}</div>
+                        `}
+                    </div>
+                `;
+        return card;
+    }
+
+    function getEditableRightColumnHtml(character) {
+        const summary = character.summary || {};
+        const images = character.images || {};
+        const editableStats = [
+            ['race', 'Razza'],
+            ['period', 'Nascita / periodo'],
+            ['age', 'Eta'],
+            ['height', 'Altezza'],
+            ['weight', 'Peso'],
+            ['cause_of_death', 'Causa del decesso']
+        ];
+
+        return `
+                    <div class="image-card character-inline-side-editor">
+                        <button type="button" class="character-inline-portrait-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="portrait" title="Carica nuovo ritratto">
+                            <img src="${resolveInlineImagePath(images.portrait)}" class="char-portrait" data-inline-portrait-preview onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
+                            <span class="character-inline-upload-hint"><i class="fas fa-upload"></i> Cambia ritratto</span>
+                        </button>
+                        <div class="character-inline-side-fields">
+                            <label class="character-inline-field">
+                                <span>Nome</span>
+                                <input type="text" value="${escapeHtml(character.name || '')}" data-inline-character-field="name">
+                            </label>
+                            <label class="character-inline-field">
+                                <span>Ruolo</span>
+                                <input type="text" value="${escapeHtml(character.role || '')}" data-inline-character-field="role">
+                            </label>
+                            <label class="character-inline-field">
+                                <span>Ritratto</span>
+                                <input type="text" value="${escapeHtml(images.portrait || '')}" data-inline-character-image-field="portrait" placeholder="media/characters/...webp">
+                            </label>
+                            <label class="character-inline-field">
+                                <span>Avatar</span>
+                                <div class="character-inline-image-field-row">
+                                    <input type="text" value="${escapeHtml(images.avatar || '')}" data-inline-character-image-field="avatar" placeholder="media/characters/...webp">
+                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="avatar" title="Carica avatar"><i class="fas fa-upload"></i></button>
+                                </div>
+                            </label>
+                            <label class="character-inline-field">
+                                <span>Hover</span>
+                                <div class="character-inline-image-field-row">
+                                    <input type="text" value="${escapeHtml(images.hover || '')}" data-inline-character-image-field="hover" placeholder="media/characters/...webp">
+                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="hover" title="Carica hover"><i class="fas fa-upload"></i></button>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="stats-grid character-inline-stats-grid">
+                            ${editableStats.map(([field, label]) => `
+                                <label class="stat-box character-inline-stat-field">
+                                    <span class="stat-label">${label}</span>
+                                    <input type="text" value="${escapeHtml(summary[field] || '')}" data-inline-character-summary-field="${field}" placeholder="Non disponibile">
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
     }
 
     function getRightColumnHtml(character, allCharacters, npcQuests) {

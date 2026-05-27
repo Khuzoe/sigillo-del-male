@@ -126,7 +126,16 @@
             const block = getSelectedCharacter()?.blocks?.[blockIndex];
             if (!block) return;
             block[blockField] = event.target.value;
+            updateBlockPreview(blockIndex);
         });
+    }
+
+    function resolveInitialSelectedIndex() {
+        if (!state.characters.length) return -1;
+        const requestedId = new URLSearchParams(window.location.search).get('id');
+        if (!requestedId) return 0;
+        const requestedIndex = state.characters.findIndex((character) => character.id === requestedId);
+        return requestedIndex >= 0 ? requestedIndex : 0;
     }
 
     async function loadData() {
@@ -135,7 +144,7 @@
             state.characters = loaded.characters;
             state.loadedVersion = loaded.version ?? 0;
             state.loadedSource = loaded.source;
-            state.selectedIndex = state.characters.length ? 0 : -1;
+            state.selectedIndex = resolveInitialSelectedIndex();
             renderAll();
             setStatus(`${state.characters.length} NPC caricati da ${loaded.source === 'kv' ? 'KV online' : 'JSON statico'}.`);
         } catch (error) {
@@ -309,9 +318,70 @@
                     </div>
                     ${imageRow}
                     <textarea class="characters-editor-area" data-block-index="${index}" data-block-field="text" spellcheck="true">${escapeHtml(block.text || '')}</textarea>
+                    <div class="characters-editor-live-preview characters-editor-field--full" data-block-preview="${index}">
+                        ${renderBlockPreview(block)}
+                    </div>
                 </div>
             </article>
         `;
+    }
+
+    function updateBlockPreview(index) {
+        const character = getSelectedCharacter();
+        const block = character?.blocks?.[index];
+        if (!block) return;
+        const previewNode = els.blocksList?.querySelector(`[data-block-preview="${index}"]`);
+        if (previewNode) previewNode.innerHTML = renderBlockPreview(block);
+        const headingNode = previewNode?.closest('.characters-editor-block')?.querySelector('.characters-editor-block-title');
+        if (headingNode) headingNode.textContent = block.title || `Blocco ${index + 1}`;
+    }
+
+    function renderBlockPreview(block) {
+        const title = escapeHtml(block.title || 'Informazioni');
+        const icon = escapeAttr(block.icon || 'fa-book-open');
+        const body = renderMarkdownPreview(block.text || '');
+        if (block.type === 'image') {
+            const imageHtml = block.image
+                ? `<div class="document-image"><img src="${resolveImageUrl(block.image)}" alt="${title}" onerror="this.style.display='none'"></div>`
+                : '<div class="document-image document-image--empty">Nessuna immagine</div>';
+            return `
+                <span class="characters-editor-preview-label">Anteprima finale</span>
+                <div class="content-card document-card characters-editor-preview-card">
+                    <div class="document-header">
+                        <div class="doc-label"><i class="fas ${icon}"></i> ${title}</div>
+                    </div>
+                    <div class="document-body">
+                        ${imageHtml}
+                        <div class="document-content">
+                            <div class="chapter-content chapter-content--compact">${body}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <span class="characters-editor-preview-label">Anteprima finale</span>
+            <div class="content-card characters-editor-preview-card">
+                <h3><i class="fas ${icon}"></i> ${title}</h3>
+                <div class="chapter-content">${body}</div>
+            </div>
+        `;
+    }
+
+    function renderMarkdownPreview(text) {
+        const source = String(text || '').trim();
+        if (!source) return '<p class="characters-editor-empty-preview">Scrivi il contenuto del blocco...</p>';
+        return source
+            .split(/\n{2,}/)
+            .map((paragraph) => {
+                const inline = escapeHtml(paragraph.trim())
+                    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                    .replace(/\n/g, '<br>');
+                return `<p>${inline}</p>`;
+            })
+            .join('');
     }
 
     function addCharacter() {
