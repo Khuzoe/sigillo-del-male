@@ -1,0 +1,913 @@
+[
+  {
+    "id": "guanti-zara",
+    "name": "Zara: Guanti",
+    "foundryNames": [
+      "Guanti di Zara"
+    ],
+    "type": "Oggetto meraviglioso",
+    "rarity": "Non comune",
+    "attunement": true,
+    "owner": "Zara",
+    "status": "identified",
+    "icon": "fa-hand-sparkles",
+    "image": "media/items/zara-gloves.webp",
+    "summary": "Guanti magici da buffone, capaci di aumentare la Destrezza e scatenare trucchi di posizione, mano invisibile ed energia comica.",
+    "properties": [
+      {
+        "name": "Destrezza del Buffone",
+        "charges": "",
+        "description": "Il tuo punteggio di Destrezza aumenta di 2, fino a un massimo di 24 mentre indossi i guanti. Inoltre, hai vantaggio alle prove di Carisma (Performance) e Destrezza (Sleight of Hand). I guanti possiedono 3 cariche e recuperano tutte le cariche spese ogni giorno all'alba."
+      },
+      {
+        "name": "L'Invisibile Tocco",
+        "charges": "1",
+        "description": "Come azione bonus, lanci Mage Hand senza componenti. La mano e invisibile. Quando utilizzi la mano per l'azione Aiuto, la sua portata e di 18 metri."
+      },
+      {
+        "name": "Scambio di Posto",
+        "charges": "2",
+        "description": "Quando vieni colpito da un attacco, puoi usare la tua reazione per tentare di scambiare la tua posizione con quella di una creatura di taglia Piccola o Media entro 9 metri. La creatura scelta deve effettuare un TS di Carisma con CD = 8 + bonus di competenza + tuo modificatore di Destrezza. Fallimento: ti scambi di posto con essa e la creatura diventa il nuovo bersaglio dell'attacco. Successo: l'effetto fallisce e subisci normalmente i danni."
+      },
+      {
+        "name": "Il Gran Finale",
+        "charges": "3",
+        "description": "Come azione, evochi un'esplosione di energia comica. Ogni creatura a tua scelta in un cono di 18 metri deve superare un TS di Saggezza con CD = 8 + bonus di competenza + tuo modificatore di Carisma oppure cade prona ed e affetta come da Tasha's Hideous Laughter per 1 minuto (TS alla fine di ogni turno). Per tutta la durata, la creatura e anche sotto l'effetto di Faerie Fire. Una creatura che supera il tiro salvezza e immune a questo effetto per 24 ore."
+      }
+    ],
+    "notes": "Oggetto emerso durante la Sessione 24.",
+    "subtype": "Guanti"
+  },
+  {
+    "id": "scarpa-zara",
+    "name": "Zara: Pantofole",
+    "foundryNames": [
+      "Pantofole di Zara"
+    ],
+    "type": "Oggetto meraviglioso",
+    "owner": "Zara",
+    "status": "identified",
+    "icon": "fa-shoe-prints",
+    "image": "media/items/zara-shoes.webp",
+    "summary": "Pantofole di velluto incredibilmente soffici che accelerano il portatore come un Haste costante, ma con un contraccolpo fisico pesante.",
+    "properties": [
+      {
+        "name": "Accelerazione Incessante",
+        "charges": "Sempre attivo",
+        "description": "Mentre indossi queste pantofole sei costantemente sotto l'effetto di Haste. L'effetto non richiede concentrazione e termina immediatamente se smetti di indossarle."
+      },
+      {
+        "name": "Contraccolpo di Stanchezza",
+        "charges": "Fine dell'effetto",
+        "description": "Quando l'effetto di Haste termina, o se vieni incapacitato mentre indossi le pantofole, sei paralizzato per 1d4 round e subisci 1 livello di exhaustion. Una creatura immune a exhaustion ignora questi effetti negativi."
+      },
+      {
+        "name": "Logorio del Corpo",
+        "charges": "Sintonia prolungata",
+        "description": "Per ogni mese consecutivo in cui resti in sintonia con le pantofole, il tuo corpo invecchia di 1 anno."
+      }
+    ],
+    "notes": "Descrizione popolata dal dato Foundry \"Pantofole di Zara\".",
+    "subtype": "Scarpe"
+  },
+  {
+    "id": "prisma-luce-cristallizzata",
+    "name": "Prisma di Luce Cristallizzata",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Artefatto",
+    "status": "known",
+    "icon": "fa-gem",
+    "image": "media/items/luce_cristallizzata.webp",
+    "summary": "Un prisma nato dall'esplosione radiosa dell'incubo del sigillo, che ora custodisce l'anima di Apothecary separata dal suo corpo.",
+    "properties": [
+      {
+        "name": "Anima Vincolata",
+        "charges": "",
+        "description": "Il prisma contiene l'anima di Apothecary, rimasta intrappolata al suo interno mentre il corpo e rimasto privo di sensi."
+      },
+      {
+        "name": "Origine Radiosa",
+        "charges": "",
+        "description": "Si e formato durante l'incubo del sigillo, nel momento in cui Apothecary si e sacrificata per salvare il gruppo con un'esplosione di luce cristallizzata."
+      }
+    ],
+    "notes": "Oggetto emerso dopo il sacrificio di Apothecary; X e il gruppo stanno ancora cercando di comprenderne la natura precisa.",
+    "subtype": "Prisma"
+  },
+  {
+    "id": "spilla-rosa",
+    "name": "Spilla Rosa",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Raro",
+    "attunement": true,
+    "icon": "fa-ribbon",
+    "summary": "Spilla magica che consente di convertire slot incantesimo di livello superiore in slot di 1° livello.",
+    "properties": [
+      {
+        "name": "Conversione degli Slot",
+        "charges": "Slot incantesimo 2°+",
+        "description": "Come azione puoi consumare uno slot incantesimo di 2° livello o superiore per ottenere un numero di slot incantesimo di 1° livello pari al livello dello slot consumato."
+      }
+    ],
+    "notes": "Importato da Foundry; il nome non identificato è \"Unidentified Equipment\".",
+    "subtype": "Spilla",
+    "image": "media/items/rose_brooch.webp"
+  },
+  {
+    "id": "corazza-piastre-rosskar",
+    "name": "Rosskar: Corazza a Piastre",
+    "foundryNames": [
+      "Corazza a Piastre di Rosskar"
+    ],
+    "type": "Armatura",
+    "rarity": "Raro",
+    "attunement": true,
+    "owner": "Rosskar",
+    "status": "unidentified",
+    "icon": "fa-shield-halved",
+    "summary": "Corazza rossa magica che aumenta la CA e potenzia i danni da fuoco inflitti dal portatore.",
+    "properties": [
+      {
+        "name": "Difesa Incantata",
+        "charges": "",
+        "description": "Conferisce un bonus di +1 alla CA."
+      },
+      {
+        "name": "Fiamma Amplificata",
+        "charges": "",
+        "description": "Ogni volta che infliggi danni da fuoco, tali danni aumentano di 1d6."
+      }
+    ],
+    "notes": "Non identificata come \"Armatura Rossa\"; descritta come metallo rosso scuro con incisioni dorate, calda al tatto.",
+    "image": "media/items/rosskar_breastplate.webp",
+    "subtype": "Corazza",
+    "unidentifiedName": "[Non Identificato] Armatura Rossa",
+    "unidentifiedDescription": "Un’armatura di metallo rosso scuro con incisioni dorate. Sembra calda al tatto, come se trattenesse sempre un po’ di calore al suo interno."
+  },
+  {
+    "id": "mantello-okbrax",
+    "name": "Okbrax: Mantello",
+    "foundryNames": [
+      "Mantello di Okbrax"
+    ],
+    "type": "Oggetto meraviglioso",
+    "rarity": "Raro",
+    "attunement": true,
+    "owner": "Okbrax",
+    "status": "unidentified",
+    "icon": "fa-cloak",
+    "summary": "Mantello illusorio che rende imprecisa la posizione del portatore, imponendo svantaggio agli attacchi contro di lui.",
+    "properties": [
+      {
+        "name": "Spostamento Illusorio",
+        "charges": "",
+        "description": "Mentre lo indossi, il mantello proietta un’illusione che ti fa sembrare in piedi in un punto vicino alla tua posizione reale, causando svantaggio ai tiri per colpire contro di te."
+      },
+      {
+        "name": "Interruzione",
+        "charges": "",
+        "description": "Se subisci danni, la proprietà cessa di funzionare fino all’inizio del tuo turno successivo. È inattiva mentre sei incapacitato, trattenuto o impossibilitato a muoverti."
+      }
+    ],
+    "notes": "Non identificato come \"Mantello Nero\"; lungo e scuro, sembra muoversi anche senza vento.",
+    "image": "media/items/okbrax_cloak.webp",
+    "subtype": "Mantello",
+    "unidentifiedName": "[Non Identificato] Mantello Nero",
+    "unidentifiedDescription": "Un mantello lungo e scuro, che sembra muoversi leggermente anche quando non c’è vento."
+  },
+  {
+    "id": "martello-guerra-lumilla",
+    "name": "Lumilla: Martello da Guerra",
+    "foundryNames": [
+      "Martello da Guerra di Lumilla"
+    ],
+    "type": "Arma",
+    "rarity": "Raro",
+    "attunement": true,
+    "owner": "Lumilla",
+    "status": "unidentified",
+    "icon": "fa-hammer",
+    "summary": "Martello da guerra +1 che si carica quando curi una creatura, aggiungendo danni radiosi al prossimo colpo.",
+    "properties": [
+      {
+        "name": "Arma +1",
+        "charges": "",
+        "description": "Ottieni un bonus di +1 ai tiri per colpire e ai tiri per i danni effettuati con quest’arma."
+      },
+      {
+        "name": "Carica Radiosa",
+        "charges": "1 carica massima",
+        "description": "Ogni volta che curi una creatura usando incantesimi o abilità, il martello si carica. Il prossimo attacco effettuato con il martello infligge 1d8 danni radiosi aggiuntivi. Il martello mantiene una sola carica alla volta."
+      }
+    ],
+    "notes": "Non identificato come \"Martello Sacro\"; testa d’argento con simboli solari e bagliore dorato.",
+    "image": "media/items/lumilla_warhammer.webp",
+    "subtype": "Martello da guerra",
+    "unidentifiedName": "[Non Identificato] Martello Sacro",
+    "unidentifiedDescription": "Un martello da guerra robusto, con una testa d’argento decorata da simboli solari. L’impugnatura è avvolta in cuoio bianco e ogni tanto emette un leggero bagliore dorato."
+  },
+  {
+    "id": "pugnale-okbrax",
+    "name": "Okbrax: Pugnale",
+    "foundryNames": [
+      "Pugnale di Okbrax"
+    ],
+    "type": "Arma",
+    "rarity": "Raro",
+    "attunement": true,
+    "owner": "Okbrax",
+    "status": "unidentified",
+    "icon": "fa-dagger",
+    "summary": "Pugnale +1 che permette al portatore di riposizionarsi quando un attacco con svantaggio lo manca.",
+    "properties": [
+      {
+        "name": "Arma +1",
+        "charges": "",
+        "description": "Ottieni un bonus di +1 ai tiri per colpire e ai tiri per i danni con questo pugnale."
+      },
+      {
+        "name": "Scatto nell’Ombra",
+        "charges": "Reazione",
+        "description": "Se un attaccante ha svantaggio nell’attaccarti e manca il colpo, puoi usare la tua reazione per muoverti fino alla tua velocità."
+      }
+    ],
+    "notes": "Non identificato come \"Pugnale Nero\"; lama sottile e scura, difficile da vedere quando impugnato.",
+    "image": "media/items/okbrax_dagger.webp",
+    "subtype": "Pugnale",
+    "unidentifiedName": "[Non Identificato] Pugnale Nero",
+    "unidentifiedDescription": "Un pugnale affilato con una lama sottile e scura. Ha un’impugnatura avvolta in cuoio nero e sembra diventare più difficile da vedere quando lo si impugna."
+  },
+  {
+    "id": "spada-lunga-lingua-di-fiamma",
+    "name": "Rosskar: Spada Infuocata",
+    "foundryNames": [
+      "Flame Tongue Longsword"
+    ],
+    "type": "Arma",
+    "rarity": "Raro",
+    "attunement": true,
+    "owner": "Rosskar",
+    "status": "unidentified",
+    "icon": "fa-fire-flame-curved",
+    "summary": "Spada lunga magica che può incendiarsi a comando, illuminando l’area e infliggendo danni da fuoco extra.",
+    "properties": [
+      {
+        "name": "Parola di Comando",
+        "charges": "Azione bonus",
+        "description": "Puoi pronunciare la parola di comando per far erompere fiamme dalla lama. Le fiamme diffondono luce intensa entro 40 piedi e luce fioca per altri 40 piedi."
+      },
+      {
+        "name": "Lama Infuocata",
+        "charges": "",
+        "description": "Finché la spada è infuocata, infligge 2d6 danni da fuoco extra a qualsiasi bersaglio colpito."
+      },
+      {
+        "name": "Spegnimento",
+        "charges": "Azione bonus",
+        "description": "Le fiamme durano finché non usi nuovamente un’azione bonus per ripetere la parola di comando o finché non lasci cadere o riponi la spada."
+      }
+    ],
+    "notes": "Non identificata come \"Spada di Fuoco\"; lama con rune rosse incise.",
+    "image": "media/items/rosskar_longsword.webp",
+    "subtype": "Spada lunga",
+    "unidentifiedName": "[Non Identificato] Spada di Fuoco",
+    "unidentifiedDescription": "Una spada dalla lama affilata, con rune rosse incise lungo la superficie."
+  },
+  {
+    "id": "veste-radiosa-lumilla",
+    "name": "Lumilla: Veste Radiosa",
+    "foundryNames": [
+      "Veste Radiosa di Lumilla"
+    ],
+    "type": "Armatura",
+    "rarity": "Raro",
+    "attunement": true,
+    "owner": "Lumilla",
+    "status": "unidentified",
+    "icon": "fa-shirt",
+    "summary": "Veste radiosa che protegge come mage armor e converte gli attacchi del portatore in piccole cure per gli alleati vicini.",
+    "properties": [
+      {
+        "name": "Protezione Arcana",
+        "charges": "",
+        "description": "Mentre indossi questa veste, sei considerato sotto l’effetto di mage armor: la tua CA diventa 13 + il tuo modificatore di Destrezza se non indossi altra armatura."
+      },
+      {
+        "name": "Radiosità Guaritrice",
+        "charges": "",
+        "description": "Ogni volta che infliggi danni a una creatura ostile con un attacco, la creatura alleata più vicina a te entro 20 piedi recupera 1d4 punti ferita. Se l’attacco è un colpo critico, recupera invece 1d6. Se non ci sono alleati entro 20 piedi, l’effetto non si applica."
+      }
+    ],
+    "notes": "Non identificata come \"Veste Bianca\"; bianca, leggera, con ricami argentati e aura tranquilla.",
+    "image": "media/items/lumilla_vest.webp",
+    "subtype": "Veste",
+    "unidentifiedName": "[Non Identificato] Veste Bianca",
+    "unidentifiedDescription": "Una veste bianca leggera e fluida, con sottili ricami argentati lungo i bordi. Ha un’aura di tranquillità e sembra quasi brillare leggermente alla luce."
+  },
+  {
+    "id": "stivali-ginevra",
+    "name": "Ginevra: Stivali",
+    "foundryNames": [
+      "Stivali di Ginevra"
+    ],
+    "type": "Oggetto meraviglioso",
+    "rarity": "Molto raro",
+    "attunement": true,
+    "owner": "Ginevra",
+    "status": "identified",
+    "icon": "fa-shoe-prints",
+    "summary": "Stivali pesanti che aumentano la CA, rendono il portatore inarrestabile su terreno solido e possono convertire PF temporanei in movimento.",
+    "properties": [
+      {
+        "name": "Difesa Pesante",
+        "charges": "",
+        "description": "Ottieni un bonus di +1 alla tua CA."
+      },
+      {
+        "name": "Peso degli Stivali",
+        "charges": "",
+        "description": "Mentre li indossi, la tua velocità di movimento si riduce di 10, a meno che la tua Forza non sia pari o superiore a 20."
+      },
+      {
+        "name": "Inarrestabile",
+        "charges": "",
+        "description": "Se sei in piedi su una superficie solida, sei immune a terreno difficile, spostamento forzato, condizione prono e non puoi essere sollevato da terra contro la tua volontà. Se un effetto impedisce il tuo movimento, come grappled o restrained, puoi interromperlo consumando metà del tuo movimento totale."
+      },
+      {
+        "name": "Conversione",
+        "charges": "Azione bonus",
+        "description": "Se hai punti vita temporanei, puoi convertirne una quantità a tua scelta in velocità di movimento usando la tua azione bonus, in multipli di 5. L’effetto svanisce al termine del tuo turno."
+      },
+      {
+        "name": "Peso Insopportabile",
+        "charges": "Set Ginevra",
+        "description": "Se sei in sintonia con altri pezzi dell’equipaggiamento di Ginevra, tutte le creature in combattimento entro 60 piedi da te riducono la loro velocità di movimento di 10 e non possono beneficiare di teletrasporto o incantesimi che facilitano il movimento, a meno che la loro Forza non sia pari o superiore a 20."
+      }
+    ],
+    "notes": "Parte dell’equipaggiamento di Ginevra.",
+    "image": "media/items/ginevra_boots.webp",
+    "subtype": "Stivali"
+  },
+  {
+    "id": "scudo-ginevra",
+    "name": "Ginevra: Scudo",
+    "foundryNames": [
+      "Scudo di Ginevra"
+    ],
+    "type": "Scudo",
+    "rarity": "Molto raro",
+    "attunement": true,
+    "owner": "Ginevra",
+    "status": "identified",
+    "icon": "fa-shield",
+    "summary": "Scudo molto raro che concede un forte bonus alla CA e consente di marchiare un nemico con un Marchio di Vendetta.",
+    "properties": [
+      {
+        "name": "Scudo Potenziato",
+        "charges": "",
+        "description": "Ottieni un bonus di +2 alla tua CA, oltre al bonus base dello scudo."
+      },
+      {
+        "name": "Vendetta Siglata",
+        "charges": "Reazione",
+        "description": "Quando vieni colpito da un attacco, puoi usare la tua reazione per marchiare l’attaccante con un Marchio di Vendetta. Il marchio resta attivo finché non lo consumi o finché la creatura non muore."
+      },
+      {
+        "name": "Marchio di Vendetta",
+        "charges": "",
+        "description": "Finché la creatura è marchiata, tutte le creature alleate entro 30 piedi da te hanno un bonus di +2 per colpirla. Non puoi marchiare altre creature finché il marchio non viene annullato."
+      },
+      {
+        "name": "Colpo di Vendetta",
+        "charges": "Consuma il marchio",
+        "description": "Se attacchi la creatura marchiata con un attacco senza armi o usando lo scudo come arma, puoi aggiungere +10 ai danni, consumando il Marchio di Vendetta."
+      },
+      {
+        "name": "Vendetta Fallita",
+        "charges": "",
+        "description": "Se raggiungi 0 punti vita mentre una creatura nemica ha il tuo Marchio di Vendetta, quella creatura ottiene punti vita temporanei pari alla tua CA e il marchio si consuma."
+      },
+      {
+        "name": "Battaglia Ingiusta",
+        "charges": "Set Ginevra",
+        "description": "Se sei in sintonia con altri pezzi dell’equipaggiamento di Ginevra, tutte le creature in combattimento entro 60 piedi da te offrono sempre vantaggio al tiro per colpire alla creatura attaccante, a meno che la loro CA complessiva non sia pari o superiore a 20."
+      }
+    ],
+    "notes": "Parte dell’equipaggiamento di Ginevra.",
+    "image": "media/items/ginevra_shield.webp"
+  },
+  {
+    "id": "armatura-ginevra",
+    "name": "Ginevra: Armatura",
+    "foundryNames": [
+      "Armatura di Ginevra"
+    ],
+    "type": "Armatura",
+    "rarity": "Molto raro",
+    "owner": "Ginevra",
+    "status": "identified",
+    "icon": "fa-vest",
+    "summary": "Armatura pesante che aumenta la CA, trasforma i colpi critici subiti in PF temporanei e permette di proteggere un alleato prendendo i danni al suo posto.",
+    "properties": [
+      {
+        "name": "Difesa Rinforzata",
+        "charges": "",
+        "description": "Ottieni un bonus di +1 alla tua CA."
+      },
+      {
+        "name": "Ventre Scoperto",
+        "charges": "",
+        "description": "La tua soglia per subire un colpo critico aumenta di 1 (19-20). Dopo aver subito un colpo critico, se hai ancora almeno 1 punto vita, ottieni punti vita temporanei pari a metà del danno subito da quel colpo critico, arrotondato per eccesso."
+      },
+      {
+        "name": "Reazione Spontanea",
+        "charges": "1/riposo breve",
+        "description": "Quando una creatura alleata che puoi vedere entro 30 piedi da te subisce danno, puoi usare la tua reazione per subire i danni al posto suo. La creatura ottiene punti vita temporanei pari ai danni che hai ricevuto. Subire direttamente un colpo critico ricarica questo effetto."
+      },
+      {
+        "name": "Dolore Irresistibile",
+        "charges": "Set Ginevra",
+        "description": "Se sei in sintonia con altri pezzi dell’equipaggiamento di Ginevra, tutte le creature in combattimento entro 60 piedi da te ottengono vulnerabilità a tutti i danni ricevuti da colpi critici, a meno che la loro Costituzione non sia pari o superiore a 20."
+      }
+    ],
+    "notes": "Parte dell’equipaggiamento di Ginevra.",
+    "image": "media/items/ginevra_armor.webp",
+    "subtype": "Splint Armor"
+  },
+  {
+    "id": "bracciale-metallico",
+    "name": "Bracciale Metallico",
+    "foundryNames": [
+      "Ring of Necrotic Resistance"
+    ],
+    "type": "Oggetto meraviglioso",
+    "rarity": "Raro",
+    "attunement": true,
+    "status": "unidentified",
+    "icon": "fa-ring",
+    "summary": "Bracciale/anello magico associato alla resistenza necrotica, manifestato come un ornamento metallico scuro e protettivo.",
+    "properties": [
+      {
+        "name": "Resistenza Necrotica",
+        "charges": "",
+        "description": "Hai resistenza ai danni necrotici mentre indossi questo oggetto. Nel dato Foundry identificato l'oggetto è un Ring of Necrotic Resistance."
+      },
+      {
+        "name": "Descrizione Non Identificata",
+        "charges": "",
+        "description": "Appare come cuoio rinforzato da pesanti anelli metallici, pensato per proteggere dai colpi di spade e asce."
+      }
+    ],
+    "notes": "Nel dato Foundry il nome identificato è \"Ring of Necrotic Resistance\", mentre la forma non identificata è \"Bracciale Metallico\".",
+    "image": "media/items/necrotic_resistance.webp",
+    "subtype": "Anello",
+    "unidentifiedName": "Bracciale Metallico",
+    "unidentifiedDescription": "This armor is leather armor with heavy rings sewn into it. The rings help reinforce the armor against blows from swords and axes. Ring mail is inferior to chain mail, and it's usually worn only by those who can't afford better armor."
+  },
+  {
+    "id": "specchio-rotto",
+    "name": "Specchio Rotto",
+    "rarity": "Comune",
+    "status": "identified",
+    "icon": "fa-mirror",
+    "summary": "Specchio rotto che riflette il volto delle persone mostrandole con emozioni estreme.",
+    "properties": [
+      {
+        "name": "Riflesso Emotivo",
+        "charges": "",
+        "description": "Riflette il volto delle persone che lo guardano, mostrandole con espressioni estremamente tristi o estremamente contente."
+      }
+    ],
+    "notes": "La descrizione non identificata parla di uno strano specchio rotto con cornice vecchia e rovinata.",
+    "subtype": "Specchio",
+    "unidentifiedDescription": "Uno strano specchio rotto, con una cornice vecchia e rovinata.",
+    "image": "media/items/broken_mirror.webp",
+    "type": "Oggetto meraviglioso"
+  },
+  {
+    "id": "pala-non-morta",
+    "name": "Pala Non-Morta",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Raro",
+    "status": "unidentified",
+    "icon": "fa-shovel",
+    "summary": "Pala incantata su cui è inciso un glifo di energia necrotica",
+    "properties": [
+      {
+        "name": "Rinascita Tombale",
+        "charges": "Slot incantesimo 4°+",
+        "description": "Se usi la pala per creare una tomba per una creatura morta e la seppellisci al suo interno, puoi usare uno slot incantesimo di 4° livello o superiore per infondere la tomba. Dopo 24 ore, la creatura rinasce sotto forma di non-morto senziente come se fosse stata sottoposta a Raise Dead. Un cadavere di una creatura non-morta non può essere soggetto a questo effetto."
+      }
+    ],
+    "notes": "Importata come non identificata in Foundry.",
+    "image": "media/items/item_undead_shovel.webp",
+    "subtype": "Pala",
+    "unidentified": true
+  },
+  {
+    "id": "corona-del-controllo",
+    "name": "Corona del Controllo",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Raro",
+    "status": "hidden",
+    "icon": "fa-crown",
+    "summary": "Corona per costrutti progettata per limitare comportamenti violenti contro il loro creatore.",
+    "properties": [
+      {
+        "name": "Controllo del Costrutto",
+        "charges": "",
+        "description": "Può essere indossata dai costrutti per limitare i loro comportamenti violenti."
+      },
+      {
+        "name": "Protezione del Creatore",
+        "charges": "",
+        "description": "La creatura che la indossa trattiene le emozioni violente: qualsiasi attacco o azione pericolosa del costrutto non può mai essere indirizzata verso il suo creatore."
+      }
+    ],
+    "notes": "Descrizione non identificata: corona metallica composta da due filamenti incisi con glifi spenti.",
+    "image": "media/items/control_crown.webp",
+    "subtype": "Corona",
+    "unidentifiedDescription": "Una strana corona metallica composta da due filamenti incisi con qualche glifo spento.",
+    "hidden": true
+  },
+  {
+    "id": "cuore-di-albert",
+    "name": "Albert: Cuore",
+    "owner": "Albert",
+    "status": "identified",
+    "icon": "fa-heart",
+    "summary": "Cuore ancora intriso di magia, appartenuto ad Albert e bramato da Franky come possibile batteria arcana per dare vita al suo progetto.",
+    "properties": [
+      {
+        "name": "Batteria Arcana",
+        "charges": "",
+        "description": "Le voci raccolte indicano che il cuore di Albert pulsa ancora di magia e potrebbe funzionare come nucleo energetico per animare una creatura o un costrutto di carne."
+      },
+      {
+        "name": "Interesse di X",
+        "charges": "",
+        "description": "Dopo essere stato consegnato a X, il cuore è stato studiato insieme allo strano libro rubato a Franky, suggerendo un legame con rituali di animazione e conoscenze necromantiche."
+      }
+    ],
+    "notes": "Voce di contesto popolata dai riferimenti di Franky e dalle sessioni. Il file Foundry non definisce bonus meccanici; peso indicato: 8 kg.",
+    "subtype": "Cuore",
+    "image": "media/items/heart_albert.webp"
+  },
+  {
+    "id": "collana-buffa-zara",
+    "name": "Zara: Collana Buffa",
+    "foundryNames": [
+      "[Non Identificato] Collana Buffa"
+    ],
+    "type": "Oggetto meraviglioso",
+    "rarity": "Raro",
+    "attunement": true,
+    "owner": "Zara",
+    "status": "unidentified",
+    "icon": "fa-gem",
+    "summary": "Una collana composta da palloncini legati tra loro e decorata da una placca di stoffa su cui è disegnato il volto sorridente di un giullare.",
+    "properties": [
+      {
+        "name": "Piccola Bambola",
+        "charges": "Sintonia",
+        "description": "Quando ti sintonizzi con questa collana compare una Piccola Bambola che ti assiste in combattimento. La bambola divora i caduti, accrescendo la propria forza, imparando nuove abilità e aumentando i propri punti vita del 25% di quelli delle creature divorate."
+      },
+      {
+        "name": "Maledizione",
+        "charges": "",
+        "description": "La collana non può essere rimossa finché non viene lanciato rimuovi maledizione sul portatore o la Bambola viene distrutta."
+      },
+      {
+        "name": "Crescita della Bambola",
+        "charges": "",
+        "description": "+25% PF della creatura divorata; a 120 PF diventa Bambola Non Troppo Piccola; a 250 PF diventa Bambola Assolutamente Non Piccola."
+      },
+      {
+        "name": "Gemma del Buffone Errante",
+        "charges": "",
+        "description": "La collana è associata alla Gemma del Buffone Errante."
+      }
+    ],
+    "image": "media/items/zara_necklace.webp",
+    "subtype": "Collana",
+    "unidentifiedName": "[Non Identificato] Collana Buffa",
+    "unidentifiedDescription": "Una graziosa collana di fili multicolore con un buffone sorridente disegnato nel ciondolo.",
+    "unidentified": true
+  },
+  {
+    "id": "ciondolo-etereo-elena",
+    "name": "Elena: Ciondolo Etereo",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Raro",
+    "owner": "Elena",
+    "status": "known",
+    "icon": "fa-gem",
+    "summary": "Un piccolo ciondolo rosso, leggermente etereo, legato a Elena e al ricordo della sua vita con Rabberduscolanderson.",
+    "properties": [
+      {
+        "name": "Ricordo Perduto",
+        "charges": "",
+        "description": "Oggetto associato a Elena Erbadath e al filo emotivo che la lega ancora al mondo dei vivi, abbastanza significativo da essere riconosciuto come qualcosa che poteva ricondurla a Rabberduscolanderson."
+      }
+    ],
+    "notes": "Recuperato vicino al braccio gigantesco e collegato alla quest 'Trovare l'oggetto perduto di Elena'.",
+    "image": "media/items/elena_necklace.webp",
+    "subtype": "Ciondolo"
+  },
+  {
+    "id": "sieri-instabili-franky",
+    "name": "Franky: Sieri Instabili",
+    "type": "Pozione",
+    "rarity": "Raro",
+    "owner": "Franky",
+    "status": "known",
+    "hidden": true,
+    "icon": "fa-flask-vial",
+    "summary": "Una collezione di sieri alchemici instabili trasportati da Franky e offerti come merce di scambio in cambio di un cuore per il suo golem di carne.",
+    "properties": [
+      {
+        "name": "Miscela Variabile",
+        "charges": "",
+        "description": "Ogni fiala puo produrre effetti diversi; la distinzione tra cura, potenziamento e disastro dipende spesso solo dalla miscela contenuta."
+      }
+    ],
+    "notes": "Franky porta sempre con se una vasta gamma di sieri instabili; il gruppo ne ha trovati anche nel laboratorio di Nino Olegna.",
+    "image": "media/items/franky_sierums.webp",
+    "subtype": "Sieri"
+  },
+  {
+    "id": "feto-curativo-ginevra",
+    "name": "Ginevra: Feto Curativo",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Molto raro",
+    "owner": "Ginevra",
+    "status": "known",
+    "hidden": true,
+    "icon": "fa-droplet",
+    "summary": "Un reagente organico anomalo che Ginevra, come alambicco vivente, puo creare assimilando gli ingredienti adatti per produrre sostanze estremamente curative.",
+    "properties": [
+      {
+        "name": "Reagente Alchemico",
+        "charges": "",
+        "description": "Se trattato correttamente, puo essere usato come base per produrre una sostanza di guarigione straordinariamente potente."
+      }
+    ],
+    "notes": "Oggetto collegato alla natura di Ginevra come alambicco vivente, capace di assimilare reagenti e trasformarli in nuovi prodotti.",
+    "image": "media/items/ginevra_healing_fetus.webp",
+    "subtype": "Reagente"
+  },
+  {
+    "id": "cuore-rabberduscolanderson",
+    "name": "Rabberduscolanderson: Cuore",
+    "foundryNames": [
+      "Cuore di Rabberduscolanderson"
+    ],
+    "type": "Oggetto meraviglioso",
+    "rarity": "Leggendario",
+    "attunement": true,
+    "owner": "Rabberduscolanderson",
+    "status": "identified",
+    "icon": "fa-heart",
+    "summary": "Una piccola sfera di vetro che custodisce il cuore di Rabberduscolanderson e un potere arcano plasmato da dolore, rame e memoria.",
+    "properties": [
+      {
+        "name": "Istinti del Reietto",
+        "charges": "",
+        "description": "Ottieni vantaggio alle prove di Stealth, Perception per trovare oggetti nascosti vicini ad almeno una moneta di rame, e Animal Handling contro le bestie."
+      },
+      {
+        "name": "Peso del Baratro",
+        "charges": "",
+        "description": "Hai svantaggio ai tiri salvezza contro la paura, svantaggio ai tiri per colpire contro creature di taglia superiore alla tua e vulnerabilita ai danni da caduta."
+      }
+    ],
+    "notes": "Ricompensa ottenuta dopo aver riunito Rabberduscolanderson con Elena.",
+    "image": "media/items/heart-rabberduscolanderson.webp",
+    "subtype": "Cuore"
+  },
+  {
+    "id": "cuore-x",
+    "name": "X: Cuore",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Leggendario",
+    "attunement": true,
+    "owner": "X",
+    "status": "identified",
+    "hidden": true,
+    "icon": "fa-heart",
+    "summary": "Una sfera che contiene il cuore di X intrecciato a filamenti arcani, dedicata allo studio di testi, rituali e conoscenza occulta.",
+    "properties": [
+      {
+        "name": "Erudizione Sigillata",
+        "charges": "",
+        "description": "Ottieni vantaggio alle prove di Arcana, History e Investigation quando studi libri, pergamene o rituali."
+      },
+      {
+        "name": "Comprensione Incompleta",
+        "charges": "",
+        "description": "Quando analizzi un testo magico, puoi comprenderne l'intento generale anche se incompleto o criptico."
+      },
+      {
+        "name": "Fragilita del Sapere",
+        "charges": "",
+        "description": "Hai svantaggio ai tiri salvezza contro veleno e agli effetti legati agli aracnidi."
+      }
+    ],
+    "notes": "Oggetto associato agli studi di X e alla sua storia con rituali e conoscenza proibita.",
+    "image": "media/items/heart-x.webp",
+    "subtype": "Cuore"
+  },
+  {
+    "id": "diadema-adamantino",
+    "name": "Ran'Dra: Cerchietto Adamantino",
+    "foundryNames": [
+      "Cerchietto Adamantino"
+    ],
+    "type": "Oggetto meraviglioso",
+    "rarity": "Raro",
+    "attunement": true,
+    "owner": "Ran'Dra",
+    "status": "identified",
+    "icon": "fa-crown",
+    "summary": "Un cerchietto adamantino appartenente a Ran'Dra, capace di smorzare i colpi peggiori e assorbire parte dei danni fisici consumando cariche interne.",
+    "properties": [
+      {
+        "name": "Riserva Adamantina",
+        "charges": "12 cariche",
+        "description": "Il cerchietto possiede 12 cariche e recupera 3d4 cariche spese ogni giorno all'alba."
+      },
+      {
+        "name": "Adamantino",
+        "charges": "",
+        "description": "Quando subisci un colpo critico, puoi spendere 1 carica per trasformarlo in un colpo normale. La reazione e automatica e non richiede azione."
+      },
+      {
+        "name": "Robusto",
+        "charges": "Reazione, 1 carica",
+        "description": "Quando subisci danni contundenti, taglienti o perforanti, puoi usare la tua reazione per spendere 1 carica e ridurre i danni di 2d4."
+      }
+    ],
+    "notes": "Collegato alla missione di Rabberduscolanderson su cio che Ran'Dra nascondeva in tasca.",
+    "image": "media/items/adamantine_headband.webp",
+    "subtype": "Cerchietto"
+  },
+  {
+    "id": "regno-klaren",
+    "name": "Regno dei Klaren",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Raro",
+    "status": "known",
+    "icon": "fa-chess-rook",
+    "summary": "Una reliquia iconografica collegata ai Klaren, utile per riconoscere il loro simbolo e i riferimenti al popolo di Abrak sparsi nella cripta.",
+    "properties": [
+      {
+        "name": "Memoria dei Klaren",
+        "charges": "",
+        "description": "Richiama il simbolo Klaren visto su medaglioni, testi e non-morti del livello inferiore; il gruppo ha appreso che mostrare quel simbolo puo consentire l'accesso al piano sottostante."
+      }
+    ],
+    "notes": "Voce di contesto costruita a partire dai documenti su Abrak, dal medaglione Klaren recuperato e dalle informazioni ottenute da X.",
+    "image": "media/items/klaren_reign.webp",
+    "subtype": "Reliquia"
+  },
+  {
+    "id": "mantello-della-protezione",
+    "name": "Mantello della Protezione",
+    "foundryNames": [
+      "Cloak of Protection"
+    ],
+    "type": "Oggetto meraviglioso",
+    "rarity": "Non comune",
+    "attunement": true,
+    "image": "media/items/cloak-of-protection.webp",
+    "icon": "fa-wand-sparkles",
+    "summary": "Mantello protettivo che rafforza le difese del portatore con un bonus costante alla CA e ai tiri salvezza.",
+    "properties": [
+      {
+        "name": "Protezione Costante",
+        "charges": "",
+        "description": "Mentre indossi questo mantello, ottieni un bonus di +1 alla Classe Armatura e ai tiri salvezza."
+      }
+    ],
+    "notes": "Descrizione popolata dal dato Foundry \"Cloak of Protection\".",
+    "subtype": "Mantello"
+  },
+  {
+    "id": "anello-di-protezione-mentale",
+    "name": "Anello di Protezione Mentale",
+    "foundryNames": [
+      "Ring of Mind Shielding"
+    ],
+    "type": "Oggetto meraviglioso",
+    "rarity": "Non comune",
+    "attunement": true,
+    "image": "media/items/ring-of-mind-shielding.webp",
+    "icon": "fa-wand-sparkles",
+    "subtype": "Anello",
+    "owner": "Rabberduscolanderson",
+    "summary": "Anello che protegge la mente del portatore da lettura del pensiero, rilevazione della menzogna e identificazione magica della sua natura.",
+    "properties": [
+      {
+        "name": "Schermo Mentale",
+        "charges": "",
+        "description": "Mentre indossi l'anello, sei immune alla magia che permette ad altre creature di leggere i tuoi pensieri, determinare se stai mentendo, conoscere il tuo allineamento o conoscere il tuo tipo di creatura. Le creature possono comunicare telepaticamente con te solo se lo permetti."
+      },
+      {
+        "name": "Anello Invisibile",
+        "charges": "Azione",
+        "description": "Puoi usare un'azione per rendere invisibile l'anello. Torna visibile quando usi un'altra azione per renderlo visibile, quando lo rimuovi o quando muori."
+      },
+      {
+        "name": "Custodia dell'Anima",
+        "charges": "Alla morte",
+        "description": "Se muori mentre indossi l'anello, la tua anima entra nell'anello, a meno che esso non ospiti già un'anima. Puoi restare nell'anello o partire per l'aldilà. Finché la tua anima è nell'anello, puoi comunicare telepaticamente con qualsiasi creatura che lo indossi, e il portatore non può impedirlo."
+      }
+    ],
+    "notes": "Descrizione popolata dal dato Foundry \"Ring of Mind Shielding\"."
+  },
+  {
+    "id": "poesia-di-nino",
+    "name": "Nino Olegna: Poesia",
+    "foundryNames": [
+      "Poesia"
+    ],
+    "image": "media/items/nino-poesia.webp",
+    "icon": "fa-wand-sparkles",
+    "type": "Bottino",
+    "subtype": "Documento",
+    "owner": "Nino Olegna",
+    "summary": "Poesia ritrovata tra gli oggetti di Nino Olegna: un messaggio incompleto di vendetta, rancore familiare e minaccia velata verso Karla.",
+    "properties": [
+      {
+        "name": "Messaggio di Vendetta",
+        "charges": "",
+        "description": "Il testo parla di un padre tradito, di un patto familiare infranto e di una vendetta legata alla tela, ai ragni e al ritorno dal buio."
+      },
+      {
+        "name": "Testo Recuperato",
+        "charges": "Documento incompleto",
+        "description": "Nel fondo della tomba, continuamente mi rigiravo, per quell'azione ignobile che da te non m'aspettavo. Ora dal buio ritorno, con in mano il mio cuore, da padre tradito, sento ancora il dolore. Un dolore antico, che in me non si placa, ingannato ed ucciso dalla mia figlia ingrata. Ma ascolta l'avviso che la bianca tela ti porta, perché qualcosa nel tuo piano stavolta è andata storta. Tra densi fili di tenebra sarai imprigionata, nessuna salvezza, nessuna pietà mostrata. Ti troveranno, lo sai... vedrai le loro zanne e la seta sarà la mia vendetta a prendere forma... e sarà completa. Karla, figlia ingrata, quel giorno il rispetto è mancato, il mio sangue è colato, ed il mio onore si è spezzato. Ma a chi spezza il sacro ed antico patto familiare, resta solo la notte, e i ragni che..."
+      }
+    ],
+    "notes": "Descrizione popolata dal dato Foundry \"Poesia\"."
+  },
+  {
+    "id": "globo-d-anima",
+    "name": "Globo d'Anima",
+    "type": "Oggetto meraviglioso",
+    "subtype": "Globo",
+    "rarity": "Artefatto",
+    "attunement": true,
+    "status": "known",
+    "image": "media/items/globo-d-anima.webp",
+    "icon": "fa-circle-dot",
+    "summary": "Globo traslucido che lega e custodisce l'anima della creatura in sintonia, permettendole di tornare in vita dopo 33 giorni.",
+    "properties": [
+      {
+        "name": "Sintonia Eccezionale",
+        "charges": "",
+        "description": "Mentre sei in sintonia con il Globo d'Anima, esso non conta contro il numero massimo di oggetti magici con cui puoi essere in sintonia. La sintonia non termina a causa della distanza, ne se il globo si trova su un altro piano di esistenza. Termina solo se un'altra creatura entra in sintonia con il globo, se la creatura legata muore e torna in vita tramite il globo, oppure se il globo viene distrutto."
+      },
+      {
+        "name": "Legame dell'Anima",
+        "charges": "Alla morte",
+        "description": "Mentre sei in sintonia con il globo, la tua anima e legata ad esso. Se muori, la tua anima viene immediatamente trasportata all'interno del globo, indipendentemente dalla distanza o dal piano di esistenza in cui ti trovi. Nel globo l'anima e cosciente, conserva identita, ricordi, memorie e consapevolezza del tempo. Non puo essere bersaglio, intrappolata, consumata, corrotta, evocata, interrogata, divinata, riportata in vita o influenzata da magie o capacita soprannaturali esterne al globo."
+      },
+      {
+        "name": "Ritorno alla Vita",
+        "charges": "Dopo 33 giorni",
+        "description": "Dopo che la tua anima e rimasta nel globo per 33 giorni, puoi scegliere di ricreare il tuo corpo in uno spazio libero entro 1,5 metri dal globo. Ritorni in vita con tutti i tuoi punti ferita. Il corpo ricreato e integro e nella stessa forma che avevi al momento della morte, privo di ferite, veleni, malattie e condizioni. Non include equipaggiamento od oggetti trasportati. Il corpo originale, se esiste ancora, diventa un cadavere inanimato e non puo piu essere usato per riportarti in vita. Dopo l'uso, il globo diventa inattivo per 24 ore."
+      },
+      {
+        "name": "Sarcofago Profano",
+        "charges": "",
+        "description": "Se sei un vampiro o una creatura con un tratto che richiede un sarcofago, una bara, un luogo di riposo o un ricettacolo per rigenerarsi o riformarsi, il Globo d'Anima puo sostituire quel luogo o ricettacolo. Se una creatura vampirica legata al globo viene ridotta a 0 punti ferita e normalmente dovrebbe tornare alla propria bara, torna invece al Globo d'Anima, purche il globo non sia inattivo."
+      },
+      {
+        "name": "Distruzione dell'Artefatto",
+        "charges": "",
+        "description": "Il Globo d'Anima non puo essere distrutto con mezzi ordinari o magici. L'artefatto viene distrutto soltanto se il suo creatore si pente sinceramente di averlo creato. Quando il globo viene distrutto, ogni anima contenuta al suo interno viene liberata. Se contiene l'anima di una creatura, quella creatura muore definitivamente e la sua anima non e piu protetta dal globo."
+      }
+    ],
+    "notes": "Oggetto artefatto homebrew. L'immagine prevista e media/items/globo-d-anima.webp."
+  },
+  {
+    "id": "nuovo-oggetto",
+    "name": "Sigaro Energetico",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Molto raro",
+    "image": "media/items/sigaro-energetico.webp",
+    "icon": "fa-wand-sparkles",
+    "subtype": "Sigaro",
+    "owner": "Tokka",
+    "unidentified": true
+  },
+  {
+    "id": "nuovo-oggetto-2",
+    "name": "Nuovo Oggetto fd",
+    "type": "Oggetto meraviglioso",
+    "rarity": "Sconosciuta",
+    "image": "media/items/nuovo-oggetto-2.webp",
+    "icon": "fa-wand-sparkles"
+  }
+]

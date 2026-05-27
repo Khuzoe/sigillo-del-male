@@ -1,0 +1,862 @@
+{
+  "version": 1,
+  "collection": "characters",
+  "campaignId": "cripta-di-sangue",
+  "updatedAt": "1970-01-01T00:00:00.000Z",
+  "source": "static-seed",
+  "data": [
+    {
+      "id": "deborah",
+      "name": "Deborah Von T",
+      "type": "npc",
+      "role": "L'Ultima Foglia",
+      "status": "vivo",
+      "hidden": false,
+      "quote": "Una vita normale - Io non la ho.",
+      "images": {
+        "avatar": "media/creatures/transp/deborah_transp.webp",
+        "hover": "media/creatures/transp/deborah_animation.webp",
+        "portrait": "media/creatures/deborah.webp"
+      },
+      "summary": {
+        "race": "Non Morto",
+        "height": "4 ft 5 in (1.35 m)",
+        "weight": "66 lbs (30 kg)"
+      },
+      "blocks": [
+        {
+          "id": "biografia",
+          "type": "text",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Deborah Von T è ricordata come l'**Ultima Foglia** della stirpe. Bambina dai capelli bianchi, porta con sé un potere antico che la casata Von T ha temuto e desiderato insieme.\r\n\r\nNel silenzio della cripta, la sua presenza è percepita come un peso costante: il suo nome ricorre nei sussurri e nei documenti, legato a un destino che potrebbe ridisegnare il sangue dei Von T."
+        },
+        {
+          "id": "particolarita",
+          "type": "text",
+          "title": "Particolarità",
+          "icon": "fa-fingerprint",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Molti la considerano la minaccia più grande del luogo. Si dice che la linea più vicina alla realtà sia legata a lei, e che le sue scelte possano alterare l'equilibrio dell'intera cripta.\r\n\r\nPer questo è vista come un male da estirpare, non per crudeltà ma per paura di ciò che potrebbe diventare."
+        },
+        {
+          "id": "aspetto-fisico",
+          "type": "text",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Deborah appare come una bambina dall'aspetto spettrale e profondamente tragico. La sua pelle è diafana, di un pallore marmoreo che risalta nell'oscurità, incorniciata da lunghi capelli bianchi leggermente ondulati che le ricadono sulle spalle.\r\n\r\nI suoi occhi sono completamente bianchi, privi di iride e pupilla, e da essi sgorgano costantemente lacrime di sangue che le rigano il volto. Le sue mani, pallide e sottili, sono macchiate di sangue sulle punte delle dita e sui palmi.\r\n\r\nIndossa una lunga tunica bianca, logora e sfilacciata alle maniche e all'orlo, sporca di polvere grigia e macchie ematiche rapprese. Al collo porta una semplice collana di perle, mentre sul capo è posata una corona di spine metalliche arrugginite, color rosso scuro, i cui aculei sembrano penetrare dolorosamente nella cute. Ai piedi indossa semplici scarpette bianche, anch'esse segnate dal tempo."
+        },
+        {
+          "id": "versione-oscura",
+          "type": "image",
+          "title": "Versione Oscura",
+          "icon": "fa-moon",
+          "image": "media/creatures/deborah_dark.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Deborah appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. La sua figura mantiene un'eleganza composta, ma il volto e la postura trasmettono una freddezza innaturale, come se qualcosa di piu feroce stesse cercando di emergere da sotto la superficie."
+        },
+        {
+          "id": "visione-valdor",
+          "type": "image",
+          "title": "Visione di Valdor",
+          "icon": "fa-eye",
+          "image": "media/documents/visione_valdor.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Una bambina siede da sola in una piccola casa di legno, con le mani arrossate dal freddo appoggiate al tavolo e una zuppa di funghi davanti a sé. Il vento colpisce i vetri, la candela vacilla, le ombre si allungano. Tutto sembra familiare ma inquieto: il cucchiaio che batte piano sulla ciotola, l'attesa silenziosa, il pensiero fisso di un ritorno promesso.\n\nQuando assaggia la zuppa si brucia la lingua, sputa d'istinto e resta immobile ad ascoltare ogni scricchiolio fuori dalla porta. Poi arrivano i passi. La maniglia si muove. La porta si apre.\n\nEntra suo padre: barba, camicia di flanella, voce calda, presenza rassicurante. Per un istante la stanza torna sicura, piena di calore e amore. Ma, mentre la porta si richiude, nel buio della foresta sembra muoversi qualcosa. La visione si spegne lasciando solo il battito accelerato del cuore, la zuppa che si raffredda e la sensazione che quella pace fosse fragile."
+        },
+        {
+          "id": "visione-randra",
+          "type": "image",
+          "title": "Visione di Ran'Dra",
+          "icon": "fa-eye",
+          "image": "media/documents/visione_randra.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Davanti a uno specchio antico compare una bambina con una veste chiara e una corona di fiori quasi appassiti. Non sorride, non piange: aspetta. I suoi occhi, fermi nel riflesso, cercano qualcosa che non trovano.\n\nAlle sue spalle appare un uomo massiccio, con barba folta, occhiali tondi e mani segnate dal lavoro. Le posa una mano sulla spalla con un gesto protettivo e le parla con voce bassa: la corona le sta bene, le ricorda sua madre, una donna capace di trovare bellezza anche nella fragilità.\n\nPoi il tono cambia: racconta che sua madre ha combattuto fino all'ultimo respiro per farla nascere, che il corpo ha ceduto ma la volontà no, e che quella stessa volontà vive ancora in lei. La frase echeggia mentre la candela vacilla e le ombre si deformano. Per un istante, nello specchio, lo sguardo della bambina sembra non appartenere più solo a lei. La visione si spezza, lasciando un freddo sulla spalla."
+        },
+        {
+          "id": "visione-apothecary",
+          "type": "image",
+          "title": "Visione di Apothecary",
+          "icon": "fa-eye",
+          "image": "media/documents/visione_apothecary.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Una bambina con una ghirlanda di fiori si tiene le tempie sul prato, piegata da un mal di testa che spegne anche la luce del mattino. Nel silenzio sente il ritmo del mortaio: suo padre, inginocchiato davanti a lei, pesta erbe con cura e prepara un decotto.\n\nCon voce calma la incoraggia a resistere e le parla della madre, ricordando che l'alchimia nasce anche dall'intenzione e dall'amore. Quando le porge la ciotola, il dolore sembra arretrare per un istante, non solo per la medicina, ma per la sicurezza della sua presenza.\n\nAl primo sorso amaro la visione si incrina: il padre diventa trasparente, gli alberi si sciolgono e il profumo d'erbe svanisce. Al risveglio resta il cuore in corsa e l'eco del pestello nella memoria."
+        }
+      ]
+    },
+    {
+      "id": "ginevra",
+      "name": "Ginevra Von T",
+      "type": "npc",
+      "role": "L'Alambicco Vivente",
+      "status": "vivo",
+      "hidden": false,
+      "quote": "Se non metti il tuo amore nel pestello, l'erba resta solo erba.",
+      "images": {
+        "avatar": "media/creatures/transp/ginevra_transp.webp",
+        "hover": "media/creatures/transp/ginevra_animation.webp",
+        "portrait": "media/creatures/ginevra.webp"
+      },
+      "summary": {
+        "height": "6 ft 0 in (1.82 m)",
+        "weight": "529 lbs (240 kg)",
+        "cause_of_death": "Morte Materna"
+      },
+      "blocks": [
+        {
+          "id": "aspetto-fisico",
+          "type": "text",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "È una figura femminile dall’aspetto inquietante e soprannaturale. La pelle ha un tono grigio-verdastro, opaco e leggermente screziato, che le conferisce un’aria fredda e marmorea. Il viso è dai lineamenti delicati ma severi: zigomi pronunciati, labbra piene ma pallide e un’espressione impassibile. Gli occhi sono di un giallo intenso e luminoso, quasi fosforescenti.\n\nI capelli sono lunghi, folti e ondulati, di un rosso ramato che contrasta con l’incarnato spento. Incorniciano il volto e scendono oltre le spalle. Sulla testa porta una corona composta da rose viola scuro intrecciate tra loro.\n\nIl corpo appare snello negli arti ma dominato da un addome estremamente voluminoso, tondeggiante e teso, con una superficie irregolare e macchiata da chiazze più scure. Le mani, dalle dita affusolate e sporche di terra, sorreggono il ventre con un gesto fermo.\n\nIndossa abiti logori e consumati: una tunica verde oliva strappata e sfrangiata, aderente nella parte superiore e lacera lungo le maniche e l’orlo. I pantaloni sono anch’essi rovinati e strappati, infilati dentro stivaletti stringati in pelle scura, usurati."
+        },
+        {
+          "id": "biografia",
+          "type": "text",
+          "title": "Biografia",
+          "icon": "fa-user",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Nata con il nome di Von T, è cresciuta tra le stranezze e le follie dei suoi genitori. Ancora molto giovane, prima di raggiungere la maggiore età, è fuggita con Rendar per vivere lontano da tutto, in un bosco ai margini della civiltà, così da non essere più coinvolta nella pazzia della sua famiglia.\r\n\r\nNel bosco ha vissuto per anni in tranquillità, circondata dalla natura e dall’amore del compagno. Ha imparato a sopravvivere con ciò che la terra offriva e si è dedicata allo studio delle erbe, diventando molto abile. Con il tempo ha scritto un libro di alchimia, che Rendar avrebbe poi utilizzato spesso.\r\n\r\nQuando è rimasta incinta, desiderava più di ogni cosa crescere la figlia che portava in grembo. Purtroppo è morta durante il parto, ma è riuscita a dare alla luce la piccola Deborah.\r\n\r\nOggi si trova nella cripta, finalmente liberata dalla forma mostruosa che aveva assunto."
+        },
+        {
+          "id": "versione-oscura",
+          "type": "image",
+          "title": "Versione Oscura",
+          "icon": "fa-moon",
+          "image": "media/creatures/ginevra_dark.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Ginevra appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. La sua presenza e piu massiccia e minacciosa, con linee del corpo e del volto che sembrano spinte verso qualcosa di piu antico, viscerale e profondamente corrotto."
+        },
+        {
+          "id": "healing-fetus",
+          "type": "image",
+          "title": "Healing Fetus",
+          "icon": "fa-book-open",
+          "image": "media/items/ginevra_healing_fetus.webp",
+          "hidden": true,
+          "image_caption": "",
+          "text": "### Feto Curativo\n\nIl **Feto Curativo** e un oggetto che puo essere creato da Ginevra fornendole ingredienti adatti. Quando viene trattato correttamente, puo essere usato come reagente per produrre una sostanza incredibilmente curativa."
+        }
+      ]
+    },
+    {
+      "id": "rabberduscolanderson",
+      "name": "Rabberduscolanderson Von T",
+      "type": "npc",
+      "role": "Il Reietto",
+      "status": "vivo",
+      "hidden": false,
+      "quote": "Io volevo solo starmene seduto nella mia stanza, perché sono finito su questo sito?!",
+      "images": {
+        "avatar": "media/creatures/transp/rabberduscolanderson_transp.webp",
+        "hover": "media/creatures/transp/rabber_animation.webp",
+        "portrait": "media/creatures/rabberduscolanderson.webp"
+      },
+      "summary": {
+        "race": "Non Morto",
+        "age_at_death": "49 anni",
+        "height": "5 ft 4 in (1.62 m)",
+        "weight": "20 lbs (9 kg)",
+        "period": "41-90",
+        "cause_of_death": "Suicidio (gettandosi in un baratro)"
+      },
+      "blocks": [
+        {
+          "id": "biografia",
+          "type": "text",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Rabberduscolanderson nacque come primogenito della nobile casata Von T. Il suo destino fu segnato fin dal battesimo: suo padre, Yuris, gli impose il nome \"Rabberduscolanderson\" contro la ferma volontà della madre, Leonora. Questo atto di prepotenza trasformò il figlio in un simbolo vivente dei conflitti coniugali. Leonora, incapace di separare il bambino dall'odio per il marito, lo ignorò per gran parte della sua infanzia, riversando su di lui una fredda indifferenza.\r\n\r\nCrescendo, Rabberduscolanderson si rivelò privo di qualsiasi talento pratico, sociale o politico necessario per navigare la vita di corte. Non riuscì mai a trovare il suo posto nel regno, né una compagna con cui generare eredi. Per suo padre Yuris, ossessionato dalla continuazione della stirpe, questa fu l'onta definitiva. Considerato un ramo secco dell'albero genealogico, Rabberduscolanderson fu cacciato dal palazzo, spogliato dei suoi privilegi.\r\n\r\nParadossalmente, l'esilio fu la sua salvezza temporanea. Visse in povertà, circondato solo dall'affetto sincero dei suoi tre cani: Mimi, Coco e Balù. In tarda età, trovò l'amore in Elena, una donna di vent'anni più giovane. Furono anni di felicità semplice, scandita dal tintinnio di poche monete di rame. Tuttavia, il destino fu crudele: la morte prematura di Elena gettò Rabberduscolanderson in una disperazione senza fondo. Incapace di sopportare il dolore, si tolse la vita gettandosi in un fossato. I suoi fedeli cani, abbandonati, morirono di fame pochi giorni dopo, seguendo il padrone nel triste destino."
+        },
+        {
+          "id": "particolarita",
+          "type": "text",
+          "title": "Particolarità",
+          "icon": "fa-fingerprint",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "### L'Ossessione per il Rame\r\nNonostante sia un non-morto, Rabberduscolanderson conserva una scintilla della sua umanità, legata indissolubilmente al ricordo della semplicità. Oro ed argento non hanno valore per lui, gli ricordano la nobiltà che lo ha rifiutato. Ama invece il rame: il suono e la vista delle monete di rame gli evocano i rari momenti di gioia della sua vita umile con Elena.\r\n\r\n> **Il Mercante della Cripta:** Vagando per la cripta, ha raccolto oggetti preziosi lasciati da altri avventurieri o appartenenti al luogo, ma non sa che farsene. È disposto a cedere oggetti magici e di  valore, ma accetta come pagamento esclusivamente monete di rame. Per lui, un sacchetto di tintinnanti monete marroni vale più di una spada incantata."
+        },
+        {
+          "id": "aspetto-fisico",
+          "type": "text",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Rabberduscolanderson è uno scheletro vivente che emana un'aria di furtiva astuzia. Spogliato di ogni traccia di carne, le sue ossa sono ingiallite dal tempo, e le orbite vuote del teschio sono illuminate da due piccoli punti di luce rossa. Il suo volto scheletrico sembra perennemente atteggiato in un sorriso sardonico.\r\n\r\nVeste come un vagabondo: indossa stracci logori nei toni del marrone e del grigio, talmente consunti da sembrare fusi con le sue ossa. Un cappello di paglia sformato e rovinato dalle intemperie gli copre il capo. Una borsa a tracolla in cuoio marrone, piena di fibbie e tasche, è assicurata al suo petto."
+        },
+        {
+          "id": "versione-oscura",
+          "type": "image",
+          "title": "Versione Oscura",
+          "icon": "fa-moon",
+          "image": "media/creatures/rabberduscolanderson_dark.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Rabberduscolanderson appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. La sua immagine accentua il lato piu disfatto e malinconico della sua figura, rendendolo piu spettrale, piu stanco e insieme piu disturbante da osservare."
+        },
+        {
+          "id": "i-compagni-fedeli",
+          "type": "image",
+          "title": "I Compagni Fedeli",
+          "icon": "fa-book-open",
+          "image": "media/items/rabberduscolanderson_dogs.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "*Mimi, Coco e Balù*\n\n### Lealtà Incondizionata\nI tre fedeli cani di Rabberduscolanderson, che lo hanno seguito fino alla morte e oltre.\n\n> L'unico amore che non tradisce mai."
+        },
+        {
+          "id": "cuore-di-rabberduscolanderson",
+          "type": "image",
+          "title": "Cuore di Rabberduscolanderson",
+          "icon": "fa-book-open",
+          "image": "media/items/heart-rabberduscolanderson.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "*Una piccola sfera contenente un cuore e potere arcano.*\n\n### Oggetto meraviglioso (leggendario), richiede sintonia\nOttieni vantaggio alle prove abilità di Stealth, Perception per cercare oggetti nascosti vicini ad almeno una moneta di rame, e Animal Handling nelle prove contro le bestie.\nOttieni svantaggio a qualsiasi tiro salvezza legato ad effetti di paura ed hai svantaggio ai tiri per colpire contro qualsiasi creatura di taglia superiore alla tua. Inoltre, sei vulnerabile ai danni da caduta.\n\n> Solo e reietto vive incapace nel dolore più profondo\n> ama una donna, lei muore: del baratro tocca il fondo."
+        }
+      ]
+    },
+    {
+      "id": "x",
+      "name": "X Von T",
+      "type": "npc",
+      "role": "La Studiosa",
+      "status": "vivo",
+      "hidden": false,
+      "quote": "Il sapere sopravvive dove il potere consuma.",
+      "images": {
+        "avatar": "media/creatures/transp/x_transp.webp",
+        "hover": "media/creatures/transp/x_animation.webp",
+        "portrait": "media/creatures/x.webp"
+      },
+      "summary": {
+        "race": "Non Morto",
+        "age_at_death": "58 anni",
+        "height": "5 ft 6 in (1.68 m)",
+        "weight": "18 lbs (8 kg)",
+        "period": "42-100",
+        "cause_of_death": "Uccisa da Karla (???)"
+      },
+      "blocks": [
+        {
+          "id": "biografia",
+          "type": "text",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Figlia di Yuris e Leonora Von T, X porta un nome nato per ripicca. Dopo che il primogenito fu chiamato Rabberduscolanderson contro la volontà della madre, Leonora scelse per la figlia successiva un nome ridotto all'essenziale: una sola lettera, un rifiuto silenzioso verso le imposizioni del marito.\r\n\r\nCrescendo, X osservò i conflitti familiari da un angolo distante, trasformando la freddezza domestica in curiosità. Il sangue dei Von T le offriva privilegi, ma lei li usò soltanto per accedere a tomi e rituali proibiti.\r\n\r\nX fu attratta fin da piccola dalle arti arcane, incrociando ogni declinazione della **necromanzia**: resuscitazione, annichilimento, tessitura di anime. Studiò con attenzione il **patto** che Yuris stipulò per elevare la casata, annotando conseguenze e pericoli con rigore quasi accademico. Pur comprendendo l'immenso potere destinato all'**Ultima Foglia**, lo considerava una condanna. Cercò nei suoi studi una via per comprendere, non per ereditare, convinta che rincorrere quel potere le avrebbe fatto perdere la sua umanità.\r\n\r\nConvinta che il patto avrebbe divorato l'Ultima Foglia, X decise di avere figli presto: a 17 anni diede alla luce Tokka e, subito dopo, Karla. Sapeva che Rabberduscolanderson difficilmente avrebbe portato avanti la stirpe e non voleva che il potere finale si posasse sulle sue spalle. Per tutta la vita rimase ai margini degli intrighi di corte, utilizzando il titolo nobiliare soltanto per ottenere accesso a biblioteche, rituali e mentori. La famiglia la considerava distante; lei ricambiava con un distacco calcolato, protetta dai suoi studi."
+        },
+        {
+          "id": "particolarita",
+          "type": "text",
+          "title": "Particolarità",
+          "icon": "fa-scoll",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "### Ricercatrice nella Cripta\r\nOra si trova nel primo piano della cripta: una cella piena di libri aperti, pergamene e formule abbozzate. La sua sete di conoscenza non si è placata con la morte, anzi si è cristallizzata.\r\n\r\n**Cosa vuole:**\r\n\r\n- Libri, appunti, pergamene o documenti rari di qualsiasi scuola.\r\n- Notizie sul patto dei Von T e sugli esiti dell'Ultima Foglia.\r\n- Trattati su necromanzia, sangue e tempo.\r\n\r\n**Cosa offre:**\r\n\r\n- Informazioni sulla famiglia, sui rituali necromantici e sulla cripta.\r\n- Interpretazioni di testi oscuri e piccoli rituali di supporto.\r\n\r\n**Meccanica di Scambio:** consegnando un testo interessante, i personaggi possono ottenere dettagli sul patto, bonus narrativi legati alla necromanzia o frammenti di conoscenza sulla famiglia."
+        },
+        {
+          "id": "aspetto-fisico",
+          "type": "text",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "X è un'imponente entità non-morta che irradia potere arcano e autorità oscura. Si presenta come uno scheletro completo, la cui struttura ossea è visibile attraverso gli strappi delle sue vesti. Le orbite profonde ospitano fiamme rosse ardenti.\r\n\r\nIndossa paramenti neri, ampi e lacerati, che ricordano quelli di un antico stregone o di un sacerdote della morte. Il capo è coperto da un grande cappello nero a tesa larga, sopra il quale poggia una corona di punte metalliche o spine. Alla cintura porta diverse borse e sacche di pelle, probabilmente contenenti componenti magici."
+        },
+        {
+          "id": "versione-oscura",
+          "type": "image",
+          "title": "Versione Oscura",
+          "icon": "fa-moon",
+          "image": "media/creatures/x_dark.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "X appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. La sua figura conserva una compostezza quasi rituale, ma l'insieme del volto, della posa e dell'atmosfera la rende piu glaciale, distante e pericolosa."
+        },
+        {
+          "id": "cuore-di-x",
+          "type": "image",
+          "title": "Cuore di X",
+          "icon": "fa-book-open",
+          "image": "media/items/heart-x.webp",
+          "hidden": true,
+          "image_caption": "",
+          "text": "*Una piccola sfera contenente un cuore e filamenti arcani sigillati.*\n\n### Oggetto meraviglioso (leggendario), richiede sintonia\nOttieni vantaggio alle prove di Arcana, History e Investigation quando studi libri, pergamene o rituali.\nQuando analizzi un testo magico, puoi comprenderne l'intento generale anche se incompleto o criptico.\nHai svantaggio ai tiri salvezza contro veleno e agli effetti legati ad aracnidi.\n\n> Libri e pergamene studia, senza bramare potere,\n> il morso di un ragno: null'altro poté mai vedere."
+        }
+      ]
+    },
+    {
+      "id": "nino_olegna",
+      "name": "Nino Olegna",
+      "type": "npc",
+      "role": "Il Tessimorte",
+      "status": "morto",
+      "hidden": false,
+      "quote": "Il tradimento è inaccettabile. Pagherai.",
+      "images": {
+        "avatar": "media/creatures/transp/nino_olegna_transp.webp",
+        "hover": "media/creatures/transp/nino_olegna_animation.webp",
+        "portrait": "media/creatures/nino_olegna.webp"
+      },
+      "summary": {
+        "race": "Non Morto",
+        "age_at_death": "60 anni",
+        "height": "8 ft 6 in (2.60 m)",
+        "weight": "463 lbs (210 kg)",
+        "period": "25-85",
+        "cause_of_death": "Gettato in gabbia con un Ratto delle Sabbie a Chult"
+      },
+      "blocks": [
+        {
+          "id": "biografia",
+          "type": "text",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Nino Olegna, chiamato **Tessimorte**, è un alchimista macabro che intreccia ragnatele, tendini e corpi per generare creature innaturali. Il suo laboratorio è un labirinto di fascicoli e rituali oscuri.\r\n\r\nI suoi documenti parlano dell'Assistente, detto **Bacio Mortale**, e di una creatura colossale dalle capacità incalcolabili. Le Creature Tela sono descritte come base per ulteriori creazioni, a testimonianza di una ricerca senza scrupoli.\r\n\r\nDi lui restano appunti e una poesia carica di rancore, tracce di un uomo divorato dal proprio esperimento."
+        },
+        {
+          "id": "particolarita",
+          "type": "text",
+          "title": "Particolarità",
+          "icon": "fa-fingerprint",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Tra le carte del Tessimorte sono stati rinvenuti quattro studi principali, che dettagliano la discesa nella follia scientifica e magica per la creazione della vita attraverso la seta necrotica."
+        },
+        {
+          "id": "aspetto-fisico",
+          "type": "text",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Nino Olegna è un uomo anziano e sinistro, dal viso scavato e la pelle grigiastra segnata dal tempo. Ha capelli bianchi radi e occhi gialli piccoli e penetranti.\r\n\r\nLa sua metà superiore è umana, mentre la parte inferiore è fusa con il corpo di un ragno gigante dalle zampe bianche e pelose. Indossa una veste blu notte decorata con motivi dorati che richiamano ragnatele e un ciondolo a forma di ragno sul petto."
+        },
+        {
+          "id": "versione-oscura",
+          "type": "image",
+          "title": "Versione Oscura",
+          "icon": "fa-moon",
+          "image": "media/creatures/nino_olegna_dark.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Nino Olegna appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. La sua figura risulta ancora piu severa e monumentale, con una presenza funebre e autoritaria che lo fa sembrare una sentenza vivente piu che un semplice corpo corrotto."
+        },
+        {
+          "id": "tessimorfosi",
+          "type": "image",
+          "title": "Tessimorfosi",
+          "icon": "fa-book-open",
+          "image": "media/documents/nino_fascicolo_creature_tela.webp",
+          "hidden": false,
+          "image_caption": "Schema di sostituzione dei tessuti molli con fibre di seta.",
+          "text": "*Nascita delle Creature Tela*\n\n### Il Processo\nStudi complessi su come consumare i tessuti di una creatura umana preservando ossa e tendini. La carne viene rimpiazzata da tela di ragno gigante incantata con energia necrotica.\n\n### Risultato\nLa 'Creatura Tela' finale è flessibile, resistente e totalmente manipolata per rispettare il volere del suo creatore senza esitazione.\n\n> La carne marcisce, la tela perdura."
+        },
+        {
+          "id": "evoluzione",
+          "type": "image",
+          "title": "Evoluzione",
+          "icon": "fa-book-open",
+          "image": "media/documents/nino_fascicolo_webber.webp",
+          "hidden": false,
+          "image_caption": "Fusione di più creature in un unico organismo difensivo.",
+          "text": "*Utilizzi e Creazione del 'Webber'*\n\n### Materia Prima\nLe Creature Tela non sono solo servi, ma ingredienti. Possono essere consumate e fuse per generare esseri superiori.\n\n### Progetto Webber\nUn esperimento riuscito che ha portato alla creazione di una creatura simile ad un Roper. Sacrificando creature tela minori, si ottiene un mostro difensivamente più utile e resistente."
+        },
+        {
+          "id": "tessimorfosi-ciclica",
+          "type": "image",
+          "title": "Tessimorfosi Ciclica",
+          "icon": "fa-book-open",
+          "image": "media/documents/nino_fascicolo_bacio_mortale.webp",
+          "hidden": false,
+          "image_caption": "Una figura umanoide composta di seta densa, china su un rituale.",
+          "text": "*L'Assistente: Il **Bacio Mortale***\n\n### Ottimizzazione\nPer velocizzare la creazione dell'armata, è stato progettato un Assistente. Richiede il consumo di un numero elevatissimo di Creature Tela, ma il risultato è inestimabile.\n\n### Lealtà Assoluta\nIl Bacio Mortale è incredibilmente potente e pericoloso. Essendo composto della stessa essenza delle creature, vede Nino non solo come creatore, ma come padre e padrone assoluto, assistendolo nei rituali più complessi.\n\n> Egli tesse dove le mie mani non arrivano."
+        },
+        {
+          "id": "tessimorfosi-definitiva",
+          "type": "image",
+          "title": "Tessimorfosi Definitiva",
+          "icon": "fa-book-open",
+          "image": "media/documents/nino_fascicolo_colosso_tela.webp",
+          "hidden": false,
+          "image_caption": "Schizzi frenetici di una creatura immensa che assorbe corpi.",
+          "text": "*La Fine del Ciclo: Il **Colosso** di Tela*\n\n### Genesi Rapida\nCon l'aiuto del Bacio Mortale, il tempo di creazione si riduce drasticamente. Nonostante l'alto sacrificio di servitori richiesto, la creazione del Colosso diventa possibile in tempi brevi.\n\n### L'Imbattibile\nUna volta vivo, il Colosso si auto-alimenta. Uccide creature, ne assorbe i corpi e tramuta i tessuti in nuova tela, crescendo in dimensioni e potenza all'infinito.\n\n### Nota Finale\nLa grafia diviene pesante, il calco della penna quasi strappa la carta. L'ultima frase è un urlo di vendetta impresso nell'inchiostro: 'Nessuno sarà in grado di fermare questa creatura. NEMMENO TU.'"
+        },
+        {
+          "id": "lamento-del-tradito",
+          "type": "image",
+          "title": "Pergamena: Il Lamento del Tradito",
+          "icon": "fa-book-open",
+          "image": "media/documents/nino_poesia.webp",
+          "hidden": false,
+          "image_caption": "Versi tracciati con rabbia su pergamena antica.",
+          "text": "*Un messaggio personale rivolto a Karla.*\n\n### Il Testo\nNel fondo della tomba, continuamente mi rigiravo,\nPer quell'azione ignobile che da te non m'aspettavo.\n\nOra dal buio ritorno, con in mano il mio cuore,\nDa padre tradito, sento ancora il dolore.\n\nUn dolore antico, che in me non si placa,\nIngannato ed ucciso dalla mia figlia ingrata.\n\nMa ascolta l'avviso che la bianca tela ti porta,\nPerché qualcosa nel tuo piano stavolta è andata storta.\n\nTra densi fili di tenebra sarai imprigionata,\nNessuna salvezza, nessuna pietà mostrata.\n\nTi troveranno, lo sai... vedrai le loro zanne e la seta\nsarà la mia vendetta a prendere forma e sarà completa.\n\nKarla, figlia ingrata, quel giorno il rispetto è mancato,\nil mio sangue è colato, ed il mio onore si è spezzato.\n\nMa a chi spezza il sacro ed antico patto familiare,\nresta solo la notte, e i ragni che -\n\n> Ma a chi spezza il sacro ed antico patto familiare, resta solo la notte..."
+        }
+      ]
+    },
+    {
+      "id": "franky",
+      "name": "Franky",
+      "type": "npc",
+      "role": "Lo Scienziato",
+      "status": "vivo",
+      "hidden": false,
+      "quote": "She volete dei shieri, io shi shono!",
+      "images": {
+        "avatar": "media/creatures/transp/franky_transp.webp",
+        "hover": "media/creatures/transp/franky_animation.webp",
+        "portrait": "media/creatures/franky.webp"
+      },
+      "summary": {
+        "race": "Topo Parlante",
+        "height": "1 ft 10 in (0.55 m)",
+        "weight": "4 lbs (2 kg)"
+      },
+      "blocks": [
+        {
+          "id": "biografia",
+          "type": "text",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Franky è uno scienziato dalla mente instabile: un topo parlante affiancato da un essere di carne cucita. Nel suo laboratorio macabro prepara sieri e innesti, trattando corpi e organi come componenti.\r\n\r\nLa sua ossessione è un golem gigantesco, un colosso che vorrebbe animare con un cuore capace di sostenerne il potere."
+        },
+        {
+          "id": "particolarita",
+          "type": "text",
+          "title": "Particolarità",
+          "icon": "fa-fingerprint",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Tra i segreti che cerca, Franky brama un cuore che funzioni da batteria arcana. Le voci parlano di un cuore particolare, appartenuto ad **Albert**, che pulserebbe ancora di magia.\r\n\r\nPer lui quel **cuore** è la chiave per dare vita al suo progetto, e ogni indizio alimenta la sua brama."
+        },
+        {
+          "id": "aspetto-fisico",
+          "type": "text",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Franky è un topo antropomorfo dall'aspetto grottesco, con il corpo privo di pelo e la pelle rosso sangue, come se fosse stato scuoiato.\r\n\r\nIl suo corpo è coperto da rozze cuciture nere che tengono insieme pezzi di carne diversa. Ha grandi occhi neri e vitrei e un muso pronunciato. Indossa un camice da laboratorio bianco, sporco e ridotto a brandelli."
+        },
+        {
+          "id": "sieri",
+          "type": "image",
+          "title": "I Sieri",
+          "icon": "fa-book-open",
+          "image": "media/items/franky_sierums.webp",
+          "hidden": false,
+          "image_caption": "Collezione di sieri instabili.",
+          "text": "> \"Ogni colore è una prome-sha... o una minac-sha!\"\r\n\r\nFranky porta sempre con sé una vasta gamma di sieri instabili. Alcuni curano, altri potenziano, molti esplodono. La distinzione è spesso sottile quanto una sfumatura cromatica."
+        },
+        {
+          "id": "golem",
+          "type": "image",
+          "title": "Colossho di Carne",
+          "icon": "fa-book-open",
+          "image": "media/creatures/bestiary/golem_micidiale_della_morte.webp",
+          "hidden": false,
+          "image_caption": "Costrutto di carne e metallo.",
+          "text": "> \"È vivo! PIÙ O MENO!\"\r\n\r\nIl capolavoro (o l'abominio) supremo di Franky. Una montagna di muscoli cuciti insieme, alimentato da elettricità statica e fedeltà cieca. Ideale per spostare carichi pesanti o appiattire nemici fastidiosi."
+        }
+      ]
+    },
+    {
+      "id": "karla",
+      "name": "Karla Von T",
+      "type": "npc",
+      "role": "La Vampira",
+      "status": "vivo",
+      "hidden": false,
+      "quote": "Insieme possiamo raggiungere il nostro obiettivo, lo sento.",
+      "images": {
+        "avatar": "media/creatures/transp/karla_transp.webp",
+        "hover": "media/creatures/transp/karla_animation.webp",
+        "portrait": "media/creatures/karla.webp"
+      },
+      "summary": {
+        "race": "Vampira",
+        "height": "5 ft 9 in (1.75 m)",
+        "weight": "143 lbs (65 kg)"
+      },
+      "blocks": [
+        {
+          "id": "biografia",
+          "type": "text",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Karla Von T appare quando viene chiamata dalle sue progenie o quando la sua volontà decide di imporsi. La sua presenza spezza le violenze: uno sguardo basta a piegare la volontà e a imporre silenzio.\r\n\r\nSi mostra criptica ma interessata, soprattutto verso chi proviene da linee vicine a quella dei Von T, perché ritiene che il loro destino sia intrecciato al suo."
+        },
+        {
+          "id": "particolarita",
+          "type": "text",
+          "title": "Particolarità",
+          "icon": "fa-fingerprint",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Karla conduce un **rituale macabro** che simula la morte. Chi vi si sottopone attraversa un'ombra breve e poi si risveglia con un potere nuovo, legato al sangue.\r\n\r\nIl rito è rischioso e richiede fiducia assoluta; Karla lo presenta come un dono, ma il prezzo non è mai del tutto chiaro."
+        },
+        {
+          "id": "aspetto-fisico",
+          "type": "text",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Karla è una donna aristocratica dall'aspetto regale e minaccioso, con pelle pallidissima e lineamenti affilati. Ha capelli neri raccolti in un'acconciatura elegante e occhi rossi intensi che risaltano sul trucco scuro.\r\n\r\nIndossa un sontuoso abito barocco rosso sangue con maniche a sbuffo, un corpetto stretto e una gonna ampia dorata."
+        },
+        {
+          "id": "versione-oscura",
+          "type": "image",
+          "title": "Versione Oscura",
+          "icon": "fa-moon",
+          "image": "media/creatures/karla_dark.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Karla appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. Mantiene la sua imponenza aristocratica, ma lo sguardo, i contrasti del volto e l'intera silhouette suggeriscono una versione piu predatoria e apertamente dominatrice di lei."
+        },
+        {
+          "id": "richieste-e-ambiguita",
+          "type": "text",
+          "title": "Richieste e ambiguità",
+          "icon": "fa-scroll",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Karla chiede che il piano venga purificato da presenze che la infastidiscono: un uomo folle che tesse ragnatele e tendini, non-morti erranti, e una giullare che semina illusioni.\r\n\r\nSui suoi legami con il **Tessimorte** mantiene ambiguità: nega di conoscerlo, ma reagisce sempre quando il suo nome viene pronunciato. La sua fame è costante, e il sangue resta il suo vero tributo."
+        }
+      ]
+    },
+    {
+      "id": "elena",
+      "name": "Elena Erbadath",
+      "type": "npc",
+      "role": "La Fantasma",
+      "status": "vivo",
+      "hidden": false,
+      "quote": "I ricordi sono annebbiati... ma il mio amore per lui è eterno.",
+      "images": {
+        "avatar": "media/creatures/transp/elena_transp.webp",
+        "hover": "media/creatures/transp/elena_animation.webp",
+        "portrait": "media/creatures/elena.webp"
+      },
+      "summary": {
+        "race": "Fantasma",
+        "age_at_death": "34 anni",
+        "height": "5 ft 3 in (1.61 m)",
+        "weight": "2 lbs (0.75 kg)",
+        "period": "56-90",
+        "cause_of_death": "Uccisa da Karla (Pugnalata al petto)"
+      },
+      "blocks": [
+        {
+          "id": "biografia",
+          "type": "text",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Elena Erbadath nacque in una famiglia ricca, circondata da comodità, cure e attenzioni costanti. Nulla le mancava, tranne una cosa fondamentale: non camminò mai. Le sue gambe non la portarono mai da nessuna parte, e quella mancanza segnò tutta la sua vita.\r\n\r\nIl denaro le offrì ciò che a molti era negato: una sedia a rotelle costruita con cura, medici preparati, una casa sicura. La sua esistenza era protetta, ordinata, controllata. Ma col tempo Elena capì che il benessere non poteva colmare ciò che sentiva dentro. Ogni gesto gentile le sembrava una catena, ogni attenzione una barriera. Non voleva essere difesa. Voleva scegliere.\r\n\r\nCosì, contro la volontà della famiglia, lasciò la sua casa e si trasferì nei quartieri poveri della città. Lì trovò strade rotte, muri consumati e persone vere. La vita era dura, ma sincera. Elena imparò a contare su se stessa, a chiedere meno aiuto, a sentire di più.\r\n\r\nIn quel mondo incontrò Rabberduscolanderson. Anche lui proveniva da una famiglia ricca, anche lui aveva rinunciato a tutto. Tra loro nacque un legame semplice e profondo. Andarono a vivere insieme in una casa modesta, tenuta in piedi più dall'affetto che dalle fondamenta. Furono anni brevi ma intensi: pochi soldi, silenzi condivisi, cani che dormivano ai piedi del letto.\r\n\r\nPoi arrivò il giorno del sangue. Mentre Rabberduscolanderson era fuori con i suoi cani, Karla, sua nipote, entrò in casa. Non disse nulla. Non esitò. Un pugnale, un solo colpo, diretto al cuore. Elena morì lì, stesa sul letto, senza capire il motivo di tale crudeltà e senza poter rivedere l'uomo che amava."
+        },
+        {
+          "id": "particolarita",
+          "type": "text",
+          "title": "Particolarità",
+          "icon": "fa-fingerprint",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "La morte non la lasciò andare.\r\n\r\nIl ricordo dell'ultimo istante - il freddo del metallo, il dolore improvviso, la solitudine di quel momento - la trattenne nel mondo dei vivi. Nel suo petto è ancora conficcato il **pugnale** che l'ha uccisa. Non è solo una ferita: è un'ancora. Ciò che l'ha strappata alla vita è anche ciò che la lega all'esistenza."
+        },
+        {
+          "id": "aspetto-fisico",
+          "type": "text",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Elena appare come una figura eterea e tragica, con una forma translucida composta da un'energia spirituale che pulsa di sfumature rosso cremisi. Indossa un abito lungo e semplice, anch'esso spettrale.\r\n\r\nI suoi capelli lunghi e ondulati incorniciano un volto pallido e diafano, segnato da un'espressione malinconica. Il dettaglio più agghiacciante è il pugnale di cristallo rosso conficcato nel suo petto, proprio sopra il cuore; non è un semplice oggetto, ma il fulcro della sua esistenza attuale. Si muove su una sedia a rotelle d'epoca in legno e metallo."
+        },
+        {
+          "id": "versione-oscura",
+          "type": "image",
+          "title": "Versione Oscura",
+          "icon": "fa-moon",
+          "image": "media/creatures/elena_dark.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Elena appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. I suoi tratti restano sottili ed eterei, ma sono avvolti da un'aura piu lugubre, come se il suo stesso aspetto fosse stato svuotato di calore e lasciato a fluttuare in una quiete inquietante."
+        },
+        {
+          "id": "il-ciondolo-etereo",
+          "type": "image",
+          "title": "Il ciondolo etereo",
+          "icon": "fa-book-open",
+          "image": "media/items/elena_necklace.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": ""
+        },
+        {
+          "id": "la-riunione",
+          "type": "image",
+          "title": "La Riunione",
+          "icon": "fa-book-open",
+          "image": "media/creatures/elena_rabber_reunion.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Una luce calda si accende nel petto di Rabberduscolanderson, pulsando a ritmo di un cuore che non batte più. Spinto da una forza che non sa spiegare, dona a Valdor il suo stesso cuore, racchiuso in una sfera di vetro, come pegno di gratitudine e legame.\r\n\r\nElena, eterea e silente, lo avvolge in un abbraccio che trascende la morte. Non ci sono parole, solo la consapevolezza di essersi ritrovati in un luogo di disperazione. I ricordi sono confusi, il dolore è presente, ma per un istante, nel freddo della cripta, brilla una scintilla di calda umanità."
+        },
+        {
+          "id": "messaggio-karla",
+          "type": "text",
+          "title": "Messaggio dai Von T",
+          "icon": "fa-book-open",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "*\"Certo, vieni pure quando vuoi!\"*\r\n\r\nParole innocenti, un invito gentile che segnò la condanna di due vite.\r\nQuella sera, l'ombra della nostra ospite scivolò nella stanza, avvicinandosi al letto con passo felpato e inesorabile. Ricordo ancora il bagliore tremulo della candela che danzava sul filo della sua lama.\r\n\r\nSussurrò qualche parola, impossibili da ricordare... seguite solo da un dolore che invece non si può dimenticare.\r\n\r\n*\"Riposa in pace... o almeno provaci.\"*\r\n\r\n— *Karla Von T*"
+        }
+      ]
+    },
+    {
+      "id": "zara",
+      "name": "Zara Klaren",
+      "type": "npc",
+      "role": "La Giullare",
+      "status": "vivo",
+      "hidden": false,
+      "quote": "Buuuu! Ahahaha!",
+      "images": {
+        "avatar": "media/creatures/transp/zara_transp.webp",
+        "hover": "media/creatures/transp/zara_animation.webp",
+        "portrait": "media/creatures/zara.webp"
+      },
+      "summary": {
+        "race": "Umana",
+        "height": "5 ft 7 in (1.70 m)",
+        "weight": "132 lbs (60 kg)"
+      },
+      "blocks": [
+        {
+          "id": "biografia",
+          "type": "text",
+          "title": "Biografia",
+          "icon": "fa-mask",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Il nome di Zara compare tra i ritratti e le targhette del palazzo, come un ricordo fissato nel tempo. È conosciuta come La Giullare, una presenza legata alle stranezze del piano.\r\n\r\nChi ne parla la descrive come creatrice di inganni e distorsioni, un'ombra che prende forma tra le sale."
+        },
+        {
+          "id": "particolarita",
+          "type": "text",
+          "title": "Particolarità",
+          "icon": "fa-feather",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Le sue apparizioni sono teatrali: una figura enorme che urla \"Booo!\" e poi esplode in coriandoli colorati. Ogni volta si dissolve senza lasciare tracce, tornando con forme diverse, più piccole e più beffarde.\r\n\r\nÈ difficile distinguere dove finisca l'illusione e dove inizi il pericolo reale."
+        },
+        {
+          "id": "aspetto-fisico",
+          "type": "text",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Zara è una donna umana dall'incarnato pallido, con un'espressione maniacale stampata sul volto: un sorriso troppo ampio e occhi rossi luminosi che tradiscono una natura instabile. Ciuffi di capelli color zenzero sfuggono disordinatamente dal suo copricapo.\r\n\r\nIl suo abbigliamento è un tripudio di colori contrastanti: indossa un classico costume da giullare a rombi viola e gialli, completo di cappello a due punte con campanellini dorati, calze a righe coordinate e scarpe rosse a punta arricciate.\r\nBrandisce uno scettro grottesco sormontato da un teschio ridente, che indossa a sua volta un piccolo cappello da giullare; dallo scettro emana un fumo spettrale verdastro"
+        },
+        {
+          "id": "collana",
+          "type": "image",
+          "title": "Il Girocollo Festoso",
+          "icon": "fa-book-open",
+          "image": "media/items/zara_necklace.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Un bizzarro girocollo composto da palloncini colorati (blu, arancione, verde, giallo) intrecciati tra loro con maestria sorprendente. Al centro pende un ciondolo piatto, forse di legno dipinto o plastica rigida, che raffigura il volto stilizzato e sorridente di un giullare. Nonostante l'apparenza innocua e giocosa, l'oggetto emana una vibrazione di follia latente, come se fosse un trofeo o un talismano di un carnevale distorto."
+        },
+        {
+          "id": "i-passi-della-follia",
+          "type": "image",
+          "title": "I Passi della Follia",
+          "icon": "fa-book-open",
+          "image": "media/items/zara-shoes.webp",
+          "hidden": true,
+          "image_caption": "",
+          "text": "## Scarpe del Giullare incantate\r\n\r\n### Passo Danzante\r\nQueste scarpe rosse dalla punta arricciata sembrano muoversi da sole a ritmo di una musica udibile solo da chi le indossa. \r\n\r\n### Effetti\r\nPermettono di muoversi con grazia innaturale, ignorando le leggi della fisica per brevi istanti. Chi le indossa può camminare su superfici verticali o sull'acqua per un breve tratto, purché continui a danzare senza sosta.\r\n\r\n> \"La gravità è solo un suggerimento, e anche piuttosto noioso.\""
+        },
+        {
+          "id": "marionetta-rara",
+          "type": "image",
+          "title": "Marionetta Rara",
+          "icon": "fa-book-open",
+          "image": "media/creatures/zara_puppet_1.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Una bambola di pezza dall'aspetto grottesco, seduta in posa inerte. Indossa un cappello da giullare bicolore, rosso e blu, adornato da campanelli dorati. Il volto, simile a porcellana o plastica invecchiata, è deformato in un sorriso sdentato e maniacale, mentre gli occhi brillano di una sinistra luce rossa priva di pupille. Il corpo tozzo è segnato da cuciture grossolane e termina con scarpe a punta rosse."
+        },
+        {
+          "id": "marionetta-tete",
+          "type": "image",
+          "title": "Marionetta Tete",
+          "icon": "fa-book-open",
+          "image": "media/creatures/zara_puppet_2.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Una creatura surreale composta quasi interamente da una testa enorme montata su due gambe sottili e lunghe. Il volto riprende i tratti inquietanti della prima marionetta: occhi rossi luminosi e sorriso folle, incorniciati da capelli color zenzero e un cappello da giullare. Le gambe esili, prive di un vero corpo, terminano in grandi scarpe rosse a punta arricciata, suggerendo un movimento saltellante e innaturale."
+        }
+      ]
+    },
+    {
+      "id": "tokka",
+      "name": "Tokka Von T",
+      "type": "npc",
+      "role": "Il Cuore Corrotto",
+      "status": "vivo",
+      "hidden": false,
+      "quote": "",
+      "images": {
+        "avatar": "media/creatures/transp/tokka_transp.webp",
+        "hover": "media/creatures/transp/tokka_animation.webp",
+        "portrait": "media/creatures/tokka.webp"
+      },
+      "summary": {
+        "race": "Non Morto",
+        "height": "5 ft 10 in (1.78 m)",
+        "weight": "154 lbs (70 kg)"
+      },
+      "blocks": [
+        {
+          "id": "biografia",
+          "type": "text",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Tokka Von T e una presenza recente tra le figure legate alla cripta.\n\nLe informazioni sulla sua storia sono ancora frammentarie, ma i segni sul corpo e l'energia violacea che lo attraversa suggeriscono un legame diretto con rituali di sangue e innesti arcani.\n\nLa sua comparsa e da considerare un elemento ad alto rischio per gli equilibri gia instabili della famiglia Von T."
+        },
+        {
+          "id": "aspetto-fisico",
+          "type": "text",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Tokka presenta una corporatura asciutta e tesa, con pelle pallida attraversata da cicatrici sottili.\n\nUna pesante placca metallica ricopre parte del volto e del torace, dove e visibile un nucleo violaceo pulsante simile a un cuore esposto.\n\nL'occhio innestato e la fumosita viola che lo avvolge danno l'impressione di una non-morte alimentata da meccanica e magia oscura."
+        },
+        {
+          "id": "versione-oscura",
+          "type": "image",
+          "title": "Versione Oscura",
+          "icon": "fa-moon",
+          "image": "media/creatures/tokka_dark.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Tokka appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. La sua forma appare piu brutale e contaminata, con un equilibrio disturbante tra forza fisica, ferocia e un'evidente degenerazione del corpo."
+        }
+      ]
+    },
+    {
+      "id": "leonora",
+      "name": "Leonora Von T",
+      "type": "npc",
+      "role": "Figura Misteriosa",
+      "status": "vivo",
+      "hidden": true,
+      "quote": "",
+      "images": {
+        "avatar": "media/creatures/transp/leonora_transp.webp",
+        "hover": "media/creatures/transp/leonora_animation.webp",
+        "portrait": "media/creatures/leonora.webp"
+      },
+      "summary": {
+        "race": "Non Morto",
+        "height": "5 ft 8 in (1.73 m)",
+        "weight": "132 lbs (60 kg)"
+      },
+      "blocks": [
+        {
+          "id": "biografia",
+          "type": "text",
+          "title": "Biografia",
+          "icon": "fa-book-open",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Leonora compare tra le presenze legate alla Cripta di Sangue, ma le informazioni sulla sua storia sono ancora incomplete.\n\nIl suo nome e associato alla linea Von T, e la sua apparizione lascia supporre un ruolo rilevante negli eventi piu recenti.\n\nDettagli aggiuntivi su passato, obiettivi e legami devono ancora emergere."
+        },
+        {
+          "id": "aspetto-fisico",
+          "type": "text",
+          "title": "Aspetto Fisico",
+          "icon": "fa-user",
+          "image": "",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Leonora presenta tratti pallidi e un portamento fermo, con uno sguardo che comunica freddezza e controllo.\n\nL'abbigliamento e segnato da elementi usurati e tonalita scure, coerenti con l'atmosfera della cripta.\n\nNel complesso, il suo aspetto suggerisce una figura non morta legata a rituali e memorie corrotte."
+        },
+        {
+          "id": "versione-oscura",
+          "type": "image",
+          "title": "Versione Oscura",
+          "icon": "fa-moon",
+          "image": "media/creatures/leonora_dark.webp",
+          "hidden": false,
+          "image_caption": "",
+          "text": "Leonora appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. Il suo aspetto conserva un'aura enigmatica, ma viene attraversato da un senso di minaccia piu netto, come se il mistero che la circonda avesse finalmente preso una forma visibile."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <title>Editor NPC | Cripta di Sangue</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="../assets/css/abyssal.css">
+    <style>
+        body { overflow-y: auto; }
+        .characters-editor-page { min-height: 100vh; padding: 1rem; }
+        .characters-editor-shell {
+            display: grid;
+            grid-template-columns: minmax(18rem, 24rem) minmax(0, 1fr);
+            gap: 1rem;
+            min-height: calc(100vh - 2rem);
+        }
+        .characters-editor-panel {
+            border: 1px solid rgba(212, 175, 55, 0.18);
+            border-radius: 12px;
+            background: var(--surface-panel);
+            box-shadow: 0 18px 52px rgba(0, 0, 0, 0.42);
+            overflow: hidden;
+        }
+        .characters-editor-sidebar { display: grid; grid-template-rows: auto auto minmax(0, 1fr); }
+        .characters-editor-header,
+        .characters-editor-toolbar,
+        .characters-editor-form-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .characters-editor-header h1 {
+            margin: 0;
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: clamp(1.25rem, 2vw, 1.75rem);
+        }
+        .characters-editor-status,
+        .characters-editor-header p {
+            margin: 0.25rem 0 0;
+            color: rgba(232, 219, 188, 0.62);
+            font-family: var(--font-ui);
+            font-size: 0.76rem;
+        }
+        .characters-editor-actions,
+        .characters-editor-form-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+        .characters-editor-btn {
+            min-height: 2.25rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.45rem 0.72rem;
+            border: 1px solid rgba(212, 175, 55, 0.22);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.24);
+            color: rgba(232, 219, 188, 0.8);
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+            font-weight: 800;
+            cursor: pointer;
+        }
+        .characters-editor-btn:hover,
+        .characters-editor-btn:focus-visible {
+            border-color: rgba(212, 175, 55, 0.55);
+            color: var(--gold);
+            background: rgba(212, 175, 55, 0.1);
+        }
+        .characters-editor-btn--primary {
+            color: #160f08;
+            background: linear-gradient(135deg, var(--gold), #f1d36b);
+        }
+        .characters-editor-btn--danger {
+            border-color: rgba(231, 76, 60, 0.34);
+            color: rgba(255, 180, 170, 0.88);
+        }
+        .characters-editor-input,
+        .characters-editor-select,
+        .characters-editor-area {
+            width: 100%;
+            min-width: 0;
+            border: 1px solid rgba(212, 175, 55, 0.16);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.24);
+            color: var(--parchment);
+            font-family: var(--font-ui);
+            font-size: 0.86rem;
+            padding: 0.62rem 0.7rem;
+        }
+        .characters-editor-area {
+            min-height: 12rem;
+            resize: vertical;
+            font-family: var(--font-body);
+            line-height: 1.5;
+        }
+        .characters-editor-list {
+            overflow: auto;
+            padding: 0.75rem;
+        }
+        .characters-editor-list-btn {
+            width: 100%;
+            text-align: left;
+            display: grid;
+            grid-template-columns: 2.6rem minmax(0, 1fr);
+            gap: 0.7rem;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            padding: 0.55rem;
+            border: 1px solid rgba(212, 175, 55, 0.12);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.16);
+            color: var(--parchment);
+            cursor: pointer;
+        }
+        .characters-editor-list-btn.is-active {
+            border-color: rgba(212, 175, 55, 0.7);
+            background: rgba(212, 175, 55, 0.11);
+        }
+        .characters-editor-list-btn img {
+            width: 2.6rem;
+            height: 2.6rem;
+            border-radius: 9px;
+            object-fit: cover;
+            background: rgba(0, 0, 0, 0.35);
+        }
+        .characters-editor-list-name {
+            display: block;
+            font-family: var(--font-heading);
+            color: var(--gold);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .characters-editor-list-role {
+            display: block;
+            color: rgba(232, 219, 188, 0.56);
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .characters-editor-detail { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+        .characters-editor-form { overflow: auto; padding: 1rem; }
+        .characters-editor-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.85rem;
+            margin-bottom: 1rem;
+        }
+        .characters-editor-field { display: grid; gap: 0.35rem; }
+        .characters-editor-field--full { grid-column: 1 / -1; }
+        .characters-editor-field label {
+            color: rgba(232, 219, 188, 0.66);
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .characters-editor-image-row {
+            display: grid;
+            grid-template-columns: 5rem minmax(0, 1fr) auto;
+            gap: 0.6rem;
+            align-items: end;
+        }
+        .characters-editor-preview {
+            width: 5rem;
+            height: 5rem;
+            border-radius: 12px;
+            object-fit: cover;
+            border: 1px solid rgba(212, 175, 55, 0.18);
+            background: rgba(0, 0, 0, 0.28);
+        }
+        .characters-editor-blocks {
+            display: grid;
+            gap: 0.8rem;
+        }
+        .characters-editor-block {
+            border: 1px solid rgba(212, 175, 55, 0.15);
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.18);
+            overflow: hidden;
+        }
+        .characters-editor-block-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.6rem;
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .characters-editor-block-title {
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: 1rem;
+        }
+        .characters-editor-block-body {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+            padding: 0.75rem;
+        }
+        .characters-editor-block-body .characters-editor-area { grid-column: 1 / -1; }
+        .characters-editor-add-block {
+            width: 100%;
+            min-height: 4rem;
+            border-style: dashed;
+            border-radius: 14px;
+        }
+        @media (max-width: 980px) {
+            .characters-editor-shell { grid-template-columns: 1fr; }
+            .characters-editor-grid,
+            .characters-editor-block-body { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <main class="characters-editor-page">
+        <section class="characters-editor-shell">
+            <aside class="characters-editor-panel characters-editor-sidebar">
+                <div class="characters-editor-header">
+                    <div>
+                        <h1>Editor NPC</h1>
+                        <p id="editor-status" class="characters-editor-status">Caricamento...</p>
+                    </div>
+                </div>
+                <div class="characters-editor-toolbar">
+                    <input id="search-input" class="characters-editor-input" type="search" placeholder="Cerca NPC...">
+                    <button id="add-character-btn" class="characters-editor-btn" type="button"><i class="fas fa-plus"></i> NPC</button>
+                </div>
+                <div id="character-list" class="characters-editor-list"></div>
+            </aside>
+
+            <section class="characters-editor-panel characters-editor-detail">
+                <div class="characters-editor-form-header">
+                    <div>
+                        <h2 id="detail-title" class="characters-editor-list-name">Nessun NPC</h2>
+                        <p class="characters-editor-status">Testi in KV, immagini WebP su R2 per campagna.</p>
+                    </div>
+                    <div class="characters-editor-form-actions">
+                        <button id="export-json-btn" class="characters-editor-btn" type="button"><i class="fas fa-download"></i> Esporta</button>
+                        <button id="delete-character-btn" class="characters-editor-btn characters-editor-btn--danger" type="button"><i class="fas fa-trash"></i> Elimina</button>
+                        <button id="save-json-btn" class="characters-editor-btn characters-editor-btn--primary" type="button"><i class="fas fa-cloud-arrow-up"></i> Salva online</button>
+                    </div>
+                </div>
+
+                <form id="detail-form" class="characters-editor-form">
+                    <div class="characters-editor-grid">
+                        <div class="characters-editor-field">
+                            <label for="field-id">ID</label>
+                            <input id="field-id" class="characters-editor-input" data-field="id" type="text">
+                        </div>
+                        <div class="characters-editor-field">
+                            <label for="field-name">Nome</label>
+                            <input id="field-name" class="characters-editor-input" data-field="name" type="text">
+                        </div>
+                        <div class="characters-editor-field">
+                            <label for="field-role">Ruolo</label>
+                            <input id="field-role" class="characters-editor-input" data-field="role" type="text">
+                        </div>
+                        <div class="characters-editor-field">
+                            <label for="field-status">Status</label>
+                            <select id="field-status" class="characters-editor-select" data-field="status">
+                                <option value="ignoto">Ignoto</option>
+                                <option value="vivo">Vivo</option>
+                                <option value="morto">Morto</option>
+                            </select>
+                        </div>
+                        <div class="characters-editor-field characters-editor-field--full">
+                            <label for="field-quote">Descrizione breve</label>
+                            <textarea id="field-quote" class="characters-editor-area" data-field="quote" rows="3"></textarea>
+                        </div>
+                        <div class="characters-editor-field characters-editor-field--full">
+                            <label>Ritratto</label>
+                            <div class="characters-editor-image-row">
+                                <img id="portrait-preview" class="characters-editor-preview" src="../assets/img/logo.webp" alt="">
+                                <input id="field-portrait" class="characters-editor-input" data-image-field="portrait" type="text">
+                                <button class="characters-editor-btn" type="button" data-upload-image="portrait"><i class="fas fa-image"></i> Upload</button>
+                            </div>
+                        </div>
+                        <div class="characters-editor-field characters-editor-field--full">
+                            <label>Avatar</label>
+                            <div class="characters-editor-image-row">
+                                <img id="avatar-preview" class="characters-editor-preview" src="../assets/img/logo.webp" alt="">
+                                <input id="field-avatar" class="characters-editor-input" data-image-field="avatar" type="text">
+                                <button class="characters-editor-btn" type="button" data-upload-image="avatar"><i class="fas fa-image"></i> Upload</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="blocks-list" class="characters-editor-blocks"></div>
+                    <button id="add-block-btn" class="characters-editor-btn characters-editor-add-block" type="button">
+                        <i class="fas fa-plus"></i> Aggiungi blocco
+                    </button>
+                </form>
+            </section>
+        </section>
+    </main>
+
+    <script src="../assets/js/spoiler-policy.js"></script>
+    <script src="../assets/js/layout.js"></script>
+    <script src="../assets/js/tools/characters-editor.js"></script>
+</body>
+</html>

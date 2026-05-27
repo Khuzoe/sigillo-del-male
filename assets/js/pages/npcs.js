@@ -239,6 +239,11 @@ function parseYamlLite(yamlText) {
         }
 
         async function loadNpcData(base_path) {
+            const liveCharacters = await loadCharactersCollection();
+            if (Array.isArray(liveCharacters)) {
+                return liveCharacters.filter(entry => (entry.type || 'npc') === 'npc');
+            }
+
             const manifest = await loadCharactersManifest(base_path);
             const npcEntries = manifest.filter(entry => (entry.type || 'npc') === 'npc');
             const characters = [];
@@ -247,6 +252,66 @@ function parseYamlLite(yamlText) {
                 if (char) characters.push(char);
             }
             return characters;
+        }
+
+        async function loadCharactersCollection() {
+            try {
+                const response = await fetch(window.CriptaApp?.urls?.api?.('api/data/characters') || 'https://sigillo-api.khuzoe.workers.dev/api/data/characters');
+                if (response.ok) {
+                    const payload = await response.json();
+                    if (Array.isArray(payload?.data)) return normalizeCharactersCollection(payload.data);
+                }
+            } catch (error) {
+                console.warn('KV characters non disponibile, provo JSON statico.', error);
+            }
+
+            try {
+                const response = await fetch(window.CriptaApp?.urls?.data?.('characters.json') || '../assets/data/characters.json');
+                if (response.ok) {
+                    const payload = await response.json();
+                    const data = Array.isArray(payload) ? payload : payload?.data;
+                    if (Array.isArray(data)) return normalizeCharactersCollection(data);
+                }
+            } catch (error) {
+                console.warn('characters.json non disponibile, provo YAML statico.', error);
+            }
+
+            return null;
+        }
+
+        function normalizeCharactersCollection(characters) {
+            return characters.map((character) => {
+                const normalized = { ...character };
+                normalized.content_blocks = normalizeCharacterBlocks(character);
+                normalized.images = normalized.images || {};
+                if (!normalized.images.hover) normalized.images.hover = normalized.images.avatar || normalized.images.portrait || '';
+                if (!normalized.images.avatar) normalized.images.avatar = normalized.images.portrait || normalized.images.hover || '';
+                return normalized;
+            });
+        }
+
+        function normalizeCharacterBlocks(character) {
+            if (Array.isArray(character.content_blocks)) return character.content_blocks;
+            if (!Array.isArray(character.blocks)) return [];
+            return character.blocks.map((block) => ({
+                type: block.type === 'image' || block.image ? 'image_box' : 'lore',
+                title: block.title || 'Informazioni',
+                icon: block.icon || 'fa-book-open',
+                image: block.image || '',
+                markdownText: block.text || '',
+                markdownHtml: block.text ? renderMarkdown(block.text) : ''
+            }));
+        }
+
+        function renderMarkdown(markdown) {
+            const escapeHtml = (value) => String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            return String(markdown || '')
+                .split(/\n{2,}/)
+                .map(paragraph => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
+                .join('');
         }
 
         async function loadCharactersManifest(base_path) {

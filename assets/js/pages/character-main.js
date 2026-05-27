@@ -220,6 +220,58 @@ async function loadCharacterYaml(entry) {
     throw new Error(`Impossibile caricare i dati del personaggio ${entry.id}`);
 }
 
+async function loadCharactersCollection() {
+    try {
+        const response = await fetch(window.CriptaApp?.urls?.api?.('api/data/characters') || 'https://sigillo-api.khuzoe.workers.dev/api/data/characters');
+        if (response.ok) {
+            const payload = await response.json();
+            if (Array.isArray(payload?.data)) return normalizeCharactersCollection(payload.data);
+        }
+    } catch (error) {
+        console.warn('KV characters non disponibile, provo JSON statico.', error);
+    }
+
+    try {
+        const response = await fetch(dataUrl('characters.json'));
+        if (response.ok) {
+            const payload = await response.json();
+            const data = Array.isArray(payload) ? payload : payload?.data;
+            if (Array.isArray(data)) return normalizeCharactersCollection(data);
+        }
+    } catch (error) {
+        console.warn('characters.json non disponibile, provo YAML statico.', error);
+    }
+
+    return null;
+}
+
+function normalizeCharactersCollection(characters) {
+    return characters.map((character) => {
+        const normalized = { ...character };
+        normalized.content_blocks = normalizeCharacterBlocks(character);
+        normalized.images = normalized.images || {};
+        if (!normalized.images.hover) normalized.images.hover = normalized.images.avatar || normalized.images.portrait || '';
+        if (!normalized.images.avatar) normalized.images.avatar = normalized.images.portrait || normalized.images.hover || '';
+        return normalized;
+    });
+}
+
+function normalizeCharacterBlocks(character) {
+    if (Array.isArray(character.content_blocks)) return character.content_blocks;
+    if (!Array.isArray(character.blocks)) return [];
+    return character.blocks.map((block) => {
+        const markdownText = String(block.text || '');
+        return {
+            type: block.type === 'image' || block.image ? 'image_box' : 'lore',
+            title: block.title || 'Informazioni',
+            icon: block.icon || 'fa-book-open',
+            image: block.image || '',
+            markdownText,
+            markdownHtml: markdownText ? renderMarkdown(markdownText, { context: block.image ? 'image_box' : 'lore' }) : ''
+        };
+    });
+}
+
 async function loadPlayersData() {
     const resp = await fetch(dataUrl('players.json'));
     if (!resp.ok) throw new Error(`File dati players (${resp.status}) non trovato.`);
@@ -1961,12 +2013,15 @@ window.CriptaApp.onPageReady("character", async function () {
             if (charType === 'player') {
                 characters = await loadPlayersData();
             } else {
-                const manifest = await loadCharactersManifest();
-                const npcEntries = manifest.filter(entry => (entry.type || 'npc') === 'npc');
-                characters = [];
-                for (const entry of npcEntries) {
-                    const char = await loadCharacterYaml(entry);
-                    if (char) characters.push(char);
+                characters = await loadCharactersCollection();
+                if (!Array.isArray(characters)) {
+                    const manifest = await loadCharactersManifest();
+                    const npcEntries = manifest.filter(entry => (entry.type || 'npc') === 'npc');
+                    characters = [];
+                    for (const entry of npcEntries) {
+                        const char = await loadCharacterYaml(entry);
+                        if (char) characters.push(char);
+                    }
                 }
             }
             allCharacters = characters;

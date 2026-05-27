@@ -1,0 +1,142 @@
+[
+  {
+    "id": "garun",
+    "accountId": "luca",
+    "discordId": "146702612794834944",
+    "name": "Ga'Run",
+    "role": "Barbaro",
+    "description": "Padre di Ran'Dra e prima linea del gruppo, affronta ogni scontro con tenacia brutale e istinto protettivo. Tra maledizioni, rituali e battaglie contro le creature della cripta, resta il pilastro fisico della compagnia anche quando la situazione precipita.",
+    "images": {
+      "avatar": "media/players/garun_transp.webp",
+      "hover": "media/players/garun_animation.webp",
+      "hoverAdjust": {
+        "x": 0,
+        "y": 0,
+        "size": 1.25
+      },
+      "portrait": "media/players/garun.webp"
+    },
+    "summary": {
+      "race": "Umano",
+      "age": "54 anni",
+      "age_at_death": "N/A",
+      "height": "6 ft 11 in (2.10 m)",
+      "weight": "287 lbs (130 kg)",
+      "period": "Contemporaneo",
+      "cause_of_death": "N/A"
+    },
+    "content_blocks": []
+  },
+  {
+    "id": "randra",
+    "accountId": "eli",
+    "discordId": "220189643981848576",
+    "name": "Ran'Dra",
+    "role": "Maga (Evocazione)",
+    "description": "Maga dallo stile imprevedibile, unisce astuzia, illusioni e iniziativa per aprire strade dove sembrano non essercene. Tra furti decisivi, scelte rischiose e combattimenti al limite, continua a essere una risorsa tattica centrale per il gruppo.",
+    "images": {
+      "avatar": "media/players/randra_transp.webp",
+      "avatarAdjust": {
+        "x": 0,
+        "y": 0,
+        "size": 1
+      },
+      "hover": "media/players/randra_animation.webp",
+      "hoverAdjust": {
+        "x": 0,
+        "y": 0,
+        "size": 1.15
+      },
+      "portrait": "media/players/randra.webp"
+    },
+    "summary": {
+      "race": "Eladrin",
+      "age": "16 anni",
+      "age_at_death": "N/A",
+      "height": "5 ft 6 in (1.67 m)",
+      "weight": "130 lbs (59 kg)",
+      "period": "Contemporaneo",
+      "cause_of_death": "N/A"
+    },
+    "content_blocks": []
+  },
+  {
+    "id": "valdor",
+    "accountId": "sommo",
+    "name": "Valdor",
+    "discordId": "166518617083609088",
+    "role": "Artificiere",
+    "description": "Artefice e mente tecnica del party, combina studio arcano, invenzione e sangue freddo per gestire minacce fuori scala. Ha risolto enigmi, sigillato aree letali e recuperato risorse cruciali, diventando il principale riferimento strategico nelle decisioni operative.",
+    "images": {
+      "avatar": "media/players/valdor_transp.webp",
+      "hover": "media/players/valdor_animation.webp",
+      "portrait": "media/players/valdor.webp"
+    },
+    "summary": {
+      "race": "Nano",
+      "age": "74 anni",
+      "age_at_death": "N/A",
+      "height": "4 ft 11 in (1.50 m)",
+      "weight": "150 lbs (68 kg)",
+      "period": "74",
+      "cause_of_death": "N/A"
+    },
+    "content_blocks": []
+  },
+  {
+    "id": "apothecary",
+    "name": "Apothecary",
+    "role": "Chierica della Vita",
+    "isActive": false,
+    "statusLabel": "Fuori dal gruppo",
+    "description": "Guaritrice e guida spirituale del gruppo, ha spezzato maledizioni e tenuto unito il party nei momenti piu critici. Dopo avere sviluppato un forte legame con Rabberduscolanderson, si e sacrificata durante l'incubo del sigillo: ora il suo corpo e svenuto e la sua anima e rinchiusa in un Prisma di Luce Cristallizzata.",
+    "images": {
+      "avatar": "media/players/apothecary_transp.webp",
+      "hover": "media/players/apothecary_animation.webp",
+      "portrait": "media/players/apothecary.webp"
+    },
+    "summary": {
+      "race": "Kenku",
+      "age_at_death": "N/A",
+      "height": "2 ft 4 in (0.70 m)",
+      "weight": "22 lbs (10 kg)",
+      "period": "14",
+      "cause_of_death": "N/A"
+    },
+    "content_blocks": []
+  },
+  {
+    "id": "theldarion",
+    "accountId": "dona",
+    "name": "Theldarion",
+    "discordId": "142958738247122944",
+    "role": "Incantatore Tattico",
+    "hidden": false,
+    "description": "Mente analitica e spietata: trasforma intuizione, logica e autocontrollo in vantaggi concreti sul campo di battaglia.",
+    "images": {
+      "avatar": "media/players/theldarion_transp.webp",
+      "avatarAdjust": {
+        "x": 0,
+        "y": -7,
+        "size": 1.085
+      },
+      "hover": "media/players/theldarion_animation.webp",
+      "hoverAdjust": {
+        "x": 0,
+        "y": -7,
+        "size": 1.27
+      },
+      "portrait": "media/players/theldarion.webp"
+    },
+    "summary": {
+      "race": "Non disponibile",
+      "age": "Non disponibile",
+      "age_at_death": "N/A",
+      "height": "5 ft 11 in (1.80 m)",
+      "weight": "165 lbs (75 kg)",
+      "period": "Contemporaneo",
+      "cause_of_death": "N/A"
+    },
+    "content_blocks": []
+  }
+]

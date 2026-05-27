@@ -1,0 +1,1 @@
+Elena appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. I suoi tratti restano sottili ed eterei, ma sono avvolti da un'aura piu lugubre, come se il suo stesso aspetto fosse stato svuotato di calore e lasciato a fluttuare in una quiete inquietante.

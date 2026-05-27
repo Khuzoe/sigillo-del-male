@@ -1,0 +1,494 @@
+{
+  "version": 1,
+  "collection": "characters",
+  "campaignId": "oltre-il-velo",
+  "updatedAt": "1970-01-01T00:00:00.000Z",
+  "source": "static-seed",
+  "data": [
+    {
+      "id": "grande-verme",
+      "name": "Grande Verme",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Il Grande Verme è il primo e più antico degli spiriti, una creatura asessuata nata quando ancora il mondo era una lastra di roccia fredda, senza mare, senza cielo, senza nomi.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "profilo-divino",
+          "type": "text",
+          "title": "Profilo Divino",
+          "icon": "fa-sun",
+          "text": "Il Grande Verme è il primo e più antico degli spiriti, una creatura asessuata nata quando ancora il mondo era una lastra di roccia fredda, senza mare, senza cielo, senza nomi. Si racconta che, svegliandosi dal buio primordiale, abbia iniziato a strisciare sulla crosta del mondo: dove il suo corpo scavava, nacquero gole e fiumi; dove si acciambellava per riposare, la terra sprofondava in laghi; dove si contorceva per cambiare direzione, il suolo si accartocciava in catene montuose. Stanco di un mondo vuoto, il Grande Verme imparò poi a staccarsi brandelli di carne e scaglie, modellandoli fino a ottenere le prime forme di vita.\n\nDalle sue membra sorsero i suoi figli: spiriti del sole e della pioggia, della terra fertile e del fuoco sotterraneo, della mascolinità e della femminilità, della nascita e della distruzione. A tutti impose antiche leggi: riconoscerlo come origine di ogni cosa e obbedire al suo volere. Chi tra loro osò ribellarsi venne marchiato come traditore e scagliato lontano, nei Reami Esterni, condannato a vagare oltre il cielo del mondo mortale senza possibilità di ritorno. Ancora oggi, quando le montagne tremano o il mare si apre in abissi improvvisi, c’è chi giura che sia il Grande Verme che si rigira nel sonno, ricordando ai suoi figli che il mondo, prima di appartenere a loro, è appartenuto a lui."
+        }
+      ]
+    },
+    {
+      "id": "gaul-e-diomede",
+      "name": "Gaul e Diomede, gli Anziani Inverni, Signori dell’Aria e della Memoria",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Gaul e Diomede non sono nati come dei: sono il risultato di un esperimento di Vodrenno, il Dio Serpente dell’Ombra e del Mana.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "origine-e-dominio",
+          "type": "text",
+          "title": "Origine e Dominio",
+          "icon": "fa-sun",
+          "text": "Gaul e Diomede non sono nati come dei: sono il risultato di un esperimento di Vodrenno, il Dio Serpente dell’Ombra e del Mana. Dopo il Miasma che, nella Prima Epoca, dissolse l’Aristocrazia dei Gigli e trasformò gli elfi dell’isola a sud di Kama nei primi kenku, Vodrenno si incuriosì da quelle nuove creature piumate… e decise di farne materiale da laboratorio. Nei sotterranei del Santuario dell’Umbral fece rinchiudere quattro kenku: due femmine e due maschi, destinati a diventare prototipi viventi di nuove armi miasmatiche per la Guerra dell’Umbral.\n\nIl primo tentativo, sulle due femmine, fu un disastro: l’homunculus nato dalla fusione sopravvisse appena il tempo di emettere un singolo verso. Il secondo, sui maschi chiamati Gaul e Diomede, riuscì troppo bene. Le loro carni e le loro anime vennero intrecciate in un unico corpo corvino, gobbo, innaturalmente potente: una creatura capace di generare Miasmi di Mana purissimo, in grado di dissolvere le mostruosità del Reame Vacuo. Per anni, Gaul e Diomede furono costretti a combattere in prima linea, arma vivente al servizio dei Manthae, finché i Condotti del Reame Vacuo non furono sigillati e il Piano Materiale, insieme al Piano delle Ombre, poté finalmente tirare il fiato.\n\nQuando la guerra finì, però, non arrivò la pace. Vodrenno, compiaciuto della sua creatura, la richiuse in gabbia e ricominciò a sezionarla con incantesimi e rituali, assetato di nuove scoperte. Le urla di Gaul e Diomede squarciarono così a lungo il tessuto del mondo che persino Algon, il Padre Celestiale, non poté ignorarle. Il suo scontro con Vodrenno fu così violento da lasciare sulla volta dei cieli la Cicatrice degli Dèi. Approfittando di un istante di vantaggio, Algon spezzò le catene dell’esperimento e trascinò Gaul e Diomede nel Piano Esterno delle Celesti Arcate, dove iniziò un difficile rituale di purificazione: i miasmi vennero mondati, ma il corpo non tornò mai com’era prima, né le anime poterono più separarsi.\n\nGrati ma spezzati, Gaul e Diomede confessarono ad Algon di non vedere più uno scopo nella loro esistenza: preferivano morire piuttosto che vagare per i piani come una chimera mutilata. Algon rifiutò il loro desiderio e, invece di concedere la morte, offrì un destino. Li consacrò Patroni del Vento e della Pioggia, delle Arti, del Canto e degli Uccelli; pose accanto al loro nome l’epiteto di *Anziani Inverni* e benedisse un antico salice piangente nelle terre che un giorno sarebbero state chiamate Terre Neutrali, facendone il loro Nido eterno."
+        },
+        {
+          "id": "culto-e-retaggio",
+          "type": "text",
+          "title": "Culto e Retaggio",
+          "icon": "fa-landmark",
+          "text": "Oggi, nelle iconografie, Gaul e Diomede appaiono come una sola creatura corvina, massiccia e incurvata, con due teste identiche che spuntano dallo stesso collo. I becchi sono lunghi, affilati, di un arancione scuro quasi metallico; gli occhi grandi e sbarrati riflettono, nelle iridi, lo strazio della loro anima cucita e ricucita dalla magia di Vodrenno. Da entrambi i becchi scende una barba perlacea che si intreccia in una lunga treccia spiralata sul petto: si racconta che questa barba viva di mana amplifichi il loro potere sui venti, sulla pioggia e sulla memoria degli uomini. Nessuno ha mai saputo dire con certezza quale delle due teste sia Gaul e quale Diomede: la voce è la stessa, i gesti sono gli stessi, e spesso parlano all’unisono… almeno fino a quando non iniziano a litigare.\n\nPerché l’unione delle anime ha lasciato una frattura nella psiche della creatura. Le due teste si contraddicono, si punzecchiano, si insultano come vecchi fratelli testardi. Quando la disputa cresce oltre una certa soglia, la loro furia mentale si condensa nell’aria gelida e dà vita a un *Theullai*: un elementale boreale di vento tagliente e grandine, che si stacca dal loro Nido e vaga per il mondo finché non scarica la sua furia su montagne, foreste e città, spegnendosi solo quando la tempesta interiore dei due patroni torna a placarsi.\n\nNonostante tutto, per secoli Gaul e Diomede sono stati amati dalle popolazioni di Kama che vivono attorno al loro Nido. Durante la Festa del Raccolto, contadini e pescatori portavano offerte di semi, strumenti musicali e statuette di uccelli, sperando in venti favorevoli e piogge clementi. I due patroni scendevano talvolta dal salice sacro, ascoltavano le suppliche, insegnavano canzoni, benedicevano nidi, vele e gole dei cantori. Ma da quando Algon è stato trasformato da Teclis, anche gli Anziani Inverni si sono fatti più cupi e schivi: abbandonano raramente i rami del loro salice, ignorano molte delle antiche suppliche e, poco a poco, il loro nome è scivolato dalla gratitudine al rimpianto. Solo quando il vento cambia all’improvviso, portando un canto a due voci in mezzo alle nuvole, qualcuno alza ancora lo sguardo e sussurra: «Gli Anziani Inverni stanno vegliando su di noi… o stanno litigando di nuovo.»"
+        }
+      ]
+    },
+    {
+      "id": "zaahul",
+      "name": "Zaahul, il Dio Colossale",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Zaahul, il Dio Colossale, è ricordato come il Primogenito del Grande Verme: il primo pensiero cosciente che si sollevò dal fango primordiale quando il mondo era ancora giovane.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "origine-e-aspetto",
+          "type": "text",
+          "title": "Origine e Aspetto",
+          "icon": "fa-eye",
+          "text": "Zaahul, il Dio Colossale, è ricordato come il Primogenito del Grande Verme: il primo pensiero cosciente che si sollevò dal fango primordiale quando il mondo era ancora giovane. La sua pelle è descritta come un velluto di tenebra assoluta, il colore del cielo privo di stelle, teso su un corpo muscoloso e venoso capace di sorreggere catene montuose. Ha quattro braccia possenti, simbolo delle direzioni del mondo e delle gerarchie che le ordinano; il suo volto reca due bocche, una sopra l’altra, entrambe colme di denti bianchi come neve fresca. Tra di esse brillano due occhi di pura luce stellare, talmente intensi da ferire la vista di chi osa guardarlo troppo a lungo.\n\nL’aspetto di Zaahul è temibile, quasi mostruoso, eppure le storie più antiche insistono su un tratto che sorprende chi lo incontra per la prima volta nei miti: dietro quel volto da predatore cosmico si nasconde un cuore profondamente compassionevole. I primi cantori lo chiamavano “Colui che ricorda”, perché per lui nessuna lacrima, nessun sacrificio, nessun atto di gentilezza andava mai perduto; tutto veniva inciso nella memoria delle stelle. È per questo che, oltre a essere signore di terra e montagne, è venerato anche come patrono dell’amore misericordioso, della carità e della memoria degli antenati.\n\nQuando il Grande Verme si contorceva ancora per dare forma ai continenti, Zaahul nacque dallo sputo incandescenti delle sue profondità. Fu lui, non il padre, a desiderare per primo non solo pietra e oceani, ma volti e voci che potessero ridere, soffrire, crescere. Questo desiderio lo condusse verso Vanisa, la Secondogenita, la dea del metallo vivo e degli ingranaggi, una mente brillante come una fucina eterna. Tra i due nacque una passione ferocemente creativa, e da quell’unione vennero alla luce i Giganti: esseri colossali, forti come frane inarrestabili, capaci di scolpire montagne e costruire città che sfioravano le nubi."
+        },
+        {
+          "id": "miti-e-vicende",
+          "type": "text",
+          "title": "Miti e Vicende",
+          "icon": "fa-scroll",
+          "text": "Zaahul li amò con orgoglio, ma presto si accorse di una mancanza. I Giganti, pur grandiosi, erano placidi come rocce antiche: contemplavano il mondo più di quanto lo cambiassero. Vivevano con saggezza, ma senza quella scintilla di inquietudine, quella malizia creativa che il Dio colossale intravedeva nella sua amante. Desiderava discendenti che non solo esistessero, ma che sfidassero il destino, che litigassero con gli dèi e riscrivessero le proprie storie.\n\nVanisa, nel tentativo di accontentarlo, affrontò un nuovo parto. Questa volta però il suo grembo, già provato dal parto dei Giganti, non generò carne e sangue, ma una cascata di ferro, ingranaggi e frammenti di anima scintillante. Da quella “maledizione” nacquero i Forgiati, figli di acciaio e volontà, che videro in Vanisa non una madre spezzata, ma una creatrice da venerare. La dea, ferita e spaventata, interpretò l’evento come un monito del Grande Verme e ritrasse il proprio amore da Zaahul; si ritirò tra officine divine e fortezze metalliche, abbracciando il titolo di Dea del Ferro e degli Ingranaggi.\n\nPer Zaahul, la frustrazione si fece più acuta. I Giganti gli sembravano troppo simili a Vanisa nella loro stabilità, i Forgiati quasi interamente generati da lei, riflessi delle sue geometrie e non del suo pathos. Bramoso di una discendenza che portasse davvero entrambe le loro essenze, chiese alla dea di tentare ancora. Vanisa rifiutò: un altro parto l’avrebbe uccisa. La risposta, seppur giusta, incendiò l’orgoglio del Primogenito.\n\nFu allora che il Dio Colossale volse lo sguardo verso Merida, la Quartogenita, spirito di acque e terre fertili. Tra loro nacque un amore diverso, più dolce e quieto, ma non meno potente. Quando giunse il momento del parto, dal grembo di Merida non uscì alcuna forma compiuta, solo terra intrisa d’acqua e di sangue, massa informe e primordiale. Vanisa avrebbe visto in questo un altro segno di maledizione; Merida, invece, posò le mani su quella materia e la avvolse nel suo affetto, mentre Zaahul riversava su di essa immaginazione e desideri.\n\nCorpi presero forma, uno dopo l’altro: alti, bassi, fragili, agili, ostinati. Nacquero gli umani, gli elfi, i nani e la maggior parte delle razze mortali che camminano oggi sul mondo. In loro il Dio colossale ritrovò ciò che cercava: la capacità di amare e odiare, di costruire e distruggere, di errare e redimersi. Merida, dal canto suo, aprì le braccia anche ai Giganti, abbandonati da Vanisa, guadagnandosi così il titolo di Matrigna dei Giganti.\n\nPer lunghissimo tempo, durante l’Epoca della Fondazione, la genìa di Zaahul prosperò. I Giganti regnavano dalle altezze di Muov’Youmajenn, la Torre del Mondo, mentre le razze mortali si diffondevano come un mosaico vivente su continenti e isole. Il Dio colossale osservava, compiaciuto, e incideva nelle stelle ogni loro conquista, ogni tragedia, ogni atto di coraggio.\n\nMa nemmeno gli dèi sono immuni alla stanchezza del cuore. Verso la fine della Prima Epoca, il suo sguardo si posò su Stride, una principessa umana del Popolo Khul. Stride non era né la più bella né la più potente, ma possedeva un ardore, una fame di vita che nessuna creatura aveva mostrato fino ad allora. Zaahul se ne innamorò, abbandonando, almeno per un tempo, l’amore fedele di Merida.\n\nIl tradimento non rimase nascosto. Quando Merida scoprì ciò che era accaduto, la sua vendetta fu terribile. La dea lo affrontò non come amante ferita, ma come potenza primordiale. Nelle saghe si racconta che lo colpì con un solo gesto, recidendogli il membro divino e prendendolo come trofeo, e che nello stesso movimento gli tranciò l’anulare della mano sinistra. Il dito, cadendo, si schiantò tra le Montagne Khul, generando scosse, frane e cicatrici nel territorio. In quell’istante, Merida lanciò anche una maledizione sulla genìa di Stride, segnando l’inizio della tragedia che avrebbe portato alla nascita del Popolo Zaahul e alla loro rovina.\n\nDa allora, nelle raffigurazioni più moderne, Zaahul appare spesso con la mano sinistra incompleta, avvolta da fasce di pietra o luce stellare, memoria perenne del suo errore. Alcune sette sostengono che, finché l’anulare non verrà ritrovato e consacrato, il Dio Colossale non potrà mai tornare a camminare tra i mortali.\n\nLa vergogna e il dolore schiacciarono Zaahul più di qualsiasi colpo portato da un altro dio. Il Primogenito, che aveva insegnato ai popoli a ricordare e assumersi le proprie colpe, comprese di essere diventato egli stesso monito di ciò che predicava. Smise di rispondere alle preghiere, si ritirò silenziosamente dai templi e ascese nei Reami Astratti, dove si dice cammini lungo i Fili del Fato, osservando da lontano la trama delle vite che lui stesso aveva contribuito a generare.\n\nIl suo culto, nella Quinta Epoca, esiste ancora ma in forma frammentata e malinconica. Nelle alte valli e sulle cime innevate, piccoli santuari di roccia nera ospitano statue a quattro braccia, coperte di voti e incisioni genealogiche: famiglie intere scolpiscono i propri alberi sui basamenti dei templi, convinte che così Zaahul non le dimenticherà mai. In certe città dei giganti, ancora si celebrano liturgie notturne in cui i fedeli, mano nella mano, guardano il cielo stellato e raccontano a voce alta le gesta degli antenati, perché “finché qualcuno ricorda, niente è davvero perduto”."
+        },
+        {
+          "id": "culto-e-retaggio",
+          "type": "text",
+          "title": "Culto e Retaggio",
+          "icon": "fa-landmark",
+          "text": "Altrove il Dio Colossale è venerato come patrono delle gerarchie giuste: ordini cavallereschi giurano sul suo nome di usare la propria forza per sorreggere, non schiacciare, come una montagna stabile che protegge la valle dal vento. Esistono anche culti più oscuri, convinti che mentire sulla storia e riscriverla sia il modo migliore per “guarire” il mondo dal dolore del passato; questi gruppi sperano, in segreto, di riportare Zaahul sulla terra cancellando o riscrivendo i suoi errori, e cercano senza sosta il dito perduto tra le Montagne Khul, o i frammenti della Torre del Mondo.\n\nIn certe notti terse, alcuni giurano di avere percepito una presenza enorme e benevola vegliare sulle catene montuose, come se un colosso invisibile stendesse quattro braccia per impedire al mondo di spezzarsi. In quei momenti, i sacerdoti di Zaahul sussurrano una semplice preghiera:\n\n“Ricordaci, Colossale. E insegnaci a portare i nostri errori con la stessa dignità con cui tu porti i tuoi.”"
+        }
+      ]
+    },
+    {
+      "id": "vanisa",
+      "name": "Vanisa, Dea del Ferro e degli Ingranaggi",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Vanisa nacque dal Grande Verme come seconda tra i Primigeni, e sin dall’inizio la sua esistenza fu segnata da fratture, sacrifici e rinunce.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "profilo-divino",
+          "type": "text",
+          "title": "Profilo Divino",
+          "icon": "fa-sun",
+          "text": "Vanisa nacque dal Grande Verme come seconda tra i Primigeni, e sin dall’inizio la sua esistenza fu segnata da fratture, sacrifici e rinunce. È venerata, e temuta, come divinità dell’Esilio, dell’Odio freddo, dell’Indipendenza conquistata a caro prezzo e della Perdita che segna per sempre l’anima.\n\nNelle iconografie sacre appare come una figura femminile alta e severa, il corpo asciutto segnato da un dolore antico. I lunghi capelli bianchi sono intrecciati in due trecce che scendono fino alla schiena, spesso raffigurate come corde o catene spezzate. Dal petto emergono seni prosperi, simbolo di una fertilità tradita, mentre quattro braccia avvinghiano il ventre con una stretta disperata, come se cercassero di trattenerne i brandelli. Al centro dell’addome si apre una cavità scavata, un buco innaturale: al suo interno si intravedono ingranaggi, ruote dentate e pezzi di ferro contorti, l’unica eredità dell’ultima gravidanza che la lacerò per sempre e diede vita ai Forgiati. Le gambe, sottili e storte, sono piegate da dolori che non si sono mai placati, deformate dalle convulsioni e dalle contrazioni che quasi la uccisero.\n\nFuori da Lis’Natal, il suo nome è sussurrato più che pregato. Nel culto ufficiale viene spesso relegata a nota a margine, quasi un’imbarazzante parentesi nelle genealogie divine. Il crudele uso che Zaahul fece del suo corpo, e il destino che ne derivò, l’hanno marchiata come una dea reietta: molti mortali la considerano portatrice di sfortune, una presenza da evitare per non attirare su di sé perdite, esili e rovine. Il fatto che Vanisa non si manifesti quasi mai ai suoi fedeli, e che cinque intere epoche di preghiere e sacrifici abbiano prodotto, per quanto si sappia, solo una fugace apparizione del suo mero spirito a Lis’Natal, ha alimentato dicerie e sospetti. C’è chi sostiene che sia morta da tempo, e che l’entità venerata a Lis’Natal sia solo un’illusione orchestrata dai Geni per controllare i Forgiati; altri sussurrano che la dea abbia abbandonato il Piano Materiale, che osservi da lontano un mondo che l’ha tradita, e che il suo unico passatempo sia tormentare la sua stessa prole, spinta alla follia da dolore e rancore.\n\nCol passare delle epoche, i suoi culti fuori da Lis’Natal si sono assottigliati fino a diventare piccole confraternite periferiche, viste con diffidenza o aperto disprezzo. I devoti di Vanisa vengono etichettati come fanatici malinconici, uomini e donne incapaci di accettare la morte della propria dea o, peggio, attratti dalle promesse di un potere nato dall’abbandono e dalla sofferenza. Eppure, tra coloro che la pregano in silenzio, persiste un’altra immagine: non solo quella di una divinità rotta e distante, ma di una madre che ha perso tutto, il corpo, l’onore, i figli, e che proprio per questo comprende come nessun altro la solitudine, l’esilio e l’ostinata volontà di rialzarsi da terra anche quando il mondo ti ha già dato per perduto."
+        }
+      ]
+    },
+    {
+      "id": "quimbur",
+      "name": "Quimbur, il Cervo Nero",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Quimbur è il terzogenito del Grande Verme, l’ombra che sussurra al limite tra la vita e la morte.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "origine-e-aspetto",
+          "type": "text",
+          "title": "Origine e Aspetto",
+          "icon": "fa-eye",
+          "text": "Quimbur è il terzogenito del Grande Verme, l’ombra che sussurra al limite tra la vita e la morte. Nelle iconografie è raffigurato come un cervo mastodontico, scarnificato, avvolto da una coltre di fumi mortali che ne vela parzialmente la forma. Gli occhi sono due opali scurissimi, privi di iridi e pupille, pozzi insondabili da cui filtra una luce funerea. Le zampe, dove pelle marcescente e muscoli esposti si intrecciano, terminano in zoccoli che bruciano di un fuoco cristallino azzurro, lasciando sul terreno scie di braci spettrali.\n\nLe corna, immense e imperiose, si dipanano in una selva di rami ossei, e da essi pendono corpi decomposti, impiccati con funi sottili come ragnatele. Ogni cadavere rappresenta una vita finita troppo tardi o troppo presto, un debito nel grande bilancio della Rinascita."
+        },
+        {
+          "id": "miti-e-vicende",
+          "type": "text",
+          "title": "Miti e Vicende",
+          "icon": "fa-scroll",
+          "text": "Quimbur è la divinità della Terra consunta, della carne che torna fango, delle ossa che nutrono le radici. È detto Araldo della Disperazione perché il suo passaggio annuncia sempre un prezzo da pagare: carestie, pestilenze, guerre e cataclismi accompagnano i suoi presagi più cupi. Ricorda ai vivi che la linfa vitale non è eterna e che il ritorno del Grande Verme è solo una questione di tempo.\n\nDimora nella tetra Foresta di Odessa, a Kama, nel cuore della Caduta del Pretoriano. Lì, tra tronchi anneriti e nebbie stagnanti, il Cervo Nero veglia sulle anime che non hanno ancora deciso se riposare o tornare.\n\nNel corso delle Epoche, un ordine di cavalieri ha giurato di servirlo: i Cavalieri dell'Apocalisse. Indossano nere armature, elmi cornuti e vessilli segnati dal simbolo del Cervo. Cavalcano destrieri scheletrici e si considerano strumenti dell’equilibrio: il loro compito è recidere le vite “sfuggite” alla morte con l’inganno, affinché una nuova anima pura possa nascere e occupare il posto che le spetta nel grande ciclo. In loro Quimbur vede lama e bilancia del destino.\n\nIl più famoso tra questi campioni fu Sincario l’Assassino, chiamato così per le centinaia di anime che reclamò in nome dell’equilibrio. All’apparire delle Faglie, nel primo anno delle loro manifestazioni, egli convocò l’Assemblea dei Cornuti: un raduno senza precedenti di tutti i Cavalieri. Al termine del conclave, l’ordine intero dichiarò guerra alle Faglie e alle energie che le alimentano, l’Assolutore.\n\nLa loro prima spedizione, dentro una Faglia manifestatasi presso la foce del Golfo di Lunarmana, fu un disastro. I Cavalieri affrontarono anime smarrite, distorsioni del tempo e mostruosità nate dal vuoto, ma quasi nessuno ne uscì. Delle centinaia che entrarono, solo diciotto tornarono, e non come erano partiti."
+        },
+        {
+          "id": "culto-e-retaggio",
+          "type": "text",
+          "title": "Culto e Retaggio",
+          "icon": "fa-landmark",
+          "text": "Questi superstiti emersero nel mondo come spiriti vendicativi, avvolti in armature spettrali, condannati a un’esistenza lacerata: metà custodi dell’equilibrio vita/morte, metà predatori famelici che massacrano senza distinzione, nemmeno tra i loro simili. Si racconta che un Cavaliere dell'Apocalisse, una volta caduto in questo stato, possa essere definitivamente ucciso soltanto da un altro dei suoi pari.\n\nCosì Quimbur, il Cervo Nero, continua a camminare nell’ombra delle epoche: per alcuni è la fine inevitabile, per altri la promessa di una giusta rinascita. Per tutti, è il sussurro che ricorda quanto sia sottile il confine tra il valore di una vita… e il peso della sua morte."
+        }
+      ]
+    },
+    {
+      "id": "merida",
+      "name": "Merida, Matrigna dei Giganti",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Merida è la quartogenita del Grande Verme, nata quando il mondo era ancora giovane e le colline non avevano ancora imparato a portare il peso dei raccolti.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "origine-e-dominio",
+          "type": "text",
+          "title": "Origine e Dominio",
+          "icon": "fa-sun",
+          "text": "Merida è la quartogenita del Grande Verme, nata quando il mondo era ancora giovane e le colline non avevano ancora imparato a portare il peso dei raccolti. È la divinità della Fertilità e dell’Abbondanza, protettrice dell’unione famigliare, patrona della Maternità e di ogni forma di creatività: dai campi coltivati ai legami tra persone, fino alle opere d’ingegno più ispirate.\n\nNelle iconografie è raffigurata come una maestosa centaura umana: il busto è quello di una splendida donna gravida, le cui nudità sono velate da una cascata di capelli rossi che le scende fino ai fianchi. Dalla parte bassa della schiena il corpo si prolunga in una poderosa forma equina a sei zampe, dal manto rossastro e lucente. La struttura del suo corpo è tale che le gambe umane non toccano mai il suolo, mantenute perennemente nella posizione del parto supino: un simbolo vivente di gestazione eterna, come se Merida fosse sempre sul punto di dare nuova vita al mondo. Le sue pupille, spesso descritte come semi luminosi, sembrano riflettere il colore dei campi in cui la si prega: dorate tra il grano, verdi tra i boschi, brunite tra le vigne.\n\nLa sua esistenza è stata interamente consacrata alla fecondazione del creato del Grande Verme. È Merida che ha mantenuto il ciclo della vita dopo la scomparsa del Padre Primordiale, assicurando che ogni morte fosse premessa a una nuova nascita, ogni terra prosciugata preludio a una stagione rigogliosa. La sua sola presenza è avvertita in ogni placenta che si forma, in ogni germoglio che infrange la crosta del terreno, in ogni famiglia che sceglie di restare unita nonostante le prove del mondo.\n\nFu questa potenza generativa a catturare lo sguardo di Zaahul, il Dio Colossale. Tra i due nacque un amore ardente e creativo, e dalla loro unione scaturì la maggior parte delle razze mortali: umani, elfi, nani e innumerevoli altre stirpi che popolano oggi il mondo. Merida si innamorò sinceramente di Zaahul; nelle saghe antiche è descritta come colei che insegnò al Primogenito che la vera grandezza non è solo erigere montagne, ma riempirle di voci, popoli, destini."
+        },
+        {
+          "id": "culto-e-retaggio",
+          "type": "text",
+          "title": "Culto e Retaggio",
+          "icon": "fa-landmark",
+          "text": "Quando però, verso la fine della Prima Epoca, Zaahul perse la testa per una donna umana, la principessa Stride del Popolo Khul, il cuore di Merida esplose in una furia che nessun raccolto avrebbe mai potuto placare. La leggenda racconta che la dea lo affrontò sulla sommità di Muov’Youmajenn, la Torre del Mondo, e in un unico gesto di collera e dolore lo evirò, recidendogli anche l’anulare sinistro. Il dito del Dio Colossale precipitò sulle Montagne Khul, mentre il membro reciso venne portato da Merida nelle profondità della torre, trasformato in un trofeo e in un oscuro monito agli infedeli. Da quella notte, dicono le cronache sacre, il vento sulle vette Khul porta ancora l’eco del grido di Zaahul.\n\nLa vendetta della dea non si fermò al Primogenito. Merida scagliò il leggendario Anatema di Merida sul Popolo Khul, governato allora da Freyngdur il Re Codardo: una maledizione che corruppe lentamente i loro corpi e le loro menti, facendoli marcire dall’interno come frutti lasciati a imputridire sull’albero. Quell’atto feroce le valse il timore e il rispetto di intere generazioni, ma non cancellò la sua natura di Mater generosa; anzi, fu interpretato come la prova che Merida protegge con ferocia tutto ciò che nasce sotto il suo sguardo.\n\nNonostante l’ombra di quella vendetta, Merida rimane oggi il simbolo della fecondità e dell’armonia tra specie diverse. Nei suoi templi e ai suoi altari vengono celebrate le cerimonie matrimoniali più ardite, soprattutto quelle tra razze differenti, nella speranza che la dea benedica unione e futuro. Le famiglie sterili la invocano perché “sciolga i nodi del sangue”, i contadini le offrono il primo covone del raccolto, gli artisti le dedicano la loro opera compiuta. Si dice che laddove sorge una casa in cui convivono amore, nutrimento e rispetto reciproco, Merida passi in silenzio, lasciando dietro di sé l’impercettibile profumo di erba bagnata e latte caldo."
+        }
+      ]
+    },
+    {
+      "id": "teclis",
+      "name": "Teclis, il Conte d’Avorio",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Teclis è il quintogenito del Grande Verme, il figlio che nessuno avrebbe voluto.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "origine-e-aspetto",
+          "type": "text",
+          "title": "Origine e Aspetto",
+          "icon": "fa-eye",
+          "text": "Teclis è il quintogenito del Grande Verme, il figlio che nessuno avrebbe voluto. Nelle iconografie appare come un satiro scuro solo in apparenza: il suo corpo è slanciato, rivestito da una pelle d’avorio opalescente, ma al posto delle corna spuntano due lunghe antenne insettoidi, sottili e nervose, che captano ogni menzogna e ogni timore. Le gambe terminano in zampe da cavalletta, articolate in modo innaturale, pronte a scattare con un’eleganza disturbante. In mano impugna sempre Aculeo d’Anima, una lancia dallo stelo sottile e dalla punta frastagliata, attraverso cui scorre il Mana puro dei Geyser Astratti: con quest’arma, si dice, abbia perforato l’anima di Algon il Padre Celeste, trasformandolo nell’attuale Algon, Padre Abissale.\n\nAlla nascita, però, Teclis non aveva nulla di questa inquietante grazia. Era un mostruoso coleottero divino: un carapace duro, mandibole titaniche, arti chitinosi perfetti per la guerra, ma ripugnanti agli occhi dei fratelli. Superbo, viscido, incline al rancore, venne presto escluso dalle adunanze divine, emarginato da chi lo considerava un errore del Grande Verme. Il disprezzo lo ferì più di qualsiasi lama e, per cancellare quella forma che lo condannava all’isolamento, Teclis cercò l’aiuto dell’unico che conosceva davvero la plastica follia del Mana: Vodrenno, il Dio Serpente dell’Ombra e del Mana."
+        },
+        {
+          "id": "miti-e-vicende",
+          "type": "text",
+          "title": "Miti e Vicende",
+          "icon": "fa-scroll",
+          "text": "Sotto la guida del serpente, Teclis divenne un allievo eccezionale. Imparò a distillare il Mana più instabile, a sperimentarlo su mortali sfortunati, piegandone la carne e la mente fino a spezzarle. Fu allora che Vodrenno, compiaciuto, gli donò Aculeo d’Anima: una lancia capace di incidere non solo la carne, ma l’essenza stessa di un’anima, riscrivendone destino, forma e memoria. Con quell’arma, Teclis iniziò a progettare la propria metamorfosi, sognando di rinascere come una creatura ammirata, bella, temuta.\n\nScelse di modellarsi sul popolo che più lo affascinava: i Satiri Scuri della Foresta di Margovia. Per compiere il rituale definitivo raggiunse i Reami Astratti, dove il Mana scorre come marea inarrestabile, ignorando deliberatamente gli ammonimenti di Vodrenno. Nel cuore del flusso astrale, avvolse il proprio corpo in un bozzolo di avorio liquido, deciso a emergere come una perfetta creatura faunesca. Ma il potere che evocò fu troppo grande persino per lui: il bozzolo si incrinò, il processo si spezzò a metà.\n\nQuando la crisalide divina si ruppe, l’essere che ne uscì non era né coleottero né satiro, ma un ibrido grottesco. Il corpo, le braccia e il volto avevano assunto tratti eleganti e umanoidi, avvolti in una membrana d’avorio lucente; le antenne e le zampe inferiori, invece, erano rimaste insettoidi, una ferita viva sul suo orgoglio. La trasformazione risultò irreversibile. La promessa di una bellezza nuova si trasformò in una condanna: Teclis era ancora un mostro, solo più raffinato.\n\nDa quel giorno, il Conte d’Avorio smise di volere il perdono dei fratelli e iniziò a desiderare la loro rovina. Divenne il dio del Tradimento e delle Menzogne, il Bardo dell’Oblio: un cantastorie divino che ama insinuarsi nei banchetti, nei sogni, nei culti, narrando ballate seducenti che, note dopo nota, corrodono la sanità mentale di chi ascolta. Le sue storie sono sempre splendide e terribili, fatte di eroi che cadono, di amori che degenerano in odio, di promesse che si spezzano con un sussurro."
+        },
+        {
+          "id": "culto-e-retaggio",
+          "type": "text",
+          "title": "Culto e Retaggio",
+          "icon": "fa-landmark",
+          "text": "Oggi Teclis regna dalla Foresta di Margovia, circondato da tribù di Satiri Scuri che ha piegato al proprio culto. Là, tra alberi contorti e cerchi di pietra, i satiri suonano e danzano per lui fino allo sfinimento, schiavi di un padrone che li considera insieme modelli imperfetti e strumenti sacrificabili. Chi ancora osa venerarlo lo chiama Conte d’Avorio, convinto che la sua mente stia intessendo un disegno epocale destinato a cambiare per sempre il volto del Piano Materiale.\n\nSecondo i suoi discepoli più fedeli, ogni tradimento, ogni menzogna sussurrata in questo mondo è solo una nota nella sinfonia che Teclis sta componendo da millenni. Quando l’ultimo accordo verrà suonato, dicono, non solo gli dèi ma lo stesso Grande Verme dovranno fare i conti con il figlio reietto che hanno cercato di dimenticare."
+        }
+      ]
+    },
+    {
+      "id": "hecatombe",
+      "name": "Hecatombe, la Sigillatrice dell’Altro Mondo",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Hecatombe, la Sigillatrice dell’Altro Mondo, è la sestogenita del Grande Verme.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "origine-e-dominio",
+          "type": "text",
+          "title": "Origine e Dominio",
+          "icon": "fa-sun",
+          "text": "Hecatombe, la Sigillatrice dell’Altro Mondo, è la sestogenita del Grande Verme.\nDove i suoi fratelli dominano terra, ferro o inganni, lei governa soltanto il confine: è messaggera di Morte, guardiana dell’Oltretomba e patrona di tutti gli spiriti che non trovano pace, in particolare di quelli divorati dal rancore.\n\nLe storie la descrivono come una figura snella e femminile, ma quasi nessuno, nelle iconografie, osa mostrarne la pelle. Il suo corpo è interamente avvolto come una mummia in drappi di seta nera e sottilissimi teli di diamante, sovrapposti l’uno all’altro in centinaia di strati. La luce che si posa su di lei si frantuma, scivola tra le trame di quel diamante vivo, si rifrange in bagliori lattiginosi, verdastri o violacei, come se ogni velo filtrasse un diverso piano dell’esistenza. Da vicino, il corpo di Hecatombe appare traslucido, quasi fantasmale, attraversato da riverberi che ricordano l’aurora boreale imprigionata nel vetro.\n\nSi dice che sia muta. Il Grande Verme, temendo che la sua voce potesse spezzare le anime come fragile terracotta, la privò della parola e sigillò il suo canto dietro strati di veli di diamante. Eppure, secondo gli officianti dei suoi culti funebri, nessuna creatura muore senza averla udita almeno una volta: l’ultimo suono, tra un respiro e il successivo che non arriverà mai, è un frammento del canto di Hecatombe, una nota così pura e definitiva che recide ogni legame con il mondo. Nessuno può raccontarla, perché chi la ascolta non torna indietro."
+        },
+        {
+          "id": "culto-e-retaggio",
+          "type": "text",
+          "title": "Culto e Retaggio",
+          "icon": "fa-landmark",
+          "text": "Hecatombe dimora nella Cattedrale di Vetracciaio, un tempio smisurato di vetro, ghiaccio e diamante che non appartiene pienamente a nessun luogo. La cattedrale esiste in un semipiano freddo e immobile, sospeso tra il Piano Materiale e i Reami dell’Assolutore; dalle sue guglie si aprono migliaia di finestroni cristallini, ognuno affacciato su una diversa morte, un diverso funerale, un diverso rancore che non si è mai spento. Là, Hecatombe custodisce e sigilla ciò che non deve più toccare il mondo: nomi maledetti, giuramenti infranti, anime che ancora stringono i denti nell’istante del trapasso.\n\nI suoi devoti non sono numerosi, ma sono ovunque esista una morte difficile. Becchini, veggenti, inquisitori, medium e perfino alcuni necromanti la invocano quando serve chiudere davvero una storia: quando un fantasma non vuole andarsene, quando un giuramento di vendetta trascina famiglie intere nella rovina, quando il rancore di un singolo uomo rischia di incendiare un regno. I sacerdoti di Hecatombe avvolgono i cadaveri in bende scure intrecciate con minuscole scaglie di vetro, imitando i suoi veli, e accompagnano i defunti con riti sussurrati: dicono che ogni filo di seta aggiunga un altro sigillo fra il mondo dei vivi e l’Altro Mondo.\n\nNonostante il suo ruolo, Hecatombe non è considerata puramente malvagia: è spietata, sì, ma necessaria. Dove gli spiriti inquieti vagano troppo a lungo, dove i morti continuano a gridare attraverso Faglie e maledizioni, i popoli pregano che la Sigillatrice volga lì il suo passo, che stenda un ultimo velo di diamante su ciò che non trova pace. Nel silenzio che resta dopo il suo passaggio, i vivi capiscono che ogni rancore ha un prezzo, e che non esiste catena più pesante di quella forgiata con la propria ultima parola non detta."
+        }
+      ]
+    },
+    {
+      "id": "algon",
+      "name": "Algon, il Padre Abissale",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Algon nacque come settimogenito del Grande Verme e, per lunghissimo tempo, il mondo non lo conobbe con il nome che porta oggi.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "origine-e-aspetto",
+          "type": "text",
+          "title": "Origine e Aspetto",
+          "icon": "fa-eye",
+          "text": "Algon nacque come settimogenito del Grande Verme e, per lunghissimo tempo, il mondo non lo conobbe con il nome che porta oggi. Era *Algon il Padre Celestiale*, un drago di luce dal corpo maestoso, lo sguardo mite e le scaglie splendenti come un’alba eterna. I popoli mortali lo ricordano, nelle leggende più antiche, come un dio che camminava fra loro senza chiedere tributi: portava consiglio, consolava, proteggeva. I Giganti lo chiamavano Padre Luce, e quando il suo vasto castello volante, Novdora, proiettava l’ombra sulle loro città, era presagio di buone notizie.\n\nNovdora, la fortezza sospesa nei cieli sopra quello che oggi è l’Eco dell’Eternità, era il suo trono e il suo rifugio. Nelle sue sale dorate Algon osservava il Piano Materiale, affascinato dai progressi delle razze mortali nate dall’opera dei suoi fratelli. Era un dio viandante: amava atterrare tra gli uomini, gli elfi e i giganti, ascoltare le loro paure e mostrar loro che esisteva sempre una via d’uscita. In quei tempi, evocare il suo nome significava chiamare speranza."
+        },
+        {
+          "id": "miti-e-vicende",
+          "type": "text",
+          "title": "Miti e Vicende",
+          "icon": "fa-scroll",
+          "text": "Ma il fulgore del Padre Celestiale attirò l’invidia di Teclis, il Conte d’Avorio. Il satiro insettoide, divenuto maestro del Mana sotto la guida di Vodrenno, non poteva sopportare che un dio così amato esistesse dove lui era disprezzato. Nelle profondità del Castello di Novdora, nel Santuario Ardente, la camera più sacra dove Algon si ritirava a meditare, Teclis tese l’agguato che avrebbe cambiato per sempre il volto del mondo. Brandendo Aculeo d’Anima, l’arma che traeva potere dai geyser di Mana dei Reami Astratti, il Conte d’Avorio trafisse il cuore del Padre Celestiale.\n\nIl colpo non bastò a ucciderlo. Fu molto peggio. La lancia ne spezzò l’anima. La luce che permeava Algon si contorse, venne masticata dal Mana e rigurgitata in una forma nuova e aberrante. Le sue ali lucenti si fecero membrane scure, il corpo draconico si allungò in una doppia spirale di scaglie violacee, il torso assunse le fattezze di un guerriero corazzato d’oro, ma le mani divennero nidi di serpenti velenosi. Il volto, un tempo radioso, fu coperto da un elmo regale: da sotto, solo occhi rossi e una barba nera e selvaggia. Così nacque Algon, il Padre Abissale.\n\nTeclis non si accontentò della metamorfosi. Con la stessa lancia che aveva distorto l’anima del dio tracciò sigilli impossibili da spezzare, incatenando Algon al Santuario Ardente. Poi scatenò potenze cataclismatiche su Novdora, strappando la fortezza dal cielo e lasciandola precipitare nell’Oceano di Cobalto. L’impatto fu talmente devastante da creare un vortice colossale che ancora oggi ribolle senza tregua: l’Eco dell’Eternità. Le masse di cobalto frantumato vennero scaraventate sulle coste lontane, dando origine alle spiagge metalliche e all’Isola del Teschio di Cobalto, mentre il castello, con il suo prigioniero, sprofondava nelle tenebre oceaniche.\n\nLì, nel buio senza tempo del fondale, Algon rimase solo. Non arrivarono giganti a spezzare le catene, né umani devoti a tentare un impossibile salvataggio. Passarono anni, poi secoli, poi intere epoche. Il dolore della ferita, la deformità del nuovo corpo e l’abbandono lo corrosero come un veleno lento. Le domande – *perché nessuno viene? perché nessuno mi cerca?* – si mutarono in rancore, poi in odio puro. Quel vortice creato dalla caduta di Novdora era, ed è tuttora, la manifestazione fisica di quell’odio che ruota, si alimenta e non si placa mai. Finché Algon resterà incatenato nel Santuario Ardente, l’Eco dell’Eternità continuerà a vorticare, tenuto in vita dal suo tormento."
+        },
+        {
+          "id": "culto-e-retaggio",
+          "type": "text",
+          "title": "Culto e Retaggio",
+          "icon": "fa-landmark",
+          "text": "Nel corso della Seconda Epoca, le emozioni di Algon divennero così dense da condensarsi in sostanza. I pensieri di paura e vendetta, compressi nel buio del fondale, generarono le prime aberrazioni. Questi mostri risalirono le acque e reclamarono l’oceano come loro regno. L’Oceano di Cobalto divenne lentamente l’Oceano di Algon, e il nome del Padre Celestiale svanì dalle preghiere degli uomini, sostituito da quello del Padre dei Mostri.\n\nOggi Algon è venerato, o temuto, come il Padre Abissale, signore delle profondità e progenitore delle creature che strisciano fuori dai sogni peggiori dei mortali. Pochi ricordano che, in un’epoca ormai dimenticata, la stessa voce che ora sussurra follia nell’acqua oscura era quella che un tempo insegnava speranza dalle terrazze luminose di un castello sospeso nel cielo."
+        }
+      ]
+    },
+    {
+      "id": "garrona",
+      "name": "Garrona, la Luna e la Vita",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Garrona è l’ottavogenita del Grande Verme, dea della Vita, della Luna e della Libertà, patrona della primavera che ritorna e delle leggi che tengono insieme popoli e famiglie.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "origine-e-aspetto",
+          "type": "text",
+          "title": "Origine e Aspetto",
+          "icon": "fa-eye",
+          "text": "Garrona è l’ottavogenita del Grande Verme, dea della Vita, della Luna e della Libertà, patrona della primavera che ritorna e delle leggi che tengono insieme popoli e famiglie.\n\nNelle raffigurazioni sacre il suo corpo si avvolge in un’elegante spira serpentiforme: dal bacino in giù è un grande serpente dalle squame di zaffiro stellato, che scintillano come un cielo notturno al chiaro di luna. Il busto, invece, è quello di una donna dalle forme morbide, simile a una tiefling: completamente nuda, copre solo in parte i seni prosperosi con le braccia sottili, più per civetteria che per pudore.\n\nIl suo volto è pulito e gentile, con lineamenti angelici che ricordano a chi la contempla la dolcezza del vivere e i suoi piaceri semplici. Gli occhi sono gialli, vivaci e un po’ furbi; sulle labbra aleggia un sorriso caldo, amorevole, che fa sentire chi lo guarda accolto e compreso. Dal capo si innalzano due corna ricurve, ornate talvolta da catenelle d’argento e piccoli talismani, mentre una cascata di capelli color platino le scende sulle spalle, spesso rappresentata come illuminata da una luce lunare propria."
+        },
+        {
+          "id": "miti-e-vicende",
+          "type": "text",
+          "title": "Miti e Vicende",
+          "icon": "fa-scroll",
+          "text": "In molti dipinti Garrona tiene in una mano un calice d’oro, la cui coppa si fonde in una mezzaluna perlacea: vino e luce, piacere e ordine, vita che scorre ma entro forme armoniose. È un simbolo ricorrente nelle celebrazioni del suo culto, soprattutto nei brindisi rituali durante i matrimoni e le feste dell’equinozio.\n\nEppure, come la Luna mostra sempre un volto nascosto, si mormora che anche Garrona custodisca un segreto oscuro, un lato inaccessibile persino ai suoi sacerdoti più devoti. Le leggende non concordano su cosa sia: alcuni parlano di un grande rimorso, altri di un patto infranto con Settimpur, altri ancora di un potere che neppure gli dei osano più nominare.\n\nNel Credo della Luna, Garrona non è solo dea distante: è anche colei che sceglie La Vita, la sua campionessa. La Vita è un mortale prescelto che ascende al rango di semidio, la Stella di Altain, destinato a sfidare in duello il campione di Settimpur, La Morte, in quella che i saggi chiamano la Danza tra la Vita e la Morte.\n\nQuesto duello non è un semplice scontro di lame: dura spesso secoli, combattuto in mille battaglie, epidemie evitate o scatenate, carestie mitigate o rese più feroci, piccoli miracoli e grandi disgrazie intrecciati sul tessuto della storia. Il vincitore non governa direttamente il mondo, ma ne inclina l’ago: se prevale La Vita, i secoli successivi sono segnati da prosperità, rinascite e scoperte; se vince La Morte, ombre più lunghe si stendono sulle civiltà, le Faglie si fanno più instabili e le tragedie più frequenti.\n\nL’ultimo ciclo si è concluso nell’anno 51 della Quinta Epoca, con la vittoria della Morte. Da allora cronache e dicerie registrano un aumento di carestie, epidemie e improvvise esplosioni delle Faglie. Nessuno può provare con certezza che ciò dipenda dal risultato della Danza, ma per i fedeli di Garrona e Settimpur non è affatto una coincidenza.\n\nIn origine questa Danza nacque quasi come un capriccio divino: Garrona e Settimpur, un tempo amanti e alleati, la istituirono come metodo per dirimere le loro dispute cosmiche su cosa fosse “giusto” per il mondo: crescita continua o inevitabile declino, perdono o castigo, libertà o destino. Dopo la loro separazione, che secondo i miti diede origine al ciclo giorno-notte, i culti dei due dei continuarono la tradizione, reinterpretandola come sacra volontà divina e potente strumento di proselitismo."
+        },
+        {
+          "id": "culto-e-retaggio",
+          "type": "text",
+          "title": "Culto e Retaggio",
+          "icon": "fa-landmark",
+          "text": "Negli ultimi secoli, tuttavia, entrambe le fedi hanno visto calare drasticamente il numero dei credenti. Per riconquistare influenza, il Culto di Garrona proclama che il nuovo Campione della Vita sia già nato da qualche parte nel mondo e che debba essere condotto al cospetto della dea per essere giudicato degno. Gli Scrutatori della Luna, mistici, chierici e inquisitori in maschera, viaggiano per il continente in cerca di anime straordinarie da “offrire” alla prova, spesso senza troppo riguardo per il loro consenso.\n\nIl simbolo più riconoscibile del suo culto è una maschera femminile in stile veneziano, finemente lavorata: il volto è argentato, incorniciato da piume iridescenti e gemme; accanto, su campo nero vellutato, brilla una mezzaluna di platino. Nella cavità oculare sinistra della maschera è raffigurata una sottile coda serpentina che vi si avvolge all’interno, come se guardasse il mondo da dietro quel volto perfetto.\n\nPer i teologi della Luna, la maschera rappresenta la duplice natura di Garrona: gioiosa e seducente alla luce, insondabile e terribile nel buio del non detto. Per i suoi devoti più sinceri, però, è soprattutto una promessa: finché la Luna splende e finché esiste qualcuno disposto a brindare alla vita, Garrona non abbandonerà il mondo."
+        }
+      ]
+    },
+    {
+      "id": "settimpur",
+      "name": "Settimpur, il Sole e la Morte",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Settimpur è il nonogenito del Grande Verme, signore di quei due estremi che definiscono ogni esistenza: la luce del giorno e il limite ultimo della vita.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "origine-e-aspetto",
+          "type": "text",
+          "title": "Origine e Aspetto",
+          "icon": "fa-eye",
+          "text": "Settimpur è il nonogenito del Grande Verme, signore di quei due estremi che definiscono ogni esistenza: la luce del giorno e il limite ultimo della vita. È venerato come divinità del Sole e della Speranza, patrono delle promesse infrangibili e dei giuramenti pronunciati guardando il cielo.\n\nLe sue icone lo raffigurano come un umanoide diafano e slanciato, avvolto in una lunga veste ambrata che sfiora il suolo come un raggio al tramonto. Le maniche, ampie e sinuose, lasciano scoperti avambracci bianchi come alabastro. Il volto è di una bellezza quasi androgina: lineamenti delicati, labbra sottili e due occhi abbaglianti, dalle cui cavità divampano fiamme dorate che non bruciano ma illuminano. I capelli, lunghi e biondi, sono raccolti in una spessa treccia che gli cade sulla schiena; sopra la fronte spuntano cristalli solari luminosi, disposti come un diadema che sembra crescere direttamente dal cranio."
+        },
+        {
+          "id": "miti-e-vicende",
+          "type": "text",
+          "title": "Miti e Vicende",
+          "icon": "fa-scroll",
+          "text": "Alle sue spalle fluttua un’enorme aureola fiammeggiante, un anello di plasma dorato che pulsa come un sole in miniatura. Si dice che il suo interno non sia mera luce, ma un vero portale aperto sul Piano Esterno Elementale: là dove termina la fiamma del mondo, inizia il regno di Settimpur. Per questo, in molte culture egli è chiamato anche Signore del Cosmo, e in alcuni affreschi è raffigurato con il palmo destro alzato, attorno al quale ruotano piccole sfere multicolori: un modello vivente dei piani che compongono il creato. Tra certe tribù nomadi della Cintura del Sole Calante, la sua figura è talmente ambigua e splendente da essere venerata come *La* Signora del Cosmo, prova che neppure il genere riesce a contenerne la natura.\n\nNel culto solare, il volto più temuto e più invocato di Settimpur è *La Morte*, detta anche Meteora di Dermain: un mortale prescelto che ascende allo status di semidio per combattere in duello con *La Vita*, il Campione di Garrona. Questa Danza tra la Vita e la Morte è un rituale che nasce, secondo le leggende, dai furiosi dibattiti fra Garrona e Settimpur sull’equilibrio tra nascita e fine. Incapaci di trovare un accordo, i due dèi decisero di lasciare che fossero i loro campioni a contendere, a colpi di secoli, l’orientamento del mondo.\n\nIl duello è una guerra di influenze che può durare intere epoche. Quando La Vita prevale, gli annali raccontano secoli di raccolti abbondanti, guarigioni insperate e miracoli di rinascita. Quando è La Morte a trionfare, le ombre si allungano: carestie più frequenti, epidemie che scoppiano dove il tessuto del mondo è più fragile, Faglie che si aprono come ferite nel cielo. L’ultimo ciclo, conclusosi nell’anno 51 della Quinta Epoca, ha visto vittoriosa la Meteora di Dermain; da allora, cronache e superstizioni attribuiscono a questo esito l’aumento di disastri e crisi, pur senza alcuna prova certa.\n\nIn teoria, la Danza tra Vita e Morte è ricordata come un patto antico e sacro tra due divinità che si amano quanto si contrastano; in pratica, i loro sacerdoti l’hanno trasformata in un potente strumento di proselitismo. Sia il Credo della Luna che quello del Sole rivestono le scelte dei Campioni di un’aura di “volontà divina”, usando profezie, visioni e oracoli per attrarre nuovi fedeli e giustificare sacrifici sempre maggiori."
+        },
+        {
+          "id": "culto-e-retaggio",
+          "type": "text",
+          "title": "Culto e Retaggio",
+          "icon": "fa-landmark",
+          "text": "Negli ultimi decenni però, entrambi i culti hanno visto diminuire il numero dei credenti. Per reagire, i sacerdoti di Settimpur insistono che la Morte attuale non sia che il preludio a un nuovo ciclo, mentre gli alti prelati di Garrona annunciano che la nuova Vita è già nata, da qualche parte nel mondo, e che dovrà essere condotta al cospetto della Dea per essere giudicata degna. In risposta, il culto solare ha iniziato a mandare emissari e inquisitori in giro per Kama, alla ricerca di segni e prodigi che possano indicare la nascita del prossimo Campione.\n\nIl simbolo del suo culto è un volto diviso esattamente a metà: un lato maschile, l’altro femminile, entrambi fusi in una maschera dorata su fondo azzurro. Dietro, un globo solare rossastro brilla come un teschio in combustione: un promemoria che ogni giuramento fatto alla luce del Sole è scolpito anche nell’ombra della Morte."
+        }
+      ]
+    },
+    {
+      "id": "moara",
+      "name": "Moara, la Madre delle Profondità",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Moara, la Madre delle Profondità, è una delle divinità più temute e fraintese del pantheon del Grande Verme.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "origine-e-dominio",
+          "type": "text",
+          "title": "Origine e Dominio",
+          "icon": "fa-sun",
+          "text": "Moara, la Madre delle Profondità, è una delle divinità più temute e fraintese del pantheon del Grande Verme.\nNasce da uno dei pochissimi “figli” concepiti tra le divinità originarie: Teclis e Hecatombe. Fu però un’origine segnata dalla violenza. Teclis, con la sua lingua velenosa e le sue melodie ingannevoli, riuscì a sovrastare il canto mortale di Hecatombe e a trascinarla in uno stato di trance catatonica; in quella condizione di totale vulnerabilità, la violò. Dal loro incontro forzato, e dalla collera del Grande Verme di fronte a tale oltraggio, venne al mondo Moara.\n\nLa sua forma riflette la natura di quella colpa: Moara è una colossale mostruosità marina, un serpente degli abissi intrecciato a una parodia di figura umanoide. Il suo corpo è lungo, sinuoso, ricoperto di squame bluastre screziate d’inchiostro, da cui spuntano regolari protuberanze di pinne seghettate e tentacoli nervosi. La coda, spessa come una nave, termina in una pinna gigantesca incrostata di barbigli velenosi che lasciano scie fosforescenti nell’acqua.\nIl torso, ampio e torreggiante, si apre al centro in una voragine di zanne, una seconda bocca, verticale, fatta solo per divorare. Due braccia muscolose emergono dai fianchi, foderate da lunghe pinne cremisi che, in acqua, si muovono come il drappo di un abito scarlatto. Il volto è privo di occhi, una maschera di carne dura e spigolosa solcata da una bocca larga piena di denti lamellari; da quella fronte cieca si estende all’indietro una grande membrana a corona, che cade come un cappuccio regale lungo il collo. È l’immagine della regina degli abissi: terribile, mutilata, inesorabile.\n\nMoara è Dea degli Oceani, divoratrice di marinai e patrona della Giustizia, delle Cose Dimenticate e dell’Inesorabilità. Nata mostruosa per punizione al peccato di Teclis, ha trasformato quell’orrore in scopo: la sua esistenza è guidata da un unico, ossessivo desiderio: divorare il Conte d’Avorio, smembrarne il corpo e assorbirne i poteri. La sua è fame di riscatto, di equilibrio strappato e mai restituito.\n\nUno dei suoi poteri più temuti è la Assimilazione Abissale: Moara può divorare artefatti, navi, creature e persino frammenti di divinità, e farne propri la forza e i poteri. Per secoli si è nutrita di flotte imperiali, di leviatani, di città costiere inghiottite dalle maree. A ogni banchetto il suo corpo cresceva, le squame si ispessivano, la corona membranosa assumeva nuove striature di colore, finché il suo stesso peso non divenne insostenibile anche per il fondale oceanico. All’inizio della Quinta Epoca, il suolo sotto il suo immenso corpo cedette: un’intera porzione di crosta si sgretolò, aprendo un crepaccio titanico che i marinai chiamano Sussulto di Moara. Da allora la Dea giace incastrata nel baratro, troppo grande per risalire, troppo potente per essere dimenticata."
+        },
+        {
+          "id": "culto-e-retaggio",
+          "type": "text",
+          "title": "Culto e Retaggio",
+          "icon": "fa-landmark",
+          "text": "Impossibilitata a cacciare di persona, Moara ha trasformato gli oceani nel proprio braccio armato. Per secoli ha scatenato tempeste per affondare navi e attirare cibo e potere nelle sue fauci, ma gli uomini di superficie hanno imparato a temere e aggirare le sue acque. Così la Madre delle Profondità ha invertito il flusso del suo potere: invece di assimilare soltanto, ha cominciato a infonderlo. Ha plasmato così i Tritoni, popolo guerriero dell’oceano, creato con un unico scopo scritto nel sangue e nel canto delle maree: uccidere Teclis. Ogni tritone porta nel cuore un frammento della sua volontà furiosa, eppure, generazione dopo generazione, nessuno è ancora riuscito a portarle la testa del Conte d’Avorio.\n\nIn un’era precedente, quando ancora poteva muoversi liberamente, Moara esplorò le profondità del mare fino a imbattersi nelle rovine sommerse del Castello di Novdora. Da lì, da una camera sepolta e sigillata, sentì irradiarsi una tempesta di emozioni: dolore, rabbia, nostalgia, che la colpirono come un richiamo impossibile da ignorare. Era l’anima di Algon, incatenata nel Santuario Ardente. Per la prima e unica volta nella sua esistenza, Moara provò qualcosa che somigliava all’amore: non pietà, non semplice affinità, ma il desiderio di condividere quella stessa solitudine abissale.\n\nNon riuscì a spezzare i sigilli di Teclis e liberarlo; il santuario resistette ai suoi assalti, e l’oceano stesso tremò sotto il suo ruggito frustrato. Le leggende dicono che quel ruggito arrivò fino al cuore di Algon, e che, per un solo, infinitesimo istante, il Padre Abissale smise di odiare tutto ciò che esiste per ricambiare, in silenzio, quell’amore impossibile."
+        }
+      ]
+    },
+    {
+      "id": "vodrenno",
+      "name": "Vodrenno, Dio Serpente dell'Ombra e del Mana",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Vodrenno non nacque come gli altri figli del Grande Verme.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "origine-e-aspetto",
+          "type": "text",
+          "title": "Origine e Aspetto",
+          "icon": "fa-eye",
+          "text": "Vodrenno non nacque come gli altri figli del Grande Verme. Egli si manifestò dopo la disgregazione del progenitore, come incarnazione pura dei suoi pensieri, della sua logica e della sua sterminata conoscenza. Per questo, molti sapienti discutono se chiamarlo davvero “figlio” del Grande Verme o piuttosto la sua mente sopravvissuta, distillata in forma divina. Qualunque sia la verità, Vodrenno è oggi riconosciuto come il Patrono della Magia, dell’Ombra, del Mana e dell’Invenzione, colui che cammina sulle cuciture tra i Piani e ne osserva i fili arcani con fredda curiosità.\n\nNelle iconografie è raffigurato come un grande serpente anziano dalle squame color blu notte, lucide come velluto bagnato, elegantemente attorcigliato su se stesso. Tra le sue spire, quasi distrattamente, tiene un antico tomo aperto, che pare non finire mai. I suoi occhi sono piccoli e scuri, nascosti dietro un paio di sottili occhiali rotondi, che gli conferiscono un’aria da studioso assorto più che da divinità temibile. Le raffigurazioni più recenti gli aggiungono una leggera peluria bianca sotto il mento, una sorta di “barba da saggio” che ne accentua il ruolo di maestro arcano."
+        },
+        {
+          "id": "miti-e-vicende",
+          "type": "text",
+          "title": "Miti e Vicende",
+          "icon": "fa-scroll",
+          "text": "Il Mana è il suo respiro: l’energia che collega tutte le cose, tutti gli esseri, tutti i Piani. Agli occhi di Vodrenno, il mondo intero è un tessuto di flussi e nodi da studiare e manipolare. È considerato la divinità più dotta ed erudita del pantheon, dotato di un temperamento generalmente calmo e controllato, con una morale però tutta sua. Può essere gentile e persino protettivo nei confronti di chi ricerca la conoscenza con dedizione, ma non esiterebbe a bruciare un bambino sul rogo, se questo gli permettesse di comprendere un nuovo aspetto del Mana. Per lui, tutto è esperimento, tutto è dato.\n\nDurante la Prima Epoca, Vodrenno scelse come dimora la Foresta di Margovia, dove intrecciò profondi legami con gli elfi che la abitavano. La loro naturale curiosità, l’attitudine alla magia e l’aspirazione alla perfezione li resero rapidamente i suoi compagni di ricerca prediletti. Fu lì che, nell’anno 987, si abbatté una catastrofe magica di origine ignota: le Faglie del Mana. In un solo evento, la luminosa foresta elfica venne stravolta, divenendo una buia selva contorta, a tratti marcescente, dove fauna, flora e persino gli stessi elfi furono lentamente deformati dall’energia che filtrava dal Piano Esterno delle Ombre.\n\nLe Faglie del Mana nacquero da violenti movimenti energetici nel Piano delle Ombre: nove esplosioni titaniche aprirono ferite nei confini extraplanari, collegando il reame ombratile al Piano Materiale. Il Mana iniziò a traboccare da quei varchi, cambiando per sempre la natura di entrambi i Piani. Inizialmente, elfi e dio furono terrorizzati da quel fenomeno, ma la paura divenne presto ossessione. Studiando le Faglie, scoprirono che esse potevano potenziare enormemente la magia. L’intera società elfica di Margovia finì per dipenderne, plasmando riti, tradizioni e persino la propria identità attorno a quei vortici di potere. In poco tempo, il Mana corrotto e l’influsso dell’Ombra mutarono gli elfi in qualcosa di nuovo: i Manthae, le Fate dell’Eclissi, fragili nel corpo ma spaventosi nel loro dominio del Mana.\n\nVodrenno, pur lambito da quella forza, non ne fu travolto come loro, ma ne rimase affascinato al punto da consacrare la sua esistenza alla sua comprensione. Fu in quel periodo che edificò il Santuario dell’Umbral nel Piano Esterno delle Ombre, un mastodontico laboratorio, dove condurre esperimenti lontano dagli sguardi dei mortali. Per secoli i Manthae sfruttarono le Faglie, fino a che l’energia non cominciò ad esaurirsi. Disperati, scoprirono che il Mana residuo si era innestato in un minerale particolare, il Lunar, trasformandolo in un ricettacolo di potere: nacque così il Lunarmana."
+        },
+        {
+          "id": "culto-e-retaggio",
+          "type": "text",
+          "title": "Culto e Retaggio",
+          "icon": "fa-landmark",
+          "text": "Quella scoperta cambiò tutto. Il Mana non era più “libero” e crudele come nelle Faglie, ma intrappolato in cristalli duraturi e difficili da domare. Solo i Manthae più capaci riuscivano a estrarne quantità significative, diventando incantatori temuti e venerati. Da allora, l’intera cultura manthae si basa su questa dipendenza: un popolo che guarda a Vodrenno come a un maestro distante e crudele, ma irrinunciabile, colui che li ha condotti lungo il sentiero dell’evoluzione… o della dannazione.\n\nVodrenno dimora oggi nel Santuario dell’Umbral, nel Piano Esterno delle Ombre, da dove osserva e manipola silenziosamente le correnti di Mana che attraversano tutti i Piani."
+        }
+      ]
+    },
+    {
+      "id": "demorgan",
+      "name": "Demorgan, Dio Drago del Tempo",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Demorgan, la divinità del Tempo, dei Cicli e dei Varchi, è un'entità mistica che esiste come un drago maestoso e potente, il cui aspetto riflette la sua connessione con l",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "origine-e-dominio",
+          "type": "text",
+          "title": "Origine e Dominio",
+          "icon": "fa-sun",
+          "text": "Demorgan, la divinità del Tempo, dei Cicli e dei Varchi, è un'entità mistica che esiste come un drago maestoso e potente, il cui aspetto riflette la sua connessione con l'infinito scorrere del tempo e la sua capacità di manipolarlo a volontà. Le sue scaglie brillano di un verde smeraldo intenso, sfumate con l'oro, che rappresentano l'armonia e il bilanciamento tra le forze primordiali del mondo e il flusso del tempo.\n\nIl corpo di Demorgan è protetto da una corazza di platino smaltato di nero e oro, che si adatta perfettamente alle attaccature delle sue imponenti ali e delle sue zampe, segnando la sua invulnerabilità e il suo dominio sul concetto di protezione e inevitabilità. Sulle sue scaglie brillano smeraldi sferici, come piccole galassie di potere che orbitano attorno al suo corpo.\n\nIl suo volto, dai tratti draconici, è maestoso e severo, con occhi di una luce bianca pura, abbagliante, che riflettono la luce della conoscenza di tutti i momenti passati, presenti e futuri. La sua testa è adornata da due corna ricurve verso il basso, che iniziano bianche come l’avorio, ma si tingono di nero alla punta, simboleggiando il contrasto eterno tra il principio e la fine."
+        },
+        {
+          "id": "culto-e-retaggio",
+          "type": "text",
+          "title": "Culto e Retaggio",
+          "icon": "fa-landmark",
+          "text": "Dietro di lui, un lucente disco dorato levita, fluttuando al di sopra della sua testa. Questo simbolo, conosciuto come il Solco del Tempo, è la forza che, secondo la mitologia, permette al tempo di scorrere in modo fluido e coerente attraverso tutte le dimensioni e le epoche. Il disco ruota incessantemente, emettendo una luce che non solo illumina l’entità che lo porta, ma crea anche l’illusione di un passaggio continuo tra la materia e il vuoto, tra il presente e l'eternità.\n\nDemorgan dimora nel Piano del Tempo, un regno fatto di orologi immensi, porte temporali e cicli che si sovrappongono. Nessun mortale può accedere a questo regno senza la sua benedizione o la sua guida, poiché il Piano del Tempo è una dimensione separata da tutte le altre, in cui la realtà stessa è modellata dal flusso del tempo.\n\nDemorgan, nonostante la sua natura enigmatica e l’incredibile potere di manipolare il tempo, è una divinità che riflette un equilibrio. La sua presenza non è minacciosa, ma una garanzia di ordine e inevitabilità. Ogni ciclo che si compie, ogni variazione che esiste nella materia e nel pensiero, è sotto il suo sguardo costante."
+        }
+      ]
+    },
+    {
+      "id": "guglielmo",
+      "name": "Guglielmo, l'Antico Dorato",
+      "type": "npc",
+      "role": "Divinità di Oltre il Velo",
+      "status": "ignoto",
+      "hidden": false,
+      "quote": "Guglielmo non fu il primo dei Dragonborn.",
+      "images": {
+        "avatar": "assets/img/logo.webp",
+        "hover": "assets/img/logo.webp",
+        "portrait": "assets/img/logo.webp"
+      },
+      "blocks": [
+        {
+          "id": "origine-e-dominio",
+          "type": "text",
+          "title": "Origine e Dominio",
+          "icon": "fa-sun",
+          "text": "Guglielmo non fu il primo dei Dragonborn. All’inizio, nacque come una creatura umanoide, ma una volta posseduto dall’anima divina, il suo corpo crebbe enormemente, assomigliando sempre più a un gigante, un’entità capace di dominare la Terra. Dopo essere stato creato nei Reami dell’Assolutore, Guglielmo fu portato nel Piano Materiale, dove vagò per diverse terre, approdando in quelle che oggi sono conosciute come le terre dell’Impero Kotrali. Qui incontrò il suo primo amore, la dragonessa d’oro Isvinde, con cui avrebbe dato vita ai primi Dragonborn.\n\nL’amore tra Guglielmo e Isvinde non fu ben visto dalle altre comunità draconiche, ma i due superavano ogni divieto. La nascita dei Dragonborn, tuttavia, portò a una tragedia: Isvinde morì prematuramente, e questo scatenò l’ira di Guglielmo. Fu il primo e unico momento in cui Guglielmo provò veramente la tristezza. Le lacrime versate sopra i corpi dei suoi figli defunti crearono la leggendaria arma di Guglielmo, Iraluce, con cui si scagliò contro i suoi nemici, purificando la sua rabbia.\n\nGuglielmo continuò il suo cammino, arrivando a Daremmar, dove si trovò ancora una volta a essere visto con sospetto dalle altre razze. Decise di agire rapidamente, conquistando il continente insieme ai suoi figli, che avevano acquisito una forza incredibile. Il suo impero crebbe e si affermò come uno dei più potenti della storia, ma con il passare degli anni, il suo carattere cambiò. La rabbia e la paura che avevano segnato la sua giovinezza iniziarono a dissolversi, e sentimenti come la gioia, la tristezza, l’empatia e l’amore cominciarono a farsi strada nel cuore dei suoi figli."
+        },
+        {
+          "id": "culto-e-retaggio",
+          "type": "text",
+          "title": "Culto e Retaggio",
+          "icon": "fa-landmark",
+          "text": "Questi sentimenti contrastavano le leggi imposte dal suo impero, e la crescente disobbedienza portò alla nascita di rivolte interne. La più famosa di queste, il Ritorno di Fiamma.\n\nGuglielmo aveva iniziato a porsi delle domande. Aveva chiesto a Vodrenno, il Dio Serpente, di rivelargli i segreti dell’universo. Vodrenno gli promise risposte, ma per ottenerle Guglielmo avrebbe dovuto diventare un dio a sé stante. In un momento di rabbia e superbia, Guglielmo colpì Vodrenno con la sua lancia, strappandogli un occhio e autoproclamandosi divinità. Dopo questo atto, tornò nei Reami dell’Assolutore, dove imprigionò le anime dei morti in quattro artefatti che lui stesso creò, chiamati le Ancore del Mondo. Questi artefatti avevano lo scopo di impedire la lacerazione tra il Piano Materiale e il Piano dell’Assolutore, mantenendo l’equilibrio tra i due piani.\n\n---"
+        }
+      ]
+    }
+  ]
+}

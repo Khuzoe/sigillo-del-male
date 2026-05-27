@@ -1,0 +1,48 @@
+id: "franky"
+name: "Franky"
+aliases:
+  - "Franky"
+role: "Lo Scienziato"
+status: "vivo"
+hidden: false
+quote: "She volete dei shieri, io shi shono!"
+images:
+  avatar: "media/creatures/transp/franky_transp.webp"
+  hover: "media/creatures/transp/franky_animation.webp"
+  portrait: "media/creatures/franky.webp"
+summary:
+  race: "Topo Parlante"
+  height: "1 ft 10 in (0.55 m)"
+  weight: "4 lbs (2 kg)"
+content_blocks:
+  - type: "lore"
+    title: "Biografia"
+    icon: "fa-book-open"
+    markdown: "characters/franky/biografia.md"
+  - type: "lore"
+    title: "Particolarità"
+    icon: "fa-fingerprint"
+    markdown: "characters/franky/particolarita.md"
+  - type: "lore"
+    title: "Aspetto Fisico"
+    icon: "fa-user"
+    markdown: "characters/franky/aspetto_fisico.md"
+  - type: "image_box"
+    title: "I Sieri"
+    image: "media/items/franky_sierums.webp"
+    image_caption: "Collezione di sieri instabili."
+    tags:
+      - "Oggetto"
+      - "Alchimia"
+    markdown: "characters/franky/sieri.md"
+  - type: "image_box"
+    title: "Colossho di Carne"
+    image: "media/creatures/bestiary/golem_micidiale_della_morte.webp"
+    image_caption: "Costrutto di carne e metallo."
+    tags:
+      - "Creatura"
+      - "Esperimento"
+    markdown: "characters/franky/golem.md"
+
+relationships: - {}
+type: "npc"

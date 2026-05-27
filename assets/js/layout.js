@@ -652,6 +652,7 @@ async function loadEnabledCampaigns() {
                 id: sanitizeCampaignId(campaign.id),
                 name: String(campaign.name || campaign.id).trim(),
                 siteTitle: String(campaign.siteTitle || campaign.name || "").trim(),
+                dataPath: String(campaign.dataPath || "").trim(),
                 theme: String(campaign.theme || campaign.id || "").trim(),
                 logo: String(campaign.logo || "").trim(),
                 hiddenPages: Array.isArray(campaign.hiddenPages) ? campaign.hiddenPages : []
@@ -1402,9 +1403,11 @@ function resolveSiteUrl(relativePath) {
 function resolveDataUrl(dataPath, options = {}) {
     const cleanPath = String(dataPath || "").replace(/^\/+/, "").replace(/^assets\/data\//, "");
     const campaignId = sanitizeCampaignId(options.campaignId || getCampaignId());
-    const baseDataPath = campaignId === DEFAULT_CAMPAIGN_ID
-        ? `assets/data/${cleanPath}`
-        : `campaigns/${campaignId}/data/${cleanPath}`;
+    const configuredPath = currentCampaignConfig && sanitizeCampaignId(currentCampaignConfig.id) === campaignId
+        ? String(currentCampaignConfig.dataPath || "").replace(/^\/+|\/+$/g, "")
+        : "";
+    const basePath = configuredPath || (campaignId === DEFAULT_CAMPAIGN_ID ? "assets/data" : `campaigns/${campaignId}/data`);
+    const baseDataPath = `${basePath}/${cleanPath}`;
     return resolveSiteUrl(baseDataPath);
 }
 

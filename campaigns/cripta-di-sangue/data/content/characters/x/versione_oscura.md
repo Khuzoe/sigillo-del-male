@@ -1,0 +1,1 @@
+X appare qui nella sua forma oscura, manifestata nell'arena circolare in cui vi siete ritrovati dopo aver percepito dolore al petto. La sua figura conserva una compostezza quasi rituale, ma l'insieme del volto, della posa e dell'atmosfera la rende piu glaciale, distante e pericolosa.

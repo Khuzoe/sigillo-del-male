@@ -1,0 +1,1061 @@
+[
+  {
+    "name": "Albert",
+    "image": "media/creatures/bestiary/albert.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 30
+    },
+    "rank": "mini_boss",
+    "details": {
+      "description": "Creatura aberrante dall'altezza sorprendente e corporatura massiccia. Priva di testa, individua i propri bersagli usando meccanismi di percezione alternativi. Il suo cuore è esposto, fuoriuscendo parzialmente dal petto. Alla schiena, collegato al suo corpo, ha un sacco nella quale inserisce le sue vittime.",
+      "dndType": "Aberrazione",
+      "size": "Enorme",
+      "height": "6.00 m",
+      "weight": "2800.00 kg",
+      "traits": [],
+      "drops": [
+        {
+          "name": "Cuore di Albert",
+          "image": "media/drops/cuore_albert.webp",
+          "rarity": "Unico",
+          "note": "Organo anomalo ancora intriso di forte energia arcana residua. Sembra essere pregno di magia."
+        }
+      ]
+    },
+    "foundryName": [
+      "Albert (Gianni)",
+      "Albert"
+    ]
+  },
+  {
+    "name": "Ammasso di Morte",
+    "image": "media/creatures/bestiary/ammasso_di_morte.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 44
+    },
+    "rank": "mini_boss",
+    "details": {
+      "description": "Cumulo di cadaveri fusi in un unico organismo non morto. Ogni corpo aggiunto ne aumenta peso e orrore, mentre le bocche sepolte nella carne sembrano urlare in ritardo.",
+      "dndType": "Non morto",
+      "size": "Enorme",
+      "height": "4.20 m",
+      "weight": "3600.00 kg",
+      "traits": [],
+      "drops": [],
+      "immunities": [
+        "Necrotico"
+      ]
+    },
+    "foundryName": "Ammasso di Morte"
+  },
+  {
+    "name": "Coltura Danzante",
+    "image": "media/creatures/bestiary/coltura_danzante.webp",
+    "imageAdjust": {
+      "x": 48,
+      "y": 40
+    },
+    "details": {
+      "description": "Fiore predatorio cresciuto su una struttura quasi umanoide. Danza tra petali, spine e radici mobili, trasformando il terreno vicino in un giardino ostile.",
+      "dndType": "Pianta",
+      "size": "Media",
+      "height": "1.80 m",
+      "weight": "45.00 kg",
+      "traits": [],
+      "drops": [],
+      "vulnerabilities": [
+        "Fuoco"
+      ]
+    },
+    "foundryName": [
+      "Black Rose Warrior",
+      "Black Rose"
+    ]
+  },
+  {
+    "name": "Coltura Danzante Necrotica",
+    "image": "media/creatures/bestiary/coltura_danzante_necrotica.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 42
+    },
+    "rank": "unique_monster",
+    "details": {
+      "description": "Variante funerea della coltura danzante, impregnata di energia morta. I petali si muovono come veli da lutto e ogni passo diffonde l'odore dolciastro della decomposizione.",
+      "dndType": "Non morto",
+      "size": "Grande",
+      "height": "2.80 m",
+      "weight": "180.00 kg",
+      "traits": [],
+      "drops": [],
+      "immunities": [
+        "Necrotico"
+      ],
+      "vulnerabilities": [
+        "Fuoco"
+      ]
+    },
+    "foundryName": [
+      "Blood Rose",
+      "Blood Rose Warrior"
+    ]
+  },
+  {
+    "name": "Spremi Agrumi",
+    "image": "media/creatures/bestiary/spremi_agrumi.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 40
+    },
+    "rank": "mini_boss",
+    "details": {
+      "description": "Bruto massiccio di muscoli grigi, tendini esposti e forza compressa. Il nome è quasi una beffa: quando stringe una preda, la carne cede come frutta matura sotto una pressione inesorabile.",
+      "dndType": "Aberrazione",
+      "size": "Enorme",
+      "height": "7.50 m",
+      "weight": "8500.00 kg",
+      "traits": [],
+      "drops": [
+        {
+          "itemId": "guanti-zara",
+          "name": "Guanti di Zara",
+          "image": "media/items/zara-gloves.webp",
+          "rarity": "Non comune",
+          "note": "Richiede sintonia"
+        }
+      ]
+    },
+    "foundryName": "Spremi Agrumi"
+  },
+  {
+    "name": "Torre di Carne",
+    "image": "media/creatures/bestiary/torre_di_carne.webp",
+    "imageAdjust": {
+      "x": 53,
+      "y": 39,
+      "size": 1.3
+    },
+    "rank": "mini_boss",
+    "details": {
+      "description": "Pilastro di carne, denti e capelli cresciuto come un tumulo verticale. Non insegue la preda: domina lo spazio, attira l'attenzione e costringe chiunque ad affrontarne la massa.",
+      "dndType": "Aberrazione",
+      "size": "Enorme",
+      "height": "2.80",
+      "weight": "830.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": "Meat Tower"
+  },
+  {
+    "name": "Zombie Becchino",
+    "image": "media/creatures/bestiary/zombie_becchino.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 34
+    },
+    "details": {
+      "description": "Non morto che conserva strumenti e gesti del mestiere funebre. Scava, trascina e colpisce con pazienza da sepoltura, come se ogni scontro fosse una tomba da completare.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.80 m",
+      "weight": "75.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": "Zombie Grave Digger"
+  },
+  {
+    "name": "Cane I",
+    "image": "media/creatures/bestiary/cane_1.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 36
+    },
+    "category": "Franky",
+    "details": {
+      "description": "Segugio di carne ricucita, addestrato a presidiare soglie e corridoi. Conserva un istinto da branco sufficiente a coordinarsi con altre creature simili, ma ogni movimento tradisce la natura artificiale del suo corpo.",
+      "dndType": "Non morto",
+      "size": "Grande",
+      "height": "2.75 m",
+      "weight": "260.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Cane di Franky Incompleto",
+      "Cane di Franky"
+    ]
+  },
+  {
+    "name": "Cane II",
+    "image": "media/creatures/bestiary/cane_2.webp",
+    "imageAdjust": {
+      "x": 54,
+      "y": 36
+    },
+    "category": "Franky",
+    "details": {
+      "description": "Variante più pesante dei cani mostruosi, composta da masse muscolari innestate su una struttura canina deformata. Avanza con furia ostinata e colpisce come un ariete vivo.",
+      "dndType": "Non morto",
+      "size": "Grande",
+      "height": "2.55 m",
+      "weight": "310.00 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Cane Non Morto",
+    "image": "media/creatures/bestiary/cane_non_morto.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 46
+    },
+    "category": "Franky",
+    "details": {
+      "description": "Carcassa canina rianimata, tenuta insieme da ossa, tendini e fame residua. Non caccia per nutrirsi: insegue calore, rumore e movimento fino a spegnerli.",
+      "dndType": "Non morto",
+      "size": "Grande",
+      "height": "1.65 m",
+      "weight": "180.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": "Corpse Dog"
+  },
+  {
+    "name": "Golem Micidiale della Morte",
+    "image": "media/creatures/bestiary/golem_micidiale_della_morte.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 40,
+      "size": 1.02
+    },
+    "category": "Franky",
+    "rank": "mini_boss",
+    "details": {
+      "description": "Imponente golem di carne progettato come arma definitiva. Parti di bestie e cadaveri vengono saldate attorno a un nucleo arcano, trasformando la morte in forza bruta e obbedienza cieca.",
+      "dndType": "Costrutto",
+      "size": "Enorme",
+      "height": "8.00 m",
+      "weight": "6500.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Incomplete Flesh Golem",
+      "Flesh Golem Abomination"
+    ]
+  },
+  {
+    "name": "Topo Morto",
+    "image": "media/creatures/bestiary/topo_morto.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 30
+    },
+    "category": "Franky",
+    "rank": "unique_monster",
+    "details": {
+      "description": "Piccola creatura non morta da laboratorio, più utile come guardiano che come predatore. Le sue dimensioni ridotte le permettono di insinuarsi tra fessure, ferri chirurgici e resti abbandonati.",
+      "dndType": "Non morto",
+      "size": "Grande",
+      "height": "2.65 m",
+      "weight": "240.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Golem Topo Morto",
+      "Flesh Golem"
+    ]
+  },
+  {
+    "name": "Pipistrello Vampirico",
+    "image": "media/creatures/bestiary/pipistrello_vampirico.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 42
+    },
+    "category": "Karla",
+    "details": {
+      "description": "Predatore ematofago dalle ali membranose e dagli occhi gonfi di sangue. Non caccia come un animale comune: segue odore, battito e calore, scegliendo il momento in cui la preda non può più distinguere il fruscio dal respiro.",
+      "dndType": "Mostruosità",
+      "size": "Media",
+      "height": "1.20 m",
+      "weight": "45.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Bat Mosquito [Tiny]",
+      "Carrier Mosquito",
+      "Bat Mosquito"
+    ]
+  },
+  {
+    "name": "Seguace Vampirico",
+    "image": "media/creatures/bestiary/seguace_vampirico.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 34
+    },
+    "category": "Karla",
+    "details": {
+      "description": "Servitore dissanguato e reso dipendente dalla fame altrui. Non possiede la nobiltà del vampiro, soltanto una sua eco magra e servile, abbastanza forte da obbedire e abbastanza vuota da non esitare.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.85 m",
+      "weight": "55.00 kg",
+      "traits": [
+        {
+          "name": "Rigenerazione",
+          "icon": "fa-heart-pulse"
+        }
+      ],
+      "drops": [],
+      "immunities": [
+        "Necrotico"
+      ]
+    },
+    "foundryName": [
+      "Seguace Prosciugato 1",
+      "Seguace Prosciugato",
+      "Seguace Prosciugato 7",
+      "Seguace Prosciugato 6",
+      "Seguace Prosciugato Preferito",
+      "Seguace Prosciugato 5",
+      "Seguace Prosciugato 4",
+      "Seguace Prosciugata Preferita",
+      "Vampire Spawn",
+      "Seguace Prosciugato 3",
+      "Seguace Prosciugato 2"
+    ]
+  },
+  {
+    "name": "Cultista Klaren",
+    "image": "media/creatures/bestiary/cultista_klaren.webp",
+    "imageAdjust": {
+      "x": 52,
+      "y": 36
+    },
+    "category": "Klaren",
+    "details": {
+      "description": "Devoto deformato da un culto di carne e putrefazione. Il corpo conserva brandelli di disciplina rituale, ma la fede rimasta è una fame cieca che lo spinge verso sangue, voce e movimento.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.85 m",
+      "weight": "80.00 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Lumilla Klaren",
+    "image": "media/creatures/bestiary/lumilla.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 34
+    },
+    "rank": "unique_monster",
+    "details": {
+      "description": "Figura scheletrica avvolta da una luce dorata e malata. La sua presenza non illumina: consuma l'ombra, scalda l'aria e trasforma la devozione in una pressione quasi fisica.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.75 m",
+      "weight": "35.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "category": "Klaren",
+    "foundryName": [
+      "Generale Lumilla",
+      "Radiant Sister"
+    ]
+  },
+  {
+    "name": "Mummia Klaren",
+    "image": "media/creatures/bestiary/mummia.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 34
+    },
+    "details": {
+      "description": "Cadavere fasciato e preservato da rituali antichi. Si muove con lentezza solenne, lasciando dietro di sé polvere secca, bende vive e un rancore che non conosce decomposizione.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.90 m",
+      "weight": "55.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "category": "Klaren",
+    "foundryName": "Mummy"
+  },
+  {
+    "name": "Okbrax Klaren",
+    "image": "media/creatures/bestiary/okbrax.webp",
+    "imageAdjust": {
+      "x": 47,
+      "y": 35
+    },
+    "rank": "unique_monster",
+    "details": {
+      "description": "Spadaccino non morto avvolto da fiamme violacee, più simile a un comando rimasto inciso nelle ossa che a un guerriero vivente. Ogni gesto è controllato, misurato e intriso di energia funerea.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.95 m",
+      "weight": "45.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "category": "Klaren",
+    "foundryName": [
+      "Generale Okbrax",
+      "Okkar Magur"
+    ]
+  },
+  {
+    "name": "Rosskar Klaren",
+    "image": "media/creatures/bestiary/rosskar.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 35
+    },
+    "rank": "unique_monster",
+    "details": {
+      "description": "Guerriero scheletrico in armatura rovente, circondato da fiamme che sembrano nascere direttamente dalle ossa. Avanza come una sentenza marziale, portando calore, acciaio e odio disciplinato.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "2.05 m",
+      "weight": "50.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "category": "Klaren",
+    "foundryName": [
+      "Generale Rosskar",
+      "Flaming Skeleton"
+    ]
+  },
+  {
+    "name": "Sacerdotessa Klaren",
+    "image": "media/creatures/bestiary/sacerdotessa_klaren.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 36
+    },
+    "category": "Klaren",
+    "details": {
+      "description": "Officiante corrotta che brandisce resti sacri come strumenti di dominio. Il suo corpo è consunto dal rito, ma la voce conserva autorità sufficiente a guidare fanatici, morti e cose peggiori.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.60 m",
+      "weight": "48.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": "Klaren Priestess"
+  },
+  {
+    "name": "Abominio Tela",
+    "image": "media/creatures/bestiary/abominio_tela.webp",
+    "imageAdjust": {
+      "x": 42,
+      "y": 42
+    },
+    "category": "Nino Olegna",
+    "details": {
+      "description": "Creatura allungata e piegata, nata da ragnatele organiche, tendini e carne stirata. Lascia dietro di sé filamenti appiccicosi e si muove come se fosse tirata da mani invisibili.",
+      "dndType": "Aberrazione",
+      "size": "Grande",
+      "height": "2.80 m",
+      "weight": "210.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": "Abominio di Tela"
+  },
+  {
+    "name": "Bacio Mortale",
+    "image": "media/creatures/bestiary/assistente.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 50
+    },
+    "category": "Nino Olegna",
+    "rank": "mini_boss",
+    "details": {
+      "description": "Aberrazione tentacolare creata per assistere rituali e procedure mostruose. Osserva, trattiene e prepara la materia vivente, come uno strumento chirurgico dotato di volontà propria.",
+      "dndType": "Aberrazione",
+      "size": "Enorme",
+      "height": "5.50 m",
+      "weight": "1800.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": "Death Kiss"
+  },
+  {
+    "name": "Creatura Tela",
+    "image": "media/creatures/bestiary/creatura_tela.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 32
+    },
+    "category": "Nino Olegna",
+    "details": {
+      "description": "Umanoide essiccato e rinforzato da fibre di tela necromantica. Viene spesso impiegato come materiale di partenza per creazioni più complesse, ma resta pericoloso anche quando agisce da solo.",
+      "dndType": "Aberrazione",
+      "size": "Media",
+      "height": "1.90 m",
+      "weight": "55.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": "Creatura Tela"
+  },
+  {
+    "name": "Muro Tela",
+    "image": "media/creatures/bestiary/muro_tela.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 50
+    },
+    "category": "Nino Olegna",
+    "rank": "mini_boss",
+    "details": {
+      "description": "Parete vivente di filamenti, carne e occhio vigile. Non separa soltanto gli ambienti: li sorveglia, li soffoca e li trasforma lentamente in una trappola organica.",
+      "dndType": "Aberrazione",
+      "size": "Media",
+      "height": "1.00 m",
+      "weight": "35.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": "Braccio Tela"
+  },
+  {
+    "name": "Ragno Tela",
+    "image": "media/creatures/bestiary/ragno_tela.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 42
+    },
+    "category": "Nino Olegna",
+    "details": {
+      "description": "Predatore pallido generato da fibre tese e arti innaturali. Si annida nei passaggi alti o bui, attendendo che la preda finisca nel punto esatto in cui la tela può chiudersi.",
+      "dndType": "Aberrazione",
+      "size": "Grande",
+      "height": "1.50 m",
+      "weight": "140.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Ragno Tela",
+      "Tendon Spider"
+    ]
+  },
+  {
+    "name": "Webber",
+    "image": "media/creatures/bestiary/webber.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 48
+    },
+    "category": "Nino Olegna",
+    "details": {
+      "description": "Bozzolo senziente dotato di occhio, bocca e tentacoli. Sembra una creatura incompleta, ma la sua fragilità apparente nasconde una presa tenace e un appetito metodico.",
+      "dndType": "Aberrazione",
+      "size": "Grande",
+      "height": "3.00 m",
+      "weight": "260.00 kg",
+      "traits": [],
+      "drops": []
+    }
+  },
+  {
+    "name": "Deborah Von T",
+    "image": "media/creatures/bestiary/deborah_von_t.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 22
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "deborah",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta L'Ultima Foglia.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.35 m",
+      "weight": "30.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Deborah Zombie",
+      "Darkness",
+      "Dark Deborah"
+    ]
+  },
+  {
+    "name": "Elena Erbadath",
+    "image": "media/creatures/bestiary/elena_erbadath.webp",
+    "imageAdjust": {
+      "x": 56,
+      "y": 28
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "elena",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta La Fantasma.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.61 m",
+      "weight": "0.75 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Elena Erbadath",
+      "Ghost",
+      "Dark Elena"
+    ]
+  },
+  {
+    "name": "Franky",
+    "image": "media/creatures/bestiary/franky.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 2,
+      "size": 1.1
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "franky",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta Lo Scienziato.",
+      "dndType": "Non morto",
+      "size": "Minuscola",
+      "height": "0.55 m",
+      "weight": "2.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Franky",
+      "Frankie",
+      "Dark Franky"
+    ]
+  },
+  {
+    "name": "Ginevra Von T",
+    "image": "media/creatures/bestiary/ginevra_von_t.webp",
+    "imageAdjust": {
+      "x": 44,
+      "y": 15
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "ginevra",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta L'Alambicco Vivente.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.82 m",
+      "weight": "240.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Ginevra Von T",
+      "Frost Giant Revenant",
+      "Dark Ginevra"
+    ]
+  },
+  {
+    "name": "Karla Von T",
+    "image": "media/creatures/bestiary/karla_von_t.webp",
+    "imageAdjust": {
+      "x": 43,
+      "y": 4,
+      "size": 1.9
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "karla",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta La Vampira.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.75 m",
+      "weight": "65.00 kg",
+      "traits": [
+        {
+          "name": "Rigenerazione",
+          "icon": "fa-heart-pulse"
+        }
+      ],
+      "drops": []
+    },
+    "foundryName": [
+      "Dark Karla",
+      "Karla Von T",
+      "Karla"
+    ]
+  },
+  {
+    "name": "Leonora Von T",
+    "image": "media/creatures/bestiary/leonora_von_t.webp",
+    "imageAdjust": {
+      "x": 38,
+      "y": 45
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "leonora",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta Figura Misteriosa.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.73 m",
+      "weight": "60.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "hidden": true,
+    "foundryName": [
+      "Dark ???",
+      "Leonora"
+    ]
+  },
+  {
+    "name": "Nino Olegna",
+    "image": "media/creatures/bestiary/nino_olegna_npc.webp",
+    "imageAdjust": {
+      "x": 38,
+      "y": 12
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "nino_olegna",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta Il Tessimorte.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "2.60 m",
+      "weight": "210.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Nino Olegna",
+      "Dark Nino Olegna"
+    ]
+  },
+  {
+    "name": "Rabberduscolanderson Von T",
+    "image": "media/creatures/bestiary/rabberduscolanderson_von_t.webp",
+    "imageAdjust": {
+      "x": 34,
+      "y": 31
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "rabberduscolanderson",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta Il Reietto.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.62 m",
+      "weight": "9.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Rabberruduscolanderson Von T",
+      "Dark Rabberduscolanderson"
+    ]
+  },
+  {
+    "name": "Tokka Von T",
+    "image": "media/creatures/bestiary/tokka_von_t.webp",
+    "imageAdjust": {
+      "x": 41,
+      "y": 1,
+      "size": 2.2
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "tokka",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta Il Cuore Corrotto.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.78",
+      "weight": "70.00",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Tokka Von T",
+      "Tokka"
+    ]
+  },
+  {
+    "name": "X Von T",
+    "image": "media/creatures/bestiary/x_von_t.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 8
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "x",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta La Studiosa.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.68 m",
+      "weight": "8.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Dark X",
+      "X  Von T"
+    ]
+  },
+  {
+    "name": "Zara Klaren",
+    "image": "media/creatures/bestiary/zara_klaren.webp",
+    "imageAdjust": {
+      "x": 41,
+      "y": 41,
+      "size": 1.05
+    },
+    "category": "Speciale",
+    "rank": "special",
+    "sourceCharacterId": "zara",
+    "details": {
+      "description": "Figura speciale registrata tra gli NPC principali della cripta La Giullare.",
+      "dndType": "Non morto",
+      "size": "Media",
+      "height": "1.70 m",
+      "weight": "60.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Zara Klaren :)",
+      "Zara",
+      "Zara Klaren"
+    ]
+  },
+  {
+    "name": "Bambola Infermiera",
+    "image": "media/creatures/bestiary/bambola_infermiera.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 42
+    },
+    "category": "Zara",
+    "details": {
+      "description": "Bambola animata con abiti da infermiera e strumenti appuntiti. Imita la cura con gesti dolci e precisi, ma ogni attenzione nasconde un impulso crudele e invasivo.",
+      "dndType": "Costrutto",
+      "size": "Minuscola",
+      "height": "0.45 m",
+      "weight": "3.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": "Zara, Infermiera di Pezza"
+  },
+  {
+    "name": "Bambolina Gamba Fine",
+    "image": "media/creatures/bestiary/bambolina_gamba_fine.webp",
+    "imageAdjust": {
+      "x": 48,
+      "y": 42
+    },
+    "category": "Zara",
+    "details": {
+      "description": "Piccola bambola dalle gambe sottili e dagli occhi accesi. Corre con scatti improvvisi, ride nei punti ciechi e sfrutta la propria taglia per sfuggire alle reazioni più lente.",
+      "dndType": "Costrutto",
+      "size": "Minuscola",
+      "height": "0.40 m",
+      "weight": "2.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Living Doll",
+      "Dolly",
+      "Piccola Bambola"
+    ]
+  },
+  {
+    "name": "Bambolotto Mammone",
+    "image": "media/creatures/bestiary/bambolotto_mammone.webp",
+    "imageAdjust": {
+      "x": 48,
+      "y": 44
+    },
+    "category": "Zara",
+    "details": {
+      "description": "Pupazzo imbottito di stoffa, cera e bisogno infantile. Cerca contatto con insistenza soffocante, stringendo la preda in un abbraccio che diventa rapidamente una presa.",
+      "dndType": "Costrutto",
+      "size": "Minuscola",
+      "height": "0.35 m",
+      "weight": "2.50 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Bambola Assolutamente Non Piccola",
+      "Bambola Non Piccola"
+    ]
+  },
+  {
+    "name": "Guanto di Zara",
+    "image": "media/creatures/bestiary/guanto_di_zara.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 48
+    },
+    "category": "Zara",
+    "details": {
+      "description": "Guanto animato privo di braccio, mosso da volontà teatrale. Fluttua, afferra e trascina come una mano invisibile, spesso agendo in concerto con altri oggetti incantati.",
+      "dndType": "Costrutto",
+      "size": "Minuscola",
+      "height": "0.35 m",
+      "weight": "1.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": "Guanto Animato"
+  },
+  {
+    "name": "Palloncino di Zara",
+    "image": "media/creatures/bestiary/palloncino_di_zara.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 42
+    },
+    "category": "Zara",
+    "details": {
+      "description": "Testa gonfia e lucida sospesa a un filo sottile, animata da capriccio infantile e magia crudele. Piange, ondeggia e distrae con un volto troppo espressivo per essere soltanto un giocattolo.",
+      "dndType": "Costrutto",
+      "size": "Minuscola",
+      "height": "0.60 m diametro",
+      "weight": "1.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Palloncino Randra",
+      "Palloncino Valdor",
+      "Palloncino Apothecary",
+      "Balloon",
+      "Palloncino Garun"
+    ]
+  },
+  {
+    "name": "Pantofola di Zara",
+    "image": "media/creatures/bestiary/pantofola_di_zara.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 50
+    },
+    "category": "Zara",
+    "details": {
+      "description": "Calzatura animata e grottesca, rapida nei balzi e difficile da prevedere. Colpisce basso, distrae e trasforma anche il gesto piu ridicolo in una minaccia reale.",
+      "dndType": "Costrutto",
+      "size": "Minuscola",
+      "height": "0.30 m",
+      "weight": "1.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": "Scarpa Animata"
+  },
+  {
+    "name": "Scrigno Rosa",
+    "image": "media/creatures/bestiary/scrigno_rosa.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 48
+    },
+    "category": "Zara",
+    "details": {
+      "description": "Mimic decorato con rose, denti e falsa promessa di ricompensa. Attende che la curiosità faccia il primo passo, poi chiude la trappola con pazienza famelica.",
+      "dndType": "Costrutto",
+      "size": "Media",
+      "height": "0.90 m",
+      "weight": "90.00 kg",
+      "traits": [],
+      "drops": []
+    },
+    "foundryName": [
+      "Rose Chest",
+      "Baule Malefico"
+    ]
+  },
+  {
+    "name": "Velkarya Klaren",
+    "image": "media/creatures/bestiary/velkarya.webp",
+    "imageAdjust": {
+      "x": 50,
+      "y": 10,
+      "size": 2
+    },
+    "details": {
+      "traits": [],
+      "drops": [],
+      "dndType": "Costrutto",
+      "height": "2.86 m",
+      "weight": "1250.00 kg",
+      "size": "Grande"
+    },
+    "category": "Tokka",
+    "rank": "unique_monster",
+    "mysteryName": "Vergine di Ferro",
+    "discovered": false,
+    "foundryName": [
+      "Vergine di Ferro",
+      "Scudo Guardiano",
+      "Velkarya Klaren"
+    ]
+  },
+  {
+    "name": "Carro Trivellante",
+    "image": "media/creatures/bestiary/cart.webp",
+    "imageAdjust": {
+      "x": 55,
+      "y": 52,
+      "size": 1.01
+    },
+    "details": {
+      "traits": [],
+      "drops": [],
+      "dndType": "Costrutto",
+      "size": "Medio",
+      "height": "1.28",
+      "weight": "75.00",
+      "immunities": [
+        "Psichico"
+      ]
+    },
+    "category": "Tokka",
+    "foundryName": [
+      "Robot Trivella",
+      "Robot Minatore"
+    ]
+  }
+]

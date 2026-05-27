@@ -1,0 +1,3 @@
+Rabberduscolanderson è uno scheletro vivente che emana un'aria di furtiva astuzia. Spogliato di ogni traccia di carne, le sue ossa sono ingiallite dal tempo, e le orbite vuote del teschio sono illuminate da due piccoli punti di luce rossa. Il suo volto scheletrico sembra perennemente atteggiato in un sorriso sardonico.
+
+Veste come un vagabondo: indossa stracci logori nei toni del marrone e del grigio, talmente consunti da sembrare fusi con le sue ossa. Un cappello di paglia sformato e rovinato dalle intemperie gli copre il capo. Una borsa a tracolla in cuoio marrone, piena di fibbie e tasche, è assicurata al suo petto.

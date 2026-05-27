@@ -1,0 +1,176 @@
+[
+  {
+    "id": "yuris",
+    "name": "Yuris Von T",
+    "image": "media/creatures/transp/franky_transp.webp",
+    "parents": [],
+    "spouses": [
+      "leonora"
+    ],
+    "children": [
+      "x",
+      "rabberduscolanderson",
+      "ginevra"
+    ],
+    "hidden": false,
+    "unknown": true,
+    "von_t": true,
+    "birthOrder": 1
+  },
+  {
+    "id": "leonora",
+    "name": "Leonora",
+    "image": "media/creatures/transp/leonora_transp.webp",
+    "parents": [],
+    "spouses": [
+      "yuris"
+    ],
+    "children": [
+      "x",
+      "rabberduscolanderson",
+      "ginevra"
+    ],
+    "hidden": false,
+    "unknown": true,
+    "von_t": false
+  },
+  {
+    "id": "x",
+    "name": "X Von T",
+    "image": "media/creatures/transp/x_transp.webp",
+    "parents": [
+      "yuris",
+      "leonora"
+    ],
+    "spouses": [
+      "nino_olegna"
+    ],
+    "children": [
+      "karla",
+      "tokka"
+    ],
+    "hidden": false,
+    "von_t": true,
+    "birthOrder": 4
+  },
+  {
+    "id": "rabberduscolanderson",
+    "name": "Rabberduscolanderson Von T",
+    "image": "media/creatures/transp/rabberduscolanderson_transp.webp",
+    "parents": [
+      "yuris",
+      "leonora"
+    ],
+    "spouses": [
+      "elena"
+    ],
+    "children": [],
+    "hidden": false,
+    "von_t": true,
+    "birthOrder": 3
+  },
+  {
+    "id": "ginevra",
+    "name": "Ginevra Von T",
+    "image": "media/creatures/transp/ginevra_animation.webp",
+    "parents": [
+      "yuris",
+      "leonora"
+    ],
+    "spouses": [
+      "rendar"
+    ],
+    "children": [
+      "deborah"
+    ],
+    "hidden": false,
+    "unknown": false,
+    "von_t": true,
+    "birthOrder": 2
+  },
+  {
+    "id": "nino_olegna",
+    "name": "Nino Olegna",
+    "image": "media/creatures/transp/nino_olegna_transp.webp",
+    "parents": [],
+    "spouses": [
+      "x"
+    ],
+    "children": [
+      "karla",
+      "tokka"
+    ],
+    "hidden": false
+  },
+  {
+    "id": "karla",
+    "name": "Karla Von T",
+    "image": "media/creatures/transp/karla_transp.webp",
+    "parents": [
+      "x",
+      "nino_olegna"
+    ],
+    "spouses": [],
+    "children": [],
+    "hidden": false,
+    "von_t": true,
+    "birthOrder": 6
+  },
+  {
+    "id": "tokka",
+    "name": "Tokka Von T",
+    "image": "media/creatures/transp/tokka_transp.webp",
+    "parents": [
+      "x",
+      "nino_olegna"
+    ],
+    "spouses": [],
+    "children": [],
+    "hidden": false,
+    "von_t": true,
+    "unknown": false,
+    "unnamed": false,
+    "birthOrder": 5
+  },
+  {
+    "id": "rendar",
+    "name": "Rendar",
+    "image": "media/creatures/transp/rendar_transp.webp",
+    "parents": [],
+    "spouses": [
+      "ginevra"
+    ],
+    "children": [
+      "deborah"
+    ],
+    "hidden": false,
+    "unknown": true,
+    "unnamed": false
+  },
+  {
+    "id": "deborah",
+    "name": "Deborah Von T",
+    "image": "media/creatures/transp/deborah_animation.webp",
+    "parents": [
+      "ginevra",
+      "rendar"
+    ],
+    "spouses": [],
+    "children": [],
+    "hidden": false,
+    "von_t": true,
+    "birthOrder": 7
+  },
+  {
+    "id": "elena",
+    "name": "Elena Erbadath",
+    "image": "media/creatures/transp/elena_transp.webp",
+    "parents": [],
+    "spouses": [
+      "rabberduscolanderson"
+    ],
+    "children": [],
+    "hidden": false,
+    "unknown": false
+  }
+]
