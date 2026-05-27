@@ -1,0 +1,16 @@
+id: "garrona"
+name: "Garrona, la Luna e la Vita"
+role: "Divinità di Oltre il Velo"
+status: "ignoto"
+hidden: false
+quote: "Garrona è l’ottavogenita del Grande Verme, dea della Vita, della Luna e della Libertà, patrona della primavera che ritorna e delle leggi che tengono insieme popoli e famiglie."
+images:
+  avatar: "assets/img/logo.webp"
+  hover: "assets/img/logo.webp"
+  portrait: "assets/img/logo.webp"
+content_blocks:
+  - type: "lore"
+    title: "Profilo Divino"
+    icon: "fa-sun"
+    markdown: "characters/garrona/profilo_divino.md"
+type: "npc"

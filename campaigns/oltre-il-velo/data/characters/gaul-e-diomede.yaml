@@ -1,0 +1,16 @@
+id: "gaul-e-diomede"
+name: "Gaul e Diomede, gli Anziani Inverni, Signori dell’Aria e della Memoria"
+role: "Divinità di Oltre il Velo"
+status: "ignoto"
+hidden: false
+quote: "Gaul e Diomede non sono nati come dei: sono il risultato di un esperimento di Vodrenno, il Dio Serpente dell’Ombra e del Mana."
+images:
+  avatar: "assets/img/logo.webp"
+  hover: "assets/img/logo.webp"
+  portrait: "assets/img/logo.webp"
+content_blocks:
+  - type: "lore"
+    title: "Profilo Divino"
+    icon: "fa-sun"
+    markdown: "characters/gaul-e-diomede/profilo_divino.md"
+type: "npc"

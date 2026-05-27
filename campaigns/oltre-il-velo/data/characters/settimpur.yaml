@@ -1,0 +1,16 @@
+id: "settimpur"
+name: "Settimpur, il Sole e la Morte"
+role: "Divinità di Oltre il Velo"
+status: "ignoto"
+hidden: false
+quote: "Settimpur è il nonogenito del Grande Verme, signore di quei due estremi che definiscono ogni esistenza: la luce del giorno e il limite ultimo della vita."
+images:
+  avatar: "assets/img/logo.webp"
+  hover: "assets/img/logo.webp"
+  portrait: "assets/img/logo.webp"
+content_blocks:
+  - type: "lore"
+    title: "Profilo Divino"
+    icon: "fa-sun"
+    markdown: "characters/settimpur/profilo_divino.md"
+type: "npc"

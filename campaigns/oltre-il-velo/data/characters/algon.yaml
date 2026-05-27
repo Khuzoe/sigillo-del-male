@@ -1,0 +1,16 @@
+id: "algon"
+name: "Algon, il Padre Abissale"
+role: "Divinità di Oltre il Velo"
+status: "ignoto"
+hidden: false
+quote: "Algon nacque come settimogenito del Grande Verme e, per lunghissimo tempo, il mondo non lo conobbe con il nome che porta oggi."
+images:
+  avatar: "assets/img/logo.webp"
+  hover: "assets/img/logo.webp"
+  portrait: "assets/img/logo.webp"
+content_blocks:
+  - type: "lore"
+    title: "Profilo Divino"
+    icon: "fa-sun"
+    markdown: "characters/algon/profilo_divino.md"
+type: "npc"

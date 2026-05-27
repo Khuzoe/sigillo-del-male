@@ -1,0 +1,16 @@
+id: "merida"
+name: "Merida, Matrigna dei Giganti"
+role: "Divinità di Oltre il Velo"
+status: "ignoto"
+hidden: false
+quote: "Merida è la quartogenita del Grande Verme, nata quando il mondo era ancora giovane e le colline non avevano ancora imparato a portare il peso dei raccolti."
+images:
+  avatar: "assets/img/logo.webp"
+  hover: "assets/img/logo.webp"
+  portrait: "assets/img/logo.webp"
+content_blocks:
+  - type: "lore"
+    title: "Profilo Divino"
+    icon: "fa-sun"
+    markdown: "characters/merida/profilo_divino.md"
+type: "npc"

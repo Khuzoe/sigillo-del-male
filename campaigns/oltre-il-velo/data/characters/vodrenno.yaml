@@ -1,0 +1,16 @@
+id: "vodrenno"
+name: "Vodrenno, Dio Serpente dell'Ombra e del Mana"
+role: "Divinità di Oltre il Velo"
+status: "ignoto"
+hidden: false
+quote: "Vodrenno non nacque come gli altri figli del Grande Verme."
+images:
+  avatar: "assets/img/logo.webp"
+  hover: "assets/img/logo.webp"
+  portrait: "assets/img/logo.webp"
+content_blocks:
+  - type: "lore"
+    title: "Profilo Divino"
+    icon: "fa-sun"
+    markdown: "characters/vodrenno/profilo_divino.md"
+type: "npc"

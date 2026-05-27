@@ -1,0 +1,16 @@
+id: "quimbur"
+name: "Quimbur, il Cervo Nero"
+role: "Divinità di Oltre il Velo"
+status: "ignoto"
+hidden: false
+quote: "Quimbur è il terzogenito del Grande Verme, l’ombra che sussurra al limite tra la vita e la morte."
+images:
+  avatar: "assets/img/logo.webp"
+  hover: "assets/img/logo.webp"
+  portrait: "assets/img/logo.webp"
+content_blocks:
+  - type: "lore"
+    title: "Profilo Divino"
+    icon: "fa-sun"
+    markdown: "characters/quimbur/profilo_divino.md"
+type: "npc"

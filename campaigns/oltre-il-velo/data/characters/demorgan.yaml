@@ -1,0 +1,16 @@
+id: "demorgan"
+name: "Demorgan, Dio Drago del Tempo"
+role: "Divinità di Oltre il Velo"
+status: "ignoto"
+hidden: false
+quote: "Demorgan, la divinità del Tempo, dei Cicli e dei Varchi, è un'entità mistica che esiste come un drago maestoso e potente, il cui aspetto riflette la sua connessione con l"
+images:
+  avatar: "assets/img/logo.webp"
+  hover: "assets/img/logo.webp"
+  portrait: "assets/img/logo.webp"
+content_blocks:
+  - type: "lore"
+    title: "Profilo Divino"
+    icon: "fa-sun"
+    markdown: "characters/demorgan/profilo_divino.md"
+type: "npc"

@@ -1,0 +1,16 @@
+id: "guglielmo"
+name: "Guglielmo, l'Antico Dorato"
+role: "Divinità di Oltre il Velo"
+status: "ignoto"
+hidden: false
+quote: "Guglielmo non fu il primo dei Dragonborn."
+images:
+  avatar: "assets/img/logo.webp"
+  hover: "assets/img/logo.webp"
+  portrait: "assets/img/logo.webp"
+content_blocks:
+  - type: "lore"
+    title: "Profilo Divino"
+    icon: "fa-sun"
+    markdown: "characters/guglielmo/profilo_divino.md"
+type: "npc"

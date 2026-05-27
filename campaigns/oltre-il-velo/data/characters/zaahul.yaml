@@ -1,0 +1,16 @@
+id: "zaahul"
+name: "Zaahul, il Dio Colossale"
+role: "Divinità di Oltre il Velo"
+status: "ignoto"
+hidden: false
+quote: "Zaahul, il Dio Colossale, è ricordato come il Primogenito del Grande Verme: il primo pensiero cosciente che si sollevò dal fango primordiale quando il mondo era ancora giovane."
+images:
+  avatar: "assets/img/logo.webp"
+  hover: "assets/img/logo.webp"
+  portrait: "assets/img/logo.webp"
+content_blocks:
+  - type: "lore"
+    title: "Profilo Divino"
+    icon: "fa-sun"
+    markdown: "characters/zaahul/profilo_divino.md"
+type: "npc"

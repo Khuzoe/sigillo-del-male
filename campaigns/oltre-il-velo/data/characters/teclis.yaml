@@ -1,0 +1,16 @@
+id: "teclis"
+name: "Teclis, il Conte d’Avorio"
+role: "Divinità di Oltre il Velo"
+status: "ignoto"
+hidden: false
+quote: "Teclis è il quintogenito del Grande Verme, il figlio che nessuno avrebbe voluto."
+images:
+  avatar: "assets/img/logo.webp"
+  hover: "assets/img/logo.webp"
+  portrait: "assets/img/logo.webp"
+content_blocks:
+  - type: "lore"
+    title: "Profilo Divino"
+    icon: "fa-sun"
+    markdown: "characters/teclis/profilo_divino.md"
+type: "npc"

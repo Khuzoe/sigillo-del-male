@@ -1,0 +1,16 @@
+id: "vanisa"
+name: "Vanisa, Dea del Ferro e degli Ingranaggi"
+role: "Divinità di Oltre il Velo"
+status: "ignoto"
+hidden: false
+quote: "Vanisa nacque dal Grande Verme come seconda tra i Primigeni, e sin dall’inizio la sua esistenza fu segnata da fratture, sacrifici e rinunce."
+images:
+  avatar: "assets/img/logo.webp"
+  hover: "assets/img/logo.webp"
+  portrait: "assets/img/logo.webp"
+content_blocks:
+  - type: "lore"
+    title: "Profilo Divino"
+    icon: "fa-sun"
+    markdown: "characters/vanisa/profilo_divino.md"
+type: "npc"

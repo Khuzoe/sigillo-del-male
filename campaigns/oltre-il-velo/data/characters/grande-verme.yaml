@@ -1,0 +1,16 @@
+id: "grande-verme"
+name: "Grande Verme"
+role: "Divinità di Oltre il Velo"
+status: "ignoto"
+hidden: false
+quote: "Il Grande Verme è il primo e più antico degli spiriti, una creatura asessuata nata quando ancora il mondo era una lastra di roccia fredda, senza mare, senza cielo, senza nomi."
+images:
+  avatar: "assets/img/logo.webp"
+  hover: "assets/img/logo.webp"
+  portrait: "assets/img/logo.webp"
+content_blocks:
+  - type: "lore"
+    title: "Profilo Divino"
+    icon: "fa-sun"
+    markdown: "characters/grande-verme/profilo_divino.md"
+type: "npc"
