@@ -1,0 +1,3 @@
+Quella scoperta cambiò tutto. Il Mana non era più “libero” e crudele come nelle Faglie, ma intrappolato in cristalli duraturi e difficili da domare. Solo i Manthae più capaci riuscivano a estrarne quantità significative, diventando incantatori temuti e venerati. Da allora, l’intera cultura manthae si basa su questa dipendenza: un popolo che guarda a Vodrenno come a un maestro distante e crudele, ma irrinunciabile, colui che li ha condotti lungo il sentiero dell’evoluzione… o della dannazione.
+
+Vodrenno dimora oggi nel Santuario dell’Umbral, nel Piano Esterno delle Ombre, da dove osserva e manipola silenziosamente le correnti di Mana che attraversano tutti i Piani.

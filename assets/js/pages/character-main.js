@@ -228,13 +228,17 @@ async function loadPlayersData() {
 
 async function hydrateContentBlocks(character) {
     if (!character || !Array.isArray(character.content_blocks)) return;
-    const base = '../../assets/content/';
     await Promise.all(character.content_blocks.map(async (block) => {
         if (!block.markdown) return;
-        const url = base + block.markdown;
+        const urls = getContentBlockMarkdownUrls(block.markdown);
         try {
-            const resp = await fetch(url);
-            const md = resp.ok ? await resp.text() : '';
+            let md = '';
+            for (const url of urls) {
+                const resp = await fetch(url);
+                if (!resp.ok) continue;
+                md = await resp.text();
+                break;
+            }
             block.markdownText = md;
             block.markdownHtml = md ? renderMarkdown(md, { context: block.type }) : `<p>Impossibile caricare ${block.markdown}</p>`;
         } catch (err) {
@@ -242,6 +246,17 @@ async function hydrateContentBlocks(character) {
             block.markdownHtml = `<p>Impossibile caricare ${block.markdown}</p>`;
         }
     }));
+}
+
+function getContentBlockMarkdownUrls(markdownPath) {
+    const cleanPath = String(markdownPath || '').replace(/^\/+/, '');
+    const globalContentUrl = `../../assets/content/${cleanPath}`;
+
+    if (window.CriptaApp?.campaigns?.isDefault?.() === false) {
+        return [...new Set([dataUrl(cleanPath), globalContentUrl])];
+    }
+
+    return [...new Set([globalContentUrl, dataUrl(cleanPath)])];
 }
 
 async function loadQuestsData() {

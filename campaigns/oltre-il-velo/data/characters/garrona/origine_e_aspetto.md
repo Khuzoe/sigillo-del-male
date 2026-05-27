@@ -1,0 +1,5 @@
+Garrona è l’ottavogenita del Grande Verme, dea della Vita, della Luna e della Libertà, patrona della primavera che ritorna e delle leggi che tengono insieme popoli e famiglie.
+
+Nelle raffigurazioni sacre il suo corpo si avvolge in un’elegante spira serpentiforme: dal bacino in giù è un grande serpente dalle squame di zaffiro stellato, che scintillano come un cielo notturno al chiaro di luna. Il busto, invece, è quello di una donna dalle forme morbide, simile a una tiefling: completamente nuda, copre solo in parte i seni prosperosi con le braccia sottili, più per civetteria che per pudore.
+
+Il suo volto è pulito e gentile, con lineamenti angelici che ricordano a chi la contempla la dolcezza del vivere e i suoi piaceri semplici. Gli occhi sono gialli, vivaci e un po’ furbi; sulle labbra aleggia un sorriso caldo, amorevole, che fa sentire chi lo guarda accolto e compreso. Dal capo si innalzano due corna ricurve, ornate talvolta da catenelle d’argento e piccoli talismani, mentre una cascata di capelli color platino le scende sulle spalle, spesso rappresentata come illuminata da una luce lunare propria.

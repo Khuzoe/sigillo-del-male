@@ -1,0 +1,5 @@
+Dietro di lui, un lucente disco dorato levita, fluttuando al di sopra della sua testa. Questo simbolo, conosciuto come il Solco del Tempo, è la forza che, secondo la mitologia, permette al tempo di scorrere in modo fluido e coerente attraverso tutte le dimensioni e le epoche. Il disco ruota incessantemente, emettendo una luce che non solo illumina l’entità che lo porta, ma crea anche l’illusione di un passaggio continuo tra la materia e il vuoto, tra il presente e l'eternità.
+
+Demorgan dimora nel Piano del Tempo, un regno fatto di orologi immensi, porte temporali e cicli che si sovrappongono. Nessun mortale può accedere a questo regno senza la sua benedizione o la sua guida, poiché il Piano del Tempo è una dimensione separata da tutte le altre, in cui la realtà stessa è modellata dal flusso del tempo.
+
+Demorgan, nonostante la sua natura enigmatica e l’incredibile potere di manipolare il tempo, è una divinità che riflette un equilibrio. La sua presenza non è minacciosa, ma una garanzia di ordine e inevitabilità. Ogni ciclo che si compie, ogni variazione che esiste nella materia e nel pensiero, è sotto il suo sguardo costante.

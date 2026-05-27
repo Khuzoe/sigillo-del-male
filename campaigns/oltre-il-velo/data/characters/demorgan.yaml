@@ -10,7 +10,11 @@ images:
   portrait: "assets/img/logo.webp"
 content_blocks:
   - type: "lore"
-    title: "Profilo Divino"
+    title: "Origine e Dominio"
     icon: "fa-sun"
-    markdown: "characters/demorgan/profilo_divino.md"
+    markdown: "characters/demorgan/origine_e_dominio.md"
+  - type: "lore"
+    title: "Culto e Retaggio"
+    icon: "fa-landmark"
+    markdown: "characters/demorgan/culto_e_retaggio.md"
 type: "npc"

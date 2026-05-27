@@ -1,0 +1,9 @@
+Quimbur è la divinità della Terra consunta, della carne che torna fango, delle ossa che nutrono le radici. È detto Araldo della Disperazione perché il suo passaggio annuncia sempre un prezzo da pagare: carestie, pestilenze, guerre e cataclismi accompagnano i suoi presagi più cupi. Ricorda ai vivi che la linfa vitale non è eterna e che il ritorno del Grande Verme è solo una questione di tempo.
+
+Dimora nella tetra Foresta di Odessa, a Kama, nel cuore della Caduta del Pretoriano. Lì, tra tronchi anneriti e nebbie stagnanti, il Cervo Nero veglia sulle anime che non hanno ancora deciso se riposare o tornare.
+
+Nel corso delle Epoche, un ordine di cavalieri ha giurato di servirlo: i Cavalieri dell'Apocalisse. Indossano nere armature, elmi cornuti e vessilli segnati dal simbolo del Cervo. Cavalcano destrieri scheletrici e si considerano strumenti dell’equilibrio: il loro compito è recidere le vite “sfuggite” alla morte con l’inganno, affinché una nuova anima pura possa nascere e occupare il posto che le spetta nel grande ciclo. In loro Quimbur vede lama e bilancia del destino.
+
+Il più famoso tra questi campioni fu Sincario l’Assassino, chiamato così per le centinaia di anime che reclamò in nome dell’equilibrio. All’apparire delle Faglie, nel primo anno delle loro manifestazioni, egli convocò l’Assemblea dei Cornuti: un raduno senza precedenti di tutti i Cavalieri. Al termine del conclave, l’ordine intero dichiarò guerra alle Faglie e alle energie che le alimentano, l’Assolutore.
+
+La loro prima spedizione, dentro una Faglia manifestatasi presso la foce del Golfo di Lunarmana, fu un disastro. I Cavalieri affrontarono anime smarrite, distorsioni del tempo e mostruosità nate dal vuoto, ma quasi nessuno ne uscì. Delle centinaia che entrarono, solo diciotto tornarono, e non come erano partiti.

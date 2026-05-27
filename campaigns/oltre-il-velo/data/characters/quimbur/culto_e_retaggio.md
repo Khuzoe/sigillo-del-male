@@ -1,0 +1,3 @@
+Questi superstiti emersero nel mondo come spiriti vendicativi, avvolti in armature spettrali, condannati a un’esistenza lacerata: metà custodi dell’equilibrio vita/morte, metà predatori famelici che massacrano senza distinzione, nemmeno tra i loro simili. Si racconta che un Cavaliere dell'Apocalisse, una volta caduto in questo stato, possa essere definitivamente ucciso soltanto da un altro dei suoi pari.
+
+Così Quimbur, il Cervo Nero, continua a camminare nell’ombra delle epoche: per alcuni è la fine inevitabile, per altri la promessa di una giusta rinascita. Per tutti, è il sussurro che ricorda quanto sia sottile il confine tra il valore di una vita… e il peso della sua morte.
