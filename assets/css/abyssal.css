@@ -6154,6 +6154,7 @@ body.page-bestiario .hero-mini {
         radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.08), transparent 42%);
     color: inherit;
     cursor: pointer;
+    text-decoration: none;
     display: flex;
     flex-direction: column;
     text-align: left;

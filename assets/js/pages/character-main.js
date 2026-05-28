@@ -266,6 +266,7 @@ function normalizeCharacterBlocks(character) {
             title: block.title || 'Informazioni',
             icon: block.icon || 'fa-book-open',
             image: block.image || '',
+            hidden: Boolean(block.hidden),
             markdownText,
             markdownHtml: markdownText ? renderMarkdown(markdownText, { context: block.image ? 'image_box' : 'lore' }) : ''
         };
@@ -1996,6 +1997,7 @@ window.CriptaApp.onPageReady("character", async function () {
     let isInlineEditing = false;
     let inlineEditDirty = false;
     let inlineEditBlocks = [];
+    let currentUserIsDm = false;
     const inlineImageVersions = new Map();
 
     if (!charId) {
@@ -2080,6 +2082,7 @@ window.CriptaApp.onPageReady("character", async function () {
             }
         }
 
+        currentUserIsDm = await resolveCurrentUserIsDm();
         currentCharacter = character;
         currentAllCharacters = allCharacters;
         currentNpcQuests = npcQuests;
@@ -2124,13 +2127,13 @@ window.CriptaApp.onPageReady("character", async function () {
     function normalizeInlineEditBlocks(character) {
         const blocks = Array.isArray(character?.content_blocks) ? character.content_blocks : [];
         return blocks
-            .filter((block) => !block.hidden)
             .map((block, index) => ({
                 id: slugify(block.id || block.title || `blocco-${index + 1}`),
                 type: block.type === 'image_box' || block.type === 'image' || block.image ? 'image' : 'text',
                 title: block.title || 'Informazioni',
                 icon: block.icon || 'fa-book-open',
                 image: block.image || '',
+                hidden: Boolean(block.hidden),
                 text: block.markdownText || stripHtmlToText(block.markdownHtml || block.content || '')
             }));
     }
@@ -2201,6 +2204,13 @@ window.CriptaApp.onPageReady("character", async function () {
         if (action === 'set-icon') {
             if (!Number.isInteger(blockIndex) || !inlineEditBlocks[blockIndex]) return;
             inlineEditBlocks[blockIndex].icon = actionButton.dataset.inlineIcon || 'fa-book-open';
+            inlineEditDirty = true;
+            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+            return;
+        }
+        if (action === 'toggle-hidden') {
+            if (!Number.isInteger(blockIndex) || !inlineEditBlocks[blockIndex]) return;
+            inlineEditBlocks[blockIndex].hidden = !inlineEditBlocks[blockIndex].hidden;
             inlineEditDirty = true;
             renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
             return;
@@ -2450,6 +2460,7 @@ window.CriptaApp.onPageReady("character", async function () {
             title: block.title || 'Informazioni',
             icon: block.icon || 'fa-book-open',
             image: block.type === 'image' ? (block.image || '') : '',
+            hidden: Boolean(block.hidden),
             text: block.text || ''
         }));
         return serialized;
@@ -2461,6 +2472,28 @@ window.CriptaApp.onPageReady("character", async function () {
 
     function getCurrentCampaignId() {
         return window.CriptaApp?.campaigns?.currentId?.() || params.get('campaign') || 'cripta-di-sangue';
+    }
+
+    async function resolveCurrentUserIsDm() {
+        try {
+            const authState = await window.CriptaDiscordAuth?.verify?.();
+            const user = authState?.user || {};
+            const accountId = String(user.accountId || user.id || user.sub || '').trim();
+            const explicitDiscordId = String(user.discordId || '').trim();
+            const legacyId = String(user.id || user.sub || '').trim();
+            const discordId = explicitDiscordId || (/^\d{5,32}$/.test(legacyId) ? legacyId : '');
+            if (!accountId && !discordId) return false;
+
+            const response = await fetch(dataUrl('next-session.json')).catch(() => null);
+            if (!response?.ok) return false;
+            const config = await response.json();
+            const dmAccountId = String(config?.dmAccountId || '').trim();
+            const dmDiscordId = String(config?.dmDiscordId || '').trim();
+            return Boolean(dmAccountId && accountId === dmAccountId)
+                || Boolean(dmDiscordId && discordId === dmDiscordId);
+        } catch (_) {
+            return false;
+        }
     }
 
     function readAuthToken() {
@@ -2665,7 +2698,7 @@ window.CriptaApp.onPageReady("character", async function () {
                 addCard.innerHTML = '<i class="fas fa-plus"></i><span>Aggiungi blocco</span>';
                 leftCol.appendChild(addCard);
             } else {
-                const visibleBlocks = (character.content_blocks || []).filter(block => !block.hidden);
+                const visibleBlocks = (character.content_blocks || []).filter(block => !block.hidden || currentUserIsDm);
 
                 if (visibleBlocks.length > 0) {
                     visibleBlocks.forEach(block => {
@@ -2772,12 +2805,14 @@ window.CriptaApp.onPageReady("character", async function () {
                         </label>
                         ${imageControls}
                         <div class="character-inline-actions">
+                            <button type="button" class="character-inline-icon-btn ${block.hidden ? 'is-active' : ''}" data-inline-edit-action="toggle-hidden" data-inline-block-index="${index}" title="${block.hidden ? 'Blocco nascosto ai giocatori' : 'Nascondi ai giocatori'}"><i class="fas ${block.hidden ? 'fa-eye-slash' : 'fa-eye'}"></i></button>
                             <button type="button" class="character-inline-icon-btn" data-inline-edit-action="move-up" data-inline-block-index="${index}" title="Sposta su"><i class="fas fa-arrow-up"></i></button>
                             <button type="button" class="character-inline-icon-btn" data-inline-edit-action="move-down" data-inline-block-index="${index}" title="Sposta giu"><i class="fas fa-arrow-down"></i></button>
                             <button type="button" class="character-inline-icon-btn character-inline-icon-btn--danger" data-inline-edit-action="delete-block" data-inline-block-index="${index}" title="Elimina"><i class="fas fa-trash"></i></button>
                         </div>
                     </div>
-                    <div class="character-inline-final">
+                    <div class="character-inline-final ${block.hidden ? 'character-inline-final--hidden' : ''}">
+                        ${block.hidden ? '<span class="character-hidden-badge"><i class="fas fa-eye-slash"></i> Nascosto</span>' : ''}
                         ${block.type === 'image' ? `
                             <div class="document-header">
                                 <div class="doc-label">
@@ -3024,6 +3059,10 @@ window.CriptaApp.onPageReady("character", async function () {
         if (block.type) {
             card.classList.add(`content-card--${block.type}`);
         }
+        if (block.hidden) {
+            card.classList.add('content-card--dm-hidden');
+        }
+        const hiddenBadge = block.hidden ? '<span class="character-hidden-badge"><i class="fas fa-eye-slash"></i> Nascosto</span>' : '';
         const wrapMarkdown = (html, extraClass = '') => {
             if (!html) return '';
             const className = extraClass ? `chapter-content ${extraClass}` : 'chapter-content';
@@ -3033,7 +3072,7 @@ window.CriptaApp.onPageReady("character", async function () {
         // Use a switch to handle different block types
         switch (block.type) {
             case 'lore':
-                card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-book-open'}"></i> ${block.title}</h3>${wrapMarkdown(block.markdownHtml)}`;
+                card.innerHTML = `${hiddenBadge}<h3><i class="fas ${block.icon || 'fa-book-open'}"></i> ${block.title}</h3>${wrapMarkdown(block.markdownHtml)}`;
                 break;
 
             case 'secret_dossier':
@@ -3042,6 +3081,7 @@ window.CriptaApp.onPageReady("character", async function () {
                 // For now, let's render it styled as a secret.
                 card.classList.add('secret'); // You can style this class
                 card.innerHTML = `
+                        ${hiddenBadge}
                         <h3><i class="fas fa-user-secret"></i> ${block.title}</h3>
                         <div class="secret-dossier">
                             <div class="secret-badge">${block.badge}</div>
@@ -3054,6 +3094,7 @@ window.CriptaApp.onPageReady("character", async function () {
 
             case 'banner_box':
                 card.innerHTML = `
+                             ${hiddenBadge}
                              <div class="banner-header">
                                  <img src="${resolveImagePath(block.banner)}" class="banner-img" alt="${block.title}">
                              </div>
@@ -3068,7 +3109,7 @@ window.CriptaApp.onPageReady("character", async function () {
                 if (block.borderColor) {
                     card.style.borderColor = block.borderColor;
                 }
-                card.innerHTML = `<h3><i class="fas ${block.icon || 'fa-box'}"></i> ${block.title}</h3>${wrapMarkdown(block.markdownHtml)}`;
+                card.innerHTML = `${hiddenBadge}<h3><i class="fas ${block.icon || 'fa-box'}"></i> ${block.title}</h3>${wrapMarkdown(block.markdownHtml)}`;
                 break;
 
             case 'image_box':
@@ -3076,6 +3117,7 @@ window.CriptaApp.onPageReady("character", async function () {
 
                 card.classList.add('document-card');
                 card.innerHTML = `
+                        ${hiddenBadge}
                         <div class="document-header">
                             <div class="doc-label"><i class="fas ${block.icon || 'fa-book-dead'}"></i> ${block.title}</div>
                             <div class="document-tags">${docTags}</div>
@@ -3093,7 +3135,7 @@ window.CriptaApp.onPageReady("character", async function () {
 
             default:
                 // Default handler for unknown block types
-                card.innerHTML = `<h3>${block.title || 'Informazioni'}</h3>${wrapMarkdown(block.markdownHtml || block.content || '')}`;
+                card.innerHTML = `${hiddenBadge}<h3>${block.title || 'Informazioni'}</h3>${wrapMarkdown(block.markdownHtml || block.content || '')}`;
         }
         return card;
     }

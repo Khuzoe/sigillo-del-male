@@ -1,0 +1,1125 @@
+.bestiary-detail-back,
+.bestiary-detail-edit,
+.bestiary-detail-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    border: 1px solid rgba(212, 175, 55, 0.32);
+    border-radius: 999px;
+    color: var(--gold);
+    background: rgba(0, 0, 0, 0.28);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-decoration: none;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.bestiary-card {
+    text-decoration: none;
+}
+
+.bestiary-detail-back {
+    width: fit-content;
+    margin-bottom: 0.9rem;
+    padding: 0.42rem 0.72rem;
+}
+
+.bestiary-detail-edit {
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+}
+
+.bestiary-detail-action {
+    min-height: 2.35rem;
+    padding: 0.45rem 0.82rem;
+}
+
+.bestiary-detail-back:hover,
+.bestiary-detail-edit:hover,
+.bestiary-detail-action:hover,
+.bestiary-detail-back:focus-visible,
+.bestiary-detail-edit:focus-visible,
+.bestiary-detail-action:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(212, 175, 55, 0.58);
+    background: rgba(212, 175, 55, 0.12);
+}
+
+.bestiary-detail-edit.is-editing,
+.bestiary-detail-action--primary {
+    color: #180f06;
+    border-color: rgba(255, 224, 122, 0.85);
+    background: linear-gradient(135deg, var(--gold), #f1d36b);
+}
+
+.bestiary-detail-shell {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.bestiary-detail-state {
+    margin: 0;
+    padding: 2rem;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    border-radius: 18px;
+    color: rgba(232, 219, 188, 0.78);
+    background: rgba(0, 0, 0, 0.22);
+}
+
+.bestiary-detail-card {
+    overflow: hidden;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 24px;
+    background:
+        radial-gradient(circle at 22% 0, rgba(212, 175, 55, 0.13), transparent 34%),
+        linear-gradient(145deg, rgba(29, 21, 14, 0.96), rgba(7, 7, 8, 0.92));
+    box-shadow: 0 22px 58px rgba(0, 0, 0, 0.38);
+}
+
+.bestiary-detail-main {
+    display: grid;
+    grid-template-columns: minmax(18rem, 0.9fr) minmax(0, 1.1fr);
+    gap: 1.55rem;
+    padding: 1.55rem;
+}
+
+.bestiary-detail-image-panel,
+.bestiary-detail-info-panel {
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 20px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 30%),
+        rgba(0, 0, 0, 0.28);
+}
+
+.bestiary-detail-image-panel {
+    display: grid;
+    align-content: start;
+    gap: 1rem;
+    padding: 0.75rem;
+}
+
+.bestiary-detail-image-frame {
+    min-height: 24rem;
+    display: grid;
+    place-items: center;
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 50% 18%, rgba(212, 175, 55, 0.12), transparent 50%),
+        rgba(0, 0, 0, 0.34);
+    overflow: hidden;
+}
+
+.bestiary-detail-image-frame img {
+    width: 100%;
+    height: 100%;
+    max-height: 38rem;
+    min-height: 24rem;
+    object-fit: contain;
+    object-position: var(--creature-img-x, 50%) var(--creature-img-y, 50%);
+    transform: scale(var(--creature-img-scale, 1));
+    filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.42));
+}
+
+.bestiary-detail-image-upload {
+    position: relative;
+    padding: 0;
+    border: 0;
+    color: inherit;
+    background: transparent;
+    cursor: pointer;
+}
+
+.bestiary-detail-image-upload::after {
+    content: "Cambia immagine";
+    position: absolute;
+    right: 1rem;
+    bottom: 1rem;
+    padding: 0.42rem 0.65rem;
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    border-radius: 999px;
+    color: var(--gold);
+    background: rgba(0, 0, 0, 0.72);
+    font-family: var(--font-ui);
+    font-size: 0.64rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 160ms ease;
+}
+
+.bestiary-detail-image-upload:hover::after,
+.bestiary-detail-image-upload:focus-visible::after {
+    opacity: 1;
+}
+
+.bestiary-detail-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.bestiary-detail-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.42rem 0.58rem;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 999px;
+    color: rgba(232, 219, 188, 0.82);
+    background: rgba(0, 0, 0, 0.28);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.bestiary-detail-info-panel {
+    min-width: 0;
+    padding: 1.6rem 1.8rem;
+}
+
+.bestiary-detail-description {
+    margin: 0;
+    color: rgba(232, 219, 188, 0.9);
+    font-size: 1.12rem;
+    line-height: 1.75;
+}
+
+.bestiary-detail-section {
+    padding: 1.35rem 1.55rem;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 20px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 34%),
+        rgba(0, 0, 0, 0.22);
+}
+
+.bestiary-detail-section h2 {
+    margin: 0 0 1rem;
+    color: var(--gold);
+    font-family: var(--font-heading);
+    font-size: 1.28rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.bestiary-detail-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0.8rem;
+    margin: 0;
+}
+
+.bestiary-detail-stats div {
+    padding: 0.85rem;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.22);
+}
+
+.bestiary-detail-stats dt {
+    color: rgba(212, 175, 55, 0.72);
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.bestiary-detail-stats dd {
+    margin: 0.3rem 0 0;
+    color: rgba(232, 219, 188, 0.9);
+    font-size: 1rem;
+}
+
+.bestiary-detail-list {
+    display: grid;
+    gap: 0.7rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.bestiary-detail-list li {
+    padding: 0.85rem 0.95rem;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 14px;
+    color: rgba(232, 219, 188, 0.86);
+    background: rgba(0, 0, 0, 0.22);
+}
+
+.bestiary-detail-list strong {
+    display: block;
+    color: var(--ink-ivory);
+}
+
+.bestiary-detail-editor {
+    display: grid;
+    gap: 1rem;
+}
+
+.bestiary-detail-toolbar {
+    position: sticky;
+    top: 1rem;
+    z-index: 4;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    padding: 0.75rem;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 18px;
+    background: rgba(9, 7, 6, 0.88);
+    backdrop-filter: blur(10px);
+}
+
+.bestiary-detail-editor > .bestiary-detail-card {
+    border-radius: 18px;
+}
+
+.bestiary-detail-editor > .bestiary-detail-card .bestiary-detail-main {
+    grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.bestiary-detail-editor > .bestiary-detail-card .bestiary-detail-image-panel {
+    padding: 0.55rem;
+}
+
+.bestiary-detail-editor > .bestiary-detail-card .bestiary-detail-image-frame,
+.bestiary-detail-editor > .bestiary-detail-card .bestiary-detail-image-frame img {
+    min-height: 11rem;
+    max-height: 13rem;
+}
+
+.bestiary-detail-editor > .bestiary-detail-card .bestiary-detail-info-panel {
+    padding: 1rem;
+}
+
+.bestiary-detail-editor > .bestiary-detail-card .bestiary-detail-form {
+    grid-template-columns: repeat(5, minmax(7rem, 1fr));
+    gap: 0.5rem;
+}
+
+.bestiary-detail-editor > .bestiary-detail-card .bestiary-detail-area {
+    min-height: 4.75rem;
+}
+
+.bestiary-editor-status {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.55rem;
+}
+
+.bestiary-editor-advanced {
+    margin-top: 0;
+}
+
+.bestiary-detail-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 0.85rem;
+}
+
+.bestiary-detail-field {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.bestiary-detail-field--wide {
+    grid-column: 1 / -1;
+}
+
+.bestiary-detail-field > span,
+.bestiary-detail-field > label,
+.bestiary-detail-check {
+    color: rgba(212, 175, 55, 0.74);
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.monster-builder-quick-grid .bestiary-detail-field {
+    gap: 0.25rem;
+}
+
+.monster-builder-quick-grid .bestiary-detail-field > span {
+    font-size: 0.62rem;
+    text-align: center;
+}
+
+.monster-builder-quick-grid .bestiary-detail-select {
+    min-height: 2rem;
+    padding: 0.25rem 0.4rem;
+    text-align: center;
+}
+
+.bestiary-detail-check {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.75rem;
+    border: 1px solid rgba(212, 175, 55, 0.14);
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.bestiary-detail-input,
+.bestiary-detail-select,
+.bestiary-detail-area {
+    width: 100%;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 12px;
+    color: var(--ink-ivory);
+    background: rgba(0, 0, 0, 0.28);
+    font: inherit;
+}
+
+.bestiary-detail-input,
+.bestiary-detail-select {
+    min-height: 2.25rem;
+    padding: 0.4rem 0.55rem;
+}
+
+.bestiary-detail-select option {
+    color: #f1e4c4;
+    background: #17110d;
+}
+
+.bestiary-detail-area {
+    min-height: 8rem;
+    padding: 0.75rem 0.82rem;
+    resize: vertical;
+}
+
+.monster-builder {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.9rem;
+    align-items: start;
+}
+
+.monster-builder--fullscreen {
+    min-height: auto;
+}
+
+.monster-foundry-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 24rem);
+    gap: 0.9rem;
+    align-items: start;
+}
+
+.monster-ability-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 23rem);
+    gap: 0.9rem;
+    align-items: start;
+}
+
+.monster-builder-main {
+    display: grid;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.monster-builder-library {
+    position: sticky;
+    top: 6rem;
+    min-width: 0;
+}
+
+.monster-builder-panel {
+    min-width: 0;
+}
+
+.monster-builder-panel--compact {
+    padding-bottom: 1rem;
+}
+
+.monster-builder-section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    margin-bottom: 1rem;
+}
+
+.monster-builder-section-title h2 {
+    margin: 0;
+}
+
+.monster-builder-hint {
+    color: rgba(232, 219, 188, 0.58);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+
+.monster-builder-quick-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(5.8rem, 1fr));
+    gap: 0.45rem;
+    margin-bottom: 0.7rem;
+}
+
+.monster-preset-row {
+    max-width: 18rem;
+    margin-bottom: 0.85rem;
+}
+
+.monster-foundry-body {
+    display: grid;
+    grid-template-columns: minmax(28rem, 0.95fr) minmax(34rem, 1.35fr);
+    gap: 1rem;
+    align-items: stretch;
+}
+
+.monster-foundry-defense .bestiary-detail-field--wide {
+    grid-column: auto;
+}
+
+.monster-foundry-tuning {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.monster-score-panel,
+.monster-suggestion-panel,
+.monster-foundry-defense .bestiary-detail-field--wide {
+    padding: 1rem;
+    border: 1px solid rgba(212, 175, 55, 0.15);
+    border-radius: 16px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 40%),
+        rgba(0, 0, 0, 0.18);
+}
+
+.monster-subsection-title {
+    margin-bottom: 0.85rem;
+    color: rgba(212, 175, 55, 0.9);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.monster-helper-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-top: 0.9rem;
+    margin-bottom: 0;
+}
+
+.monster-suggestion-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-bottom: 0;
+}
+
+.monster-suggestion-strip span {
+    padding: 0.52rem 0.68rem;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 999px;
+    color: rgba(232, 219, 188, 0.78);
+    background: rgba(0, 0, 0, 0.22);
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.monster-compact-field {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.monster-compact-field span,
+.monster-choice-group > span,
+.monster-score-stepper > span {
+    color: rgba(212, 175, 55, 0.74);
+    font-family: var(--font-ui);
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.monster-compact-field .bestiary-detail-input {
+    min-height: 2rem;
+    padding: 0.25rem 0.4rem;
+    text-align: center;
+}
+
+.monster-choice-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.35rem 0 0.9rem;
+}
+
+.monster-choice-group > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.monster-choice-btn {
+    min-width: 2.6rem;
+    min-height: 2rem;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    border-radius: 999px;
+    color: rgba(232, 219, 188, 0.72);
+    background: rgba(0, 0, 0, 0.22);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.monster-choice-btn:hover,
+.monster-choice-btn.is-active {
+    border-color: rgba(212, 175, 55, 0.58);
+    color: #170f07;
+    background: linear-gradient(135deg, var(--gold), #f1d36b);
+}
+
+.monster-builder-abilities-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+    max-width: none;
+    margin-bottom: 0;
+}
+
+.monster-score-stepper {
+    display: grid;
+    grid-template-columns: 2rem minmax(4rem, 1fr) 2rem;
+    gap: 0.35rem;
+    align-items: end;
+}
+
+.monster-score-stepper > span {
+    grid-column: 1 / -1;
+    text-align: center;
+}
+
+.monster-score-stepper button {
+    min-height: 2.45rem;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 10px;
+    color: var(--gold);
+    background: rgba(0, 0, 0, 0.24);
+    cursor: pointer;
+}
+
+.monster-score-stepper input {
+    min-height: 2.45rem;
+    padding: 0.35rem;
+    text-align: center;
+}
+
+.monster-builder-advanced {
+    margin-top: 0.65rem;
+    border: 1px solid rgba(212, 175, 55, 0.12);
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.16);
+}
+
+.monster-builder-advanced summary {
+    padding: 0.72rem 0.85rem;
+    color: rgba(212, 175, 55, 0.86);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.monster-builder-advanced .bestiary-detail-form {
+    padding: 0 0.85rem 0.85rem;
+}
+
+.monster-builder-stats .bestiary-detail-area {
+    min-height: 6rem;
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    font-size: 0.82rem;
+}
+
+.monster-ability-library {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
+    max-height: calc(100vh - 18rem);
+    overflow: auto;
+    padding-right: 0.2rem;
+}
+
+.monster-ability-filters {
+    grid-column: 1 / -1;
+}
+
+.monster-ability-template {
+    display: grid;
+    grid-template-columns: 2.3rem minmax(0, 1fr) 2rem;
+    gap: 0.7rem;
+    align-items: center;
+    padding: 0.75rem;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 14px;
+    background:
+        linear-gradient(135deg, rgba(212, 175, 55, 0.08), transparent 42%),
+        rgba(0, 0, 0, 0.24);
+    cursor: grab;
+    transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.monster-ability-add-btn {
+    width: 2rem;
+    height: 2rem;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(212, 175, 55, 0.24);
+    border-radius: 999px;
+    color: #160f08;
+    background: linear-gradient(135deg, var(--gold), #f1d36b);
+    cursor: pointer;
+}
+
+.monster-ability-template:hover,
+.monster-ability-template:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(212, 175, 55, 0.42);
+    background:
+        linear-gradient(135deg, rgba(212, 175, 55, 0.13), transparent 42%),
+        rgba(0, 0, 0, 0.32);
+}
+
+.monster-ability-template i {
+    width: 2.3rem;
+    height: 2.3rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 10px;
+    color: var(--gold);
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.monster-ability-template-icon {
+    width: 2.3rem;
+    height: 2.3rem;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 10px;
+    object-fit: cover;
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.monster-ability-template strong,
+.monster-ability-template span {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.monster-ability-template strong {
+    color: var(--ink-ivory);
+}
+
+.monster-ability-template span {
+    color: rgba(232, 219, 188, 0.58);
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+}
+
+.monster-ability-dropzone {
+    display: grid;
+    gap: 0.65rem;
+    min-height: 10rem;
+    padding: 0.65rem;
+    border: 1px dashed rgba(212, 175, 55, 0.26);
+    border-radius: 18px;
+    background: rgba(0, 0, 0, 0.16);
+}
+
+.monster-quick-add {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+}
+
+.monster-ability-dropzone.is-drag-over {
+    border-color: rgba(212, 175, 55, 0.7);
+    background: rgba(212, 175, 55, 0.08);
+}
+
+.monster-builder-empty {
+    align-self: center;
+    justify-self: center;
+    margin: 0;
+    color: rgba(232, 219, 188, 0.58);
+    font-family: var(--font-ui);
+    font-size: 0.86rem;
+}
+
+.monster-ability-editor {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at 0 0, rgba(212, 175, 55, 0.08), transparent 38%),
+        rgba(5, 5, 6, 0.42);
+}
+
+.monster-ability-editor header {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    cursor: pointer;
+}
+
+.monster-ability-editor header > i,
+.monster-ability-icon-upload {
+    width: 2rem;
+    height: 2rem;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    color: var(--gold);
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.monster-ability-icon-upload {
+    padding: 0;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.monster-ability-icon-upload img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.monster-ability-icon-upload:hover {
+    border-color: rgba(212, 175, 55, 0.58);
+    box-shadow: 0 0 18px rgba(212, 175, 55, 0.18);
+}
+
+.monster-ability-editor header strong {
+    flex: 1;
+    color: var(--ink-ivory);
+}
+
+.monster-ability-editor.is-collapsed {
+    padding: 0.68rem 0.85rem;
+}
+
+.monster-ability-editor.is-collapsed .monster-ability-body {
+    display: none;
+}
+
+.monster-ability-editor.is-active {
+    border-color: rgba(212, 175, 55, 0.42);
+    box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.08), 0 18px 36px rgba(0, 0, 0, 0.28);
+}
+
+.monster-ability-editor header div {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.monster-ability-icon-btn {
+    width: 2rem;
+    height: 2rem;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    border-radius: 9px;
+    color: rgba(232, 219, 188, 0.78);
+    background: rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+}
+
+.monster-ability-icon-btn:hover {
+    border-color: rgba(212, 175, 55, 0.45);
+    color: var(--gold);
+}
+
+.monster-ability-icon-btn--danger:hover {
+    border-color: rgba(255, 110, 95, 0.5);
+    color: #ff8a78;
+}
+
+.monster-ability-editor .bestiary-detail-area {
+    min-height: 6.5rem;
+}
+
+.monster-ability-quick-row {
+    display: grid;
+    grid-template-columns: minmax(12rem, 1fr) minmax(8rem, 0.55fr) minmax(4rem, 0.25fr);
+    gap: 0.55rem;
+}
+
+.monster-ability-quick-row .bestiary-detail-input,
+.monster-ability-details .bestiary-detail-input,
+.monster-ability-details .bestiary-detail-select {
+    min-height: 2.3rem;
+    padding: 0.4rem 0.55rem;
+}
+
+.monster-ability-details {
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    gap: 0.6rem;
+}
+
+.monster-builder-advanced--ability summary {
+    padding: 0.55rem 0.7rem;
+    font-size: 0.66rem;
+}
+
+.monster-helper-btn {
+    width: fit-content;
+    min-height: 2.2rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-bottom: 0.85rem;
+    padding: 0.4rem 0.72rem;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 999px;
+    color: var(--gold);
+    background: rgba(0, 0, 0, 0.22);
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.monster-helper-btn:hover {
+    border-color: rgba(212, 175, 55, 0.52);
+    background: rgba(212, 175, 55, 0.1);
+}
+
+.monster-helper-btn--primary {
+    color: #170f07;
+    border-color: rgba(255, 224, 122, 0.78);
+    background: linear-gradient(135deg, var(--gold), #f1d36b);
+}
+
+.monster-validation {
+    display: grid;
+    gap: 0.65rem;
+    padding: 1rem 1.15rem;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    border-radius: 18px;
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.monster-validation div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.monster-validation strong {
+    color: var(--ink-ivory);
+    font-family: var(--font-heading);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.monster-validation span,
+.monster-validation li {
+    color: rgba(232, 219, 188, 0.72);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+}
+
+.monster-validation ul {
+    margin: 0;
+    padding-left: 1.15rem;
+}
+
+.monster-validation.is-ok {
+    border-color: rgba(106, 210, 126, 0.28);
+}
+
+.monster-validation.is-warning {
+    border-color: rgba(236, 190, 75, 0.34);
+}
+
+.monster-validation.is-error {
+    border-color: rgba(255, 110, 95, 0.42);
+}
+
+.monster-ability-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.42rem;
+    padding-bottom: 0.35rem;
+}
+
+.monster-ability-filter {
+    min-height: 1.95rem;
+    padding: 0.32rem 0.55rem;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    border-radius: 999px;
+    color: rgba(232, 219, 188, 0.7);
+    background: rgba(0, 0, 0, 0.22);
+    font-family: var(--font-ui);
+    font-size: 0.64rem;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.monster-ability-filter:hover,
+.monster-ability-filter.is-active {
+    color: #170f07;
+    border-color: rgba(255, 224, 122, 0.82);
+    background: linear-gradient(135deg, var(--gold), #f1d36b);
+}
+
+.monster-picker-grid {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.monster-picker-grid--senses {
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.monster-picker-option {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 4.5rem;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.58rem;
+    border: 1px solid rgba(212, 175, 55, 0.14);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.monster-picker-option span {
+    color: rgba(232, 219, 188, 0.82);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.monster-picker-option .bestiary-detail-input {
+    min-height: 2rem;
+    padding: 0.25rem 0.45rem;
+    text-align: center;
+}
+
+.monster-defense-table {
+    display: grid;
+    grid-template-columns: 9.5rem repeat(3, 7.25rem);
+    column-gap: 0.45rem;
+    row-gap: 0.36rem;
+    align-items: center;
+    justify-content: start;
+    width: max-content;
+    max-width: 100%;
+    padding: 0.65rem;
+    border: 1px solid rgba(212, 175, 55, 0.14);
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.18);
+    overflow-x: auto;
+}
+
+.monster-defense-table strong,
+.monster-defense-table > span {
+    color: rgba(232, 219, 188, 0.78);
+    font-family: var(--font-ui);
+    font-size: 0.74rem;
+}
+
+.monster-defense-table strong {
+    color: rgba(212, 175, 55, 0.82);
+    text-align: center;
+    text-transform: uppercase;
+    overflow: visible;
+    white-space: nowrap;
+}
+
+.monster-defense-check {
+    display: grid;
+    place-items: center;
+    min-width: 7.25rem;
+}
+
+.monster-defense-check input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.monster-defense-check span {
+    width: 1.35rem;
+    height: 1.35rem;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 7px;
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.monster-defense-check input:checked + span {
+    border-color: rgba(255, 224, 122, 0.88);
+    background:
+        linear-gradient(135deg, var(--gold), #f1d36b);
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.12);
+}
+
+@media (max-width: 980px) {
+    .bestiary-detail-main,
+    .bestiary-detail-editor > .bestiary-detail-card .bestiary-detail-main,
+    .monster-foundry-overview,
+    .monster-foundry-body,
+    .monster-ability-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .monster-builder-library {
+        position: static;
+    }
+
+    .bestiary-detail-editor > .bestiary-detail-card .bestiary-detail-form,
+    .monster-builder-quick-grid,
+    .monster-builder-abilities-grid,
+    .monster-ability-quick-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .bestiary-detail-image-frame,
+    .bestiary-detail-image-frame img {
+        min-height: 18rem;
+    }
+}

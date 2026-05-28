@@ -668,7 +668,7 @@ async function loadEnabledCampaigns() {
 }
 
 function navigateToCampaign(campaignId) {
-    const target = new URL(window.location.href);
+    const target = buildCampaignNavigationTarget(campaignId);
     if (sanitizeCampaignId(campaignId) === DEFAULT_CAMPAIGN_ID) {
         target.searchParams.delete("campaign");
         target.searchParams.delete("campaignId");
@@ -687,6 +687,21 @@ function navigateToCampaign(campaignId) {
     }
 
     window.location.href = target.toString();
+}
+
+function buildCampaignNavigationTarget(campaignId) {
+    if (getCurrentPageId() === "creature") {
+        return new URL(`${getBasePath()}pages/bestiario.html`, window.location.href);
+    }
+
+    if (getCurrentPageId() !== "character") {
+        return new URL(window.location.href);
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const type = String(params.get("type") || "").toLowerCase();
+    const listPage = type === "player" ? "giocatori.html" : "npcs.html";
+    return new URL(`${getBasePath()}pages/${listPage}`, window.location.href);
 }
 
 function ensureTopAuthBar() {

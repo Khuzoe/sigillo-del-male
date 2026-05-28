@@ -116,7 +116,7 @@
             if (!Number.isInteger(blockIndex) || !blockField) return;
             const block = getSelectedCharacter()?.blocks?.[blockIndex];
             if (!block) return;
-            block[blockField] = event.target.value;
+            block[blockField] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
             if (blockField === 'title' && !block.id) block.id = slugify(event.target.value);
             renderBlocks();
         });
@@ -127,7 +127,7 @@
             if (!Number.isInteger(blockIndex) || !blockField) return;
             const block = getSelectedCharacter()?.blocks?.[blockIndex];
             if (!block) return;
-            block[blockField] = event.target.value;
+            block[blockField] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
             updateBlockPreview(blockIndex);
         });
     }
@@ -205,6 +205,7 @@
             title: block.title || 'Nuovo blocco',
             icon: block.icon || 'fa-book-open',
             image: block.image || '',
+            hidden: Boolean(block.hidden),
             text: block.text || block.markdownText || block.content || ''
         }));
     }
@@ -319,6 +320,10 @@
                         <label>ID blocco</label>
                         <input class="characters-editor-input" data-block-index="${index}" data-block-field="id" type="text" value="${escapeAttr(block.id || '')}">
                     </div>
+                    <label class="characters-editor-check characters-editor-field--full">
+                        <input data-block-index="${index}" data-block-field="hidden" type="checkbox"${block.hidden ? ' checked' : ''}>
+                        <span>Nascondi questo blocco ai giocatori</span>
+                    </label>
                     ${imageRow}
                     <textarea class="characters-editor-area" data-block-index="${index}" data-block-field="text" spellcheck="true">${escapeHtml(block.text || '')}</textarea>
                     <div class="characters-editor-live-preview characters-editor-field--full" data-block-preview="${index}">
@@ -498,6 +503,7 @@
                 title: block.title || 'Informazioni',
                 icon: block.icon || 'fa-book-open',
                 image: block.type === 'image' ? (block.image || '') : '',
+                hidden: Boolean(block.hidden),
                 text: block.text || ''
             }))
         }));

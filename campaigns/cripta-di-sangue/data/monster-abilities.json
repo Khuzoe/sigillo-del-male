@@ -1,0 +1,74 @@
+[
+  {
+    "id": "multiattack",
+    "name": "Multiattacco",
+    "icon": "fa-hand-fist",
+    "type": "feat",
+    "section": "action",
+    "activation": "action",
+    "description": "La creatura effettua due attacchi."
+  },
+  {
+    "id": "melee-weapon-attack",
+    "name": "Attacco in mischia",
+    "icon": "fa-swords",
+    "type": "weapon",
+    "section": "action",
+    "activation": "action",
+    "range": "5 ft",
+    "target": "1 bersaglio",
+    "damageFormula": "1d8 + 3",
+    "damageType": "slashing",
+    "description": "Attacco con arma da mischia."
+  },
+  {
+    "id": "ranged-weapon-attack",
+    "name": "Attacco a distanza",
+    "icon": "fa-bullseye",
+    "type": "weapon",
+    "section": "action",
+    "activation": "action",
+    "range": "60/120 ft",
+    "target": "1 bersaglio",
+    "damageFormula": "1d6 + 3",
+    "damageType": "piercing",
+    "description": "Attacco con arma a distanza."
+  },
+  {
+    "id": "saving-throw-effect",
+    "name": "Effetto con TS",
+    "icon": "fa-shield-halved",
+    "type": "feat",
+    "section": "action",
+    "activation": "action",
+    "range": "30 ft",
+    "target": "una creatura",
+    "saveAbility": "dex",
+    "damageFormula": "2d6",
+    "damageType": "fire",
+    "description": "Il bersaglio effettua un tiro salvezza o subisce l'effetto."
+  },
+  {
+    "id": "recharge-breath",
+    "name": "Soffio a ricarica",
+    "icon": "fa-fire-flame-curved",
+    "type": "feat",
+    "section": "action",
+    "activation": "action",
+    "range": "30 ft",
+    "target": "cono",
+    "saveAbility": "dex",
+    "damageFormula": "4d6",
+    "damageType": "fire",
+    "description": "Ricarica 5-6. Ogni creatura nell'area effettua un tiro salvezza."
+  },
+  {
+    "id": "reaction-parry",
+    "name": "Parata",
+    "icon": "fa-shield",
+    "type": "feat",
+    "section": "reaction",
+    "activation": "reaction",
+    "description": "La creatura aggiunge 2 alla CA contro un attacco che la colpirebbe."
+  }
+]

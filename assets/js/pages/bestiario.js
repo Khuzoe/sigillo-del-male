@@ -378,16 +378,25 @@ function renderBestiaryCard(creature, index) {
     const mysteryIcon = !discovered ? `<span class="bestiary-rank-icon bestiary-rank-icon--undiscovered" title="Creatura Misteriosa" aria-label="Creatura Misteriosa"><i class="fas fa-eye-slash" aria-hidden="true"></i></span>` : "";
     const rankIcon = discovered && rank ? `<span class="bestiary-rank-icon bestiary-rank-icon--${rank.className}" title="${rank.label}" aria-label="${rank.label}"><i class="${rank.icon}" aria-hidden="true"></i></span>` : "";
     const cardName = discovered ? creature.name : (creature.mysteryName || "Creatura Misteriosa");
+    const detailUrl = buildBestiaryDetailUrl(creature);
     return `
-        <button class="bestiary-card ${rank && discovered ? `bestiary-card--${rank.className}` : ""} ${!discovered ? "bestiary-card--undiscovered" : ""}" type="button" data-bestiary-index="${index}" aria-label="Apri ${escapeHtml(cardName)}">
+        <a class="bestiary-card ${rank && discovered ? `bestiary-card--${rank.className}` : ""} ${!discovered ? "bestiary-card--undiscovered" : ""}" href="${escapeHtml(detailUrl)}" aria-label="Apri ${escapeHtml(cardName)}">
             <span class="bestiary-image-frame">
                 ${mysteryIcon}
                 ${rankIcon}
                 <img src="${escapeHtml(resolveImageUrl(creature.image))}" alt="${escapeHtml(cardName)}" loading="lazy" style="${buildBestiaryImageStyle(creature.imageAdjust)}">
             </span>
             <span class="bestiary-card-name">${escapeHtml(cardName)}</span>
-        </button>
+        </a>
     `;
+}
+
+function buildBestiaryDetailUrl(creature) {
+    const url = new URL("./bestiary/creature.html", window.location.href);
+    url.searchParams.set("id", slugify(creature.id || creature.name || ""));
+    const campaignId = window.CriptaApp?.campaigns?.currentId?.() || "";
+    if (campaignId && campaignId !== "cripta-di-sangue") url.searchParams.set("campaign", campaignId);
+    return url.toString();
 }
 
 function buildBestiaryImageStyle(adjust) {

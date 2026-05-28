@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <title>Creatura | Cripta di Sangue</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="../../assets/css/abyssal.css">
+    <link rel="stylesheet" href="../../assets/css/pages/bestiary-detail.css" data-page-style>
+</head>
+
+<body class="page-bestiary-detail">
+    <nav class="sidebar" id="sidebar-container"></nav>
+
+    <main class="main-content">
+        <header class="hero-mini bestiary-detail-hero">
+            <div class="hero-title">
+                <a class="bestiary-detail-back" href="../bestiario.html">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                    <span>Bestiario</span>
+                </a>
+                <h1 id="creature-name">Caricamento...</h1>
+                <div class="subtitle" id="creature-subtitle"></div>
+            </div>
+            <div class="hero-actions">
+                <button id="creature-edit-button" class="bestiary-detail-edit" type="button" data-requires-dm hidden
+                    aria-label="Modifica creatura" title="Modifica creatura">
+                    <i class="fas fa-pen" aria-hidden="true"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="container">
+            <section id="creature-detail-root" class="bestiary-detail-shell">
+                <p class="bestiary-detail-state">Caricamento della creatura...</p>
+            </section>
+        </div>
+    </main>
+
+    <script src="../../assets/js/spoiler-policy.js"></script>
+    <script src="../../assets/js/layout.js"></script>
+    <script src="../../assets/js/pages/bestiary-detail.js"></script>
+</body>
+
+</html>
