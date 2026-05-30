@@ -609,6 +609,7 @@ window.CriptaApp.onPageReady("creature", async () => {
         const haystack = `${ability.name || ""} ${ability.section || ""} ${ability.activation || ""} ${ability.description || ""}`.toLowerCase();
         const kind = ability.kind || inferAbilityKind(ability);
         if (kind === "attack") return "attack";
+        if (kind === "passive") return "passive";
         if (kind === "reaction" || haystack.includes("parata") || haystack.includes("resistenza")) return "defense";
         if (haystack.includes("teletras") || haystack.includes("movimento") || haystack.includes("volo")) return "mobility";
         if (kind === "save" || haystack.includes("restrained") || haystack.includes("prono") || haystack.includes("paura")) return "control";
@@ -691,10 +692,26 @@ window.CriptaApp.onPageReady("creature", async () => {
                 renderAbilityInput(index, "Danno/effetto", "damageFormula", ability.damageFormula || "")
             ].join("");
         }
+        if (kind === "passive") {
+            return [
+                renderAbilitySelect(index, "Mostra in", "section", section || "trait", SECTION_OPTIONS),
+                renderPassiveValueField(ability, index)
+            ].filter(Boolean).join("");
+        }
         return [
             renderAbilitySelect(index, "Mostra in", "section", section, SECTION_OPTIONS),
             renderAbilityRechargeControls(ability, index)
         ].join("");
+    }
+
+    function renderPassiveValueField(ability, index) {
+        const passive = ability.passive && typeof ability.passive === "object" ? ability.passive : {};
+        const label = ability.passiveValueLabel || passive.valueLabel || (ability.hasNumberParam || passive.hasNumberParam ? "Valore" : "");
+        if (!label) return "";
+        if (passive.id === "absorption") {
+            return renderAbilitySelect(index, label, "passiveValue", ability.passiveValue || "", [["", "Scegli tipo"], ...ABILITY_DAMAGE_TYPE_OPTIONS]);
+        }
+        return renderAbilityInput(index, label, "passiveValue", ability.passiveValue || "");
     }
 
     function renderAbilityTimingPanel(ability, index) {
@@ -2275,7 +2292,7 @@ async function loadMonsterAbilityTemplates() {
     try {
         if (typeof window.CriptaApp?.api?.get === "function") {
             const payload = await window.CriptaApp.api.get("api/data/monster-abilities");
-            if (Array.isArray(payload?.data)) return payload.data;
+            if (Array.isArray(payload?.data)) return mergeDefaultAbilityTemplates(payload.data);
         }
     } catch (error) {
         console.warn("KV monster-abilities non disponibile, uso template locali.", error);
@@ -2284,10 +2301,23 @@ async function loadMonsterAbilityTemplates() {
     const response = await fetch(window.CriptaApp?.urls?.data?.("monster-abilities.json") || "../../assets/data/monster-abilities.json").catch(() => null);
     if (response?.ok) {
         const data = await response.json().catch(() => null);
-        if (Array.isArray(data)) return data;
-        if (Array.isArray(data?.data)) return data.data;
+        if (Array.isArray(data)) return mergeDefaultAbilityTemplates(data);
+        if (Array.isArray(data?.data)) return mergeDefaultAbilityTemplates(data.data);
     }
     return DEFAULT_MONSTER_ABILITY_TEMPLATES;
+}
+
+function mergeDefaultAbilityTemplates(templates) {
+    const merged = new Map();
+    DEFAULT_MONSTER_ABILITY_TEMPLATES.forEach((template) => {
+        merged.set(template.id || slugify(template.name || ""), template);
+    });
+    (Array.isArray(templates) ? templates : []).forEach((template) => {
+        const key = template?.id || slugify(template?.name || "");
+        if (!key) return;
+        merged.set(key, template);
+    });
+    return Array.from(merged.values());
 }
 
 const DEFAULT_MONSTER_ABILITY_TEMPLATES = [
@@ -2342,6 +2372,143 @@ const DEFAULT_MONSTER_ABILITY_TEMPLATES = [
         damageFormula: "2d6",
         damageType: "fire",
         description: "Il bersaglio effettua un tiro salvezza o subisce l'effetto."
+    },
+    {
+        id: "passive-avoidance",
+        name: "Avoidance",
+        icon: "fa-shield-heart",
+        type: "feat",
+        kind: "passive",
+        category: "passive",
+        section: "trait",
+        description: "Se la creatura subisce un effetto che permette un tiro salvezza per dimezzare i danni, non subisce danni se supera il tiro salvezza e subisce solo meta danni se lo fallisce.",
+        passive: { id: "avoidance", automation: "manual" }
+    },
+    {
+        id: "passive-damage-transfer",
+        name: "Damage Transfer",
+        icon: "fa-link",
+        type: "feat",
+        kind: "passive",
+        category: "passive",
+        section: "trait",
+        description: "Mentre la creatura e attaccata a un bersaglio o lo sta afferrando, subisce solo meta dei danni ricevuti. L'altra meta viene trasferita al bersaglio collegato.",
+        passive: { id: "damage-transfer", automation: "module-required" }
+    },
+    {
+        id: "passive-enlarge",
+        name: "Enlarge",
+        icon: "fa-up-right-and-down-left-from-center",
+        type: "feat",
+        kind: "passive",
+        category: "passive",
+        section: "trait",
+        passiveValueLabel: "Danni extra per round",
+        description: "La creatura puo aumentare magicamente di taglia insieme a cio che indossa o trasporta. Inserire il danno extra medio per round nel campo dedicato.",
+        passive: { id: "enlarge", hasNumberParam: true, valueLabel: "Danni extra per round", automation: "manual" }
+    },
+    {
+        id: "passive-heated-body",
+        name: "Heated Body",
+        icon: "fa-temperature-full",
+        type: "feat",
+        kind: "passive",
+        category: "passive",
+        section: "trait",
+        passiveValueLabel: "Danno da contatto",
+        description: "Una creatura che tocca questo mostro o lo colpisce con un attacco in mischia entro 5 piedi subisce il danno indicato.",
+        passive: { id: "heated-body", hasNumberParam: true, valueLabel: "Danno da contatto", automation: "module-required" }
+    },
+    {
+        id: "passive-magic-resistance",
+        name: "Magic Resistance",
+        icon: "fa-wand-sparkles",
+        type: "feat",
+        kind: "passive",
+        category: "passive",
+        section: "trait",
+        description: "La creatura ha vantaggio ai tiri salvezza contro incantesimi e altri effetti magici.",
+        passive: { id: "magic-resistance", automation: "midi-qol" }
+    },
+    {
+        id: "passive-martial-advantage",
+        name: "Martial Advantage",
+        icon: "fa-people-arrows",
+        type: "feat",
+        kind: "passive",
+        category: "passive",
+        section: "trait",
+        passiveValueLabel: "Danni extra per round",
+        description: "Una volta per turno, la creatura puo infliggere danni extra a un bersaglio che colpisce se quel bersaglio e entro 5 piedi da un alleato della creatura non incapacitato.",
+        passive: { id: "martial-advantage", hasNumberParam: true, valueLabel: "Danni extra per round", automation: "manual" }
+    },
+    {
+        id: "passive-parry",
+        name: "Parry",
+        icon: "fa-shield",
+        type: "feat",
+        kind: "passive",
+        category: "passive",
+        section: "reaction",
+        description: "Come reazione, la creatura aggiunge il proprio bonus di competenza alla CA contro un attacco in mischia che la colpirebbe.",
+        passive: { id: "parry", automation: "manual" }
+    },
+    {
+        id: "passive-regeneration",
+        name: "Regeneration",
+        icon: "fa-heart-pulse",
+        type: "feat",
+        kind: "passive",
+        category: "passive",
+        section: "trait",
+        passiveValueLabel: "PF rigenerati",
+        description: "All'inizio del proprio turno, la creatura recupera i punti ferita indicati. Specificare nella descrizione quali danni o condizioni interrompono la rigenerazione.",
+        passive: { id: "regeneration", hasNumberParam: true, valueLabel: "PF rigenerati", automation: "midi-qol" }
+    },
+    {
+        id: "passive-relentless",
+        name: "Relentless",
+        icon: "fa-hand-holding-heart",
+        type: "feat",
+        kind: "passive",
+        category: "passive",
+        section: "trait",
+        description: "Quando la creatura sarebbe ridotta a 0 punti ferita, puo invece restare a 1 punto ferita se la condizione specifica della feature e soddisfatta.",
+        passive: { id: "relentless", automation: "module-required" }
+    },
+    {
+        id: "passive-stench",
+        name: "Stench",
+        icon: "fa-wind",
+        type: "feat",
+        kind: "passive",
+        category: "passive",
+        section: "trait",
+        description: "Ogni creatura diversa da questo mostro entro 5 piedi deve superare un tiro salvezza o essere avvelenata secondo le regole della feature.",
+        passive: { id: "stench", automation: "manual" }
+    },
+    {
+        id: "passive-undead-fortitude",
+        name: "Undead Fortitude",
+        icon: "fa-skull",
+        type: "feat",
+        kind: "passive",
+        category: "passive",
+        section: "trait",
+        description: "Quando la creatura sarebbe ridotta a 0 punti ferita, puo invece restare a 1 punto ferita. L'effetto viene negato da danni radiosi o da altre condizioni indicate nella feature.",
+        passive: { id: "undead-fortitude", automation: "module-required" }
+    },
+    {
+        id: "passive-absorption",
+        name: "Assorbimento",
+        icon: "fa-droplet",
+        type: "feat",
+        kind: "passive",
+        category: "passive",
+        section: "trait",
+        passiveValueLabel: "Tipo danno assorbito",
+        description: "Quando la creatura subisce il tipo di danno indicato, non subisce quel danno e recupera invece un ammontare equivalente di punti ferita.",
+        passive: { id: "absorption", valueLabel: "Tipo danno assorbito", automation: "midi-qol" }
     }
 ];
 
@@ -2532,6 +2699,7 @@ const PHYSICAL_ABILITY_DAMAGE_TYPES = new Set(["bludgeoning", "piercing", "slash
 const ABILITY_FILTERS = [
     ["all", "Tutte"],
     ["attack", "Attacchi"],
+    ["passive", "Passive"],
     ["defense", "Difese"],
     ["mobility", "Mobilita"],
     ["control", "Controllo"],
@@ -2855,7 +3023,7 @@ function buildFoundryActorExport(creature) {
 function buildFoundryItemFromAbilityV4(ability, foundry = {}) {
     const type = foundryItemTypeForAbility(ability);
     const rider = getAbilityRider(ability);
-    const effects = [];
+    const effects = buildFoundryPassiveEffects(ability);
     const system = {
         description: { value: buildFoundryAbilityDescription(ability, foundry), chat: "" },
         source: { custom: "Sigillo del Male Wiki", revision: 1, rules: "2024" },
@@ -2937,9 +3105,86 @@ function buildFoundryItemFromAbilityV4(ability, foundry = {}) {
             "midi-qol": {},
             dae: {},
             dnd5e: { persistSourceMigration: true },
-            "cripta-wiki-sync": { riders: buildFoundryWikiRiderFlags(ability) },
+            "cripta-wiki-sync": {
+                riders: buildFoundryWikiRiderFlags(ability),
+                passive: buildFoundryWikiPassiveFlags(ability)
+            },
             ...(ability.flags || {})
         }
+    };
+}
+
+function buildFoundryWikiPassiveFlags(ability) {
+    const passive = ability.passive && typeof ability.passive === "object" ? ability.passive : {};
+    const id = String(passive.id || "").trim();
+    if (!id) return { enabled: false };
+    return {
+        enabled: true,
+        id,
+        automation: passive.automation || "manual",
+        value: String(ability.passiveValue || "").trim(),
+        valueLabel: ability.passiveValueLabel || passive.valueLabel || ""
+    };
+}
+
+function buildFoundryPassiveEffects(ability) {
+    const passive = buildFoundryWikiPassiveFlags(ability);
+    if (!passive.enabled) return [];
+    if (passive.id === "magic-resistance") {
+        return [buildFoundryTransferEffect("Magic Resistance", "icons/magic/defensive/shield-barrier-glowing-blue.webp", [
+            {
+                key: "flags.midi-qol.magicResistance.all",
+                mode: 0,
+                value: "1",
+                priority: 20
+            }
+        ])];
+    }
+    if (passive.id === "regeneration") {
+        const amount = passive.value || "1";
+        return [buildFoundryTransferEffect("Regeneration", "icons/magic/life/heart-cross-strong-green.webp", [
+            {
+                key: "flags.midi-qol.OverTime",
+                mode: 0,
+                value: `turn=start,damageRoll=${amount},damageType=healing,applyCondition=@attributes.hp.value>0&&@attributes.hp.value<@attributes.hp.max,label=Regeneration`,
+                priority: 20
+            }
+        ])];
+    }
+    if (passive.id === "absorption" && passive.value) {
+        return [buildFoundryTransferEffect("Assorbimento", "icons/magic/defensive/barrier-shield-dome-deflect-blue.webp", [
+            {
+                key: `flags.midi-qol.absorption.${passive.value}`,
+                mode: 0,
+                value: "1",
+                priority: 20
+            }
+        ])];
+    }
+    return [];
+}
+
+function buildFoundryTransferEffect(name, img, changes) {
+    return {
+        _id: `effect${slugify(name).replace(/-/g, "").slice(0, 10).padEnd(10, "0")}`,
+        name,
+        img,
+        origin: null,
+        disabled: false,
+        transfer: true,
+        description: "",
+        tint: "#ffffff",
+        statuses: [],
+        changes,
+        duration: { startTime: null, seconds: null, combat: null, rounds: null, turns: null, startRound: null, startTurn: null },
+        flags: {
+            dae: { showIcon: true, specialDuration: [] },
+            "midi-qol": {},
+            core: { overlay: false }
+        },
+        type: "base",
+        system: {},
+        sort: 0
     };
 }
 
@@ -3374,6 +3619,15 @@ function buildFoundryAbilityDescription(ability, foundry = {}) {
     const lines = [];
     const recharge = getAbilityRechargeValue(ability);
     if (recharge) lines.push(`Ricarica ${rechargeLabel(recharge)}.`);
+    const passive = ability.passive && typeof ability.passive === "object" ? ability.passive : {};
+    const passiveValue = String(ability.passiveValue || "").trim();
+    const passiveValueLabel = ability.passiveValueLabel || passive.valueLabel || "";
+    if (passiveValue && passiveValueLabel) {
+        const displayValue = passive.id === "absorption"
+            ? (ABILITY_DAMAGE_TYPE_OPTIONS.find(([value]) => value === passiveValue)?.[1] || passiveValue)
+            : passiveValue;
+        lines.push(`${passiveValueLabel}: ${displayValue}.`);
+    }
     const alwaysConditions = normalizeConditionImmunities(rider.alwaysConditions);
     if (alwaysConditions.length) {
         lines.push(`Condizioni applicate: ${alwaysConditions.map(conditionLabel).join(", ")}.`);

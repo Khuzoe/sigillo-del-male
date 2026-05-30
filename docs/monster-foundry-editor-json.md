@@ -352,6 +352,70 @@ Valori supportati:
 - `reaction`: reazione.
 - `legendary`: azione leggendaria.
 
+### Passive riutilizzabili
+
+Le passive sono normali elementi di `foundry.abilitiesList` con `kind: "passive"`, `type: "feat"` e in genere `section: "trait"`. L'editor mostra una tab `Passive` nella libreria drag-and-drop.
+
+Struttura consigliata:
+
+```json
+{
+  "id": "regeneration",
+  "name": "Regeneration",
+  "kind": "passive",
+  "type": "feat",
+  "section": "trait",
+  "icon": "fa-heart-pulse",
+  "description": "All'inizio del proprio turno, la creatura recupera i punti ferita indicati.",
+  "passiveValueLabel": "PF rigenerati",
+  "passiveValue": "10",
+  "passive": {
+    "id": "regeneration",
+    "automation": "midi-qol",
+    "hasNumberParam": true,
+    "valueLabel": "PF rigenerati"
+  }
+}
+```
+
+Campi specifici:
+
+| Campo | Tipo | Note |
+| --- | --- | --- |
+| `passiveValueLabel` | string | Etichetta del parametro mostrato nell'editor. Esempi: `PF rigenerati`, `Danno da contatto`, `Tipo danno assorbito`. |
+| `passiveValue` | string | Valore compilato dall'utente. Viene aggiunto alla descrizione esportata in Foundry. |
+| `passive.id` | string | Identificatore stabile della passiva. |
+| `passive.automation` | string | `manual` se e solo testo/feature Foundry; `midi-qol` se esporta un Active Effect Midi-QOL; `module-required` se richiede logica custom runtime. |
+| `passive.hasNumberParam` | boolean | Se `true`, l'editor mostra un campo valore anche quando non c'e `passiveValueLabel`. |
+| `passive.valueLabel` | string | Fallback per `passiveValueLabel`. |
+
+Caso speciale: per `passive.id: "absorption"`, `passiveValue` deve essere uno dei tipi danno tecnici usati dal builder, per esempio `fire`, `cold`, `necrotic`, `radiant`. L'editor lo mostra come selettore invece che come testo libero.
+
+Passive built-in attualmente previste:
+
+| `passive.id` | Nome | Parametro | Automazione |
+| --- | --- | --- | --- |
+| `avoidance` | Avoidance | no | `manual` |
+| `damage-transfer` | Damage Transfer | no | `module-required` |
+| `enlarge` | Enlarge | danni extra per round | `manual` |
+| `heated-body` | Heated Body | danno da contatto | `module-required` |
+| `magic-resistance` | Magic Resistance | no | `midi-qol` |
+| `martial-advantage` | Martial Advantage | danni extra per round | `manual` |
+| `parry` | Parry | no | `manual` |
+| `regeneration` | Regeneration | PF rigenerati | `midi-qol` |
+| `relentless` | Relentless | no | `module-required` |
+| `stench` | Stench | no | `manual` |
+| `undead-fortitude` | Undead Fortitude | no | `module-required` |
+| `absorption` | Assorbimento | tipo danno assorbito | `midi-qol` |
+
+Nota pratica: `midi-qol` genera Active Effects trasferiti sull'actor. `module-required` significa invece che l'item viene esportato come feature leggibile in Foundry, ma l'automazione in combattimento richiede codice del modulo Foundry. Non assumere che Midi/DAE applichino automaticamente queste passive se non esiste una regola specifica nel modulo.
+
+Passive `midi-qol` attuali:
+
+- `magic-resistance`: aggiunge `flags.midi-qol.magicResistance.all = 1`.
+- `regeneration`: aggiunge `flags.midi-qol.OverTime` con `turn=start`, `damageType=healing` e valore preso da `passiveValue`.
+- `absorption`: aggiunge `flags.midi-qol.absorption.<tipoDanno> = 1`.
+
 ### `section` e `activation`
 
 Valori consigliati:
