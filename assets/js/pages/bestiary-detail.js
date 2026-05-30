@@ -20,7 +20,8 @@ window.CriptaApp.onPageReady("creature", async () => {
         abilityTemplates: [],
         abilityFilter: "all",
         abilitySearch: "",
-        activeAbilityIndex: 0
+        activeAbilityIndex: 0,
+        openRiderPanels: new Set()
     };
 
     try {
@@ -217,6 +218,20 @@ window.CriptaApp.onPageReady("creature", async () => {
                 addTemplateAbility(Number(button.dataset.abilityTemplateIndex));
             });
         });
+        root.querySelectorAll('[data-action="add-condition-template"]').forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                addConditionTemplateToActiveAbility(Number(button.dataset.conditionTemplateIndex));
+            });
+        });
+        root.querySelectorAll('[data-action="upload-condition-icon"]').forEach((button) => {
+            button.addEventListener("click", (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                uploadConditionTemplateIcon(Number(button.dataset.conditionTemplateIndex));
+            });
+        });
         root.querySelectorAll("[data-choice-field]").forEach((button) => {
             button.addEventListener("click", () => {
                 const path = button.dataset.choiceField;
@@ -233,6 +248,12 @@ window.CriptaApp.onPageReady("creature", async () => {
         });
         root.querySelectorAll("[data-defense-kind]").forEach((field) => {
             field.addEventListener("change", (event) => updateDefensesFromControls(event));
+        });
+        root.querySelectorAll("[data-defense-magic]").forEach((field) => {
+            field.addEventListener("change", (event) => updateDefensesFromControls(event));
+        });
+        root.querySelectorAll("[data-condition-immunity]").forEach((button) => {
+            button.addEventListener("click", () => toggleConditionImmunity(button.dataset.conditionImmunity));
         });
         root.querySelectorAll("[data-score-action]").forEach((button) => {
             button.addEventListener("click", () => {
@@ -257,6 +278,12 @@ window.CriptaApp.onPageReady("creature", async () => {
             });
             card.addEventListener("dblclick", () => addTemplateAbility(Number(card.dataset.abilityTemplateIndex)));
         });
+        root.querySelectorAll("[data-condition-template-index]").forEach((card) => {
+            card.addEventListener("dragstart", (event) => {
+                event.dataTransfer?.setData("application/x-cripta-condition-template", card.dataset.conditionTemplateIndex || "");
+            });
+            card.addEventListener("dblclick", () => addConditionTemplateToActiveAbility(Number(card.dataset.conditionTemplateIndex)));
+        });
         const abilityDrop = root.querySelector("[data-ability-dropzone]");
         abilityDrop?.addEventListener("dragover", (event) => {
             event.preventDefault();
@@ -266,6 +293,11 @@ window.CriptaApp.onPageReady("creature", async () => {
         abilityDrop?.addEventListener("drop", (event) => {
             event.preventDefault();
             abilityDrop.classList.remove("is-drag-over");
+            const conditionIndex = event.dataTransfer?.getData("application/x-cripta-condition-template");
+            if (conditionIndex !== "") {
+                addConditionTemplateToActiveAbility(Number(conditionIndex));
+                return;
+            }
             const rawIndex = event.dataTransfer?.getData("application/x-cripta-ability-template") || event.dataTransfer?.getData("text/plain") || "";
             addTemplateAbility(Number(rawIndex));
         });
@@ -285,6 +317,37 @@ window.CriptaApp.onPageReady("creature", async () => {
         });
         root.querySelectorAll("[data-ability-damage-part-type]").forEach((button) => {
             button.addEventListener("click", () => updateMonsterAbilityDamagePartType(button));
+        });
+        root.querySelectorAll("[data-ability-damage-part-magic]").forEach((button) => {
+            button.addEventListener("click", () => toggleMonsterAbilityDamagePartMagic(button));
+        });
+        root.querySelectorAll("[data-ability-rider-field]").forEach((field) => {
+            field.addEventListener("input", () => updateMonsterAbilityRiderField(field));
+            field.addEventListener("change", () => updateMonsterAbilityRiderField(field));
+        });
+        root.querySelectorAll("[data-ability-rider-details]").forEach((details) => {
+            details.addEventListener("toggle", () => {
+                const index = Number(details.dataset.abilityIndex);
+                if (!Number.isInteger(index)) return;
+                if (details.open) state.openRiderPanels.add(index);
+                else state.openRiderPanels.delete(index);
+            });
+        });
+        root.querySelectorAll("[data-rider-condition]").forEach((button) => {
+            button.addEventListener("click", () => toggleMonsterAbilityRiderCondition(button));
+        });
+        root.querySelectorAll("[data-rider-success-mode]").forEach((button) => {
+            button.addEventListener("click", () => cycleMonsterAbilityRiderSuccessMode(button));
+        });
+        root.querySelectorAll("[data-ability-rider-damage-part-field]").forEach((field) => {
+            field.addEventListener("input", () => updateMonsterAbilityRiderDamagePart(field));
+            field.addEventListener("change", () => updateMonsterAbilityRiderDamagePart(field));
+        });
+        root.querySelectorAll("[data-ability-rider-damage-part-type]").forEach((button) => {
+            button.addEventListener("click", () => updateMonsterAbilityRiderDamagePartType(button));
+        });
+        root.querySelectorAll("[data-ability-rider-damage-part-magic]").forEach((button) => {
+            button.addEventListener("click", () => toggleMonsterAbilityRiderDamagePartMagic(button));
         });
         root.querySelectorAll("[data-ability-action]").forEach((button) => {
             button.addEventListener("click", () => handleMonsterAbilityAction(button));
@@ -353,14 +416,11 @@ window.CriptaApp.onPageReady("creature", async () => {
                             ${renderCompactInput("Punti Ferita", "foundry.hp.value", foundry.hp?.value ?? "")}
                             ${renderCompactInput("Formula PF", "foundry.hp.formula", foundry.hp?.formula ?? "")}
                             ${renderCompactInput("Grado Sfida", "foundry.cr", foundry.cr ?? "")}
-                            ${renderCompactInput("Bonus Competenza", "foundry.prof", foundry.prof ?? "")}
                             ${renderSelect("Taglia", "foundry.size", foundry.size || "med", FOUNDRY_SIZE_OPTIONS)}
+                            ${renderSelect("Caratteristica Incantesimi", "foundry.spellcastingAbility", foundry.spellcastingAbility || "cha", SPELLCASTING_ABILITY_OPTIONS)}
                         </div>
                         ${renderMovementAndSensesPanel(foundry)}
                         <div class="monster-foundry-body">
-                            <div class="monster-foundry-defense">
-                                ${renderDefensePicker(creature.details || {})}
-                            </div>
                             <div class="monster-foundry-tuning">
                                 <div class="monster-score-panel">
                                     <div class="monster-subsection-title">Caratteristiche</div>
@@ -370,14 +430,15 @@ window.CriptaApp.onPageReady("creature", async () => {
                                 </div>
                                 ${renderSkillProficiencyPanel(foundry.skills || {})}
                             </div>
+                            <div class="monster-foundry-defense">
+                                ${renderDefensePicker(creature.details || {}, foundry)}
+                            </div>
                         </div>
                         <details class="monster-builder-advanced">
                             <summary>Statistiche avanzate</summary>
                             <div class="bestiary-detail-form monster-builder-stats">
                                 ${renderMonsterSuggestionPanel(foundry, suggestions)}
                                 ${renderArea("Linguaggi", "foundry.languages", foundry.languages || "")}
-                                ${renderArea("Skill Foundry JSON", "foundry.skills", JSON.stringify(foundry.skills || {}, null, 2))}
-                                ${renderArea("Flags Actor JSON avanzati", "foundry.flags", JSON.stringify(foundry.flags || {}, null, 2))}
                             </div>
                         </details>
                     </section>
@@ -427,6 +488,15 @@ window.CriptaApp.onPageReady("creature", async () => {
                                 : `<p class="monster-builder-empty">Nessuna abilitÃ  in questo filtro.</p>`}
                         </div>
                     </section>
+                    <section class="bestiary-detail-section monster-builder-panel monster-builder-panel--conditions">
+                        <div class="monster-builder-section-title">
+                            <h2>Condizioni</h2>
+                        </div>
+                        <p class="monster-builder-hint">Trascinale sull'abilitÃ  attiva per aggiungere rider avanzati gestiti dal modulo Foundry.</p>
+                        <div class="monster-ability-library">
+                            ${ADVANCED_CONDITION_TEMPLATES.map((template, index) => renderConditionTemplateCard(template, index)).join("")}
+                        </div>
+                    </section>
                 </aside>
                 </div>
             </section>
@@ -445,6 +515,27 @@ window.CriptaApp.onPageReady("creature", async () => {
                     <span>${escapeHtml([template.type || "feat", template.activation || ""].filter(Boolean).join(" | "))}</span>
                 </div>
                 <button class="monster-ability-add-btn" type="button" data-action="add-template-ability" data-ability-template-index="${index}" title="Aggiungi">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                </button>
+            </article>
+        `;
+    }
+
+    function renderConditionTemplateCard(template, index) {
+        const iconImage = template.effect?.iconImage || template.iconImage || "";
+        return `
+            <article class="monster-ability-template monster-condition-template" draggable="true" data-condition-template-index="${index}">
+                ${iconImage
+                    ? `<img class="monster-ability-template-icon" src="${escapeHtml(resolveImageUrl(iconImage))}" alt="">`
+                    : `<i class="fas ${escapeHtml(template.icon || "fa-circle-nodes")}" aria-hidden="true"></i>`}
+                <div>
+                    <strong>${escapeHtml(template.name || "Condizione")}</strong>
+                    <span>${escapeHtml(template.description || "")}</span>
+                </div>
+                <button class="monster-ability-add-btn monster-ability-add-btn--ghost" type="button" data-action="upload-condition-icon" data-condition-template-index="${index}" title="Carica icona">
+                    <i class="fas fa-image" aria-hidden="true"></i>
+                </button>
+                <button class="monster-ability-add-btn" type="button" data-action="add-condition-template" data-condition-template-index="${index}" title="Aggiungi">
                     <i class="fas fa-plus" aria-hidden="true"></i>
                 </button>
             </article>
@@ -527,35 +618,37 @@ window.CriptaApp.onPageReady("creature", async () => {
         if (kind === "attack") {
             applyAttackAbilityDefaults(ability);
             return [
+                renderAbilityTurnUsePicker(ability, index),
                 renderAbilityInput(index, "Raggio", "range", ability.range || ""),
-                renderAttackBonusPicker(ability, index),
-                renderDamagePartsEditor(ability, index)
+                renderAttackTopControls(ability, index),
+                renderDamagePartsEditor(ability, index),
+                renderAttackRiderEditor(ability, index)
             ].join("");
         }
         if (kind === "save") {
             return [
-                renderAbilitySelect(index, "Mostra in", "section", section, SECTION_OPTIONS),
-                renderAbilityInput(index, "Attivazione", "activation", activation),
+                renderAbilityTurnUsePicker(ability, index),
                 renderAbilityInput(index, "Raggio/Area", "range", ability.range || ""),
                 renderAbilityInput(index, "Target", "target", ability.target || ""),
                 renderAbilitySelect(index, "Tiro salvezza", "saveAbility", ability.saveAbility || "", SAVE_ABILITY_OPTIONS),
-                renderAbilityInput(index, "CD TS", "saveDc", ability.saveDc || ""),
-                renderAbilityInput(index, "Danno/effetto", "damageFormula", ability.damageFormula || ""),
-                renderDamageTypePicker(ability, index)
+                renderAbilityInput(index, "CD TS", "saveDc", ability.saveDc || calculateSpellSaveDc()),
+                renderDamagePartsEditor(ability, index),
+                renderSaveOutcomeEditor(ability, index)
             ].join("");
         }
         if (kind === "aura") {
             return [
-                renderAbilitySelect(index, "Mostra in", "section", section, [["trait", "Tratto"], ["action", "Azione"]]),
+                renderAbilityTurnUsePicker(ability, index),
                 renderAbilityInput(index, "Raggio aura", "range", ability.range || ""),
                 renderAbilityInput(index, "Target", "target", ability.target || "creature nell'aura"),
                 renderAbilitySelect(index, "TS se serve", "saveAbility", ability.saveAbility || "", SAVE_ABILITY_OPTIONS),
-                renderAbilityInput(index, "CD TS", "saveDc", ability.saveDc || ""),
+                renderAbilityInput(index, "CD TS", "saveDc", ability.saveDc || calculateSpellSaveDc()),
                 renderAbilityInput(index, "Danno/effetto", "damageFormula", ability.damageFormula || "")
             ].join("");
         }
         if (kind === "reaction") {
             return [
+                renderAbilityTurnUsePicker(ability, index),
                 renderAbilityInput(index, "Trigger/raggio", "range", ability.range || ""),
                 renderAttackBonusPicker(ability, index),
                 renderAbilityInput(index, "Danno", "damageFormula", ability.damageFormula || "")
@@ -569,6 +662,35 @@ window.CriptaApp.onPageReady("creature", async () => {
             ].join("");
         }
         return renderAbilitySelect(index, "Mostra in", "section", section, SECTION_OPTIONS);
+    }
+
+    function renderAbilityTurnUsePicker(ability, index) {
+        const current = ability.section || sectionFromAbilityKind(ability.kind || inferAbilityKind(ability));
+        return `
+            <div class="bestiary-detail-field bestiary-detail-field--wide monster-ability-control-panel monster-turn-use-panel">
+                <span>Uso nel turno</span>
+                <div class="monster-ability-choice-row" role="group" aria-label="Uso nel turno">
+                    ${TURN_USE_OPTIONS.map(([value, label, icon]) => `
+                        <button class="monster-choice-btn ${current === value ? "is-active" : ""}" type="button" data-ability-index="${index}" data-ability-choice-field="turnUse" data-ability-choice-value="${escapeHtml(value)}">
+                            <i class="fas ${escapeHtml(icon)}" aria-hidden="true"></i>
+                            ${escapeHtml(label)}
+                        </button>
+                    `).join("")}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderAttackTopControls(ability, index) {
+        const rider = getAbilityRider(ability);
+        return `
+            <div class="monster-attack-top-grid bestiary-detail-field--wide">
+                ${renderAttackBonusPicker(ability, index)}
+                <div class="monster-ability-control-panel">
+                    ${renderRiderConditionButtons(index, "alwaysConditions", "Condizioni sempre", rider.alwaysConditions)}
+                </div>
+            </div>
+        `;
     }
 
     function renderAttackBonusPicker(ability, index) {
@@ -647,6 +769,7 @@ window.CriptaApp.onPageReady("creature", async () => {
                             </button>
                         `).join("")}
                     </div>
+                    ${renderDamageMagicToggle(part, index, partIndex, "base")}
                 </div>
                 ${totalRows > 1 ? `
                     <button class="monster-ability-icon-btn monster-ability-icon-btn--danger monster-damage-remove-btn" type="button" data-ability-action="remove-damage-part" data-ability-index="${index}" data-damage-part-index="${partIndex}" title="Rimuovi danno">
@@ -654,6 +777,232 @@ window.CriptaApp.onPageReady("creature", async () => {
                     </button>
                 ` : ""}
             </div>
+        `;
+    }
+
+    function renderAttackRiderEditor(ability, index) {
+        const rider = getAbilityRider(ability);
+        const summary = getAttackRiderSummary(ability, rider);
+        return `
+            <details class="bestiary-detail-field bestiary-detail-field--wide monster-ability-control-panel monster-attack-rider-panel monster-ability-collapsible" data-ability-rider-details data-ability-index="${index}" ${state.openRiderPanels.has(index) ? "open" : ""}>
+                <summary>
+                    <span>Effetti aggiuntivi</span>
+                    <small>${escapeHtml(summary)}</small>
+                </summary>
+                <div class="monster-ability-collapsible-body">
+                    <div class="monster-rider-save-row">
+                        ${renderAbilityRiderSelect(index, "Tiro salvezza", "saveAbility", rider.saveAbility || "", SAVE_ABILITY_OPTIONS)}
+                        ${renderAbilityRiderInput(index, "CD TS", "saveDc", rider.saveDc || calculateSpellSaveDc())}
+                        ${renderSaveSuccessModeButton(index, rider.successMode)}
+                    </div>
+                    <div class="monster-rider-fail-section">
+                        <div class="monster-rider-subtitle">Su fallimento TS</div>
+                        <div class="monster-damage-parts-list">
+                            ${getAbilityRiderDamageParts(ability).map((part, partIndex, parts) => renderRiderDamagePartRow(part, index, partIndex, parts.length)).join("")}
+                        </div>
+                        <button class="monster-helper-btn" type="button" data-ability-action="add-rider-damage-part" data-ability-index="${index}">
+                            <i class="fas fa-plus" aria-hidden="true"></i>
+                            Aggiungi danno su fallimento
+                        </button>
+                        ${renderRiderConditionButtons(index, "failConditions", "Condizioni su fallimento", rider.failConditions)}
+                    </div>
+                    ${renderAdvancedRiderEffects(index, rider.advancedEffects)}
+                    ${renderAbilityRiderArea(index, "Nota effetto", "notes", rider.notes || "")}
+                </div>
+            </details>
+        `;
+    }
+
+    function getAttackRiderSummary(ability, rider) {
+        const parts = [];
+        const failDamageCount = getAbilityRiderDamageParts(ability).filter((part) => String(part.formula || "").trim()).length;
+        const failConditionCount = normalizeConditionImmunities(rider.failConditions).length;
+        const advancedCount = Array.isArray(rider.advancedEffects) ? rider.advancedEffects.length : 0;
+
+        if (rider.saveAbility || rider.saveDc || failDamageCount || failConditionCount) parts.push("TS configurato");
+        if (failDamageCount) parts.push(`${failDamageCount} danni su fallimento`);
+        if (failConditionCount) parts.push(`${failConditionCount} condizioni su fallimento`);
+        if (advancedCount) parts.push(`${advancedCount} effetti avanzati`);
+
+        return parts.join(" | ") || "Nessun effetto extra";
+    }
+
+    function renderAdvancedRiderEffects(index, effects) {
+        const list = Array.isArray(effects) ? effects : [];
+        return `
+            <div class="monster-rider-advanced-effects">
+                <div class="monster-rider-subtitle">Effetti avanzati</div>
+                ${list.length ? `
+                    <div class="monster-rider-advanced-list">
+                        ${list.map((effect, effectIndex) => renderAdvancedRiderEffectRow(index, effect, effectIndex)).join("")}
+                    </div>
+                ` : `<p class="monster-builder-empty monster-builder-empty--compact">Nessun effetto avanzato. Trascina una condizione dalla libreria.</p>`}
+            </div>
+        `;
+    }
+
+    function renderAdvancedRiderEffectRow(index, effect, effectIndex) {
+        const iconImage = effect?.iconImage || "";
+        return `
+            <div class="monster-rider-advanced-row">
+                ${iconImage
+                    ? `<img class="monster-rider-advanced-icon" src="${escapeHtml(resolveImageUrl(iconImage))}" alt="">`
+                    : `<i class="fas ${escapeHtml(advancedEffectIcon(effect))}" aria-hidden="true"></i>`}
+                <div class="monster-rider-advanced-copy">
+                    <strong>${escapeHtml(effect?.name || "Effetto avanzato")}</strong>
+                    <span>${escapeHtml(advancedEffectSummary(effect))}</span>
+                </div>
+                <div class="monster-rider-advanced-timing" role="group" aria-label="Quando applicare ${escapeHtml(effect?.name || "effetto avanzato")}">
+                    ${renderAdvancedEffectTimingButton(index, effectIndex, effect, "hit", "Automatico")}
+                    ${renderAdvancedEffectTimingButton(index, effectIndex, effect, "failed-save", "Fallimento TS")}
+                </div>
+                <button class="monster-ability-icon-btn monster-ability-icon-btn--danger" type="button" data-ability-action="remove-advanced-rider-effect" data-ability-index="${index}" data-advanced-effect-index="${effectIndex}" title="Rimuovi effetto avanzato">
+                    <i class="fas fa-trash" aria-hidden="true"></i>
+                </button>
+            </div>
+        `;
+    }
+
+    function renderAdvancedEffectTimingButton(index, effectIndex, effect, timing, label) {
+        const current = effect?.timing || "hit";
+        return `
+            <button class="monster-rider-timing-btn ${current === timing ? "is-active" : ""}" type="button" data-ability-action="set-advanced-rider-timing" data-ability-index="${index}" data-advanced-effect-index="${effectIndex}" data-advanced-effect-timing="${escapeHtml(timing)}">
+                ${escapeHtml(label)}
+            </button>
+        `;
+    }
+
+    function advancedEffectIcon(effect) {
+        if (effect?.kind === "startTurnDamage") return "fa-snowflake";
+        if (String(effect?.id || "").includes("ac")) return "fa-shield-halved";
+        if (String(effect?.id || "").includes("speed")) return "fa-person-running";
+        return "fa-circle-nodes";
+    }
+
+    function advancedEffectSummary(effect) {
+        const timing = effect?.timing === "failed-save" ? "Su fallimento TS" : "Automatico";
+        if (effect?.kind === "startTurnDamage") {
+            return `${timing}: ${effect.damage?.formula || ""} ${effect.damage?.type || "danno"} a inizio turno${effect.endsOnDamageType ? `, termina con ${effect.endsOnDamageType}` : ""}`;
+        }
+        if (Array.isArray(effect?.changes) && effect.changes.length) return `${timing}: ${effect.changes.length} modifiche ActiveEffect`;
+        return `${timing}: effetto avanzato gestito dal modulo`;
+    }
+
+    function renderSaveOutcomeEditor(ability, index) {
+        const rider = getAbilityRider(ability);
+        return `
+            <div class="bestiary-detail-field bestiary-detail-field--wide monster-ability-control-panel monster-attack-rider-panel">
+                <span>Esito tiro salvezza</span>
+                <div class="monster-rider-save-row monster-rider-save-row--compact">
+                    ${renderSaveSuccessModeButton(index, rider.successMode)}
+                </div>
+                ${renderRiderConditionButtons(index, "failConditions", "Condizioni su fallimento", rider.failConditions)}
+                ${renderAdvancedRiderEffects(index, rider.advancedEffects)}
+                ${renderAbilityRiderArea(index, "Nota effetto", "notes", rider.notes || "")}
+            </div>
+        `;
+    }
+
+    function renderSaveSuccessModeButton(index, value) {
+        const mode = value === "negates" ? "negates" : "half";
+        const label = mode === "negates" ? "Annulla" : "Dimezza";
+        const stateClass = mode === "half" ? "is-half" : mode === "negates" ? "is-negates" : "";
+        return `
+            <div class="monster-save-mode-field">
+                <span>Se supera</span>
+                <button class="monster-save-mode-btn ${stateClass}" type="button" data-ability-index="${index}" data-rider-success-mode>
+                    <strong>${escapeHtml(label)}</strong>
+                    <small>Click: dimezza / annulla</small>
+                </button>
+            </div>
+        `;
+    }
+
+    function renderRiderConditionButtons(index, field, label, values) {
+        const selected = new Set(normalizeConditionImmunities(values));
+        return `
+            <div class="monster-rider-condition-block">
+                <div class="monster-rider-subtitle">${escapeHtml(label)}</div>
+                <div class="monster-condition-grid monster-condition-grid--rider">
+                    ${CONDITION_IMMUNITY_OPTIONS.map(([value, conditionLabel]) => `
+                        <button class="monster-condition-btn ${selected.has(value) ? "is-active" : ""}" type="button" data-ability-index="${index}" data-rider-condition="${escapeHtml(value)}" data-rider-condition-field="${escapeHtml(field)}">
+                            <i class="fas ${escapeHtml(conditionIcon(value))}" aria-hidden="true"></i>
+                            <span>${escapeHtml(conditionLabel)}</span>
+                        </button>
+                    `).join("")}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderRiderDamagePartRow(part, index, partIndex, totalRows) {
+        return `
+            <div class="monster-damage-part-row monster-rider-damage-row">
+                <label class="bestiary-detail-field">
+                    <span>Danno</span>
+                    <input class="bestiary-detail-input" data-ability-index="${index}" data-rider-damage-part-index="${partIndex}" data-ability-rider-damage-part-field="formula" value="${escapeHtml(part.formula || "")}" placeholder="2d6">
+                </label>
+                <div class="monster-damage-type-row">
+                    <span>Tipo danno</span>
+                    <div class="monster-damage-type-grid monster-damage-type-grid--row" role="group" aria-label="Tipo danno rider ${partIndex + 1}">
+                        ${ABILITY_DAMAGE_TYPE_OPTIONS.map(([value, label]) => `
+                            <button class="monster-choice-btn monster-choice-btn--damage ${part.type === value ? "is-active" : ""}" type="button" data-ability-index="${index}" data-rider-damage-part-index="${partIndex}" data-ability-rider-damage-part-type="${escapeHtml(value)}">
+                                ${escapeHtml(label)}
+                            </button>
+                        `).join("")}
+                    </div>
+                    ${renderDamageMagicToggle(part, index, partIndex, "rider")}
+                </div>
+                ${totalRows > 1 ? `
+                    <button class="monster-ability-icon-btn monster-ability-icon-btn--danger monster-damage-remove-btn" type="button" data-ability-action="remove-rider-damage-part" data-ability-index="${index}" data-rider-damage-part-index="${partIndex}" title="Rimuovi danno su fallimento">
+                        <i class="fas fa-trash" aria-hidden="true"></i>
+                    </button>
+                ` : ""}
+            </div>
+        `;
+    }
+
+    function renderDamageMagicToggle(part, index, partIndex, scope) {
+        const enabled = isPhysicalAbilityDamageType(part?.type);
+        const checked = enabled && part?.magic === true;
+        const dataset = scope === "rider"
+            ? `data-ability-rider-damage-part-magic="${partIndex}"`
+            : `data-ability-damage-part-magic="${partIndex}"`;
+        return `
+            <button class="monster-choice-btn monster-choice-btn--damage monster-choice-btn--magic ${checked ? "is-active" : ""}" type="button" data-ability-index="${index}" ${dataset} ${enabled ? "" : "disabled"} title="${enabled ? "Marca questo danno come magico" : "Disponibile solo per contundente, perforante o tagliente"}">
+                Magico
+            </button>
+        `;
+    }
+
+    function renderAbilityRiderInput(index, label, field, value) {
+        return `
+            <label class="bestiary-detail-field">
+                <span>${escapeHtml(label)}</span>
+                <input class="bestiary-detail-input" data-ability-index="${index}" data-ability-rider-field="${escapeHtml(field)}" value="${escapeHtml(value)}">
+            </label>
+        `;
+    }
+
+    function renderAbilityRiderArea(index, label, field, value) {
+        return `
+            <label class="bestiary-detail-field bestiary-detail-field--wide">
+                <span>${escapeHtml(label)}</span>
+                <textarea class="bestiary-detail-area" data-ability-index="${index}" data-ability-rider-field="${escapeHtml(field)}" spellcheck="false">${escapeHtml(value)}</textarea>
+            </label>
+        `;
+    }
+
+    function renderAbilityRiderSelect(index, label, field, value, options) {
+        return `
+            <label class="bestiary-detail-field">
+                <span>${escapeHtml(label)}</span>
+                <select class="bestiary-detail-select" data-ability-index="${index}" data-ability-rider-field="${escapeHtml(field)}">
+                    ${options.map(([optionValue, optionLabel]) => `
+                        <option value="${escapeHtml(optionValue)}"${optionValue === value ? " selected" : ""}>${escapeHtml(optionLabel)}</option>
+                    `).join("")}
+                </select>
+            </label>
         `;
     }
 
@@ -790,7 +1139,12 @@ window.CriptaApp.onPageReady("creature", async () => {
         const value = button.dataset.abilityChoiceValue || "";
         const ability = getMonsterAbilities(state.creature)[index];
         if (!ability || !key) return;
-        ability[key] = value;
+        if (key === "turnUse") {
+            ability.section = value;
+            ability.activation = activationFromSection(value);
+        } else {
+            ability[key] = value;
+        }
         if (key === "attackAbility") syncAttackBonus(ability);
         state.dirty = true;
         render();
@@ -833,9 +1187,114 @@ window.CriptaApp.onPageReady("creature", async () => {
         const parts = getAbilityDamageParts(ability);
         parts[partIndex] = {
             ...(parts[partIndex] || {}),
-            type
+            type,
+            magic: isPhysicalAbilityDamageType(type) ? parts[partIndex]?.magic === true : false
         };
         setAbilityDamageParts(ability, parts);
+        state.dirty = true;
+        render();
+    }
+
+    function toggleMonsterAbilityDamagePartMagic(button) {
+        const index = Number(button.dataset.abilityIndex);
+        const partIndex = Number(button.dataset.abilityDamagePartMagic);
+        const ability = getMonsterAbilities(state.creature)[index];
+        if (!ability || !Number.isInteger(partIndex)) return;
+        const parts = getAbilityDamageParts(ability);
+        const part = parts[partIndex] || {};
+        if (!isPhysicalAbilityDamageType(part.type)) return;
+        parts[partIndex] = {
+            ...part,
+            magic: part.magic !== true
+        };
+        setAbilityDamageParts(ability, parts);
+        state.dirty = true;
+        render();
+    }
+
+    function updateMonsterAbilityRiderField(field) {
+        const index = Number(field.dataset.abilityIndex);
+        const key = field.dataset.abilityRiderField;
+        const ability = getMonsterAbilities(state.creature)[index];
+        if (!ability || !key) return;
+        const rider = getAbilityRider(ability);
+        rider[key] = field.value;
+        state.dirty = true;
+    }
+
+    function toggleMonsterAbilityRiderCondition(button) {
+        const index = Number(button.dataset.abilityIndex);
+        const field = button.dataset.riderConditionField;
+        const condition = button.dataset.riderCondition || "";
+        const ability = getMonsterAbilities(state.creature)[index];
+        if (!ability || !field || !condition) return;
+        state.openRiderPanels.add(index);
+        const rider = getAbilityRider(ability);
+        const current = new Set(normalizeConditionImmunities(rider[field]));
+        if (current.has(condition)) current.delete(condition);
+        else current.add(condition);
+        rider[field] = Array.from(current);
+        state.dirty = true;
+        render();
+    }
+
+    function cycleMonsterAbilityRiderSuccessMode(button) {
+        const index = Number(button.dataset.abilityIndex);
+        const ability = getMonsterAbilities(state.creature)[index];
+        if (!ability) return;
+        state.openRiderPanels.add(index);
+        const rider = getAbilityRider(ability);
+        rider.successMode = rider.successMode === "negates" ? "half" : "negates";
+        state.dirty = true;
+        render();
+    }
+
+    function updateMonsterAbilityRiderDamagePart(field) {
+        const index = Number(field.dataset.abilityIndex);
+        const partIndex = Number(field.dataset.riderDamagePartIndex);
+        const ability = getMonsterAbilities(state.creature)[index];
+        if (!ability || !Number.isInteger(partIndex)) return;
+        const parts = getAbilityRiderDamageParts(ability);
+        parts[partIndex] = {
+            ...(parts[partIndex] || {}),
+            formula: field.value
+        };
+        setAbilityRiderDamageParts(ability, parts);
+        state.dirty = true;
+    }
+
+    function updateMonsterAbilityRiderDamagePartType(button) {
+        const index = Number(button.dataset.abilityIndex);
+        const partIndex = Number(button.dataset.riderDamagePartIndex);
+        const type = button.dataset.abilityRiderDamagePartType || "";
+        const ability = getMonsterAbilities(state.creature)[index];
+        if (!ability || !Number.isInteger(partIndex) || !type) return;
+        state.openRiderPanels.add(index);
+        const parts = getAbilityRiderDamageParts(ability);
+        parts[partIndex] = {
+            ...(parts[partIndex] || {}),
+            type,
+            magic: isPhysicalAbilityDamageType(type) ? parts[partIndex]?.magic === true : false
+        };
+        setAbilityRiderDamageParts(ability, parts);
+        state.dirty = true;
+        render();
+    }
+
+    function toggleMonsterAbilityRiderDamagePartMagic(button) {
+        const index = Number(button.dataset.abilityIndex);
+        const partIndex = Number(button.dataset.abilityRiderDamagePartMagic);
+        const ability = getMonsterAbilities(state.creature)[index];
+        if (!ability || !Number.isInteger(partIndex)) return;
+        state.openRiderPanels.add(index);
+        const parts = getAbilityRiderDamageParts(ability);
+        const part = parts[partIndex] || {};
+        if (!isPhysicalAbilityDamageType(part.type)) return;
+        parts[partIndex] = {
+            ...part,
+            magic: part.magic !== true
+        };
+        setAbilityRiderDamageParts(ability, parts);
         state.dirty = true;
         render();
     }
@@ -868,6 +1327,50 @@ window.CriptaApp.onPageReady("creature", async () => {
             }
             return;
         }
+        if (action === "add-rider-damage-part") {
+            state.openRiderPanels.add(index);
+            const parts = getAbilityRiderDamageParts(abilities[index]);
+            parts.push({ formula: "", type: "" });
+            setAbilityRiderDamageParts(abilities[index], parts);
+            state.dirty = true;
+            render();
+            return;
+        }
+        if (action === "remove-rider-damage-part") {
+            state.openRiderPanels.add(index);
+            const partIndex = Number(button.dataset.riderDamagePartIndex);
+            const parts = getAbilityRiderDamageParts(abilities[index]);
+            if (Number.isInteger(partIndex) && parts.length > 1) {
+                parts.splice(partIndex, 1);
+                setAbilityRiderDamageParts(abilities[index], parts);
+                state.dirty = true;
+                render();
+            }
+            return;
+        }
+        if (action === "remove-advanced-rider-effect") {
+            state.openRiderPanels.add(index);
+            const effectIndex = Number(button.dataset.advancedEffectIndex);
+            const rider = getAbilityRider(abilities[index]);
+            if (Number.isInteger(effectIndex) && Array.isArray(rider.advancedEffects) && rider.advancedEffects[effectIndex]) {
+                rider.advancedEffects.splice(effectIndex, 1);
+                state.dirty = true;
+                render();
+            }
+            return;
+        }
+        if (action === "set-advanced-rider-timing") {
+            state.openRiderPanels.add(index);
+            const effectIndex = Number(button.dataset.advancedEffectIndex);
+            const timing = button.dataset.advancedEffectTiming === "failed-save" ? "failed-save" : "hit";
+            const rider = getAbilityRider(abilities[index]);
+            if (Number.isInteger(effectIndex) && Array.isArray(rider.advancedEffects) && rider.advancedEffects[effectIndex]) {
+                rider.advancedEffects[effectIndex].timing = timing;
+                state.dirty = true;
+                render();
+            }
+            return;
+        }
         if (action === "delete") {
             if (!window.confirm("Eliminare questa abilità dal mostro?")) return;
             abilities.splice(index, 1);
@@ -891,6 +1394,20 @@ window.CriptaApp.onPageReady("creature", async () => {
         applyAbilityDefaultsForKind(ability);
         abilities.push(ability);
         state.activeAbilityIndex = abilities.length - 1;
+        state.dirty = true;
+        render();
+    }
+
+    function addConditionTemplateToActiveAbility(index) {
+        const template = ADVANCED_CONDITION_TEMPLATES[index];
+        if (!template) return;
+        const abilities = getMonsterAbilities(state.creature);
+        if (!abilities.length) addMonsterAbilityKind("attack");
+        const targetAbility = abilities[state.activeAbilityIndex] || abilities[abilities.length - 1];
+        if (!targetAbility) return;
+        const rider = getAbilityRider(targetAbility);
+        rider.advancedEffects.push(structuredCloneSafe(template.effect));
+        state.openRiderPanels.add(state.activeAbilityIndex);
         state.dirty = true;
         render();
     }
@@ -951,8 +1468,8 @@ window.CriptaApp.onPageReady("creature", async () => {
 
     function applyAttackAbilityDefaults(ability) {
         ability.kind = "attack";
-        ability.section = "action";
-        ability.activation = "action";
+        ability.section ||= "action";
+        ability.activation ||= activationFromSection(ability.section);
         ability.type = ability.type || "feat";
         if (!String(ability.range || "").trim()) ability.range = defaultAttackRange();
         if (!ability.attackAbility) ability.attackAbility = "str";
@@ -981,16 +1498,21 @@ window.CriptaApp.onPageReady("creature", async () => {
         const foundry = ensureFoundryMonsterData(state.creature);
         const score = Number(foundry.abilities?.[attackAbility]?.value || 10);
         const modifier = Math.floor((score - 10) / 2);
-        const proficiency = Number(foundry.prof || buildMonsterSuggestions(foundry).prof || 0);
+        const proficiency = getFoundryProficiency(foundry);
         const extra = Number(String(ability.attackBonusExtra || "").replace("+", "").trim() || 0);
         return formatSignedBonus(modifier + proficiency + (Number.isFinite(extra) ? extra : 0));
+    }
+
+    function calculateSpellSaveDc() {
+        return calculateFoundrySpellSaveDc(ensureFoundryMonsterData(state.creature));
     }
 
     function getAbilityDamageParts(ability) {
         const saved = Array.isArray(ability?.damageParts) ? ability.damageParts : [];
         const normalized = saved.map((part) => ({
             formula: String(part?.formula || part?.damage || "").trim(),
-            type: damageTypeValueFromLabel(part?.type || part?.damageType || "")
+            type: damageTypeValueFromLabel(part?.type || part?.damageType || ""),
+            magic: part?.magic === true && isPhysicalAbilityDamageType(part?.type || part?.damageType || "")
         }));
         if (saved.length) return normalized.length ? normalized : [{ formula: "", type: "" }];
         const legacyTypes = parseAbilityDamageTypes(ability);
@@ -1004,12 +1526,47 @@ window.CriptaApp.onPageReady("creature", async () => {
         const normalized = (Array.isArray(parts) ? parts : [])
             .map((part) => ({
                 formula: String(part?.formula || "").trim(),
-                type: damageTypeValueFromLabel(part?.type || "")
+                type: damageTypeValueFromLabel(part?.type || ""),
+                magic: part?.magic === true && isPhysicalAbilityDamageType(part?.type || "")
             }));
         ability.damageParts = normalized.length ? normalized : [{ formula: "", type: "" }];
         ability.damageFormula = ability.damageParts[0]?.formula || "";
         ability.damageType = ability.damageParts[0]?.type || "";
         ability.damageTypes = ability.damageParts.map((part) => part.type).filter(Boolean);
+    }
+
+    function getAbilityRider(ability) {
+        if (!ability.rider || typeof ability.rider !== "object") ability.rider = {};
+        const rider = ability.rider;
+        if (!Array.isArray(rider.alwaysConditions)) rider.alwaysConditions = normalizeConditionImmunities(rider.alwaysConditions);
+        if (!Array.isArray(rider.failConditions)) rider.failConditions = normalizeConditionImmunities(rider.failConditions);
+        if (!Array.isArray(rider.failDamageParts)) rider.failDamageParts = [];
+        if (!Array.isArray(rider.advancedEffects)) rider.advancedEffects = [];
+        rider.saveAbility ??= "";
+        rider.saveDc ??= "";
+        rider.successMode ??= "";
+        rider.notes ??= "";
+        return rider;
+    }
+
+    function getAbilityRiderDamageParts(ability) {
+        const rider = getAbilityRider(ability);
+        const normalized = rider.failDamageParts.map((part) => ({
+            formula: String(part?.formula || part?.damage || "").trim(),
+            type: damageTypeValueFromLabel(part?.type || part?.damageType || ""),
+            magic: part?.magic === true && isPhysicalAbilityDamageType(part?.type || part?.damageType || "")
+        }));
+        return normalized.length ? normalized : [{ formula: "", type: "" }];
+    }
+
+    function setAbilityRiderDamageParts(ability, parts) {
+        const rider = getAbilityRider(ability);
+        rider.failDamageParts = (Array.isArray(parts) ? parts : []).map((part) => ({
+            formula: String(part?.formula || "").trim(),
+            type: damageTypeValueFromLabel(part?.type || ""),
+            magic: part?.magic === true && isPhysicalAbilityDamageType(part?.type || "")
+        }));
+        if (!rider.failDamageParts.length) rider.failDamageParts = [{ formula: "", type: "" }];
     }
 
     function calculateAverageHp() {
@@ -1041,7 +1598,7 @@ window.CriptaApp.onPageReady("creature", async () => {
 
     function updateDefensesFromControls(event) {
         const changed = event?.currentTarget;
-        if (changed?.checked) {
+        if (changed?.checked && changed.dataset.defenseKind) {
             const value = changed.dataset.defenseValue || changed.value;
             root.querySelectorAll("[data-defense-value]").forEach((field) => {
                 if (field !== changed && field.dataset.defenseValue === value) field.checked = false;
@@ -1053,7 +1610,28 @@ window.CriptaApp.onPageReady("creature", async () => {
                 .map((field) => field.value)
                 .filter(Boolean);
         });
+        root.querySelectorAll("[data-defense-magic]:checked").forEach((field) => {
+            const value = field.dataset.defenseMagic || "";
+            if (!value) return;
+            ["resistances", "immunities", "vulnerabilities"].forEach((kind) => {
+                if (details[kind].some((entry) => normalizeSearchKey(entry) === normalizeSearchKey(value))) {
+                    details[kind].push(`${value} magico`);
+                }
+            });
+        });
         state.dirty = true;
+        render();
+    }
+
+    function toggleConditionImmunity(conditionKey) {
+        if (!conditionKey) return;
+        const foundry = ensureFoundryMonsterData(state.creature);
+        const current = new Set(Array.isArray(foundry.conditionImmunities) ? foundry.conditionImmunities : []);
+        if (current.has(conditionKey)) current.delete(conditionKey);
+        else current.add(conditionKey);
+        foundry.conditionImmunities = Array.from(current);
+        state.dirty = true;
+        render();
     }
 
     function cycleSkillProficiency(skillKey) {
@@ -1087,7 +1665,6 @@ window.CriptaApp.onPageReady("creature", async () => {
         foundry.ac = foundry.ac || suggestions.ac;
         foundry.hp.value = foundry.hp.value || suggestions.hp;
         foundry.hp.formula = foundry.hp.formula || suggestions.hpFormula;
-        foundry.prof = foundry.prof || suggestions.prof;
         getMonsterAbilities(state.creature).forEach((ability) => {
             const kind = ability.kind || inferAbilityKind(ability);
             if (kind === "attack" && !ability.attackBonus) ability.attackBonus = String(suggestions.attackBonus);
@@ -1294,6 +1871,55 @@ window.CriptaApp.onPageReady("creature", async () => {
             alert(`Upload icona fallito: ${error?.message || error}`);
         }
     }
+
+    async function uploadConditionTemplateIcon(index) {
+        const token = readAuthToken();
+        if (!token) {
+            alert("Login richiesto per caricare immagini.");
+            return;
+        }
+        const template = ADVANCED_CONDITION_TEMPLATES[index];
+        if (!template) return;
+        const file = await pickImageFile();
+        if (!file) return;
+
+        try {
+            const blob = /\.webp$/i.test(file.name) ? file : await convertImageToWebp(file);
+            const baseName = slugify(`${state.creature?.name || "creatura"}-${template.name || "condizione"}`);
+            const fileName = `${baseName}.webp`;
+            const folder = "monster-conditions";
+            const form = new FormData();
+            form.set("folder", folder);
+            form.set("filename", fileName);
+            form.set("campaignId", getCampaignId());
+            form.set("file", new File([blob], fileName, { type: "image/webp" }));
+
+            const uploadUrl = new URL(window.CriptaApp?.urls?.api?.("media/upload") || "https://sigillo-api.khuzoe.workers.dev/media/upload");
+            uploadUrl.searchParams.set("folder", folder);
+            uploadUrl.searchParams.set("campaign", getCampaignId());
+            const response = await fetch(uploadUrl.toString(), {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: form
+            });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+            const iconImage = payload.path || payload.key || `media/${folder}/${fileName}`;
+            template.iconImage = iconImage;
+            template.effect = { ...(template.effect || {}), iconImage };
+            getMonsterAbilities(state.creature).forEach((ability) => {
+                const rider = getAbilityRider(ability);
+                rider.advancedEffects.forEach((effect) => {
+                    if ((effect.id || "") === template.effect.id) effect.iconImage = iconImage;
+                });
+            });
+            state.dirty = true;
+            render();
+        } catch (error) {
+            console.error("Upload icona condizione fallito:", error);
+            alert(`Upload icona condizione fallito: ${error?.message || error}`);
+        }
+    }
 });
 
 async function loadBestiaryDocument() {
@@ -1415,9 +2041,59 @@ const DEFAULT_MONSTER_ABILITY_TEMPLATES = [
     }
 ];
 
+const ADVANCED_CONDITION_TEMPLATES = [
+    {
+        id: "half-speed",
+        name: "Velocita dimezzata",
+        icon: "fa-person-running",
+        description: "Dimezza il movimento del bersaglio.",
+        effect: {
+            id: "half-speed",
+            name: "Velocita dimezzata",
+            timing: "hit",
+            kind: "effect",
+            changes: [
+                { key: "system.attributes.movement.walk", mode: 1, value: "0.5", priority: 20 },
+                { key: "system.attributes.movement.fly", mode: 1, value: "0.5", priority: 20 },
+                { key: "system.attributes.movement.swim", mode: 1, value: "0.5", priority: 20 },
+                { key: "system.attributes.movement.climb", mode: 1, value: "0.5", priority: 20 },
+                { key: "system.attributes.movement.burrow", mode: 1, value: "0.5", priority: 20 }
+            ]
+        }
+    },
+    {
+        id: "minus-3-ac-next-turn",
+        name: "-3 CA fino al prossimo turno",
+        icon: "fa-shield-halved",
+        description: "Malus di -3 alla CA fino alla fine del prossimo turno del bersaglio.",
+        effect: {
+            id: "minus-3-ac-next-turn",
+            name: "-3 CA",
+            timing: "hit",
+            kind: "effect",
+            duration: { rounds: 1, turns: 1 },
+            changes: [{ key: "system.attributes.ac.bonus", mode: 2, value: "-3", priority: 20 }]
+        }
+    },
+    {
+        id: "frost-dot-fire-break",
+        name: "Gelo persistente",
+        icon: "fa-snowflake",
+        description: "1d8 gelo a inizio turno del bersaglio. Termina se subisce danni da fuoco.",
+        effect: {
+            id: "frost-dot-fire-break",
+            name: "Gelo persistente",
+            timing: "hit",
+            kind: "startTurnDamage",
+            damage: { formula: "1d8", type: "cold" },
+            endsOnDamageType: "fire"
+        }
+    }
+];
+
 const SENSE_OPTIONS = [
-    { value: "blindsight", label: "Vista cieca" },
     { value: "darkvision", label: "Scurovisione" },
+    { value: "blindsight", label: "Vista cieca" },
     { value: "tremorsense", label: "Percezione tellurica" },
     { value: "truesight", label: "Vista pura" }
 ];
@@ -1467,6 +2143,15 @@ const SAVE_ABILITY_OPTIONS = [
     ["cha", "Carisma"]
 ];
 
+const SPELLCASTING_ABILITY_OPTIONS = [
+    ["str", "Forza"],
+    ["dex", "Destrezza"],
+    ["con", "Costituzione"],
+    ["int", "Intelligenza"],
+    ["wis", "Saggezza"],
+    ["cha", "Carisma"]
+];
+
 const SKILL_OPTIONS = [
     { key: "acr", label: "Acrobazia", ability: "dex" },
     { key: "ani", label: "Addestrare Animali", ability: "wis" },
@@ -1491,7 +2176,18 @@ const SKILL_OPTIONS = [
 const ATTACK_ABILITY_OPTIONS = [
     ["str", "STR"],
     ["dex", "DEX"],
+    ["con", "CON"],
+    ["int", "INT"],
+    ["wis", "WIS"],
+    ["cha", "CHA"],
     ["custom", "ALTRO"]
+];
+
+const TURN_USE_OPTIONS = [
+    ["action", "Azione", "fa-hand-fist"],
+    ["bonus", "Azione Bonus", "fa-bolt"],
+    ["reaction", "Reazione", "fa-shield-halved"],
+    ["legendary", "Azione Leggendaria", "fa-crown"]
 ];
 
 const ABILITY_DAMAGE_TYPE_OPTIONS = [
@@ -1509,6 +2205,8 @@ const ABILITY_DAMAGE_TYPE_OPTIONS = [
     ["thunder", "Tuono"],
     ["poison", "Veleno"]
 ];
+
+const PHYSICAL_ABILITY_DAMAGE_TYPES = new Set(["bludgeoning", "piercing", "slashing"]);
 
 const ABILITY_FILTERS = [
     ["all", "Tutte"],
@@ -1537,20 +2235,38 @@ const DND_TYPE_OPTIONS = [
     "Umanoide"
 ];
 
+const CONDITION_IMMUNITY_OPTIONS = [
+    ["blinded", "Accecato"],
+    ["charmed", "Affascinato"],
+    ["deafened", "Assordato"],
+    ["frightened", "Spaventato"],
+    ["grappled", "Afferrato"],
+    ["incapacitated", "Incapacitato"],
+    ["invisible", "Invisibile"],
+    ["paralyzed", "Paralizzato"],
+    ["petrified", "Pietrificato"],
+    ["poisoned", "Avvelenato"],
+    ["prone", "Prono"],
+    ["restrained", "Trattenuto"],
+    ["stunned", "Stordito"],
+    ["unconscious", "Privo di sensi"],
+    ["exhaustion", "Indebolimento"]
+];
+
 const DAMAGE_TYPE_OPTIONS = [
     { value: "Acido", label: "Acido" },
-    { value: "Contundente", label: "Contundente" },
     { value: "Freddo", label: "Freddo" },
     { value: "Fuoco", label: "Fuoco" },
     { value: "Forza", label: "Forza" },
     { value: "Fulmine", label: "Fulmine" },
     { value: "Necrotico", label: "Necrotico" },
-    { value: "Perforante", label: "Perforante" },
     { value: "Psichico", label: "Psichico" },
     { value: "Radiante", label: "Radiante" },
-    { value: "Tagliente", label: "Tagliente" },
     { value: "Tuono", label: "Tuono" },
-    { value: "Veleno", label: "Veleno" }
+    { value: "Veleno", label: "Veleno" },
+    { value: "Contundente", label: "Contundente", physical: true },
+    { value: "Tagliente", label: "Tagliente", physical: true },
+    { value: "Perforante", label: "Perforante", physical: true }
 ];
 
 function ensureFoundryMonsterData(creature) {
@@ -1560,12 +2276,13 @@ function ensureFoundryMonsterData(creature) {
     foundry.hp ??= { value: "", formula: "" };
     foundry.movement ??= { walk: 30, fly: "", swim: "", climb: "" };
     foundry.cr ??= "";
-    foundry.prof ??= "";
     foundry.role ??= "standard";
     foundry.size ??= mapWikiSizeToFoundry(creature.details?.size);
     foundry.senses ??= "";
     foundry.languages ??= "";
     foundry.skills ??= {};
+    foundry.spellcastingAbility ??= "cha";
+    if (!Array.isArray(foundry.conditionImmunities)) foundry.conditionImmunities = [];
     foundry.flags ??= {};
     foundry.abilities ??= {};
     ["str", "dex", "con", "int", "wis", "cha"].forEach((key) => {
@@ -1599,7 +2316,8 @@ function getAbilityDamageParts(ability) {
     const saved = Array.isArray(ability?.damageParts) ? ability.damageParts : [];
     const normalized = saved.map((part) => ({
         formula: String(part?.formula || part?.damage || "").trim(),
-        type: damageTypeValueFromLabel(part?.type || part?.damageType || "")
+        type: damageTypeValueFromLabel(part?.type || part?.damageType || ""),
+        magic: part?.magic === true && isPhysicalAbilityDamageType(part?.type || part?.damageType || "")
     }));
     if (saved.length) return normalized.length ? normalized : [{ formula: "", type: "" }];
     const legacyTypes = parseAbilityDamageTypes(ability);
@@ -1607,6 +2325,30 @@ function getAbilityDamageParts(ability) {
         return [{ formula: ability.damageFormula || "", type: legacyTypes[0] || "" }];
     }
     return [{ formula: "", type: "" }];
+}
+
+function getAbilityRider(ability) {
+        if (!ability.rider || typeof ability.rider !== "object") ability.rider = {};
+        const rider = ability.rider;
+        if (!Array.isArray(rider.alwaysConditions)) rider.alwaysConditions = normalizeConditionImmunities(rider.alwaysConditions);
+        if (!Array.isArray(rider.failConditions)) rider.failConditions = normalizeConditionImmunities(rider.failConditions);
+        if (!Array.isArray(rider.failDamageParts)) rider.failDamageParts = [];
+        if (!Array.isArray(rider.advancedEffects)) rider.advancedEffects = [];
+        rider.saveAbility ??= "";
+        rider.saveDc ??= "";
+        rider.successMode ??= "";
+        rider.notes ??= "";
+        return rider;
+    }
+
+function getAbilityRiderDamageParts(ability) {
+    const rider = getAbilityRider(ability);
+    const normalized = rider.failDamageParts.map((part) => ({
+        formula: String(part?.formula || part?.damage || "").trim(),
+        type: damageTypeValueFromLabel(part?.type || part?.damageType || ""),
+        magic: part?.magic === true && isPhysicalAbilityDamageType(part?.type || part?.damageType || "")
+    }));
+    return normalized.length ? normalized : [{ formula: "", type: "" }];
 }
 
 function parseAbilityDamageTypes(ability) {
@@ -1626,6 +2368,10 @@ function damageTypeValueFromLabel(value) {
     if (direct) return direct[0];
     const byLabel = ABILITY_DAMAGE_TYPE_OPTIONS.find(([, label]) => normalizeSearchKey(label) === key);
     return byLabel?.[0] || "";
+}
+
+function isPhysicalAbilityDamageType(value) {
+    return PHYSICAL_ABILITY_DAMAGE_TYPES.has(damageTypeValueFromLabel(value));
 }
 
 function getPrimaryAbilityDamageType(ability) {
@@ -1677,7 +2423,6 @@ function validateFoundryMonster(creature) {
     if (!foundry.ac) errors.push("manca la Classe Armatura");
     if (!foundry.hp?.value && !foundry.hp?.formula) errors.push("mancano i Punti Ferita");
     if (!foundry.cr) warnings.push("manca il Grado Sfida");
-    if (!foundry.prof) warnings.push("manca il Bonus Competenza");
     if (!abilities.length) warnings.push("nessuna abilita configurata");
     abilities.forEach((ability, index) => {
         const label = ability.name || `abilita ${index + 1}`;
@@ -1694,7 +2439,7 @@ function buildMonsterSuggestions(foundry) {
     const cr = parseCrValue(foundry.cr);
     const role = foundry.role || "standard";
     const size = foundry.size || "med";
-    const baseProf = cr >= 29 ? 9 : cr >= 25 ? 8 : cr >= 21 ? 7 : cr >= 17 ? 6 : cr >= 13 ? 5 : cr >= 5 ? 3 : 2;
+    const baseProf = getFoundryProficiency(foundry);
     const roleMod = { brute: 2, skirmisher: 0, caster: -1, elite: 1, boss: 2, standard: 0 }[role] || 0;
     const ac = Math.max(10, Math.round(12 + Math.min(8, cr / 3) + (role === "caster" ? -1 : 0) + (role === "boss" ? 1 : 0)));
     const hpBase = Math.max(7, Math.round(18 + cr * 16));
@@ -1745,7 +2490,7 @@ function buildFoundryActorExport(creature) {
                 },
                 movement: normalizeFoundryMovement(foundry.movement),
                 senses: normalizeFoundrySenses(foundry.senses),
-                prof: toNumberOrNull(foundry.prof)
+                prof: getFoundryProficiency(foundry)
             },
             details: {
                 type: { value: mapWikiTypeToFoundry(creature.details?.dndType), subtype: "", swarm: "", custom: creature.details?.dndType || "" },
@@ -1759,7 +2504,7 @@ function buildFoundryActorExport(creature) {
                 di: { value: normalizeDamageTypes(creature.details?.immunities), custom: "" },
                 dr: { value: normalizeDamageTypes(creature.details?.resistances), custom: "" },
                 dv: { value: normalizeDamageTypes(creature.details?.vulnerabilities), custom: "" },
-                ci: { value: [], custom: "" }
+                ci: { value: normalizeConditionImmunities(foundry.conditionImmunities), custom: "" }
             },
             skills: normalizeFoundrySkills(foundry.skills)
         },
@@ -1772,15 +2517,146 @@ function buildFoundryActorExport(creature) {
             texture: { src: resolveImageUrl(creature.image) },
             actorLink: false
         },
-        items: abilities.map(buildFoundryItemFromAbility),
+        items: abilities.map((ability) => buildFoundryItemFromAbilityV4(ability, foundry)),
         effects: [],
         flags: foundry.flags || {}
     };
 }
 
-function buildFoundryItemFromAbility(ability) {
-    const type = ability.type || "feat";
-    const description = ability.description || "";
+function buildFoundryItemFromAbilityV4(ability, foundry = {}) {
+    const type = foundryItemTypeForAbility(ability);
+    const rider = getAbilityRider(ability);
+    const effects = [];
+    const system = {
+        description: { value: buildFoundryAbilityDescription(ability, foundry), chat: "" },
+        source: { custom: "Sigillo del Male Wiki", revision: 1, rules: "2024" },
+        uses: { spent: 0, max: "", recovery: [] },
+        activities: buildFoundryActivitiesForAbility(ability, foundry, type, effects),
+        identifier: "",
+        requirements: "",
+        type: foundryItemSubtypeForAbility(ability, type)
+    };
+
+    if (type === "weapon") {
+        const damageParts = getAbilityDamageParts(ability).filter((part) => part.formula);
+        system.quantity = 1;
+        system.weight = { value: 0, units: "lb" };
+        system.price = { value: 0, denomination: "gp" };
+        system.attunement = "";
+        system.equipped = true;
+        system.rarity = "";
+        system.identified = true;
+        system.range = buildFoundryWeaponRange(ability);
+        system.damage = {
+            base: damageFormulaToDnd5ePart(damageParts[0]?.formula || ability.damageFormula || "", damageParts[0]?.type || getPrimaryAbilityDamageType(ability)),
+            versatile: {
+                number: null,
+                denomination: null,
+                types: [],
+                custom: { enabled: false },
+                scaling: { number: 1 }
+            }
+        };
+        system.unidentified = { description: "" };
+        system.container = null;
+        system.attuned = false;
+        system.cover = null;
+        system.crewed = false;
+        system.ammunition = {};
+        system.armor = { value: null };
+        system.magicalBonus = null;
+        system.properties = hasMagicalAbilityDamage(ability) ? ["mgc"] : [];
+        system.proficient = true;
+        system.weaponType = "natural";
+        system.actionType = inferActionType(ability);
+        system.attackBonus = ability.attackBonus || "";
+    } else {
+        system.activation = { type: ability.activation || activationFromSection(ability.section), cost: 1, condition: "" };
+        system.target = { value: null, width: null, units: "", type: ability.target || "" };
+        system.range = { value: parseRangeValue(ability.range), long: null, units: parseRangeUnits(ability.range) };
+        system.consume = { type: "", target: "", amount: null };
+        system.actionType = inferActionType(ability);
+        system.attackBonus = ability.attackBonus || "";
+        system.damage = {
+            parts: buildFoundryDamageParts(ability),
+            versatile: ""
+        };
+        system.save = {
+            ability: ability.saveAbility || rider.saveAbility || "",
+            dc: toNumberOrNull(ability.saveDc || rider.saveDc || calculateFoundrySpellSaveDc(foundry)),
+            scaling: "flat"
+        };
+        system.recharge = parseRecharge(ability.description);
+        system.advancement = [];
+        system.cover = null;
+        system.crewed = false;
+        system.enchant = {};
+        system.prerequisites = { level: null, repeatable: false };
+        system.properties = [];
+    }
+
+    return {
+        name: ability.name || "Abilita",
+        type,
+        img: ability.iconImage ? resolveImageUrl(ability.iconImage) : foundryIconFromFa(ability.icon),
+        system,
+        effects,
+        flags: {
+            "midi-qol": {},
+            dae: {},
+            dnd5e: { persistSourceMigration: true },
+            "cripta-wiki-sync": { riders: buildFoundryWikiRiderFlags(ability) },
+            ...(ability.flags || {})
+        }
+    };
+}
+
+function buildFoundryWikiRiderFlags(ability) {
+    const rider = getAbilityRider(ability);
+    return {
+        enabled: true,
+        alwaysConditions: normalizeConditionImmunities(rider.alwaysConditions),
+        failConditions: normalizeConditionImmunities(rider.failConditions),
+        saveAbility: rider.saveAbility || "",
+        saveDc: rider.saveDc || "",
+        successMode: rider.successMode === "negates" ? "negates" : "half",
+        failDamageParts: getAbilityRiderDamageParts(ability).filter((part) => part.formula),
+        advancedEffects: normalizeAdvancedRiderEffects(rider.advancedEffects),
+        notes: rider.notes || ""
+    };
+}
+
+function normalizeAdvancedRiderEffects(effects) {
+    return (Array.isArray(effects) ? effects : [])
+        .map((effect) => ({
+            id: slugify(effect?.id || effect?.name || "advanced-effect"),
+            name: String(effect?.name || "Effetto avanzato"),
+            timing: String(effect?.timing || "hit"),
+            kind: String(effect?.kind || "effect"),
+            iconImage: effect?.iconImage || "",
+            duration: effect?.duration || {},
+            changes: normalizeAdvancedEffectChanges(effect),
+            damage: effect?.damage || null,
+            endsOnDamageType: effect?.endsOnDamageType || ""
+        }));
+}
+
+function normalizeAdvancedEffectChanges(effect) {
+    const id = String(effect?.id || "");
+    return (Array.isArray(effect?.changes) ? effect.changes : []).map((change) => {
+        const normalized = { ...change };
+        const key = String(normalized.key || "");
+        if (id === "half-speed" && key.startsWith("system.attributes.movement.") && String(normalized.value) === "0.5") {
+            normalized.mode = 1;
+        }
+        return normalized;
+    });
+}
+
+function buildFoundryItemFromAbility(ability, foundry = {}) {
+    const type = foundryItemTypeForAbility(ability);
+    const rider = getAbilityRider(ability);
+    const description = buildFoundryAbilityDescription(ability, foundry);
     const item = {
         name: ability.name || "Abilità",
         type,
@@ -1799,18 +2675,34 @@ function buildFoundryItemFromAbility(ability) {
                 versatile: ""
             },
             save: {
-                ability: ability.saveAbility || "",
-                dc: toNumberOrNull(ability.saveDc),
-                scaling: ability.saveDc ? "flat" : ""
+                ability: ability.saveAbility || rider.saveAbility || "",
+                dc: toNumberOrNull(ability.saveDc || rider.saveDc || calculateFoundrySpellSaveDc(foundry)),
+                scaling: "flat"
             },
-            type: { value: "", subtype: "" },
+            type: foundryItemSubtypeForAbility(ability, type),
             requirements: "",
             recharge: parseRecharge(ability.description)
         },
         effects: [],
         flags: ability.flags || {}
     };
+    if (type === "weapon") {
+        item.system.equipped = true;
+        item.system.proficient = true;
+        item.system.weaponType = "natural";
+        item.system.properties = hasMagicalAbilityDamage(ability) ? ["mgc"] : [];
+    }
     return item;
+}
+
+function foundryItemTypeForAbility(ability) {
+    if (isAttackAbility(ability)) return "weapon";
+    return ability.type || "feat";
+}
+
+function foundryItemSubtypeForAbility(ability, itemType) {
+    if (itemType === "weapon") return { value: "natural", baseItem: "" };
+    return { value: "", subtype: "" };
 }
 
 function buildFoundryDamageParts(ability) {
@@ -1819,6 +2711,355 @@ function buildFoundryDamageParts(ability) {
         .map((part) => [part.formula, part.type || ""]);
     if (parts.length) return parts;
     return ability.damageFormula ? [[ability.damageFormula, getPrimaryAbilityDamageType(ability)]] : [];
+}
+
+function hasMagicalAbilityDamage(ability) {
+    const allParts = [
+        ...getAbilityDamageParts(ability),
+        ...getAbilityRiderDamageParts(ability)
+    ];
+    return allParts.some((part) => part?.magic === true && isPhysicalAbilityDamageType(part.type));
+}
+
+function buildFoundryActivitiesForAbility(ability, foundry, itemType, effects) {
+    if (itemType === "weapon") {
+        const activities = { dnd5eactivity000: buildFoundryAttackActivity(ability, effects) };
+        if (hasAbilitySaveRider(ability)) activities.dnd5eactivity001 = buildFoundrySaveActivity(ability, foundry, effects, "dnd5eactivity001", { includeBaseDamage: false });
+        return activities;
+    }
+    if (ability.saveAbility || getAbilityRider(ability).saveAbility) return { dnd5eactivity000: buildFoundrySaveActivity(ability, foundry, effects) };
+    return { dnd5eactivity000: buildFoundryUtilityActivity(ability, effects) };
+}
+
+function buildFoundryAttackActivity(ability, effects) {
+    const ranged = isRangedAttackAbility(ability);
+    const attackAbility = ability.attackAbility === "custom" ? "" : (ability.attackAbility || "str");
+    const damageParts = getAbilityDamageParts(ability).filter((part) => part.formula);
+    return {
+        _id: "dnd5eactivity000",
+        type: "attack",
+        activation: buildFoundryActivityActivation(ability),
+        consumption: buildFoundryActivityConsumption(),
+        description: { chatFlavor: "" },
+        duration: buildFoundryInstantDuration(),
+        effects: [],
+        range: { units: ranged ? "ft" : "self", special: "", override: false, ...(ranged ? { value: parseRangeValue(ability.range) || "" } : {}) },
+        target: buildFoundrySingleCreatureTarget(),
+        uses: { spent: 0, max: "", recovery: [] },
+        attack: {
+            ability: attackAbility,
+            bonus: ability.attackAbility === "custom" ? (ability.attackBonus || "") : (ability.attackBonusExtra || ""),
+            critical: { threshold: null },
+            flat: ability.attackAbility === "custom",
+            type: { value: ranged ? "ranged" : "melee", classification: "weapon" }
+        },
+        damage: {
+            critical: { bonus: "" },
+            includeBase: true,
+            parts: damageParts.slice(1).map((part) => damageFormulaToDnd5ePart(part.formula, part.type))
+        },
+        sort: 0,
+        ...foundryMidiActivityDefaults(),
+        attackMode: "oneHanded",
+        ammunition: "",
+        otherActivityUuid: ""
+    };
+}
+
+function buildFoundrySaveActivity(ability, foundry, effects, activityId = "dnd5eactivity000", options = {}) {
+    const rider = getAbilityRider(ability);
+    const damageParts = [
+        ...(options.includeBaseDamage === false ? [] : getAbilityDamageParts(ability).filter((part) => part.formula)),
+        ...getAbilityRiderDamageParts(ability).filter((part) => part.formula)
+    ];
+    return {
+        _id: activityId,
+        type: "save",
+        activation: buildFoundryActivityActivation(ability),
+        consumption: buildFoundryActivityConsumption(),
+        description: { chatFlavor: "" },
+        duration: buildFoundryInstantDuration(),
+        effects: buildFoundrySaveActivityEffectRefs(effects),
+        range: { value: parseRangeValue(ability.range) || "", units: parseRangeUnits(ability.range) || "ft", special: "", override: false },
+        target: buildFoundrySingleCreatureTarget(),
+        uses: { spent: 0, max: "", recovery: [] },
+        damage: {
+            onSave: rider.successMode === "negates" ? "none" : "half",
+            parts: damageParts.map((part) => damageFormulaToDnd5ePart(part.formula, part.type)),
+            critical: { allow: false }
+        },
+        save: {
+            ability: [ability.saveAbility || rider.saveAbility || "con"],
+            dc: { calculation: "", formula: String(ability.saveDc || rider.saveDc || calculateFoundrySpellSaveDc(foundry)) }
+        },
+        sort: 0,
+        ...foundryMidiActivityDefaults()
+    };
+}
+
+function hasAbilitySaveRider(ability) {
+    const rider = getAbilityRider(ability);
+    return Boolean(
+        rider.saveAbility
+        || rider.saveDc
+        || getAbilityRiderDamageParts(ability).some((part) => part.formula)
+        || normalizeConditionImmunities(rider.failConditions).length
+    );
+}
+
+function buildFoundryUtilityActivity(ability, effects) {
+    return {
+        _id: "dnd5eactivity000",
+        type: "utility",
+        activation: buildFoundryActivityActivation(ability),
+        consumption: buildFoundryActivityConsumption(),
+        description: { chatFlavor: "" },
+        duration: buildFoundryInstantDuration(),
+        effects: effects.map((effect) => ({ _id: effect._id })),
+        range: { units: "self", special: "", override: false },
+        target: buildFoundrySingleCreatureTarget(),
+        uses: { spent: 0, max: "", recovery: [] },
+        roll: { formula: "", name: "", prompt: false, visible: false },
+        sort: 0,
+        ...foundryMidiActivityDefaults(),
+        otherActivityId: "none"
+    };
+}
+
+function buildFoundrySaveActivityEffectRefs(effects) {
+    return [];
+}
+
+function buildFoundryActivityActivation(ability) {
+    return {
+        type: ability.activation || activationFromSection(ability.section),
+        value: 1,
+        condition: "",
+        override: false
+    };
+}
+
+function buildFoundryActivityConsumption() {
+    return {
+        targets: [],
+        scaling: { allowed: false, max: "" },
+        spellSlot: true
+    };
+}
+
+function buildFoundryInstantDuration() {
+    return {
+        concentration: false,
+        units: "inst",
+        special: "",
+        override: false
+    };
+}
+
+function buildFoundrySingleCreatureTarget() {
+    return {
+        template: { count: "", contiguous: false, type: "", size: "", width: "", height: "", units: "" },
+        affects: { count: "1", type: "creature", choice: false, special: "" },
+        prompt: true,
+        override: false
+    };
+}
+
+function foundryMidiActivityDefaults() {
+    return {
+        useConditionText: "",
+        useConditionReason: "",
+        effectConditionText: "",
+        macroData: { name: "", command: "" },
+        ignoreTraits: { idi: false, idr: false, idv: false, ida: false },
+        midiProperties: {
+            ignoreTraits: [],
+            triggeredActivityId: "none",
+            triggeredActivityConditionText: "",
+            triggeredActivityTargets: "targets",
+            triggeredActivityRollAs: "self",
+            forceDialog: false,
+            confirmTargets: "default",
+            autoTargetType: "any",
+            autoTargetAction: "default",
+            automationOnly: false,
+            otherActivityCompatible: true,
+            identifier: "",
+            displayActivityName: false,
+            rollMode: "default",
+            chooseEffects: false,
+            toggleEffect: false,
+            ignoreFullCover: false
+        },
+        isOverTimeFlag: false,
+        overTimeProperties: { saveRemoves: true, preRemoveConditionText: "", postRemoveConditionText: "" },
+        otherActivityId: ""
+    };
+}
+
+function buildFoundryItemEffectsForAbility(ability) {
+    const rider = getAbilityRider(ability);
+    const effects = [];
+    const always = normalizeConditionImmunities(rider.alwaysConditions);
+    always.forEach((condition) => {
+        effects.push({ ...buildFoundryConditionEffect(`${ability.name || "Attacco"} ${conditionLabel(condition)}`, [condition], "Applied on hit."), _applyOn: "hit" });
+    });
+    const failed = normalizeConditionImmunities(rider.failConditions);
+    failed.forEach((condition) => {
+        effects.push({ ...buildFoundryConditionEffect(`${ability.name || "Effetto"} ${conditionLabel(condition)}`, [condition], "Applied on a failed save."), _applyOn: "failedSave" });
+    });
+    return effects.map((effect, index) => ({ ...effect, _id: `effect${String(index + 1).padStart(10, "0")}` }));
+}
+
+function stripFoundryInternalEffectMeta(effect) {
+    const { _applyOn, ...cleanEffect } = effect;
+    return cleanEffect;
+}
+
+function buildFoundryConditionEffect(name, statuses, description) {
+    return {
+        name,
+        img: foundryEffectIconForConditions(statuses),
+        origin: null,
+        disabled: false,
+        transfer: false,
+        description,
+        tint: "#ffffff",
+        statuses,
+        changes: buildFoundryConditionChanges(statuses),
+        duration: {
+            startTime: null,
+            seconds: null,
+            combat: null,
+            rounds: null,
+            turns: null,
+            startRound: null,
+            startTurn: null
+        },
+        flags: { dae: {}, "midi-qol": {} },
+        type: "base",
+        system: {},
+        sort: 0
+    };
+}
+
+function buildFoundryConditionChanges(statuses) {
+    if (!statuses.includes("grappled")) return [];
+    return ["walk", "fly", "swim", "climb", "burrow"].map((movement) => ({
+        key: `system.attributes.movement.${movement}`,
+        mode: 5,
+        value: "0",
+        priority: 20
+    }));
+}
+
+function foundryEffectIconForConditions(statuses) {
+    if (statuses.includes("grappled") || statuses.includes("restrained")) return "icons/svg/net.svg";
+    if (statuses.includes("prone")) return "icons/svg/falling.svg";
+    if (statuses.includes("poisoned")) return "icons/svg/poison.svg";
+    if (statuses.includes("frightened")) return "icons/svg/terror.svg";
+    return "icons/svg/aura.svg";
+}
+
+function damageFormulaToDnd5ePart(formula, type) {
+    const cleanFormula = String(formula || "").trim();
+    const match = cleanFormula.match(/^(\d+)d(\d+)\s*([+-]\s*\d+)?$/i);
+    if (match) {
+        return {
+            number: Number(match[1]),
+            denomination: Number(match[2]),
+            bonus: match[3] ? match[3].replace(/\s+/g, "") : "",
+            types: type ? [type] : [],
+            custom: { enabled: false, formula: "" },
+            scaling: { mode: "whole", number: null, formula: "" }
+        };
+    }
+    return {
+        number: null,
+        denomination: null,
+        bonus: "",
+        types: type ? [type] : [],
+        custom: { enabled: Boolean(cleanFormula), formula: cleanFormula },
+        scaling: { mode: "whole", number: null, formula: "" }
+    };
+}
+
+function buildFoundryWeaponRange(ability) {
+    if (isRangedAttackAbility(ability)) {
+        return { value: parseRangeValue(ability.range), long: null, units: parseRangeUnits(ability.range) || "ft" };
+    }
+    return { value: null, long: null, units: "self", reach: parseRangeValue(ability.range) || 5 };
+}
+
+function calculateFoundrySpellSaveDc(foundry = {}) {
+    const ability = foundry.spellcastingAbility || "cha";
+    const score = Number(foundry.abilities?.[ability]?.value || 10);
+    const modifier = Math.floor((score - 10) / 2);
+    return 8 + getFoundryProficiency(foundry) + modifier;
+}
+
+function buildFoundryAbilityDescription(ability, foundry = {}) {
+    const base = String(ability.description || "").trim();
+    const rider = getAbilityRider(ability);
+    const lines = [];
+    const alwaysConditions = normalizeConditionImmunities(rider.alwaysConditions);
+    if (alwaysConditions.length) {
+        lines.push(`Condizioni applicate: ${alwaysConditions.map(conditionLabel).join(", ")}.`);
+    }
+    const failDamage = getAbilityRiderDamageParts(ability).filter((part) => part.formula);
+    const failConditions = normalizeConditionImmunities(rider.failConditions);
+    if (rider.saveAbility || rider.saveDc || failDamage.length || failConditions.length) {
+        const dc = rider.saveDc || calculateFoundrySpellSaveDc(foundry);
+        const saveText = rider.saveAbility || rider.saveDc ? `TS ${abilityLabel(rider.saveAbility)} CD ${dc}` : "TS";
+        const effects = [
+            failDamage.length ? `subisce ${failDamage.map(formatDamagePartLabel).join(" + ")}` : "",
+            failConditions.length ? `riceve ${failConditions.map(conditionLabel).join(", ")}` : ""
+        ].filter(Boolean).join(" e ");
+        lines.push(`${saveText}: su fallimento ${effects || "si applica l'effetto descritto"}.`);
+        if (rider.saveAbility || rider.saveDc || failDamage.length || failConditions.length) {
+            const successMode = rider.successMode === "negates" ? "negates" : "half";
+            const successEffects = [
+                successMode === "half" && failDamage.length ? "dimezza i danni" : "annulla i danni e gli effetti da fallimento",
+            ].filter(Boolean).join(" e ");
+            lines.push(`Successo: ${successEffects}.`);
+        }
+    }
+    if (rider.notes) lines.push(String(rider.notes).trim());
+    if (!lines.length) return base;
+    return [base, `<hr><p><strong>Effetti aggiuntivi.</strong> ${escapeHtml(lines.join(" "))}</p>`].filter(Boolean).join("\n");
+}
+
+function formatDamagePartLabel(part) {
+    const damageLabel = ABILITY_DAMAGE_TYPE_OPTIONS.find(([value]) => value === part.type)?.[1] || part.type || "danno";
+    return `${part.formula} ${damageLabel}${part.magic ? " magico" : ""}`;
+}
+
+function conditionLabel(value) {
+    return CONDITION_IMMUNITY_OPTIONS.find(([key]) => key === value)?.[1] || value;
+}
+
+function conditionIcon(value) {
+    return {
+        blinded: "fa-eye-slash",
+        charmed: "fa-heart",
+        deafened: "fa-ear-deaf",
+        frightened: "fa-face-dizzy",
+        grappled: "fa-hand-fist",
+        incapacitated: "fa-ban",
+        invisible: "fa-user-ninja",
+        paralyzed: "fa-person",
+        petrified: "fa-mountain",
+        poisoned: "fa-skull-crossbones",
+        prone: "fa-person-falling",
+        restrained: "fa-link",
+        stunned: "fa-bolt",
+        unconscious: "fa-bed",
+        exhaustion: "fa-battery-quarter"
+    }[value] || "fa-circle";
+}
+
+function abilityLabel(value) {
+    return SAVE_ABILITY_OPTIONS.find(([key]) => key === value)?.[1] || value || "?";
 }
 
 function findCreature(creatures, id) {
@@ -1848,7 +3089,6 @@ function createEmptyCreature() {
             hp: { value: 10, formula: "2d8 + 2" },
             movement: { walk: 30, fly: "", swim: "", climb: "" },
             cr: "1/4",
-            prof: 2,
             size: "med",
             senses: "",
             languages: "",
@@ -2018,7 +3258,8 @@ function renderArea(label, field, value) {
         `;
     }
 
-    function renderDefensePicker(details) {
+    function renderDefensePicker(details, foundry) {
+        const selectedConditions = new Set(normalizeConditionImmunities(foundry?.conditionImmunities));
         return `
             <div class="bestiary-detail-field bestiary-detail-field--wide">
                 <label>Difese</label>
@@ -2027,12 +3268,25 @@ function renderArea(label, field, value) {
                     <strong>Resistenza</strong>
                     <strong>Immunità</strong>
                     <strong>Vulnerabilità</strong>
+                    <strong>Magico</strong>
                     ${DAMAGE_TYPE_OPTIONS.map((damage) => `
                         <span>${escapeHtml(damage.label)}</span>
                         ${renderDefenseCheckbox("resistances", damage.value, details.resistances)}
                         ${renderDefenseCheckbox("immunities", damage.value, details.immunities)}
                         ${renderDefenseCheckbox("vulnerabilities", damage.value, details.vulnerabilities)}
+                        ${damage.physical ? renderMagicDefenseCheckbox(damage.value, details) : `<span class="monster-defense-magic-empty"></span>`}
                     `).join("")}
+                </div>
+                <div class="monster-condition-immunity-panel">
+                    <div class="monster-condition-title">Immunità alle condizioni</div>
+                    <div class="monster-condition-grid">
+                        ${CONDITION_IMMUNITY_OPTIONS.map(([value, label]) => `
+                            <button class="monster-condition-btn ${selectedConditions.has(value) ? "is-active" : ""}" type="button" data-condition-immunity="${escapeHtml(value)}">
+                                <i class="fas ${escapeHtml(conditionIcon(value))}" aria-hidden="true"></i>
+                                <span>${escapeHtml(label)}</span>
+                            </button>
+                        `).join("")}
+                    </div>
                 </div>
             </div>
         `;
@@ -2047,6 +3301,28 @@ function renderArea(label, field, value) {
                 <span></span>
             </label>
         `;
+    }
+
+    function renderMagicDefenseCheckbox(value, details) {
+        const magicValue = `${value} magico`;
+        const enabled = hasBasePhysicalDefense(value, details);
+        const selected = ["resistances", "immunities", "vulnerabilities"].some((kind) => {
+            const values = Array.isArray(details?.[kind]) ? details[kind] : [];
+            return values.some((entry) => normalizeSearchKey(entry) === normalizeSearchKey(magicValue));
+        }) && enabled;
+        return `
+            <label class="monster-defense-check monster-defense-check--magic ${enabled ? "" : "is-disabled"}" title="${escapeHtml(enabled ? `Include ${magicValue}` : `Prima seleziona una difesa ${value}`)}">
+                <input type="checkbox" data-defense-magic="${escapeHtml(value)}" value="${escapeHtml(value)}" ${selected ? "checked" : ""} ${enabled ? "" : "disabled"}>
+                <span></span>
+            </label>
+        `;
+    }
+
+    function hasBasePhysicalDefense(value, details) {
+        return ["resistances", "immunities", "vulnerabilities"].some((kind) => {
+            const values = Array.isArray(details?.[kind]) ? details[kind] : [];
+            return values.some((entry) => normalizeSearchKey(entry) === normalizeSearchKey(value));
+        });
     }
 
     function renderSkillProficiencyPanel(skills) {
@@ -2081,6 +3357,7 @@ function renderArea(label, field, value) {
                 <div class="monster-suggestion-strip">
                     <span>CA ${escapeHtml(suggestions.ac)}</span>
                     <span>PF ${escapeHtml(suggestions.hp)}</span>
+                    <span>PB +${escapeHtml(suggestions.prof)}</span>
                     <span>Attacco +${escapeHtml(suggestions.attackBonus)}</span>
                     <span>CD ${escapeHtml(suggestions.saveDc)}</span>
                     <span>Danno ${escapeHtml(suggestions.damage)}</span>
@@ -2356,6 +3633,18 @@ function calculateDndAverageHp(formula, conScore, foundrySize) {
     return Math.max(1, Math.floor(average));
 }
 
+function getFoundryProficiency(foundry = {}) {
+    const cr = parseCrValue(foundry.cr);
+    if (cr >= 29) return 9;
+    if (cr >= 25) return 8;
+    if (cr >= 21) return 7;
+    if (cr >= 17) return 6;
+    if (cr >= 13) return 5;
+    if (cr >= 9) return 4;
+    if (cr >= 5) return 3;
+    return 2;
+}
+
 function hitDieForFoundrySize(size) {
     return { tiny: 4, sm: 6, med: 8, lg: 10, huge: 12, grg: 20 }[size] || 8;
 }
@@ -2375,21 +3664,54 @@ function normalizeDamageTypes(values) {
     const map = {
         acido: "acid",
         contundente: "bludgeoning",
+        "contundente-magico": "bludgeoning-magic",
         freddo: "cold",
         fuoco: "fire",
         forza: "force",
         fulmine: "lightning",
         necrotico: "necrotic",
         perforante: "piercing",
+        "perforante-magico": "piercing-magic",
         psichico: "psychic",
         radiante: "radiant",
         tagliente: "slashing",
+        "tagliente-magico": "slashing-magic",
         tuono: "thunder",
         veleno: "poison"
     };
     return (Array.isArray(values) ? values : [])
         .map((value) => map[normalizeSearchKey(value)] || String(value || "").trim().toLowerCase())
         .filter(Boolean);
+}
+
+function normalizeConditionImmunities(values) {
+    const aliases = {
+        accecato: "blinded",
+        affascinato: "charmed",
+        assordato: "deafened",
+        spaventato: "frightened",
+        afferrato: "grappled",
+        incapacitato: "incapacitated",
+        invisibile: "invisible",
+        paralizzato: "paralyzed",
+        pietrificato: "petrified",
+        avvelenato: "poisoned",
+        prono: "prone",
+        trattenuto: "restrained",
+        stordito: "stunned",
+        "privo-di-sensi": "unconscious",
+        unconscious: "unconscious",
+        exhaustion: "exhaustion",
+        indebolimento: "exhaustion"
+    };
+    return (Array.isArray(values) ? values : [])
+        .map((value) => {
+            const key = normalizeSearchKey(value);
+            if (CONDITION_IMMUNITY_OPTIONS.some(([optionValue]) => optionValue === key)) return key;
+            return aliases[key] || "";
+        })
+        .filter(Boolean)
+        .filter((value, index, list) => list.indexOf(value) === index);
 }
 
 function mapWikiTypeToFoundry(value) {
@@ -2478,10 +3800,22 @@ function parseRecharge(description) {
 }
 
 function inferActionType(ability) {
+    if (isAttackAbility(ability)) return isRangedAttackAbility(ability) ? "rwak" : "mwak";
     if (ability.saveAbility) return "save";
     if (ability.damageFormula && ability.type === "weapon") return String(ability.range || "").includes("/") ? "rwak" : "mwak";
     if (ability.damageFormula) return "other";
     return "other";
+}
+
+function isAttackAbility(ability) {
+    return ability?.kind === "attack" || ability?.type === "weapon" || Boolean(ability?.attackBonus);
+}
+
+function isRangedAttackAbility(ability) {
+    const range = String(ability?.range || "").toLowerCase();
+    if (range.includes("/")) return true;
+    const value = parseRangeValue(range);
+    return Number.isFinite(value) && value > 10;
 }
 
 function activationFromSection(section) {
