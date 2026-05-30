@@ -141,17 +141,23 @@ window.CriptaApp.onPageReady("creature", async () => {
                             <button class="bestiary-detail-image-frame bestiary-detail-image-upload" type="button" data-action="upload-image">
                                 <img src="${escapeHtml(resolveImageUrl(creature.image))}" alt="${escapeHtml(creature.name || "Creatura")}" style="${buildImageStyle(creature.imageAdjust)}">
                             </button>
+                            <div class="bestiary-detail-token-row">
+                                <button class="bestiary-detail-token-upload" type="button" data-action="upload-token-image">
+                                    <span>Token</span>
+                                    <img src="${escapeHtml(resolveImageUrl(creature.tokenImage || creature.image))}" alt="${escapeHtml(`${creature.name || "Creatura"} token`)}">
+                                </button>
+                            </div>
                         </aside>
                         <section class="bestiary-detail-info-panel">
                             <div class="bestiary-detail-form">
                                 ${renderInput("Nome", "name", creature.name || "")}
                                 ${renderInput("Categoria", "category", creature.category || "")}
                                 ${renderSelect("Rango", "rank", creature.rank || "", [
-                                    ["", "Normale"],
-                                    ["mini_boss", "Creatura maggiore"],
-                                    ["unique_monster", "Creatura unica"],
-                                    ["special", "Speciale"]
-                                ])}
+            ["", "Normale"],
+            ["mini_boss", "Creatura maggiore"],
+            ["unique_monster", "Creatura unica"],
+            ["special", "Speciale"]
+        ])}
                                 ${renderSelect("Tipo D&D", "details.dndType", details.dndType || "", DND_TYPE_OPTIONS.map((type) => [type, type]))}
                                 ${renderInput("Altezza", "details.height", details.height || "")}
                                 ${renderInput("Peso", "details.weight", details.weight || "")}
@@ -197,6 +203,7 @@ window.CriptaApp.onPageReady("creature", async () => {
         root.querySelector('[data-action="cancel"]')?.addEventListener("click", cancelEdit);
         root.querySelector('[data-action="save"]')?.addEventListener("click", saveEdit);
         root.querySelector('[data-action="upload-image"]')?.addEventListener("click", uploadImage);
+        root.querySelector('[data-action="upload-token-image"]')?.addEventListener("click", uploadTokenImage);
         root.querySelector('[data-action="download-foundry"]')?.addEventListener("click", downloadFoundryActor);
         root.querySelector('[data-action="add-custom-ability"]')?.addEventListener("click", addCustomAbilityTemplate);
         root.querySelector('[data-action="add-empty-ability"]')?.addEventListener("click", addEmptyMonsterAbility);
@@ -416,6 +423,8 @@ window.CriptaApp.onPageReady("creature", async () => {
                             ${renderCompactInput("Punti Ferita", "foundry.hp.value", foundry.hp?.value ?? "")}
                             ${renderCompactInput("Formula PF", "foundry.hp.formula", foundry.hp?.formula ?? "")}
                             ${renderCompactInput("Grado Sfida", "foundry.cr", foundry.cr ?? "")}
+                            ${renderCompactInput("Azioni Leggendarie", "foundry.legendaryActions", foundry.legendaryActions ?? "")}
+                            ${renderCompactInput("Resistenze Leggendarie", "foundry.legendaryResistances", foundry.legendaryResistances ?? "")}
                             ${renderSelect("Taglia", "foundry.size", foundry.size || "med", FOUNDRY_SIZE_OPTIONS)}
                             ${renderSelect("Caratteristica Incantesimi", "foundry.spellcastingAbility", foundry.spellcastingAbility || "cha", SPELLCASTING_ABILITY_OPTIONS)}
                         </div>
@@ -484,8 +493,8 @@ window.CriptaApp.onPageReady("creature", async () => {
                             </label>
                             ${renderAbilityFilterTabs()}
                             ${filteredTemplates.length
-                                ? filteredTemplates.map(({ template, index }) => renderAbilityTemplateCard(template, index)).join("")
-                                : `<p class="monster-builder-empty">Nessuna abilitÃ  in questo filtro.</p>`}
+                ? filteredTemplates.map(({ template, index }) => renderAbilityTemplateCard(template, index)).join("")
+                : `<p class="monster-builder-empty">Nessuna abilitÃ  in questo filtro.</p>`}
                         </div>
                     </section>
                     <section class="bestiary-detail-section monster-builder-panel monster-builder-panel--conditions">
@@ -508,8 +517,8 @@ window.CriptaApp.onPageReady("creature", async () => {
         return `
             <article class="monster-ability-template" draggable="true" data-ability-template-index="${index}">
                 ${iconImage
-                    ? `<img class="monster-ability-template-icon" src="${escapeHtml(resolveImageUrl(iconImage))}" alt="">`
-                    : `<i class="fas ${escapeHtml(template.icon || "fa-burst")}" aria-hidden="true"></i>`}
+                ? `<img class="monster-ability-template-icon" src="${escapeHtml(resolveImageUrl(iconImage))}" alt="">`
+                : `<i class="fas ${escapeHtml(template.icon || "fa-burst")}" aria-hidden="true"></i>`}
                 <div>
                     <strong>${escapeHtml(template.name || "Abilità")}</strong>
                     <span>${escapeHtml([template.type || "feat", template.activation || ""].filter(Boolean).join(" | "))}</span>
@@ -526,8 +535,8 @@ window.CriptaApp.onPageReady("creature", async () => {
         return `
             <article class="monster-ability-template monster-condition-template" draggable="true" data-condition-template-index="${index}">
                 ${iconImage
-                    ? `<img class="monster-ability-template-icon" src="${escapeHtml(resolveImageUrl(iconImage))}" alt="">`
-                    : `<i class="fas ${escapeHtml(template.icon || "fa-circle-nodes")}" aria-hidden="true"></i>`}
+                ? `<img class="monster-ability-template-icon" src="${escapeHtml(resolveImageUrl(iconImage))}" alt="">`
+                : `<i class="fas ${escapeHtml(template.icon || "fa-circle-nodes")}" aria-hidden="true"></i>`}
                 <div>
                     <strong>${escapeHtml(template.name || "Condizione")}</strong>
                     <span>${escapeHtml(template.description || "")}</span>
@@ -595,18 +604,10 @@ window.CriptaApp.onPageReady("creature", async () => {
                     </div>
                 </header>
                 <div class="bestiary-detail-form monster-ability-body">
-                    ${renderAbilityInput(index, "Nome", "name", ability.name || "")}
+                    ${renderAbilityInput(index, "Nome", "name", ability.name || "", "monster-ability-name-field")}
                     ${renderAbilitySelect(index, "Metodo", "kind", kind, ABILITY_KIND_OPTIONS)}
-                    ${renderGuidedAbilityFields(ability, index, kind)}
                     ${renderAbilityArea(index, "Descrizione", "description", ability.description || "")}
-                    <details class="monster-builder-advanced monster-builder-advanced--ability bestiary-detail-field--wide">
-                        <summary>Avanzato Foundry</summary>
-                        <div class="bestiary-detail-form monster-ability-details">
-                            ${renderAbilityInput(index, "Icona FontAwesome fallback", "icon", ability.icon || "")}
-                            ${renderAbilitySelect(index, "Tipo item", "type", ability.type || "feat", [["feat", "Feature"], ["weapon", "Weapon"], ["spell", "Spell"]])}
-                            ${renderAbilityArea(index, "Flags/DAE/MIDI JSON", "flagsJson", JSON.stringify(ability.flags || {}, null, 2))}
-                        </div>
-                    </details>
+                    ${renderGuidedAbilityFields(ability, index, kind)}
                 </div>
             </article>
         `;
@@ -626,12 +627,10 @@ window.CriptaApp.onPageReady("creature", async () => {
             ].join("");
         }
         if (kind === "save") {
+            applySaveAbilityDefaults(ability);
             return [
                 renderAbilityTurnUsePicker(ability, index),
-                renderAbilityInput(index, "Raggio/Area", "range", ability.range || ""),
-                renderAbilityInput(index, "Target", "target", ability.target || ""),
-                renderAbilitySelect(index, "Tiro salvezza", "saveAbility", ability.saveAbility || "", SAVE_ABILITY_OPTIONS),
-                renderAbilityInput(index, "CD TS", "saveDc", ability.saveDc || calculateSpellSaveDc()),
+                renderSaveTopControls(ability, index),
                 renderDamagePartsEditor(ability, index),
                 renderSaveOutcomeEditor(ability, index)
             ].join("");
@@ -699,7 +698,7 @@ window.CriptaApp.onPageReady("creature", async () => {
         return `
             <div class="bestiary-detail-field bestiary-detail-field--wide monster-ability-control-panel">
                 <span>Bonus attacco</span>
-                <div class="monster-ability-choice-row" role="group" aria-label="Caratteristica attacco">
+                <div class="monster-ability-choice-row monster-attack-ability-row" role="group" aria-label="Caratteristica attacco">
                     ${ATTACK_ABILITY_OPTIONS.map(([value, label]) => `
                         <button class="monster-choice-btn ${attackAbility === value ? "is-active" : ""}" type="button" data-ability-index="${index}" data-ability-choice-field="attackAbility" data-ability-choice-value="${escapeHtml(value)}">
                             ${escapeHtml(label)}
@@ -708,14 +707,46 @@ window.CriptaApp.onPageReady("creature", async () => {
                 </div>
                 <div class="monster-attack-bonus-row">
                     ${attackAbility === "custom"
-                        ? renderAbilityInput(index, "Bonus manuale", "attackBonus", ability.attackBonus || "")
-                        : `
+                ? renderAbilityInput(index, "Bonus manuale", "attackBonus", ability.attackBonus || "")
+                : `
                             <label class="bestiary-detail-field">
                                 <span>Bonus extra</span>
                                 <input class="bestiary-detail-input" data-ability-index="${index}" data-ability-field="attackBonusExtra" value="${escapeHtml(ability.attackBonusExtra || "")}" placeholder="+0">
                             </label>
                             <output>Totale ${escapeHtml(total)}</output>
                         `}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderSaveTopControls(ability, index) {
+        const templateType = ability.targetTemplateType || "";
+        return `
+            <div class="monster-save-top-grid bestiary-detail-field--wide">
+                <div class="monster-ability-control-panel">
+                    <span>Tiro salvezza</span>
+                    <div class="monster-save-main-row">
+                        ${renderAbilitySelect(index, "Caratteristica", "saveAbility", ability.saveAbility || "con", SAVE_ABILITY_OPTIONS)}
+                        ${renderAbilityInput(index, "CD TS", "saveDc", ability.saveDc || calculateSpellSaveDc())}
+                        ${renderAbilityInput(index, "Raggio", "range", ability.range || "")}
+                    </div>
+                </div>
+                <div class="monster-ability-control-panel">
+                    <span>Template Foundry</span>
+                    <div class="monster-ability-choice-row monster-template-choice-row" role="group" aria-label="Template tiro salvezza">
+                        ${SAVE_TEMPLATE_OPTIONS.map(([value, label, icon]) => `
+                            <button class="monster-choice-btn ${templateType === value ? "is-active" : ""}" type="button" data-ability-index="${index}" data-ability-choice-field="targetTemplateType" data-ability-choice-value="${escapeHtml(value)}">
+                                <i class="fas ${escapeHtml(icon)}" aria-hidden="true"></i>
+                                ${escapeHtml(label)}
+                            </button>
+                        `).join("")}
+                    </div>
+                    <div class="monster-save-template-row">
+                        ${renderAbilityInput(index, "Area", "targetTemplateSize", ability.targetTemplateSize || "")}
+                        ${templateType === "line" ? renderAbilityInput(index, "Larghezza", "targetTemplateWidth", ability.targetTemplateWidth || "5") : ""}
+                        ${renderAbilityInput(index, "Target", "target", ability.target || "")}
+                    </div>
                 </div>
             </div>
         `;
@@ -768,8 +799,8 @@ window.CriptaApp.onPageReady("creature", async () => {
                                 ${escapeHtml(label)}
                             </button>
                         `).join("")}
+                        ${renderDamageMagicToggle(part, index, partIndex, "base")}
                     </div>
-                    ${renderDamageMagicToggle(part, index, partIndex, "base")}
                 </div>
                 ${totalRows > 1 ? `
                     <button class="monster-ability-icon-btn monster-ability-icon-btn--danger monster-damage-remove-btn" type="button" data-ability-action="remove-damage-part" data-ability-index="${index}" data-damage-part-index="${partIndex}" title="Rimuovi danno">
@@ -846,8 +877,8 @@ window.CriptaApp.onPageReady("creature", async () => {
         return `
             <div class="monster-rider-advanced-row">
                 ${iconImage
-                    ? `<img class="monster-rider-advanced-icon" src="${escapeHtml(resolveImageUrl(iconImage))}" alt="">`
-                    : `<i class="fas ${escapeHtml(advancedEffectIcon(effect))}" aria-hidden="true"></i>`}
+                ? `<img class="monster-rider-advanced-icon" src="${escapeHtml(resolveImageUrl(iconImage))}" alt="">`
+                : `<i class="fas ${escapeHtml(advancedEffectIcon(effect))}" aria-hidden="true"></i>`}
                 <div class="monster-rider-advanced-copy">
                     <strong>${escapeHtml(effect?.name || "Effetto avanzato")}</strong>
                     <span>${escapeHtml(advancedEffectSummary(effect))}</span>
@@ -896,6 +927,7 @@ window.CriptaApp.onPageReady("creature", async () => {
                 <div class="monster-rider-save-row monster-rider-save-row--compact">
                     ${renderSaveSuccessModeButton(index, rider.successMode)}
                 </div>
+                ${renderRiderConditionButtons(index, "alwaysConditions", "Condizioni sempre", rider.alwaysConditions)}
                 ${renderRiderConditionButtons(index, "failConditions", "Condizioni su fallimento", rider.failConditions)}
                 ${renderAdvancedRiderEffects(index, rider.advancedEffects)}
                 ${renderAbilityRiderArea(index, "Nota effetto", "notes", rider.notes || "")}
@@ -950,8 +982,8 @@ window.CriptaApp.onPageReady("creature", async () => {
                                 ${escapeHtml(label)}
                             </button>
                         `).join("")}
+                        ${renderDamageMagicToggle(part, index, partIndex, "rider")}
                     </div>
-                    ${renderDamageMagicToggle(part, index, partIndex, "rider")}
                 </div>
                 ${totalRows > 1 ? `
                     <button class="monster-ability-icon-btn monster-ability-icon-btn--danger monster-damage-remove-btn" type="button" data-ability-action="remove-rider-damage-part" data-ability-index="${index}" data-rider-damage-part-index="${partIndex}" title="Rimuovi danno su fallimento">
@@ -1032,7 +1064,6 @@ window.CriptaApp.onPageReady("creature", async () => {
                     ${renderAbilityInput(index, "TS abilità", "saveAbility", ability.saveAbility || "")}
                     ${renderAbilityInput(index, "CD TS", "saveDc", ability.saveDc || "")}
                     ${renderAbilityArea(index, "Descrizione", "description", ability.description || "")}
-                    ${renderAbilityArea(index, "Flags/DAE/MIDI JSON avanzati", "flagsJson", JSON.stringify(ability.flags || {}, null, 2))}
                 </div>
             </article>
         `;
@@ -1044,15 +1075,15 @@ window.CriptaApp.onPageReady("creature", async () => {
         return `
             <button class="monster-ability-icon-upload" type="button" data-ability-action="upload-icon" data-ability-index="${index}" title="Carica icona abilita">
                 ${iconImage
-                    ? `<img src="${escapeHtml(resolveImageUrl(iconImage))}" alt="">`
-                    : `<i class="fas ${escapeHtml(fallbackIcon)}" aria-hidden="true"></i>`}
+                ? `<img src="${escapeHtml(resolveImageUrl(iconImage))}" alt="">`
+                : `<i class="fas ${escapeHtml(fallbackIcon)}" aria-hidden="true"></i>`}
             </button>
         `;
     }
 
-    function renderAbilityInput(index, label, field, value) {
+    function renderAbilityInput(index, label, field, value, extraClass = "") {
         return `
-            <label class="bestiary-detail-field">
+            <label class="bestiary-detail-field ${escapeHtml(extraClass)}">
                 <span>${escapeHtml(label)}</span>
                 <input class="bestiary-detail-input" data-ability-index="${index}" data-ability-field="${escapeHtml(field)}" value="${escapeHtml(value)}">
             </label>
@@ -1146,6 +1177,9 @@ window.CriptaApp.onPageReady("creature", async () => {
             ability[key] = value;
         }
         if (key === "attackAbility") syncAttackBonus(ability);
+        if (key === "targetTemplateType" && value === "line" && !String(ability.targetTemplateWidth || "").trim()) {
+            ability.targetTemplateWidth = "5";
+        }
         state.dirty = true;
         render();
     }
@@ -1464,6 +1498,7 @@ window.CriptaApp.onPageReady("creature", async () => {
     function applyAbilityDefaultsForKind(ability) {
         const kind = ability.kind || inferAbilityKind(ability);
         if (kind === "attack") applyAttackAbilityDefaults(ability);
+        if (kind === "save") applySaveAbilityDefaults(ability);
     }
 
     function applyAttackAbilityDefaults(ability) {
@@ -1478,6 +1513,19 @@ window.CriptaApp.onPageReady("creature", async () => {
         if (damageTypes.length) {
             ability.damageTypes = damageTypes;
             ability.damageType = damageTypes[0];
+        }
+        setAbilityDamageParts(ability, getAbilityDamageParts(ability));
+    }
+
+    function applySaveAbilityDefaults(ability) {
+        ability.kind = "save";
+        ability.section ||= "action";
+        ability.activation ||= activationFromSection(ability.section);
+        ability.type = "feat";
+        ability.saveAbility ||= "con";
+        if (ability.targetTemplateType === undefined) ability.targetTemplateType = "";
+        if (ability.targetTemplateType === "line" && !String(ability.targetTemplateWidth || "").trim()) {
+            ability.targetTemplateWidth = "5";
         }
         setAbilityDamageParts(ability, getAbilityDamageParts(ability));
     }
@@ -1793,6 +1841,24 @@ window.CriptaApp.onPageReady("creature", async () => {
     }
 
     async function uploadImage() {
+        return uploadCreatureMedia({
+            property: "image",
+            folder: "creatures/bestiary",
+            suffix: "",
+            label: "immagine creatura"
+        });
+    }
+
+    async function uploadTokenImage() {
+        return uploadCreatureMedia({
+            property: "tokenImage",
+            folder: "creatures/bestiary/tokens",
+            suffix: "-token",
+            label: "immagine token"
+        });
+    }
+
+    async function uploadCreatureMedia({ property, folder, suffix, label }) {
         const token = readAuthToken();
         if (!token) {
             alert("Login richiesto per caricare immagini.");
@@ -1803,8 +1869,7 @@ window.CriptaApp.onPageReady("creature", async () => {
 
         try {
             const blob = /\.webp$/i.test(file.name) ? file : await convertImageToWebp(file);
-            const fileName = `${slugify(state.creature.name || creatureId || "creatura")}.webp`;
-            const folder = "creatures/bestiary";
+            const fileName = `${slugify(state.creature.name || creatureId || "creatura")}${suffix || ""}.webp`;
             const form = new FormData();
             form.set("folder", folder);
             form.set("filename", fileName);
@@ -1821,13 +1886,44 @@ window.CriptaApp.onPageReady("creature", async () => {
             });
             const payload = await response.json().catch(() => null);
             if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-            state.creature.image = payload.path || payload.key || `media/${folder}/${fileName}`;
+            state.creature[property] = payload.path || payload.key || `media/${folder}/${fileName}`;
+            await persistCreatureMediaReference(property, state.creature[property]);
             state.dirty = true;
             render();
         } catch (error) {
-            console.error("Upload immagine creatura fallito:", error);
+            console.error(`Upload ${label} fallito:`, error);
             alert(`Upload fallito: ${error?.message || error}`);
         }
+    }
+
+    async function persistCreatureMediaReference(property, value) {
+        if (!property || !value || !state.creature) return;
+        const loaded = await loadBestiaryDocument();
+        const nextData = Array.isArray(loaded.data) ? loaded.data.slice() : [];
+        const targetSlug = slugify(state.creature.id || state.creature.name || creatureId);
+        let index = nextData.findIndex((entry) => slugify(entry?.id || entry?.name || "") === targetSlug);
+        if (index < 0) index = nextData.findIndex((entry) => slugify(entry?.name || "") === creatureId);
+        const baseEntry = index >= 0 ? { ...nextData[index] } : pruneCreature(structuredCloneSafe(state.creature));
+        baseEntry[property] = value;
+        if (index >= 0) nextData[index] = baseEntry;
+        else nextData.push(baseEntry);
+
+        const response = await fetch(getBestiaryApiUrl(), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${readAuthToken()}`
+            },
+            body: JSON.stringify({
+                data: nextData,
+                expectedVersion: loaded.source === "kv" ? (loaded.version ?? 0) : 0,
+                campaignId: getCampaignId()
+            })
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        state.version = payload?.version ?? state.version;
+        state.source = "kv";
     }
 
     async function uploadAbilityIcon(index) {
@@ -2190,6 +2286,14 @@ const TURN_USE_OPTIONS = [
     ["legendary", "Azione Leggendaria", "fa-crown"]
 ];
 
+const SAVE_TEMPLATE_OPTIONS = [
+    ["", "Nessuno", "fa-crosshairs"],
+    ["line", "Linea", "fa-grip-lines"],
+    ["circle", "Sfera", "fa-circle"],
+    ["cube", "Cubo", "fa-cube"],
+    ["cone", "Cono", "fa-play"]
+];
+
 const ABILITY_DAMAGE_TYPE_OPTIONS = [
     ["acid", "Acido"],
     ["bludgeoning", "Contundente"],
@@ -2276,6 +2380,8 @@ function ensureFoundryMonsterData(creature) {
     foundry.hp ??= { value: "", formula: "" };
     foundry.movement ??= { walk: 30, fly: "", swim: "", climb: "" };
     foundry.cr ??= "";
+    foundry.legendaryActions ??= "";
+    foundry.legendaryResistances ??= "";
     foundry.role ??= "standard";
     foundry.size ??= mapWikiSizeToFoundry(creature.details?.size);
     foundry.senses ??= "";
@@ -2328,18 +2434,18 @@ function getAbilityDamageParts(ability) {
 }
 
 function getAbilityRider(ability) {
-        if (!ability.rider || typeof ability.rider !== "object") ability.rider = {};
-        const rider = ability.rider;
-        if (!Array.isArray(rider.alwaysConditions)) rider.alwaysConditions = normalizeConditionImmunities(rider.alwaysConditions);
-        if (!Array.isArray(rider.failConditions)) rider.failConditions = normalizeConditionImmunities(rider.failConditions);
-        if (!Array.isArray(rider.failDamageParts)) rider.failDamageParts = [];
-        if (!Array.isArray(rider.advancedEffects)) rider.advancedEffects = [];
-        rider.saveAbility ??= "";
-        rider.saveDc ??= "";
-        rider.successMode ??= "";
-        rider.notes ??= "";
-        return rider;
-    }
+    if (!ability.rider || typeof ability.rider !== "object") ability.rider = {};
+    const rider = ability.rider;
+    if (!Array.isArray(rider.alwaysConditions)) rider.alwaysConditions = normalizeConditionImmunities(rider.alwaysConditions);
+    if (!Array.isArray(rider.failConditions)) rider.failConditions = normalizeConditionImmunities(rider.failConditions);
+    if (!Array.isArray(rider.failDamageParts)) rider.failDamageParts = [];
+    if (!Array.isArray(rider.advancedEffects)) rider.advancedEffects = [];
+    rider.saveAbility ??= "";
+    rider.saveDc ??= "";
+    rider.successMode ??= "";
+    rider.notes ??= "";
+    return rider;
+}
 
 function getAbilityRiderDamageParts(ability) {
     const rider = getAbilityRider(ability);
@@ -2419,7 +2525,8 @@ function validateFoundryMonster(creature) {
     const errors = [];
     const warnings = [];
     if (!creature.name) errors.push("manca il nome della creatura");
-    if (!creature.image) warnings.push("manca l'immagine del token");
+    if (!creature.image) warnings.push("manca l'immagine avatar");
+    if (!creature.tokenImage && !creature.image) warnings.push("manca l'immagine del token");
     if (!foundry.ac) errors.push("manca la Classe Armatura");
     if (!foundry.hp?.value && !foundry.hp?.formula) errors.push("mancano i Punti Ferita");
     if (!foundry.cr) warnings.push("manca il Grado Sfida");
@@ -2431,6 +2538,7 @@ function validateFoundryMonster(creature) {
         if (kind === "attack" && !ability.attackBonus) warnings.push(`${label}: attacco senza bonus`);
         if (kind === "attack" && getAbilityDamageParts(ability).some((part) => part.formula && !part.type)) warnings.push(`${label}: danno senza tipo`);
         if ((kind === "save" || kind === "aura") && ability.saveAbility && !ability.saveDc) warnings.push(`${label}: TS senza CD`);
+        if (kind === "save" && ability.targetTemplateType && !String(ability.targetTemplateSize || ability.range || "").trim()) warnings.push(`${label}: template senza dimensione area`);
     });
     return { errors, warnings };
 }
@@ -2506,6 +2614,10 @@ function buildFoundryActorExport(creature) {
                 dv: { value: normalizeDamageTypes(creature.details?.vulnerabilities), custom: "" },
                 ci: { value: normalizeConditionImmunities(foundry.conditionImmunities), custom: "" }
             },
+            resources: {
+                legact: buildFoundryResource(foundry.legendaryActions),
+                legres: buildFoundryResource(foundry.legendaryResistances)
+            },
             skills: normalizeFoundrySkills(foundry.skills)
         },
         prototypeToken: {
@@ -2514,7 +2626,7 @@ function buildFoundryActorExport(creature) {
             displayBars: 20,
             width: tokenSizeForFoundrySize(foundry.size),
             height: tokenSizeForFoundrySize(foundry.size),
-            texture: { src: resolveImageUrl(creature.image) },
+            texture: { src: resolveImageUrl(creature.tokenImage || creature.image) },
             actorLink: false
         },
         items: abilities.map((ability) => buildFoundryItemFromAbilityV4(ability, foundry)),
@@ -2697,6 +2809,7 @@ function buildFoundryItemFromAbility(ability, foundry = {}) {
 
 function foundryItemTypeForAbility(ability) {
     if (isAttackAbility(ability)) return "weapon";
+    if ((ability.kind || inferAbilityKind(ability)) === "save") return "feat";
     return ability.type || "feat";
 }
 
@@ -2781,7 +2894,7 @@ function buildFoundrySaveActivity(ability, foundry, effects, activityId = "dnd5e
         duration: buildFoundryInstantDuration(),
         effects: buildFoundrySaveActivityEffectRefs(effects),
         range: { value: parseRangeValue(ability.range) || "", units: parseRangeUnits(ability.range) || "ft", special: "", override: false },
-        target: buildFoundrySingleCreatureTarget(),
+        target: buildFoundryTargetForAbility(ability),
         uses: { spent: 0, max: "", recovery: [] },
         damage: {
             onSave: rider.successMode === "negates" ? "none" : "half",
@@ -2860,6 +2973,32 @@ function buildFoundrySingleCreatureTarget() {
     return {
         template: { count: "", contiguous: false, type: "", size: "", width: "", height: "", units: "" },
         affects: { count: "1", type: "creature", choice: false, special: "" },
+        prompt: true,
+        override: false
+    };
+}
+
+function buildFoundryTargetForAbility(ability) {
+    const templateType = String(ability?.targetTemplateType || "").trim();
+    if (!templateType) return buildFoundrySingleCreatureTarget();
+    const size = parseRangeValue(ability.targetTemplateSize) || parseRangeValue(ability.range) || "";
+    const width = templateType === "line" ? (parseRangeValue(ability.targetTemplateWidth) || 5) : "";
+    return {
+        template: {
+            count: "",
+            contiguous: false,
+            type: templateType,
+            size,
+            width,
+            height: "",
+            units: parseRangeUnits(ability.targetTemplateSize || ability.range) || "ft"
+        },
+        affects: {
+            count: "",
+            type: "creature",
+            choice: false,
+            special: ability.target || ""
+        },
         prompt: true,
         override: false
     };
@@ -3198,8 +3337,8 @@ function renderArea(label, field, value) {
     `;
 }
 
-    function renderSelect(label, field, value, options) {
-        return `
+function renderSelect(label, field, value, options) {
+    return `
             <label class="bestiary-detail-field">
                 <span>${escapeHtml(label)}</span>
                 <select class="bestiary-detail-select" data-field="${escapeHtml(field)}">
@@ -3209,28 +3348,28 @@ function renderArea(label, field, value) {
             </select>
         </label>
         `;
-    }
+}
 
-    function renderMovementAndSensesPanel(foundry) {
-        return `
+function renderMovementAndSensesPanel(foundry) {
+    return `
             <div class="monster-mobility-panel">
                 ${renderMovementRangePicker(foundry.movement)}
                 ${renderSensesPicker(foundry.senses)}
             </div>
         `;
-    }
+}
 
-    function renderMovementRangePicker(movement) {
-        return `
+function renderMovementRangePicker(movement) {
+    return `
             <div class="bestiary-detail-field bestiary-detail-field--wide">
                 <label>Movimenti</label>
                 <div class="monster-picker-grid monster-picker-grid--ranges">
                     ${[
-                        ["Camminata", "foundry.movement.walk", movement?.walk ?? ""],
-                        ["Volo", "foundry.movement.fly", movement?.fly ?? ""],
-                        ["Nuoto", "foundry.movement.swim", movement?.swim ?? ""],
-                        ["Scalare", "foundry.movement.climb", movement?.climb ?? ""]
-                    ].map(([label, field, value]) => `
+            ["Camminata", "foundry.movement.walk", movement?.walk ?? ""],
+            ["Volo", "foundry.movement.fly", movement?.fly ?? ""],
+            ["Nuoto", "foundry.movement.swim", movement?.swim ?? ""],
+            ["Scalare", "foundry.movement.climb", movement?.climb ?? ""]
+        ].map(([label, field, value]) => `
                         <label class="monster-picker-option monster-picker-option--range">
                             <span>${escapeHtml(label)}</span>
                             <input class="bestiary-detail-input" data-field="${escapeHtml(field)}" value="${escapeHtml(value)}" placeholder="ft">
@@ -3239,11 +3378,11 @@ function renderArea(label, field, value) {
                 </div>
             </div>
         `;
-    }
+}
 
-    function renderSensesPicker(value) {
-        const parsed = parseSensesText(value);
-        return `
+function renderSensesPicker(value) {
+    const parsed = parseSensesText(value);
+    return `
             <div class="bestiary-detail-field bestiary-detail-field--wide">
                 <label>Sensi</label>
                 <div class="monster-picker-grid monster-picker-grid--ranges">
@@ -3256,11 +3395,11 @@ function renderArea(label, field, value) {
                 </div>
             </div>
         `;
-    }
+}
 
-    function renderDefensePicker(details, foundry) {
-        const selectedConditions = new Set(normalizeConditionImmunities(foundry?.conditionImmunities));
-        return `
+function renderDefensePicker(details, foundry) {
+    const selectedConditions = new Set(normalizeConditionImmunities(foundry?.conditionImmunities));
+    return `
             <div class="bestiary-detail-field bestiary-detail-field--wide">
                 <label>Difese</label>
                 <div class="monster-defense-table">
@@ -3290,65 +3429,65 @@ function renderArea(label, field, value) {
                 </div>
             </div>
         `;
-    }
+}
 
-    function renderDefenseCheckbox(kind, value, selectedValues) {
-        const selected = Array.isArray(selectedValues) && selectedValues.some((entry) => normalizeSearchKey(entry) === normalizeSearchKey(value));
-        const label = kind === "resistances" ? "Resistenza" : kind === "immunities" ? "Immunita" : "Vulnerabilita";
-        return `
+function renderDefenseCheckbox(kind, value, selectedValues) {
+    const selected = Array.isArray(selectedValues) && selectedValues.some((entry) => normalizeSearchKey(entry) === normalizeSearchKey(value));
+    const label = kind === "resistances" ? "Resistenza" : kind === "immunities" ? "Immunita" : "Vulnerabilita";
+    return `
             <label class="monster-defense-check" title="${escapeHtml(`${label}: ${value}`)}">
                 <input type="checkbox" data-defense-kind="${escapeHtml(kind)}" data-defense-value="${escapeHtml(value)}" value="${escapeHtml(value)}" ${selected ? "checked" : ""}>
                 <span></span>
             </label>
         `;
-    }
+}
 
-    function renderMagicDefenseCheckbox(value, details) {
-        const magicValue = `${value} magico`;
-        const enabled = hasBasePhysicalDefense(value, details);
-        const selected = ["resistances", "immunities", "vulnerabilities"].some((kind) => {
-            const values = Array.isArray(details?.[kind]) ? details[kind] : [];
-            return values.some((entry) => normalizeSearchKey(entry) === normalizeSearchKey(magicValue));
-        }) && enabled;
-        return `
+function renderMagicDefenseCheckbox(value, details) {
+    const magicValue = `${value} magico`;
+    const enabled = hasBasePhysicalDefense(value, details);
+    const selected = ["resistances", "immunities", "vulnerabilities"].some((kind) => {
+        const values = Array.isArray(details?.[kind]) ? details[kind] : [];
+        return values.some((entry) => normalizeSearchKey(entry) === normalizeSearchKey(magicValue));
+    }) && enabled;
+    return `
             <label class="monster-defense-check monster-defense-check--magic ${enabled ? "" : "is-disabled"}" title="${escapeHtml(enabled ? `Include ${magicValue}` : `Prima seleziona una difesa ${value}`)}">
                 <input type="checkbox" data-defense-magic="${escapeHtml(value)}" value="${escapeHtml(value)}" ${selected ? "checked" : ""} ${enabled ? "" : "disabled"}>
                 <span></span>
             </label>
         `;
-    }
+}
 
-    function hasBasePhysicalDefense(value, details) {
-        return ["resistances", "immunities", "vulnerabilities"].some((kind) => {
-            const values = Array.isArray(details?.[kind]) ? details[kind] : [];
-            return values.some((entry) => normalizeSearchKey(entry) === normalizeSearchKey(value));
-        });
-    }
+function hasBasePhysicalDefense(value, details) {
+    return ["resistances", "immunities", "vulnerabilities"].some((kind) => {
+        const values = Array.isArray(details?.[kind]) ? details[kind] : [];
+        return values.some((entry) => normalizeSearchKey(entry) === normalizeSearchKey(value));
+    });
+}
 
-    function renderSkillProficiencyPanel(skills) {
-        return `
+function renderSkillProficiencyPanel(skills) {
+    return `
             <div class="monster-skills-panel">
                 <div class="monster-subsection-title">Check</div>
                 <p class="monster-skill-help">Click: competenza. Secondo click: expertise.</p>
                 <div class="monster-skill-grid">
                     ${SKILL_OPTIONS.map((skill) => {
-                        const value = Number(skills?.[skill.key]?.value || 0);
-                        const stateClass = value >= 2 ? "is-expertise" : value >= 1 ? "is-proficient" : "";
-                        const stateLabel = value >= 2 ? "E" : value >= 1 ? "P" : "";
-                        return `
+        const value = Number(skills?.[skill.key]?.value || 0);
+        const stateClass = value >= 2 ? "is-expertise" : value >= 1 ? "is-proficient" : "";
+        const stateLabel = value >= 2 ? "E" : value >= 1 ? "P" : "";
+        return `
                             <button class="monster-skill-btn ${stateClass}" type="button" data-skill-key="${escapeHtml(skill.key)}" title="${escapeHtml(skill.label)}: nessuna / proficiency / expertise">
                                 <span>${escapeHtml(skill.label)}</span>
                                 <strong>${escapeHtml(stateLabel)}</strong>
                             </button>
                         `;
-                    }).join("")}
+    }).join("")}
                 </div>
             </div>
         `;
-    }
+}
 
-    function renderMonsterSuggestionPanel(foundry, suggestions) {
-        return `
+function renderMonsterSuggestionPanel(foundry, suggestions) {
+    return `
             <div class="bestiary-detail-field bestiary-detail-field--wide monster-suggestion-panel">
                 <div class="monster-subsection-title">Suggerimenti rapidi</div>
                 <div class="monster-preset-row">
@@ -3374,19 +3513,19 @@ function renderArea(label, field, value) {
                 </div>
             </div>
         `;
-    }
+}
 
-    function renderCompactInput(label, field, value) {
-        return `
+function renderCompactInput(label, field, value) {
+    return `
             <label class="monster-compact-field">
                 <span>${escapeHtml(label)}</span>
                 <input class="bestiary-detail-input" data-field="${escapeHtml(field)}" value="${escapeHtml(value)}">
             </label>
         `;
-    }
+}
 
-    function renderButtonChoiceGroup(label, field, value, options) {
-        return `
+function renderButtonChoiceGroup(label, field, value, options) {
+    return `
             <div class="monster-choice-group" role="group" aria-label="${escapeHtml(label)}">
                 <span>${escapeHtml(label)}</span>
                 <div>
@@ -3398,10 +3537,10 @@ function renderArea(label, field, value) {
                 </div>
             </div>
         `;
-    }
+}
 
-    function renderAbilityScoreStepper(ability, value) {
-        return `
+function renderAbilityScoreStepper(ability, value) {
+    return `
             <div class="monster-score-stepper" data-score="${escapeHtml(ability)}">
                 <span>${escapeHtml(ability.toUpperCase())}</span>
                 <button type="button" data-score-action="dec" data-score-ability="${escapeHtml(ability)}" aria-label="Riduci ${escapeHtml(ability)}">-</button>
@@ -3409,7 +3548,7 @@ function renderArea(label, field, value) {
                 <button type="button" data-score-action="inc" data-score-ability="${escapeHtml(ability)}" aria-label="Aumenta ${escapeHtml(ability)}">+</button>
             </div>
         `;
-    }
+}
 
 function resolveImageUrl(path) {
     const value = String(path || "").trim();
@@ -3764,6 +3903,11 @@ function parseCsvLower(value) {
 function toNumberOrNull(value) {
     const number = Number(value);
     return Number.isFinite(number) ? number : null;
+}
+
+function buildFoundryResource(value) {
+    const amount = Math.max(0, toNumberOrNull(value) || 0);
+    return { value: amount, max: amount };
 }
 
 function toLeadingNumberOrNull(value) {

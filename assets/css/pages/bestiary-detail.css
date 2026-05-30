@@ -160,6 +160,49 @@
     opacity: 1;
 }
 
+.bestiary-detail-token-row {
+    display: flex;
+    justify-content: flex-start;
+}
+
+.bestiary-detail-token-upload {
+    width: 8.5rem;
+    display: grid;
+    gap: 0.45rem;
+    padding: 0.55rem;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    border-radius: 16px;
+    color: rgba(232, 219, 188, 0.76);
+    background:
+        linear-gradient(135deg, rgba(212, 175, 55, 0.08), transparent 54%),
+        rgba(0, 0, 0, 0.26);
+    cursor: pointer;
+}
+
+.bestiary-detail-token-upload span {
+    color: rgba(212, 175, 55, 0.82);
+    font-family: var(--font-ui);
+    font-size: 0.66rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.bestiary-detail-token-upload img {
+    width: 100%;
+    aspect-ratio: 1;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 12px;
+    object-fit: cover;
+    background: rgba(0, 0, 0, 0.34);
+}
+
+.bestiary-detail-token-upload:hover {
+    border-color: rgba(212, 175, 55, 0.5);
+    box-shadow: 0 0 18px rgba(212, 175, 55, 0.14);
+}
+
 .bestiary-detail-meta {
     display: flex;
     flex-wrap: wrap;
@@ -785,6 +828,17 @@
     cursor: pointer;
 }
 
+.monster-ability-add-btn i {
+    width: auto;
+    height: auto;
+    border: 0;
+    border-radius: 0;
+    color: inherit;
+    background: transparent;
+    font-size: 0.9rem;
+    line-height: 1;
+}
+
 .monster-ability-add-btn--ghost {
     color: rgba(232, 218, 190, 0.82);
     background: rgba(0, 0, 0, 0.18);
@@ -989,6 +1043,10 @@
     min-height: 6.5rem;
 }
 
+.monster-ability-name-field {
+    grid-column: span 2;
+}
+
 .monster-ability-quick-row {
     display: grid;
     grid-template-columns: minmax(12rem, 1fr) minmax(8rem, 0.55fr) minmax(4rem, 0.25fr);
@@ -1041,6 +1099,18 @@
     padding-inline: 0.72rem;
 }
 
+.monster-attack-ability-row .monster-choice-btn {
+    width: auto;
+    min-width: 4.35rem;
+    min-height: 2.15rem;
+    padding-inline: 0.85rem;
+    border-radius: 999px;
+}
+
+.monster-attack-ability-row .monster-choice-btn[data-ability-choice-value="custom"] {
+    min-width: 4.35rem;
+}
+
 .monster-attack-top-grid {
     display: grid;
     grid-template-columns: minmax(17rem, 0.9fr) minmax(20rem, 1.1fr);
@@ -1050,6 +1120,28 @@
 
 .monster-attack-top-grid > .monster-ability-control-panel {
     grid-column: auto;
+}
+
+.monster-save-top-grid {
+    display: grid;
+    grid-template-columns: minmax(18rem, 0.9fr) minmax(22rem, 1.1fr);
+    gap: 0.75rem;
+    align-items: stretch;
+}
+
+.monster-save-main-row,
+.monster-save-template-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+    gap: 0.65rem;
+}
+
+.monster-template-choice-row .monster-choice-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding-inline: 0.72rem;
 }
 
 .monster-damage-parts-panel {
@@ -1311,8 +1403,8 @@
 
 .monster-damage-part-row {
     display: grid;
-    grid-template-columns: minmax(9rem, 0.8fr) minmax(16rem, 2fr) auto;
-    align-items: end;
+    grid-template-columns: minmax(10rem, 12rem) minmax(0, 1fr) auto;
+    align-items: start;
     gap: 0.75rem;
     padding: 0.75rem;
     border: 1px solid rgba(212, 175, 55, 0.12);
@@ -1336,7 +1428,7 @@
 
 .monster-damage-type-grid--row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(7.2rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(6.6rem, 1fr));
     gap: 0.42rem;
 }
 
@@ -1348,8 +1440,8 @@
 }
 
 .monster-choice-btn--magic {
-    justify-self: start;
-    min-width: 7.2rem;
+    justify-self: stretch;
+    min-width: 4.8rem;
     color: rgba(232, 219, 188, 0.76);
     border-style: dashed;
 }
@@ -1726,6 +1818,10 @@
     }
 
     .monster-attack-top-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .monster-save-top-grid {
         grid-template-columns: 1fr;
     }
 
