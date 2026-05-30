@@ -137,8 +137,9 @@
     "category": "passive",
     "section": "trait",
     "passiveValueLabel": "PF rigenerati",
-    "description": "All'inizio del proprio turno, la creatura recupera i punti ferita indicati. Specificare nella descrizione quali danni o condizioni interrompono la rigenerazione.",
-    "passive": { "id": "regeneration", "hasNumberParam": true, "valueLabel": "PF rigenerati", "automation": "midi-qol" }
+    "passiveBreakDamageTypes": ["acid", "fire"],
+    "description": "All'inizio del proprio turno, la creatura recupera i punti ferita indicati. La rigenerazione puo essere interrotta fino al prossimo turno dai tipi di danno selezionati.",
+    "passive": { "id": "regeneration", "hasNumberParam": true, "valueLabel": "PF rigenerati", "automation": "custom-module" }
   },
   {
     "id": "passive-relentless",
@@ -171,7 +172,7 @@
     "category": "passive",
     "section": "trait",
     "description": "Quando la creatura sarebbe ridotta a 0 punti ferita, puo invece restare a 1 punto ferita. L'effetto viene negato da danni radiosi o da altre condizioni indicate nella feature.",
-    "passive": { "id": "undead-fortitude", "automation": "module-required" }
+    "passive": { "id": "undead-fortitude", "automation": "custom-module" }
   },
   {
     "id": "passive-absorption",
@@ -183,6 +184,6 @@
     "section": "trait",
     "passiveValueLabel": "Tipo danno assorbito",
     "description": "Quando la creatura subisce il tipo di danno indicato, non subisce quel danno e recupera invece un ammontare equivalente di punti ferita.",
-    "passive": { "id": "absorption", "valueLabel": "Tipo danno assorbito", "automation": "midi-qol" }
+    "passive": { "id": "absorption", "valueLabel": "Tipo danno assorbito", "automation": "custom-module" }
   }
 ]

@@ -369,9 +369,10 @@ Struttura consigliata:
   "description": "All'inizio del proprio turno, la creatura recupera i punti ferita indicati.",
   "passiveValueLabel": "PF rigenerati",
   "passiveValue": "10",
+  "passiveBreakDamageTypes": ["acid", "fire"],
   "passive": {
     "id": "regeneration",
-    "automation": "midi-qol",
+    "automation": "custom-module",
     "hasNumberParam": true,
     "valueLabel": "PF rigenerati"
   }
@@ -384,8 +385,9 @@ Campi specifici:
 | --- | --- | --- |
 | `passiveValueLabel` | string | Etichetta del parametro mostrato nell'editor. Esempi: `PF rigenerati`, `Danno da contatto`, `Tipo danno assorbito`. |
 | `passiveValue` | string | Valore compilato dall'utente. Viene aggiunto alla descrizione esportata in Foundry. |
+| `passiveBreakDamageTypes` | string[] | Solo per `regeneration`: tipi danno che interrompono la rigenerazione fino all'inizio del prossimo turno della creatura. Esempio: `["acid", "fire"]`. |
 | `passive.id` | string | Identificatore stabile della passiva. |
-| `passive.automation` | string | `manual` se e solo testo/feature Foundry; `midi-qol` se esporta un Active Effect Midi-QOL; `module-required` se richiede logica custom runtime. |
+| `passive.automation` | string | `manual` se e solo testo/feature Foundry; `midi-qol` se esporta un Active Effect Midi-QOL; `custom-module` se viene gestita dal modulo `cripta-wiki-sync`; `module-required` se richiede logica custom non ancora implementata. |
 | `passive.hasNumberParam` | boolean | Se `true`, l'editor mostra un campo valore anche quando non c'e `passiveValueLabel`. |
 | `passive.valueLabel` | string | Fallback per `passiveValueLabel`. |
 
@@ -402,19 +404,24 @@ Passive built-in attualmente previste:
 | `magic-resistance` | Magic Resistance | no | `midi-qol` |
 | `martial-advantage` | Martial Advantage | danni extra per round | `manual` |
 | `parry` | Parry | no | `manual` |
-| `regeneration` | Regeneration | PF rigenerati | `midi-qol` |
+| `regeneration` | Regeneration | PF rigenerati + danni interruzione | `custom-module` |
 | `relentless` | Relentless | no | `module-required` |
 | `stench` | Stench | no | `manual` |
-| `undead-fortitude` | Undead Fortitude | no | `module-required` |
-| `absorption` | Assorbimento | tipo danno assorbito | `midi-qol` |
+| `undead-fortitude` | Undead Fortitude | no | `custom-module` |
+| `absorption` | Assorbimento | tipo danno assorbito | `custom-module` |
 
-Nota pratica: `midi-qol` genera Active Effects trasferiti sull'actor. `module-required` significa invece che l'item viene esportato come feature leggibile in Foundry, ma l'automazione in combattimento richiede codice del modulo Foundry. Non assumere che Midi/DAE applichino automaticamente queste passive se non esiste una regola specifica nel modulo.
+Nota pratica: `midi-qol` genera Active Effects trasferiti sull'actor. `custom-module` usa hook del modulo Foundry `cripta-wiki-sync`. `module-required` significa invece che l'item viene esportato come feature leggibile in Foundry, ma l'automazione in combattimento richiede codice del modulo Foundry non ancora implementato. Non assumere che Midi/DAE applichino automaticamente queste passive se non esiste una regola specifica nel modulo.
 
 Passive `midi-qol` attuali:
 
 - `magic-resistance`: aggiunge `flags.midi-qol.magicResistance.all = 1`.
-- `regeneration`: aggiunge `flags.midi-qol.OverTime` con `turn=start`, `damageType=healing` e valore preso da `passiveValue`.
-- `absorption`: aggiunge `flags.midi-qol.absorption.<tipoDanno> = 1`.
+- Nessuna passiva `midi-qol` oltre a quelle indicate qui deve essere considerata affidabile senza logica del modulo.
+
+Passive `custom-module` attuali:
+
+- `regeneration`: all'inizio del turno dell'actor recupera `passiveValue` PF se ha piu di 0 PF e meno del massimo. Se dal turno precedente ha subito un tipo danno presente in `passiveBreakDamageTypes`, non rigenera e il blocco viene consumato.
+- `undead-fortitude`: sul workflow Midi, se l'actor con la passiva scende a 0 PF per danno non radiante e non critico, tira TS Costituzione CD `5 + danno subito`; se supera, torna a 1 PF.
+- `absorption`: l'export aggiunge il tipo danno scelto alle immunita dell'actor e salva `flags.cripta-wiki-sync.damageAbsorptions`. Il modulo legge il workflow Midi: se il danno contiene quel tipo, la creatura non subisce il danno grazie all'immunita e viene curata dello stesso ammontare tramite hook custom.
 
 ### `section` e `activation`
 

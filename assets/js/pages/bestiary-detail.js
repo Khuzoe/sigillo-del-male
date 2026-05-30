@@ -326,6 +326,9 @@ window.CriptaApp.onPageReady("creature", async () => {
         root.querySelectorAll("[data-ability-damage-value]").forEach((button) => {
             button.addEventListener("click", () => toggleMonsterAbilityDamageType(button));
         });
+        root.querySelectorAll("[data-ability-passive-break-damage]").forEach((button) => {
+            button.addEventListener("click", () => toggleMonsterAbilityPassiveBreakDamage(button));
+        });
         root.querySelectorAll("[data-ability-damage-part-field]").forEach((field) => {
             field.addEventListener("input", () => updateMonsterAbilityDamagePart(field));
             field.addEventListener("change", () => updateMonsterAbilityDamagePart(field));
@@ -711,7 +714,29 @@ window.CriptaApp.onPageReady("creature", async () => {
         if (passive.id === "absorption") {
             return renderAbilitySelect(index, label, "passiveValue", ability.passiveValue || "", [["", "Scegli tipo"], ...ABILITY_DAMAGE_TYPE_OPTIONS]);
         }
+        if (passive.id === "regeneration") {
+            return [
+                renderAbilityInput(index, label, "passiveValue", ability.passiveValue || ""),
+                renderPassiveDamageTypePicker(ability, index, "Interrotta da danni")
+            ].join("");
+        }
         return renderAbilityInput(index, label, "passiveValue", ability.passiveValue || "");
+    }
+
+    function renderPassiveDamageTypePicker(ability, index, label) {
+        const selected = new Set(normalizeDamageTypes(ability.passiveBreakDamageTypes));
+        return `
+            <div class="bestiary-detail-field bestiary-detail-field--wide monster-ability-control-panel">
+                <span>${escapeHtml(label)}</span>
+                <div class="monster-damage-type-grid" role="group" aria-label="${escapeHtml(label)}">
+                    ${ABILITY_DAMAGE_TYPE_OPTIONS.map(([value, damageLabel]) => `
+                        <button class="monster-choice-btn ${selected.has(value) ? "is-active" : ""}" type="button" data-ability-index="${index}" data-ability-passive-break-damage="${escapeHtml(value)}">
+                            ${escapeHtml(damageLabel)}
+                        </button>
+                    `).join("")}
+                </div>
+            </div>
+        `;
     }
 
     function renderAbilityTimingPanel(ability, index) {
@@ -1270,6 +1295,19 @@ window.CriptaApp.onPageReady("creature", async () => {
         else current.add(value);
         ability.damageTypes = Array.from(current);
         ability.damageType = ability.damageTypes[0] || "";
+        state.dirty = true;
+        render();
+    }
+
+    function toggleMonsterAbilityPassiveBreakDamage(button) {
+        const index = Number(button.dataset.abilityIndex);
+        const value = button.dataset.abilityPassiveBreakDamage || "";
+        const ability = getMonsterAbilities(state.creature)[index];
+        if (!ability || !value) return;
+        const current = new Set(normalizeDamageTypes(ability.passiveBreakDamageTypes));
+        if (current.has(value)) current.delete(value);
+        else current.add(value);
+        ability.passiveBreakDamageTypes = Array.from(current);
         state.dirty = true;
         render();
     }
@@ -2282,9 +2320,9 @@ async function loadBestiaryDocument() {
         console.warn("KV bestiary non disponibile, uso JSON statico.", error);
     }
 
-    const response = await fetch(window.CriptaApp?.urls?.data?.("bestiary.json") || "../../assets/data/bestiary.json");
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
+    const response = await fetch(window.CriptaApp?.urls?.data?.("bestiary.json") || "../../assets/data/bestiary.json").catch(() => null);
+    if (!response?.ok) return { data: [], version: 0, source: "static" };
+    const data = await response.json().catch(() => []);
     return { data: Array.isArray(data) ? data : data?.data, version: 0, source: "static" };
 }
 
@@ -2462,8 +2500,9 @@ const DEFAULT_MONSTER_ABILITY_TEMPLATES = [
         category: "passive",
         section: "trait",
         passiveValueLabel: "PF rigenerati",
-        description: "All'inizio del proprio turno, la creatura recupera i punti ferita indicati. Specificare nella descrizione quali danni o condizioni interrompono la rigenerazione.",
-        passive: { id: "regeneration", hasNumberParam: true, valueLabel: "PF rigenerati", automation: "midi-qol" }
+        passiveBreakDamageTypes: ["acid", "fire"],
+        description: "All'inizio del proprio turno, la creatura recupera i punti ferita indicati. La rigenerazione puo essere interrotta fino al prossimo turno dai tipi di danno selezionati.",
+        passive: { id: "regeneration", hasNumberParam: true, valueLabel: "PF rigenerati", automation: "custom-module" }
     },
     {
         id: "passive-relentless",
@@ -2496,7 +2535,7 @@ const DEFAULT_MONSTER_ABILITY_TEMPLATES = [
         category: "passive",
         section: "trait",
         description: "Quando la creatura sarebbe ridotta a 0 punti ferita, puo invece restare a 1 punto ferita. L'effetto viene negato da danni radiosi o da altre condizioni indicate nella feature.",
-        passive: { id: "undead-fortitude", automation: "module-required" }
+        passive: { id: "undead-fortitude", automation: "custom-module" }
     },
     {
         id: "passive-absorption",
@@ -2508,7 +2547,7 @@ const DEFAULT_MONSTER_ABILITY_TEMPLATES = [
         section: "trait",
         passiveValueLabel: "Tipo danno assorbito",
         description: "Quando la creatura subisce il tipo di danno indicato, non subisce quel danno e recupera invece un ammontare equivalente di punti ferita.",
-        passive: { id: "absorption", valueLabel: "Tipo danno assorbito", automation: "midi-qol" }
+        passive: { id: "absorption", valueLabel: "Tipo danno assorbito", automation: "custom-module" }
     }
 ];
 
@@ -2968,6 +3007,12 @@ function parseCrValue(value) {
 function buildFoundryActorExport(creature) {
     const foundry = ensureFoundryMonsterData(creature);
     const abilities = getMonsterAbilities(creature);
+    const damageAbsorptions = getFoundryPassiveAbsorptions(abilities);
+    const damageAbsorptionSet = new Set(damageAbsorptions);
+    const damageImmunities = Array.from(new Set([
+        ...normalizeDamageTypes(creature.details?.immunities),
+        ...damageAbsorptions
+    ]));
     return {
         name: creature.name || "Creatura",
         type: "npc",
@@ -2994,9 +3039,10 @@ function buildFoundryActorExport(creature) {
             traits: {
                 size: foundry.size || mapWikiSizeToFoundry(creature.details?.size),
                 languages: { value: parseCsvLower(foundry.languages), custom: foundry.languages || "" },
-                di: { value: normalizeDamageTypes(creature.details?.immunities), custom: "" },
-                dr: { value: normalizeDamageTypes(creature.details?.resistances), custom: "" },
-                dv: { value: normalizeDamageTypes(creature.details?.vulnerabilities), custom: "" },
+                di: { value: damageImmunities, custom: "" },
+                dr: { value: normalizeDamageTypes(creature.details?.resistances).filter((type) => !damageAbsorptionSet.has(type)), custom: "" },
+                dv: { value: normalizeDamageTypes(creature.details?.vulnerabilities).filter((type) => !damageAbsorptionSet.has(type)), custom: "" },
+                da: { value: [], custom: "", bypasses: [] },
                 ci: { value: normalizeConditionImmunities(foundry.conditionImmunities), custom: "" }
             },
             resources: {
@@ -3016,7 +3062,28 @@ function buildFoundryActorExport(creature) {
         },
         items: abilities.map((ability) => buildFoundryItemFromAbilityV4(ability, foundry)),
         effects: [],
-        flags: foundry.flags || {}
+        flags: buildFoundryActorFlags(foundry.flags, damageAbsorptions)
+    };
+}
+
+function getFoundryPassiveAbsorptions(abilities) {
+    return (Array.isArray(abilities) ? abilities : [])
+        .map((ability) => buildFoundryWikiPassiveFlags(ability))
+        .filter((passive) => passive.enabled && passive.id === "absorption" && passive.value)
+        .map((passive) => passive.value)
+        .filter((value, index, list) => list.indexOf(value) === index);
+}
+
+function buildFoundryActorFlags(flags = {}, damageAbsorptions = []) {
+    const wikiFlags = flags["cripta-wiki-sync"] && typeof flags["cripta-wiki-sync"] === "object"
+        ? flags["cripta-wiki-sync"]
+        : {};
+    return {
+        ...flags,
+        "cripta-wiki-sync": {
+            ...wikiFlags,
+            damageAbsorptions
+        }
     };
 }
 
@@ -3123,7 +3190,8 @@ function buildFoundryWikiPassiveFlags(ability) {
         id,
         automation: passive.automation || "manual",
         value: String(ability.passiveValue || "").trim(),
-        valueLabel: ability.passiveValueLabel || passive.valueLabel || ""
+        valueLabel: ability.passiveValueLabel || passive.valueLabel || "",
+        breakDamageTypes: normalizeDamageTypes(ability.passiveBreakDamageTypes)
     };
 }
 
@@ -3140,26 +3208,8 @@ function buildFoundryPassiveEffects(ability) {
             }
         ])];
     }
-    if (passive.id === "regeneration") {
-        const amount = passive.value || "1";
-        return [buildFoundryTransferEffect("Regeneration", "icons/magic/life/heart-cross-strong-green.webp", [
-            {
-                key: "flags.midi-qol.OverTime",
-                mode: 0,
-                value: `turn=start,damageRoll=${amount},damageType=healing,applyCondition=@attributes.hp.value>0&&@attributes.hp.value<@attributes.hp.max,label=Regeneration`,
-                priority: 20
-            }
-        ])];
-    }
     if (passive.id === "absorption" && passive.value) {
-        return [buildFoundryTransferEffect("Assorbimento", "icons/magic/defensive/barrier-shield-dome-deflect-blue.webp", [
-            {
-                key: `flags.midi-qol.absorption.${passive.value}`,
-                mode: 0,
-                value: "1",
-                priority: 20
-            }
-        ])];
+        return [];
     }
     return [];
 }
@@ -3627,6 +3677,12 @@ function buildFoundryAbilityDescription(ability, foundry = {}) {
             ? (ABILITY_DAMAGE_TYPE_OPTIONS.find(([value]) => value === passiveValue)?.[1] || passiveValue)
             : passiveValue;
         lines.push(`${passiveValueLabel}: ${displayValue}.`);
+    }
+    if (passive.id === "regeneration") {
+        const breakTypes = normalizeDamageTypes(ability.passiveBreakDamageTypes);
+        if (breakTypes.length) {
+            lines.push(`Interrotta fino al prossimo turno da: ${breakTypes.map((type) => ABILITY_DAMAGE_TYPE_OPTIONS.find(([value]) => value === type)?.[1] || type).join(", ")}.`);
+        }
     }
     const alwaysConditions = normalizeConditionImmunities(rider.alwaysConditions);
     if (alwaysConditions.length) {

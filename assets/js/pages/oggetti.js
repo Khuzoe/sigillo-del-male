@@ -36,9 +36,10 @@ async function loadItemsData() {
         console.warn("KV items non disponibile, uso JSON statico.", error);
     }
 
-    const response = await fetch(window.CriptaApp?.urls?.data?.("items.json") || "../assets/data/items.json");
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return response.json();
+    const response = await fetch(window.CriptaApp?.urls?.data?.("items.json") || "../assets/data/items.json").catch(() => null);
+    if (!response?.ok) return [];
+    const data = await response.json().catch(() => []);
+    return Array.isArray(data) ? data : data?.data || [];
 }
 
 const ITEM_TYPES = [
