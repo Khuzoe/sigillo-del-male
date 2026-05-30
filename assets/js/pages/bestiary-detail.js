@@ -21,7 +21,8 @@ window.CriptaApp.onPageReady("creature", async () => {
         abilityFilter: "all",
         abilitySearch: "",
         activeAbilityIndex: 0,
-        openRiderPanels: new Set()
+        openRiderPanels: new Set(),
+        imagePasteTarget: null
     };
 
     try {
@@ -45,6 +46,7 @@ window.CriptaApp.onPageReady("creature", async () => {
             state.dirty = true;
             editButton?.classList.add("is-editing");
         }
+        document.addEventListener("paste", handleImagePaste);
 
         editButton?.addEventListener("click", () => {
             if (state.editing) return;
@@ -129,6 +131,10 @@ window.CriptaApp.onPageReady("creature", async () => {
                         <i class="fas fa-file-export" aria-hidden="true"></i>
                         <span>Export Foundry</span>
                     </button>
+                    <button class="bestiary-detail-action" type="button" data-action="import-creature-json">
+                        <i class="fas fa-file-import" aria-hidden="true"></i>
+                        <span>Import JSON</span>
+                    </button>
                     <button class="bestiary-detail-action" type="button" data-action="cancel">Annulla</button>
                     <button class="bestiary-detail-action bestiary-detail-action--primary" type="button" data-action="save">
                         <i class="fas fa-cloud-arrow-up" aria-hidden="true"></i>
@@ -138,11 +144,11 @@ window.CriptaApp.onPageReady("creature", async () => {
                 <article class="bestiary-detail-card">
                     <div class="bestiary-detail-main">
                         <aside class="bestiary-detail-image-panel">
-                            <button class="bestiary-detail-image-frame bestiary-detail-image-upload" type="button" data-action="upload-image">
+                            <button class="bestiary-detail-image-frame bestiary-detail-image-upload" type="button" data-action="upload-image" title="Carica immagine o incolla con Ctrl+V">
                                 <img src="${escapeHtml(resolveImageUrl(creature.image))}" alt="${escapeHtml(creature.name || "Creatura")}" style="${buildImageStyle(creature.imageAdjust)}">
                             </button>
                             <div class="bestiary-detail-token-row">
-                                <button class="bestiary-detail-token-upload" type="button" data-action="upload-token-image">
+                                <button class="bestiary-detail-token-upload" type="button" data-action="upload-token-image" title="Carica token o incolla con Ctrl+V">
                                     <span>Token</span>
                                     <img src="${escapeHtml(resolveImageUrl(creature.tokenImage || creature.image))}" alt="${escapeHtml(`${creature.name || "Creatura"} token`)}">
                                 </button>
@@ -192,6 +198,7 @@ window.CriptaApp.onPageReady("creature", async () => {
     }
 
     function bindRenderedEvents() {
+        bindImagePasteTargets();
         root.querySelectorAll("[data-field]").forEach((field) => {
             const eventName = field.type === "checkbox" || field.tagName === "SELECT" ? "change" : "input";
             field.addEventListener(eventName, () => updateField(field));
@@ -205,6 +212,7 @@ window.CriptaApp.onPageReady("creature", async () => {
         root.querySelector('[data-action="upload-image"]')?.addEventListener("click", uploadImage);
         root.querySelector('[data-action="upload-token-image"]')?.addEventListener("click", uploadTokenImage);
         root.querySelector('[data-action="download-foundry"]')?.addEventListener("click", downloadFoundryActor);
+        root.querySelector('[data-action="import-creature-json"]')?.addEventListener("click", openImportCreatureJsonDialog);
         root.querySelector('[data-action="add-custom-ability"]')?.addEventListener("click", addCustomAbilityTemplate);
         root.querySelector('[data-action="add-empty-ability"]')?.addEventListener("click", addEmptyMonsterAbility);
         root.querySelectorAll('[data-action="add-ability-kind"]').forEach((button) => {
@@ -374,6 +382,27 @@ window.CriptaApp.onPageReady("creature", async () => {
         });
     }
 
+    function bindImagePasteTargets() {
+        root.querySelector('[data-action="upload-image"]')?.addEventListener("mouseenter", () => setImagePasteTarget({ type: "creature-image" }));
+        root.querySelector('[data-action="upload-image"]')?.addEventListener("focus", () => setImagePasteTarget({ type: "creature-image" }));
+        root.querySelector('[data-action="upload-token-image"]')?.addEventListener("mouseenter", () => setImagePasteTarget({ type: "creature-token" }));
+        root.querySelector('[data-action="upload-token-image"]')?.addEventListener("focus", () => setImagePasteTarget({ type: "creature-token" }));
+        root.querySelectorAll('[data-ability-action="upload-icon"]').forEach((button) => {
+            const target = { type: "ability-icon", index: Number(button.dataset.abilityIndex) };
+            button.addEventListener("mouseenter", () => setImagePasteTarget(target));
+            button.addEventListener("focus", () => setImagePasteTarget(target));
+        });
+        root.querySelectorAll('[data-action="upload-condition-icon"]').forEach((button) => {
+            const target = { type: "condition-icon", index: Number(button.dataset.conditionTemplateIndex) };
+            button.addEventListener("mouseenter", () => setImagePasteTarget(target));
+            button.addEventListener("focus", () => setImagePasteTarget(target));
+        });
+    }
+
+    function setImagePasteTarget(target) {
+        state.imagePasteTarget = target;
+    }
+
     function updateField(field) {
         const path = field.dataset.field;
         if (!path || !state.creature) return;
@@ -541,7 +570,7 @@ window.CriptaApp.onPageReady("creature", async () => {
                     <strong>${escapeHtml(template.name || "Condizione")}</strong>
                     <span>${escapeHtml(template.description || "")}</span>
                 </div>
-                <button class="monster-ability-add-btn monster-ability-add-btn--ghost" type="button" data-action="upload-condition-icon" data-condition-template-index="${index}" title="Carica icona">
+                <button class="monster-ability-add-btn monster-ability-add-btn--ghost" type="button" data-action="upload-condition-icon" data-condition-template-index="${index}" title="Carica icona o incolla con Ctrl+V">
                     <i class="fas fa-image" aria-hidden="true"></i>
                 </button>
                 <button class="monster-ability-add-btn" type="button" data-action="add-condition-template" data-condition-template-index="${index}" title="Aggiungi">
@@ -591,7 +620,8 @@ window.CriptaApp.onPageReady("creature", async () => {
     function renderGuidedMonsterAbilityEditor(ability, index) {
         const kind = ability.kind || inferAbilityKind(ability);
         const collapsed = state.activeAbilityIndex !== index;
-        const summary = `${labelForAbilityKind(kind)}${ability.damageFormula ? ` | ${ability.damageFormula}` : ""}${ability.saveDc ? ` | CD ${ability.saveDc}` : ""}`;
+        const recharge = getAbilityRechargeValue(ability);
+        const summary = `${labelForAbilityKind(kind)}${ability.damageFormula ? ` | ${ability.damageFormula}` : ""}${ability.saveDc ? ` | CD ${ability.saveDc}` : ""}${recharge ? ` | Recharge ${rechargeLabel(recharge)}` : ""}`;
         return `
             <article class="monster-ability-editor ${collapsed ? "is-collapsed" : "is-active"}" data-ability-index="${index}">
                 <header data-summary="${escapeHtml(summary)}">
@@ -619,7 +649,7 @@ window.CriptaApp.onPageReady("creature", async () => {
         if (kind === "attack") {
             applyAttackAbilityDefaults(ability);
             return [
-                renderAbilityTurnUsePicker(ability, index),
+                renderAbilityTimingPanel(ability, index),
                 renderAbilityInput(index, "Raggio", "range", ability.range || ""),
                 renderAttackTopControls(ability, index),
                 renderDamagePartsEditor(ability, index),
@@ -629,7 +659,7 @@ window.CriptaApp.onPageReady("creature", async () => {
         if (kind === "save") {
             applySaveAbilityDefaults(ability);
             return [
-                renderAbilityTurnUsePicker(ability, index),
+                renderAbilityTimingPanel(ability, index),
                 renderSaveTopControls(ability, index),
                 renderDamagePartsEditor(ability, index),
                 renderSaveOutcomeEditor(ability, index)
@@ -637,7 +667,7 @@ window.CriptaApp.onPageReady("creature", async () => {
         }
         if (kind === "aura") {
             return [
-                renderAbilityTurnUsePicker(ability, index),
+                renderAbilityTimingPanel(ability, index),
                 renderAbilityInput(index, "Raggio aura", "range", ability.range || ""),
                 renderAbilityInput(index, "Target", "target", ability.target || "creature nell'aura"),
                 renderAbilitySelect(index, "TS se serve", "saveAbility", ability.saveAbility || "", SAVE_ABILITY_OPTIONS),
@@ -647,7 +677,7 @@ window.CriptaApp.onPageReady("creature", async () => {
         }
         if (kind === "reaction") {
             return [
-                renderAbilityTurnUsePicker(ability, index),
+                renderAbilityTimingPanel(ability, index),
                 renderAbilityInput(index, "Trigger/raggio", "range", ability.range || ""),
                 renderAttackBonusPicker(ability, index),
                 renderAbilityInput(index, "Danno", "damageFormula", ability.damageFormula || "")
@@ -656,22 +686,51 @@ window.CriptaApp.onPageReady("creature", async () => {
         if (kind === "legendary") {
             return [
                 renderAbilityInput(index, "Costo/attivazione", "activation", ability.activation || "legendary"),
+                renderAbilityRechargeControls(ability, index),
                 renderAbilityInput(index, "Raggio", "range", ability.range || ""),
                 renderAbilityInput(index, "Danno/effetto", "damageFormula", ability.damageFormula || "")
             ].join("");
         }
-        return renderAbilitySelect(index, "Mostra in", "section", section, SECTION_OPTIONS);
+        return [
+            renderAbilitySelect(index, "Mostra in", "section", section, SECTION_OPTIONS),
+            renderAbilityRechargeControls(ability, index)
+        ].join("");
     }
 
-    function renderAbilityTurnUsePicker(ability, index) {
+    function renderAbilityTimingPanel(ability, index) {
+        return `
+            <div class="bestiary-detail-field bestiary-detail-field--wide monster-ability-control-panel monster-timing-panel">
+                ${renderAbilityTurnUseControls(ability, index)}
+                ${renderAbilityRechargeControls(ability, index)}
+            </div>
+        `;
+    }
+
+    function renderAbilityTurnUseControls(ability, index) {
         const current = ability.section || sectionFromAbilityKind(ability.kind || inferAbilityKind(ability));
         return `
-            <div class="bestiary-detail-field bestiary-detail-field--wide monster-ability-control-panel monster-turn-use-panel">
+            <div class="monster-timing-group monster-turn-use-panel">
                 <span>Uso nel turno</span>
                 <div class="monster-ability-choice-row" role="group" aria-label="Uso nel turno">
                     ${TURN_USE_OPTIONS.map(([value, label, icon]) => `
                         <button class="monster-choice-btn ${current === value ? "is-active" : ""}" type="button" data-ability-index="${index}" data-ability-choice-field="turnUse" data-ability-choice-value="${escapeHtml(value)}">
                             <i class="fas ${escapeHtml(icon)}" aria-hidden="true"></i>
+                            ${escapeHtml(label)}
+                        </button>
+                    `).join("")}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderAbilityRechargeControls(ability, index) {
+        const current = getAbilityRechargeValue(ability);
+        return `
+            <div class="monster-timing-group monster-recharge-panel">
+                <span>Recharge d6</span>
+                <div class="monster-ability-choice-row" role="group" aria-label="Recharge">
+                    ${RECHARGE_OPTIONS.map(([value, label]) => `
+                        <button class="monster-choice-btn ${current === value ? "is-active" : ""}" type="button" data-ability-index="${index}" data-ability-choice-field="recharge" data-ability-choice-value="${escapeHtml(value)}">
                             ${escapeHtml(label)}
                         </button>
                     `).join("")}
@@ -1073,7 +1132,7 @@ window.CriptaApp.onPageReady("creature", async () => {
         const iconImage = ability.iconImage || ability.img || "";
         const fallbackIcon = ability.icon || "fa-burst";
         return `
-            <button class="monster-ability-icon-upload" type="button" data-ability-action="upload-icon" data-ability-index="${index}" title="Carica icona abilita">
+            <button class="monster-ability-icon-upload" type="button" data-ability-action="upload-icon" data-ability-index="${index}" title="Carica icona abilita o incolla con Ctrl+V">
                 ${iconImage
                 ? `<img src="${escapeHtml(resolveImageUrl(iconImage))}" alt="">`
                 : `<i class="fas ${escapeHtml(fallbackIcon)}" aria-hidden="true"></i>`}
@@ -1779,6 +1838,115 @@ window.CriptaApp.onPageReady("creature", async () => {
         URL.revokeObjectURL(url);
     }
 
+    function openImportCreatureJsonDialog() {
+        const existing = document.querySelector("[data-creature-json-import-dialog]");
+        if (existing) existing.remove();
+
+        const dialog = document.createElement("div");
+        dialog.className = "bestiary-import-dialog";
+        dialog.dataset.creatureJsonImportDialog = "1";
+        dialog.innerHTML = `
+            <section class="bestiary-import-dialog-card" role="dialog" aria-modal="true" aria-label="Importa JSON mostro">
+                <header>
+                    <div>
+                        <h2>Importa JSON mostro</h2>
+                        <p>Incolla una singola creatura nel formato dell'editor. I campi attuali verranno sostituiti, poi potrai controllare e salvare.</p>
+                    </div>
+                    <button class="monster-ability-icon-btn" type="button" data-import-close title="Chiudi">
+                        <i class="fas fa-xmark" aria-hidden="true"></i>
+                    </button>
+                </header>
+                <textarea class="bestiary-detail-area bestiary-import-dialog-area" data-import-json-text spellcheck="false" placeholder='{"name":"Nuovo Mostro","foundry":{"abilitiesList":[]}}'></textarea>
+                <div class="bestiary-import-dialog-actions">
+                    <button class="bestiary-detail-action" type="button" data-import-file>
+                        <i class="fas fa-folder-open" aria-hidden="true"></i>
+                        <span>Da file</span>
+                    </button>
+                    <button class="bestiary-detail-action" type="button" data-import-cancel>Annulla</button>
+                    <button class="bestiary-detail-action bestiary-detail-action--primary" type="button" data-import-submit>
+                        <i class="fas fa-file-import" aria-hidden="true"></i>
+                        <span>Importa</span>
+                    </button>
+                </div>
+                <input type="file" accept="application/json,.json" data-import-json-file hidden>
+            </section>
+        `;
+
+        const close = () => dialog.remove();
+        const submitText = (text) => {
+            if (importCreatureJsonText(text)) close();
+        };
+
+        dialog.addEventListener("click", (event) => {
+            if (event.target === dialog || event.target.closest("[data-import-close]") || event.target.closest("[data-import-cancel]")) {
+                close();
+                return;
+            }
+            if (event.target.closest("[data-import-file]")) {
+                dialog.querySelector("[data-import-json-file]")?.click();
+                return;
+            }
+            if (event.target.closest("[data-import-submit]")) {
+                try {
+                    submitText(dialog.querySelector("[data-import-json-text]")?.value || "");
+                } catch (error) {
+                    alert(`Import JSON fallito: ${error?.message || error}`);
+                }
+            }
+        });
+
+        dialog.querySelector("[data-import-json-file]")?.addEventListener("change", async (event) => {
+            const file = event.currentTarget.files?.[0];
+            if (!file) return;
+            try {
+                submitText(await file.text());
+            } catch (error) {
+                alert(`Import JSON fallito: ${error?.message || error}`);
+            }
+        });
+
+        document.body.appendChild(dialog);
+        dialog.querySelector("[data-import-json-text]")?.focus();
+    }
+
+    function importCreatureJsonText(text) {
+        if (!String(text || "").trim()) throw new Error("Incolla o seleziona un JSON prima di importare.");
+        if (state.dirty && !window.confirm("Sostituire i campi attuali con il JSON importato? Le modifiche non salvate verranno sovrascritte.")) return false;
+
+        const parsed = JSON.parse(text);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+            throw new Error("Il dettaglio mostro accetta una singola creatura JSON, non un array.");
+        }
+
+        const imported = normalizeImportedCreatureForDetail(parsed);
+        state.creature = imported;
+        state.activeAbilityIndex = 0;
+        state.openRiderPanels.clear();
+        state.dirty = true;
+        state.editing = true;
+        editButton?.classList.add("is-editing");
+        render();
+        return true;
+    }
+
+    function normalizeImportedCreatureForDetail(creature) {
+        const copy = structuredCloneSafe(creature);
+        const fallbackId = state.creature?.id || creatureId || slugify(copy.name || "creatura-importata");
+        copy.name = copy.name || "Creatura importata";
+        copy.id = copy.id || fallbackId || slugify(copy.name);
+        copy.image = copy.image || state.creature?.image || "media/creatures/bestiary/creatura-importata.webp";
+        copy.category = copy.category || state.creature?.category || "Senza Categoria";
+        if (!copy.details || typeof copy.details !== "object") copy.details = {};
+        copy.details.description ??= "";
+        copy.details.dndType ??= "Mostruosita";
+        copy.details.size ??= "Media";
+        if (!Array.isArray(copy.details.traits)) copy.details.traits = [];
+        if (!Array.isArray(copy.details.drops)) copy.details.drops = [];
+        ensureFoundryMonsterData(copy);
+        getMonsterAbilities(copy).forEach(applyAbilityDefaultsForKind);
+        return pruneCreature(copy);
+    }
+
     function cancelEdit() {
         if (state.dirty && !window.confirm("Annullare le modifiche non salvate?")) return;
         window.location.reload();
@@ -1858,17 +2026,17 @@ window.CriptaApp.onPageReady("creature", async () => {
         });
     }
 
-    async function uploadCreatureMedia({ property, folder, suffix, label }) {
+    async function uploadCreatureMedia({ property, folder, suffix, label, file = null }) {
         const token = readAuthToken();
         if (!token) {
             alert("Login richiesto per caricare immagini.");
             return;
         }
-        const file = await pickImageFile();
-        if (!file || !state.creature) return;
+        const selectedFile = file || await pickImageFile();
+        if (!selectedFile || !state.creature) return;
 
         try {
-            const blob = /\.webp$/i.test(file.name) ? file : await convertImageToWebp(file);
+            const blob = /\.webp$/i.test(selectedFile.name || "") ? selectedFile : await convertImageToWebp(selectedFile);
             const fileName = `${slugify(state.creature.name || creatureId || "creatura")}${suffix || ""}.webp`;
             const form = new FormData();
             form.set("folder", folder);
@@ -1894,6 +2062,69 @@ window.CriptaApp.onPageReady("creature", async () => {
             console.error(`Upload ${label} fallito:`, error);
             alert(`Upload fallito: ${error?.message || error}`);
         }
+    }
+
+    async function handleImagePaste(event) {
+        if (!state.editing) return;
+        const file = getClipboardImageFile(event);
+        if (!file) return;
+        const target = resolveImagePasteTarget(event);
+        if (!target) return;
+        event.preventDefault();
+        event.stopPropagation();
+
+        try {
+            if (target.type === "creature-image") {
+                await uploadCreatureMedia({
+                    property: "image",
+                    folder: "creatures/bestiary",
+                    suffix: "",
+                    label: "immagine creatura",
+                    file
+                });
+                return;
+            }
+            if (target.type === "creature-token") {
+                await uploadCreatureMedia({
+                    property: "tokenImage",
+                    folder: "creatures/bestiary/tokens",
+                    suffix: "-token",
+                    label: "immagine token",
+                    file
+                });
+                return;
+            }
+            if (target.type === "ability-icon") {
+                await uploadAbilityIcon(target.index, file);
+                return;
+            }
+            if (target.type === "condition-icon") {
+                await uploadConditionTemplateIcon(target.index, file);
+            }
+        } catch (error) {
+            console.error("Upload immagine incollata fallito:", error);
+            alert(`Upload immagine incollata fallito: ${error?.message || error}`);
+        }
+    }
+
+    function resolveImagePasteTarget(event) {
+        const element = event.target instanceof Element ? event.target : null;
+        const abilityButton = element?.closest?.('[data-ability-action="upload-icon"]');
+        if (abilityButton) return { type: "ability-icon", index: Number(abilityButton.dataset.abilityIndex) };
+        const conditionButton = element?.closest?.('[data-action="upload-condition-icon"]');
+        if (conditionButton) return { type: "condition-icon", index: Number(conditionButton.dataset.conditionTemplateIndex) };
+        if (element?.closest?.('[data-action="upload-image"]')) return { type: "creature-image" };
+        if (element?.closest?.('[data-action="upload-token-image"]')) return { type: "creature-token" };
+        return state.imagePasteTarget;
+    }
+
+    function getClipboardImageFile(event) {
+        const items = Array.from(event.clipboardData?.items || []);
+        const imageItem = items.find((item) => item.kind === "file" && String(item.type || "").startsWith("image/"));
+        const file = imageItem?.getAsFile?.();
+        if (!file) return null;
+        const extension = mimeExtension(file.type);
+        return new File([file], `clipboard-${Date.now()}.${extension}`, { type: file.type || "image/png" });
     }
 
     async function persistCreatureMediaReference(property, value) {
@@ -1926,7 +2157,7 @@ window.CriptaApp.onPageReady("creature", async () => {
         state.source = "kv";
     }
 
-    async function uploadAbilityIcon(index) {
+    async function uploadAbilityIcon(index, file = null) {
         const token = readAuthToken();
         if (!token) {
             alert("Login richiesto per caricare immagini.");
@@ -1935,13 +2166,13 @@ window.CriptaApp.onPageReady("creature", async () => {
         const abilities = getMonsterAbilities(state.creature);
         const ability = abilities[index];
         if (!ability) return;
-        const file = await pickImageFile();
-        if (!file) return;
+        const selectedFile = file || await pickImageFile();
+        if (!selectedFile) return;
 
         try {
-            const blob = /\.webp$/i.test(file.name) ? file : await convertImageToWebp(file);
+            const blob = /\.webp$/i.test(selectedFile.name || "") ? selectedFile : await convertImageToWebp(selectedFile);
             const baseName = slugify(`${state.creature?.name || "creatura"}-${ability.name || "abilita"}`);
-            const fileName = `${baseName}.webp`;
+            const fileName = versionedWebpFileName(baseName);
             const folder = "monster-abilities";
             const form = new FormData();
             form.set("folder", folder);
@@ -1968,7 +2199,7 @@ window.CriptaApp.onPageReady("creature", async () => {
         }
     }
 
-    async function uploadConditionTemplateIcon(index) {
+    async function uploadConditionTemplateIcon(index, file = null) {
         const token = readAuthToken();
         if (!token) {
             alert("Login richiesto per caricare immagini.");
@@ -1976,13 +2207,13 @@ window.CriptaApp.onPageReady("creature", async () => {
         }
         const template = ADVANCED_CONDITION_TEMPLATES[index];
         if (!template) return;
-        const file = await pickImageFile();
-        if (!file) return;
+        const selectedFile = file || await pickImageFile();
+        if (!selectedFile) return;
 
         try {
-            const blob = /\.webp$/i.test(file.name) ? file : await convertImageToWebp(file);
+            const blob = /\.webp$/i.test(selectedFile.name || "") ? selectedFile : await convertImageToWebp(selectedFile);
             const baseName = slugify(`${state.creature?.name || "creatura"}-${template.name || "condizione"}`);
-            const fileName = `${baseName}.webp`;
+            const fileName = versionedWebpFileName(baseName);
             const folder = "monster-conditions";
             const form = new FormData();
             form.set("folder", folder);
@@ -2111,29 +2342,6 @@ const DEFAULT_MONSTER_ABILITY_TEMPLATES = [
         damageFormula: "2d6",
         damageType: "fire",
         description: "Il bersaglio effettua un tiro salvezza o subisce l'effetto."
-    },
-    {
-        id: "recharge-breath",
-        name: "Soffio a ricarica",
-        icon: "fa-fire-flame-curved",
-        type: "feat",
-        section: "action",
-        activation: "action",
-        range: "30 ft",
-        target: "cono",
-        saveAbility: "dex",
-        damageFormula: "4d6",
-        damageType: "fire",
-        description: "Ricarica 5-6. Ogni creatura nell'area effettua un tiro salvezza."
-    },
-    {
-        id: "reaction-parry",
-        name: "Parata",
-        icon: "fa-shield",
-        type: "feat",
-        section: "reaction",
-        activation: "reaction",
-        description: "La creatura aggiunge 2 alla CA contro un attacco che la colpirebbe."
     }
 ];
 
@@ -2284,6 +2492,15 @@ const TURN_USE_OPTIONS = [
     ["bonus", "Azione Bonus", "fa-bolt"],
     ["reaction", "Reazione", "fa-shield-halved"],
     ["legendary", "Azione Leggendaria", "fa-crown"]
+];
+
+const RECHARGE_OPTIONS = [
+    ["", "No"],
+    ["6", "6"],
+    ["5", "5-6"],
+    ["4", "4-6"],
+    ["3", "3-6"],
+    ["2", "2-6"]
 ];
 
 const SAVE_TEMPLATE_OPTIONS = [
@@ -2642,7 +2859,7 @@ function buildFoundryItemFromAbilityV4(ability, foundry = {}) {
     const system = {
         description: { value: buildFoundryAbilityDescription(ability, foundry), chat: "" },
         source: { custom: "Sigillo del Male Wiki", revision: 1, rules: "2024" },
-        uses: { spent: 0, max: "", recovery: [] },
+        uses: buildFoundryItemUses(ability),
         activities: buildFoundryActivitiesForAbility(ability, foundry, type, effects),
         identifier: "",
         requirements: "",
@@ -2660,7 +2877,11 @@ function buildFoundryItemFromAbilityV4(ability, foundry = {}) {
         system.identified = true;
         system.range = buildFoundryWeaponRange(ability);
         system.damage = {
-            base: damageFormulaToDnd5ePart(damageParts[0]?.formula || ability.damageFormula || "", damageParts[0]?.type || getPrimaryAbilityDamageType(ability)),
+            base: damageFormulaToDnd5ePart(
+                damageParts[0]?.formula || ability.damageFormula || "",
+                damageParts[0]?.type || getPrimaryAbilityDamageType(ability),
+                shouldStripAbilityDamageBonus(ability)
+            ),
             versatile: {
                 number: null,
                 denomination: null,
@@ -2698,7 +2919,6 @@ function buildFoundryItemFromAbilityV4(ability, foundry = {}) {
             dc: toNumberOrNull(ability.saveDc || rider.saveDc || calculateFoundrySpellSaveDc(foundry)),
             scaling: "flat"
         };
-        system.recharge = parseRecharge(ability.description);
         system.advancement = [];
         system.cover = null;
         system.crewed = false;
@@ -2778,7 +2998,7 @@ function buildFoundryItemFromAbility(ability, foundry = {}) {
             activation: { type: ability.activation || activationFromSection(ability.section), cost: 1, condition: "" },
             target: { value: null, width: null, units: "", type: ability.target || "" },
             range: { value: parseRangeValue(ability.range), long: null, units: parseRangeUnits(ability.range) },
-            uses: { value: null, max: "", per: null, recovery: "" },
+            uses: buildFoundryItemUses(ability),
             consume: { type: "", target: "", amount: null },
             actionType: inferActionType(ability),
             attackBonus: ability.attackBonus || "",
@@ -2793,7 +3013,7 @@ function buildFoundryItemFromAbility(ability, foundry = {}) {
             },
             type: foundryItemSubtypeForAbility(ability, type),
             requirements: "",
-            recharge: parseRecharge(ability.description)
+            recharge: buildFoundryRecharge(ability)
         },
         effects: [],
         flags: ability.flags || {}
@@ -2852,7 +3072,7 @@ function buildFoundryAttackActivity(ability, effects) {
         _id: "dnd5eactivity000",
         type: "attack",
         activation: buildFoundryActivityActivation(ability),
-        consumption: buildFoundryActivityConsumption(),
+        consumption: buildFoundryActivityConsumption(ability),
         description: { chatFlavor: "" },
         duration: buildFoundryInstantDuration(),
         effects: [],
@@ -2869,7 +3089,7 @@ function buildFoundryAttackActivity(ability, effects) {
         damage: {
             critical: { bonus: "" },
             includeBase: true,
-            parts: damageParts.slice(1).map((part) => damageFormulaToDnd5ePart(part.formula, part.type))
+            parts: damageParts.slice(1).map((part) => damageFormulaToDnd5ePart(part.formula, part.type, false))
         },
         sort: 0,
         ...foundryMidiActivityDefaults(),
@@ -2889,7 +3109,7 @@ function buildFoundrySaveActivity(ability, foundry, effects, activityId = "dnd5e
         _id: activityId,
         type: "save",
         activation: buildFoundryActivityActivation(ability),
-        consumption: buildFoundryActivityConsumption(),
+        consumption: buildFoundryActivityConsumption(ability),
         description: { chatFlavor: "" },
         duration: buildFoundryInstantDuration(),
         effects: buildFoundrySaveActivityEffectRefs(effects),
@@ -2898,7 +3118,7 @@ function buildFoundrySaveActivity(ability, foundry, effects, activityId = "dnd5e
         uses: { spent: 0, max: "", recovery: [] },
         damage: {
             onSave: rider.successMode === "negates" ? "none" : "half",
-            parts: damageParts.map((part) => damageFormulaToDnd5ePart(part.formula, part.type)),
+            parts: damageParts.map((part) => damageFormulaToDnd5ePart(part.formula, part.type, false)),
             critical: { allow: false }
         },
         save: {
@@ -2925,7 +3145,7 @@ function buildFoundryUtilityActivity(ability, effects) {
         _id: "dnd5eactivity000",
         type: "utility",
         activation: buildFoundryActivityActivation(ability),
-        consumption: buildFoundryActivityConsumption(),
+        consumption: buildFoundryActivityConsumption(ability),
         description: { chatFlavor: "" },
         duration: buildFoundryInstantDuration(),
         effects: effects.map((effect) => ({ _id: effect._id })),
@@ -2944,17 +3164,24 @@ function buildFoundrySaveActivityEffectRefs(effects) {
 }
 
 function buildFoundryActivityActivation(ability) {
+    const recharge = getAbilityRechargeValue(ability);
     return {
         type: ability.activation || activationFromSection(ability.section),
         value: 1,
-        condition: "",
+        condition: recharge ? `Recharge ${rechargeLabel(recharge)}` : "",
         override: false
     };
 }
 
-function buildFoundryActivityConsumption() {
+function buildFoundryActivityConsumption(ability) {
+    const recharge = getAbilityRechargeValue(ability);
     return {
-        targets: [],
+        targets: recharge ? [{
+            type: "itemUses",
+            target: "",
+            value: "1",
+            scaling: { mode: "", formula: "" }
+        }] : [],
         scaling: { allowed: false, max: "" },
         spellSlot: true
     };
@@ -3100,14 +3327,14 @@ function foundryEffectIconForConditions(statuses) {
     return "icons/svg/aura.svg";
 }
 
-function damageFormulaToDnd5ePart(formula, type) {
+function damageFormulaToDnd5ePart(formula, type, stripStaticBonus = false) {
     const cleanFormula = String(formula || "").trim();
     const match = cleanFormula.match(/^(\d+)d(\d+)\s*([+-]\s*\d+)?$/i);
     if (match) {
         return {
             number: Number(match[1]),
             denomination: Number(match[2]),
-            bonus: match[3] ? match[3].replace(/\s+/g, "") : "",
+            bonus: stripStaticBonus ? "" : (match[3] ? match[3].replace(/\s+/g, "") : ""),
             types: type ? [type] : [],
             custom: { enabled: false, formula: "" },
             scaling: { mode: "whole", number: null, formula: "" }
@@ -3121,6 +3348,10 @@ function damageFormulaToDnd5ePart(formula, type) {
         custom: { enabled: Boolean(cleanFormula), formula: cleanFormula },
         scaling: { mode: "whole", number: null, formula: "" }
     };
+}
+
+function shouldStripAbilityDamageBonus(ability) {
+    return isAttackAbility(ability) && ability.attackAbility !== "custom";
 }
 
 function buildFoundryWeaponRange(ability) {
@@ -3141,6 +3372,8 @@ function buildFoundryAbilityDescription(ability, foundry = {}) {
     const base = String(ability.description || "").trim();
     const rider = getAbilityRider(ability);
     const lines = [];
+    const recharge = getAbilityRechargeValue(ability);
+    if (recharge) lines.push(`Ricarica ${rechargeLabel(recharge)}.`);
     const alwaysConditions = normalizeConditionImmunities(rider.alwaysConditions);
     if (alwaysConditions.length) {
         lines.push(`Condizioni applicate: ${alwaysConditions.map(conditionLabel).join(", ")}.`);
@@ -3171,6 +3404,12 @@ function buildFoundryAbilityDescription(ability, foundry = {}) {
 function formatDamagePartLabel(part) {
     const damageLabel = ABILITY_DAMAGE_TYPE_OPTIONS.find(([value]) => value === part.type)?.[1] || part.type || "danno";
     return `${part.formula} ${damageLabel}${part.magic ? " magico" : ""}`;
+}
+
+function rechargeLabel(value) {
+    const threshold = Number(value);
+    if (!Number.isFinite(threshold) || threshold < 2 || threshold > 6) return "";
+    return threshold === 6 ? "6" : `${threshold}-6`;
 }
 
 function conditionLabel(value) {
@@ -3642,6 +3881,20 @@ async function convertImageToWebp(file) {
     });
 }
 
+function mimeExtension(mimeType) {
+    return {
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/webp": "webp",
+        "image/gif": "gif",
+        "image/avif": "avif"
+    }[String(mimeType || "").toLowerCase()] || "png";
+}
+
+function versionedWebpFileName(baseName) {
+    return `${slugify(baseName || "immagine")}-${Date.now().toString(36)}.webp`;
+}
+
 function setPath(target, path, value) {
     const parts = String(path || "").split(".");
     let cursor = target;
@@ -3936,7 +4189,49 @@ function parseRangeUnits(value) {
     return "";
 }
 
-function parseRecharge(description) {
+function buildFoundryRecharge(ability) {
+    const value = getAbilityRechargeValue(ability);
+    const threshold = Number(value);
+    return {
+        value: Number.isFinite(threshold) && threshold >= 2 && threshold <= 6 ? threshold : null,
+        charged: Number.isFinite(threshold) && threshold >= 2 && threshold <= 6
+    };
+}
+
+function buildFoundryItemUses(ability) {
+    const recharge = getAbilityRechargeValue(ability);
+    return {
+        spent: 0,
+        max: recharge ? "1" : "",
+        recovery: recharge ? [{
+            period: "recharge",
+            formula: recharge,
+            type: "recoverAll"
+        }] : []
+    };
+}
+
+function getAbilityRechargeValue(ability) {
+    const hasExplicitRecharge = Object.prototype.hasOwnProperty.call(ability || {}, "recharge")
+        || Object.prototype.hasOwnProperty.call(ability || {}, "rechargeValue")
+        || Object.prototype.hasOwnProperty.call(ability || {}, "rechargeThreshold");
+    if (hasExplicitRecharge) {
+        return normalizeRechargeValue(ability?.recharge ?? ability?.rechargeValue ?? ability?.rechargeThreshold);
+    }
+    return normalizeRechargeValue(parseRechargeText(ability?.description).value);
+}
+
+function normalizeRechargeValue(value) {
+    if (value && typeof value === "object") return normalizeRechargeValue(value.value ?? value.threshold ?? "");
+    const raw = String(value ?? "").trim().toLowerCase();
+    if (!raw || raw === "no" || raw === "none" || raw === "false") return "";
+    const rangeMatch = raw.match(/([2-6])\s*[-–]\s*6/);
+    if (rangeMatch) return rangeMatch[1];
+    const numberMatch = raw.match(/[2-6]/);
+    return numberMatch ? numberMatch[0] : "";
+}
+
+function parseRechargeText(description) {
     const match = String(description || "").match(/ricarica\s+(\d)(?:\s*[-–]\s*(\d))?|recharge\s+(\d)(?:\s*[-–]\s*(\d))?/i);
     if (!match) return { value: null, charged: false };
     const value = Number(match[1] || match[3]);
