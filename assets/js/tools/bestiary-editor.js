@@ -118,7 +118,7 @@
 
     async function loadBestiaryData() {
         try {
-            const response = await fetch(withCampaign(DATA_API_URL()));
+            const response = await fetch(withCampaign(DATA_API_URL(), { cacheBust: true }));
             if (response.ok) {
                 const payload = await response.json();
                 if (Array.isArray(payload?.data)) {
@@ -251,7 +251,7 @@
             state.creatures.splice(state.selectedIndex, 1);
             state.selectedIndex = Math.min(state.selectedIndex, state.creatures.length - 1);
             renderAll();
-            setStatus('Creatura eliminata.');
+            setStatus('Creatura eliminata dalla bozza. Premi "Salva online" per rimuoverla anche dal bestiario pubblico.');
         });
 
         els.bestiaryTableBody?.addEventListener('input', handleTableInput);
@@ -534,6 +534,9 @@
         const campaignId = getCampaignId();
         if (options.force === true || campaignId !== 'cripta-di-sangue') {
             target.searchParams.set('campaign', campaignId);
+        }
+        if (options.cacheBust === true) {
+            target.searchParams.set('_', String(Date.now()));
         }
         return target.toString();
     }

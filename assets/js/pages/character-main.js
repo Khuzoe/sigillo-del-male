@@ -365,6 +365,7 @@ const PLAYER_NAME_ALIASES = {
     valdor: ['valdor']
 };
 const SKILLS_DATA_URL = dataUrl('skills.json');
+const TRANSFORMATIONS_DATA_URL = dataUrl('transformations.json');
 const SKILLS_ASSET_BASE = 'media/skill_trees/';
 const PLAYER_SKILL_TREE_KEYS = {
     apothecary: 'apothecary',
@@ -379,6 +380,8 @@ let skillsRequestPromise = null;
 let skillsMemoryCache = null;
 let wikiItemsRequestPromise = null;
 let wikiItemsMemoryCache = null;
+let transformationsRequestPromise = null;
+let transformationsMemoryCache = null;
 
 function escapeHtml(value) {
     return String(value || '')
@@ -630,6 +633,33 @@ function findPlayerActor(payload, character) {
     }) || null;
 }
 
+function getCompanionsForCharacter(payload, character) {
+    const companions = Array.isArray(payload && payload.companions) ? payload.companions : [];
+    if (!companions.length || !character) return [];
+    const characterId = normalizeText(character.id);
+    const accountId = normalizeText(character.accountId);
+    const discordId = normalizeText(character.discordId);
+    const name = normalizeText(character.name);
+    return companions
+        .filter((companion) => {
+            const ownerCharacterId = normalizeText(companion.ownerCharacterId);
+            const ownerAccountId = normalizeText(companion.ownerAccountId);
+            const ownerDiscordId = normalizeText(companion.ownerDiscordId);
+            return Boolean(ownerCharacterId && (ownerCharacterId === characterId || ownerCharacterId === name))
+                || Boolean(ownerAccountId && ownerAccountId === accountId)
+                || Boolean(ownerDiscordId && ownerDiscordId === discordId);
+        })
+        .sort((left, right) => String(left.displayName || left.name || '').localeCompare(String(right.displayName || right.name || ''), 'it'));
+}
+
+function resolveSyncedActorImagePath(path) {
+    const raw = String(path || '').trim();
+    if (!raw) return '';
+    if (/^(https?:|data:|blob:)/i.test(raw)) return raw;
+    if (/^(media|assets|campaigns|img)\//i.test(raw)) return resolveCharacterAssetPath(raw);
+    return '';
+}
+
 function splitActorLoadout(actor) {
     const sourceEntries = Array.isArray(actor && actor.inventory) ? actor.inventory : [];
     const spells = [];
@@ -742,6 +772,59 @@ function getWikiItemUrl(item) {
 function getWikiItemImageUrl(item) {
     if (!item || !item.image) return '';
     return resolveCharacterAssetPath(item.image);
+}
+
+async function loadTransformationsData(options = {}) {
+    if (options.force === true) {
+        transformationsMemoryCache = null;
+        transformationsRequestPromise = null;
+    }
+    if (transformationsMemoryCache) return transformationsMemoryCache;
+    if (transformationsRequestPromise) return transformationsRequestPromise;
+
+    transformationsRequestPromise = (async () => {
+        let staticList = [];
+        try {
+            const response = await fetch(TRANSFORMATIONS_DATA_URL);
+            if (response.ok) {
+                const payload = await response.json();
+                staticList = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : []);
+            }
+        } catch (error) {
+            console.warn('transformations.json non disponibile, uso solo KV.', error);
+        }
+
+        let onlineList = null;
+        try {
+            if (typeof window.CriptaApp?.api?.get === 'function') {
+                const payload = await window.CriptaApp.api.get('api/data/transformations', { query: { _: Date.now() } });
+                if (Array.isArray(payload?.data)) onlineList = payload.data;
+            }
+        } catch (error) {
+            console.warn('KV transformations non disponibile, uso JSON statico.', error);
+        }
+
+        transformationsMemoryCache = mergeTransformations(staticList, onlineList || []);
+        return transformationsMemoryCache;
+    })();
+
+    try {
+        return await transformationsRequestPromise;
+    } finally {
+        transformationsRequestPromise = null;
+    }
+}
+
+function mergeTransformations(baseList, overrideList) {
+    const merged = new Map();
+    const add = (entry) => {
+        if (!entry || typeof entry !== 'object') return;
+        const key = entry.id || `${entry.characterId || entry.ownerAccountId || 'global'}-${slugify(entry.creatureName || entry.name || entry.foundryName || 'forma')}`;
+        merged.set(key, { ...entry, id: key });
+    };
+    (Array.isArray(baseList) ? baseList : []).forEach(add);
+    (Array.isArray(overrideList) ? overrideList : []).forEach(add);
+    return Array.from(merged.values());
 }
 
 function renderWikiItemThumb(item, className, label = 'Oggetto wiki') {
@@ -1757,6 +1840,103 @@ function buildPlayerLoadoutHtml(character, payload, wikiItems = []) {
             `;
 }
 
+function renderCompanionFeatures(entries) {
+    const features = (Array.isArray(entries) ? entries : [])
+        .filter((entry) => entry && entry.type === 'feat')
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'it'));
+    if (!features.length) return '<p class="loadout-empty">Nessuna azione o tratto sincronizzato.</p>';
+    return features.map((entry) => {
+        const badges = ['Feature'];
+        const activation = entry.activation?.type ? formatToken(entry.activation.type) : '';
+        if (activation) badges.push(`Uso: ${activation}`);
+        return renderLoadoutDisclosure(
+            entry.name || 'Feature senza nome',
+            '',
+            cleanDescription(entry.description),
+            badges,
+            'loadout-entry--spell',
+            ''
+        );
+    }).join('');
+}
+
+function buildCompanionsHtml(character, payload, wikiItems = []) {
+    const companions = getCompanionsForCharacter(payload, character);
+    if (!companions.length) {
+        return `
+                    <h3><i class="fas fa-paw"></i> Companion</h3>
+                    <p class="loadout-empty">Nessun companion configurato per ${escapeHtml(character.name)} nello snapshot Foundry.</p>
+                `;
+    }
+
+    const wikiItemIndex = buildWikiItemIndex(wikiItems);
+    const cards = companions.map((companion) => {
+        const title = companion.displayName || companion.name || 'Companion';
+        const image = resolveSyncedActorImagePath(companion.img) || resolveSyncedActorImagePath(companion.token?.img);
+        const initials = String(title || '?').trim().charAt(0).toUpperCase() || '?';
+        const { inventory, spells } = splitActorLoadout(companion);
+        inventory.forEach((entry) => {
+            entry.wikiItem = findWikiItemForInventoryEntry(entry, wikiItemIndex);
+        });
+        const featuresHtml = renderCompanionFeatures(companion.inventory);
+        const inventoryHtml = renderInventoryEntries(inventory);
+        const spellsHtml = renderSpellEntries(spells.filter((spell) => spell.prepared || spell.level === 0));
+        const details = companion.details || {};
+        const detailChips = [
+            details.type ? `Tipo: ${formatToken(details.type)}` : '',
+            details.cr !== undefined ? `CR: ${formatNumberIt(details.cr, 2)}` : '',
+            details.alignment ? `Allineamento: ${details.alignment}` : '',
+            companion.foundryName ? `Foundry: ${companion.foundryName}` : ''
+        ].filter(Boolean);
+
+        return `
+                    <article class="companion-card">
+                        <div class="companion-card__header">
+                            <div class="companion-card__portrait">
+                                ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" onerror="this.style.display='none'; this.nextElementSibling.hidden=false;">` : ''}
+                                <span ${image ? 'hidden' : ''}>${escapeHtml(initials)}</span>
+                            </div>
+                            <div>
+                                <p>Companion di ${escapeHtml(character.name || 'personaggio')}</p>
+                                <h4>${escapeHtml(title)}</h4>
+                                ${detailChips.length ? `<div class="loadout-chip-row">${detailChips.map((chip) => `<span class="loadout-chip">${escapeHtml(chip)}</span>`).join('')}</div>` : ''}
+                            </div>
+                        </div>
+                        ${renderVitalOverview(companion)}
+                        <div class="character-live-grid companion-card__grid">
+                            <section class="character-live-card">
+                                <h4><i class="fas fa-dumbbell"></i> Caratteristiche</h4>
+                                ${renderAbilityOverview(companion) || '<p class="player-overview-empty">Caratteristiche non disponibili.</p>'}
+                            </section>
+                            <section class="character-live-card character-live-card--wide">
+                                <h4><i class="fas fa-dragon"></i> Azioni e tratti</h4>
+                                ${featuresHtml}
+                            </section>
+                            <section class="character-live-card character-live-card--wide">
+                                <h4><i class="fas fa-box-open"></i> Oggetti</h4>
+                                ${inventoryHtml}
+                            </section>
+                            ${spells.length ? `
+                            <section class="character-live-card character-live-card--wide">
+                                <h4><i class="fas fa-bolt"></i> Incantesimi</h4>
+                                ${spellsHtml}
+                            </section>` : ''}
+                        </div>
+                    </article>
+                `;
+    }).join('');
+
+    return `
+                <div class="companion-section-heading">
+                    <h3><i class="fas fa-paw"></i> Companion</h3>
+                    <p>Dati sincronizzati da Foundry. Modifica statistiche, oggetti e immagini dall'actor companion.</p>
+                </div>
+                <div class="companion-card-list">
+                    ${cards}
+                </div>
+            `;
+}
+
 function initializeInventoryTypeFilters(cardElement) {
     const inventoryPanel = cardElement.querySelector('[data-panel="inventory"]');
     if (!inventoryPanel) return;
@@ -1998,6 +2178,8 @@ window.CriptaApp.onPageReady("character", async function () {
     let inlineEditDirty = false;
     let inlineEditBlocks = [];
     let currentUserIsDm = false;
+    let currentAuthState = null;
+    let currentTransformations = [];
     const inlineImageVersions = new Map();
 
     if (!charId) {
@@ -2014,6 +2196,7 @@ window.CriptaApp.onPageReady("character", async function () {
     container.addEventListener('input', handleInlineEditInput);
     container.addEventListener('change', handleInlineEditChange);
     container.addEventListener('click', handleInlineEditClick);
+    container.addEventListener('click', handleTransformationClick);
 
     try {
         let character = null;
@@ -2082,7 +2265,14 @@ window.CriptaApp.onPageReady("character", async function () {
             }
         }
 
-        currentUserIsDm = await resolveCurrentUserIsDm();
+        currentAuthState = await window.CriptaDiscordAuth?.verify?.().catch(() => null);
+        currentUserIsDm = await resolveCurrentUserIsDm(currentAuthState);
+        if (charType === 'player') {
+            currentTransformations = await loadTransformationsData().catch((error) => {
+                console.warn('Impossibile caricare trasformazioni token:', error);
+                return [];
+            });
+        }
         currentCharacter = character;
         currentAllCharacters = allCharacters;
         currentNpcQuests = npcQuests;
@@ -2470,13 +2660,17 @@ window.CriptaApp.onPageReady("character", async function () {
         return window.CriptaApp?.urls?.api?.('api/data/characters') || 'https://sigillo-api.khuzoe.workers.dev/api/data/characters';
     }
 
+    function getTransformationsApiUrl() {
+        return window.CriptaApp?.urls?.api?.('api/data/transformations') || 'https://sigillo-api.khuzoe.workers.dev/api/data/transformations';
+    }
+
     function getCurrentCampaignId() {
         return window.CriptaApp?.campaigns?.currentId?.() || params.get('campaign') || 'cripta-di-sangue';
     }
 
-    async function resolveCurrentUserIsDm() {
+    async function resolveCurrentUserIsDm(authState = null) {
         try {
-            const authState = await window.CriptaDiscordAuth?.verify?.();
+            authState = authState || await window.CriptaDiscordAuth?.verify?.();
             const user = authState?.user || {};
             const accountId = String(user.accountId || user.id || user.sub || '').trim();
             const explicitDiscordId = String(user.discordId || '').trim();
@@ -2643,6 +2837,7 @@ window.CriptaApp.onPageReady("character", async function () {
 
     async function hydratePlayerLoadout(character) {
         const loadoutCard = document.getElementById('player-loadout-card');
+        const companionsCard = document.getElementById('player-companions-card');
         if (!loadoutCard) return;
 
         try {
@@ -2655,6 +2850,9 @@ window.CriptaApp.onPageReady("character", async function () {
             ]);
             loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload, wikiItems);
             initializeLoadoutTabs(loadoutCard);
+            if (companionsCard) {
+                companionsCard.innerHTML = buildCompanionsHtml(character, inventoryPayload, wikiItems);
+            }
             hydratePlayerRightOverview(character, inventoryPayload);
         } catch (error) {
             console.error('Errore nel caricamento inventario API:', error);
@@ -2665,7 +2863,354 @@ window.CriptaApp.onPageReady("character", async function () {
                             <span>Impossibile sincronizzare l'inventario dal server.</span>
                         </div>
                     `;
+            if (companionsCard) {
+                companionsCard.innerHTML = `
+                        <h3><i class="fas fa-paw"></i> Companion</h3>
+                        <div class="loadout-state is-error">
+                            <i class="fas fa-triangle-exclamation"></i>
+                            <span>Impossibile sincronizzare i companion dal server.</span>
+                        </div>
+                    `;
+            }
             renderPlayerXpSidebarError("Impossibile sincronizzare l'XP dal server.");
+        }
+    }
+
+    function buildPlayerTransformationsCard(character) {
+        const card = document.createElement('div');
+        card.className = 'content-card player-transformations-card';
+        card.id = 'player-transformations-card';
+        card.innerHTML = renderPlayerTransformationsHtml(character);
+        return card;
+    }
+
+    function getCharacterTransformations(character) {
+        const characterId = String(character?.id || '').trim();
+        const accountId = String(character?.accountId || '').trim();
+        const staticEntries = Array.isArray(character?.transformations) ? character.transformations : [];
+        return mergeTransformations(staticEntries.map((entry) => normalizeTransformationEntry(entry, character)), currentTransformations)
+            .filter((entry) => {
+                if (!entry?.enabled && entry?.enabled !== undefined) return false;
+                return String(entry.characterId || '') === characterId
+                    || (accountId && String(entry.ownerAccountId || '') === accountId);
+            })
+            .sort((left, right) => String(left.creatureName || left.name || '').localeCompare(String(right.creatureName || right.name || ''), 'it'));
+    }
+
+    function normalizeTransformationEntry(entry, character) {
+        const creatureName = String(entry?.creatureName || entry?.name || entry?.foundryName || '').trim();
+        const id = entry?.id || `${character?.id || 'player'}-${slugify(creatureName || 'forma')}`;
+        const size = parsePositiveNumberOrNull(entry?.size)
+            || parsePositiveNumberOrNull(entry?.width)
+            || parsePositiveNumberOrNull(entry?.height);
+        const foundryNames = Array.from(new Set([
+            entry?.foundryName,
+            ...(Array.isArray(entry?.foundryNames) ? entry.foundryNames : []),
+            creatureName
+        ].filter(Boolean)));
+        return {
+            ...entry,
+            id,
+            characterId: entry?.characterId || character?.id || '',
+            ownerAccountId: entry?.ownerAccountId || character?.accountId || '',
+            ownerDiscordId: entry?.ownerDiscordId || character?.discordId || '',
+            ownerAliases: Array.from(new Set([
+                ...(Array.isArray(entry?.ownerAliases) ? entry.ownerAliases : []),
+                character?.id,
+                character?.name,
+                character?.accountId,
+                character?.discordId
+            ].filter(Boolean))),
+            creatureName,
+            foundryNames,
+            tokenImage: entry?.tokenImage || '',
+            size,
+            width: undefined,
+            height: undefined
+        };
+    }
+
+    function canEditCurrentPlayerTransformations(character) {
+        if (currentUserIsDm) return true;
+        const user = currentAuthState?.user || {};
+        const accountId = String(user.accountId || user.id || user.sub || '').trim();
+        const discordId = String(user.discordId || '').trim();
+        return Boolean(accountId && character?.accountId && accountId === String(character.accountId))
+            || Boolean(discordId && character?.discordId && discordId === String(character.discordId));
+    }
+
+    function renderPlayerTransformationsHtml(character) {
+        const entries = getCharacterTransformations(character);
+        const canEdit = canEditCurrentPlayerTransformations(character);
+        const empty = canEdit
+            ? 'Nessuna trasformazione configurata. Aggiungi una creatura e carica il token personalizzato.'
+            : 'Nessuna trasformazione configurata.';
+        const cards = entries.map((entry) => {
+            const title = entry.creatureName || entry.name || entry.foundryName || 'Forma';
+            const foundryLabel = (Array.isArray(entry.foundryNames) ? entry.foundryNames : [entry.foundryName]).filter(Boolean).join(', ');
+            const image = entry.tokenImage ? resolveCharacterAssetPath(entry.tokenImage) : '';
+            const initials = String(title || '?').trim().charAt(0).toUpperCase() || '?';
+            const sizeLabel = entry.size ? `Dimensione token: ${entry.size} x ${entry.size}` : '';
+            return `
+                <article class="player-transformation-card" data-transformation-id="${escapeHtml(entry.id)}">
+                    <button type="button" class="player-transformation-token ${image ? 'has-image' : ''}" data-transformation-action="upload" data-transformation-id="${escapeHtml(entry.id)}" ${canEdit ? '' : 'disabled'} title="${canEdit ? 'Carica token personalizzato' : 'Token personalizzato'}">
+                        ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}">` : `<span>${escapeHtml(initials)}</span>`}
+                        ${canEdit ? '<small><i class="fas fa-upload"></i> Cambia</small>' : ''}
+                    </button>
+                    <div class="player-transformation-info">
+                        ${canEdit ? `
+                            <label class="player-transformation-name-field">
+                                <span>Creatura Foundry</span>
+                                <input type="text" value="${escapeHtml(title)}" data-transformation-name-input data-transformation-id="${escapeHtml(entry.id)}" aria-label="Nome creatura Foundry">
+                            </label>
+                        ` : `<strong>${escapeHtml(title)}</strong>`}
+                        ${canEdit ? `
+                            <div class="player-transformation-size-fields">
+                                <label>
+                                    <span>Dimensione token</span>
+                                    <input type="number" min="0.25" step="0.25" value="${entry.size || ''}" placeholder="auto" data-transformation-size-input data-transformation-id="${escapeHtml(entry.id)}" aria-label="Dimensione token">
+                                </label>
+                            </div>
+                        ` : ''}
+                        ${foundryLabel ? `<span>Foundry: ${escapeHtml(foundryLabel)}</span>` : ''}
+                        ${!canEdit && sizeLabel ? `<span>${escapeHtml(sizeLabel)}</span>` : ''}
+                        <span class="player-transformation-mode ${entry.switcher === false ? 'is-muted' : ''}">
+                            <i class="fas fa-retweet"></i>
+                            ${entry.switcher === false ? 'Non nel Token Switcher' : 'Disponibile nel Token Switcher'}
+                        </span>
+                    </div>
+                    ${canEdit ? `
+                        <div class="player-transformation-actions">
+                            <button type="button" data-transformation-action="rename" data-transformation-id="${escapeHtml(entry.id)}">Salva dati</button>
+                            <button type="button" data-transformation-action="toggle-switcher" data-transformation-id="${escapeHtml(entry.id)}">${entry.switcher === false ? 'Attiva switcher' : 'Disattiva switcher'}</button>
+                            ${entry.tokenImage ? `<button type="button" data-transformation-action="clear" data-transformation-id="${escapeHtml(entry.id)}">Reset token</button>` : ''}
+                            <button type="button" data-transformation-action="remove" data-transformation-id="${escapeHtml(entry.id)}">Rimuovi</button>
+                        </div>
+                    ` : ''}
+                </article>
+            `;
+        }).join('');
+
+        return `
+            <div class="player-transformations-header">
+                <div>
+                    <h3><i class="fas fa-shapes"></i> Token trasformazioni</h3>
+                    <p>Override estetici: Foundry continua a gestire la trasformazione, il modulo sostituisce solo l'immagine se trova un match.</p>
+                </div>
+                ${canEdit ? `<button type="button" class="button-gold-outline" data-transformation-action="add"><i class="fas fa-plus"></i> Aggiungi forma</button>` : ''}
+            </div>
+            ${entries.length ? `<div class="player-transformations-grid">${cards}</div>` : `<p class="player-overview-empty">${escapeHtml(empty)}</p>`}
+        `;
+    }
+
+    async function handleTransformationClick(event) {
+        const button = event.target.closest('[data-transformation-action]');
+        if (!button || charType !== 'player' || !currentCharacter) return;
+        event.preventDefault();
+        const action = button.dataset.transformationAction;
+        const id = button.dataset.transformationId || '';
+        if (!canEditCurrentPlayerTransformations(currentCharacter)) {
+            alert('Login richiesto con il proprietario del personaggio o con un account DM.');
+            return;
+        }
+
+        if (action === 'add') {
+            const name = window.prompt('Nome della creatura su Foundry');
+            if (!String(name || '').trim()) return;
+            const entry = normalizeTransformationEntry({
+                creatureName: String(name).trim(),
+                foundryNames: [String(name).trim()],
+                enabled: true
+            }, currentCharacter);
+            await savePlayerTransformationList(upsertTransformation(getCharacterTransformations(currentCharacter), entry));
+            return;
+        }
+
+        const list = getCharacterTransformations(currentCharacter);
+        const entry = list.find((item) => item.id === id);
+        if (!entry) return;
+
+        if (action === 'rename') {
+            const nextEntry = readTransformationCardUpdate(entry, id);
+            if (!nextEntry) return;
+            await savePlayerTransformationList(upsertTransformation(list, nextEntry));
+            return;
+        }
+
+        if (action === 'upload') {
+            const file = await pickInlineImageFile();
+            if (!file) return;
+            const path = await uploadTransformationTokenImage(file, entry);
+            if (!path) return;
+            await savePlayerTransformationList(upsertTransformation(list, { ...entry, tokenImage: path, updatedAt: new Date().toISOString() }));
+            return;
+        }
+
+        if (action === 'clear') {
+            await savePlayerTransformationList(upsertTransformation(list, { ...entry, tokenImage: '', updatedAt: new Date().toISOString() }));
+            return;
+        }
+
+        if (action === 'toggle-switcher') {
+            await savePlayerTransformationList(upsertTransformation(list, {
+                ...entry,
+                switcher: entry.switcher === false,
+                updatedAt: new Date().toISOString()
+            }));
+            return;
+        }
+
+        if (action === 'remove') {
+            if (!window.confirm(`Rimuovere "${entry.creatureName || entry.name || 'questa forma'}"?`)) return;
+            await savePlayerTransformationList(list.filter((item) => item.id !== id));
+        }
+    }
+
+    function renameTransformationEntry(entry, nextName) {
+        const previousName = String(entry.creatureName || entry.name || entry.foundryName || '').trim();
+        const names = Array.isArray(entry.foundryNames) ? entry.foundryNames.slice() : [];
+        const hadOnlyDefaultName = !names.length
+            || (names.length === 1 && normalizeText(names[0]) === normalizeText(previousName));
+        return {
+            ...entry,
+            creatureName: nextName,
+            name: nextName,
+            foundryNames: hadOnlyDefaultName
+                ? [nextName]
+                : Array.from(new Set([nextName, ...names].filter(Boolean))),
+            updatedAt: new Date().toISOString()
+        };
+    }
+
+    function readTransformationCardUpdate(entry, id) {
+        const escapedId = CSS.escape(id);
+        const input = container.querySelector(`[data-transformation-name-input][data-transformation-id="${escapedId}"]`);
+        const sizeInput = container.querySelector(`[data-transformation-size-input][data-transformation-id="${escapedId}"]`);
+        const nextName = String(input?.value || '').trim();
+        if (!nextName) {
+            alert('Il nome della creatura non puo essere vuoto.');
+            return null;
+        }
+        return {
+            ...renameTransformationEntry(entry, nextName),
+            size: parsePositiveNumberOrNull(sizeInput?.value),
+            width: undefined,
+            height: undefined
+        };
+    }
+
+    function parsePositiveNumberOrNull(value) {
+        if (value === '' || value === null || value === undefined) return null;
+        const number = Number(value);
+        return Number.isFinite(number) && number > 0 ? number : null;
+    }
+
+    function upsertTransformation(list, entry) {
+        const next = list.filter((item) => item.id !== entry.id);
+        next.push(entry);
+        return next;
+    }
+
+    async function savePlayerTransformationList(characterEntries) {
+        const token = readAuthToken();
+        if (!token) {
+            alert('Login richiesto per salvare i token trasformazione.');
+            return;
+        }
+        const card = document.getElementById('player-transformations-card');
+        card?.setAttribute('data-saving', 'true');
+        try {
+            const loaded = await loadTransformationsDocumentForSave();
+            const characterId = String(currentCharacter?.id || '');
+            const accountId = String(currentCharacter?.accountId || '');
+            const nextOwnEntries = characterEntries.map((entry) => normalizeTransformationEntry(entry, currentCharacter));
+            const otherEntries = (Array.isArray(loaded.data) ? loaded.data : []).filter((entry) => {
+                return String(entry?.characterId || '') !== characterId
+                    && (!accountId || String(entry?.ownerAccountId || '') !== accountId);
+            });
+            const nextData = [...otherEntries, ...nextOwnEntries];
+            const response = await fetch(getTransformationsApiUrl(), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    data: nextData,
+                    expectedVersion: loaded.source === 'kv' ? (loaded.version ?? 0) : 0,
+                    campaignId: getCurrentCampaignId()
+                })
+            });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+            transformationsMemoryCache = null;
+            currentTransformations = await loadTransformationsData({ force: true });
+            const target = document.getElementById('player-transformations-card');
+            if (target) target.innerHTML = renderPlayerTransformationsHtml(currentCharacter);
+        } catch (error) {
+            console.error('Salvataggio trasformazioni fallito:', error);
+            alert(`Salvataggio trasformazioni fallito: ${error?.message || error}`);
+        } finally {
+            card?.removeAttribute('data-saving');
+        }
+    }
+
+    async function loadTransformationsDocumentForSave() {
+        try {
+            const response = await fetch(getTransformationsApiUrl());
+            if (response.ok) {
+                const payload = await response.json();
+                if (Array.isArray(payload?.data)) {
+                    return {
+                        data: payload.data,
+                        version: Number(payload.version || 0),
+                        source: payload.source || 'kv'
+                    };
+                }
+            }
+        } catch (error) {
+            console.warn('KV transformations non disponibile per salvataggio, uso JSON statico.', error);
+        }
+
+        const response = await fetch(TRANSFORMATIONS_DATA_URL);
+        if (!response.ok) return { data: [], version: 0, source: 'static' };
+        const payload = await response.json();
+        const data = Array.isArray(payload) ? payload : payload?.data;
+        return { data: Array.isArray(data) ? data : [], version: 0, source: 'static' };
+    }
+
+    async function uploadTransformationTokenImage(file, entry) {
+        const token = readAuthToken();
+        if (!token) {
+            alert('Login richiesto per caricare immagini.');
+            return '';
+        }
+        try {
+            const blob = /\.webp$/i.test(file.name) ? file : await convertInlineImageFileToWebpBlob(file);
+            const folder = `transformations/${slugify(currentCharacter?.id || currentCharacter?.accountId || 'player')}`;
+            const fileName = `${slugify(entry.creatureName || entry.name || entry.id || 'forma')}.webp`;
+            const form = new FormData();
+            form.set('folder', folder);
+            form.set('filename', fileName);
+            form.set('campaignId', getCurrentCampaignId());
+            form.set('file', new File([blob], fileName, { type: 'image/webp' }));
+
+            const uploadUrl = new URL(window.CriptaApp?.urls?.api?.('media/upload') || 'https://sigillo-api.khuzoe.workers.dev/media/upload');
+            uploadUrl.searchParams.set('folder', folder);
+            uploadUrl.searchParams.set('campaign', getCurrentCampaignId());
+
+            const response = await fetch(uploadUrl.toString(), {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+                body: form
+            });
+            const payload = await response.json().catch(() => null);
+            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+            return payload.path || payload.key || '';
+        } catch (error) {
+            console.error('Upload token trasformazione fallito:', error);
+            alert(`Upload token fallito: ${error?.message || error}`);
+            return '';
         }
     }
 
@@ -2726,8 +3271,22 @@ window.CriptaApp.onPageReady("character", async function () {
                             <i class="fas fa-spinner fa-spin"></i>
                             <span>Sincronizzazione con il Sigillo API in corso...</span>
                         </div>
-                    `;
+            `;
             leftCol.appendChild(playerLoadoutCard);
+
+            const playerCompanionsCard = document.createElement('div');
+            playerCompanionsCard.className = 'content-card player-companions-card';
+            playerCompanionsCard.id = 'player-companions-card';
+            playerCompanionsCard.innerHTML = `
+                        <h3><i class="fas fa-paw"></i> Companion</h3>
+                        <div class="loadout-state">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Sincronizzazione companion in corso...</span>
+                        </div>
+                    `;
+            leftCol.appendChild(playerCompanionsCard);
+
+            leftCol.appendChild(buildPlayerTransformationsCard(character));
         }
 
         // Render relationships if they exist

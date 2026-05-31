@@ -2307,7 +2307,7 @@ window.CriptaApp.onPageReady("creature", async () => {
 async function loadBestiaryDocument() {
     try {
         if (typeof window.CriptaApp?.api?.get === "function") {
-            const payload = await window.CriptaApp.api.get("api/data/bestiary");
+            const payload = await window.CriptaApp.api.get("api/data/bestiary", { query: { _: Date.now() } });
             if (Array.isArray(payload?.data)) {
                 return {
                     data: payload.data,
@@ -2329,7 +2329,7 @@ async function loadBestiaryDocument() {
 async function loadMonsterAbilityTemplates() {
     try {
         if (typeof window.CriptaApp?.api?.get === "function") {
-            const payload = await window.CriptaApp.api.get("api/data/monster-abilities");
+            const payload = await window.CriptaApp.api.get("api/data/monster-abilities", { query: { _: Date.now() } });
             if (Array.isArray(payload?.data)) return mergeDefaultAbilityTemplates(payload.data);
         }
     } catch (error) {

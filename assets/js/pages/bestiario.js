@@ -47,7 +47,7 @@ window.CriptaApp.onPageReady("bestiario", async () => {
 async function loadBestiaryData() {
     try {
         if (typeof window.CriptaApp?.api?.get === "function") {
-            const payload = await window.CriptaApp.api.get("api/data/bestiary");
+            const payload = await window.CriptaApp.api.get("api/data/bestiary", { query: { _: Date.now() } });
             if (Array.isArray(payload?.data)) return payload.data;
         }
     } catch (error) {
@@ -63,7 +63,7 @@ async function loadBestiaryData() {
 async function loadItemsDataForBestiary() {
     try {
         if (typeof window.CriptaApp?.api?.get === "function") {
-            const payload = await window.CriptaApp.api.get("api/data/items");
+            const payload = await window.CriptaApp.api.get("api/data/items", { query: { _: Date.now() } });
             if (Array.isArray(payload?.data)) return payload.data;
         }
     } catch (error) {
