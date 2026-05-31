@@ -360,18 +360,26 @@ const DND5E_XP_THRESHOLDS = [
 ];
 const PLAYER_NAME_ALIASES = {
     apothecary: ['apothecary'],
-    garun: ["ga'run", 'ga run', 'garun'],
-    randra: ["ran'dra", 'ran dra', 'randra'],
-    valdor: ['valdor']
+    garun: ["ga'run", 'ga run', 'garun', 'luca'],
+    randra: ["ran'dra", 'ran dra', 'randra', 'eli'],
+    valdor: ['valdor', 'sommo'],
+    theldarion: ['theldarion', 'theldari', 'dona']
 };
 const SKILLS_DATA_URL = dataUrl('skills.json');
 const TRANSFORMATIONS_DATA_URL = dataUrl('transformations.json');
 const SKILLS_ASSET_BASE = 'media/skill_trees/';
+const ABILITY_ICON_SIZE = 256;
 const PLAYER_SKILL_TREE_KEYS = {
     apothecary: 'apothecary',
     garun: 'garun',
+    luca: 'garun',
     randra: 'randra',
-    valdor: 'valdor'
+    eli: 'randra',
+    valdor: 'valdor',
+    sommo: 'valdor',
+    theldarion: 'theldarion',
+    theldari: 'theldarion',
+    dona: 'theldarion'
 };
 
 let inventoryRequestPromise = null;
@@ -382,6 +390,8 @@ let wikiItemsRequestPromise = null;
 let wikiItemsMemoryCache = null;
 let transformationsRequestPromise = null;
 let transformationsMemoryCache = null;
+let abilityOverridesRequestPromise = null;
+let abilityOverridesMemoryCache = null;
 
 function escapeHtml(value) {
     return String(value || '')
@@ -440,6 +450,34 @@ function setSafeSessionStorageItem(key, value) {
     }
 }
 
+async function copyTextToClipboard(text) {
+    const value = String(text || '').trim();
+    if (!value) return false;
+    if (navigator.clipboard?.writeText) {
+        try {
+            await navigator.clipboard.writeText(value);
+            return true;
+        } catch (_) {
+            // Fall back to a temporary textarea for older / restricted browsers.
+        }
+    }
+    const textarea = document.createElement('textarea');
+    textarea.value = value;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    let copied = false;
+    try {
+        copied = document.execCommand('copy');
+    } catch (_) {
+        copied = false;
+    }
+    textarea.remove();
+    return copied;
+}
+
 function parseInventoryCache(rawValue) {
     if (!rawValue) return null;
     try {
@@ -486,7 +524,11 @@ async function loadSkillsData() {
     if (skillsRequestPromise) return skillsRequestPromise;
 
     skillsRequestPromise = (async () => {
-        const response = await fetch(SKILLS_DATA_URL);
+        let response = await fetch(SKILLS_DATA_URL);
+        const fallbackUrl = window.CriptaApp?.urls?.globalData?.('skills.json') || '../../assets/data/skills.json';
+        if (!response.ok && SKILLS_DATA_URL !== fallbackUrl) {
+            response = await fetch(fallbackUrl);
+        }
         if (!response.ok) {
             throw new Error(`File skill tree non trovato (${response.status}).`);
         }
@@ -578,6 +620,31 @@ async function loadWikiItemsData() {
     }
 }
 
+async function loadAbilityOverrides() {
+    if (abilityOverridesMemoryCache) return abilityOverridesMemoryCache;
+    if (abilityOverridesRequestPromise) return abilityOverridesRequestPromise;
+
+    abilityOverridesRequestPromise = (async () => {
+        try {
+            let payload = await window.CriptaApp?.api?.get?.('api/data/ability-overrides', { query: { _: Date.now() } });
+            if (!Array.isArray(payload?.data) || payload.data.length === 0) {
+                const legacyPayload = await window.CriptaApp?.api?.get?.('api/data/ability-icons', { query: { _: Date.now() } }).catch(() => null);
+                if (Array.isArray(legacyPayload?.data) && legacyPayload.data.length > 0) payload = legacyPayload;
+            }
+            abilityOverridesMemoryCache = Array.isArray(payload?.data) ? payload.data : [];
+            return abilityOverridesMemoryCache;
+        } catch (error) {
+            console.warn('Icone abilità online non disponibili:', error);
+            abilityOverridesMemoryCache = [];
+            return abilityOverridesMemoryCache;
+        } finally {
+            abilityOverridesRequestPromise = null;
+        }
+    })();
+
+    return abilityOverridesRequestPromise;
+}
+
 async function requestInventoryApi() {
     if (typeof window.CriptaApp?.api?.get === 'function') {
         try {
@@ -666,6 +733,40 @@ function getAvatarVariantPath(path) {
     return raw.replace(/\.webp(?=([?#].*)?$)/i, '-avatar.webp');
 }
 
+function getAbilityOverrideIdentity(character, actor, entry) {
+    const characterId = String(character?.id || '').trim();
+    const characterName = String(character?.name || '').trim();
+    const actorId = String(actor?.id || '').trim();
+    const actorName = String(actor?.name || actor?.displayName || '').trim();
+    const abilityId = String(entry?.id || '').trim();
+    const abilityName = String(entry?.name || '').trim();
+    const ownerKey = slugify(characterId || actorId || characterName || actorName || 'personaggio');
+    const abilityKey = slugify(abilityId || abilityName || 'abilita');
+    return {
+        key: `${ownerKey}:${abilityKey}`,
+        characterId,
+        characterName,
+        actorId,
+        actorName,
+        abilityId,
+        abilityName
+    };
+}
+
+function findAbilityOverride(records, identity) {
+    if (!identity) return null;
+    return (Array.isArray(records) ? records : []).find((record) => {
+        if (!record || typeof record !== 'object') return false;
+        if (record.key && record.key === identity.key) return true;
+        const sameCharacter = Boolean(record.characterId && identity.characterId && record.characterId === identity.characterId)
+            || Boolean(record.actorId && identity.actorId && record.actorId === identity.actorId)
+            || Boolean(record.actorName && identity.actorName && normalizeText(record.actorName) === normalizeText(identity.actorName));
+        const sameAbility = Boolean(record.abilityId && identity.abilityId && record.abilityId === identity.abilityId)
+            || Boolean(record.abilityName && identity.abilityName && normalizeText(record.abilityName) === normalizeText(identity.abilityName));
+        return sameCharacter && sameAbility;
+    }) || null;
+}
+
 function getCompanionAvatarImageCandidates(companion) {
     const tokenPath = companion?.token?.img || '';
     const avatarVariant = getAvatarVariantPath(tokenPath);
@@ -680,11 +781,16 @@ function splitActorLoadout(actor) {
     const sourceEntries = Array.isArray(actor && actor.inventory) ? actor.inventory : [];
     const spells = [];
     const inventory = [];
+    const abilities = [];
 
     sourceEntries.forEach((entry) => {
         if (!entry || typeof entry !== 'object') return;
         if (entry.type === 'spell') {
             spells.push(entry);
+            return;
+        }
+        if (entry.type === 'feat') {
+            abilities.push(entry);
             return;
         }
         if (!INVENTORY_EXCLUDED_TYPES.has(entry.type)) {
@@ -707,7 +813,15 @@ function splitActorLoadout(actor) {
         return String(a.name || '').localeCompare(String(b.name || ''), 'it');
     });
 
-    return { inventory, spells };
+    abilities.sort((a, b) => {
+        const activationA = String(a.activation?.type || '');
+        const activationB = String(b.activation?.type || '');
+        const activationOrder = activationA.localeCompare(activationB, 'it');
+        if (activationOrder !== 0) return activationOrder;
+        return String(a.name || '').localeCompare(String(b.name || ''), 'it');
+    });
+
+    return { inventory, spells, abilities };
 }
 
 function getWikiItemAliases(item) {
@@ -851,6 +965,24 @@ function renderWikiItemThumb(item, className, label = 'Oggetto wiki') {
         return `<span class="${escapeHtml(className)}"><img src="${escapeHtml(image)}" alt="${safeLabel}"></span>`;
     }
     return `<span class="${escapeHtml(className)}" aria-hidden="true"><i class="fas ${escapeHtml(item.icon || 'fa-wand-sparkles')}"></i></span>`;
+}
+
+function renderLoadoutEntryIcon(imagePath, label = 'Elemento Foundry') {
+    const image = resolveSyncedActorImagePath(imagePath);
+    if (!image) return '';
+    const safeLabel = escapeHtml(label || 'Elemento Foundry');
+    return `
+                <span class="loadout-entry-icon">
+                    <img src="${escapeHtml(image)}" alt="${safeLabel}" onerror="this.parentElement.remove();">
+                </span>
+            `;
+}
+
+function appendAssetVersion(path, version) {
+    const value = String(path || '').trim();
+    const stamp = String(version || '').trim();
+    if (!value || !stamp || /^(data:|blob:)/i.test(value)) return value;
+    return `${value}${value.includes('?') ? '&' : '?'}v=${encodeURIComponent(stamp)}`;
 }
 
 function cleanDescription(value) {
@@ -1646,9 +1778,12 @@ function renderWikiItemBridge(wikiItem, foundryName = '') {
             `;
 }
 
-function renderLoadoutDisclosure(title, quantityLabel, description, badges, extraClass = '', dataAttributes = '', wikiItem = null, foundryName = '') {
+function renderLoadoutDisclosure(title, quantityLabel, description, badges, extraClass = '', dataAttributes = '', wikiItem = null, foundryName = '', iconPath = '', bodyExtraHtml = '') {
     const bodyParts = [];
     const wikiBridge = renderWikiItemBridge(wikiItem, foundryName);
+    const entryIcon = wikiItem
+        ? renderWikiItemThumb(wikiItem, 'loadout-entry-icon', title || 'Elemento senza nome')
+        : renderLoadoutEntryIcon(iconPath, title || 'Elemento senza nome');
     if (wikiBridge) bodyParts.push(wikiBridge);
     if (!wikiItem && description) {
         const descriptionHtml = renderDescriptionHtml(description);
@@ -1659,6 +1794,9 @@ function renderLoadoutDisclosure(title, quantityLabel, description, badges, extr
     if (badges.length > 0) {
         bodyParts.push(`<div class="loadout-chip-row">${badges.map((badge) => `<span class="loadout-chip">${escapeHtml(badge)}</span>`).join('')}</div>`);
     }
+    if (bodyExtraHtml) {
+        bodyParts.push(bodyExtraHtml);
+    }
     if (bodyParts.length === 0) {
         bodyParts.push('<p class="loadout-entry-description">Nessun dettaglio disponibile.</p>');
     }
@@ -1667,7 +1805,7 @@ function renderLoadoutDisclosure(title, quantityLabel, description, badges, extr
                 <details class="loadout-entry ${extraClass}" ${dataAttributes}>
                     <summary class="loadout-entry-toggle">
                         <span class="loadout-entry-title">
-                            ${wikiItem ? renderWikiItemThumb(wikiItem, 'loadout-entry-icon', title || 'Elemento senza nome') : ''}
+                            ${entryIcon}
                             <span>${escapeHtml(title || 'Elemento senza nome')}</span>
                         </span>
                         <span class="loadout-entry-controls">
@@ -1736,7 +1874,8 @@ function renderInventoryEntries(entries) {
                 wikiItem ? 'loadout-entry--wiki-linked' : '',
                 `data-inventory-type="${typeMeta.key}"`,
                 wikiItem,
-                entry.name || ''
+                entry.name || '',
+                entry.img || ''
             );
         }).join('');
 
@@ -1797,22 +1936,107 @@ function renderSpellEntries(entries) {
             description,
             badges,
             'loadout-entry--spell',
-            `data-spell-level="${levelMeta.key}"`
+            `data-spell-level="${levelMeta.key}"`,
+            null,
+            '',
+            entry.img || ''
         );
     }).join('');
 }
 
-function buildPlayerLoadoutHtml(character, payload, wikiItems = []) {
+function renderAbilityEntries(entries, context = {}) {
+    if (!entries.length) {
+        return '<p class="loadout-empty">Nessuna abilità sincronizzata.</p>';
+    }
+
+    const { character = null, actor = null, abilityOverrides = [] } = context;
+    return entries.map((entry) => {
+        const badges = ['Abilità'];
+        const identity = getAbilityOverrideIdentity(character, actor, entry);
+        const abilityOverride = findAbilityOverride(abilityOverrides, identity);
+        if (abilityOverride?.image) badges.push('Icona wiki');
+        if (abilityOverride?.description) badges.push('Testo wiki');
+        const activation = entry.activation?.type ? formatToken(entry.activation.type) : '';
+        if (activation) badges.push(`Uso: ${activation}`);
+
+        const rangeLabel = formatRange(entry.range);
+        if (rangeLabel) badges.push(`Raggio: ${rangeLabel}`);
+
+        const durationLabel = formatDuration(entry.duration);
+        if (durationLabel) badges.push(`Durata: ${durationLabel}`);
+
+        const uses = entry.uses || {};
+        const maxUses = uses.max ?? uses.value;
+        const spentUses = uses.spent;
+        if (maxUses !== undefined && maxUses !== null && String(maxUses).trim() !== '') {
+            const usedLabel = spentUses !== undefined && spentUses !== null && String(spentUses).trim() !== ''
+                ? `${spentUses}/${maxUses}`
+                : String(maxUses);
+            badges.push(`Usi: ${usedLabel}`);
+        }
+
+        const description = abilityOverride?.description || entry.description;
+        const overrideActions = `
+                    <div class="loadout-entry-actions">
+                        <button
+                            type="button"
+                            class="loadout-entry-action"
+                            data-ability-icon-upload
+                            data-ability-key="${escapeHtml(identity.key)}"
+                            data-character-id="${escapeHtml(identity.characterId)}"
+                            data-character-name="${escapeHtml(identity.characterName)}"
+                            data-actor-id="${escapeHtml(identity.actorId)}"
+                            data-actor-name="${escapeHtml(identity.actorName)}"
+                            data-ability-id="${escapeHtml(identity.abilityId)}"
+                            data-ability-name="${escapeHtml(identity.abilityName)}"
+                        >
+                            <i class="fas fa-image" aria-hidden="true"></i>
+                            Cambia icona
+                        </button>
+                        <button
+                            type="button"
+                            class="loadout-entry-action"
+                            data-ability-description-edit
+                            data-ability-key="${escapeHtml(identity.key)}"
+                            data-character-id="${escapeHtml(identity.characterId)}"
+                            data-character-name="${escapeHtml(identity.characterName)}"
+                            data-actor-id="${escapeHtml(identity.actorId)}"
+                            data-actor-name="${escapeHtml(identity.actorName)}"
+                            data-ability-id="${escapeHtml(identity.abilityId)}"
+                            data-ability-name="${escapeHtml(identity.abilityName)}"
+                        >
+                            <i class="fas fa-pen" aria-hidden="true"></i>
+                            Modifica testo
+                        </button>
+                    </div>
+                `;
+
+        return renderLoadoutDisclosure(
+            entry.name || 'Abilità senza nome',
+            '',
+            cleanDescription(description),
+            badges,
+            'loadout-entry--ability',
+            '',
+            null,
+            '',
+            abilityOverride?.image ? appendAssetVersion(abilityOverride.image, abilityOverride.updatedAt) : (entry.img || ''),
+            overrideActions
+        );
+    }).join('');
+}
+
+function buildPlayerLoadoutHtml(character, payload, wikiItems = [], abilityOverrides = []) {
     const actor = findPlayerActor(payload, character);
     if (!actor) {
         return `
-                    <h3><i class="fas fa-box-open"></i> Inventario e Incantesimi</h3>
+                    <h3><i class="fas fa-box-open"></i> Inventario / Incantesimi / Abilità</h3>
                     <p class="loadout-empty">Nessun inventario trovato per ${escapeHtml(character.name)} nella risposta API.</p>
                 `;
     }
 
     const wikiItemIndex = buildWikiItemIndex(wikiItems);
-    const { inventory, spells } = splitActorLoadout(actor);
+    const { inventory, spells, abilities } = splitActorLoadout(actor);
     inventory.forEach((entry) => {
         entry.wikiItem = findWikiItemForInventoryEntry(entry, wikiItemIndex);
     });
@@ -1830,7 +2054,7 @@ function buildPlayerLoadoutHtml(character, payload, wikiItems = []) {
 
     return `
                 ${liveSummaryHtml}
-                <h3><i class="fas fa-box-open"></i> Dettaglio Inventario e Incantesimi</h3>
+                <h3><i class="fas fa-box-open"></i> Inventario / Incantesimi / Abilità</h3>
                 <div class="loadout-meta">
                     <span>${escapeHtml(formatGeneratedAtLabel(payload))}</span>
                     <span>${owners.length > 0 ? `Giocatore: ${escapeHtml(owners.join(', '))}` : 'Giocatore: non disponibile'}</span>
@@ -1842,6 +2066,9 @@ function buildPlayerLoadoutHtml(character, payload, wikiItems = []) {
                     <button class="loadout-tab" type="button" role="tab" aria-selected="false" data-panel-target="spells">
                         Incantesimi <span class="loadout-count">${preparedSpells.length}</span>
                     </button>
+                    <button class="loadout-tab" type="button" role="tab" aria-selected="false" data-panel-target="abilities">
+                        Abilità <span class="loadout-count">${abilities.length}</span>
+                    </button>
                 </div>
                 <section class="loadout-panel is-active" data-panel="inventory" role="tabpanel">
                     ${inventorySummaryHtml}
@@ -1852,6 +2079,9 @@ function buildPlayerLoadoutHtml(character, payload, wikiItems = []) {
                     ${spellsSummaryHtml}
                     ${renderSpellLevelFilters(preparedSpells)}
                     ${renderSpellEntries(preparedSpells)}
+                </section>
+                <section class="loadout-panel" data-panel="abilities" role="tabpanel" hidden>
+                    ${renderAbilityEntries(abilities, { character, actor, abilityOverrides })}
                 </section>
             `;
 }
@@ -1879,10 +2109,7 @@ function renderCompanionFeatures(entries) {
 function buildCompanionsHtml(character, payload, wikiItems = []) {
     const companions = getCompanionsForCharacter(payload, character);
     if (!companions.length) {
-        return `
-                    <h3><i class="fas fa-paw"></i> Companion</h3>
-                    <p class="loadout-empty">Nessun companion configurato per ${escapeHtml(character.name)} nello snapshot Foundry.</p>
-                `;
+        return '';
     }
 
     const wikiItemIndex = buildWikiItemIndex(wikiItems);
@@ -2069,9 +2296,41 @@ function initializeLoadoutTabs(cardElement) {
     initializeSpellLevelFilters(cardElement);
 }
 
-function buildPlayerSkillTreeCard(playerId, allSkillTrees) {
-    const treeKey = PLAYER_SKILL_TREE_KEYS[playerId] || playerId;
-    const treeData = allSkillTrees && allSkillTrees[treeKey];
+function resolvePlayerSkillTree(characterOrId, allSkillTrees) {
+    if (!allSkillTrees || typeof allSkillTrees !== 'object') return null;
+    const character = typeof characterOrId === 'object' && characterOrId !== null ? characterOrId : { id: characterOrId };
+    const candidates = [
+        character.id,
+        character.accountId,
+        character.discordId,
+        character.name,
+        character.characterName,
+        character.playerName,
+        character.foundryName
+    ];
+
+    Object.entries(PLAYER_NAME_ALIASES).forEach(([treeKey, aliases]) => {
+        const normalizedCandidates = candidates.map(normalizeText);
+        if (aliases.some((alias) => normalizedCandidates.includes(normalizeText(alias)))) {
+            candidates.push(treeKey);
+        }
+    });
+
+    const keysByNormalized = new Map(Object.keys(allSkillTrees).map((key) => [normalizeText(key), key]));
+    for (const candidate of candidates) {
+        const normalized = normalizeText(candidate);
+        if (!normalized) continue;
+        const mappedKey = PLAYER_SKILL_TREE_KEYS[slugify(candidate)] || PLAYER_SKILL_TREE_KEYS[normalized] || candidate;
+        const directKey = allSkillTrees[mappedKey] ? mappedKey : keysByNormalized.get(normalizeText(mappedKey));
+        if (directKey && allSkillTrees[directKey]) return allSkillTrees[directKey];
+        const normalizedKey = keysByNormalized.get(normalized);
+        if (normalizedKey && allSkillTrees[normalizedKey]) return allSkillTrees[normalizedKey];
+    }
+    return null;
+}
+
+function buildPlayerSkillTreeCard(characterOrId, allSkillTrees) {
+    const treeData = resolvePlayerSkillTree(characterOrId, allSkillTrees);
     const card = document.createElement('div');
     card.className = 'content-card player-skill-tree-card';
     card.id = 'player-skill-tree-card';
@@ -2566,6 +2825,189 @@ window.CriptaApp.onPageReady("character", async function () {
         });
     }
 
+    function loadImageElementFromFile(file) {
+        return new Promise((resolve, reject) => {
+            const url = URL.createObjectURL(file);
+            const image = new Image();
+            image.onload = () => resolve({ image, url });
+            image.onerror = () => {
+                URL.revokeObjectURL(url);
+                reject(new Error('Impossibile leggere l\'immagine selezionata.'));
+            };
+            image.src = url;
+        });
+    }
+
+    function clampAbilityIconOffset(state) {
+        const drawWidth = state.imageWidth * state.baseScale * state.zoom;
+        const drawHeight = state.imageHeight * state.baseScale * state.zoom;
+        const maxX = Math.max(0, (drawWidth - ABILITY_ICON_SIZE) / 2);
+        const maxY = Math.max(0, (drawHeight - ABILITY_ICON_SIZE) / 2);
+        state.offsetX = Math.max(-maxX, Math.min(maxX, state.offsetX));
+        state.offsetY = Math.max(-maxY, Math.min(maxY, state.offsetY));
+    }
+
+    function renderAbilityIconCropPreview(state, imageEl, zoomInput) {
+        clampAbilityIconOffset(state);
+        const drawWidth = state.imageWidth * state.baseScale * state.zoom;
+        const drawHeight = state.imageHeight * state.baseScale * state.zoom;
+        imageEl.style.width = `${drawWidth}px`;
+        imageEl.style.height = `${drawHeight}px`;
+        imageEl.style.left = `${ABILITY_ICON_SIZE / 2 + state.offsetX}px`;
+        imageEl.style.top = `${ABILITY_ICON_SIZE / 2 + state.offsetY}px`;
+        if (zoomInput && Number(zoomInput.value) !== state.zoom) {
+            zoomInput.value = String(state.zoom);
+        }
+    }
+
+    function renderAbilityIconCropToBlob(image, state) {
+        const canvas = document.createElement('canvas');
+        canvas.width = ABILITY_ICON_SIZE;
+        canvas.height = ABILITY_ICON_SIZE;
+        const context = canvas.getContext('2d', { alpha: true });
+        context.clearRect(0, 0, ABILITY_ICON_SIZE, ABILITY_ICON_SIZE);
+        const drawWidth = state.imageWidth * state.baseScale * state.zoom;
+        const drawHeight = state.imageHeight * state.baseScale * state.zoom;
+        const x = (ABILITY_ICON_SIZE - drawWidth) / 2 + state.offsetX;
+        const y = (ABILITY_ICON_SIZE - drawHeight) / 2 + state.offsetY;
+        context.drawImage(image, x, y, drawWidth, drawHeight);
+
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    reject(new Error('Il browser non ha prodotto un file WebP.'));
+                    return;
+                }
+                resolve(blob);
+            }, 'image/webp', 0.86);
+        });
+    }
+
+    async function cropAbilityIconFileToWebpBlob(file) {
+        const { image, url } = await loadImageElementFromFile(file);
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'ability-icon-crop-modal';
+            modal.innerHTML = `
+                        <div class="ability-icon-crop-card" role="dialog" aria-modal="true" aria-label="Centra icona abilita">
+                            <header class="ability-icon-crop-header">
+                                <div>
+                                    <h3>Centra icona abilita</h3>
+                                    <p>Trascina l'immagine e usa lo zoom. Salvataggio finale: ${ABILITY_ICON_SIZE}x${ABILITY_ICON_SIZE} WebP.</p>
+                                </div>
+                                <button type="button" class="ability-icon-crop-close" data-crop-action="cancel" aria-label="Chiudi">
+                                    <i class="fas fa-xmark" aria-hidden="true"></i>
+                                </button>
+                            </header>
+                            <div class="ability-icon-crop-stage" data-crop-stage>
+                                <img src="${escapeHtml(url)}" alt="Anteprima icona" draggable="false">
+                            </div>
+                            <label class="ability-icon-crop-zoom">
+                                <span>Zoom</span>
+                                <input type="range" min="1" max="4" step="0.01" value="1" data-crop-zoom>
+                            </label>
+                            <footer class="ability-icon-crop-actions">
+                                <button type="button" class="button-gold-outline" data-crop-action="reset">Centra</button>
+                                <button type="button" class="button-gold-outline" data-crop-action="cancel">Annulla</button>
+                                <button type="button" class="button-gold" data-crop-action="save">Usa icona</button>
+                            </footer>
+                        </div>
+                    `;
+
+            const stage = modal.querySelector('[data-crop-stage]');
+            const preview = modal.querySelector('img');
+            const zoomInput = modal.querySelector('[data-crop-zoom]');
+            const state = {
+                imageWidth: image.naturalWidth || image.width,
+                imageHeight: image.naturalHeight || image.height,
+                baseScale: Math.max(ABILITY_ICON_SIZE / (image.naturalWidth || image.width), ABILITY_ICON_SIZE / (image.naturalHeight || image.height)),
+                zoom: 1,
+                offsetX: 0,
+                offsetY: 0
+            };
+            let pointerState = null;
+            let done = false;
+
+            const cleanup = (result) => {
+                if (done) return;
+                done = true;
+                URL.revokeObjectURL(url);
+                modal.remove();
+                resolve(result);
+            };
+
+            const updatePreview = () => renderAbilityIconCropPreview(state, preview, zoomInput);
+            document.body.appendChild(modal);
+            updatePreview();
+
+            zoomInput.addEventListener('input', () => {
+                state.zoom = Number(zoomInput.value) || 1;
+                updatePreview();
+            });
+
+            stage.addEventListener('pointerdown', (event) => {
+                event.preventDefault();
+                stage.setPointerCapture?.(event.pointerId);
+                pointerState = {
+                    id: event.pointerId,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    offsetX: state.offsetX,
+                    offsetY: state.offsetY
+                };
+                stage.classList.add('is-dragging');
+            });
+
+            stage.addEventListener('pointermove', (event) => {
+                if (!pointerState || pointerState.id !== event.pointerId) return;
+                state.offsetX = pointerState.offsetX + (event.clientX - pointerState.startX);
+                state.offsetY = pointerState.offsetY + (event.clientY - pointerState.startY);
+                updatePreview();
+            });
+
+            const stopDrag = (event) => {
+                if (pointerState?.id === event.pointerId) {
+                    pointerState = null;
+                    stage.classList.remove('is-dragging');
+                }
+            };
+            stage.addEventListener('pointerup', stopDrag);
+            stage.addEventListener('pointercancel', stopDrag);
+
+            stage.addEventListener('wheel', (event) => {
+                event.preventDefault();
+                const delta = event.deltaY > 0 ? -0.08 : 0.08;
+                state.zoom = Math.max(1, Math.min(4, state.zoom + delta));
+                updatePreview();
+            }, { passive: false });
+
+            modal.addEventListener('click', async (event) => {
+                const action = event.target.closest('[data-crop-action]')?.dataset.cropAction;
+                if (!action) return;
+                if (action === 'cancel') {
+                    cleanup(null);
+                    return;
+                }
+                if (action === 'reset') {
+                    state.zoom = 1;
+                    state.offsetX = 0;
+                    state.offsetY = 0;
+                    updatePreview();
+                    return;
+                }
+                if (action === 'save') {
+                    try {
+                        const blob = await renderAbilityIconCropToBlob(image, state);
+                        cleanup(blob);
+                    } catch (error) {
+                        console.error('Crop icona abilita fallito:', error);
+                        alert(`Crop icona fallito: ${error?.message || error}`);
+                    }
+                }
+            });
+        });
+    }
+
     function updateInlineCharacterField(target, fields) {
         if (!currentCharacter) return;
         const value = target.value;
@@ -2668,6 +3110,170 @@ window.CriptaApp.onPageReady("character", async function () {
         return { data, version: 0, source: 'static' };
     }
 
+    async function loadAbilityOverridesDocumentForSave() {
+        const response = await fetch(getAbilityOverridesApiUrl());
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        return payload || { data: [], version: 0, source: 'static' };
+    }
+
+    function upsertAbilityOverrideRecord(records, identity, patch) {
+        const existing = (Array.isArray(records) ? records : []).find((record) => (
+            record && typeof record === 'object' && (record.key === identity.key || record.id === identity.key)
+        )) || {};
+        const nextRecord = {
+            ...existing,
+            id: identity.key,
+            key: identity.key,
+            characterId: identity.characterId,
+            characterName: identity.characterName,
+            actorId: identity.actorId,
+            actorName: identity.actorName,
+            abilityId: identity.abilityId,
+            abilityName: identity.abilityName,
+            ...patch,
+            updatedAt: new Date().toISOString()
+        };
+        const nextData = (Array.isArray(records) ? records : []).filter((record) => (
+            record && typeof record === 'object' && record.key !== identity.key && record.id !== identity.key
+        ));
+        nextData.push(nextRecord);
+        nextData.sort((left, right) => String(left.abilityName || '').localeCompare(String(right.abilityName || ''), 'it'));
+        return nextData;
+    }
+
+    async function saveAbilityOverride(identity, patch) {
+        const token = readAuthToken();
+        if (!token) {
+            alert('Login richiesto per salvare icone abilità.');
+            return false;
+        }
+
+        const loaded = await loadAbilityOverridesDocumentForSave();
+        const nextData = upsertAbilityOverrideRecord(loaded.data, identity, patch);
+        const response = await fetch(getAbilityOverridesApiUrl(), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                data: nextData,
+                expectedVersion: loaded.source === 'kv' ? (loaded.version ?? 0) : 0,
+                campaignId: getCurrentCampaignId()
+            })
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        abilityOverridesMemoryCache = nextData;
+        return true;
+    }
+
+    async function uploadAbilityOverrideFile(blob, identity) {
+        const token = readAuthToken();
+        if (!token) {
+            alert('Login richiesto per caricare icone abilità.');
+            return '';
+        }
+
+        const folder = `ability-overrides/${slugify(identity.characterId || identity.actorName || identity.characterName || 'personaggio')}`;
+        const fileName = `${slugify(identity.abilityName || identity.abilityId || 'abilita')}.webp`;
+        const form = new FormData();
+        form.set('folder', folder);
+        form.set('filename', fileName);
+        form.set('campaignId', getCurrentCampaignId());
+        form.set('file', new File([blob], fileName, { type: 'image/webp' }));
+
+        const uploadUrl = new URL(window.CriptaApp?.urls?.api?.('media/upload') || 'https://sigillo-api.khuzoe.workers.dev/media/upload');
+        uploadUrl.searchParams.set('folder', folder);
+        uploadUrl.searchParams.set('campaign', getCurrentCampaignId());
+
+        const response = await fetch(uploadUrl.toString(), {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: form
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        return payload.path || payload.key || '';
+    }
+
+    function initializeAbilityOverrideUploads(cardElement, character) {
+        const getIdentityFromButton = (button) => ({
+            key: button.dataset.abilityKey || '',
+            characterId: button.dataset.characterId || '',
+            characterName: button.dataset.characterName || '',
+            actorId: button.dataset.actorId || '',
+            actorName: button.dataset.actorName || '',
+            abilityId: button.dataset.abilityId || '',
+            abilityName: button.dataset.abilityName || ''
+        });
+
+        const iconButtons = Array.from(cardElement.querySelectorAll('[data-ability-icon-upload]'));
+        iconButtons.forEach((button) => {
+            button.addEventListener('click', async () => {
+                const identity = getIdentityFromButton(button);
+                if (!identity.key) return;
+
+                const file = await pickInlineImageFile();
+                if (!file) return;
+                let iconBlob = null;
+                try {
+                    iconBlob = await cropAbilityIconFileToWebpBlob(file);
+                } catch (error) {
+                    console.error('Preparazione icona abilita fallita:', error);
+                    alert(`Preparazione icona fallita: ${error?.message || error}`);
+                    return;
+                }
+                if (!iconBlob) return;
+
+                button.disabled = true;
+                button.setAttribute('aria-busy', 'true');
+                try {
+                    const imagePath = await uploadAbilityOverrideFile(iconBlob, identity);
+                    if (!imagePath) return;
+                    await saveAbilityOverride(identity, { image: imagePath });
+                    await hydratePlayerLoadout(character);
+                } catch (error) {
+                    console.error('Salvataggio icona abilità fallito:', error);
+                    alert(`Salvataggio icona abilità fallito: ${error?.message || error}`);
+                } finally {
+                    button.disabled = false;
+                    button.removeAttribute('aria-busy');
+                }
+            });
+        });
+
+        const descriptionButtons = Array.from(cardElement.querySelectorAll('[data-ability-description-edit]'));
+        descriptionButtons.forEach((button) => {
+            button.addEventListener('click', async () => {
+                const identity = getIdentityFromButton(button);
+                if (!identity.key) return;
+
+                const currentText = button
+                    .closest('.loadout-entry')
+                    ?.querySelector('.loadout-entry-description')
+                    ?.innerText
+                    ?.trim() || '';
+                const nextDescription = window.prompt(`Descrizione per ${identity.abilityName || 'abilità'}`, currentText);
+                if (nextDescription === null) return;
+
+                button.disabled = true;
+                button.setAttribute('aria-busy', 'true');
+                try {
+                    await saveAbilityOverride(identity, { description: nextDescription.trim() });
+                    await hydratePlayerLoadout(character);
+                } catch (error) {
+                    console.error('Salvataggio testo abilità fallito:', error);
+                    alert(`Salvataggio testo abilità fallito: ${error?.message || error}`);
+                } finally {
+                    button.disabled = false;
+                    button.removeAttribute('aria-busy');
+                }
+            });
+        });
+    }
+
     function serializeInlineEditedCharacter(character) {
         const serialized = { ...character };
         delete serialized.content_blocks;
@@ -2692,6 +3298,10 @@ window.CriptaApp.onPageReady("character", async function () {
 
     function getTransformationsApiUrl() {
         return window.CriptaApp?.urls?.api?.('api/data/transformations') || 'https://sigillo-api.khuzoe.workers.dev/api/data/transformations';
+    }
+
+    function getAbilityOverridesApiUrl() {
+        return window.CriptaApp?.urls?.api?.('api/data/ability-overrides') || 'https://sigillo-api.khuzoe.workers.dev/api/data/ability-overrides';
     }
 
     function getCurrentCampaignId() {
@@ -2871,17 +3481,21 @@ window.CriptaApp.onPageReady("character", async function () {
         if (!loadoutCard) return;
 
         try {
-            const [inventoryPayload, wikiItems] = await Promise.all([
+            const [inventoryPayload, wikiItems, abilityOverrides] = await Promise.all([
                 loadInventoryData(),
                 loadWikiItemsData().catch((error) => {
                     console.warn('Impossibile caricare items.json per collegare gli oggetti:', error);
                     return [];
-                })
+                }),
+                loadAbilityOverrides()
             ]);
-            loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload, wikiItems);
+            loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload, wikiItems, abilityOverrides);
             initializeLoadoutTabs(loadoutCard);
+            initializeAbilityOverrideUploads(loadoutCard, character);
             if (companionsCard) {
-                companionsCard.innerHTML = buildCompanionsHtml(character, inventoryPayload, wikiItems);
+                const companionsHtml = buildCompanionsHtml(character, inventoryPayload, wikiItems);
+                companionsCard.hidden = !companionsHtml;
+                companionsCard.innerHTML = companionsHtml;
             }
             hydratePlayerRightOverview(character, inventoryPayload);
         } catch (error) {
@@ -2894,13 +3508,8 @@ window.CriptaApp.onPageReady("character", async function () {
                         </div>
                     `;
             if (companionsCard) {
-                companionsCard.innerHTML = `
-                        <h3><i class="fas fa-paw"></i> Companion</h3>
-                        <div class="loadout-state is-error">
-                            <i class="fas fa-triangle-exclamation"></i>
-                            <span>Impossibile sincronizzare i companion dal server.</span>
-                        </div>
-                    `;
+                companionsCard.hidden = true;
+                companionsCard.innerHTML = '';
             }
             renderPlayerXpSidebarError("Impossibile sincronizzare l'XP dal server.");
         }
@@ -3012,6 +3621,7 @@ window.CriptaApp.onPageReady("character", async function () {
                     ${canEdit ? `
                         <div class="player-transformation-actions">
                             <button type="button" data-transformation-action="rename" data-transformation-id="${escapeHtml(entry.id)}">Salva dati</button>
+                            ${foundryLabel ? `<button type="button" data-transformation-action="copy-foundry-name" data-transformation-id="${escapeHtml(entry.id)}">Copia nome Foundry</button>` : ''}
                             <button type="button" data-transformation-action="toggle-switcher" data-transformation-id="${escapeHtml(entry.id)}">${entry.switcher === false ? 'Attiva switcher' : 'Disattiva switcher'}</button>
                             ${entry.tokenImage ? `<button type="button" data-transformation-action="clear" data-transformation-id="${escapeHtml(entry.id)}">Reset token</button>` : ''}
                             <button type="button" data-transformation-action="remove" data-transformation-id="${escapeHtml(entry.id)}">Rimuovi</button>
@@ -3059,6 +3669,16 @@ window.CriptaApp.onPageReady("character", async function () {
         const list = getCharacterTransformations(currentCharacter);
         const entry = list.find((item) => item.id === id);
         if (!entry) return;
+
+        if (action === 'copy-foundry-name') {
+            const name = (Array.isArray(entry.foundryNames) ? entry.foundryNames[0] : entry.foundryName)
+                || entry.creatureName
+                || entry.name
+                || '';
+            const copied = await copyTextToClipboard(name);
+            if (!copied) alert('Impossibile copiare automaticamente il nome Foundry.');
+            return;
+        }
 
         if (action === 'rename') {
             const nextEntry = readTransformationCardUpdate(entry, id);
@@ -3290,7 +3910,7 @@ window.CriptaApp.onPageReady("character", async function () {
         }
 
         if (charType === 'player') {
-            leftCol.appendChild(buildPlayerSkillTreeCard(character.id, playerSkillTrees));
+            leftCol.appendChild(buildPlayerSkillTreeCard(character, playerSkillTrees));
 
             const playerLoadoutCard = document.createElement('div');
             playerLoadoutCard.className = 'content-card player-loadout-card';
@@ -3307,6 +3927,7 @@ window.CriptaApp.onPageReady("character", async function () {
             const playerCompanionsCard = document.createElement('div');
             playerCompanionsCard.className = 'content-card player-companions-card';
             playerCompanionsCard.id = 'player-companions-card';
+            playerCompanionsCard.hidden = true;
             playerCompanionsCard.innerHTML = `
                         <h3><i class="fas fa-paw"></i> Companion</h3>
                         <div class="loadout-state">
@@ -3729,4 +4350,5 @@ window.CriptaApp.onPageReady("character", async function () {
         return card;
     }
 });
+
 
