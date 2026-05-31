@@ -276,7 +276,9 @@ function normalizeCharacterBlocks(character) {
 async function loadPlayersData() {
     const resp = await fetch(dataUrl('players.json'));
     if (!resp.ok) throw new Error(`File dati players (${resp.status}) non trovato.`);
-    return resp.json();
+    const payload = await resp.json();
+    const players = Array.isArray(payload) ? payload : payload?.data;
+    return Array.isArray(players) ? normalizeCharactersCollection(players) : [];
 }
 
 async function hydrateContentBlocks(character) {
@@ -4113,6 +4115,7 @@ window.CriptaApp.onPageReady("character", async function () {
 
     function getRightColumnHtml(character, allCharacters, npcQuests) {
         const summary = character.summary || {};
+        const images = character.images || {};
         const isPlayerView = charType === 'player';
 
         // --- CALCOLO ANNO DI NASCITA E ETA' ---
@@ -4253,7 +4256,7 @@ window.CriptaApp.onPageReady("character", async function () {
 
         return `
                     <div class="image-card">
-                        <img src="${resolveImagePath(character.images.portrait)}" class="char-portrait" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
+                        <img src="${resolveImagePath(images.portrait || images.avatar || images.hover || '')}" class="char-portrait" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
                         <div class="stats-grid">${statsHtml}</div>
                         ${causeOfDeathHtml}
                         ${playerXpHtml}
