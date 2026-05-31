@@ -53,6 +53,24 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         return `${basePath}${value}`;
     }
 
+    function resolvePublicImageUrl(path) {
+        const value = String(path || "").trim();
+        if (!value) return "";
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith("media/")) return window.CriptaApp.urls.api(value);
+        if (value.startsWith("/media/")) return window.CriptaApp.urls.api(value.slice(1));
+        if (value.startsWith("assets/")) return `../${value}`;
+        if (value.startsWith("campaigns/")) return `../${value}`;
+        if (value.startsWith("img/")) return window.CriptaApp.urls.api(value);
+        return "";
+    }
+
+    function getAvatarVariantPath(path) {
+        const value = String(path || "").trim();
+        if (!value || !/\.webp(?:[?#].*)?$/i.test(value)) return "";
+        return value.replace(/\.webp(?=([?#].*)?$)/i, "-avatar.webp");
+    }
+
     async function fetchJson(url, fallback) {
         try {
             const response = await fetch(url);
@@ -124,19 +142,30 @@ window.CriptaApp.onPageReady("giocatori", async function() {
     }
 
     function resolveCompanionImageUrl(companion) {
-        return resolveImageUrl(companion?.img) || resolveImageUrl(companion?.token?.img);
+        const tokenPath = companion?.token?.img || "";
+        const avatarVariant = getAvatarVariantPath(tokenPath);
+        return Array.from(new Set([
+            resolvePublicImageUrl(avatarVariant),
+            resolvePublicImageUrl(companion?.img),
+            resolvePublicImageUrl(tokenPath)
+        ].filter(Boolean)));
     }
 
     function renderCompanionBadge(companions) {
         if (!companions.length) return "";
         const companion = companions[0];
         const title = companion.displayName || companion.name || "Companion";
-        const image = resolveCompanionImageUrl(companion);
+        const imageCandidates = resolveCompanionImageUrl(companion);
+        const image = imageCandidates[0] || "";
+        const fallbackImage = imageCandidates[1] || "";
+        const imageErrorHandler = fallbackImage
+            ? "if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{this.style.display='none';this.nextElementSibling.hidden=false;}"
+            : "this.style.display='none';this.nextElementSibling.hidden=false;";
         const initials = String(title || "?").trim().charAt(0).toUpperCase() || "?";
         const extra = companions.length > 1 ? companions.length - 1 : 0;
         return `
             <span class="player-companion-badge" title="${escapeHtml(companions.map((item) => item.displayName || item.name || "Companion").join(", "))}">
-                ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" onerror="this.style.display='none'; this.nextElementSibling.hidden=false;">` : ""}
+                ${image ? `<img src="${escapeHtml(image)}" ${fallbackImage ? `data-fallback-src="${escapeHtml(fallbackImage)}"` : ""} alt="${escapeHtml(title)}" onerror="${imageErrorHandler}">` : ""}
                 <span ${image ? "hidden" : ""}>${escapeHtml(initials)}</span>
                 ${extra ? `<small>+${extra}</small>` : ""}
             </span>

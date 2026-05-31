@@ -660,6 +660,22 @@ function resolveSyncedActorImagePath(path) {
     return '';
 }
 
+function getAvatarVariantPath(path) {
+    const raw = String(path || '').trim();
+    if (!raw || !/\.webp(?:[?#].*)?$/i.test(raw)) return '';
+    return raw.replace(/\.webp(?=([?#].*)?$)/i, '-avatar.webp');
+}
+
+function getCompanionAvatarImageCandidates(companion) {
+    const tokenPath = companion?.token?.img || '';
+    const avatarVariant = getAvatarVariantPath(tokenPath);
+    return Array.from(new Set([
+        resolveSyncedActorImagePath(avatarVariant),
+        resolveSyncedActorImagePath(companion?.img),
+        resolveSyncedActorImagePath(tokenPath)
+    ].filter(Boolean)));
+}
+
 function splitActorLoadout(actor) {
     const sourceEntries = Array.isArray(actor && actor.inventory) ? actor.inventory : [];
     const spells = [];
@@ -1872,7 +1888,12 @@ function buildCompanionsHtml(character, payload, wikiItems = []) {
     const wikiItemIndex = buildWikiItemIndex(wikiItems);
     const cards = companions.map((companion) => {
         const title = companion.displayName || companion.name || 'Companion';
-        const image = resolveSyncedActorImagePath(companion.img) || resolveSyncedActorImagePath(companion.token?.img);
+        const imageCandidates = getCompanionAvatarImageCandidates(companion);
+        const image = imageCandidates[0] || '';
+        const fallbackImage = imageCandidates[1] || '';
+        const imageErrorHandler = fallbackImage
+            ? `if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{this.style.display='none';this.nextElementSibling.hidden=false;}`
+            : `this.style.display='none';this.nextElementSibling.hidden=false;`;
         const initials = String(title || '?').trim().charAt(0).toUpperCase() || '?';
         const { inventory, spells } = splitActorLoadout(companion);
         inventory.forEach((entry) => {
@@ -1885,33 +1906,42 @@ function buildCompanionsHtml(character, payload, wikiItems = []) {
         const detailChips = [
             details.type ? `Tipo: ${formatToken(details.type)}` : '',
             details.cr !== undefined ? `CR: ${formatNumberIt(details.cr, 2)}` : '',
-            details.alignment ? `Allineamento: ${details.alignment}` : '',
-            companion.foundryName ? `Foundry: ${companion.foundryName}` : ''
+            details.alignment ? `Allineamento: ${details.alignment}` : ''
         ].filter(Boolean);
 
         return `
                     <article class="companion-card">
-                        <div class="companion-card__header">
-                            <div class="companion-card__portrait">
-                                ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" onerror="this.style.display='none'; this.nextElementSibling.hidden=false;">` : ''}
+                        <div class="companion-card__top">
+                            <div class="companion-card__content">
+                                <div class="companion-card__overview">
+                                    <div class="companion-card__summary">
+                                        <div class="companion-card__header">
+                                            <div>
+                                                <p>Companion di ${escapeHtml(character.name || 'personaggio')}</p>
+                                                <h4>${escapeHtml(title)}</h4>
+                                                ${detailChips.length ? `<div class="loadout-chip-row">${detailChips.map((chip) => `<span class="loadout-chip">${escapeHtml(chip)}</span>`).join('')}</div>` : ''}
+                                            </div>
+                                        </div>
+                                        <div class="companion-card__vitals">
+                                            ${renderVitalOverview(companion)}
+                                        </div>
+                                    </div>
+                                    <section class="character-live-card companion-card__abilities">
+                                        <h4><i class="fas fa-dumbbell"></i> Caratteristiche</h4>
+                                        ${renderAbilityOverview(companion) || '<p class="player-overview-empty">Caratteristiche non disponibili.</p>'}
+                                    </section>
+                                </div>
+                                <section class="character-live-card character-live-card--wide companion-card__features">
+                                    <h4><i class="fas fa-dragon"></i> Azioni e tratti</h4>
+                                    ${featuresHtml}
+                                </section>
+                            </div>
+                            <div class="companion-card__hero">
+                                ${image ? `<img src="${escapeHtml(image)}" ${fallbackImage ? `data-fallback-src="${escapeHtml(fallbackImage)}"` : ''} alt="${escapeHtml(title)}" onerror="${imageErrorHandler}">` : ''}
                                 <span ${image ? 'hidden' : ''}>${escapeHtml(initials)}</span>
                             </div>
-                            <div>
-                                <p>Companion di ${escapeHtml(character.name || 'personaggio')}</p>
-                                <h4>${escapeHtml(title)}</h4>
-                                ${detailChips.length ? `<div class="loadout-chip-row">${detailChips.map((chip) => `<span class="loadout-chip">${escapeHtml(chip)}</span>`).join('')}</div>` : ''}
-                            </div>
                         </div>
-                        ${renderVitalOverview(companion)}
                         <div class="character-live-grid companion-card__grid">
-                            <section class="character-live-card">
-                                <h4><i class="fas fa-dumbbell"></i> Caratteristiche</h4>
-                                ${renderAbilityOverview(companion) || '<p class="player-overview-empty">Caratteristiche non disponibili.</p>'}
-                            </section>
-                            <section class="character-live-card character-live-card--wide">
-                                <h4><i class="fas fa-dragon"></i> Azioni e tratti</h4>
-                                ${featuresHtml}
-                            </section>
                             <section class="character-live-card character-live-card--wide">
                                 <h4><i class="fas fa-box-open"></i> Oggetti</h4>
                                 ${inventoryHtml}
