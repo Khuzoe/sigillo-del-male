@@ -104,6 +104,45 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         }) || null;
     }
 
+    function getPlayerCompanions(inventorySnapshot, player) {
+        const companions = Array.isArray(inventorySnapshot?.companions) ? inventorySnapshot.companions : [];
+        if (!companions.length || !player) return [];
+        const playerId = normalizeText(player.id);
+        const accountId = normalizeText(player.accountId);
+        const discordId = normalizeText(player.discordId);
+        const playerName = normalizeText(player.name);
+        return companions
+            .filter((companion) => {
+                const ownerCharacterId = normalizeText(companion.ownerCharacterId);
+                const ownerAccountId = normalizeText(companion.ownerAccountId);
+                const ownerDiscordId = normalizeText(companion.ownerDiscordId);
+                return Boolean(ownerCharacterId && (ownerCharacterId === playerId || ownerCharacterId === playerName))
+                    || Boolean(ownerAccountId && ownerAccountId === accountId)
+                    || Boolean(ownerDiscordId && ownerDiscordId === discordId);
+            })
+            .sort((left, right) => String(left.displayName || left.name || "").localeCompare(String(right.displayName || right.name || ""), "it"));
+    }
+
+    function resolveCompanionImageUrl(companion) {
+        return resolveImageUrl(companion?.img) || resolveImageUrl(companion?.token?.img);
+    }
+
+    function renderCompanionBadge(companions) {
+        if (!companions.length) return "";
+        const companion = companions[0];
+        const title = companion.displayName || companion.name || "Companion";
+        const image = resolveCompanionImageUrl(companion);
+        const initials = String(title || "?").trim().charAt(0).toUpperCase() || "?";
+        const extra = companions.length > 1 ? companions.length - 1 : 0;
+        return `
+            <span class="player-companion-badge" title="${escapeHtml(companions.map((item) => item.displayName || item.name || "Companion").join(", "))}">
+                ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" onerror="this.style.display='none'; this.nextElementSibling.hidden=false;">` : ""}
+                <span ${image ? "hidden" : ""}>${escapeHtml(initials)}</span>
+                ${extra ? `<small>+${extra}</small>` : ""}
+            </span>
+        `;
+    }
+
     function formatNumber(value, fallback = "-") {
         const number = Number(value);
         return Number.isFinite(number) ? String(Math.round(number)) : fallback;
@@ -197,6 +236,7 @@ window.CriptaApp.onPageReady("giocatori", async function() {
     }
 
     function renderPlayerCard(player, actor, inventorySnapshot) {
+        const companions = getPlayerCompanions(inventorySnapshot, player);
         const isInactive = player.isActive === false;
         const cardClasses = `npc-card player-card ${isInactive ? "player-card--inactive" : ""}`.trim();
         const statusBadge = isInactive
@@ -211,6 +251,7 @@ window.CriptaApp.onPageReady("giocatori", async function() {
                 <div class="npc-avatar-container">
                     <img src="${escapeHtml(resolveImageUrl(player.images?.avatar))}" alt="${escapeHtml(player.name)}" class="npc-img-pop img-main" style="${buildImageStyle("avatar", player.images?.avatarAdjust, player.images?.hoverAdjust)}" onerror="this.src='https://placehold.co/200x200/1a1a1a/gold?text=${encodeURIComponent(String(player.name || "?").charAt(0))}'">
                     <img src="${escapeHtml(resolveImageUrl(player.images?.hover))}" alt="${escapeHtml(player.name)} Full" class="npc-img-pop img-hover" style="${buildImageStyle("hover", player.images?.hoverAdjust, player.images?.avatarAdjust)}" onerror="this.style.display='none'">
+                    ${renderCompanionBadge(companions)}
                 </div>
                 <div class="npc-info">
                     <div class="npc-header">
