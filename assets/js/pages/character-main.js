@@ -278,7 +278,12 @@ async function loadPlayersData() {
     if (!resp.ok) throw new Error(`File dati players (${resp.status}) non trovato.`);
     const payload = await resp.json();
     const players = Array.isArray(payload) ? payload : payload?.data;
-    return Array.isArray(players) ? normalizeCharactersCollection(players) : [];
+    const mediaOverrides = await loadMediaOverrides();
+    return Array.isArray(players)
+        ? normalizeCharactersCollection(players)
+            .map(applySyncedPlayerImageFallback)
+            .map((character) => applyCharacterMediaOverride(character, mediaOverrides))
+        : [];
 }
 
 async function hydrateContentBlocks(character) {
@@ -371,6 +376,7 @@ const SKILLS_DATA_URL = dataUrl('skills.json');
 const TRANSFORMATIONS_DATA_URL = dataUrl('transformations.json');
 const SKILLS_ASSET_BASE = 'media/skill_trees/';
 const ABILITY_ICON_SIZE = 256;
+const CHARACTER_MEDIA_SIZE = 512;
 const PLAYER_SKILL_TREE_KEYS = {
     apothecary: 'apothecary',
     garun: 'garun',
@@ -394,6 +400,10 @@ let transformationsRequestPromise = null;
 let transformationsMemoryCache = null;
 let abilityOverridesRequestPromise = null;
 let abilityOverridesMemoryCache = null;
+let itemOverridesRequestPromise = null;
+let itemOverridesMemoryCache = null;
+let mediaOverridesRequestPromise = null;
+let mediaOverridesMemoryCache = null;
 
 function escapeHtml(value) {
     return String(value || '')
@@ -508,6 +518,59 @@ function resolveSkillAssetPath(path) {
 
 function dataUrl(pathname) {
     return window.CriptaApp?.urls?.data?.(pathname) || `../../assets/data/${String(pathname || '').replace(/^\/+/, '')}`;
+}
+
+function getCurrentCampaignId() {
+    return window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
+}
+
+function getSyncedPlayerImagePath(character, variant = 'avatar') {
+    const characterId = slugify(character?.id || character?.name || 'personaggio');
+    const campaignId = getCurrentCampaignId();
+    const suffix = variant === 'token' ? '-token' : '';
+    const folder = campaignId === 'cripta-di-sangue' ? 'players' : `campaigns/${campaignId}/players`;
+    return `media/${folder}/${characterId}${suffix}.webp`;
+}
+
+function applySyncedPlayerImageFallback(character) {
+    const normalized = { ...character };
+    const images = { ...(normalized.images || {}) };
+    const avatarPath = getSyncedPlayerImagePath(normalized, 'avatar');
+    const tokenPath = getSyncedPlayerImagePath(normalized, 'token');
+    if (!images.avatar) images.avatar = avatarPath;
+    if (!images.portrait) images.portrait = images.avatar;
+    if (!images.hover) images.hover = images.avatar;
+    if (!images.token) images.token = tokenPath;
+    normalized.images = images;
+    return normalized;
+}
+
+function getMediaOverrideId(entityType, entityId) {
+    return `${slugify(entityType || 'entity')}:${slugify(entityId || 'unknown')}`;
+}
+
+function findMediaOverride(records, entityType, entityId) {
+    const id = getMediaOverrideId(entityType, entityId);
+    const normalizedType = normalizeText(entityType);
+    const normalizedId = normalizeText(entityId);
+    return (Array.isArray(records) ? records : []).find((record) => {
+        if (!record || typeof record !== 'object') return false;
+        if (record.id === id || record.key === id) return true;
+        return normalizeText(record.entityType) === normalizedType && normalizeText(record.entityId) === normalizedId;
+    }) || null;
+}
+
+function applyCharacterMediaOverride(character, overrides = mediaOverridesMemoryCache || []) {
+    const normalized = { ...character, images: { ...(character?.images || {}) } };
+    const override = findMediaOverride(overrides, 'player', normalized.id || normalized.name);
+    const images = override?.images || {};
+    if (images.avatar) {
+        normalized.images.avatar = images.avatar;
+        normalized.images.portrait = images.portrait || images.avatar;
+        if (!normalized.images.hover) normalized.images.hover = images.avatar;
+    }
+    if (images.token) normalized.images.token = images.token;
+    return normalized;
 }
 
 function resolveCharacterAssetPath(imagePath) {
@@ -647,6 +710,48 @@ async function loadAbilityOverrides() {
     return abilityOverridesRequestPromise;
 }
 
+async function loadItemOverrides() {
+    if (itemOverridesMemoryCache) return itemOverridesMemoryCache;
+    if (itemOverridesRequestPromise) return itemOverridesRequestPromise;
+
+    itemOverridesRequestPromise = (async () => {
+        try {
+            const payload = await window.CriptaApp?.api?.get?.('api/data/item-overrides', { query: { _: Date.now() } });
+            itemOverridesMemoryCache = Array.isArray(payload?.data) ? payload.data : [];
+            return itemOverridesMemoryCache;
+        } catch (error) {
+            console.warn('Override inventario online non disponibili:', error);
+            itemOverridesMemoryCache = [];
+            return itemOverridesMemoryCache;
+        } finally {
+            itemOverridesRequestPromise = null;
+        }
+    })();
+
+    return itemOverridesRequestPromise;
+}
+
+async function loadMediaOverrides() {
+    if (mediaOverridesMemoryCache) return mediaOverridesMemoryCache;
+    if (mediaOverridesRequestPromise) return mediaOverridesRequestPromise;
+
+    mediaOverridesRequestPromise = (async () => {
+        try {
+            const payload = await window.CriptaApp?.api?.get?.('api/data/media-overrides', { query: { _: Date.now() } });
+            mediaOverridesMemoryCache = Array.isArray(payload?.data) ? payload.data : [];
+            return mediaOverridesMemoryCache;
+        } catch (error) {
+            console.warn('Override immagini personaggi online non disponibili:', error);
+            mediaOverridesMemoryCache = [];
+            return mediaOverridesMemoryCache;
+        } finally {
+            mediaOverridesRequestPromise = null;
+        }
+    })();
+
+    return mediaOverridesRequestPromise;
+}
+
 async function requestInventoryApi() {
     if (typeof window.CriptaApp?.api?.get === 'function') {
         try {
@@ -706,17 +811,12 @@ function getCompanionsForCharacter(payload, character) {
     const companions = Array.isArray(payload && payload.companions) ? payload.companions : [];
     if (!companions.length || !character) return [];
     const characterId = normalizeText(character.id);
-    const accountId = normalizeText(character.accountId);
-    const discordId = normalizeText(character.discordId);
     const name = normalizeText(character.name);
     return companions
         .filter((companion) => {
             const ownerCharacterId = normalizeText(companion.ownerCharacterId);
-            const ownerAccountId = normalizeText(companion.ownerAccountId);
-            const ownerDiscordId = normalizeText(companion.ownerDiscordId);
-            return Boolean(ownerCharacterId && (ownerCharacterId === characterId || ownerCharacterId === name))
-                || Boolean(ownerAccountId && ownerAccountId === accountId)
-                || Boolean(ownerDiscordId && ownerDiscordId === discordId);
+            if (!ownerCharacterId) return false;
+            return ownerCharacterId === characterId || ownerCharacterId === name;
         })
         .sort((left, right) => String(left.displayName || left.name || '').localeCompare(String(right.displayName || right.name || ''), 'it'));
 }
@@ -755,6 +855,28 @@ function getAbilityOverrideIdentity(character, actor, entry) {
     };
 }
 
+function getItemOverrideIdentity(character, actor, entry) {
+    const characterId = String(character?.id || '').trim();
+    const characterName = String(character?.name || '').trim();
+    const actorId = String(actor?.id || '').trim();
+    const actorName = String(actor?.name || actor?.displayName || '').trim();
+    const itemId = String(entry?.id || '').trim();
+    const itemName = String(entry?.name || '').trim();
+    const itemType = String(entry?.type || '').trim();
+    const ownerKey = slugify(characterId || actorId || characterName || actorName || 'personaggio');
+    const itemKey = slugify(itemId || itemName || 'oggetto');
+    return {
+        key: `${ownerKey}:${itemKey}`,
+        characterId,
+        characterName,
+        actorId,
+        actorName,
+        itemId,
+        itemName,
+        itemType
+    };
+}
+
 function findAbilityOverride(records, identity) {
     if (!identity) return null;
     return (Array.isArray(records) ? records : []).find((record) => {
@@ -769,6 +891,31 @@ function findAbilityOverride(records, identity) {
     }) || null;
 }
 
+function findItemOverride(records, identity) {
+    if (!identity) return null;
+    return (Array.isArray(records) ? records : []).find((record) => {
+        if (!record || typeof record !== 'object') return false;
+        if (record.key && record.key === identity.key) return true;
+        const sameCharacter = Boolean(record.characterId && identity.characterId && record.characterId === identity.characterId)
+            || Boolean(record.actorId && identity.actorId && record.actorId === identity.actorId)
+            || Boolean(record.actorName && identity.actorName && normalizeText(record.actorName) === normalizeText(identity.actorName));
+        const sameItem = Boolean(record.itemId && identity.itemId && record.itemId === identity.itemId)
+            || Boolean(record.itemName && identity.itemName && normalizeText(record.itemName) === normalizeText(identity.itemName));
+        return sameCharacter && sameItem;
+    }) || null;
+}
+
+function getInventoryEntryIconPath(entry, wikiItem, itemOverride) {
+    const overrideImage = String(itemOverride?.image || '').trim();
+    const overrideSource = String(itemOverride?.imageSource || '').trim().toLowerCase();
+    if (overrideImage && overrideSource === 'site') {
+        return appendAssetVersion(overrideImage, itemOverride.updatedAt);
+    }
+    if (wikiItem) return '';
+    if (overrideImage) return appendAssetVersion(overrideImage, itemOverride.updatedAt);
+    return entry?.img || '';
+}
+
 function getCompanionAvatarImageCandidates(companion) {
     const tokenPath = companion?.token?.img || '';
     const avatarVariant = getAvatarVariantPath(tokenPath);
@@ -777,6 +924,33 @@ function getCompanionAvatarImageCandidates(companion) {
         resolveSyncedActorImagePath(companion?.img),
         resolveSyncedActorImagePath(tokenPath)
     ].filter(Boolean)));
+}
+
+function getCompanionMediaOverrideIdentity(character, companion) {
+    const entityId = slugify(companion?.id || companion?.foundryName || companion?.name || companion?.displayName || 'companion');
+    return {
+        id: getMediaOverrideId('companion', entityId),
+        entityType: 'companion',
+        entityId,
+        characterId: character?.id || '',
+        ownerCharacterId: character?.id || '',
+        ownerAccountId: character?.accountId || '',
+        name: companion?.displayName || companion?.name || 'Companion',
+        foundryName: companion?.foundryName || companion?.name || '',
+        actorId: companion?.id || ''
+    };
+}
+
+function applyCompanionMediaOverride(companion, identity, overrides = mediaOverridesMemoryCache || []) {
+    const override = findMediaOverride(overrides, 'companion', identity?.entityId);
+    if (!override?.images) return companion;
+    const next = {
+        ...companion,
+        token: { ...(companion?.token || {}) }
+    };
+    if (override.images.avatar) next.img = override.images.avatar;
+    if (override.images.token) next.token.img = override.images.token;
+    return next;
 }
 
 function splitActorLoadout(actor) {
@@ -1783,9 +1957,11 @@ function renderWikiItemBridge(wikiItem, foundryName = '') {
 function renderLoadoutDisclosure(title, quantityLabel, description, badges, extraClass = '', dataAttributes = '', wikiItem = null, foundryName = '', iconPath = '', bodyExtraHtml = '') {
     const bodyParts = [];
     const wikiBridge = renderWikiItemBridge(wikiItem, foundryName);
-    const entryIcon = wikiItem
-        ? renderWikiItemThumb(wikiItem, 'loadout-entry-icon', title || 'Elemento senza nome')
-        : renderLoadoutEntryIcon(iconPath, title || 'Elemento senza nome');
+    const entryIcon = iconPath
+        ? renderLoadoutEntryIcon(iconPath, title || 'Elemento senza nome')
+        : (wikiItem
+            ? renderWikiItemThumb(wikiItem, 'loadout-entry-icon', title || 'Elemento senza nome')
+            : renderLoadoutEntryIcon(iconPath, title || 'Elemento senza nome'));
     if (wikiBridge) bodyParts.push(wikiBridge);
     if (!wikiItem && description) {
         const descriptionHtml = renderDescriptionHtml(description);
@@ -1822,11 +1998,12 @@ function renderLoadoutDisclosure(title, quantityLabel, description, badges, extr
             `;
 }
 
-function renderInventoryEntries(entries) {
+function renderInventoryEntries(entries, context = {}) {
     if (!entries.length) {
         return '<p class="loadout-empty">Nessun oggetto disponibile.</p>';
     }
 
+    const { character = null, actor = null, itemOverrides = [] } = context;
     const groupsMap = new Map();
     entries.forEach((entry) => {
         const containerId = entry.container && entry.container.id ? String(entry.container.id) : '__loose__';
@@ -1860,13 +2037,57 @@ function renderInventoryEntries(entries) {
             const badges = [];
             const typeMeta = getInventoryTypeMeta(entry.type);
             const wikiItem = entry.wikiItem || null;
+            const identity = getItemOverrideIdentity(character, actor, entry);
+            const itemOverride = findItemOverride(itemOverrides, identity);
             badges.push(typeMeta.label);
             if (wikiItem) badges.push('Wiki');
+            if (itemOverride?.image) badges.push(itemOverride.imageSource === 'site' ? 'Icona wiki' : 'Icona Foundry');
+            if (itemOverride?.description) badges.push('Testo wiki');
             if (entry.rarity) badges.push(`Rarita: ${formatToken(entry.rarity)}`);
             if (entry.attuned) badges.push('Sintonizzato');
 
-            const description = cleanDescription(entry.description);
+            const description = cleanDescription(itemOverride?.description || entry.description);
             const quantityLabel = getQuantityLabel(entry);
+            const overrideDescriptionHtml = itemOverride?.description && wikiItem
+                ? `<div class="loadout-entry-description">${renderDescriptionHtml(cleanDescription(itemOverride.description))}</div>`
+                : '';
+            const overrideActions = `
+                    ${overrideDescriptionHtml}
+                    <div class="loadout-entry-actions">
+                        <button
+                            type="button"
+                            class="loadout-entry-action"
+                            data-item-icon-upload
+                            data-item-key="${escapeHtml(identity.key)}"
+                            data-character-id="${escapeHtml(identity.characterId)}"
+                            data-character-name="${escapeHtml(identity.characterName)}"
+                            data-actor-id="${escapeHtml(identity.actorId)}"
+                            data-actor-name="${escapeHtml(identity.actorName)}"
+                            data-item-id="${escapeHtml(identity.itemId)}"
+                            data-item-name="${escapeHtml(identity.itemName)}"
+                            data-item-type="${escapeHtml(identity.itemType)}"
+                        >
+                            <i class="fas fa-image" aria-hidden="true"></i>
+                            Cambia icona
+                        </button>
+                        <button
+                            type="button"
+                            class="loadout-entry-action"
+                            data-item-description-edit
+                            data-item-key="${escapeHtml(identity.key)}"
+                            data-character-id="${escapeHtml(identity.characterId)}"
+                            data-character-name="${escapeHtml(identity.characterName)}"
+                            data-actor-id="${escapeHtml(identity.actorId)}"
+                            data-actor-name="${escapeHtml(identity.actorName)}"
+                            data-item-id="${escapeHtml(identity.itemId)}"
+                            data-item-name="${escapeHtml(identity.itemName)}"
+                            data-item-type="${escapeHtml(identity.itemType)}"
+                        >
+                            <i class="fas fa-pen" aria-hidden="true"></i>
+                            Modifica testo
+                        </button>
+                    </div>
+                `;
 
             return renderLoadoutDisclosure(
                 wikiItem?.name || entry.name || 'Oggetto senza nome',
@@ -1877,7 +2098,8 @@ function renderInventoryEntries(entries) {
                 `data-inventory-type="${typeMeta.key}"`,
                 wikiItem,
                 entry.name || '',
-                entry.img || ''
+                getInventoryEntryIconPath(entry, wikiItem, itemOverride),
+                overrideActions
             );
         }).join('');
 
@@ -2028,7 +2250,7 @@ function renderAbilityEntries(entries, context = {}) {
     }).join('');
 }
 
-function buildPlayerLoadoutHtml(character, payload, wikiItems = [], abilityOverrides = []) {
+function buildPlayerLoadoutHtml(character, payload, wikiItems = [], abilityOverrides = [], itemOverrides = []) {
     const actor = findPlayerActor(payload, character);
     if (!actor) {
         return `
@@ -2075,7 +2297,7 @@ function buildPlayerLoadoutHtml(character, payload, wikiItems = [], abilityOverr
                 <section class="loadout-panel is-active" data-panel="inventory" role="tabpanel">
                     ${inventorySummaryHtml}
                     ${renderInventoryTypeFilters(inventory)}
-                    ${renderInventoryEntries(inventory)}
+                    ${renderInventoryEntries(inventory, { character, actor, itemOverrides })}
                 </section>
                 <section class="loadout-panel" data-panel="spells" role="tabpanel" hidden>
                     ${spellsSummaryHtml}
@@ -2108,14 +2330,17 @@ function renderCompanionFeatures(entries) {
     }).join('');
 }
 
-function buildCompanionsHtml(character, payload, wikiItems = []) {
+function buildCompanionsHtml(character, payload, wikiItems = [], mediaOverrides = []) {
     const companions = getCompanionsForCharacter(payload, character);
     if (!companions.length) {
         return '';
     }
 
     const wikiItemIndex = buildWikiItemIndex(wikiItems);
-    const cards = companions.map((companion) => {
+    const canEdit = canEditCurrentPlayerTransformations(character);
+    const cards = companions.map((rawCompanion) => {
+        const identity = getCompanionMediaOverrideIdentity(character, rawCompanion);
+        const companion = applyCompanionMediaOverride(rawCompanion, identity, mediaOverrides);
         const title = companion.displayName || companion.name || 'Companion';
         const imageCandidates = getCompanionAvatarImageCandidates(companion);
         const image = imageCandidates[0] || '';
@@ -2168,6 +2393,15 @@ function buildCompanionsHtml(character, payload, wikiItems = []) {
                             <div class="companion-card__hero">
                                 ${image ? `<img src="${escapeHtml(image)}" ${fallbackImage ? `data-fallback-src="${escapeHtml(fallbackImage)}"` : ''} alt="${escapeHtml(title)}" onerror="${imageErrorHandler}">` : ''}
                                 <span ${image ? 'hidden' : ''}>${escapeHtml(initials)}</span>
+                                ${canEdit ? `
+                                <div class="character-media-actions character-media-actions--companion">
+                                    <button type="button" data-media-override-action="upload" data-media-entity-type="companion" data-media-kind="avatar" data-media-identity="${escapeHtml(identity.entityId)}" data-media-name="${escapeHtml(identity.name)}" data-media-foundry-name="${escapeHtml(identity.foundryName)}" data-media-actor-id="${escapeHtml(identity.actorId)}">
+                                        <i class="fas fa-user"></i> Avatar
+                                    </button>
+                                    <button type="button" data-media-override-action="upload" data-media-entity-type="companion" data-media-kind="token" data-media-identity="${escapeHtml(identity.entityId)}" data-media-name="${escapeHtml(identity.name)}" data-media-foundry-name="${escapeHtml(identity.foundryName)}" data-media-actor-id="${escapeHtml(identity.actorId)}">
+                                        <i class="fas fa-circle-dot"></i> Token
+                                    </button>
+                                </div>` : ''}
                             </div>
                         </div>
                         <div class="character-live-grid companion-card__grid">
@@ -2333,18 +2567,13 @@ function resolvePlayerSkillTree(characterOrId, allSkillTrees) {
 
 function buildPlayerSkillTreeCard(characterOrId, allSkillTrees) {
     const treeData = resolvePlayerSkillTree(characterOrId, allSkillTrees);
+    if (!treeData || !Array.isArray(treeData.nodes) || treeData.nodes.length === 0) {
+        return null;
+    }
+
     const card = document.createElement('div');
     card.className = 'content-card player-skill-tree-card';
     card.id = 'player-skill-tree-card';
-
-    if (!treeData || !Array.isArray(treeData.nodes) || treeData.nodes.length === 0) {
-        card.innerHTML = `
-                    <h3><i class="fas fa-crown"></i> Albero Abilita</h3>
-                    <p class="loadout-empty">Albero abilita non disponibile per questo personaggio.</p>
-                `;
-        return card;
-    }
-
     card.innerHTML = `
                 <h3><i class="fas fa-crown"></i> Albero Abilita</h3>
                 <div class="player-skill-tree-layout">
@@ -2487,6 +2716,7 @@ window.CriptaApp.onPageReady("character", async function () {
     container.addEventListener('input', handleInlineEditInput);
     container.addEventListener('change', handleInlineEditChange);
     container.addEventListener('click', handleInlineEditClick);
+    container.addEventListener('click', handleMediaOverrideClick);
     container.addEventListener('click', handleTransformationClick);
 
     try {
@@ -2752,6 +2982,53 @@ window.CriptaApp.onPageReady("character", async function () {
         renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
     }
 
+    async function handleMediaOverrideClick(event) {
+        const button = event.target.closest('[data-media-override-action="upload"]');
+        if (!button) return;
+        event.preventDefault();
+        if (!canEditCurrentPlayerTransformations(currentCharacter)) {
+            alert('Non hai permessi per modificare le immagini di questo personaggio.');
+            return;
+        }
+        const entityType = button.dataset.mediaEntityType || 'player';
+        const entityId = button.dataset.mediaIdentity || currentCharacter?.id || charId;
+        const kind = button.dataset.mediaKind || 'avatar';
+        const file = await pickInlineImageFile();
+        if (!file) return;
+
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        try {
+            const identity = {
+                id: getMediaOverrideId(entityType, entityId),
+                key: getMediaOverrideId(entityType, entityId),
+                entityType,
+                entityId,
+                characterId: currentCharacter?.id || '',
+                ownerCharacterId: currentCharacter?.id || '',
+                ownerAccountId: currentCharacter?.accountId || '',
+                name: button.dataset.mediaName || currentCharacter?.name || '',
+                foundryName: button.dataset.mediaFoundryName || '',
+                actorId: button.dataset.mediaActorId || ''
+            };
+            const imagePath = await uploadMediaOverrideImageFile(file, identity, kind);
+            if (!imagePath) return;
+            await saveMediaOverride(identity, kind, imagePath);
+            applySavedMediaOverrideLocally(identity, kind, imagePath);
+            if (entityType === 'companion') {
+                await hydratePlayerLoadout(currentCharacter);
+            } else {
+                renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+            }
+        } catch (error) {
+            console.error('Salvataggio immagine personaggio fallito:', error);
+            alert(`Salvataggio immagine fallito: ${error?.message || error}`);
+        } finally {
+            button.disabled = false;
+            button.removeAttribute('aria-busy');
+        }
+    }
+
     async function pickInlineImageFile() {
         if (window.showOpenFilePicker) {
             const [handle] = await window.showOpenFilePicker({
@@ -2824,6 +3101,30 @@ window.CriptaApp.onPageReady("character", async function () {
                 }
                 resolve(blob);
             }, 'image/webp', 0.88);
+        });
+    }
+
+    async function resizeImageFileToSquareWebpBlob(file, size = CHARACTER_MEDIA_SIZE) {
+        const bitmap = await createImageBitmap(file);
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const context = canvas.getContext('2d', { alpha: true });
+        context.clearRect(0, 0, size, size);
+        const scale = Math.max(size / bitmap.width, size / bitmap.height);
+        const width = bitmap.width * scale;
+        const height = bitmap.height * scale;
+        context.drawImage(bitmap, (size - width) / 2, (size - height) / 2, width, height);
+        bitmap.close?.();
+
+        return new Promise((resolve, reject) => {
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    reject(new Error('Il browser non ha prodotto un file WebP.'));
+                    return;
+                }
+                resolve(blob);
+            }, 'image/webp', 0.86);
         });
     }
 
@@ -3171,6 +3472,94 @@ window.CriptaApp.onPageReady("character", async function () {
         return true;
     }
 
+    async function loadItemOverridesDocumentForSave() {
+        const response = await fetch(getItemOverridesApiUrl());
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        return payload || { data: [], version: 0, source: 'static' };
+    }
+
+    function upsertItemOverrideRecord(records, identity, patch) {
+        const existing = (Array.isArray(records) ? records : []).find((record) => (
+            record
+            && typeof record === 'object'
+            && (
+                record.key === identity.key
+                || record.id === identity.key
+                || (
+                    (record.actorId && identity.actorId && record.actorId === identity.actorId)
+                    && (record.itemId && identity.itemId && record.itemId === identity.itemId)
+                )
+                || (
+                    normalizeText(record.actorName) === normalizeText(identity.actorName)
+                    && normalizeText(record.itemName) === normalizeText(identity.itemName)
+                )
+            )
+        )) || {};
+        const nextRecord = {
+            ...existing,
+            id: identity.key,
+            key: identity.key,
+            characterId: identity.characterId,
+            characterName: identity.characterName,
+            actorId: identity.actorId,
+            actorName: identity.actorName,
+            itemId: identity.itemId,
+            itemName: identity.itemName,
+            itemType: identity.itemType,
+            ...patch,
+            updatedAt: new Date().toISOString()
+        };
+        const nextData = (Array.isArray(records) ? records : []).filter((record) => (
+            record
+            && typeof record === 'object'
+            && record.key !== identity.key
+            && record.id !== identity.key
+            && !(
+                (record.actorId && identity.actorId && record.actorId === identity.actorId)
+                && (record.itemId && identity.itemId && record.itemId === identity.itemId)
+            )
+            && !(
+                normalizeText(record.actorName) === normalizeText(identity.actorName)
+                && normalizeText(record.itemName) === normalizeText(identity.itemName)
+            )
+        ));
+        nextData.push(nextRecord);
+        nextData.sort((left, right) => {
+            const actorSort = String(left.actorName || left.characterName || '').localeCompare(String(right.actorName || right.characterName || ''), 'it');
+            if (actorSort !== 0) return actorSort;
+            return String(left.itemName || '').localeCompare(String(right.itemName || ''), 'it');
+        });
+        return nextData;
+    }
+
+    async function saveItemOverride(identity, patch) {
+        const token = readAuthToken();
+        if (!token) {
+            alert('Login richiesto per salvare override inventario.');
+            return false;
+        }
+
+        const loaded = await loadItemOverridesDocumentForSave();
+        const nextData = upsertItemOverrideRecord(loaded.data, identity, patch);
+        const response = await fetch(getItemOverridesApiUrl(), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                data: nextData,
+                expectedVersion: loaded.source === 'kv' ? (loaded.version ?? 0) : 0,
+                campaignId: getCurrentCampaignId()
+            })
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        itemOverridesMemoryCache = nextData;
+        return true;
+    }
+
     async function uploadAbilityOverrideFile(blob, identity) {
         const token = readAuthToken();
         if (!token) {
@@ -3198,6 +3587,143 @@ window.CriptaApp.onPageReady("character", async function () {
         const payload = await response.json().catch(() => null);
         if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
         return payload.path || payload.key || '';
+    }
+
+    async function uploadItemOverrideFile(blob, identity) {
+        const token = readAuthToken();
+        if (!token) {
+            alert('Login richiesto per caricare icone inventario.');
+            return '';
+        }
+
+        const folder = `item-overrides/${slugify(identity.characterId || identity.actorName || identity.characterName || 'personaggio')}`;
+        const fileName = `${slugify(identity.itemName || identity.itemId || 'oggetto')}.webp`;
+        const form = new FormData();
+        form.set('folder', folder);
+        form.set('filename', fileName);
+        form.set('campaignId', getCurrentCampaignId());
+        form.set('file', new File([blob], fileName, { type: 'image/webp' }));
+
+        const uploadUrl = new URL(window.CriptaApp?.urls?.api?.('media/upload') || 'https://sigillo-api.khuzoe.workers.dev/media/upload');
+        uploadUrl.searchParams.set('folder', folder);
+        uploadUrl.searchParams.set('campaign', getCurrentCampaignId());
+
+        const response = await fetch(uploadUrl.toString(), {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: form
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        return payload.path || payload.key || '';
+    }
+
+    function getMediaOverridesApiUrl() {
+        return window.CriptaApp?.urls?.api?.('api/data/media-overrides') || 'https://sigillo-api.khuzoe.workers.dev/api/data/media-overrides';
+    }
+
+    async function loadMediaOverridesDocumentForSave() {
+        const response = await fetch(getMediaOverridesApiUrl());
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        return payload || { data: [], version: 0, source: 'static' };
+    }
+
+    function upsertMediaOverrideRecord(records, identity, kind, imagePath) {
+        const key = identity.key || identity.id || getMediaOverrideId(identity.entityType, identity.entityId);
+        const existing = (Array.isArray(records) ? records : []).find((record) => (
+            record && typeof record === 'object' && (record.key === key || record.id === key)
+        )) || {};
+        const nextRecord = {
+            ...existing,
+            ...identity,
+            id: key,
+            key,
+            images: {
+                ...(existing.images || {}),
+                [kind]: imagePath,
+                ...(kind === 'avatar' ? { portrait: imagePath } : {})
+            },
+            updatedAt: new Date().toISOString()
+        };
+        const nextData = (Array.isArray(records) ? records : []).filter((record) => (
+            record && typeof record === 'object' && record.key !== key && record.id !== key
+        ));
+        nextData.push(nextRecord);
+        nextData.sort((left, right) => String(left.name || '').localeCompare(String(right.name || ''), 'it'));
+        return nextData;
+    }
+
+    async function saveMediaOverride(identity, kind, imagePath) {
+        const token = readAuthToken();
+        if (!token) {
+            alert('Login richiesto per salvare immagini personaggio.');
+            return false;
+        }
+        const loaded = await loadMediaOverridesDocumentForSave();
+        const nextData = upsertMediaOverrideRecord(loaded.data, identity, kind, imagePath);
+        const response = await fetch(getMediaOverridesApiUrl(), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                data: nextData,
+                expectedVersion: loaded.source === 'kv' ? (loaded.version ?? 0) : 0,
+                campaignId: getCurrentCampaignId()
+            })
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        mediaOverridesMemoryCache = nextData;
+        return true;
+    }
+
+    async function uploadMediaOverrideImageFile(file, identity, kind) {
+        const token = readAuthToken();
+        if (!token) {
+            alert('Login richiesto per caricare immagini.');
+            return '';
+        }
+        const blob = await resizeImageFileToSquareWebpBlob(file, CHARACTER_MEDIA_SIZE);
+        const entityType = identity.entityType === 'companion' ? 'companion' : 'player';
+        const folder = entityType === 'companion'
+            ? `companions/${slugify(identity.ownerCharacterId || identity.characterId || identity.entityId || 'companion')}`
+            : 'players';
+        const fileName = entityType === 'companion'
+            ? `${slugify(identity.entityId || identity.name || 'companion')}-${kind}.webp`
+            : `${slugify(identity.entityId || identity.characterId || 'player')}-${kind}-override.webp`;
+        const form = new FormData();
+        form.set('folder', folder);
+        form.set('filename', fileName);
+        form.set('campaignId', getCurrentCampaignId());
+        form.set('file', new File([blob], fileName, { type: 'image/webp' }));
+
+        const uploadUrl = new URL(window.CriptaApp?.urls?.api?.('media/upload') || 'https://sigillo-api.khuzoe.workers.dev/media/upload');
+        uploadUrl.searchParams.set('folder', folder);
+        uploadUrl.searchParams.set('campaign', getCurrentCampaignId());
+
+        const response = await fetch(uploadUrl.toString(), {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: form
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        return payload.path || payload.key || '';
+    }
+
+    function applySavedMediaOverrideLocally(identity, kind, imagePath) {
+        if (identity.entityType !== 'player' || !currentCharacter) return;
+        currentCharacter.images = currentCharacter.images || {};
+        currentCharacter.images[kind] = imagePath;
+        if (kind === 'avatar') {
+            currentCharacter.images.portrait = imagePath;
+            if (!currentCharacter.images.hover) currentCharacter.images.hover = imagePath;
+        }
+        const index = currentAllCharacters.findIndex((entry) => String(entry.id || '') === String(currentCharacter.id || ''));
+        if (index >= 0) currentAllCharacters[index] = currentCharacter;
     }
 
     function initializeAbilityOverrideUploads(cardElement, character) {
@@ -3276,6 +3802,83 @@ window.CriptaApp.onPageReady("character", async function () {
         });
     }
 
+    function initializeItemOverrideUploads(cardElement, character) {
+        const getIdentityFromButton = (button) => ({
+            key: button.dataset.itemKey || '',
+            characterId: button.dataset.characterId || '',
+            characterName: button.dataset.characterName || '',
+            actorId: button.dataset.actorId || '',
+            actorName: button.dataset.actorName || '',
+            itemId: button.dataset.itemId || '',
+            itemName: button.dataset.itemName || '',
+            itemType: button.dataset.itemType || ''
+        });
+
+        const iconButtons = Array.from(cardElement.querySelectorAll('[data-item-icon-upload]'));
+        iconButtons.forEach((button) => {
+            button.addEventListener('click', async () => {
+                const identity = getIdentityFromButton(button);
+                if (!identity.key) return;
+
+                const file = await pickInlineImageFile();
+                if (!file) return;
+                let iconBlob = null;
+                try {
+                    iconBlob = await cropAbilityIconFileToWebpBlob(file);
+                } catch (error) {
+                    console.error('Preparazione icona inventario fallita:', error);
+                    alert(`Preparazione icona fallita: ${error?.message || error}`);
+                    return;
+                }
+                if (!iconBlob) return;
+
+                button.disabled = true;
+                button.setAttribute('aria-busy', 'true');
+                try {
+                    const imagePath = await uploadItemOverrideFile(iconBlob, identity);
+                    if (!imagePath) return;
+                    await saveItemOverride(identity, { image: imagePath, imageSource: 'site' });
+                    await hydratePlayerLoadout(character);
+                } catch (error) {
+                    console.error('Salvataggio icona inventario fallito:', error);
+                    alert(`Salvataggio icona inventario fallito: ${error?.message || error}`);
+                } finally {
+                    button.disabled = false;
+                    button.removeAttribute('aria-busy');
+                }
+            });
+        });
+
+        const descriptionButtons = Array.from(cardElement.querySelectorAll('[data-item-description-edit]'));
+        descriptionButtons.forEach((button) => {
+            button.addEventListener('click', async () => {
+                const identity = getIdentityFromButton(button);
+                if (!identity.key) return;
+
+                const currentText = button
+                    .closest('.loadout-entry')
+                    ?.querySelector('.loadout-entry-description')
+                    ?.innerText
+                    ?.trim() || '';
+                const nextDescription = window.prompt(`Descrizione per ${identity.itemName || 'oggetto'}`, currentText);
+                if (nextDescription === null) return;
+
+                button.disabled = true;
+                button.setAttribute('aria-busy', 'true');
+                try {
+                    await saveItemOverride(identity, { description: nextDescription.trim() });
+                    await hydratePlayerLoadout(character);
+                } catch (error) {
+                    console.error('Salvataggio testo inventario fallito:', error);
+                    alert(`Salvataggio testo inventario fallito: ${error?.message || error}`);
+                } finally {
+                    button.disabled = false;
+                    button.removeAttribute('aria-busy');
+                }
+            });
+        });
+    }
+
     function serializeInlineEditedCharacter(character) {
         const serialized = { ...character };
         delete serialized.content_blocks;
@@ -3304,6 +3907,10 @@ window.CriptaApp.onPageReady("character", async function () {
 
     function getAbilityOverridesApiUrl() {
         return window.CriptaApp?.urls?.api?.('api/data/ability-overrides') || 'https://sigillo-api.khuzoe.workers.dev/api/data/ability-overrides';
+    }
+
+    function getItemOverridesApiUrl() {
+        return window.CriptaApp?.urls?.api?.('api/data/item-overrides') || 'https://sigillo-api.khuzoe.workers.dev/api/data/item-overrides';
     }
 
     function getCurrentCampaignId() {
@@ -3483,19 +4090,22 @@ window.CriptaApp.onPageReady("character", async function () {
         if (!loadoutCard) return;
 
         try {
-            const [inventoryPayload, wikiItems, abilityOverrides] = await Promise.all([
+            const [inventoryPayload, wikiItems, abilityOverrides, itemOverrides, mediaOverrides] = await Promise.all([
                 loadInventoryData(),
                 loadWikiItemsData().catch((error) => {
                     console.warn('Impossibile caricare items.json per collegare gli oggetti:', error);
                     return [];
                 }),
-                loadAbilityOverrides()
+                loadAbilityOverrides(),
+                loadItemOverrides(),
+                loadMediaOverrides()
             ]);
-            loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload, wikiItems, abilityOverrides);
+            loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload, wikiItems, abilityOverrides, itemOverrides);
             initializeLoadoutTabs(loadoutCard);
+            initializeItemOverrideUploads(loadoutCard, character);
             initializeAbilityOverrideUploads(loadoutCard, character);
             if (companionsCard) {
-                const companionsHtml = buildCompanionsHtml(character, inventoryPayload, wikiItems);
+                const companionsHtml = buildCompanionsHtml(character, inventoryPayload, wikiItems, mediaOverrides);
                 companionsCard.hidden = !companionsHtml;
                 companionsCard.innerHTML = companionsHtml;
             }
@@ -3912,8 +4522,6 @@ window.CriptaApp.onPageReady("character", async function () {
         }
 
         if (charType === 'player') {
-            leftCol.appendChild(buildPlayerSkillTreeCard(character, playerSkillTrees));
-
             const playerLoadoutCard = document.createElement('div');
             playerLoadoutCard.className = 'content-card player-loadout-card';
             playerLoadoutCard.id = 'player-loadout-card';
@@ -3940,6 +4548,9 @@ window.CriptaApp.onPageReady("character", async function () {
             leftCol.appendChild(playerCompanionsCard);
 
             leftCol.appendChild(buildPlayerTransformationsCard(character));
+
+            const skillTreeCard = buildPlayerSkillTreeCard(character, playerSkillTrees);
+            if (skillTreeCard) leftCol.appendChild(skillTreeCard);
         }
 
         // Render relationships if they exist
@@ -4253,10 +4864,23 @@ window.CriptaApp.onPageReady("character", async function () {
                         </section>
                     `
             : '';
+        const playerMediaActionsHtml = isPlayerView && canEditCurrentPlayerTransformations(character)
+            ? `
+                        <div class="character-media-actions">
+                            <button type="button" data-media-override-action="upload" data-media-entity-type="player" data-media-kind="avatar" data-media-identity="${escapeHtml(character.id || charId)}" data-media-name="${escapeHtml(character.name || '')}">
+                                <i class="fas fa-user"></i> Cambia avatar
+                            </button>
+                            <button type="button" data-media-override-action="upload" data-media-entity-type="player" data-media-kind="token" data-media-identity="${escapeHtml(character.id || charId)}" data-media-name="${escapeHtml(character.name || '')}">
+                                <i class="fas fa-circle-dot"></i> Cambia token
+                            </button>
+                        </div>
+                    `
+            : '';
 
         return `
                     <div class="image-card">
                         <img src="${resolveImagePath(images.portrait || images.avatar || images.hover || '')}" class="char-portrait" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
+                        ${playerMediaActionsHtml}
                         <div class="stats-grid">${statsHtml}</div>
                         ${causeOfDeathHtml}
                         ${playerXpHtml}

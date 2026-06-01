@@ -1042,7 +1042,9 @@
                 pollTitle: localOnlyConfig.pollTitle || remoteConfig.pollTitle,
                 pollSubtitle: localOnlyConfig.pollSubtitle || remoteConfig.pollSubtitle,
                 discordWebhookUrl: localOnlyConfig.discordWebhookUrl || remoteConfig.discordWebhookUrl,
-                disableDiscordNotifications: localOnlyConfig.disableDiscordNotifications || remoteConfig.disableDiscordNotifications,
+                disableDiscordNotifications: typeof localOnlyConfig.disableDiscordNotifications === 'boolean'
+                    ? localOnlyConfig.disableDiscordNotifications
+                    : remoteConfig.disableDiscordNotifications,
                 dmAccountId: localOnlyConfig.dmAccountId || remoteConfig.dmAccountId,
                 dmDiscordId: localOnlyConfig.dmDiscordId || remoteConfig.dmDiscordId,
                 pollManagerAccountIds: localOnlyConfig.pollManagerAccountIds?.length ? localOnlyConfig.pollManagerAccountIds : remoteConfig.pollManagerAccountIds,

@@ -1,9 +1,9 @@
 {
-  "campaignName": "Nome Campagna",
+  "campaignName": "Mago Folle",
   "pollTitle": "Sondaggio disponibilità",
   "pollSubtitle": "Prossima sessione",
-  "discordWebhookUrl": "",
-  "disableDiscordNotifications": true,
+  "discordWebhookUrl": "https://discord.com/api/webhooks/1389662468917297173/LCVC1KoA0TPF2GzwvPLWwgJJHDH8JNdiYvA0pJtFi3z2VnZmJjJKchJJfy4J4lcAC6TT",
+  "disableDiscordNotifications": false,
   "number": 0,
   "dmAccountId": "sommo",
   "dmDiscordId": "166518617083609088",

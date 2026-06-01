@@ -21,6 +21,37 @@ window.CriptaApp.onPageReady("giocatori", async function() {
             .replace(/[^a-z0-9]+/g, "");
     }
 
+    function slugify(value) {
+        return String(value || "")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "") || "personaggio";
+    }
+
+    function getCurrentCampaignId() {
+        return window.CriptaApp?.campaigns?.currentId?.() || "cripta-di-sangue";
+    }
+
+    function getSyncedPlayerImagePath(player, variant = "avatar") {
+        const playerId = slugify(player?.id || player?.name || "personaggio");
+        const campaignId = getCurrentCampaignId();
+        const suffix = variant === "token" ? "-token" : "";
+        const folder = campaignId === "cripta-di-sangue" ? "players" : `campaigns/${campaignId}/players`;
+        return `media/${folder}/${playerId}${suffix}.webp`;
+    }
+
+    function getPlayerImages(player) {
+        const images = { ...(player?.images || {}) };
+        const fallbackAvatar = getSyncedPlayerImagePath(player, "avatar");
+        if (!images.avatar) images.avatar = fallbackAvatar;
+        if (!images.hover) images.hover = images.avatar;
+        if (!images.portrait) images.portrait = images.avatar;
+        if (!images.token) images.token = getSyncedPlayerImagePath(player, "token");
+        return images;
+    }
+
     function normalizeImageAdjust(adjust) {
         const x = Number(adjust?.x);
         const y = Number(adjust?.y);
@@ -126,17 +157,12 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         const companions = Array.isArray(inventorySnapshot?.companions) ? inventorySnapshot.companions : [];
         if (!companions.length || !player) return [];
         const playerId = normalizeText(player.id);
-        const accountId = normalizeText(player.accountId);
-        const discordId = normalizeText(player.discordId);
         const playerName = normalizeText(player.name);
         return companions
             .filter((companion) => {
                 const ownerCharacterId = normalizeText(companion.ownerCharacterId);
-                const ownerAccountId = normalizeText(companion.ownerAccountId);
-                const ownerDiscordId = normalizeText(companion.ownerDiscordId);
-                return Boolean(ownerCharacterId && (ownerCharacterId === playerId || ownerCharacterId === playerName))
-                    || Boolean(ownerAccountId && ownerAccountId === accountId)
-                    || Boolean(ownerDiscordId && ownerDiscordId === discordId);
+                if (!ownerCharacterId) return false;
+                return ownerCharacterId === playerId || ownerCharacterId === playerName;
             })
             .sort((left, right) => String(left.displayName || left.name || "").localeCompare(String(right.displayName || right.name || ""), "it"));
     }
@@ -266,6 +292,7 @@ window.CriptaApp.onPageReady("giocatori", async function() {
 
     function renderPlayerCard(player, actor, inventorySnapshot) {
         const companions = getPlayerCompanions(inventorySnapshot, player);
+        const images = getPlayerImages(player);
         const isInactive = player.isActive === false;
         const cardClasses = `npc-card player-card ${isInactive ? "player-card--inactive" : ""}`.trim();
         const statusBadge = isInactive
@@ -278,8 +305,8 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         return `
             <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player" class="${cardClasses}">
                 <div class="npc-avatar-container">
-                    <img src="${escapeHtml(resolveImageUrl(player.images?.avatar))}" alt="${escapeHtml(player.name)}" class="npc-img-pop img-main" style="${buildImageStyle("avatar", player.images?.avatarAdjust, player.images?.hoverAdjust)}" onerror="this.src='https://placehold.co/200x200/1a1a1a/gold?text=${encodeURIComponent(String(player.name || "?").charAt(0))}'">
-                    <img src="${escapeHtml(resolveImageUrl(player.images?.hover))}" alt="${escapeHtml(player.name)} Full" class="npc-img-pop img-hover" style="${buildImageStyle("hover", player.images?.hoverAdjust, player.images?.avatarAdjust)}" onerror="this.style.display='none'">
+                    <img src="${escapeHtml(resolveImageUrl(images.avatar))}" alt="${escapeHtml(player.name)}" class="npc-img-pop img-main" style="${buildImageStyle("avatar", images.avatarAdjust, images.hoverAdjust)}" onerror="this.src='https://placehold.co/200x200/1a1a1a/gold?text=${encodeURIComponent(String(player.name || "?").charAt(0))}'">
+                    <img src="${escapeHtml(resolveImageUrl(images.hover))}" alt="${escapeHtml(player.name)} Full" class="npc-img-pop img-hover" style="${buildImageStyle("hover", images.hoverAdjust, images.avatarAdjust)}" onerror="this.style.display='none'">
                     ${renderCompanionBadge(companions)}
                 </div>
                 <div class="npc-info">
