@@ -1,17 +1,17 @@
 {
   "itemCount": 3,
   "sessionIds": [
-    23,
-    24
+    24,
+    25
   ],
   "items": [
     {
-      "id": "zara",
-      "name": "Zara Klaren",
-      "role": "La Giullare",
-      "avatar": "media/creatures/transp/zara_transp.webp",
-      "url": "pages/characters/character.html?id=zara",
-      "score": 12
+      "id": "tokka",
+      "name": "Tokka Von T",
+      "role": "Il Cuore Corrotto",
+      "avatar": "media/creatures/transp/tokka_transp.webp",
+      "url": "pages/characters/character.html?id=tokka",
+      "score": 14
     },
     {
       "id": "franky",
@@ -19,15 +19,15 @@
       "role": "Lo Scienziato",
       "avatar": "media/creatures/transp/franky_transp.webp",
       "url": "pages/characters/character.html?id=franky",
-      "score": 4
+      "score": 2
     },
     {
-      "id": "tokka",
-      "name": "Tokka Von T",
-      "role": "Il Cuore Corrotto",
-      "avatar": "media/creatures/transp/tokka_transp.webp",
-      "url": "pages/characters/character.html?id=tokka",
-      "score": 4
+      "id": "zara",
+      "name": "Zara Klaren",
+      "role": "La Giullare",
+      "avatar": "media/creatures/transp/zara_transp.webp",
+      "url": "pages/characters/character.html?id=zara",
+      "score": 2
     }
   ]
 }
