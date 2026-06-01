@@ -22,6 +22,9 @@ window.CriptaApp.onPageReady("creature", async () => {
         abilitySearch: "",
         activeAbilityIndex: 0,
         openRiderPanels: new Set(),
+        customConditionTemplates: [],
+        conditionDraft: createDefaultConditionDraft(),
+        conditionBuilderOpen: false,
         imagePasteTarget: null
     };
 
@@ -247,6 +250,14 @@ window.CriptaApp.onPageReady("creature", async () => {
                 uploadConditionTemplateIcon(Number(button.dataset.conditionTemplateIndex));
             });
         });
+        root.querySelectorAll("[data-condition-builder-field]").forEach((field) => {
+            field.addEventListener("input", () => updateConditionBuilderField(field));
+            field.addEventListener("change", () => updateConditionBuilderField(field, { rerender: true }));
+        });
+        root.querySelector("[data-condition-builder]")?.addEventListener("toggle", (event) => {
+            state.conditionBuilderOpen = event.currentTarget.open;
+        });
+        root.querySelector('[data-action="create-custom-condition-template"]')?.addEventListener("click", createCustomConditionTemplateFromBuilder);
         root.querySelectorAll("[data-choice-field]").forEach((button) => {
             button.addEventListener("click", () => {
                 const path = button.dataset.choiceField;
@@ -492,7 +503,7 @@ window.CriptaApp.onPageReady("creature", async () => {
 
                     <section class="bestiary-detail-section monster-builder-panel">
                         <div class="monster-builder-section-title">
-                            <h2>Abilità del mostro</h2>
+                            <h2>AbilitÃ  del mostro</h2>
                             <div class="monster-quick-add">
                                 <button class="bestiary-detail-action" type="button" data-action="add-ability-kind" data-ability-kind="attack">Attacco</button>
                                 <button class="bestiary-detail-action" type="button" data-action="add-ability-kind" data-ability-kind="save">TS</button>
@@ -504,7 +515,7 @@ window.CriptaApp.onPageReady("creature", async () => {
                         </div>
                         <div class="monster-ability-dropzone" data-ability-dropzone>
                             ${abilities.length ? abilities.map(renderGuidedMonsterAbilityEditor).join("") : `
-                                <p class="monster-builder-empty">Trascina qui un'abilità dalla libreria a destra.</p>
+                                <p class="monster-builder-empty">Trascina qui un'abilitÃ  dalla libreria a destra.</p>
                             `}
                         </div>
                     </section>
@@ -512,7 +523,7 @@ window.CriptaApp.onPageReady("creature", async () => {
                 <aside class="monster-builder-library">
                     <section class="bestiary-detail-section monster-builder-panel">
                         <div class="monster-builder-section-title">
-                            <h2>Libreria abilità</h2>
+                            <h2>Libreria abilitÃ </h2>
                             <button class="bestiary-detail-action" type="button" data-action="add-custom-ability">
                                 <i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i>
                                 <span>Nuova</span>
@@ -526,16 +537,17 @@ window.CriptaApp.onPageReady("creature", async () => {
                             ${renderAbilityFilterTabs()}
                             ${filteredTemplates.length
                 ? filteredTemplates.map(({ template, index }) => renderAbilityTemplateCard(template, index)).join("")
-                : `<p class="monster-builder-empty">Nessuna abilitÃ  in questo filtro.</p>`}
+                : `<p class="monster-builder-empty">Nessuna abilitÃƒÂ  in questo filtro.</p>`}
                         </div>
                     </section>
                     <section class="bestiary-detail-section monster-builder-panel monster-builder-panel--conditions">
                         <div class="monster-builder-section-title">
                             <h2>Condizioni</h2>
                         </div>
-                        <p class="monster-builder-hint">Trascinale sull'abilitÃ  attiva per aggiungere rider avanzati gestiti dal modulo Foundry.</p>
+                        <p class="monster-builder-hint">Trascinale sull'abilitÃƒÂ  attiva per aggiungere rider avanzati gestiti dal modulo Foundry.</p>
+                        ${renderConditionBuilder()}
                         <div class="monster-ability-library">
-                            ${ADVANCED_CONDITION_TEMPLATES.map((template, index) => renderConditionTemplateCard(template, index)).join("")}
+                            ${getConditionTemplates().map((template, index) => renderConditionTemplateCard(template, index)).join("")}
                         </div>
                     </section>
                 </aside>
@@ -552,7 +564,7 @@ window.CriptaApp.onPageReady("creature", async () => {
                 ? `<img class="monster-ability-template-icon" src="${escapeHtml(resolveImageUrl(iconImage))}" alt="">`
                 : `<i class="fas ${escapeHtml(template.icon || "fa-burst")}" aria-hidden="true"></i>`}
                 <div>
-                    <strong>${escapeHtml(template.name || "Abilità")}</strong>
+                    <strong>${escapeHtml(template.name || "AbilitÃ ")}</strong>
                     <span>${escapeHtml([template.type || "feat", template.activation || ""].filter(Boolean).join(" | "))}</span>
                 </div>
                 <button class="monster-ability-add-btn" type="button" data-action="add-template-ability" data-ability-template-index="${index}" title="Aggiungi">
@@ -580,6 +592,73 @@ window.CriptaApp.onPageReady("creature", async () => {
                     <i class="fas fa-plus" aria-hidden="true"></i>
                 </button>
             </article>
+        `;
+    }
+
+    function renderConditionBuilder() {
+        const draft = state.conditionDraft || createDefaultConditionDraft();
+        const preset = getConditionBuilderPreset(draft.preset);
+        return `
+            <details class="monster-condition-builder" ${state.conditionBuilderOpen ? "open" : ""} data-condition-builder>
+                <summary>
+                    <span><i class="fas fa-sliders" aria-hidden="true"></i> Nuova condizione guidata</span>
+                    <small>Genera ActiveEffect comuni senza scrivere flag a mano</small>
+                </summary>
+                <div class="monster-condition-builder-body">
+                    <label class="bestiary-detail-field">
+                        <span>Nome</span>
+                        <input class="bestiary-detail-input" data-condition-builder-field="name" value="${escapeHtml(draft.name || "")}" placeholder="${escapeHtml(preset.defaultName)}">
+                    </label>
+                    <label class="bestiary-detail-field">
+                        <span>Cosa modifica</span>
+                        <select class="bestiary-detail-select" data-condition-builder-field="preset">
+                            ${CONDITION_BUILDER_PRESETS.map((entry) => `
+                                <option value="${escapeHtml(entry.id)}" ${entry.id === draft.preset ? "selected" : ""}>${escapeHtml(entry.label)}</option>
+                            `).join("")}
+                        </select>
+                    </label>
+                    ${renderConditionBuilderTargetField(draft, preset)}
+                    ${preset.requiresValue === false ? "" : `
+                        <label class="bestiary-detail-field">
+                            <span>${escapeHtml(preset.valueLabel || "Valore")}</span>
+                            <input class="bestiary-detail-input" data-condition-builder-field="value" value="${escapeHtml(draft.value || "")}" placeholder="${escapeHtml(preset.placeholder || "")}">
+                        </label>
+                    `}
+                    <label class="bestiary-detail-field">
+                        <span>Durata</span>
+                        <select class="bestiary-detail-select" data-condition-builder-field="duration">
+                            ${CONDITION_BUILDER_DURATIONS.map(([value, label]) => `
+                                <option value="${escapeHtml(value)}" ${value === draft.duration ? "selected" : ""}>${escapeHtml(label)}</option>
+                            `).join("")}
+                        </select>
+                    </label>
+                    <label class="bestiary-detail-field">
+                        <span>Applicazione</span>
+                        <select class="bestiary-detail-select" data-condition-builder-field="timing">
+                            <option value="hit" ${draft.timing !== "failed-save" ? "selected" : ""}>Automatica</option>
+                            <option value="failed-save" ${draft.timing === "failed-save" ? "selected" : ""}>Su fallimento TS</option>
+                        </select>
+                    </label>
+                    <button class="bestiary-detail-action bestiary-detail-action--primary monster-condition-builder-submit" type="button" data-action="create-custom-condition-template">
+                        <i class="fas fa-plus" aria-hidden="true"></i>
+                        <span>Crea e aggiungi</span>
+                    </button>
+                </div>
+            </details>
+        `;
+    }
+
+    function renderConditionBuilderTargetField(draft, preset) {
+        if (!preset.targets?.length) return "";
+        return `
+            <label class="bestiary-detail-field">
+                <span>${escapeHtml(preset.targetLabel || "Campo")}</span>
+                <select class="bestiary-detail-select" data-condition-builder-field="target">
+                    ${preset.targets.map(([value, label]) => `
+                        <option value="${escapeHtml(value)}" ${value === draft.target ? "selected" : ""}>${escapeHtml(label)}</option>
+                    `).join("")}
+                </select>
+            </label>
         `;
     }
 
@@ -630,10 +709,10 @@ window.CriptaApp.onPageReady("creature", async () => {
             <article class="monster-ability-editor ${collapsed ? "is-collapsed" : "is-active"}" data-ability-index="${index}">
                 <header data-summary="${escapeHtml(summary)}">
                     ${renderAbilityIconUploadButton(ability, index)}
-                    <strong>${escapeHtml(ability.name || "AbilitÃ ")}</strong>
+                    <strong>${escapeHtml(ability.name || "AbilitÃƒÂ ")}</strong>
                     <div>
                         <button class="monster-ability-icon-btn" type="button" data-ability-action="move-up" data-ability-index="${index}" title="Sposta su"><i class="fas fa-arrow-up"></i></button>
-                        <button class="monster-ability-icon-btn" type="button" data-ability-action="move-down" data-ability-index="${index}" title="Sposta giÃ¹"><i class="fas fa-arrow-down"></i></button>
+                        <button class="monster-ability-icon-btn" type="button" data-ability-action="move-down" data-ability-index="${index}" title="Sposta giÃƒÂ¹"><i class="fas fa-arrow-down"></i></button>
                         <button class="monster-ability-icon-btn monster-ability-icon-btn--danger" type="button" data-ability-action="delete" data-ability-index="${index}" title="Elimina"><i class="fas fa-trash"></i></button>
                     </div>
                 </header>
@@ -1144,10 +1223,10 @@ window.CriptaApp.onPageReady("creature", async () => {
             <article class="monster-ability-editor" data-ability-index="${index}">
                 <header>
                     ${renderAbilityIconUploadButton(ability, index)}
-                    <strong>${escapeHtml(ability.name || "Abilità")}</strong>
+                    <strong>${escapeHtml(ability.name || "AbilitÃ ")}</strong>
                     <div>
                         <button class="monster-ability-icon-btn" type="button" data-ability-action="move-up" data-ability-index="${index}" title="Sposta su"><i class="fas fa-arrow-up"></i></button>
-                        <button class="monster-ability-icon-btn" type="button" data-ability-action="move-down" data-ability-index="${index}" title="Sposta giù"><i class="fas fa-arrow-down"></i></button>
+                        <button class="monster-ability-icon-btn" type="button" data-ability-action="move-down" data-ability-index="${index}" title="Sposta giÃ¹"><i class="fas fa-arrow-down"></i></button>
                         <button class="monster-ability-icon-btn monster-ability-icon-btn--danger" type="button" data-ability-action="delete" data-ability-index="${index}" title="Elimina"><i class="fas fa-trash"></i></button>
                     </div>
                 </header>
@@ -1162,7 +1241,7 @@ window.CriptaApp.onPageReady("creature", async () => {
                     ${renderAbilityInput(index, "Attacco", "attackBonus", ability.attackBonus || "")}
                     ${renderAbilityInput(index, "Danno", "damageFormula", ability.damageFormula || "")}
                     ${renderAbilityInput(index, "Tipo danno", "damageType", ability.damageType || "")}
-                    ${renderAbilityInput(index, "TS abilità", "saveAbility", ability.saveAbility || "")}
+                    ${renderAbilityInput(index, "TS abilitÃ ", "saveAbility", ability.saveAbility || "")}
                     ${renderAbilityInput(index, "CD TS", "saveDc", ability.saveDc || "")}
                     ${renderAbilityArea(index, "Descrizione", "description", ability.description || "")}
                 </div>
@@ -1520,7 +1599,7 @@ window.CriptaApp.onPageReady("creature", async () => {
             return;
         }
         if (action === "delete") {
-            if (!window.confirm("Eliminare questa abilità dal mostro?")) return;
+            if (!window.confirm("Eliminare questa abilitÃ  dal mostro?")) return;
             abilities.splice(index, 1);
             state.activeAbilityIndex = Math.max(0, Math.min(index, abilities.length - 1));
         } else if (action === "move-up" && index > 0) {
@@ -1547,7 +1626,7 @@ window.CriptaApp.onPageReady("creature", async () => {
     }
 
     function addConditionTemplateToActiveAbility(index) {
-        const template = ADVANCED_CONDITION_TEMPLATES[index];
+        const template = getConditionTemplates()[index];
         if (!template) return;
         const abilities = getMonsterAbilities(state.creature);
         if (!abilities.length) addMonsterAbilityKind("attack");
@@ -1560,10 +1639,42 @@ window.CriptaApp.onPageReady("creature", async () => {
         render();
     }
 
+    function getConditionTemplates() {
+        return [...ADVANCED_CONDITION_TEMPLATES, ...state.customConditionTemplates];
+    }
+
+    function updateConditionBuilderField(field, options = {}) {
+        const key = field.dataset.conditionBuilderField;
+        if (!key) return;
+        const draft = state.conditionDraft || createDefaultConditionDraft();
+        draft[key] = field.value;
+        if (key === "preset") {
+            state.conditionBuilderOpen = true;
+            const preset = getConditionBuilderPreset(field.value);
+            draft.name = draft.name || preset.defaultName;
+            draft.value = draft.value || preset.defaultValue || "";
+            draft.target = preset.targets?.[0]?.[0] || "";
+        }
+        state.conditionDraft = draft;
+        if (options.rerender && (key === "preset")) render();
+    }
+
+    function createCustomConditionTemplateFromBuilder() {
+        const built = buildCustomConditionTemplateFromDraft(state.conditionDraft || createDefaultConditionDraft());
+        if (!built.ok) {
+            alert(built.error || "Condizione non valida.");
+            return;
+        }
+        state.customConditionTemplates.push(built.template);
+        const index = getConditionTemplates().length - 1;
+        state.conditionDraft = createDefaultConditionDraft();
+        addConditionTemplateToActiveAbility(index);
+    }
+
     function addEmptyMonsterAbility() {
         const abilities = getMonsterAbilities(state.creature);
         const ability = createMonsterAbilityFromTemplate({
-            name: "Nuova abilità",
+            name: "Nuova abilitÃ ",
             icon: "fa-burst",
             section: "action",
             activation: "action",
@@ -1580,7 +1691,7 @@ window.CriptaApp.onPageReady("creature", async () => {
         const labels = { attack: "Nuovo attacco", save: "Nuovo effetto con TS", aura: "Nuova aura", passive: "Nuova passiva", reaction: "Nuova reazione", legendary: "Nuova leggendaria" };
         const abilities = getMonsterAbilities(state.creature);
         const ability = createMonsterAbilityFromTemplate({
-            name: labels[kind] || "Nuova abilitÃ ",
+            name: labels[kind] || "Nuova abilitÃƒÂ ",
             kind,
             icon: kind === "attack" ? "fa-hand-fist" : kind === "save" ? "fa-dice-d20" : "fa-burst",
             section: sectionFromAbilityKind(kind),
@@ -1595,7 +1706,7 @@ window.CriptaApp.onPageReady("creature", async () => {
     }
 
     function addCustomAbilityTemplate() {
-        const name = window.prompt("Nome della nuova abilità riutilizzabile:");
+        const name = window.prompt("Nome della nuova abilitÃ  riutilizzabile:");
         if (!name) return;
         const template = createMonsterAbilityFromTemplate({ name, icon: "fa-burst", section: "action", activation: "action" });
         state.abilityTemplates.push(template);
@@ -1604,7 +1715,7 @@ window.CriptaApp.onPageReady("creature", async () => {
         applyAbilityDefaultsForKind(ability);
         abilities.push(ability);
         state.activeAbilityIndex = abilities.length - 1;
-        saveMonsterAbilityTemplates().catch((error) => console.warn("Salvataggio libreria abilità fallito:", error));
+        saveMonsterAbilityTemplates().catch((error) => console.warn("Salvataggio libreria abilitÃ  fallito:", error));
         state.dirty = true;
         render();
     }
@@ -2260,7 +2371,7 @@ window.CriptaApp.onPageReady("creature", async () => {
             alert("Login richiesto per caricare immagini.");
             return;
         }
-        const template = ADVANCED_CONDITION_TEMPLATES[index];
+        const template = getConditionTemplates()[index];
         if (!template) return;
         const selectedFile = file || await pickImageFile();
         if (!selectedFile) return;
@@ -2412,50 +2523,17 @@ const DEFAULT_MONSTER_ABILITY_TEMPLATES = [
         description: "Il bersaglio effettua un tiro salvezza o subisce l'effetto."
     },
     {
-        id: "passive-avoidance",
-        name: "Avoidance",
-        icon: "fa-shield-heart",
-        type: "feat",
-        kind: "passive",
-        category: "passive",
-        section: "trait",
-        description: "Se la creatura subisce un effetto che permette un tiro salvezza per dimezzare i danni, non subisce danni se supera il tiro salvezza e subisce solo meta danni se lo fallisce.",
-        passive: { id: "avoidance", automation: "manual" }
-    },
-    {
-        id: "passive-damage-transfer",
-        name: "Damage Transfer",
-        icon: "fa-link",
-        type: "feat",
-        kind: "passive",
-        category: "passive",
-        section: "trait",
-        description: "Mentre la creatura e attaccata a un bersaglio o lo sta afferrando, subisce solo meta dei danni ricevuti. L'altra meta viene trasferita al bersaglio collegato.",
-        passive: { id: "damage-transfer", automation: "module-required" }
-    },
-    {
         id: "passive-enlarge",
         name: "Enlarge",
         icon: "fa-up-right-and-down-left-from-center",
         type: "feat",
         kind: "passive",
         category: "passive",
-        section: "trait",
-        passiveValueLabel: "Danni extra per round",
-        description: "La creatura puo aumentare magicamente di taglia insieme a cio che indossa o trasporta. Inserire il danno extra medio per round nel campo dedicato.",
-        passive: { id: "enlarge", hasNumberParam: true, valueLabel: "Danni extra per round", automation: "manual" }
-    },
-    {
-        id: "passive-heated-body",
-        name: "Heated Body",
-        icon: "fa-temperature-full",
-        type: "feat",
-        kind: "passive",
-        category: "passive",
-        section: "trait",
-        passiveValueLabel: "Danno da contatto",
-        description: "Una creatura che tocca questo mostro o lo colpisce con un attacco in mischia entro 5 piedi subisce il danno indicato.",
-        passive: { id: "heated-body", hasNumberParam: true, valueLabel: "Danno da contatto", automation: "module-required" }
+        section: "action",
+        activation: "action",
+        passiveValueLabel: "Danno extra arma",
+        description: "La creatura aumenta di una taglia per 1 minuto. Il buff aumenta la taglia Foundry e, se compilato, aggiunge il danno indicato agli attacchi con arma.",
+        passive: { id: "enlarge", hasNumberParam: true, valueLabel: "Danno extra arma", automation: "active-effect" }
     },
     {
         id: "passive-magic-resistance",
@@ -2469,29 +2547,6 @@ const DEFAULT_MONSTER_ABILITY_TEMPLATES = [
         passive: { id: "magic-resistance", automation: "midi-qol" }
     },
     {
-        id: "passive-martial-advantage",
-        name: "Martial Advantage",
-        icon: "fa-people-arrows",
-        type: "feat",
-        kind: "passive",
-        category: "passive",
-        section: "trait",
-        passiveValueLabel: "Danni extra per round",
-        description: "Una volta per turno, la creatura puo infliggere danni extra a un bersaglio che colpisce se quel bersaglio e entro 5 piedi da un alleato della creatura non incapacitato.",
-        passive: { id: "martial-advantage", hasNumberParam: true, valueLabel: "Danni extra per round", automation: "manual" }
-    },
-    {
-        id: "passive-parry",
-        name: "Parry",
-        icon: "fa-shield",
-        type: "feat",
-        kind: "passive",
-        category: "passive",
-        section: "reaction",
-        description: "Come reazione, la creatura aggiunge il proprio bonus di competenza alla CA contro un attacco in mischia che la colpirebbe.",
-        passive: { id: "parry", automation: "manual" }
-    },
-    {
         id: "passive-regeneration",
         name: "Regeneration",
         icon: "fa-heart-pulse",
@@ -2503,28 +2558,6 @@ const DEFAULT_MONSTER_ABILITY_TEMPLATES = [
         passiveBreakDamageTypes: ["acid", "fire"],
         description: "All'inizio del proprio turno, la creatura recupera i punti ferita indicati. La rigenerazione puo essere interrotta fino al prossimo turno dai tipi di danno selezionati.",
         passive: { id: "regeneration", hasNumberParam: true, valueLabel: "PF rigenerati", automation: "custom-module" }
-    },
-    {
-        id: "passive-relentless",
-        name: "Relentless",
-        icon: "fa-hand-holding-heart",
-        type: "feat",
-        kind: "passive",
-        category: "passive",
-        section: "trait",
-        description: "Quando la creatura sarebbe ridotta a 0 punti ferita, puo invece restare a 1 punto ferita se la condizione specifica della feature e soddisfatta.",
-        passive: { id: "relentless", automation: "module-required" }
-    },
-    {
-        id: "passive-stench",
-        name: "Stench",
-        icon: "fa-wind",
-        type: "feat",
-        kind: "passive",
-        category: "passive",
-        section: "trait",
-        description: "Ogni creatura diversa da questo mostro entro 5 piedi deve superare un tiro salvezza o essere avvelenata secondo le regole della feature.",
-        passive: { id: "stench", automation: "manual" }
     },
     {
         id: "passive-undead-fortitude",
@@ -2550,6 +2583,276 @@ const DEFAULT_MONSTER_ABILITY_TEMPLATES = [
         passive: { id: "absorption", valueLabel: "Tipo danno assorbito", automation: "custom-module" }
     }
 ];
+
+const CONDITION_BUILDER_PRESETS = [
+    {
+        id: "ac-bonus",
+        label: "Classe Armatura",
+        defaultName: "Modifica Classe Armatura",
+        icon: "fa-shield-halved",
+        valueLabel: "Bonus o malus",
+        placeholder: "+2, -3, +1d6 o -1d6",
+        defaultValue: "+2",
+        build: ({ value }) => [{ key: "system.attributes.ac.bonus", mode: 2, value: normalizeSignedNumber(value), priority: 20 }]
+    },
+    {
+        id: "ability-score",
+        label: "Caratteristica",
+        defaultName: "Modifica caratteristica",
+        icon: "fa-dumbbell",
+        targetLabel: "Caratteristica",
+        targets: [
+            ["str", "Forza"],
+            ["dex", "Destrezza"],
+            ["con", "Costituzione"],
+            ["int", "Intelligenza"],
+            ["wis", "Saggezza"],
+            ["cha", "Carisma"]
+        ],
+        valueLabel: "Bonus o malus",
+        placeholder: "+2, -2, +1d6 o -1d6",
+        defaultValue: "+2",
+        build: ({ target, value }) => [{ key: `system.abilities.${target}.value`, mode: 2, value: normalizeSignedNumber(value), priority: 20 }]
+    },
+    {
+        id: "hp-max",
+        label: "Punti ferita massimi",
+        defaultName: "Modifica PF massimi",
+        icon: "fa-heart-pulse",
+        valueLabel: "Bonus PF",
+        placeholder: "+15, -10, +1d6 o -1d6",
+        defaultValue: "+10",
+        build: ({ value }) => [{ key: "system.attributes.hp.max", mode: 2, value: normalizeSignedNumber(value), priority: 20 }]
+    },
+    {
+        id: "speed-bonus",
+        label: "Velocità",
+        defaultName: "Modifica velocità",
+        icon: "fa-person-running",
+        targetLabel: "Movimento",
+        targets: [
+            ["all", "Tutte"],
+            ["walk", "Camminare"],
+            ["fly", "Volare"],
+            ["swim", "Nuotare"],
+            ["climb", "Scalare"],
+            ["burrow", "Scavare"]
+        ],
+        valueLabel: "Bonus o malus",
+        placeholder: "+10, -10, +1d6 o -1d6",
+        defaultValue: "-10",
+        build: ({ target, value }) => {
+            const movements = target === "all" ? ["walk", "fly", "swim", "climb", "burrow"] : [target];
+            return movements.map((movement) => ({ key: `system.attributes.movement.${movement}`, mode: 2, value: normalizeSignedNumber(value), priority: 20 }));
+        }
+    },
+    {
+        id: "damage-resistance",
+        label: "Resistenza ai danni",
+        defaultName: "Resistenza temporanea",
+        icon: "fa-shield",
+        targetLabel: "Tipo danno",
+        targets: damageTypeBuilderTargets(),
+        valueLabel: "Valore",
+        placeholder: "automatico",
+        defaultValue: "1",
+        requiresValue: false,
+        build: ({ target }) => [{ key: "system.traits.dr.value", mode: 0, value: target, priority: 20 }]
+    },
+    {
+        id: "damage-immunity",
+        label: "Immunità ai danni",
+        defaultName: "Immunità temporanea",
+        icon: "fa-shield-virus",
+        targetLabel: "Tipo danno",
+        targets: damageTypeBuilderTargets(),
+        valueLabel: "Valore",
+        placeholder: "automatico",
+        defaultValue: "1",
+        requiresValue: false,
+        build: ({ target }) => [{ key: "system.traits.di.value", mode: 0, value: target, priority: 20 }]
+    },
+    {
+        id: "damage-vulnerability",
+        label: "Vulnerabilità ai danni",
+        defaultName: "Vulnerabilità temporanea",
+        icon: "fa-triangle-exclamation",
+        targetLabel: "Tipo danno",
+        targets: damageTypeBuilderTargets(),
+        valueLabel: "Valore",
+        placeholder: "automatico",
+        defaultValue: "1",
+        requiresValue: false,
+        build: ({ target }) => [{ key: "system.traits.dv.value", mode: 0, value: target, priority: 20 }]
+    },
+    {
+        id: "condition-immunity",
+        label: "Immunità a condizione",
+        defaultName: "Immunità a condizione",
+        icon: "fa-user-shield",
+        targetLabel: "Condizione",
+        targets: conditionBuilderTargets(),
+        valueLabel: "Valore",
+        placeholder: "automatico",
+        defaultValue: "1",
+        requiresValue: false,
+        build: ({ target }) => [{ key: "system.traits.ci.value", mode: 0, value: target, priority: 20 }]
+    },
+    {
+        id: "midi-save-advantage",
+        label: "Vantaggio ai tiri salvezza",
+        defaultName: "Vantaggio ai tiri salvezza",
+        icon: "fa-dice-d20",
+        targetLabel: "Tiro salvezza",
+        targets: [
+            ["all", "Tutti"],
+            ["str", "Forza"],
+            ["dex", "Destrezza"],
+            ["con", "Costituzione"],
+            ["int", "Intelligenza"],
+            ["wis", "Saggezza"],
+            ["cha", "Carisma"]
+        ],
+        valueLabel: "Valore",
+        placeholder: "1",
+        defaultValue: "1",
+        requiresValue: false,
+        build: ({ target }) => [{ key: target === "all" ? "flags.midi-qol.advantage.ability.save.all" : `flags.midi-qol.advantage.ability.save.${target}`, mode: 0, value: "1", priority: 20 }]
+    },
+    {
+        id: "midi-save-disadvantage",
+        label: "Svantaggio ai tiri salvezza",
+        defaultName: "Svantaggio ai tiri salvezza",
+        icon: "fa-dice-d20",
+        targetLabel: "Tiro salvezza",
+        targets: [
+            ["all", "Tutti"],
+            ["str", "Forza"],
+            ["dex", "Destrezza"],
+            ["con", "Costituzione"],
+            ["int", "Intelligenza"],
+            ["wis", "Saggezza"],
+            ["cha", "Carisma"]
+        ],
+        valueLabel: "Valore",
+        placeholder: "1",
+        defaultValue: "1",
+        requiresValue: false,
+        build: ({ target }) => [{ key: target === "all" ? "flags.midi-qol.disadvantage.ability.save.all" : `flags.midi-qol.disadvantage.ability.save.${target}`, mode: 0, value: "1", priority: 20 }]
+    }
+];
+
+const CONDITION_BUILDER_DURATIONS = [
+    ["", "Finche rimosso"],
+    ["next-turn", "Fino al prossimo turno"],
+    ["1-round", "1 round"],
+    ["1-minute", "1 minuto"]
+];
+
+function createDefaultConditionDraft() {
+    const preset = CONDITION_BUILDER_PRESETS[0];
+    return {
+        name: "",
+        preset: preset.id,
+        target: preset.targets?.[0]?.[0] || "",
+        value: preset.defaultValue || "",
+        duration: "next-turn",
+        timing: "hit"
+    };
+}
+
+function getConditionBuilderPreset(id) {
+    return CONDITION_BUILDER_PRESETS.find((preset) => preset.id === id) || CONDITION_BUILDER_PRESETS[0];
+}
+
+function buildCustomConditionTemplateFromDraft(draft) {
+    const preset = getConditionBuilderPreset(draft?.preset);
+    const target = draft?.target || preset.targets?.[0]?.[0] || "";
+    const value = String(draft?.value || preset.defaultValue || "").trim();
+    const name = String(draft?.name || preset.defaultName || preset.label).trim();
+    if (!name) return { ok: false, error: "Inserisci un nome per la condizione." };
+    if (preset.targets?.length && !target) return { ok: false, error: "Scegli il campo da modificare." };
+    if (preset.requiresValue !== false && !value) return { ok: false, error: "Inserisci un valore." };
+
+    const changes = preset.build({ target, value });
+    if (!changes.length) return { ok: false, error: "La condizione non genera modifiche valide." };
+
+    const id = `custom-${slugify(name)}`;
+    return {
+        ok: true,
+        template: {
+            id,
+            name,
+            icon: preset.icon || "fa-sliders",
+            description: conditionBuilderDescription(preset, target, value),
+            effect: {
+                id,
+                name,
+                timing: draft?.timing === "failed-save" ? "failed-save" : "hit",
+                kind: "effect",
+                duration: conditionBuilderDuration(draft?.duration),
+                changes
+            }
+        }
+    };
+}
+
+function conditionBuilderDescription(preset, target, value) {
+    const targetLabel = preset.targets?.find(([option]) => option === target)?.[1];
+    return [preset.label, targetLabel, value].filter(Boolean).join(" | ");
+}
+
+function conditionBuilderDuration(value) {
+    if (value === "next-turn") return { rounds: 1, turns: 1 };
+    if (value === "1-round") return { rounds: 1 };
+    if (value === "1-minute") return { seconds: 60 };
+    return {};
+}
+
+function normalizeSignedNumber(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "0";
+    if (/^[+-]?\d+(\.\d+)?$/.test(raw)) return raw.startsWith("+") || raw.startsWith("-") ? raw : `+${raw}`;
+    return raw;
+}
+
+function damageTypeBuilderTargets() {
+    return [
+        ["acid", "Acido"],
+        ["bludgeoning", "Contundente"],
+        ["cold", "Freddo"],
+        ["fire", "Fuoco"],
+        ["force", "Forza"],
+        ["lightning", "Fulmine"],
+        ["necrotic", "Necrotico"],
+        ["piercing", "Perforante"],
+        ["poison", "Veleno"],
+        ["psychic", "Psichico"],
+        ["radiant", "Radiante"],
+        ["slashing", "Tagliente"],
+        ["thunder", "Tuono"]
+    ];
+}
+
+function conditionBuilderTargets() {
+    return [
+        ["blinded", "Accecato"],
+        ["charmed", "Affascinato"],
+        ["deafened", "Assordato"],
+        ["frightened", "Spaventato"],
+        ["grappled", "Afferrato"],
+        ["incapacitated", "Incapacitato"],
+        ["invisible", "Invisibile"],
+        ["paralyzed", "Paralizzato"],
+        ["petrified", "Pietrificato"],
+        ["poisoned", "Avvelenato"],
+        ["prone", "Prono"],
+        ["restrained", "Trattenuto"],
+        ["stunned", "Stordito"],
+        ["unconscious", "Privo di sensi"],
+        ["exhaustion", "Indebolimento"]
+    ];
+}
 
 const ADVANCED_CONDITION_TEMPLATES = [
     {
@@ -2678,8 +2981,8 @@ const SKILL_OPTIONS = [
     { key: "prf", label: "Intrattenere", ability: "cha" },
     { key: "per", label: "Persuasione", ability: "cha" },
     { key: "rel", label: "Religione", ability: "int" },
-    { key: "slt", label: "Rapidità di Mano", ability: "dex" },
-    { key: "ste", label: "Furtività", ability: "dex" },
+    { key: "slt", label: "RapiditÃ  di Mano", ability: "dex" },
+    { key: "ste", label: "FurtivitÃ ", ability: "dex" },
     { key: "sur", label: "Sopravvivenza", ability: "wis" }
 ];
 
@@ -2831,7 +3134,7 @@ function getMonsterAbilities(creature) {
 function createMonsterAbilityFromTemplate(template) {
     const copy = structuredCloneSafe(template || {});
     copy.id = copy.id || slugify(copy.name || "abilita");
-    copy.name = copy.name || "Abilità";
+    copy.name = copy.name || "AbilitÃ ";
     copy.icon = copy.icon || "fa-burst";
     copy.kind = copy.kind || inferAbilityKind(copy);
     copy.type = copy.type || "feat";
@@ -3090,7 +3393,7 @@ function buildFoundryActorFlags(flags = {}, damageAbsorptions = []) {
 function buildFoundryItemFromAbilityV4(ability, foundry = {}) {
     const type = foundryItemTypeForAbility(ability);
     const rider = getAbilityRider(ability);
-    const effects = buildFoundryPassiveEffects(ability);
+    const effects = buildFoundryPassiveEffects(ability, foundry);
     const system = {
         description: { value: buildFoundryAbilityDescription(ability, foundry), chat: "" },
         source: { custom: "Sigillo del Male Wiki", revision: 1, rules: "2024" },
@@ -3195,7 +3498,7 @@ function buildFoundryWikiPassiveFlags(ability) {
     };
 }
 
-function buildFoundryPassiveEffects(ability) {
+function buildFoundryPassiveEffects(ability, foundry = {}) {
     const passive = buildFoundryWikiPassiveFlags(ability);
     if (!passive.enabled) return [];
     if (passive.id === "magic-resistance") {
@@ -3208,10 +3511,52 @@ function buildFoundryPassiveEffects(ability) {
             }
         ])];
     }
+    if (passive.id === "enlarge") {
+        const changes = [
+            {
+                key: "system.traits.size",
+                mode: 5,
+                value: nextFoundrySize(foundry.size),
+                priority: 20
+            }
+        ];
+        if (passive.value) {
+            changes.push(
+                { key: "system.bonuses.mwak.damage", mode: 2, value: passive.value, priority: 20 },
+                { key: "system.bonuses.rwak.damage", mode: 2, value: passive.value, priority: 20 }
+            );
+        }
+        return [buildFoundryTemporaryEffect("Enlarge", "icons/magic/control/buff-strength-muscle-damage.webp", changes, {
+            seconds: 60,
+            rounds: 10
+        })];
+    }
     if (passive.id === "absorption" && passive.value) {
         return [];
     }
     return [];
+}
+
+function nextFoundrySize(size) {
+    const order = ["tiny", "sm", "med", "lg", "huge", "grg"];
+    const index = order.indexOf(size || "med");
+    return order[Math.min(order.length - 1, Math.max(0, index) + 1)] || "lg";
+}
+
+function buildFoundryTemporaryEffect(name, img, changes, duration = {}) {
+    return {
+        ...buildFoundryTransferEffect(name, img, changes),
+        transfer: false,
+        duration: {
+            startTime: null,
+            seconds: duration.seconds ?? null,
+            combat: null,
+            rounds: duration.rounds ?? null,
+            turns: duration.turns ?? null,
+            startRound: null,
+            startTurn: null
+        }
+    };
 }
 
 function buildFoundryTransferEffect(name, img, changes) {
@@ -3258,7 +3603,7 @@ function normalizeAdvancedRiderEffects(effects) {
         .map((effect) => ({
             id: slugify(effect?.id || effect?.name || "advanced-effect"),
             name: String(effect?.name || "Effetto avanzato"),
-            timing: String(effect?.timing || "hit"),
+            timing: normalizeAdvancedEffectTiming(effect?.timing),
             kind: String(effect?.kind || "effect"),
             iconImage: effect?.iconImage || "",
             duration: effect?.duration || {},
@@ -3266,6 +3611,11 @@ function normalizeAdvancedRiderEffects(effects) {
             damage: effect?.damage || null,
             endsOnDamageType: effect?.endsOnDamageType || ""
         }));
+}
+
+function normalizeAdvancedEffectTiming(value) {
+    const timing = String(value || "hit");
+    return timing === "failedSave" || timing === "failed-save" ? "failed-save" : "hit";
 }
 
 function normalizeAdvancedEffectChanges(effect) {
@@ -3285,7 +3635,7 @@ function buildFoundryItemFromAbility(ability, foundry = {}) {
     const rider = getAbilityRider(ability);
     const description = buildFoundryAbilityDescription(ability, foundry);
     const item = {
-        name: ability.name || "Abilità",
+        name: ability.name || "AbilitÃ ",
         type,
         img: ability.iconImage ? resolveImageUrl(ability.iconImage) : foundryIconFromFa(ability.icon),
         system: {
@@ -3954,8 +4304,8 @@ function renderDefensePicker(details, foundry) {
                 <div class="monster-defense-table">
                     <div></div>
                     <strong>Resistenza</strong>
-                    <strong>Immunità</strong>
-                    <strong>Vulnerabilità</strong>
+                    <strong>ImmunitÃ </strong>
+                    <strong>VulnerabilitÃ </strong>
                     <strong>Magico</strong>
                     ${DAMAGE_TYPE_OPTIONS.map((damage) => `
                         <span>${escapeHtml(damage.label)}</span>
@@ -3966,7 +4316,7 @@ function renderDefensePicker(details, foundry) {
                     `).join("")}
                 </div>
                 <div class="monster-condition-immunity-panel">
-                    <div class="monster-condition-title">Immunità alle condizioni</div>
+                    <div class="monster-condition-title">ImmunitÃ  alle condizioni</div>
                     <div class="monster-condition-grid">
                         ${CONDITION_IMMUNITY_OPTIONS.map(([value, label]) => `
                             <button class="monster-condition-btn ${selectedConditions.has(value) ? "is-active" : ""}" type="button" data-condition-immunity="${escapeHtml(value)}">
@@ -4535,14 +4885,14 @@ function normalizeRechargeValue(value) {
     if (value && typeof value === "object") return normalizeRechargeValue(value.value ?? value.threshold ?? "");
     const raw = String(value ?? "").trim().toLowerCase();
     if (!raw || raw === "no" || raw === "none" || raw === "false") return "";
-    const rangeMatch = raw.match(/([2-6])\s*[-–]\s*6/);
+    const rangeMatch = raw.match(/([2-6])\s*[-â€“]\s*6/);
     if (rangeMatch) return rangeMatch[1];
     const numberMatch = raw.match(/[2-6]/);
     return numberMatch ? numberMatch[0] : "";
 }
 
 function parseRechargeText(description) {
-    const match = String(description || "").match(/ricarica\s+(\d)(?:\s*[-–]\s*(\d))?|recharge\s+(\d)(?:\s*[-–]\s*(\d))?/i);
+    const match = String(description || "").match(/ricarica\s+(\d)(?:\s*[-â€“]\s*(\d))?|recharge\s+(\d)(?:\s*[-â€“]\s*(\d))?/i);
     if (!match) return { value: null, charged: false };
     const value = Number(match[1] || match[3]);
     return { value: Number.isFinite(value) ? value : null, charged: true };
@@ -4617,3 +4967,4 @@ function slugify(value) {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "") || "creatura";
 }
+

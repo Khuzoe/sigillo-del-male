@@ -1,5 +1,5 @@
 {
-  "itemCount": 86,
+  "itemCount": 87,
   "items": [
     {
       "id": "item:cuore-di-albert",
@@ -846,6 +846,18 @@
         "session"
       ],
       "content": "Dopo aver analizzato brevemente la situazione di Ran'Dra, avete richiamato Dinosauro Spaziale Distruttore Assoluto per farvi dare più informazioni riguardo al terzo livello. Scoprite che dovrete affrontare pozze di sangue, robot metallici e trappole mortali per raggiungere l'ingresso del Teatro, nella zona più a nord del livello. Valdor analizza i guanti e la scarpa di Zara, scoprendo delle proprietà magiche piuttosto sorprendenti. Inoltre, scoprite che i grossi pupazzi nella stanza sono legati a voi: se subite danni, li subiranno i pupazzi. Se i pupazzi subiscono danni, li subirete voi. Deci..."
+    },
+    {
+      "id": "session:25",
+      "type": "session",
+      "entityId": "25",
+      "title": "Sessione 25",
+      "subtitle": "24/05/2026",
+      "url": "pages/sessioni.html#session-25",
+      "tags": [
+        "session"
+      ],
+      "content": "Non intenzionato ad attendere 830 settimane per l'appuntamento con Tokka, Valdor decide di entrare nel suo laboratorio. Nota intorno esperimenti, progetti, oggetti magici e materiali pregiati disseminati nella stanza. Iniziate ad interagire con lui, specialmente Valdor, e notate che sta realizzando una spada particolare composta da minerali grezzi, raggruppati tra loro da una forza gravitazionale in fase di calibrazione. Venite a conoscenza di un costrutto impazzito, una delle prime creazioni di Tokka in ambito meccanico e biologico. Questo sembra essere alimentato da un cuore dentro di lui, ..."
     },
     {
       "id": "session:3",

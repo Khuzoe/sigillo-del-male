@@ -49,50 +49,17 @@
     "description": "Il bersaglio effettua un tiro salvezza o subisce l'effetto."
   },
   {
-    "id": "passive-avoidance",
-    "name": "Avoidance",
-    "icon": "fa-shield-heart",
-    "type": "feat",
-    "kind": "passive",
-    "category": "passive",
-    "section": "trait",
-    "description": "Se la creatura subisce un effetto che permette un tiro salvezza per dimezzare i danni, non subisce danni se supera il tiro salvezza e subisce solo meta danni se lo fallisce.",
-    "passive": { "id": "avoidance", "automation": "manual" }
-  },
-  {
-    "id": "passive-damage-transfer",
-    "name": "Damage Transfer",
-    "icon": "fa-link",
-    "type": "feat",
-    "kind": "passive",
-    "category": "passive",
-    "section": "trait",
-    "description": "Mentre la creatura e attaccata a un bersaglio o lo sta afferrando, subisce solo meta dei danni ricevuti. L'altra meta viene trasferita al bersaglio collegato.",
-    "passive": { "id": "damage-transfer", "automation": "module-required" }
-  },
-  {
     "id": "passive-enlarge",
     "name": "Enlarge",
     "icon": "fa-up-right-and-down-left-from-center",
     "type": "feat",
     "kind": "passive",
     "category": "passive",
-    "section": "trait",
-    "passiveValueLabel": "Danni extra per round",
-    "description": "La creatura puo aumentare magicamente di taglia insieme a cio che indossa o trasporta. Inserire il danno extra medio per round nel campo dedicato.",
-    "passive": { "id": "enlarge", "hasNumberParam": true, "valueLabel": "Danni extra per round", "automation": "manual" }
-  },
-  {
-    "id": "passive-heated-body",
-    "name": "Heated Body",
-    "icon": "fa-temperature-full",
-    "type": "feat",
-    "kind": "passive",
-    "category": "passive",
-    "section": "trait",
-    "passiveValueLabel": "Danno da contatto",
-    "description": "Una creatura che tocca questo mostro o lo colpisce con un attacco in mischia entro 5 piedi subisce il danno indicato.",
-    "passive": { "id": "heated-body", "hasNumberParam": true, "valueLabel": "Danno da contatto", "automation": "module-required" }
+    "section": "action",
+    "activation": "action",
+    "passiveValueLabel": "Danno extra arma",
+    "description": "La creatura aumenta di una taglia per 1 minuto. Il buff aumenta la taglia Foundry e, se compilato, aggiunge il danno indicato agli attacchi con arma.",
+    "passive": { "id": "enlarge", "hasNumberParam": true, "valueLabel": "Danno extra arma", "automation": "active-effect" }
   },
   {
     "id": "passive-magic-resistance",
@@ -106,29 +73,6 @@
     "passive": { "id": "magic-resistance", "automation": "midi-qol" }
   },
   {
-    "id": "passive-martial-advantage",
-    "name": "Martial Advantage",
-    "icon": "fa-people-arrows",
-    "type": "feat",
-    "kind": "passive",
-    "category": "passive",
-    "section": "trait",
-    "passiveValueLabel": "Danni extra per round",
-    "description": "Una volta per turno, la creatura puo infliggere danni extra a un bersaglio che colpisce se quel bersaglio e entro 5 piedi da un alleato della creatura non incapacitato.",
-    "passive": { "id": "martial-advantage", "hasNumberParam": true, "valueLabel": "Danni extra per round", "automation": "manual" }
-  },
-  {
-    "id": "passive-parry",
-    "name": "Parry",
-    "icon": "fa-shield",
-    "type": "feat",
-    "kind": "passive",
-    "category": "passive",
-    "section": "reaction",
-    "description": "Come reazione, la creatura aggiunge il proprio bonus di competenza alla CA contro un attacco in mischia che la colpirebbe.",
-    "passive": { "id": "parry", "automation": "manual" }
-  },
-  {
     "id": "passive-regeneration",
     "name": "Regeneration",
     "icon": "fa-heart-pulse",
@@ -140,28 +84,6 @@
     "passiveBreakDamageTypes": ["acid", "fire"],
     "description": "All'inizio del proprio turno, la creatura recupera i punti ferita indicati. La rigenerazione puo essere interrotta fino al prossimo turno dai tipi di danno selezionati.",
     "passive": { "id": "regeneration", "hasNumberParam": true, "valueLabel": "PF rigenerati", "automation": "custom-module" }
-  },
-  {
-    "id": "passive-relentless",
-    "name": "Relentless",
-    "icon": "fa-hand-holding-heart",
-    "type": "feat",
-    "kind": "passive",
-    "category": "passive",
-    "section": "trait",
-    "description": "Quando la creatura sarebbe ridotta a 0 punti ferita, puo invece restare a 1 punto ferita se la condizione specifica della feature e soddisfatta.",
-    "passive": { "id": "relentless", "automation": "module-required" }
-  },
-  {
-    "id": "passive-stench",
-    "name": "Stench",
-    "icon": "fa-wind",
-    "type": "feat",
-    "kind": "passive",
-    "category": "passive",
-    "section": "trait",
-    "description": "Ogni creatura diversa da questo mostro entro 5 piedi deve superare un tiro salvezza o essere avvelenata secondo le regole della feature.",
-    "passive": { "id": "stench", "automation": "manual" }
   },
   {
     "id": "passive-undead-fortitude",

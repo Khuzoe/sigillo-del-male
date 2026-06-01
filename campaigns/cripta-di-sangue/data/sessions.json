@@ -246,6 +246,15 @@
                 "total": "0",
                 "each": "0"
             }
+        },
+        {
+            "id": 25,
+            "date": "24/05/2026",
+            "summary": "<p>Non intenzionato ad attendere 830 settimane per l'appuntamento con Tokka, Valdor decide di entrare nel suo laboratorio. Nota intorno esperimenti, progetti, oggetti magici e materiali pregiati disseminati nella stanza.</p><p>Iniziate ad interagire con lui, specialmente Valdor, e notate che sta realizzando una spada particolare composta da minerali grezzi, raggruppati tra loro da una forza gravitazionale in fase di calibrazione.</p><p>Venite a conoscenza di un costrutto impazzito, una delle prime creazioni di Tokka in ambito meccanico e biologico. Questo sembra essere alimentato da un cuore dentro di lui, che plausibilmente lo ha fatto impazzire.</p><p>Tokka vi chiede di recuperarlo, senza entrare troppo nel dettaglio riguardo alla ricompensa; inoltre, vi concede l'aiuto della sua Vergine di Ferro durante questo scontro.</p><p>Vi dirigete dall'enorme costrutto e riuscite ad abbatterlo, modulo dopo modulo, liberando la caverna in cui stava ancora scavando.</p>",
+            "xp": {
+                "total": "12000",
+                "each": "3000"
+            }
         }
     ]
 }

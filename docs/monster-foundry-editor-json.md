@@ -387,7 +387,7 @@ Campi specifici:
 | `passiveValue` | string | Valore compilato dall'utente. Viene aggiunto alla descrizione esportata in Foundry. |
 | `passiveBreakDamageTypes` | string[] | Solo per `regeneration`: tipi danno che interrompono la rigenerazione fino all'inizio del prossimo turno della creatura. Esempio: `["acid", "fire"]`. |
 | `passive.id` | string | Identificatore stabile della passiva. |
-| `passive.automation` | string | `manual` se e solo testo/feature Foundry; `midi-qol` se esporta un Active Effect Midi-QOL; `custom-module` se viene gestita dal modulo `cripta-wiki-sync`; `module-required` se richiede logica custom non ancora implementata. |
+| `passive.automation` | string | `active-effect` se esporta un Active Effect applicabile dall'item Foundry; `midi-qol` se esporta un Active Effect Midi-QOL; `custom-module` se viene gestita dal modulo `cripta-wiki-sync`; `manual` solo per feature descrittive non presenti nella libreria built-in. |
 | `passive.hasNumberParam` | boolean | Se `true`, l'editor mostra un campo valore anche quando non c'e `passiveValueLabel`. |
 | `passive.valueLabel` | string | Fallback per `passiveValueLabel`. |
 
@@ -397,20 +397,17 @@ Passive built-in attualmente previste:
 
 | `passive.id` | Nome | Parametro | Automazione |
 | --- | --- | --- | --- |
-| `avoidance` | Avoidance | no | `manual` |
-| `damage-transfer` | Damage Transfer | no | `module-required` |
-| `enlarge` | Enlarge | danni extra per round | `manual` |
-| `heated-body` | Heated Body | danno da contatto | `module-required` |
+| `enlarge` | Enlarge | danno extra arma | `active-effect` |
 | `magic-resistance` | Magic Resistance | no | `midi-qol` |
-| `martial-advantage` | Martial Advantage | danni extra per round | `manual` |
-| `parry` | Parry | no | `manual` |
 | `regeneration` | Regeneration | PF rigenerati + danni interruzione | `custom-module` |
-| `relentless` | Relentless | no | `module-required` |
-| `stench` | Stench | no | `manual` |
 | `undead-fortitude` | Undead Fortitude | no | `custom-module` |
 | `absorption` | Assorbimento | tipo danno assorbito | `custom-module` |
 
-Nota pratica: `midi-qol` genera Active Effects trasferiti sull'actor. `custom-module` usa hook del modulo Foundry `cripta-wiki-sync`. `module-required` significa invece che l'item viene esportato come feature leggibile in Foundry, ma l'automazione in combattimento richiede codice del modulo Foundry non ancora implementato. Non assumere che Midi/DAE applichino automaticamente queste passive se non esiste una regola specifica nel modulo.
+Nota pratica: la libreria built-in deve contenere solo feature con automazione reale o ActiveEffect esportabile. Se una passiva e solo testo o richiede codice non ancora scritto, non va aggiunta alla libreria built-in: puo comunque essere creata manualmente come normale abilita descrittiva.
+
+Passive `active-effect` attuali:
+
+- `enlarge`: crea un effetto applicabile dall'item per 1 minuto. L'effetto porta `system.traits.size` alla taglia Foundry successiva e, se `passiveValue` e compilato, aggiunge quel valore a `system.bonuses.mwak.damage` e `system.bonuses.rwak.damage`.
 
 Passive `midi-qol` attuali:
 
@@ -659,7 +656,7 @@ Formato:
 ### `timing`
 
 - `hit`: applica con l'effetto automatico/base.
-- `failedSave`: applica solo su fallimento TS.
+- `failed-save`: applica solo su fallimento TS.
 
 ### `kind`
 
@@ -684,6 +681,55 @@ Formato:
 ```
 
 `endsOnDamageType` permette al modulo Foundry di rimuovere l'effetto quando il bersaglio subisce quel tipo di danno.
+
+### Condizioni guidate create dal sito
+
+Nella libreria condizioni dell'editor mostri si possono creare condizioni custom senza scrivere manualmente le chiavi ActiveEffect. Il builder genera sempre un elemento in `rider.advancedEffects`.
+
+I campi valore accettano sia modificatori numerici (`+2`, `-3`) sia formule di dado (`1d6`, `+1d6`, `-1d6`). I numeri senza segno vengono salvati come bonus positivo, quindi `2` diventa `+2`; le formule vengono salvate esattamente come inserite. L'effettiva risoluzione della formula dipende dal campo ActiveEffect e dai moduli Foundry/DAE/Midi che la interpretano.
+
+Preset supportati:
+
+- `CA bonus/malus`: genera `system.attributes.ac.bonus` con `mode: 2`.
+- `Statistica STR/DEX/...`: genera `system.abilities.<ability>.value` con `mode: 2`.
+- `PF massimi`: genera `system.attributes.hp.max` con `mode: 2`.
+- `Velocità`: genera `system.attributes.movement.<movement>` con `mode: 2`; il target `all` crea una modifica per `walk`, `fly`, `swim`, `climb`, `burrow`.
+- `Resistenza danno`: genera `system.traits.dr.value` con `mode: 0`.
+- `Immunità danno`: genera `system.traits.di.value` con `mode: 0`.
+- `Vulnerabilità danno`: genera `system.traits.dv.value` con `mode: 0`.
+- `Immunità condizione`: genera `system.traits.ci.value` con `mode: 0`.
+- `Midi: vantaggio TS`: genera `flags.midi-qol.advantage.ability.save.<ability>` con `mode: 0`.
+- `Midi: svantaggio TS`: genera `flags.midi-qol.disadvantage.ability.save.<ability>` con `mode: 0`.
+
+Durate generate dal builder:
+
+- vuoto: nessuna durata, l'effetto resta finché viene rimosso.
+- `next-turn`: `{ "rounds": 1, "turns": 1 }`.
+- `1-round`: `{ "rounds": 1 }`.
+- `1-minute`: `{ "seconds": 60 }`.
+
+Esempio generato dal builder:
+
+```json
+{
+  "id": "custom-armatura-indebolita",
+  "name": "Armatura indebolita",
+  "timing": "failed-save",
+  "kind": "effect",
+  "duration": {
+    "rounds": 1,
+    "turns": 1
+  },
+  "changes": [
+    {
+      "key": "system.attributes.ac.bonus",
+      "mode": 2,
+      "value": "-3",
+      "priority": 20
+    }
+  ]
+}
+```
 
 ## Esempio completo
 
