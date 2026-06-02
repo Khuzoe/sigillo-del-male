@@ -910,6 +910,99 @@
         }));
     }
 
+    function isWeekendDateValue(dateValue) {
+        const date = new Date(`${dateValue}T12:00:00`);
+        if (Number.isNaN(date.getTime())) return false;
+        const day = date.getDay();
+        return day === 0 || day === 6;
+    }
+
+    function createEditorDayFromDate(dateValue) {
+        const isWeekend = isWeekendDateValue(dateValue);
+        return {
+            dateValue,
+            afternoon: isWeekend,
+            evening: true,
+            customEnabled: false,
+            customStart: '19:00',
+            customEnd: '22:00'
+        };
+    }
+
+    function getEditorPickerMonth(editorState) {
+        const value = String(editorState?.pickerMonth || editorState?.days?.[0]?.dateValue || '').trim();
+        if (/^\d{4}-\d{2}/.test(value)) return value.slice(0, 7);
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function shiftMonthValue(monthValue, offset) {
+        const match = String(monthValue || '').match(/^(\d{4})-(\d{2})$/);
+        const base = match
+            ? new Date(Number(match[1]), Number(match[2]) - 1, 1, 12)
+            : new Date();
+        base.setMonth(base.getMonth() + offset);
+        return `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function formatEditorMonthLabel(monthValue) {
+        const match = String(monthValue || '').match(/^(\d{4})-(\d{2})$/);
+        if (!match) return '';
+        const date = new Date(Number(match[1]), Number(match[2]) - 1, 1, 12);
+        return date.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+    }
+
+    function buildEditorCalendarMarkup(editorState) {
+        const monthValue = getEditorPickerMonth(editorState);
+        const [year, month] = monthValue.split('-').map(Number);
+        const firstDay = new Date(year, month - 1, 1, 12);
+        const mondayOffset = (firstDay.getDay() + 6) % 7;
+        const gridStart = new Date(firstDay);
+        gridStart.setDate(firstDay.getDate() - mondayOffset);
+        const existingDates = new Set((editorState.days || []).map((day) => day.dateValue));
+        const weekdays = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+
+        const days = Array.from({ length: 42 }, (_, index) => {
+            const date = new Date(gridStart);
+            date.setDate(gridStart.getDate() + index);
+            const dateValue = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const isCurrentMonth = date.getMonth() === month - 1;
+            const isExisting = existingDates.has(dateValue);
+            const isWeekend = isWeekendDateValue(dateValue);
+            return `
+                <button type="button"
+                    class="next-session-calendar-day ${isCurrentMonth ? '' : 'is-outside'} ${isWeekend ? 'is-weekend' : ''} ${isExisting ? 'is-selected is-existing' : ''}"
+                    data-editor-action="toggle-pending-date"
+                    data-pending-date="${escapeHtml(dateValue)}"
+                    aria-pressed="${isExisting ? 'true' : 'false'}"
+                    title="${escapeHtml(isExisting ? 'Rimuovi questo giorno dal sondaggio' : formatLongItalianDate(dateValue))}">
+                    <span>${date.getDate()}</span>
+                    ${isWeekend ? '<small>p+s</small>' : ''}
+                </button>
+            `;
+        }).join('');
+
+        return `
+            <div class="next-session-calendar">
+                <div class="next-session-calendar-header">
+                    <button type="button" class="next-session-calendar-nav" data-editor-action="previous-picker-month" aria-label="Mese precedente">
+                        <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                    </button>
+                    <strong>${escapeHtml(formatEditorMonthLabel(monthValue))}</strong>
+                    <button type="button" class="next-session-calendar-nav" data-editor-action="next-picker-month" aria-label="Mese successivo">
+                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <div class="next-session-calendar-weekdays">
+                    ${weekdays.map((day) => `<span>${escapeHtml(day)}</span>`).join('')}
+                </div>
+                <div class="next-session-calendar-grid">
+                    ${days}
+                </div>
+            </div>
+        `;
+    }
+
     function getEditorModeMeta(mode, sessionNumber) {
         if (mode === EDITOR_MODES.editCurrent) {
             return {
@@ -940,14 +1033,10 @@
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
-                    <div class="next-session-editor-toolbar">
+                    <div class="next-session-editor-toolbar next-session-editor-date-picker">
                         <div class="next-session-editor-toolbar-field">
-                            <label for="next-session-editor-new-date">Aggiungi giorno</label>
-                            <input id="next-session-editor-new-date" type="date" value="${escapeHtml(editorState.pendingDate || '')}" data-editor-field="pending-date">
-                        </div>
-                        <div class="next-session-editor-toolbar-actions">
-                            <button type="button" class="next-session-editor-secondary" data-editor-action="shift-week">+1 settimana</button>
-                            <button type="button" class="next-session-editor-add" data-editor-action="add-day">Aggiungi</button>
+                            <label>Seleziona date</label>
+                            ${buildEditorCalendarMarkup(editorState)}
                         </div>
                     </div>
                     ${editorState.error ? `<p class="next-session-editor-error">${escapeHtml(editorState.error)}</p>` : ''}
@@ -1698,7 +1787,6 @@
         let editorState = {
             open: false,
             mode: EDITOR_MODES.createNext,
-            pendingDate: '',
             error: '',
             days: buildDefaultEditorDays()
         };
@@ -1988,7 +2076,6 @@
                             mode: action,
                             open: true,
                             error: '',
-                            pendingDate: '',
                             days: initialDays.length > 0 ? initialDays : buildDefaultEditorDays()
                         };
                         rerender();
@@ -2016,8 +2103,72 @@
                         return;
                     }
 
+                    if (action === 'previous-picker-month' || action === 'next-picker-month') {
+                        editorState = {
+                            ...editorState,
+                            pickerMonth: shiftMonthValue(getEditorPickerMonth(editorState), action === 'next-picker-month' ? 1 : -1),
+                            error: ''
+                        };
+                        rerender();
+                        return;
+                    }
+
+                    if (action === 'toggle-pending-date') {
+                        const dateValue = String(button.getAttribute('data-pending-date') || '').trim();
+                        if (!dateValue) return;
+                        if (editorState.days.some((day) => day.dateValue === dateValue)) {
+                            editorState = {
+                                ...editorState,
+                                error: '',
+                                days: editorState.days.filter((day) => day.dateValue !== dateValue)
+                            };
+                            rerender();
+                            return;
+                        }
+                        editorState = {
+                            ...editorState,
+                            error: '',
+                            days: [
+                                ...editorState.days,
+                                createEditorDayFromDate(dateValue)
+                            ].sort((left, right) => left.dateValue.localeCompare(right.dateValue))
+                        };
+                        rerender();
+                        return;
+                    }
+
                     if (action === 'add-day') {
                         const pendingDate = String(editorState.pendingDate || '').trim();
+                        const pendingDates = Array.from(new Set([
+                            ...(editorState.pendingDates || []),
+                            pendingDate
+                        ].filter(Boolean))).sort((left, right) => left.localeCompare(right));
+                        if (pendingDates.length > 1 || (editorState.pendingDates || []).length > 0) {
+                            if (!pendingDates.length) {
+                                editorState = { ...editorState, error: 'Seleziona almeno un giorno dal calendario.' };
+                                rerender();
+                                return;
+                            }
+                            const existingDates = new Set(editorState.days.map((day) => day.dateValue));
+                            const datesToAdd = pendingDates.filter((dateValue) => !existingDates.has(dateValue));
+                            if (!datesToAdd.length) {
+                                editorState = { ...editorState, error: 'Le date selezionate sono gia presenti.' };
+                                rerender();
+                                return;
+                            }
+                            editorState = {
+                                ...editorState,
+                                error: '',
+                                pendingDate: '',
+                                pendingDates: [],
+                                days: [
+                                    ...editorState.days,
+                                    ...datesToAdd.map(createEditorDayFromDate)
+                                ].sort((left, right) => left.dateValue.localeCompare(right.dateValue))
+                            };
+                            rerender();
+                            return;
+                        }
                         if (!pendingDate) {
                             editorState = { ...editorState, error: 'Seleziona un giorno dal calendario.' };
                             rerender();
@@ -2034,7 +2185,7 @@
                             pendingDate: '',
                             days: [...editorState.days, {
                                 dateValue: pendingDate,
-                                afternoon: false,
+                                afternoon: isWeekendDateValue(pendingDate),
                                 evening: true,
                                 customEnabled: false,
                                 customStart: '19:00',
@@ -2050,7 +2201,8 @@
                             ...editorState,
                             error: '',
                             days: shiftEditorDaysByWeek(editorState.days),
-                            pendingDate: editorState.pendingDate ? shiftDateValueByDays(editorState.pendingDate, 7) : ''
+                            pendingDate: editorState.pendingDate ? shiftDateValueByDays(editorState.pendingDate, 7) : '',
+                            pendingDates: (editorState.pendingDates || []).map((dateValue) => shiftDateValueByDays(dateValue, 7))
                         };
                         rerender();
                         return;
@@ -2132,7 +2284,8 @@
                         const index = Number(target.getAttribute('data-editor-day-index'));
 
                         if (fieldName === 'pending-date') {
-                            editorState = { ...editorState, pendingDate: target.value, error: '' };
+                            addPendingDateToEditorState(target.value);
+                            rerender();
                             return;
                         }
 

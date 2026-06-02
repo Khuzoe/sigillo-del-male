@@ -4976,6 +4976,143 @@ body.next-session-editor-open {
     margin-bottom: 1rem;
 }
 
+.next-session-editor-date-picker {
+    align-items: stretch;
+    padding: 0.9rem;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 16px;
+    background:
+        linear-gradient(135deg, rgba(212, 175, 55, 0.08), transparent 44%),
+        rgba(0, 0, 0, 0.18);
+}
+
+.next-session-calendar {
+    overflow: hidden;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 16px;
+    background: rgba(8, 8, 10, 0.5);
+}
+
+.next-session-calendar-header {
+    display: grid;
+    grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.next-session-calendar-header strong {
+    color: var(--gold);
+    font-family: var(--font-heading);
+    font-size: 1.12rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-align: center;
+    text-transform: capitalize;
+}
+
+.next-session-calendar-nav {
+    width: 2.35rem;
+    height: 2.35rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.24);
+    color: rgba(232, 219, 188, 0.78);
+    cursor: pointer;
+}
+
+.next-session-calendar-nav:hover,
+.next-session-calendar-nav:focus-visible {
+    border-color: rgba(212, 175, 55, 0.5);
+    color: var(--gold);
+    background: rgba(212, 175, 55, 0.12);
+}
+
+.next-session-calendar-weekdays,
+.next-session-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.next-session-calendar-weekdays {
+    padding: 0.45rem 0.6rem 0;
+    color: rgba(232, 219, 188, 0.52);
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.next-session-calendar-grid {
+    gap: 0.35rem;
+    padding: 0.6rem;
+}
+
+.next-session-calendar-day {
+    min-height: 3rem;
+    display: grid;
+    place-items: center;
+    gap: 0.08rem;
+    border: 1px solid rgba(212, 175, 55, 0.12);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.035);
+    color: rgba(244, 239, 225, 0.9);
+    cursor: pointer;
+    font-family: var(--font-ui);
+}
+
+.next-session-calendar-day span {
+    font-size: 0.92rem;
+    font-weight: 800;
+}
+
+.next-session-calendar-day small {
+    color: rgba(212, 175, 55, 0.68);
+    font-size: 0.55rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.next-session-calendar-day.is-outside {
+    opacity: 0.38;
+}
+
+.next-session-calendar-day.is-weekend {
+    border-color: rgba(212, 175, 55, 0.24);
+    background: rgba(212, 175, 55, 0.07);
+}
+
+.next-session-calendar-day.is-selected {
+    border-color: rgba(212, 175, 55, 0.78);
+    background:
+        radial-gradient(circle at 50% 20%, rgba(255, 226, 119, 0.32), transparent 54%),
+        rgba(212, 175, 55, 0.2);
+    color: #fff8d8;
+    box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.18), 0 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.next-session-calendar-day.is-existing {
+    cursor: pointer;
+}
+
+.next-session-calendar-day:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.next-session-calendar-day:hover:not(:disabled),
+.next-session-calendar-day:focus-visible:not(:disabled) {
+    border-color: rgba(212, 175, 55, 0.52);
+    background: rgba(212, 175, 55, 0.14);
+}
+
 .next-session-editor-toolbar-actions {
     display: flex;
     align-items: center;
