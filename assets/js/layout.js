@@ -1436,8 +1436,9 @@ function buildWorkerUrl(pathname) {
     return `${DISCORD_WORKER_URL}/${cleanPath}`;
 }
 
-function getSitePollUrl() {
-    return resolveSiteUrl("pages/sondaggio.html");
+function getSitePollUrl(campaignId = getCampaignId()) {
+    const url = new URL(`${getBasePath()}pages/sondaggio.html`, window.location.href);
+    return applyCampaignToUrl(url, { campaignId }).toString();
 }
 
 function redirectToDiscordLogin() {
@@ -1816,8 +1817,8 @@ window.CriptaApp = {
         globalData(pathname) {
             return resolveGlobalDataUrl(pathname);
         },
-        pollPage() {
-            return getSitePollUrl();
+        pollPage(campaignId) {
+            return getSitePollUrl(campaignId);
         }
     },
     campaigns: {

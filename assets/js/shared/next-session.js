@@ -3,9 +3,6 @@
         ? window.CriptaApp.config.workerOrigin
         : (typeof DISCORD_WORKER_URL === 'string' ? DISCORD_WORKER_URL : 'https://sigillo-api.khuzoe.workers.dev');
     const SESSION_CARD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1482056374731931860/7ls24iTa_HMAgwwTbY8Qc96tf79LOxk3f6epN_iW6PHDgI51Dg70UkKgFT5aVQSZRM03';
-    const SESSION_POLL_URL = typeof window.CriptaApp?.urls?.pollPage === 'function'
-        ? window.CriptaApp.urls.pollPage()
-        : 'https://khuzoe.github.io/sigillo-del-male/pages/sondaggio.html';
     const STORAGE_PREFIX = 'cripta-next-session-votes';
     const NEXT_SESSION_CONFIG_OVERRIDE_KEY = 'cripta-next-session-config-override';
     const PLAYERS_DATA_PATH = 'data/players.json';
@@ -813,13 +810,14 @@
         const effectiveConfig = sanitizeNextSessionConfig(config);
         const webhookUrl = getSessionWebhookUrl(effectiveConfig);
         if (!webhookUrl) return null;
+        const pollUrl = getSessionPollUrl(effectiveConfig);
         const response = await fetch(`${webhookUrl}?wait=true`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                content: `@everyone Nuova sessione ${effectiveConfig.number} creata.\nVota qui: ${SESSION_POLL_URL}`
+                content: `@everyone Nuova sessione ${effectiveConfig.number} creata.\nVota qui: ${pollUrl}`
             })
         });
 
@@ -829,6 +827,16 @@
         }
 
         return response.json().catch(() => null);
+    }
+
+    function getSessionPollUrl(config) {
+        const campaignId = String(config?.campaignId || '').trim();
+        if (typeof window.CriptaApp?.urls?.pollPage === 'function') {
+            return window.CriptaApp.urls.pollPage(campaignId);
+        }
+        const url = new URL('https://khuzoe.github.io/sigillo-del-male/pages/sondaggio.html');
+        if (campaignId && campaignId !== 'cripta-di-sangue') url.searchParams.set('campaign', campaignId);
+        return url.toString();
     }
 
     function buildEditorDaysFromConfig(config) {
