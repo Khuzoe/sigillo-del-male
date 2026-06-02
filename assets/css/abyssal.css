@@ -7382,6 +7382,37 @@ body.page-oggetti .hero-mini {
     border-top: 1px solid rgba(212, 175, 55, 0.1);
 }
 
+.item-card-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.7rem;
+}
+
+.item-card-edit-link {
+    min-height: 2rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    padding: 0.35rem 0.62rem;
+    border: 1px solid rgba(212, 175, 55, 0.24);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.24);
+    color: rgba(232, 219, 188, 0.76);
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    text-transform: uppercase;
+}
+
+.item-card-edit-link:hover,
+.item-card-edit-link:focus-visible {
+    border-color: rgba(212, 175, 55, 0.56);
+    background: rgba(212, 175, 55, 0.12);
+    color: var(--gold);
+}
+
 .item-card--artefatto {
     border-left-color: rgba(218, 165, 32, 0.9);
 }
@@ -7392,6 +7423,15 @@ body.page-oggetti .hero-mini {
 
 .item-card--sconosciuta {
     border-left-color: rgba(147, 162, 175, 0.72);
+}
+
+.item-card--dm-hidden {
+    border-color: rgba(212, 175, 55, 0.34);
+    border-left-color: rgba(214, 86, 86, 0.82);
+    background:
+        linear-gradient(135deg, rgba(214, 86, 86, 0.11), transparent 34%),
+        linear-gradient(135deg, rgba(212, 175, 55, 0.055), transparent 58%),
+        rgba(30, 30, 30, 0.46);
 }
 
 .item-card-icon {
@@ -7478,6 +7518,14 @@ body.page-oggetti .hero-mini {
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+}
+
+.item-card-kicker .item-card-dm-badge {
+    padding: 0.18rem 0.42rem;
+    border: 1px solid rgba(214, 86, 86, 0.42);
+    border-radius: 999px;
+    background: rgba(92, 24, 24, 0.42);
+    color: rgba(255, 190, 176, 0.92);
 }
 
 .item-card h3 {

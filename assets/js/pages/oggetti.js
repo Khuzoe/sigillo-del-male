@@ -8,12 +8,17 @@ window.CriptaApp.onPageReady("oggetti", async () => {
     if (!grid) return;
 
     try {
-        const items = filterVisibleItems(await loadItemsData());
+        const [rawItems, canSeeHidden] = await Promise.all([
+            loadItemsData(),
+            canCurrentUserSeeHiddenItems()
+        ]);
+        const items = filterVisibleItems(rawItems, { includeHidden: canSeeHidden });
         const state = {
             query: "",
             rarity: "all",
             type: "all",
-            attunement: "all"
+            attunement: "all",
+            canEditItems: canSeeHidden
         };
 
         initItemFilters(items, state, { grid, count, search, rarityFilters, typeFilters, attunementFilters });
@@ -77,10 +82,45 @@ function resolveImageUrl(path) {
     return `../assets/${value}`;
 }
 
-function filterVisibleItems(items) {
+function filterVisibleItems(items, { includeHidden = false } = {}) {
     const list = Array.isArray(items) ? items : [];
+    if (includeHidden) return list;
     if (window.WikiSpoiler) return window.WikiSpoiler.filterVisible(list);
-    return list.filter(item => item.hidden !== true && item.status !== "hidden");
+    return list.filter(item => !isHiddenItem(item));
+}
+
+async function canCurrentUserSeeHiddenItems() {
+    try {
+        const authState = await window.CriptaApp?.auth?.verify?.();
+        const accountId = getAuthAccountId(authState);
+        const discordId = getAuthDiscordId(authState);
+        if (!accountId && !discordId) return false;
+
+        const nextSession = typeof window.CriptaApp?.fetchJson === "function"
+            ? await window.CriptaApp.fetchJson(window.CriptaApp.urls.data("next-session.json"))
+            : await fetch(window.CriptaApp?.urls?.data?.("next-session.json") || "../assets/data/next-session.json").then(response => response.ok ? response.json() : null);
+        const dmAccountId = String(nextSession?.dmAccountId || "").trim();
+        const dmDiscordId = String(nextSession?.dmDiscordId || "").trim();
+        return Boolean(dmAccountId && accountId === dmAccountId)
+            || Boolean(dmDiscordId && discordId === dmDiscordId);
+    } catch (_) {
+        return false;
+    }
+}
+
+function getAuthAccountId(authState) {
+    return String(authState?.user?.accountId || authState?.user?.id || authState?.user?.sub || "").trim();
+}
+
+function getAuthDiscordId(authState) {
+    const explicitId = String(authState?.user?.discordId || "").trim();
+    if (explicitId) return explicitId;
+    const legacyId = String(authState?.user?.id || authState?.user?.sub || "").trim();
+    return /^\d{5,32}$/.test(legacyId) ? legacyId : "";
+}
+
+function isHiddenItem(item) {
+    return item?.hidden === true || item?.status === "hidden";
 }
 
 function initItemFilters(items, state, elements) {
@@ -156,7 +196,7 @@ function updateItemsView(items, state, grid, count) {
 
     grid.innerHTML = filtered
         .sort(compareItems)
-        .map(renderItemCard)
+        .map(item => renderItemCard(item, { canEdit: state.canEditItems }))
         .join("");
     bindItemExpansion(grid);
 }
@@ -208,14 +248,15 @@ function filterItems(items, state) {
     });
 }
 
-function renderItemCard(item) {
+function renderItemCard(item, { canEdit = false } = {}) {
     const type = getItemTypeMeta(item.type);
     const rarity = getItemRarityMeta(item.rarity);
     const properties = getVisibleItemProperties(item);
     const positiveProperties = properties.filter(property => property.negative !== true);
     const negativeProperties = properties.filter(property => property.negative === true);
+    const hidden = isHiddenItem(item);
     return `
-        <details class="item-card item-card--${slugify(rarity.label)}" id="${escapeHtml(item.id || slugify(item.name))}">
+        <details class="item-card item-card--${slugify(rarity.label)} ${hidden ? "item-card--dm-hidden" : ""}" id="${escapeHtml(item.id || slugify(item.name))}">
             <summary class="item-card-summary">
                 ${renderItemMedia(item, type, rarity)}
                 <div class="item-card-text">
@@ -224,6 +265,7 @@ function renderItemCard(item) {
                         <span><i class="fas ${escapeHtml(rarity.icon)}" aria-hidden="true"></i>${escapeHtml(rarity.label)}</span>
                         ${item.attunement ? '<span><i class="fas fa-link" aria-hidden="true"></i>Sintonia</span>' : ""}
                         ${item.unidentified === true ? '<span><i class="fas fa-eye-slash" aria-hidden="true"></i>Non identificato</span>' : ""}
+                        ${hidden ? '<span class="item-card-dm-badge"><i class="fas fa-user-shield" aria-hidden="true"></i>Solo DM</span>' : ""}
                     </div>
                 <h3>${escapeHtml(item.name || "Oggetto senza nome")}</h3>
                 ${item.owner ? `<p class="item-owner">Provenienza: ${escapeHtml(item.owner)}</p>` : ""}
@@ -231,6 +273,14 @@ function renderItemCard(item) {
                 </div>
             </summary>
             <div class="item-card-content">
+                ${canEdit ? `
+                    <div class="item-card-actions">
+                        <a class="item-card-edit-link" href="${escapeHtml(getItemEditorUrl(item))}" title="Modifica questo oggetto">
+                            <i class="fas fa-pen" aria-hidden="true"></i>
+                            <span>Modifica</span>
+                        </a>
+                    </div>
+                ` : ""}
                 ${item.unidentified === true ? `
                     <p class="item-notes item-notes--unidentified">Le proprietà di questo oggetto non sono ancora identificate.</p>
                 ` : ""}
@@ -251,6 +301,15 @@ function renderItemCard(item) {
             </div>
         </details>
     `;
+}
+
+function getItemEditorUrl(item) {
+    const url = new URL("../tools/items-editor.html", window.location.href);
+    const campaignId = window.CriptaApp?.campaigns?.currentId?.();
+    const itemId = String(item?.id || slugify(item?.name || "")).trim();
+    if (campaignId) url.searchParams.set("campaign", campaignId);
+    if (itemId) url.searchParams.set("item", itemId);
+    return `${url.pathname}${url.search}`;
 }
 
 function normalizeItemProperties(properties) {

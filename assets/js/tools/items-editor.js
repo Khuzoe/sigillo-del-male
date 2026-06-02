@@ -78,6 +78,7 @@
 
     async function init() {
         bindElements();
+        enhanceDetailFormLayout();
         restoreFilters();
         bindEvents();
 
@@ -89,9 +90,12 @@
             if (!Array.isArray(state.items)) throw new Error('Formato items.json non valido.');
             state.selectedIndex = state.items.length ? 0 : -1;
             const restoredDraft = restoreDraft();
+            const selectedFromUrl = selectInitialItemFromUrl();
             renderAll();
+            if (selectedFromUrl) setFocusMode(true);
             const statusParts = [`${state.items.length} oggetti caricati da ${loaded.source === 'kv' ? 'KV online' : 'JSON statico'}.`];
             if (restoredDraft) statusParts.push('Bozza locale ripristinata dopo reload.');
+            if (selectedFromUrl) statusParts.push('Oggetto aperto dalla griglia.');
             setStatus(statusParts.join(' '));
         } catch (error) {
             console.error('Errore caricamento oggetti:', error);
@@ -154,6 +158,117 @@
         ].forEach((id) => {
             els[toCamel(id)] = document.getElementById(id);
         });
+    }
+
+    function enhanceDetailFormLayout() {
+        const form = els.detailForm;
+        if (!form || form.dataset.enhanced === '1') return;
+        form.dataset.enhanced = '1';
+        form.classList.add('items-editor-detail-form');
+
+        const fieldById = (id) => document.getElementById(id)?.closest('.items-editor-field');
+        const checkByField = (field) => form.querySelector(`input[data-field="${field}"]`)?.closest('label');
+        const section = (title, description, modifier = '') => {
+            const node = document.createElement('section');
+            node.className = `items-form-section ${modifier}`.trim();
+            const header = document.createElement('div');
+            header.className = 'items-form-section-header';
+            const titleWrap = document.createElement('div');
+            titleWrap.className = 'items-form-section-title';
+            const heading = document.createElement('h3');
+            heading.textContent = title;
+            const copy = document.createElement('p');
+            copy.textContent = description;
+            titleWrap.append(heading, copy);
+            header.append(titleWrap);
+            node.append(header);
+            return { node, header };
+        };
+        const grid = (modifier = '') => {
+            const node = document.createElement('div');
+            node.className = `items-form-grid ${modifier}`.trim();
+            return node;
+        };
+        const appendExisting = (parent, nodes) => {
+            nodes.filter(Boolean).forEach((node) => parent.append(node));
+        };
+
+        const imageField = els.detailImageDropzone?.closest('.items-editor-field');
+        imageField?.classList.remove('items-editor-field--wide');
+        if (els.detailImageDropzone) {
+            els.detailImageDropzone.classList.add('items-editor-dropzone--hero');
+            const strong = els.detailImageDropzone.querySelector('strong');
+            const small = els.detailImageDropzone.querySelector('small');
+            if (strong) strong.textContent = 'Immagine oggetto';
+            if (small && small !== els.detailImagePath) {
+                small.textContent = 'Trascina una WebP o clicca per caricare. Il path viene gestito automaticamente.';
+            }
+        }
+
+        const identity = section('Identita', 'Nome, proprietario e immagine principale dell\'oggetto.', 'items-form-section--hero');
+        const identityGrid = grid('items-form-grid--identity');
+        appendExisting(identityGrid, [
+            fieldById('field-name'),
+            fieldById('field-id'),
+            fieldById('field-owner'),
+            fieldById('field-icon')
+        ]);
+        appendExisting(identity.node, [imageField, identityGrid]);
+
+        const classification = section('Classificazione', 'Campi usati nella lista, nelle schede giocatore e nelle associazioni con Foundry.');
+        const classificationGrid = grid();
+        appendExisting(classificationGrid, [
+            fieldById('field-type'),
+            fieldById('field-subtype'),
+            fieldById('field-rarity'),
+            fieldById('field-status')
+        ]);
+        const rulesField = document.createElement('div');
+        rulesField.className = 'items-editor-field items-editor-field--wide';
+        const rulesLabel = document.createElement('label');
+        rulesLabel.textContent = 'Regole rapide';
+        const rulesGrid = document.createElement('div');
+        rulesGrid.className = 'items-editor-check-grid';
+        ['unidentified', 'attunement', 'hidden'].forEach((field) => {
+            const check = checkByField(field);
+            if (!check) return;
+            check.classList.add('items-editor-check--pill');
+            rulesGrid.append(check);
+        });
+        rulesField.append(rulesLabel, rulesGrid);
+        classificationGrid.append(rulesField);
+        classification.node.append(classificationGrid);
+
+        const links = section('Collegamenti', 'Uno per riga. I nomi Foundry associano inventari e import; gli alias servono alla ricerca del sito.');
+        const linksGrid = grid('items-form-grid--two');
+        const foundryNamesField = fieldById('field-foundry-names');
+        const aliasesField = fieldById('field-aliases');
+        foundryNamesField?.classList.remove('items-editor-field--wide');
+        aliasesField?.classList.remove('items-editor-field--wide');
+        appendExisting(linksGrid, [
+            foundryNamesField,
+            aliasesField
+        ]);
+        links.node.append(linksGrid);
+
+        const texts = section('Testi', 'La descrizione breve appare nelle liste. Le note sono per origine, sessione o contesto.');
+        const textsGrid = grid('items-form-grid--description');
+        appendExisting(textsGrid, [
+            fieldById('field-summary'),
+            fieldById('field-notes'),
+            fieldById('field-unidentified-name'),
+            fieldById('field-unidentified-description')
+        ]);
+        texts.node.append(textsGrid);
+
+        const properties = section('Proprieta', 'Ogni blocco diventa una proprieta leggibile nella pagina oggetto. Usa "nascosta" per testo solo DM.');
+        const propertyField = els.propertyList?.closest('.items-editor-field');
+        const propertyLabel = propertyField?.querySelector('label');
+        if (propertyLabel) propertyLabel.remove();
+        if (els.addPropertyBtn) properties.header.append(els.addPropertyBtn);
+        appendExisting(properties.node, [propertyField]);
+
+        form.replaceChildren(identity.node, classification.node, links.node, texts.node, properties.node);
     }
 
     function bindEvents() {
@@ -338,6 +453,21 @@
             return copy;
         });
         persistDraft(items);
+    }
+
+    function selectInitialItemFromUrl() {
+        const params = new URLSearchParams(window.location.search || '');
+        const target = String(params.get('item') || params.get('id') || '').trim();
+        if (!target || !Array.isArray(state.items) || !state.items.length) return false;
+        const normalizedTarget = normalizeSearch(target);
+        const index = state.items.findIndex((item) => {
+            const id = String(item?.id || '').trim();
+            if (id && id === target) return true;
+            return normalizeSearch(id || item?.name || '') === normalizedTarget;
+        });
+        if (index < 0) return false;
+        state.selectedIndex = index;
+        return true;
     }
 
     async function connectJsonFile() {
