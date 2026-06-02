@@ -7,7 +7,9 @@
   "number": 1,
   "dmAccountId": "dona",
   "dmDiscordId": "142958738247122944",
-  "pollManagerAccountIds": [],
+  "pollManagerAccountIds": [
+    "andre"
+  ],
   "pollManagerDiscordIds": [],
   "date": "",
   "timeStart": "",
