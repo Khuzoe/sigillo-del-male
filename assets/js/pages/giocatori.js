@@ -21,6 +21,12 @@ window.CriptaApp.onPageReady("giocatori", async function() {
             .replace(/[^a-z0-9]+/g, "");
     }
 
+    const HIDDEN_INVENTORY_ITEM_NAMES = new Set(["unarmedstrike"]);
+
+    function isHiddenInventoryItem(item) {
+        return HIDDEN_INVENTORY_ITEM_NAMES.has(normalizeText(item?.name));
+    }
+
     function slugify(value) {
         return String(value || "")
             .toLowerCase()
@@ -257,8 +263,8 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         const hp = getHp(actor);
         const slots = getSlots(actor);
         const weight = getWeight(actor);
-        const equipped = Array.isArray(actor.equippedItems) ? actor.equippedItems : [];
-        const attuned = Array.isArray(actor.attunementItems) ? actor.attunementItems : [];
+        const equipped = Array.isArray(actor.equippedItems) ? actor.equippedItems.filter((item) => !isHiddenInventoryItem(item)) : [];
+        const attuned = Array.isArray(actor.attunementItems) ? actor.attunementItems.filter((item) => !isHiddenInventoryItem(item)) : [];
         const ac = actor?.vitals?.ac;
 
         return `

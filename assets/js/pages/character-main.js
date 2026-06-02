@@ -336,6 +336,7 @@ const WIKI_ITEMS_DATA_URL = dataUrl('items.json');
 const INVENTORY_CACHE_KEY = `cds_inventory_api_cache_v1:${window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue'}`;
 const INVENTORY_CACHE_TTL_MS = 5 * 60 * 1000;
 const INVENTORY_EXCLUDED_TYPES = new Set(['class', 'subclass', 'feat', 'background', 'race', 'spell']);
+const INVENTORY_EXCLUDED_NAMES = new Set(['unarmedstrike']);
 const SPELL_SCHOOL_LABELS = {
     abj: 'Abiurazione',
     con: 'Evocazione',
@@ -420,6 +421,10 @@ function normalizeText(value) {
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '');
+}
+
+function isHiddenInventoryEntry(entry) {
+    return INVENTORY_EXCLUDED_NAMES.has(normalizeText(entry?.name));
 }
 
 function normalizeWords(value) {
@@ -961,6 +966,7 @@ function splitActorLoadout(actor) {
 
     sourceEntries.forEach((entry) => {
         if (!entry || typeof entry !== 'object') return;
+        if (isHiddenInventoryEntry(entry)) return;
         if (entry.type === 'spell') {
             spells.push(entry);
             return;
@@ -1586,7 +1592,7 @@ function getAttunedItems(actor) {
         (Array.isArray(actor.attunementItems) && actor.attunementItems.length > 0)
             ? actor.attunementItems
             : (Array.isArray(actor.inventory) ? actor.inventory.filter((item) => item && item.attuned) : [])
-    );
+    ).filter((item) => !isHiddenInventoryEntry(item));
 
     return attunedItems;
 }
@@ -1734,7 +1740,8 @@ function renderCompactSlotOverview(actor) {
 function renderCharacterLiveSummary(actor, payload) {
     if (!actor || typeof actor !== 'object') return '';
     const attunedItems = getAttunedItems(actor);
-    const equippedItems = getUniqueItemList(Array.isArray(actor.equippedItems) ? actor.equippedItems : []);
+    const equippedItems = getUniqueItemList(Array.isArray(actor.equippedItems) ? actor.equippedItems : [])
+        .filter((item) => !isHiddenInventoryEntry(item));
     const resourceHtml = renderResourceOverview(actor);
     const currencyHtml = renderCurrencyOverview(actor);
     const abilityHtml = renderAbilityOverview(actor);
@@ -2267,6 +2274,7 @@ function buildPlayerLoadoutHtml(character, payload, wikiItems = [], abilityOverr
     [actor.equippedItems, actor.attunementItems].forEach((items) => {
         if (!Array.isArray(items)) return;
         items.forEach((entry) => {
+            if (isHiddenInventoryEntry(entry)) return;
             entry.wikiItem = findWikiItemForInventoryEntry(entry, wikiItemIndex);
         });
     });
