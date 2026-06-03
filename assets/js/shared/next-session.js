@@ -245,6 +245,7 @@
             pollTitle: normalizeItalianLabel(config?.pollTitle),
             pollSubtitle: normalizeItalianLabel(config?.pollSubtitle),
             sessionCardImage: String(config?.sessionCardImage || config?.ui?.sessionCardImage || '').trim(),
+            sessionCardImageVersion: String(config?.sessionCardImageVersion || config?.ui?.sessionCardImageVersion || '').trim(),
             discordWebhookUrl: String(config?.discordWebhookUrl || '').trim(),
             disableDiscordNotifications: Boolean(config?.disableDiscordNotifications),
             number: Number(config?.number) || 1,
@@ -318,6 +319,7 @@
             pollTitle: cleanConfig.pollTitle,
             pollSubtitle: cleanConfig.pollSubtitle,
             sessionCardImage: cleanConfig.sessionCardImage,
+            sessionCardImageVersion: cleanConfig.sessionCardImageVersion,
             discordWebhookUrl: cleanConfig.discordWebhookUrl,
             disableDiscordNotifications: cleanConfig.disableDiscordNotifications,
             date: cleanConfig.date,
@@ -381,37 +383,64 @@
         return `${getAssetsBasePath()}img/ui/${value}`;
     }
 
-    function resolveSessionCardImageUrl(imagePath) {
+    function getSessionCardImagePath(config) {
+        const explicitPath = String(config?.sessionCardImage || '').trim();
+        if (explicitPath) return explicitPath;
+        const campaignId = String(config?.campaignId || getCurrentCampaignId()).trim();
+        if (campaignId === 'mago-folle') return 'img/ui/mago-folle/card.webp';
+        return 'img/ui/card.webp';
+    }
+
+    function appendCacheBust(url, version) {
+        const cleanVersion = String(version || '').trim();
+        if (!cleanVersion || /^(data:|blob:)/i.test(url)) return url;
+        try {
+            const resolvedUrl = new URL(url, window.location.href);
+            resolvedUrl.searchParams.set('v', cleanVersion);
+            return resolvedUrl.toString();
+        } catch (error) {
+            const separator = url.includes('?') ? '&' : '?';
+            return `${url}${separator}v=${encodeURIComponent(cleanVersion)}`;
+        }
+    }
+
+    function resolveSessionCardImageUrl(imagePath, version = '') {
         const value = String(imagePath || '').trim() || 'img/ui/card.webp';
-        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        let resolved = '';
+        if (/^(https?:|data:|blob:)/i.test(value)) return appendCacheBust(value, version);
         if (value.startsWith('media/')) {
-            return typeof window.CriptaApp?.urls?.api === 'function'
+            resolved = typeof window.CriptaApp?.urls?.api === 'function'
                 ? window.CriptaApp.urls.api(value)
                 : `${API_BASE_URL}/${value}`;
+            return appendCacheBust(resolved, version);
         }
         if (value.startsWith('/media/')) {
             const cleanValue = value.replace(/^\/+/, '');
-            return typeof window.CriptaApp?.urls?.api === 'function'
+            resolved = typeof window.CriptaApp?.urls?.api === 'function'
                 ? window.CriptaApp.urls.api(cleanValue)
                 : `${API_BASE_URL}/${cleanValue}`;
+            return appendCacheBust(resolved, version);
         }
         if (value.startsWith('assets/')) {
-            return typeof window.CriptaApp?.urls?.site === 'function'
+            resolved = typeof window.CriptaApp?.urls?.site === 'function'
                 ? window.CriptaApp.urls.site(value)
                 : `${window.location.pathname.includes('/pages/') ? '../' : ''}${value}`;
+            return appendCacheBust(resolved, version);
         }
-        if (value.startsWith('/')) return value;
+        if (value.startsWith('/')) return appendCacheBust(value, version);
         if (value.startsWith('img/')) {
-            return typeof window.CriptaApp?.urls?.site === 'function'
+            resolved = typeof window.CriptaApp?.urls?.site === 'function'
                 ? window.CriptaApp.urls.site(`assets/${value}`)
                 : `${getAssetsBasePath()}${value}`;
+            return appendCacheBust(resolved, version);
         }
         if (value.includes('/')) {
-            return typeof window.CriptaApp?.urls?.site === 'function'
+            resolved = typeof window.CriptaApp?.urls?.site === 'function'
                 ? window.CriptaApp.urls.site(value)
                 : value;
+            return appendCacheBust(resolved, version);
         }
-        return `${getAssetsBasePath()}img/ui/${value}`;
+        return appendCacheBust(`${getAssetsBasePath()}img/ui/${value}`, version);
     }
 
     async function loadEligiblePlayers(config) {
@@ -854,7 +883,12 @@
 
         let decorationImage = null;
         try {
-            decorationImage = await loadCanvasImage(resolveSessionCardImageUrl(effectiveConfig.sessionCardImage));
+            decorationImage = await loadCanvasImage(
+                resolveSessionCardImageUrl(
+                    getSessionCardImagePath(effectiveConfig),
+                    effectiveConfig.sessionCardImageVersion
+                )
+            );
         } catch (error) {
             console.warn('Impossibile caricare la decorazione della card per l\'export PNG:', error);
         }
@@ -1361,6 +1395,7 @@
                 pollTitle: localOnlyConfig.pollTitle || remoteConfig.pollTitle,
                 pollSubtitle: localOnlyConfig.pollSubtitle || remoteConfig.pollSubtitle,
                 sessionCardImage: localOnlyConfig.sessionCardImage || remoteConfig.sessionCardImage,
+                sessionCardImageVersion: localOnlyConfig.sessionCardImageVersion || remoteConfig.sessionCardImageVersion,
                 discordWebhookUrl: localOnlyConfig.discordWebhookUrl || remoteConfig.discordWebhookUrl,
                 disableDiscordNotifications: typeof localOnlyConfig.disableDiscordNotifications === 'boolean'
                     ? localOnlyConfig.disableDiscordNotifications
