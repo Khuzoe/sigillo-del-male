@@ -56,6 +56,7 @@ const ITEM_TYPES = [
     { value: "Oggetto meraviglioso", icon: "fa-hat-wizard" },
     { value: "Pergamena", icon: "fa-scroll" },
     { value: "Pozione", icon: "fa-flask-vial" },
+    { value: "Materiali", icon: "fa-cubes-stacked" },
     { value: "Bottino", icon: "fa-gem" },
     { value: "Scudo", icon: "fa-shield" },
     { value: "Verga", icon: "fa-wand-magic-sparkles" }
@@ -129,7 +130,7 @@ function initItemFilters(items, state, elements) {
         ...ITEM_RARITIES.map(item => ({ ...item, label: item.value }))
     ], state.rarity);
 
-    const types = uniqueSorted(items.map(item => item.type).filter(Boolean));
+    const types = uniqueSorted(items.map(item => getItemCategory(item)).filter(Boolean));
     renderItemFilter(elements.typeFilters, "items-type", [
         { value: "all", label: "Tutti", icon: "fa-box-open" },
         ...types.map(type => ({ value: type, label: type, icon: getItemTypeMeta(type).icon }))
@@ -194,11 +195,43 @@ function updateItemsView(items, state, grid, count) {
         return;
     }
 
-    grid.innerHTML = filtered
-        .sort(compareItems)
-        .map(item => renderItemCard(item, { canEdit: state.canEditItems }))
-        .join("");
+    grid.innerHTML = renderItemsGrid(filtered, { canEdit: state.canEditItems });
     bindItemExpansion(grid);
+}
+
+function renderItemsGrid(items, { canEdit = false } = {}) {
+    const sorted = [...items].sort(compareItems);
+    const regularItems = sorted.filter(item => getItemCategory(item) !== "Materiali");
+    const materialItems = sorted.filter(item => getItemCategory(item) === "Materiali");
+    const regularHtml = regularItems
+        .map(item => renderItemCard(item, { canEdit }))
+        .join("");
+    const materialsHtml = materialItems
+        .map(item => renderItemCard(item, { canEdit }))
+        .join("");
+    if (!materialItems.length) return regularHtml;
+    if (!regularItems.length) return `
+        <section class="items-grid-section items-grid-section--materials">
+            ${renderItemsSectionHeader("Materiali", materialItems.length, "fa-cubes-stacked")}
+            <div class="items-grid-section-cards">${materialsHtml}</div>
+        </section>
+    `;
+    return `
+        ${regularHtml}
+        <section class="items-grid-section items-grid-section--materials">
+            ${renderItemsSectionHeader("Materiali", materialItems.length, "fa-cubes-stacked")}
+            <div class="items-grid-section-cards">${materialsHtml}</div>
+        </section>
+    `;
+}
+
+function renderItemsSectionHeader(title, count, icon) {
+    return `
+        <header class="items-grid-section-header">
+            <span><i class="fas ${escapeHtml(icon)}" aria-hidden="true"></i>${escapeHtml(title)}</span>
+            <small>${count} ${count === 1 ? "voce" : "voci"}</small>
+        </header>
+    `;
 }
 
 function bindItemExpansion(grid) {
@@ -226,12 +259,13 @@ function filterItems(items, state) {
     return items.filter(item => {
         const visibleProperties = getVisibleItemProperties(item);
         if (state.rarity !== "all" && (item.rarity || "Sconosciuta") !== state.rarity) return false;
-        if (state.type !== "all" && (item.type || "") !== state.type) return false;
+        if (state.type !== "all" && getItemCategory(item) !== state.type) return false;
         if (state.attunement === "yes" && item.attunement !== true) return false;
         if (state.attunement === "no" && item.attunement === true) return false;
         if (!query) return true;
         return normalizeSearch([
             item.name,
+            getItemCategory(item),
             item.type,
             item.subtype,
             item.rarity,
@@ -249,7 +283,7 @@ function filterItems(items, state) {
 }
 
 function renderItemCard(item, { canEdit = false } = {}) {
-    const type = getItemTypeMeta(item.type);
+    const type = getItemTypeMeta(getItemCategory(item));
     const rarity = getItemRarityMeta(item.rarity);
     const properties = getVisibleItemProperties(item);
     const positiveProperties = properties.filter(property => property.negative !== true);
@@ -368,9 +402,35 @@ function renderItemMedia(item, type, rarity) {
 }
 
 function formatItemTypeLabel(item) {
-    const type = getItemTypeMeta(item.type).label;
+    const type = getItemTypeMeta(getItemCategory(item)).label;
     const subtype = String(item?.subtype || "").trim();
-    return subtype ? `${type} (${subtype})` : type;
+    if (!subtype || normalizeSearch(subtype) === normalizeSearch(type)) return type;
+    return `${type} (${subtype})`;
+}
+
+function getItemCategory(item) {
+    const type = String(item?.type || "").trim();
+    const subtype = String(item?.subtype || "").trim();
+    const name = String(item?.name || "").trim();
+    const normalizedType = normalizeSearch(type);
+    const normalizedSubtype = normalizeSearch(subtype);
+    const normalizedName = normalizeSearch(name);
+    const materialTokens = [
+        "materiale",
+        "materiali",
+        "minerale",
+        "minerali",
+        "reagente",
+        "reagenti",
+        "ingrediente",
+        "ingredienti"
+    ];
+    const isMaterial = materialTokens.some(token =>
+        normalizedType === token
+        || normalizedSubtype === token
+        || normalizedName.includes(token)
+    );
+    return isMaterial ? "Materiali" : type;
 }
 
 function getItemTypeMeta(type) {

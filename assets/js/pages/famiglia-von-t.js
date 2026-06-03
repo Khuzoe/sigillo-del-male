@@ -109,12 +109,20 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
         }).join('');
 
         birthOrderContainer.innerHTML = `
-                    <div class="birth-order-header">
-                        <span class="eyebrow">Cronologia Von T</span>
-                        <h2>Ordine di nascita</h2>
-                        <p>Dal membro piu recente al capostipite della stirpe.</p>
-                    </div>
-                    <ol class="birth-order-list">${listHtml}</ol>
+                    <details class="birth-order-panel">
+                        <summary class="birth-order-header">
+                            <span class="birth-order-header-copy">
+                                <span class="eyebrow">Cronologia Von T</span>
+                                <span class="birth-order-title">Ordine di nascita</span>
+                                <span class="birth-order-subtitle">Dal membro piu recente al capostipite della stirpe.</span>
+                            </span>
+                            <span class="birth-order-toggle">
+                                <span>${vonTMembers.length} ${vonTMembers.length === 1 ? 'voce' : 'voci'}</span>
+                                <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                            </span>
+                        </summary>
+                        <ol class="birth-order-list">${listHtml}</ol>
+                    </details>
                 `;
     }
 

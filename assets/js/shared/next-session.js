@@ -244,6 +244,7 @@
             campaignName: String(config?.campaignName || '').trim(),
             pollTitle: normalizeItalianLabel(config?.pollTitle),
             pollSubtitle: normalizeItalianLabel(config?.pollSubtitle),
+            sessionCardImage: String(config?.sessionCardImage || config?.ui?.sessionCardImage || '').trim(),
             discordWebhookUrl: String(config?.discordWebhookUrl || '').trim(),
             disableDiscordNotifications: Boolean(config?.disableDiscordNotifications),
             number: Number(config?.number) || 1,
@@ -316,6 +317,7 @@
             campaignName: cleanConfig.campaignName,
             pollTitle: cleanConfig.pollTitle,
             pollSubtitle: cleanConfig.pollSubtitle,
+            sessionCardImage: cleanConfig.sessionCardImage,
             discordWebhookUrl: cleanConfig.discordWebhookUrl,
             disableDiscordNotifications: cleanConfig.disableDiscordNotifications,
             date: cleanConfig.date,
@@ -370,6 +372,39 @@
             return typeof window.CriptaApp?.urls?.site === 'function'
                 ? window.CriptaApp.urls.site(value)
                 : `${getAssetsBasePath()}${value.replace(/^assets\//, '')}`;
+        }
+        if (value.includes('/')) {
+            return typeof window.CriptaApp?.urls?.site === 'function'
+                ? window.CriptaApp.urls.site(value)
+                : value;
+        }
+        return `${getAssetsBasePath()}img/ui/${value}`;
+    }
+
+    function resolveSessionCardImageUrl(imagePath) {
+        const value = String(imagePath || '').trim() || 'img/ui/card.webp';
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith('media/')) {
+            return typeof window.CriptaApp?.urls?.api === 'function'
+                ? window.CriptaApp.urls.api(value)
+                : `${API_BASE_URL}/${value}`;
+        }
+        if (value.startsWith('/media/')) {
+            const cleanValue = value.replace(/^\/+/, '');
+            return typeof window.CriptaApp?.urls?.api === 'function'
+                ? window.CriptaApp.urls.api(cleanValue)
+                : `${API_BASE_URL}/${cleanValue}`;
+        }
+        if (value.startsWith('assets/')) {
+            return typeof window.CriptaApp?.urls?.site === 'function'
+                ? window.CriptaApp.urls.site(value)
+                : `${window.location.pathname.includes('/pages/') ? '../' : ''}${value}`;
+        }
+        if (value.startsWith('/')) return value;
+        if (value.startsWith('img/')) {
+            return typeof window.CriptaApp?.urls?.site === 'function'
+                ? window.CriptaApp.urls.site(`assets/${value}`)
+                : `${getAssetsBasePath()}${value}`;
         }
         if (value.includes('/')) {
             return typeof window.CriptaApp?.urls?.site === 'function'
@@ -615,6 +650,40 @@
         }
     }
 
+    function withCanvasShadow(context, options, draw) {
+        context.save();
+        context.shadowColor = options.color || 'rgba(0, 0, 0, 0.35)';
+        context.shadowBlur = Number(options.blur) || 24;
+        context.shadowOffsetX = Number(options.offsetX) || 0;
+        context.shadowOffsetY = Number(options.offsetY) || 10;
+        draw();
+        context.restore();
+    }
+
+    function drawSessionCardTexture(context, width, height, theme) {
+        context.save();
+        context.globalAlpha = 0.16;
+        context.strokeStyle = theme.textureStroke || 'rgba(240, 212, 138, 0.08)';
+        context.lineWidth = 1;
+        for (let x = -height; x < width; x += 34) {
+            context.beginPath();
+            context.moveTo(x, height);
+            context.lineTo(x + height, 0);
+            context.stroke();
+        }
+        context.globalAlpha = 0.08;
+        context.fillStyle = theme.textureDot || 'rgba(240, 212, 138, 0.18)';
+        for (let y = 126; y < height - 126; y += 52) {
+            for (let x = 146; x < width - 146; x += 64) {
+                if (((x + y) % 5) !== 0) continue;
+                context.beginPath();
+                context.arc(x, y, 1.2, 0, Math.PI * 2);
+                context.fill();
+            }
+        }
+        context.restore();
+    }
+
     function wrapCanvasText(context, text, maxWidth) {
         const words = String(text || '').split(/\s+/).filter(Boolean);
         if (words.length === 0) return [''];
@@ -634,6 +703,29 @@
         return lines;
     }
 
+    function drawAdaptiveCanvasText(context, text, x, y, maxWidth, options = {}) {
+        const value = String(text || '');
+        const family = options.family || 'Cinzel, Georgia, serif';
+        const weight = options.weight || '700';
+        const minSize = Number(options.minSize) || 26;
+        const maxSize = Number(options.maxSize) || 34;
+        const lineHeight = Number(options.lineHeight) || 38;
+        for (let size = maxSize; size >= minSize; size -= 1) {
+            context.font = `${weight} ${size}px ${family}`;
+            if (context.measureText(value).width <= maxWidth) {
+                context.fillText(value, x, y);
+                return 1;
+            }
+        }
+
+        context.font = `${weight} ${minSize}px ${family}`;
+        const lines = wrapCanvasText(context, value, maxWidth);
+        lines.slice(0, 2).forEach((line, index) => {
+            context.fillText(line, x, y + (index * lineHeight));
+        });
+        return Math.min(lines.length, 2);
+    }
+
     function loadCanvasImage(src) {
         return new Promise((resolve, reject) => {
             const image = new Image();
@@ -641,6 +733,81 @@
             image.onerror = () => reject(new Error(`Impossibile caricare immagine: ${src}`));
             image.src = src;
         });
+    }
+
+    function drawImageContain(context, image, x, y, boxWidth, boxHeight, options = {}) {
+        if (!image?.width || !image?.height) return;
+        const scale = Math.min(boxWidth / image.width, boxHeight / image.height);
+        const drawWidth = image.width * scale;
+        const drawHeight = image.height * scale;
+        const alignX = typeof options.alignX === 'number' ? options.alignX : 0.5;
+        const alignY = typeof options.alignY === 'number' ? options.alignY : 0.5;
+        const drawX = x + ((boxWidth - drawWidth) * alignX);
+        const drawY = y + ((boxHeight - drawHeight) * alignY);
+        context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+    }
+
+    function getSessionCardTheme(config) {
+        const campaignId = String(config?.campaignId || getCurrentCampaignId()).trim().toLowerCase();
+        if (campaignId === 'mago-folle') {
+            return {
+                backgroundTop: '#111018',
+                backgroundBottom: '#08090f',
+                panelFill: 'rgba(12, 14, 22, 0.9)',
+                innerPanelFill: 'rgba(8, 10, 16, 0.58)',
+                infoFill: 'rgba(20, 16, 25, 0.9)',
+                accent: '#f0d48a',
+                accentSoft: 'rgba(240, 212, 138, 0.28)',
+                glow: 'rgba(83, 169, 255, 0.18)',
+                muted: '#9e8d65',
+                text: '#f5ead0',
+                subtext: '#cdbb8d',
+                imageGlow: 'rgba(83, 169, 255, 0.2)',
+                imageBox: { x: 725, y: 289, width: 580, height: 435, alignX: 0.5, alignY: 1 },
+                imageGlowBox: { x: 680, y: 249, width: 650, height: 520, cx: 1015, cy: 569, inner: 70, outer: 460 },
+                titleShadow: 'rgba(83, 169, 255, 0.16)',
+                textureStroke: 'rgba(83, 169, 255, 0.08)',
+                textureDot: 'rgba(240, 212, 138, 0.16)'
+            };
+        }
+        return {
+            backgroundTop: '#171013',
+            backgroundBottom: '#08090c',
+            panelFill: 'rgba(17, 18, 26, 0.88)',
+            innerPanelFill: 'rgba(9, 8, 11, 0.52)',
+            infoFill: 'rgba(27, 16, 22, 0.92)',
+            accent: '#f0d48a',
+            accentSoft: 'rgba(212, 175, 55, 0.24)',
+            glow: 'rgba(151, 35, 30, 0.18)',
+            muted: '#8f7c56',
+            text: '#f3ead5',
+            subtext: '#d8b25a',
+            imageGlow: 'rgba(151, 35, 30, 0.24)',
+            imageBox: { x: 725, y: 289, width: 580, height: 435, alignX: 0.5, alignY: 1 },
+            imageGlowBox: { x: 680, y: 249, width: 650, height: 520, cx: 1015, cy: 569, inner: 70, outer: 460 },
+            titleShadow: 'rgba(151, 35, 30, 0.2)',
+            textureStroke: 'rgba(151, 35, 30, 0.08)',
+            textureDot: 'rgba(212, 175, 55, 0.14)'
+        };
+    }
+
+    function getDisplayCampaignName(config) {
+        const rawName = String(config?.campaignName || '').trim();
+        if (rawName && !/^(campagna|nome campagna)$/i.test(rawName)) return rawName;
+
+        const campaignId = String(config?.campaignId || getCurrentCampaignId()).trim().toLowerCase();
+        const knownNames = {
+            'cripta-di-sangue': 'Cripta di Sangue',
+            'mago-folle': 'Mago Folle',
+            'oltre-il-velo': 'Oltre il Velo'
+        };
+        if (knownNames[campaignId]) return knownNames[campaignId];
+
+        return campaignId
+            .split(/[-_]+/)
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(' ') || 'Campagna';
     }
 
     function formatExportOption(option) {
@@ -652,6 +819,7 @@
         const effectiveConfig = sanitizeNextSessionConfig(config);
         const options = sanitizeOptions(effectiveConfig.availabilityOptions);
         const isScheduledView = effectiveConfig.isScheduled && viewMode !== VIEW_MODES.poll;
+        const cardTheme = getSessionCardTheme(effectiveConfig);
         const width = 1400;
         const height = isScheduledView ? 860 : 1040;
         const scale = Math.max(2, Math.min(3, Math.ceil(window.devicePixelRatio || 2)));
@@ -669,67 +837,121 @@
         context.scale(scale, scale);
 
         const background = context.createLinearGradient(0, 0, 0, height);
-        background.addColorStop(0, '#151116');
-        background.addColorStop(1, '#09090d');
+        background.addColorStop(0, cardTheme.backgroundTop);
+        background.addColorStop(1, cardTheme.backgroundBottom);
         context.fillStyle = background;
         context.fillRect(0, 0, width, height);
 
         const glow = context.createRadialGradient(width * 0.82, height * 0.12, 20, width * 0.82, height * 0.12, 520);
-        glow.addColorStop(0, 'rgba(212, 175, 55, 0.18)');
+        glow.addColorStop(0, cardTheme.glow);
         glow.addColorStop(1, 'rgba(212, 175, 55, 0)');
         context.fillStyle = glow;
         context.fillRect(0, 0, width, height);
 
-        drawRoundedRect(context, 70, 70, width - 140, height - 140, 32, 'rgba(17, 18, 26, 0.88)', 'rgba(212, 175, 55, 0.24)', 2);
-        drawRoundedRect(context, 94, 94, width - 188, height - 188, 28, 'rgba(8, 9, 14, 0.5)');
+        drawRoundedRect(context, 70, 70, width - 140, height - 140, 32, cardTheme.panelFill, cardTheme.accentSoft, 2);
+        drawRoundedRect(context, 94, 94, width - 188, height - 188, 28, cardTheme.innerPanelFill);
+        drawSessionCardTexture(context, width, height, cardTheme);
 
+        let decorationImage = null;
         try {
-            const decorationImage = await loadCanvasImage(`${getAssetsBasePath()}img/ui/card.webp`);
-            context.save();
-            context.globalAlpha = 1;
-            const decorationX = width - 700;
-            const decorationY = height - 347;
-            const decorationScale = 0.24;
-            const decorationWidth = decorationImage.width * decorationScale;
-            const decorationHeight = decorationImage.height * decorationScale;
-            context.drawImage(decorationImage, decorationX, decorationY, decorationWidth, decorationHeight);
-            context.restore();
+            decorationImage = await loadCanvasImage(resolveSessionCardImageUrl(effectiveConfig.sessionCardImage));
         } catch (error) {
             console.warn('Impossibile caricare la decorazione della card per l\'export PNG:', error);
         }
 
-        context.fillStyle = '#8f7c56';
+        context.fillStyle = cardTheme.muted;
         context.font = '600 26px Cinzel, Georgia, serif';
         context.letterSpacing = '0.08em';
         context.fillText('PROSSIMA SESSIONE', 130, 160);
 
-        context.fillStyle = '#f0d48a';
-        context.font = '700 74px Cinzel, Georgia, serif';
-        context.fillText(`Sessione ${effectiveConfig.number}`, 130, 245);
+        context.save();
+        context.shadowColor = cardTheme.titleShadow;
+        context.shadowBlur = 22;
+        context.shadowOffsetY = 2;
+        context.fillStyle = cardTheme.accent;
+        context.font = `700 ${isScheduledView ? 66 : 74}px Cinzel, Georgia, serif`;
+        context.fillText(`Sessione ${effectiveConfig.number}`, 130, isScheduledView ? 236 : 245);
+        context.restore();
 
         context.fillStyle = '#d8cfbe';
         context.font = '500 24px Segoe UI, Arial, sans-serif';
 
         if (isScheduledView) {
-            drawRoundedRect(context, 130, 300, width - 260, 190, 24, 'rgba(24, 20, 26, 0.92)', 'rgba(212, 175, 55, 0.14)');
-            context.fillStyle = '#9d8c6a';
-            context.font = '600 21px Segoe UI, Arial, sans-serif';
-            context.fillText('DATA FISSATA', 170, 350);
-            context.fillStyle = '#f3ead5';
-            context.font = '700 44px Cinzel, Georgia, serif';
-            const dateLines = wrapCanvasText(context, effectiveConfig.date || 'Da definire', width - 360);
-            dateLines.slice(0, 2).forEach((line, index) => {
-                context.fillText(line, 170, 410 + (index * 54));
+            const campaignName = getDisplayCampaignName(effectiveConfig);
+            context.font = '700 20px Cinzel, Georgia, serif';
+            const badgeWidth = Math.max(240, Math.min(410, context.measureText(campaignName).width + 94));
+            withCanvasShadow(context, { color: 'rgba(0, 0, 0, 0.35)', blur: 20, offsetY: 8 }, () => {
+                drawRoundedRect(context, width - 130 - badgeWidth, 128, badgeWidth, 54, 18, 'rgba(12, 12, 18, 0.72)', cardTheme.accentSoft, 2);
+            });
+            context.fillStyle = cardTheme.subtext;
+            context.font = '700 18px Segoe UI, Arial, sans-serif';
+            context.fillText('CAMPAGNA', width - 102 - badgeWidth, 151);
+            context.fillStyle = cardTheme.text;
+            context.font = '700 20px Cinzel, Georgia, serif';
+            context.fillText(campaignName, width - 102 - badgeWidth, 174);
+
+            withCanvasShadow(context, { color: 'rgba(0, 0, 0, 0.42)', blur: 34, offsetY: 16 }, () => {
+                drawRoundedRect(context, 130, 276, 575, 394, 24, cardTheme.infoFill, 'rgba(212, 175, 55, 0.16)');
+            });
+            const panelGlow = context.createLinearGradient(130, 276, 705, 670);
+            panelGlow.addColorStop(0, cardTheme.accentSoft);
+            panelGlow.addColorStop(0.45, 'rgba(255, 255, 255, 0)');
+            panelGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            drawRoundedRect(context, 130, 276, 575, 394, 24, panelGlow);
+
+            drawRoundedRect(context, 154, 318, 6, 236, 3, cardTheme.accent);
+            context.fillStyle = cardTheme.muted;
+            context.font = '700 20px Segoe UI, Arial, sans-serif';
+            context.fillText('SESSIONE CONFERMATA', 178, 328);
+            drawRoundedRect(context, 178, 344, 178, 3, 2, cardTheme.accentSoft);
+
+            drawRoundedRect(context, 178, 358, 485, 96, 18, 'rgba(8, 9, 14, 0.62)', 'rgba(212, 175, 55, 0.1)');
+            context.fillStyle = cardTheme.muted;
+            context.font = '700 16px Segoe UI, Arial, sans-serif';
+            context.fillText('DATA', 210, 394);
+            context.fillStyle = cardTheme.text;
+            drawAdaptiveCanvasText(context, effectiveConfig.date || 'Da definire', 210, 434, 420, {
+                minSize: 25,
+                maxSize: 31,
+                lineHeight: 34
             });
 
-            context.fillStyle = '#d8b25a';
-            context.font = '600 28px Segoe UI, Arial, sans-serif';
-            context.fillText(`${effectiveConfig.timeStart || '--:--'} - ${effectiveConfig.timeEnd || '--:--'}`, 170, 470);
+            drawRoundedRect(context, 178, 478, 270, 72, 18, 'rgba(8, 9, 14, 0.62)', 'rgba(212, 175, 55, 0.1)');
+            context.fillStyle = cardTheme.muted;
+            context.font = '700 15px Segoe UI, Arial, sans-serif';
+            context.fillText('ORARIO', 210, 504);
+            context.fillStyle = cardTheme.subtext;
+            context.font = '700 29px Segoe UI, Arial, sans-serif';
+            context.fillText(`${effectiveConfig.timeStart || '--:--'} - ${effectiveConfig.timeEnd || '--:--'}`, 210, 538);
 
-            context.fillStyle = '#938260';
-            context.font = '500 22px Segoe UI, Arial, sans-serif';
-            context.fillText('Sigillo del Male', 130, height - 120);
+            drawRoundedRect(context, 178, 616, 230, 2, 1, cardTheme.accentSoft);
+
+            if (decorationImage) {
+                const glowBox = cardTheme.imageGlowBox;
+                const imageBox = cardTheme.imageBox;
+                const imageGlow = context.createRadialGradient(glowBox.cx, glowBox.cy, glowBox.inner, glowBox.cx, glowBox.cy, glowBox.outer);
+                imageGlow.addColorStop(0, cardTheme.imageGlow || cardTheme.glow);
+                imageGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                context.fillStyle = imageGlow;
+                context.fillRect(glowBox.x, glowBox.y, glowBox.width, glowBox.height);
+                drawImageContain(context, decorationImage, imageBox.x, imageBox.y, imageBox.width, imageBox.height, {
+                    alignX: imageBox.alignX,
+                    alignY: imageBox.alignY
+                });
+            }
         } else {
+            if (decorationImage) {
+                context.save();
+                context.globalAlpha = 1;
+                const decorationX = width - 700;
+                const decorationY = height - 347;
+                const decorationScale = 0.24;
+                const decorationWidth = decorationImage.width * decorationScale;
+                const decorationHeight = decorationImage.height * decorationScale;
+                context.drawImage(decorationImage, decorationX, decorationY, decorationWidth, decorationHeight);
+                context.restore();
+            }
+
             context.fillStyle = '#9d8c6a';
             context.font = '600 21px Segoe UI, Arial, sans-serif';
             context.fillText('SONDAGGIO DISPONIBILITA', 130, 320);
@@ -761,7 +983,7 @@
 
             context.fillStyle = '#938260';
             context.font = '500 22px Segoe UI, Arial, sans-serif';
-            context.fillText('Cripta di Sangue', 130, height - 100);
+            context.fillText(getDisplayCampaignName(effectiveConfig), 130, height - 100);
         }
 
         const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
@@ -1138,6 +1360,7 @@
                 campaignName: localOnlyConfig.campaignName || remoteConfig.campaignName,
                 pollTitle: localOnlyConfig.pollTitle || remoteConfig.pollTitle,
                 pollSubtitle: localOnlyConfig.pollSubtitle || remoteConfig.pollSubtitle,
+                sessionCardImage: localOnlyConfig.sessionCardImage || remoteConfig.sessionCardImage,
                 discordWebhookUrl: localOnlyConfig.discordWebhookUrl || remoteConfig.discordWebhookUrl,
                 disableDiscordNotifications: typeof localOnlyConfig.disableDiscordNotifications === 'boolean'
                     ? localOnlyConfig.disableDiscordNotifications

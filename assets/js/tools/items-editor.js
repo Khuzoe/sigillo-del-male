@@ -19,6 +19,7 @@
         'Bacchetta',
         'Bastone',
         'Bottino',
+        'Materiali',
         'Oggetto meraviglioso',
         'Pergamena',
         'Pozione',

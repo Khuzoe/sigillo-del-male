@@ -316,9 +316,12 @@ function validateMagicItems() {
     "Anello",
     "Bacchetta",
     "Bastone",
+    "Bottino",
+    "Materiali",
     "Oggetto meraviglioso",
     "Pergamena",
     "Pozione",
+    "Scudo",
     "Verga",
   ]);
   const validRarities = new Set([
