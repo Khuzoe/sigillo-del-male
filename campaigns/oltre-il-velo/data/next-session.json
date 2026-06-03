@@ -2,6 +2,8 @@
   "campaignName": "Oltre il Velo",
   "pollTitle": "Sondaggio disponibilità",
   "pollSubtitle": "Prossima sessione",
+  "sessionCardImage": "img/ui/oltre-il-velo/card.webp",
+  "sessionCardImageVersion": "2026-06-03",
   "discordWebhookUrl": "https://discord.com/api/webhooks/1511309421710671872/3NsUItOtN7rK9hRzsSWNoA5HUo8an7IpUWoscz7aLI2cMWsEgYO0RM8C_2WzhRQbDFIW",
   "disableDiscordNotifications": false,
   "number": 1,

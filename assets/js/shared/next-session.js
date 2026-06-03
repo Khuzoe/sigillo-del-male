@@ -388,6 +388,7 @@
         if (explicitPath) return explicitPath;
         const campaignId = String(config?.campaignId || getCurrentCampaignId()).trim();
         if (campaignId === 'mago-folle') return 'img/ui/mago-folle/card.webp';
+        if (campaignId === 'oltre-il-velo') return 'img/ui/oltre-il-velo/card.webp';
         return 'img/ui/card.webp';
     }
 
