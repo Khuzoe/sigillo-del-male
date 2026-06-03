@@ -1,5 +1,7 @@
 {
     "campaignName": "Cripta di Sangue",
+    "sessionCardImage": "img/ui/card.webp",
+    "sessionCardImageVersion": "2026-06-03-1940",
     "number": 21,
     "dmAccountId": "andre",
     "dmDiscordId": "142960432389423104",
