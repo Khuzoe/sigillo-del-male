@@ -7579,37 +7579,41 @@ body.page-oggetti .hero-mini {
     display: none;
 }
 
-.item-card-summary::after {
-    content: '\f078';
-    grid-column: 3;
-    justify-self: center;
-    color: rgba(212, 175, 55, 0.55);
-    font-family: 'Font Awesome 6 Free';
-    font-size: 0.82rem;
-    font-weight: 900;
-    transition: transform 160ms ease;
-}
-
-.item-card[open] .item-card-summary::after {
-    transform: rotate(180deg);
-}
-
 .item-card-content {
-    max-width: 54rem;
+    width: 100%;
     margin: 1.15rem 0 0;
     padding-top: 1.05rem;
     border-top: 1px solid rgba(212, 175, 55, 0.1);
 }
 
-.item-card-actions {
+.item-card-summary-actions {
     display: flex;
-    justify-content: flex-end;
-    margin-bottom: 0.7rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.72rem;
+    min-width: 7.2rem;
+}
+
+.item-card-toggle-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    color: rgba(212, 175, 55, 0.68);
+    font-size: 0.86rem;
+    transition: transform 160ms ease, color 160ms ease;
+}
+
+.item-card[open] .item-card-toggle-icon {
+    transform: rotate(180deg);
+    color: var(--gold);
 }
 
 .item-card-edit-link {
     min-height: 2rem;
-    display: inline-flex;
+    display: none;
     align-items: center;
     gap: 0.38rem;
     padding: 0.35rem 0.62rem;
@@ -7623,6 +7627,10 @@ body.page-oggetti .hero-mini {
     letter-spacing: 0.06em;
     text-decoration: none;
     text-transform: uppercase;
+}
+
+.item-card[open] .item-card-edit-link {
+    display: inline-flex;
 }
 
 .item-card-edit-link:hover,
@@ -7650,6 +7658,14 @@ body.page-oggetti .hero-mini {
     background:
         linear-gradient(135deg, rgba(214, 86, 86, 0.11), transparent 34%),
         linear-gradient(135deg, rgba(212, 175, 55, 0.055), transparent 58%),
+        rgba(30, 30, 30, 0.46);
+}
+
+.item-card--material {
+    border-left-color: rgba(184, 132, 74, 0.78);
+    background:
+        linear-gradient(135deg, rgba(184, 132, 74, 0.12), transparent 34%),
+        linear-gradient(90deg, rgba(118, 84, 48, 0.08), transparent 58%),
         rgba(30, 30, 30, 0.46);
 }
 
@@ -7788,6 +7804,7 @@ body.page-oggetti .hero-mini {
 
 .item-properties {
     display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
     gap: 0.65rem;
     margin: 1.15rem 0 0;
     padding: 0;
@@ -7819,6 +7836,83 @@ body.page-oggetti .hero-mini {
 
 .item-properties strong {
     color: var(--gold-light);
+}
+
+.item-material-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0.65rem;
+    margin: 1.15rem 0 0;
+}
+
+.item-material-meta div {
+    display: grid;
+    gap: 0.22rem;
+    padding: 0.72rem 0.85rem;
+    border: 1px solid rgba(184, 132, 74, 0.2);
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(184, 132, 74, 0.12), transparent 72%),
+        rgba(0, 0, 0, 0.18);
+}
+
+.item-material-meta dt {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.36rem;
+    color: rgba(232, 219, 188, 0.58);
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.item-material-meta dd {
+    margin: 0;
+    color: var(--gold-light);
+    font-family: var(--font-heading);
+    font-size: 1.08rem;
+}
+
+.item-material-tags {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: 0.65rem;
+    margin: 1.15rem 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.item-material-tags li {
+    padding: 0.78rem 0.9rem;
+    border: 1px solid rgba(184, 132, 74, 0.22);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.16);
+    color: rgba(232, 219, 188, 0.8);
+}
+
+.item-material-tags li:has(p) {
+    border-radius: 10px;
+}
+
+.item-material-tags span {
+    display: inline-flex;
+    align-items: center;
+    color: var(--gold-light);
+    font-family: var(--font-ui);
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.item-material-tags p {
+    margin: 0.42rem 0 0;
+    color: rgba(232, 219, 188, 0.68);
+    font-family: var(--font-ui);
+    font-size: 0.86rem;
+    line-height: 1.45;
 }
 
 .item-properties-block {

@@ -164,6 +164,7 @@
             'detail-image-preview',
             'detail-image-path',
             'detail-image-file',
+            'detail-image-adjust-btn',
             'json-output',
             'connect-json-btn',
             'save-json-btn',
@@ -263,6 +264,7 @@
         els.detailForm?.addEventListener('change', handleDetailInput);
         els.detailForm?.addEventListener('click', handleDetailClick);
         els.detailImageDropzone?.addEventListener('click', () => pickDetailImage());
+        els.detailImageAdjustBtn?.addEventListener('click', openSelectedImageAdjustModal);
         els.detailImageFile?.addEventListener('change', handleDetailImageFile);
         els.detailImageDropzone?.addEventListener('dragover', handleDetailImageDrag);
         els.detailImageDropzone?.addEventListener('dragleave', handleDetailImageDrag);
@@ -775,6 +777,7 @@
             field.disabled = !creature;
         });
         if (els.detailImageDropzone) els.detailImageDropzone.disabled = !creature;
+        if (els.detailImageAdjustBtn) els.detailImageAdjustBtn.disabled = !creature;
 
         if (!creature) {
             els.previewImage.removeAttribute('src');
@@ -877,6 +880,15 @@
         els.imageAdjustPreview.alt = creature.name || '';
         els.imageAdjustModal.hidden = false;
         syncAdjustControls(creature);
+    }
+
+    function openSelectedImageAdjustModal() {
+        if (state.selectedIndex < 0 || !state.creatures[state.selectedIndex]) {
+            setStatus('Seleziona una creatura prima di regolare l\'immagine.', 'error');
+            return;
+        }
+        commitActiveDetailField();
+        openImageAdjustModal(state.selectedIndex);
     }
 
     function syncAdjustControls(creature) {
@@ -1471,7 +1483,7 @@
             return;
         }
         if (path === 'discovered') {
-            creature.discovered = value === false ? false : undefined;
+            creature.discovered = value === true;
             return;
         }
         if (path === 'image') {
@@ -1545,7 +1557,7 @@
         if (Array.isArray(creature.foundryName) && creature.foundryName.length === 0) delete creature.foundryName;
         if (Array.isArray(creature.aliases) && creature.aliases.length === 0) delete creature.aliases;
         if (creature.hidden !== true) delete creature.hidden;
-        if (creature.discovered !== false) delete creature.discovered;
+        if (creature.discovered !== true && creature.discovered !== false) delete creature.discovered;
 
         Object.keys(creature.details).forEach((key) => {
             const value = creature.details[key];

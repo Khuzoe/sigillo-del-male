@@ -131,6 +131,7 @@
         [
             'editor-status',
             'add-item-btn',
+            'add-material-btn',
             'import-json-btn',
             'import-json-file',
             'focus-mode-btn',
@@ -151,6 +152,8 @@
             'detail-image-preview',
             'detail-image-path',
             'detail-image-file',
+            'material-tag-list',
+            'add-material-tag-btn',
             'json-output',
             'connect-json-btn',
             'save-json-btn',
@@ -193,6 +196,21 @@
         const appendExisting = (parent, nodes) => {
             nodes.filter(Boolean).forEach((node) => parent.append(node));
         };
+        const createTextField = ({ id, field, label, placeholder = '', type = 'text' }) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'items-editor-field';
+            const labelNode = document.createElement('label');
+            labelNode.setAttribute('for', id);
+            labelNode.textContent = label;
+            const input = document.createElement('input');
+            input.className = 'items-editor-input';
+            input.id = id;
+            input.dataset.field = field;
+            input.type = type;
+            input.placeholder = placeholder;
+            wrapper.append(labelNode, input);
+            return wrapper;
+        };
 
         const imageField = els.detailImageDropzone?.closest('.items-editor-field');
         imageField?.classList.remove('items-editor-field--wide');
@@ -211,8 +229,7 @@
         appendExisting(identityGrid, [
             fieldById('field-name'),
             fieldById('field-id'),
-            fieldById('field-owner'),
-            fieldById('field-icon')
+            fieldById('field-owner')
         ]);
         appendExisting(identity.node, [imageField, identityGrid]);
 
@@ -240,6 +257,30 @@
         classificationGrid.append(rulesField);
         classification.node.append(classificationGrid);
 
+        const material = section('Materiale', 'Campi dedicati a reagenti, minerali e componenti: valore, peso e tag descrittivi.');
+        material.node.id = 'material-section';
+        const materialGrid = grid('items-form-grid--two');
+        materialGrid.append(
+            createTextField({ id: 'field-value-gold', field: 'valueGold', label: 'Valore in oro', placeholder: 'Es. 50' }),
+            createTextField({ id: 'field-weight', field: 'weight', label: 'Peso', placeholder: 'Es. 0.5' })
+        );
+        const materialTagsField = document.createElement('div');
+        materialTagsField.className = 'items-editor-field items-editor-field--wide';
+        const materialTagsLabel = document.createElement('label');
+        materialTagsLabel.textContent = 'Tag materiale';
+        const materialTagsList = document.createElement('div');
+        materialTagsList.className = 'items-material-tag-list';
+        materialTagsList.id = 'material-tag-list';
+        const addMaterialTagBtn = document.createElement('button');
+        addMaterialTagBtn.className = 'items-editor-btn';
+        addMaterialTagBtn.id = 'add-material-tag-btn';
+        addMaterialTagBtn.type = 'button';
+        addMaterialTagBtn.innerHTML = '<i class="fas fa-plus" aria-hidden="true"></i> Aggiungi tag';
+        materialTagsField.append(materialTagsLabel, materialTagsList, addMaterialTagBtn);
+        material.node.append(materialGrid, materialTagsField);
+        els.materialTagList = materialTagsList;
+        els.addMaterialTagBtn = addMaterialTagBtn;
+
         const links = section('Collegamenti', 'Uno per riga. I nomi Foundry associano inventari e import; gli alias servono alla ricerca del sito.');
         const linksGrid = grid('items-form-grid--two');
         const foundryNamesField = fieldById('field-foundry-names');
@@ -263,13 +304,14 @@
         texts.node.append(textsGrid);
 
         const properties = section('Proprieta', 'Ogni blocco diventa una proprieta leggibile nella pagina oggetto. Usa "nascosta" per testo solo DM.');
+        properties.node.id = 'properties-section';
         const propertyField = els.propertyList?.closest('.items-editor-field');
         const propertyLabel = propertyField?.querySelector('label');
         if (propertyLabel) propertyLabel.remove();
         if (els.addPropertyBtn) properties.header.append(els.addPropertyBtn);
         appendExisting(properties.node, [propertyField]);
 
-        form.replaceChildren(identity.node, classification.node, links.node, texts.node, properties.node);
+        form.replaceChildren(identity.node, classification.node, material.node, links.node, texts.node, properties.node);
     }
 
     function bindEvents() {
@@ -298,6 +340,15 @@
             renderAll();
             focusPrimaryDetailField();
             setStatus('Nuovo oggetto aggiunto. Compila la scheda e poi salva online.');
+        });
+
+        els.addMaterialBtn?.addEventListener('click', () => {
+            state.items.push(createEmptyMaterial());
+            state.selectedIndex = state.items.length - 1;
+            setFocusMode(true);
+            renderAll();
+            focusPrimaryDetailField();
+            setStatus('Nuovo materiale aggiunto. Compila valore, peso e tag, poi salva online.');
         });
 
         els.importJsonBtn?.addEventListener('click', openImportJsonDialog);
@@ -650,7 +701,7 @@
     function renderTable() {
         const items = getFilteredItems();
         if (!items.length) {
-            els.itemsTableBody.innerHTML = '<tr><td colspan="12">Nessun oggetto corrisponde ai filtri.</td></tr>';
+            els.itemsTableBody.innerHTML = '<tr><td colspan="11">Nessun oggetto corrisponde ai filtri.</td></tr>';
             return;
         }
 
@@ -670,7 +721,6 @@
                 <td><input class="items-editor-input" data-field="subtype" value="${escapeHtml(item.subtype || '')}" placeholder="Secondario"></td>
                 <td>${renderSelect('rarity', RARITY_OPTIONS.map((value) => [value, value || 'Rarità vuota']), item.rarity || '')}</td>
                 <td><input class="items-editor-input" data-field="owner" value="${escapeHtml(item.owner || '')}"></td>
-                <td><input class="items-editor-input" data-field="icon" value="${escapeHtml(item.icon || '')}"></td>
                 <td>${renderSelect('status', STATUS_OPTIONS, item.status || '')}</td>
                 <td><input type="checkbox" data-field="unidentified" ${item.unidentified === true ? 'checked' : ''}></td>
                 <td><input type="checkbox" data-field="attunement" ${item.attunement === true ? 'checked' : ''}></td>
@@ -695,6 +745,7 @@
         const fields = els.detailForm.querySelectorAll('[data-field], [data-property-field]');
         fields.forEach((field) => { field.disabled = !item; });
         if (els.addPropertyBtn) els.addPropertyBtn.disabled = !item;
+        if (els.addMaterialTagBtn) els.addMaterialTagBtn.disabled = !item;
         if (els.detailImageDropzone) els.detailImageDropzone.disabled = !item;
 
         if (!item) {
@@ -704,6 +755,7 @@
             fields.forEach((field) => { field.value = ''; });
             updateDetailImagePreview(null);
             if (els.propertyList) els.propertyList.innerHTML = '';
+            if (els.materialTagList) els.materialTagList.innerHTML = '';
             return;
         }
 
@@ -720,6 +772,7 @@
             field.value = formatDetailFieldValue(item, key);
         });
         renderPropertiesEditor(item);
+        renderMaterialSection(item);
     }
 
     function renderDetailSelects() {
@@ -789,6 +842,40 @@
                     Proprietà nascosta
                 </label>
                 <textarea class="items-editor-area" data-property-field="description" placeholder="Descrizione">${escapeHtml(property.description || '')}</textarea>
+            </div>
+        `).join('');
+    }
+
+    function renderMaterialSection(item) {
+        const section = document.getElementById('material-section');
+        const isMaterial = isMaterialItem(item);
+        if (section) section.hidden = !isMaterial;
+        const propertiesSection = document.getElementById('properties-section');
+        if (propertiesSection) propertiesSection.hidden = isMaterial;
+        if (!els.materialTagList) return;
+        if (!isMaterial) {
+            els.materialTagList.innerHTML = '';
+            return;
+        }
+
+        const tags = normalizeMaterialTags(item.materialTags || item.tags || item.properties, { keepEmpty: true });
+        item.materialTags = tags;
+        if (Array.isArray(item.tags)) delete item.tags;
+        if (Array.isArray(item.properties)) delete item.properties;
+        if (!tags.length) {
+            els.materialTagList.innerHTML = '<p class="items-editor-status">Nessun tag materiale aggiunto.</p>';
+            return;
+        }
+
+        els.materialTagList.innerHTML = tags.map((tag, index) => `
+            <div class="items-material-tag-row" data-material-tag-index="${index}">
+                <div class="items-material-tag-row-top">
+                    <input class="items-editor-input" data-material-tag-field="name" placeholder="Tag, es. Metallo, Necrotico, Reagente" value="${escapeHtml(tag.name || '')}">
+                    <button class="items-editor-btn items-editor-btn--danger" type="button" data-action="remove-material-tag" title="Rimuovi tag">
+                        <i class="fas fa-trash" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <textarea class="items-editor-area" data-material-tag-field="description" placeholder="Descrizione opzionale del tag">${escapeHtml(tag.description || '')}</textarea>
             </div>
         `).join('');
     }
@@ -987,6 +1074,7 @@
         const target = event.target;
         const field = target.dataset.field;
         const propertyField = target.dataset.propertyField;
+        const materialTagField = target.dataset.materialTagField;
 
         if (field) {
             writeItemField(item, field, target.type === 'checkbox' ? target.checked : target.value);
@@ -1004,11 +1092,24 @@
             updateOutput();
             setStatus('Modifiche non salvate esportate nel JSON.');
             return;
+        } else if (materialTagField) {
+            const row = target.closest('[data-material-tag-index]');
+            const index = Number(row?.dataset.materialTagIndex);
+            if (!Number.isInteger(index)) return;
+            item.materialTags = normalizeMaterialTags(item.materialTags || item.tags || [], { keepEmpty: true });
+            if (!item.materialTags[index]) item.materialTags[index] = {};
+            item.materialTags[index][materialTagField] = String(target.value || '').trim();
+            if (Array.isArray(item.tags)) delete item.tags;
+            updatePreview();
+            updateOutput();
+            setStatus('Modifiche non salvate esportate nel JSON.');
+            return;
         }
 
         pruneItem(item);
         updatePreview();
         updateDetailImagePreview(item);
+        renderMaterialSection(item);
         renderItemPicker();
         renderTable();
         updateOutput();
@@ -1025,6 +1126,30 @@
             renderPropertiesEditor(item);
             updateOutput();
             setStatus('Proprietà aggiunta.');
+            return;
+        }
+
+        if (event.target.closest('#add-material-tag-btn')) {
+            item.materialTags = normalizeMaterialTags(item.materialTags || item.tags || [], { keepEmpty: true });
+            item.materialTags.push({ name: '', description: '' });
+            if (Array.isArray(item.tags)) delete item.tags;
+            renderMaterialSection(item);
+            updateOutput();
+            setStatus('Tag materiale aggiunto.');
+            return;
+        }
+
+        const removeMaterialTagButton = event.target.closest('[data-action="remove-material-tag"]');
+        if (removeMaterialTagButton) {
+            const row = removeMaterialTagButton.closest('[data-material-tag-index]');
+            const index = Number(row?.dataset.materialTagIndex);
+            if (!Number.isInteger(index)) return;
+            item.materialTags = normalizeMaterialTags(item.materialTags || item.tags || [], { keepEmpty: true });
+            item.materialTags.splice(index, 1);
+            pruneItem(item);
+            renderMaterialSection(item);
+            updateOutput();
+            setStatus('Tag materiale rimosso.');
             return;
         }
 
@@ -1049,6 +1174,7 @@
                 const searchableProperties = item.unidentified === true
                     ? []
                     : normalizeProperties(item.properties).filter((property) => property.hidden !== true);
+                const materialTags = normalizeMaterialTags(item.materialTags || item.tags);
                 if (state.rarity !== 'all' && (item.rarity || '') !== state.rarity) return false;
                 if (state.type !== 'all' && (item.type || '') !== state.type) return false;
                 if (!query) return true;
@@ -1065,10 +1191,16 @@
                     item.unidentifiedName,
                     item.unidentifiedDescription,
                     item.notes,
+                    item.valueGold,
+                    item.weight,
                     ...searchableProperties.flatMap((property) => [
                         property.name,
                         property.charges,
                         property.description
+                    ]),
+                    ...materialTags.flatMap((tag) => [
+                        tag.name,
+                        tag.description
                     ])
                 ].filter(Boolean).join(' ')).includes(query);
             });
@@ -1091,6 +1223,21 @@
             icon: 'fa-wand-sparkles',
             summary: '',
             properties: [],
+            notes: ''
+        };
+    }
+
+    function createEmptyMaterial() {
+        return {
+            id: uniqueId('nuovo-materiale'),
+            name: 'Nuovo Materiale',
+            type: 'Materiali',
+            subtype: 'Reagente',
+            rarity: 'Sconosciuta',
+            image: 'media/items/nuovo_materiale.webp',
+            icon: 'fa-cubes-stacked',
+            summary: '',
+            materialTags: [],
             notes: ''
         };
     }
@@ -1227,6 +1374,10 @@
             item.image = normalizeImagePathForData(value) || undefined;
             return;
         }
+        if (field === 'valueGold' || field === 'weight') {
+            item[field] = normalizeNumberLikeField(value);
+            return;
+        }
         if (field === 'foundryNames' || field === 'aliases') {
             const values = String(value || '')
                 .split(/\r?\n/)
@@ -1240,7 +1391,7 @@
     }
 
     function pruneItem(item) {
-        ['id', 'name', 'type', 'subtype', 'rarity', 'owner', 'status', 'icon', 'image', 'summary', 'notes', 'unidentifiedName', 'unidentifiedDescription'].forEach((key) => {
+        ['id', 'name', 'type', 'subtype', 'rarity', 'owner', 'status', 'icon', 'image', 'summary', 'notes', 'unidentifiedName', 'unidentifiedDescription', 'valueGold', 'weight'].forEach((key) => {
             if (item[key] === undefined || item[key] === '') delete item[key];
         });
         if (item.foundryName !== undefined) {
@@ -1255,8 +1406,18 @@
         if (item.attunement !== true) delete item.attunement;
         if (item.unidentified !== true) delete item.unidentified;
         if (item.hidden !== true) delete item.hidden;
+        if (isMaterialItem(item)) {
+            delete item.attunement;
+            item.materialTags = normalizeMaterialTags(item.materialTags || item.tags || item.properties);
+            if (item.materialTags.length === 0) delete item.materialTags;
+            delete item.properties;
+            if (Array.isArray(item.tags)) delete item.tags;
+            return;
+        }
         item.properties = normalizeProperties(item.properties);
         if (item.properties.length === 0) delete item.properties;
+        delete item.materialTags;
+        if (Array.isArray(item.tags)) delete item.tags;
     }
 
     function itemNameList(value) {
@@ -1404,6 +1565,51 @@
                 return keepEmpty ? normalized : null;
             })
             .filter(Boolean);
+    }
+
+    function normalizeMaterialTags(tags, { keepEmpty = false } = {}) {
+        if (!Array.isArray(tags)) return [];
+        return tags
+            .map((tag) => {
+                if (typeof tag === 'string') {
+                    const name = tag.trim();
+                    if (name) return { name, description: '' };
+                    return keepEmpty ? { name: '', description: '' } : null;
+                }
+                if (!tag || typeof tag !== 'object') return null;
+                const normalized = {
+                    name: String(tag.name || tag.label || tag.tag || '').trim(),
+                    description: String(tag.description || tag.desc || tag.note || '').trim()
+                };
+                if (normalized.name || normalized.description) return normalized;
+                return keepEmpty ? normalized : null;
+            })
+            .filter(Boolean);
+    }
+
+    function normalizeNumberLikeField(value) {
+        const text = String(value ?? '').trim();
+        if (!text) return undefined;
+        const numeric = Number(text.replace(',', '.'));
+        return Number.isFinite(numeric) && /^-?\d+(?:[.,]\d+)?$/.test(text) ? numeric : text;
+    }
+
+    function isMaterialItem(item) {
+        const haystack = [
+            item?.type,
+            item?.subtype,
+            item?.name
+        ].map((value) => normalizeSearch(value));
+        return haystack.some((value) =>
+            value === 'materiale'
+            || value === 'materiali'
+            || value === 'minerale'
+            || value === 'minerali'
+            || value === 'reagente'
+            || value === 'reagenti'
+            || value === 'ingrediente'
+            || value === 'ingredienti'
+        );
     }
 
     function formatImagePathForEditor(value) {

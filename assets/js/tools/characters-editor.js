@@ -313,10 +313,6 @@
                         </select>
                     </div>
                     <div class="characters-editor-field">
-                        <label>Icona FontAwesome</label>
-                        <input class="characters-editor-input" data-block-index="${index}" data-block-field="icon" type="text" value="${escapeAttr(block.icon || '')}">
-                    </div>
-                    <div class="characters-editor-field">
                         <label>ID blocco</label>
                         <input class="characters-editor-input" data-block-index="${index}" data-block-field="id" type="text" value="${escapeAttr(block.id || '')}">
                     </div>

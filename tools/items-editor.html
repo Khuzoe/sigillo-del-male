@@ -27,7 +27,7 @@
         .items-editor-main,
         .items-editor-side {
             border: 1px solid rgba(212, 175, 55, 0.16);
-            border-radius: 8px;
+            border-radius: 16px;
             background: var(--surface-panel);
             box-shadow: 0 18px 52px rgba(0, 0, 0, 0.42);
             overflow: hidden;
@@ -89,7 +89,7 @@
             gap: 0.4rem;
             padding: 0.45rem 0.68rem;
             border: 1px solid rgba(212, 175, 55, 0.2);
-            border-radius: 6px;
+            border-radius: 12px;
             background: rgba(0, 0, 0, 0.24);
             color: rgba(232, 219, 188, 0.78);
             font-family: var(--font-ui);
@@ -121,13 +121,13 @@
             background: rgba(0, 0, 0, 0.24);
             color: var(--text-main);
             font-family: var(--font-ui);
-            font-size: 0.78rem;
+            font-size: 0.84rem;
         }
 
         .items-editor-input,
         .items-editor-select {
-            min-height: 2.2rem;
-            padding: 0.42rem 0.55rem;
+            min-height: 2.35rem;
+            padding: 0.48rem 0.62rem;
         }
 
         .items-editor-select {
@@ -141,7 +141,7 @@
 
         .items-editor-area {
             min-height: 5rem;
-            padding: 0.55rem;
+            padding: 0.68rem 0.75rem;
             resize: vertical;
             line-height: 1.45;
         }
@@ -239,7 +239,7 @@
             aspect-ratio: 1;
             object-fit: cover;
             border: 1px solid rgba(212, 175, 55, 0.16);
-            border-radius: 8px;
+            border-radius: 14px;
             background: rgba(0, 0, 0, 0.28);
         }
 
@@ -280,12 +280,13 @@
         .items-form-section {
             display: grid;
             gap: 0.85rem;
-            padding: 0.95rem;
-            border: 1px solid rgba(212, 175, 55, 0.14);
-            border-radius: 12px;
+            padding: 1.1rem;
+            border: 1px solid rgba(212, 175, 55, 0.18);
+            border-radius: 18px;
             background:
+                radial-gradient(circle at 6% 0%, rgba(212, 175, 55, 0.1), transparent 34%),
                 linear-gradient(135deg, rgba(212, 175, 55, 0.05), transparent 42%),
-                rgba(0, 0, 0, 0.16);
+                rgba(0, 0, 0, 0.18);
         }
 
         .items-form-section--hero {
@@ -350,7 +351,7 @@
             min-height: 6rem;
             padding: 0.75rem;
             border: 1px dashed rgba(212, 175, 55, 0.32);
-            border-radius: 10px;
+            border-radius: 16px;
             background:
                 radial-gradient(circle at 0% 0%, rgba(212, 175, 55, 0.1), transparent 36%),
                 rgba(0, 0, 0, 0.18);
@@ -383,7 +384,7 @@
 
         .items-editor-dropzone--hero img {
             width: 8rem;
-            border-radius: 14px;
+            border-radius: 18px;
         }
 
         .items-editor-dropzone strong,
@@ -454,6 +455,29 @@
             gap: 0.75rem;
         }
 
+        .items-material-tag-list {
+            display: grid;
+            gap: 0.65rem;
+        }
+
+        .items-material-tag-row {
+            display: grid;
+            gap: 0.55rem;
+            padding: 0.75rem;
+            border: 1px solid rgba(184, 132, 74, 0.2);
+            border-radius: 10px;
+            background:
+                linear-gradient(90deg, rgba(184, 132, 74, 0.12), transparent 42%),
+                rgba(0, 0, 0, 0.18);
+        }
+
+        .items-material-tag-row-top {
+            display: grid;
+            grid-template-columns: minmax(12rem, 1fr) auto;
+            gap: 0.45rem;
+            align-items: center;
+        }
+
         .items-property-row {
             display: grid;
             gap: 0.55rem;
@@ -498,16 +522,32 @@
 
         .items-editor-shell.is-focus-mode {
             grid-template-columns: 1fr;
+            gap: 1rem;
         }
 
         .items-editor-shell.is-focus-mode .items-editor-main {
             display: block;
             min-height: auto;
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+            overflow: visible;
         }
 
         .items-editor-shell.is-focus-mode .items-editor-toolbar,
         .items-editor-shell.is-focus-mode .items-editor-table-wrap {
             display: none;
+        }
+
+        .items-editor-shell.is-focus-mode .items-editor-topbar {
+            position: sticky;
+            top: 1rem;
+            z-index: 8;
+            border: 1px solid rgba(212, 175, 55, 0.24);
+            border-radius: 18px;
+            background: rgba(9, 7, 6, 0.9);
+            box-shadow: 0 18px 46px rgba(0, 0, 0, 0.42);
+            backdrop-filter: blur(10px);
         }
 
         .items-editor-shell:not(.is-focus-mode) .items-editor-quick-select {
@@ -516,24 +556,76 @@
 
         .items-editor-shell.is-focus-mode .items-editor-side {
             display: grid;
-            grid-template-columns: minmax(18rem, 25rem) minmax(0, 1fr);
-            grid-template-rows: auto minmax(16rem, auto);
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-rows: auto auto;
+            gap: 1rem;
             position: static;
             max-height: none;
+            border: 0;
+            background: transparent;
+            box-shadow: none;
+            overflow: visible;
+        }
+
+        .items-editor-shell.is-focus-mode .items-editor-side > .items-editor-panel:first-child {
+            display: none;
         }
 
         .items-editor-shell.is-focus-mode .items-editor-side .items-editor-panel:nth-child(2) {
-            grid-row: 1 / span 2;
-            grid-column: 2;
+            grid-row: 2;
+            grid-column: 1;
+            border: 1px solid rgba(212, 175, 55, 0.18);
+            border-radius: 18px;
+            background:
+                radial-gradient(circle at 12% 0%, rgba(212, 175, 55, 0.1), transparent 36%),
+                var(--surface-panel);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+            overflow: visible;
         }
 
         .items-editor-shell.is-focus-mode .items-editor-output {
+            grid-row: 1;
             grid-column: 1;
             min-height: auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            border: 1px solid rgba(212, 175, 55, 0.18);
+            border-radius: 18px;
+            background: rgba(9, 7, 6, 0.82);
+            box-shadow: 0 18px 46px rgba(0, 0, 0, 0.34);
+            overflow: visible;
+        }
+
+        .items-editor-shell.is-focus-mode .items-editor-output h2 {
+            margin: 0;
+            font-size: 0.92rem;
+        }
+
+        .items-editor-shell.is-focus-mode .items-editor-output .items-editor-actions {
+            justify-content: flex-end;
+            margin-left: auto;
         }
 
         .items-editor-shell.is-focus-mode #json-output {
             display: none;
+        }
+
+        .items-editor-shell.is-focus-mode .items-form-section--hero {
+            grid-template-columns: minmax(15rem, 22rem) minmax(0, 1fr);
+        }
+
+        .items-editor-shell.is-focus-mode .items-editor-dropzone--hero {
+            min-height: 14rem;
+            grid-template-columns: 1fr;
+            align-content: start;
+        }
+
+        .items-editor-shell.is-focus-mode .items-editor-dropzone--hero img {
+            width: 100%;
+            max-width: 16rem;
+            justify-self: center;
         }
 
         .items-editor-shell:not(.is-focus-mode) .items-form-section--hero,
@@ -587,6 +679,10 @@
             .items-property-row-top {
                 grid-template-columns: 1fr;
             }
+
+            .items-material-tag-row-top {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -612,6 +708,7 @@
                         <a class="items-editor-btn" href="../pages/oggetti.html"><i class="fas fa-arrow-left"></i> Oggetti</a>
                         <select class="items-editor-select items-editor-quick-select" id="item-picker" aria-label="Oggetto da modificare"></select>
                         <button class="items-editor-btn" id="add-item-btn" type="button"><i class="fas fa-plus"></i> Nuovo</button>
+                        <button class="items-editor-btn" id="add-material-btn" type="button"><i class="fas fa-cubes-stacked"></i> Nuovo materiale</button>
                         <button class="items-editor-btn" id="import-json-btn" type="button"><i class="fas fa-file-import"></i> Importa JSON</button>
                         <input class="items-editor-hidden" id="import-json-file" type="file" accept="application/json,.json">
                         <button class="items-editor-btn" id="focus-mode-btn" type="button"><i class="fas fa-pen-to-square"></i> Scheda</button>
@@ -641,7 +738,6 @@
                                 <th class="col-subtype">Tipo secondario</th>
                                 <th class="col-medium">Rarità</th>
                                 <th class="col-medium">Provenienza</th>
-                                <th class="col-medium">Icona</th>
                                 <th class="col-medium">Status</th>
                                 <th class="col-small">Non ID</th>
                                 <th class="col-small">Sintonia</th>
@@ -716,10 +812,6 @@
                             <div class="items-editor-field">
                                 <label for="field-owner">Proprietario</label>
                                 <input class="items-editor-input" id="field-owner" data-field="owner" placeholder="Zara">
-                            </div>
-                            <div class="items-editor-field">
-                                <label for="field-icon">Icona FontAwesome</label>
-                                <input class="items-editor-input" id="field-icon" data-field="icon" placeholder="fa-wand-sparkles">
                             </div>
                             <label class="items-editor-check">
                                 <input type="checkbox" data-field="unidentified">

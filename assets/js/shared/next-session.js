@@ -840,6 +840,21 @@
             .join(' ') || 'Campagna';
     }
 
+    function getNextSessionCardHeading(config) {
+        const campaignId = String(config?.campaignId || getCurrentCampaignId()).trim().toLowerCase();
+        if (campaignId === 'mago-folle' || campaignId === 'oltre-il-velo') {
+            return {
+                title: 'Prossima Sessione',
+                subtitle: getDisplayCampaignName(config)
+            };
+        }
+
+        return {
+            title: config.pollTitle || `Sessione ${config.number}`,
+            subtitle: config.pollSubtitle || config.campaignName || 'Prossima Sessione'
+        };
+    }
+
     function formatExportOption(option) {
         const labelParts = formatAvailabilityLabel(option);
         return `${labelParts.day}${labelParts.month ? ` ${labelParts.month}` : ''} · ${option.time}`;
@@ -1745,8 +1760,7 @@
     }
 
     function buildScheduledMarkup(config, canConfigureSession) {
-        const title = config.pollTitle || `Sessione ${config.number}`;
-        const subtitle = config.pollSubtitle || config.campaignName || 'Prossima Sessione';
+        const { title, subtitle } = getNextSessionCardHeading(config);
         return `
             <div class="next-session-card">
                 <div class="next-session-card-controls">
@@ -1855,8 +1869,7 @@
     }
 
     function buildEmptyMarkup(config) {
-        const title = config.pollTitle || `Sessione ${config.number}`;
-        const subtitle = config.pollSubtitle || config.campaignName || 'Prossima Sessione';
+        const { title, subtitle } = getNextSessionCardHeading(config);
         return `
             <div class="next-session-card" style="border-color: #555;">
                 <span class="next-label">${escapeHtml(subtitle)}</span>

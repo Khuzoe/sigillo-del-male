@@ -150,6 +150,11 @@ window.CriptaApp.onPageReady("creature", async () => {
                             <button class="bestiary-detail-image-frame bestiary-detail-image-upload" type="button" data-action="upload-image" title="Carica immagine o incolla con Ctrl+V">
                                 <img src="${escapeHtml(resolveImageUrl(creature.image))}" alt="${escapeHtml(creature.name || "Creatura")}" style="${buildImageStyle(creature.imageAdjust)}">
                             </button>
+                            <div class="bestiary-detail-image-adjust" aria-label="Regola immagine creatura">
+                                ${renderImageAdjustControl("x", "X", normalizePercent(creature.imageAdjust?.x, 50), 0, 100, 1)}
+                                ${renderImageAdjustControl("y", "Y", normalizePercent(creature.imageAdjust?.y, 50), 0, 100, 1)}
+                                ${renderImageAdjustControl("size", "Zoom", normalizeScale(creature.imageAdjust?.size, 1), 0.75, 2.5, 0.01)}
+                            </div>
                             <div class="bestiary-detail-token-row">
                                 <button class="bestiary-detail-token-upload" type="button" data-action="upload-token-image" title="Carica token o incolla con Ctrl+V">
                                     <span>Token</span>
@@ -214,6 +219,10 @@ window.CriptaApp.onPageReady("creature", async () => {
         root.querySelector('[data-action="save"]')?.addEventListener("click", saveEdit);
         root.querySelector('[data-action="upload-image"]')?.addEventListener("click", uploadImage);
         root.querySelector('[data-action="upload-token-image"]')?.addEventListener("click", uploadTokenImage);
+        root.querySelectorAll("[data-image-adjust]").forEach((field) => {
+            field.addEventListener("input", () => updateImageAdjustControl(field));
+            field.addEventListener("change", () => updateImageAdjustControl(field));
+        });
         root.querySelector('[data-action="download-foundry"]')?.addEventListener("click", downloadFoundryActor);
         root.querySelector('[data-action="import-creature-json"]')?.addEventListener("click", openImportCreatureJsonDialog);
         root.querySelector('[data-action="add-custom-ability"]')?.addEventListener("click", addCustomAbilityTemplate);
@@ -446,6 +455,29 @@ window.CriptaApp.onPageReady("creature", async () => {
         }
 
         if (path === "name" && nameEl) nameEl.textContent = value || "Creatura";
+    }
+
+    function updateImageAdjustControl(field) {
+        if (!state.creature) return;
+        const key = field.dataset.imageAdjust;
+        if (!["x", "y", "size"].includes(key)) return;
+
+        const number = Number(field.value);
+        if (!Number.isFinite(number)) return;
+
+        const nextValue = key === "size"
+            ? normalizeScale(number, 1)
+            : normalizePercent(number, 50);
+
+        state.creature.imageAdjust = {
+            ...(state.creature.imageAdjust || {}),
+            [key]: nextValue
+        };
+        state.dirty = true;
+
+        field.value = String(nextValue);
+        const image = root.querySelector('[data-action="upload-image"] img');
+        if (image) image.setAttribute("style", buildImageStyle(state.creature.imageAdjust));
     }
 
     function renderMonsterBuilder(creature, foundry) {
@@ -1232,7 +1264,6 @@ window.CriptaApp.onPageReady("creature", async () => {
                 </header>
                 <div class="bestiary-detail-form">
                     ${renderAbilityInput(index, "Nome", "name", ability.name || "")}
-                    ${renderAbilityInput(index, "Icona", "icon", ability.icon || "")}
                     ${renderAbilitySelect(index, "Tipo item", "type", ability.type || "feat", [["feat", "Feature"], ["weapon", "Weapon"], ["spell", "Spell"]])}
                     ${renderAbilitySelect(index, "Sezione", "section", ability.section || "action", [["trait", "Tratto"], ["action", "Azione"], ["bonus", "Bonus action"], ["reaction", "Reazione"], ["legendary", "Leggendaria"]])}
                     ${renderAbilityInput(index, "Attivazione", "activation", ability.activation || "action")}
@@ -4218,6 +4249,15 @@ function renderChip(icon, label) {
     `;
 }
 
+function renderImageAdjustControl(key, label, value, min, max, step) {
+    return `
+        <label class="bestiary-detail-image-adjust-control">
+            <span>${escapeHtml(label)}</span>
+            <input type="range" min="${escapeHtml(min)}" max="${escapeHtml(max)}" step="${escapeHtml(step)}" value="${escapeHtml(value)}" data-image-adjust="${escapeHtml(key)}">
+        </label>
+    `;
+}
+
 function renderInput(label, field, value) {
     return `
         <label class="bestiary-detail-field">
@@ -4593,7 +4633,7 @@ function pruneCreature(creature) {
     if (creature.foundry && typeof creature.foundry === "object") ensureFoundryMonsterData(creature);
     creature.id = creature.id || slugify(creature.name || "creatura");
     if (creature.hidden !== true) delete creature.hidden;
-    if (creature.discovered !== false) delete creature.discovered;
+    if (creature.discovered !== true && creature.discovered !== false) delete creature.discovered;
     ["category", "rank", "mysteryName", "mysteryDescription"].forEach((key) => {
         if (!creature[key]) delete creature[key];
     });

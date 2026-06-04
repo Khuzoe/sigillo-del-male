@@ -160,6 +160,35 @@
     opacity: 1;
 }
 
+.bestiary-detail-image-adjust {
+    display: grid;
+    gap: 0.55rem;
+    padding: 0.65rem;
+    border: 1px solid rgba(212, 175, 55, 0.14);
+    border-radius: 14px;
+    background:
+        linear-gradient(135deg, rgba(212, 175, 55, 0.06), transparent 60%),
+        rgba(0, 0, 0, 0.2);
+}
+
+.bestiary-detail-image-adjust-control {
+    display: grid;
+    grid-template-columns: 3.25rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.55rem;
+    color: rgba(232, 219, 188, 0.78);
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.bestiary-detail-image-adjust-control input {
+    width: 100%;
+    accent-color: var(--gold);
+}
+
 .bestiary-detail-token-row {
     display: flex;
     justify-content: flex-start;

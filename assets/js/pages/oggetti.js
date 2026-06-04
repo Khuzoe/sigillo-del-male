@@ -258,6 +258,7 @@ function filterItems(items, state) {
     const query = normalizeSearch(state.query);
     return items.filter(item => {
         const visibleProperties = getVisibleItemProperties(item);
+        const materialTags = getVisibleMaterialTags(item);
         if (state.rarity !== "all" && (item.rarity || "Sconosciuta") !== state.rarity) return false;
         if (state.type !== "all" && getItemCategory(item) !== state.type) return false;
         if (state.attunement === "yes" && item.attunement !== true) return false;
@@ -272,32 +273,40 @@ function filterItems(items, state) {
             item.owner,
             item.summary,
             item.notes,
+            item.valueGold,
+            item.weight,
             ...visibleProperties.flatMap(property => [
                 property.name,
                 property.charges,
                 property.description,
                 property.negative ? "negativo malus" : ""
+            ]),
+            ...materialTags.flatMap(tag => [
+                tag.name,
+                tag.description
             ])
         ].filter(Boolean).join(" ")).includes(query);
     });
 }
 
 function renderItemCard(item, { canEdit = false } = {}) {
+    const isMaterial = getItemCategory(item) === "Materiali";
     const type = getItemTypeMeta(getItemCategory(item));
     const rarity = getItemRarityMeta(item.rarity);
     const properties = getVisibleItemProperties(item);
-    const positiveProperties = properties.filter(property => property.negative !== true);
-    const negativeProperties = properties.filter(property => property.negative === true);
+    const materialTags = isMaterial ? getVisibleMaterialTags(item) : [];
+    const positiveProperties = isMaterial ? [] : properties.filter(property => property.negative !== true);
+    const negativeProperties = isMaterial ? [] : properties.filter(property => property.negative === true);
     const hidden = isHiddenItem(item);
     return `
-        <details class="item-card item-card--${slugify(rarity.label)} ${hidden ? "item-card--dm-hidden" : ""}" id="${escapeHtml(item.id || slugify(item.name))}">
+        <details class="item-card item-card--${slugify(rarity.label)} ${isMaterial ? "item-card--material" : ""} ${hidden ? "item-card--dm-hidden" : ""}" id="${escapeHtml(item.id || slugify(item.name))}">
             <summary class="item-card-summary">
                 ${renderItemMedia(item, type, rarity)}
                 <div class="item-card-text">
                     <div class="item-card-kicker">
                         <span><i class="fas ${escapeHtml(type.icon)}" aria-hidden="true"></i>${escapeHtml(formatItemTypeLabel(item))}</span>
                         <span><i class="fas ${escapeHtml(rarity.icon)}" aria-hidden="true"></i>${escapeHtml(rarity.label)}</span>
-                        ${item.attunement ? '<span><i class="fas fa-link" aria-hidden="true"></i>Sintonia</span>' : ""}
+                        ${!isMaterial && item.attunement ? '<span><i class="fas fa-link" aria-hidden="true"></i>Sintonia</span>' : ""}
                         ${item.unidentified === true ? '<span><i class="fas fa-eye-slash" aria-hidden="true"></i>Non identificato</span>' : ""}
                         ${hidden ? '<span class="item-card-dm-badge"><i class="fas fa-user-shield" aria-hidden="true"></i>Solo DM</span>' : ""}
                     </div>
@@ -305,18 +314,27 @@ function renderItemCard(item, { canEdit = false } = {}) {
                 ${item.owner ? `<p class="item-owner">Provenienza: ${escapeHtml(item.owner)}</p>` : ""}
                 ${item.summary ? `<p class="item-summary">${escapeHtml(item.summary)}</p>` : ""}
                 </div>
-            </summary>
-            <div class="item-card-content">
-                ${canEdit ? `
-                    <div class="item-card-actions">
+                <div class="item-card-summary-actions">
+                    ${canEdit ? `
                         <a class="item-card-edit-link" href="${escapeHtml(getItemEditorUrl(item))}" title="Modifica questo oggetto">
                             <i class="fas fa-pen" aria-hidden="true"></i>
                             <span>Modifica</span>
                         </a>
-                    </div>
-                ` : ""}
+                    ` : ""}
+                    <span class="item-card-toggle-icon" aria-hidden="true">
+                        <i class="fas fa-chevron-down"></i>
+                    </span>
+                </div>
+            </summary>
+            <div class="item-card-content">
                 ${item.unidentified === true ? `
                     <p class="item-notes item-notes--unidentified">Le proprietà di questo oggetto non sono ancora identificate.</p>
+                ` : ""}
+                ${isMaterial ? renderMaterialMeta(item) : ""}
+                ${isMaterial && materialTags.length ? `
+                    <ul class="item-material-tags">
+                        ${materialTags.map(tag => `<li>${renderMaterialTag(tag)}</li>`).join("")}
+                    </ul>
                 ` : ""}
                 ${positiveProperties.length ? `
                     <ul class="item-properties">
@@ -369,6 +387,71 @@ function normalizeItemProperties(properties) {
 function getVisibleItemProperties(item) {
     if (item?.unidentified === true) return [];
     return normalizeItemProperties(item?.properties).filter(property => property.hidden !== true);
+}
+
+function normalizeMaterialTags(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map(tag => {
+            if (typeof tag === "string") {
+                const name = tag.trim();
+                return name ? { name, description: "" } : null;
+            }
+            if (!tag || typeof tag !== "object") return null;
+            const name = String(tag.name || tag.label || tag.tag || "").trim();
+            const description = String(tag.description || tag.desc || tag.note || "").trim();
+            const hidden = tag.hidden === true;
+            if (!name && !description) return null;
+            return { name, description, hidden };
+        })
+        .filter(Boolean);
+}
+
+function getVisibleMaterialTags(item) {
+    const rawTags = Array.isArray(item?.materialTags)
+        ? item.materialTags
+        : Array.isArray(item?.tags)
+            ? item.tags
+            : item?.properties;
+    return normalizeMaterialTags(rawTags).filter(tag => tag.hidden !== true);
+}
+
+function renderMaterialMeta(item) {
+    const rows = [
+        item.valueGold !== undefined && item.valueGold !== "" ? { icon: "fa-coins", label: "Valore", value: formatGoldValue(item.valueGold) } : null,
+        item.weight !== undefined && item.weight !== "" ? { icon: "fa-weight-hanging", label: "Peso", value: formatWeightValue(item.weight) } : null
+    ].filter(Boolean);
+    if (!rows.length) return "";
+    return `
+        <dl class="item-material-meta">
+            ${rows.map(row => `
+                <div>
+                    <dt><i class="fas ${escapeHtml(row.icon)}" aria-hidden="true"></i>${escapeHtml(row.label)}</dt>
+                    <dd>${escapeHtml(row.value)}</dd>
+                </div>
+            `).join("")}
+        </dl>
+    `;
+}
+
+function renderMaterialTag(tag) {
+    const description = tag.description ? `<p>${escapeHtml(tag.description)}</p>` : "";
+    return `
+        <span>${escapeHtml(tag.name || "Tag")}</span>
+        ${description}
+    `;
+}
+
+function formatGoldValue(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return "";
+    return /^-?\d+(?:[.,]\d+)?$/.test(text) ? `${text.replace(".", ",")} mo` : text;
+}
+
+function formatWeightValue(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return "";
+    return /^-?\d+(?:[.,]\d+)?$/.test(text) ? `${text.replace(".", ",")} kg` : text;
 }
 
 function renderItemProperty(property) {
