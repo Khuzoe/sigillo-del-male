@@ -374,19 +374,30 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         const syncInfo = inventorySnapshot?.savedAt || inventorySnapshot?.generatedAt
             ? `<span class="player-sync-stamp" title="Ultimo sync Foundry"><i class="fas fa-rotate" aria-hidden="true"></i> ${escapeHtml(formatDateTime(inventorySnapshot.savedAt || inventorySnapshot.generatedAt))}</span>`
             : "";
+        const campaignId = getCurrentCampaignId();
+        const useLegacyCriptaAnimation = campaignId === "cripta-di-sangue";
         const tokenFallbackPath = images.avatar || images.avatarFallback;
         const tokenFallback = resolveImageUrl(tokenFallbackPath);
-        const listImage = images.token || images.avatar;
-        const listHoverImage = images.tokenHover || images.hover || images.token || images.avatar;
-        const listAdjust = images.tokenAdjust || images.avatarAdjust;
-        const listHoverAdjust = images.tokenHoverAdjust || images.hoverAdjust || images.tokenAdjust || images.avatarAdjust;
-        const campaignId = getCurrentCampaignId();
+        const listImage = useLegacyCriptaAnimation
+            ? (images.avatar || images.token)
+            : (images.token || images.avatar);
+        const listHoverImage = useLegacyCriptaAnimation
+            ? (images.hover || images.tokenHover || images.avatar || images.token)
+            : (images.tokenHover || images.hover || images.token || images.avatar);
+        const listAdjust = useLegacyCriptaAnimation
+            ? (images.avatarAdjust || images.tokenAdjust)
+            : (images.tokenAdjust || images.avatarAdjust);
+        const listHoverAdjust = useLegacyCriptaAnimation
+            ? (images.hoverAdjust || images.tokenHoverAdjust || images.avatarAdjust || images.tokenAdjust)
+            : (images.tokenHoverAdjust || images.hoverAdjust || images.tokenAdjust || images.avatarAdjust);
+        const shouldSwapAvatar = listHoverImage && listHoverImage !== listImage;
+        const cardClassWithSwap = `${cardClasses} ${shouldSwapAvatar ? "" : "npc-card--no-avatar-swap"}`.trim();
         const campaignQuery = campaignId && campaignId !== "cripta-di-sangue"
             ? `&campaign=${encodeURIComponent(campaignId)}`
             : "";
 
         return `
-            <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player${campaignQuery}" class="${cardClasses}">
+            <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player${campaignQuery}" class="${cardClassWithSwap}">
                 <div class="npc-avatar-container">
                     <img src="${escapeHtml(resolveImageUrl(listImage))}" ${tokenFallback ? `data-fallback-src="${escapeHtml(tokenFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-main" style="${buildImageStyle("avatar", listAdjust, listHoverAdjust)}" onerror="${buildFallbackImageErrorHandler(tokenFallbackPath, player.name)}">
                     <img src="${escapeHtml(resolveImageUrl(listHoverImage))}" ${tokenFallback ? `data-fallback-src="${escapeHtml(tokenFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-hover" style="${buildImageStyle("hover", listHoverAdjust, listAdjust)}" onerror="${buildFallbackImageErrorHandler(tokenFallbackPath, player.name, true)}">

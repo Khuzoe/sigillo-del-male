@@ -1149,12 +1149,12 @@ function getCompanionAvatarImageCandidates(companion) {
     const legacySyncedAvatar = syncedEntityId && legacyCompanionFolder ? `media/${legacyCompanionFolder}/${syncedEntityId}-avatar.webp` : '';
     const legacySyncedToken = syncedEntityId && legacyCompanionFolder ? `media/${legacyCompanionFolder}/${syncedEntityId}-token.webp` : '';
     return Array.from(new Set([
-        resolveSyncedActorImagePath(syncedAvatar),
-        resolveSyncedActorImagePath(syncedToken),
-        resolveSyncedActorImagePath(legacySyncedAvatar),
-        resolveSyncedActorImagePath(legacySyncedToken),
         resolveSyncedActorImagePath(companion?.img),
+        resolveSyncedActorImagePath(syncedAvatar),
+        resolveSyncedActorImagePath(legacySyncedAvatar),
         resolveSyncedActorImagePath(avatarVariant),
+        resolveSyncedActorImagePath(syncedToken),
+        resolveSyncedActorImagePath(legacySyncedToken),
         resolveSyncedActorImagePath(tokenPath)
     ].filter(Boolean)));
 }
@@ -2727,8 +2727,14 @@ function buildCompanionsHtml(character, payload, wikiItems = [], mediaOverrides 
                                 ${spellsHtml}
                             </section>` : ''}
                         </div>
-                        <div class="companion-skill-tree-host" data-companion-skill-tree-host="${escapeHtml(companionTreeSubject.id)}"></div>
-                        <div class="companion-transformations-host" data-companion-transformations-host="${escapeHtml(companionTreeSubject.id)}"></div>
+                        <details class="companion-collapsible-panel">
+                            <summary><i class="fas fa-crown"></i> Albero abilità</summary>
+                            <div class="companion-skill-tree-host" data-companion-skill-tree-host="${escapeHtml(companionTreeSubject.id)}"></div>
+                        </details>
+                        <details class="companion-collapsible-panel">
+                            <summary><i class="fas fa-masks-theater"></i> Token e trasformazioni</summary>
+                            <div class="companion-transformations-host" data-companion-transformations-host="${escapeHtml(companionTreeSubject.id)}"></div>
+                        </details>
                     </article>
                 `;
         } catch (error) {
@@ -3679,7 +3685,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const payload = await response.json().catch(() => null);
         if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
 
-        return payload.path || payload.key || '';
+        return payload.path || payload.key || `media/campaigns/${getCurrentCampaignId()}/${folder}/${safeFileName}`;
     };
 
     const uploadSelectedNodeIcon = async (file) => {
@@ -5301,7 +5307,7 @@ window.CriptaApp.onPageReady("character", async function () {
         });
         const payload = await response.json().catch(() => null);
         if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-        return payload.path || payload.key || '';
+        return payload.path || payload.key || buildCampaignScopedMediaPath(folder, fileName);
     }
 
     async function uploadItemOverrideFile(blob, identity) {
@@ -5330,7 +5336,7 @@ window.CriptaApp.onPageReady("character", async function () {
         });
         const payload = await response.json().catch(() => null);
         if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-        return payload.path || payload.key || '';
+        return payload.path || payload.key || buildCampaignScopedMediaPath(folder, fileName);
     }
 
     function getMediaOverridesApiUrl() {
@@ -5665,7 +5671,11 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     function buildCampaignScopedOverrideFolder(kind, ownerId) {
-        return `campaigns/${getCurrentCampaignId()}/${kind}/${slugify(ownerId || 'personaggio')}`;
+        return `${kind}/${slugify(ownerId || 'personaggio')}`;
+    }
+
+    function buildCampaignScopedMediaPath(folder, fileName) {
+        return `media/campaigns/${getCurrentCampaignId()}/${folder}/${fileName}`;
     }
 
     async function resolveCurrentUserIsDm(authState = null) {
