@@ -44,15 +44,22 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         const playerId = slugify(player?.id || player?.name || "personaggio");
         const campaignId = getCurrentCampaignId();
         const suffix = variant === "token" ? "-token" : "-avatar";
-        const folder = campaignId === "cripta-di-sangue" ? "players" : `campaigns/${campaignId}/players`;
-        return `media/${folder}/${playerId}${suffix}.webp`;
+        return `media/campaigns/${campaignId}/players/${playerId}${suffix}.webp`;
+    }
+
+    function getLegacySyncedPlayerImagePath(player, variant = "avatar") {
+        const playerId = slugify(player?.id || player?.name || "personaggio");
+        const campaignId = getCurrentCampaignId();
+        const suffix = variant === "token" ? "-token" : "-avatar";
+        if (campaignId !== "cripta-di-sangue") return "";
+        return `media/players/${playerId}${suffix}.webp`;
     }
 
     function getLegacySyncedPlayerAvatarPath(player) {
         const playerId = slugify(player?.id || player?.name || "personaggio");
         const campaignId = getCurrentCampaignId();
-        const folder = campaignId === "cripta-di-sangue" ? "players" : `campaigns/${campaignId}/players`;
-        return `media/${folder}/${playerId}.webp`;
+        if (campaignId !== "cripta-di-sangue") return "";
+        return `media/players/${playerId}.webp`;
     }
 
     function getPlayerImages(player) {
@@ -65,6 +72,7 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         if (!images.hoverFallback && images.hover === fallbackAvatar) images.hoverFallback = legacyAvatar;
         if (!images.portrait) images.portrait = images.avatar;
         if (!images.token) images.token = getSyncedPlayerImagePath(player, "token");
+        if (!images.tokenFallback && images.token === getSyncedPlayerImagePath(player, "token")) images.tokenFallback = getLegacySyncedPlayerImagePath(player, "token");
         return images;
     }
 
@@ -224,14 +232,17 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         const ownerCharacterId = slugify(companion?.ownerCharacterId || companion?.characterId || "");
         const syncedEntityId = ownerCharacterId ? getCompanionReadableEntityId(ownerCharacterId, companion) : "";
         const campaignId = getCurrentCampaignId();
-        const companionFolder = campaignId === "cripta-di-sangue"
-            ? `companions/${ownerCharacterId}`
-            : `campaigns/${campaignId}/companions/${ownerCharacterId}`;
+        const companionFolder = `campaigns/${campaignId}/companions/${ownerCharacterId}`;
+        const legacyCompanionFolder = campaignId === "cripta-di-sangue" ? `companions/${ownerCharacterId}` : "";
         const syncedToken = syncedEntityId ? `media/${companionFolder}/${syncedEntityId}-token.webp` : "";
         const syncedAvatar = syncedEntityId ? `media/${companionFolder}/${syncedEntityId}-avatar.webp` : "";
+        const legacySyncedToken = syncedEntityId && legacyCompanionFolder ? `media/${legacyCompanionFolder}/${syncedEntityId}-token.webp` : "";
+        const legacySyncedAvatar = syncedEntityId && legacyCompanionFolder ? `media/${legacyCompanionFolder}/${syncedEntityId}-avatar.webp` : "";
         return Array.from(new Set([
             resolvePublicImageUrl(syncedToken),
             resolvePublicImageUrl(syncedAvatar),
+            resolvePublicImageUrl(legacySyncedToken),
+            resolvePublicImageUrl(legacySyncedAvatar),
             resolvePublicImageUrl(tokenPath),
             resolvePublicImageUrl(companion?.img),
             resolvePublicImageUrl(avatarVariant),

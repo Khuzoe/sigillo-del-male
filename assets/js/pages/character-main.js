@@ -623,15 +623,22 @@ function getSyncedPlayerImagePath(character, variant = 'avatar') {
     const characterId = slugify(character?.id || character?.name || 'personaggio');
     const campaignId = getCurrentCampaignId();
     const suffix = variant === 'token' ? '-token' : '-avatar';
-    const folder = campaignId === 'cripta-di-sangue' ? 'players' : `campaigns/${campaignId}/players`;
-    return `media/${folder}/${characterId}${suffix}.webp`;
+    return `media/campaigns/${campaignId}/players/${characterId}${suffix}.webp`;
+}
+
+function getLegacySyncedPlayerImagePath(character, variant = 'avatar') {
+    const characterId = slugify(character?.id || character?.name || 'personaggio');
+    const campaignId = getCurrentCampaignId();
+    const suffix = variant === 'token' ? '-token' : '-avatar';
+    if (campaignId !== 'cripta-di-sangue') return '';
+    return `media/players/${characterId}${suffix}.webp`;
 }
 
 function getLegacySyncedPlayerAvatarPath(character) {
     const characterId = slugify(character?.id || character?.name || 'personaggio');
     const campaignId = getCurrentCampaignId();
-    const folder = campaignId === 'cripta-di-sangue' ? 'players' : `campaigns/${campaignId}/players`;
-    return `media/${folder}/${characterId}.webp`;
+    if (campaignId !== 'cripta-di-sangue') return '';
+    return `media/players/${characterId}.webp`;
 }
 
 function applySyncedPlayerImageFallback(character) {
@@ -647,6 +654,7 @@ function applySyncedPlayerImageFallback(character) {
     if (!images.hover) images.hover = images.avatar;
     if (!images.hoverFallback && images.hover === avatarPath) images.hoverFallback = legacyAvatarPath;
     if (!images.token) images.token = tokenPath;
+    if (!images.tokenFallback && images.token === tokenPath) images.tokenFallback = getLegacySyncedPlayerImagePath(normalized, 'token');
     normalized.images = images;
     return normalized;
 }
@@ -1134,14 +1142,17 @@ function getCompanionAvatarImageCandidates(companion) {
     const ownerCharacterId = slugify(companion?.ownerCharacterId || companion?.characterId || '');
     const syncedEntityId = ownerCharacterId ? getCompanionReadableEntityId(ownerCharacterId, companion) : '';
     const campaignId = getCurrentCampaignId();
-    const companionFolder = campaignId === 'cripta-di-sangue'
-        ? `companions/${ownerCharacterId}`
-        : `campaigns/${campaignId}/companions/${ownerCharacterId}`;
+    const companionFolder = `campaigns/${campaignId}/companions/${ownerCharacterId}`;
+    const legacyCompanionFolder = campaignId === 'cripta-di-sangue' ? `companions/${ownerCharacterId}` : '';
     const syncedAvatar = syncedEntityId ? `media/${companionFolder}/${syncedEntityId}-avatar.webp` : '';
     const syncedToken = syncedEntityId ? `media/${companionFolder}/${syncedEntityId}-token.webp` : '';
+    const legacySyncedAvatar = syncedEntityId && legacyCompanionFolder ? `media/${legacyCompanionFolder}/${syncedEntityId}-avatar.webp` : '';
+    const legacySyncedToken = syncedEntityId && legacyCompanionFolder ? `media/${legacyCompanionFolder}/${syncedEntityId}-token.webp` : '';
     return Array.from(new Set([
         resolveSyncedActorImagePath(syncedAvatar),
         resolveSyncedActorImagePath(syncedToken),
+        resolveSyncedActorImagePath(legacySyncedAvatar),
+        resolveSyncedActorImagePath(legacySyncedToken),
         resolveSyncedActorImagePath(companion?.img),
         resolveSyncedActorImagePath(avatarVariant),
         resolveSyncedActorImagePath(tokenPath)
@@ -4055,11 +4066,55 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
     const prevButton = toolbar.querySelector('[data-skill-tree-prev]');
     const nextButton = toolbar.querySelector('[data-skill-tree-next]');
 
+    const createSkillTree = async () => {
+        const name = window.prompt('Nome nuovo albero abilita', 'Nuovo albero');
+        if (name === null) return;
+        const baseKey = slugify(character.id || character.accountId || character.name || 'personaggio');
+        const key = `${baseKey}-${Date.now().toString(36)}`;
+        const nextTrees = { ...(skillsMemoryCache || allSkillTrees || {}) };
+        nextTrees[key] = {
+            id: key,
+            name: name.trim() || 'Nuovo albero',
+            ownerCharacterId: character.id || '',
+            characterId: character.id || '',
+            bgImage: '',
+            bgOpacity: 1,
+            nodes: [{
+                id: 'inizio',
+                x: 50,
+                y: 50,
+                title: 'Inizio',
+                flavor: '',
+                desc: '<p>Prima abilita dell albero.</p>',
+                icon: '',
+                connections: [],
+                state: 'unlocked'
+            }]
+        };
+        try {
+            await saveSkillTreesData(nextTrees);
+            window.location.reload();
+        } catch (error) {
+            console.error('Creazione albero abilita fallita:', error);
+            alert(`Creazione albero fallita: ${error?.message || error}`);
+        }
+    };
+
     const renderActiveTree = () => {
         const total = cards.length;
         if (!total) {
             activeTreeIndex = 0;
-            viewport.innerHTML = '<div class="player-skill-tree-empty">Nessun albero abilita configurato.</div>';
+            viewport.innerHTML = `
+                <div class="player-skill-tree-empty">
+                    <span>Nessun albero abilita configurato.</span>
+                    ${skillTreeCurrentUserIsDm ? `
+                        <button type="button" class="player-skill-action-button is-primary" data-skill-create-tree-empty>
+                            <i class="fas fa-plus"></i> Crea primo albero
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+            viewport.querySelector('[data-skill-create-tree-empty]')?.addEventListener('click', createSkillTree);
         } else {
             activeTreeIndex = Math.max(0, Math.min(total - 1, activeTreeIndex));
             cards.forEach((item, index) => {
@@ -4089,39 +4144,7 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
     });
 
     if (skillTreeCurrentUserIsDm) {
-        toolbar.querySelector('[data-skill-create-tree]')?.addEventListener('click', async () => {
-            const name = window.prompt('Nome nuovo albero abilita', 'Nuovo albero');
-            if (name === null) return;
-            const baseKey = slugify(character.id || character.accountId || character.name || 'personaggio');
-            const key = `${baseKey}-${Date.now().toString(36)}`;
-            const nextTrees = { ...(skillsMemoryCache || allSkillTrees || {}) };
-            nextTrees[key] = {
-                id: key,
-                name: name.trim() || 'Nuovo albero',
-                ownerCharacterId: character.id || '',
-                characterId: character.id || '',
-                bgImage: '',
-                bgOpacity: 1,
-                nodes: [{
-                    id: 'inizio',
-                    x: 50,
-                    y: 50,
-                    title: 'Inizio',
-                    flavor: '',
-                    desc: '<p>Prima abilita dell albero.</p>',
-                    icon: '',
-                    connections: [],
-                    state: 'unlocked'
-                }]
-            };
-            try {
-                await saveSkillTreesData(nextTrees);
-                window.location.reload();
-            } catch (error) {
-                console.error('Creazione albero abilita fallita:', error);
-                alert(`Creazione albero fallita: ${error?.message || error}`);
-            }
-        });
+        toolbar.querySelector('[data-skill-create-tree]')?.addEventListener('click', createSkillTree);
     }
 
     renderActiveTree();

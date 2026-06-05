@@ -3094,6 +3094,9 @@ body.is-embed .container {
 }
 
 .player-skill-tree-empty {
+    display: grid;
+    justify-items: center;
+    gap: 0.9rem;
     padding: 1.4rem;
     border: 1px dashed rgba(212, 175, 55, 0.28);
     border-radius: 16px;
