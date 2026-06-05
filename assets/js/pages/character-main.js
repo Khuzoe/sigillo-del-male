@@ -1178,6 +1178,22 @@ function getCompanionMediaOverrideIdentity(character, companion) {
     };
 }
 
+function getCompanionSkillTreeSubject(character, companion, identity = null) {
+    const entityId = identity?.entityId || getCompanionReadableEntityId(character?.id || '', companion);
+    return {
+        id: `companion-${entityId}`,
+        characterId: `companion-${entityId}`,
+        name: companion?.displayName || companion?.name || identity?.name || 'Companion',
+        foundryName: companion?.foundryName || companion?.name || identity?.foundryName || '',
+        actorId: companion?.actorId || companion?.id || identity?.actorId || '',
+        uuid: companion?.uuid || '',
+        accountId: character?.accountId || '',
+        discordId: character?.discordId || '',
+        ownerCharacterId: character?.id || '',
+        isCompanion: true
+    };
+}
+
 function applyCompanionMediaOverride(companion, identity, overrides = mediaOverridesMemoryCache || []) {
     const override = findMediaOverride(overrides, 'companion', identity?.entityId, identity);
     if (!override?.images) return companion;
@@ -2237,6 +2253,42 @@ function renderLoadoutDisclosure(title, quantityLabel, description, badges, extr
             `;
 }
 
+function getInventoryProgressData(entry) {
+    const source = entry?.progress && typeof entry.progress === 'object'
+        ? entry.progress
+        : entry?.system?.progress && typeof entry.system.progress === 'object'
+            ? entry.system.progress
+            : null;
+    if (!source) return null;
+    const done = Number(source.done ?? source.value ?? source.current ?? source.completed ?? 0);
+    const total = Number(source.total ?? source.max ?? source.target ?? source.required ?? 0);
+    if (!Number.isFinite(done) || !Number.isFinite(total) || total <= 0) return null;
+    return {
+        done: Math.max(0, done),
+        total: Math.max(1, total),
+        label: String(source.label || source.unit || 'Progresso').trim() || 'Progresso'
+    };
+}
+
+function renderInventoryProgress(entry) {
+    const progress = getInventoryProgressData(entry);
+    if (!progress) return '';
+    const percent = Math.max(0, Math.min(100, (progress.done / progress.total) * 100));
+    const remaining = Math.max(0, progress.total - progress.done);
+    return `
+        <div class="loadout-progress" data-item-progress>
+            <div class="loadout-progress__head">
+                <span>${escapeHtml(progress.label)}</span>
+                <strong>${formatNumberIt(progress.done)} / ${formatNumberIt(progress.total)}</strong>
+            </div>
+            <div class="loadout-progress__bar" aria-label="${escapeHtml(progress.label)} ${formatNumberIt(progress.done)} su ${formatNumberIt(progress.total)}">
+                <span style="width: ${percent.toFixed(2)}%"></span>
+            </div>
+            <small>${formatNumberIt(remaining)} rimanenti</small>
+        </div>
+    `;
+}
+
 function renderInventoryEntries(entries, context = {}) {
     if (!entries.length) {
         return '<p class="loadout-empty">Nessun oggetto disponibile.</p>';
@@ -2290,7 +2342,9 @@ function renderInventoryEntries(entries, context = {}) {
             const overrideDescriptionHtml = itemOverride?.description && wikiItem
                 ? `<div class="loadout-entry-description">${renderDescriptionHtml(cleanDescription(itemOverride.description))}</div>`
                 : '';
+            const progressHtml = renderInventoryProgress(entry);
             const overrideActions = `
+                    ${progressHtml}
                     ${overrideDescriptionHtml}
                     <div class="loadout-entry-actions">
                         <button
@@ -2614,6 +2668,7 @@ function buildCompanionsHtml(character, payload, wikiItems = [], mediaOverrides 
             const inventoryHtml = renderInventoryEntries(inventory);
             const spellsHtml = renderSpellEntries(spells.filter((spell) => spell.prepared || spell.level === 0));
             const details = companion.details || {};
+            const companionTreeSubject = getCompanionSkillTreeSubject(character, companion, identity);
             const detailChips = [
                 details.type ? `Tipo: ${formatToken(details.type)}` : '',
                 details.cr !== undefined ? `CR: ${formatNumberIt(details.cr, 2)}` : '',
@@ -2672,6 +2727,8 @@ function buildCompanionsHtml(character, payload, wikiItems = [], mediaOverrides 
                                 ${spellsHtml}
                             </section>` : ''}
                         </div>
+                        <div class="companion-skill-tree-host" data-companion-skill-tree-host="${escapeHtml(companionTreeSubject.id)}"></div>
+                        <div class="companion-transformations-host" data-companion-transformations-host="${escapeHtml(companionTreeSubject.id)}"></div>
                     </article>
                 `;
         } catch (error) {
@@ -2708,6 +2765,20 @@ function buildCompanionsHtml(character, payload, wikiItems = [], mediaOverrides 
                     ${cards}
                 </div>
             `;
+}
+
+function mountCompanionSkillTrees(root, character, payload, mediaOverrides = [], allSkillTrees = null) {
+    if (!root || !character || !allSkillTrees) return;
+    const companions = getCompanionsForCharacter(payload, character);
+    companions.forEach((rawCompanion) => {
+        const identity = getCompanionMediaOverrideIdentity(character, rawCompanion);
+        const companion = applyCompanionMediaOverride(rawCompanion, identity, mediaOverrides);
+        const subject = getCompanionSkillTreeSubject(character, companion, identity);
+        const host = root.querySelector(`[data-companion-skill-tree-host="${CSS.escape(subject.id)}"]`);
+        if (!host) return;
+        const treeCard = buildPlayerSkillTreeCards(subject, allSkillTrees);
+        if (treeCard) host.replaceChildren(treeCard);
+    });
 }
 
 function initializeInventoryTypeFilters(cardElement) {
@@ -2951,6 +3022,56 @@ function getSkillTreeRequirementMode(node) {
         : 'all';
 }
 
+function getSkillNodeLevels(node) {
+    const rawLevels = Array.isArray(node?.levels)
+        ? node.levels
+        : Array.isArray(node?.upgrades)
+            ? node.upgrades
+            : Array.isArray(node?.variants)
+                ? node.variants
+                : [];
+    const base = {
+        title: node?.title || '',
+        flavor: node?.flavor || '',
+        desc: node?.desc || '',
+        icon: node?.icon || ''
+    };
+    const normalized = rawLevels
+        .map((level, index) => ({
+            label: level?.label || `Livello ${index + 1}`,
+            title: level?.title || '',
+            flavor: level?.flavor || '',
+            desc: level?.desc || level?.description || '',
+            icon: level?.icon || ''
+        }))
+        .filter((level) => level.title || level.flavor || level.desc || level.icon || level.label);
+    if (!normalized.length) return [base];
+    return [
+        {
+            label: normalized[0]?.label || 'Livello 1',
+            ...base
+        },
+        ...normalized.slice(1)
+    ];
+}
+
+function applySkillNodeLevel(node, levelValue) {
+    const levels = getSkillNodeLevels(node);
+    const maxLevel = levels.length;
+    const level = Math.max(1, Math.min(maxLevel, Math.round(Number(levelValue) || 1)));
+    const data = levels[level - 1] || levels[0] || {};
+    return {
+        ...node,
+        title: data.title || node.title,
+        flavor: data.flavor || node.flavor,
+        desc: data.desc || node.desc,
+        icon: data.icon || node.icon,
+        level,
+        maxLevel,
+        levelLabel: data.label || (maxLevel > 1 ? `Livello ${level}` : '')
+    };
+}
+
 function canUnlockSkillNode(requirements, requirementMode, unlocked) {
     if (!requirements.length) return true;
     return requirementMode === 'any'
@@ -2985,6 +3106,7 @@ function deriveSkillTreeNodes(treeData, stateRecord) {
     );
     const stateUnlocked = Array.isArray(stateRecord?.unlocked) ? stateRecord.unlocked : Array.isArray(stateRecord?.unlockedNodeIds) ? stateRecord.unlockedNodeIds : null;
     const unlocked = new Set((stateUnlocked || Array.from(baseUnlocked)).map(String));
+    const stateLevels = stateRecord?.levels && typeof stateRecord.levels === 'object' ? stateRecord.levels : {};
 
     return (treeData.nodes || []).map((node) => {
         const nodeId = String(node.id);
@@ -2996,7 +3118,8 @@ function deriveSkillTreeNodes(treeData, stateRecord) {
         } else if (!isSkillNodeBlockedByExclusiveChoice(treeData, nodeId, unlocked) && canUnlockSkillNode(requirements, requirementMode, unlocked)) {
             state = 'unlockable';
         }
-        return { ...node, id: nodeId, requires: requirements, requiresMode: requirementMode, state };
+        const level = unlocked.has(nodeId) ? stateLevels[nodeId] : 1;
+        return applySkillNodeLevel({ ...node, id: nodeId, requires: requirements, requiresMode: requirementMode, state }, level);
     });
 }
 
@@ -3019,7 +3142,7 @@ function pruneUnlockedSkillNodes(treeData, unlockedIds) {
     return nextUnlocked;
 }
 
-async function saveCharacterSkillTreeState(character, treeKey, unlockedIds) {
+async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap = {}) {
     const accountId = getCurrentAccountId();
     const stateId = getSkillTreeStateKey(character, treeKey);
     const existingStates = await loadSkillTreeStates();
@@ -3030,6 +3153,9 @@ async function saveCharacterSkillTreeState(character, treeKey, unlockedIds) {
         characterId: character?.id || '',
         ownerAccountId: accountId || slugify(character?.accountId || ''),
         unlocked: Array.from(new Set((unlockedIds || []).map(String))).filter(Boolean),
+        levels: Object.fromEntries(Object.entries(levelMap || {})
+            .map(([key, value]) => [String(key), Math.max(1, Math.round(Number(value) || 1))])
+            .filter(([key, value]) => key && value > 1)),
         updatedAt: new Date().toISOString()
     };
     const nextStates = [...kept, nextRecord];
@@ -3059,6 +3185,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     };
     let currentNodes = deriveSkillTreeNodes(workingTree, stateRecord);
     let unlockedIds = new Set(currentNodes.filter((node) => node.state === 'unlocked').map((node) => String(node.id)));
+    let nodeLevels = { ...(stateRecord?.levels && typeof stateRecord.levels === 'object' ? stateRecord.levels : {}) };
     let selectedNodeId = currentNodes[0]?.id || '';
     let editMode = false;
     let snapToGrid = false;
@@ -3131,7 +3258,10 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                         ${icon ? `<img src="${icon}" alt="${escapeHtml(node.title || 'Abilita')}" class="player-skill-info-icon">` : ''}
                         <h4 class="player-skill-info-title" ${editable ? 'contenteditable="true" data-skill-preview-field="title" spellcheck="false"' : ''}>${escapeHtml(node.title || 'Abilita')}</h4>
                     </header>
-                    <div class="player-skill-info-state is-${escapeHtml(node.state || 'locked')}">${escapeHtml(node.state === 'unlocked' ? 'Sbloccata' : node.state === 'unlockable' ? 'Disponibile' : 'Bloccata')}</div>
+                    <div class="player-skill-info-state-row">
+                        <div class="player-skill-info-state is-${escapeHtml(node.state || 'locked')}">${escapeHtml(node.state === 'unlocked' ? 'Sbloccata' : node.state === 'unlockable' ? 'Disponibile' : 'Bloccata')}</div>
+                        ${Number(node.maxLevel || 1) > 1 ? `<div class="player-skill-info-level">Livello ${escapeHtml(node.level || 1)} / ${escapeHtml(node.maxLevel)}</div>` : ''}
+                    </div>
                     ${editable || node.flavor ? `<p class="player-skill-info-flavor" ${editable ? 'contenteditable="true" data-skill-preview-field="flavor" spellcheck="true"' : ''}>${escapeHtml(node.flavor || '')}</p>` : ''}
                     ${richTextToolbar}
                     <div class="player-skill-info-desc ${editable ? 'is-editable' : ''}" ${editable ? 'contenteditable="true" data-skill-preview-field="desc" spellcheck="true"' : ''}>${node.desc || '<p>Nessun dettaglio disponibile.</p>'}</div>
@@ -3152,11 +3282,13 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     };
 
     const recalculateNodes = () => {
-        currentNodes = deriveSkillTreeNodes(workingTree, { unlocked: Array.from(unlockedIds) });
+        currentNodes = deriveSkillTreeNodes(workingTree, { unlocked: Array.from(unlockedIds), levels: nodeLevels });
     };
 
     const persistUnlocks = async () => {
-        await saveCharacterSkillTreeState(character, treeKey, Array.from(unlockedIds));
+        const activeLevels = Object.fromEntries(Object.entries(nodeLevels).filter(([nodeId]) => unlockedIds.has(String(nodeId))));
+        nodeLevels = activeLevels;
+        await saveCharacterSkillTreeState(character, treeKey, Array.from(unlockedIds), activeLevels);
     };
 
     const deleteSelectedConnection = () => {
@@ -3399,8 +3531,12 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 renderTree();
             };
 
-            nodeElement.addEventListener('mouseenter', () => updateInfo(node));
-            nodeElement.addEventListener('focus', () => updateInfo(node));
+            nodeElement.addEventListener('mouseenter', () => {
+                if (!editMode) updateInfo(node);
+            });
+            nodeElement.addEventListener('focus', () => {
+                if (!editMode) updateInfo(node);
+            });
             nodeElement.addEventListener('click', async () => {
                 selectedNodeId = String(node.id);
                 selectedConnection = null;
@@ -3412,10 +3548,18 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 if (node.state !== 'unlocked' && (node.state === 'unlockable' || skillTreeCurrentUserIsDm)) {
                     getExclusiveSkillTreeSiblingIds(workingTree, node.id).forEach((siblingId) => unlockedIds.delete(String(siblingId)));
                     unlockedIds.add(String(node.id));
+                    nodeLevels[String(node.id)] = 1;
                     unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
                     await persistUnlocks().catch((error) => {
                         console.error('Salvataggio albero abilita fallito:', error);
                         alert('Impossibile salvare lo sblocco online.');
+                    });
+                    renderTree();
+                } else if (node.state === 'unlocked' && Number(node.maxLevel || 1) > Number(node.level || 1)) {
+                    nodeLevels[String(node.id)] = Number(node.level || 1) + 1;
+                    await persistUnlocks().catch((error) => {
+                        console.error('Salvataggio livello albero abilita fallito:', error);
+                        alert('Impossibile salvare il livello online.');
                     });
                     renderTree();
                 } else {
@@ -3427,8 +3571,14 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 selectedNodeId = String(node.id);
                 if (!canEditUnlocks) return;
                 if (unlockedIds.has(String(node.id))) {
-                    unlockedIds.delete(String(node.id));
-                    unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
+                    const currentLevel = Math.max(1, Number(nodeLevels[String(node.id)] || node.level || 1));
+                    if (currentLevel > 1) {
+                        nodeLevels[String(node.id)] = currentLevel - 1;
+                    } else {
+                        delete nodeLevels[String(node.id)];
+                        unlockedIds.delete(String(node.id));
+                        unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
+                    }
                     await persistUnlocks().catch((error) => {
                         console.error('Salvataggio albero abilita fallito:', error);
                         alert('Impossibile salvare lo stato online.');
@@ -3559,6 +3709,20 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         renderEditor();
     };
 
+    const ensureEditableNodeLevels = (node) => {
+        if (!node) return [];
+        if (!Array.isArray(node.levels) || !node.levels.length) {
+            node.levels = [{
+                label: 'Livello 1',
+                title: node.title || '',
+                flavor: node.flavor || '',
+                desc: node.desc || '',
+                icon: node.icon || ''
+            }];
+        }
+        return node.levels;
+    };
+
     const saveTreeDefinition = async () => {
         const nextTrees = { ...(skillsMemoryCache || allSkillTrees || {}) };
         nextTrees[treeKey] = workingTree;
@@ -3612,6 +3776,34 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 </div>
             </details>
         ` : '';
+        const upgradeLevels = Array.isArray(node?.levels) ? node.levels.slice(1) : [];
+        const upgradeLevelsHtml = `
+            <details class="player-skill-editor-section player-skill-level-editor" ${upgradeLevels.length ? 'open' : ''}>
+                <summary>Livelli nodo</summary>
+                <div class="player-skill-level-list">
+                    ${upgradeLevels.length ? upgradeLevels.map((level, offset) => {
+                        const index = offset + 1;
+                        return `
+                            <div class="player-skill-level-row" data-skill-level-row="${index}">
+                                <label>Etichetta
+                                    <input type="text" data-node-level-index="${index}" data-node-level-field="label" value="${escapeHtml(level.label || `Livello ${index + 1}`)}">
+                                </label>
+                                <label>Titolo
+                                    <input type="text" data-node-level-index="${index}" data-node-level-field="title" value="${escapeHtml(level.title || '')}" placeholder="vuoto = titolo base">
+                                </label>
+                                <label>Descrizione
+                                    <textarea rows="4" data-node-level-index="${index}" data-node-level-field="desc" placeholder="Descrizione del potenziamento">${escapeHtml(level.desc || level.description || '')}</textarea>
+                                </label>
+                                <button type="button" class="player-skill-action-button is-danger is-compact" data-skill-action="delete-node-level" data-node-level-index="${index}">
+                                    <i class="fas fa-trash"></i> Livello
+                                </button>
+                            </div>
+                        `;
+                    }).join('') : '<p class="player-skill-editor-help">Nessun potenziamento. Il livello 1 usa il testo del nodo base.</p>'}
+                </div>
+                <button type="button" class="player-skill-action-button is-compact" data-skill-action="add-node-level"><i class="fas fa-plus"></i> Aggiungi livello</button>
+            </details>
+        `;
         editorPanel.innerHTML = `
             <details class="player-skill-editor-section" open>
                 <summary>Albero</summary>
@@ -3691,6 +3883,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     </select>
                 </label>
             </div>
+            ${upgradeLevelsHtml}
             <div class="player-skill-editor-actions">
                 <button type="button" class="player-skill-action-button" data-skill-action="add-node"><i class="fas fa-plus"></i> Nodo</button>
                 <button type="button" class="player-skill-action-button is-danger" data-skill-action="delete-node"><i class="fas fa-trash"></i> Elimina</button>
@@ -3743,6 +3936,16 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     editorPanel?.addEventListener('input', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+        const levelIndex = target.dataset.nodeLevelIndex;
+        const levelField = target.dataset.nodeLevelField;
+        if (levelIndex !== undefined && levelField) {
+            const node = readEditorNode();
+            const levels = ensureEditableNodeLevels(node);
+            const index = Math.max(1, Math.round(Number(levelIndex) || 1));
+            if (!levels[index]) levels[index] = { label: `Livello ${index + 1}`, title: '', flavor: '', desc: '', icon: '' };
+            levels[index][levelField] = target.value;
+            return;
+        }
         const tool = target.dataset.skillTool;
         if (tool === 'snapGrid') {
             snapToGrid = target.checked;
@@ -3869,6 +4072,31 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             renderTree();
             renderEditor();
         }
+        if (action === 'add-node-level') {
+            const node = readEditorNode();
+            if (!node) return;
+            const levels = ensureEditableNodeLevels(node);
+            levels.push({
+                label: `Livello ${levels.length + 1}`,
+                title: '',
+                flavor: '',
+                desc: node.desc || '<p>Descrizione potenziamento.</p>',
+                icon: ''
+            });
+            renderTree();
+            renderEditor();
+        }
+        if (action === 'delete-node-level') {
+            const node = readEditorNode();
+            const index = Math.max(1, Math.round(Number(button.dataset.nodeLevelIndex) || 1));
+            if (!node || !Array.isArray(node.levels) || !node.levels[index]) return;
+            node.levels.splice(index, 1);
+            Object.keys(nodeLevels).forEach((nodeId) => {
+                if (nodeId === String(node.id)) nodeLevels[nodeId] = Math.min(Number(nodeLevels[nodeId]) || 1, getSkillNodeLevels(node).length);
+            });
+            renderTree();
+            renderEditor();
+        }
         if (action === 'delete-node') {
             const node = readEditorNode();
             if (!node || !confirm(`Eliminare il nodo "${node.title || node.id}"?`)) return;
@@ -3881,8 +4109,9 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                         connection.mode === 'exclusive' ? { target: connection.target, mode: 'exclusive' } : connection.target
                     )),
                     requires: (entry.requires || []).filter((targetId) => String(targetId) !== id)
-                }));
+            }));
             unlockedIds.delete(id);
+            delete nodeLevels[id];
             unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
             if (selectedConnection?.source === id || selectedConnection?.target === id) selectedConnection = null;
             selectedNodeId = workingTree.nodes[0]?.id || '';
@@ -4104,17 +4333,7 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
         const total = cards.length;
         if (!total) {
             activeTreeIndex = 0;
-            viewport.innerHTML = `
-                <div class="player-skill-tree-empty">
-                    <span>Nessun albero abilita configurato.</span>
-                    ${skillTreeCurrentUserIsDm ? `
-                        <button type="button" class="player-skill-action-button is-primary" data-skill-create-tree-empty>
-                            <i class="fas fa-plus"></i> Crea primo albero
-                        </button>
-                    ` : ''}
-                </div>
-            `;
-            viewport.querySelector('[data-skill-create-tree-empty]')?.addEventListener('click', createSkillTree);
+            viewport.innerHTML = '<div class="player-skill-tree-empty"><span>Nessun albero abilita configurato.</span></div>';
         } else {
             activeTreeIndex = Math.max(0, Math.min(total - 1, activeTreeIndex));
             cards.forEach((item, index) => {
@@ -4165,6 +4384,7 @@ window.CriptaApp.onPageReady("character", async function () {
     let currentAllCharacters = [];
     let currentNpcQuests = null;
     let currentPlayerSkillTrees = null;
+    const transformationSubjectMap = new Map();
     let isInlineEditing = false;
     let inlineEditDirty = false;
     let inlineEditBlocks = [];
@@ -5062,7 +5282,7 @@ window.CriptaApp.onPageReady("character", async function () {
             return '';
         }
 
-        const folder = `ability-overrides/${slugify(identity.characterId || identity.actorName || identity.characterName || 'personaggio')}`;
+        const folder = buildCampaignScopedOverrideFolder('ability-overrides', identity.characterId || identity.actorName || identity.characterName);
         const fileName = `${slugify(identity.abilityName || identity.abilityId || 'abilita')}.webp`;
         const form = new FormData();
         form.set('folder', folder);
@@ -5091,7 +5311,7 @@ window.CriptaApp.onPageReady("character", async function () {
             return '';
         }
 
-        const folder = `item-overrides/${slugify(identity.characterId || identity.actorName || identity.characterName || 'personaggio')}`;
+        const folder = buildCampaignScopedOverrideFolder('item-overrides', identity.characterId || identity.actorName || identity.characterName);
         const fileName = `${slugify(identity.itemName || identity.itemId || 'oggetto')}.webp`;
         const form = new FormData();
         form.set('folder', folder);
@@ -5444,6 +5664,10 @@ window.CriptaApp.onPageReady("character", async function () {
         return window.CriptaApp?.campaigns?.currentId?.() || params.get('campaign') || 'cripta-di-sangue';
     }
 
+    function buildCampaignScopedOverrideFolder(kind, ownerId) {
+        return `campaigns/${getCurrentCampaignId()}/${kind}/${slugify(ownerId || 'personaggio')}`;
+    }
+
     async function resolveCurrentUserIsDm(authState = null) {
         try {
             authState = authState || await window.CriptaDiscordAuth?.verify?.();
@@ -5637,6 +5861,8 @@ window.CriptaApp.onPageReady("character", async function () {
                 });
                 companionsCard.hidden = !companionsHtml;
                 companionsCard.innerHTML = companionsHtml;
+                if (companionsHtml) mountCompanionSkillTrees(companionsCard, character, inventoryPayload, mediaOverrides, currentPlayerSkillTrees);
+                if (companionsHtml) mountCompanionTransformations(companionsCard, character, inventoryPayload, mediaOverrides);
             }
             hydratePlayerRightOverview(character, inventoryPayload);
         } catch (error) {
@@ -5656,12 +5882,42 @@ window.CriptaApp.onPageReady("character", async function () {
         }
     }
 
+    function registerTransformationSubject(subject) {
+        if (subject?.id) transformationSubjectMap.set(String(subject.id), subject);
+        return subject;
+    }
+
+    function getTransformationSubjectFromButton(button) {
+        const card = button?.closest?.('[data-transformation-subject-id]');
+        const subjectId = card?.dataset?.transformationSubjectId || '';
+        return transformationSubjectMap.get(subjectId) || currentCharacter;
+    }
+
     function buildPlayerTransformationsCard(character) {
+        registerTransformationSubject(character);
         const card = document.createElement('div');
         card.className = 'content-card player-transformations-card';
-        card.id = 'player-transformations-card';
+        card.id = `player-transformations-card-${slugify(character?.id || 'player')}`;
+        card.dataset.transformationSubjectId = String(character?.id || '');
         card.innerHTML = renderPlayerTransformationsHtml(character);
         return card;
+    }
+
+    function mountCompanionTransformations(root, character, payload, mediaOverrides = []) {
+        if (!root || !character) return;
+        const companions = getCompanionsForCharacter(payload, character);
+        companions.forEach((rawCompanion) => {
+            const identity = getCompanionMediaOverrideIdentity(character, rawCompanion);
+            const companion = applyCompanionMediaOverride(rawCompanion, identity, mediaOverrides);
+            const subject = registerTransformationSubject(getCompanionSkillTreeSubject(character, companion, identity));
+            const host = root.querySelector(`[data-companion-transformations-host="${CSS.escape(subject.id)}"]`);
+            if (!host) return;
+            const card = document.createElement('div');
+            card.className = 'content-card player-transformations-card companion-transformations-card';
+            card.dataset.transformationSubjectId = subject.id;
+            card.innerHTML = renderPlayerTransformationsHtml(subject);
+            host.replaceChildren(card);
+        });
     }
 
     function getCharacterTransformations(character) {
@@ -5671,8 +5927,9 @@ window.CriptaApp.onPageReady("character", async function () {
         return mergeTransformations(staticEntries.map((entry) => normalizeTransformationEntry(entry, character)), currentTransformations)
             .filter((entry) => {
                 if (!entry?.enabled && entry?.enabled !== undefined) return false;
-                return String(entry.characterId || '') === characterId
-                    || (accountId && String(entry.ownerAccountId || '') === accountId);
+                if (characterId && String(entry.characterId || '') === characterId) return true;
+                if (character?.isCompanion) return false;
+                return Boolean(accountId && String(entry.ownerAccountId || '') === accountId);
             })
             .sort((left, right) => String(left.creatureName || left.name || '').localeCompare(String(right.creatureName || right.name || ''), 'it'));
     }
@@ -5697,7 +5954,11 @@ window.CriptaApp.onPageReady("character", async function () {
             ownerAliases: Array.from(new Set([
                 ...(Array.isArray(entry?.ownerAliases) ? entry.ownerAliases : []),
                 character?.id,
+                character?.characterId,
                 character?.name,
+                character?.foundryName,
+                character?.actorId,
+                character?.uuid,
                 character?.accountId,
                 character?.discordId
             ].filter(Boolean))),
@@ -5788,9 +6049,11 @@ window.CriptaApp.onPageReady("character", async function () {
         const button = event.target.closest('[data-transformation-action]');
         if (!button || charType !== 'player' || !currentCharacter) return;
         event.preventDefault();
+        const subject = getTransformationSubjectFromButton(button);
+        if (!subject) return;
         const action = button.dataset.transformationAction;
         const id = button.dataset.transformationId || '';
-        if (!canEditCurrentPlayerTransformations(currentCharacter)) {
+        if (!canEditCurrentPlayerTransformations(subject)) {
             alert('Login richiesto con il proprietario del personaggio o con un account DM.');
             return;
         }
@@ -5802,12 +6065,12 @@ window.CriptaApp.onPageReady("character", async function () {
                 creatureName: String(name).trim(),
                 foundryNames: [String(name).trim()],
                 enabled: true
-            }, currentCharacter);
-            await savePlayerTransformationList(upsertTransformation(getCharacterTransformations(currentCharacter), entry));
+            }, subject);
+            await savePlayerTransformationList(subject, upsertTransformation(getCharacterTransformations(subject), entry));
             return;
         }
 
-        const list = getCharacterTransformations(currentCharacter);
+        const list = getCharacterTransformations(subject);
         const entry = list.find((item) => item.id === id);
         if (!entry) return;
 
@@ -5824,26 +6087,26 @@ window.CriptaApp.onPageReady("character", async function () {
         if (action === 'rename') {
             const nextEntry = readTransformationCardUpdate(entry, id);
             if (!nextEntry) return;
-            await savePlayerTransformationList(upsertTransformation(list, nextEntry));
+            await savePlayerTransformationList(subject, upsertTransformation(list, nextEntry));
             return;
         }
 
         if (action === 'upload') {
             const file = await pickInlineImageFile();
             if (!file) return;
-            const path = await uploadTransformationTokenImage(file, entry);
+            const path = await uploadTransformationTokenImage(file, entry, subject);
             if (!path) return;
-            await savePlayerTransformationList(upsertTransformation(list, { ...entry, tokenImage: path, updatedAt: new Date().toISOString() }));
+            await savePlayerTransformationList(subject, upsertTransformation(list, { ...entry, tokenImage: path, updatedAt: new Date().toISOString() }));
             return;
         }
 
         if (action === 'clear') {
-            await savePlayerTransformationList(upsertTransformation(list, { ...entry, tokenImage: '', updatedAt: new Date().toISOString() }));
+            await savePlayerTransformationList(subject, upsertTransformation(list, { ...entry, tokenImage: '', updatedAt: new Date().toISOString() }));
             return;
         }
 
         if (action === 'toggle-switcher') {
-            await savePlayerTransformationList(upsertTransformation(list, {
+            await savePlayerTransformationList(subject, upsertTransformation(list, {
                 ...entry,
                 switcher: entry.switcher === false,
                 updatedAt: new Date().toISOString()
@@ -5853,7 +6116,7 @@ window.CriptaApp.onPageReady("character", async function () {
 
         if (action === 'remove') {
             if (!window.confirm(`Rimuovere "${entry.creatureName || entry.name || 'questa forma'}"?`)) return;
-            await savePlayerTransformationList(list.filter((item) => item.id !== id));
+            await savePlayerTransformationList(subject, list.filter((item) => item.id !== id));
         }
     }
 
@@ -5902,22 +6165,24 @@ window.CriptaApp.onPageReady("character", async function () {
         return next;
     }
 
-    async function savePlayerTransformationList(characterEntries) {
+    async function savePlayerTransformationList(subject, characterEntries) {
         const token = readAuthToken();
         if (!token) {
             alert('Login richiesto per salvare i token trasformazione.');
             return;
         }
-        const card = document.getElementById('player-transformations-card');
+        const subjectId = String(subject?.id || '');
+        const card = container.querySelector(`[data-transformation-subject-id="${CSS.escape(subjectId)}"]`);
         card?.setAttribute('data-saving', 'true');
         try {
             const loaded = await loadTransformationsDocumentForSave();
-            const characterId = String(currentCharacter?.id || '');
-            const accountId = String(currentCharacter?.accountId || '');
-            const nextOwnEntries = characterEntries.map((entry) => normalizeTransformationEntry(entry, currentCharacter));
+            const characterId = String(subject?.id || '');
+            const accountId = String(subject?.accountId || '');
+            const nextOwnEntries = characterEntries.map((entry) => normalizeTransformationEntry(entry, subject));
             const otherEntries = (Array.isArray(loaded.data) ? loaded.data : []).filter((entry) => {
-                return String(entry?.characterId || '') !== characterId
-                    && (!accountId || String(entry?.ownerAccountId || '') !== accountId);
+                if (String(entry?.characterId || '') === characterId) return false;
+                if (!subject?.isCompanion && accountId && String(entry?.ownerAccountId || '') === accountId) return false;
+                return true;
             });
             const nextData = [...otherEntries, ...nextOwnEntries];
             const response = await fetch(getTransformationsApiUrl(), {
@@ -5936,8 +6201,8 @@ window.CriptaApp.onPageReady("character", async function () {
             if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
             transformationsMemoryCache = null;
             currentTransformations = await loadTransformationsData({ force: true });
-            const target = document.getElementById('player-transformations-card');
-            if (target) target.innerHTML = renderPlayerTransformationsHtml(currentCharacter);
+            const target = container.querySelector(`[data-transformation-subject-id="${CSS.escape(subjectId)}"]`);
+            if (target) target.innerHTML = renderPlayerTransformationsHtml(subject);
         } catch (error) {
             console.error('Salvataggio trasformazioni fallito:', error);
             alert(`Salvataggio trasformazioni fallito: ${error?.message || error}`);
@@ -5970,7 +6235,7 @@ window.CriptaApp.onPageReady("character", async function () {
         return { data: Array.isArray(data) ? data : [], version: 0, source: 'static' };
     }
 
-    async function uploadTransformationTokenImage(file, entry) {
+    async function uploadTransformationTokenImage(file, entry, subject = currentCharacter) {
         const token = readAuthToken();
         if (!token) {
             alert('Login richiesto per caricare immagini.');
@@ -5978,7 +6243,8 @@ window.CriptaApp.onPageReady("character", async function () {
         }
         try {
             const blob = /\.webp$/i.test(file.name) ? file : await convertInlineImageFileToWebpBlob(file);
-            const folder = `transformations/${slugify(currentCharacter?.id || currentCharacter?.accountId || 'player')}`;
+            const folderRoot = subject?.isCompanion ? 'companion-transformations' : 'transformations';
+            const folder = `${folderRoot}/${slugify(subject?.id || subject?.accountId || 'player')}`;
             const fileName = `${slugify(entry.creatureName || entry.name || entry.id || 'forma')}.webp`;
             const form = new FormData();
             form.set('folder', folder);

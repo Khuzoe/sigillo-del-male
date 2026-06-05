@@ -377,9 +377,9 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         const tokenFallbackPath = images.avatar || images.avatarFallback;
         const tokenFallback = resolveImageUrl(tokenFallbackPath);
         const listImage = images.token || images.avatar;
-        const listHoverImage = images.tokenHover || images.token || images.avatar;
+        const listHoverImage = images.tokenHover || images.hover || images.token || images.avatar;
         const listAdjust = images.tokenAdjust || images.avatarAdjust;
-        const listHoverAdjust = images.tokenHoverAdjust || images.tokenAdjust || images.avatarAdjust;
+        const listHoverAdjust = images.tokenHoverAdjust || images.hoverAdjust || images.tokenAdjust || images.avatarAdjust;
         const campaignId = getCurrentCampaignId();
         const campaignQuery = campaignId && campaignId !== "cripta-di-sangue"
             ? `&campaign=${encodeURIComponent(campaignId)}`
