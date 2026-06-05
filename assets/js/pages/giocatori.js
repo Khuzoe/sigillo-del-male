@@ -328,8 +328,12 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         const syncInfo = inventorySnapshot?.savedAt || inventorySnapshot?.generatedAt
             ? `<span class="player-sync-stamp" title="Ultimo sync Foundry"><i class="fas fa-rotate" aria-hidden="true"></i> ${escapeHtml(formatDateTime(inventorySnapshot.savedAt || inventorySnapshot.generatedAt))}</span>`
             : "";
-        const avatarFallback = resolveImageUrl(images.avatarFallback);
-        const hoverFallback = resolveImageUrl(images.hoverFallback);
+        const tokenFallbackPath = images.avatar || images.avatarFallback;
+        const tokenFallback = resolveImageUrl(tokenFallbackPath);
+        const listImage = images.token || images.avatar;
+        const listHoverImage = images.tokenHover || images.token || images.avatar;
+        const listAdjust = images.tokenAdjust || images.avatarAdjust;
+        const listHoverAdjust = images.tokenHoverAdjust || images.tokenAdjust || images.avatarAdjust;
         const campaignId = getCurrentCampaignId();
         const campaignQuery = campaignId && campaignId !== "cripta-di-sangue"
             ? `&campaign=${encodeURIComponent(campaignId)}`
@@ -338,8 +342,8 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         return `
             <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player${campaignQuery}" class="${cardClasses}">
                 <div class="npc-avatar-container">
-                    <img src="${escapeHtml(resolveImageUrl(images.avatar))}" ${avatarFallback ? `data-fallback-src="${escapeHtml(avatarFallback)}"` : ""} alt="${escapeHtml(player.name)}" class="npc-img-pop img-main" style="${buildImageStyle("avatar", images.avatarAdjust, images.hoverAdjust)}" onerror="${buildFallbackImageErrorHandler(images.avatarFallback, player.name)}">
-                    <img src="${escapeHtml(resolveImageUrl(images.hover))}" ${hoverFallback ? `data-fallback-src="${escapeHtml(hoverFallback)}"` : ""} alt="${escapeHtml(player.name)} Full" class="npc-img-pop img-hover" style="${buildImageStyle("hover", images.hoverAdjust, images.avatarAdjust)}" onerror="${buildFallbackImageErrorHandler(images.hoverFallback, player.name, true)}">
+                    <img src="${escapeHtml(resolveImageUrl(listImage))}" ${tokenFallback ? `data-fallback-src="${escapeHtml(tokenFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-main" style="${buildImageStyle("avatar", listAdjust, listHoverAdjust)}" onerror="${buildFallbackImageErrorHandler(tokenFallbackPath, player.name)}">
+                    <img src="${escapeHtml(resolveImageUrl(listHoverImage))}" ${tokenFallback ? `data-fallback-src="${escapeHtml(tokenFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-hover" style="${buildImageStyle("hover", listHoverAdjust, listAdjust)}" onerror="${buildFallbackImageErrorHandler(tokenFallbackPath, player.name, true)}">
                     ${renderCompanionBadge(companions)}
                 </div>
                 <div class="npc-info">
