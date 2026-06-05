@@ -1,62 +1,19 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <title>Albero Abilità | Cripta di Sangue</title>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-
-    <link rel="stylesheet" href="../assets/css/abyssal.css">
-    <link rel="stylesheet" href="../assets/css/pages/alberi.css" data-page-style>
+    <title>Alberi abilita | Reindirizzamento</title>
+    <meta http-equiv="refresh" content="0; url=giocatori.html">
 </head>
 <body>
-
-    <nav class="sidebar" id="sidebar-container"></nav>
-
-    <main class="main-content">
-        <header class="hero-mini">
-            <div class="hero-title">
-                <h1>Maestrie e Poteri</h1>
-                <div class="subtitle">L'evoluzione dell'anima</div>
-            </div>
-        </header>
-
-        <div class="container">
-            
-            <div class="skill-nav">
-                <div class="skill-tab active" onclick="switchCharacter('apothecary')">Apothecary</div>
-                <div class="skill-tab" onclick="switchCharacter('garun')">Ga'Run</div>
-                <div class="skill-tab" onclick="switchCharacter('randra')">Ran'Dra</div>
-                <div class="skill-tab" onclick="switchCharacter('valdor')">Valdor</div>
-            </div>
-
-            <div class="skill-layout">
-                
-                <div class="tree-column">
-                    <div class="tree-wrapper" id="tree-container">
-                        <svg class="tree-connections" id="tree-lines"></svg>
-                        </div>
-                </div>
-
-                <div class="info-column">
-                    <div class="info-card" id="info-panel">
-                        <div class="empty-state">
-                            <i class="fas fa-hand-pointer"></i>
-                            <p>Caricamento dati...</p>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </main>
-
-    <script src="../assets/js/layout.js"></script>
-    
-    <script src="../assets/js/pages/alberi.js"></script>
+    <script>
+        const target = new URL('giocatori.html', window.location.href);
+        const current = new URL(window.location.href);
+        current.searchParams.forEach((value, key) => target.searchParams.set(key, value));
+        window.location.replace(target.toString());
+    </script>
+    <p>Gli alberi abilita sono stati spostati nelle schede dei giocatori.</p>
+    <p><a href="giocatori.html">Vai ai giocatori</a></p>
 </body>
 </html>

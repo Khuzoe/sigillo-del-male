@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <title>Asset Sync | Cripta di Sangue</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="../assets/css/abyssal.css">
+    <link rel="stylesheet" href="../assets/css/pages/asset-sync.css">
+</head>
+
+<body class="page-asset-sync">
+    <nav class="sidebar" id="sidebar-container"></nav>
+
+    <main class="main-content">
+        <header class="hero-mini">
+            <div class="hero-title">
+                <h1>Asset Sync</h1>
+                <div class="subtitle">Registro dei collegamenti tra sito, R2 e Foundry</div>
+            </div>
+        </header>
+
+        <div class="container">
+            <section class="asset-sync-shell" aria-labelledby="asset-sync-title">
+                <div class="asset-sync-heading">
+                    <div>
+                        <h2 id="asset-sync-title">Stato sincronizzazione</h2>
+                        <p>Vista diagnostica in sola lettura. Non applica modifiche a Foundry.</p>
+                    </div>
+                    <button type="button" id="asset-sync-refresh" class="asset-sync-button">
+                        <i class="fas fa-rotate" aria-hidden="true"></i>
+                        <span>Aggiorna</span>
+                    </button>
+                </div>
+
+                <div id="asset-sync-summary" class="asset-sync-summary"></div>
+
+                <div class="asset-sync-filters" aria-label="Filtri asset">
+                    <label>
+                        <span>Stato</span>
+                        <select id="asset-sync-status">
+                            <option value="">Tutti</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Tipo</span>
+                        <select id="asset-sync-type">
+                            <option value="">Tutti</option>
+                        </select>
+                    </label>
+                    <label class="asset-sync-search">
+                        <span>Cerca</span>
+                        <input id="asset-sync-search" type="search" placeholder="Nome, path, actor, item..." autocomplete="off">
+                    </label>
+                </div>
+
+                <div id="asset-sync-table" class="asset-sync-table-wrap">
+                    <p class="asset-sync-state">Caricamento registry...</p>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script src="../assets/js/spoiler-policy.js"></script>
+    <script src="../assets/js/layout.js"></script>
+    <script src="../assets/js/pages/asset-sync.js"></script>
+</body>
+
+</html>

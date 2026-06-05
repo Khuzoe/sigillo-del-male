@@ -177,8 +177,9 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         const tokenPath = companion?.token?.img || "";
         const avatarVariant = getAvatarVariantPath(tokenPath);
         return Array.from(new Set([
-            resolvePublicImageUrl(avatarVariant),
+            resolvePublicImageUrl(tokenPath),
             resolvePublicImageUrl(companion?.img),
+            resolvePublicImageUrl(avatarVariant),
             resolvePublicImageUrl(tokenPath)
         ].filter(Boolean)));
     }

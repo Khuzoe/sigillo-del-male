@@ -11,7 +11,8 @@ const EMBED_SCRIPT_WARMUP_PATHS = [
     "assets/js/pages/bestiario.js",
     "assets/js/pages/oggetti.js",
     "assets/js/pages/appunti.js",
-    "assets/js/pages/famiglia-von-t.js"
+    "assets/js/pages/famiglia-von-t.js",
+    "assets/js/pages/asset-sync.js"
 ];
 const prefetchedUrls = new Set();
 const loadedSpaScripts = new Set();
