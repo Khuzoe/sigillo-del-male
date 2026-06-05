@@ -43,16 +43,26 @@ window.CriptaApp.onPageReady("giocatori", async function() {
     function getSyncedPlayerImagePath(player, variant = "avatar") {
         const playerId = slugify(player?.id || player?.name || "personaggio");
         const campaignId = getCurrentCampaignId();
-        const suffix = variant === "token" ? "-token" : "";
+        const suffix = variant === "token" ? "-token" : "-avatar";
         const folder = campaignId === "cripta-di-sangue" ? "players" : `campaigns/${campaignId}/players`;
         return `media/${folder}/${playerId}${suffix}.webp`;
+    }
+
+    function getLegacySyncedPlayerAvatarPath(player) {
+        const playerId = slugify(player?.id || player?.name || "personaggio");
+        const campaignId = getCurrentCampaignId();
+        const folder = campaignId === "cripta-di-sangue" ? "players" : `campaigns/${campaignId}/players`;
+        return `media/${folder}/${playerId}.webp`;
     }
 
     function getPlayerImages(player) {
         const images = { ...(player?.images || {}) };
         const fallbackAvatar = getSyncedPlayerImagePath(player, "avatar");
+        const legacyAvatar = getLegacySyncedPlayerAvatarPath(player);
         if (!images.avatar) images.avatar = fallbackAvatar;
+        if (!images.avatarFallback && images.avatar === fallbackAvatar) images.avatarFallback = legacyAvatar;
         if (!images.hover) images.hover = images.avatar;
+        if (!images.hoverFallback && images.hover === fallbackAvatar) images.hoverFallback = legacyAvatar;
         if (!images.portrait) images.portrait = images.avatar;
         if (!images.token) images.token = getSyncedPlayerImagePath(player, "token");
         return images;
@@ -100,6 +110,16 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         if (value.startsWith("campaigns/")) return `../${value}`;
         if (value.startsWith("img/")) return window.CriptaApp.urls.api(value);
         return "";
+    }
+
+    function buildFallbackImageErrorHandler(fallbackPath, placeholderText, hideOnFailure = false) {
+        const fallbackUrl = resolveImageUrl(fallbackPath);
+        const placeholderUrl = `https://placehold.co/200x200/1a1a1a/gold?text=${encodeURIComponent(String(placeholderText || "?").charAt(0))}`;
+        const failureAction = hideOnFailure ? "this.style.display='none';" : `this.src='${placeholderUrl}';`;
+        if (fallbackUrl) {
+            return `if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{${failureAction}}`;
+        }
+        return failureAction;
     }
 
     function getAvatarVariantPath(path) {
@@ -308,12 +328,18 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         const syncInfo = inventorySnapshot?.savedAt || inventorySnapshot?.generatedAt
             ? `<span class="player-sync-stamp" title="Ultimo sync Foundry"><i class="fas fa-rotate" aria-hidden="true"></i> ${escapeHtml(formatDateTime(inventorySnapshot.savedAt || inventorySnapshot.generatedAt))}</span>`
             : "";
+        const avatarFallback = resolveImageUrl(images.avatarFallback);
+        const hoverFallback = resolveImageUrl(images.hoverFallback);
+        const campaignId = getCurrentCampaignId();
+        const campaignQuery = campaignId && campaignId !== "cripta-di-sangue"
+            ? `&campaign=${encodeURIComponent(campaignId)}`
+            : "";
 
         return `
-            <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player" class="${cardClasses}">
+            <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player${campaignQuery}" class="${cardClasses}">
                 <div class="npc-avatar-container">
-                    <img src="${escapeHtml(resolveImageUrl(images.avatar))}" alt="${escapeHtml(player.name)}" class="npc-img-pop img-main" style="${buildImageStyle("avatar", images.avatarAdjust, images.hoverAdjust)}" onerror="this.src='https://placehold.co/200x200/1a1a1a/gold?text=${encodeURIComponent(String(player.name || "?").charAt(0))}'">
-                    <img src="${escapeHtml(resolveImageUrl(images.hover))}" alt="${escapeHtml(player.name)} Full" class="npc-img-pop img-hover" style="${buildImageStyle("hover", images.hoverAdjust, images.avatarAdjust)}" onerror="this.style.display='none'">
+                    <img src="${escapeHtml(resolveImageUrl(images.avatar))}" ${avatarFallback ? `data-fallback-src="${escapeHtml(avatarFallback)}"` : ""} alt="${escapeHtml(player.name)}" class="npc-img-pop img-main" style="${buildImageStyle("avatar", images.avatarAdjust, images.hoverAdjust)}" onerror="${buildFallbackImageErrorHandler(images.avatarFallback, player.name)}">
+                    <img src="${escapeHtml(resolveImageUrl(images.hover))}" ${hoverFallback ? `data-fallback-src="${escapeHtml(hoverFallback)}"` : ""} alt="${escapeHtml(player.name)} Full" class="npc-img-pop img-hover" style="${buildImageStyle("hover", images.hoverAdjust, images.avatarAdjust)}" onerror="${buildFallbackImageErrorHandler(images.hoverFallback, player.name, true)}">
                     ${renderCompanionBadge(companions)}
                 </div>
                 <div class="npc-info">

@@ -622,19 +622,30 @@ async function resizeImageFileToWebpBlobShared(file, maxSize = 1600, quality = 0
 function getSyncedPlayerImagePath(character, variant = 'avatar') {
     const characterId = slugify(character?.id || character?.name || 'personaggio');
     const campaignId = getCurrentCampaignId();
-    const suffix = variant === 'token' ? '-token' : '';
+    const suffix = variant === 'token' ? '-token' : '-avatar';
     const folder = campaignId === 'cripta-di-sangue' ? 'players' : `campaigns/${campaignId}/players`;
     return `media/${folder}/${characterId}${suffix}.webp`;
+}
+
+function getLegacySyncedPlayerAvatarPath(character) {
+    const characterId = slugify(character?.id || character?.name || 'personaggio');
+    const campaignId = getCurrentCampaignId();
+    const folder = campaignId === 'cripta-di-sangue' ? 'players' : `campaigns/${campaignId}/players`;
+    return `media/${folder}/${characterId}.webp`;
 }
 
 function applySyncedPlayerImageFallback(character) {
     const normalized = { ...character };
     const images = { ...(normalized.images || {}) };
     const avatarPath = getSyncedPlayerImagePath(normalized, 'avatar');
+    const legacyAvatarPath = getLegacySyncedPlayerAvatarPath(normalized);
     const tokenPath = getSyncedPlayerImagePath(normalized, 'token');
     if (!images.avatar) images.avatar = avatarPath;
+    if (!images.avatarFallback && images.avatar === avatarPath) images.avatarFallback = legacyAvatarPath;
     if (!images.portrait) images.portrait = images.avatar;
+    if (!images.portraitFallback && images.portrait === avatarPath) images.portraitFallback = legacyAvatarPath;
     if (!images.hover) images.hover = images.avatar;
+    if (!images.hoverFallback && images.hover === avatarPath) images.hoverFallback = legacyAvatarPath;
     if (!images.token) images.token = tokenPath;
     normalized.images = images;
     return normalized;
@@ -3079,6 +3090,14 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
 
         const icon = resolveSkillAssetPath(node.icon);
         const editable = editMode && canEditTree;
+        const richTextToolbar = editable ? `
+                    <div class="player-skill-rich-toolbar" role="toolbar" aria-label="Formato descrizione abilita">
+                        <button type="button" data-skill-rich-command="bold" title="Grassetto"><i class="fas fa-bold" aria-hidden="true"></i></button>
+                        <button type="button" data-skill-rich-command="italic" title="Corsivo"><i class="fas fa-italic" aria-hidden="true"></i></button>
+                        <button type="button" data-skill-rich-command="insertUnorderedList" title="Elenco puntato"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
+                        <button type="button" data-skill-rich-command="insertOrderedList" title="Elenco numerato"><i class="fas fa-list-ol" aria-hidden="true"></i></button>
+                    </div>
+        ` : '';
         infoPanel.innerHTML = `
                     <header class="player-skill-info-header">
                         ${icon ? `<img src="${icon}" alt="${escapeHtml(node.title || 'Abilita')}" class="player-skill-info-icon">` : ''}
@@ -3086,6 +3105,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     </header>
                     <div class="player-skill-info-state is-${escapeHtml(node.state || 'locked')}">${escapeHtml(node.state === 'unlocked' ? 'Sbloccata' : node.state === 'unlockable' ? 'Disponibile' : 'Bloccata')}</div>
                     ${editable || node.flavor ? `<p class="player-skill-info-flavor" ${editable ? 'contenteditable="true" data-skill-preview-field="flavor" spellcheck="true"' : ''}>${escapeHtml(node.flavor || '')}</p>` : ''}
+                    ${richTextToolbar}
                     <div class="player-skill-info-desc ${editable ? 'is-editable' : ''}" ${editable ? 'contenteditable="true" data-skill-preview-field="desc" spellcheck="true"' : ''}>${node.desc || '<p>Nessun dettaglio disponibile.</p>'}</div>
                 `;
     };
@@ -3769,6 +3789,24 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         } else if (field === 'title' || field === 'flavor') {
             const value = target.innerText.trim();
             node[field] = value;
+        }
+    });
+
+    infoPanel.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-skill-rich-command]');
+        if (!editMode || !canEditTree || !button) return;
+        event.preventDefault();
+        const node = readEditorNode();
+        const descEditor = infoPanel.querySelector('[data-skill-preview-field="desc"]');
+        if (!node || !(descEditor instanceof HTMLElement)) return;
+        descEditor.focus();
+        document.execCommand(button.dataset.skillRichCommand, false, null);
+        node.desc = normalizeSkillTreeEditableHtml(descEditor);
+    });
+
+    infoPanel.addEventListener('mousedown', (event) => {
+        if (event.target.closest('[data-skill-rich-command]')) {
+            event.preventDefault();
         }
     });
 
@@ -6327,10 +6365,14 @@ window.CriptaApp.onPageReady("character", async function () {
                         </div>
                     `
             : '';
+        const portraitFallback = resolveImagePath(images.portraitFallback || images.avatarFallback || '');
+        const portraitErrorHandler = portraitFallback
+            ? "if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{this.src='https://placehold.co/400x500/111/333?text=No+Image';}"
+            : "this.src='https://placehold.co/400x500/111/333?text=No+Image'";
 
         return `
                     <div class="image-card">
-                        <img src="${resolveImagePath(images.portrait || images.avatar || images.hover || '')}" class="char-portrait" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
+                        <img src="${resolveImagePath(images.portrait || images.avatar || images.hover || '')}" ${portraitFallback ? `data-fallback-src="${escapeHtml(portraitFallback)}"` : ''} class="char-portrait" onerror="${portraitErrorHandler}">
                         ${playerMediaActionsHtml}
                         <div class="stats-grid">${statsHtml}</div>
                         ${causeOfDeathHtml}
