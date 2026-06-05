@@ -158,6 +158,12 @@ window.CriptaApp.onPageReady("giocatori", async function() {
     function findPlayerActor(inventorySnapshot, player) {
         const actors = Array.isArray(inventorySnapshot?.actors) ? inventorySnapshot.actors : [];
         if (!actors.length) return null;
+        const playerId = normalizeText(player.id);
+        const byCharacterId = actors.find((actor) => {
+            const ownerCharacterId = normalizeText(actor.ownerCharacterId || actor.characterId);
+            return ownerCharacterId && ownerCharacterId === playerId;
+        });
+        if (byCharacterId) return byCharacterId;
 
         const keys = new Set([
             normalizeText(player.name),
@@ -193,10 +199,39 @@ window.CriptaApp.onPageReady("giocatori", async function() {
             .sort((left, right) => String(left.displayName || left.name || "").localeCompare(String(right.displayName || right.name || ""), "it"));
     }
 
+    function buildReadableAssetSlug(...parts) {
+        const seen = new Set();
+        return parts
+            .map((part) => slugify(part || ""))
+            .filter(Boolean)
+            .filter((part) => {
+                if (seen.has(part)) return false;
+                seen.add(part);
+                return true;
+            })
+            .join("-");
+    }
+
+    function getCompanionReadableEntityId(ownerCharacterId, companion) {
+        const companionActorId = companion?.actorId || companion?.id || "";
+        const companionName = companion?.foundryName || companion?.name || companion?.displayName || "companion";
+        return buildReadableAssetSlug(ownerCharacterId || "personaggio", companionName, companionActorId);
+    }
+
     function resolveCompanionImageUrl(companion) {
         const tokenPath = companion?.token?.img || "";
         const avatarVariant = getAvatarVariantPath(tokenPath);
+        const ownerCharacterId = slugify(companion?.ownerCharacterId || companion?.characterId || "");
+        const syncedEntityId = ownerCharacterId ? getCompanionReadableEntityId(ownerCharacterId, companion) : "";
+        const campaignId = getCurrentCampaignId();
+        const companionFolder = campaignId === "cripta-di-sangue"
+            ? `companions/${ownerCharacterId}`
+            : `campaigns/${campaignId}/companions/${ownerCharacterId}`;
+        const syncedToken = syncedEntityId ? `media/${companionFolder}/${syncedEntityId}-token.webp` : "";
+        const syncedAvatar = syncedEntityId ? `media/${companionFolder}/${syncedEntityId}-avatar.webp` : "";
         return Array.from(new Set([
+            resolvePublicImageUrl(syncedToken),
+            resolvePublicImageUrl(syncedAvatar),
             resolvePublicImageUrl(tokenPath),
             resolvePublicImageUrl(companion?.img),
             resolvePublicImageUrl(avatarVariant),

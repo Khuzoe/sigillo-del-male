@@ -968,6 +968,13 @@ function findPlayerActor(payload, character) {
     const actors = Array.isArray(payload && payload.actors) ? payload.actors : [];
     if (!actors.length || !character) return null;
 
+    const characterId = normalizeText(character.id);
+    const byCharacterId = actors.find((actor) => {
+        const ownerCharacterId = normalizeText(actor.ownerCharacterId || actor.characterId);
+        return ownerCharacterId && ownerCharacterId === characterId;
+    });
+    if (byCharacterId) return byCharacterId;
+
     const nameKeys = new Set();
     nameKeys.add(normalizeText(character.name));
     if (character.inventory_api_name) {
@@ -1102,10 +1109,39 @@ function getInventoryEntryIconPath(entry, wikiItem, itemOverride) {
     return entry?.img || '';
 }
 
+function buildReadableAssetSlug(...parts) {
+    const seen = new Set();
+    return parts
+        .map((part) => slugify(part || ''))
+        .filter(Boolean)
+        .filter((part) => {
+            if (seen.has(part)) return false;
+            seen.add(part);
+            return true;
+        })
+        .join('-');
+}
+
+function getCompanionReadableEntityId(ownerCharacterId, companion) {
+    const companionActorId = companion?.actorId || companion?.id || '';
+    const companionName = companion?.foundryName || companion?.name || companion?.displayName || 'companion';
+    return buildReadableAssetSlug(ownerCharacterId || 'personaggio', companionName, companionActorId);
+}
+
 function getCompanionAvatarImageCandidates(companion) {
     const tokenPath = companion?.token?.img || '';
     const avatarVariant = getAvatarVariantPath(tokenPath);
+    const ownerCharacterId = slugify(companion?.ownerCharacterId || companion?.characterId || '');
+    const syncedEntityId = ownerCharacterId ? getCompanionReadableEntityId(ownerCharacterId, companion) : '';
+    const campaignId = getCurrentCampaignId();
+    const companionFolder = campaignId === 'cripta-di-sangue'
+        ? `companions/${ownerCharacterId}`
+        : `campaigns/${campaignId}/companions/${ownerCharacterId}`;
+    const syncedAvatar = syncedEntityId ? `media/${companionFolder}/${syncedEntityId}-avatar.webp` : '';
+    const syncedToken = syncedEntityId ? `media/${companionFolder}/${syncedEntityId}-token.webp` : '';
     return Array.from(new Set([
+        resolveSyncedActorImagePath(syncedAvatar),
+        resolveSyncedActorImagePath(syncedToken),
         resolveSyncedActorImagePath(companion?.img),
         resolveSyncedActorImagePath(avatarVariant),
         resolveSyncedActorImagePath(tokenPath)
@@ -1114,7 +1150,10 @@ function getCompanionAvatarImageCandidates(companion) {
 
 function getCompanionMediaOverrideIdentity(character, companion) {
     const companionName = companion?.foundryName || companion?.name || companion?.displayName || companion?.id || 'companion';
-    const entityId = slugify(character?.id ? `${character.id}-${companionName}` : companionName);
+    const companionActorId = companion?.actorId || companion?.id || '';
+    const entityId = character?.id
+        ? getCompanionReadableEntityId(character.id, companion)
+        : buildReadableAssetSlug(companionName, companionActorId);
     return {
         id: getMediaOverrideId('companion', entityId),
         entityType: 'companion',
@@ -1124,7 +1163,7 @@ function getCompanionMediaOverrideIdentity(character, companion) {
         ownerAccountId: character?.accountId || '',
         name: companion?.displayName || companion?.name || 'Companion',
         foundryName: companion?.foundryName || companion?.name || '',
-        actorId: companion?.id || ''
+        actorId: companionActorId
     };
 }
 
@@ -2773,24 +2812,10 @@ function resolvePlayerSkillTreeEntry(characterOrId, allSkillTrees) {
 function resolvePlayerSkillTreeEntries(characterOrId, allSkillTrees) {
     if (!allSkillTrees || typeof allSkillTrees !== 'object') return [];
     const character = typeof characterOrId === 'object' && characterOrId !== null ? characterOrId : { id: characterOrId };
-    const candidates = [
-        character.id,
-        character.accountId,
-        character.discordId,
-        character.name,
-        character.characterName,
-        character.playerName,
-        character.foundryName
-    ];
+    const characterId = normalizeText(character.id || character.characterId || '');
+    const characterSlug = slugify(character.id || character.characterId || '');
+    if (!characterId) return [];
 
-    Object.entries(PLAYER_NAME_ALIASES).forEach(([treeKey, aliases]) => {
-        const normalizedCandidates = candidates.map(normalizeText);
-        if (aliases.some((alias) => normalizedCandidates.includes(normalizeText(alias)))) {
-            candidates.push(treeKey);
-        }
-    });
-
-    const keysByNormalized = new Map(Object.keys(allSkillTrees).map((key) => [normalizeText(key), key]));
     const results = [];
     const used = new Set();
     const addEntry = (key) => {
@@ -2799,37 +2824,29 @@ function resolvePlayerSkillTreeEntries(characterOrId, allSkillTrees) {
         results.push({ key, tree: allSkillTrees[key] });
     };
 
-    for (const candidate of candidates) {
-        const normalized = normalizeText(candidate);
-        if (!normalized) continue;
-        const mappedKey = PLAYER_SKILL_TREE_KEYS[slugify(candidate)] || PLAYER_SKILL_TREE_KEYS[normalized] || candidate;
-        const directKey = allSkillTrees[mappedKey] ? mappedKey : keysByNormalized.get(normalizeText(mappedKey));
-        if (directKey && allSkillTrees[directKey]) addEntry(directKey);
-        const normalizedKey = keysByNormalized.get(normalized);
-        if (normalizedKey && allSkillTrees[normalizedKey]) addEntry(normalizedKey);
-    }
-
-    const normalizedCandidates = new Set(candidates.map(normalizeText).filter(Boolean));
     Object.entries(allSkillTrees).forEach(([key, tree]) => {
         if (!tree || typeof tree !== 'object') return;
         const normalizedKey = normalizeText(key);
         const owners = [
             tree.characterId,
             tree.ownerCharacterId,
-            tree.accountId,
-            tree.playerId,
             ...(Array.isArray(tree.characterIds) ? tree.characterIds : []),
             ...(Array.isArray(tree.ownerCharacterIds) ? tree.ownerCharacterIds : [])
         ].map(normalizeText).filter(Boolean);
-        if (owners.some((owner) => normalizedCandidates.has(owner))) {
+        if (owners.length) {
+            if (owners.includes(characterId)) addEntry(key);
+            return;
+        }
+
+        const mappedLegacyKey = PLAYER_SKILL_TREE_KEYS[slugify(character.id || '')] || PLAYER_SKILL_TREE_KEYS[characterId] || character.id;
+        const normalizedMappedLegacyKey = normalizeText(mappedLegacyKey);
+        if (normalizedKey === characterId || (normalizedMappedLegacyKey && normalizedKey === normalizedMappedLegacyKey)) {
             addEntry(key);
             return;
         }
-        for (const candidate of normalizedCandidates) {
-            if (normalizedKey.startsWith(`${candidate}-`) || normalizedKey.startsWith(`${candidate}_`)) {
-                addEntry(key);
-                return;
-            }
+        const keySlug = slugify(key);
+        if (characterSlug && (keySlug.startsWith(`${characterSlug}-`) || keySlug.startsWith(`${characterSlug}_`))) {
+            addEntry(key);
         }
     });
 
