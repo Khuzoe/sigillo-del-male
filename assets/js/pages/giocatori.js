@@ -43,15 +43,23 @@ window.CriptaApp.onPageReady("giocatori", async function() {
     function getSyncedPlayerImagePath(player, variant = "avatar") {
         const playerId = slugify(player?.id || player?.name || "personaggio");
         const campaignId = getCurrentCampaignId();
-        const suffix = variant === "token" ? "-token" : "-avatar";
+        const suffix = variant === "token"
+            ? "-token"
+            : variant === "hover"
+                ? "-hover"
+                : variant === "idle" || variant === "card"
+                    ? "-idle"
+                    : "-avatar";
         return `media/campaigns/${campaignId}/players/${playerId}${suffix}.webp`;
     }
 
     function getLegacySyncedPlayerImagePath(player, variant = "avatar") {
         const playerId = slugify(player?.id || player?.name || "personaggio");
         const campaignId = getCurrentCampaignId();
-        const suffix = variant === "token" ? "-token" : "-avatar";
         if (campaignId !== "cripta-di-sangue") return "";
+        if (variant === "idle" || variant === "card") return `media/players/${playerId}.webp`;
+        if (variant === "hover") return `media/players/${playerId}_animation.webp`;
+        const suffix = variant === "token" ? "-token" : "-avatar";
         return `media/players/${playerId}${suffix}.webp`;
     }
 
@@ -65,15 +73,51 @@ window.CriptaApp.onPageReady("giocatori", async function() {
     function getPlayerImages(player) {
         const images = { ...(player?.images || {}) };
         const fallbackAvatar = getSyncedPlayerImagePath(player, "avatar");
+        const syncedIdle = getSyncedPlayerImagePath(player, "idle");
+        const syncedHover = getSyncedPlayerImagePath(player, "hover");
+        const legacyIdle = getLegacySyncedPlayerImagePath(player, "idle") || getLegacySyncedPlayerAvatarPath(player);
+        const legacyHover = getLegacySyncedPlayerImagePath(player, "hover");
         const legacyAvatar = getLegacySyncedPlayerAvatarPath(player);
+        images.idle = images.idle || images.card || images.list || images.showcase || syncedIdle;
+        if (!images.idleFallback && images.idle === syncedIdle) images.idleFallback = legacyIdle;
+        images.cardHover = images.cardHover || images.listHover || images.showcaseHover || syncedHover;
+        if (!images.cardHoverFallback && images.cardHover === syncedHover) images.cardHoverFallback = legacyHover || legacyIdle;
         if (!images.avatar) images.avatar = fallbackAvatar;
         if (!images.avatarFallback && images.avatar === fallbackAvatar) images.avatarFallback = legacyAvatar;
+        if (getCurrentCampaignId() === "cripta-di-sangue" && images.hover && images.hover.startsWith("media/players/")) {
+            images.hoverFallback = images.hover;
+            images.hover = syncedHover;
+        }
         if (!images.hover) images.hover = images.avatar;
         if (!images.hoverFallback && images.hover === fallbackAvatar) images.hoverFallback = legacyAvatar;
         if (!images.portrait) images.portrait = images.avatar;
         if (!images.token) images.token = getSyncedPlayerImagePath(player, "token");
         if (!images.tokenFallback && images.token === getSyncedPlayerImagePath(player, "token")) images.tokenFallback = getLegacySyncedPlayerImagePath(player, "token");
         return images;
+    }
+
+    async function resolvePlayerCardImageAvailability(players) {
+        const list = Array.isArray(players) ? players : [];
+        await Promise.all(list.map(async (player) => {
+            const images = getPlayerImages(player);
+            const cardUrl = resolveImageUrl(images.idle);
+            const hoverUrl = resolveImageUrl(images.cardHover);
+            const [hasCard, hasHover] = await Promise.all([
+                imageExists(cardUrl),
+                imageExists(hoverUrl)
+            ]);
+            player._hasDedicatedCardImages = Boolean(hasCard && hasHover);
+        }));
+    }
+
+    function imageExists(url) {
+        if (!url) return Promise.resolve(false);
+        return new Promise((resolve) => {
+            const image = new Image();
+            image.onload = () => resolve(true);
+            image.onerror = () => resolve(false);
+            image.src = url;
+        });
     }
 
     function normalizeImageAdjust(adjust) {
@@ -375,21 +419,27 @@ window.CriptaApp.onPageReady("giocatori", async function() {
             ? `<span class="player-sync-stamp" title="Ultimo sync Foundry"><i class="fas fa-rotate" aria-hidden="true"></i> ${escapeHtml(formatDateTime(inventorySnapshot.savedAt || inventorySnapshot.generatedAt))}</span>`
             : "";
         const campaignId = getCurrentCampaignId();
-        const useLegacyCriptaAnimation = campaignId === "cripta-di-sangue";
-        const tokenFallbackPath = images.avatar || images.avatarFallback;
-        const tokenFallback = resolveImageUrl(tokenFallbackPath);
-        const listImage = useLegacyCriptaAnimation
-            ? (images.avatar || images.token)
-            : (images.token || images.avatar);
-        const listHoverImage = useLegacyCriptaAnimation
-            ? (images.hover || images.tokenHover || images.avatar || images.token)
-            : (images.tokenHover || images.hover || images.token || images.avatar);
-        const listAdjust = useLegacyCriptaAnimation
-            ? (images.avatarAdjust || images.tokenAdjust)
-            : (images.tokenAdjust || images.avatarAdjust);
-        const listHoverAdjust = useLegacyCriptaAnimation
-            ? (images.hoverAdjust || images.tokenHoverAdjust || images.avatarAdjust || images.tokenAdjust)
-            : (images.tokenHoverAdjust || images.hoverAdjust || images.tokenAdjust || images.avatarAdjust);
+        const hasPlayerCardAnimation = player._hasDedicatedCardImages === true
+            && images.idle
+            && images.cardHover
+            && images.cardHover !== images.idle;
+        const tokenImage = images.token || "";
+        const listImage = hasPlayerCardAnimation
+            ? images.idle
+            : tokenImage;
+        const listHoverImage = hasPlayerCardAnimation
+            ? images.cardHover
+            : listImage;
+        const listFallbackPath = hasPlayerCardAnimation
+            ? (images.idleFallback || images.tokenFallback || images.token)
+            : (images.tokenFallback || images.token);
+        const hoverFallbackPath = hasPlayerCardAnimation
+            ? (images.cardHoverFallback || listFallbackPath)
+            : listFallbackPath;
+        const listFallback = resolveImageUrl(listFallbackPath);
+        const hoverFallback = resolveImageUrl(hoverFallbackPath);
+        const listAdjust = images.idleAdjust || images.cardAdjust || images.listAdjust || images.tokenAdjust || images.avatarAdjust;
+        const listHoverAdjust = images.cardHoverAdjust || images.listHoverAdjust || images.hoverAdjust || images.tokenHoverAdjust || listAdjust;
         const shouldSwapAvatar = listHoverImage && listHoverImage !== listImage;
         const cardClassWithSwap = `${cardClasses} ${shouldSwapAvatar ? "" : "npc-card--no-avatar-swap"}`.trim();
         const campaignQuery = campaignId && campaignId !== "cripta-di-sangue"
@@ -399,8 +449,8 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         return `
             <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player${campaignQuery}" class="${cardClassWithSwap}">
                 <div class="npc-avatar-container">
-                    <img src="${escapeHtml(resolveImageUrl(listImage))}" ${tokenFallback ? `data-fallback-src="${escapeHtml(tokenFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-main" style="${buildImageStyle("avatar", listAdjust, listHoverAdjust)}" onerror="${buildFallbackImageErrorHandler(tokenFallbackPath, player.name)}">
-                    <img src="${escapeHtml(resolveImageUrl(listHoverImage))}" ${tokenFallback ? `data-fallback-src="${escapeHtml(tokenFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-hover" style="${buildImageStyle("hover", listHoverAdjust, listAdjust)}" onerror="${buildFallbackImageErrorHandler(tokenFallbackPath, player.name, true)}">
+                    <img src="${escapeHtml(resolveImageUrl(listImage))}" ${listFallback ? `data-fallback-src="${escapeHtml(listFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-main" style="${buildImageStyle("avatar", listAdjust, listHoverAdjust)}" onerror="${buildFallbackImageErrorHandler(listFallbackPath, player.name)}">
+                    <img src="${escapeHtml(resolveImageUrl(listHoverImage))}" ${hoverFallback ? `data-fallback-src="${escapeHtml(hoverFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-hover" style="${buildImageStyle("hover", listHoverAdjust, listAdjust)}" onerror="${buildFallbackImageErrorHandler(hoverFallbackPath, player.name, true)}">
                     ${renderCompanionBadge(companions)}
                 </div>
                 <div class="npc-info">
@@ -438,6 +488,8 @@ window.CriptaApp.onPageReady("giocatori", async function() {
             if (aInactive !== bInactive) return aInactive - bInactive;
             return String(a.name || "").localeCompare(String(b.name || ""), "it");
         });
+
+        await resolvePlayerCardImageAvailability(visiblePlayers);
 
         container.innerHTML = visiblePlayers
             .map((player) => renderPlayerCard(player, findPlayerActor(inventorySnapshot, player), inventorySnapshot))

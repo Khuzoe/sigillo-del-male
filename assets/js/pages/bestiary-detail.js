@@ -4504,7 +4504,14 @@ function buildImageStyle(adjust) {
     const x = normalizePercent(adjust?.x, 50);
     const y = normalizePercent(adjust?.y, 50);
     const size = normalizeScale(adjust?.size, 1);
-    return `--creature-img-x:${x}%; --creature-img-y:${y}%; --creature-img-scale:${size};`;
+    return [
+        `--creature-img-x:${x}%`,
+        `--creature-img-y:${y}%`,
+        `--creature-img-scale:${size}`,
+        `--bestiary-img-x:${x}%`,
+        `--bestiary-img-y:${y}%`,
+        `--bestiary-img-scale:${size}`
+    ].join('; ') + ';';
 }
 
 function normalizePercent(value, fallback) {

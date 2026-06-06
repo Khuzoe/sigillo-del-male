@@ -1492,11 +1492,26 @@ function mergeTransformations(baseList, overrideList) {
     const add = (entry) => {
         if (!entry || typeof entry !== 'object') return;
         const key = entry.id || `${entry.characterId || entry.ownerAccountId || 'global'}-${slugify(entry.creatureName || entry.name || entry.foundryName || 'forma')}`;
-        merged.set(key, { ...entry, id: key });
+        merged.set(key, { ...entry, id: key, tokenImage: normalizeTransformationMediaPath(entry.tokenImage) });
     };
     (Array.isArray(baseList) ? baseList : []).forEach(add);
     (Array.isArray(overrideList) ? overrideList : []).forEach(add);
     return Array.from(merged.values());
+}
+
+function normalizeTransformationMediaPath(path) {
+    const value = String(path || '').trim();
+    if (!value) return '';
+    if (/^(https?:|data:|blob:)/i.test(value)) return value;
+    const clean = value.split(/[?#]/)[0].replace(/^\/+/, '');
+    if (clean.startsWith(`media/campaigns/${getCurrentCampaignId()}/`)) return value;
+    if (clean.startsWith('media/transformations/')) {
+        return `media/campaigns/${getCurrentCampaignId()}/${clean.slice('media/'.length)}`;
+    }
+    if (clean.startsWith('media/companion-transformations/')) {
+        return `media/campaigns/${getCurrentCampaignId()}/${clean.slice('media/'.length)}`;
+    }
+    return value;
 }
 
 function renderWikiItemThumb(item, className, label = 'Oggetto wiki') {
@@ -1755,7 +1770,7 @@ function renderSpellSlotsOverview(actor) {
     const perLevel = Array.isArray(spellSlots.perLevel)
         ? spellSlots.perLevel
             .filter((slot) => toFiniteNumber(slot.total) !== null && Number(slot.total) > 0)
-            .sort((a, b) => Number(a.level || 0) - Number(b.level || 0))
+            .sort(compareSpellSlotLevels)
         : [];
 
     const totalSlots = toFiniteNumber(spellSlots.totals && spellSlots.totals.total);
@@ -1779,7 +1794,6 @@ function renderSpellSlotsOverview(actor) {
         ? `
                 <div class="slots-overview-grid">
                     ${perLevel.map((slot) => {
-            const level = toFiniteNumber(slot.level);
             const total = toFiniteNumber(slot.total) || 0;
             const available = toFiniteNumber(slot.available);
             const used = toFiniteNumber(slot.used);
@@ -1787,7 +1801,7 @@ function renderSpellSlotsOverview(actor) {
             const isEmpty = shownAvailable <= 0;
             return `
                             <div class="slot-level-tile ${isEmpty ? 'is-empty' : ''}">
-                                <span class="slot-level-title">${level === 0 ? 'Trucchetto' : `Livello ${level || '?'}`}</span>
+                                <span class="slot-level-title">${formatSpellSlotLabel(slot)}</span>
                                 <span class="slot-level-ratio">${formatNumberIt(shownAvailable)} / ${formatNumberIt(total)}</span>
                             </div>
                         `;
@@ -1797,6 +1811,31 @@ function renderSpellSlotsOverview(actor) {
         : '';
 
     return `${slotsSummary}${levelTiles}`;
+}
+
+function compareSpellSlotLevels(a, b) {
+    const orderA = getSpellSlotSortOrder(a);
+    const orderB = getSpellSlotSortOrder(b);
+    if (orderA !== orderB) return orderA - orderB;
+    return String(a?.slot || a?.level || '').localeCompare(String(b?.slot || b?.level || ''));
+}
+
+function getSpellSlotSortOrder(slot) {
+    if (isPactSpellSlot(slot)) return 10;
+    const level = toFiniteNumber(slot?.level);
+    return level !== null ? level : 99;
+}
+
+function isPactSpellSlot(slot) {
+    return String(slot?.slot || '').toLowerCase() === 'pact'
+        || String(slot?.level || '').toLowerCase() === 'pact';
+}
+
+function formatSpellSlotLabel(slot) {
+    if (isPactSpellSlot(slot)) return 'PATTO';
+    const level = toFiniteNumber(slot?.level);
+    if (level === 0) return 'Trucchetto';
+    return `Livello ${level || '?'}`;
 }
 
 function getXpOverviewData(actor) {
@@ -5560,7 +5599,7 @@ window.CriptaApp.onPageReady("character", async function () {
             : 'players';
         const fileName = entityType === 'companion'
             ? `${slugify(identity.entityId || identity.name || 'companion')}-${kind}.webp`
-            : `${slugify(identity.entityId || identity.characterId || 'player')}-${kind}-override.webp`;
+            : `${slugify(identity.entityId || identity.characterId || 'player')}-${kind}.webp`;
         const form = new FormData();
         form.set('folder', folder);
         form.set('filename', fileName);

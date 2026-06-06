@@ -8074,6 +8074,20 @@ body.page-bestiario .hero-mini {
         radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.07), transparent 44%);
 }
 
+.bestiary-card--dm-undiscovered {
+    border-color: rgba(212, 175, 55, 0.26);
+    background:
+        linear-gradient(180deg, rgba(31, 28, 22, 0.94), rgba(13, 13, 12, 0.98)),
+        radial-gradient(circle at 50% 0%, rgba(212, 175, 55, 0.11), transparent 44%);
+}
+
+.bestiary-card--dm-hidden {
+    border-color: rgba(87, 168, 255, 0.34);
+    background:
+        linear-gradient(180deg, rgba(23, 28, 35, 0.94), rgba(11, 13, 16, 0.98)),
+        radial-gradient(circle at 50% 0%, rgba(87, 168, 255, 0.12), transparent 44%);
+}
+
 .bestiary-card:focus-visible {
     outline: 2px solid rgba(212, 175, 55, 0.48);
     outline-offset: 3px;
@@ -8145,6 +8159,34 @@ body.page-bestiario .hero-mini {
     color: #f2dfae;
     overflow-wrap: anywhere;
     align-content: start;
+}
+
+.bestiary-player-visibility-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.34rem;
+    min-height: 1.45rem;
+    margin-top: 0.55rem;
+    padding: 0.24rem 0.48rem;
+    border-radius: 999px;
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    line-height: 1.1;
+}
+
+.bestiary-player-visibility-badge--hidden {
+    border: 1px solid rgba(87, 168, 255, 0.35);
+    background: rgba(21, 42, 66, 0.76);
+    color: #9fd0ff;
+}
+
+.bestiary-player-visibility-badge--undiscovered {
+    border: 1px solid rgba(212, 175, 55, 0.32);
+    background: rgba(69, 54, 20, 0.72);
+    color: #ead078;
 }
 
 .bestiary-rank-icon {

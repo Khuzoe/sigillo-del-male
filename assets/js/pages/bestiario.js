@@ -16,13 +16,15 @@ window.CriptaApp.onPageReady("bestiario", async () => {
         window.bestiaryItemsById = new Map((Array.isArray(items) ? items : [])
             .map((item) => [String(item.id || slugify(item.name || "")).trim(), item])
             .filter(([id]) => Boolean(id)));
-        const visibleCreatures = filterVisibleBestiaryCreatures(creatures);
+        const userIsDm = await resolveBestiaryUserIsDm();
+        const visibleCreatures = userIsDm ? creatures : filterVisibleBestiaryCreatures(creatures);
         const state = {
             category: "all",
             rank: "all",
             type: "all",
             groupByCategory: groupToggle?.checked !== false,
-            query: ""
+            query: "",
+            userIsDm
         };
 
         initBestiaryFilters(visibleCreatures, state, {
@@ -156,6 +158,11 @@ function filterVisibleBestiaryCreatures(creatures) {
     return creatures.filter(creature => creature.hidden !== true && creature.status !== "hidden");
 }
 
+async function resolveBestiaryUserIsDm() {
+    if (typeof window.CriptaApp?.auth?.isCurrentUserDm !== "function") return false;
+    return window.CriptaApp.auth.isCurrentUserDm(window.CriptaBasePath || "").catch(() => false);
+}
+
 function initBestiaryFilters(creatures, state, elements) {
     renderCategoryFilters(creatures, state, elements.categoryFilters);
     renderRankFilters(state, elements.rankFilters);
@@ -220,7 +227,8 @@ function renderRankFilters(state, container) {
         { value: "mini_boss", label: "Creature Maggiori", icon: "fa-skull" },
         { value: "unique_monster", label: "Creature Uniche", icon: "fa-crown" },
         { value: "special", label: "Speciali", icon: "fa-star" },
-        { value: "undiscovered", label: "Misteriose", icon: "fa-eye-slash" }
+        { value: "undiscovered", label: "Misteriose", icon: "fa-eye-slash" },
+        ...(state.userIsDm ? [{ value: "hidden", label: "Nascoste", icon: "fa-user-slash" }] : [])
     ];
     container.innerHTML = filters.map(filter => renderFilterButton(
         "bestiary-rank",
@@ -272,7 +280,8 @@ function filterBestiaryCreatures(creatures, state) {
     const query = normalizeSearchText(state.query);
     return creatures.filter(creature => {
         if (state.category !== "all" && getBestiaryCategory(creature) !== state.category) return false;
-        if (state.rank !== "all" && getBestiaryStatus(creature) !== state.rank) return false;
+        if (state.rank === "hidden" && !isBestiaryHiddenFromPlayers(creature)) return false;
+        if (state.rank !== "all" && state.rank !== "hidden" && getBestiaryStatus(creature) !== state.rank) return false;
         if (state.type !== "all" && getBestiaryType(creature) !== state.type) return false;
         if (!query) return true;
         return getBestiarySearchText(creature).includes(query);
@@ -286,6 +295,7 @@ function getBestiarySearchText(creature) {
         getBestiaryCategory(creature),
         getBestiaryRank(creature.rank)?.label,
         isBestiaryDiscovered(creature) ? "" : "misteriosa non scoperta",
+        isBestiaryHiddenFromPlayers(creature) ? "nascosta hidden invisibile player" : "",
         details.description,
         details.dndType,
         details.size
@@ -317,7 +327,7 @@ function renderBestiary(creatures, grid, count, state = {}) {
         const items = indexedCreatures.sort(compareBestiaryItems);
         grid.innerHTML = `
             <div class="bestiary-section-grid bestiary-section-grid--flat">
-                ${items.map(({ creature, index }) => renderBestiaryCard(creature, index)).join("")}
+                ${items.map(({ creature, index }) => renderBestiaryCard(creature, index, state)).join("")}
             </div>
         `;
         return;
@@ -332,7 +342,7 @@ function renderBestiary(creatures, grid, count, state = {}) {
                 <span>${group.items.length} ${group.items.length === 1 ? "creatura" : "creature"}</span>
             </div>
             <div class="bestiary-section-grid">
-                ${group.items.map(({ creature, index }) => renderBestiaryCard(creature, index)).join("")}
+                ${group.items.map(({ creature, index }) => renderBestiaryCard(creature, index, state)).join("")}
             </div>
         </section>
     `).join("");
@@ -373,23 +383,57 @@ function compareBestiaryCategoryNames(a, b) {
     return a.localeCompare(b, "it", { sensitivity: "base" });
 }
 
-function renderBestiaryCard(creature, index) {
+function renderBestiaryCard(creature, index, state = {}) {
     const rank = getBestiaryRank(creature.rank);
     const discovered = isBestiaryDiscovered(creature);
-    const mysteryIcon = !discovered ? `<span class="bestiary-rank-icon bestiary-rank-icon--undiscovered" title="Creatura Misteriosa" aria-label="Creatura Misteriosa"><i class="fas fa-eye-slash" aria-hidden="true"></i></span>` : "";
-    const rankIcon = discovered && rank ? `<span class="bestiary-rank-icon bestiary-rank-icon--${rank.className}" title="${rank.label}" aria-label="${rank.label}"><i class="${rank.icon}" aria-hidden="true"></i></span>` : "";
-    const cardName = discovered ? creature.name : (creature.mysteryName || "Creatura Misteriosa");
+    const hiddenFromPlayers = isBestiaryHiddenFromPlayers(creature);
+    const userIsDm = Boolean(state.userIsDm);
+    const playerVisibilityBadge = userIsDm ? renderBestiaryPlayerVisibilityBadge(creature) : "";
+    const mysteryIcon = !userIsDm && !discovered ? `<span class="bestiary-rank-icon bestiary-rank-icon--undiscovered" title="Creatura Misteriosa" aria-label="Creatura Misteriosa"><i class="fas fa-eye-slash" aria-hidden="true"></i></span>` : "";
+    const rankIcon = (userIsDm || discovered) && rank ? `<span class="bestiary-rank-icon bestiary-rank-icon--${rank.className}" title="${rank.label}" aria-label="${rank.label}"><i class="${rank.icon}" aria-hidden="true"></i></span>` : "";
+    const cardName = userIsDm || discovered ? creature.name : (creature.mysteryName || "Creatura Misteriosa");
     const detailUrl = buildBestiaryDetailUrl(creature);
+    const classes = [
+        "bestiary-card",
+        rank && (userIsDm || discovered) ? `bestiary-card--${rank.className}` : "",
+        !userIsDm && !discovered ? "bestiary-card--undiscovered" : "",
+        userIsDm && !discovered ? "bestiary-card--dm-undiscovered" : "",
+        userIsDm && hiddenFromPlayers ? "bestiary-card--dm-hidden" : ""
+    ].filter(Boolean).join(" ");
     return `
-        <a class="bestiary-card ${rank && discovered ? `bestiary-card--${rank.className}` : ""} ${!discovered ? "bestiary-card--undiscovered" : ""}" href="${escapeHtml(detailUrl)}" aria-label="Apri ${escapeHtml(cardName)}">
+        <a class="${classes}" href="${escapeHtml(detailUrl)}" aria-label="Apri ${escapeHtml(cardName)}">
             <span class="bestiary-image-frame">
                 ${mysteryIcon}
                 ${rankIcon}
                 <img src="${escapeHtml(resolveImageUrl(creature.image))}" alt="${escapeHtml(cardName)}" loading="lazy" style="${buildBestiaryImageStyle(creature.imageAdjust)}">
             </span>
             <span class="bestiary-card-name">${escapeHtml(cardName)}</span>
+            ${playerVisibilityBadge}
         </a>
     `;
+}
+
+function renderBestiaryPlayerVisibilityBadge(creature) {
+    const hidden = isBestiaryHiddenFromPlayers(creature);
+    const discovered = isBestiaryDiscovered(creature);
+    if (hidden) {
+        return `
+            <span class="bestiary-player-visibility-badge bestiary-player-visibility-badge--hidden">
+                <i class="fas fa-user-slash" aria-hidden="true"></i>
+                <span>Nascosto ai player</span>
+            </span>
+        `;
+    }
+    if (!discovered) {
+        const playerName = creature.mysteryName || "Creatura Misteriosa";
+        return `
+            <span class="bestiary-player-visibility-badge bestiary-player-visibility-badge--undiscovered">
+                <i class="fas fa-eye-slash" aria-hidden="true"></i>
+                <span>Player: ${escapeHtml(playerName)}</span>
+            </span>
+        `;
+    }
+    return "";
 }
 
 function buildBestiaryDetailUrl(creature) {
@@ -456,6 +500,10 @@ function getBestiaryCategory(creature) {
 
 function isBestiaryDiscovered(creature) {
     return creature.discovered !== false;
+}
+
+function isBestiaryHiddenFromPlayers(creature) {
+    return creature?.hidden === true || creature?.status === "hidden";
 }
 
 function getBestiaryStatus(creature) {

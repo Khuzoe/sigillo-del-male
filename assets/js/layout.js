@@ -1779,19 +1779,22 @@ function setDmOnlyVisibility(isVisible) {
 }
 
 async function updateDmOnlyVisibility(basePath) {
+    const isDm = await isCurrentUserDm(basePath);
+    setDmOnlyVisibility(isDm);
+    return isDm;
+}
+
+async function isCurrentUserDm(basePath) {
     const authState = await verifyDiscordAuth().catch(() => null);
     const currentAccountId = getAuthAccountId(authState);
     const currentDiscordId = getAuthDiscordId(authState);
     if (!currentAccountId && !currentDiscordId) {
-        setDmOnlyVisibility(false);
         return false;
     }
 
     const dmIdentity = await getDmIdentity(basePath);
-    const isDm = Boolean(dmIdentity.accountId && currentAccountId === dmIdentity.accountId)
+    return Boolean(dmIdentity.accountId && currentAccountId === dmIdentity.accountId)
         || Boolean(dmIdentity.discordId && currentDiscordId === dmIdentity.discordId);
-    setDmOnlyVisibility(isDm);
-    return isDm;
 }
 
 function getAuthAccountId(authState) {
@@ -1839,7 +1842,8 @@ window.CriptaDiscordAuth = {
     login: redirectToDiscordLogin,
     loginWithDeviceCode,
     promptDeviceLogin,
-    logout: logoutDiscord
+    logout: logoutDiscord,
+    isCurrentUserDm
 };
 
 window.CriptaApp = {
