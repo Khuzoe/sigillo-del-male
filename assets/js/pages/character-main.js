@@ -689,11 +689,12 @@ function applyCharacterMediaOverride(character, overrides = mediaOverridesMemory
     const override = findMediaOverride(overrides, 'player', normalized.id || normalized.name);
     const images = override?.images || {};
     if (images.avatar) {
-        normalized.images.avatar = images.avatar;
-        normalized.images.portrait = images.portrait || images.avatar;
-        if (!normalized.images.hover) normalized.images.hover = images.avatar;
+        const avatar = appendAssetVersion(images.avatar, override.updatedAt);
+        normalized.images.avatar = avatar;
+        normalized.images.portrait = appendAssetVersion(images.portrait || images.avatar, override.updatedAt);
+        if (!normalized.images.hover) normalized.images.hover = avatar;
     }
-    if (images.token) normalized.images.token = images.token;
+    if (images.token) normalized.images.token = appendAssetVersion(images.token, override.updatedAt);
     return normalized;
 }
 
@@ -1149,10 +1150,11 @@ function getCompanionAvatarImageCandidates(companion) {
     const legacySyncedAvatar = syncedEntityId && legacyCompanionFolder ? `media/${legacyCompanionFolder}/${syncedEntityId}-avatar.webp` : '';
     const legacySyncedToken = syncedEntityId && legacyCompanionFolder ? `media/${legacyCompanionFolder}/${syncedEntityId}-token.webp` : '';
     return Array.from(new Set([
-        resolveSyncedActorImagePath(companion?.img),
+        resolveSyncedActorImagePath(companion?._mediaOverrideImages?.avatar),
         resolveSyncedActorImagePath(syncedAvatar),
         resolveSyncedActorImagePath(legacySyncedAvatar),
         resolveSyncedActorImagePath(avatarVariant),
+        resolveSyncedActorImagePath(companion?.img),
         resolveSyncedActorImagePath(syncedToken),
         resolveSyncedActorImagePath(legacySyncedToken),
         resolveSyncedActorImagePath(tokenPath)
@@ -1199,10 +1201,19 @@ function applyCompanionMediaOverride(companion, identity, overrides = mediaOverr
     if (!override?.images) return companion;
     const next = {
         ...companion,
-        token: { ...(companion?.token || {}) }
+        token: { ...(companion?.token || {}) },
+        _mediaOverrideImages: { ...(companion?._mediaOverrideImages || {}) }
     };
-    if (override.images.avatar) next.img = override.images.avatar;
-    if (override.images.token) next.token.img = override.images.token;
+    if (override.images.avatar) {
+        const avatar = appendAssetVersion(override.images.avatar, override.updatedAt);
+        next.img = avatar;
+        next._mediaOverrideImages.avatar = avatar;
+    }
+    if (override.images.token) {
+        const token = appendAssetVersion(override.images.token, override.updatedAt);
+        next.token.img = token;
+        next._mediaOverrideImages.token = token;
+    }
     return next;
 }
 
@@ -2655,9 +2666,12 @@ function buildCompanionsHtml(character, payload, wikiItems = [], mediaOverrides 
             const title = companion.displayName || companion.name || 'Companion';
             const imageCandidates = getCompanionAvatarImageCandidates(companion);
             const image = imageCandidates[0] || '';
-            const fallbackImage = imageCandidates[1] || '';
-            const imageErrorHandler = fallbackImage
-                ? `if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{this.style.display='none';this.nextElementSibling.hidden=false;}`
+            const imageFallbacks = imageCandidates.slice(1);
+            const fallbackAttr = imageFallbacks.length
+                ? `data-fallback-srcs="${escapeHtml(encodeURIComponent(JSON.stringify(imageFallbacks)))}"`
+                : '';
+            const imageErrorHandler = imageFallbacks.length
+                ? `try{const l=JSON.parse(decodeURIComponent(this.dataset.fallbackSrcs||'%5B%5D'));const n=l.shift();this.dataset.fallbackSrcs=encodeURIComponent(JSON.stringify(l));if(n){this.src=n;}else{this.style.display='none';this.nextElementSibling.hidden=false;}}catch(_){this.style.display='none';this.nextElementSibling.hidden=false;}`
                 : `this.style.display='none';this.nextElementSibling.hidden=false;`;
             const initials = String(title || '?').trim().charAt(0).toUpperCase() || '?';
             const { inventory, spells, abilities } = splitActorLoadout(companion);
@@ -2703,8 +2717,10 @@ function buildCompanionsHtml(character, payload, wikiItems = [], mediaOverrides 
                                 </section>
                             </div>
                             <div class="companion-card__hero">
-                                ${image ? `<img src="${escapeHtml(image)}" ${fallbackImage ? `data-fallback-src="${escapeHtml(fallbackImage)}"` : ''} alt="${escapeHtml(title)}" onerror="${imageErrorHandler}">` : ''}
-                                <span ${image ? 'hidden' : ''}>${escapeHtml(initials)}</span>
+                                <div class="companion-card__image-stage">
+                                    ${image ? `<img src="${escapeHtml(image)}" ${fallbackAttr} alt="${escapeHtml(title)}" onerror="${imageErrorHandler}">` : ''}
+                                    <span ${image ? 'hidden' : ''}>${escapeHtml(initials)}</span>
+                                </div>
                                 ${canEdit ? `
                                 <div class="character-media-actions character-media-actions--companion">
                                     <button type="button" data-media-override-action="upload" data-media-entity-type="companion" data-media-kind="avatar" data-media-identity="${escapeHtml(identity.entityId)}" data-media-name="${escapeHtml(identity.name)}" data-media-foundry-name="${escapeHtml(identity.foundryName)}" data-media-actor-id="${escapeHtml(identity.actorId)}">
