@@ -1414,8 +1414,28 @@ body.is-embed .container {
 }
 
 .companion-card__vitals .character-live-kpis {
-    grid-template-columns: minmax(10.5rem, 1.1fr) repeat(2, minmax(7.2rem, 0.8fr));
+    grid-template-columns: minmax(10rem, 1.25fr) minmax(7.5rem, 0.75fr);
     gap: 0.55rem;
+}
+
+.companion-card__vitals .character-live-kpis--companion .character-live-kpi--hp {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.companion-card__vitals .character-live-kpis--companion .character-live-kpi--ac {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.companion-card__vitals .character-live-kpis--companion .character-live-kpi--movement {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.companion-card__vitals .character-live-kpis--companion .character-live-kpi--initiative {
+    grid-column: 2;
+    grid-row: 2;
 }
 
 .companion-card__hero {
@@ -1639,6 +1659,11 @@ body.is-embed .container {
 @media (max-width: 640px) {
     .companion-card__vitals .character-live-kpis {
         grid-template-columns: 1fr;
+    }
+
+    .companion-card__vitals .character-live-kpis--companion .character-live-kpi {
+        grid-column: auto;
+        grid-row: auto;
     }
 
     .companion-card__hero {

@@ -709,6 +709,27 @@ function resolveCharacterAssetPath(imagePath) {
     return `../../assets/${value}`;
 }
 
+function getMediaPathFromAssetValue(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+        const url = new URL(raw, window.location.href);
+        const index = url.pathname.indexOf('/media/');
+        if (index >= 0) {
+            return url.pathname.slice(index + 1).replace(/^\/+/, '');
+        }
+    } catch (_) {
+        // Plain relative paths are handled below.
+    }
+    return raw.split(/[?#]/)[0].replace(/^\/+/, '');
+}
+
+function isCurrentCampaignMediaAsset(value) {
+    const mediaPath = getMediaPathFromAssetValue(value);
+    if (!mediaPath) return false;
+    return mediaPath.startsWith(`media/campaigns/${getCurrentCampaignId()}/`);
+}
+
 async function loadSkillsData() {
     if (skillsMemoryCache) return skillsMemoryCache;
     if (skillsRequestPromise) return skillsRequestPromise;
@@ -1149,12 +1170,16 @@ function getCompanionAvatarImageCandidates(companion) {
     const syncedToken = syncedEntityId ? `media/${companionFolder}/${syncedEntityId}-token.webp` : '';
     const legacySyncedAvatar = syncedEntityId && legacyCompanionFolder ? `media/${legacyCompanionFolder}/${syncedEntityId}-avatar.webp` : '';
     const legacySyncedToken = syncedEntityId && legacyCompanionFolder ? `media/${legacyCompanionFolder}/${syncedEntityId}-token.webp` : '';
+    const overrideAvatar = companion?._mediaOverrideImages?.avatar || '';
+    const currentCampaignOverrideAvatar = isCurrentCampaignMediaAsset(overrideAvatar) ? overrideAvatar : '';
+    const legacyOverrideAvatar = currentCampaignOverrideAvatar ? '' : overrideAvatar;
     return Array.from(new Set([
-        resolveSyncedActorImagePath(companion?._mediaOverrideImages?.avatar),
+        resolveSyncedActorImagePath(currentCampaignOverrideAvatar),
         resolveSyncedActorImagePath(syncedAvatar),
-        resolveSyncedActorImagePath(legacySyncedAvatar),
+        resolveSyncedActorImagePath(legacyOverrideAvatar),
         resolveSyncedActorImagePath(avatarVariant),
         resolveSyncedActorImagePath(companion?.img),
+        resolveSyncedActorImagePath(legacySyncedAvatar),
         resolveSyncedActorImagePath(syncedToken),
         resolveSyncedActorImagePath(legacySyncedToken),
         resolveSyncedActorImagePath(tokenPath)
@@ -1901,7 +1926,7 @@ function getActorHpData(actor) {
     };
 }
 
-function renderVitalOverview(actor) {
+function renderVitalOverview(actor, options = {}) {
     const hp = getActorHpData(actor);
     const ac = toFiniteNumber(actor && actor.vitals && actor.vitals.ac);
     const initiative = toFiniteNumber(actor && actor.vitals && actor.vitals.initiative);
@@ -1911,22 +1936,22 @@ function renderVitalOverview(actor) {
         : '';
 
     return `
-                <div class="character-live-kpis">
+                <div class="character-live-kpis ${escapeHtml(options.className || '')}">
                     <div class="character-live-kpi character-live-kpi--hp">
                         <span>PF</span>
                         <strong>${formatNumberIt(hp.value)} / ${formatNumberIt(hp.max)}</strong>
                         ${hp.temp ? `<em>+${formatNumberIt(hp.temp)} temp</em>` : ''}
                     </div>
-                    <div class="character-live-kpi">
+                    <div class="character-live-kpi character-live-kpi--ac">
                         <span>CA</span>
                         <strong>${formatNumberIt(ac)}</strong>
                     </div>
-                    <div class="character-live-kpi">
+                    <div class="character-live-kpi character-live-kpi--initiative">
                         <span>Iniziativa</span>
                         <strong>${initiative !== null && initiative >= 0 ? '+' : ''}${formatNumberIt(initiative)}</strong>
                     </div>
                     ${movement ? `
-                    <div class="character-live-kpi">
+                    <div class="character-live-kpi character-live-kpi--movement">
                         <span>Movimento</span>
                         <strong>${escapeHtml(movement)}</strong>
                     </div>` : ''}
@@ -2703,7 +2728,7 @@ function buildCompanionsHtml(character, payload, wikiItems = [], mediaOverrides 
                                             </div>
                                         </div>
                                         <div class="companion-card__vitals">
-                                            ${renderVitalOverview(companion)}
+                                            ${renderVitalOverview(companion, { className: 'character-live-kpis--companion' })}
                                         </div>
                                     </div>
                                     <section class="character-live-card companion-card__abilities">
