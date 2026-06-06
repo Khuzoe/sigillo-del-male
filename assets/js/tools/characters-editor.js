@@ -456,6 +456,7 @@
 
         try {
             setStatus('Salvataggio online in corso...');
+            const serialized = serializeCharacters();
             const response = await fetch(withCampaign(DATA_API_URL(), { force: true }), {
                 method: 'POST',
                 headers: {
@@ -463,7 +464,7 @@
                     Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    data: serializeCharacters(),
+                    data: serialized,
                     expectedVersion: state.loadedSource === 'kv' ? (state.loadedVersion ?? 0) : 0,
                     campaignId: getCampaignId()
                 })
@@ -575,27 +576,43 @@
         try {
             setStatus(/\.webp$/i.test(file.name) ? 'Upload immagine su R2...' : 'Conversione WebP e upload su R2...');
             const blob = /\.webp$/i.test(file.name) ? file : await convertImageFileToWebpBlob(file);
-            const folder = `characters/${slugify(characterId || 'npc')}`;
-            const form = new FormData();
-            form.set('folder', folder);
-            form.set('filename', fileName);
-            form.set('campaignId', getCampaignId());
-            form.set('file', new File([blob], fileName, { type: 'image/webp' }));
-
-            const response = await fetch(withCampaign(`${MEDIA_WORKER_URL}/media/upload?folder=${encodeURIComponent(folder)}`, { force: true }), {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
-                body: form
-            });
-            const payload = await response.json().catch(() => null);
-            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+            const path = await uploadImageBlob(blob, characterId, fileName, token);
             setStatus('Immagine caricata su R2.');
-            return payload.path || payload.key || '';
+            return path;
         } catch (error) {
             console.error('Upload immagine fallito:', error);
             setStatus(`Upload immagine fallito: ${error?.message || error}`, 'error');
             return '';
         }
+    }
+
+    async function uploadImageBlob(blob, characterId, fileName, token = readAuthToken()) {
+        if (!token) throw new Error('Login richiesto per caricare immagini.');
+        const folder = `characters/${slugify(characterId || 'npc')}`;
+        const form = new FormData();
+        form.set('folder', folder);
+        form.set('filename', fileName);
+        form.set('campaignId', getCampaignId());
+        form.set('file', new File([blob], fileName, { type: 'image/webp' }));
+
+        const response = await fetch(withCampaign(`${MEDIA_WORKER_URL}/media/upload?folder=${encodeURIComponent(folder)}`, { force: true }), {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: form
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        validateUploadPayload(payload, blob, fileName);
+        return payload.path || payload.key || `media/campaigns/${getCampaignId()}/${folder}/${fileName}`;
+    }
+
+    function validateUploadPayload(payload, blob, fileName = 'media.webp') {
+        const expectedSize = Number(blob?.size || 0);
+        const storedSize = Number(payload?.storedSize || payload?.size || 0);
+        if (expectedSize > 0 && storedSize > 0 && expectedSize !== storedSize) {
+            throw new Error(`Upload R2 non coerente per ${fileName}: inviati ${expectedSize} byte, salvati ${storedSize} byte.`);
+        }
+        if (!payload?.key && !payload?.path) throw new Error(`Upload R2 senza path/key per ${fileName}.`);
     }
 
     async function convertImageFileToWebpBlob(file) {

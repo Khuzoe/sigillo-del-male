@@ -1876,8 +1876,18 @@
         if (!response.ok || !payload?.path) {
             throw new Error(payload?.error || `HTTP ${response.status}`);
         }
+        validateUploadPayload(payload, blob, fileName);
 
         return payload.path;
+    }
+
+    function validateUploadPayload(payload, blob, fileName = 'media.webp') {
+        const expectedSize = Number(blob?.size || 0);
+        const storedSize = Number(payload?.storedSize || payload?.size || 0);
+        if (expectedSize > 0 && storedSize > 0 && expectedSize !== storedSize) {
+            throw new Error(`Upload R2 non coerente per ${fileName}: inviati ${expectedSize} byte, salvati ${storedSize} byte.`);
+        }
+        if (!payload?.key && !payload?.path) throw new Error(`Upload R2 senza path/key per ${fileName}.`);
     }
 
     function buildWebpImageFileName(file, creature) {

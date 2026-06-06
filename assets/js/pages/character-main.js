@@ -375,7 +375,7 @@ const PLAYER_NAME_ALIASES = {
 };
 const SKILLS_DATA_URL = dataUrl('skills.json');
 const TRANSFORMATIONS_DATA_URL = dataUrl('transformations.json');
-const SKILLS_ASSET_BASE = 'media/skill_trees/';
+const SKILLS_ASSET_FOLDER = 'skill-trees';
 const ABILITY_ICON_SIZE = 256;
 const SKILL_TREE_ICON_SIZE = 256;
 const CHARACTER_MEDIA_SIZE = 512;
@@ -521,11 +521,23 @@ function isInventoryCacheFresh(cache) {
 function resolveSkillAssetPath(path) {
     const value = String(path || '').trim();
     if (!value) return '';
-    if (/^(https?:|data:|blob:)/i.test(value)) return value;
+    if (/^(data:|blob:)/i.test(value)) return value;
+    const legacySkillTreeFile = getLegacySkillTreeFileName(value);
+    if (legacySkillTreeFile) {
+        return window.CriptaApp.urls.api(`media/campaigns/${getCurrentCampaignId()}/${SKILLS_ASSET_FOLDER}/${legacySkillTreeFile}`);
+    }
+    if (/^https?:/i.test(value)) return value;
     if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
     if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
     if (value.startsWith('/')) return value;
-    return window.CriptaApp.urls.api(`${SKILLS_ASSET_BASE}${value}`);
+    return window.CriptaApp.urls.api(`media/campaigns/${getCurrentCampaignId()}/${SKILLS_ASSET_FOLDER}/${value}`);
+}
+
+function getLegacySkillTreeFileName(value) {
+    const raw = String(value || '').trim().replace(/\\/g, '/');
+    const match = raw.match(/(?:^|\/)media\/skill_trees\/([^?#/]+)(?:[?#].*)?$/i)
+        || raw.match(/(?:^|\/)skill_trees\/([^?#/]+)(?:[?#].*)?$/i);
+    return match ? match[1] : '';
 }
 
 function dataUrl(pathname) {
@@ -4797,25 +4809,7 @@ window.CriptaApp.onPageReady("character", async function () {
         toolbar?.setAttribute('data-saving', 'true');
         try {
             const blob = /\.webp$/i.test(file.name) ? file : await convertInlineImageFileToWebpBlob(file);
-            const folder = `characters/${slugify(characterId || 'npc')}`;
-            const form = new FormData();
-            form.set('folder', folder);
-            form.set('filename', fileName);
-            form.set('campaignId', getCurrentCampaignId());
-            form.set('file', new File([blob], fileName, { type: 'image/webp' }));
-
-            const uploadUrl = new URL(window.CriptaApp?.urls?.api?.('media/upload') || 'https://sigillo-api.khuzoe.workers.dev/media/upload');
-            uploadUrl.searchParams.set('folder', folder);
-            uploadUrl.searchParams.set('campaign', getCurrentCampaignId());
-
-            const response = await fetch(uploadUrl.toString(), {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
-                body: form
-            });
-            const payload = await response.json().catch(() => null);
-            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-            return payload.path || payload.key || '';
+            return await uploadInlineImageBlob(blob, characterId, fileName, token);
         } catch (error) {
             console.error('Upload immagine inline fallito:', error);
             alert(`Upload immagine fallito: ${error?.message || error}`);
@@ -4823,6 +4817,30 @@ window.CriptaApp.onPageReady("character", async function () {
         } finally {
             toolbar?.removeAttribute('data-saving');
         }
+    }
+
+    async function uploadInlineImageBlob(blob, characterId, fileName, token = readAuthToken()) {
+        if (!token) throw new Error('Login richiesto per caricare immagini.');
+        const folder = `characters/${slugify(characterId || 'npc')}`;
+        const form = new FormData();
+        form.set('folder', folder);
+        form.set('filename', fileName);
+        form.set('campaignId', getCurrentCampaignId());
+        form.set('file', new File([blob], fileName, { type: 'image/webp' }));
+
+        const uploadUrl = new URL(window.CriptaApp?.urls?.api?.('media/upload') || 'https://sigillo-api.khuzoe.workers.dev/media/upload');
+        uploadUrl.searchParams.set('folder', folder);
+        uploadUrl.searchParams.set('campaign', getCurrentCampaignId());
+
+        const response = await fetch(uploadUrl.toString(), {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: form
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        validateMediaUploadPayload(payload, blob, fileName);
+        return payload.path || payload.key || `media/campaigns/${getCurrentCampaignId()}/${folder}/${fileName}`;
     }
 
     async function convertInlineImageFileToWebpBlob(file) {
@@ -5348,6 +5366,7 @@ window.CriptaApp.onPageReady("character", async function () {
         });
         const payload = await response.json().catch(() => null);
         if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        validateMediaUploadPayload(payload, blob, fileName);
         return payload.path || payload.key || buildCampaignScopedMediaPath(folder, fileName);
     }
 
@@ -5377,7 +5396,19 @@ window.CriptaApp.onPageReady("character", async function () {
         });
         const payload = await response.json().catch(() => null);
         if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        validateMediaUploadPayload(payload, blob, fileName);
         return payload.path || payload.key || buildCampaignScopedMediaPath(folder, fileName);
+    }
+
+    function validateMediaUploadPayload(payload, blob, fileName = 'media.webp') {
+        const expectedSize = Number(blob?.size || 0);
+        const storedSize = Number(payload?.storedSize || payload?.size || 0);
+        if (expectedSize > 0 && storedSize > 0 && expectedSize !== storedSize) {
+            throw new Error(`Upload R2 non coerente per ${fileName}: inviati ${expectedSize} byte, salvati ${storedSize} byte.`);
+        }
+        if (!payload?.key && !payload?.path) {
+            throw new Error(`Upload R2 senza path/key per ${fileName}.`);
+        }
     }
 
     function getMediaOverridesApiUrl() {
@@ -5479,6 +5510,7 @@ window.CriptaApp.onPageReady("character", async function () {
         });
         const payload = await response.json().catch(() => null);
         if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        validateMediaUploadPayload(payload, blob, fileName);
         return payload.path || payload.key || '';
     }
 

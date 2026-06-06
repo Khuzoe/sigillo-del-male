@@ -2251,6 +2251,7 @@ window.CriptaApp.onPageReady("creature", async () => {
             });
             const payload = await response.json().catch(() => null);
             if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+            validateMediaUploadPayload(payload, blob, fileName);
             state.creature[property] = payload.path || payload.key || buildCampaignMediaPath(folder, fileName);
             await persistCreatureMediaReference(property, state.creature[property]);
             state.dirty = true;
@@ -4542,6 +4543,15 @@ function getCampaignId() {
 
 function buildCampaignMediaPath(folder, filename) {
     return `media/campaigns/${getCampaignId()}/${folder}/${filename}`;
+}
+
+function validateMediaUploadPayload(payload, blob, fileName = "media.webp") {
+    const expectedSize = Number(blob?.size || 0);
+    const storedSize = Number(payload?.storedSize || payload?.size || 0);
+    if (expectedSize > 0 && storedSize > 0 && expectedSize !== storedSize) {
+        throw new Error(`Upload R2 non coerente per ${fileName}: inviati ${expectedSize} byte, salvati ${storedSize} byte.`);
+    }
+    if (!payload?.key && !payload?.path) throw new Error(`Upload R2 senza path/key per ${fileName}.`);
 }
 
 function readAuthToken() {
