@@ -23,6 +23,8 @@ let discordAuthPromise = null;
 const dmIdentityCache = new Map();
 let dmIdentityPromise = null;
 const jsonCache = new Map();
+const apiResponseCache = new Map();
+const API_GET_CACHE_TTL_MS = 45 * 1000;
 const isEmbedMode = new URLSearchParams(window.location.search).get("embed") === "1";
 const isEmbeddedRuntime = isEmbedMode || window.self !== window.top;
 let embeddedDiscordToken = "";
@@ -1639,29 +1641,80 @@ async function requestApi(pathname, options = {}) {
             : body;
     }
 
-    const response = await fetch(url.toString(), {
+    const requestMethod = String(method || "GET").toUpperCase();
+    const canUseCache = requestMethod === "GET" && expectJson && options.cache !== false;
+    const cacheKey = canUseCache ? buildApiCacheKey(url) : "";
+    const now = Date.now();
+    if (canUseCache && apiResponseCache.has(cacheKey)) {
+        const cached = apiResponseCache.get(cacheKey);
+        if (cached && cached.expiresAt > now) return cached.promise;
+        apiResponseCache.delete(cacheKey);
+    }
+
+    const requestPromise = fetch(url.toString(), {
         method,
         headers: requestHeaders,
         ...(requestBody !== undefined ? { body: requestBody } : {})
-    });
+    })
+        .then(async (response) => {
+            if (!expectJson) {
+                return response;
+            }
 
-    if (!expectJson) {
-        return response;
+            let payload = null;
+            try {
+                payload = await response.json();
+            } catch (_) {
+                payload = null;
+            }
+
+            if (!response.ok) {
+                const apiMessage = payload?.error || payload?.message || payload?.details || "";
+                throw new Error(apiMessage ? `HTTP ${response.status}: ${apiMessage}` : `HTTP ${response.status}`);
+            }
+
+            return payload;
+        })
+        .catch((error) => {
+            if (cacheKey) apiResponseCache.delete(cacheKey);
+            throw error;
+        });
+
+    if (canUseCache) {
+        apiResponseCache.set(cacheKey, {
+            expiresAt: now + Number(options.cacheTtlMs || API_GET_CACHE_TTL_MS),
+            promise: requestPromise
+        });
     }
 
-    let payload = null;
-    try {
-        payload = await response.json();
-    } catch (_) {
-        payload = null;
-    }
+    const result = await requestPromise;
+    if (requestMethod !== "GET") invalidateApiCache(url);
+    return result;
+}
 
-    if (!response.ok) {
-        const apiMessage = payload?.error || payload?.message || payload?.details || "";
-        throw new Error(apiMessage ? `HTTP ${response.status}: ${apiMessage}` : `HTTP ${response.status}`);
-    }
+function buildApiCacheKey(url) {
+    const normalized = new URL(url.toString());
+    normalized.searchParams.delete("_");
+    normalized.searchParams.delete("_ts");
+    return normalized.toString();
+}
 
-    return payload;
+function invalidateApiCache(url = null) {
+    if (!url) {
+        apiResponseCache.clear();
+        return;
+    }
+    const target = new URL(url.toString());
+    const campaign = target.searchParams.get("campaign") || "";
+    const pathname = target.pathname || "";
+    for (const key of Array.from(apiResponseCache.keys())) {
+        const cachedUrl = new URL(key);
+        const sameCampaign = !campaign || cachedUrl.searchParams.get("campaign") === campaign;
+        const sameCollection = pathname.startsWith("/api/data/")
+            ? cachedUrl.pathname === pathname || cachedUrl.pathname.startsWith("/api/bootstrap/")
+            : cachedUrl.pathname === pathname;
+        if (sameCampaign && sameCollection) apiResponseCache.delete(key);
+    }
 }
 
 async function verifyDiscordAuth() {
@@ -1798,6 +1851,9 @@ window.CriptaApp = {
         },
         post(pathname, body, options = {}) {
             return requestApi(pathname, { ...options, method: "POST", body });
+        },
+        clearCache() {
+            invalidateApiCache();
         }
     },
     config: {

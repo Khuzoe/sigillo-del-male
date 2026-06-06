@@ -256,10 +256,15 @@ function parseYamlLite(yamlText) {
 
         async function loadCharactersCollection() {
             try {
-                const response = await fetch(window.CriptaApp?.urls?.api?.('api/data/characters') || 'https://sigillo-api.khuzoe.workers.dev/api/data/characters');
-                if (response.ok) {
-                    const payload = await response.json();
+                if (typeof window.CriptaApp?.api?.get === 'function') {
+                    const payload = await window.CriptaApp.api.get('api/data/characters');
                     if (Array.isArray(payload?.data)) return normalizeCharactersCollection(payload.data);
+                } else {
+                    const response = await fetch(window.CriptaApp?.urls?.api?.('api/data/characters') || 'https://sigillo-api.khuzoe.workers.dev/api/data/characters');
+                    if (response.ok) {
+                        const payload = await response.json();
+                        if (Array.isArray(payload?.data)) return normalizeCharactersCollection(payload.data);
+                    }
                 }
             } catch (error) {
                 console.warn('KV characters non disponibile, provo JSON statico.', error);

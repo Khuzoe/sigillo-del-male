@@ -222,10 +222,15 @@ async function loadCharacterYaml(entry) {
 
 async function loadCharactersCollection() {
     try {
-        const response = await fetch(window.CriptaApp?.urls?.api?.('api/data/characters') || 'https://sigillo-api.khuzoe.workers.dev/api/data/characters');
-        if (response.ok) {
-            const payload = await response.json();
+        if (typeof window.CriptaApp?.api?.get === 'function') {
+            const payload = await window.CriptaApp.api.get('api/data/characters');
             if (Array.isArray(payload?.data)) return normalizeCharactersCollection(payload.data);
+        } else {
+            const response = await fetch(window.CriptaApp?.urls?.api?.('api/data/characters') || 'https://sigillo-api.khuzoe.workers.dev/api/data/characters');
+            if (response.ok) {
+                const payload = await response.json();
+                if (Array.isArray(payload?.data)) return normalizeCharactersCollection(payload.data);
+            }
         }
     } catch (error) {
         console.warn('KV characters non disponibile, provo JSON statico.', error);
@@ -410,6 +415,8 @@ let itemOverridesRequestPromise = null;
 let itemOverridesMemoryCache = null;
 let mediaOverridesRequestPromise = null;
 let mediaOverridesMemoryCache = null;
+let characterBootstrapData = null;
+let characterBootstrapKey = '';
 let skillTreeAuthState = null;
 let skillTreeCurrentUserIsDm = false;
 
@@ -777,6 +784,63 @@ async function loadSkillsData() {
     } finally {
         skillsRequestPromise = null;
     }
+}
+
+async function loadCharacterBootstrap(characterId, type) {
+    const nextKey = `${getCurrentCampaignId()}::${String(type || 'npc')}::${String(characterId || '')}`;
+    if (characterBootstrapData && characterBootstrapKey === nextKey) return characterBootstrapData;
+    if (typeof window.CriptaCharacterData?.loadBootstrap !== 'function') return null;
+    characterBootstrapKey = nextKey;
+    characterBootstrapData = await window.CriptaCharacterData.loadBootstrap(characterId, type).catch((error) => {
+        characterBootstrapKey = '';
+        console.warn('Bootstrap scheda personaggio non disponibile, uso caricamenti separati.', error);
+        return null;
+    });
+    if (characterBootstrapData) applyCharacterBootstrap(characterBootstrapData);
+    return characterBootstrapData;
+}
+
+function applyCharacterBootstrap(bootstrap) {
+    const dataService = window.CriptaCharacterData;
+    const inventory = bootstrap?.inventory;
+    if (inventory && Array.isArray(inventory.actors)) {
+        inventoryMemoryCache = {
+            fetchedAt: Date.now(),
+            data: inventory
+        };
+        setSafeSessionStorageItem(INVENTORY_CACHE_KEY, JSON.stringify(inventoryMemoryCache));
+    }
+
+    const items = dataService?.getCollection?.(bootstrap, 'items');
+    if (items) {
+        wikiItemsMemoryCache = window.WikiSpoiler
+            ? window.WikiSpoiler.filterVisible(items)
+            : items.filter((item) => item.hidden !== true && item.status !== 'hidden');
+    }
+
+    const skillTreesDoc = dataService?.getCollectionDocument?.(bootstrap, 'skill-trees');
+    if (Array.isArray(skillTreesDoc?.data) && skillTreesDoc.data.length > 0) {
+        skillsVersion = Number(skillTreesDoc.version || 0);
+        skillsMemoryCache = normalizeSkillTreesCollection(skillTreesDoc.data);
+    }
+
+    const skillStatesDoc = dataService?.getCollectionDocument?.(bootstrap, 'skill-tree-states');
+    if (Array.isArray(skillStatesDoc?.data)) {
+        skillTreeStatesVersion = Number(skillStatesDoc.version || 0);
+        skillTreeStatesMemoryCache = skillStatesDoc.data;
+    }
+
+    const abilityOverrides = dataService?.getCollection?.(bootstrap, 'ability-overrides');
+    if (abilityOverrides) abilityOverridesMemoryCache = abilityOverrides;
+
+    const itemOverrides = dataService?.getCollection?.(bootstrap, 'item-overrides');
+    if (itemOverrides) itemOverridesMemoryCache = itemOverrides;
+
+    const mediaOverrides = dataService?.getCollection?.(bootstrap, 'media-overrides');
+    if (mediaOverrides) mediaOverridesMemoryCache = mediaOverrides;
+
+    const transformations = dataService?.getCollection?.(bootstrap, 'transformations');
+    if (transformations) transformationsMemoryCache = transformations;
 }
 
 async function loadInventoryData() {
@@ -4472,6 +4536,7 @@ window.CriptaApp.onPageReady("character", async function () {
     try {
         let character = null;
         let allCharacters = [];
+        const bootstrap = await loadCharacterBootstrap(charId, charType);
 
         // Load Quests Data separately
         const questsData = await loadQuestsData();
@@ -4488,7 +4553,10 @@ window.CriptaApp.onPageReady("character", async function () {
             if (charType === 'player') {
                 characters = await loadPlayersData();
             } else {
-                characters = await loadCharactersCollection();
+                const bootstrapCharacters = window.CriptaCharacterData?.getCollection?.(bootstrap, 'characters');
+                characters = Array.isArray(bootstrapCharacters) && bootstrapCharacters.length
+                    ? normalizeCharactersCollection(bootstrapCharacters)
+                    : await loadCharactersCollection();
                 if (!Array.isArray(characters)) {
                     const manifest = await loadCharactersManifest();
                     const npcEntries = manifest.filter(entry => (entry.type || 'npc') === 'npc');
