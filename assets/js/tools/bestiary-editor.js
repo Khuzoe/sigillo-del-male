@@ -244,15 +244,26 @@
             setStatus('Creatura duplicata.');
         });
 
-        els.deleteCreatureBtn?.addEventListener('click', () => {
+        els.deleteCreatureBtn?.addEventListener('click', async () => {
             const selected = getSelectedCreature();
             if (!selected) return;
             const confirmed = window.confirm(`Eliminare "${selected.name || 'Creatura senza nome'}"?`);
             if (!confirmed) return;
+            const removed = structuredCloneSafe(selected);
+            const removedIndex = state.selectedIndex;
             state.creatures.splice(state.selectedIndex, 1);
             state.selectedIndex = Math.min(state.selectedIndex, state.creatures.length - 1);
             renderAll();
-            setStatus('Creatura eliminata dalla bozza. Premi "Salva online" per rimuoverla anche dal bestiario pubblico.');
+            setStatus('Creatura eliminata. Salvataggio online in corso...');
+            const saved = await saveOnlineData({ commitActive: false, silentDraftCleanup: true });
+            if (!saved) {
+                state.creatures.splice(Math.max(0, removedIndex), 0, removed);
+                state.selectedIndex = Math.min(removedIndex, state.creatures.length - 1);
+                renderAll();
+                setStatus('Eliminazione non salvata online: creatura ripristinata.', 'error');
+                return;
+            }
+            setStatus('Creatura eliminata dal bestiario online.');
         });
 
         els.bestiaryTableBody?.addEventListener('input', handleTableInput);
@@ -476,11 +487,13 @@
     }
 
     async function saveOnlineData(event) {
-        updateOutput({ commitActive: event?.type === 'change' });
+        const options = event && typeof event === 'object' && event.type === undefined ? event : {};
+        const commitActive = options.commitActive ?? (event?.type === 'change');
+        updateOutput({ commitActive });
         const token = readAuthToken();
         if (!token) {
             setStatus('Login richiesto: accedi come admin prima di salvare online.', 'error');
-            return;
+            return false;
         }
 
         let data;
@@ -488,7 +501,7 @@
             data = JSON.parse(els.jsonOutput.value);
         } catch (_) {
             setStatus('JSON non valido, impossibile salvare online.', 'error');
-            return;
+            return false;
         }
 
         try {
@@ -507,15 +520,19 @@
             }
             state.loadedVersion = payload.version ?? state.loadedVersion;
             state.loadedUpdatedAt = payload.updatedAt || state.loadedUpdatedAt;
-            try {
-                window.localStorage.removeItem(DRAFT_STORAGE_KEY);
-            } catch (_) {
-                // Ignore storage errors.
+            if (options.silentDraftCleanup !== false) {
+                try {
+                    window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+                } catch (_) {
+                    // Ignore storage errors.
+                }
             }
             setStatus(`Bestiario salvato online (${payload.count ?? data.length}). Versione KV ${payload.version ?? '?'}.`);
+            return true;
         } catch (error) {
             console.error('Errore salvataggio online bestiario:', error);
             setStatus(`Salvataggio online fallito: ${error?.message || error}`, 'error');
+            return false;
         }
     }
 

@@ -405,10 +405,10 @@ function renderBestiaryCard(creature, index, state = {}) {
             <span class="bestiary-image-frame">
                 ${mysteryIcon}
                 ${rankIcon}
+                ${playerVisibilityBadge}
                 <img src="${escapeHtml(resolveImageUrl(creature.image))}" alt="${escapeHtml(cardName)}" loading="lazy" style="${buildBestiaryImageStyle(creature.imageAdjust)}">
             </span>
             <span class="bestiary-card-name">${escapeHtml(cardName)}</span>
-            ${playerVisibilityBadge}
         </a>
     `;
 }
@@ -418,18 +418,18 @@ function renderBestiaryPlayerVisibilityBadge(creature) {
     const discovered = isBestiaryDiscovered(creature);
     if (hidden) {
         return `
-            <span class="bestiary-player-visibility-badge bestiary-player-visibility-badge--hidden">
+            <span class="bestiary-player-visibility-badge bestiary-player-visibility-badge--hidden" title="I player non vedono questa creatura">
                 <i class="fas fa-user-slash" aria-hidden="true"></i>
-                <span>Nascosto ai player</span>
+                <span>Nascosta</span>
             </span>
         `;
     }
     if (!discovered) {
         const playerName = creature.mysteryName || "Creatura Misteriosa";
         return `
-            <span class="bestiary-player-visibility-badge bestiary-player-visibility-badge--undiscovered">
+            <span class="bestiary-player-visibility-badge bestiary-player-visibility-badge--undiscovered" title="I player vedono: ${escapeHtml(playerName)}">
                 <i class="fas fa-eye-slash" aria-hidden="true"></i>
-                <span>Player: ${escapeHtml(playerName)}</span>
+                <span>${escapeHtml(playerName)}</span>
             </span>
         `;
     }

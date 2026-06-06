@@ -548,7 +548,20 @@ function getLegacySkillTreeFileName(value) {
 }
 
 function dataUrl(pathname) {
-    return window.CriptaApp?.urls?.data?.(pathname) || `../../assets/data/${String(pathname || '').replace(/^\/+/, '')}`;
+    const clean = String(pathname || '').replace(/^\/+/, '');
+    const resolved = window.CriptaApp?.urls?.data?.(clean);
+    if (resolved && !/\/pages\/characters\/assets\/data\//.test(resolved)) return resolved;
+    const script = document.querySelector('script[src*="assets/js/pages/character-main.js"]')
+        || document.querySelector('script[src*="assets/js/layout.js"]');
+    const scriptSrc = script?.getAttribute('src') || '';
+    const base = scriptSrc
+        ? new URL(scriptSrc, window.location.href).href.replace(/assets\/js\/(?:pages\/character-main|layout)\.js(?:[?#].*)?$/i, '')
+        : new URL('../../', window.location.href).href;
+    const campaignId = getCurrentCampaignId();
+    const dataRoot = campaignId === 'cripta-di-sangue'
+        ? 'assets/data'
+        : `campaigns/${campaignId}/data`;
+    return new URL(`${dataRoot}/${clean}`, base).toString();
 }
 
 function getCurrentCampaignId() {
@@ -666,12 +679,10 @@ function applySyncedPlayerImageFallback(character) {
     const avatarPath = getSyncedPlayerImagePath(normalized, 'avatar');
     const legacyAvatarPath = getLegacySyncedPlayerAvatarPath(normalized);
     const tokenPath = getSyncedPlayerImagePath(normalized, 'token');
-    if (!images.avatar) images.avatar = avatarPath;
-    if (!images.avatarFallback && images.avatar === avatarPath) images.avatarFallback = legacyAvatarPath;
-    if (!images.portrait) images.portrait = images.avatar;
-    if (!images.portraitFallback && images.portrait === avatarPath) images.portraitFallback = legacyAvatarPath;
-    if (!images.hover) images.hover = images.avatar;
-    if (!images.hoverFallback && images.hover === avatarPath) images.hoverFallback = legacyAvatarPath;
+    images.avatar = avatarPath;
+    images.avatarFallback = legacyAvatarPath;
+    images.portrait = avatarPath;
+    images.portraitFallback = legacyAvatarPath;
     if (!images.token) images.token = tokenPath;
     if (!images.tokenFallback && images.token === tokenPath) images.tokenFallback = getLegacySyncedPlayerImagePath(normalized, 'token');
     normalized.images = images;
@@ -708,12 +719,11 @@ function applyCharacterMediaOverride(character, overrides = mediaOverridesMemory
     const override = findMediaOverride(overrides, 'player', normalized.id || normalized.name);
     const images = override?.images || {};
     if (images.avatar) {
-        const avatar = appendAssetVersion(images.avatar, override.updatedAt);
+        const avatar = appendAssetVersion(getSyncedPlayerImagePath(normalized, 'avatar'), override.updatedAt);
         normalized.images.avatar = avatar;
-        normalized.images.portrait = appendAssetVersion(images.portrait || images.avatar, override.updatedAt);
-        if (!normalized.images.hover) normalized.images.hover = avatar;
+        normalized.images.portrait = avatar;
     }
-    if (images.token) normalized.images.token = appendAssetVersion(images.token, override.updatedAt);
+    if (images.token) normalized.images.token = appendAssetVersion(getSyncedPlayerImagePath(normalized, 'token'), override.updatedAt);
     return normalized;
 }
 
@@ -4577,8 +4587,8 @@ window.CriptaApp.onPageReady("character", async function () {
         let allCharacters = [];
         const bootstrap = await loadCharacterBootstrap(charId, charType);
 
-        // Load Quests Data separately
-        const questsData = await loadQuestsData();
+        // Quests are only rendered for NPC pages; avoid noisy 404s on player-only campaigns.
+        const questsData = charType === 'player' ? [] : await loadQuestsData();
         const npcQuests = questsData.find(g => g.npc_id === charId);
 
         // IBRIDO: Se abbiamo dati statici, usiamoli.
@@ -6433,8 +6443,7 @@ window.CriptaApp.onPageReady("character", async function () {
         }
         try {
             const blob = /\.webp$/i.test(file.name) ? file : await convertInlineImageFileToWebpBlob(file);
-            const folderRoot = subject?.isCompanion ? 'companion-transformations' : 'transformations';
-            const folder = `${folderRoot}/${slugify(subject?.id || subject?.accountId || 'player')}`;
+            const folder = `transformations/${slugify(subject?.id || subject?.accountId || 'player')}`;
             const fileName = `${slugify(entry.creatureName || entry.name || entry.id || 'forma')}.webp`;
             const form = new FormData();
             form.set('folder', folder);
@@ -6861,6 +6870,9 @@ window.CriptaApp.onPageReady("character", async function () {
                         </div>
                     `
             : '';
+        const portraitSource = isPlayerView
+            ? (images.avatar || images.portrait || '')
+            : (images.portrait || images.avatar || images.hover || '');
         const portraitFallback = resolveImagePath(images.portraitFallback || images.avatarFallback || '');
         const portraitErrorHandler = portraitFallback
             ? "if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{this.src='https://placehold.co/400x500/111/333?text=No+Image';}"
@@ -6868,7 +6880,7 @@ window.CriptaApp.onPageReady("character", async function () {
 
         return `
                     <div class="image-card">
-                        <img src="${resolveImagePath(images.portrait || images.avatar || images.hover || '')}" ${portraitFallback ? `data-fallback-src="${escapeHtml(portraitFallback)}"` : ''} class="char-portrait" onerror="${portraitErrorHandler}">
+                        <img src="${resolveImagePath(portraitSource)}" ${portraitFallback ? `data-fallback-src="${escapeHtml(portraitFallback)}"` : ''} class="char-portrait" onerror="${portraitErrorHandler}">
                         ${playerMediaActionsHtml}
                         <div class="stats-grid">${statsHtml}</div>
                         ${causeOfDeathHtml}

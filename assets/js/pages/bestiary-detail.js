@@ -6,6 +6,7 @@ window.CriptaApp.onPageReady("creature", async () => {
     const nameEl = document.getElementById("creature-name");
     const subtitleEl = document.getElementById("creature-subtitle");
     const editButton = document.getElementById("creature-edit-button");
+    const exportButton = document.getElementById("creature-export-button");
     const backLink = document.querySelector(".bestiary-detail-back");
     if (!root) return;
     if (backLink) backLink.href = buildBestiaryListUrl();
@@ -58,6 +59,7 @@ window.CriptaApp.onPageReady("creature", async () => {
             editButton.classList.add("is-editing");
             render();
         });
+        exportButton?.addEventListener("click", downloadFoundryActor);
 
         render();
     } catch (error) {
@@ -130,10 +132,6 @@ window.CriptaApp.onPageReady("creature", async () => {
         return `
             <div class="bestiary-detail-editor">
                 <div class="bestiary-detail-toolbar" data-bestiary-toolbar>
-                    <button class="bestiary-detail-action" type="button" data-action="download-foundry">
-                        <i class="fas fa-file-export" aria-hidden="true"></i>
-                        <span>Export Foundry</span>
-                    </button>
                     <button class="bestiary-detail-action" type="button" data-action="import-creature-json">
                         <i class="fas fa-file-import" aria-hidden="true"></i>
                         <span>Import JSON</span>
@@ -223,7 +221,6 @@ window.CriptaApp.onPageReady("creature", async () => {
             field.addEventListener("input", () => updateImageAdjustControl(field));
             field.addEventListener("change", () => updateImageAdjustControl(field));
         });
-        root.querySelector('[data-action="download-foundry"]')?.addEventListener("click", downloadFoundryActor);
         root.querySelector('[data-action="import-creature-json"]')?.addEventListener("click", openImportCreatureJsonDialog);
         root.querySelector('[data-action="add-custom-ability"]')?.addEventListener("click", addCustomAbilityTemplate);
         root.querySelector('[data-action="add-empty-ability"]')?.addEventListener("click", addEmptyMonsterAbility);
