@@ -22,6 +22,34 @@ window.CriptaApp.onPageReady("index", () => {
         return `assets/${value}`;
     }
 
+    function slugify(value) {
+        return String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '') || 'personaggio';
+    }
+
+    function getCurrentCampaignId() {
+        return window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
+    }
+
+    function getSyncedPlayerImagePath(player, variant = 'hover') {
+        const playerId = slugify(player?.id || player?.name || 'personaggio');
+        return `media/campaigns/${getCurrentCampaignId()}/players/${playerId}-${variant}.webp`;
+    }
+
+    function getSyncedNpcImagePath(npc, variant = 'hover') {
+        const npcId = slugify(npc?.id || npc?.name || 'npc');
+        return `media/campaigns/${getCurrentCampaignId()}/characters/${npcId}/${variant}.webp`;
+    }
+
+    function buildImageFallbackHandler(fallbackUrl) {
+        const value = String(fallbackUrl || '').replace(/'/g, "\\'");
+        return value ? ` onerror="this.onerror=null;this.src='${value}'"` : '';
+    }
+
     Promise.all([
         fetchJson(window.CriptaApp?.urls?.data?.('sessions.json') || 'assets/data/sessions.json', 'Errore caricamento sessions.json').catch((error) => {
             console.info('Archivio sessioni non disponibile per questa campagna:', error);
@@ -131,7 +159,7 @@ window.CriptaApp.onPageReady("index", () => {
     }
 
     function renderHomePlayerCard(player) {
-        const avatarPath = resolveImageUrl(player.images?.avatar);
+        const avatarPath = resolveImageUrl(getSyncedPlayerImagePath(player, 'hover'));
         return `
             <a href="pages/characters/character.html?id=${player.id}&type=player" class="home-char-card mini">
                 <div class="home-char-avatar"><img src="${avatarPath}" alt="${player.name}"></div>
@@ -143,11 +171,12 @@ window.CriptaApp.onPageReady("index", () => {
     }
 
     function renderRecentNpcCard(npc) {
-        const avatarPath = resolveImageUrl(npc.avatar);
+        const avatarPath = resolveImageUrl(getSyncedNpcImagePath(npc, 'hover'));
+        const fallbackPath = resolveImageUrl(npc.hoverFallback || npc.avatar);
         const url = npc.url || `pages/characters/character.html?id=${npc.id}`;
         return `
             <a href="${url}" class="home-char-card mini">
-                <div class="home-char-avatar"><img src="${avatarPath}" alt="${npc.name}"></div>
+                <div class="home-char-avatar"><img src="${avatarPath}" alt="${npc.name}"${buildImageFallbackHandler(fallbackPath)}></div>
                 <div class="home-char-info">
                     <h4 class="name">${npc.name}</h4><span class="role">${npc.role}</span>
                 </div>

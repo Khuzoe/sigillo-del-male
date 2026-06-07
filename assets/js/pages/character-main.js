@@ -6123,15 +6123,28 @@ window.CriptaApp.onPageReady("character", async function () {
     function getCharacterTransformations(character) {
         const characterId = String(character?.id || '').trim();
         const accountId = String(character?.accountId || '').trim();
+        const actorId = String(character?.actorId || '').trim();
         const staticEntries = Array.isArray(character?.transformations) ? character.transformations : [];
         return mergeTransformations(staticEntries.map((entry) => normalizeTransformationEntry(entry, character)), currentTransformations)
             .filter((entry) => {
                 if (!entry?.enabled && entry?.enabled !== undefined) return false;
+                const isCompanionEntry = isCompanionTransformationEntry(entry);
+                if (character?.isCompanion) {
+                    if (characterId && String(entry.characterId || '') === characterId) return true;
+                    return Boolean(actorId && String(entry.actorId || '') === actorId);
+                }
+                if (isCompanionEntry) return false;
                 if (characterId && String(entry.characterId || '') === characterId) return true;
-                if (character?.isCompanion) return false;
                 return Boolean(accountId && String(entry.ownerAccountId || '') === accountId);
             })
             .sort((left, right) => String(left.creatureName || left.name || '').localeCompare(String(right.creatureName || right.name || ''), 'it'));
+    }
+
+    function isCompanionTransformationEntry(entry) {
+        return Boolean(entry?.isCompanion)
+            || String(entry?.entityType || '') === 'companion'
+            || String(entry?.characterId || '').startsWith('companion-')
+            || String(entry?.id || '').startsWith('companion-');
     }
 
     function normalizeTransformationEntry(entry, character) {
@@ -6149,6 +6162,10 @@ window.CriptaApp.onPageReady("character", async function () {
             ...entry,
             id,
             characterId: entry?.characterId || character?.id || '',
+            entityType: entry?.entityType || (character?.isCompanion ? 'companion' : 'player'),
+            isCompanion: Boolean(entry?.isCompanion || character?.isCompanion),
+            actorId: entry?.actorId || character?.actorId || '',
+            ownerCharacterId: entry?.ownerCharacterId || character?.ownerCharacterId || '',
             ownerAccountId: entry?.ownerAccountId || character?.accountId || '',
             ownerDiscordId: entry?.ownerDiscordId || character?.discordId || '',
             ownerAliases: Array.from(new Set([
@@ -6381,7 +6398,7 @@ window.CriptaApp.onPageReady("character", async function () {
             const nextOwnEntries = characterEntries.map((entry) => normalizeTransformationEntry(entry, subject));
             const otherEntries = (Array.isArray(loaded.data) ? loaded.data : []).filter((entry) => {
                 if (String(entry?.characterId || '') === characterId) return false;
-                if (!subject?.isCompanion && accountId && String(entry?.ownerAccountId || '') === accountId) return false;
+                if (!subject?.isCompanion && !isCompanionTransformationEntry(entry) && accountId && String(entry?.ownerAccountId || '') === accountId) return false;
                 return true;
             });
             const nextData = [...otherEntries, ...nextOwnEntries];

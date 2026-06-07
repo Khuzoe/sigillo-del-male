@@ -30,17 +30,83 @@
                 <div class="asset-sync-heading">
                     <div>
                         <h2 id="asset-sync-title">Stato sincronizzazione</h2>
-                        <p>Vista diagnostica in sola lettura. Non applica modifiche a Foundry.</p>
+                        <p>Diagnostica sicura: seleziona cosa sincronizzare e crea richieste che Foundry applichera esplicitamente.</p>
                     </div>
-                    <button type="button" id="asset-sync-refresh" class="asset-sync-button">
-                        <i class="fas fa-rotate" aria-hidden="true"></i>
-                        <span>Aggiorna</span>
-                    </button>
+                    <div class="asset-sync-heading-actions">
+                        <button type="button" id="asset-sync-refresh" class="asset-sync-button">
+                            <i class="fas fa-rotate" aria-hidden="true"></i>
+                            <span>Aggiorna</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div id="asset-sync-summary" class="asset-sync-summary"></div>
 
+                <div class="asset-sync-actions" aria-label="Azioni asset sync">
+                    <div>
+                        <strong>Richieste selettive</strong>
+                        <span id="asset-sync-selection-count">0 selezionati</span>
+                    </div>
+                    <button type="button" id="asset-sync-select-different" class="asset-sync-button asset-sync-button--muted">
+                        Seleziona differenti
+                    </button>
+                    <button type="button" id="asset-sync-select-visible" class="asset-sync-button asset-sync-button--muted">
+                        Seleziona visibili
+                    </button>
+                    <button type="button" id="asset-sync-select-problematic" class="asset-sync-button asset-sync-button--muted">
+                        Seleziona legacy/orfani
+                    </button>
+                    <button type="button" id="asset-sync-clear-selection" class="asset-sync-button asset-sync-button--muted">
+                        Pulisci
+                    </button>
+                    <button type="button" id="asset-sync-archive-selected" class="asset-sync-button asset-sync-button--danger">
+                        <i class="fas fa-box-archive" aria-hidden="true"></i>
+                        Archivia vista
+                    </button>
+                    <button type="button" id="asset-sync-queue-site-to-foundry" class="asset-sync-button">
+                        <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                        Sito -> Foundry
+                    </button>
+                    <button type="button" id="asset-sync-queue-foundry-to-site" class="asset-sync-button">
+                        <i class="fas fa-arrow-left" aria-hidden="true"></i>
+                        Foundry -> Sito
+                    </button>
+                </div>
+
+                <p id="asset-sync-message" class="asset-sync-message" hidden></p>
+
+                <section class="asset-sync-cleanup" aria-labelledby="asset-sync-cleanup-title">
+                    <div class="asset-sync-cleanup-heading">
+                        <div>
+                            <h3 id="asset-sync-cleanup-title">Cleanup archiviati</h3>
+                            <p>Dry-run sicuro: mostra cosa puo essere eliminato dopo l'archiviazione. La cancellazione reale richiede selezione esplicita.</p>
+                        </div>
+                        <div class="asset-sync-cleanup-actions">
+                            <button type="button" id="asset-sync-cleanup-dry-run" class="asset-sync-button asset-sync-button--muted">
+                                <i class="fas fa-magnifying-glass-chart" aria-hidden="true"></i>
+                                Prepara cleanup
+                            </button>
+                            <button type="button" id="asset-sync-cleanup-select-all" class="asset-sync-button asset-sync-button--muted" disabled>
+                                Seleziona eliminabili
+                            </button>
+                            <button type="button" id="asset-sync-cleanup-apply" class="asset-sync-button asset-sync-button--danger" disabled>
+                                <i class="fas fa-trash-can" aria-hidden="true"></i>
+                                Elimina selezionati
+                            </button>
+                        </div>
+                    </div>
+                    <div id="asset-sync-cleanup-panel" class="asset-sync-cleanup-panel">
+                        <p class="asset-sync-state">Nessun dry-run eseguito.</p>
+                    </div>
+                </section>
+
                 <div class="asset-sync-filters" aria-label="Filtri asset">
+                    <label>
+                        <span>Campagna</span>
+                        <select id="asset-sync-campaign">
+                            <option value="">Tutte</option>
+                        </select>
+                    </label>
                     <label>
                         <span>Stato</span>
                         <select id="asset-sync-status">
@@ -52,6 +118,19 @@
                         <select id="asset-sync-type">
                             <option value="">Tutti</option>
                         </select>
+                    </label>
+                    <label>
+                        <span>Integrita</span>
+                        <select id="asset-sync-integrity">
+                            <option value="">Tutte</option>
+                        </select>
+                    </label>
+                    <label class="asset-sync-archive-filter">
+                        <span>Archivio</span>
+                        <span class="asset-sync-checkbox-label">
+                            <input id="asset-sync-show-archived" type="checkbox">
+                            Mostra archiviati
+                        </span>
                     </label>
                     <label class="asset-sync-search">
                         <span>Cerca</span>

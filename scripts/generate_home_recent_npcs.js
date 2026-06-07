@@ -3,7 +3,11 @@ const path = require("path");
 const { parseYamlLite } = require("./lib/yaml-lite");
 
 const ROOT = path.resolve(__dirname, "..");
-const DATA_DIR = path.join(ROOT, "assets", "data");
+const CAMPAIGN_ID = process.argv[2] || process.env.CAMPAIGN_ID || "cripta-di-sangue";
+const CAMPAIGN_DATA_DIR = path.join(ROOT, "campaigns", CAMPAIGN_ID, "data");
+const DATA_DIR = fs.existsSync(CAMPAIGN_DATA_DIR)
+  ? CAMPAIGN_DATA_DIR
+  : path.join(ROOT, "assets", "data");
 const OUTPUT_PATH = path.join(DATA_DIR, "home-recent-npcs.json");
 
 function readJson(filePath) {
@@ -22,6 +26,19 @@ function normalize(text) {
     .replace(/[^a-z0-9\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "npc";
+}
+
+function getCampaignCharacterImagePath(npcId, variant = "hover") {
+  return `media/campaigns/${CAMPAIGN_ID}/characters/${slugify(npcId)}/${variant}.webp`;
 }
 
 function stripHtml(text) {
@@ -66,6 +83,8 @@ function loadNpcCharacters() {
         name: npc.name || entry.id,
         role: npc.role || "NPC",
         avatar: npc.images?.avatar || "",
+        hover: getCampaignCharacterImagePath(npc.id || entry.id, "hover"),
+        hoverFallback: npc.images?.hover || npc.images?.avatar || "",
         aliases: aliases.filter(Boolean),
       };
     })
@@ -130,6 +149,8 @@ function main() {
       name: item.npc.name,
       role: item.npc.role,
       avatar: item.npc.avatar,
+      hover: item.npc.hover,
+      hoverFallback: item.npc.hoverFallback,
       url: `pages/characters/character.html?id=${item.npc.id}`,
       score: item.score,
     }));
