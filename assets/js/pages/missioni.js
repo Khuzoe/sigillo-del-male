@@ -1,5 +1,6 @@
 /* MAPPA IMMAGINI (Cache) */
         const characterImages = {};
+        const characterImageMeta = {};
 
         function siteUrl(path) {
             const cleanPath = String(path || '').replace(/^\/+/, '');
@@ -10,6 +11,23 @@
                 return window.CriptaApp.urls.site(cleanPath);
             }
             return new URL(`../${cleanPath}`, window.location.href).toString();
+        }
+
+        function slugify(value) {
+            return String(value || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '') || 'npc';
+        }
+
+        function getCurrentCampaignId() {
+            return window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
+        }
+
+        function getSyncedNpcImagePath(npcId, variant = 'hover') {
+            return `media/campaigns/${getCurrentCampaignId()}/characters/${slugify(npcId)}/${variant}.webp`;
         }
 
         // Funzione helper per parsare YAML (molto semplificata, solo per estrarre immagini)
@@ -27,6 +45,7 @@
         async function loadCharacterAssets() {
             try {
                 Object.keys(characterImages).forEach(key => delete characterImages[key]);
+                Object.keys(characterImageMeta).forEach(key => delete characterImageMeta[key]);
                 // 1. Carica Players
                 const respPlayers = await fetch(siteUrl('assets/data/players.json'));
                 if (respPlayers.ok) {
@@ -34,6 +53,7 @@
                     players.forEach(p => {
                         if (p.images && p.images.avatar) {
                             characterImages[p.id] = p.images.avatar;
+                            characterImageMeta[p.id] = { type: 'player', fallback: p.images.avatar };
                         }
                     });
                 }
@@ -69,7 +89,8 @@
                                     return;
                                 }
                                 const img = extractImagesFromYaml(t);
-                                if (img) characterImages[entry.id] = img;
+                                characterImages[entry.id] = getSyncedNpcImagePath(entry.id, 'hover');
+                                characterImageMeta[entry.id] = { type: 'npc', fallback: getSyncedNpcImagePath(entry.id, 'token'), legacyFallback: img || '' };
                             }
                         } catch (e) { console.warn("Failed to load generic NPC", entry.id); }
                     }));
@@ -87,6 +108,15 @@
             if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
             if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
             return siteUrl(`assets/${value}`);
+        }
+
+        function buildImageFallbackHandler(fallbackPath, legacyFallbackPath = '') {
+            const fallbackUrl = resolveImagePath(fallbackPath);
+            const legacyFallbackUrl = resolveImagePath(legacyFallbackPath);
+            const escaped = fallbackUrl.replace(/'/g, "\\'");
+            const escapedLegacy = legacyFallbackUrl.replace(/'/g, "\\'");
+            if (!escaped && !escapedLegacy) return '';
+            return ` data-fallback-src="${escaped}" data-legacy-fallback-src="${escapedLegacy}" onerror="if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else if(this.dataset.legacyFallbackSrc){this.src=this.dataset.legacyFallbackSrc;this.dataset.legacyFallbackSrc='';}else{this.style.display='none';}"`;
         }
 
         async function loadNpcRecencyMap() {
@@ -192,7 +222,9 @@
             let charIconHtml = '';
             if (quest.character_specific && characterImages[quest.character_specific]) {
                 const imgPath = resolveImagePath(characterImages[quest.character_specific]);
-                charIconHtml = `<img src="${imgPath}" class="quest-char-icon-small" title="Esclusiva per ${quest.character_specific}" alt="${quest.character_specific}">`;
+                const fallback = characterImageMeta[quest.character_specific]?.fallback || '';
+                const legacyFallback = characterImageMeta[quest.character_specific]?.legacyFallback || '';
+                charIconHtml = `<img src="${imgPath}" class="quest-char-icon-small" title="Esclusiva per ${quest.character_specific}" alt="${quest.character_specific}"${buildImageFallbackHandler(fallback, legacyFallback)}>`;
             }
 
             let html = `
@@ -252,9 +284,11 @@
             // NPC Avatar Logic
             let npcAvatarHtml = '';
             if (group.npc_id && characterImages[group.npc_id]) {
+                const fallback = characterImageMeta[group.npc_id]?.fallback || '';
+                const legacyFallback = characterImageMeta[group.npc_id]?.legacyFallback || '';
                 npcAvatarHtml = `
                     <div class="quest-npc-avatar">
-                        <img src="${resolveImagePath(characterImages[group.npc_id])}" alt="${group.title}">
+                        <img src="${resolveImagePath(characterImages[group.npc_id])}" alt="${group.title}"${buildImageFallbackHandler(fallback, legacyFallback)}>
                     </div>
                 `;
             }

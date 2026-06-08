@@ -84,7 +84,8 @@ function loadNpcCharacters() {
         role: npc.role || "NPC",
         avatar: npc.images?.avatar || "",
         hover: getCampaignCharacterImagePath(npc.id || entry.id, "hover"),
-        hoverFallback: npc.images?.hover || npc.images?.avatar || "",
+        token: getCampaignCharacterImagePath(npc.id || entry.id, "token"),
+        hoverFallback: getCampaignCharacterImagePath(npc.id || entry.id, "token"),
         aliases: aliases.filter(Boolean),
       };
     })
@@ -150,6 +151,7 @@ function main() {
       role: item.npc.role,
       avatar: item.npc.avatar,
       hover: item.npc.hover,
+      token: item.npc.token,
       hoverFallback: item.npc.hoverFallback,
       url: `pages/characters/character.html?id=${item.npc.id}`,
       score: item.score,

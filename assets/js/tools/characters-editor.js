@@ -52,12 +52,14 @@
             'field-role',
             'field-status',
             'field-quote',
-            'field-portrait',
+            'field-idle',
             'field-avatar',
             'field-hover',
-            'portrait-preview',
+            'field-token',
+            'idle-preview',
             'avatar-preview',
             'hover-preview',
+            'token-preview',
             'blocks-list',
             'add-block-btn'
         ].forEach((id) => {
@@ -108,6 +110,18 @@
             if (!blockAction) return;
             event.preventDefault();
             handleBlockAction(blockAction.dataset.blockAction, Number(blockAction.dataset.blockIndex));
+        });
+
+        els.detailForm?.addEventListener('dragover', (event) => {
+            if (!event.target.closest('[data-avatar-token-drop-zone]')) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+        });
+
+        els.detailForm?.addEventListener('drop', async (event) => {
+            if (!event.target.closest('[data-avatar-token-drop-zone]')) return;
+            event.preventDefault();
+            await handleAvatarTokenDrop(event.dataTransfer?.files);
         });
 
         els.detailForm?.addEventListener('change', (event) => {
@@ -181,21 +195,36 @@
     }
 
     function normalizeCharacters(characters) {
-        return characters.map((character) => ({
-            id: slugify(character.id || character.name || 'npc'),
-            name: character.name || 'Nuovo NPC',
-            type: character.type || 'npc',
-            role: character.role || '',
-            status: character.status || 'ignoto',
-            hidden: Boolean(character.hidden),
-            quote: character.quote || '',
-            images: {
-                avatar: character.images?.avatar || character.images?.portrait || PLACEHOLDER_IMAGE,
-                hover: character.images?.hover || character.images?.avatar || character.images?.portrait || PLACEHOLDER_IMAGE,
-                portrait: character.images?.portrait || character.images?.avatar || PLACEHOLDER_IMAGE
-            },
-            blocks: normalizeBlocks(character.blocks || character.content_blocks || [])
-        }));
+        return characters.map((character) => {
+            const images = normalizeNpcImages(character);
+            return {
+                id: slugify(character.id || character.name || 'npc'),
+                name: character.name || 'Nuovo NPC',
+                type: character.type || 'npc',
+                role: character.role || '',
+                status: character.status || 'ignoto',
+                hidden: Boolean(character.hidden),
+                quote: character.quote || '',
+                images,
+                blocks: normalizeBlocks(character.blocks || character.content_blocks || [])
+            };
+        });
+    }
+
+    function normalizeNpcImages(character) {
+        const raw = character?.images || {};
+        const avatar = raw.avatar || raw.portrait || PLACEHOLDER_IMAGE;
+        const token = raw.token || raw.avatar || raw.portrait || PLACEHOLDER_IMAGE;
+        return {
+            idle: raw.idle || raw.card || raw.list || raw.showcase || raw.avatar || raw.portrait || raw.token || PLACEHOLDER_IMAGE,
+            hover: raw.hover || raw.cardHover || raw.listHover || raw.showcaseHover || raw.token || raw.avatar || raw.portrait || PLACEHOLDER_IMAGE,
+            token,
+            avatar
+        };
+    }
+
+    function getListImage(character) {
+        return character?.images?.idle || character?.images?.token || character?.images?.avatar || PLACEHOLDER_IMAGE;
     }
 
     function normalizeBlocks(blocks) {
@@ -223,7 +252,7 @@
 
         els.characterList.innerHTML = visible.map(({ character, index }) => `
             <button class="characters-editor-list-btn ${index === state.selectedIndex ? 'is-active' : ''}" type="button" data-character-index="${index}">
-                <img src="${resolveImageUrl(character.images?.avatar || PLACEHOLDER_IMAGE)}" alt="" onerror="this.style.display='none'">
+                <img src="${resolveImageUrl(getListImage(character))}" alt="" onerror="this.style.display='none'">
                 <span>
                     <span class="characters-editor-list-name">${escapeHtml(character.name)}</span>
                     <span class="characters-editor-list-role">${escapeHtml(character.role || character.id)}</span>
@@ -257,9 +286,10 @@
         els.fieldRole.value = character.role || '';
         els.fieldStatus.value = character.status || 'ignoto';
         els.fieldQuote.value = character.quote || '';
-        els.fieldPortrait.value = character.images?.portrait || '';
+        els.fieldIdle.value = character.images?.idle || '';
         els.fieldAvatar.value = character.images?.avatar || '';
         els.fieldHover.value = character.images?.hover || '';
+        els.fieldToken.value = character.images?.token || '';
         syncImagePreviews();
         renderBlocks();
     }
@@ -398,7 +428,7 @@
             status: 'ignoto',
             hidden: false,
             quote: '',
-            images: { avatar: PLACEHOLDER_IMAGE, hover: PLACEHOLDER_IMAGE, portrait: PLACEHOLDER_IMAGE },
+            images: { idle: PLACEHOLDER_IMAGE, hover: PLACEHOLDER_IMAGE, token: PLACEHOLDER_IMAGE, avatar: PLACEHOLDER_IMAGE },
             blocks: []
         });
         state.selectedIndex = state.characters.length - 1;
@@ -490,9 +520,10 @@
             hidden: Boolean(character.hidden),
             quote: character.quote || '',
             images: {
-                avatar: character.images?.avatar || PLACEHOLDER_IMAGE,
-                hover: character.images?.hover || character.images?.avatar || PLACEHOLDER_IMAGE,
-                portrait: character.images?.portrait || character.images?.avatar || PLACEHOLDER_IMAGE
+                idle: character.images?.idle || character.images?.token || PLACEHOLDER_IMAGE,
+                hover: character.images?.hover || character.images?.token || PLACEHOLDER_IMAGE,
+                token: character.images?.token || character.images?.idle || PLACEHOLDER_IMAGE,
+                avatar: character.images?.avatar || character.images?.token || PLACEHOLDER_IMAGE
             },
             blocks: (character.blocks || []).map((block) => ({
                 id: slugify(block.id || block.title || 'blocco'),
@@ -533,6 +564,52 @@
         character.images = character.images || {};
         character.images[field] = path;
         renderDetail();
+    }
+
+    async function handleAvatarTokenDrop(fileList) {
+        const character = getSelectedCharacter();
+        const files = Array.from(fileList || []).filter((file) => file?.type?.startsWith('image/'));
+        if (!character || files.length !== 2) return;
+
+        try {
+            setStatus('Analisi immagini avatar/token...');
+            const assignment = await assignAvatarAndTokenFiles(files);
+            const avatarPath = await uploadImageFile(assignment.avatar.file, character.id, 'avatar.webp');
+            const tokenPath = await uploadImageFile(assignment.token.file, character.id, 'token.webp');
+            if (!avatarPath || !tokenPath) return;
+            character.images = character.images || {};
+            character.images.avatar = avatarPath;
+            character.images.token = tokenPath;
+            renderDetail();
+            setStatus('Avatar e token aggiornati dalle immagini trascinate.');
+        } catch (error) {
+            console.error('Drop avatar/token fallito:', error);
+            setStatus(`Drop avatar/token fallito: ${error?.message || error}`, 'error');
+        }
+    }
+
+    async function assignAvatarAndTokenFiles(files) {
+        const analyzed = await Promise.all(files.map(async (file) => {
+            const dimensions = await readImageDimensions(file);
+            const area = dimensions.width * dimensions.height;
+            const squareDelta = Math.abs(dimensions.width - dimensions.height) / Math.max(dimensions.width, dimensions.height, 1);
+            return { file, ...dimensions, area, squareDelta };
+        }));
+        analyzed.sort((left, right) => {
+            const squareSort = left.squareDelta - right.squareDelta;
+            if (Math.abs(squareSort) > 0.04) return squareSort;
+            return left.area - right.area;
+        });
+        const token = analyzed[0];
+        const avatar = analyzed[1];
+        return { avatar, token };
+    }
+
+    async function readImageDimensions(file) {
+        const bitmap = await createImageBitmap(file);
+        const dimensions = { width: bitmap.width, height: bitmap.height };
+        bitmap.close?.();
+        return dimensions;
     }
 
     async function uploadBlockImage(index) {
@@ -638,9 +715,10 @@
     function syncImagePreviews() {
         const character = getSelectedCharacter();
         if (!character) return;
-        els.portraitPreview.src = resolveImageUrl(character.images?.portrait || PLACEHOLDER_IMAGE);
-        els.avatarPreview.src = resolveImageUrl(character.images?.avatar || PLACEHOLDER_IMAGE);
-        els.hoverPreview.src = resolveImageUrl(character.images?.hover || character.images?.avatar || PLACEHOLDER_IMAGE);
+        els.idlePreview.src = resolveImageUrl(character.images?.idle || character.images?.token || PLACEHOLDER_IMAGE);
+        els.hoverPreview.src = resolveImageUrl(character.images?.hover || character.images?.token || PLACEHOLDER_IMAGE);
+        els.tokenPreview.src = resolveImageUrl(character.images?.token || PLACEHOLDER_IMAGE);
+        els.avatarPreview.src = resolveImageUrl(character.images?.avatar || character.images?.token || PLACEHOLDER_IMAGE);
     }
 
     function getSelectedCharacter() {

@@ -130,6 +130,24 @@ function parseYamlLite(yamlText) {
             return `--img-x:${normalized.x}px; --img-y:${normalized.y}px; --img-scale-rest:${restScale}; --img-scale-hover:${hoverScale};`;
         }
 
+        function slugify(value) {
+            return String(value || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '') || 'npc';
+        }
+
+        function getCurrentCampaignId() {
+            return window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
+        }
+
+        function getSyncedNpcImagePath(npc, variant) {
+            const npcId = slugify(npc?.id || npc?.name || 'npc');
+            return `media/campaigns/${getCurrentCampaignId()}/characters/${npcId}/${variant}.webp`;
+        }
+
         window.CriptaApp.onPageReady("npcs", async function () {
             const base_path = '../assets/'; // Path from npcs.html to assets folder
             const npcListContainer = document.querySelector('.npc-list');
@@ -145,6 +163,7 @@ function parseYamlLite(yamlText) {
                     console.log("Fetching NPC data...");
                     npcs = await loadNpcData(base_path);
                 }
+                npcs = normalizeCharactersCollection(npcs);
 
                 const visibleNpcs = window.WikiSpoiler
                     ? window.WikiSpoiler.filterVisible(npcs)
@@ -288,11 +307,25 @@ function parseYamlLite(yamlText) {
             return characters.map((character) => {
                 const normalized = { ...character };
                 normalized.content_blocks = normalizeCharacterBlocks(character);
-                normalized.images = normalized.images || {};
-                if (!normalized.images.hover) normalized.images.hover = normalized.images.avatar || normalized.images.portrait || '';
-                if (!normalized.images.avatar) normalized.images.avatar = normalized.images.portrait || normalized.images.hover || '';
+                normalized.images = normalizeNpcImages(normalized);
                 return normalized;
             });
+        }
+
+        function normalizeNpcImages(character) {
+            const raw = character?.images || {};
+            const token = raw.token || getSyncedNpcImagePath(character, 'token');
+            const legacyList = raw.avatar || raw.portrait || raw.hover || '';
+            return {
+                ...raw,
+                idle: raw.idle || raw.card || raw.list || raw.showcase || getSyncedNpcImagePath(character, 'idle'),
+                hover: raw.hover || raw.cardHover || raw.listHover || raw.showcaseHover || getSyncedNpcImagePath(character, 'hover'),
+                token,
+                avatar: raw.avatar || raw.portrait || getSyncedNpcImagePath(character, 'avatar'),
+                idleFallback: raw.idleFallback || token || legacyList,
+                hoverFallback: raw.hoverFallback || token || legacyList,
+                avatarFallback: raw.avatarFallback || raw.portrait || legacyList
+            };
         }
 
         function normalizeCharacterBlocks(character) {
@@ -371,8 +404,10 @@ function parseYamlLite(yamlText) {
             const card = document.createElement('a');
             card.href = `./characters/character.html?id=${npc.id}`;
             card.className = 'npc-card';
-            const avatarImage = npc.images.avatar || npc.images.portrait || npc.images.hover || '';
-            const hoverImage = npc.images.hover || avatarImage;
+            const avatarImage = npc.images.idle || npc.images.token || npc.images.avatar || '';
+            const hoverImage = npc.images.hover || npc.images.token || avatarImage;
+            const avatarFallback = npc.images.idleFallback || npc.images.token || npc.images.avatarFallback || '';
+            const hoverFallback = npc.images.hoverFallback || avatarFallback;
             if (normalizeImageIdentity(avatarImage) === normalizeImageIdentity(hoverImage)) {
                 card.classList.add('npc-card--no-avatar-swap');
             }
@@ -380,8 +415,8 @@ function parseYamlLite(yamlText) {
             card.innerHTML = `
                 <span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>
                 <div class="npc-avatar-container">
-                    <img src="${resolveImageUrl(avatarImage, base_path)}" alt="${npc.name}" class="npc-img-pop img-main" style="${buildImageStyle('avatar', npc.images.avatarAdjust, npc.images.hoverAdjust)}" onerror="this.style.display='none'">
-                    <img src="${resolveImageUrl(hoverImage, base_path)}" alt="${npc.name} Reveal" class="npc-img-pop img-hover" style="${buildImageStyle('hover', npc.images.hoverAdjust, npc.images.avatarAdjust)}" onerror="this.style.display='none'">
+                    <img src="${resolveImageUrl(avatarImage, base_path)}" data-fallback-src="${resolveImageUrl(avatarFallback, base_path)}" alt="${npc.name}" class="npc-img-pop img-main" style="${buildImageStyle('avatar', npc.images.idleAdjust || npc.images.avatarAdjust, npc.images.hoverAdjust)}" onerror="this.src=this.dataset.fallbackSrc || ''; this.onerror=null;">
+                    <img src="${resolveImageUrl(hoverImage, base_path)}" data-fallback-src="${resolveImageUrl(hoverFallback, base_path)}" alt="${npc.name} Reveal" class="npc-img-pop img-hover" style="${buildImageStyle('hover', npc.images.hoverAdjust, npc.images.idleAdjust || npc.images.avatarAdjust)}" onerror="this.src=this.dataset.fallbackSrc || ''; this.onerror=null;">
                 </div>
                 <div class="npc-info">
                     <div class="npc-header">

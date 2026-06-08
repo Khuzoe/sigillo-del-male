@@ -172,7 +172,7 @@ window.CriptaApp.onPageReady("index", () => {
 
     function renderRecentNpcCard(npc) {
         const avatarPath = resolveImageUrl(getSyncedNpcImagePath(npc, 'hover'));
-        const fallbackPath = resolveImageUrl(npc.hoverFallback || npc.avatar);
+        const fallbackPath = resolveImageUrl(npc.hoverFallback || npc.token || npc.avatar);
         const url = npc.url || `pages/characters/character.html?id=${npc.id}`;
         return `
             <a href="${url}" class="home-char-card mini">

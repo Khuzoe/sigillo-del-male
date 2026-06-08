@@ -11,7 +11,8 @@
       "role": "Il Cuore Corrotto",
       "avatar": "media/creatures/transp/tokka_transp.webp",
       "hover": "media/campaigns/cripta-di-sangue/characters/tokka/hover.webp",
-      "hoverFallback": "media/creatures/transp/tokka_animation.webp",
+      "token": "media/campaigns/cripta-di-sangue/characters/tokka/token.webp",
+      "hoverFallback": "media/campaigns/cripta-di-sangue/characters/tokka/token.webp",
       "url": "pages/characters/character.html?id=tokka",
       "score": 14
     },
@@ -21,7 +22,8 @@
       "role": "Lo Scienziato",
       "avatar": "media/creatures/transp/franky_transp.webp",
       "hover": "media/campaigns/cripta-di-sangue/characters/franky/hover.webp",
-      "hoverFallback": "media/creatures/transp/franky_animation.webp",
+      "token": "media/campaigns/cripta-di-sangue/characters/franky/token.webp",
+      "hoverFallback": "media/campaigns/cripta-di-sangue/characters/franky/token.webp",
       "url": "pages/characters/character.html?id=franky",
       "score": 2
     },
@@ -31,7 +33,8 @@
       "role": "La Giullare",
       "avatar": "media/creatures/transp/zara_transp.webp",
       "hover": "media/campaigns/cripta-di-sangue/characters/zara/hover.webp",
-      "hoverFallback": "media/creatures/transp/zara_animation.webp",
+      "token": "media/campaigns/cripta-di-sangue/characters/zara/token.webp",
+      "hoverFallback": "media/campaigns/cripta-di-sangue/characters/zara/token.webp",
       "url": "pages/characters/character.html?id=zara",
       "score": 2
     }

@@ -254,11 +254,32 @@ function normalizeCharactersCollection(characters) {
     return characters.map((character) => {
         const normalized = { ...character };
         normalized.content_blocks = normalizeCharacterBlocks(character);
-        normalized.images = normalized.images || {};
-        if (!normalized.images.hover) normalized.images.hover = normalized.images.avatar || normalized.images.portrait || '';
-        if (!normalized.images.avatar) normalized.images.avatar = normalized.images.portrait || normalized.images.hover || '';
+        normalized.images = normalizeCharacterImages(normalized);
         return normalized;
     });
+}
+
+function normalizeCharacterImages(character) {
+    const raw = character?.images || {};
+    if ((character?.type || 'npc') === 'player') {
+        const images = { ...raw };
+        if (!images.hover) images.hover = images.avatar || images.portrait || '';
+        if (!images.avatar) images.avatar = images.portrait || images.hover || '';
+        return images;
+    }
+
+    const token = raw.token || getSyncedNpcImagePath(character, 'token');
+    const legacyList = raw.avatar || raw.portrait || raw.hover || '';
+    return {
+        ...raw,
+        idle: raw.idle || raw.card || raw.list || raw.showcase || getSyncedNpcImagePath(character, 'idle'),
+        hover: raw.hover || raw.cardHover || raw.listHover || raw.showcaseHover || getSyncedNpcImagePath(character, 'hover'),
+        token,
+        avatar: raw.avatar || raw.portrait || getSyncedNpcImagePath(character, 'avatar'),
+        idleFallback: raw.idleFallback || token || legacyList,
+        hoverFallback: raw.hoverFallback || token || legacyList,
+        avatarFallback: raw.avatarFallback || raw.portrait || legacyList
+    };
 }
 
 function normalizeCharacterBlocks(character) {
@@ -656,6 +677,11 @@ function getSyncedPlayerImagePath(character, variant = 'avatar') {
     const campaignId = getCurrentCampaignId();
     const suffix = variant === 'token' ? '-token' : '-avatar';
     return `media/campaigns/${campaignId}/players/${characterId}${suffix}.webp`;
+}
+
+function getSyncedNpcImagePath(character, variant = 'avatar') {
+    const characterId = slugify(character?.id || character?.name || 'npc');
+    return `media/campaigns/${getCurrentCampaignId()}/characters/${characterId}/${variant}.webp`;
 }
 
 function getLegacySyncedPlayerImagePath(character, variant = 'avatar') {
@@ -4576,9 +4602,11 @@ window.CriptaApp.onPageReady("character", async function () {
         enterInlineEditMode();
     });
 
-    container.addEventListener('input', handleInlineEditInput);
-    container.addEventListener('change', handleInlineEditChange);
-    container.addEventListener('click', handleInlineEditClick);
+        container.addEventListener('input', handleInlineEditInput);
+        container.addEventListener('change', handleInlineEditChange);
+        container.addEventListener('click', handleInlineEditClick);
+        container.addEventListener('dragover', handleInlineEditDragOver);
+        container.addEventListener('drop', handleInlineEditDrop);
     container.addEventListener('click', handleMediaOverrideClick);
     container.addEventListener('click', handleTransformationClick);
 
@@ -4774,7 +4802,7 @@ window.CriptaApp.onPageReady("character", async function () {
             return;
         }
         if (action === 'upload-character-image') {
-            uploadInlineCharacterImage(actionButton.dataset.inlineCharacterImageTarget || 'portrait');
+            uploadInlineCharacterImage(actionButton.dataset.inlineCharacterImageTarget || 'avatar');
             return;
         }
         if (action === 'upload-block-image') {
@@ -4822,6 +4850,18 @@ window.CriptaApp.onPageReady("character", async function () {
         renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
     }
 
+    function handleInlineEditDragOver(event) {
+        if (!isInlineEditing || !event.target.closest('[data-avatar-token-drop-zone]')) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+    }
+
+    async function handleInlineEditDrop(event) {
+        if (!isInlineEditing || !event.target.closest('[data-avatar-token-drop-zone]')) return;
+        event.preventDefault();
+        await handleInlineAvatarTokenDrop(event.dataTransfer?.files);
+    }
+
     async function uploadInlineCharacterImage(field) {
         if (!currentCharacter) return;
         const file = await pickInlineImageFile();
@@ -4832,9 +4872,56 @@ window.CriptaApp.onPageReady("character", async function () {
         markInlineImageUpdated(path);
         currentCharacter.images = currentCharacter.images || {};
         currentCharacter.images[field] = path;
-        if (field === 'avatar' && !currentCharacter.images.hover) currentCharacter.images.hover = path;
         inlineEditDirty = true;
         renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+    }
+
+    async function handleInlineAvatarTokenDrop(fileList) {
+        if (!currentCharacter) return;
+        const files = Array.from(fileList || []).filter((file) => file?.type?.startsWith('image/'));
+        if (files.length !== 2) return;
+
+        try {
+            const assignment = await assignAvatarAndTokenFiles(files);
+            const avatarPath = await uploadInlineImageFile(assignment.avatar.file, currentCharacter.id || charId, 'avatar.webp');
+            const tokenPath = await uploadInlineImageFile(assignment.token.file, currentCharacter.id || charId, 'token.webp');
+            if (!avatarPath || !tokenPath) return;
+            markInlineImageUpdated(avatarPath);
+            markInlineImageUpdated(tokenPath);
+            currentCharacter.images = currentCharacter.images || {};
+            currentCharacter.images.avatar = avatarPath;
+            currentCharacter.images.token = tokenPath;
+            inlineEditDirty = true;
+            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+        } catch (error) {
+            console.error('Drop avatar/token fallito:', error);
+            alert(`Drop avatar/token fallito: ${error?.message || error}`);
+        }
+    }
+
+    async function assignAvatarAndTokenFiles(files) {
+        const analyzed = await Promise.all(files.map(async (file) => {
+            const dimensions = await readInlineImageDimensions(file);
+            const area = dimensions.width * dimensions.height;
+            const squareDelta = Math.abs(dimensions.width - dimensions.height) / Math.max(dimensions.width, dimensions.height, 1);
+            return { file, ...dimensions, area, squareDelta };
+        }));
+        analyzed.sort((left, right) => {
+            const squareSort = left.squareDelta - right.squareDelta;
+            if (Math.abs(squareSort) > 0.04) return squareSort;
+            return left.area - right.area;
+        });
+        return {
+            token: analyzed[0],
+            avatar: analyzed[1]
+        };
+    }
+
+    async function readInlineImageDimensions(file) {
+        const bitmap = await createImageBitmap(file);
+        const dimensions = { width: bitmap.width, height: bitmap.height };
+        bitmap.close?.();
+        return dimensions;
     }
 
     async function uploadInlineBlockImage(index) {
@@ -5219,7 +5306,7 @@ window.CriptaApp.onPageReady("character", async function () {
         if (fields.characterImageField) {
             currentCharacter.images = currentCharacter.images || {};
             currentCharacter.images[fields.characterImageField] = value;
-            if (fields.characterImageField === 'portrait') {
+            if (fields.characterImageField === 'avatar') {
                 const preview = container.querySelector('[data-inline-portrait-preview]');
                 if (preview) preview.src = resolveInlineImagePath(value);
             }
@@ -5828,6 +5915,15 @@ window.CriptaApp.onPageReady("character", async function () {
         serialized.id = character.id || charId;
         serialized.name = character.name || 'NPC senza nome';
         serialized.type = character.type || 'npc';
+        if ((serialized.type || 'npc') !== 'player') {
+            const images = character.images || {};
+            serialized.images = {
+                idle: images.idle || images.token || '',
+                hover: images.hover || images.token || '',
+                token: images.token || images.idle || '',
+                avatar: images.avatar || images.token || ''
+            };
+        }
         serialized.blocks = inlineEditBlocks.map((block) => ({
             id: slugify(block.id || block.title || 'blocco'),
             type: block.type === 'image' ? 'image' : 'text',
@@ -6007,11 +6103,11 @@ window.CriptaApp.onPageReady("character", async function () {
             if (window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers() && !window.WikiSpoiler.isVisible(relatedChar)) return '';
 
             return `
-                        <a href="?id=${relatedChar.id}" class="npc-card">
-                            <div class="npc-avatar-container">
-                                <img src="${resolveImagePath(relatedChar.images.avatar)}" alt="${relatedChar.name}" class="npc-img-pop img-main" style="${buildImageStyle('avatar', relatedChar.images.avatarAdjust, relatedChar.images.hoverAdjust)}" onerror="this.style.display='none'">
-                                <img src="${resolveImagePath(relatedChar.images.hover)}" alt="${relatedChar.name} Reveal" class="npc-img-pop img-hover" style="${buildImageStyle('hover', relatedChar.images.hoverAdjust, relatedChar.images.avatarAdjust)}" onerror="this.style.display='none'">
-                            </div>
+                    <a href="?id=${relatedChar.id}" class="npc-card">
+                        <div class="npc-avatar-container">
+                            <img src="${resolveImagePath(relatedChar.images.idle || relatedChar.images.token || relatedChar.images.avatar)}" alt="${relatedChar.name}" class="npc-img-pop img-main" style="${buildImageStyle('avatar', relatedChar.images.idleAdjust || relatedChar.images.avatarAdjust, relatedChar.images.hoverAdjust)}" onerror="this.src='${resolveImagePath(relatedChar.images.idleFallback || relatedChar.images.token || relatedChar.images.avatarFallback || '')}'; this.onerror=null;">
+                            <img src="${resolveImagePath(relatedChar.images.hover || relatedChar.images.token || relatedChar.images.idle)}" alt="${relatedChar.name} Reveal" class="npc-img-pop img-hover" style="${buildImageStyle('hover', relatedChar.images.hoverAdjust, relatedChar.images.idleAdjust || relatedChar.images.avatarAdjust)}" onerror="this.src='${resolveImagePath(relatedChar.images.hoverFallback || relatedChar.images.token || relatedChar.images.idleFallback || '')}'; this.onerror=null;">
+                        </div>
                             <div class="npc-info">
                                 <div class="npc-header">
                                     <h3 class="npc-name">${relatedChar.name}</h3>
@@ -6691,9 +6787,9 @@ window.CriptaApp.onPageReady("character", async function () {
 
         return `
                     <div class="image-card character-inline-side-editor">
-                        <button type="button" class="character-inline-portrait-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="portrait" title="Carica nuovo ritratto">
-                            <img src="${resolveInlineImagePath(images.portrait)}" class="char-portrait" data-inline-portrait-preview onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
-                            <span class="character-inline-upload-hint"><i class="fas fa-upload"></i> Cambia ritratto</span>
+                        <button type="button" class="character-inline-portrait-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="avatar" data-avatar-token-drop-zone title="Carica avatar scheda">
+                            <img src="${resolveInlineImagePath(images.avatar || images.token)}" class="char-portrait" data-inline-portrait-preview onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
+                            <span class="character-inline-upload-hint"><i class="fas fa-upload"></i> Cambia avatar scheda</span>
                         </button>
                         <div class="character-inline-side-fields">
                             <label class="character-inline-field">
@@ -6705,21 +6801,31 @@ window.CriptaApp.onPageReady("character", async function () {
                                 <input type="text" value="${escapeHtml(character.role || '')}" data-inline-character-field="role">
                             </label>
                             <label class="character-inline-field">
-                                <span>Ritratto</span>
-                                <input type="text" value="${escapeHtml(images.portrait || '')}" data-inline-character-image-field="portrait" placeholder="media/characters/...webp">
-                            </label>
-                            <label class="character-inline-field">
-                                <span>Avatar</span>
+                                <span>Idle lista</span>
                                 <div class="character-inline-image-field-row">
-                                    <input type="text" value="${escapeHtml(images.avatar || '')}" data-inline-character-image-field="avatar" placeholder="media/characters/...webp">
-                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="avatar" title="Carica avatar"><i class="fas fa-upload"></i></button>
+                                    <input type="text" value="${escapeHtml(images.idle || '')}" data-inline-character-image-field="idle" placeholder="media/campaigns/.../characters/npc/idle.webp">
+                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="idle" title="Carica idle"><i class="fas fa-upload"></i></button>
                                 </div>
                             </label>
                             <label class="character-inline-field">
-                                <span>Hover</span>
+                                <span>Hover lista</span>
                                 <div class="character-inline-image-field-row">
-                                    <input type="text" value="${escapeHtml(images.hover || '')}" data-inline-character-image-field="hover" placeholder="media/characters/...webp">
+                                    <input type="text" value="${escapeHtml(images.hover || '')}" data-inline-character-image-field="hover" placeholder="media/campaigns/.../characters/npc/hover.webp">
                                     <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="hover" title="Carica hover"><i class="fas fa-upload"></i></button>
+                                </div>
+                            </label>
+                            <label class="character-inline-field">
+                                <span>Token fallback</span>
+                                <div class="character-inline-image-field-row">
+                                    <input type="text" value="${escapeHtml(images.token || '')}" data-inline-character-image-field="token" placeholder="media/campaigns/.../characters/npc/token.webp">
+                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="token" title="Carica token"><i class="fas fa-upload"></i></button>
+                                </div>
+                            </label>
+                            <label class="character-inline-field">
+                                <span>Avatar scheda</span>
+                                <div class="character-inline-image-field-row">
+                                    <input type="text" value="${escapeHtml(images.avatar || '')}" data-inline-character-image-field="avatar" placeholder="media/campaigns/.../characters/npc/avatar.webp">
+                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="avatar" title="Carica avatar scheda"><i class="fas fa-upload"></i></button>
                                 </div>
                             </label>
                         </div>
@@ -6889,8 +6995,8 @@ window.CriptaApp.onPageReady("character", async function () {
             : '';
         const portraitSource = isPlayerView
             ? (images.avatar || images.portrait || '')
-            : (images.portrait || images.avatar || images.hover || '');
-        const portraitFallback = resolveImagePath(images.portraitFallback || images.avatarFallback || '');
+            : (images.avatar || images.token || images.idle || '');
+        const portraitFallback = resolveImagePath(images.avatarFallback || images.tokenFallback || images.portraitFallback || '');
         const portraitErrorHandler = portraitFallback
             ? "if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{this.src='https://placehold.co/400x500/111/333?text=No+Image';}"
             : "this.src='https://placehold.co/400x500/111/333?text=No+Image'";
