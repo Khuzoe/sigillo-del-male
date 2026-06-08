@@ -557,6 +557,48 @@ body.is-embed .container {
     gap: 1.5rem;
 }
 
+.npc-category-group {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.npc-category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 0.55rem;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.18);
+}
+
+.npc-category-title {
+    margin: 0;
+    color: var(--gold);
+    font-family: var(--font-display);
+    font-size: clamp(1.2rem, 2vw, 1.7rem);
+    font-weight: 800;
+}
+
+.npc-category-count {
+    min-width: 2rem;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 999px;
+    color: var(--text-muted);
+    background: rgba(0, 0, 0, 0.24);
+    font-family: var(--font-ui);
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-align: center;
+}
+
+.npc-category-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
 .npc-card {
     background-color: rgba(30, 30, 30, 0.4);
     backdrop-filter: blur(10px);

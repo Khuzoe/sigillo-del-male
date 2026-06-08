@@ -50,6 +50,7 @@
             'field-id',
             'field-name',
             'field-role',
+            'field-category',
             'field-status',
             'field-quote',
             'field-idle',
@@ -113,15 +114,25 @@
         });
 
         els.detailForm?.addEventListener('dragover', (event) => {
-            if (!event.target.closest('[data-avatar-token-drop-zone]')) return;
+            const dropTarget = event.target.closest('[data-image-drop-target]');
+            if (!dropTarget) return;
             event.preventDefault();
             event.dataTransfer.dropEffect = 'copy';
+            dropTarget.classList.add('is-drop-target');
+        });
+
+        els.detailForm?.addEventListener('dragleave', (event) => {
+            const dropTarget = event.target.closest('[data-image-drop-target]');
+            if (!dropTarget || dropTarget.contains(event.relatedTarget)) return;
+            dropTarget.classList.remove('is-drop-target');
         });
 
         els.detailForm?.addEventListener('drop', async (event) => {
-            if (!event.target.closest('[data-avatar-token-drop-zone]')) return;
+            const dropTarget = event.target.closest('[data-image-drop-target]');
+            if (!dropTarget) return;
             event.preventDefault();
-            await handleAvatarTokenDrop(event.dataTransfer?.files);
+            dropTarget.classList.remove('is-drop-target');
+            await handleImageDrop(dropTarget.dataset.imageDropTarget, event.dataTransfer?.files);
         });
 
         els.detailForm?.addEventListener('change', (event) => {
@@ -202,6 +213,7 @@
                 name: character.name || 'Nuovo NPC',
                 type: character.type || 'npc',
                 role: character.role || '',
+                category: character.category || '',
                 status: character.status || 'ignoto',
                 hidden: Boolean(character.hidden),
                 quote: character.quote || '',
@@ -221,6 +233,22 @@
             token,
             avatar
         };
+    }
+
+    function getNpcImagePath(character, variant) {
+        const characterId = slugify(character?.id || character?.name || 'npc');
+        return `media/campaigns/${getCampaignId()}/characters/${characterId}/${variant}.webp`;
+    }
+
+    function ensureDefaultNpcListImagePaths(character) {
+        if (!character || (character.type || 'npc') === 'player') return;
+        character.images = character.images || {};
+        if (!character.images.idle || character.images.idle === PLACEHOLDER_IMAGE) {
+            character.images.idle = getNpcImagePath(character, 'idle');
+        }
+        if (!character.images.hover || character.images.hover === PLACEHOLDER_IMAGE) {
+            character.images.hover = getNpcImagePath(character, 'hover');
+        }
     }
 
     function getListImage(character) {
@@ -248,14 +276,14 @@
         const query = normalizeSearch(state.query);
         const visible = state.characters
             .map((character, index) => ({ character, index }))
-            .filter(({ character }) => !query || normalizeSearch(`${character.name} ${character.role}`).includes(query));
+            .filter(({ character }) => !query || normalizeSearch(`${character.name} ${character.role} ${character.category}`).includes(query));
 
         els.characterList.innerHTML = visible.map(({ character, index }) => `
             <button class="characters-editor-list-btn ${index === state.selectedIndex ? 'is-active' : ''}" type="button" data-character-index="${index}">
                 <img src="${resolveImageUrl(getListImage(character))}" alt="" onerror="this.style.display='none'">
                 <span>
                     <span class="characters-editor-list-name">${escapeHtml(character.name)}</span>
-                    <span class="characters-editor-list-role">${escapeHtml(character.role || character.id)}</span>
+                    <span class="characters-editor-list-role">${escapeHtml([character.role, character.category].filter(Boolean).join(' - ') || character.id)}</span>
                 </span>
             </button>
         `).join('');
@@ -284,6 +312,7 @@
         els.fieldId.value = character.id || '';
         els.fieldName.value = character.name || '';
         els.fieldRole.value = character.role || '';
+        els.fieldCategory.value = character.category || '';
         els.fieldStatus.value = character.status || 'ignoto';
         els.fieldQuote.value = character.quote || '';
         els.fieldIdle.value = character.images?.idle || '';
@@ -425,6 +454,7 @@
             name: 'Nuovo NPC',
             type: 'npc',
             role: '',
+            category: '',
             status: 'ignoto',
             hidden: false,
             quote: '',
@@ -516,6 +546,7 @@
             name: character.name || 'NPC senza nome',
             type: character.type || 'npc',
             role: character.role || '',
+            category: character.category || '',
             status: character.status || 'ignoto',
             hidden: Boolean(character.hidden),
             quote: character.quote || '',
@@ -563,7 +594,30 @@
         if (!path) return;
         character.images = character.images || {};
         character.images[field] = path;
+        if (field === 'avatar' || field === 'token') ensureDefaultNpcListImagePaths(character);
         renderDetail();
+    }
+
+    async function handleImageDrop(field, fileList) {
+        const files = Array.from(fileList || []).filter((file) => file?.type?.startsWith('image/'));
+        if (!field || !files.length) return;
+        if (field === 'avatar' && files.length === 2) {
+            await handleAvatarTokenDrop(files);
+            return;
+        }
+        await uploadDroppedCharacterImage(field, files[0]);
+    }
+
+    async function uploadDroppedCharacterImage(field, file) {
+        const character = getSelectedCharacter();
+        if (!character || !file) return;
+        const path = await uploadImageFile(file, character.id, `${field}.webp`);
+        if (!path) return;
+        character.images = character.images || {};
+        character.images[field] = path;
+        if (field === 'avatar' || field === 'token') ensureDefaultNpcListImagePaths(character);
+        renderDetail();
+        setStatus(`${field}.webp aggiornato dall'immagine trascinata.`);
     }
 
     async function handleAvatarTokenDrop(fileList) {
@@ -580,6 +634,7 @@
             character.images = character.images || {};
             character.images.avatar = avatarPath;
             character.images.token = tokenPath;
+            ensureDefaultNpcListImagePaths(character);
             renderDetail();
             setStatus('Avatar e token aggiornati dalle immagini trascinate.');
         } catch (error) {

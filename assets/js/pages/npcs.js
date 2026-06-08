@@ -177,11 +177,7 @@ function parseYamlLite(yamlText) {
                     return;
                 }
 
-                npcListContainer.innerHTML = '';
-                sortedNpcs.forEach(npc => {
-                    const card = createNpcCard(npc, base_path);
-                    npcListContainer.appendChild(card);
-                });
+                renderNpcGroups(npcListContainer, sortedNpcs, base_path);
 
             } catch (error) {
                 console.error("Errore nel caricamento degli NPC:", error);
@@ -306,9 +302,56 @@ function parseYamlLite(yamlText) {
         function normalizeCharactersCollection(characters) {
             return characters.map((character) => {
                 const normalized = { ...character };
+                normalized.category = character.category || character.group || character.faction || '';
                 normalized.content_blocks = normalizeCharacterBlocks(character);
                 normalized.images = normalizeNpcImages(normalized);
                 return normalized;
+            });
+        }
+
+        function renderNpcGroups(container, npcs, base_path) {
+            container.innerHTML = '';
+            const groups = groupNpcsByCategory(npcs);
+            groups.forEach((group) => {
+                const section = document.createElement('section');
+                section.className = 'npc-category-group';
+                section.dataset.npcCategory = group.category || '';
+
+                const header = document.createElement('header');
+                header.className = 'npc-category-header';
+                const title = document.createElement('h2');
+                title.className = 'npc-category-title';
+                title.textContent = group.category || 'Senza categoria';
+                const count = document.createElement('span');
+                count.className = 'npc-category-count';
+                count.textContent = String(group.items.length);
+                header.append(title, count);
+                section.appendChild(header);
+
+                const cards = document.createElement('div');
+                cards.className = 'npc-category-list';
+                group.items.forEach((npc) => {
+                    cards.appendChild(createNpcCard(npc, base_path));
+                });
+                section.appendChild(cards);
+                container.appendChild(section);
+            });
+        }
+
+        function groupNpcsByCategory(npcs) {
+            const groups = new Map();
+            (Array.isArray(npcs) ? npcs : []).forEach((npc) => {
+                const category = String(npc?.category || '').trim();
+                const key = category.toLocaleLowerCase('it') || '__uncategorized__';
+                if (!groups.has(key)) {
+                    groups.set(key, { category, items: [] });
+                }
+                groups.get(key).items.push(npc);
+            });
+            return Array.from(groups.values()).sort((left, right) => {
+                if (!left.category && right.category) return 1;
+                if (left.category && !right.category) return -1;
+                return left.category.localeCompare(right.category, 'it');
             });
         }
 

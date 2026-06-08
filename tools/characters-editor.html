@@ -186,6 +186,19 @@
             grid-template-columns: 5rem minmax(0, 1fr) auto;
             gap: 0.6rem;
             align-items: end;
+            border-radius: 12px;
+            transition: background 0.16s ease, outline-color 0.16s ease;
+        }
+        .characters-editor-image-row[data-image-drop-target] {
+            outline: 1px dashed transparent;
+            outline-offset: 0.25rem;
+        }
+        .characters-editor-image-row[data-image-drop-target]:hover {
+            outline-color: rgba(212, 175, 55, 0.24);
+        }
+        .characters-editor-image-row.is-drop-target {
+            background: rgba(212, 175, 55, 0.08);
+            outline-color: rgba(212, 175, 55, 0.56);
         }
         .characters-editor-preview {
             width: 5rem;
@@ -337,6 +350,10 @@
                             <input id="field-role" class="characters-editor-input" data-field="role" type="text">
                         </div>
                         <div class="characters-editor-field">
+                            <label for="field-category">Categoria</label>
+                            <input id="field-category" class="characters-editor-input" data-field="category" type="text" placeholder="es. Corte, Criminali, Alleati">
+                        </div>
+                        <div class="characters-editor-field">
                             <label for="field-status">Status</label>
                             <select id="field-status" class="characters-editor-select" data-field="status">
                                 <option value="ignoto">Ignoto</option>
@@ -350,7 +367,7 @@
                         </div>
                         <div class="characters-editor-field characters-editor-field--full">
                             <label>Idle lista</label>
-                            <div class="characters-editor-image-row">
+                            <div class="characters-editor-image-row" data-image-drop-target="idle">
                                 <img id="idle-preview" class="characters-editor-preview" src="../assets/img/logo.webp" alt="">
                                 <input id="field-idle" class="characters-editor-input" data-image-field="idle" type="text">
                                 <button class="characters-editor-btn" type="button" data-upload-image="idle"><i class="fas fa-image"></i> Upload</button>
@@ -358,7 +375,7 @@
                         </div>
                         <div class="characters-editor-field characters-editor-field--full">
                             <label>Hover lista</label>
-                            <div class="characters-editor-image-row">
+                            <div class="characters-editor-image-row" data-image-drop-target="hover">
                                 <img id="hover-preview" class="characters-editor-preview" src="../assets/img/logo.webp" alt="">
                                 <input id="field-hover" class="characters-editor-input" data-image-field="hover" type="text">
                                 <button class="characters-editor-btn" type="button" data-upload-image="hover"><i class="fas fa-image"></i> Upload</button>
@@ -366,7 +383,7 @@
                         </div>
                         <div class="characters-editor-field characters-editor-field--full">
                             <label>Token fallback</label>
-                            <div class="characters-editor-image-row">
+                            <div class="characters-editor-image-row" data-image-drop-target="token">
                                 <img id="token-preview" class="characters-editor-preview" src="../assets/img/logo.webp" alt="">
                                 <input id="field-token" class="characters-editor-input" data-image-field="token" type="text">
                                 <button class="characters-editor-btn" type="button" data-upload-image="token"><i class="fas fa-image"></i> Upload</button>
@@ -374,7 +391,7 @@
                         </div>
                         <div class="characters-editor-field characters-editor-field--full">
                             <label>Avatar scheda</label>
-                            <div class="characters-editor-image-row" data-avatar-token-drop-zone>
+                            <div class="characters-editor-image-row" data-image-drop-target="avatar" data-avatar-token-drop-zone>
                                 <img id="avatar-preview" class="characters-editor-preview" src="../assets/img/logo.webp" alt="">
                                 <input id="field-avatar" class="characters-editor-input" data-image-field="avatar" type="text">
                                 <button class="characters-editor-btn" type="button" data-upload-image="avatar"><i class="fas fa-image"></i> Upload</button>

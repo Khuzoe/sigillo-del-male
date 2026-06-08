@@ -493,6 +493,9 @@
             background: transparent;
             cursor: pointer;
             overflow: hidden;
+            outline: 1px dashed transparent;
+            outline-offset: 0.18rem;
+            transition: outline-color 0.16s ease, background 0.16s ease;
         }
 
         .character-inline-image-upload img {
@@ -537,9 +540,33 @@
 
         .character-inline-image-field-row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-columns: 2.25rem minmax(0, 1fr) auto;
             gap: 0.45rem;
             align-items: center;
+            border-radius: 9px;
+            outline: 1px dashed transparent;
+            outline-offset: 0.18rem;
+            transition: background 0.16s ease, outline-color 0.16s ease;
+        }
+
+        .character-inline-image-field-row:hover,
+        .character-inline-portrait-upload:hover {
+            outline-color: rgba(212, 175, 55, 0.22);
+        }
+
+        .character-inline-image-field-row.is-drop-target,
+        .character-inline-portrait-upload.is-drop-target {
+            background: rgba(212, 175, 55, 0.08);
+            outline-color: rgba(212, 175, 55, 0.58);
+        }
+
+        .character-inline-image-preview {
+            width: 2.25rem;
+            height: 2.25rem;
+            object-fit: cover;
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.28);
         }
 
         .character-inline-mini-upload {

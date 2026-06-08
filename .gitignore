@@ -4,3 +4,4 @@ workers/
 workers/*/node_modules/
 workers/*/.wrangler/
 workers/*/.dev.vars
+module.zip
