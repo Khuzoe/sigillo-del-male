@@ -253,6 +253,7 @@ async function loadCharactersCollection() {
 function normalizeCharactersCollection(characters) {
     return characters.map((character) => {
         const normalized = { ...character };
+        normalized._originalId = slugify(character.id || character.name || 'npc');
         normalized.category = character.category || character.group || character.faction || '';
         normalized.content_blocks = normalizeCharacterBlocks(character);
         normalized.images = normalizeCharacterImages(normalized);
@@ -5343,7 +5344,13 @@ window.CriptaApp.onPageReady("character", async function () {
         const value = target.value;
         if (fields.characterField) {
             currentCharacter[fields.characterField] = value;
-            if (fields.characterField === 'name') charNameEl.textContent = value;
+            if (fields.characterField === 'name') {
+                charNameEl.textContent = value;
+                if ((currentCharacter.type || 'npc') !== 'player') {
+                    const nextId = slugify(value);
+                    if (nextId) currentCharacter.id = nextId;
+                }
+            }
             if (fields.characterField === 'role') charRoleEl.textContent = value;
         }
         if (fields.characterImageField) {
@@ -5376,8 +5383,17 @@ window.CriptaApp.onPageReady("character", async function () {
         try {
             const loaded = await loadCharactersDocumentForSave();
             const updatedCharacter = serializeInlineEditedCharacter(currentCharacter);
+            const originalId = slugify(currentCharacter._originalId || charId || updatedCharacter.id || updatedCharacter.name || 'npc');
+            const nextId = slugify(updatedCharacter.id || updatedCharacter.name || 'npc');
+            if (originalId && nextId && originalId !== nextId) {
+                await copyInlineCharacterMediaFolder(originalId, nextId, token);
+                rewriteInlineCharacterMediaFolderPaths(updatedCharacter, originalId, nextId);
+            }
             const nextData = Array.isArray(loaded.data) ? loaded.data.slice() : [];
-            const targetIndex = nextData.findIndex((entry) => String(entry?.id || '') === String(updatedCharacter.id));
+            const targetIndex = nextData.findIndex((entry) => {
+                const entryId = slugify(entry?.id || entry?.name || '');
+                return entryId === originalId || entryId === nextId;
+            });
             if (targetIndex >= 0) {
                 const mergedCharacter = { ...nextData[targetIndex], ...updatedCharacter };
                 delete mergedCharacter.content_blocks;
@@ -5402,7 +5418,10 @@ window.CriptaApp.onPageReady("character", async function () {
             if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
 
             currentCharacter = normalizeCharactersCollection([updatedCharacter])[0];
-            const allIndex = currentAllCharacters.findIndex((entry) => entry.id === currentCharacter.id);
+            const allIndex = currentAllCharacters.findIndex((entry) => {
+                const entryId = slugify(entry?.id || entry?.name || '');
+                return entryId === originalId || entryId === currentCharacter.id;
+            });
             if (allIndex >= 0) currentAllCharacters[allIndex] = currentCharacter;
             isInlineEditing = false;
             inlineEditDirty = false;
@@ -5956,6 +5975,7 @@ window.CriptaApp.onPageReady("character", async function () {
 
     function serializeInlineEditedCharacter(character) {
         const serialized = { ...character };
+        delete serialized._originalId;
         delete serialized.content_blocks;
         serialized.id = character.id || charId;
         serialized.name = character.name || 'NPC senza nome';
@@ -5981,6 +6001,55 @@ window.CriptaApp.onPageReady("character", async function () {
             text: block.text || ''
         }));
         return serialized;
+    }
+
+    async function copyInlineCharacterMediaFolder(fromId, toId, token = readAuthToken()) {
+        if (!token) throw new Error('Login richiesto per rinominare media NPC.');
+        const copyUrl = new URL(window.CriptaApp?.urls?.api?.('media/copy-folder') || 'https://sigillo-api.khuzoe.workers.dev/media/copy-folder');
+        copyUrl.searchParams.set('campaign', getCurrentCampaignId());
+        const response = await fetch(copyUrl.toString(), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                campaignId: getCurrentCampaignId(),
+                fromFolder: `characters/${fromId}`,
+                toFolder: `characters/${toId}`
+            })
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        return payload;
+    }
+
+    function rewriteInlineCharacterMediaFolderPaths(character, fromId, toId) {
+        const rewrite = (value) => rewriteInlineNpcMediaPath(value, fromId, toId);
+        character.images = rewriteInlineObjectStringValues(character.images || {}, rewrite);
+        character.blocks = (character.blocks || []).map((block) => ({
+            ...block,
+            image: rewrite(block.image)
+        }));
+    }
+
+    function rewriteInlineObjectStringValues(source, rewrite) {
+        return Object.fromEntries(Object.entries(source || {}).map(([key, value]) => [
+            key,
+            typeof value === 'string' ? rewrite(value) : value
+        ]));
+    }
+
+    function rewriteInlineNpcMediaPath(value, fromId, toId) {
+        const raw = String(value || '');
+        if (!raw) return raw;
+        const campaignId = getCurrentCampaignId();
+        const scopedFrom = `media/campaigns/${campaignId}/characters/${fromId}/`;
+        const scopedTo = `media/campaigns/${campaignId}/characters/${toId}/`;
+        if (raw.startsWith(scopedFrom)) return `${scopedTo}${raw.slice(scopedFrom.length)}`;
+        const legacyFrom = `media/characters/${fromId}/`;
+        if (raw.startsWith(legacyFrom)) return `${scopedTo}${raw.slice(legacyFrom.length)}`;
+        return raw;
     }
 
     function getCharactersApiUrl() {

@@ -9,6 +9,8 @@ function resolveImagePath(imagePath) {
     return `../assets/${value}`;
 }
 
+const UNKNOWN_FAMILY_IMAGE = 'https://placehold.co/100/333/fff?text=?';
+
 window.CriptaApp.onPageReady("famiglia-von-t", async function () {
     const pageScope = window.CriptaApp.createPageScope("famiglia-von-t");
     const treeContainer = document.getElementById('family-tree-container');
@@ -20,6 +22,7 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
         if (!response.ok) throw new Error(`File dati (${familyDataUrl}) non trovato.`);
 
         let familyData = await response.json();
+        familyData = await applyCharacterHoverImages(familyData);
 
         const visibleRows = (window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers())
             ? familyData.filter(p => window.WikiSpoiler.isVisible(p))
@@ -61,6 +64,149 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
         }[char]));
     }
 
+    function parseYamlScalar(value) {
+        const raw = String(value || '').trim();
+        if (!raw) return '';
+        if (raw.startsWith('"') && raw.endsWith('"')) {
+            try {
+                return JSON.parse(raw);
+            } catch (_error) {
+                return raw.slice(1, -1);
+            }
+        }
+        if (raw.startsWith("'") && raw.endsWith("'")) return raw.slice(1, -1);
+        return raw;
+    }
+
+    function parseCharactersManifest(yamlText) {
+        const entries = [];
+        let current = null;
+
+        String(yamlText || '').split(/\r?\n/).forEach(rawLine => {
+            const line = rawLine.trim();
+            if (!line || line.startsWith('#')) return;
+
+            if (line.startsWith('- ')) {
+                if (current) entries.push(current);
+                current = {};
+                const firstPair = line.slice(2).match(/^([^:]+):\s*(.*)$/);
+                if (firstPair) current[firstPair[1].trim()] = parseYamlScalar(firstPair[2]);
+                return;
+            }
+
+            if (!current) return;
+            const pair = line.match(/^([^:]+):\s*(.*)$/);
+            if (pair) current[pair[1].trim()] = parseYamlScalar(pair[2]);
+        });
+
+        if (current) entries.push(current);
+        return entries;
+    }
+
+    function extractCharacterHoverImage(yamlText) {
+        const lines = String(yamlText || '').split(/\r?\n/);
+        let imagesIndent = null;
+
+        for (const rawLine of lines) {
+            const trimmed = rawLine.trim();
+            if (!trimmed || trimmed.startsWith('#')) continue;
+            const indent = rawLine.match(/^ */)[0].length;
+
+            if (imagesIndent !== null && indent <= imagesIndent) imagesIndent = null;
+            if (trimmed === 'images:') {
+                imagesIndent = indent;
+                continue;
+            }
+            if (imagesIndent === null || indent <= imagesIndent) continue;
+
+            const hover = trimmed.match(/^hover:\s*(.*)$/);
+            if (hover) return parseYamlScalar(hover[1]);
+        }
+
+        return '';
+    }
+
+    function collectHoverImagesFromCharacters(characters, ids) {
+        const images = new Map();
+        (Array.isArray(characters) ? characters : []).forEach(character => {
+            const id = String(character?.id || character?.entityId || '').trim();
+            if (!id || !ids.has(id)) return;
+            const hoverImage = character?.images?.hover || character?.hoverImage || character?.imageHover || '';
+            if (hoverImage) images.set(id, hoverImage);
+        });
+        return images;
+    }
+
+    async function loadCharacterHoverImages(familyData) {
+        const ids = new Set((familyData || []).map(person => String(person.id || '').trim()).filter(Boolean));
+        if (!ids.size) return new Map();
+        let hoverImages = new Map();
+
+        try {
+            const payload = await window.CriptaApp?.api?.get?.('api/data/characters');
+            hoverImages = collectHoverImagesFromCharacters(payload?.data, ids);
+        } catch (error) {
+            console.warn('KV characters non disponibile per le immagini Von T, provo YAML statico.', error);
+        }
+
+        const missingIds = new Set([...ids].filter(id => !hoverImages.has(id)));
+        if (!missingIds.size) return hoverImages;
+
+        try {
+            const manifestUrl = window.CriptaApp?.urls?.data?.('characters/index.yaml') || '../assets/data/characters/index.yaml';
+            const manifestResponse = await fetch(manifestUrl);
+            if (!manifestResponse.ok) return hoverImages;
+
+            const manifest = parseCharactersManifest(await manifestResponse.text())
+                .filter(entry => missingIds.has(String(entry.id || '').trim()) && entry.file);
+
+            const pairs = await Promise.all(manifest.map(async entry => {
+                try {
+                    const characterUrl = window.CriptaApp?.urls?.data?.(entry.file) || `../assets/data/${entry.file}`;
+                    const response = await fetch(characterUrl);
+                    if (!response.ok) return null;
+                    const hoverImage = extractCharacterHoverImage(await response.text());
+                    return hoverImage ? [String(entry.id), hoverImage] : null;
+                } catch (_error) {
+                    return null;
+                }
+            }));
+
+            pairs.filter(Boolean).forEach(([id, image]) => hoverImages.set(id, image));
+            return hoverImages;
+        } catch (error) {
+            console.warn('Impossibile leggere le immagini hover dei personaggi Von T.', error);
+            return hoverImages;
+        }
+    }
+
+    async function applyCharacterHoverImages(familyData) {
+        const hoverImages = await loadCharacterHoverImages(familyData);
+        if (!hoverImages.size) return familyData;
+
+        return familyData.map(person => {
+            const hoverImage = hoverImages.get(String(person.id || ''));
+            if (!hoverImage) return person;
+            return {
+                ...person,
+                hoverImage,
+                imageFallback: person.image || ''
+            };
+        });
+    }
+
+    function getPersonImage(person) {
+        if (person.unknown) return UNKNOWN_FAMILY_IMAGE;
+        return resolveImagePath(person.hoverImage || person.images?.hover || person.image);
+    }
+
+    function buildImageFallbackAttributes(person) {
+        if (person.unknown) return '';
+        const fallback = resolveImagePath(person.imageFallback || '');
+        if (!fallback) return '';
+        return ` data-fallback-src="${escapeHtml(fallback)}" onerror="this.src=this.dataset.fallbackSrc || ''; this.onerror=null;"`;
+    }
+
     function getPersonDisplayName(person) {
         return person.unnamed ? '???' : person.name;
     }
@@ -88,13 +234,13 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
         const listHtml = vonTMembers.map(({ person, index }) => {
             const order = getBirthOrderValue(person, index);
             const personName = getPersonDisplayName(person);
-            const image = person.unknown ? 'https://placehold.co/88/333/fff?text=?' : resolveImagePath(person.image);
+            const image = getPersonImage(person);
             const isLocked = Boolean(person.hidden || person.unknown || person.unnamed);
             const meta = order === newestOrder ? 'Ultima Foglia' : order === oldestOrder ? 'Patto Stipulato' : `Nascita #${order}`;
             const rank = vonTMembers.findIndex(entry => entry.person.id === person.id) + 1;
             const content = `
                         <span class="birth-rank">${String(rank).padStart(2, '0')}</span>
-                        <img src="${escapeHtml(image)}" alt="${escapeHtml(personName)}" class="birth-avatar">
+                        <img src="${escapeHtml(image)}" alt="${escapeHtml(personName)}" class="birth-avatar"${buildImageFallbackAttributes(person)}>
                         <span class="birth-copy">
                             <span class="birth-name">${escapeHtml(personName)}</span>
                             <span class="birth-meta">${escapeHtml(meta)}</span>
@@ -137,26 +283,27 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
             if (!person) return '';
 
             const personName = person.unnamed ? '???' : person.name;
-            const personImage = person.unknown ? 'https://placehold.co/100/333/fff?text=?' : resolveImagePath(person.image);
+            const personImage = getPersonImage(person);
+            const fallbackAttributes = buildImageFallbackAttributes(person);
             const vonTClass = person.von_t ? 'von-t' : '';
             const isLocked = Boolean(person.hidden || person.unknown || person.unnamed);
             const baseClasses = `family-member ${vonTClass} ${isLocked ? 'family-member--locked' : ''}`.trim();
 
             if (isLocked) {
                 return `
-                            <div class="${baseClasses}" data-person-id="${personId}" aria-disabled="true">
-                                <img src="${personImage}" alt="${personName}" class="member-image">
+                            <div class="${escapeHtml(baseClasses)}" data-person-id="${escapeHtml(personId)}" aria-disabled="true">
+                                <img src="${escapeHtml(personImage)}" alt="${escapeHtml(personName)}" class="member-image"${fallbackAttributes}>
                                 <div class="member-separator"></div>
-                                <span class="member-name">${personName}</span>
+                                <span class="member-name">${escapeHtml(personName)}</span>
                             </div>
                         `;
             }
 
             return `
-                        <a href="./characters/character.html?id=${personId}" class="${baseClasses}" data-person-id="${personId}">
-                            <img src="${personImage}" alt="${personName}" class="member-image">
+                        <a href="./characters/character.html?id=${encodeURIComponent(personId)}" class="${escapeHtml(baseClasses)}" data-person-id="${escapeHtml(personId)}">
+                            <img src="${escapeHtml(personImage)}" alt="${escapeHtml(personName)}" class="member-image"${fallbackAttributes}>
                             <div class="member-separator"></div>
-                            <span class="member-name">${personName}</span>
+                            <span class="member-name">${escapeHtml(personName)}</span>
                         </a>
                     `;
         };

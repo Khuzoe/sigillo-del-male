@@ -87,6 +87,13 @@
             const imageField = event.target?.dataset?.imageField;
             if (field) {
                 character[field] = event.target.value;
+                if (field === 'name') {
+                    const nextId = slugify(event.target.value);
+                    if (nextId && character.id !== nextId) {
+                        character.id = nextId;
+                        if (els.fieldId) els.fieldId.value = nextId;
+                    }
+                }
                 if (field === 'id') character.id = slugify(event.target.value);
                 renderList();
                 renderHeader();
@@ -208,8 +215,10 @@
     function normalizeCharacters(characters) {
         return characters.map((character) => {
             const images = normalizeNpcImages(character);
+            const id = slugify(character.id || character.name || 'npc');
             return {
-                id: slugify(character.id || character.name || 'npc'),
+                _originalId: id,
+                id,
                 name: character.name || 'Nuovo NPC',
                 type: character.type || 'npc',
                 role: character.role || '',
@@ -515,6 +524,8 @@
         }
 
         try {
+            setStatus('Sincronizzazione cartelle R2 in corso...');
+            await migrateRenamedCharacterMedia(token);
             setStatus('Salvataggio online in corso...');
             const serialized = serializeCharacters();
             const response = await fetch(withCampaign(DATA_API_URL(), { force: true }), {
@@ -533,6 +544,9 @@
             if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
             state.loadedVersion = payload.version ?? state.loadedVersion;
             state.loadedSource = 'kv';
+            state.characters.forEach((character) => {
+                character._originalId = slugify(character.id || character.name || 'npc');
+            });
             setStatus(`Salvato online. Versione ${state.loadedVersion}.`);
         } catch (error) {
             console.error('Salvataggio characters fallito:', error);
@@ -566,6 +580,65 @@
                 text: block.text || ''
             }))
         }));
+    }
+
+    async function migrateRenamedCharacterMedia(token = readAuthToken()) {
+        for (const character of state.characters) {
+            const fromId = slugify(character._originalId || character.id || character.name || 'npc');
+            const toId = slugify(character.id || character.name || 'npc');
+            if (!fromId || !toId || fromId === toId) continue;
+            await copyCharacterMediaFolder(fromId, toId, token);
+            rewriteCharacterMediaFolderPaths(character, fromId, toId);
+        }
+    }
+
+    async function copyCharacterMediaFolder(fromId, toId, token = readAuthToken()) {
+        if (!token) throw new Error('Login richiesto per rinominare media NPC.');
+        const response = await fetch(withCampaign(`${MEDIA_WORKER_URL}/media/copy-folder`, { force: true }), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                campaignId: getCampaignId(),
+                fromFolder: `characters/${fromId}`,
+                toFolder: `characters/${toId}`
+            })
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) {
+            throw new Error(payload?.error || `HTTP ${response.status}`);
+        }
+        return payload;
+    }
+
+    function rewriteCharacterMediaFolderPaths(character, fromId, toId) {
+        const rewrite = (value) => rewriteNpcMediaPath(value, fromId, toId);
+        character.images = rewriteObjectStringValues(character.images || {}, rewrite);
+        character.blocks = (character.blocks || []).map((block) => ({
+            ...block,
+            image: rewrite(block.image)
+        }));
+    }
+
+    function rewriteObjectStringValues(source, rewrite) {
+        return Object.fromEntries(Object.entries(source || {}).map(([key, value]) => [
+            key,
+            typeof value === 'string' ? rewrite(value) : value
+        ]));
+    }
+
+    function rewriteNpcMediaPath(value, fromId, toId) {
+        const raw = String(value || '');
+        if (!raw) return raw;
+        const campaignId = getCampaignId();
+        const scopedFrom = `media/campaigns/${campaignId}/characters/${fromId}/`;
+        const scopedTo = `media/campaigns/${campaignId}/characters/${toId}/`;
+        if (raw.startsWith(scopedFrom)) return `${scopedTo}${raw.slice(scopedFrom.length)}`;
+        const legacyFrom = `media/characters/${fromId}/`;
+        if (raw.startsWith(legacyFrom)) return `${scopedTo}${raw.slice(legacyFrom.length)}`;
+        return raw;
     }
 
     function exportJson() {
