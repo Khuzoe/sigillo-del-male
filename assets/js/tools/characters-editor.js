@@ -15,6 +15,7 @@
 
     const els = {};
     let initializedRoot = null;
+    const imagePreviewVersions = new Map();
 
     bootWhenReady();
     document.addEventListener('cripta:spa-ready', bootEditor);
@@ -101,6 +102,7 @@
             if (imageField) {
                 character.images = character.images || {};
                 character.images[imageField] = event.target.value;
+                markCharacterImageUpdated(character, event.target.value);
                 syncImagePreviews();
                 renderList();
             }
@@ -160,6 +162,7 @@
             const block = getSelectedCharacter()?.blocks?.[blockIndex];
             if (!block) return;
             block[blockField] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+            if (blockField === 'image') markCharacterImageUpdated(getSelectedCharacter(), event.target.value);
             updateBlockPreview(blockIndex);
         });
     }
@@ -226,6 +229,7 @@
                 status: character.status || 'ignoto',
                 hidden: Boolean(character.hidden),
                 quote: character.quote || '',
+                updatedAt: character.updatedAt || '',
                 images,
                 blocks: normalizeBlocks(character.blocks || character.content_blocks || [])
             };
@@ -264,6 +268,24 @@
         return character?.images?.idle || character?.images?.token || character?.images?.avatar || PLACEHOLDER_IMAGE;
     }
 
+    function markCharacterImageUpdated(character, path) {
+        const key = String(path || '').trim();
+        if (key) imagePreviewVersions.set(key, Date.now());
+        if (character) character.updatedAt = new Date().toISOString();
+    }
+
+    function appendImagePreviewVersion(url, sourcePath) {
+        const version = imagePreviewVersions.get(String(sourcePath || '').trim());
+        if (!version || !url || /^(data:|blob:)/i.test(url)) return url;
+        try {
+            const nextUrl = new URL(url, window.location.href);
+            nextUrl.searchParams.set('v', String(version));
+            return nextUrl.toString();
+        } catch (_error) {
+            return `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(version)}`;
+        }
+    }
+
     function normalizeBlocks(blocks) {
         return blocks.map((block, index) => ({
             id: slugify(block.id || block.title || `blocco-${index + 1}`),
@@ -289,7 +311,7 @@
 
         els.characterList.innerHTML = visible.map(({ character, index }) => `
             <button class="characters-editor-list-btn ${index === state.selectedIndex ? 'is-active' : ''}" type="button" data-character-index="${index}">
-                <img src="${resolveImageUrl(getListImage(character))}" alt="" onerror="this.style.display='none'">
+                <img src="${resolveVersionedImageUrl(getListImage(character))}" alt="" onerror="this.style.display='none'">
                 <span>
                     <span class="characters-editor-list-name">${escapeHtml(character.name)}</span>
                     <span class="characters-editor-list-role">${escapeHtml([character.role, character.category].filter(Boolean).join(' - ') || character.id)}</span>
@@ -349,7 +371,7 @@
             <div class="characters-editor-field characters-editor-field--full">
                 <label>Immagine blocco</label>
                 <div class="characters-editor-image-row">
-                    <img class="characters-editor-preview" src="${resolveImageUrl(block.image || PLACEHOLDER_IMAGE)}" alt="" onerror="this.style.display='none'">
+                    <img class="characters-editor-preview" src="${resolveVersionedImageUrl(block.image || PLACEHOLDER_IMAGE)}" alt="" onerror="this.style.display='none'">
                     <input class="characters-editor-input" data-block-index="${index}" data-block-field="image" type="text" value="${escapeAttr(block.image || '')}">
                     <button class="characters-editor-btn" type="button" data-block-action="upload-image" data-block-index="${index}">
                         <i class="fas fa-image"></i> Upload
@@ -544,6 +566,7 @@
             if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
             state.loadedVersion = payload.version ?? state.loadedVersion;
             state.loadedSource = 'kv';
+            window.CriptaApp?.api?.clearCache?.();
             state.characters.forEach((character) => {
                 character._originalId = slugify(character.id || character.name || 'npc');
             });
@@ -564,6 +587,7 @@
             status: character.status || 'ignoto',
             hidden: Boolean(character.hidden),
             quote: character.quote || '',
+            updatedAt: character.updatedAt || new Date().toISOString(),
             images: {
                 idle: character.images?.idle || character.images?.token || PLACEHOLDER_IMAGE,
                 hover: character.images?.hover || character.images?.token || PLACEHOLDER_IMAGE,
@@ -667,6 +691,7 @@
         if (!path) return;
         character.images = character.images || {};
         character.images[field] = path;
+        markCharacterImageUpdated(character, path);
         if (field === 'avatar' || field === 'token') ensureDefaultNpcListImagePaths(character);
         renderDetail();
     }
@@ -688,6 +713,7 @@
         if (!path) return;
         character.images = character.images || {};
         character.images[field] = path;
+        markCharacterImageUpdated(character, path);
         if (field === 'avatar' || field === 'token') ensureDefaultNpcListImagePaths(character);
         renderDetail();
         setStatus(`${field}.webp aggiornato dall'immagine trascinata.`);
@@ -707,6 +733,8 @@
             character.images = character.images || {};
             character.images.avatar = avatarPath;
             character.images.token = tokenPath;
+            markCharacterImageUpdated(character, avatarPath);
+            markCharacterImageUpdated(character, tokenPath);
             ensureDefaultNpcListImagePaths(character);
             renderDetail();
             setStatus('Avatar e token aggiornati dalle immagini trascinate.');
@@ -751,6 +779,7 @@
         if (!path) return;
         block.image = path;
         block.type = 'image';
+        markCharacterImageUpdated(character, path);
         renderBlocks();
     }
 
@@ -843,10 +872,10 @@
     function syncImagePreviews() {
         const character = getSelectedCharacter();
         if (!character) return;
-        els.idlePreview.src = resolveImageUrl(character.images?.idle || character.images?.token || PLACEHOLDER_IMAGE);
-        els.hoverPreview.src = resolveImageUrl(character.images?.hover || character.images?.token || PLACEHOLDER_IMAGE);
-        els.tokenPreview.src = resolveImageUrl(character.images?.token || PLACEHOLDER_IMAGE);
-        els.avatarPreview.src = resolveImageUrl(character.images?.avatar || character.images?.token || PLACEHOLDER_IMAGE);
+        els.idlePreview.src = resolveVersionedImageUrl(character.images?.idle || character.images?.token || PLACEHOLDER_IMAGE);
+        els.hoverPreview.src = resolveVersionedImageUrl(character.images?.hover || character.images?.token || PLACEHOLDER_IMAGE);
+        els.tokenPreview.src = resolveVersionedImageUrl(character.images?.token || PLACEHOLDER_IMAGE);
+        els.avatarPreview.src = resolveVersionedImageUrl(character.images?.avatar || character.images?.token || PLACEHOLDER_IMAGE);
     }
 
     function getSelectedCharacter() {
@@ -888,6 +917,10 @@
         if (value.startsWith('/media/')) return `${MEDIA_WORKER_URL}${value}`;
         if (value.startsWith('assets/')) return `../${value}`;
         return `../assets/${value}`;
+    }
+
+    function resolveVersionedImageUrl(path) {
+        return appendImagePreviewVersion(resolveImageUrl(path), path);
     }
 
     function slugify(value) {

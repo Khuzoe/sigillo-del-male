@@ -9,6 +9,18 @@ function resolveImagePath(imagePath) {
     return `../assets/${value}`;
 }
 
+function appendAssetVersion(url, version) {
+    const stamp = String(version || '').trim();
+    if (!url || !stamp || /^(data:|blob:)/i.test(url)) return url;
+    try {
+        const nextUrl = new URL(url, window.location.href);
+        nextUrl.searchParams.set('v', stamp);
+        return nextUrl.toString();
+    } catch (_error) {
+        return `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(stamp)}`;
+    }
+}
+
 const UNKNOWN_FAMILY_IMAGE = 'https://placehold.co/100/333/fff?text=?';
 
 window.CriptaApp.onPageReady("famiglia-von-t", async function () {
@@ -132,7 +144,12 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
             const id = String(character?.id || character?.entityId || '').trim();
             if (!id || !ids.has(id)) return;
             const hoverImage = character?.images?.hover || character?.hoverImage || character?.imageHover || '';
-            if (hoverImage) images.set(id, hoverImage);
+            if (hoverImage) {
+                images.set(id, {
+                    path: hoverImage,
+                    updatedAt: character?.updatedAt || character?.images?.updatedAt || ''
+                });
+            }
         });
         return images;
     }
@@ -166,7 +183,7 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
                     const response = await fetch(characterUrl);
                     if (!response.ok) return null;
                     const hoverImage = extractCharacterHoverImage(await response.text());
-                    return hoverImage ? [String(entry.id), hoverImage] : null;
+                    return hoverImage ? [String(entry.id), { path: hoverImage, updatedAt: '' }] : null;
                 } catch (_error) {
                     return null;
                 }
@@ -186,10 +203,11 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
 
         return familyData.map(person => {
             const hoverImage = hoverImages.get(String(person.id || ''));
-            if (!hoverImage) return person;
+            if (!hoverImage?.path) return person;
             return {
                 ...person,
-                hoverImage,
+                hoverImage: hoverImage.path,
+                imageUpdatedAt: hoverImage.updatedAt || person.updatedAt || '',
                 imageFallback: person.image || ''
             };
         });
@@ -197,7 +215,7 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
 
     function getPersonImage(person) {
         if (person.unknown) return UNKNOWN_FAMILY_IMAGE;
-        return resolveImagePath(person.hoverImage || person.images?.hover || person.image);
+        return appendAssetVersion(resolveImagePath(person.hoverImage || person.images?.hover || person.image), person.imageUpdatedAt);
     }
 
     function buildImageFallbackAttributes(person) {

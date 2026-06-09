@@ -3170,15 +3170,20 @@ function canEditSkillTreeUnlocks(character) {
 
 function getCharacterSkillTreeState(character, treeKey) {
     const key = getSkillTreeStateKey(character, treeKey);
-    const accountId = getCurrentAccountId();
     const characterId = slugify(character?.id || '');
-    return (skillTreeStatesMemoryCache || []).find((entry) => {
+    const matches = (skillTreeStatesMemoryCache || []).filter((entry) => {
         if (!entry || typeof entry !== 'object') return false;
         if (entry.id === key || entry.key === key) return true;
         return slugify(entry.characterId || '') === characterId
-            && slugify(entry.treeKey || '') === slugify(treeKey || '')
-            && (skillTreeCurrentUserIsDm || !accountId || !entry.ownerAccountId || slugify(entry.ownerAccountId) === accountId);
-    }) || null;
+            && slugify(entry.treeKey || '') === slugify(treeKey || '');
+    });
+    if (!matches.length) return null;
+    return matches.sort((left, right) => {
+        const leftExact = left.id === key || left.key === key ? 1 : 0;
+        const rightExact = right.id === key || right.key === key ? 1 : 0;
+        if (leftExact !== rightExact) return rightExact - leftExact;
+        return Date.parse(right.updatedAt || '') - Date.parse(left.updatedAt || '');
+    })[0] || null;
 }
 
 function getNodePrerequisites(node, treeData) {
@@ -3352,8 +3357,14 @@ function pruneUnlockedSkillNodes(treeData, unlockedIds) {
 async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap = {}) {
     const accountId = getCurrentAccountId();
     const stateId = getSkillTreeStateKey(character, treeKey);
+    const characterId = slugify(character?.id || '');
+    const normalizedTreeKey = slugify(treeKey || '');
     const existingStates = await loadSkillTreeStates();
-    const kept = existingStates.filter((entry) => entry?.id !== stateId && entry?.key !== stateId);
+    const kept = existingStates.filter((entry) => {
+        if (!entry || typeof entry !== 'object') return false;
+        if (entry.id === stateId || entry.key === stateId) return false;
+        return !(slugify(entry.characterId || '') === characterId && slugify(entry.treeKey || '') === normalizedTreeKey);
+    });
     const nextRecord = {
         id: stateId,
         treeKey,
@@ -4773,6 +4784,7 @@ window.CriptaApp.onPageReady("character", async function () {
         inlineEditBlocks[blockIndex][blockField] = blockField === 'text' || blockField === 'title'
             ? target.innerText.replace(/\u00a0/g, ' ').trimEnd()
             : target.value;
+        if (blockField === 'image' && currentCharacter) currentCharacter.updatedAt = new Date().toISOString();
         inlineEditDirty = true;
     }
 
@@ -4791,6 +4803,7 @@ window.CriptaApp.onPageReady("character", async function () {
         const blockField = target?.dataset?.inlineBlockField;
         if (!Number.isInteger(blockIndex) || !blockField || !inlineEditBlocks[blockIndex]) return;
         inlineEditBlocks[blockIndex][blockField] = target.value;
+        if (blockField === 'image' && currentCharacter) currentCharacter.updatedAt = new Date().toISOString();
         inlineEditDirty = true;
         renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
     }
@@ -5356,6 +5369,7 @@ window.CriptaApp.onPageReady("character", async function () {
         if (fields.characterImageField) {
             currentCharacter.images = currentCharacter.images || {};
             currentCharacter.images[fields.characterImageField] = value;
+            currentCharacter.updatedAt = new Date().toISOString();
             const fieldPreview = container.querySelector(`[data-inline-character-image-preview="${fields.characterImageField}"]`);
             if (fieldPreview) fieldPreview.src = resolveInlineImagePath(value);
             if (fields.characterImageField === 'avatar') {
@@ -5416,6 +5430,7 @@ window.CriptaApp.onPageReady("character", async function () {
             });
             const payload = await response.json().catch(() => null);
             if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+            window.CriptaApp?.api?.clearCache?.();
 
             currentCharacter = normalizeCharactersCollection([updatedCharacter])[0];
             const allIndex = currentAllCharacters.findIndex((entry) => {
@@ -5981,6 +5996,7 @@ window.CriptaApp.onPageReady("character", async function () {
         serialized.name = character.name || 'NPC senza nome';
         serialized.type = character.type || 'npc';
         serialized.category = character.category || '';
+        serialized.updatedAt = character.updatedAt || new Date().toISOString();
         if ((serialized.type || 'npc') !== 'player') {
             ensureDefaultNpcListImagePaths(serialized);
             const images = character.images || {};
@@ -6158,12 +6174,15 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     function resolveImagePath(imagePath) {
-        return appendInlineImageVersion(resolveCharacterAssetPath(imagePath), imagePath);
+        const resolved = resolveCharacterAssetPath(imagePath);
+        if (isInlineEditing) return appendInlineImageVersion(resolved, imagePath);
+        return appendAssetVersion(resolved, currentCharacter?.updatedAt);
     }
 
     function markInlineImageUpdated(path) {
         const key = String(path || '').trim();
         if (key) inlineImageVersions.set(key, Date.now());
+        if (currentCharacter) currentCharacter.updatedAt = new Date().toISOString();
     }
 
     function resolveInlineImagePath(imagePath) {
