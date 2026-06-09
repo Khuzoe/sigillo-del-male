@@ -4,13 +4,21 @@
     const DATA_URL = () => window.CriptaApp?.urls?.data?.('characters.json') || '../assets/data/characters.json';
     const TOKEN_KEY = 'discord_jwt';
     const PLACEHOLDER_IMAGE = 'assets/img/logo.webp';
+    const IMAGE_ADJUST_DRAG_SENSITIVITY = 0.35;
+    const IMAGE_ADJUST_WHEEL_STEP = 0.05;
+    const IMAGE_ADJUST_WHEEL_FINE_STEP = 0.01;
+    const IMAGE_ADJUST_MIN_ZOOM = 0.25;
+    const IMAGE_ADJUST_MAX_ZOOM = 2.75;
 
     const state = {
         characters: [],
         selectedIndex: -1,
         query: '',
         loadedVersion: null,
-        loadedSource: 'static'
+        loadedSource: 'static',
+        activeAdjustKind: '',
+        activeAdjustCharacterId: '',
+        adjustDrag: null
     };
 
     const els = {};
@@ -63,7 +71,8 @@
             'hover-preview',
             'token-preview',
             'blocks-list',
-            'add-block-btn'
+            'add-block-btn',
+            'character-image-adjust-modal'
         ].forEach((id) => {
             els[toCamel(id)] = document.getElementById(id);
         });
@@ -86,6 +95,8 @@
             if (!character) return;
             const field = event.target?.dataset?.field;
             const imageField = event.target?.dataset?.imageField;
+            const adjustKind = event.target?.dataset?.imageAdjustKind;
+            const adjustField = event.target?.dataset?.imageAdjustField;
             if (field) {
                 character[field] = event.target.value;
                 if (field === 'name') {
@@ -106,6 +117,11 @@
                 syncImagePreviews();
                 renderList();
             }
+            if (adjustKind && adjustField) {
+                updateImageAdjust(character, adjustKind, adjustField, event.target.value);
+                syncImagePreviews();
+                if (adjustKind === 'idle' || adjustKind === 'hover') renderList();
+            }
         });
 
         els.detailForm?.addEventListener('click', async (event) => {
@@ -113,6 +129,13 @@
             if (uploadTarget) {
                 event.preventDefault();
                 await uploadCharacterImage(uploadTarget.dataset.uploadImage);
+                return;
+            }
+
+            const adjustTarget = event.target.closest('[data-open-image-adjust]');
+            if (adjustTarget) {
+                event.preventDefault();
+                openImageAdjustModal(adjustTarget.dataset.openImageAdjust);
                 return;
             }
 
@@ -165,6 +188,31 @@
             if (blockField === 'image') markCharacterImageUpdated(getSelectedCharacter(), event.target.value);
             updateBlockPreview(blockIndex);
         });
+
+        els.characterImageAdjustModal?.addEventListener('input', (event) => {
+            const field = event.target?.dataset?.adjustField || event.target?.dataset?.adjustNumber;
+            if (!field) return;
+            updateActiveImageAdjust(field, event.target.value);
+        });
+
+        els.characterImageAdjustModal?.addEventListener('click', (event) => {
+            const action = event.target.closest('[data-adjust-action]')?.dataset?.adjustAction;
+            if (!action) return;
+            event.preventDefault();
+            if (action === 'reset') {
+                resetActiveImageAdjust();
+                return;
+            }
+            if (action === 'close') closeImageAdjustModal();
+        });
+
+        els.characterImageAdjustModal?.querySelectorAll('[data-adjust-preview-frame]').forEach((frame) => {
+            frame.addEventListener('pointerdown', startImageAdjustDrag);
+            frame.addEventListener('wheel', handleImageAdjustWheel, { passive: false });
+        });
+        window.addEventListener('pointermove', continueImageAdjustDrag);
+        window.addEventListener('pointerup', endImageAdjustDrag);
+        window.addEventListener('pointercancel', endImageAdjustDrag);
     }
 
     function resolveInitialSelectedIndex() {
@@ -241,10 +289,15 @@
         const avatar = raw.avatar || raw.portrait || PLACEHOLDER_IMAGE;
         const token = raw.token || raw.avatar || raw.portrait || PLACEHOLDER_IMAGE;
         return {
+            ...raw,
             idle: raw.idle || raw.card || raw.list || raw.showcase || raw.avatar || raw.portrait || raw.token || PLACEHOLDER_IMAGE,
             hover: raw.hover || raw.cardHover || raw.listHover || raw.showcaseHover || raw.token || raw.avatar || raw.portrait || PLACEHOLDER_IMAGE,
             token,
-            avatar
+            avatar,
+            idleAdjust: normalizeImageAdjust(raw.idleAdjust),
+            hoverAdjust: normalizeImageAdjust(raw.hoverAdjust),
+            tokenAdjust: normalizeImageAdjust(raw.tokenAdjust),
+            avatarAdjust: normalizeImageAdjust(raw.avatarAdjust)
         };
     }
 
@@ -266,6 +319,266 @@
 
     function getListImage(character) {
         return character?.images?.idle || character?.images?.token || character?.images?.avatar || PLACEHOLDER_IMAGE;
+    }
+
+    function normalizeImageAdjust(adjust) {
+        const x = Number(adjust?.x);
+        const y = Number(adjust?.y);
+        const size = Number(adjust?.size);
+        return {
+            x: Number.isFinite(x) ? x : 0,
+            y: Number.isFinite(y) ? y : 0,
+            size: Number.isFinite(size) && size > 0 ? size : null
+        };
+    }
+
+    function serializeImageAdjust(adjust) {
+        const normalized = normalizeImageAdjust(adjust);
+        const rawSize = Number(adjust?.size);
+        const result = {};
+        if (normalized.x) result.x = normalized.x;
+        if (normalized.y) result.y = normalized.y;
+        if (Number.isFinite(rawSize) && rawSize > 0) result.size = normalized.size;
+        return Object.keys(result).length ? result : null;
+    }
+
+    function updateImageAdjust(character, kind, field, value) {
+        if (!character) return;
+        character.images = character.images || {};
+        const key = `${kind}Adjust`;
+        const current = normalizeImageAdjust(character.images[key]);
+        const nextValue = field === 'size'
+            ? clampZoom(Number(value) || 1)
+            : Number(value) || 0;
+        character.images[key] = { ...current, [field]: nextValue };
+        markCharacterImageUpdated(character, character.images[kind]);
+    }
+
+    function fillImageAdjustControls(character) {
+        ['idle', 'hover', 'token', 'avatar'].forEach((kind) => {
+            const adjust = normalizeImageAdjust(character?.images?.[`${kind}Adjust`]);
+            els.detailForm?.querySelectorAll(`[data-image-adjust-kind="${kind}"]`).forEach((input) => {
+                const field = input.dataset.imageAdjustField;
+                if (!field) return;
+                input.value = field === 'size' ? String(adjust.size || 1) : String(adjust[field] || 0);
+            });
+        });
+    }
+
+    function applyPreviewAdjust(image, adjust) {
+        if (!image) return;
+        image.style.transform = buildPreviewAdjustStyle(adjust);
+    }
+
+    function buildPreviewAdjustStyle(adjust) {
+        const normalized = normalizeImageAdjust(adjust);
+        return `translate(${normalized.x}px, ${normalized.y}px) scale(${normalized.size || 1})`;
+    }
+
+    function buildNpcAdjustPreviewStyle(kind, adjust) {
+        const normalized = normalizeImageAdjust(adjust);
+        const scale = kind === 'hover'
+            ? (normalized.size || 1.20)
+            : (normalized.size || 1);
+        return `--img-x:${normalized.x}px; --img-y:${normalized.y}px; --img-scale-rest:${scale}; --img-scale-hover:${scale};`;
+    }
+
+    function getCharacterImagePath(character, kind) {
+        const images = character?.images || {};
+        if (kind === 'idle') return images.idle || images.token || images.avatar || PLACEHOLDER_IMAGE;
+        if (kind === 'hover') return images.hover || images.token || images.idle || images.avatar || PLACEHOLDER_IMAGE;
+        return images[kind] || images.token || images.avatar || images.idle || PLACEHOLDER_IMAGE;
+    }
+
+    function getImageAdjust(character, kind) {
+        return normalizeImageAdjust(character?.images?.[`${kind}Adjust`]);
+    }
+
+    function setImageAdjust(character, kind, adjust) {
+        if (!character || !kind) return;
+        character.images = character.images || {};
+        character.images[`${kind}Adjust`] = normalizeImageAdjust(adjust);
+        markCharacterImageUpdated(character, character.images[kind]);
+    }
+
+    function openImageAdjustModal(kind) {
+        const character = getSelectedCharacter();
+        if (!character) return;
+        state.activeAdjustKind = kind || 'hover';
+        state.activeAdjustCharacterId = character.id || '';
+        state.adjustDrag = null;
+        clearImageAdjustModalImages();
+        renderImageAdjustModal();
+        if (els.characterImageAdjustModal) els.characterImageAdjustModal.hidden = false;
+    }
+
+    function closeImageAdjustModal() {
+        if (els.characterImageAdjustModal) els.characterImageAdjustModal.hidden = true;
+        state.adjustDrag = null;
+        state.activeAdjustCharacterId = '';
+        clearImageAdjustModalImages();
+        els.characterImageAdjustModal?.querySelectorAll('[data-adjust-preview-frame]').forEach((frame) => {
+            frame.classList.remove('is-dragging');
+        });
+    }
+
+    function renderImageAdjustModal() {
+        const modal = els.characterImageAdjustModal;
+        const character = getSelectedCharacter();
+        if (!modal || !character) return;
+        if (state.activeAdjustCharacterId && state.activeAdjustCharacterId !== (character.id || '')) {
+            closeImageAdjustModal();
+            return;
+        }
+        const activeKind = state.activeAdjustKind || 'hover';
+        const title = modal.querySelector('#character-image-adjust-title');
+        if (title) title.textContent = `Regola ${getImageKindLabel(activeKind)}`;
+
+        ['idle', 'hover'].forEach((kind) => {
+            const img = modal.querySelector(`[data-adjust-preview-img="${kind}"]`);
+            const frame = modal.querySelector(`[data-adjust-preview-frame="${kind}"]`);
+            const card = frame?.closest('.characters-editor-adjust-card');
+            if (img) {
+                setImageAdjustPreviewImage(
+                    img,
+                    resolveVersionedImageUrl(getCharacterImagePath(character, kind)),
+                    buildNpcAdjustPreviewStyle(kind, getImageAdjust(character, kind))
+                );
+            }
+            if (card) card.classList.toggle('is-active', kind === activeKind);
+        });
+
+        syncActiveAdjustInputs(getImageAdjust(character, activeKind));
+    }
+
+    function clearImageAdjustModalImages() {
+        els.characterImageAdjustModal?.querySelectorAll('[data-adjust-preview-img]').forEach((img) => {
+            delete img.dataset.adjustPreviewSrc;
+            img.removeAttribute('src');
+            img.removeAttribute('style');
+        });
+    }
+
+    function setImageAdjustPreviewImage(img, src, style) {
+        const nextSrc = String(src || '');
+        if (img.dataset.adjustPreviewSrc !== nextSrc) {
+            img.removeAttribute('src');
+            img.dataset.adjustPreviewSrc = nextSrc;
+        }
+        img.setAttribute('style', style);
+        img.src = nextSrc;
+    }
+
+    function getImageKindLabel(kind) {
+        const labels = {
+            idle: 'Idle',
+            hover: 'Hover',
+            token: 'Token',
+            avatar: 'Avatar'
+        };
+        return labels[kind] || kind || 'immagine';
+    }
+
+    function syncActiveAdjustInputs(adjust) {
+        const modal = els.characterImageAdjustModal;
+        if (!modal) return;
+        const normalized = normalizeImageAdjust(adjust);
+        ['x', 'y', 'size'].forEach((field) => {
+            const value = field === 'size' ? normalized.size || 1 : normalized[field];
+            modal.querySelectorAll(`[data-adjust-field="${field}"], [data-adjust-number="${field}"]`).forEach((input) => {
+                input.value = String(value);
+            });
+        });
+    }
+
+    function updateActiveImageAdjust(field, value) {
+        const character = getSelectedCharacter();
+        if (!character || !state.activeAdjustKind) return;
+        updateImageAdjust(character, state.activeAdjustKind, field, value);
+        syncImagePreviews();
+        renderList();
+        renderImageAdjustModal();
+    }
+
+    function resetActiveImageAdjust() {
+        const character = getSelectedCharacter();
+        if (!character || !state.activeAdjustKind) return;
+        setImageAdjust(character, state.activeAdjustKind, { x: 0, y: 0, size: 1 });
+        syncImagePreviews();
+        renderList();
+        renderImageAdjustModal();
+    }
+
+    function startImageAdjustDrag(event) {
+        const character = getSelectedCharacter();
+        const kind = event.currentTarget?.dataset?.adjustPreviewFrame;
+        if (!character || !kind) return;
+        event.preventDefault();
+        state.activeAdjustKind = kind;
+        const adjust = getImageAdjust(character, kind);
+        state.adjustDrag = {
+            kind,
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            originX: adjust.x,
+            originY: adjust.y,
+            frame: event.currentTarget
+        };
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        event.currentTarget.classList.add('is-dragging');
+        renderImageAdjustModal();
+    }
+
+    function continueImageAdjustDrag(event) {
+        if (!state.adjustDrag) return;
+        const drag = state.adjustDrag;
+        if (drag.pointerId !== event.pointerId) return;
+        const character = getSelectedCharacter();
+        if (!character) return;
+        const current = getImageAdjust(character, drag.kind);
+        setImageAdjust(character, drag.kind, {
+            ...current,
+            x: Math.round(drag.originX + (event.clientX - drag.startX) * IMAGE_ADJUST_DRAG_SENSITIVITY),
+            y: Math.round(drag.originY + (event.clientY - drag.startY) * IMAGE_ADJUST_DRAG_SENSITIVITY)
+        });
+        syncImagePreviews();
+        renderList();
+        renderImageAdjustModal();
+        drag.frame?.classList.add('is-dragging');
+    }
+
+    function endImageAdjustDrag() {
+        if (!state.adjustDrag) return;
+        state.adjustDrag.frame?.classList.remove('is-dragging');
+        state.adjustDrag = null;
+    }
+
+    function handleImageAdjustWheel(event) {
+        const character = getSelectedCharacter();
+        const kind = event.currentTarget?.dataset?.adjustPreviewFrame;
+        if (!character || !kind) return;
+        event.preventDefault();
+        state.activeAdjustKind = kind;
+        const current = getImageAdjust(character, kind);
+        const visibleSize = current.size || (kind === 'hover' ? 1.20 : 1);
+        const direction = event.deltaY < 0 ? 1 : -1;
+        const step = event.shiftKey ? IMAGE_ADJUST_WHEEL_FINE_STEP : IMAGE_ADJUST_WHEEL_STEP;
+        setImageAdjust(character, kind, {
+            ...current,
+            size: roundZoom(clampZoom(visibleSize + direction * step))
+        });
+        syncImagePreviews();
+        renderList();
+        renderImageAdjustModal();
+    }
+
+    function clampZoom(value) {
+        return Math.min(IMAGE_ADJUST_MAX_ZOOM, Math.max(IMAGE_ADJUST_MIN_ZOOM, Number(value) || 1));
+    }
+
+    function roundZoom(value) {
+        return Math.round(value * 100) / 100;
     }
 
     function markCharacterImageUpdated(character, path) {
@@ -311,7 +624,7 @@
 
         els.characterList.innerHTML = visible.map(({ character, index }) => `
             <button class="characters-editor-list-btn ${index === state.selectedIndex ? 'is-active' : ''}" type="button" data-character-index="${index}">
-                <img src="${resolveVersionedImageUrl(getListImage(character))}" alt="" onerror="this.style.display='none'">
+                <img src="${resolveVersionedImageUrl(getListImage(character))}" alt="" style="transform:${buildPreviewAdjustStyle(character.images?.idleAdjust || character.images?.avatarAdjust)}" onerror="this.style.display='none'">
                 <span>
                     <span class="characters-editor-list-name">${escapeHtml(character.name)}</span>
                     <span class="characters-editor-list-role">${escapeHtml([character.role, character.category].filter(Boolean).join(' - ') || character.id)}</span>
@@ -321,6 +634,7 @@
 
         els.characterList.querySelectorAll('[data-character-index]').forEach((button) => {
             button.addEventListener('click', () => {
+                if (!els.characterImageAdjustModal?.hidden) closeImageAdjustModal();
                 state.selectedIndex = Number(button.dataset.characterIndex);
                 renderAll();
             });
@@ -350,6 +664,7 @@
         els.fieldAvatar.value = character.images?.avatar || '';
         els.fieldHover.value = character.images?.hover || '';
         els.fieldToken.value = character.images?.token || '';
+        fillImageAdjustControls(character);
         syncImagePreviews();
         renderBlocks();
     }
@@ -592,7 +907,13 @@
                 idle: character.images?.idle || character.images?.token || PLACEHOLDER_IMAGE,
                 hover: character.images?.hover || character.images?.token || PLACEHOLDER_IMAGE,
                 token: character.images?.token || character.images?.idle || PLACEHOLDER_IMAGE,
-                avatar: character.images?.avatar || character.images?.token || PLACEHOLDER_IMAGE
+                avatar: character.images?.avatar || character.images?.token || PLACEHOLDER_IMAGE,
+                ...compactObject({
+                    idleAdjust: serializeImageAdjust(character.images?.idleAdjust),
+                    hoverAdjust: serializeImageAdjust(character.images?.hoverAdjust),
+                    tokenAdjust: serializeImageAdjust(character.images?.tokenAdjust),
+                    avatarAdjust: serializeImageAdjust(character.images?.avatarAdjust)
+                })
             },
             blocks: (character.blocks || []).map((block) => ({
                 id: slugify(block.id || block.title || 'blocco'),
@@ -876,6 +1197,10 @@
         els.hoverPreview.src = resolveVersionedImageUrl(character.images?.hover || character.images?.token || PLACEHOLDER_IMAGE);
         els.tokenPreview.src = resolveVersionedImageUrl(character.images?.token || PLACEHOLDER_IMAGE);
         els.avatarPreview.src = resolveVersionedImageUrl(character.images?.avatar || character.images?.token || PLACEHOLDER_IMAGE);
+        applyPreviewAdjust(els.idlePreview, character.images?.idleAdjust);
+        applyPreviewAdjust(els.hoverPreview, character.images?.hoverAdjust);
+        applyPreviewAdjust(els.tokenPreview, character.images?.tokenAdjust);
+        applyPreviewAdjust(els.avatarPreview, character.images?.avatarAdjust);
     }
 
     function getSelectedCharacter() {
@@ -951,6 +1276,10 @@
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+    }
+
+    function compactObject(object) {
+        return Object.fromEntries(Object.entries(object || {}).filter(([, value]) => value !== undefined && value !== null && value !== ''));
     }
 
     function escapeAttr(value) {

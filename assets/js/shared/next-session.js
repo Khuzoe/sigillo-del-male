@@ -355,6 +355,16 @@
         return resolveVoteIconUrl(iconFile);
     }
 
+    function getVoteIconFallbackPath(value, playerId) {
+        const state = getVoteState(value);
+        if (!state?.value) return '';
+        const normalizedPlayerId = String(playerId || '').trim().toLowerCase();
+        const iconSet = currentVoteIconSets[normalizedPlayerId] || currentVoteIconSets.dm || VOTE_ICON_SETS.dm;
+        const iconFile = String(iconSet?.[state.value] || '').trim();
+        if (!/^\/?media\/ui\//i.test(iconFile)) return '';
+        return resolveVoteIconUrl(iconFile.replace(/^\/?media\/ui\//i, 'assets/img/ui/'));
+    }
+
     function resolveVoteIconUrl(iconPath) {
         const value = String(iconPath || '').trim();
         if (!value) return '';
@@ -1605,8 +1615,14 @@
     }
 
     function buildVoteChoiceContent(value, playerId) {
+        if (!value) return '';
+        const iconPath = getVoteIconPath(value, playerId);
+        const fallbackPath = getVoteIconFallbackPath(value, playerId);
+        const fallbackAttrs = fallbackPath && fallbackPath !== iconPath
+            ? ` data-fallback-src="${escapeHtml(fallbackPath)}" onerror="if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{this.style.display='none';}"`
+            : ' onerror="this.style.display=\'none\';"';
         return value
-            ? `<img class="availability-choice-icon" src="${escapeHtml(getVoteIconPath(value, playerId))}" alt="" loading="lazy" decoding="async">`
+            ? `<img class="availability-choice-icon" src="${escapeHtml(iconPath)}" alt="" loading="lazy" decoding="async"${fallbackAttrs}>`
             : '';
     }
 

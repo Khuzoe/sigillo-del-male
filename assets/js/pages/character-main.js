@@ -971,13 +971,13 @@ function normalizeSkillTreesCollection(data) {
         const key = String(entry.id || entry.key || entry.characterId || entry.treeKey || '').trim();
         const tree = entry.tree && typeof entry.tree === 'object' ? entry.tree : entry;
         if (!key || !Array.isArray(tree.nodes)) return acc;
-        acc[key] = {
+        acc[key] = normalizeSkillTreeNodeIds({
             ...tree,
             id: key,
             name: tree.name || entry.name || entry.title || '',
             ownerCharacterId: tree.ownerCharacterId || entry.ownerCharacterId || entry.characterId || '',
             characterId: tree.characterId || entry.characterId || ''
-        };
+        }, key);
         return acc;
     }, {});
 }
@@ -3228,10 +3228,155 @@ function setSkillTreeConnections(node, connections) {
     }).filter(Boolean);
 }
 
+function extractSkillTreeNodeIdFromIcon(iconPath) {
+    const value = String(iconPath || '').trim().split(/[?#]/)[0];
+    if (!value) return '';
+    const fileName = value.split('/').pop() || '';
+    const id = fileName.replace(/\.[a-z0-9]+$/i, '');
+    return /^node-[a-z0-9-]+$/i.test(id) ? id : '';
+}
+
+function makeUniqueSkillTreeNodeId(baseId, usedIds) {
+    const base = slugify(baseId || 'node') || 'node';
+    let id = base.startsWith('node-') ? base : `node-${base}`;
+    let index = 2;
+    while (usedIds.has(id)) {
+        id = `${base}-${index}`;
+        if (!id.startsWith('node-')) id = `node-${id}`;
+        index += 1;
+    }
+    return id;
+}
+
+function chooseSkillTreeDuplicateTarget(sourceNode, candidates) {
+    const options = (candidates || []).filter((candidate) => candidate && String(candidate.id) !== String(sourceNode?.id));
+    if (!options.length) return candidates?.[0]?.id || '';
+    const sourceX = Number(sourceNode?.x) || 0;
+    const sourceY = Number(sourceNode?.y) || 0;
+    return options
+        .slice()
+        .sort((left, right) => {
+            const leftDistance = Math.hypot((Number(left.x) || 0) - sourceX, (Number(left.y) || 0) - sourceY);
+            const rightDistance = Math.hypot((Number(right.x) || 0) - sourceX, (Number(right.y) || 0) - sourceY);
+            return leftDistance - rightDistance;
+        })[0]?.id || '';
+}
+
+function normalizeSkillTreeNodeIds(tree, treeKey = '') {
+    if (!tree || !Array.isArray(tree.nodes)) return tree;
+    const rawNodes = tree.nodes.map((node, index) => ({
+        ...(node || {}),
+        id: String(node?.id || `node-${index + 1}`).trim()
+    }));
+    const counts = rawNodes.reduce((acc, node) => {
+        acc.set(node.id, (acc.get(node.id) || 0) + 1);
+        return acc;
+    }, new Map());
+    const usedIds = new Set();
+    const duplicateGroups = new Map();
+    let changed = false;
+
+    const nodes = rawNodes.map((node, index) => {
+        const originalId = node.id;
+        let id = originalId;
+        if (!id || usedIds.has(id)) {
+            const iconId = extractSkillTreeNodeIdFromIcon(node.icon);
+            id = iconId && !usedIds.has(iconId)
+                ? iconId
+                : makeUniqueSkillTreeNodeId(node.title || originalId || `node-${index + 1}`, usedIds);
+            changed = true;
+        }
+        usedIds.add(id);
+        const nextNode = { ...node, id };
+        if ((counts.get(originalId) || 0) > 1) {
+            if (!duplicateGroups.has(originalId)) duplicateGroups.set(originalId, []);
+            duplicateGroups.get(originalId).push(nextNode);
+        }
+        return nextNode;
+    });
+
+    if (!changed) return { ...tree, nodes };
+
+    const remapTarget = (sourceNode, targetId) => {
+        const target = String(targetId || '').trim();
+        const duplicateCandidates = duplicateGroups.get(target);
+        if (!duplicateCandidates?.length) return target;
+        return chooseSkillTreeDuplicateTarget(sourceNode, duplicateCandidates) || target;
+    };
+
+    const remappedNodes = nodes.map((node) => {
+        const nextNode = { ...node };
+        if (Array.isArray(nextNode.connections)) {
+            setSkillTreeConnections(nextNode, getSkillTreeConnections(nextNode).map((connection) => ({
+                ...connection,
+                target: remapTarget(nextNode, connection.target)
+            })));
+        }
+        if (Array.isArray(nextNode.requires)) {
+            nextNode.requires = nextNode.requires.map((id) => remapTarget(nextNode, id)).filter(Boolean);
+        }
+        if (Array.isArray(nextNode.requirements)) {
+            nextNode.requirements = nextNode.requirements.map((id) => remapTarget(nextNode, id)).filter(Boolean);
+        }
+        return nextNode;
+    });
+
+    console.warn('Albero abilita con id nodo duplicati normalizzato:', treeKey || tree.id || tree.name || '', Array.from(duplicateGroups.keys()));
+    return { ...tree, nodes: remappedNodes };
+}
+
 function getSkillTreeRequirementMode(node) {
     return ['any', 'one'].includes(String(node?.requiresMode || node?.requireMode || node?.requirementMode || '').toLowerCase())
         ? 'any'
         : 'all';
+}
+
+function hasExplicitNodePrerequisites(node) {
+    return Array.isArray(node?.requires) || Array.isArray(node?.requirements);
+}
+
+function getExplicitNodePrerequisites(node) {
+    const explicit = Array.isArray(node?.requires)
+        ? node.requires
+        : Array.isArray(node?.requirements)
+            ? node.requirements
+            : [];
+    return explicit.map(String).filter(Boolean);
+}
+
+function setExplicitNodePrerequisites(node, ids) {
+    if (!node) return;
+    node.requires = Array.from(new Set((ids || []).map(String).filter(Boolean)));
+    if ('requirements' in node) delete node.requirements;
+}
+
+function addExplicitNodePrerequisite(node, id) {
+    if (!node || !id) return;
+    setExplicitNodePrerequisites(node, [...getExplicitNodePrerequisites(node), String(id)]);
+}
+
+function removeExplicitNodePrerequisite(node, id) {
+    if (!node || !id) return;
+    setExplicitNodePrerequisites(node, getExplicitNodePrerequisites(node).filter((entry) => String(entry) !== String(id)));
+}
+
+function getSkillTreeNodeLabel(treeData, nodeId) {
+    const id = String(nodeId || '');
+    const node = (treeData?.nodes || []).find((entry) => String(entry.id) === id);
+    return node?.title || node?.id || id;
+}
+
+function getIncomingSkillTreeConnections(treeData, targetId) {
+    const id = String(targetId || '');
+    return (treeData?.nodes || []).flatMap((source) => (
+        getSkillTreeConnections(source)
+            .filter((connection) => connection.target === id)
+            .map((connection) => ({
+                source: String(source.id),
+                target: id,
+                mode: connection.mode || 'normal'
+            }))
+    ));
 }
 
 function getSkillNodeLevels(node) {
@@ -3332,6 +3477,23 @@ function deriveSkillTreeNodes(treeData, stateRecord) {
         }
         const level = unlocked.has(nodeId) ? stateLevels[nodeId] : 1;
         return applySkillNodeLevel({ ...node, id: nodeId, requires: requirements, requiresMode: requirementMode, state }, level);
+    });
+}
+
+function deriveSkillTreeEditorNodes(treeData, stateRecord) {
+    const runtimeById = new Map(deriveSkillTreeNodes(treeData, stateRecord).map((node) => [String(node.id), node]));
+    return (treeData.nodes || []).map((node) => {
+        const nodeId = String(node.id);
+        const runtimeNode = runtimeById.get(nodeId) || {};
+        return {
+            ...node,
+            id: nodeId,
+            requires: getNodePrerequisites(node, treeData),
+            requiresMode: getSkillTreeRequirementMode(node),
+            state: runtimeNode.state || node.state || 'locked',
+            level: runtimeNode.level || 1,
+            maxLevel: getSkillNodeLevels(node).length
+        };
     });
 }
 
@@ -3500,7 +3662,10 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     };
 
     const recalculateNodes = () => {
-        currentNodes = deriveSkillTreeNodes(workingTree, { unlocked: Array.from(unlockedIds), levels: nodeLevels });
+        const stateSnapshot = { unlocked: Array.from(unlockedIds), levels: nodeLevels };
+        currentNodes = editMode && canEditTree
+            ? deriveSkillTreeEditorNodes(workingTree, stateSnapshot)
+            : deriveSkillTreeNodes(workingTree, stateSnapshot);
     };
 
     const persistUnlocks = async () => {
@@ -3527,8 +3692,67 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         return true;
     };
 
+    const connectionMarkerPrefix = `skill-link-arrow-${slugify(treeKey || character?.id || 'tree')}`;
+
+    const getConnectionMarkerId = (state, selected = false) => {
+        if (selected) return `${connectionMarkerPrefix}-selected`;
+        if (state === 'unlocked') return `${connectionMarkerPrefix}-unlocked`;
+        if (state === 'unlockable') return `${connectionMarkerPrefix}-unlockable`;
+        return `${connectionMarkerPrefix}-locked`;
+    };
+
+    const appendConnectionMarkers = () => {
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        [
+            ['locked', 'rgba(238, 238, 238, 0.82)'],
+            ['unlockable', 'rgba(222, 186, 104, 0.9)'],
+            ['unlocked', 'rgba(230, 190, 70, 0.95)'],
+            ['selected', 'rgba(255, 230, 140, 0.98)']
+        ].forEach(([state, fill]) => {
+            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            marker.setAttribute('id', getConnectionMarkerId(state, state === 'selected'));
+            marker.setAttribute('viewBox', '0 0 8 8');
+            marker.setAttribute('refX', '7');
+            marker.setAttribute('refY', '4');
+            marker.setAttribute('markerWidth', '8');
+            marker.setAttribute('markerHeight', '8');
+            marker.setAttribute('orient', 'auto');
+            marker.setAttribute('markerUnits', 'userSpaceOnUse');
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', 'M 0 1 L 8 4 L 0 7 z');
+            path.setAttribute('fill', fill);
+            marker.appendChild(path);
+            defs.appendChild(marker);
+        });
+        linesLayer.appendChild(defs);
+    };
+
+    const getConnectionLinePoints = (startNode, targetNode) => {
+        const sx = Number(startNode.x) || 50;
+        const sy = Number(startNode.y) || 50;
+        const tx = Number(targetNode.x) || 50;
+        const ty = Number(targetNode.y) || 50;
+        const dx = tx - sx;
+        const dy = ty - sy;
+        const distance = Math.hypot(dx, dy);
+        if (!distance) return { x1: sx, y1: sy, x2: tx, y2: ty };
+        const ux = dx / distance;
+        const uy = dy / distance;
+        const sourceRadius = startNode.keyNode ? 5.85 : 4.35;
+        const targetRadius = targetNode.keyNode ? 5.85 : 4.35;
+        const sourceOffset = Math.min(sourceRadius, distance * 0.28);
+        const targetOffset = Math.min(targetRadius, distance * 0.36);
+        return {
+            x1: sx + ux * sourceOffset,
+            y1: sy + uy * sourceOffset,
+            x2: tx - ux * targetOffset,
+            y2: ty - uy * targetOffset
+        };
+    };
+
     const renderConnections = () => {
         linesLayer.replaceChildren();
+        appendConnectionMarkers();
 
         const nodeById = new Map(currentNodes.map((node) => [String(node.id), node]));
         currentNodes.forEach((startNode) => {
@@ -3537,14 +3761,16 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 if (!targetNode) return;
 
                 const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', `${Number(startNode.x) || 50}%`);
-                line.setAttribute('y1', `${Number(startNode.y) || 50}%`);
-                line.setAttribute('x2', `${Number(targetNode.x) || 50}%`);
-                line.setAttribute('y2', `${Number(targetNode.y) || 50}%`);
+                const points = getConnectionLinePoints(startNode, targetNode);
+                line.setAttribute('x1', `${points.x1}%`);
+                line.setAttribute('y1', `${points.y1}%`);
+                line.setAttribute('x2', `${points.x2}%`);
+                line.setAttribute('y2', `${points.y2}%`);
                 const isSelected = selectedConnection
                     && selectedConnection.source === String(startNode.id)
                     && selectedConnection.target === String(connection.target);
                 line.setAttribute('class', `player-skill-connection is-${targetNode.state || 'locked'} is-${connection.mode || 'normal'}${isSelected ? ' is-selected' : ''}${editMode && canEditTree ? ' is-editable' : ''}`);
+                line.setAttribute('marker-end', `url(#${getConnectionMarkerId(targetNode.state || 'locked', isSelected)})`);
                 line.dataset.source = String(startNode.id);
                 line.dataset.target = String(connection.target);
                 line.dataset.mode = connection.mode || 'normal';
@@ -3622,10 +3848,12 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const targetNodeElement = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.player-skill-node');
         const targetId = targetNodeElement?.dataset?.nodeId || '';
         const source = workingTree.nodes.find((entry) => String(entry.id) === linkDrag.sourceId);
+        const target = workingTree.nodes.find((entry) => String(entry.id) === String(targetId));
         if (source && targetId && targetId !== linkDrag.sourceId) {
             const nextConnections = getSkillTreeConnections(source);
             if (!nextConnections.some((connection) => connection.target === String(targetId))) {
                 setSkillTreeConnections(source, [...nextConnections, { target: String(targetId), mode: 'normal' }]);
+                if (hasExplicitNodePrerequisites(target)) addExplicitNodePrerequisite(target, linkDrag.sourceId);
                 selectedNodeId = linkDrag.sourceId;
                 selectedConnection = { source: linkDrag.sourceId, target: String(targetId) };
             }
@@ -3759,6 +3987,11 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 selectedNodeId = String(node.id);
                 selectedConnection = null;
                 updateInfo(node);
+                if (editMode && canEditTree) {
+                    renderTree();
+                    renderEditor();
+                    return;
+                }
                 if (!canEditUnlocks) {
                     renderTree();
                     return;
@@ -3948,6 +4181,100 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         alert('Albero abilita salvato.');
     };
 
+    const buildConnectionSelectButton = (connection, direction = 'out') => {
+        const sourceId = String(connection.source || '');
+        const targetId = String(connection.target || '');
+        const otherId = direction === 'in' ? sourceId : targetId;
+        const icon = direction === 'in' ? 'fa-arrow-right-to-bracket' : 'fa-arrow-up-right-from-square';
+        const modeLabel = connection.mode === 'exclusive' ? 'esclusivo' : 'normale';
+        return `
+            <button type="button" class="player-skill-relation-chip" data-skill-action="select-link" data-link-source="${escapeHtml(sourceId)}" data-link-target="${escapeHtml(targetId)}">
+                <i class="fas ${icon}"></i>
+                <span>${escapeHtml(getSkillTreeNodeLabel(workingTree, otherId))}</span>
+                <small>${escapeHtml(modeLabel)}</small>
+            </button>
+        `;
+    };
+
+    const buildNodeRelationshipPanel = (node) => {
+        if (!node) return '';
+        const nodeId = String(node.id || '');
+        const incoming = getIncomingSkillTreeConnections(workingTree, nodeId);
+        const outgoing = getSkillTreeConnections(node).map((connection) => ({
+            source: nodeId,
+            target: String(connection.target),
+            mode: connection.mode || 'normal'
+        }));
+        const requirementIds = new Set(getNodePrerequisites(node, workingTree).map(String));
+        const explicitRequirements = hasExplicitNodePrerequisites(node);
+        const otherNodes = (workingTree.nodes || []).filter((entry) => String(entry.id) !== nodeId);
+        const modeLabel = getSkillTreeRequirementMode(node) === 'any'
+            ? 'basta uno dei requisiti selezionati'
+            : 'servono tutti i requisiti selezionati';
+        const requirementRows = otherNodes.length
+            ? otherNodes.map((entry) => {
+                const id = String(entry.id);
+                const isParent = incoming.some((connection) => connection.source === id);
+                const isRequired = requirementIds.has(id);
+                return `
+                    <label class="player-skill-requirement-row ${isParent ? 'is-linked' : ''}">
+                        <input type="checkbox" data-node-requirement-id="${escapeHtml(id)}" ${isRequired ? 'checked' : ''}>
+                        <span>${escapeHtml(entry.title || entry.id)}</span>
+                        ${isParent ? '<small>link entrante</small>' : ''}
+                    </label>
+                `;
+            }).join('')
+            : '<p class="player-skill-editor-help">Non ci sono altri nodi da usare come requisito.</p>';
+
+        return `
+            <details class="player-skill-editor-section player-skill-relations-editor" open>
+                <summary>Relazioni e sblocco</summary>
+                <div class="player-skill-relations-summary">
+                    <div>
+                        <span>Regola attiva</span>
+                        <strong>${escapeHtml(modeLabel)}</strong>
+                        <small>${explicitRequirements ? 'Lista requisiti esplicita' : 'Auto: i link entranti sono requisiti'}</small>
+                    </div>
+                    <div>
+                        <span>Link entranti</span>
+                        <strong>${incoming.length}</strong>
+                        <small>Chi punta a questo nodo</small>
+                    </div>
+                    <div>
+                        <span>Link uscenti</span>
+                        <strong>${outgoing.length}</strong>
+                        <small>Cosa parte da questo nodo</small>
+                    </div>
+                </div>
+                <div class="player-skill-relations-grid">
+                    <section>
+                        <h5>Prerequisiti del nodo</h5>
+                        <div class="player-skill-requirement-list">
+                            ${requirementRows}
+                        </div>
+                        <div class="player-skill-relations-actions">
+                            <button type="button" class="player-skill-action-button is-compact" data-skill-action="reset-requirements-auto">
+                                <i class="fas fa-rotate-left"></i> Usa link entranti automatici
+                            </button>
+                        </div>
+                    </section>
+                    <section>
+                        <h5>Link entranti</h5>
+                        <div class="player-skill-relation-chip-list">
+                            ${incoming.length ? incoming.map((connection) => buildConnectionSelectButton(connection, 'in')).join('') : '<p class="player-skill-editor-help">Nessun link entra in questo nodo.</p>'}
+                        </div>
+                    </section>
+                    <section>
+                        <h5>Link uscenti</h5>
+                        <div class="player-skill-relation-chip-list">
+                            ${outgoing.length ? outgoing.map((connection) => buildConnectionSelectButton(connection, 'out')).join('') : '<p class="player-skill-editor-help">Questo nodo non sblocca ancora altri nodi.</p>'}
+                        </div>
+                    </section>
+                </div>
+            </details>
+        `;
+    };
+
     const renderEditor = () => {
         if (!editorPanel || !canEditTree) return;
         const node = readEditorNode();
@@ -3966,6 +4293,10 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const selectedLink = selectedSourceNode
             ? getSkillTreeConnections(selectedSourceNode).find((connection) => connection.target === String(selectedConnection.target))
             : null;
+        const selectedLinkIsRequirement = selectedSourceNode && selectedTargetNode
+            ? getNodePrerequisites(selectedTargetNode, workingTree).map(String).includes(String(selectedSourceNode.id))
+            : false;
+        const selectedTargetUsesExplicitRequirements = hasExplicitNodePrerequisites(selectedTargetNode);
         const selectedLinkHtml = selectedSourceNode && selectedTargetNode && selectedLink ? `
             <details class="player-skill-editor-section player-skill-link-editor" open>
                 <summary>Collegamento selezionato</summary>
@@ -3990,6 +4321,15 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                             <option value="any" ${getSkillTreeRequirementMode(selectedTargetNode) === 'any' ? 'selected' : ''}>Uno qualsiasi</option>
                         </select>
                     </label>
+                    <div class="player-skill-link-requirement-state ${selectedLinkIsRequirement ? 'is-active' : ''}">
+                        <span>Effetto sullo sblocco</span>
+                        <strong>${selectedLinkIsRequirement ? 'Questo link attiva la destinazione' : 'Questo link è solo visivo'}</strong>
+                        <small>${selectedTargetUsesExplicitRequirements ? 'La destinazione usa requisiti espliciti.' : 'Auto: ogni link entrante è requisito.'}</small>
+                    </div>
+                    <button type="button" class="player-skill-action-button is-compact" data-skill-action="toggle-link-requirement" data-link-source="${escapeHtml(selectedSourceNode.id)}" data-link-target="${escapeHtml(selectedTargetNode.id)}">
+                        <i class="fas ${selectedLinkIsRequirement ? 'fa-link-slash' : 'fa-link'}"></i>
+                        ${selectedLinkIsRequirement ? 'Togli dai requisiti' : 'Usa come requisito'}
+                    </button>
                     <button type="button" class="player-skill-action-button is-danger" data-skill-action="delete-link"><i class="fas fa-unlink"></i> Rimuovi collegamento</button>
                 </div>
             </details>
@@ -4091,9 +4431,6 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 <label>Collega verso nodi
                     <input type="text" data-node-field="connections" value="${escapeHtml(getSkillTreeConnections(node || {}).map((connection) => connection.target).join(', '))}" placeholder="id-nodo-1, id-nodo-2">
                 </label>
-                <label>Requisiti
-                    <input type="text" data-node-field="requires" value="${escapeHtml((node?.requires || getNodePrerequisites(node || {}, workingTree)).join(', '))}" placeholder="vuoto = genitori automatici">
-                </label>
                 <label>Regola prerequisiti
                     <select data-node-field="requiresMode">
                         <option value="all" ${getSkillTreeRequirementMode(node || {}) !== 'any' ? 'selected' : ''}>Tutti</option>
@@ -4101,6 +4438,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     </select>
                 </label>
             </div>
+            ${buildNodeRelationshipPanel(node)}
             ${upgradeLevelsHtml}
             <div class="player-skill-editor-actions">
                 <button type="button" class="player-skill-action-button" data-skill-action="add-node"><i class="fas fa-plus"></i> Nodo</button>
@@ -4145,6 +4483,19 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             const node = readEditorNode();
             if (!node) return;
             node.requiresMode = target.value === 'any' ? 'any' : 'all';
+            unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
+            renderTree();
+            renderEditor();
+        }
+        const requirementId = target.dataset.nodeRequirementId;
+        if (requirementId) {
+            const node = readEditorNode();
+            if (!node) return;
+            if (target.checked) {
+                addExplicitNodePrerequisite(node, requirementId);
+            } else {
+                removeExplicitNodePrerequisite(node, requirementId);
+            }
             unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
             renderTree();
             renderEditor();
@@ -4214,6 +4565,10 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 const values = target.value.split(',').map((entry) => entry.trim()).filter(Boolean);
                 if (nodeField === 'connections') {
                     setSkillTreeConnections(node, values.map((entry) => ({ target: entry, mode: 'normal' })));
+                    values.forEach((targetId) => {
+                        const targetNode = workingTree.nodes.find((entry) => String(entry.id) === String(targetId));
+                        if (hasExplicitNodePrerequisites(targetNode)) addExplicitNodePrerequisite(targetNode, node.id);
+                    });
                 } else {
                     node[nodeField] = values;
                 }
@@ -4272,6 +4627,48 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const action = button.dataset.skillAction;
         if (action === 'delete-link') {
             deleteSelectedConnection();
+            return;
+        }
+        if (action === 'select-link') {
+            const source = String(button.dataset.linkSource || '');
+            const target = String(button.dataset.linkTarget || '');
+            if (source && target) {
+                selectedConnection = { source, target };
+                selectedNodeId = target;
+                const targetNode = workingTree.nodes.find((entry) => String(entry.id) === target);
+                if (targetNode) updateInfo(targetNode);
+                renderTree();
+                renderEditor();
+            }
+            return;
+        }
+        if (action === 'toggle-link-requirement') {
+            const source = String(button.dataset.linkSource || selectedConnection?.source || '');
+            const target = String(button.dataset.linkTarget || selectedConnection?.target || '');
+            const targetNode = workingTree.nodes.find((entry) => String(entry.id) === target);
+            if (!source || !targetNode) return;
+            const currentRequirements = getNodePrerequisites(targetNode, workingTree).map(String);
+            if (currentRequirements.includes(source)) {
+                const explicit = hasExplicitNodePrerequisites(targetNode)
+                    ? getExplicitNodePrerequisites(targetNode)
+                    : currentRequirements;
+                setExplicitNodePrerequisites(targetNode, explicit.filter((entry) => String(entry) !== source));
+            } else {
+                addExplicitNodePrerequisite(targetNode, source);
+            }
+            unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
+            renderTree();
+            renderEditor();
+            return;
+        }
+        if (action === 'reset-requirements-auto') {
+            const node = readEditorNode();
+            if (!node) return;
+            delete node.requires;
+            delete node.requirements;
+            unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
+            renderTree();
+            renderEditor();
             return;
         }
         if (action === 'add-node') {
@@ -4606,6 +5003,13 @@ window.CriptaApp.onPageReady("character", async function () {
     let isInlineEditing = false;
     let inlineEditDirty = false;
     let inlineEditBlocks = [];
+    let inlineAdjustKind = '';
+    let inlineAdjustDrag = null;
+    const INLINE_IMAGE_ADJUST_DRAG_SENSITIVITY = 0.35;
+    const INLINE_IMAGE_ADJUST_WHEEL_STEP = 0.05;
+    const INLINE_IMAGE_ADJUST_WHEEL_FINE_STEP = 0.01;
+    const INLINE_IMAGE_ADJUST_MIN_ZOOM = 0.25;
+    const INLINE_IMAGE_ADJUST_MAX_ZOOM = 2.75;
     let currentUserIsDm = false;
     let currentAuthState = null;
     let currentTransformations = [];
@@ -4773,8 +5177,14 @@ window.CriptaApp.onPageReady("character", async function () {
         const characterField = target?.dataset?.inlineCharacterField;
         const characterImageField = target?.dataset?.inlineCharacterImageField;
         const characterSummaryField = target?.dataset?.inlineCharacterSummaryField;
+        const imageAdjustKind = target?.dataset?.inlineImageAdjustKind;
+        const imageAdjustField = target?.dataset?.inlineImageAdjustField;
         if (characterField || characterImageField || characterSummaryField) {
             updateInlineCharacterField(target, { characterField, characterImageField, characterSummaryField });
+            return;
+        }
+        if (imageAdjustKind && imageAdjustField) {
+            updateInlineImageAdjust(imageAdjustKind, imageAdjustField, target.value);
             return;
         }
 
@@ -4793,8 +5203,15 @@ window.CriptaApp.onPageReady("character", async function () {
         const characterField = target?.dataset?.inlineCharacterField;
         const characterImageField = target?.dataset?.inlineCharacterImageField;
         const characterSummaryField = target?.dataset?.inlineCharacterSummaryField;
+        const imageAdjustKind = target?.dataset?.inlineImageAdjustKind;
+        const imageAdjustField = target?.dataset?.inlineImageAdjustField;
         if (characterField || characterImageField || characterSummaryField) {
             updateInlineCharacterField(target, { characterField, characterImageField, characterSummaryField });
+            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+            return;
+        }
+        if (imageAdjustKind && imageAdjustField) {
+            updateInlineImageAdjust(imageAdjustKind, imageAdjustField, target.value);
             renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
             return;
         }
@@ -4826,6 +5243,10 @@ window.CriptaApp.onPageReady("character", async function () {
         }
         if (action === 'upload-character-image') {
             uploadInlineCharacterImage(actionButton.dataset.inlineCharacterImageTarget || 'avatar');
+            return;
+        }
+        if (action === 'adjust-character-image') {
+            openInlineImageAdjustModal(actionButton.dataset.inlineCharacterImageTarget || 'hover');
             return;
         }
         if (action === 'upload-block-image') {
@@ -5382,6 +5803,285 @@ window.CriptaApp.onPageReady("character", async function () {
             currentCharacter.summary[fields.characterSummaryField] = value;
         }
         inlineEditDirty = true;
+    }
+
+    function updateInlineImageAdjust(kind, field, value) {
+        if (!currentCharacter || !kind || !field) return;
+        currentCharacter.images = currentCharacter.images || {};
+        const key = `${kind}Adjust`;
+        const current = normalizeImageAdjust(currentCharacter.images[key]);
+        const nextValue = field === 'size'
+            ? clampInlineAdjustZoom(Number(value) || 1)
+            : Number(value) || 0;
+        currentCharacter.images[key] = { ...current, [field]: nextValue };
+        currentCharacter.updatedAt = new Date().toISOString();
+        inlineEditDirty = true;
+
+        const preview = container.querySelector(`[data-inline-character-image-preview="${CSS.escape(kind)}"]`);
+        if (preview) preview.setAttribute('style', buildInlineAdjustStyle(currentCharacter.images[key]));
+        if (kind === 'avatar') {
+            const portrait = container.querySelector('[data-inline-portrait-preview]');
+            if (portrait) portrait.setAttribute('style', buildInlineAdjustStyle(currentCharacter.images[key]));
+        }
+    }
+
+    function buildInlineNpcAdjustPreviewStyle(kind, adjust) {
+        const normalized = normalizeImageAdjust(adjust);
+        const scale = kind === 'hover'
+            ? (normalized.size || 1.20)
+            : (normalized.size || 1);
+        return `--img-x:${normalized.x}px; --img-y:${normalized.y}px; --img-scale-rest:${scale}; --img-scale-hover:${scale};`;
+    }
+
+    function getInlineImagePathForAdjust(kind) {
+        const images = currentCharacter?.images || {};
+        if (kind === 'idle') return images.idle || images.token || images.avatar || '';
+        if (kind === 'hover') return images.hover || images.token || images.idle || images.avatar || '';
+        return images[kind] || images.token || images.avatar || images.idle || '';
+    }
+
+    function getInlineImageAdjust(kind) {
+        return normalizeImageAdjust(currentCharacter?.images?.[`${kind}Adjust`]);
+    }
+
+    function setInlineImageAdjust(kind, adjust) {
+        if (!currentCharacter || !kind) return;
+        currentCharacter.images = currentCharacter.images || {};
+        currentCharacter.images[`${kind}Adjust`] = normalizeImageAdjust(adjust);
+        currentCharacter.updatedAt = new Date().toISOString();
+        inlineEditDirty = true;
+    }
+
+    function getInlineAdjustModal() {
+        let modal = document.getElementById('character-inline-image-adjust-modal');
+        const ownerId = String(currentCharacter?.id || charId || '');
+        if (modal && modal.dataset.inlineAdjustOwnerId !== ownerId) {
+            modal.remove();
+            modal = null;
+        }
+        if (modal) return modal;
+        modal = document.createElement('div');
+        modal.id = 'character-inline-image-adjust-modal';
+        modal.className = 'character-inline-adjust-modal';
+        modal.dataset.inlineAdjustOwnerId = ownerId;
+        modal.hidden = true;
+        modal.innerHTML = `
+            <button class="character-inline-adjust-backdrop" type="button" data-inline-adjust-action="close" aria-label="Chiudi"></button>
+            <div class="character-inline-adjust-dialog" role="dialog" aria-modal="true" aria-labelledby="character-inline-adjust-title">
+                <section class="character-inline-adjust-preview">
+                    <div class="character-inline-adjust-card">
+                        <span class="character-inline-adjust-label">Idle</span>
+                        <div class="npc-avatar-container" data-inline-adjust-preview-frame="idle">
+                            <img class="npc-img-pop img-main" data-inline-adjust-preview-img="idle" src="" alt="" draggable="false">
+                        </div>
+                    </div>
+                    <div class="character-inline-adjust-card">
+                        <span class="character-inline-adjust-label">Hover</span>
+                        <div class="npc-avatar-container" data-inline-adjust-preview-frame="hover">
+                            <img class="npc-img-pop img-hover" data-inline-adjust-preview-img="hover" src="" alt="" draggable="false">
+                        </div>
+                    </div>
+                </section>
+                <section class="character-inline-adjust-controls">
+                    <h2 id="character-inline-adjust-title">Regola immagine</h2>
+                    <label class="character-inline-adjust-field">
+                        <span>X</span>
+                        <input type="range" min="-120" max="120" step="1" data-inline-adjust-field="x">
+                        <input type="number" min="-120" max="120" step="1" data-inline-adjust-number="x">
+                    </label>
+                    <label class="character-inline-adjust-field">
+                        <span>Y</span>
+                        <input type="range" min="-120" max="120" step="1" data-inline-adjust-field="y">
+                        <input type="number" min="-120" max="120" step="1" data-inline-adjust-number="y">
+                    </label>
+                    <label class="character-inline-adjust-field">
+                        <span>Zoom</span>
+                        <input type="range" min="0.25" max="2.75" step="0.01" data-inline-adjust-field="size">
+                        <input type="number" min="0.25" max="2.75" step="0.01" data-inline-adjust-number="size">
+                    </label>
+                    <div class="character-inline-adjust-actions">
+                        <button class="character-inline-btn character-inline-btn--ghost" type="button" data-inline-adjust-action="reset">Reset</button>
+                        <button class="character-inline-btn character-inline-btn--primary" type="button" data-inline-adjust-action="close">Chiudi</button>
+                    </div>
+                </section>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        bindInlineAdjustModal(modal);
+        return modal;
+    }
+
+    function bindInlineAdjustModal(modal) {
+        modal.addEventListener('input', (event) => {
+            const field = event.target?.dataset?.inlineAdjustField || event.target?.dataset?.inlineAdjustNumber;
+            if (!field || !inlineAdjustKind) return;
+            updateInlineImageAdjust(inlineAdjustKind, field, event.target.value);
+            renderInlineImageAdjustModal();
+        });
+        modal.addEventListener('click', (event) => {
+            const action = event.target.closest('[data-inline-adjust-action]')?.dataset?.inlineAdjustAction;
+            if (!action) return;
+            event.preventDefault();
+            if (action === 'reset') {
+                resetInlineImageAdjust();
+                return;
+            }
+            if (action === 'close') closeInlineImageAdjustModal();
+        });
+        modal.querySelectorAll('[data-inline-adjust-preview-frame]').forEach((frame) => {
+            frame.addEventListener('pointerdown', startInlineImageAdjustDrag);
+            frame.addEventListener('wheel', handleInlineImageAdjustWheel, { passive: false });
+        });
+        window.addEventListener('pointermove', continueInlineImageAdjustDrag);
+        window.addEventListener('pointerup', endInlineImageAdjustDrag);
+        window.addEventListener('pointercancel', endInlineImageAdjustDrag);
+    }
+
+    function openInlineImageAdjustModal(kind) {
+        if (!currentCharacter) return;
+        inlineAdjustKind = kind || 'hover';
+        inlineAdjustDrag = null;
+        const modal = getInlineAdjustModal();
+        renderInlineImageAdjustModal();
+        modal.hidden = false;
+    }
+
+    function closeInlineImageAdjustModal() {
+        const modal = document.getElementById('character-inline-image-adjust-modal');
+        if (modal) modal.hidden = true;
+        inlineAdjustDrag = null;
+        clearInlineImageAdjustModalImages();
+    }
+
+    function renderInlineImageAdjustModal() {
+        const modal = document.getElementById('character-inline-image-adjust-modal');
+        if (!modal || !currentCharacter) return;
+        if (modal.dataset.inlineAdjustOwnerId !== String(currentCharacter.id || charId || '')) {
+            closeInlineImageAdjustModal();
+            return;
+        }
+        const title = modal.querySelector('#character-inline-adjust-title');
+        if (title) title.textContent = `Regola ${inlineAdjustKind === 'idle' ? 'Idle' : inlineAdjustKind === 'hover' ? 'Hover' : inlineAdjustKind || 'immagine'}`;
+
+        ['idle', 'hover'].forEach((kind) => {
+            const img = modal.querySelector(`[data-inline-adjust-preview-img="${kind}"]`);
+            const frame = modal.querySelector(`[data-inline-adjust-preview-frame="${kind}"]`);
+            const card = frame?.closest('.character-inline-adjust-card');
+            if (img) {
+                setInlineImageAdjustPreviewImage(
+                    img,
+                    resolveInlineImagePath(getInlineImagePathForAdjust(kind)),
+                    buildInlineNpcAdjustPreviewStyle(kind, getInlineImageAdjust(kind))
+                );
+            }
+            if (card) card.classList.toggle('is-active', kind === inlineAdjustKind);
+        });
+
+        const activeAdjust = getInlineImageAdjust(inlineAdjustKind);
+        ['x', 'y', 'size'].forEach((field) => {
+            const value = field === 'size' ? activeAdjust.size || 1 : activeAdjust[field] || 0;
+            modal.querySelectorAll(`[data-inline-adjust-field="${field}"], [data-inline-adjust-number="${field}"]`).forEach((input) => {
+                input.value = String(value);
+            });
+        });
+    }
+
+    function clearInlineImageAdjustModalImages() {
+        document.getElementById('character-inline-image-adjust-modal')
+            ?.querySelectorAll('[data-inline-adjust-preview-img]')
+            .forEach((img) => {
+                delete img.dataset.inlineAdjustPreviewSrc;
+                img.removeAttribute('src');
+                img.removeAttribute('style');
+            });
+    }
+
+    function setInlineImageAdjustPreviewImage(img, src, style) {
+        const nextSrc = String(src || '');
+        if (img.dataset.inlineAdjustPreviewSrc !== nextSrc) {
+            img.removeAttribute('src');
+            img.dataset.inlineAdjustPreviewSrc = nextSrc;
+        }
+        img.setAttribute('style', style);
+        img.src = nextSrc;
+    }
+
+    function resetInlineImageAdjust() {
+        if (!currentCharacter || !inlineAdjustKind) return;
+        setInlineImageAdjust(inlineAdjustKind, { x: 0, y: 0, size: 1 });
+        const preview = container.querySelector(`[data-inline-character-image-preview="${CSS.escape(inlineAdjustKind)}"]`);
+        if (preview) preview.setAttribute('style', buildInlineAdjustStyle(getInlineImageAdjust(inlineAdjustKind)));
+        if (inlineAdjustKind === 'avatar') {
+            const portrait = container.querySelector('[data-inline-portrait-preview]');
+            if (portrait) portrait.setAttribute('style', buildInlineAdjustStyle(getInlineImageAdjust(inlineAdjustKind)));
+        }
+        renderInlineImageAdjustModal();
+    }
+
+    function startInlineImageAdjustDrag(event) {
+        const kind = event.currentTarget?.dataset?.inlineAdjustPreviewFrame;
+        if (!currentCharacter || !kind) return;
+        event.preventDefault();
+        inlineAdjustKind = kind;
+        const adjust = getInlineImageAdjust(kind);
+        inlineAdjustDrag = {
+            kind,
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            originX: adjust.x,
+            originY: adjust.y,
+            frame: event.currentTarget
+        };
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        event.currentTarget.classList.add('is-dragging');
+        renderInlineImageAdjustModal();
+    }
+
+    function continueInlineImageAdjustDrag(event) {
+        if (!inlineAdjustDrag || inlineAdjustDrag.pointerId !== event.pointerId) return;
+        const current = getInlineImageAdjust(inlineAdjustDrag.kind);
+        setInlineImageAdjust(inlineAdjustDrag.kind, {
+            ...current,
+            x: Math.round(inlineAdjustDrag.originX + (event.clientX - inlineAdjustDrag.startX) * INLINE_IMAGE_ADJUST_DRAG_SENSITIVITY),
+            y: Math.round(inlineAdjustDrag.originY + (event.clientY - inlineAdjustDrag.startY) * INLINE_IMAGE_ADJUST_DRAG_SENSITIVITY)
+        });
+        const preview = container.querySelector(`[data-inline-character-image-preview="${CSS.escape(inlineAdjustDrag.kind)}"]`);
+        if (preview) preview.setAttribute('style', buildInlineAdjustStyle(getInlineImageAdjust(inlineAdjustDrag.kind)));
+        renderInlineImageAdjustModal();
+        inlineAdjustDrag.frame?.classList.add('is-dragging');
+    }
+
+    function endInlineImageAdjustDrag() {
+        if (!inlineAdjustDrag) return;
+        inlineAdjustDrag.frame?.classList.remove('is-dragging');
+        inlineAdjustDrag = null;
+    }
+
+    function handleInlineImageAdjustWheel(event) {
+        const kind = event.currentTarget?.dataset?.inlineAdjustPreviewFrame;
+        if (!currentCharacter || !kind) return;
+        event.preventDefault();
+        inlineAdjustKind = kind;
+        const current = getInlineImageAdjust(kind);
+        const visibleSize = current.size || (kind === 'hover' ? 1.20 : 1);
+        const direction = event.deltaY < 0 ? 1 : -1;
+        const step = event.shiftKey ? INLINE_IMAGE_ADJUST_WHEEL_FINE_STEP : INLINE_IMAGE_ADJUST_WHEEL_STEP;
+        setInlineImageAdjust(kind, {
+            ...current,
+            size: roundInlineAdjustZoom(clampInlineAdjustZoom(visibleSize + direction * step))
+        });
+        const preview = container.querySelector(`[data-inline-character-image-preview="${CSS.escape(kind)}"]`);
+        if (preview) preview.setAttribute('style', buildInlineAdjustStyle(getInlineImageAdjust(kind)));
+        renderInlineImageAdjustModal();
+    }
+
+    function clampInlineAdjustZoom(value) {
+        return Math.min(INLINE_IMAGE_ADJUST_MAX_ZOOM, Math.max(INLINE_IMAGE_ADJUST_MIN_ZOOM, Number(value) || 1));
+    }
+
+    function roundInlineAdjustZoom(value) {
+        return Math.round(value * 100) / 100;
     }
 
     async function saveInlineCharacterEdits() {
@@ -6004,7 +6704,13 @@ window.CriptaApp.onPageReady("character", async function () {
                 idle: images.idle || getSyncedNpcImagePath(serialized, 'idle'),
                 hover: images.hover || getSyncedNpcImagePath(serialized, 'hover'),
                 token: images.token || images.idle || '',
-                avatar: images.avatar || images.token || ''
+                avatar: images.avatar || images.token || '',
+                ...compactObject({
+                    idleAdjust: serializeImageAdjust(images.idleAdjust),
+                    hoverAdjust: serializeImageAdjust(images.hoverAdjust),
+                    tokenAdjust: serializeImageAdjust(images.tokenAdjust),
+                    avatarAdjust: serializeImageAdjust(images.avatarAdjust)
+                })
             };
         }
         serialized.blocks = inlineEditBlocks.map((block) => ({
@@ -6212,6 +6918,20 @@ window.CriptaApp.onPageReady("character", async function () {
             y: Number.isFinite(y) ? y : 0,
             size: Number.isFinite(size) && size > 0 ? size : null
         };
+    }
+
+    function serializeImageAdjust(adjust) {
+        const normalized = normalizeImageAdjust(adjust);
+        const rawSize = Number(adjust?.size);
+        const result = {};
+        if (normalized.x) result.x = normalized.x;
+        if (normalized.y) result.y = normalized.y;
+        if (Number.isFinite(rawSize) && rawSize > 0) result.size = normalized.size;
+        return Object.keys(result).length ? result : null;
+    }
+
+    function compactObject(object) {
+        return Object.fromEntries(Object.entries(object || {}).filter(([, value]) => value !== undefined && value !== null && value !== ''));
     }
 
     function buildImageStyle(kind, adjust, counterpartAdjust) {
@@ -6719,6 +7439,7 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     function renderCharacterPage(character, allCharacters, npcQuests, playerSkillTrees) {
+        removeStaleInlineAdjustModal(character);
         // Set page title and header
         document.title = `${character.name} | Cripta di Sangue`;
         charNameEl.textContent = character.name;
@@ -6819,6 +7540,12 @@ window.CriptaApp.onPageReady("character", async function () {
         initializeImageModal();
     }
 
+    function removeStaleInlineAdjustModal(character) {
+        const modal = document.getElementById('character-inline-image-adjust-modal');
+        const ownerId = String(character?.id || charId || '');
+        if (modal && modal.dataset.inlineAdjustOwnerId !== ownerId) modal.remove();
+    }
+
     function renderInlineEditToolbar() {
         const toolbar = document.createElement('div');
         toolbar.className = 'character-inline-toolbar';
@@ -6908,6 +7635,23 @@ window.CriptaApp.onPageReady("character", async function () {
         return card;
     }
 
+    function buildInlineAdjustStyle(adjust) {
+        const normalized = normalizeImageAdjust(adjust);
+        return `transform: translate(${normalized.x}px, ${normalized.y}px) scale(${normalized.size || 1});`;
+    }
+
+    function renderInlineImageAdjustControls(kind) {
+        if (kind !== 'idle' && kind !== 'hover') return '';
+        const safeKind = escapeHtml(kind);
+        return `
+                                <div class="character-inline-image-adjust" data-inline-image-adjust-group="${safeKind}">
+                                    <button type="button" class="character-inline-adjust-open" data-inline-edit-action="adjust-character-image" data-inline-character-image-target="${safeKind}">
+                                        <i class="fas fa-sliders"></i> Regola
+                                    </button>
+                                </div>
+        `;
+    }
+
     function getEditableRightColumnHtml(character) {
         const summary = character.summary || {};
         const images = character.images || {};
@@ -6923,7 +7667,7 @@ window.CriptaApp.onPageReady("character", async function () {
         return `
                     <div class="image-card character-inline-side-editor">
                         <button type="button" class="character-inline-portrait-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="avatar" data-inline-character-image-drop-target="avatar" data-avatar-token-drop-zone title="Carica avatar scheda">
-                            <img src="${resolveInlineImagePath(images.avatar || images.token)}" class="char-portrait" data-inline-portrait-preview onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
+                            <img src="${resolveInlineImagePath(images.avatar || images.token)}" class="char-portrait" data-inline-portrait-preview style="${buildInlineAdjustStyle(images.avatarAdjust)}" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
                             <span class="character-inline-upload-hint"><i class="fas fa-upload"></i> Cambia avatar scheda</span>
                         </button>
                         <div class="character-inline-side-fields">
@@ -6942,34 +7686,38 @@ window.CriptaApp.onPageReady("character", async function () {
                             <label class="character-inline-field">
                                 <span>Idle lista</span>
                                 <div class="character-inline-image-field-row" data-inline-character-image-drop-target="idle">
-                                    <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.idle || images.token)}" alt="" data-inline-character-image-preview="idle" onerror="this.style.visibility='hidden'">
+                                    <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.idle || images.token)}" alt="" data-inline-character-image-preview="idle" style="${buildInlineAdjustStyle(images.idleAdjust)}" onerror="this.style.visibility='hidden'">
                                     <input type="text" value="${escapeHtml(images.idle || '')}" data-inline-character-image-field="idle" placeholder="media/campaigns/.../characters/npc/idle.webp">
                                     <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="idle" title="Carica idle"><i class="fas fa-upload"></i></button>
                                 </div>
+                                ${renderInlineImageAdjustControls('idle', images.idleAdjust)}
                             </label>
                             <label class="character-inline-field">
                                 <span>Hover lista</span>
                                 <div class="character-inline-image-field-row" data-inline-character-image-drop-target="hover">
-                                    <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.hover || images.token)}" alt="" data-inline-character-image-preview="hover" onerror="this.style.visibility='hidden'">
+                                    <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.hover || images.token)}" alt="" data-inline-character-image-preview="hover" style="${buildInlineAdjustStyle(images.hoverAdjust)}" onerror="this.style.visibility='hidden'">
                                     <input type="text" value="${escapeHtml(images.hover || '')}" data-inline-character-image-field="hover" placeholder="media/campaigns/.../characters/npc/hover.webp">
                                     <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="hover" title="Carica hover"><i class="fas fa-upload"></i></button>
                                 </div>
+                                ${renderInlineImageAdjustControls('hover', images.hoverAdjust)}
                             </label>
                             <label class="character-inline-field">
                                 <span>Token fallback</span>
                                 <div class="character-inline-image-field-row" data-inline-character-image-drop-target="token">
-                                    <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.token || images.idle || images.avatar)}" alt="" data-inline-character-image-preview="token" onerror="this.style.visibility='hidden'">
+                                    <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.token || images.idle || images.avatar)}" alt="" data-inline-character-image-preview="token" style="${buildInlineAdjustStyle(images.tokenAdjust)}" onerror="this.style.visibility='hidden'">
                                     <input type="text" value="${escapeHtml(images.token || '')}" data-inline-character-image-field="token" placeholder="media/campaigns/.../characters/npc/token.webp">
                                     <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="token" title="Carica token"><i class="fas fa-upload"></i></button>
                                 </div>
+                                ${renderInlineImageAdjustControls('token', images.tokenAdjust)}
                             </label>
                             <label class="character-inline-field">
                                 <span>Avatar scheda</span>
                                 <div class="character-inline-image-field-row" data-inline-character-image-drop-target="avatar" data-avatar-token-drop-zone>
-                                    <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.avatar || images.token)}" alt="" data-inline-character-image-preview="avatar" onerror="this.style.visibility='hidden'">
+                                    <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.avatar || images.token)}" alt="" data-inline-character-image-preview="avatar" style="${buildInlineAdjustStyle(images.avatarAdjust)}" onerror="this.style.visibility='hidden'">
                                     <input type="text" value="${escapeHtml(images.avatar || '')}" data-inline-character-image-field="avatar" placeholder="media/campaigns/.../characters/npc/avatar.webp">
                                     <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="avatar" title="Carica avatar scheda"><i class="fas fa-upload"></i></button>
                                 </div>
+                                ${renderInlineImageAdjustControls('avatar', images.avatarAdjust)}
                             </label>
                         </div>
                         <div class="stats-grid character-inline-stats-grid">

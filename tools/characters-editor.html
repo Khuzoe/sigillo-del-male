@@ -204,9 +204,117 @@
             width: 5rem;
             height: 5rem;
             border-radius: 12px;
-            object-fit: cover;
+            object-fit: contain;
             border: 1px solid rgba(212, 175, 55, 0.18);
             background: rgba(0, 0, 0, 0.28);
+        }
+        .characters-editor-adjust {
+            margin-left: 5.6rem;
+        }
+        .characters-editor-adjust-modal[hidden] { display: none; }
+        .characters-editor-adjust-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: grid;
+            place-items: center;
+            padding: 1rem;
+        }
+        .characters-editor-adjust-backdrop {
+            position: absolute;
+            inset: 0;
+            border: 0;
+            background: rgba(0, 0, 0, 0.72);
+        }
+        .characters-editor-adjust-dialog {
+            position: relative;
+            width: min(58rem, 96vw);
+            max-height: 92vh;
+            overflow: auto;
+            display: grid;
+            grid-template-columns: minmax(18rem, 1fr) minmax(18rem, 0.9fr);
+            gap: 1rem;
+            padding: 1rem;
+            border: 1px solid rgba(212, 175, 55, 0.32);
+            border-radius: 12px;
+            background: #120f0c;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+        }
+        .characters-editor-adjust-preview {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+            align-content: start;
+        }
+        .characters-editor-adjust-card {
+            display: grid;
+            gap: 0.75rem;
+            justify-items: center;
+            padding: 1rem;
+            border: 1px solid rgba(212, 175, 55, 0.14);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.22);
+        }
+        .characters-editor-adjust-card.is-active .npc-avatar-container {
+            box-shadow: 0 0 0 3px rgba(199, 54, 54, 0.65), 0 0 22px rgba(199, 54, 54, 0.35);
+        }
+        .characters-editor-adjust-card-label {
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: 0.82rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .characters-editor-adjust-card .npc-avatar-container {
+            width: 15rem;
+            height: 15rem;
+            cursor: grab;
+        }
+        .characters-editor-adjust-card .npc-avatar-container.is-dragging {
+            cursor: grabbing;
+        }
+        .characters-editor-adjust-card .npc-img-pop {
+            opacity: 1;
+        }
+        .characters-editor-adjust-controls {
+            display: grid;
+            gap: 0.9rem;
+            align-content: start;
+        }
+        .characters-editor-adjust-controls h2 {
+            margin: 0;
+            color: var(--gold);
+            font-family: var(--font-heading);
+        }
+        .characters-editor-adjust-field {
+            display: grid;
+            grid-template-columns: 4rem minmax(0, 1fr) 5rem;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .characters-editor-adjust-field label {
+            color: rgba(232, 219, 188, 0.68);
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+        .characters-editor-adjust-field input[type="range"] {
+            width: 100%;
+        }
+        .characters-editor-adjust-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: flex-end;
+        }
+        @media (max-width: 760px) {
+            .characters-editor-adjust-dialog {
+                grid-template-columns: 1fr;
+            }
+            .characters-editor-adjust-preview {
+                grid-template-columns: 1fr;
+            }
         }
         .characters-editor-blocks {
             display: grid;
@@ -372,6 +480,9 @@
                                 <input id="field-idle" class="characters-editor-input" data-image-field="idle" type="text">
                                 <button class="characters-editor-btn" type="button" data-upload-image="idle"><i class="fas fa-image"></i> Upload</button>
                             </div>
+                            <div class="characters-editor-adjust" data-image-adjust-group="idle">
+                                <button class="characters-editor-btn" type="button" data-open-image-adjust="idle"><i class="fas fa-sliders"></i> Regola</button>
+                            </div>
                         </div>
                         <div class="characters-editor-field characters-editor-field--full">
                             <label>Hover lista</label>
@@ -379,6 +490,9 @@
                                 <img id="hover-preview" class="characters-editor-preview" src="../assets/img/logo.webp" alt="">
                                 <input id="field-hover" class="characters-editor-input" data-image-field="hover" type="text">
                                 <button class="characters-editor-btn" type="button" data-upload-image="hover"><i class="fas fa-image"></i> Upload</button>
+                            </div>
+                            <div class="characters-editor-adjust" data-image-adjust-group="hover">
+                                <button class="characters-editor-btn" type="button" data-open-image-adjust="hover"><i class="fas fa-sliders"></i> Regola</button>
                             </div>
                         </div>
                         <div class="characters-editor-field characters-editor-field--full">
@@ -407,6 +521,47 @@
             </section>
         </section>
     </main>
+    <div class="characters-editor-adjust-modal" id="character-image-adjust-modal" hidden>
+        <button class="characters-editor-adjust-backdrop" type="button" data-adjust-action="close" aria-label="Chiudi"></button>
+        <div class="characters-editor-adjust-dialog" role="dialog" aria-modal="true" aria-labelledby="character-image-adjust-title">
+            <section class="characters-editor-adjust-preview">
+                <div class="characters-editor-adjust-card">
+                    <span class="characters-editor-adjust-card-label">Idle</span>
+                    <div class="npc-avatar-container" data-adjust-preview-frame="idle">
+                        <img class="npc-img-pop img-main" data-adjust-preview-img="idle" src="" alt="" draggable="false">
+                    </div>
+                </div>
+                <div class="characters-editor-adjust-card">
+                    <span class="characters-editor-adjust-card-label">Hover</span>
+                    <div class="npc-avatar-container" data-adjust-preview-frame="hover">
+                        <img class="npc-img-pop img-hover" data-adjust-preview-img="hover" src="" alt="" draggable="false">
+                    </div>
+                </div>
+            </section>
+            <section class="characters-editor-adjust-controls">
+                <h2 id="character-image-adjust-title">Regola Immagine</h2>
+                <div class="characters-editor-adjust-field">
+                    <label for="character-adjust-x">X</label>
+                    <input id="character-adjust-x" data-adjust-field="x" type="range" min="-120" max="120" step="1">
+                    <input class="characters-editor-input" data-adjust-number="x" type="number" min="-120" max="120" step="1">
+                </div>
+                <div class="characters-editor-adjust-field">
+                    <label for="character-adjust-y">Y</label>
+                    <input id="character-adjust-y" data-adjust-field="y" type="range" min="-120" max="120" step="1">
+                    <input class="characters-editor-input" data-adjust-number="y" type="number" min="-120" max="120" step="1">
+                </div>
+                <div class="characters-editor-adjust-field">
+                    <label for="character-adjust-size">Zoom</label>
+                    <input id="character-adjust-size" data-adjust-field="size" type="range" min="0.25" max="2.75" step="0.01">
+                    <input class="characters-editor-input" data-adjust-number="size" type="number" min="0.25" max="2.75" step="0.01">
+                </div>
+                <div class="characters-editor-adjust-actions">
+                    <button class="characters-editor-btn" type="button" data-adjust-action="reset">Reset</button>
+                    <button class="characters-editor-btn characters-editor-btn--primary" type="button" data-adjust-action="close">Chiudi</button>
+                </div>
+            </section>
+        </div>
+    </div>
 
     <script src="../assets/js/spoiler-policy.js"></script>
     <script src="../assets/js/layout.js"></script>

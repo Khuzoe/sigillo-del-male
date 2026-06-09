@@ -4722,8 +4722,171 @@ body.is-embed .container {
     min-height: 4.15rem;
 }
 
+.player-skill-link-requirement-state.is-active {
+    border-color: rgba(82, 211, 138, 0.36);
+    background: rgba(82, 211, 138, 0.08);
+}
+
+.player-skill-link-requirement-state small,
+.player-skill-relations-summary small,
+.player-skill-relation-chip small,
+.player-skill-requirement-row small {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+.player-skill-relations-editor {
+    margin-top: 0.9rem;
+}
+
+.player-skill-relations-editor > .player-skill-relations-summary,
+.player-skill-relations-editor > .player-skill-relations-grid {
+    padding: 0 0.85rem 0.85rem;
+}
+
+.player-skill-relations-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.player-skill-relations-summary > div {
+    min-height: 4.2rem;
+    padding: 0.75rem;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.player-skill-relations-summary span,
+.player-skill-relations-grid h5 {
+    display: block;
+    margin: 0 0 0.35rem;
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-relations-summary strong {
+    display: block;
+    color: var(--text-main);
+    font-family: var(--font-heading);
+    font-size: 0.98rem;
+}
+
+.player-skill-relations-grid {
+    display: grid;
+    grid-template-columns: minmax(220px, 1.15fr) repeat(2, minmax(180px, 0.85fr));
+    gap: 0.85rem;
+}
+
+.player-skill-relations-grid > section {
+    min-width: 0;
+    padding: 0.75rem;
+    border: 1px solid rgba(212, 175, 55, 0.14);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.player-skill-requirement-list,
+.player-skill-relation-chip-list {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.player-skill-requirement-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: center;
+    min-height: 2.3rem;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid rgba(212, 175, 55, 0.12);
+    border-radius: 9px;
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--text-main);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.player-skill-requirement-row.is-linked {
+    border-color: rgba(212, 175, 55, 0.28);
+}
+
+.player-skill-requirement-row input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--gold);
+}
+
+.player-skill-requirement-row small {
+    grid-column: 2;
+    margin-top: -0.25rem;
+}
+
+.player-skill-relation-chip {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.45rem 0.55rem;
+    align-items: center;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 9px;
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--text-main);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.player-skill-relation-chip:hover,
+.player-skill-relation-chip:focus-visible {
+    border-color: rgba(212, 175, 55, 0.48);
+    background: rgba(212, 175, 55, 0.08);
+    outline: none;
+}
+
+.player-skill-relation-chip i {
+    color: var(--gold);
+}
+
+.player-skill-relation-chip span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-skill-relation-chip small {
+    grid-column: 2;
+    margin-top: -0.2rem;
+}
+
+.player-skill-relations-actions {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 0.65rem;
+}
+
 @media (max-width: 640px) {
     .player-skill-link-editor-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .player-skill-relations-summary,
+    .player-skill-relations-grid {
         grid-template-columns: 1fr;
     }
 }
