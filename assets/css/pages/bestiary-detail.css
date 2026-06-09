@@ -121,8 +121,9 @@
     height: 100%;
     max-height: 38rem;
     min-height: 24rem;
-    object-fit: contain;
+    object-fit: cover;
     object-position: var(--creature-img-x, 50%) var(--creature-img-y, 50%);
+    transform-origin: var(--creature-img-x, 50%) var(--creature-img-y, 50%);
     transform: scale(var(--creature-img-scale, 1));
     filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.42));
 }
