@@ -57,6 +57,7 @@
         visibility: document.getElementById('poi-visibility'),
         x: document.getElementById('poi-x'),
         y: document.getElementById('poi-y'),
+        locationId: document.getElementById('poi-location-id'),
         flavor: document.getElementById('poi-flavor'),
         desc: document.getElementById('poi-desc'),
         image: document.getElementById('poi-image'),
@@ -147,6 +148,7 @@
         }
 
         if (poi.image) normalized.image = String(poi.image).trim();
+        if (poi.locationId) normalized.locationId = String(poi.locationId).trim();
         if (Array.isArray(poi.icons) && poi.icons.length > 0) {
             normalized.icons = poi.icons
                 .map(icon => window.CriptaMapIcons?.normalize(icon) || String(icon).trim())
@@ -231,6 +233,10 @@
         poi.flavor = fields.flavor.value.trim();
         poi.desc = fields.desc.value.trim();
 
+        const locationId = fields.locationId.value.trim();
+        if (locationId) poi.locationId = locationId;
+        else delete poi.locationId;
+
         const image = fields.image.value.trim();
         if (image) poi.image = image;
         else delete poi.image;
@@ -287,6 +293,7 @@
         fields.visibility.value = poi.visibility || 'known';
         fields.x.value = poi.x ?? 50;
         fields.y.value = poi.y ?? 50;
+        fields.locationId.value = poi.locationId || '';
         fields.flavor.value = poi.flavor || '';
         fields.desc.value = poi.desc || '';
         fields.image.value = poi.image || '';

@@ -12,6 +12,8 @@ const EMBED_SCRIPT_WARMUP_PATHS = [
     "assets/js/pages/oggetti.js",
     "assets/js/pages/appunti.js",
     "assets/js/pages/famiglia-von-t.js",
+    "assets/js/pages/locations.js",
+    "assets/js/pages/location-detail.js",
     "assets/js/pages/asset-sync.js"
 ];
 const prefetchedUrls = new Set();

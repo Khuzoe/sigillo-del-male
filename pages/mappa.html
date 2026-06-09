@@ -1,131 +1,70 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <title>Mappa Interattiva | Cripta di Sangue</title>
-
+    <title>Luoghi | Cripta di Sangue</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/abyssal.css">
-    <link rel="stylesheet" href="../assets/css/pages/mappa.css" data-page-style>
+    <link rel="stylesheet" href="../assets/css/pages/locations.css" data-page-style>
 </head>
-<body>
+<body class="page-mappa page-locations">
 
     <nav class="sidebar" id="sidebar-container"></nav>
 
     <main class="main-content">
         <header class="hero-mini">
             <div class="hero-title">
-                <h1>Mappa del Mondo</h1>
-                <div class="subtitle">I luoghi perduti e ritrovati</div>
+                <h1>Luoghi</h1>
+                <div class="subtitle">Mappe, regioni, piani e punti d'interesse della campagna.</div>
             </div>
-            <button id="dev-tools-toggle-btn" style="display: none; position: absolute; top: 1rem; right: 1rem; background: var(--accent-primary); color: #fff; border: 1px solid var(--gold-dim); border-radius: 4px; padding: 0.5rem 0.8rem; cursor: pointer;">Dev Tools</button>
         </header>
 
         <div class="container">
-            <section class="map-explorer" aria-label="Mappa interattiva">
-                <div class="map-frame" id="map-frame">
-                    <div class="map-container" id="map-container">
-                        <div id="map-content">
-                            <img src="https://sigillo-api.khuzoe.workers.dev/media/maps/world_map.webp" id="map-image" alt="Mappa del mondo">
-                            <div id="map-fog-layer" aria-hidden="true"></div>
-                        </div>
+            <section class="locations-shell" aria-labelledby="locations-title">
+                <div class="locations-heading">
+                    <h2 id="locations-title">Archivio dei Luoghi</h2>
+                    <span id="locations-count" class="locations-count">0 voci</span>
+                </div>
+
+                <div class="locations-tools" aria-label="Filtri luoghi">
+                    <label class="locations-search">
+                        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                        <input id="locations-search" type="search" placeholder="Cerca luogo, area, descrizione..." autocomplete="off">
+                    </label>
+                    <div class="locations-filter-row">
+                        <span>Categoria</span>
+                        <div id="locations-group-filters" class="locations-filter-group" aria-label="Filtro categoria"></div>
                     </div>
-
-                    <div class="map-topbar">
-                        <div class="map-breadcrumb" aria-label="Percorso mappa">
-                            <i class="fas fa-map" aria-hidden="true"></i>
-                            <strong id="map-breadcrumb-current">Mondo</strong>
-                        </div>
-                        <div class="map-actions" aria-label="Controlli mappa">
-                            <button class="map-icon-btn" id="back-btn" type="button" title="Mappa precedente" aria-label="Mappa precedente" style="display: none;">
-                                <i class="fas fa-arrow-left" aria-hidden="true"></i>
-                            </button>
-                            <button class="map-icon-btn" id="zoom-out-btn" type="button" title="Riduci zoom" aria-label="Riduci zoom">
-                                <i class="fas fa-minus" aria-hidden="true"></i>
-                            </button>
-                            <span class="map-zoom-readout" id="map-zoom-readout">100%</span>
-                            <button class="map-icon-btn" id="zoom-in-btn" type="button" title="Aumenta zoom" aria-label="Aumenta zoom">
-                                <i class="fas fa-plus" aria-hidden="true"></i>
-                            </button>
-                            <button class="map-icon-btn" id="reset-view-btn" type="button" title="Reimposta vista" aria-label="Reimposta vista">
-                                <i class="fas fa-crosshairs" aria-hidden="true"></i>
-                            </button>
-                            <button class="map-icon-btn" id="toggle-list-btn" type="button" title="Mostra/Nascondi luoghi" aria-label="Mostra o nascondi lista luoghi">
-                                <i class="fas fa-list-ul" aria-hidden="true"></i>
-                            </button>
-                            <button class="map-icon-btn" id="open-fullscreen-btn" type="button" title="Schermo intero" aria-label="Schermo intero">
-                                <i class="fas fa-expand" aria-hidden="true"></i>
-                            </button>
-                        </div>
+                    <div class="locations-filter-row">
+                        <span>Tipo</span>
+                        <div id="locations-type-filters" class="locations-filter-group" aria-label="Filtro tipo"></div>
                     </div>
+                    <label class="locations-option">
+                        <input id="locations-group-toggle" type="checkbox" checked>
+                        <span>Suddividi per categorie</span>
+                    </label>
+                </div>
 
-                    <aside class="map-poi-panel" id="poi-panel" aria-label="Luoghi della mappa">
-                        <label class="map-search">
-                            <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
-                            <input id="map-search-input" type="search" placeholder="Cerca luogo..." autocomplete="off">
-                        </label>
-                        <div id="filter-container" class="filter-container">
-                            <strong>Mostra</strong>
-                            <div class="filter-options">
-                                <button class="map-filter-chip is-active" type="button" data-poi-type="Area" aria-pressed="true" style="--filter-color: #4CAF50;">
-                                    <span class="map-filter-dot" aria-hidden="true"></span>
-                                    <span>Aree</span>
-                                </button>
-                                <button class="map-filter-chip is-active" type="button" data-poi-type="Città" aria-pressed="true" style="--filter-color: #f44336;">
-                                    <span class="map-filter-dot" aria-hidden="true"></span>
-                                    <span>Città</span>
-                                </button>
-                                <button class="map-filter-chip is-active" type="button" data-poi-type="Luogo Generico" aria-pressed="true" style="--filter-color: #2196F3;">
-                                    <span class="map-filter-dot" aria-hidden="true"></span>
-                                    <span>Luoghi</span>
-                                </button>
-                            </div>
+                <div class="locations-list" id="locations-list">
+                    <div class="location-card location-card--loading" aria-hidden="true">
+                        <div class="location-card-image"></div>
+                        <div class="location-card-info">
+                            <div class="location-card-title">Caricamento luoghi...</div>
+                            <p class="location-card-summary">Le mappe e le cronache stanno emergendo dagli archivi.</p>
                         </div>
-                        <div class="poi-list" id="poi-list"></div>
-                    </aside>
-
-                    <aside class="info-panel" id="info-panel" aria-live="polite">
-                        <button class="map-icon-btn info-panel-close" id="close-info-panel-btn" type="button" title="Chiudi dettagli" aria-label="Chiudi dettagli">
-                            <i class="fas fa-xmark" aria-hidden="true"></i>
-                        </button>
-                        <div class="info-panel-inner" id="info-panel-inner"></div>
-                    </aside>
-
-                    <div class="map-empty-state" id="map-empty-state">
-                        Seleziona un luogo dalla mappa o dalla lista per aprire i dettagli.
                     </div>
                 </div>
             </section>
         </div>
-
-        <div id="dev-tools-container" style="display: none; background: #111; color: #fff; padding: 1rem; border-top: 1px solid var(--gold-dim); margin-top: 2rem;">
-            <h3>Dev Tools</h3>
-            <ul id="dev-poi-list" style="list-style: none; padding: 0; margin: 1rem 0;"></ul>
-            <button id="dev-copy-btn">Copy POIs</button>
-        </div>
     </main>
 
-    <div class="map-modal" id="map-modal">
-        <div class="map-modal-content">
-            <div class="map-modal-controls">
-                <button id="toggle-poi-btn" title="Mostra/Nascondi Punti di Interesse" aria-label="Mostra o nascondi POI">
-                    <i class="fas fa-map-marker-alt" aria-hidden="true"></i>
-                </button>
-                <button id="close-fullscreen-btn" title="Chiudi" aria-label="Chiudi">
-                    <i class="fas fa-times" aria-hidden="true"></i>
-                </button>
-            </div>
-            <div class="map-container" id="fullscreen-map-container"></div>
-        </div>
-    </div>
-
+    <script src="../assets/js/spoiler-policy.js"></script>
     <script src="../assets/js/layout.js"></script>
-    <script src="../assets/js/shared/map-icons.js"></script>
-    <script src="../assets/js/map.js"></script>
-    <script src="../assets/js/map-fullscreen.js"></script>
+    <script src="../assets/js/shared/location-data-service.js"></script>
+    <script src="../assets/js/pages/locations.js"></script>
 </body>
 </html>

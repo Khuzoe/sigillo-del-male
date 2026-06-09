@@ -21,8 +21,10 @@ window.CriptaApp.onPageReady("mappa", function() {
     const zoomOutBtn = document.getElementById('zoom-out-btn');
     const resetViewBtn = document.getElementById('reset-view-btn');
     const backBtn = document.getElementById('back-btn');
+    const mapFrame = document.getElementById('map-frame');
 
     const defaultMapData = window.CriptaApp?.urls?.data?.('maps/main_maps/map.json') || '../assets/data/maps/main_maps/map.json';
+    const defaultLocationsData = window.CriptaApp?.urls?.data?.('locations.json') || '../assets/data/locations.json';
     const defaultMapImage = resolveImageUrl('media/maps/world_map.webp');
     const minScale = 1;
     const maxScale = 8;
@@ -46,6 +48,10 @@ window.CriptaApp.onPageReady("mappa", function() {
     let startPoint = { x: 0, y: 0 };
     let dragOrigin = { x: 0, y: 0 };
     let imageDimensions = { width: 0, height: 0, left: 0, top: 0 };
+    let locationsLoaded = false;
+    let locationsById = new Map();
+    let locationsByTitle = new Map();
+    let locationListMode = false;
 
     function escapeHtml(value) {
         return String(value || '').replace(/[&<>"']/g, (char) => ({
@@ -81,6 +87,124 @@ window.CriptaApp.onPageReady("mappa", function() {
             .toLowerCase();
     }
 
+    function slugify(value) {
+        return normalizeText(value)
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '') || 'luogo';
+    }
+
+    function isPlaceholderText(value) {
+        const normalized = normalizeText(value).trim();
+        return !normalized || normalized === 'description' || normalized === 'flavor text' || normalized === 'descrizione';
+    }
+
+    function isWebDisplayImage(value) {
+        const image = String(value || '').trim();
+        return /^(https?:|data:|blob:)/i.test(image)
+            || image.startsWith('media/')
+            || image.startsWith('/media/')
+            || image.startsWith('assets/')
+            || image.startsWith('../assets/')
+            || image.startsWith('../../assets/');
+    }
+
+    function getLocationTypeLabel(location) {
+        const type = String(location?.type || '').trim();
+        if (type === 'city') return 'Città';
+        if (type === 'region') return 'Area';
+        return 'Luogo Generico';
+    }
+
+    function setLocationListMode(enabled) {
+        locationListMode = Boolean(enabled);
+        mapFrame?.classList.toggle('is-location-list-mode', locationListMode);
+        if (toggleListBtn) {
+            toggleListBtn.setAttribute('aria-hidden', locationListMode ? 'true' : 'false');
+            toggleListBtn.tabIndex = locationListMode ? -1 : 0;
+        }
+    }
+
+    function normalizeLocation(entry) {
+        if (!entry || typeof entry !== 'object') return null;
+        const title = String(entry.title || entry.name || '').trim();
+        const id = String(entry.id || slugify(title)).trim();
+        if (!id || !title) return null;
+        return {
+            ...entry,
+            id,
+            title,
+            type: String(entry.type || 'place').trim(),
+            group: String(entry.group || entry.category || '').trim(),
+            summary: String(entry.summary || entry.flavor || '').trim(),
+            desc: String(entry.desc || entry.description || entry.contentHtml || '').trim(),
+            image: String(entry.image || entry.imagePath || '').trim(),
+            tags: Array.isArray(entry.tags) ? entry.tags.map(String).filter(Boolean) : []
+        };
+    }
+
+    async function loadLocationsData() {
+        if (locationsLoaded) return;
+        let list = [];
+        try {
+            const payload = await window.CriptaApp?.api?.get?.('api/data/locations', { query: { _: Date.now() } });
+            if (Array.isArray(payload?.data)) list = payload.data;
+        } catch (error) {
+            console.warn('Luoghi online non disponibili, uso JSON statico.', error);
+        }
+
+        if (!list.length) {
+            try {
+                const response = await fetch(defaultLocationsData);
+                if (response.ok) list = await response.json();
+            } catch (error) {
+                console.warn('locations.json non disponibile per la mappa.', error);
+            }
+        }
+
+        const locations = (Array.isArray(list) ? list : []).map(normalizeLocation).filter(Boolean);
+        locationsById = new Map(locations.map((location) => [String(location.id), location]));
+        locationsByTitle = new Map(locations.map((location) => [slugify(location.title), location]));
+        locationsLoaded = true;
+    }
+
+    function findLocationForPoi(poi) {
+        const explicitId = String(poi.locationId || poi.location || '').trim();
+        if (explicitId && locationsById.has(explicitId)) return locationsById.get(explicitId);
+        const titleKey = slugify(poi.title || '');
+        return titleKey ? locationsByTitle.get(titleKey) || null : null;
+    }
+
+    function enrichPoiWithLocation(poi) {
+        const location = findLocationForPoi(poi);
+        if (!location) return poi;
+        const image = !poi.image && isWebDisplayImage(location.image) ? location.image : poi.image;
+        return {
+            ...poi,
+            locationId: poi.locationId || location.id,
+            location,
+            title: isPlaceholderText(poi.title) ? location.title : poi.title || location.title,
+            type: poi.type || getLocationTypeLabel(location),
+            flavor: isPlaceholderText(poi.flavor) ? location.summary : poi.flavor || location.summary,
+            desc: isPlaceholderText(poi.desc) ? location.desc : poi.desc || location.desc,
+            image,
+            icons: Array.isArray(poi.icons) && poi.icons.length ? poi.icons : location.icons
+        };
+    }
+
+    function buildLocationOnlyPois() {
+        return Array.from(locationsById.values()).map((location) => ({
+            id: `location-${location.id}`,
+            locationId: location.id,
+            title: location.title,
+            type: getLocationTypeLabel(location),
+            visibility: 'known',
+            flavor: location.summary,
+            desc: location.desc,
+            image: isWebDisplayImage(location.image) ? location.image : '',
+            location
+        }));
+    }
+
     function getVisibleTypes() {
         return Array.from(document.querySelectorAll('.map-filter-chip.is-active'))
             .map(button => button.dataset.poiType)
@@ -88,14 +212,15 @@ window.CriptaApp.onPageReady("mappa", function() {
     }
 
     function getFilteredPois() {
-        const visibleTypes = getVisibleTypes();
+        const visibleTypes = new Set(getVisibleTypes().map(normalizeText));
         const query = normalizeText(searchInput?.value || '');
         return pointsOfInterest.filter((poi) => {
             const type = poi.type || 'Luogo Generico';
             const visibility = poi.visibility || 'known';
             if (visibility === 'hidden' || visibility === 'dm') return false;
-            const matchesType = visibleTypes.includes(type);
-            const haystack = normalizeText(`${poi.title || ''} ${type} ${poi.flavor || ''}`);
+            const matchesType = visibleTypes.has(normalizeText(type));
+            const location = poi.location || {};
+            const haystack = normalizeText(`${poi.title || ''} ${type} ${poi.flavor || ''} ${location.group || ''} ${location.summary || ''} ${(location.tags || []).join(' ')}`);
             return matchesType && (!query || haystack.includes(query));
         });
     }
@@ -120,7 +245,9 @@ window.CriptaApp.onPageReady("mappa", function() {
             }
 
             const data = await response.json();
-            pointsOfInterest = Array.isArray(data.pointsOfInterest) ? data.pointsOfInterest : [];
+            await loadLocationsData();
+            setLocationListMode(false);
+            pointsOfInterest = Array.isArray(data.pointsOfInterest) ? data.pointsOfInterest.map(enrichPoiWithLocation) : [];
             fogAreas = Array.isArray(data.fogAreas) ? data.fogAreas : [];
             fogOfWar = {
                 enabled: Boolean(data.fogOfWar?.enabled),
@@ -139,6 +266,26 @@ window.CriptaApp.onPageReady("mappa", function() {
             }
         } catch (error) {
             console.error('Could not load map data:', error);
+            await loadLocationsData();
+            if (locationsById.size) {
+                setLocationListMode(true);
+                currentMapTitle = 'Luoghi';
+                updateBreadcrumb();
+                pointsOfInterest = buildLocationOnlyPois();
+                fogAreas = [];
+                fogOfWar = { enabled: false, opacity: 0.88, revealedAreas: [] };
+                selectedPoiId = '';
+                renderFogAreas();
+                renderPOIs();
+                renderPoiList();
+                closeInfoPanel();
+                applyFiltersAndSearch();
+                const firstVisiblePoi = getFilteredPois()[0];
+                if (firstVisiblePoi) {
+                    selectPoi(firstVisiblePoi.id, { focus: false });
+                }
+                return;
+            }
             if (infoPanelInner) {
                 infoPanelInner.innerHTML = `
                     <div class="info-panel-content">
@@ -278,12 +425,14 @@ window.CriptaApp.onPageReady("mappa", function() {
         poiList.innerHTML = visiblePois.map((poi) => {
             const type = poi.type || 'Luogo Generico';
             const color = typeColors[type] || typeColors['Luogo Generico'];
+            const summary = locationListMode ? String(poi.flavor || poi.location?.summary || '').trim() : '';
             return `
                 <button class="poi-list-item ${poi.id === selectedPoiId ? 'is-active' : ''}" type="button" data-poi-id="${escapeHtml(poi.id)}" style="--poi-color: ${color};">
                     <span class="poi-list-dot" aria-hidden="true"></span>
                     <span>
                         <span class="poi-list-title">${escapeHtml(poi.title || 'Luogo')}</span>
                         <span class="poi-list-type">${escapeHtml(type)}</span>
+                        ${summary ? `<span class="poi-list-summary">${escapeHtml(summary)}</span>` : ''}
                     </span>
                 </button>
             `;
@@ -343,10 +492,18 @@ window.CriptaApp.onPageReady("mappa", function() {
     function updateInfoPanel(poiData) {
         if (!infoPanelInner) return;
 
-        const imageHtml = poiData.image
+        const location = poiData.location || null;
+        const imagePath = isWebDisplayImage(poiData.image) ? poiData.image : '';
+        const imageHtml = imagePath
             ? `<img src="${escapeHtml(resolveImageUrl(poiData.image))}" alt="${escapeHtml(poiData.title)}" class="info-panel-image">`
             : '';
         const isRumored = poiData.visibility === 'rumored';
+        const groupHtml = location?.group
+            ? `<span>${escapeHtml(location.group)}</span>`
+            : '';
+        const sourceHtml = location
+            ? `<span>${escapeHtml(location.source === 'foundry-journal' ? 'Journal Foundry' : 'Scheda luogo')}</span>`
+            : '';
 
         const iconsHtml = Array.isArray(poiData.icons) && poiData.icons.length > 0
             ? `<div class="info-panel-icons">${poiData.icons.map(iconPath => renderMapIcon(iconPath, 'info-panel-icon')).join('')}</div>`
@@ -360,6 +517,7 @@ window.CriptaApp.onPageReady("mappa", function() {
             <div class="info-panel-header">
                 <div class="info-panel-kicker">${escapeHtml(isRumored ? `${poiData.type || 'Luogo'} / Rumor` : poiData.type || 'Luogo')}</div>
                 <h2 class="info-panel-title">${escapeHtml(poiData.title || 'Luogo')}</h2>
+                ${groupHtml || sourceHtml ? `<div class="info-panel-meta">${groupHtml}${sourceHtml}</div>` : ''}
                 ${isRumored ? '' : imageHtml}
                 ${iconsHtml}
                 ${poiData.flavor ? `<p class="info-panel-flavor">${escapeHtml(poiData.flavor)}</p>` : ''}
@@ -474,6 +632,7 @@ window.CriptaApp.onPageReady("mappa", function() {
     searchInput?.addEventListener('input', applyFiltersAndSearch);
 
     toggleListBtn?.addEventListener('click', () => {
+        if (locationListMode) return;
         const isHidden = poiPanel.style.display === 'none';
         poiPanel.style.display = isHidden ? 'flex' : 'none';
         toggleListBtn.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
