@@ -3625,6 +3625,12 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
 
         const icon = resolveSkillAssetPath(node.icon);
         const editable = editMode && canEditTree;
+        const requirementNames = getNodePrerequisites(node, workingTree)
+            .map((id) => getSkillTreeNodeLabel(workingTree, id))
+            .filter(Boolean);
+        const requirementsLabel = requirementNames.length
+            ? `<p class="player-skill-info-requirements"><strong>REQUISITI:</strong> ${escapeHtml(requirementNames.join(', '))}</p>`
+            : '';
         const richTextToolbar = editable ? `
                     <div class="player-skill-rich-toolbar" role="toolbar" aria-label="Formato descrizione abilita">
                         <button type="button" data-skill-rich-command="bold" title="Grassetto"><i class="fas fa-bold" aria-hidden="true"></i></button>
@@ -3644,6 +3650,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     </div>
                     ${editable || node.flavor ? `<p class="player-skill-info-flavor" ${editable ? 'contenteditable="true" data-skill-preview-field="flavor" spellcheck="true"' : ''}>${escapeHtml(node.flavor || '')}</p>` : ''}
                     ${richTextToolbar}
+                    ${requirementsLabel}
                     <div class="player-skill-info-desc ${editable ? 'is-editable' : ''}" ${editable ? 'contenteditable="true" data-skill-preview-field="desc" spellcheck="true"' : ''}>${node.desc || '<p>Nessun dettaglio disponibile.</p>'}</div>
                 `;
     };
