@@ -149,11 +149,47 @@
         }
         .characters-editor-detail { display: grid; grid-template-rows: auto minmax(0, 1fr); }
         .characters-editor-form { overflow: auto; padding: 1rem; }
+        .characters-editor-main-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(22rem, 28rem);
+            gap: 1rem;
+            align-items: start;
+            margin-bottom: 1rem;
+        }
         .characters-editor-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0.85rem;
-            margin-bottom: 1rem;
+        }
+        .characters-editor-media-panel {
+            position: sticky;
+            top: 1rem;
+            display: grid;
+            gap: 0.9rem;
+            padding: 1rem;
+            border: 1px solid rgba(212, 175, 55, 0.16);
+            border-radius: 12px;
+            background:
+                linear-gradient(180deg, rgba(212, 175, 55, 0.08), transparent 42%),
+                rgba(0, 0, 0, 0.24);
+            box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+            z-index: 4;
+        }
+        .characters-editor-media-panel h3 {
+            margin: 0;
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: 1rem;
+        }
+        .characters-editor-media-panel p {
+            margin: -0.55rem 0 0;
+            color: rgba(232, 219, 188, 0.56);
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+        }
+        .characters-editor-media-grid {
+            display: grid;
+            gap: 0.85rem;
         }
         .characters-editor-field { display: grid; gap: 0.35rem; }
         .characters-editor-field--full { grid-column: 1 / -1; }
@@ -346,6 +382,21 @@
             padding: 0.75rem;
         }
         .characters-editor-block-body .characters-editor-area { grid-column: 1 / -1; }
+        .characters-editor-block-tools {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            align-items: center;
+            padding: 0.55rem;
+            border: 1px solid rgba(212, 175, 55, 0.12);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.18);
+        }
+        .characters-editor-block-tools .characters-editor-btn {
+            min-height: 2rem;
+            padding: 0.35rem 0.55rem;
+        }
         .characters-editor-live-preview {
             display: grid;
             gap: 0.4rem;
@@ -408,6 +459,8 @@
         }
         @media (max-width: 980px) {
             .characters-editor-shell { grid-template-columns: 1fr; }
+            .characters-editor-main-layout { grid-template-columns: 1fr; }
+            .characters-editor-media-panel { position: static; }
             .characters-editor-grid,
             .characters-editor-block-body { grid-template-columns: 1fr; }
         }
@@ -444,7 +497,8 @@
                 </div>
 
                 <form id="detail-form" class="characters-editor-form">
-                    <div class="characters-editor-grid">
+                    <div class="characters-editor-main-layout">
+                        <div class="characters-editor-grid">
                         <div class="characters-editor-field">
                             <label for="field-id">ID</label>
                             <input id="field-id" class="characters-editor-input" data-field="id" type="text">
@@ -473,6 +527,11 @@
                             <label for="field-quote">Descrizione breve</label>
                             <textarea id="field-quote" class="characters-editor-area" data-field="quote" rows="3"></textarea>
                         </div>
+                        </div>
+                        <section class="characters-editor-media-panel" aria-label="Media NPC">
+                            <h3>Media NPC</h3>
+                            <p>Trascina qui immagini, carica file o modifica i path canonici.</p>
+                            <div class="characters-editor-media-grid">
                         <div class="characters-editor-field characters-editor-field--full">
                             <label>Idle lista</label>
                             <div class="characters-editor-image-row" data-image-drop-target="idle">
@@ -511,6 +570,8 @@
                                 <button class="characters-editor-btn" type="button" data-upload-image="avatar"><i class="fas fa-image"></i> Upload</button>
                             </div>
                         </div>
+                            </div>
+                        </section>
                     </div>
 
                     <div id="blocks-list" class="characters-editor-blocks"></div>

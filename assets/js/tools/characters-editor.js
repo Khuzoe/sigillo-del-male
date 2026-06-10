@@ -726,6 +726,14 @@
                         <span>Nascondi questo blocco ai giocatori</span>
                     </label>
                     ${imageRow}
+                    <div class="characters-editor-block-tools" aria-label="Strumenti testo blocco">
+                        <button class="characters-editor-btn" type="button" data-block-action="format-strong" data-block-index="${index}" title="Grassetto"><i class="fas fa-bold"></i></button>
+                        <button class="characters-editor-btn" type="button" data-block-action="format-em" data-block-index="${index}" title="Corsivo"><i class="fas fa-italic"></i></button>
+                        <button class="characters-editor-btn" type="button" data-block-action="format-highlight" data-block-index="${index}" title="Evidenzia parola importante"><i class="fas fa-highlighter"></i></button>
+                        <button class="characters-editor-btn" type="button" data-block-action="format-wikilink" data-block-index="${index}" title="Link ricerca wiki"><i class="fas fa-link"></i></button>
+                        <button class="characters-editor-btn" type="button" data-block-action="format-quote" data-block-index="${index}" title="Citazione"><i class="fas fa-quote-left"></i></button>
+                        <button class="characters-editor-btn" type="button" data-block-action="format-list" data-block-index="${index}" title="Lista"><i class="fas fa-list-ul"></i></button>
+                    </div>
                     <textarea class="characters-editor-area" data-block-index="${index}" data-block-field="text" spellcheck="true">${escapeHtml(block.text || '')}</textarea>
                     <div class="characters-editor-live-preview characters-editor-field--full" data-block-preview="${index}">
                         ${renderBlockPreview(block)}
@@ -781,16 +789,83 @@
     function renderMarkdownPreview(text) {
         const source = String(text || '').trim();
         if (!source) return '<p class="characters-editor-empty-preview">Scrivi il contenuto del blocco...</p>';
-        return source
-            .split(/\n{2,}/)
-            .map((paragraph) => {
-                const inline = escapeHtml(paragraph.trim())
-                    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-                    .replace(/\n/g, '<br>');
-                return `<p>${inline}</p>`;
-            })
-            .join('');
+        const lines = source.replace(/\r\n?/g, '\n').split('\n');
+        const out = [];
+        let i = 0;
+        while (i < lines.length) {
+            if (/^\s*$/.test(lines[i])) { i++; continue; }
+
+            if (/^###\s+/.test(lines[i])) {
+                out.push(`<h4 class="doc-heading">${renderInlineBlockMarkup(lines[i].replace(/^###\s+/, ''))}</h4>`);
+                i++; continue;
+            }
+            if (/^##\s+/.test(lines[i])) {
+                out.push(`<h3 class="doc-heading">${renderInlineBlockMarkup(lines[i].replace(/^##\s+/, ''))}</h3>`);
+                i++; continue;
+            }
+            if (/^#\s+/.test(lines[i])) {
+                out.push(`<h2 class="doc-heading">${renderInlineBlockMarkup(lines[i].replace(/^#\s+/, ''))}</h2>`);
+                i++; continue;
+            }
+            if (/^>\s?/.test(lines[i])) {
+                const quote = [];
+                while (i < lines.length && /^>\s?/.test(lines[i])) {
+                    quote.push(lines[i].replace(/^>\s?/, ''));
+                    i++;
+                }
+                out.push(`<div class="document-quote"><i class="fas fa-feather-alt"></i><span>${renderInlineBlockMarkup(quote.join('\n').trim()).replace(/\n/g, '<br>')}</span></div>`);
+                continue;
+            }
+            if (/^- /.test(lines[i])) {
+                const items = [];
+                while (i < lines.length && /^- /.test(lines[i])) {
+                    items.push(lines[i].replace(/^- /, ''));
+                    i++;
+                }
+                out.push(`<ul class="doc-list">${items.map((item) => `<li>${renderInlineBlockMarkup(item)}</li>`).join('')}</ul>`);
+                continue;
+            }
+
+            const paragraph = [];
+            while (i < lines.length && !/^\s*$/.test(lines[i])) {
+                paragraph.push(lines[i]);
+                i++;
+            }
+            out.push(`<p>${renderInlineBlockMarkup(paragraph.join(' '))}</p>`);
+        }
+        return out.join('');
+    }
+
+    function renderInlineBlockMarkup(text) {
+        const wikiLinks = [];
+        const source = String(text || '').replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_match, target, label) => {
+            const index = wikiLinks.length;
+            wikiLinks.push({
+                target: String(target || '').trim(),
+                label: String(label || target || '').trim()
+            });
+            return `\u0000WIKI${index}\u0000`;
+        });
+        let html = escapeHtml(source)
+            .replace(/==([^=]+)==/g, '<mark>$1</mark>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>');
+
+        wikiLinks.forEach((link, index) => {
+            const label = escapeHtml(link.label || link.target);
+            const href = escapeAttr(buildWikiSearchUrl(link.target || link.label));
+            html = html.replace(`\u0000WIKI${index}\u0000`, `<a class="wiki-term-link" href="${href}">${label}</a>`);
+        });
+        return html;
+    }
+
+    function buildWikiSearchUrl(query) {
+        const url = new URL('../pages/cerca.html', window.location.href);
+        url.searchParams.set('q', String(query || '').trim());
+        const campaignId = getCampaignId();
+        if (campaignId && campaignId !== 'cripta-di-sangue') url.searchParams.set('campaign', campaignId);
+        return url.toString();
     }
 
     function addCharacter() {
@@ -849,8 +924,69 @@
         } else if (action === 'upload-image') {
             uploadBlockImage(index);
             return;
+        } else if (action.startsWith('format-')) {
+            applyBlockTextFormat(index, action.replace(/^format-/, ''));
+            return;
         }
         renderBlocks();
+    }
+
+    function applyBlockTextFormat(index, format) {
+        const character = getSelectedCharacter();
+        const block = character?.blocks?.[index];
+        if (!block) return;
+
+        const textarea = els.blocksList?.querySelector(`textarea[data-block-index="${index}"][data-block-field="text"]`);
+        const value = textarea?.value ?? block.text ?? '';
+        const start = Number.isInteger(textarea?.selectionStart) ? textarea.selectionStart : value.length;
+        const end = Number.isInteger(textarea?.selectionEnd) ? textarea.selectionEnd : value.length;
+        const selection = value.slice(start, end);
+        const replacement = buildBlockFormatReplacement(format, selection);
+        if (!replacement) return;
+
+        const nextText = `${value.slice(0, start)}${replacement.text}${value.slice(end)}`;
+        block.text = nextText;
+        if (textarea) {
+            textarea.value = nextText;
+            textarea.focus();
+            textarea.setSelectionRange(start + replacement.selectionStart, start + replacement.selectionEnd);
+        }
+        updateBlockPreview(index);
+    }
+
+    function buildBlockFormatReplacement(format, selection) {
+        const selected = String(selection || '');
+        const fallback = selected || (format === 'wikilink' ? 'termine' : 'testo');
+        if (format === 'strong') return wrapBlockSelection(selected, fallback, '**', '**');
+        if (format === 'em') return wrapBlockSelection(selected, fallback, '*', '*');
+        if (format === 'highlight') return wrapBlockSelection(selected, fallback, '==', '==');
+        if (format === 'wikilink') return wrapBlockSelection(selected, fallback, '[[', ']]');
+        if (format === 'quote') return formatBlockLines(selected || 'citazione', '> ');
+        if (format === 'list') return formatBlockLines(selected || 'voce', '- ');
+        return null;
+    }
+
+    function wrapBlockSelection(selection, fallback, prefix, suffix) {
+        const text = selection || fallback;
+        const bodyStart = prefix.length;
+        return {
+            text: `${prefix}${text}${suffix}`,
+            selectionStart: selection ? 0 : bodyStart,
+            selectionEnd: selection ? prefix.length + text.length + suffix.length : bodyStart + text.length
+        };
+    }
+
+    function formatBlockLines(text, prefix) {
+        const lines = String(text || '').split(/\r?\n/);
+        const formatted = lines.map((line) => {
+            const cleanLine = line.replace(/^>\s?/, '').replace(/^-\s?/, '');
+            return cleanLine ? `${prefix}${cleanLine}` : prefix.trim();
+        }).join('\n');
+        return {
+            text: formatted,
+            selectionStart: 0,
+            selectionEnd: formatted.length
+        };
     }
 
     async function saveOnlineData() {

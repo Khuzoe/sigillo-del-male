@@ -5361,6 +5361,20 @@ body.is-embed .container {
     padding: 0 2px;
 }
 
+.chapter-content .wiki-term-link {
+    color: #f1d36b;
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-color: rgba(212, 175, 55, 0.42);
+    text-underline-offset: 0.18em;
+}
+
+.chapter-content .wiki-term-link:hover,
+.chapter-content .wiki-term-link:focus-visible {
+    color: #fff1a6;
+    text-decoration-color: rgba(255, 241, 166, 0.82);
+}
+
 /* RICH FLAVOR TEXT (First paragraph italics) */
 .chapter-content>p:first-of-type em:only-child,
 .chapter-content>em:first-child {

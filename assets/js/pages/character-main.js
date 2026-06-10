@@ -109,14 +109,30 @@ function renderMarkdown(md, options = {}) {
     const context = options.context || null;
     if (!md) return '';
     const inline = (text) => {
-        const escaped = text
+        const wikiLinks = [];
+        const withWikiPlaceholders = String(text || '').replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_match, target, label) => {
+            const index = wikiLinks.length;
+            wikiLinks.push({
+                target: String(target || '').trim(),
+                label: String(label || target || '').trim()
+            });
+            return `\u0000WIKI${index}\u0000`;
+        });
+        let escaped = withWikiPlaceholders
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
-        return escaped
+        escaped = escaped
+            .replace(/==([^=]+)==/g, '<mark>$1</mark>')
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
             .replace(/\*(.+?)\*/g, '<em>$1</em>')
             .replace(/`(.+?)`/g, '<code>$1</code>');
+        wikiLinks.forEach((link, index) => {
+            const label = escapeInlineHtml(link.label || link.target);
+            const href = escapeInlineAttr(buildWikiSearchUrl(link.target || link.label));
+            escaped = escaped.replace(`\u0000WIKI${index}\u0000`, `<a class="wiki-term-link" href="${href}">${label}</a>`);
+        });
+        return escaped;
     };
 
     const lines = md.replace(/\r\n?/g, '\n').split('\n');
@@ -179,6 +195,25 @@ function renderMarkdown(md, options = {}) {
         out.push(`<p${paraClass}>${inline(para.join(' '))}</p>`);
     }
     return out.join('\n');
+}
+
+function buildWikiSearchUrl(query) {
+    const url = new URL('cerca.html', window.location.href);
+    url.searchParams.set('q', String(query || '').trim());
+    const campaignId = window.CriptaApp?.campaigns?.currentId?.() || new URLSearchParams(window.location.search).get('campaign') || '';
+    if (campaignId && campaignId !== 'cripta-di-sangue') url.searchParams.set('campaign', campaignId);
+    return url.toString();
+}
+
+function escapeInlineHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function escapeInlineAttr(value) {
+    return escapeInlineHtml(value).replace(/"/g, '&quot;');
 }
 
 async function loadCharactersManifest() {
