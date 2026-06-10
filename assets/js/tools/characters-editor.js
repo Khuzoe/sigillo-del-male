@@ -60,6 +60,7 @@
             'field-name',
             'field-role',
             'field-category',
+            'field-category-priority',
             'field-status',
             'field-quote',
             'field-idle',
@@ -98,6 +99,13 @@
             const adjustKind = event.target?.dataset?.imageAdjustKind;
             const adjustField = event.target?.dataset?.imageAdjustField;
             if (field) {
+                if (field === 'categoryPriority') {
+                    const priority = normalizeCategoryPriority(event.target.value);
+                    setCharacterCategoryPriority(character, priority);
+                    applyCategoryPriorityToMatchingCharacters(character.category, priority);
+                    renderList();
+                    return;
+                }
                 character[field] = event.target.value;
                 if (field === 'name') {
                     const nextId = slugify(event.target.value);
@@ -105,6 +113,10 @@
                         character.id = nextId;
                         if (els.fieldId) els.fieldId.value = nextId;
                     }
+                }
+                if (field === 'category') {
+                    const priority = normalizeCategoryPriority(character.categoryPriority);
+                    if (priority !== null) applyCategoryPriorityToMatchingCharacters(character.category, priority);
                 }
                 if (field === 'id') character.id = slugify(event.target.value);
                 renderList();
@@ -274,6 +286,7 @@
                 type: character.type || 'npc',
                 role: character.role || '',
                 category: character.category || '',
+                categoryPriority: normalizeCategoryPriority(character.categoryPriority),
                 status: character.status || 'ignoto',
                 hidden: Boolean(character.hidden),
                 quote: character.quote || '',
@@ -658,6 +671,7 @@
         els.fieldName.value = character.name || '';
         els.fieldRole.value = character.role || '';
         els.fieldCategory.value = character.category || '';
+        els.fieldCategoryPriority.value = formatCategoryPriority(character.categoryPriority);
         els.fieldStatus.value = character.status || 'ignoto';
         els.fieldQuote.value = character.quote || '';
         els.fieldIdle.value = character.images?.idle || '';
@@ -876,6 +890,7 @@
             type: 'npc',
             role: '',
             category: '',
+            categoryPriority: null,
             status: 'ignoto',
             hidden: false,
             quote: '',
@@ -1035,6 +1050,7 @@
             type: character.type || 'npc',
             role: character.role || '',
             category: character.category || '',
+            ...compactObject({ categoryPriority: normalizeCategoryPriority(character.categoryPriority) }),
             status: character.status || 'ignoto',
             hidden: Boolean(character.hidden),
             quote: character.quote || '',
@@ -1404,6 +1420,36 @@
 
     function normalizeSearch(value) {
         return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    }
+
+    function normalizeCategoryPriority(value) {
+        if (value === '' || value === null || value === undefined) return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? Math.trunc(number) : null;
+    }
+
+    function formatCategoryPriority(value) {
+        const priority = normalizeCategoryPriority(value);
+        return priority === null ? '' : String(priority);
+    }
+
+    function setCharacterCategoryPriority(character, priority) {
+        if (!character) return;
+        const normalized = normalizeCategoryPriority(priority);
+        if (normalized === null) {
+            delete character.categoryPriority;
+            return;
+        }
+        character.categoryPriority = normalized;
+    }
+
+    function applyCategoryPriorityToMatchingCharacters(category, priority) {
+        const key = normalizeSearch(category);
+        if (!key) return;
+        state.characters.forEach((character) => {
+            if (normalizeSearch(character?.category) !== key) return;
+            setCharacterCategoryPriority(character, priority);
+        });
     }
 
     function escapeHtml(value) {

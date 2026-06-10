@@ -290,6 +290,7 @@ function normalizeCharactersCollection(characters) {
         const normalized = { ...character };
         normalized._originalId = slugify(character.id || character.name || 'npc');
         normalized.category = character.category || character.group || character.faction || '';
+        normalized.categoryPriority = normalizeCategoryPriority(character.categoryPriority);
         normalized.content_blocks = normalizeCharacterBlocks(character);
         normalized.images = normalizeCharacterImages(normalized);
         return normalized;
@@ -512,6 +513,17 @@ function normalizeWords(value) {
 
 function slugify(value) {
     return normalizeWords(value).join('-') || 'item';
+}
+
+function normalizeCategoryPriority(value) {
+    if (value === '' || value === null || value === undefined) return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.trunc(number) : null;
+}
+
+function formatCategoryPriority(value) {
+    const priority = normalizeCategoryPriority(value);
+    return priority === null ? '' : String(priority);
 }
 
 function formatToken(value) {
@@ -5819,7 +5831,13 @@ window.CriptaApp.onPageReady("character", async function () {
         if (!currentCharacter) return;
         const value = target.value;
         if (fields.characterField) {
-            currentCharacter[fields.characterField] = value;
+            if (fields.characterField === 'categoryPriority') {
+                const priority = normalizeCategoryPriority(value);
+                if (priority === null) delete currentCharacter.categoryPriority;
+                else currentCharacter.categoryPriority = priority;
+            } else {
+                currentCharacter[fields.characterField] = value;
+            }
             if (fields.characterField === 'name') {
                 charNameEl.textContent = value;
                 if ((currentCharacter.type || 'npc') !== 'player') {
@@ -5828,6 +5846,7 @@ window.CriptaApp.onPageReady("character", async function () {
                 }
             }
             if (fields.characterField === 'role') charRoleEl.textContent = value;
+            currentCharacter.updatedAt = new Date().toISOString();
         }
         if (fields.characterImageField) {
             currentCharacter.images = currentCharacter.images || {};
@@ -6738,6 +6757,9 @@ window.CriptaApp.onPageReady("character", async function () {
         serialized.name = character.name || 'NPC senza nome';
         serialized.type = character.type || 'npc';
         serialized.category = character.category || '';
+        const categoryPriority = normalizeCategoryPriority(character.categoryPriority);
+        if (categoryPriority === null) delete serialized.categoryPriority;
+        else serialized.categoryPriority = categoryPriority;
         serialized.updatedAt = character.updatedAt || new Date().toISOString();
         if ((serialized.type || 'npc') !== 'player') {
             ensureDefaultNpcListImagePaths(serialized);
@@ -7724,6 +7746,10 @@ window.CriptaApp.onPageReady("character", async function () {
                             <label class="character-inline-field">
                                 <span>Categoria</span>
                                 <input type="text" value="${escapeHtml(character.category || '')}" data-inline-character-field="category" placeholder="es. Corte, Criminali, Alleati">
+                            </label>
+                            <label class="character-inline-field">
+                                <span>Priorità categoria</span>
+                                <input type="number" step="1" value="${escapeHtml(formatCategoryPriority(character.categoryPriority))}" data-inline-character-field="categoryPriority" placeholder="vuoto = alfabetico">
                             </label>
                             <label class="character-inline-field">
                                 <span>Idle lista</span>

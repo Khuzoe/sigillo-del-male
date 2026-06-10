@@ -319,6 +319,7 @@ function parseYamlLite(yamlText) {
             return characters.map((character) => {
                 const normalized = { ...character };
                 normalized.category = character.category || character.group || character.faction || '';
+                normalized.categoryPriority = normalizeCategoryPriority(character.categoryPriority);
                 normalized.content_blocks = normalizeCharacterBlocks(character);
                 normalized.images = normalizeNpcImages(normalized);
                 return normalized;
@@ -360,15 +361,31 @@ function parseYamlLite(yamlText) {
                 const category = String(npc?.category || '').trim();
                 const key = category.toLocaleLowerCase('it') || '__uncategorized__';
                 if (!groups.has(key)) {
-                    groups.set(key, { category, items: [] });
+                    groups.set(key, { category, priority: null, items: [] });
                 }
-                groups.get(key).items.push(npc);
+                const group = groups.get(key);
+                const priority = normalizeCategoryPriority(npc?.categoryPriority);
+                if (priority !== null && (group.priority === null || priority < group.priority)) {
+                    group.priority = priority;
+                }
+                group.items.push(npc);
             });
             return Array.from(groups.values()).sort((left, right) => {
+                const leftPriority = normalizeCategoryPriority(left.priority);
+                const rightPriority = normalizeCategoryPriority(right.priority);
+                if (leftPriority !== null && rightPriority !== null && leftPriority !== rightPriority) return leftPriority - rightPriority;
+                if (leftPriority !== null && rightPriority === null) return -1;
+                if (leftPriority === null && rightPriority !== null) return 1;
                 if (!left.category && right.category) return 1;
                 if (left.category && !right.category) return -1;
                 return left.category.localeCompare(right.category, 'it');
             });
+        }
+
+        function normalizeCategoryPriority(value) {
+            if (value === '' || value === null || value === undefined) return null;
+            const number = Number(value);
+            return Number.isFinite(number) ? Math.trunc(number) : null;
         }
 
         function normalizeNpcImages(character) {
