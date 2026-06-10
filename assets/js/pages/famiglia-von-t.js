@@ -214,12 +214,12 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
     }
 
     function getPersonImage(person) {
-        if (person.unknown) return UNKNOWN_FAMILY_IMAGE;
+        if (person.unknown && !person.showImageWhenUnknown) return UNKNOWN_FAMILY_IMAGE;
         return appendAssetVersion(resolveImagePath(person.hoverImage || person.images?.hover || person.image), person.imageUpdatedAt);
     }
 
     function buildImageFallbackAttributes(person) {
-        if (person.unknown) return '';
+        if (person.unknown && !person.showImageWhenUnknown) return '';
         const fallback = resolveImagePath(person.imageFallback || '');
         if (!fallback) return '';
         return ` data-fallback-src="${escapeHtml(fallback)}" onerror="this.src=this.dataset.fallbackSrc || ''; this.onerror=null;"`;

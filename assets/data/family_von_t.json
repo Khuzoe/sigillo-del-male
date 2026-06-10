@@ -43,7 +43,7 @@
       "leonora"
     ],
     "spouses": [
-      "nino_olegna"
+      "nino-olegna"
     ],
     "children": [
       "karla",
@@ -89,7 +89,7 @@
     "birthOrder": 2
   },
   {
-    "id": "nino_olegna",
+    "id": "nino-olegna",
     "name": "Nino Olegna",
     "image": "media/creatures/transp/nino_olegna_transp.webp",
     "parents": [],
@@ -108,7 +108,7 @@
     "image": "media/creatures/transp/karla_transp.webp",
     "parents": [
       "x",
-      "nino_olegna"
+      "nino-olegna"
     ],
     "spouses": [],
     "children": [],
@@ -122,7 +122,7 @@
     "image": "media/creatures/transp/tokka_transp.webp",
     "parents": [
       "x",
-      "nino_olegna"
+      "nino-olegna"
     ],
     "spouses": [],
     "children": [],
@@ -145,6 +145,7 @@
     ],
     "hidden": false,
     "unknown": true,
+    "showImageWhenUnknown": true,
     "unnamed": false
   },
   {
