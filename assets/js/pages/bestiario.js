@@ -7,6 +7,7 @@ window.CriptaApp.onPageReady("bestiario", async () => {
     const typeFilters = document.getElementById("bestiary-type-filters");
     const groupToggle = document.getElementById("bestiary-group-toggle");
     if (!grid) return;
+    syncBestiaryAdminLinks();
 
     try {
         const [creatures, items] = await Promise.all([
@@ -45,6 +46,16 @@ window.CriptaApp.onPageReady("bestiario", async () => {
         grid.innerHTML = '<p class="bestiary-state bestiary-state--error">Impossibile caricare il bestiario.</p>';
     }
 });
+
+function syncBestiaryAdminLinks() {
+    const campaignId = window.CriptaApp?.campaigns?.currentId?.() || "";
+    document.querySelectorAll('.bestiary-admin-link[href*="bestiary/creature.html"]').forEach((link) => {
+        const url = new URL(link.getAttribute("href") || "./bestiary/creature.html?new=1", window.location.href);
+        if (campaignId && campaignId !== "cripta-di-sangue") url.searchParams.set("campaign", campaignId);
+        else url.searchParams.delete("campaign");
+        link.href = url.toString();
+    });
+}
 
 async function loadBestiaryData() {
     try {

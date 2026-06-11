@@ -320,6 +320,39 @@ function normalizeCharacterImages(character) {
     };
 }
 
+function createEmptyNpcCharacter() {
+    const suffix = Date.now().toString(36);
+    const character = {
+        id: `nuovo-npc-${suffix}`,
+        _originalId: '',
+        type: 'npc',
+        name: 'Nuovo NPC',
+        role: 'NPC',
+        category: '',
+        summary: {
+            race: '',
+            period: '',
+            age: '',
+            height: '',
+            weight: '',
+            cause_of_death: ''
+        },
+        images: {},
+        content_blocks: [{
+            type: 'lore',
+            title: 'Informazioni',
+            icon: 'fa-book-open',
+            markdownText: '',
+            markdownHtml: '<p></p>'
+        }],
+        hidden: true,
+        discovered: false,
+        updatedAt: new Date().toISOString()
+    };
+    character.images = normalizeCharacterImages(character);
+    return character;
+}
+
 function normalizeCharacterBlocks(character) {
     if (Array.isArray(character.content_blocks)) return character.content_blocks;
     if (!Array.isArray(character.blocks)) return [];
@@ -2496,25 +2529,68 @@ function renderLoadoutDisclosure(title, quantityLabel, description, badges, extr
             `;
 }
 
-function getInventoryProgressData(entry) {
-    const source = entry?.progress && typeof entry.progress === 'object'
-        ? entry.progress
-        : entry?.system?.progress && typeof entry.system.progress === 'object'
-            ? entry.system.progress
-            : null;
+function getInventoryProgressData(entry, itemOverride = null) {
+    const overrideHasProgress = itemOverride && Object.prototype.hasOwnProperty.call(itemOverride, 'progress');
+    const source = overrideHasProgress
+        ? (itemOverride.progress && typeof itemOverride.progress === 'object' ? itemOverride.progress : null)
+        : entry?.progress && typeof entry.progress === 'object'
+            ? entry.progress
+            : entry?.system?.progress && typeof entry.system.progress === 'object'
+                ? entry.system.progress
+                : null;
     if (!source) return null;
     const done = Number(source.done ?? source.value ?? source.current ?? source.completed ?? 0);
     const total = Number(source.total ?? source.max ?? source.target ?? source.required ?? 0);
     if (!Number.isFinite(done) || !Number.isFinite(total) || total <= 0) return null;
+    const materials = normalizeInventoryProgressMaterials(
+        source.materials || source.requiredMaterials || source.requirements || source.components
+    );
     return {
         done: Math.max(0, done),
         total: Math.max(1, total),
-        label: String(source.label || source.unit || 'Progresso').trim() || 'Progresso'
+        unit: String(source.unit || '').trim(),
+        label: String(source.label || source.unit || 'Progresso').trim() || 'Progresso',
+        materials,
+        crafting: Boolean(source.crafting || source.isCrafting || materials.length)
     };
 }
 
-function renderInventoryProgress(entry) {
-    const progress = getInventoryProgressData(entry);
+function normalizeInventoryProgressMaterials(materials) {
+    const list = Array.isArray(materials)
+        ? materials
+        : Array.isArray(materials?.items)
+            ? materials.items
+            : [];
+    return list.map((material) => {
+        if (typeof material === 'string') {
+            const name = material.trim();
+            return name ? { name, done: 0, required: 1, unit: '' } : null;
+        }
+        if (!material || typeof material !== 'object') return null;
+        const name = String(material.name || material.label || material.itemName || material.id || '').trim();
+        const done = Number(material.done ?? material.value ?? material.current ?? material.available ?? material.owned ?? 0);
+        const required = Number(material.required ?? material.total ?? material.quantity ?? material.max ?? material.target ?? 0);
+        if (!name && (!Number.isFinite(required) || required <= 0)) return null;
+        return {
+            id: String(material.id || material.itemId || '').trim(),
+            name: name || String(material.id || material.itemId || 'Materiale').trim(),
+            done: Number.isFinite(done) ? Math.max(0, done) : 0,
+            required: Number.isFinite(required) ? Math.max(0, required) : 0,
+            unit: String(material.unit || '').trim()
+        };
+    }).filter(Boolean);
+}
+
+function formatProgressAmount(value, unit = '') {
+    const label = formatNumberIt(value, 2);
+    const suffix = String(unit || '').trim();
+    return suffix ? `${label} ${escapeHtml(suffix)}` : label;
+}
+
+function renderInventoryProgress(progressOrEntry, itemOverride = null) {
+    const progress = progressOrEntry?.total !== undefined
+        ? progressOrEntry
+        : getInventoryProgressData(progressOrEntry, itemOverride);
     if (!progress) return '';
     const percent = Math.max(0, Math.min(100, (progress.done / progress.total) * 100));
     const remaining = Math.max(0, progress.total - progress.done);
@@ -2522,14 +2598,193 @@ function renderInventoryProgress(entry) {
         <div class="loadout-progress" data-item-progress>
             <div class="loadout-progress__head">
                 <span>${escapeHtml(progress.label)}</span>
-                <strong>${formatNumberIt(progress.done)} / ${formatNumberIt(progress.total)}</strong>
+                <strong>${formatProgressAmount(progress.done, progress.unit)} / ${formatProgressAmount(progress.total, progress.unit)}</strong>
             </div>
             <div class="loadout-progress__bar" aria-label="${escapeHtml(progress.label)} ${formatNumberIt(progress.done)} su ${formatNumberIt(progress.total)}">
                 <span style="width: ${percent.toFixed(2)}%"></span>
             </div>
-            <small>${formatNumberIt(remaining)} rimanenti</small>
+            <small>${formatProgressAmount(remaining, progress.unit)} rimanenti</small>
         </div>
     `;
+}
+
+function renderProgressMaterialsList(materials, extraClass = '') {
+    const normalized = normalizeInventoryProgressMaterials(materials);
+    if (!normalized.length) return '';
+    return `
+        <ul class="player-progress-materials ${escapeHtml(extraClass)}">
+            ${normalized.map((material) => {
+                const required = material.required || 0;
+                const done = material.done || 0;
+                const percent = required > 0 ? Math.max(0, Math.min(100, (done / required) * 100)) : 0;
+                return `
+                    <li>
+                        <span>${escapeHtml(material.name)}</span>
+                        <strong>${formatProgressAmount(done, material.unit)} / ${formatProgressAmount(required, material.unit)}</strong>
+                        <i aria-hidden="true"><span style="width: ${percent.toFixed(2)}%"></span></i>
+                    </li>
+                `;
+            }).join('')}
+        </ul>
+    `;
+}
+
+function renderItemProgressEditor(progress) {
+    const materialLines = (progress?.materials || [])
+        .map((material) => [
+            material.name || material.id || '',
+            material.done ?? 0,
+            material.required ?? 0,
+            material.unit || ''
+        ].join(' | '))
+        .join('\n');
+    return `
+        <div class="loadout-inline-editor loadout-inline-editor--progress" data-item-progress-editor hidden>
+            <div class="loadout-inline-editor-grid">
+                <label>
+                    <span>Etichetta</span>
+                    <input data-item-progress-field="label" value="${escapeHtml(progress?.label || 'Progresso')}">
+                </label>
+                <label>
+                    <span>Unita</span>
+                    <input data-item-progress-field="unit" value="${escapeHtml(progress?.unit || '')}">
+                </label>
+                <label>
+                    <span>Fatto</span>
+                    <input type="number" step="0.01" min="0" data-item-progress-field="done" value="${escapeHtml(String(progress?.done ?? 0))}">
+                </label>
+                <label>
+                    <span>Totale</span>
+                    <input type="number" step="0.01" min="0" data-item-progress-field="total" value="${escapeHtml(String(progress?.total ?? ''))}">
+                </label>
+            </div>
+            <label>
+                <span>Materiali richiesti</span>
+                <textarea data-item-progress-materials rows="4" placeholder="Nome | ottenuti | richiesti | unita">${escapeHtml(materialLines)}</textarea>
+            </label>
+            <div class="loadout-inline-editor__actions">
+                <button type="button" class="loadout-entry-action loadout-entry-action--primary" data-item-progress-save>
+                    Salva progresso
+                </button>
+                <button type="button" class="loadout-entry-action" data-item-progress-clear>
+                    Rimuovi progresso
+                </button>
+                <button type="button" class="loadout-entry-action" data-item-progress-cancel>
+                    Annulla
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function parseProgressMaterialsText(text) {
+    return String(text || '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+            const parts = line.split('|').map((part) => part.trim());
+            const name = parts[0] || '';
+            const done = Number(parts[1] || 0);
+            const required = Number(parts[2] || 0);
+            const unit = parts[3] || '';
+            if (!name && (!Number.isFinite(required) || required <= 0)) return null;
+            return {
+                name,
+                done: Number.isFinite(done) ? Math.max(0, done) : 0,
+                required: Number.isFinite(required) ? Math.max(0, required) : 0,
+                unit
+            };
+        })
+        .filter(Boolean);
+}
+
+function collectItemProgressEditorDraft(editor) {
+    const getField = (name) => String(editor?.querySelector(`[data-item-progress-field="${name}"]`)?.value || '').trim();
+    const done = Number(getField('done') || 0);
+    const total = Number(getField('total') || 0);
+    if (!Number.isFinite(total) || total <= 0) return null;
+    return {
+        label: getField('label') || 'Progresso',
+        done: Number.isFinite(done) ? Math.max(0, done) : 0,
+        total: Math.max(1, total),
+        unit: getField('unit'),
+        materials: parseProgressMaterialsText(editor?.querySelector('[data-item-progress-materials]')?.value || '')
+    };
+}
+
+function renderPlayerProgressSection(entries, context = {}) {
+    const { character = null, actor = null, itemOverrides = [] } = context;
+    const rows = (Array.isArray(entries) ? entries : [])
+        .map((entry) => {
+            const identity = getItemOverrideIdentity(character, actor, entry);
+            const itemOverride = findItemOverride(itemOverrides, identity);
+            const progress = getInventoryProgressData(entry, itemOverride);
+            if (!progress) return '';
+            const percent = Math.max(0, Math.min(100, (progress.done / progress.total) * 100));
+            const remaining = Math.max(0, progress.total - progress.done);
+            const progressJson = JSON.stringify(progress);
+            return `
+                <article class="player-progress-item ${progress.crafting ? 'is-crafting' : ''}" data-progress-item-key="${escapeHtml(identity.key)}">
+                    <header>
+                        <div>
+                            <strong>${escapeHtml(entry.name || 'Oggetto senza nome')}</strong>
+                            <span>${escapeHtml(progress.crafting ? 'Craft' : progress.label)}</span>
+                        </div>
+                        <div class="player-progress-item-actions">
+                            <em>${formatProgressAmount(progress.done, progress.unit)} / ${formatProgressAmount(progress.total, progress.unit)}</em>
+                            <button type="button" class="player-progress-jump" data-progress-jump-key="${escapeHtml(identity.key)}">Apri</button>
+                        </div>
+                    </header>
+                    <div class="loadout-progress__bar" aria-label="${escapeHtml(progress.label)} ${formatNumberIt(progress.done)} su ${formatNumberIt(progress.total)}">
+                        <span style="width: ${percent.toFixed(2)}%"></span>
+                    </div>
+                    <small>${formatProgressAmount(remaining, progress.unit)} rimanenti</small>
+                    ${renderProgressMaterialsList(progress.materials)}
+                    <form class="player-progress-increment" data-progress-increment-form data-progress-json="${escapeHtml(progressJson)}">
+                        <input type="number" step="0.01" min="0" data-progress-increment-value aria-label="Aggiungi progresso a ${escapeHtml(entry.name || 'oggetto')}">
+                        <button type="submit" data-progress-increment-submit
+                            data-item-key="${escapeHtml(identity.key)}"
+                            data-character-id="${escapeHtml(identity.characterId)}"
+                            data-character-name="${escapeHtml(identity.characterName)}"
+                            data-actor-id="${escapeHtml(identity.actorId)}"
+                            data-actor-name="${escapeHtml(identity.actorName)}"
+                            data-item-id="${escapeHtml(identity.itemId)}"
+                            data-item-name="${escapeHtml(identity.itemName)}"
+                            data-item-type="${escapeHtml(identity.itemType)}"
+                        >+</button>
+                    </form>
+                </article>
+            `;
+        })
+        .filter(Boolean)
+        .join('');
+
+    return `
+        <section class="player-progress-section">
+            <h4>Progressi</h4>
+            ${rows ? `<div class="player-progress-list">${rows}</div>` : '<p class="loadout-empty">Nessun oggetto con progresso registrato.</p>'}
+        </section>
+    `;
+}
+
+function getInventoryContainerGroup(entry) {
+    const container = entry?.container && typeof entry.container === 'object' ? entry.container : null;
+    const rawId = String(container?.id ?? '').trim();
+    const rawName = String(container?.name ?? '').trim();
+    const normalizedName = normalizeText(rawName);
+    const looseNames = new Set(['', 'senzacontenitore', 'nessuncontenitore', 'none', 'null', 'undefined']);
+    const looseIds = new Set(['', 'none', 'null', 'undefined', '__loose__']);
+    const isLoose = looseIds.has(rawId.toLowerCase()) || looseNames.has(normalizedName);
+    if (isLoose) {
+        return { id: '__loose__', name: 'Senza contenitore', isLoose: true };
+    }
+    const id = rawId || `container:${normalizedName || 'sconosciuto'}`;
+    return {
+        id,
+        name: rawName || 'Contenitore',
+        isLoose: false
+    };
 }
 
 function renderInventoryEntries(entries, context = {}) {
@@ -2540,16 +2795,14 @@ function renderInventoryEntries(entries, context = {}) {
     const { character = null, actor = null, itemOverrides = [] } = context;
     const groupsMap = new Map();
     entries.forEach((entry) => {
-        const containerId = entry.container && entry.container.id ? String(entry.container.id) : '__loose__';
-        const containerName = entry.container && entry.container.name
-            ? String(entry.container.name)
-            : 'Senza contenitore';
+        const containerGroup = getInventoryContainerGroup(entry);
+        const containerId = containerGroup.id;
 
         if (!groupsMap.has(containerId)) {
             groupsMap.set(containerId, {
                 id: containerId,
-                name: containerName,
-                isLoose: containerId === '__loose__',
+                name: containerGroup.name,
+                isLoose: containerGroup.isLoose,
                 entries: []
             });
         }
@@ -2580,12 +2833,14 @@ function renderInventoryEntries(entries, context = {}) {
             if (entry.rarity) badges.push(`Rarita: ${formatToken(entry.rarity)}`);
             if (entry.attuned) badges.push('Sintonizzato');
 
+            const progress = getInventoryProgressData(entry, itemOverride);
+            if (progress) badges.push(progress.crafting ? 'Craft' : 'Progresso');
             const description = cleanDescription(itemOverride?.description || entry.description);
             const quantityLabel = getQuantityLabel(entry);
             const overrideDescriptionHtml = itemOverride?.description && wikiItem
                 ? `<div class="loadout-entry-description">${renderDescriptionHtml(cleanDescription(itemOverride.description))}</div>`
                 : '';
-            const progressHtml = renderInventoryProgress(entry);
+            const progressHtml = renderInventoryProgress(progress);
             const overrideActions = `
                     ${progressHtml}
                     ${overrideDescriptionHtml}
@@ -2623,6 +2878,21 @@ function renderInventoryEntries(entries, context = {}) {
                             <i class="fas fa-pen" aria-hidden="true"></i>
                             Modifica testo
                         </button>
+                        <button
+                            type="button"
+                            class="loadout-entry-action"
+                            data-item-progress-edit
+                            data-item-key="${escapeHtml(identity.key)}"
+                            data-character-id="${escapeHtml(identity.characterId)}"
+                            data-character-name="${escapeHtml(identity.characterName)}"
+                            data-actor-id="${escapeHtml(identity.actorId)}"
+                            data-actor-name="${escapeHtml(identity.actorName)}"
+                            data-item-id="${escapeHtml(identity.itemId)}"
+                            data-item-name="${escapeHtml(identity.itemName)}"
+                            data-item-type="${escapeHtml(identity.itemType)}"
+                        >
+                            Progresso
+                        </button>
                     </div>
                     <div class="loadout-inline-editor" data-item-description-editor hidden>
                         <label>
@@ -2639,6 +2909,7 @@ function renderInventoryEntries(entries, context = {}) {
                             </button>
                         </div>
                     </div>
+                    ${renderItemProgressEditor(progress)}
                 `;
 
             return renderLoadoutDisclosure(
@@ -2647,7 +2918,7 @@ function renderInventoryEntries(entries, context = {}) {
                 description,
                 badges,
                 wikiItem ? 'loadout-entry--wiki-linked' : '',
-                `data-inventory-type="${typeMeta.key}"`,
+                `data-inventory-type="${typeMeta.key}" data-inventory-item-key="${escapeHtml(identity.key)}"`,
                 wikiItem,
                 entry.name || '',
                 getInventoryEntryIconPath(entry, wikiItem, itemOverride),
@@ -2860,6 +3131,7 @@ function buildPlayerLoadoutHtml(character, payload, wikiItems = [], abilityOverr
                 <section class="loadout-panel" data-panel="abilities" role="tabpanel" hidden>
                     ${renderAbilityEntries(abilities, { character, actor, abilityOverrides })}
                 </section>
+                ${renderPlayerProgressSection(inventory, { character, actor, itemOverrides })}
             `;
 }
 
@@ -5049,6 +5321,8 @@ window.CriptaApp.onPageReady("character", async function () {
     const params = new URLSearchParams(window.location.search);
     const charId = params.get('id');
     const charType = params.get('type') || 'npc'; // Default to 'npc'
+    const createMode = params.get('new') === '1';
+    const skillTreeOnlyView = params.get('view') === 'skill-tree' || params.get('skillTreeOnly') === '1';
     let currentCharacter = null;
     let currentAllCharacters = [];
     let currentNpcQuests = null;
@@ -5069,7 +5343,7 @@ window.CriptaApp.onPageReady("character", async function () {
     let currentTransformations = [];
     const inlineImageVersions = new Map();
 
-    if (!charId) {
+    if (!charId && !createMode) {
         displayError("ID del personaggio non specificato.");
         return;
     }
@@ -5089,10 +5363,20 @@ window.CriptaApp.onPageReady("character", async function () {
     container.addEventListener('click', handleMediaOverrideClick);
     container.addEventListener('click', handleTransformationClick);
 
+    currentAuthState = await window.CriptaDiscordAuth?.verify?.().catch(() => null);
+    currentUserIsDm = await resolveCurrentUserIsDm(currentAuthState);
+    skillTreeAuthState = currentAuthState;
+    skillTreeCurrentUserIsDm = currentUserIsDm;
+
     try {
         let character = null;
         let allCharacters = [];
-        const bootstrap = await loadCharacterBootstrap(charId, charType);
+        if (createMode && (charType === 'player' || !currentUserIsDm)) {
+            displayError("Creazione NPC non autorizzata.");
+            return;
+        }
+
+        const bootstrap = createMode ? null : await loadCharacterBootstrap(charId, charType);
 
         // Quests are only rendered for NPC pages; avoid noisy 404s on player-only campaigns.
         const questsData = charType === 'player' ? [] : await loadQuestsData();
@@ -5102,7 +5386,9 @@ window.CriptaApp.onPageReady("character", async function () {
         if (window.NPC_DATA && window.NPC_DATA.length > 0) {
             console.log("Using static NPC data for character details");
             allCharacters = window.NPC_DATA;
-            character = allCharacters.find(c => c.id === charId);
+            character = createMode
+                ? createEmptyNpcCharacter()
+                : allCharacters.find(c => c.id === charId);
         } else {
             // Fallback Fetch Logic
             let characters;
@@ -5124,7 +5410,9 @@ window.CriptaApp.onPageReady("character", async function () {
                 }
             }
             allCharacters = characters;
-            character = characters.find(c => c.id === charId);
+            character = createMode
+                ? createEmptyNpcCharacter()
+                : characters.find(c => c.id === charId);
 
             // Fetch Markdown content if not static
             await hydrateContentBlocks(character);
@@ -5161,10 +5449,6 @@ window.CriptaApp.onPageReady("character", async function () {
             }
         }
 
-        currentAuthState = await window.CriptaDiscordAuth?.verify?.().catch(() => null);
-        currentUserIsDm = await resolveCurrentUserIsDm(currentAuthState);
-        skillTreeAuthState = currentAuthState;
-        skillTreeCurrentUserIsDm = currentUserIsDm;
         if (charType === 'player') {
             currentTransformations = await loadTransformationsData().catch((error) => {
                 console.warn('Impossibile caricare trasformazioni token:', error);
@@ -5176,6 +5460,9 @@ window.CriptaApp.onPageReady("character", async function () {
         currentNpcQuests = npcQuests;
         currentPlayerSkillTrees = playerSkillTrees;
         renderCharacterPage(character, allCharacters, npcQuests, playerSkillTrees);
+        if (params.get('edit') === '1' && charType !== 'player' && currentUserIsDm) {
+            enterInlineEditMode();
+        }
 
     } catch (error) {
         console.error("Errore nel caricamento del personaggio:", error);
@@ -5188,8 +5475,10 @@ window.CriptaApp.onPageReady("character", async function () {
             editLinkEl.hidden = true;
             return;
         }
-        const editUrl = new URL('../../tools/characters-editor.html', window.location.href);
+        const editUrl = new URL(window.location.href);
         editUrl.searchParams.set('id', id);
+        editUrl.searchParams.set('type', type || 'npc');
+        editUrl.searchParams.set('edit', '1');
         const campaignId = window.CriptaApp?.campaigns?.currentId?.() || params.get('campaign') || '';
         if (campaignId) editUrl.searchParams.set('campaign', campaignId);
         editLinkEl.href = editUrl.toString();
@@ -5349,7 +5638,7 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     function handleInlineEditDragOver(event) {
-        const dropTarget = event.target.closest('[data-inline-character-image-drop-target]');
+        const dropTarget = event.target.closest('[data-inline-character-image-drop-target], [data-inline-block-image-drop-target]');
         if (!isInlineEditing || !dropTarget) return;
         event.preventDefault();
         event.dataTransfer.dropEffect = 'copy';
@@ -5357,16 +5646,20 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     function handleInlineEditDragLeave(event) {
-        const dropTarget = event.target.closest('[data-inline-character-image-drop-target]');
+        const dropTarget = event.target.closest('[data-inline-character-image-drop-target], [data-inline-block-image-drop-target]');
         if (!isInlineEditing || !dropTarget || dropTarget.contains(event.relatedTarget)) return;
         dropTarget.classList.remove('is-drop-target');
     }
 
     async function handleInlineEditDrop(event) {
-        const dropTarget = event.target.closest('[data-inline-character-image-drop-target]');
+        const dropTarget = event.target.closest('[data-inline-character-image-drop-target], [data-inline-block-image-drop-target]');
         if (!isInlineEditing || !dropTarget) return;
         event.preventDefault();
         dropTarget.classList.remove('is-drop-target');
+        if (dropTarget.dataset.inlineBlockImageDropTarget !== undefined) {
+            await handleInlineBlockImageDrop(Number(dropTarget.dataset.inlineBlockImageDropTarget), event.dataTransfer?.files);
+            return;
+        }
         await handleInlineImageDrop(dropTarget.dataset.inlineCharacterImageDropTarget, event.dataTransfer?.files);
     }
 
@@ -5456,10 +5749,10 @@ window.CriptaApp.onPageReady("character", async function () {
         return dimensions;
     }
 
-    async function uploadInlineBlockImage(index) {
+    async function uploadInlineBlockImage(index, providedFile = null) {
         const block = inlineEditBlocks[index];
         if (!currentCharacter || !block) return;
-        const file = await pickInlineImageFile();
+        const file = providedFile || await pickInlineImageFile();
         if (!file) return;
         const fileName = `${slugify(block.id || block.title || `blocco-${index + 1}`)}.webp`;
         const path = await uploadInlineImageFile(file, currentCharacter.id || charId, fileName);
@@ -5469,6 +5762,12 @@ window.CriptaApp.onPageReady("character", async function () {
         block.type = 'image';
         inlineEditDirty = true;
         renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+    }
+
+    async function handleInlineBlockImageDrop(index, fileList) {
+        const file = Array.from(fileList || []).find((entry) => entry?.type?.startsWith('image/'));
+        if (!Number.isInteger(index) || !file) return;
+        await uploadInlineBlockImage(index, file);
     }
 
     async function handleMediaOverrideClick(event) {
@@ -6747,6 +7046,152 @@ window.CriptaApp.onPageReady("character", async function () {
                 }
             });
         });
+
+        const progressButtons = Array.from(cardElement.querySelectorAll('[data-item-progress-edit]'));
+        progressButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const identity = getIdentityFromButton(button);
+                if (!identity.key) return;
+                const editor = button.closest('.loadout-entry')?.querySelector('[data-item-progress-editor]');
+                if (!editor) return;
+                editor.hidden = false;
+                editor.querySelector('[data-item-progress-field="done"]')?.focus();
+            });
+        });
+
+        const progressCancelButtons = Array.from(cardElement.querySelectorAll('[data-item-progress-cancel]'));
+        progressCancelButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const editor = button.closest('[data-item-progress-editor]');
+                if (editor) editor.hidden = true;
+            });
+        });
+
+        const progressSaveButtons = Array.from(cardElement.querySelectorAll('[data-item-progress-save]'));
+        progressSaveButtons.forEach((button) => {
+            button.addEventListener('click', async () => {
+                const entry = button.closest('.loadout-entry');
+                const editButton = entry?.querySelector('[data-item-progress-edit]');
+                const editor = button.closest('[data-item-progress-editor]');
+                if (!editButton || !editor) return;
+                const identity = getIdentityFromButton(editButton);
+                if (!identity.key) return;
+                const progress = collectItemProgressEditorDraft(editor);
+                if (!progress) {
+                    alert('Imposta almeno un totale maggiore di zero.');
+                    return;
+                }
+
+                button.disabled = true;
+                button.setAttribute('aria-busy', 'true');
+                try {
+                    await saveItemOverride(identity, { progress });
+                    await hydratePlayerLoadout(character);
+                } catch (error) {
+                    console.error('Salvataggio progresso inventario fallito:', error);
+                    alert(`Salvataggio progresso fallito: ${error?.message || error}`);
+                } finally {
+                    button.disabled = false;
+                    button.removeAttribute('aria-busy');
+                }
+            });
+        });
+
+        const progressClearButtons = Array.from(cardElement.querySelectorAll('[data-item-progress-clear]'));
+        progressClearButtons.forEach((button) => {
+            button.addEventListener('click', async () => {
+                const entry = button.closest('.loadout-entry');
+                const editButton = entry?.querySelector('[data-item-progress-edit]');
+                if (!editButton) return;
+                const identity = getIdentityFromButton(editButton);
+                if (!identity.key) return;
+                if (!window.confirm('Rimuovere il progresso wiki da questo oggetto?')) return;
+
+                button.disabled = true;
+                button.setAttribute('aria-busy', 'true');
+                try {
+                    await saveItemOverride(identity, { progress: null });
+                    await hydratePlayerLoadout(character);
+                } catch (error) {
+                    console.error('Rimozione progresso inventario fallita:', error);
+                    alert(`Rimozione progresso fallita: ${error?.message || error}`);
+                } finally {
+                    button.disabled = false;
+                    button.removeAttribute('aria-busy');
+                }
+            });
+        });
+
+        const progressJumpButtons = Array.from(cardElement.querySelectorAll('[data-progress-jump-key]'));
+        progressJumpButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                jumpToInventoryProgressItem(cardElement, button.dataset.progressJumpKey || '');
+            });
+        });
+
+        const progressIncrementForms = Array.from(cardElement.querySelectorAll('[data-progress-increment-form]'));
+        progressIncrementForms.forEach((form) => {
+            form.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                const submitButton = form.querySelector('[data-progress-increment-submit]');
+                const input = form.querySelector('[data-progress-increment-value]');
+                const delta = Number(input?.value || 0);
+                if (!submitButton || !Number.isFinite(delta) || delta <= 0) {
+                    alert('Inserisci un valore positivo da aggiungere.');
+                    return;
+                }
+                const identity = getIdentityFromButton(submitButton);
+                if (!identity.key) return;
+                const progress = parseProgressIncrementDraft(form);
+                if (!progress) return;
+                progress.done = Math.max(0, Number(progress.done || 0) + delta);
+
+                submitButton.disabled = true;
+                submitButton.setAttribute('aria-busy', 'true');
+                try {
+                    await saveItemOverride(identity, { progress });
+                    await hydratePlayerLoadout(character);
+                } catch (error) {
+                    console.error('Incremento progresso inventario fallito:', error);
+                    alert(`Incremento progresso fallito: ${error?.message || error}`);
+                } finally {
+                    submitButton.disabled = false;
+                    submitButton.removeAttribute('aria-busy');
+                }
+            });
+        });
+    }
+
+    function parseProgressIncrementDraft(form) {
+        try {
+            const progress = JSON.parse(form?.dataset?.progressJson || '{}');
+            if (!progress || typeof progress !== 'object') return null;
+            const total = Number(progress.total || 0);
+            if (!Number.isFinite(total) || total <= 0) return null;
+            return {
+                label: String(progress.label || 'Progresso').trim() || 'Progresso',
+                done: Number.isFinite(Number(progress.done)) ? Math.max(0, Number(progress.done)) : 0,
+                total: Math.max(1, total),
+                unit: String(progress.unit || '').trim(),
+                crafting: Boolean(progress.crafting || (Array.isArray(progress.materials) && progress.materials.length)),
+                materials: normalizeInventoryProgressMaterials(progress.materials)
+            };
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function jumpToInventoryProgressItem(cardElement, key) {
+        const safeKey = String(key || '').trim();
+        if (!safeKey || !cardElement) return;
+        cardElement.querySelector('[data-panel-target="inventory"]')?.click();
+        const target = cardElement.querySelector(`.loadout-entry[data-inventory-item-key="${CSS.escape(safeKey)}"]`);
+        if (!target) return;
+        target.closest('[data-inventory-group]')?.setAttribute('open', '');
+        target.setAttribute('open', '');
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.classList.add('is-jump-highlight');
+        window.setTimeout(() => target.classList.remove('is-jump-highlight'), 1400);
     }
 
     function serializeInlineEditedCharacter(character) {
@@ -7510,6 +7955,12 @@ window.CriptaApp.onPageReady("character", async function () {
         charRoleEl.textContent = character.role;
         container.innerHTML = '';
 
+        document.body.classList.toggle('page-character--skill-tree-only', skillTreeOnlyView);
+        if (skillTreeOnlyView) {
+            renderSkillTreeOnlyPage(character, playerSkillTrees);
+            return;
+        }
+
         // Build the main grid structure
         const grid = document.createElement('div');
         grid.className = 'char-grid';
@@ -7604,10 +8055,38 @@ window.CriptaApp.onPageReady("character", async function () {
         initializeImageModal();
     }
 
+    function renderSkillTreeOnlyPage(character, playerSkillTrees) {
+        document.title = `Albero Abilita - ${character.name} | Cripta di Sangue`;
+        charNameEl.textContent = 'Albero Abilita';
+        charRoleEl.textContent = character.name || '';
+        editLinkEl.hidden = true;
+
+        const skillTreeCard = buildPlayerSkillTreeCards(character, playerSkillTrees);
+        if (skillTreeCard) {
+            skillTreeCard.classList.add('player-skill-tree-stack--standalone');
+            container.appendChild(skillTreeCard);
+        } else {
+            const empty = document.createElement('div');
+            empty.className = 'content-card player-skill-tree-empty';
+            empty.innerHTML = '<span>Nessun albero abilita configurato.</span>';
+            container.appendChild(empty);
+        }
+
+        initializeImageModal();
+    }
+
     function removeStaleInlineAdjustModal(character) {
         const modal = document.getElementById('character-inline-image-adjust-modal');
         const ownerId = String(character?.id || charId || '');
         if (modal && modal.dataset.inlineAdjustOwnerId !== ownerId) modal.remove();
+    }
+
+    function getInlineImageFileName(path) {
+        return String(path || '').split(/[?#]/)[0].split(/[\\/]/).pop() || '';
+    }
+
+    function renderInlineImageFileName(path, fallback = 'Trascina o scegli un file webp') {
+        return `<small class="character-inline-image-file-name">${escapeHtml(getInlineImageFileName(path) || fallback)}</small>`;
     }
 
     function renderInlineEditToolbar() {
@@ -7637,10 +8116,11 @@ window.CriptaApp.onPageReady("character", async function () {
         card.dataset.inlineBlock = String(index);
 
         const imageControls = block.type === 'image' ? `
-                    <label class="character-inline-field character-inline-field--full">
+                    <div class="character-inline-field character-inline-field--full">
                         <span>Immagine</span>
-                        <input type="text" value="${escapeHtml(block.image || '')}" data-inline-block-index="${index}" data-inline-block-field="image" placeholder="media/characters/...webp">
-                    </label>
+                        <input type="hidden" value="${escapeHtml(block.image || '')}" data-inline-block-index="${index}" data-inline-block-field="image">
+                        ${renderInlineImageFileName(block.image)}
+                    </div>
                 ` : '';
 
         const previewHtml = renderMarkdown(block.text || '', { context: block.type === 'image' ? 'image_box' : 'lore' });
@@ -7678,9 +8158,9 @@ window.CriptaApp.onPageReady("character", async function () {
                             </div>
                             <div class="document-body">
                                 <div class="document-image">
-                                    <button type="button" class="character-inline-image-upload" data-inline-edit-action="upload-block-image" data-inline-block-index="${index}" title="Carica nuova immagine">
+                                    <button type="button" class="character-inline-image-upload" data-inline-edit-action="upload-block-image" data-inline-block-index="${index}" data-inline-block-image-drop-target="${index}" title="Carica nuova immagine">
                                         ${block.image ? `<img src="${resolveInlineImagePath(block.image)}" alt="${escapeHtml(block.title || '')}" onerror="this.style.display='none'">` : '<span class="character-inline-image-placeholder">Nessuna immagine</span>'}
-                                        <span class="character-inline-upload-hint"><i class="fas fa-upload"></i> Cambia immagine</span>
+                                        <span class="character-inline-upload-hint">Cambia immagine</span>
                                     </button>
                                 </div>
                                 <div class="document-content">
@@ -7732,7 +8212,7 @@ window.CriptaApp.onPageReady("character", async function () {
                     <div class="image-card character-inline-side-editor">
                         <button type="button" class="character-inline-portrait-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="avatar" data-inline-character-image-drop-target="avatar" data-avatar-token-drop-zone title="Carica avatar scheda">
                             <img src="${resolveInlineImagePath(images.avatar || images.token)}" class="char-portrait" data-inline-portrait-preview style="${buildInlineAdjustStyle(images.avatarAdjust)}" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
-                            <span class="character-inline-upload-hint"><i class="fas fa-upload"></i> Cambia avatar scheda</span>
+                            <span class="character-inline-upload-hint">Cambia avatar scheda</span>
                         </button>
                         <div class="character-inline-side-fields">
                             <label class="character-inline-field">
@@ -7755,8 +8235,9 @@ window.CriptaApp.onPageReady("character", async function () {
                                 <span>Idle lista</span>
                                 <div class="character-inline-image-field-row" data-inline-character-image-drop-target="idle">
                                     <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.idle || images.token)}" alt="" data-inline-character-image-preview="idle" style="${buildInlineAdjustStyle(images.idleAdjust)}" onerror="this.style.visibility='hidden'">
-                                    <input type="text" value="${escapeHtml(images.idle || '')}" data-inline-character-image-field="idle" placeholder="media/campaigns/.../characters/npc/idle.webp">
-                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="idle" title="Carica idle"><i class="fas fa-upload"></i></button>
+                                    <input type="hidden" value="${escapeHtml(images.idle || '')}" data-inline-character-image-field="idle">
+                                    ${renderInlineImageFileName(images.idle)}
+                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="idle" title="Carica idle">File</button>
                                 </div>
                                 ${renderInlineImageAdjustControls('idle', images.idleAdjust)}
                             </label>
@@ -7764,8 +8245,9 @@ window.CriptaApp.onPageReady("character", async function () {
                                 <span>Hover lista</span>
                                 <div class="character-inline-image-field-row" data-inline-character-image-drop-target="hover">
                                     <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.hover || images.token)}" alt="" data-inline-character-image-preview="hover" style="${buildInlineAdjustStyle(images.hoverAdjust)}" onerror="this.style.visibility='hidden'">
-                                    <input type="text" value="${escapeHtml(images.hover || '')}" data-inline-character-image-field="hover" placeholder="media/campaigns/.../characters/npc/hover.webp">
-                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="hover" title="Carica hover"><i class="fas fa-upload"></i></button>
+                                    <input type="hidden" value="${escapeHtml(images.hover || '')}" data-inline-character-image-field="hover">
+                                    ${renderInlineImageFileName(images.hover)}
+                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="hover" title="Carica hover">File</button>
                                 </div>
                                 ${renderInlineImageAdjustControls('hover', images.hoverAdjust)}
                             </label>
@@ -7773,8 +8255,9 @@ window.CriptaApp.onPageReady("character", async function () {
                                 <span>Token fallback</span>
                                 <div class="character-inline-image-field-row" data-inline-character-image-drop-target="token">
                                     <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.token || images.idle || images.avatar)}" alt="" data-inline-character-image-preview="token" style="${buildInlineAdjustStyle(images.tokenAdjust)}" onerror="this.style.visibility='hidden'">
-                                    <input type="text" value="${escapeHtml(images.token || '')}" data-inline-character-image-field="token" placeholder="media/campaigns/.../characters/npc/token.webp">
-                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="token" title="Carica token"><i class="fas fa-upload"></i></button>
+                                    <input type="hidden" value="${escapeHtml(images.token || '')}" data-inline-character-image-field="token">
+                                    ${renderInlineImageFileName(images.token)}
+                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="token" title="Carica token">File</button>
                                 </div>
                                 ${renderInlineImageAdjustControls('token', images.tokenAdjust)}
                             </label>
@@ -7782,8 +8265,9 @@ window.CriptaApp.onPageReady("character", async function () {
                                 <span>Avatar scheda</span>
                                 <div class="character-inline-image-field-row" data-inline-character-image-drop-target="avatar" data-avatar-token-drop-zone>
                                     <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.avatar || images.token)}" alt="" data-inline-character-image-preview="avatar" style="${buildInlineAdjustStyle(images.avatarAdjust)}" onerror="this.style.visibility='hidden'">
-                                    <input type="text" value="${escapeHtml(images.avatar || '')}" data-inline-character-image-field="avatar" placeholder="media/campaigns/.../characters/npc/avatar.webp">
-                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="avatar" title="Carica avatar scheda"><i class="fas fa-upload"></i></button>
+                                    <input type="hidden" value="${escapeHtml(images.avatar || '')}" data-inline-character-image-field="avatar">
+                                    ${renderInlineImageFileName(images.avatar)}
+                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="avatar" title="Carica avatar scheda">File</button>
                                 </div>
                                 ${renderInlineImageAdjustControls('avatar', images.avatarAdjust)}
                             </label>

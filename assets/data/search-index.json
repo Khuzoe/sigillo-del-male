@@ -387,9 +387,9 @@
       "content": "Il tradimento è inaccettabile. Pagherai. Non Morto 60 anni 8 ft 6 in (2.60 m) 463 lbs (210 kg) 25-85 Gettato in gabbia con un Ratto delle Sabbie a Chult Biografia Nino Olegna, chiamato Tessimorte, è un alchimista macabro che intreccia ragnatele, tendini e corpi per generare creature innaturali. Il suo laboratorio è un labirinto di fascicoli e rituali oscuri. I suoi documenti parlano dell'Assistente, detto Bacio Mortale, e di una creatura colossale dalle capacità incalcolabili. Le Creature Tela sono descritte come base per ulteriori creazioni, a testimonianza di una ricerca senza scrupoli. Di ..."
     },
     {
-      "id": "family:nino_olegna",
+      "id": "family:nino-olegna",
       "type": "family",
-      "entityId": "nino_olegna",
+      "entityId": "nino-olegna",
       "title": "Nino Olegna",
       "subtitle": "Famiglia Von T",
       "url": "pages/famiglia-von-t.html",

@@ -1,0 +1,5951 @@
+{
+  "version": 1,
+  "collection": "timelineDraft",
+  "campaignId": "cripta-di-sangue",
+  "generatedAt": "2026-06-10T22:43:58.764Z",
+  "source": {
+    "sessions": "campaigns/cripta-di-sangue/data/sessions.json",
+    "output": "campaigns/cripta-di-sangue/data/timeline.draft.json"
+  },
+  "stats": {
+    "sessionCount": 25,
+    "eventCount": 140,
+    "unlinkedEventCount": 19,
+    "dictionary": {
+      "characters": 13,
+      "players": 5,
+      "quests": 31,
+      "items": 32,
+      "creatures": 35,
+      "locations": 0
+    }
+  },
+  "data": [
+    {
+      "id": "session-001-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "1",
+      "sessionId": "1",
+      "sessionNumber": 1,
+      "sessionDate": "30/04/2025 - Inizio",
+      "order": 1,
+      "title": "Il gruppo si riunisce e insieme aprite la porta d'ingresso, con i cuori che battono all'unisono.",
+      "summary": "Il gruppo si riunisce e insieme aprite la porta d'ingresso, con i cuori che battono all'unisono.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "porta d'ingresso"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.35,
+      "matches": []
+    },
+    {
+      "id": "session-001-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "1",
+      "sessionId": "1",
+      "sessionNumber": 1,
+      "sessionDate": "30/04/2025 - Inizio",
+      "order": 2,
+      "title": "Affrontate un cane mostruoso sul lato ovest rispetto alla porta d'ingresso.",
+      "summary": "Affrontate un cane mostruoso sul lato ovest rispetto alla porta d'ingresso.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "porta d'ingresso"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.35,
+      "matches": []
+    },
+    {
+      "id": "session-001-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "1",
+      "sessionId": "1",
+      "sessionNumber": 1,
+      "sessionDate": "30/04/2025 - Inizio",
+      "order": 3,
+      "title": "Iniziate il combattimento contro un mimic, lo \"Scrigno Rosa\", che però riesce a fuggire...",
+      "summary": "Iniziate il combattimento contro un mimic, lo \"Scrigno Rosa\", che però riesce a fuggire gettandosi nel fiume rosso.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [
+        "scrigno-rosa"
+      ],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "creature",
+          "id": "scrigno-rosa",
+          "label": "Scrigno Rosa",
+          "matched": "Scrigno Rosa"
+        }
+      ]
+    },
+    {
+      "id": "session-001-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "1",
+      "sessionId": "1",
+      "sessionNumber": 1,
+      "sessionDate": "30/04/2025 - Inizio",
+      "order": 4,
+      "title": "Tentate di evitare la figura gigante che avete intravisto e restate sul lato ovest del luogo in...",
+      "summary": "Tentate di evitare la figura gigante che avete intravisto e restate sul lato ovest del luogo in cui vi trovate.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.35,
+      "matches": []
+    },
+    {
+      "id": "session-001-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "1",
+      "sessionId": "1",
+      "sessionNumber": 1,
+      "sessionDate": "30/04/2025 - Inizio",
+      "order": 5,
+      "title": "Trovate una stanza con tre teschi colorati di fronte a un libro.",
+      "summary": "Trovate una stanza con tre teschi colorati di fronte a un libro. Valdor tenta di prenderlo, ma i teschi sembrano reagire; viene quindi convinto dal gruppo ad abbandonare la stanza.",
+      "characters": [],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "oggetto",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.48,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        }
+      ]
+    },
+    {
+      "id": "session-001-event-06",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "1",
+      "sessionId": "1",
+      "sessionNumber": 1,
+      "sessionDate": "30/04/2025 - Inizio",
+      "order": 6,
+      "title": "Chiudete una stanza contenente due non-morti utilizzando Arcane Lock.",
+      "summary": "Chiudete una stanza contenente due non-morti utilizzando Arcane Lock. La parola d'ordine scelta è \"Apothecary\".",
+      "characters": [],
+      "players": [
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        }
+      ]
+    },
+    {
+      "id": "session-001-event-07",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "1",
+      "sessionId": "1",
+      "sessionNumber": 1,
+      "sessionDate": "30/04/2025 - Inizio",
+      "order": 7,
+      "title": "Incontrate Rabberduscolanderson Von T, che assegna una missione a Valdor e Apothecary: ottenere...",
+      "summary": "Incontrate Rabberduscolanderson Von T, che assegna una missione a Valdor e Apothecary: ottenere ciò che Ran'Dra nasconde in tasca.",
+      "characters": [
+        "rabberduscolanderson"
+      ],
+      "players": [
+        "randra",
+        "valdor",
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "rabber_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "missione"
+      ],
+      "visibility": "public",
+      "confidence": 0.75,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson Von T"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson Von T"
+        }
+      ]
+    },
+    {
+      "id": "session-001-event-08",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "1",
+      "sessionId": "1",
+      "sessionNumber": 1,
+      "sessionDate": "30/04/2025 - Inizio",
+      "order": 8,
+      "title": "Incontrate infine X Von T, la quale chiede a Ga'Run di procurarle libri interessanti in cambio...",
+      "summary": "Incontrate infine X Von T, la quale chiede a Ga'Run di procurarle libri interessanti in cambio di informazioni.",
+      "characters": [
+        "x"
+      ],
+      "players": [
+        "garun"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "x_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "missione"
+      ],
+      "visibility": "public",
+      "confidence": 0.62,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X Von T"
+        },
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X Von T"
+        }
+      ]
+    },
+    {
+      "id": "session-002-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "2",
+      "sessionId": "2",
+      "sessionNumber": 2,
+      "sessionDate": "13/05/2025",
+      "order": 1,
+      "title": "Ga'Run e Ran'Dra concludono il loro primo dialogo con X, scoprendo qualche informazione di base...",
+      "summary": "Ga'Run e Ran'Dra concludono il loro primo dialogo con X, scoprendo qualche informazione di base e che vende alcune pergamene per incantesimi.",
+      "characters": [
+        "x"
+      ],
+      "players": [
+        "garun",
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "x_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.65,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        }
+      ]
+    },
+    {
+      "id": "session-002-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "2",
+      "sessionId": "2",
+      "sessionNumber": 2,
+      "sessionDate": "13/05/2025",
+      "order": 2,
+      "title": "Ga'Run minaccia Rabberduscolanderson prima di abbandonare la stanza, infastidito dal fatto che...",
+      "summary": "Ga'Run minaccia Rabberduscolanderson prima di abbandonare la stanza, infastidito dal fatto che abbia fumato con Valdor.",
+      "characters": [
+        "rabberduscolanderson"
+      ],
+      "players": [
+        "garun",
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "rabber_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.67,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        }
+      ]
+    },
+    {
+      "id": "session-002-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "2",
+      "sessionId": "2",
+      "sessionNumber": 2,
+      "sessionDate": "13/05/2025",
+      "order": 3,
+      "title": "Vedete il giardino di fiori fuori dalla stanza di Rabberduscolanderson, incluso un grosso fiore...",
+      "summary": "Vedete il giardino di fiori fuori dalla stanza di Rabberduscolanderson, incluso un grosso fiore nero al centro di una pozza rossa. Decidete di non interagire con essi.",
+      "characters": [
+        "rabberduscolanderson"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "stanza di Rabberduscolanderson"
+      ],
+      "quests": [
+        "rabber_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.51,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        }
+      ]
+    },
+    {
+      "id": "session-002-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "2",
+      "sessionId": "2",
+      "sessionNumber": 2,
+      "sessionDate": "13/05/2025",
+      "order": 4,
+      "title": "Apothecary prova a tirare i petali che fuoriescono da un cumulo di terra, rivelando una testa...",
+      "summary": "Apothecary prova a tirare i petali che fuoriescono da un cumulo di terra, rivelando una testa parzialmente fantasma e parzialmente coperta di petali di rosa.",
+      "characters": [],
+      "players": [
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        }
+      ]
+    },
+    {
+      "id": "session-002-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "2",
+      "sessionId": "2",
+      "sessionNumber": 2,
+      "sessionDate": "13/05/2025",
+      "order": 5,
+      "title": "Vi imbattete in una sorta di enigma con delle torce.",
+      "summary": "Vi imbattete in una sorta di enigma con delle torce. Grazie all'ingegno di Valdor, riuscite a capirne il funzionamento. Sul sarcofago centrale: 'Il destino di un popolo è determinato dalla sola luce che lo guida.'",
+      "characters": [],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [
+        "sarcofago"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.43,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        }
+      ]
+    },
+    {
+      "id": "session-002-event-06",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "2",
+      "sessionId": "2",
+      "sessionNumber": 2,
+      "sessionDate": "13/05/2025",
+      "order": 6,
+      "title": "Durante la risoluzione dell'enigma, combattete contro alcune creature non-morte ed ottenete una...",
+      "summary": "Durante la risoluzione dell'enigma, combattete contro alcune creature non-morte ed ottenete una piccola pergamena con scritto 'Metà è fatta, dov'è l'altra?'",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "oggetto",
+        "morte"
+      ],
+      "visibility": "public",
+      "confidence": 0.4,
+      "matches": []
+    },
+    {
+      "id": "session-002-event-07",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "2",
+      "sessionId": "2",
+      "sessionNumber": 2,
+      "sessionDate": "13/05/2025",
+      "order": 7,
+      "title": "Infine, per via del rumore generato dal combattimento, viene attirata l'enorme creatura bipede...",
+      "summary": "Infine, per via del rumore generato dal combattimento, viene attirata l'enorme creatura bipede che si aggira per questo piano. Completate il combattimento e fuggite, grazie ad un'illusione di Ran'Dra.",
+      "characters": [],
+      "players": [
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.48,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        }
+      ]
+    },
+    {
+      "id": "session-002-event-08",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "2",
+      "sessionId": "2",
+      "sessionNumber": 2,
+      "sessionDate": "13/05/2025",
+      "order": 8,
+      "title": "Vi trovate bloccati tra tre problemi: la creatura con il sacco, una creatura che raccoglie dei...",
+      "summary": "Vi trovate bloccati tra tre problemi: la creatura con il sacco, una creatura che raccoglie dei corpi da un pozzo e li 'strizza' tirandone fuori il sangue, e due cani mostruosi come quello che avete già affrontato.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "pozzo"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rituale"
+      ],
+      "visibility": "public",
+      "confidence": 0.38,
+      "matches": []
+    },
+    {
+      "id": "session-003-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "3",
+      "sessionId": "3",
+      "sessionNumber": 3,
+      "sessionDate": "26/05/2025",
+      "order": 1,
+      "title": "Decidete di affrontare i cani a ovest, riuscendo a sconfiggerli.",
+      "summary": "Decidete di affrontare i cani a ovest, riuscendo a sconfiggerli.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.38,
+      "matches": []
+    },
+    {
+      "id": "session-003-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "3",
+      "sessionId": "3",
+      "sessionNumber": 3,
+      "sessionDate": "26/05/2025",
+      "order": 2,
+      "title": "Vi avvicinate leggermente allo 'Spremiagrumi'; non sembra reagire in modo ostile, porge la mano...",
+      "summary": "Vi avvicinate leggermente allo 'Spremiagrumi'; non sembra reagire in modo ostile, porge la mano a Ga'Run, che però non si avvicina.",
+      "characters": [],
+      "players": [
+        "garun"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.43,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        }
+      ]
+    },
+    {
+      "id": "session-003-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "3",
+      "sessionId": "3",
+      "sessionNumber": 3,
+      "sessionDate": "26/05/2025",
+      "order": 3,
+      "title": "Tornate nella stanza con i bracieri, entrando nello stanzino aperto da 'Gianni': dentro trovate...",
+      "summary": "Tornate nella stanza con i bracieri, entrando nello stanzino aperto da 'Gianni': dentro trovate varie copie del libro \"Sotto la guida di Abrak\", che parla del popolo Klaren e di una divinità - Abrak - nata dopo un patto tra i Klaren stessi ed un'altra entità di cui non sono specificati nome o natura.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [
+        "albert"
+      ],
+      "tags": [
+        "rituale",
+        "oggetto",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.51,
+      "matches": [
+        {
+          "kind": "creature",
+          "id": "albert",
+          "label": "Albert",
+          "matched": "Gianni"
+        }
+      ]
+    },
+    {
+      "id": "session-003-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "3",
+      "sessionId": "3",
+      "sessionNumber": 3,
+      "sessionDate": "26/05/2025",
+      "order": 4,
+      "title": "Raccogliete velocemente dei documenti, che includono quattro macchie colorate collegate da una...",
+      "summary": "Raccogliete velocemente dei documenti, che includono quattro macchie colorate collegate da una freccia: verde > azzurro > rosso > viola",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.35,
+      "matches": []
+    },
+    {
+      "id": "session-003-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "3",
+      "sessionId": "3",
+      "sessionNumber": 3,
+      "sessionDate": "26/05/2025",
+      "order": 5,
+      "title": "Tornate da Rabberduscolanderson e X.",
+      "summary": "Tornate da Rabberduscolanderson e X. Apothecary parla con Rabberduscolanderson, scoprendo dettagli sulla sua storia. Dopo avervici fatto amicizia, egli regala ad Apothecary un anello magico.",
+      "characters": [
+        "rabberduscolanderson",
+        "x"
+      ],
+      "players": [
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "rabber_quests",
+        "x_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "oggetto"
+      ],
+      "visibility": "public",
+      "confidence": 0.73,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        }
+      ]
+    },
+    {
+      "id": "session-003-event-06",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "3",
+      "sessionId": "3",
+      "sessionNumber": 3,
+      "sessionDate": "26/05/2025",
+      "order": 6,
+      "title": "Gli altri, nel frattempo, parlano con X e 'rubano' qualche informazione pur non avendo portato...",
+      "summary": "Gli altri, nel frattempo, parlano con X e 'rubano' qualche informazione pur non avendo portato libri particolarmente interessanti.",
+      "characters": [
+        "x"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "x_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.49,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        }
+      ]
+    },
+    {
+      "id": "session-003-event-07",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "3",
+      "sessionId": "3",
+      "sessionNumber": 3,
+      "sessionDate": "26/05/2025",
+      "order": 7,
+      "title": "X dopo avervi fornito più informazioni di quanto pattuito inizialmente, insiste chiedendovi di...",
+      "summary": "X dopo avervi fornito più informazioni di quanto pattuito inizialmente, insiste chiedendovi di esplorare la cripta e raccogliere quante più informazioni interessanti possibile.",
+      "characters": [
+        "x"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "Cripta"
+      ],
+      "quests": [
+        "x_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "missione",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.56,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        }
+      ]
+    },
+    {
+      "id": "session-003-event-08",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "3",
+      "sessionId": "3",
+      "sessionNumber": 3,
+      "sessionDate": "26/05/2025",
+      "order": 8,
+      "title": "Note aggiuntive: Da quello che X vi ha rivelato, sembra che la famiglia Von T sia coinvolta in...",
+      "summary": "Note aggiuntive: Da quello che X vi ha rivelato, sembra che la famiglia Von T sia coinvolta in qualcosa che riguarda il luogo in cui vi trovate. Inoltre, la bambina dai capelli bianchi sembra essere l'ultima della stirpe Von T, la quale ora dispone di un potere molto grande. Infine sembra che anche i ricordi dei Von T stiano influenzando questo luogo, ad esempio 'Gianni' è stato definito come 'il giardiniere del Palazzo Von T', un bell'uomo a detta di X.",
+      "characters": [
+        "x"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "x_quests"
+      ],
+      "items": [],
+      "creatures": [
+        "albert"
+      ],
+      "tags": [
+        "rivelazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.59,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "creature",
+          "id": "albert",
+          "label": "Albert",
+          "matched": "Gianni"
+        }
+      ]
+    },
+    {
+      "id": "session-003-event-09",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "3",
+      "sessionId": "3",
+      "sessionNumber": 3,
+      "sessionDate": "26/05/2025",
+      "order": 9,
+      "title": "Rabberduscolanderson - da quanto sa Apothecary - è sempre stato da solo in vita.",
+      "summary": "Rabberduscolanderson - da quanto sa Apothecary - è sempre stato da solo in vita. Aveva solo 3 cani e dopo anni aveva conosciuto una donna, che però venne uccisa. Alla fine, si gettò da un precipizio e pose fine alla sua vita.",
+      "characters": [
+        "rabberduscolanderson"
+      ],
+      "players": [
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "rabber_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "morte"
+      ],
+      "visibility": "public",
+      "confidence": 0.59,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        }
+      ]
+    },
+    {
+      "id": "session-003-event-10",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "3",
+      "sessionId": "3",
+      "sessionNumber": 3,
+      "sessionDate": "26/05/2025",
+      "order": 10,
+      "title": "Sembra che Rabberduscolanderson sia interessato alla targhetta nella tasca di Ran'Dra.",
+      "summary": "Sembra che Rabberduscolanderson sia interessato alla targhetta nella tasca di Ran'Dra. Inoltre, avevate lasciato nei cadaveri degli altri cani altre due targhette, che forse volevate riprendere.",
+      "characters": [
+        "rabberduscolanderson"
+      ],
+      "players": [
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "rabber_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.57,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        }
+      ]
+    },
+    {
+      "id": "session-004-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "4",
+      "sessionId": "4",
+      "sessionNumber": 4,
+      "sessionDate": "10/06/2025",
+      "order": 1,
+      "title": "Valdor consegna la prima targhetta a Rabberduscolanderson, il quale gli dà in cambio una...",
+      "summary": "Valdor consegna la prima targhetta a Rabberduscolanderson, il quale gli dà in cambio una pozione. Lo accompagnate momentaneamente dove avete ucciso il primo cane e poi tornate indietro.",
+      "characters": [
+        "rabberduscolanderson"
+      ],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "rabber_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.57,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        }
+      ]
+    },
+    {
+      "id": "session-004-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "4",
+      "sessionId": "4",
+      "sessionNumber": 4,
+      "sessionDate": "10/06/2025",
+      "order": 2,
+      "title": "Decidete di andare a prendere anche le altre due targhette a nord, e le riportate a...",
+      "summary": "Decidete di andare a prendere anche le altre due targhette a nord, e le riportate a Rabberduscolanderson, ottenendo ulteriori pozioni in cambio.",
+      "characters": [
+        "rabberduscolanderson"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "rabber_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.49,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        }
+      ]
+    },
+    {
+      "id": "session-004-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "4",
+      "sessionId": "4",
+      "sessionNumber": 4,
+      "sessionDate": "10/06/2025",
+      "order": 3,
+      "title": "Egli vi cita 'Elena', la sua compagna, dicendovi che nel caso in cui ci fosse qualcosa in giro a...",
+      "summary": "Egli vi cita 'Elena', la sua compagna, dicendovi che nel caso in cui ci fosse qualcosa in giro a lei legata, gli farebbe piacere riaverla tra le mani.",
+      "characters": [
+        "elena"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.43,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "elena",
+          "label": "Elena Erbadath",
+          "matched": "elena"
+        }
+      ]
+    },
+    {
+      "id": "session-004-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "4",
+      "sessionId": "4",
+      "sessionNumber": 4,
+      "sessionDate": "10/06/2025",
+      "order": 4,
+      "title": "Procedete furtivi con l'esplorazione del piano, trovando due porte chiuse.",
+      "summary": "Procedete furtivi con l'esplorazione del piano, trovando due porte chiuse. Ran'Dra, origliando dietro la prima, sente una strana voce dall'altra parte, accompagnata da suoni inquietanti.",
+      "characters": [],
+      "players": [
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        }
+      ]
+    },
+    {
+      "id": "session-004-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "4",
+      "sessionId": "4",
+      "sessionNumber": 4,
+      "sessionDate": "10/06/2025",
+      "order": 5,
+      "title": "Decidete di dirigervi nell'altra, dove trovate 3 sarcofagi.",
+      "summary": "Decidete di dirigervi nell'altra, dove trovate 3 sarcofagi. Decidete di aprirli e venite attaccati da alcune mummie. Una di questa, purtroppo, maledice Ga'Run.",
+      "characters": [],
+      "players": [
+        "garun"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        }
+      ]
+    },
+    {
+      "id": "session-004-event-06",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "4",
+      "sessionId": "4",
+      "sessionNumber": 4,
+      "sessionDate": "10/06/2025",
+      "order": 6,
+      "title": "Il gigante che si aggira per la cripta, attirato dal rumore, inizia ad avvicinarsi minaccioso...",
+      "summary": "Il gigante che si aggira per la cripta, attirato dal rumore, inizia ad avvicinarsi minaccioso verso la vostra posizione. Riuscite ad evitarlo e ad andarvene via.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "Cripta"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.35,
+      "matches": []
+    },
+    {
+      "id": "session-004-event-07",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "4",
+      "sessionId": "4",
+      "sessionNumber": 4,
+      "sessionDate": "10/06/2025",
+      "order": 7,
+      "title": "Tornate da X, la quale vi propone di uccidere Ga'Run e riportarlo in vita per rimuovere la...",
+      "summary": "Tornate da X, la quale vi propone di uccidere Ga'Run e riportarlo in vita per rimuovere la maledizione; morendo per la maledizione, invece, il corpo si tramuta in cenere!",
+      "characters": [
+        "x"
+      ],
+      "players": [
+        "garun"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "x_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.59,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        }
+      ]
+    },
+    {
+      "id": "session-004-event-08",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "4",
+      "sessionId": "4",
+      "sessionNumber": 4,
+      "sessionDate": "10/06/2025",
+      "order": 8,
+      "title": "Andate infine a riposare nella stanza sigillata dalla magia di Valdor, e passate la notte lì,...",
+      "summary": "Andate infine a riposare nella stanza sigillata dalla magia di Valdor, e passate la notte lì, preparandovi a rimuovere la terribile maledizione con l'aiuto della magia di Apothecary.",
+      "characters": [],
+      "players": [
+        "valdor",
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione",
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.56,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        }
+      ]
+    },
+    {
+      "id": "session-005-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "5",
+      "sessionId": "5",
+      "sessionNumber": 5,
+      "sessionDate": "24/06/2025",
+      "order": 1,
+      "title": "Concludete il vostro riposo lungo e, una volta svegli, Apothecary utilizza la sua magia divina...",
+      "summary": "Concludete il vostro riposo lungo e, una volta svegli, Apothecary utilizza la sua magia divina per rimuovere la maledizione che affligge Ga'Run.",
+      "characters": [],
+      "players": [
+        "garun",
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.54,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        }
+      ]
+    },
+    {
+      "id": "session-005-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "5",
+      "sessionId": "5",
+      "sessionNumber": 5,
+      "sessionDate": "24/06/2025",
+      "order": 2,
+      "title": "Dopo aver trascorso qualche minuto a chiacchierare, in attesa che Ga'Run riposasse un po',...",
+      "summary": "Dopo aver trascorso qualche minuto a chiacchierare, in attesa che Ga'Run riposasse un po', decidete di ripartire.",
+      "characters": [],
+      "players": [
+        "garun"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        }
+      ]
+    },
+    {
+      "id": "session-005-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "5",
+      "sessionId": "5",
+      "sessionNumber": 5,
+      "sessionDate": "24/06/2025",
+      "order": 3,
+      "title": "Mentre percorrete i corridoi e le vie della cripta, cercate di individuare Gianni, in modo da...",
+      "summary": "Mentre percorrete i corridoi e le vie della cripta, cercate di individuare Gianni, in modo da abbatterlo cogliendolo di sorpresa.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "Cripta"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [
+        "albert"
+      ],
+      "tags": [
+        "combattimento",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.48,
+      "matches": [
+        {
+          "kind": "creature",
+          "id": "albert",
+          "label": "Albert",
+          "matched": "Gianni"
+        }
+      ]
+    },
+    {
+      "id": "session-005-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "5",
+      "sessionId": "5",
+      "sessionNumber": 5,
+      "sessionDate": "24/06/2025",
+      "order": 4,
+      "title": "Prima di Gianni, però, incontrate uno strano topo parlante, affiancato da uno strano essere di...",
+      "summary": "Prima di Gianni, però, incontrate uno strano topo parlante, affiancato da uno strano essere di carne che lo accompagna. Egli vi invita nel suo macabro laboratorio dove vi chiede di procurargli un cuore in grado di alimentare un golem gigante che sta costruendo; in cambio, vi ha offerto dei \"sieri speciali\".",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "laboratorio"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [
+        "albert"
+      ],
+      "tags": [
+        "missione",
+        "oggetto"
+      ],
+      "visibility": "public",
+      "confidence": 0.48,
+      "matches": [
+        {
+          "kind": "creature",
+          "id": "albert",
+          "label": "Albert",
+          "matched": "Gianni"
+        }
+      ]
+    },
+    {
+      "id": "session-005-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "5",
+      "sessionId": "5",
+      "sessionNumber": 5,
+      "sessionDate": "24/06/2025",
+      "order": 5,
+      "title": "Rifiutate la sua offerta, Ran'Dra gli ruba di soppiatto uno strano libro, e ve ne andate.",
+      "summary": "Rifiutate la sua offerta, Ran'Dra gli ruba di soppiatto uno strano libro, e ve ne andate.",
+      "characters": [],
+      "players": [
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "oggetto"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        }
+      ]
+    },
+    {
+      "id": "session-005-event-06",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "5",
+      "sessionId": "5",
+      "sessionNumber": 5,
+      "sessionDate": "24/06/2025",
+      "order": 6,
+      "title": "Poco dopo, vedete passare Gianni ed iniziate un combattimento contro di lui, il quale sembra...",
+      "summary": "Poco dopo, vedete passare Gianni ed iniziate un combattimento contro di lui, il quale sembra essere un avversario piuttosto temibile.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [
+        "albert"
+      ],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "creature",
+          "id": "albert",
+          "label": "Albert",
+          "matched": "Gianni"
+        }
+      ]
+    },
+    {
+      "id": "session-006-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "6",
+      "sessionId": "6",
+      "sessionNumber": 6,
+      "sessionDate": "08/07/2025",
+      "order": 1,
+      "title": "Riuscite a completare il combattimento contro Gianni, avendo successo.",
+      "summary": "Riuscite a completare il combattimento contro Gianni, avendo successo. Riuscite a prelevare un Cuore dal suo corpo, che sembra avere una funzione simile a quella di una batteria arcana. Valdor scopre che pare sia incantato con un incantesimo simile a Desiderio.",
+      "characters": [],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [
+        "albert"
+      ],
+      "tags": [
+        "combattimento",
+        "oggetto"
+      ],
+      "visibility": "public",
+      "confidence": 0.56,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "creature",
+          "id": "albert",
+          "label": "Albert",
+          "matched": "Gianni"
+        }
+      ]
+    },
+    {
+      "id": "session-006-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "6",
+      "sessionId": "6",
+      "sessionNumber": 6,
+      "sessionDate": "08/07/2025",
+      "order": 2,
+      "title": "Franky sembrava particolarmente interessato a quel cuore, ma riuscite ad evitare le sue...",
+      "summary": "Franky sembrava particolarmente interessato a quel cuore, ma riuscite ad evitare le sue richieste e a procedere senza darglielo o parlargliene.",
+      "characters": [
+        "franky"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "franky_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "oggetto"
+      ],
+      "visibility": "public",
+      "confidence": 0.51,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "franky",
+          "label": "Franky",
+          "matched": "Franky"
+        },
+        {
+          "kind": "quest",
+          "id": "franky_quests",
+          "label": "Franky",
+          "matched": "Franky"
+        }
+      ]
+    },
+    {
+      "id": "session-006-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "6",
+      "sessionId": "6",
+      "sessionNumber": 6,
+      "sessionDate": "08/07/2025",
+      "order": 3,
+      "title": "Cercando nei sarcofagi dove avete affrontato le mummie il giorno precedente, trovate un diamante...",
+      "summary": "Cercando nei sarcofagi dove avete affrontato le mummie il giorno precedente, trovate un diamante e un Medaglione con inciso il simbolo Klaren.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento",
+        "oggetto"
+      ],
+      "visibility": "public",
+      "confidence": 0.4,
+      "matches": []
+    },
+    {
+      "id": "session-006-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "6",
+      "sessionId": "6",
+      "sessionNumber": 6,
+      "sessionDate": "08/07/2025",
+      "order": 4,
+      "title": "Esplorate la parte sud del livello e trovate 3 dipinti con delle targhette sotto: \"Zara\", \"Mafu\"...",
+      "summary": "Esplorate la parte sud del livello e trovate 3 dipinti con delle targhette sotto: \"Zara\", \"Mafu\" e \"Lumilla, Rosskar, Okbrax\". Di fronte a quello di \"Zara\", Ran'Dra raccoglie una Collana che emana magia.",
+      "characters": [
+        "zara"
+      ],
+      "players": [
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "zara_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "oggetto",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.62,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "zara",
+          "label": "Zara Klaren",
+          "matched": "zara"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "quest",
+          "id": "zara_quests",
+          "label": "Zara",
+          "matched": "Zara"
+        }
+      ]
+    },
+    {
+      "id": "session-006-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "6",
+      "sessionId": "6",
+      "sessionNumber": 6,
+      "sessionDate": "08/07/2025",
+      "order": 5,
+      "title": "Vi dirigete di nuovo verso nord, dove ritrovate il mimic che era fuggito durante il vostro primo...",
+      "summary": "Vi dirigete di nuovo verso nord, dove ritrovate il mimic che era fuggito durante il vostro primo scontro. Questa volta, riuscite ad abbatterlo; ci sarà qualcosa dentro?",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.4,
+      "matches": []
+    },
+    {
+      "id": "session-007-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "7",
+      "sessionId": "7",
+      "sessionNumber": 7,
+      "sessionDate": "31/07/2025",
+      "order": 1,
+      "title": "Valdor controlla il cadavere dello scrigno animato, trovando al suo interno una particolare...",
+      "summary": "Valdor controlla il cadavere dello scrigno animato, trovando al suo interno una particolare spilla, che supponete con abbastanza certezza sia magica.",
+      "characters": [],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "oggetto",
+        "esplorazione",
+        "morte"
+      ],
+      "visibility": "public",
+      "confidence": 0.51,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        }
+      ]
+    },
+    {
+      "id": "session-007-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "7",
+      "sessionId": "7",
+      "sessionNumber": 7,
+      "sessionDate": "31/07/2025",
+      "order": 2,
+      "title": "Vi dirigete verso la stanza di Rabberduscolanderson, quando notate i fiori che tempo prima aveva...",
+      "summary": "Vi dirigete verso la stanza di Rabberduscolanderson, quando notate i fiori che tempo prima aveva definito come \"il giardino di Albert\". Decidete di attaccarli, trovandovi in un combattimento piuttosto rischioso contro dei fiori-pianta.",
+      "characters": [
+        "rabberduscolanderson"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "stanza di Rabberduscolanderson",
+        "giardino di Albert"
+      ],
+      "quests": [
+        "rabber_quests"
+      ],
+      "items": [],
+      "creatures": [
+        "albert"
+      ],
+      "tags": [
+        "combattimento",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.62,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        },
+        {
+          "kind": "creature",
+          "id": "albert",
+          "label": "Albert",
+          "matched": "Albert"
+        }
+      ]
+    },
+    {
+      "id": "session-007-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "7",
+      "sessionId": "7",
+      "sessionNumber": 7,
+      "sessionDate": "31/07/2025",
+      "order": 3,
+      "title": "Grazie all'aiuto di Rabberduscolanderson e X, riuscite a sconfiggere questi nemici,...",
+      "summary": "Grazie all'aiuto di Rabberduscolanderson e X, riuscite a sconfiggere questi nemici, sopravvivendo.",
+      "characters": [
+        "rabberduscolanderson",
+        "x"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "rabber_quests",
+        "x_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.65,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        }
+      ]
+    },
+    {
+      "id": "session-007-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "7",
+      "sessionId": "7",
+      "sessionNumber": 7,
+      "sessionDate": "31/07/2025",
+      "order": 4,
+      "title": "Ran'Dra consegna a X il libro rubato a Franky, ottenendo alcune informazioni in cambio: in...",
+      "summary": "Ran'Dra consegna a X il libro rubato a Franky, ottenendo alcune informazioni in cambio: in particolare, scoprite che per accedere al piano sottostante è sufficiente mostrare alla porta il simbolo del Klaren.",
+      "characters": [
+        "x",
+        "franky"
+      ],
+      "players": [
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "x_quests",
+        "franky_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "oggetto",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.78,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "character",
+          "id": "franky",
+          "label": "Franky",
+          "matched": "Franky"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "quest",
+          "id": "franky_quests",
+          "label": "Franky",
+          "matched": "Franky"
+        }
+      ]
+    },
+    {
+      "id": "session-008-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "8",
+      "sessionId": "8",
+      "sessionNumber": 8,
+      "sessionDate": "04/08/2025",
+      "order": 1,
+      "title": "Parlando con X, scoprite anche che i fantasmi che abitano questa cripta non sono altro che altre...",
+      "summary": "Parlando con X, scoprite anche che i fantasmi che abitano questa cripta non sono altro che altre persone che, come voi, si trovano in questo luogo. Pare che voi, a differenza loro, vi troviate nella linea più vicina a quella reale, cioè a quella dove si trovano i Von T. Gli altri, invece, si trovano in delle repliche di essa.",
+      "characters": [
+        "x"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "Cripta"
+      ],
+      "quests": [
+        "x_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.51,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        }
+      ]
+    },
+    {
+      "id": "session-008-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "8",
+      "sessionId": "8",
+      "sessionNumber": 8,
+      "sessionDate": "04/08/2025",
+      "order": 2,
+      "title": "Dopo il combattimento contro il giardino di Albert, eravate piuttosto stanchi e decidete di...",
+      "summary": "Dopo il combattimento contro il giardino di Albert, eravate piuttosto stanchi e decidete di recuperare le forze trascorrendo il resto della giornata all'interno della vostra stanza.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "giardino di Albert"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [
+        "albert"
+      ],
+      "tags": [
+        "combattimento",
+        "missione",
+        "esplorazione",
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.53,
+      "matches": [
+        {
+          "kind": "creature",
+          "id": "albert",
+          "label": "Albert",
+          "matched": "Albert"
+        }
+      ]
+    },
+    {
+      "id": "session-008-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "8",
+      "sessionId": "8",
+      "sessionNumber": 8,
+      "sessionDate": "04/08/2025",
+      "order": 3,
+      "title": "Prima di spostarvi al piano sottostante, la mattina seguente provate a mettere le mani sul libro...",
+      "summary": "Prima di spostarvi al piano sottostante, la mattina seguente provate a mettere le mani sul libro che Valdor aveva adocchiato il primo giorno che avete iniziato ad esplorare questa cripta. Tuttavia, dopo averlo preso, Valdor è rimasto intrappolato all'interno della stanza, circondato da creature non morte che lo hanno attaccato.",
+      "characters": [],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [
+        "Cripta"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento",
+        "oggetto",
+        "esplorazione",
+        "morte"
+      ],
+      "visibility": "public",
+      "confidence": 0.53,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        }
+      ]
+    },
+    {
+      "id": "session-009-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "9",
+      "sessionId": "9",
+      "sessionNumber": 9,
+      "sessionDate": "01/09/2025",
+      "order": 1,
+      "title": "Continuate il vostro combattimento contro gli scheletri animati dopo che Valdor ha raccolto il...",
+      "summary": "Continuate il vostro combattimento contro gli scheletri animati dopo che Valdor ha raccolto il libro, e riuscite ad uscirne vincitori senza perdite.",
+      "characters": [],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento",
+        "oggetto"
+      ],
+      "visibility": "public",
+      "confidence": 0.48,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        }
+      ]
+    },
+    {
+      "id": "session-009-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "9",
+      "sessionId": "9",
+      "sessionNumber": 9,
+      "sessionDate": "01/09/2025",
+      "order": 2,
+      "title": "Una volta sconfitti gli scheletri di Rosskar, Okbrax e Lumilla, il sacrofago all'interno della...",
+      "summary": "Una volta sconfitti gli scheletri di Rosskar, Okbrax e Lumilla, il sacrofago all'interno della stanza si sblocca, rivelando al suo interno numerosi oggetti magici (armature e armi).",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento",
+        "rivelazione",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.42,
+      "matches": []
+    },
+    {
+      "id": "session-009-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "9",
+      "sessionId": "9",
+      "sessionNumber": 9,
+      "sessionDate": "01/09/2025",
+      "order": 3,
+      "title": "Date un'occhiata veloce al libro e capite che questo contiene parti della storia dei Klaren,...",
+      "summary": "Date un'occhiata veloce al libro e capite che questo contiene parti della storia dei Klaren, narrati con un linguaggio piuttosto arcaico.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "oggetto"
+      ],
+      "visibility": "public",
+      "confidence": 0.4,
+      "matches": []
+    },
+    {
+      "id": "session-010-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "10",
+      "sessionId": "10",
+      "sessionNumber": 10,
+      "sessionDate": "21/09/2025",
+      "order": 1,
+      "title": "Trascorrete del tempo con il vostro amico Rabberduscolanderson e Valdor realizza un portafoto...",
+      "summary": "Trascorrete del tempo con il vostro amico Rabberduscolanderson e Valdor realizza un portafoto olografico con una fotografia che rappresenta tutti voi.",
+      "characters": [
+        "rabberduscolanderson"
+      ],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "rabber_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.57,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        }
+      ]
+    },
+    {
+      "id": "session-010-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "10",
+      "sessionId": "10",
+      "sessionNumber": 10,
+      "sessionDate": "21/09/2025",
+      "order": 2,
+      "title": "Consegnate il Cuore di Albert ad X, la quale ha iniziato a studiarlo aiutandosi con lo strano...",
+      "summary": "Consegnate il Cuore di Albert ad X, la quale ha iniziato a studiarlo aiutandosi con lo strano libro che avete rubato a Franky.",
+      "characters": [
+        "x",
+        "franky"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "x_quests",
+        "franky_quests"
+      ],
+      "items": [
+        "cuore-di-albert"
+      ],
+      "creatures": [
+        "albert"
+      ],
+      "tags": [
+        "oggetto"
+      ],
+      "visibility": "public",
+      "confidence": 0.78,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "character",
+          "id": "franky",
+          "label": "Franky",
+          "matched": "Franky"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "quest",
+          "id": "franky_quests",
+          "label": "Franky",
+          "matched": "Franky"
+        },
+        {
+          "kind": "item",
+          "id": "cuore-di-albert",
+          "label": "Cuore di Albert",
+          "matched": "Cuore di Albert"
+        },
+        {
+          "kind": "creature",
+          "id": "albert",
+          "label": "Albert",
+          "matched": "Albert"
+        }
+      ]
+    },
+    {
+      "id": "session-010-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "10",
+      "sessionId": "10",
+      "sessionNumber": 10,
+      "sessionDate": "21/09/2025",
+      "order": 3,
+      "title": "Decidete di scendere al livello inferiore, dove venite accolti da una stanza ampia, con la...",
+      "summary": "Decidete di scendere al livello inferiore, dove venite accolti da una stanza ampia, con la statua di 'Octavio' in fondo. Qui trovate dei palloncini che iniziano a seguirvi fluttuando, e una bambolina che chiamava Ran'Dra \"Mamma\" e chiedeva di stare in braccio.",
+      "characters": [],
+      "players": [
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [
+        "livello inferiore"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "missione",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.48,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        }
+      ]
+    },
+    {
+      "id": "session-010-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "10",
+      "sessionId": "10",
+      "sessionNumber": 10,
+      "sessionDate": "21/09/2025",
+      "order": 4,
+      "title": "Dopo aver gettato la bambolina in un fosso, avete continuato verso sud, dove avete incontrato...",
+      "summary": "Dopo aver gettato la bambolina in un fosso, avete continuato verso sud, dove avete incontrato degli umanoidi estremamente magri e pallidi, che Valdor ha riconosciuto come Progenie Vampiriche. Queste stanno tentando di portarvi pacificamente da \"Karla\", che desidera incontrarvi. Voi state tentando di ribellarvi.",
+      "characters": [
+        "karla"
+      ],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.57,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-011-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "11",
+      "sessionId": "11",
+      "sessionNumber": 11,
+      "sessionDate": "06/10/2025",
+      "order": 1,
+      "title": "Il vostro incontro con le progenie vampiriche si sviluppa in modo violento ed iniziate ad...",
+      "summary": "Il vostro incontro con le progenie vampiriche si sviluppa in modo violento ed iniziate ad attaccare queste creature, provando ad ucciderle.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.38,
+      "matches": []
+    },
+    {
+      "id": "session-011-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "11",
+      "sessionId": "11",
+      "sessionNumber": 11,
+      "sessionDate": "06/10/2025",
+      "order": 2,
+      "title": "Grazie alla loro sorprendente rigenerazione naturale, le ferite di queste creature si...",
+      "summary": "Grazie alla loro sorprendente rigenerazione naturale, le ferite di queste creature si rimarginano molto rapidamente, rendendovi difficile il compito di abbatterle.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.38,
+      "matches": []
+    },
+    {
+      "id": "session-011-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "11",
+      "sessionId": "11",
+      "sessionNumber": 11,
+      "sessionDate": "06/10/2025",
+      "order": 3,
+      "title": "Una di queste creature si allontana, andando a chiamare un'altra figura, decisamente più...",
+      "summary": "Una di queste creature si allontana, andando a chiamare un'altra figura, decisamente più inquietante. Karla, una vampira, si presenta di fronte a voi, ponendo fine al combattimento.",
+      "characters": [
+        "karla"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.51,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-011-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "11",
+      "sessionId": "11",
+      "sessionNumber": 11,
+      "sessionDate": "06/10/2025",
+      "order": 4,
+      "title": "Karla utilizza un effetto di incantamento su Ga'Run, portandolo dalla sua parte.",
+      "summary": "Karla utilizza un effetto di incantamento su Ga'Run, portandolo dalla sua parte. Poi, Valdor decide di arrendersi, e così anche Ran'Dra e Apothecary. Insieme, venite accompagnati in una grande sala dove scambiate 2 chiacchiere con Karla.",
+      "characters": [
+        "karla"
+      ],
+      "players": [
+        "garun",
+        "randra",
+        "valdor",
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.81,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-011-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "11",
+      "sessionId": "11",
+      "sessionNumber": 11,
+      "sessionDate": "06/10/2025",
+      "order": 5,
+      "title": "Karla rimane piuttosto criptica, ma prova interesse nei vostri confronti, dicendo che stava...",
+      "summary": "Karla rimane piuttosto criptica, ma prova interesse nei vostri confronti, dicendo che stava aspettando qualcuno che fosse 'in una linea vicina' - come voi. Vi propone di aiutarvi, dicendo che la ragazza dai capelli bianchi è un male terribile da estirpare.",
+      "characters": [
+        "karla"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.49,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-011-event-06",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "11",
+      "sessionId": "11",
+      "sessionNumber": 11,
+      "sessionDate": "06/10/2025",
+      "order": 6,
+      "title": "Per aiutarvi, inizia un rituale partendo da Ran'Dra, la quale si offre di essere la prima.",
+      "summary": "Per aiutarvi, inizia un rituale partendo da Ran'Dra, la quale si offre di essere la prima. Entrata in una stanza, accadono cose di cui non siete troppo certi. Il secondo è Valdor, che prima di entrare lancia un segnale di pericolo ai suoi compagni che restano all'esterno.",
+      "characters": [],
+      "players": [
+        "randra",
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rituale",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.56,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        }
+      ]
+    },
+    {
+      "id": "session-011-event-07",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "11",
+      "sessionId": "11",
+      "sessionNumber": 11,
+      "sessionDate": "06/10/2025",
+      "order": 7,
+      "title": "Egli, usando la sua magia di Arcane Lock, intrappola sé stesso e Karla nella stanza; nel...",
+      "summary": "Egli, usando la sua magia di Arcane Lock, intrappola sé stesso e Karla nella stanza; nel frattempo, Ga'Run perde la pazienza all'esterno e pretende di entrare e vedere le condizioni di Ran'Dra. Come procederà questa situazione di stallo? Cosa è accaduto davvero in quella stanza?",
+      "characters": [
+        "karla"
+      ],
+      "players": [
+        "garun",
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.67,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-012-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "12",
+      "sessionId": "12",
+      "sessionNumber": 12,
+      "sessionDate": "19/10/2025",
+      "order": 1,
+      "title": "Uno dopo l'altro vi sottoponete al rituale macabro di Karla, tutti con successo.",
+      "summary": "Uno dopo l'altro vi sottoponete al rituale macabro di Karla, tutti con successo. Uno per uno, dopo quella che sembra essere stata una morte temporanea, vi risvegliate sentendo dentro di voi un potere nuovo.",
+      "characters": [
+        "karla"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rituale",
+        "morte"
+      ],
+      "visibility": "public",
+      "confidence": 0.54,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-012-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "12",
+      "sessionId": "12",
+      "sessionNumber": 12,
+      "sessionDate": "19/10/2025",
+      "order": 2,
+      "title": "Dopo i rituali, avete l'occasione di parlare con Karla riguardo alla situazione in cui tutti...",
+      "summary": "Dopo i rituali, avete l'occasione di parlare con Karla riguardo alla situazione in cui tutti voi, lei compresa, vi trovate. Capite che entrambi avete un obiettivo comune: Deborah, la ragazza dai capelli bianchi.",
+      "characters": [
+        "deborah",
+        "karla"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.59,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "deborah",
+          "label": "Deborah Von T",
+          "matched": "deborah"
+        },
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-012-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "12",
+      "sessionId": "12",
+      "sessionNumber": 12,
+      "sessionDate": "19/10/2025",
+      "order": 3,
+      "title": "Karla vi parla dei pericoli di questo luogo, citando un uomo folle che realizza creature di...",
+      "summary": "Karla vi parla dei pericoli di questo luogo, citando un uomo folle che realizza creature di ragnatela e tendini (a nord), e numerosi non-morti (a sud). Ella vi chiede di liberarvi di loro, dato il fastidio che provocano nel piano.",
+      "characters": [
+        "karla"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "missione",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.54,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-012-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "12",
+      "sessionId": "12",
+      "sessionNumber": 12,
+      "sessionDate": "19/10/2025",
+      "order": 4,
+      "title": "Inoltre vi cita la presenza di una giullare, probabile creatrice di alcune stranezze che avete...",
+      "summary": "Inoltre vi cita la presenza di una giullare, probabile creatrice di alcune stranezze che avete visto da quando siete arrivati al secondo piano.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "secondo piano"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.38,
+      "matches": []
+    },
+    {
+      "id": "session-012-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "12",
+      "sessionId": "12",
+      "sessionNumber": 12,
+      "sessionDate": "19/10/2025",
+      "order": 5,
+      "title": "Vi fermate a dormire in una piccola stanza a est, per poi ripartire il giorno dopo.",
+      "summary": "Vi fermate a dormire in una piccola stanza a est, per poi ripartire il giorno dopo. Ignorate Karla e decidete di procedere con l'esplorazione in autonomia. Trovate una stanza con un baule davanti ad una grande statua. Valdor lo apre, ed all'interno trova una pergamena contenente un disegno. Una volta raccolto, una figura gargantuesca di una giullare appare nella stanza con un secco \"Booo!\".",
+      "characters": [
+        "karla"
+      ],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "oggetto",
+        "esplorazione",
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.64,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-013-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "13",
+      "sessionId": "13",
+      "sessionNumber": 13,
+      "sessionDate": "06/11/2025",
+      "order": 1,
+      "title": "Quando la gigantesca figura attacca Valdor, questa si dissolve in un'esplosione di coriandoli...",
+      "summary": "Quando la gigantesca figura attacca Valdor, questa si dissolve in un'esplosione di coriandoli colorati rivelando di essere una semplice illusione.",
+      "characters": [],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento",
+        "rivelazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.48,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        }
+      ]
+    },
+    {
+      "id": "session-013-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "13",
+      "sessionId": "13",
+      "sessionNumber": 13,
+      "sessionDate": "06/11/2025",
+      "order": 2,
+      "title": "Fate mente locale su come procedere, e decidete comunque di dirigervi nella zona nord senza...",
+      "summary": "Fate mente locale su come procedere, e decidete comunque di dirigervi nella zona nord senza incontrare Karla, in modo da non ricevere da lei raccomandazioni o limitazioni di alcun tipo durante la vostra esplorazione.",
+      "characters": [
+        "karla"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "zona nord"
+      ],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.51,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-013-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "13",
+      "sessionId": "13",
+      "sessionNumber": 13,
+      "sessionDate": "06/11/2025",
+      "order": 3,
+      "title": "Entrate in una stanza composta da un lungo corridoio, dopo aver aperto un grosso portone,...",
+      "summary": "Entrate in una stanza composta da un lungo corridoio, dopo aver aperto un grosso portone, strappando con la forza le ragnatele dietro di esso che lo tenevano chiuso. Dopo qualche secondo dal vostro arrivo, un occhio rosso sul lato opposto del corridoio si illumina e le ragnatele sulle pareti si estendono e fortificano, tenendovi in trappola",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "corridoio"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.38,
+      "matches": []
+    },
+    {
+      "id": "session-013-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "13",
+      "sessionId": "13",
+      "sessionNumber": 13,
+      "sessionDate": "06/11/2025",
+      "order": 4,
+      "title": "Scoppia un combattimento contro una serie di ondate di creature mostruose, create da ragnatele e...",
+      "summary": "Scoppia un combattimento contro una serie di ondate di creature mostruose, create da ragnatele e corpi umani ed animali. Riuscite a sconfiggerle con un combattimento pericoloso, dove Ran'Dra è andata vicina a perdere la vita.",
+      "characters": [],
+      "players": [
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        }
+      ]
+    },
+    {
+      "id": "session-013-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "13",
+      "sessionId": "13",
+      "sessionNumber": 13,
+      "sessionDate": "06/11/2025",
+      "order": 5,
+      "title": "Ran'Dra, subito dopo il combattimento, dopo aver avuto una discussione con il padre Ga'Run, si...",
+      "summary": "Ran'Dra, subito dopo il combattimento, dopo aver avuto una discussione con il padre Ga'Run, si dirige verso la porta a sud, ora libera dalle ragnatele che la bloccavano durante il combattimento. Una volta aperta, però, compare di nuovo la figura della giullare, un po' più piccola questa volta, di nuovo con un forte \"Booo!\".",
+      "characters": [],
+      "players": [
+        "garun",
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.54,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        }
+      ]
+    },
+    {
+      "id": "session-014-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "14",
+      "sessionId": "14",
+      "sessionNumber": 14,
+      "sessionDate": "23/11/2025",
+      "order": 1,
+      "title": "Ancora una volta, vi preparate al combattimento contro la giullare.",
+      "summary": "Ancora una volta, vi preparate al combattimento contro la giullare. Ga'Run si tuffa senza pensarci due volte nella nube di fumo colorato che ha circondato Ran'Dra, per capire ben presto che si trattava nuovamente di un'illusione.",
+      "characters": [],
+      "players": [
+        "garun",
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.54,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        }
+      ]
+    },
+    {
+      "id": "session-014-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "14",
+      "sessionId": "14",
+      "sessionNumber": 14,
+      "sessionDate": "23/11/2025",
+      "order": 2,
+      "title": "Vi dirigete nella stanza con le due bamboline, e decidete di abbatterle, per poi riposarvi nella...",
+      "summary": "Vi dirigete nella stanza con le due bamboline, e decidete di abbatterle, per poi riposarvi nella loro stanza. Durante il riposo, Valdor ha una visione particolare che lo mostrava all'interno di una piccola casa di legno nella foresta.",
+      "characters": [],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento",
+        "visione",
+        "esplorazione",
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.53,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        }
+      ]
+    },
+    {
+      "id": "session-014-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "14",
+      "sessionId": "14",
+      "sessionNumber": 14,
+      "sessionDate": "23/11/2025",
+      "order": 3,
+      "title": "Durante il riposo, Valdor decide di indagare riguardo alla X del tesoro che c'era nella stanza,...",
+      "summary": "Durante il riposo, Valdor decide di indagare riguardo alla X del tesoro che c'era nella stanza, trovando uno Specchio Rotto magico, in grado di mostrare le persone riflesse con espressioni diverse.",
+      "characters": [
+        "x"
+      ],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "x_quests"
+      ],
+      "items": [
+        "specchio-rotto"
+      ],
+      "creatures": [],
+      "tags": [
+        "esplorazione",
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.67,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "item",
+          "id": "specchio-rotto",
+          "label": "Specchio Rotto",
+          "matched": "Specchio Rotto"
+        }
+      ]
+    },
+    {
+      "id": "session-014-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "14",
+      "sessionId": "14",
+      "sessionNumber": 14,
+      "sessionDate": "23/11/2025",
+      "order": 4,
+      "title": "Vi dirigete nella zona più a nord, dove Apothecary vede un mostro orribile nell'oscurità in...",
+      "summary": "Vi dirigete nella zona più a nord, dove Apothecary vede un mostro orribile nell'oscurità in fondo ad un lungo corridoio. Grazie a lei, riuscite ad evitare un eventuale attacco a sorpresa.",
+      "characters": [],
+      "players": [
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [
+        "corridoio"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.48,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        }
+      ]
+    },
+    {
+      "id": "session-014-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "14",
+      "sessionId": "14",
+      "sessionNumber": 14,
+      "sessionDate": "23/11/2025",
+      "order": 5,
+      "title": "Incontrate una persona metà ragno e metà uomo, con cui iniziate a combattere, vincendo.",
+      "summary": "Incontrate una persona metà ragno e metà uomo, con cui iniziate a combattere, vincendo. Il suo laboratorio sembra essere pieno di oggetti, che ancora non avete avuto occasione di analizzare.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "laboratorio"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.35,
+      "matches": []
+    },
+    {
+      "id": "session-015-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "15",
+      "sessionId": "15",
+      "sessionNumber": 15,
+      "sessionDate": "03/12/2025",
+      "order": 1,
+      "title": "Dopo aver sconfitto Nino Olegna, vi dirigete verso il suo studio, dove trovate diversi oggetti...",
+      "summary": "Dopo aver sconfitto Nino Olegna, vi dirigete verso il suo studio, dove trovate diversi oggetti interessanti. Oltre a documenti di vario tipo, legati principalmente a rituali oscuri per creare creature mostruose, Ga'Run ed Apothecary prendono con sé delle fiale contenenti liquidi magici.",
+      "characters": [
+        "nino_olegna"
+      ],
+      "players": [
+        "garun",
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.61,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "nino_olegna",
+          "label": "Nino Olegna",
+          "matched": "Nino Olegna"
+        },
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        }
+      ]
+    },
+    {
+      "id": "session-015-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "15",
+      "sessionId": "15",
+      "sessionNumber": 15,
+      "sessionDate": "03/12/2025",
+      "order": 2,
+      "title": "In particolare, vi turbano i documenti relativi a due creature: la prima è una creatura...",
+      "summary": "In particolare, vi turbano i documenti relativi a due creature: la prima è una creatura 'Assistente' - il Bacio Mortale - in grado di aiutare nei processi di creazione di altre creature; la seconda, una creatura colossale, dotata di una forza e resistenza non misurabili.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [
+        "bacio-mortale"
+      ],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.43,
+      "matches": [
+        {
+          "kind": "creature",
+          "id": "bacio-mortale",
+          "label": "Bacio Mortale",
+          "matched": "Bacio Mortale"
+        }
+      ]
+    },
+    {
+      "id": "session-015-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "15",
+      "sessionId": "15",
+      "sessionNumber": 15,
+      "sessionDate": "03/12/2025",
+      "order": 3,
+      "title": "Capendo che le Creature Tela che avete sconfitto precedentemente sono utilizzate per creare...",
+      "summary": "Capendo che le Creature Tela che avete sconfitto precedentemente sono utilizzate per creare altre creature, decidete di distruggere i corpi di tutte quelle che avete lasciato indietro.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.35,
+      "matches": []
+    },
+    {
+      "id": "session-015-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "15",
+      "sessionId": "15",
+      "sessionNumber": 15,
+      "sessionDate": "03/12/2025",
+      "order": 4,
+      "title": "Decidete inoltre di bruciare il corpo di Nino Olegna, dopo che Valdor ha tagliato e preso la sua...",
+      "summary": "Decidete inoltre di bruciare il corpo di Nino Olegna, dopo che Valdor ha tagliato e preso la sua testa come segno dimostrativo per Karla. Durante questa fase, Ran'Dra ha mostrato una parte inquietante di sé, turbando particolarmente Apothecary.",
+      "characters": [
+        "nino_olegna",
+        "karla"
+      ],
+      "players": [
+        "randra",
+        "valdor",
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.81,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "nino_olegna",
+          "label": "Nino Olegna",
+          "matched": "Nino Olegna"
+        },
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-015-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "15",
+      "sessionId": "15",
+      "sessionNumber": 15,
+      "sessionDate": "03/12/2025",
+      "order": 5,
+      "title": "Dopo un breve riposo, riprendete il vostro cammino verso un passaggio nascosto che Ga'Run aveva...",
+      "summary": "Dopo un breve riposo, riprendete il vostro cammino verso un passaggio nascosto che Ga'Run aveva intravisto durante il combattimento contro Webber. Entrando, trovate un braccio gigantesco in fase di costruzione ed una creatura tentacolare che riconoscete essere l'Assistente discusso nei fascicoli. Decidete di affrontarlo, e riuscite ad uscirne vittoriosi.",
+      "characters": [],
+      "players": [
+        "garun"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [
+        "webber"
+      ],
+      "tags": [
+        "combattimento",
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.56,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "creature",
+          "id": "webber",
+          "label": "Webber",
+          "matched": "Webber"
+        }
+      ]
+    },
+    {
+      "id": "session-016-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "16",
+      "sessionId": "16",
+      "sessionNumber": 16,
+      "sessionDate": "23/12/2025",
+      "order": 1,
+      "title": "Dopo aver combattuto contro l'Assistente, avete il tempo di esaminare l'enorme braccio...",
+      "summary": "Dopo aver combattuto contro l'Assistente, avete il tempo di esaminare l'enorme braccio circondato da ragnatele negromantiche presente nella nicchia della caverna. Riuscite a rimuovere un bracciale incastrato nel suo polso, facendo degenerare rapidamente la struttura del braccio stesso.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "caverna"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.35,
+      "matches": []
+    },
+    {
+      "id": "session-016-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "16",
+      "sessionId": "16",
+      "sessionNumber": 16,
+      "sessionDate": "23/12/2025",
+      "order": 2,
+      "title": "Valdor trova anche un piccolo ciondolo rosso, leggermente etereo, riuscendo ad inserirlo nella...",
+      "summary": "Valdor trova anche un piccolo ciondolo rosso, leggermente etereo, riuscendo ad inserirlo nella sua borsa conservante. Scoprite inoltre che il bracciale rimosso è in realtà un Anello di Resistenza Necrotica, che decidete di tenere con voi.",
+      "characters": [],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "oggetto"
+      ],
+      "visibility": "public",
+      "confidence": 0.48,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        }
+      ]
+    },
+    {
+      "id": "session-016-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "16",
+      "sessionId": "16",
+      "sessionNumber": 16,
+      "sessionDate": "23/12/2025",
+      "order": 3,
+      "title": "Proseguendo verso sud, incontrate una donna fantasma seduta su una sedia a rotelle.",
+      "summary": "Proseguendo verso sud, incontrate una donna fantasma seduta su una sedia a rotelle. Grazie all'amuleto spettrale trovato poco prima — in realtà un portafoto contenente la rappresentazione di Rabberduscolanderson in forma umana — capite che la fantasma è Elena, la sua compagna. Ella sembra essere stata uccisa da una donna con i capelli raccolti, ma i suoi ricordi appaiono confusi, incluso quelli legati a Rabber.",
+      "characters": [
+        "rabberduscolanderson",
+        "elena"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "rabber_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "morte"
+      ],
+      "visibility": "public",
+      "confidence": 0.62,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "character",
+          "id": "elena",
+          "label": "Elena Erbadath",
+          "matched": "elena"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        }
+      ]
+    },
+    {
+      "id": "session-016-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "16",
+      "sessionId": "16",
+      "sessionNumber": 16,
+      "sessionDate": "23/12/2025",
+      "order": 4,
+      "title": "Dopo averla salutata momentaneamente, vi dirigete in una cella poco a nord, dove trovate uno dei...",
+      "summary": "Dopo averla salutata momentaneamente, vi dirigete in una cella poco a nord, dove trovate uno dei pupazzetti già incontrati. Si presenta come Dinosauro Spaziale Distruttore Assoluto (Dino, il Paladino). Parlate con lui e scoprite alcune informazioni sulla sua creatrice, prima di metterlo nella borsa conservante e dirigervi da Karla.",
+      "characters": [
+        "karla"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "cella"
+      ],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.54,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-016-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "16",
+      "sessionId": "16",
+      "sessionNumber": 16,
+      "sessionDate": "23/12/2025",
+      "order": 5,
+      "title": "Giunti da Karla, le mostrate la testa di Nino Olegna.",
+      "summary": "Giunti da Karla, le mostrate la testa di Nino Olegna. Lei afferma di non conoscerlo, ma si congratula comunque con voi per il compimento della missione. Infine, Valdor le dona un po' del suo sangue per sfamare la sua incolmabile fame.",
+      "characters": [
+        "nino_olegna",
+        "karla"
+      ],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "missione",
+        "rituale"
+      ],
+      "visibility": "public",
+      "confidence": 0.7,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "nino_olegna",
+          "label": "Nino Olegna",
+          "matched": "Nino Olegna"
+        },
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-017-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "17",
+      "sessionId": "17",
+      "sessionNumber": 17,
+      "sessionDate": "05/01/2026",
+      "order": 1,
+      "title": "Dopo aver lasciato la stanza di Karla, decidete di tornare da Elena per poi risalire tutti...",
+      "summary": "Dopo aver lasciato la stanza di Karla, decidete di tornare da Elena per poi risalire tutti insieme al piano superiore. Scambiate qualche parola con lei, Valdor fuma un sigaro sotto lo sguardo teso di Ga'Run, e procedete lungo i corridoi della cripta.",
+      "characters": [
+        "karla",
+        "elena"
+      ],
+      "players": [
+        "garun",
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [
+        "Cripta",
+        "stanza di Karla"
+      ],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.75,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "character",
+          "id": "elena",
+          "label": "Elena Erbadath",
+          "matched": "elena"
+        },
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-017-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "17",
+      "sessionId": "17",
+      "sessionNumber": 17,
+      "sessionDate": "05/01/2026",
+      "order": 2,
+      "title": "Giungete alla stanza di Rabberduscolanderson e assistete alla riunione dei due.",
+      "summary": "Giungete alla stanza di Rabberduscolanderson e assistete alla riunione dei due. Una luce si accende nel petto di Rabber, che si sente spinto a donarvi un oggetto che portava con sé: il suo cuore, racchiuso in una sfera di vetro. Nel momento in cui il cuore tocca le mani di Valdor, sentite i vostri simboli reagire.",
+      "characters": [
+        "rabberduscolanderson"
+      ],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [
+        "stanza di Rabberduscolanderson"
+      ],
+      "quests": [
+        "rabber_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "oggetto",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.62,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        }
+      ]
+    },
+    {
+      "id": "session-017-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "17",
+      "sessionId": "17",
+      "sessionNumber": 17,
+      "sessionDate": "05/01/2026",
+      "order": 3,
+      "title": "Decidete di bruciare tutti i documenti di Tessimorte recuperati nel laboratorio di Nino Olegna,...",
+      "summary": "Decidete di bruciare tutti i documenti di Tessimorte recuperati nel laboratorio di Nino Olegna, tenendo con voi soltanto la poesia. Durante la giornata, Valdor lavora ad un progetto per un sigaro — che richiederà un innesco di energia arcana — mentre Ga'Run sistema i suoi equipaggiamenti.",
+      "characters": [
+        "nino_olegna"
+      ],
+      "players": [
+        "garun",
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [
+        "laboratorio"
+      ],
+      "quests": [],
+      "items": [
+        "poesia-di-nino"
+      ],
+      "creatures": [],
+      "tags": [
+        "missione",
+        "riposo",
+        "morte"
+      ],
+      "visibility": "public",
+      "confidence": 0.72,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "nino_olegna",
+          "label": "Nino Olegna",
+          "matched": "Nino Olegna"
+        },
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "item",
+          "id": "poesia-di-nino",
+          "label": "Nino Olegna: Poesia",
+          "matched": "Poesia"
+        }
+      ]
+    },
+    {
+      "id": "session-017-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "17",
+      "sessionId": "17",
+      "sessionNumber": 17,
+      "sessionDate": "05/01/2026",
+      "order": 4,
+      "title": "Durante la notte, qualcuno sembra farvi visita, lasciando dietro la porta due pupazzi...",
+      "summary": "Durante la notte, qualcuno sembra farvi visita, lasciando dietro la porta due pupazzi inquietanti infusi di magia.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.38,
+      "matches": []
+    },
+    {
+      "id": "session-017-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "17",
+      "sessionId": "17",
+      "sessionNumber": 17,
+      "sessionDate": "05/01/2026",
+      "order": 5,
+      "title": "Parlate anche con X, che vi rivela ulteriori informazioni sul rituale contenuto nel libro: un...",
+      "summary": "Parlate anche con X, che vi rivela ulteriori informazioni sul rituale contenuto nel libro: un metodo per tornare indietro nel tempo utilizzando un immenso flusso di sangue e sacrifici. Il rituale appare ignoto, pericoloso e forse impossibile da realizzare, ma vi turba profondamente.",
+      "characters": [
+        "x"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "x_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "rituale",
+        "oggetto"
+      ],
+      "visibility": "public",
+      "confidence": 0.56,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        }
+      ]
+    },
+    {
+      "id": "session-017-event-06",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "17",
+      "sessionId": "17",
+      "sessionNumber": 17,
+      "sessionDate": "05/01/2026",
+      "order": 6,
+      "title": "Infine, fate incontrare X ed Elena.",
+      "summary": "Infine, fate incontrare X ed Elena. Capite che rimuovere il pugnale dal petto della donna sarebbe fatale e ottenete conferma che sia stata Karla ad ucciderla. Prima di andarsene, X vi rivela accidentalmente di essere stata uccisa da Karla anche lei, chiedendovi poi di recuperare nuovi documenti e libri.",
+      "characters": [
+        "x",
+        "karla",
+        "elena"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "x_quests",
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento",
+        "rivelazione",
+        "missione",
+        "morte"
+      ],
+      "visibility": "public",
+      "confidence": 0.8,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "character",
+          "id": "elena",
+          "label": "Elena Erbadath",
+          "matched": "elena"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-018-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "18",
+      "sessionId": "18",
+      "sessionNumber": 18,
+      "sessionDate": "22/01/2026",
+      "order": 1,
+      "title": "Vi preparate a partire nuovamente verso il piano sottostante, intenzionati a ripulire la parte...",
+      "summary": "Vi preparate a partire nuovamente verso il piano sottostante, intenzionati a ripulire la parte sud del livello che, per quanto detto da Karla, sembra essere infestato dai non-morti.",
+      "characters": [
+        "karla"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.51,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-018-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "18",
+      "sessionId": "18",
+      "sessionNumber": 18,
+      "sessionDate": "22/01/2026",
+      "order": 2,
+      "title": "Giungete nella zona sud, dove la struttura diventa una sorta di caverna fangosa.",
+      "summary": "Giungete nella zona sud, dove la struttura diventa una sorta di caverna fangosa. Qui sentite alcuni canti provenire dai tunnel, e capite che provenivano da alcuni non-morti con vesti Klaren.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "zona sud",
+        "caverna"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.4,
+      "matches": []
+    },
+    {
+      "id": "session-018-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "18",
+      "sessionId": "18",
+      "sessionNumber": 18,
+      "sessionDate": "22/01/2026",
+      "order": 3,
+      "title": "Iniziate un combattimento contro questi non-morti, eliminando incantatori, zombie ed uno strano...",
+      "summary": "Iniziate un combattimento contro questi non-morti, eliminando incantatori, zombie ed uno strano non-morto con una pala di mano.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.38,
+      "matches": []
+    },
+    {
+      "id": "session-018-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "18",
+      "sessionId": "18",
+      "sessionNumber": 18,
+      "sessionDate": "22/01/2026",
+      "order": 4,
+      "title": "Successivamente Ga'Run vede una figura umanoide gigantesca sepolta parzialmente nel terreno, con...",
+      "summary": "Successivamente Ga'Run vede una figura umanoide gigantesca sepolta parzialmente nel terreno, con alcuni piccoli non-morti che sembravano ostili. Decide di attaccare, provocando la reazione della figura sepolta che, alzandosi, inizia a combattere contro di voi.",
+      "characters": [],
+      "players": [
+        "garun"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        }
+      ]
+    },
+    {
+      "id": "session-019-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "19",
+      "sessionId": "19",
+      "sessionNumber": 19,
+      "sessionDate": "05/02/2026",
+      "order": 1,
+      "title": "Riuscite a sconfiggere la non morta gigante ed i vari non-morti che uscivano ininterrottamente...",
+      "summary": "Riuscite a sconfiggere la non morta gigante ed i vari non-morti che uscivano ininterrottamente dalla sua pancia. Alla sua morte, vi rendete conto che l'equipaggiamento che indossava è magico.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento",
+        "morte"
+      ],
+      "visibility": "public",
+      "confidence": 0.4,
+      "matches": []
+    },
+    {
+      "id": "session-019-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "19",
+      "sessionId": "19",
+      "sessionNumber": 19,
+      "sessionDate": "05/02/2026",
+      "order": 2,
+      "title": "Dalla sua pancia è poi caduta anche una donna, apparentemente non-morta anche lei, con una...",
+      "summary": "Dalla sua pancia è poi caduta anche una donna, apparentemente non-morta anche lei, con una pancia sproporzionatamente grande. La avete imbavagliata e legata, ed avete iniziato dei riposi brevi per entrare in sintonia con gli oggetti, così da trasportarli più facilmente.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.38,
+      "matches": []
+    },
+    {
+      "id": "session-019-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "19",
+      "sessionId": "19",
+      "sessionNumber": 19,
+      "sessionDate": "05/02/2026",
+      "order": 3,
+      "title": "Durante i riposi, la donna si risveglia.",
+      "summary": "Durante i riposi, la donna si risveglia. Impaurita e sorpresa, fa dei versi per attirare l'attenzione. La tranquillizzate leggermente, analizzate la sua situazione e proseguite il riposo.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.38,
+      "matches": []
+    },
+    {
+      "id": "session-019-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "19",
+      "sessionId": "19",
+      "sessionNumber": 19,
+      "sessionDate": "05/02/2026",
+      "order": 4,
+      "title": "Notate del fumo verdastro uscire leggermente dal suo naso e bocca, e più intensamente dalla...",
+      "summary": "Notate del fumo verdastro uscire leggermente dal suo naso e bocca, e più intensamente dalla vagina. Sentite dall'odore e dal colore che sembra trattarsi di una sostanza gassosa che rimanda alle pozioni di cura o ai materiali per realizzarle.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.38,
+      "matches": []
+    },
+    {
+      "id": "session-020-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "20",
+      "sessionId": "20",
+      "sessionNumber": 20,
+      "sessionDate": "01/03/2026",
+      "order": 1,
+      "title": "Slegate le gambe della donna, la aiutate ad alzarsi, e la accompagnate - legata ed imbavagliata...",
+      "summary": "Slegate le gambe della donna, la aiutate ad alzarsi, e la accompagnate - legata ed imbavagliata - verso il piano superiore.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.38,
+      "matches": []
+    },
+    {
+      "id": "session-020-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "20",
+      "sessionId": "20",
+      "sessionNumber": 20,
+      "sessionDate": "01/03/2026",
+      "order": 2,
+      "title": "Durante il cammino, Apothecary ha una visione: il padre della bambina prepara un decotto di erbe...",
+      "summary": "Durante il cammino, Apothecary ha una visione: il padre della bambina prepara un decotto di erbe per curare il suo mal di testa.",
+      "characters": [],
+      "players": [
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "visione"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        }
+      ]
+    },
+    {
+      "id": "session-020-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "20",
+      "sessionId": "20",
+      "sessionNumber": 20,
+      "sessionDate": "01/03/2026",
+      "order": 3,
+      "title": "Vedete la donna commuoversi mentre Apothecary descrive la sua visione, decidete di toglierle il...",
+      "summary": "Vedete la donna commuoversi mentre Apothecary descrive la sua visione, decidete di toglierle il bavaglio dalla bocca e di parlare con lei. Vi rivela di essere Ginevra Von T, la madre di Deborah, compagna di Rendar e figlia di Yuris e Leonora Von T.",
+      "characters": [
+        "deborah",
+        "ginevra",
+        "leonora",
+        "yuris",
+        "rendar"
+      ],
+      "players": [
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "ginevra_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "visione"
+      ],
+      "visibility": "public",
+      "confidence": 0.94,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "deborah",
+          "label": "Deborah Von T",
+          "matched": "deborah"
+        },
+        {
+          "kind": "character",
+          "id": "ginevra",
+          "label": "Ginevra Von T",
+          "matched": "Ginevra Von T"
+        },
+        {
+          "kind": "character",
+          "id": "leonora",
+          "label": "Leonora Von T",
+          "matched": "Leonora Von T"
+        },
+        {
+          "kind": "character",
+          "id": "yuris",
+          "label": "Yuris Von T",
+          "matched": "yuris"
+        },
+        {
+          "kind": "character",
+          "id": "rendar",
+          "label": "Rendar",
+          "matched": "Rendar"
+        },
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        },
+        {
+          "kind": "quest",
+          "id": "ginevra_quests",
+          "label": "Ginevra Von T",
+          "matched": "Ginevra Von T"
+        }
+      ]
+    },
+    {
+      "id": "session-020-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "20",
+      "sessionId": "20",
+      "sessionNumber": 20,
+      "sessionDate": "01/03/2026",
+      "order": 4,
+      "title": "La accompagnate fino alla stanza di Rabberduscolanderson e la fate esaminare da X per capire la...",
+      "summary": "La accompagnate fino alla stanza di Rabberduscolanderson e la fate esaminare da X per capire la natura del suo pancione, che sembra contenere materia che passa ciclicamente da stato liquido a stato gassoso.",
+      "characters": [
+        "rabberduscolanderson",
+        "x"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "stanza di Rabberduscolanderson"
+      ],
+      "quests": [
+        "rabber_quests",
+        "x_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.65,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        }
+      ]
+    },
+    {
+      "id": "session-020-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "20",
+      "sessionId": "20",
+      "sessionNumber": 20,
+      "sessionDate": "01/03/2026",
+      "order": 5,
+      "title": "Mentre discutete sul da farsi, avete un forte dolore al petto.",
+      "summary": "Mentre discutete sul da farsi, avete un forte dolore al petto. Il sigillo vi mostra un incubo in cui sono presenti le forme oscure di molte persone che avete incontrato nella cripta.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "Cripta"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "visione",
+        "rituale"
+      ],
+      "visibility": "public",
+      "confidence": 0.4,
+      "matches": []
+    },
+    {
+      "id": "session-020-event-06",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "20",
+      "sessionId": "20",
+      "sessionNumber": 20,
+      "sessionDate": "01/03/2026",
+      "order": 6,
+      "title": "Lottate contro di loro e alla fine, quando siete sull'orlo dell'essere sconfitti, Apothecary si...",
+      "summary": "Lottate contro di loro e alla fine, quando siete sull'orlo dell'essere sconfitti, Apothecary si sacrifica per salvarvi.",
+      "characters": [],
+      "players": [
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rituale",
+        "morte"
+      ],
+      "visibility": "public",
+      "confidence": 0.48,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        }
+      ]
+    },
+    {
+      "id": "session-020-event-07",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "20",
+      "sessionId": "20",
+      "sessionNumber": 20,
+      "sessionDate": "01/03/2026",
+      "order": 7,
+      "title": "Apothecary ora è svenuta e la sua anima è rinchiusa in un Prisma di Luce Cristallizzata, creato...",
+      "summary": "Apothecary ora è svenuta e la sua anima è rinchiusa in un Prisma di Luce Cristallizzata, creato dall'esplosione radiosa generata da Apothecary stessa durante l'incubo.",
+      "characters": [],
+      "players": [
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [
+        "prisma-luce-cristallizzata"
+      ],
+      "creatures": [],
+      "tags": [
+        "visione",
+        "morte"
+      ],
+      "visibility": "public",
+      "confidence": 0.54,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        },
+        {
+          "kind": "item",
+          "id": "prisma-luce-cristallizzata",
+          "label": "Prisma di Luce Cristallizzata",
+          "matched": "Prisma di Luce Cristallizzata"
+        }
+      ]
+    },
+    {
+      "id": "session-021-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "21",
+      "sessionId": "21",
+      "sessionNumber": 21,
+      "sessionDate": "20/03/2026",
+      "order": 1,
+      "title": "Iniziate a recuperare nuovamente le forze dopo l'incubo dal quale Apothecary vi ha salvati.",
+      "summary": "Iniziate a recuperare nuovamente le forze dopo l'incubo dal quale Apothecary vi ha salvati. Piano piano anche Ran'Dra si risveglia, rendendosi conto che la vostra compagna non potrà più continuare l'avventura con voi.",
+      "characters": [],
+      "players": [
+        "randra",
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "visione",
+        "missione",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.58,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        }
+      ]
+    },
+    {
+      "id": "session-021-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "21",
+      "sessionId": "21",
+      "sessionNumber": 21,
+      "sessionDate": "20/03/2026",
+      "order": 2,
+      "title": "Le urla di Ran'Dra, rimbombando nel corridoio, attirano i servitori di Karla, i quali si erano...",
+      "summary": "Le urla di Ran'Dra, rimbombando nel corridoio, attirano i servitori di Karla, i quali si erano spinti nel primo livello per accompagnare un nuovo arrivato.",
+      "characters": [
+        "karla"
+      ],
+      "players": [
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [
+        "corridoio"
+      ],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.59,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        }
+      ]
+    },
+    {
+      "id": "session-021-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "21",
+      "sessionId": "21",
+      "sessionNumber": 21,
+      "sessionDate": "20/03/2026",
+      "order": 3,
+      "title": "Quando aprite la porta, questo si presenta come \"Theldarion Tessaryn.",
+      "summary": "Quando aprite la porta, questo si presenta come \"Theldarion Tessaryn. Quattro sillabe, accento sulla seconda. Non Thel. Non Darion\". Dopo aver scambiato qualche parola con lui, decidete di collaborare al fine di raggiungere il vostro obiettivo comune: salvarvi da quel sigillo. Salvarvi da quel posto.",
+      "characters": [],
+      "players": [
+        "theldarion"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rituale"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "theldarion",
+          "label": "Theldarion",
+          "matched": "Theldarion"
+        }
+      ]
+    },
+    {
+      "id": "session-021-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "21",
+      "sessionId": "21",
+      "sessionNumber": 21,
+      "sessionDate": "20/03/2026",
+      "order": 4,
+      "title": "Tornate da Rabberduscolanderson, Elena, X e Ginevra, accertandovi che stessero tutti bene.",
+      "summary": "Tornate da Rabberduscolanderson, Elena, X e Ginevra, accertandovi che stessero tutti bene. Poi, parlando con loro, Ga'Run si scusa con Rabberduscolanderson per via della frattura causatagli la giornata precedente e, parlando con X, capite che Ginevra sembra essere un Alambicco Vivente, in grado di assimilare reagenti e creare prodotti.",
+      "characters": [
+        "ginevra",
+        "rabberduscolanderson",
+        "x",
+        "elena"
+      ],
+      "players": [
+        "garun"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "rabber_quests",
+        "x_quests",
+        "ginevra_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.95,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "ginevra",
+          "label": "Ginevra Von T",
+          "matched": "ginevra"
+        },
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "character",
+          "id": "elena",
+          "label": "Elena Erbadath",
+          "matched": "elena"
+        },
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "quest",
+          "id": "ginevra_quests",
+          "label": "Ginevra Von T",
+          "matched": "Ginevra"
+        }
+      ]
+    },
+    {
+      "id": "session-021-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "21",
+      "sessionId": "21",
+      "sessionNumber": 21,
+      "sessionDate": "20/03/2026",
+      "order": 5,
+      "title": "Infine, volendo scoprire più dettagli riguardo alla situazione di Apothecary, decidete di...",
+      "summary": "Infine, volendo scoprire più dettagli riguardo alla situazione di Apothecary, decidete di portarla da X. Ga'Run va a prendere il suo corpo e, durante il cammino di ritorno, si trova nuovamente immerso in un incubo. Gli spiriti di un lupo e di un orso gli mostrano lati di sé che fino a quel momento aveva considerato naturali, ma che forse in realtà possono essere cambiati in meglio. Qualcosa in Ga'Run è cambiato: una forza sopita si è risvegliata, fragile come un cucciolo, e ora sta a lui decidere se nutrirla o lasciarla spegnere.",
+      "characters": [
+        "x"
+      ],
+      "players": [
+        "garun",
+        "apothecary"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "x_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "visione"
+      ],
+      "visibility": "public",
+      "confidence": 0.67,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "x",
+          "label": "X Von T",
+          "matched": "X"
+        },
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "player",
+          "id": "apothecary",
+          "label": "Apothecary",
+          "matched": "Apothecary"
+        },
+        {
+          "kind": "quest",
+          "id": "x_quests",
+          "label": "X Von T",
+          "matched": "X"
+        }
+      ]
+    },
+    {
+      "id": "session-022-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "22",
+      "sessionId": "22",
+      "sessionNumber": 22,
+      "sessionDate": "07/04/2026",
+      "order": 1,
+      "title": "Decidete di dirigervi da Franky, il topo che avevate incontrato diversi giorni prima, pronti...",
+      "summary": "Decidete di dirigervi da Franky, il topo che avevate incontrato diversi giorni prima, pronti eventualmente a combattere contro di lui e le sue creazioni. Giunti lì, però, rimanete sorpresi: sembra più ragionevole del previsto.",
+      "characters": [
+        "franky"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "franky_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.49,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "franky",
+          "label": "Franky",
+          "matched": "Franky"
+        },
+        {
+          "kind": "quest",
+          "id": "franky_quests",
+          "label": "Franky",
+          "matched": "Franky"
+        }
+      ]
+    },
+    {
+      "id": "session-022-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "22",
+      "sessionId": "22",
+      "sessionNumber": 22,
+      "sessionDate": "07/04/2026",
+      "order": 2,
+      "title": "Scoprite che ha creato nuovi golem di carne usando parti dei cani mostruosi e di Gianni rimasti...",
+      "summary": "Scoprite che ha creato nuovi golem di carne usando parti dei cani mostruosi e di Gianni rimasti nel livello. Venite inoltre a sapere che è stato usato come cavia da Karla, la quale lo ha sfruttato per scoprire di più sui rituali di tramutazione in non-morto. Lui la odia e mira a distruggerla usando le sue creazioni, per poi trasformarla in un golem di Kar- di carne.",
+      "characters": [
+        "karla"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "karla_quests"
+      ],
+      "items": [],
+      "creatures": [
+        "albert"
+      ],
+      "tags": [
+        "rivelazione",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.62,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        },
+        {
+          "kind": "creature",
+          "id": "albert",
+          "label": "Albert",
+          "matched": "Gianni"
+        }
+      ]
+    },
+    {
+      "id": "session-022-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "22",
+      "sessionId": "22",
+      "sessionNumber": 22,
+      "sessionDate": "07/04/2026",
+      "order": 3,
+      "title": "Ran'Dra viene Espulsa per essersi dichiarata amica di Karla, e Theldarion viene Semi-Espulso per...",
+      "summary": "Ran'Dra viene Espulsa per essersi dichiarata amica di Karla, e Theldarion viene Semi-Espulso per via delle sue contestazioni sull'igiene e sulla qualità dei golem di carne. Infine, decidete che porterete un cuore arcano a Franky per completare il suo Golem Micidiale della Morte. Nel frattempo, lui manderà Cane 1 e Cane 2 a controllare l'ingresso del piano; Topo Morto, invece, rimarrà nel laboratorio.",
+      "characters": [
+        "franky",
+        "karla"
+      ],
+      "players": [
+        "randra",
+        "theldarion"
+      ],
+      "locations": [],
+      "locationHints": [
+        "laboratorio"
+      ],
+      "quests": [
+        "karla_quests",
+        "franky_quests"
+      ],
+      "items": [],
+      "creatures": [
+        "golem-micidiale-della-morte",
+        "topo-morto"
+      ],
+      "tags": [
+        "oggetto",
+        "esplorazione",
+        "morte"
+      ],
+      "visibility": "public",
+      "confidence": 0.95,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "franky",
+          "label": "Franky",
+          "matched": "Franky"
+        },
+        {
+          "kind": "character",
+          "id": "karla",
+          "label": "Karla Von T",
+          "matched": "karla"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "player",
+          "id": "theldarion",
+          "label": "Theldarion",
+          "matched": "Theldarion"
+        },
+        {
+          "kind": "quest",
+          "id": "karla_quests",
+          "label": "Karla Von T",
+          "matched": "Karla"
+        },
+        {
+          "kind": "quest",
+          "id": "franky_quests",
+          "label": "Franky",
+          "matched": "Franky"
+        },
+        {
+          "kind": "creature",
+          "id": "golem-micidiale-della-morte",
+          "label": "Golem Micidiale della Morte",
+          "matched": "Golem Micidiale della Morte"
+        },
+        {
+          "kind": "creature",
+          "id": "topo-morto",
+          "label": "Topo Morto",
+          "matched": "Topo Morto"
+        }
+      ]
+    },
+    {
+      "id": "session-022-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "22",
+      "sessionId": "22",
+      "sessionNumber": 22,
+      "sessionDate": "07/04/2026",
+      "order": 4,
+      "title": "Iniziate a trasferirvi nella stanza dove avete combattuto contro i tre scheletri.",
+      "summary": "Iniziate a trasferirvi nella stanza dove avete combattuto contro i tre scheletri. Lì portate i vostri letti e Ran'Dra invita Rabberduscolanderson ed Elena a unirsi a voi.",
+      "characters": [
+        "rabberduscolanderson",
+        "elena"
+      ],
+      "players": [
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "rabber_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.7,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "character",
+          "id": "elena",
+          "label": "Elena Erbadath",
+          "matched": "elena"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        }
+      ]
+    },
+    {
+      "id": "session-022-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "22",
+      "sessionId": "22",
+      "sessionNumber": 22,
+      "sessionDate": "07/04/2026",
+      "order": 5,
+      "title": "Durante il vostro riposo, venite svegliati da un urlo di Rabberduscolanderson, il quale ha...",
+      "summary": "Durante il vostro riposo, venite svegliati da un urlo di Rabberduscolanderson, il quale ha avvistato una figura piuttosto inquietante nella stanza: uno squarcio verdastro si apre come una finestra affacciata sul luogo in cui state riposando, mostrando dietro di essa il volto enorme della giullare che avete già visto altre volte.",
+      "characters": [
+        "rabberduscolanderson"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "rabber_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione",
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.54,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "rabberduscolanderson",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "rabberduscolanderson"
+        },
+        {
+          "kind": "quest",
+          "id": "rabber_quests",
+          "label": "Rabberduscolanderson Von T",
+          "matched": "Rabberduscolanderson"
+        }
+      ]
+    },
+    {
+      "id": "session-023-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "23",
+      "sessionId": "23",
+      "sessionNumber": 23,
+      "sessionDate": "19/04/2026",
+      "order": 1,
+      "title": "Zara vi invita a partecipare ad un gioco insieme, ma tentate di non assecondarla.",
+      "summary": "Zara vi invita a partecipare ad un gioco insieme, ma tentate di non assecondarla. Ad un certo punto, lei tenta di far sorridere magicamente Ga'Run, il quale reagisce violentemente e prova ad attaccarla.",
+      "characters": [
+        "zara"
+      ],
+      "players": [
+        "garun"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "zara_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.59,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "zara",
+          "label": "Zara Klaren",
+          "matched": "zara"
+        },
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "quest",
+          "id": "zara_quests",
+          "label": "Zara",
+          "matched": "Zara"
+        }
+      ]
+    },
+    {
+      "id": "session-023-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "23",
+      "sessionId": "23",
+      "sessionNumber": 23,
+      "sessionDate": "19/04/2026",
+      "order": 2,
+      "title": "La giullare evita l'attacco, scambiandosi di posto di Valdor e insiste con l'invitarvi a...",
+      "summary": "La giullare evita l'attacco, scambiandosi di posto di Valdor e insiste con l'invitarvi a giocare, evocando alcune bambole di pezza con sembianze da infermiera.",
+      "characters": [],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        }
+      ]
+    },
+    {
+      "id": "session-023-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "23",
+      "sessionId": "23",
+      "sessionNumber": 23,
+      "sessionDate": "19/04/2026",
+      "order": 3,
+      "title": "Le bambole tentano di raggiungere Theldarion per perforarlo con le loro siringhe.",
+      "summary": "Le bambole tentano di raggiungere Theldarion per perforarlo con le loro siringhe. Alcune di loro ci riescono, curandolo, prima di essere sconfitte.",
+      "characters": [],
+      "players": [
+        "theldarion"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.43,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "theldarion",
+          "label": "Theldarion",
+          "matched": "Theldarion"
+        }
+      ]
+    },
+    {
+      "id": "session-023-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "23",
+      "sessionId": "23",
+      "sessionNumber": 23,
+      "sessionDate": "19/04/2026",
+      "order": 4,
+      "title": "A questo punto accettate di partecipare al gioco, Zara utilizza un'abilita simile ad un Muro di...",
+      "summary": "A questo punto accettate di partecipare al gioco, Zara utilizza un'abilita simile ad un Muro di Forza e vi divide in due squadre: \"I Magnifici Tessarin\" e i \"Fatti una Risata\". Rispondete quindi ad alcuni indovinelli e vi trovate poi a combattere contro un paio di scarpe e guanti.",
+      "characters": [
+        "zara"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "zara_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.49,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "zara",
+          "label": "Zara Klaren",
+          "matched": "zara"
+        },
+        {
+          "kind": "quest",
+          "id": "zara_quests",
+          "label": "Zara",
+          "matched": "Zara"
+        }
+      ]
+    },
+    {
+      "id": "session-023-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "23",
+      "sessionId": "23",
+      "sessionNumber": 23,
+      "sessionDate": "19/04/2026",
+      "order": 5,
+      "title": "Finito il combattimento, vincono \"I Magnifici Tessarin\" dopo la resa di Ga'Run.",
+      "summary": "Finito il combattimento, vincono \"I Magnifici Tessarin\" dopo la resa di Ga'Run. Il gioco termina e Zara trasforma Ran'Dra in una bambola di pezza animata. Poi, vi lascia un invito prima di svanire. Siete ufficialmente invitati ad un teatro per bere un te insieme, forse Dino sapra darvi qualche informazione in piu a riguardo.",
+      "characters": [
+        "zara"
+      ],
+      "players": [
+        "garun",
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [
+        "Teatro"
+      ],
+      "quests": [
+        "zara_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento"
+      ],
+      "visibility": "public",
+      "confidence": 0.67,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "zara",
+          "label": "Zara Klaren",
+          "matched": "zara"
+        },
+        {
+          "kind": "player",
+          "id": "garun",
+          "label": "Ga'Run",
+          "matched": "Ga'Run"
+        },
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "quest",
+          "id": "zara_quests",
+          "label": "Zara",
+          "matched": "Zara"
+        }
+      ]
+    },
+    {
+      "id": "session-024-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "24",
+      "sessionId": "24",
+      "sessionNumber": 24,
+      "sessionDate": "08/05/2026",
+      "order": 1,
+      "title": "Dopo aver analizzato brevemente la situazione di Ran'Dra, avete richiamato Dinosauro Spaziale...",
+      "summary": "Dopo aver analizzato brevemente la situazione di Ran'Dra, avete richiamato Dinosauro Spaziale Distruttore Assoluto per farvi dare più informazioni riguardo al terzo livello.",
+      "characters": [],
+      "players": [
+        "randra"
+      ],
+      "locations": [],
+      "locationHints": [
+        "terzo livello"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.48,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        }
+      ]
+    },
+    {
+      "id": "session-024-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "24",
+      "sessionId": "24",
+      "sessionNumber": 24,
+      "sessionDate": "08/05/2026",
+      "order": 2,
+      "title": "Scoprite che dovrete affrontare pozze di sangue, robot metallici e trappole mortali per...",
+      "summary": "Scoprite che dovrete affrontare pozze di sangue, robot metallici e trappole mortali per raggiungere l'ingresso del Teatro, nella zona più a nord del livello.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "Teatro"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "rituale",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.42,
+      "matches": []
+    },
+    {
+      "id": "session-024-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "24",
+      "sessionId": "24",
+      "sessionNumber": 24,
+      "sessionDate": "08/05/2026",
+      "order": 3,
+      "title": "Valdor analizza i guanti e la scarpa di Zara, scoprendo delle proprietà magiche piuttosto...",
+      "summary": "Valdor analizza i guanti e la scarpa di Zara, scoprendo delle proprietà magiche piuttosto sorprendenti. Inoltre, scoprite che i grossi pupazzi nella stanza sono legati a voi: se subite danni, li subiranno i pupazzi. Se i pupazzi subiscono danni, li subirete voi.",
+      "characters": [
+        "zara"
+      ],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [
+        "zara_quests"
+      ],
+      "items": [
+        "scarpa-zara"
+      ],
+      "creatures": [],
+      "tags": [
+        "rivelazione",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.67,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "zara",
+          "label": "Zara Klaren",
+          "matched": "zara"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        },
+        {
+          "kind": "quest",
+          "id": "zara_quests",
+          "label": "Zara",
+          "matched": "Zara"
+        },
+        {
+          "kind": "item",
+          "id": "scarpa-zara",
+          "label": "Scarpa di Zara",
+          "matched": "Scarpa di Zara"
+        }
+      ]
+    },
+    {
+      "id": "session-024-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "24",
+      "sessionId": "24",
+      "sessionNumber": 24,
+      "sessionDate": "08/05/2026",
+      "order": 4,
+      "title": "Decidete di riposare e di partire per il terzo livello.",
+      "summary": "Decidete di riposare e di partire per il terzo livello. Notate durante il tragitto che Franky ha disposto Cane 1 e Cane 2 a guardia del livello e procedete senza problemi.",
+      "characters": [
+        "franky"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "terzo livello"
+      ],
+      "quests": [
+        "franky_quests"
+      ],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione",
+        "riposo"
+      ],
+      "visibility": "public",
+      "confidence": 0.54,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "franky",
+          "label": "Franky",
+          "matched": "Franky"
+        },
+        {
+          "kind": "quest",
+          "id": "franky_quests",
+          "label": "Franky",
+          "matched": "Franky"
+        }
+      ]
+    },
+    {
+      "id": "session-024-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "24",
+      "sessionId": "24",
+      "sessionNumber": 24,
+      "sessionDate": "08/05/2026",
+      "order": 5,
+      "title": "Nel secondo livello notate una fila di creature che pian piano si avvicinano ad una creatura...",
+      "summary": "Nel secondo livello notate una fila di creature che pian piano si avvicinano ad una creatura mostruosa con una grande bocca che sembra divorarli. Anche voi, avvicinandovi e osservandolo, avete percepito brevemente la voglia di mettervi in coda, proprio come gli altri.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.38,
+      "matches": []
+    },
+    {
+      "id": "session-024-event-06",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "24",
+      "sessionId": "24",
+      "sessionNumber": 24,
+      "sessionDate": "08/05/2026",
+      "order": 6,
+      "title": "Giungete al terzo livello, iniziate ad attraversare una pozza stantia di sangue denso, dove...",
+      "summary": "Giungete al terzo livello, iniziate ad attraversare una pozza stantia di sangue denso, dove distruggete alcuni palloncini. Stare in quella pozza è tutt'altro che piacevole e, dopo poco, iniziate a percepire un lieve bruciore.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "terzo livello"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "rituale",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.4,
+      "matches": []
+    },
+    {
+      "id": "session-024-event-07",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "24",
+      "sessionId": "24",
+      "sessionNumber": 24,
+      "sessionDate": "08/05/2026",
+      "order": 7,
+      "title": "Oltrepassata la pozza arrivate in un corridoio con 6 specchi numerati ed un libro aperto su due...",
+      "summary": "Oltrepassata la pozza arrivate in un corridoio con 6 specchi numerati ed un libro aperto su due pagine piuttosto strane. Ran'Dra e Theldarion individuano una sorta di codice nascosto, che però decidete di ignorare per il momento.",
+      "characters": [],
+      "players": [
+        "randra",
+        "theldarion"
+      ],
+      "locations": [],
+      "locationHints": [
+        "corridoio"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "oggetto",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.56,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "randra",
+          "label": "Ran'Dra",
+          "matched": "Ran'Dra"
+        },
+        {
+          "kind": "player",
+          "id": "theldarion",
+          "label": "Theldarion",
+          "matched": "Theldarion"
+        }
+      ]
+    },
+    {
+      "id": "session-024-event-08",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "24",
+      "sessionId": "24",
+      "sessionNumber": 24,
+      "sessionDate": "08/05/2026",
+      "order": 8,
+      "title": "Infine, incontrate un costrutto Vergine di Ferro, di cui per il momento ignorate il nome.",
+      "summary": "Infine, incontrate un costrutto Vergine di Ferro, di cui per il momento ignorate il nome. Vi dice che è stata creata da Tokka Von T, un fabbro che vi ha dato appuntamento tra 830 settimane. Oltrepassando il corridoio, lo vedete in fondo alla stanza mentre lavora a qualcosa che al momento non riuscite a comprendere.",
+      "characters": [
+        "tokka"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "corridoio"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [
+        "velkarya-klaren"
+      ],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.54,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "tokka",
+          "label": "Tokka Von T",
+          "matched": "Tokka Von T"
+        },
+        {
+          "kind": "creature",
+          "id": "velkarya-klaren",
+          "label": "Velkarya Klaren",
+          "matched": "Vergine di Ferro"
+        }
+      ]
+    },
+    {
+      "id": "session-025-event-01",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "25",
+      "sessionId": "25",
+      "sessionNumber": 25,
+      "sessionDate": "24/05/2026",
+      "order": 1,
+      "title": "Non intenzionato ad attendere 830 settimane per l'appuntamento con Tokka, Valdor decide di...",
+      "summary": "Non intenzionato ad attendere 830 settimane per l'appuntamento con Tokka, Valdor decide di entrare nel suo laboratorio. Nota intorno esperimenti, progetti, oggetti magici e materiali pregiati disseminati nella stanza.",
+      "characters": [
+        "tokka"
+      ],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [
+        "laboratorio"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.54,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "tokka",
+          "label": "Tokka Von T",
+          "matched": "tokka"
+        },
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        }
+      ]
+    },
+    {
+      "id": "session-025-event-02",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "25",
+      "sessionId": "25",
+      "sessionNumber": 25,
+      "sessionDate": "24/05/2026",
+      "order": 2,
+      "title": "Iniziate ad interagire con lui, specialmente Valdor, e notate che sta realizzando una spada...",
+      "summary": "Iniziate ad interagire con lui, specialmente Valdor, e notate che sta realizzando una spada particolare composta da minerali grezzi, raggruppati tra loro da una forza gravitazionale in fase di calibrazione.",
+      "characters": [],
+      "players": [
+        "valdor"
+      ],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [],
+      "visibility": "public",
+      "confidence": 0.43,
+      "matches": [
+        {
+          "kind": "player",
+          "id": "valdor",
+          "label": "Valdor",
+          "matched": "Valdor"
+        }
+      ]
+    },
+    {
+      "id": "session-025-event-03",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "25",
+      "sessionId": "25",
+      "sessionNumber": 25,
+      "sessionDate": "24/05/2026",
+      "order": 3,
+      "title": "Venite a conoscenza di un costrutto impazzito, una delle prime creazioni di Tokka in ambito...",
+      "summary": "Venite a conoscenza di un costrutto impazzito, una delle prime creazioni di Tokka in ambito meccanico e biologico. Questo sembra essere alimentato da un cuore dentro di lui, che plausibilmente lo ha fatto impazzire.",
+      "characters": [
+        "tokka"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "oggetto"
+      ],
+      "visibility": "public",
+      "confidence": 0.46,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "tokka",
+          "label": "Tokka Von T",
+          "matched": "tokka"
+        }
+      ]
+    },
+    {
+      "id": "session-025-event-04",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "25",
+      "sessionId": "25",
+      "sessionNumber": 25,
+      "sessionDate": "24/05/2026",
+      "order": 4,
+      "title": "Tokka vi chiede di recuperarlo, senza entrare troppo nel dettaglio riguardo alla ricompensa;...",
+      "summary": "Tokka vi chiede di recuperarlo, senza entrare troppo nel dettaglio riguardo alla ricompensa; inoltre, vi concede l'aiuto della sua Vergine di Ferro durante questo scontro.",
+      "characters": [
+        "tokka"
+      ],
+      "players": [],
+      "locations": [],
+      "locationHints": [],
+      "quests": [],
+      "items": [],
+      "creatures": [
+        "velkarya-klaren"
+      ],
+      "tags": [
+        "missione"
+      ],
+      "visibility": "public",
+      "confidence": 0.54,
+      "matches": [
+        {
+          "kind": "character",
+          "id": "tokka",
+          "label": "Tokka Von T",
+          "matched": "tokka"
+        },
+        {
+          "kind": "creature",
+          "id": "velkarya-klaren",
+          "label": "Velkarya Klaren",
+          "matched": "Vergine di Ferro"
+        }
+      ]
+    },
+    {
+      "id": "session-025-event-05",
+      "draft": true,
+      "reviewStatus": "pending",
+      "source": "session",
+      "sourceId": "25",
+      "sessionId": "25",
+      "sessionNumber": 25,
+      "sessionDate": "24/05/2026",
+      "order": 5,
+      "title": "Vi dirigete dall'enorme costrutto e riuscite ad abbatterlo, modulo dopo modulo, liberando la...",
+      "summary": "Vi dirigete dall'enorme costrutto e riuscite ad abbatterlo, modulo dopo modulo, liberando la caverna in cui stava ancora scavando.",
+      "characters": [],
+      "players": [],
+      "locations": [],
+      "locationHints": [
+        "caverna"
+      ],
+      "quests": [],
+      "items": [],
+      "creatures": [],
+      "tags": [
+        "combattimento",
+        "esplorazione"
+      ],
+      "visibility": "public",
+      "confidence": 0.4,
+      "matches": []
+    }
+  ]
+}

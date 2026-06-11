@@ -152,6 +152,7 @@ function parseYamlLite(yamlText) {
             const base_path = '../assets/'; // Path from npcs.html to assets folder
             const npcListContainer = document.querySelector('.npc-list');
             if (!npcListContainer) return;
+            syncNpcAdminLinks();
 
             try {
                 let npcs = [];
@@ -193,6 +194,22 @@ function parseYamlLite(yamlText) {
             if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
             if (value.startsWith('assets/')) return `../${value}`;
             return `${base_path}${value}`;
+        }
+
+        function buildNpcDetailUrl(params = {}) {
+            const url = new URL('./characters/character.html', window.location.href);
+            Object.entries(params).forEach(([key, value]) => {
+                if (value !== undefined && value !== null && value !== '') url.searchParams.set(key, value);
+            });
+            const campaignId = getCurrentCampaignId();
+            if (campaignId && campaignId !== 'cripta-di-sangue') url.searchParams.set('campaign', campaignId);
+            return `${url.pathname}${url.search}`;
+        }
+
+        function syncNpcAdminLinks() {
+            document.querySelectorAll('[data-npc-create-link]').forEach((link) => {
+                link.href = buildNpcDetailUrl({ type: 'npc', new: '1', edit: '1' });
+            });
         }
 
         function appendAssetVersion(url, version) {
@@ -478,7 +495,7 @@ function parseYamlLite(yamlText) {
             const statusInfo = statusMap[npc.status] || { text: 'N/A', class: '' };
 
             const card = document.createElement('a');
-            card.href = `./characters/character.html?id=${npc.id}`;
+            card.href = buildNpcDetailUrl({ id: npc.id, type: 'npc' });
             card.className = 'npc-card';
             const avatarImage = npc.images.idle || npc.images.token || npc.images.avatar || '';
             const hoverImage = npc.images.hover || npc.images.token || avatarImage;

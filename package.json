@@ -8,6 +8,7 @@
     "build:search": "node scripts/generate_search_index.js",
     "build:npc-recency": "node scripts/generate_npc_recency.js",
     "build:home-recent": "node scripts/generate_home_recent_npcs.js",
+    "build:timeline-draft": "node scripts/generate_timeline_draft.js",
     "build:derived": "npm run build:search && npm run build:npc-recency && npm run build:home-recent && npm run build:foundry",
     "validate:data": "node scripts/validate_data.js",
     "check:encoding": "node scripts/check_encoding.js",

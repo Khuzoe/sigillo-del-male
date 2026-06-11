@@ -296,21 +296,26 @@ window.CriptaApp.onPageReady("giocatori", async function() {
 
     function renderCompanionBadge(companions) {
         if (!companions.length) return "";
-        const companion = companions[0];
-        const title = companion.displayName || companion.name || "Companion";
-        const imageCandidates = resolveCompanionImageUrl(companion);
-        const image = imageCandidates[0] || "";
-        const fallbackImage = imageCandidates[1] || "";
-        const imageErrorHandler = fallbackImage
-            ? "if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{this.style.display='none';this.nextElementSibling.hidden=false;}"
-            : "this.style.display='none';this.nextElementSibling.hidden=false;";
-        const initials = String(title || "?").trim().charAt(0).toUpperCase() || "?";
-        const extra = companions.length > 1 ? companions.length - 1 : 0;
+        const title = companions.map((item) => item.displayName || item.name || "Companion").join(", ");
+        const badges = companions.map((companion, index) => {
+            const companionTitle = companion.displayName || companion.name || "Companion";
+            const imageCandidates = resolveCompanionImageUrl(companion);
+            const image = imageCandidates[0] || "";
+            const fallbackImage = imageCandidates[1] || "";
+            const imageErrorHandler = fallbackImage
+                ? "if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{this.style.display='none';this.nextElementSibling.hidden=false;}"
+                : "this.style.display='none';this.nextElementSibling.hidden=false;";
+            const initials = String(companionTitle || "?").trim().charAt(0).toUpperCase() || "?";
+            return `
+                <span class="player-companion-badge" style="--companion-index: ${index};" aria-label="${escapeHtml(companionTitle)}">
+                    ${image ? `<img src="${escapeHtml(image)}" ${fallbackImage ? `data-fallback-src="${escapeHtml(fallbackImage)}"` : ""} alt="${escapeHtml(companionTitle)}" onerror="${imageErrorHandler}">` : ""}
+                    <span ${image ? "hidden" : ""}>${escapeHtml(initials)}</span>
+                </span>
+            `;
+        }).join("");
         return `
-            <span class="player-companion-badge" title="${escapeHtml(companions.map((item) => item.displayName || item.name || "Companion").join(", "))}">
-                ${image ? `<img src="${escapeHtml(image)}" ${fallbackImage ? `data-fallback-src="${escapeHtml(fallbackImage)}"` : ""} alt="${escapeHtml(title)}" onerror="${imageErrorHandler}">` : ""}
-                <span ${image ? "hidden" : ""}>${escapeHtml(initials)}</span>
-                ${extra ? `<small>+${extra}</small>` : ""}
+            <span class="player-companion-badges" title="${escapeHtml(title)}" style="--companion-count: ${companions.length};">
+                ${badges}
             </span>
         `;
     }

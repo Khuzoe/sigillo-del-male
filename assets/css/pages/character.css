@@ -550,11 +550,13 @@
         }
 
         .character-inline-image-field-row:hover,
+        .character-inline-image-upload:hover,
         .character-inline-portrait-upload:hover {
             outline-color: rgba(212, 175, 55, 0.22);
         }
 
         .character-inline-image-field-row.is-drop-target,
+        .character-inline-image-upload.is-drop-target,
         .character-inline-portrait-upload.is-drop-target {
             background: rgba(212, 175, 55, 0.08);
             outline-color: rgba(212, 175, 55, 0.58);
@@ -567,6 +569,16 @@
             border: 1px solid rgba(212, 175, 55, 0.2);
             border-radius: 8px;
             background: rgba(0, 0, 0, 0.28);
+        }
+
+        .character-inline-image-file-name {
+            overflow: hidden;
+            color: rgba(232, 219, 188, 0.52);
+            font-family: var(--font-ui);
+            font-size: 0.72rem;
+            line-height: 1.25;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .character-inline-image-adjust {
@@ -598,15 +610,21 @@
         }
 
         .character-inline-mini-upload {
-            width: 2.25rem;
+            min-width: 3.25rem;
             height: 2.25rem;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            padding: 0 0.55rem;
             border: 1px solid rgba(212, 175, 55, 0.22);
             border-radius: 9px;
             background: rgba(0, 0, 0, 0.26);
             color: var(--gold);
+            font-family: var(--font-ui);
+            font-size: 0.68rem;
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
             cursor: pointer;
         }
 
@@ -863,3 +881,22 @@
             color: #2ecc71;
             border: 1px solid #2ecc71;
         }
+.page-character--skill-tree-only .sidebar,
+.page-character--skill-tree-only .hero-mini {
+    display: none !important;
+}
+
+.page-character--skill-tree-only .main-content {
+    margin-left: 0 !important;
+    padding: 0 !important;
+}
+
+.page-character--skill-tree-only .container {
+    width: min(100%, 1500px);
+    max-width: none;
+    padding: 12px;
+}
+
+.page-character--skill-tree-only #character-content-container {
+    min-height: calc(100vh - 24px);
+}
