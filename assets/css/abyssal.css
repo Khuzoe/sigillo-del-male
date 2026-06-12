@@ -1449,28 +1449,33 @@ body.is-embed .container {
 }
 
 .companion-card__vitals .character-live-kpis {
-    grid-template-columns: minmax(10rem, 1.25fr) minmax(7.5rem, 0.75fr);
+    grid-template-columns: repeat(auto-fit, minmax(7.4rem, 1fr));
     gap: 0.55rem;
 }
 
 .companion-card__vitals .character-live-kpis--companion .character-live-kpi--hp {
-    grid-column: 1;
-    grid-row: 1;
+    grid-column: auto;
+    grid-row: auto;
 }
 
 .companion-card__vitals .character-live-kpis--companion .character-live-kpi--ac {
-    grid-column: 2;
-    grid-row: 1;
+    grid-column: auto;
+    grid-row: auto;
 }
 
 .companion-card__vitals .character-live-kpis--companion .character-live-kpi--movement {
-    grid-column: 1;
-    grid-row: 2;
+    grid-column: auto;
+    grid-row: auto;
 }
 
 .companion-card__vitals .character-live-kpis--companion .character-live-kpi--initiative {
-    grid-column: 2;
-    grid-row: 2;
+    grid-column: auto;
+    grid-row: auto;
+}
+
+.companion-card__vitals .character-live-kpis--companion .character-live-kpi--proficiency {
+    grid-column: auto;
+    grid-row: auto;
 }
 
 .companion-card__hero {
@@ -2402,7 +2407,7 @@ body.is-embed .container {
 
 .character-live-kpis {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
     gap: 0.75rem;
     margin-bottom: 1rem;
 }
@@ -2516,6 +2521,7 @@ body.is-embed .container {
 .character-ability-pill small {
     grid-column: 1 / -1;
     color: rgba(232, 219, 188, 0.62);
+    font-size: 0.66rem;
     text-align: right;
 }
 
@@ -2751,6 +2757,40 @@ body.is-embed .container {
     align-items: center;
     gap: 0.45rem;
     flex-shrink: 0;
+}
+
+.loadout-copy-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    padding: 0;
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    border-radius: 999px;
+    color: rgba(239, 227, 191, 0.78);
+    background: rgba(0, 0, 0, 0.24);
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.loadout-copy-button:hover,
+.loadout-copy-button:focus-visible {
+    border-color: rgba(212, 175, 55, 0.62);
+    color: var(--gold);
+    background: rgba(212, 175, 55, 0.12);
+}
+
+.loadout-copy-button.is-copied {
+    border-color: rgba(108, 214, 145, 0.65);
+    color: #9af0b3;
+    background: rgba(108, 214, 145, 0.13);
+}
+
+.loadout-copy-button:disabled {
+    cursor: wait;
+    opacity: 0.72;
 }
 
 .loadout-entry-chevron {

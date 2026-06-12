@@ -533,6 +533,25 @@ function isHiddenInventoryEntry(entry) {
     return INVENTORY_EXCLUDED_NAMES.has(normalizeText(entry?.name));
 }
 
+function getLoadoutRole(entry) {
+    const role = String(entry?.loadoutRole || entry?.wikiRole || entry?.siteRole || '').trim().toLowerCase();
+    if (role === 'ability' || role === 'abilities' || role === 'attack') return 'ability';
+    if (role === 'inventory' || role === 'item') return 'inventory';
+    return '';
+}
+
+function getLoadoutSubtype(entry) {
+    const subtype = String(entry?.loadoutSubtype || entry?.abilitySubtype || entry?.wikiSubtype || '').trim().toLowerCase();
+    if (subtype === 'attack' || subtype === 'attacco') return 'attack';
+    return '';
+}
+
+function getLoadoutAbilityLabel(entry) {
+    if (getLoadoutSubtype(entry) === 'attack' || String(entry?.loadoutRole || '').trim().toLowerCase() === 'attack') return 'Attacco';
+    return 'Abilita';
+    return 'AbilitÃ ';
+}
+
 function normalizeWords(value) {
     return String(value || '')
         .toLowerCase()
@@ -610,6 +629,38 @@ async function copyTextToClipboard(text) {
     }
     textarea.remove();
     return copied;
+}
+
+function initializeLoadoutCopyButtons(root) {
+    if (!root) return;
+    const buttons = Array.from(root.querySelectorAll('[data-loadout-copy]'));
+    buttons.forEach((button) => {
+        button.addEventListener('click', async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const entry = button.closest('.loadout-entry');
+            const template = entry?.querySelector('[data-loadout-copy-template]');
+            const text = normalizeCopyText(template?.content?.textContent || template?.textContent || '');
+            if (!text) return;
+
+            button.disabled = true;
+            try {
+                const copied = await copyTextToClipboard(text);
+                if (!copied) return;
+                const previousTitle = button.getAttribute('title') || 'Copia titolo e descrizione';
+                button.classList.add('is-copied');
+                button.setAttribute('title', 'Copiato');
+                button.setAttribute('aria-label', 'Copiato');
+                window.setTimeout(() => {
+                    button.classList.remove('is-copied');
+                    button.setAttribute('title', previousTitle);
+                    button.setAttribute('aria-label', previousTitle);
+                }, 1200);
+            } finally {
+                button.disabled = false;
+            }
+        });
+    });
 }
 
 function parseInventoryCache(rawValue) {
@@ -1452,6 +1503,15 @@ function splitActorLoadout(actor) {
     sourceEntries.forEach((entry) => {
         if (!entry || typeof entry !== 'object') return;
         if (isHiddenInventoryEntry(entry)) return;
+        const loadoutRole = getLoadoutRole(entry);
+        if (loadoutRole === 'ability') {
+            abilities.push(entry);
+            return;
+        }
+        if (loadoutRole === 'inventory') {
+            inventory.push(entry);
+            return;
+        }
         if (entry.type === 'spell') {
             spells.push(entry);
             return;
@@ -1789,6 +1849,81 @@ function renderDescriptionHtml(value) {
 
     const sanitized = sanitizeDescriptionHtml(cleaned);
     return sanitized || renderPlainDescriptionHtml(cleaned);
+}
+
+function normalizeCopyText(value) {
+    return String(value || '')
+        .replace(/\r\n?/g, '\n')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n[ \t]+/g, '\n')
+        .replace(/[ \t]{2,}/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+function renderDescriptionCopyText(value) {
+    const html = renderDescriptionHtml(value);
+    if (!html) return '';
+
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+    wrapper.querySelectorAll('br').forEach((node) => node.replaceWith('\n'));
+    wrapper.querySelectorAll('p, li, h4, h5, blockquote, pre').forEach((node) => {
+        node.append(document.createTextNode('\n'));
+    });
+    return normalizeCopyText(wrapper.innerText || wrapper.textContent || '');
+}
+
+function buildWikiItemCopySections(wikiItem, foundryName = '') {
+    if (!wikiItem) return [];
+    const sections = [];
+    const meta = [wikiItem.type, wikiItem.rarity].map((value) => String(value || '').trim()).filter(Boolean);
+    if (meta.length) sections.push(meta.join(' | '));
+
+    const normalizedWikiName = normalizeText(wikiItem.name);
+    const normalizedFoundryName = normalizeText(foundryName);
+    if (normalizedFoundryName && normalizedFoundryName !== normalizedWikiName) {
+        sections.push(`Nome Foundry: ${foundryName}`);
+    }
+
+    const summary = normalizeCopyText(wikiItem.summary || wikiItem.description || '');
+    if (summary) sections.push(summary);
+
+    const properties = Array.isArray(wikiItem.properties) ? wikiItem.properties.filter((property) => property && property.hidden !== true) : [];
+    properties.forEach((property) => {
+        const name = normalizeCopyText(property.name || '');
+        const charges = normalizeCopyText(property.charges || '');
+        const description = normalizeCopyText(property.description || '');
+        const title = [name, charges ? `(${charges})` : ''].filter(Boolean).join(' ');
+        if (title && description) sections.push(`${title}\n${description}`);
+        else if (title || description) sections.push(title || description);
+    });
+
+    const notes = normalizeCopyText(wikiItem.notes || '');
+    if (notes) sections.push(`Note: ${notes}`);
+    return sections;
+}
+
+function buildLoadoutCopyText(title, quantityLabel, description, badges, wikiItem = null, foundryName = '') {
+    const sections = [];
+    const heading = [normalizeCopyText(title || 'Elemento senza nome'), normalizeCopyText(quantityLabel || '')].filter(Boolean).join(' ');
+    if (heading) sections.push(heading);
+
+    const badgeText = (Array.isArray(badges) ? badges : [])
+        .map((badge) => normalizeCopyText(badge))
+        .filter(Boolean)
+        .join(' | ');
+    if (badgeText) sections.push(badgeText);
+
+    if (wikiItem) {
+        sections.push(...buildWikiItemCopySections(wikiItem, foundryName));
+    } else {
+        const descriptionText = renderDescriptionCopyText(description);
+        if (descriptionText) sections.push(descriptionText);
+    }
+
+    return normalizeCopyText(sections.join('\n\n'));
 }
 
 function getQuantityLabel(entry) {
@@ -2170,6 +2305,7 @@ function renderVitalOverview(actor, options = {}) {
     const hp = getActorHpData(actor);
     const ac = toFiniteNumber(actor && actor.vitals && actor.vitals.ac);
     const initiative = toFiniteNumber(actor && actor.vitals && actor.vitals.initiative);
+    const proficiency = toFiniteNumber(actor && actor.vitals && actor.vitals.prof);
     const speed = actor && actor.vitals ? actor.vitals.speed : null;
     const movement = speed && typeof speed === 'object'
         ? [speed.walk ? `${speed.walk} ft` : '', speed.fly ? `volo ${speed.fly} ft` : ''].filter(Boolean).join(' | ')
@@ -2188,8 +2324,13 @@ function renderVitalOverview(actor, options = {}) {
                     </div>
                     <div class="character-live-kpi character-live-kpi--initiative">
                         <span>Iniziativa</span>
-                        <strong>${initiative !== null && initiative >= 0 ? '+' : ''}${formatNumberIt(initiative)}</strong>
+                        <strong>${formatSignedNumber(initiative)}</strong>
                     </div>
+                    ${proficiency !== null ? `
+                    <div class="character-live-kpi character-live-kpi--proficiency">
+                        <span>Competenza</span>
+                        <strong>${formatSignedNumber(proficiency)}</strong>
+                    </div>` : ''}
                     ${movement ? `
                     <div class="character-live-kpi character-live-kpi--movement">
                         <span>Movimento</span>
@@ -2214,17 +2355,24 @@ function renderAbilityOverview(actor) {
             const ability = abilities[key] || {};
             const value = toFiniteNumber(ability.value);
             const mod = toFiniteNumber(ability.mod);
-            if (value === null && mod === null) return '';
+            const save = toFiniteNumber(ability.save);
+            if (value === null && mod === null && save === null) return '';
             return `
                         <span class="character-ability-pill">
                             <em>${label}</em>
                             <strong>${formatNumberIt(value)}</strong>
-                            <small>${mod !== null && mod >= 0 ? '+' : ''}${formatNumberIt(mod)}</small>
+                            <small>${formatSignedNumber(mod)} | ${formatSignedNumber(save)}</small>
                         </span>
                     `;
         })
         .filter(Boolean);
     return entries.length ? `<div class="character-ability-grid">${entries.join('')}</div>` : '';
+}
+
+function formatSignedNumber(value) {
+    const number = toFiniteNumber(value);
+    if (number === null) return '-';
+    return `${number >= 0 ? '+' : ''}${formatNumberIt(number)}`;
 }
 
 function renderResourceOverview(actor) {
@@ -2488,6 +2636,7 @@ function renderWikiItemBridge(wikiItem, foundryName = '') {
 function renderLoadoutDisclosure(title, quantityLabel, description, badges, extraClass = '', dataAttributes = '', wikiItem = null, foundryName = '', iconPath = '', bodyExtraHtml = '') {
     const bodyParts = [];
     const wikiBridge = renderWikiItemBridge(wikiItem, foundryName);
+    const copyText = buildLoadoutCopyText(title, quantityLabel, description, badges, wikiItem, foundryName);
     const entryIcon = iconPath
         ? renderLoadoutEntryIcon(iconPath, title || 'Elemento senza nome')
         : (wikiItem
@@ -2519,9 +2668,14 @@ function renderLoadoutDisclosure(title, quantityLabel, description, badges, extr
                         </span>
                         <span class="loadout-entry-controls">
                             ${quantityLabel ? `<span class="loadout-qty">${escapeHtml(quantityLabel)}</span>` : ''}
+                            ${copyText ? `
+                            <button type="button" class="loadout-copy-button" data-loadout-copy title="Copia titolo e descrizione" aria-label="Copia titolo e descrizione">
+                                <i class="fas fa-copy" aria-hidden="true"></i>
+                            </button>` : ''}
                             <span class="loadout-entry-chevron" aria-hidden="true"><i class="fas fa-chevron-down"></i></span>
                         </span>
                     </summary>
+                    ${copyText ? `<template data-loadout-copy-template>${escapeHtml(copyText)}</template>` : ''}
                     <div class="loadout-entry-body">
                         ${bodyParts.join('')}
                     </div>
@@ -2998,9 +3152,10 @@ function renderAbilityEntries(entries, context = {}) {
 
     const { character = null, actor = null, abilityOverrides = [] } = context;
     return entries.map((entry) => {
-        const badges = ['Abilità'];
+        const badges = [getLoadoutAbilityLabel(entry)];
         const identity = getAbilityOverrideIdentity(character, actor, entry);
         const abilityOverride = findAbilityOverride(abilityOverrides, identity);
+        if (entry.type && entry.type !== 'feat') badges.push(formatToken(entry.type));
         if (abilityOverride?.image) badges.push('Icona wiki');
         if (abilityOverride?.description) badges.push('Testo wiki');
         const activation = entry.activation?.type ? formatToken(entry.activation.type) : '';
@@ -3064,7 +3219,7 @@ function renderAbilityEntries(entries, context = {}) {
             cleanDescription(description),
             badges,
             'loadout-entry--ability',
-            '',
+            `data-ability-entry-key="${escapeHtml(identity.key)}"`,
             null,
             '',
             abilityOverride?.image ? appendAssetVersion(abilityOverride.image, abilityOverride.updatedAt) : (entry.img || ''),
@@ -3137,11 +3292,12 @@ function buildPlayerLoadoutHtml(character, payload, wikiItems = [], abilityOverr
 
 function renderCompanionFeatures(entries) {
     const features = (Array.isArray(entries) ? entries : [])
-        .filter((entry) => entry && entry.type === 'feat')
+        .filter((entry) => entry && (entry.type === 'feat' || getLoadoutRole(entry) === 'ability'))
         .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'it'));
     if (!features.length) return '<p class="loadout-empty">Nessuna azione o tratto sincronizzato.</p>';
     return features.map((entry) => {
-        const badges = ['Feature'];
+        const badges = [getLoadoutAbilityLabel(entry) === 'Attacco' ? 'Attacco' : 'Feature'];
+        if (entry.type && entry.type !== 'feat') badges.push(formatToken(entry.type));
         const activation = entry.activation?.type ? formatToken(entry.activation.type) : '';
         if (activation) badges.push(`Uso: ${activation}`);
         return renderLoadoutDisclosure(
@@ -3864,6 +4020,13 @@ async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, leve
     const result = await window.CriptaApp.api.post('api/data/skill-tree-states', body, { token });
     skillTreeStatesVersion = Number(result?.version || skillTreeStatesVersion || 0);
     skillTreeStatesMemoryCache = nextStates;
+    window.parent?.postMessage?.({
+        type: 'cripta-skill-tree-state-updated',
+        campaignId: window.CriptaApp?.campaigns?.currentId?.() || '',
+        characterId: character?.id || '',
+        treeKey,
+        unlocked: nextRecord.unlocked
+    }, '*');
     return result;
 }
 
@@ -6690,7 +6853,7 @@ window.CriptaApp.onPageReady("character", async function () {
             return '';
         }
 
-        const folder = buildCampaignScopedOverrideFolder('ability-overrides', identity.characterId || identity.actorName || identity.characterName);
+        const folder = buildCampaignScopedOverrideFolder('ability-overrides', identity.actorName || identity.characterId || identity.characterName);
         const fileName = `${slugify(identity.abilityName || identity.abilityId || 'abilita')}.webp`;
         const form = new FormData();
         form.set('folder', folder);
@@ -6720,7 +6883,7 @@ window.CriptaApp.onPageReady("character", async function () {
             return '';
         }
 
-        const folder = buildCampaignScopedOverrideFolder('item-overrides', identity.characterId || identity.actorName || identity.characterName);
+        const folder = buildCampaignScopedOverrideFolder('item-overrides', identity.actorName || identity.characterId || identity.characterName);
         const fileName = `${slugify(identity.itemName || identity.itemId || 'oggetto')}.webp`;
         const form = new FormData();
         form.set('folder', folder);
@@ -6869,6 +7032,55 @@ window.CriptaApp.onPageReady("character", async function () {
         if (index >= 0) currentAllCharacters[index] = currentCharacter;
     }
 
+    function getLoadoutEntryRestoreKey(entry) {
+        if (!entry) return '';
+        if (entry.dataset.inventoryItemKey) return `inventory:${entry.dataset.inventoryItemKey}`;
+        if (entry.dataset.abilityEntryKey) return `ability:${entry.dataset.abilityEntryKey}`;
+        const panel = entry.closest('.loadout-panel')?.dataset?.panel || '';
+        const title = entry.querySelector('.loadout-entry-title span:last-child')?.textContent?.trim() || '';
+        return title ? `${panel}:title:${normalizeText(title)}` : '';
+    }
+
+    function captureLoadoutRefreshState(trigger = null) {
+        const loadoutCard = document.getElementById('player-loadout-card');
+        if (!loadoutCard) return null;
+        return {
+            scrollX: window.scrollX,
+            scrollY: window.scrollY,
+            activePanel: loadoutCard.querySelector('.loadout-tab.is-active')?.dataset?.panelTarget || 'inventory',
+            openEntryKeys: Array.from(loadoutCard.querySelectorAll('.loadout-entry[open]'))
+                .map(getLoadoutEntryRestoreKey)
+                .filter(Boolean),
+            triggerEntryKey: getLoadoutEntryRestoreKey(trigger?.closest?.('.loadout-entry'))
+        };
+    }
+
+    function restoreLoadoutRefreshState(state) {
+        if (!state) return;
+        const loadoutCard = document.getElementById('player-loadout-card');
+        if (!loadoutCard) return;
+
+        const activePanel = state.activePanel || 'inventory';
+        loadoutCard.querySelector(`.loadout-tab[data-panel-target="${CSS.escape(activePanel)}"]`)?.click();
+
+        const keysToOpen = new Set([...(state.openEntryKeys || []), state.triggerEntryKey].filter(Boolean));
+        if (keysToOpen.size) {
+            loadoutCard.querySelectorAll('.loadout-entry').forEach((entry) => {
+                if (keysToOpen.has(getLoadoutEntryRestoreKey(entry))) entry.setAttribute('open', '');
+            });
+        }
+
+        window.requestAnimationFrame(() => {
+            window.scrollTo({ left: state.scrollX || 0, top: state.scrollY || 0, behavior: 'auto' });
+        });
+    }
+
+    async function hydratePlayerLoadoutPreservingState(character, trigger = null) {
+        const state = captureLoadoutRefreshState(trigger);
+        await hydratePlayerLoadout(character);
+        restoreLoadoutRefreshState(state);
+    }
+
     function initializeAbilityOverrideUploads(cardElement, character) {
         const getIdentityFromButton = (button) => ({
             key: button.dataset.abilityKey || '',
@@ -6904,7 +7116,7 @@ window.CriptaApp.onPageReady("character", async function () {
                     const imagePath = await uploadAbilityOverrideFile(iconBlob, identity);
                     if (!imagePath) return;
                     await saveAbilityOverride(identity, { image: imagePath });
-                    await hydratePlayerLoadout(character);
+                    await hydratePlayerLoadoutPreservingState(character, button);
                 } catch (error) {
                     console.error('Salvataggio icona abilità fallito:', error);
                     alert(`Salvataggio icona abilità fallito: ${error?.message || error}`);
@@ -6933,7 +7145,7 @@ window.CriptaApp.onPageReady("character", async function () {
                 button.setAttribute('aria-busy', 'true');
                 try {
                     await saveAbilityOverride(identity, { description: nextDescription.trim() });
-                    await hydratePlayerLoadout(character);
+                    await hydratePlayerLoadoutPreservingState(character, button);
                 } catch (error) {
                     console.error('Salvataggio testo abilità fallito:', error);
                     alert(`Salvataggio testo abilità fallito: ${error?.message || error}`);
@@ -7513,6 +7725,7 @@ window.CriptaApp.onPageReady("character", async function () {
             ]);
             loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload, wikiItems, abilityOverrides, itemOverrides);
             initializeLoadoutTabs(loadoutCard);
+            initializeLoadoutCopyButtons(loadoutCard);
             initializeItemOverrideUploads(loadoutCard, character);
             initializeAbilityOverrideUploads(loadoutCard, character);
             if (companionsCard) {
@@ -7521,6 +7734,7 @@ window.CriptaApp.onPageReady("character", async function () {
                 });
                 companionsCard.hidden = !companionsHtml;
                 companionsCard.innerHTML = companionsHtml;
+                if (companionsHtml) initializeLoadoutCopyButtons(companionsCard);
                 if (companionsHtml) mountCompanionSkillTrees(companionsCard, character, inventoryPayload, mediaOverrides, currentPlayerSkillTrees);
                 if (companionsHtml) mountCompanionTransformations(companionsCard, character, inventoryPayload, mediaOverrides);
             }

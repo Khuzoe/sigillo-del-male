@@ -9,7 +9,9 @@
       "mediaPath": "media",
       "theme": "cripta-di-sangue",
       "logo": "assets/img/logo.webp",
-      "hiddenPages": [],
+      "hiddenPages": [
+        "mappa"
+      ],
       "enabled": true
     },
     {
@@ -21,7 +23,8 @@
       "theme": "mago-folle",
       "logo": "assets/img/logo.webp",
       "hiddenPages": [
-        "famiglia-von-t"
+        "famiglia-von-t",
+        "mappa"
       ],
       "enabled": true
     },
