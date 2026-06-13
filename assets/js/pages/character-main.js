@@ -3012,8 +3012,22 @@ function getInventoryContainerDetails(group, entries) {
     return (Array.isArray(entries) ? entries : []).find((entry) => {
         if (!entry || typeof entry !== 'object') return false;
         if (groupId && String(entry.id || '').trim() === groupId) return true;
+        if (groupId && String(entry._id || '').trim() === groupId) return true;
+        if (groupId && String(entry.itemId || '').trim() === groupId) return true;
         return groupName && normalizeText(entry.name || '') === groupName;
     }) || null;
+}
+
+function getInventoryContainerCapacity(entry) {
+    return entry?.capacity
+        || (entry?.container && typeof entry.container === 'object' ? entry.container.capacity : null)
+        || null;
+}
+
+function getInventoryContainerCurrency(entry) {
+    return entry?.currency
+        || (entry?.container && typeof entry.container === 'object' ? entry.container.currency : null)
+        || null;
 }
 
 function getInventoryContainerGroup(entry) {
@@ -3070,8 +3084,8 @@ function renderInventoryEntries(entries, context = {}) {
     const renderedGroups = groups.map((group) => {
         const containerEntry = getInventoryContainerDetails(group, entries);
         const containerMetaHtml = [
-            renderInventoryCapacity(containerEntry?.capacity),
-            renderInventoryCurrency(containerEntry?.currency)
+            renderInventoryCapacity(getInventoryContainerCapacity(containerEntry)),
+            renderInventoryCurrency(getInventoryContainerCurrency(containerEntry))
         ].filter(Boolean).join('');
         const entriesHtml = group.entries.map((entry) => {
             const badges = [];

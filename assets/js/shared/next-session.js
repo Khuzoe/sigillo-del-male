@@ -1949,6 +1949,9 @@
             <div class="next-session-card next-session-card-poll">
                 <div class="next-session-card-controls">
                     ${canConfigureSession ? `
+                        <button type="button" class="next-session-send-poll-trigger" data-poll-action="send-link" aria-label="Invia link sondaggio su Discord" title="Invia link sondaggio su Discord">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
                         <button type="button" class="next-session-edit-trigger" data-editor-action="${EDITOR_MODES.editCurrent}" aria-label="Modifica sondaggio corrente">
                             <i class="fas fa-pen"></i>
                         </button>
@@ -2341,12 +2344,31 @@
             }
 
             if (card) {
-                card.addEventListener('click', (event) => {
+                card.addEventListener('click', async (event) => {
                     const button = event.target.closest('button');
                     if (!button) return;
 
+                    const pollAction = button.getAttribute('data-poll-action');
                     const action = button.getAttribute('data-editor-action');
                     const viewMode = button.getAttribute('data-view-mode');
+                    if (pollAction === 'send-link') {
+                        if (!canConfigureSession) return;
+                        button.disabled = true;
+                        statusMessage = 'Invio link del sondaggio su Discord...';
+                        refreshPollVotesDom();
+                        try {
+                            const result = await postSessionPollLinkToDiscord(effectiveConfig);
+                            statusMessage = result === null
+                                ? 'Webhook Discord non configurato per questa campagna.'
+                                : 'Link del sondaggio inviato su Discord.';
+                        } catch (error) {
+                            console.error('Impossibile inviare il link del sondaggio su Discord:', error);
+                            statusMessage = error?.message || 'Impossibile inviare il link del sondaggio su Discord.';
+                        }
+                        rerender();
+                        return;
+                    }
+
                     if (viewMode === VIEW_MODES.scheduled || viewMode === VIEW_MODES.poll) {
                         container.dataset.nextSessionView = viewMode;
                         renderNextSession(effectiveConfig, container);
@@ -2548,12 +2570,10 @@
                         try {
                             const savedConfig = await postRemoteSessionConfig(nextConfig, authToken);
                             persistNextSessionConfig(savedConfig);
-                            if (editorState.mode === EDITOR_MODES.createNext) {
-                                try {
-                                    await postSessionPollLinkToDiscord(savedConfig);
-                                } catch (discordError) {
-                                    console.error('Impossibile inviare il link del sondaggio su Discord:', discordError);
-                                }
+                            try {
+                                await postSessionPollLinkToDiscord(savedConfig);
+                            } catch (discordError) {
+                                console.error('Impossibile inviare il link del sondaggio su Discord:', discordError);
                             }
                             renderNextSession(savedConfig, container);
                         } catch (error) {

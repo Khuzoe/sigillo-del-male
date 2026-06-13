@@ -6062,6 +6062,7 @@ body.is-embed .container {
 .next-session-edit-trigger,
 .next-session-add-trigger,
 .next-session-export-trigger,
+.next-session-send-poll-trigger,
 .next-session-view-trigger {
     width: 34px;
     height: 34px;
@@ -6079,10 +6080,17 @@ body.is-embed .container {
 .next-session-edit-trigger:hover,
 .next-session-add-trigger:hover,
 .next-session-export-trigger:hover,
+.next-session-send-poll-trigger:hover,
 .next-session-view-trigger:hover {
     transform: translateY(-1px);
     background: rgba(212, 175, 55, 0.12);
     border-color: rgba(212, 175, 55, 0.5);
+}
+
+.next-session-send-poll-trigger:disabled {
+    opacity: 0.55;
+    cursor: wait;
+    transform: none;
 }
 
 .next-session-card-poll::before {
@@ -6940,7 +6948,8 @@ body.next-session-editor-open {
     }
 
     .next-session-edit-trigger,
-    .next-session-add-trigger {
+    .next-session-add-trigger,
+    .next-session-send-poll-trigger {
         top: 0.8rem;
         right: 0.8rem;
     }

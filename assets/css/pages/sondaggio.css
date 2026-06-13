@@ -55,11 +55,8 @@ body.poll-page {
         }
 
         .poll-page-panel .next-session-card-controls {
-            display: none;
-        }
-
-        .poll-page-panel .availability-feedback {
-            display: none;
+            top: 0.75rem;
+            right: 0.75rem;
         }
 
         .poll-page-panel .next-session-card,
