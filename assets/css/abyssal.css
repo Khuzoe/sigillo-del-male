@@ -1899,6 +1899,11 @@ body.is-embed .container {
     cursor: default;
 }
 
+.player-transformation-token.is-base {
+    cursor: default;
+    border-color: rgba(245, 223, 134, 0.48);
+}
+
 .player-transformation-token>span {
     font-family: var(--font-heading);
     font-size: clamp(2.2rem, 6vw, 4.5rem);
@@ -2327,6 +2332,96 @@ body.is-embed .container {
     color: #d7c9af;
 }
 
+.inventory-container-meta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.inventory-container-capacity {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+.inventory-container-capacity__bar {
+    position: relative;
+    width: 4.2rem;
+    height: 0.35rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.inventory-container-capacity__bar i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+}
+
+.inventory-container-currency {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.inventory-coin {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.18rem;
+    padding: 0.08rem 0.32rem 0.08rem 0.18rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--text-main);
+    font-family: var(--font-ui);
+    font-size: 0.7rem;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.inventory-coin i {
+    width: 0.62rem;
+    height: 0.62rem;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+
+.inventory-coin strong {
+    color: inherit;
+    font-weight: 900;
+}
+
+.inventory-coin.coin--pp i {
+    background: linear-gradient(135deg, #f4f7ff, #9ca7c6);
+}
+
+.inventory-coin.coin--gp i {
+    background: linear-gradient(135deg, #ffe58b, #b8781d);
+}
+
+.inventory-coin.coin--ep i {
+    background: linear-gradient(135deg, #dff8ff, #69a6b5);
+}
+
+.inventory-coin.coin--sp i {
+    background: linear-gradient(135deg, #f0f0f0, #8d9098);
+}
+
+.inventory-coin.coin--cp i {
+    background: linear-gradient(135deg, #d88a52, #7e3f22);
+}
+
 .inventory-group-title i {
     color: var(--gold-dim);
 }
@@ -2358,6 +2453,18 @@ body.is-embed .container {
 .inventory-group[open] .inventory-group-chevron {
     transform: rotate(180deg);
     color: var(--gold);
+}
+
+@media (max-width: 720px) {
+    .inventory-group-header {
+        flex-wrap: wrap;
+    }
+
+    .inventory-container-meta {
+        order: 3;
+        width: 100%;
+        justify-content: flex-start;
+    }
 }
 
 .character-live-summary {
@@ -2485,8 +2592,7 @@ body.is-embed .container {
 }
 
 .character-ability-pill,
-.character-resource-pill,
-.character-currency-list span {
+.character-resource-pill {
     display: inline-flex;
     align-items: center;
     justify-content: space-between;
@@ -2504,8 +2610,7 @@ body.is-embed .container {
 }
 
 .character-ability-pill em,
-.character-resource-pill strong,
-.character-currency-list strong {
+.character-resource-pill strong {
     color: var(--gold);
     font-size: 0.68rem;
     font-style: normal;
@@ -2530,6 +2635,16 @@ body.is-embed .container {
     display: flex;
     flex-wrap: wrap;
     gap: 0.42rem;
+}
+
+.character-currency-coin {
+    padding: 0.26rem 0.48rem 0.26rem 0.32rem;
+    font-size: 0.78rem;
+}
+
+.character-currency-coin i {
+    width: 0.78rem;
+    height: 0.78rem;
 }
 
 .character-resource-pill {

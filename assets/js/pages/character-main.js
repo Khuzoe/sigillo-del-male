@@ -1338,6 +1338,10 @@ function getItemOverrideIdentity(character, actor, entry) {
     const itemId = String(entry?.id || '').trim();
     const itemName = String(entry?.name || '').trim();
     const itemType = String(entry?.type || '').trim();
+    const itemUuid = String(entry?.uuid || '').trim();
+    const transferId = String(entry?.transferId || '').trim();
+    const sourceId = String(entry?.sourceId || entry?.system?.source?.uuid || entry?.system?.source?.id || entry?.wikiItemId || '').trim();
+    const transferKey = getTransferableItemKey({ itemId, itemName, itemType, sourceId, transferId, existingTransferKey: entry?.transferKey });
     const ownerKey = slugify(characterId || actorId || characterName || actorName || 'personaggio');
     const itemKey = slugify(itemId || itemName || 'oggetto');
     return {
@@ -1346,10 +1350,29 @@ function getItemOverrideIdentity(character, actor, entry) {
         characterName,
         actorId,
         actorName,
+        itemUuid,
+        transferId,
+        sourceId,
+        transferKey,
         itemId,
         itemName,
         itemType
     };
+}
+
+function getTransferableItemKey({ itemId = '', itemName = '', itemType = '', sourceId = '', transferId = '', existingTransferKey = '' } = {}) {
+    const existing = String(existingTransferKey || '').trim();
+    if (existing) return existing;
+    const instance = normalizeText(transferId);
+    if (instance) return `instance:${instance}`;
+    const stableSource = normalizeText(sourceId);
+    if (stableSource) return `source:${stableSource}`;
+    const name = normalizeText(itemName);
+    const type = normalizeText(itemType);
+    if (name && type) return `name:${type}:${name}`;
+    if (name) return `name:${name}`;
+    const id = normalizeText(itemId);
+    return id ? `id:${id}` : '';
 }
 
 function findAbilityOverride(records, identity) {
@@ -1371,6 +1394,9 @@ function findItemOverride(records, identity) {
     return (Array.isArray(records) ? records : []).find((record) => {
         if (!record || typeof record !== 'object') return false;
         if (record.key && record.key === identity.key) return true;
+        if (record.transferId && identity.transferId && record.transferId === identity.transferId) return true;
+        if (record.transferKey && identity.transferKey && record.transferKey === identity.transferKey) return true;
+        if (record.sourceId && identity.sourceId && normalizeText(record.sourceId) === normalizeText(identity.sourceId)) return true;
         const sameCharacter = Boolean(record.characterId && identity.characterId && record.characterId === identity.characterId)
             || Boolean(record.actorId && identity.actorId && record.actorId === identity.actorId)
             || Boolean(record.actorName && identity.actorName && normalizeText(record.actorName) === normalizeText(identity.actorName));
@@ -1461,6 +1487,7 @@ function getCompanionSkillTreeSubject(character, companion, identity = null) {
     const entityId = identity?.entityId || getCompanionReadableEntityId(character?.id || '', companion);
     return {
         id: `companion-${entityId}`,
+        entityId,
         characterId: `companion-${entityId}`,
         name: companion?.displayName || companion?.name || identity?.name || 'Companion',
         foundryName: companion?.foundryName || companion?.name || identity?.foundryName || '',
@@ -2391,12 +2418,17 @@ function renderResourceOverview(actor) {
 
 function renderCurrencyOverview(actor) {
     const currency = actor && actor.currency && typeof actor.currency === 'object' ? actor.currency : {};
-    const labels = { pp: 'PP', gp: 'MO', ep: 'ME', sp: 'MA', cp: 'MR' };
-    const entries = Object.entries(labels)
-        .map(([key, label]) => {
+    const entries = Object.entries(INVENTORY_CURRENCY_META)
+        .map(([key, meta]) => {
             const amount = toFiniteNumber(currency[key]);
             if (amount === null || amount <= 0) return '';
-            return `<span><strong>${escapeHtml(label)}</strong> ${formatNumberIt(amount)}</span>`;
+            return `
+                <span class="inventory-coin character-currency-coin ${meta.className}" title="${escapeHtml(meta.label)} ${formatNumberIt(amount)}">
+                    <i aria-hidden="true"></i>
+                    <strong>${escapeHtml(meta.label)}</strong>
+                    ${formatNumberIt(amount)}
+                </span>
+            `;
         })
         .filter(Boolean);
     return entries.length ? `<div class="character-currency-list">${entries.join('')}</div>` : '';
@@ -2903,6 +2935,10 @@ function renderPlayerProgressSection(entries, context = {}) {
                             data-character-name="${escapeHtml(identity.characterName)}"
                             data-actor-id="${escapeHtml(identity.actorId)}"
                             data-actor-name="${escapeHtml(identity.actorName)}"
+                            data-item-uuid="${escapeHtml(identity.itemUuid)}"
+                            data-transfer-id="${escapeHtml(identity.transferId)}"
+                            data-source-id="${escapeHtml(identity.sourceId)}"
+                            data-transfer-key="${escapeHtml(identity.transferKey)}"
                             data-item-id="${escapeHtml(identity.itemId)}"
                             data-item-name="${escapeHtml(identity.itemName)}"
                             data-item-type="${escapeHtml(identity.itemType)}"
@@ -2920,6 +2956,64 @@ function renderPlayerProgressSection(entries, context = {}) {
             ${rows ? `<div class="player-progress-list">${rows}</div>` : '<p class="loadout-empty">Nessun oggetto con progresso registrato.</p>'}
         </section>
     `;
+}
+
+const INVENTORY_CURRENCY_META = {
+    pp: { label: 'PP', className: 'coin--pp' },
+    gp: { label: 'MO', className: 'coin--gp' },
+    ep: { label: 'ME', className: 'coin--ep' },
+    sp: { label: 'MA', className: 'coin--sp' },
+    cp: { label: 'MR', className: 'coin--cp' }
+};
+
+function renderInventoryCurrency(currency) {
+    if (!currency || typeof currency !== 'object') return '';
+    const coins = Object.entries(INVENTORY_CURRENCY_META)
+        .map(([key, meta]) => {
+            const amount = toFiniteNumber(currency[key]);
+            if (amount === null || amount <= 0) return '';
+            return `
+                <span class="inventory-coin ${meta.className}" title="${escapeHtml(meta.label)} ${formatNumberIt(amount)}">
+                    <i aria-hidden="true"></i>
+                    <strong>${escapeHtml(meta.label)}</strong>
+                    ${formatNumberIt(amount)}
+                </span>
+            `;
+        })
+        .filter(Boolean)
+        .join('');
+    return coins ? `<span class="inventory-container-currency">${coins}</span>` : '';
+}
+
+function renderInventoryCapacity(capacity) {
+    if (!capacity || typeof capacity !== 'object') return '';
+    const used = toFiniteNumber(capacity.used);
+    const max = toFiniteNumber(capacity.max);
+    if (used === null && max === null) return '';
+    const unit = String(capacity.unit || '').trim();
+    const text = max !== null
+        ? `${formatNumberIt(used ?? 0)} / ${formatNumberIt(max)}${unit ? ` ${unit}` : ''}`
+        : `${formatNumberIt(used)}${unit ? ` ${unit}` : ''}`;
+    const percent = used !== null && max !== null && max > 0
+        ? Math.max(0, Math.min(100, (used / max) * 100))
+        : null;
+    return `
+        <span class="inventory-container-capacity" title="Capienza occupata">
+            <span class="inventory-container-capacity__text">${escapeHtml(text)}</span>
+            ${percent !== null ? `<span class="inventory-container-capacity__bar"><i style="width: ${percent.toFixed(2)}%"></i></span>` : ''}
+        </span>
+    `;
+}
+
+function getInventoryContainerDetails(group, entries) {
+    if (!group || group.isLoose) return null;
+    const groupId = String(group.id || '').trim();
+    const groupName = normalizeText(group.name || '');
+    return (Array.isArray(entries) ? entries : []).find((entry) => {
+        if (!entry || typeof entry !== 'object') return false;
+        if (groupId && String(entry.id || '').trim() === groupId) return true;
+        return groupName && normalizeText(entry.name || '') === groupName;
+    }) || null;
 }
 
 function getInventoryContainerGroup(entry) {
@@ -2974,6 +3068,11 @@ function renderInventoryEntries(entries, context = {}) {
     });
 
     const renderedGroups = groups.map((group) => {
+        const containerEntry = getInventoryContainerDetails(group, entries);
+        const containerMetaHtml = [
+            renderInventoryCapacity(containerEntry?.capacity),
+            renderInventoryCurrency(containerEntry?.currency)
+        ].filter(Boolean).join('');
         const entriesHtml = group.entries.map((entry) => {
             const badges = [];
             const typeMeta = getInventoryTypeMeta(entry.type);
@@ -3008,6 +3107,10 @@ function renderInventoryEntries(entries, context = {}) {
                             data-character-name="${escapeHtml(identity.characterName)}"
                             data-actor-id="${escapeHtml(identity.actorId)}"
                             data-actor-name="${escapeHtml(identity.actorName)}"
+                            data-item-uuid="${escapeHtml(identity.itemUuid)}"
+                            data-transfer-id="${escapeHtml(identity.transferId)}"
+                            data-source-id="${escapeHtml(identity.sourceId)}"
+                            data-transfer-key="${escapeHtml(identity.transferKey)}"
                             data-item-id="${escapeHtml(identity.itemId)}"
                             data-item-name="${escapeHtml(identity.itemName)}"
                             data-item-type="${escapeHtml(identity.itemType)}"
@@ -3024,6 +3127,10 @@ function renderInventoryEntries(entries, context = {}) {
                             data-character-name="${escapeHtml(identity.characterName)}"
                             data-actor-id="${escapeHtml(identity.actorId)}"
                             data-actor-name="${escapeHtml(identity.actorName)}"
+                            data-item-uuid="${escapeHtml(identity.itemUuid)}"
+                            data-transfer-id="${escapeHtml(identity.transferId)}"
+                            data-source-id="${escapeHtml(identity.sourceId)}"
+                            data-transfer-key="${escapeHtml(identity.transferKey)}"
                             data-item-id="${escapeHtml(identity.itemId)}"
                             data-item-name="${escapeHtml(identity.itemName)}"
                             data-item-type="${escapeHtml(identity.itemType)}"
@@ -3041,6 +3148,10 @@ function renderInventoryEntries(entries, context = {}) {
                             data-character-name="${escapeHtml(identity.characterName)}"
                             data-actor-id="${escapeHtml(identity.actorId)}"
                             data-actor-name="${escapeHtml(identity.actorName)}"
+                            data-item-uuid="${escapeHtml(identity.itemUuid)}"
+                            data-transfer-id="${escapeHtml(identity.transferId)}"
+                            data-source-id="${escapeHtml(identity.sourceId)}"
+                            data-transfer-key="${escapeHtml(identity.transferKey)}"
                             data-item-id="${escapeHtml(identity.itemId)}"
                             data-item-name="${escapeHtml(identity.itemName)}"
                             data-item-type="${escapeHtml(identity.itemType)}"
@@ -3090,6 +3201,7 @@ function renderInventoryEntries(entries, context = {}) {
                                 <i class="fas ${icon}" aria-hidden="true"></i>
                                 <span>${escapeHtml(groupName)}</span>
                             </div>
+                            ${containerMetaHtml ? `<div class="inventory-container-meta">${containerMetaHtml}</div>` : ''}
                             <span class="inventory-group-controls">
                                 <span class="inventory-group-count" data-group-count>${group.entries.length}</span>
                                 <span class="inventory-group-chevron" aria-hidden="true"><i class="fas fa-chevron-down"></i></span>
@@ -6766,30 +6878,19 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     function upsertItemOverrideRecord(records, identity, patch) {
-        const existing = (Array.isArray(records) ? records : []).find((record) => (
-            record
-            && typeof record === 'object'
-            && (
-                record.key === identity.key
-                || record.id === identity.key
-                || (
-                    (record.actorId && identity.actorId && record.actorId === identity.actorId)
-                    && (record.itemId && identity.itemId && record.itemId === identity.itemId)
-                )
-                || (
-                    normalizeText(record.actorName) === normalizeText(identity.actorName)
-                    && normalizeText(record.itemName) === normalizeText(identity.itemName)
-                )
-            )
-        )) || {};
+        const existing = findItemOverride(records, identity) || {};
         const nextRecord = {
             ...existing,
-            id: identity.key,
-            key: identity.key,
+            id: existing.id || identity.key,
+            key: existing.key || identity.key,
             characterId: identity.characterId,
             characterName: identity.characterName,
             actorId: identity.actorId,
             actorName: identity.actorName,
+            itemUuid: identity.itemUuid,
+            transferId: identity.transferId,
+            sourceId: identity.sourceId,
+            transferKey: identity.transferKey,
             itemId: identity.itemId,
             itemName: identity.itemName,
             itemType: identity.itemType,
@@ -6801,6 +6902,10 @@ window.CriptaApp.onPageReady("character", async function () {
             && typeof record === 'object'
             && record.key !== identity.key
             && record.id !== identity.key
+            && record !== existing
+            && !(record.transferId && identity.transferId && record.transferId === identity.transferId)
+            && !(record.transferKey && identity.transferKey && record.transferKey === identity.transferKey)
+            && !(record.sourceId && identity.sourceId && normalizeText(record.sourceId) === normalizeText(identity.sourceId))
             && !(
                 (record.actorId && identity.actorId && record.actorId === identity.actorId)
                 && (record.itemId && identity.itemId && record.itemId === identity.itemId)
@@ -7158,16 +7263,24 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     function initializeItemOverrideUploads(cardElement, character) {
-        const getIdentityFromButton = (button) => ({
-            key: button.dataset.itemKey || '',
-            characterId: button.dataset.characterId || '',
-            characterName: button.dataset.characterName || '',
-            actorId: button.dataset.actorId || '',
-            actorName: button.dataset.actorName || '',
-            itemId: button.dataset.itemId || '',
-            itemName: button.dataset.itemName || '',
-            itemType: button.dataset.itemType || ''
-        });
+        const getIdentityFromButton = (button) => {
+            const identity = {
+                key: button.dataset.itemKey || '',
+                characterId: button.dataset.characterId || '',
+                characterName: button.dataset.characterName || '',
+                actorId: button.dataset.actorId || '',
+                actorName: button.dataset.actorName || '',
+                itemUuid: button.dataset.itemUuid || '',
+                transferId: button.dataset.transferId || '',
+                sourceId: button.dataset.sourceId || '',
+                transferKey: button.dataset.transferKey || '',
+                itemId: button.dataset.itemId || '',
+                itemName: button.dataset.itemName || '',
+                itemType: button.dataset.itemType || ''
+            };
+            identity.transferKey = getTransferableItemKey({ ...identity, existingTransferKey: identity.transferKey });
+            return identity;
+        };
 
         const iconButtons = Array.from(cardElement.querySelectorAll('[data-item-icon-upload]'));
         iconButtons.forEach((button) => {
@@ -7814,6 +7927,67 @@ window.CriptaApp.onPageReady("character", async function () {
             .sort((left, right) => String(left.creatureName || left.name || '').localeCompare(String(right.creatureName || right.name || ''), 'it'));
     }
 
+    function preserveVersionedCanonicalImage(canonicalPath, currentPath) {
+        const canonical = String(canonicalPath || '').trim();
+        const current = String(currentPath || '').trim();
+        if (!canonical || !current) return canonical || current;
+        const cleanCurrent = current.split(/[?#]/)[0].replace(/^\/+/, '');
+        return cleanCurrent === canonical ? current : canonical;
+    }
+
+    function getCompanionCanonicalTokenPath(character) {
+        const ownerCharacterId = slugify(character?.ownerCharacterId || '');
+        const entityId = String(character?.entityId || character?.id || character?.characterId || '')
+            .replace(/^companion-/, '')
+            .trim();
+        if (!ownerCharacterId || !entityId) return '';
+        return `media/campaigns/${getCurrentCampaignId()}/companions/${ownerCharacterId}/${entityId}-token.webp`;
+    }
+
+    function getBaseTransformationTokenImage(character) {
+        const images = character?.images || {};
+        const canonicalToken = character?.isCompanion
+            ? getCompanionCanonicalTokenPath(character)
+            : getSyncedPlayerImagePath(character, 'token');
+        const tokenImage = preserveVersionedCanonicalImage(canonicalToken, images.token);
+        return tokenImage
+            || images.tokenFallback
+            || images.avatar
+            || images.portrait
+            || images.idle
+            || '';
+    }
+
+    function getBaseTransformationEntry(character, entries = []) {
+        if (!entries.length) return null;
+        const tokenImage = getBaseTransformationTokenImage(character);
+        if (!tokenImage) return null;
+        const id = `${character?.id || character?.actorId || 'character'}-base-token`;
+        return {
+            id,
+            characterId: character?.id || '',
+            entityType: character?.isCompanion ? 'companion' : 'player',
+            isCompanion: Boolean(character?.isCompanion),
+            actorId: character?.actorId || '',
+            ownerCharacterId: character?.ownerCharacterId || '',
+            ownerAccountId: character?.accountId || '',
+            ownerDiscordId: character?.discordId || '',
+            creatureName: 'Base',
+            name: 'Base',
+            foundryName: character?.foundryName || character?.name || '',
+            foundryNames: [character?.foundryName || character?.name || ''].filter(Boolean),
+            tokenImage,
+            switcher: true,
+            isBaseTransformation: true
+        };
+    }
+
+    function getDisplayCharacterTransformations(character) {
+        const entries = getCharacterTransformations(character);
+        const baseEntry = getBaseTransformationEntry(character, entries);
+        return baseEntry ? [baseEntry, ...entries] : entries;
+    }
+
     function isCompanionTransformationEntry(entry) {
         return Boolean(entry?.isCompanion)
             || String(entry?.entityType || '') === 'companion'
@@ -7872,7 +8046,7 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     function renderPlayerTransformationsHtml(character) {
-        const entries = getCharacterTransformations(character);
+        const entries = getDisplayCharacterTransformations(character);
         const canEdit = canEditCurrentPlayerTransformations(character);
         const empty = canEdit
             ? 'Nessuna trasformazione configurata. Aggiungi una creatura e carica il token personalizzato.'
@@ -7883,14 +8057,22 @@ window.CriptaApp.onPageReady("character", async function () {
             const image = entry.tokenImage ? resolveCharacterAssetPath(entry.tokenImage) : '';
             const initials = String(title || '?').trim().charAt(0).toUpperCase() || '?';
             const sizeLabel = entry.size ? `Dimensione token: ${entry.size} x ${entry.size}` : '';
+            const isBaseEntry = Boolean(entry.isBaseTransformation);
             return `
-                <article class="player-transformation-card" data-transformation-id="${escapeHtml(entry.id)}">
+                <article class="player-transformation-card ${isBaseEntry ? 'is-base' : ''}" data-transformation-id="${escapeHtml(entry.id)}">
+                    ${isBaseEntry ? `
+                    <div class="player-transformation-token ${image ? 'has-image' : ''} is-base" title="Token base del personaggio">
+                        ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}">` : `<span>${escapeHtml(initials)}</span>`}
+                        <small><i class="fas fa-home"></i> Base</small>
+                    </div>
+                    ` : `
                     <button type="button" class="player-transformation-token ${image ? 'has-image' : ''}" data-transformation-action="upload" data-transformation-id="${escapeHtml(entry.id)}" ${canEdit ? '' : 'disabled'} title="${canEdit ? 'Carica token personalizzato' : 'Token personalizzato'}">
                         ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}">` : `<span>${escapeHtml(initials)}</span>`}
                         ${canEdit ? '<small><i class="fas fa-upload"></i> Cambia</small>' : ''}
                     </button>
+                    `}
                     <div class="player-transformation-info">
-                        ${canEdit ? `
+                        ${canEdit && !isBaseEntry ? `
                             <label class="player-transformation-name-field">
                                 <span>Creatura Foundry</span>
                                 <input type="text" value="${escapeHtml(title)}" data-transformation-name-input data-transformation-id="${escapeHtml(entry.id)}" aria-label="Nome creatura Foundry">
@@ -7908,10 +8090,10 @@ window.CriptaApp.onPageReady("character", async function () {
                         ${!canEdit && sizeLabel ? `<span>${escapeHtml(sizeLabel)}</span>` : ''}
                         <span class="player-transformation-mode ${entry.switcher === false ? 'is-muted' : ''}">
                             <i class="fas fa-retweet"></i>
-                            ${entry.switcher === false ? 'Non nel Token Switcher' : 'Disponibile nel Token Switcher'}
+                            ${isBaseEntry ? 'Token base' : (entry.switcher === false ? 'Non nel Token Switcher' : 'Disponibile nel Token Switcher')}
                         </span>
                     </div>
-                    ${canEdit ? `
+                    ${canEdit && !isBaseEntry ? `
                         <div class="player-transformation-actions">
                             <button type="button" data-transformation-action="rename" data-transformation-id="${escapeHtml(entry.id)}">Salva dati</button>
                             ${foundryLabel ? `<button type="button" data-transformation-action="copy-foundry-name" data-transformation-id="${escapeHtml(entry.id)}">Copia nome Foundry</button>` : ''}
