@@ -11,6 +11,7 @@ const EMBED_SCRIPT_WARMUP_PATHS = [
     "assets/js/pages/bestiario.js",
     "assets/js/pages/oggetti.js",
     "assets/js/pages/appunti.js",
+    "assets/js/pages/calendar.js",
     "assets/js/pages/famiglia-von-t.js",
     "assets/js/pages/locations.js",
     "assets/js/pages/location-detail.js",

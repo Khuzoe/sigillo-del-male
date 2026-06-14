@@ -1394,12 +1394,12 @@ function findItemOverride(records, identity) {
     return (Array.isArray(records) ? records : []).find((record) => {
         if (!record || typeof record !== 'object') return false;
         if (record.key && record.key === identity.key) return true;
-        if (record.transferId && identity.transferId && record.transferId === identity.transferId) return true;
-        if (record.transferKey && identity.transferKey && record.transferKey === identity.transferKey) return true;
-        if (record.sourceId && identity.sourceId && normalizeText(record.sourceId) === normalizeText(identity.sourceId)) return true;
         const sameCharacter = Boolean(record.characterId && identity.characterId && record.characterId === identity.characterId)
             || Boolean(record.actorId && identity.actorId && record.actorId === identity.actorId)
             || Boolean(record.actorName && identity.actorName && normalizeText(record.actorName) === normalizeText(identity.actorName));
+        if (record.transferId && identity.transferId && record.transferId === identity.transferId) return true;
+        if (sameCharacter && record.transferKey && identity.transferKey && record.transferKey === identity.transferKey) return true;
+        if (sameCharacter && record.sourceId && identity.sourceId && normalizeText(record.sourceId) === normalizeText(identity.sourceId)) return true;
         const sameItem = Boolean(record.itemId && identity.itemId && record.itemId === identity.itemId)
             || Boolean(record.itemName && identity.itemName && normalizeText(record.itemName) === normalizeText(identity.itemName));
         return sameCharacter && sameItem;
@@ -6912,22 +6912,7 @@ window.CriptaApp.onPageReady("character", async function () {
             updatedAt: new Date().toISOString()
         };
         const nextData = (Array.isArray(records) ? records : []).filter((record) => (
-            record
-            && typeof record === 'object'
-            && record.key !== identity.key
-            && record.id !== identity.key
-            && record !== existing
-            && !(record.transferId && identity.transferId && record.transferId === identity.transferId)
-            && !(record.transferKey && identity.transferKey && record.transferKey === identity.transferKey)
-            && !(record.sourceId && identity.sourceId && normalizeText(record.sourceId) === normalizeText(identity.sourceId))
-            && !(
-                (record.actorId && identity.actorId && record.actorId === identity.actorId)
-                && (record.itemId && identity.itemId && record.itemId === identity.itemId)
-            )
-            && !(
-                normalizeText(record.actorName) === normalizeText(identity.actorName)
-                && normalizeText(record.itemName) === normalizeText(identity.itemName)
-            )
+            !isDuplicateItemOverrideRecord(record, identity, existing)
         ));
         nextData.push(nextRecord);
         nextData.sort((left, right) => {
@@ -6936,6 +6921,22 @@ window.CriptaApp.onPageReady("character", async function () {
             return String(left.itemName || '').localeCompare(String(right.itemName || ''), 'it');
         });
         return nextData;
+    }
+
+    function isDuplicateItemOverrideRecord(record, identity, existing) {
+        if (!record || typeof record !== 'object') return true;
+        if (record === existing) return true;
+        if (record.key === identity.key || record.id === identity.key) return true;
+        if (record.transferId && identity.transferId && record.transferId === identity.transferId) return true;
+        const sameCharacter = Boolean(record.characterId && identity.characterId && record.characterId === identity.characterId)
+            || Boolean(record.actorId && identity.actorId && record.actorId === identity.actorId)
+            || Boolean(record.actorName && identity.actorName && normalizeText(record.actorName) === normalizeText(identity.actorName));
+        if (!sameCharacter) return false;
+        if (record.transferKey && identity.transferKey && record.transferKey === identity.transferKey) return true;
+        if (record.sourceId && identity.sourceId && normalizeText(record.sourceId) === normalizeText(identity.sourceId)) return true;
+        if (record.actorId && identity.actorId && record.actorId === identity.actorId && record.itemId && identity.itemId && record.itemId === identity.itemId) return true;
+        return normalizeText(record.actorName) === normalizeText(identity.actorName)
+            && normalizeText(record.itemName) === normalizeText(identity.itemName);
     }
 
     async function saveItemOverride(identity, patch) {

@@ -1,0 +1,41 @@
+[
+  {
+    "type": "config",
+    "id": "default",
+    "name": "Calendario di Harptos",
+    "epochName": "DR",
+    "weekdays": [
+      "Primo",
+      "Secondo",
+      "Terzo",
+      "Quarto",
+      "Quinto",
+      "Sesto",
+      "Settimo",
+      "Ottavo",
+      "Nono",
+      "Decimo"
+    ],
+    "months": [
+      { "name": "Hammer", "days": 30 },
+      { "name": "Alturiak", "days": 30 },
+      { "name": "Ches", "days": 30 },
+      { "name": "Tarsakh", "days": 30 },
+      { "name": "Mirtul", "days": 30 },
+      { "name": "Kythorn", "days": 30 },
+      { "name": "Flamerule", "days": 30 },
+      { "name": "Eleasis", "days": 30 },
+      { "name": "Eleint", "days": 30 },
+      { "name": "Marpenoth", "days": 30 },
+      { "name": "Uktar", "days": 30 },
+      { "name": "Nightal", "days": 30 }
+    ],
+    "yearZeroLabel": "",
+    "firstWeekdayIndex": 0
+  },
+  {
+    "type": "state",
+    "id": "current",
+    "currentDate": "1492-1-1"
+  }
+]
