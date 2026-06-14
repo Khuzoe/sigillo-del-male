@@ -35,6 +35,7 @@
         config: structuredCloneSafe(DEFAULT_CONFIG),
         calendarState: structuredCloneSafe(DEFAULT_STATE),
         notes: [],
+        importantDays: [],
         selectedDate: null,
         viewYear: 1492,
         viewMonth: 1,
@@ -101,6 +102,10 @@
             .filter((entry) => entry?.type === "note")
             .map(normalizeNote)
             .filter(Boolean);
+        state.importantDays = state.data
+            .filter((entry) => entry?.type === "important-day")
+            .map(normalizeImportantDay)
+            .filter(Boolean);
     }
 
     function normalizeConfig(config) {
@@ -140,6 +145,18 @@
             ownerDiscordId: String(note.ownerDiscordId || "").trim(),
             ownerName: String(note.ownerName || "").trim(),
             updatedAt: String(note.updatedAt || "").trim()
+        };
+    }
+
+    function normalizeImportantDay(day) {
+        const date = toDateKey(parseDateKey(day.date));
+        if (!date) return null;
+        return {
+            type: "important-day",
+            id: String(day.id || `important-${date}`).trim(),
+            date,
+            title: String(day.title || "Giorno importante").trim().slice(0, 160),
+            updatedAt: String(day.updatedAt || "").trim()
         };
     }
 
@@ -187,11 +204,13 @@
             const date = { year: state.viewYear, month: state.viewMonth, day };
             const key = toDateKey(date);
             const notes = getVisibleNotesForDate(key);
+            const important = getImportantDay(key);
             const selected = key === state.selectedDate;
             const current = key === state.calendarState.currentDate;
             cells.push(`
-                <button type="button" class="calendar-day ${selected ? "is-selected" : ""} ${current ? "is-current" : ""}" data-calendar-date="${escapeHtml(key)}">
+                <button type="button" class="calendar-day ${selected ? "is-selected" : ""} ${current ? "is-current" : ""} ${important ? "is-important" : ""}" data-calendar-date="${escapeHtml(key)}">
                     <span class="calendar-day-number">${day}</span>
+                    ${important ? `<span class="calendar-day-important"><i class="fas fa-star"></i>${escapeHtml(important.title)}</span>` : ""}
                     ${notes.length ? `<span class="calendar-day-note-count"><i class="fas fa-note-sticky"></i>${notes.length}</span>` : ""}
                     ${notes[0] ? `<span class="calendar-day-note-preview">${escapeHtml(notes[0].title || notes[0].text).slice(0, 90)}</span>` : ""}
                 </button>
@@ -209,15 +228,35 @@
 
     function renderNotesPanel() {
         const selected = parseDateKey(state.selectedDate) || parseDateKey(state.calendarState.currentDate);
-        const notes = getVisibleNotesForDate(toDateKey(selected));
+        const selectedKey = toDateKey(selected);
+        const notes = getVisibleNotesForDate(selectedKey);
+        const important = getImportantDay(selectedKey);
         const loggedIn = Boolean(getAccountId());
         return `
             <h2>${escapeHtml(formatDateLabel(selected))}</h2>
             <p class="calendar-notes-date">${escapeHtml(getWeekdayName(selected))}</p>
+            ${important ? `<div class="calendar-important-banner"><i class="fas fa-star"></i><span>${escapeHtml(important.title)}</span></div>` : ""}
+            ${state.isDm ? renderImportantDayForm(selectedKey, important) : ""}
             <div class="calendar-note-list">
                 ${notes.length ? notes.map(renderNote).join("") : '<p class="calendar-empty">Nessuna nota per questo giorno.</p>'}
             </div>
             ${loggedIn ? renderNoteForm(selected) : '<p class="calendar-empty">Accedi per scrivere note sul calendario.</p>'}
+        `;
+    }
+
+    function renderImportantDayForm(dateKey, important) {
+        return `
+            <form class="calendar-important-form" data-calendar-important-form>
+                <input type="hidden" name="date" value="${escapeHtml(dateKey)}">
+                <div class="calendar-field">
+                    <label>Giorno importante</label>
+                    <input name="title" maxlength="160" value="${escapeHtml(important?.title || "Giorno importante")}" placeholder="Titolo del giorno">
+                </div>
+                <div class="calendar-inline-actions">
+                    <button type="submit" class="calendar-action-btn">${important ? "Salva titolo" : "Fissa giorno"}</button>
+                    ${important ? `<button type="button" class="calendar-action-btn calendar-secondary-btn" data-calendar-remove-important="${escapeHtml(dateKey)}">Rimuovi</button>` : ""}
+                </div>
+            </form>
         `;
     }
 
@@ -228,7 +267,7 @@
                 ${note.title ? `<h3>${escapeHtml(note.title)}</h3>` : ""}
                 ${note.text ? `<p>${escapeHtml(note.text)}</p>` : ""}
                 <div class="calendar-note-meta">
-                    <span>${escapeHtml(note.ownerName || "Nota")}${note.visibility === "private" ? " · privata" : ""}</span>
+                    <span>${escapeHtml(note.ownerName || "Nota")}${note.visibility === "private" ? " - privata" : ""}</span>
                     ${canEdit ? `<button type="button" class="calendar-icon-btn" data-calendar-delete-note="${escapeHtml(note.id)}" title="Elimina nota" aria-label="Elimina nota"><i class="fas fa-trash"></i></button>` : ""}
                 </div>
             </article>
@@ -332,6 +371,13 @@
         root.querySelectorAll("[data-calendar-delete-note]").forEach((button) => {
             button.addEventListener("click", async () => deleteNote(button.dataset.calendarDeleteNote, root));
         });
+        root.querySelector("[data-calendar-important-form]")?.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            await saveImportantDay(new FormData(event.currentTarget), root);
+        });
+        root.querySelector("[data-calendar-remove-important]")?.addEventListener("click", async (event) => {
+            await removeImportantDay(event.currentTarget.dataset.calendarRemoveImportant, root);
+        });
     }
 
     function handleAction(action, root) {
@@ -427,6 +473,60 @@
         }
     }
 
+    async function saveImportantDay(formData, root) {
+        if (!state.isDm) return;
+        const token = readAuthToken();
+        if (!token) {
+            setStatus("Login DM richiesto per fissare giorni importanti.", true, root);
+            return;
+        }
+        const date = toDateKey(parseDateKey(formData.get("date")));
+        if (!date) return;
+        const existing = getImportantDay(date);
+        const title = String(formData.get("title") || "Giorno importante").trim() || "Giorno importante";
+        const nextDay = {
+            type: "important-day",
+            id: existing?.id || `important-${date}`,
+            date,
+            title,
+            updatedAt: new Date().toISOString()
+        };
+        const nextImportantDays = [
+            ...state.importantDays.filter((entry) => entry.date !== date),
+            nextDay
+        ];
+        try {
+            await saveCalendarData(buildData({ importantDays: nextImportantDays }), token, { userScoped: false });
+            state.importantDays = nextImportantDays;
+            setStatus(existing ? "Titolo del giorno importante salvato." : "Giorno importante fissato.", false, root);
+            render(root);
+        } catch (error) {
+            console.error("Salvataggio giorno importante fallito:", error);
+            setStatus(`Salvataggio fallito: ${error?.message || error}`, true, root);
+        }
+    }
+
+    async function removeImportantDay(dateKey, root) {
+        if (!state.isDm) return;
+        const token = readAuthToken();
+        if (!token) {
+            setStatus("Login DM richiesto per rimuovere giorni importanti.", true, root);
+            return;
+        }
+        const date = toDateKey(parseDateKey(dateKey));
+        if (!date) return;
+        const nextImportantDays = state.importantDays.filter((entry) => entry.date !== date);
+        try {
+            await saveCalendarData(buildData({ importantDays: nextImportantDays }), token, { userScoped: false });
+            state.importantDays = nextImportantDays;
+            setStatus("Giorno importante rimosso.", false, root);
+            render(root);
+        } catch (error) {
+            console.error("Rimozione giorno importante fallita:", error);
+            setStatus(`Rimozione fallita: ${error?.message || error}`, true, root);
+        }
+    }
+
     async function saveConfig(formData, root) {
         if (!state.isDm) return;
         const token = readAuthToken();
@@ -504,7 +604,8 @@
         const config = overrides.config || state.config;
         const calendarState = overrides.calendarState || state.calendarState;
         const notes = overrides.notes || state.notes;
-        return [config, calendarState, ...notes].map((entry) => ({ ...entry }));
+        const importantDays = overrides.importantDays || state.importantDays;
+        return [config, calendarState, ...importantDays, ...notes].map((entry) => ({ ...entry }));
     }
 
     function parseMonthLine(line) {
@@ -519,6 +620,10 @@
             .filter((note) => note.date === dateKey)
             .filter((note) => note.visibility !== "private" || state.isDm || isOwnNote(note))
             .sort((a, b) => String(a.updatedAt || "").localeCompare(String(b.updatedAt || "")));
+    }
+
+    function getImportantDay(dateKey) {
+        return state.importantDays.find((day) => day.date === dateKey) || null;
     }
 
     function isOwnNote(note) {
