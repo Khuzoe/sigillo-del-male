@@ -213,7 +213,7 @@
                     <span class="calendar-day-number">${day}</span>
                     ${important ? `<span class="calendar-day-important"><i class="fas fa-star"></i>${escapeHtml(important.title)}</span>` : ""}
                     ${notes.length ? `<span class="calendar-day-note-count"><i class="fas fa-note-sticky"></i>${notes.length}</span>` : ""}
-                    ${notes[0] ? `<span class="calendar-day-note-preview">${escapeHtml(notes[0].title || notes[0].text).slice(0, 90)}</span>` : ""}
+                    ${notes.length ? renderDayNoteTitles(notes) : ""}
                 </button>
             `);
         }
@@ -224,6 +224,16 @@
             <div class="calendar-days">
                 ${cells.join("")}
             </div>
+        `;
+    }
+
+    function renderDayNoteTitles(notes) {
+        return `
+            <span class="calendar-day-note-list">
+                ${notes.map((note) => `
+                    <span class="calendar-day-note-title">${escapeHtml(note.title || note.text || "Nota").slice(0, 90)}</span>
+                `).join("")}
+            </span>
         `;
     }
 
@@ -288,8 +298,7 @@
                     <textarea name="text" maxlength="4000" placeholder="Scrivi cosa va ricordato in questa data."></textarea>
                 </div>
                 <div class="calendar-field">
-                    <label>Visibilita</label>
-                    <label class="calendar-checkbox"><input type="checkbox" name="private"> Privata</label>
+                    <label class="calendar-checkbox"><input type="checkbox" name="private"> PRIVATA</label>
                 </div>
                 <button type="submit" class="calendar-action-btn">Aggiungi nota</button>
                 <div class="calendar-status ${state.statusError ? "is-error" : ""}">${escapeHtml(state.status)}</div>

@@ -225,13 +225,22 @@
     font-size: 0.72rem;
 }
 
-.calendar-day-note-preview {
-    display: block;
+.calendar-day-note-list {
+    display: grid;
+    gap: 0.18rem;
     margin-top: 0.35rem;
+}
+
+.calendar-day-note-title {
+    display: block;
+    min-width: 0;
     color: rgba(232, 219, 188, 0.76);
     font-family: var(--font-ui);
     font-size: 0.72rem;
     line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .calendar-notes-date {
