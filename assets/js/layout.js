@@ -134,9 +134,7 @@ function shouldHandleSpaClick(event, link) {
         const current = new URL(window.location.href);
         if (target.origin !== current.origin) return false;
         if (!/\.html$/i.test(target.pathname) && !target.pathname.endsWith("/")) return false;
-        if (target.pathname === current.pathname && target.search === current.search) {
-            return Boolean(target.hash && target.hash !== current.hash);
-        }
+        if (target.pathname === current.pathname && target.search === current.search) return true;
         return true;
     } catch (_) {
         return false;
@@ -161,9 +159,11 @@ async function navigateSpa(targetUrl, options = {}) {
     const target = new URL(targetUrl, window.location.href);
     const current = new URL(window.location.href);
 
-    if (target.pathname === current.pathname && target.search === current.search && target.hash) {
-        if (push) history.pushState({}, "", target.toString());
-        scrollToCurrentHash();
+    if (target.pathname === current.pathname && target.search === current.search) {
+        if (target.hash && target.hash !== current.hash) {
+            if (push) history.pushState({}, "", target.toString());
+            scrollToCurrentHash();
+        }
         return;
     }
 

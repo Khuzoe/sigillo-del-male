@@ -2157,32 +2157,19 @@ window.CriptaApp.onPageReady("creature", async () => {
         toolbar?.setAttribute("data-saving", "true");
         try {
             getMonsterAbilities(state.creature).forEach(applyAbilityDefaultsForKind);
-            const loaded = await loadBestiaryDocument();
-            const nextData = Array.isArray(loaded.data) ? loaded.data.slice() : [];
             const cleanCreature = pruneCreature(structuredCloneSafe(state.creature));
-            const targetSlug = slugify(state.creature.id || state.creature.name || creatureId);
-            let index = nextData.findIndex((entry) => slugify(entry?.id || entry?.name || "") === targetSlug);
-            if (index < 0) index = nextData.findIndex((entry) => slugify(entry?.name || "") === creatureId);
-            if (index >= 0) nextData[index] = { ...nextData[index], ...cleanCreature };
-            else nextData.push(cleanCreature);
-
-            const response = await fetch(getBestiaryApiUrl(), {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    data: nextData,
-                    expectedVersion: loaded.source === "kv" ? (loaded.version ?? 0) : 0,
-                    campaignId: getCampaignId()
-                })
+            const saved = await saveBestiaryDocumentWithRetry(token, (records) => {
+                const nextData = Array.isArray(records) ? records.slice() : [];
+                const targetSlug = slugify(state.creature.id || state.creature.name || creatureId);
+                let index = nextData.findIndex((entry) => slugify(entry?.id || entry?.name || "") === targetSlug);
+                if (index < 0) index = nextData.findIndex((entry) => slugify(entry?.name || "") === creatureId);
+                if (index >= 0) nextData[index] = { ...nextData[index], ...cleanCreature };
+                else nextData.push(cleanCreature);
+                return nextData;
             });
-            const payload = await response.json().catch(() => null);
-            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
 
             state.creature = cleanCreature;
-            state.version = payload?.version ?? state.version;
+            state.version = saved.payload?.version ?? state.version;
             state.source = "kv";
             state.editing = false;
             state.dirty = false;
@@ -2324,31 +2311,19 @@ window.CriptaApp.onPageReady("creature", async () => {
 
     async function persistCreatureMediaReference(property, value) {
         if (!property || !value || !state.creature) return;
-        const loaded = await loadBestiaryDocument();
-        const nextData = Array.isArray(loaded.data) ? loaded.data.slice() : [];
-        const targetSlug = slugify(state.creature.id || state.creature.name || creatureId);
-        let index = nextData.findIndex((entry) => slugify(entry?.id || entry?.name || "") === targetSlug);
-        if (index < 0) index = nextData.findIndex((entry) => slugify(entry?.name || "") === creatureId);
-        const baseEntry = index >= 0 ? { ...nextData[index] } : pruneCreature(structuredCloneSafe(state.creature));
-        baseEntry[property] = value;
-        if (index >= 0) nextData[index] = baseEntry;
-        else nextData.push(baseEntry);
-
-        const response = await fetch(getBestiaryApiUrl(), {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${readAuthToken()}`
-            },
-            body: JSON.stringify({
-                data: nextData,
-                expectedVersion: loaded.source === "kv" ? (loaded.version ?? 0) : 0,
-                campaignId: getCampaignId()
-            })
+        const token = readAuthToken();
+        const saved = await saveBestiaryDocumentWithRetry(token, (records) => {
+            const nextData = Array.isArray(records) ? records.slice() : [];
+            const targetSlug = slugify(state.creature.id || state.creature.name || creatureId);
+            let index = nextData.findIndex((entry) => slugify(entry?.id || entry?.name || "") === targetSlug);
+            if (index < 0) index = nextData.findIndex((entry) => slugify(entry?.name || "") === creatureId);
+            const baseEntry = index >= 0 ? { ...nextData[index] } : pruneCreature(structuredCloneSafe(state.creature));
+            baseEntry[property] = value;
+            if (index >= 0) nextData[index] = baseEntry;
+            else nextData.push(baseEntry);
+            return nextData;
         });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-        state.version = payload?.version ?? state.version;
+        state.version = saved.payload?.version ?? state.version;
         state.source = "kv";
     }
 
@@ -2464,6 +2439,34 @@ async function loadBestiaryDocument() {
     if (!response?.ok) return { data: [], version: 0, source: "static" };
     const data = await response.json().catch(() => []);
     return { data: Array.isArray(data) ? data : data?.data, version: 0, source: "static" };
+}
+
+async function saveBestiaryDocumentWithRetry(token, buildData, attempts = 3) {
+    let lastPayload = null;
+    let lastStatus = 0;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+        const loaded = await loadBestiaryDocument();
+        const nextData = buildData(loaded.data);
+        const response = await fetch(getBestiaryApiUrl(), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                data: nextData,
+                expectedVersion: loaded.source === "kv" ? (loaded.version ?? 0) : 0,
+                campaignId: getCampaignId()
+            })
+        });
+        const payload = await response.json().catch(() => null);
+        lastPayload = payload;
+        lastStatus = response.status;
+        if (response.status === 409 || payload?.code === "VERSION_CONFLICT") continue;
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        return { data: nextData, payload };
+    }
+    throw new Error(lastPayload?.error || `HTTP ${lastStatus || 409}`);
 }
 
 async function loadMonsterAbilityTemplates() {

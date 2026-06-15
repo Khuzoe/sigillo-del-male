@@ -5729,13 +5729,12 @@ body.is-embed .container {
 /* DROP CAPS REMOVED BY USER REQUEST */
 /* .chapter-content > p:first-of-type::first-letter { ... } */
 
-/* HIGHLIGHTS (Crimson Words) */
+/* HIGHLIGHTS (Gold Words) */
 .chapter-content mark {
     background: transparent;
-    color: #ff4d4d;
-    /* Bright Crimson */
+    color: #f4d36f;
     font-weight: bold;
-    text-shadow: 0 0 8px rgba(138, 28, 28, 0.6);
+    text-shadow: 0 0 8px rgba(212, 175, 55, 0.38);
     padding: 0 2px;
 }
 
@@ -5840,6 +5839,72 @@ body.is-embed .container {
     color: #d7c6ae;
     font-family: var(--font-heading);
     /* Stylish emphasis */
+}
+
+.character-inline-markdown-shell {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.character-inline-format-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.45rem;
+    border: 1px solid rgba(212, 175, 55, 0.14);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.24);
+}
+
+.character-inline-format-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    border-radius: 8px;
+    color: var(--gold);
+    background: rgba(255, 255, 255, 0.035);
+    cursor: pointer;
+}
+
+.character-inline-format-btn:hover,
+.character-inline-format-btn:focus-visible {
+    border-color: rgba(212, 175, 55, 0.62);
+    background: rgba(212, 175, 55, 0.12);
+}
+
+.character-inline-markdown-editor {
+    width: 100%;
+    min-height: 9rem;
+    padding: 0.85rem;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 10px;
+    color: var(--text-main);
+    background: rgba(0, 0, 0, 0.38);
+    font-family: var(--font-ui);
+    font-size: 0.94rem;
+    line-height: 1.55;
+    resize: vertical;
+}
+
+.character-inline-markdown-editor[hidden] {
+    display: none !important;
+}
+
+.character-inline-markdown-preview {
+    margin-top: 0;
+}
+
+.character-inline-visual-editor {
+    min-height: 7rem;
+    outline: none;
+    cursor: text;
+}
+
+.character-inline-visual-editor:focus {
+    border-color: rgba(212, 175, 55, 0.48);
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.08);
 }
 
 /* DOCUMENT STYLE BLOCKS (The fix for images) */

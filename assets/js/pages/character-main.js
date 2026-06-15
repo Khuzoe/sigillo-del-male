@@ -1820,7 +1820,7 @@ function renderPlainDescriptionHtml(text) {
 function sanitizeDescriptionHtml(html) {
     if (!html) return '';
 
-    const ALLOWED_TAGS = new Set(['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'a', 'h4', 'h5']);
+    const ALLOWED_TAGS = new Set(['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'mark', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'a', 'h4', 'h5']);
     const BLOCKED_TAGS = new Set(['script', 'style', 'iframe', 'object', 'embed', 'form', 'input', 'button']);
     const parser = new DOMParser();
     const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
@@ -5619,6 +5619,7 @@ window.CriptaApp.onPageReady("character", async function () {
     const transformationSubjectMap = new Map();
     let isInlineEditing = false;
     let inlineEditDirty = false;
+    let inlineCharacterSaveInFlight = false;
     let inlineEditBlocks = [];
     let inlineAdjustKind = '';
     let inlineAdjustDrag = null;
@@ -5645,6 +5646,7 @@ window.CriptaApp.onPageReady("character", async function () {
 
         container.addEventListener('input', handleInlineEditInput);
         container.addEventListener('change', handleInlineEditChange);
+        container.addEventListener('mousedown', handleInlineEditMouseDown);
         container.addEventListener('click', handleInlineEditClick);
         container.addEventListener('dragover', handleInlineEditDragOver);
         container.addEventListener('dragleave', handleInlineEditDragLeave);
@@ -5820,12 +5822,20 @@ window.CriptaApp.onPageReady("character", async function () {
             return;
         }
 
+        const visualBlockIndex = Number(target?.dataset?.inlineVisualEditor);
+        if (Number.isInteger(visualBlockIndex) && inlineEditBlocks[visualBlockIndex]) {
+            syncInlineVisualEditor(target, visualBlockIndex);
+            return;
+        }
+
         const blockIndex = Number(target?.dataset?.inlineBlockIndex);
         const blockField = target?.dataset?.inlineBlockField;
         if (!Number.isInteger(blockIndex) || !blockField || !inlineEditBlocks[blockIndex]) return;
-        inlineEditBlocks[blockIndex][blockField] = blockField === 'text' || blockField === 'title'
-            ? target.innerText.replace(/\u00a0/g, ' ').trimEnd()
-            : target.value;
+        const value = target.matches?.('textarea, input, select')
+            ? target.value
+            : target.innerText.replace(/\u00a0/g, ' ').trimEnd();
+        inlineEditBlocks[blockIndex][blockField] = value;
+        if (blockField === 'text') updateInlineMarkdownPreview(target, blockIndex);
         if (blockField === 'image' && currentCharacter) currentCharacter.updatedAt = new Date().toISOString();
         inlineEditDirty = true;
     }
@@ -5855,6 +5865,335 @@ window.CriptaApp.onPageReady("character", async function () {
         if (blockField === 'image' && currentCharacter) currentCharacter.updatedAt = new Date().toISOString();
         inlineEditDirty = true;
         renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+    }
+
+    function applyInlineMarkdownFormat(blockIndex, format) {
+        const editor = container.querySelector(`[data-inline-visual-editor="${blockIndex}"]`);
+        if (!editor || !inlineEditBlocks[blockIndex]) return;
+        editor.focus();
+        if (format === 'bold') {
+            toggleInlineMarkdownMarkerByVisualSelection(editor, blockIndex, '**', getInlineMarkdownFormatFallback(format));
+        } else if (format === 'italic') {
+            toggleInlineMarkdownMarkerByVisualSelection(editor, blockIndex, '*', getInlineMarkdownFormatFallback(format));
+        } else if (format === 'list') {
+            document.execCommand('insertUnorderedList');
+        } else if (format === 'quote') {
+            document.execCommand('formatBlock', false, 'blockquote');
+        } else if (format === 'gold') {
+            toggleInlineMarkdownMarkerByVisualSelection(editor, blockIndex, '==', getInlineMarkdownFormatFallback(format));
+        } else {
+            return;
+        }
+        syncInlineVisualEditor(editor, blockIndex);
+    }
+
+    function toggleInlineMarkdownMarkerByVisualSelection(editor, blockIndex, marker, fallbackText) {
+        const selection = window.getSelection?.();
+        if (!selection || selection.rangeCount === 0 || !editor.contains(selection.anchorNode)) {
+            inlineEditBlocks[blockIndex].text = `${inlineEditBlocks[blockIndex].text || ''}${inlineEditBlocks[blockIndex].text ? '\n\n' : ''}${marker}${fallbackText}${marker}`;
+            renderInlineVisualEditorFromMarkdown(editor, blockIndex);
+            return;
+        }
+        const range = selection.getRangeAt(0);
+        const offsets = getInlineEditorSelectionOffsets(editor, range);
+        if (!offsets || offsets.start === offsets.end) {
+            inlineEditBlocks[blockIndex].text = `${inlineEditBlocks[blockIndex].text || ''}${marker}${fallbackText}${marker}`;
+            renderInlineVisualEditorFromMarkdown(editor, blockIndex);
+            return;
+        }
+        const currentMarkdown = inlineEditBlocks[blockIndex].text || convertInlineEditorHtmlToMarkdown(editor);
+        inlineEditBlocks[blockIndex].text = toggleInlineMarkdownMarker(currentMarkdown, offsets.start, offsets.end, marker);
+        renderInlineVisualEditorFromMarkdown(editor, blockIndex);
+        restoreInlineEditorSelection(editor, offsets);
+    }
+
+    function getInlineEditorSelectionOffsets(editor, range) {
+        const before = range.cloneRange();
+        before.selectNodeContents(editor);
+        before.setEnd(range.startContainer, range.startOffset);
+        const start = before.toString().length;
+        const selectedLength = range.toString().length;
+        if (!selectedLength) return null;
+        return { start, end: start + selectedLength };
+    }
+
+    function restoreInlineEditorSelection(editor, offsets) {
+        if (!editor || !offsets) return;
+        const start = getInlineEditorTextPosition(editor, offsets.start);
+        const end = getInlineEditorTextPosition(editor, offsets.end);
+        if (!start || !end) return;
+        const range = document.createRange();
+        range.setStart(start.node, start.offset);
+        range.setEnd(end.node, end.offset);
+        const selection = window.getSelection?.();
+        if (!selection) return;
+        editor.focus();
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    function getInlineEditorTextPosition(editor, plainOffset) {
+        const targetOffset = Math.max(0, Number(plainOffset) || 0);
+        const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+        let consumed = 0;
+        let lastTextNode = null;
+        while (walker.nextNode()) {
+            const node = walker.currentNode;
+            const length = node.textContent?.length || 0;
+            lastTextNode = node;
+            if (targetOffset <= consumed + length) {
+                return { node, offset: Math.max(0, Math.min(length, targetOffset - consumed)) };
+            }
+            consumed += length;
+        }
+        if (lastTextNode) return { node: lastTextNode, offset: lastTextNode.textContent?.length || 0 };
+        return { node: editor, offset: 0 };
+    }
+
+    function toggleInlineMarkdownMarker(markdown, startPlain, endPlain, marker) {
+        const mapped = mapMarkdownPlainText(markdown);
+        const startRaw = plainOffsetToMarkdownIndex(mapped, startPlain, 'start');
+        const endRaw = plainOffsetToMarkdownIndex(mapped, endPlain, 'end');
+        if (startRaw === endRaw) return markdown;
+        if (canMergeInlineMarkdownMarkerRuns(markdown, startRaw, endRaw, marker)) {
+            return `${markdown.slice(0, startRaw - marker.length)}${markdown.slice(startRaw, endRaw)}${markdown.slice(endRaw + marker.length)}`;
+        }
+        const pair = findContainingMarkdownMarkerPair(markdown, startRaw, endRaw, marker);
+        if (pair) {
+            const beforeRun = markdown.slice(pair.open + marker.length, startRaw);
+            const selected = markdown.slice(startRaw, endRaw);
+            const afterRun = markdown.slice(endRaw, pair.close);
+            return [
+                markdown.slice(0, pair.open),
+                beforeRun ? `${marker}${beforeRun}${marker}` : '',
+                selected,
+                afterRun ? `${marker}${afterRun}${marker}` : '',
+                markdown.slice(pair.close + marker.length)
+            ].join('');
+        }
+        return applyInlineMarkdownMarkerToSelection(markdown, startRaw, endRaw, marker);
+    }
+
+    function applyInlineMarkdownMarkerToSelection(markdown, startRaw, endRaw, marker) {
+        let expandedStart = startRaw;
+        let expandedEnd = endRaw;
+        let changed = true;
+        while (changed) {
+            changed = false;
+            for (const pair of findMarkdownMarkerPairs(markdown, marker)) {
+                const contentStart = pair.open + marker.length;
+                const contentEnd = pair.close;
+                const overlapsSelection = contentStart < expandedEnd && contentEnd > expandedStart;
+                if (!overlapsSelection) continue;
+                const nextStart = Math.min(expandedStart, pair.open);
+                const nextEnd = Math.max(expandedEnd, pair.close + marker.length);
+                if (nextStart !== expandedStart || nextEnd !== expandedEnd) {
+                    expandedStart = nextStart;
+                    expandedEnd = nextEnd;
+                    changed = true;
+                }
+            }
+        }
+        const selected = removeInlineMarkdownMarkers(markdown.slice(expandedStart, expandedEnd), marker);
+        if (!selected) return markdown;
+        return `${markdown.slice(0, expandedStart)}${marker}${selected}${marker}${markdown.slice(expandedEnd)}`;
+    }
+
+    function removeInlineMarkdownMarkers(value, marker) {
+        const source = String(value || '');
+        let clean = '';
+        for (let i = 0; i < source.length;) {
+            if (isInlineMarkdownMarkerAt(source, i, marker)) {
+                i += marker.length;
+                continue;
+            }
+            clean += source[i];
+            i += 1;
+        }
+        return clean;
+    }
+
+    function canMergeInlineMarkdownMarkerRuns(markdown, startRaw, endRaw, marker) {
+        const beforeMarkerIndex = startRaw - marker.length;
+        return beforeMarkerIndex >= 0
+            && isInlineMarkdownMarkerAt(markdown, beforeMarkerIndex, marker)
+            && isInlineMarkdownMarkerAt(markdown, endRaw, marker)
+            && !containsInlineMarkdownMarker(markdown.slice(startRaw, endRaw), marker);
+    }
+
+    function containsInlineMarkdownMarker(value, marker) {
+        const source = String(value || '');
+        for (let i = 0; i <= source.length - marker.length; i += 1) {
+            if (isInlineMarkdownMarkerAt(source, i, marker)) return true;
+        }
+        return false;
+    }
+
+    function mapMarkdownPlainText(markdown) {
+        const source = String(markdown || '');
+        const plainToRaw = [];
+        let plain = '';
+        let atLineStart = true;
+        for (let i = 0; i < source.length;) {
+            if (atLineStart && source.startsWith('### ', i)) {
+                i += 4;
+                atLineStart = false;
+                continue;
+            }
+            if (atLineStart && (source.startsWith('- ', i) || source.startsWith('> ', i))) {
+                i += 2;
+                atLineStart = false;
+                continue;
+            }
+            if (source.startsWith('**', i) || source.startsWith('==', i)) {
+                i += 2;
+                continue;
+            }
+            if (source[i] === '*' || source[i] === '`') {
+                i += 1;
+                continue;
+            }
+            plainToRaw[plain.length] = i;
+            plain += source[i];
+            atLineStart = source[i] === '\n';
+            i += 1;
+        }
+        return { source, plain, plainToRaw };
+    }
+
+    function plainOffsetToMarkdownIndex(mapped, offset, boundary = 'start') {
+        if (offset <= 0) return mapped.plainToRaw[0] ?? 0;
+        if (offset >= mapped.plain.length) {
+            const lastRaw = mapped.plainToRaw[mapped.plain.length - 1];
+            return Number.isInteger(lastRaw) ? lastRaw + 1 : mapped.source.length;
+        }
+        const raw = mapped.plainToRaw[offset] ?? mapped.source.length;
+        return boundary === 'end' ? moveMarkdownBoundaryBeforeInlineMarkers(mapped.source, raw) : raw;
+    }
+
+    function moveMarkdownBoundaryBeforeInlineMarkers(markdown, rawIndex) {
+        let boundary = rawIndex;
+        let moved = true;
+        while (moved) {
+            moved = false;
+            for (const marker of ['**', '==', '*', '`']) {
+                const candidate = boundary - marker.length;
+                if (candidate < 0) continue;
+                if (!isInlineMarkdownMarkerAt(markdown, candidate, marker)) continue;
+                boundary = candidate;
+                moved = true;
+                break;
+            }
+        }
+        return boundary;
+    }
+
+    function findContainingMarkdownMarkerPair(markdown, startRaw, endRaw, marker) {
+        return findMarkdownMarkerPairs(markdown, marker)
+            .find((pair) => pair.open < startRaw && pair.close >= endRaw) || null;
+    }
+
+    function findMarkdownMarkerPairs(markdown, marker) {
+        const pairs = [];
+        const stack = [];
+        for (let i = 0; i <= markdown.length - marker.length;) {
+            if (isInlineMarkdownMarkerAt(markdown, i, marker)) {
+                if (stack.length) pairs.push({ open: stack.pop(), close: i });
+                else stack.push(i);
+                i += marker.length;
+                continue;
+            }
+            i += 1;
+        }
+        return pairs;
+    }
+
+    function isInlineMarkdownMarkerAt(markdown, index, marker) {
+        if (marker === '*') {
+            return markdown[index] === '*'
+                && markdown[index - 1] !== '*'
+                && markdown[index + 1] !== '*';
+        }
+        return markdown.startsWith(marker, index);
+    }
+
+    function renderInlineVisualEditorFromMarkdown(editor, blockIndex) {
+        const block = inlineEditBlocks[blockIndex];
+        const html = renderMarkdown(block.text || '', { context: block.type === 'image' ? 'image_box' : 'lore' }) || '<p></p>';
+        editor.innerHTML = html;
+        const textarea = editor.closest('.character-inline-markdown-shell')?.querySelector('textarea[data-inline-block-field="text"]');
+        if (textarea) textarea.value = block.text || '';
+    }
+
+    function syncInlineVisualEditor(editor, blockIndex) {
+        const markdown = convertInlineEditorHtmlToMarkdown(editor);
+        inlineEditBlocks[blockIndex].text = markdown;
+        const textarea = editor.closest('.character-inline-markdown-shell')?.querySelector('textarea[data-inline-block-field="text"]');
+        if (textarea) textarea.value = markdown;
+        inlineEditDirty = true;
+    }
+
+    function getInlineMarkdownFormatFallback(format) {
+        if (format === 'list') return 'Nuovo punto elenco';
+        if (format === 'quote') return 'Testo in evidenza';
+        if (format === 'gold') return 'parola importante';
+        return 'testo';
+    }
+
+    function convertInlineEditorHtmlToMarkdown(editor) {
+        const blocks = Array.from(editor.childNodes)
+            .map((node) => convertInlineEditorBlockToMarkdown(node))
+            .map((text) => text.trim())
+            .filter(Boolean);
+        return blocks.join('\n\n').trim();
+    }
+
+    function convertInlineEditorBlockToMarkdown(node) {
+        if (node.nodeType === Node.TEXT_NODE) return convertInlineEditorInlineToMarkdown(node).trim();
+        if (node.nodeType !== Node.ELEMENT_NODE) return '';
+        const tag = node.tagName.toLowerCase();
+        if (tag === 'ul') {
+            return Array.from(node.children)
+                .filter((child) => child.tagName?.toLowerCase() === 'li')
+                .map((child) => `- ${convertInlineEditorInlineToMarkdown(child).trim()}`)
+                .join('\n');
+        }
+        if (tag === 'blockquote') {
+            return convertInlineEditorInlineToMarkdown(node)
+                .split(/\n+/)
+                .map((line) => `> ${line.trim()}`)
+                .join('\n');
+        }
+        if (node.classList?.contains('document-quote')) {
+            const quoteText = convertInlineEditorInlineToMarkdown(node.querySelector('span') || node);
+            return quoteText.split(/\n+/).map((line) => `> ${line.trim()}`).join('\n');
+        }
+        if (tag === 'h2' || tag === 'h3' || tag === 'h4' || tag === 'h5') {
+            return `### ${convertInlineEditorInlineToMarkdown(node).trim()}`;
+        }
+        if (tag === 'div' || tag === 'p') return convertInlineEditorInlineToMarkdown(node).trim();
+        return convertInlineEditorInlineToMarkdown(node).trim();
+    }
+
+    function convertInlineEditorInlineToMarkdown(node) {
+        if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
+        if (node.nodeType !== Node.ELEMENT_NODE) return '';
+        const tag = node.tagName.toLowerCase();
+        const inner = Array.from(node.childNodes).map(convertInlineEditorInlineToMarkdown).join('');
+        if (tag === 'br') return '\n';
+        if (tag === 'strong' || tag === 'b') return `**${inner}**`;
+        if (tag === 'em' || tag === 'i') return `*${inner}*`;
+        if (tag === 'mark') return `==${inner}==`;
+        if (tag === 'code') return `\`${inner}\``;
+        if (tag === 'li') return inner;
+        if (tag === 'a') return inner;
+        return inner;
+    }
+
+    function handleInlineEditMouseDown(event) {
+        if (event.target.closest('[data-inline-edit-action="format-block"]')) {
+            event.preventDefault();
+        }
     }
 
     function handleInlineEditClick(event) {
@@ -5891,6 +6230,11 @@ window.CriptaApp.onPageReady("character", async function () {
             inlineEditBlocks[blockIndex].icon = actionButton.dataset.inlineIcon || 'fa-book-open';
             inlineEditDirty = true;
             renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
+            return;
+        }
+        if (action === 'format-block') {
+            if (!Number.isInteger(blockIndex) || !inlineEditBlocks[blockIndex]) return;
+            applyInlineMarkdownFormat(blockIndex, actionButton.dataset.inlineBlockFormat || '');
             return;
         }
         if (action === 'toggle-hidden') {
@@ -6734,17 +7078,18 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     async function saveInlineCharacterEdits() {
+        if (inlineCharacterSaveInFlight) return;
         const token = readAuthToken();
         if (!token) {
             alert('Login richiesto: accedi come DM prima di salvare.');
             return;
         }
 
+        inlineCharacterSaveInFlight = true;
         const toolbar = container.querySelector('[data-inline-edit-toolbar]');
         toolbar?.setAttribute('data-saving', 'true');
 
         try {
-            const loaded = await loadCharactersDocumentForSave();
             const updatedCharacter = serializeInlineEditedCharacter(currentCharacter);
             const originalId = slugify(currentCharacter._originalId || charId || updatedCharacter.id || updatedCharacter.name || 'npc');
             const nextId = slugify(updatedCharacter.id || updatedCharacter.name || 'npc');
@@ -6752,33 +7097,13 @@ window.CriptaApp.onPageReady("character", async function () {
                 await copyInlineCharacterMediaFolder(originalId, nextId, token);
                 rewriteInlineCharacterMediaFolderPaths(updatedCharacter, originalId, nextId);
             }
-            const nextData = Array.isArray(loaded.data) ? loaded.data.slice() : [];
-            const targetIndex = nextData.findIndex((entry) => {
-                const entryId = slugify(entry?.id || entry?.name || '');
-                return entryId === originalId || entryId === nextId;
+            const buildNextData = (sourceData) => mergeInlineCharacterIntoCollection(sourceData, updatedCharacter, originalId, nextId);
+            await saveVersionedCollection({
+                load: loadCharactersDocumentForSave,
+                url: getCharactersApiUrl(),
+                token,
+                buildData: buildNextData
             });
-            if (targetIndex >= 0) {
-                const mergedCharacter = { ...nextData[targetIndex], ...updatedCharacter };
-                delete mergedCharacter.content_blocks;
-                nextData[targetIndex] = mergedCharacter;
-            } else {
-                nextData.push(updatedCharacter);
-            }
-
-            const response = await fetch(getCharactersApiUrl(), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    data: nextData,
-                    expectedVersion: loaded.source === 'kv' ? (loaded.version ?? 0) : 0,
-                    campaignId: getCurrentCampaignId()
-                })
-            });
-            const payload = await response.json().catch(() => null);
-            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
             window.CriptaApp?.api?.clearCache?.();
 
             currentCharacter = normalizeCharactersCollection([updatedCharacter])[0];
@@ -6796,13 +7121,67 @@ window.CriptaApp.onPageReady("character", async function () {
             console.error('Salvataggio inline NPC fallito:', error);
             alert(`Salvataggio fallito: ${error?.message || error}`);
         } finally {
+            inlineCharacterSaveInFlight = false;
             toolbar?.removeAttribute('data-saving');
         }
     }
 
+    function mergeInlineCharacterIntoCollection(sourceData, updatedCharacter, originalId, nextId) {
+        const nextData = Array.isArray(sourceData) ? sourceData.slice() : [];
+        const targetIndex = nextData.findIndex((entry) => {
+            const entryId = slugify(entry?.id || entry?.name || '');
+            return entryId === originalId || entryId === nextId;
+        });
+        if (targetIndex >= 0) {
+            const mergedCharacter = { ...nextData[targetIndex], ...updatedCharacter };
+            delete mergedCharacter.content_blocks;
+            nextData[targetIndex] = mergedCharacter;
+        } else {
+            nextData.push(updatedCharacter);
+        }
+        return nextData;
+    }
+
+    function isVersionConflictResponse(result) {
+        return result?.response?.status === 409 || result?.payload?.code === 'VERSION_CONFLICT';
+    }
+
+    async function postVersionedCollection(url, data, loaded, token) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                data,
+                expectedVersion: loaded.source === 'kv' ? (loaded.version ?? 0) : 0,
+                campaignId: getCurrentCampaignId()
+            })
+        });
+        const payload = await response.json().catch(() => null);
+        return { response, payload };
+    }
+
+    async function saveVersionedCollection({ load, url, token, buildData, attempts = 3 }) {
+        let lastResult = null;
+        for (let attempt = 0; attempt < attempts; attempt += 1) {
+            const loaded = await load();
+            const nextData = buildData(loaded.data);
+            const result = await postVersionedCollection(url, nextData, loaded, token);
+            lastResult = result;
+            if (isVersionConflictResponse(result)) continue;
+            if (!result.response.ok || result.payload?.ok === false) {
+                throw new Error(result.payload?.error || `HTTP ${result.response.status}`);
+            }
+            return { data: nextData, payload: result.payload, loaded };
+        }
+        throw new Error(lastResult?.payload?.error || 'Salvataggio non riuscito: i dati online sono cambiati durante il salvataggio. Riprova.');
+    }
+
     async function loadCharactersDocumentForSave() {
         try {
-            const response = await fetch(getCharactersApiUrl());
+            const response = await fetch(buildNoStoreApiUrl(getCharactersApiUrl()));
             if (response.ok) {
                 const payload = await response.json();
                 if (Array.isArray(payload?.data)) {
@@ -6826,7 +7205,7 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     async function loadAbilityOverridesDocumentForSave() {
-        const response = await fetch(getAbilityOverridesApiUrl());
+        const response = await fetch(buildNoStoreApiUrl(getAbilityOverridesApiUrl()));
         const payload = await response.json().catch(() => null);
         if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
         return payload || { data: [], version: 0, source: 'static' };
@@ -6864,28 +7243,18 @@ window.CriptaApp.onPageReady("character", async function () {
             return false;
         }
 
-        const loaded = await loadAbilityOverridesDocumentForSave();
-        const nextData = upsertAbilityOverrideRecord(loaded.data, identity, patch);
-        const response = await fetch(getAbilityOverridesApiUrl(), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                data: nextData,
-                expectedVersion: loaded.source === 'kv' ? (loaded.version ?? 0) : 0,
-                campaignId: getCurrentCampaignId()
-            })
+        const saved = await saveVersionedCollection({
+            load: loadAbilityOverridesDocumentForSave,
+            url: getAbilityOverridesApiUrl(),
+            token,
+            buildData: (records) => upsertAbilityOverrideRecord(records, identity, patch)
         });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-        abilityOverridesMemoryCache = nextData;
+        abilityOverridesMemoryCache = saved.data;
         return true;
     }
 
     async function loadItemOverridesDocumentForSave() {
-        const response = await fetch(getItemOverridesApiUrl());
+        const response = await fetch(buildNoStoreApiUrl(getItemOverridesApiUrl()));
         const payload = await response.json().catch(() => null);
         if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
         return payload || { data: [], version: 0, source: 'static' };
@@ -6946,23 +7315,13 @@ window.CriptaApp.onPageReady("character", async function () {
             return false;
         }
 
-        const loaded = await loadItemOverridesDocumentForSave();
-        const nextData = upsertItemOverrideRecord(loaded.data, identity, patch);
-        const response = await fetch(getItemOverridesApiUrl(), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                data: nextData,
-                expectedVersion: loaded.source === 'kv' ? (loaded.version ?? 0) : 0,
-                campaignId: getCurrentCampaignId()
-            })
+        const saved = await saveVersionedCollection({
+            load: loadItemOverridesDocumentForSave,
+            url: getItemOverridesApiUrl(),
+            token,
+            buildData: (records) => upsertItemOverrideRecord(records, identity, patch)
         });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-        itemOverridesMemoryCache = nextData;
+        itemOverridesMemoryCache = saved.data;
         return true;
     }
 
@@ -7042,7 +7401,7 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     async function loadMediaOverridesDocumentForSave() {
-        const response = await fetch(getMediaOverridesApiUrl());
+        const response = await fetch(buildNoStoreApiUrl(getMediaOverridesApiUrl()));
         const payload = await response.json().catch(() => null);
         if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
         return payload || { data: [], version: 0, source: 'static' };
@@ -7083,23 +7442,13 @@ window.CriptaApp.onPageReady("character", async function () {
             alert('Login richiesto per salvare immagini personaggio.');
             return false;
         }
-        const loaded = await loadMediaOverridesDocumentForSave();
-        const nextData = upsertMediaOverrideRecord(loaded.data, identity, kind, imagePath);
-        const response = await fetch(getMediaOverridesApiUrl(), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                data: nextData,
-                expectedVersion: loaded.source === 'kv' ? (loaded.version ?? 0) : 0,
-                campaignId: getCurrentCampaignId()
-            })
+        const saved = await saveVersionedCollection({
+            load: loadMediaOverridesDocumentForSave,
+            url: getMediaOverridesApiUrl(),
+            token,
+            buildData: (records) => upsertMediaOverrideRecord(records, identity, kind, imagePath)
         });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-        mediaOverridesMemoryCache = nextData;
+        mediaOverridesMemoryCache = saved.data;
         return true;
     }
 
@@ -7637,6 +7986,12 @@ window.CriptaApp.onPageReady("character", async function () {
 
     function getItemOverridesApiUrl() {
         return window.CriptaApp?.urls?.api?.('api/data/item-overrides') || 'https://sigillo-api.khuzoe.workers.dev/api/data/item-overrides';
+    }
+
+    function buildNoStoreApiUrl(rawUrl) {
+        const url = new URL(rawUrl, window.location.href);
+        url.searchParams.set('_', String(Date.now()));
+        return url.toString();
     }
 
     function getCurrentCampaignId() {
@@ -8263,30 +8618,23 @@ window.CriptaApp.onPageReady("character", async function () {
         const card = container.querySelector(`[data-transformation-subject-id="${CSS.escape(subjectId)}"]`);
         card?.setAttribute('data-saving', 'true');
         try {
-            const loaded = await loadTransformationsDocumentForSave();
             const characterId = String(subject?.id || '');
             const accountId = String(subject?.accountId || '');
             const nextOwnEntries = characterEntries.map((entry) => normalizeTransformationEntry(entry, subject));
-            const otherEntries = (Array.isArray(loaded.data) ? loaded.data : []).filter((entry) => {
-                if (String(entry?.characterId || '') === characterId) return false;
-                if (!subject?.isCompanion && !isCompanionTransformationEntry(entry) && accountId && String(entry?.ownerAccountId || '') === accountId) return false;
-                return true;
+            const buildTransformationsData = (records) => {
+                const otherEntries = (Array.isArray(records) ? records : []).filter((entry) => {
+                    if (String(entry?.characterId || '') === characterId) return false;
+                    if (!subject?.isCompanion && !isCompanionTransformationEntry(entry) && accountId && String(entry?.ownerAccountId || '') === accountId) return false;
+                    return true;
+                });
+                return [...otherEntries, ...nextOwnEntries];
+            };
+            await saveVersionedCollection({
+                load: loadTransformationsDocumentForSave,
+                url: getTransformationsApiUrl(),
+                token,
+                buildData: buildTransformationsData
             });
-            const nextData = [...otherEntries, ...nextOwnEntries];
-            const response = await fetch(getTransformationsApiUrl(), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    data: nextData,
-                    expectedVersion: loaded.source === 'kv' ? (loaded.version ?? 0) : 0,
-                    campaignId: getCurrentCampaignId()
-                })
-            });
-            const payload = await response.json().catch(() => null);
-            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
             transformationsMemoryCache = null;
             currentTransformations = await loadTransformationsData({ force: true });
             const target = container.querySelector(`[data-transformation-subject-id="${CSS.escape(subjectId)}"]`);
@@ -8301,7 +8649,7 @@ window.CriptaApp.onPageReady("character", async function () {
 
     async function loadTransformationsDocumentForSave() {
         try {
-            const response = await fetch(getTransformationsApiUrl());
+            const response = await fetch(buildNoStoreApiUrl(getTransformationsApiUrl()));
             if (response.ok) {
                 const payload = await response.json();
                 if (Array.isArray(payload?.data)) {
@@ -8534,7 +8882,6 @@ window.CriptaApp.onPageReady("character", async function () {
                     </div>
                 ` : '';
 
-        const previewHtml = renderMarkdown(block.text || '', { context: block.type === 'image' ? 'image_box' : 'lore' });
         card.innerHTML = `
                     <div class="character-inline-controls">
                         <div class="character-inline-field character-inline-field--icons">
@@ -8575,7 +8922,7 @@ window.CriptaApp.onPageReady("character", async function () {
                                     </button>
                                 </div>
                                 <div class="document-content">
-                                    <div class="chapter-content chapter-content--compact character-inline-editable" contenteditable="plaintext-only" spellcheck="true" data-inline-block-index="${index}" data-inline-block-field="text">${previewHtml || '<p></p>'}</div>
+                                    ${renderInlineMarkdownEditor(block, index, 'chapter-content--compact')}
                                 </div>
                             </div>
                         ` : `
@@ -8583,11 +8930,37 @@ window.CriptaApp.onPageReady("character", async function () {
                                 <i class="fas ${escapeHtml(block.icon || 'fa-book-open')}"></i>
                                 <span class="character-inline-title" contenteditable="plaintext-only" spellcheck="true" data-inline-block-index="${index}" data-inline-block-field="title">${escapeHtml(block.title || 'Informazioni')}</span>
                             </h3>
-                            <div class="chapter-content character-inline-editable" contenteditable="plaintext-only" spellcheck="true" data-inline-block-index="${index}" data-inline-block-field="text">${previewHtml || '<p></p>'}</div>
+                            ${renderInlineMarkdownEditor(block, index)}
                         `}
                     </div>
                 `;
         return card;
+    }
+
+    function renderInlineMarkdownEditor(block, index, extraClass = '') {
+        const previewHtml = renderMarkdown(block.text || '', { context: block.type === 'image' ? 'image_box' : 'lore' });
+        const previewClass = extraClass ? `chapter-content ${extraClass}` : 'chapter-content';
+        return `
+            <div class="character-inline-markdown-shell">
+                <div class="character-inline-format-toolbar" aria-label="Strumenti testo blocco">
+                    ${renderInlineFormatButton(index, 'bold', 'fa-bold', 'Grassetto')}
+                    ${renderInlineFormatButton(index, 'italic', 'fa-italic', 'Corsivo')}
+                    ${renderInlineFormatButton(index, 'list', 'fa-list-ul', 'Elenco')}
+                    ${renderInlineFormatButton(index, 'quote', 'fa-quote-left', 'Citazione')}
+                    ${renderInlineFormatButton(index, 'gold', 'fa-highlighter', 'Evidenzia oro')}
+                </div>
+                <textarea class="character-inline-markdown-editor" hidden data-inline-block-index="${index}" data-inline-block-field="text">${escapeHtml(block.text || '')}</textarea>
+                <div class="${previewClass} character-inline-markdown-preview character-inline-visual-editor" contenteditable="true" spellcheck="true" data-inline-visual-editor="${index}">${previewHtml || '<p></p>'}</div>
+            </div>
+        `;
+    }
+
+    function renderInlineFormatButton(index, format, icon, label) {
+        return `
+            <button type="button" class="character-inline-format-btn" data-inline-edit-action="format-block" data-inline-block-index="${index}" data-inline-block-format="${escapeHtml(format)}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">
+                <i class="fas ${escapeHtml(icon)}"></i>
+            </button>
+        `;
     }
 
     function buildInlineAdjustStyle(adjust) {
