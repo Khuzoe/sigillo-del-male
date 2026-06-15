@@ -75,7 +75,8 @@
         }
 
         if (!Array.isArray(payload?.data)) {
-            const response = await fetch(window.CriptaApp?.urls?.data?.("calendar.json") || "../assets/data/calendar.json");
+            const fallbackUrl = window.CriptaApp?.urls?.globalData?.("calendar.json") || "../assets/data/calendar.json";
+            const response = await fetch(fallbackUrl);
             payload = {
                 source: "static",
                 version: 0,
