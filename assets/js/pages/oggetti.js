@@ -1,6 +1,7 @@
 const ITEMS_DATA_API_URL = () => window.CriptaApp?.urls?.api?.("api/data/items") || "https://sigillo-api.khuzoe.workers.dev/api/data/items";
 const ITEMS_MEDIA_WORKER_URL = window.CriptaApp?.config?.workerOrigin || "https://sigillo-api.khuzoe.workers.dev";
 const ITEMS_DISCORD_TOKEN_KEY = "discord_jwt";
+let currentMaterialTagSuggestions = [];
 
 window.CriptaApp.onPageReady("oggetti", async () => {
     const grid = document.getElementById("items-grid");
@@ -244,6 +245,7 @@ function createEmptyItemDraft() {
 
 function updateItemsView(items, state, grid, count) {
     const filtered = filterItems(items, state);
+    currentMaterialTagSuggestions = collectMaterialTagSuggestions(items);
     if (count) count.textContent = `${filtered.length} ${filtered.length === 1 ? "voce" : "voci"}`;
 
     if (!filtered.length) {
@@ -666,9 +668,22 @@ function renderItemMaterialTagEditors(tags) {
 }
 
 function renderItemMaterialTagEditor(tag = {}) {
+    const suggestions = currentMaterialTagSuggestions
+        .filter(option => normalizeSearch(option.name) !== normalizeSearch(tag.name))
+        .slice(0, 80);
+    const suggestionSelect = suggestions.length ? `
+        <label class="item-inline-editor-field item-inline-editor-field--wide">
+            <span>Usa tag esistente</span>
+            <select data-material-tag-template>
+                <option value="">Scegli un tag...</option>
+                ${suggestions.map(option => `<option value="${escapeHtml(option.name)}">${escapeHtml(option.name)}</option>`).join("")}
+            </select>
+        </label>
+    ` : "";
     return `
         <article class="item-inline-editor-row" data-item-material-tag-row>
             <div class="item-inline-editor-row-grid">
+                ${suggestionSelect}
                 ${renderInlineRowInput("Nome", "name", tag.name || "")}
                 ${renderInlineRowArea("Descrizione", "description", tag.description || "", "item-inline-editor-field--wide", 4)}
             </div>
@@ -767,6 +782,12 @@ function bindItemInlineEditor(grid, state, count) {
         });
     });
 
+    grid.querySelectorAll("[data-material-tag-template]").forEach(select => {
+        select.addEventListener("change", () => {
+            applyMaterialTagSuggestion(select);
+        });
+    });
+
     grid.querySelectorAll("[data-item-image-dropzone]").forEach((dropzone) => {
         bindItemImageDropzone(dropzone, state);
     });
@@ -787,6 +808,21 @@ function bindInlineRowRemoveAction(row) {
             button.closest("[data-item-property-row], [data-item-material-tag-row]")?.remove();
         });
     });
+    row?.querySelector("[data-material-tag-template]")?.addEventListener("change", event => {
+        applyMaterialTagSuggestion(event.currentTarget);
+    });
+}
+
+function applyMaterialTagSuggestion(select) {
+    const name = String(select?.value || "").trim();
+    if (!name) return;
+    const suggestion = currentMaterialTagSuggestions.find(tag => normalizeSearch(tag.name) === normalizeSearch(name));
+    if (!suggestion) return;
+    const row = select.closest("[data-item-material-tag-row]");
+    const nameInput = row?.querySelector('[data-row-field="name"]');
+    const descriptionInput = row?.querySelector('[data-row-field="description"]');
+    if (nameInput) nameInput.value = suggestion.name || "";
+    if (descriptionInput) descriptionInput.value = suggestion.description || "";
 }
 
 function bindItemImageDropzone(dropzone, state) {
@@ -1154,6 +1190,22 @@ function getVisibleMaterialTags(item) {
             ? item.tags
             : item?.properties;
     return normalizeMaterialTags(rawTags).filter(tag => tag.hidden !== true);
+}
+
+function collectMaterialTagSuggestions(items) {
+    const byKey = new Map();
+    (Array.isArray(items) ? items : [])
+        .filter(item => getItemCategory(item) === "Materiali")
+        .flatMap(item => normalizeMaterialTags(item.materialTags || item.tags || item.properties))
+        .filter(tag => tag.name)
+        .forEach(tag => {
+            const key = normalizeSearch(tag.name);
+            const existing = byKey.get(key);
+            if (!existing || String(tag.description || "").length > String(existing.description || "").length) {
+                byKey.set(key, { name: tag.name, description: tag.description || "" });
+            }
+        });
+    return Array.from(byKey.values()).sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "it"));
 }
 
 function renderMaterialMeta(item) {

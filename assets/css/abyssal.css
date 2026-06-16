@@ -9512,6 +9512,11 @@ body.page-oggetti .hero-mini {
     resize: vertical;
 }
 
+.item-inline-editor-field select option {
+    background: #17120e;
+    color: #f0e2c0;
+}
+
 .item-inline-editor-checks,
 .item-inline-editor-actions {
     display: flex;
