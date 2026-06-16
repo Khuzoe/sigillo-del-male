@@ -397,14 +397,20 @@ function renderMaterialCard(material, state) {
     const id = getItemId(material);
     const rarity = getItemRarityMeta(material.rarity);
     const tags = getVisibleMaterialTags(material);
-    const properties = getVisibleItemProperties(material);
     const selectedCount = state.selected.filter((entry) => entry === id).length;
+    const imagePath = getMaterialImagePath(material);
+    const imageUrl = imagePath ? resolveImageUrl(imagePath) : "";
     return `
         <article class="crafting-material-card item-card--${escapeHtml(slugify(rarity.label))}" draggable="true" data-material-card="${escapeHtml(id)}">
             <header>
-                <div>
-                    <span><i class="fas ${escapeHtml(rarity.icon)}" aria-hidden="true"></i>${escapeHtml(rarity.label)}</span>
-                    <h4>${escapeHtml(material.name || "Materiale")}</h4>
+                <div class="crafting-material-card__head-main">
+                    <div class="crafting-material-thumb">
+                        ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="">` : `<i class="fas fa-cubes-stacked" aria-hidden="true"></i>`}
+                    </div>
+                    <div>
+                        <span><i class="fas ${escapeHtml(rarity.icon)}" aria-hidden="true"></i>${escapeHtml(rarity.label)}</span>
+                        <h4>${escapeHtml(material.name || "Materiale")}</h4>
+                    </div>
                 </div>
                 <button type="button" data-material-add="${escapeHtml(id)}" title="Aggiungi al crafting" aria-label="Aggiungi ${escapeHtml(material.name || "materiale")}">
                     <i class="fas fa-plus" aria-hidden="true"></i>
@@ -413,7 +419,6 @@ function renderMaterialCard(material, state) {
             ${selectedCount ? `<p class="crafting-selected-count">Selezionato x${selectedCount}</p>` : ""}
             ${renderMaterialMeta(material)}
             ${tags.length ? `<ul class="item-material-tags">${tags.map((tag) => `<li>${renderMaterialTag(tag)}</li>`).join("")}</ul>` : ""}
-            ${properties.length ? `<ul class="item-properties">${properties.map((property) => `<li>${renderItemProperty(property)}</li>`).join("")}</ul>` : ""}
             ${material.summary ? `<p class="item-summary">${escapeHtml(material.summary)}</p>` : ""}
         </article>
     `;
@@ -651,8 +656,7 @@ function filterMaterials(materials, query) {
         material.rarity,
         material.valueGold,
         material.value,
-        ...getVisibleMaterialTags(material).flatMap((tag) => [tag.name, tag.description]),
-        ...getVisibleItemProperties(material).flatMap((property) => [property.name, property.charges, property.description])
+        ...getVisibleMaterialTags(material).flatMap((tag) => [tag.name, tag.description])
     ].filter(Boolean).join(" ")).includes(needle));
 }
 
@@ -679,6 +683,20 @@ function getItemId(item) {
     return String(item?.id || slugify(item?.name || "")).trim();
 }
 
+function getMaterialImagePath(item) {
+    return String(item?.image || item?.img || item?.icon || item?.avatar || "").trim();
+}
+
+function resolveImageUrl(path) {
+    const value = String(path || "").trim();
+    if (!value) return "";
+    if (/^(https?:|data:|blob:)/i.test(value)) return value;
+    if (value.startsWith("media/")) return window.CriptaApp.urls.api(value);
+    if (value.startsWith("/media/")) return window.CriptaApp.urls.api(value.slice(1));
+    if (value.startsWith("assets/")) return `../${value}`;
+    return `../assets/${value}`;
+}
+
 function getItemRarityMeta(rarity) {
     const label = String(rarity || "Sconosciuta").trim();
     const meta = [
@@ -692,25 +710,6 @@ function getItemRarityMeta(rarity) {
         { value: "Sconosciuta", icon: "fa-circle-question" }
     ].find((item) => item.value.toLowerCase() === label.toLowerCase());
     return meta ? { label: meta.value, icon: meta.icon } : { label, icon: "fa-circle-question" };
-}
-
-function normalizeItemProperties(properties) {
-    if (!Array.isArray(properties)) return [];
-    return properties
-        .map((property) => {
-            if (typeof property === "string") return property.trim() ? { description: property.trim() } : null;
-            if (!property || typeof property !== "object") return null;
-            const name = String(property.name || "").trim();
-            const charges = String(property.charges || "").trim();
-            const description = String(property.description || "").trim();
-            if (!name && !charges && !description) return null;
-            return { name, charges, description, hidden: property.hidden === true, negative: property.negative === true };
-        })
-        .filter(Boolean);
-}
-
-function getVisibleItemProperties(item) {
-    return normalizeItemProperties(item?.properties).filter((property) => property.hidden !== true);
 }
 
 function normalizeMaterialTags(value) {
@@ -744,12 +743,6 @@ function renderMaterialMeta(item) {
 
 function renderMaterialTag(tag) {
     return `<span>${escapeHtml(tag.name || "Tag")}</span>${tag.description ? `<p>${escapeHtml(tag.description)}</p>` : ""}`;
-}
-
-function renderItemProperty(property) {
-    if (!property.name) return escapeHtml(property.description || "");
-    const charges = String(property.charges || "").trim();
-    return `<strong>${escapeHtml(property.name)}${charges ? ` (${escapeHtml(charges)})` : ""}.</strong>${property.description ? ` ${escapeHtml(property.description)}` : ""}`;
 }
 
 function formatGoldValue(value) {
