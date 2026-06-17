@@ -56,6 +56,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     await consumeDeviceCodeFromQuery();
     await applyCurrentCampaignConfig(basePath);
 
+    ensurePerformanceHints();
     markInitialInlineHeadStyles();
     ensureFavicon(basePath);
     if (!isEmbeddedRuntime) {
@@ -218,6 +219,7 @@ async function navigateSpa(targetUrl, options = {}) {
         document.title = nextDocument.title || document.title;
         await applyCurrentCampaignConfig(computeBasePathForUrl(target));
         syncSpaHead(nextDocument, target);
+        ensurePerformanceHints();
         syncBodyState(nextDocument);
         disposePageScopes();
         removeSpaExtras();
@@ -359,6 +361,27 @@ function syncSpaHead(nextDocument, targetUrl) {
         clone.dataset.spaHead = "true";
         document.head.appendChild(clone);
     });
+}
+
+function ensurePerformanceHints() {
+    ensureHeadLink("preconnect", DISCORD_WORKER_URL, { crossOrigin: "anonymous" });
+    ensureHeadLink("dns-prefetch", "//sigillo-api.khuzoe.workers.dev");
+    ensureHeadLink("dns-prefetch", "//cdnjs.cloudflare.com");
+}
+
+function ensureHeadLink(rel, href, attributes = {}) {
+    const selector = `link[rel="${rel}"][href="${href}"]`;
+    if (document.head.querySelector(selector)) return;
+
+    const link = document.createElement("link");
+    link.rel = rel;
+    link.href = href;
+    link.dataset.performanceHint = "true";
+    Object.entries(attributes).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === false) return;
+        link[key] = value === true ? "" : value;
+    });
+    document.head.appendChild(link);
 }
 
 function removeInitialPageStyles() {
@@ -1696,7 +1719,32 @@ async function fetchJsonWithCache(url, options = {}) {
         jsonCache.set(key, requestPromise);
     }
 
-    return requestPromise;
+    const payload = await requestPromise;
+    return options.clone ? structuredCloneSafe(payload) : payload;
+}
+
+function clearJsonCache(url) {
+    if (!url) {
+        jsonCache.clear();
+        return;
+    }
+    jsonCache.delete(String(url));
+}
+
+function buildJsonReadOptions(options = {}) {
+    return {
+        cache: options.cache,
+        fetchOptions: options.fetchOptions,
+        clone: options.clone !== false
+    };
+}
+
+function fetchCampaignJson(pathname, options = {}) {
+    return fetchJsonWithCache(resolveDataUrl(pathname, options.urlOptions), buildJsonReadOptions(options));
+}
+
+function fetchGlobalJson(pathname, options = {}) {
+    return fetchJsonWithCache(resolveGlobalDataUrl(pathname), buildJsonReadOptions(options));
 }
 
 async function requestApi(pathname, options = {}) {
@@ -1959,6 +2007,11 @@ window.CriptaApp = {
         clearCache() {
             invalidateApiCache();
         }
+    },
+    data: {
+        json: fetchCampaignJson,
+        globalJson: fetchGlobalJson,
+        clearCache: clearJsonCache
     },
     config: {
         workerOrigin: DISCORD_WORKER_URL,

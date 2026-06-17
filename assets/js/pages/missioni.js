@@ -28,59 +28,84 @@
             return /^hidden:\s*true\b/im.test(yamlText || '');
         }
 
+        async function fetchCampaignJson(pathname, fallback) {
+            try {
+                if (typeof window.CriptaApp?.data?.json === 'function') {
+                    return await window.CriptaApp.data.json(pathname);
+                }
+                return await window.CriptaApp.fetchJson(siteUrl(`assets/data/${pathname}`), { clone: true });
+            } catch (error) {
+                console.warn(`Impossibile caricare ${pathname}:`, error);
+                return fallback;
+            }
+        }
+
+        async function loadLegacyNpcAssets() {
+            const respIndex = await fetch(siteUrl('assets/data/characters/index.yaml'));
+            if (!respIndex.ok) return;
+            const text = await respIndex.text();
+            const lines = text.split('\n');
+            const entries = [];
+            let currentId = null;
+
+            for (const line of lines) {
+                const idMatch = line.match(/- id:\s*["']?([^"']+)["']?/);
+                if (idMatch) currentId = idMatch[1];
+                const fileMatch = line.match(/file:\s*["']?([^"']+)["']?/);
+                if (currentId && fileMatch) {
+                    entries.push({ id: currentId, file: fileMatch[1] });
+                    currentId = null;
+                }
+            }
+
+            await Promise.all(entries.map(async (entry) => {
+                try {
+                    const response = await fetch(siteUrl(`assets/data/${entry.file}`));
+                    if (!response.ok) return;
+                    const text = await response.text();
+                    if (window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers() && isHiddenFromYaml(text)) return;
+                    const img = extractImagesFromYaml(text);
+                    characterImages[entry.id] = getSyncedNpcImagePath(entry.id, 'hover');
+                    characterImageMeta[entry.id] = { type: 'npc', fallback: getSyncedNpcImagePath(entry.id, 'token'), legacyFallback: img || '' };
+                } catch (_) {
+                    console.warn("Failed to load generic NPC", entry.id);
+                }
+            }));
+        }
+
         // Carica dati giocatori e NPC per le immagini
         async function loadCharacterAssets() {
             try {
                 Object.keys(characterImages).forEach(key => delete characterImages[key]);
                 Object.keys(characterImageMeta).forEach(key => delete characterImageMeta[key]);
-                // 1. Carica Players
-                const respPlayers = await fetch(siteUrl('assets/data/players.json'));
-                if (respPlayers.ok) {
-                    const players = await respPlayers.json();
-                    players.forEach(p => {
-                        if (p.images && p.images.avatar) {
-                            characterImages[p.id] = p.images.avatar;
-                            characterImageMeta[p.id] = { type: 'player', fallback: p.images.avatar };
-                        }
-                    });
-                }
 
-                // 2. Carica NPC (dall'index)
-                // Nota: In produzione sarebbe meglio un singolo file JSON generato.
-                // Qui facciamo fetch multiple ma sono pochi file.
-                const respIndex = await fetch(siteUrl('assets/data/characters/index.yaml'));
-                if (respIndex.ok) {
-                    const text = await respIndex.text();
-                    // Parsing brutale dell'index YAML per trovare i file
-                    const lines = text.split('\n');
-                    const entries = [];
-                    let currentId = null;
-
-                    for (let line of lines) {
-                        const idMatch = line.match(/- id:\s*["']?([^"']+)["']?/);
-                        if (idMatch) currentId = idMatch[1];
-                        const fileMatch = line.match(/file:\s*["']?([^"']+)["']?/);
-                        if (currentId && fileMatch) {
-                            entries.push({ id: currentId, file: fileMatch[1] });
-                            currentId = null;
-                        }
+                const playersPayload = await fetchCampaignJson('players.json', []);
+                const players = Array.isArray(playersPayload) ? playersPayload : playersPayload?.data || [];
+                players.forEach((player) => {
+                    if (player?.images?.avatar) {
+                        characterImages[player.id] = player.images.avatar;
+                        characterImageMeta[player.id] = { type: 'player', fallback: player.images.avatar };
                     }
+                });
 
-                    // Fetch parallelo dei singoli file NPC
-                    await Promise.all(entries.map(async (entry) => {
-                        try {
-                            const r = await fetch(siteUrl(`assets/data/${entry.file}`));
-                            if (r.ok) {
-                                const t = await r.text();
-                                if (window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers() && isHiddenFromYaml(t)) {
-                                    return;
-                                }
-                                const img = extractImagesFromYaml(t);
-                                characterImages[entry.id] = getSyncedNpcImagePath(entry.id, 'hover');
-                                characterImageMeta[entry.id] = { type: 'npc', fallback: getSyncedNpcImagePath(entry.id, 'token'), legacyFallback: img || '' };
-                            }
-                        } catch (e) { console.warn("Failed to load generic NPC", entry.id); }
-                    }));
+                const charactersPayload = await fetchCampaignJson('characters.json', null);
+                const characters = Array.isArray(charactersPayload) ? charactersPayload : charactersPayload?.data || [];
+                if (characters.length) {
+                    characters
+                        .filter((character) => !window.WikiSpoiler || window.WikiSpoiler.isVisible(character))
+                        .forEach((character) => {
+                            const id = String(character?.id || '').trim();
+                            if (!id) return;
+                            const images = character.images || {};
+                            characterImages[id] = getSyncedNpcImagePath(id, 'hover');
+                            characterImageMeta[id] = {
+                                type: 'npc',
+                                fallback: getSyncedNpcImagePath(id, 'token'),
+                                legacyFallback: images.hover || images.avatar || character.avatar || ''
+                            };
+                        });
+                } else {
+                    await loadLegacyNpcAssets();
                 }
 
             } catch (e) {
@@ -103,9 +128,7 @@
 
         async function loadNpcRecencyMap() {
             try {
-                const response = await fetch(siteUrl('assets/data/npc-recency.json'));
-                if (!response.ok) return {};
-                const payload = await response.json();
+                const payload = await fetchCampaignJson('npc-recency.json', { items: [] });
                 const map = {};
                 (payload.items || []).forEach(item => {
                     if (item && item.id) map[item.id] = item;
@@ -304,9 +327,7 @@
                 await loadCharacterAssets();
 
                 // 2. Load Quests
-                const response = await fetch(siteUrl('assets/data/quests.json'));
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                const groups = await response.json();
+                const groups = await fetchCampaignJson('quests.json', []);
                 const recencyMap = await loadNpcRecencyMap();
                 const sortedGroups = sortQuestGroups(groups, recencyMap);
 

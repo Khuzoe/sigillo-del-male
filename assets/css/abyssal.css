@@ -8581,6 +8581,33 @@ body.page-bestiario .hero-mini {
     gap: 0.65rem;
 }
 
+.legacy-admin-banner {
+    display: grid;
+    gap: 0.28rem;
+    margin: 0 0 1rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-left: 4px solid rgba(212, 175, 55, 0.82);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.34);
+    color: rgba(232, 219, 188, 0.74);
+    font-family: var(--font-ui);
+}
+
+.legacy-admin-banner strong {
+    color: var(--gold);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.legacy-admin-banner span {
+    max-width: 72rem;
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
 .bestiary-admin-link {
     display: inline-flex;
     align-items: center;

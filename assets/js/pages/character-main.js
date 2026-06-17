@@ -165,12 +165,11 @@ async function loadCharactersCollection() {
     }
 
     try {
-        const response = await fetch(dataUrl('characters.json'));
-        if (response.ok) {
-            const payload = await response.json();
-            const data = Array.isArray(payload) ? payload : payload?.data;
-            if (Array.isArray(data)) return normalizeCharactersCollection(data);
-        }
+        const payload = typeof window.CriptaApp?.data?.json === 'function'
+            ? await window.CriptaApp.data.json('characters.json')
+            : await window.CriptaApp.fetchJson(dataUrl('characters.json'), { clone: true });
+        const data = Array.isArray(payload) ? payload : payload?.data;
+        if (Array.isArray(data)) return normalizeCharactersCollection(data);
     } catch (error) {
         console.warn('characters.json non disponibile, provo YAML statico.', error);
     }
@@ -297,9 +296,9 @@ function renderCharacterBlockMarkup(value, context = 'lore') {
 }
 
 async function loadPlayersData() {
-    const resp = await fetch(dataUrl('players.json'));
-    if (!resp.ok) throw new Error(`File dati players (${resp.status}) non trovato.`);
-    const payload = await resp.json();
+    const payload = typeof window.CriptaApp?.data?.json === 'function'
+        ? await window.CriptaApp.data.json('players.json')
+        : await window.CriptaApp.fetchJson(dataUrl('players.json'), { clone: true });
     const players = Array.isArray(payload) ? payload : payload?.data;
     const mediaOverrides = await loadMediaOverrides();
     return Array.isArray(players)
@@ -344,8 +343,10 @@ function getContentBlockMarkdownUrls(markdownPath) {
 
 async function loadQuestsData() {
     try {
-        const resp = await fetch(dataUrl('quests.json'));
-        if (resp.ok) return resp.json();
+        if (typeof window.CriptaApp?.data?.json === 'function') {
+            return await window.CriptaApp.data.json('quests.json');
+        }
+        return await window.CriptaApp.fetchJson(dataUrl('quests.json'), { clone: true });
     } catch (e) {
         console.warn("Impossibile caricare quests.json", e);
     }
@@ -851,15 +852,18 @@ async function loadSkillsData() {
             console.warn('Alberi abilita online non disponibili, uso JSON statico.', error);
         }
 
-        let response = await fetch(SKILLS_DATA_URL);
+        let payload = null;
         const fallbackUrl = window.CriptaApp?.urls?.globalData?.('skills.json') || '../../assets/data/skills.json';
-        if (!response.ok && SKILLS_DATA_URL !== fallbackUrl) {
-            response = await fetch(fallbackUrl);
+        try {
+            payload = typeof window.CriptaApp?.data?.json === 'function'
+                ? await window.CriptaApp.data.json('skills.json')
+                : await window.CriptaApp.fetchJson(SKILLS_DATA_URL, { clone: true });
+        } catch (error) {
+            if (SKILLS_DATA_URL === fallbackUrl) throw error;
+            payload = typeof window.CriptaApp?.data?.globalJson === 'function'
+                ? await window.CriptaApp.data.globalJson('skills.json')
+                : await window.CriptaApp.fetchJson(fallbackUrl, { clone: true });
         }
-        if (!response.ok) {
-            throw new Error(`File skill tree non trovato (${response.status}).`);
-        }
-        const payload = await response.json();
         skillsMemoryCache = payload && typeof payload === 'object' ? payload : {};
         skillsVersion = null;
         return skillsMemoryCache;
@@ -987,9 +991,9 @@ async function loadWikiItemsData() {
             console.warn('KV items non disponibile per scheda giocatore, uso JSON statico.', error);
         }
         if (!payload) {
-            const response = await fetch(WIKI_ITEMS_DATA_URL);
-            if (!response.ok) throw new Error(`Items wiki HTTP ${response.status}`);
-            payload = await response.json();
+            payload = typeof window.CriptaApp?.data?.json === 'function'
+                ? await window.CriptaApp.data.json('items.json')
+                : await window.CriptaApp.fetchJson(WIKI_ITEMS_DATA_URL, { clone: true });
         }
         const list = Array.isArray(payload) ? payload : [];
         wikiItemsMemoryCache = window.WikiSpoiler
@@ -1579,11 +1583,10 @@ async function loadTransformationsData(options = {}) {
     transformationsRequestPromise = (async () => {
         let staticList = [];
         try {
-            const response = await fetch(TRANSFORMATIONS_DATA_URL);
-            if (response.ok) {
-                const payload = await response.json();
-                staticList = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : []);
-            }
+            const payload = typeof window.CriptaApp?.data?.json === 'function'
+                ? await window.CriptaApp.data.json('transformations.json')
+                : await window.CriptaApp.fetchJson(TRANSFORMATIONS_DATA_URL, { clone: true });
+            staticList = Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : []);
         } catch (error) {
             console.warn('transformations.json non disponibile, uso solo KV.', error);
         }
@@ -4637,25 +4640,14 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const folder = `skill-trees/${slugify(treeKey || character?.id || 'albero')}`;
         const safeFileName = `${slugify(fileName || 'immagine')}.webp`;
         const blob = await blobFactory(file);
-        const form = new FormData();
-        form.set('folder', folder);
-        form.set('filename', safeFileName);
-        form.set('campaignId', getCurrentCampaignId());
-        form.set('file', new File([blob], safeFileName, { type: 'image/webp' }));
-
-        const uploadUrl = new URL(window.CriptaApp?.urls?.api?.('media/upload') || 'https://sigillo-api.khuzoe.workers.dev/media/upload');
-        uploadUrl.searchParams.set('folder', folder);
-        uploadUrl.searchParams.set('campaign', getCurrentCampaignId());
-
-        const response = await fetch(uploadUrl.toString(), {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: form
+        const payload = await window.CriptaMedia.uploadBlob(blob, {
+            folder,
+            fileName: safeFileName,
+            token,
+            campaignId: getCurrentCampaignId(),
+            authError: 'Login richiesto per caricare immagini albero.'
         });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-
-        return payload.path || payload.key || `media/campaigns/${getCurrentCampaignId()}/${folder}/${safeFileName}`;
+        return payload.path;
     };
 
     const uploadSelectedNodeIcon = async (file) => {
@@ -6350,27 +6342,15 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     async function uploadInlineImageBlob(blob, characterId, fileName, token = readAuthToken()) {
-        if (!token) throw new Error('Login richiesto per caricare immagini.');
         const folder = `characters/${slugify(characterId || 'npc')}`;
-        const form = new FormData();
-        form.set('folder', folder);
-        form.set('filename', fileName);
-        form.set('campaignId', getCurrentCampaignId());
-        form.set('file', new File([blob], fileName, { type: 'image/webp' }));
-
-        const uploadUrl = new URL(window.CriptaApp?.urls?.api?.('media/upload') || 'https://sigillo-api.khuzoe.workers.dev/media/upload');
-        uploadUrl.searchParams.set('folder', folder);
-        uploadUrl.searchParams.set('campaign', getCurrentCampaignId());
-
-        const response = await fetch(uploadUrl.toString(), {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: form
+        const payload = await window.CriptaMedia.uploadBlob(blob, {
+            folder,
+            fileName,
+            token,
+            campaignId: getCurrentCampaignId(),
+            authError: 'Login richiesto per caricare immagini.'
         });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-        validateMediaUploadPayload(payload, blob, fileName);
-        return payload.path || payload.key || `media/campaigns/${getCurrentCampaignId()}/${folder}/${fileName}`;
+        return payload.path;
     }
 
     async function convertInlineImageFileToWebpBlob(file) {
@@ -7058,9 +7038,9 @@ window.CriptaApp.onPageReady("character", async function () {
             console.warn('KV characters non disponibile per salvataggio inline, uso JSON statico.', error);
         }
 
-        const response = await fetch(dataUrl('characters.json'));
-        if (!response.ok) throw new Error(`Impossibile caricare characters.json (${response.status}).`);
-        const payload = await response.json();
+        const payload = typeof window.CriptaApp?.data?.json === 'function'
+            ? await window.CriptaApp.data.json('characters.json')
+            : await window.CriptaApp.fetchJson(dataUrl('characters.json'), { clone: true });
         const data = Array.isArray(payload) ? payload : payload?.data;
         if (!Array.isArray(data)) throw new Error('Formato characters.json non valido.');
         return { data, version: 0, source: 'static' };
@@ -7196,25 +7176,14 @@ window.CriptaApp.onPageReady("character", async function () {
 
         const folder = buildCampaignScopedOverrideFolder('ability-overrides', identity.actorName || identity.characterId || identity.characterName);
         const fileName = `${slugify(identity.abilityName || identity.abilityId || 'abilita')}.webp`;
-        const form = new FormData();
-        form.set('folder', folder);
-        form.set('filename', fileName);
-        form.set('campaignId', getCurrentCampaignId());
-        form.set('file', new File([blob], fileName, { type: 'image/webp' }));
-
-        const uploadUrl = new URL(window.CriptaApp?.urls?.api?.('media/upload') || 'https://sigillo-api.khuzoe.workers.dev/media/upload');
-        uploadUrl.searchParams.set('folder', folder);
-        uploadUrl.searchParams.set('campaign', getCurrentCampaignId());
-
-        const response = await fetch(uploadUrl.toString(), {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: form
+        const payload = await window.CriptaMedia.uploadBlob(blob, {
+            folder,
+            fileName,
+            token,
+            campaignId: getCurrentCampaignId(),
+            authError: 'Login richiesto per caricare icone abilita.'
         });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-        validateMediaUploadPayload(payload, blob, fileName);
-        return payload.path || payload.key || buildCampaignScopedMediaPath(folder, fileName);
+        return payload.path;
     }
 
     async function uploadItemOverrideFile(blob, identity) {
@@ -7226,36 +7195,14 @@ window.CriptaApp.onPageReady("character", async function () {
 
         const folder = buildCampaignScopedOverrideFolder('item-overrides', identity.actorName || identity.characterId || identity.characterName);
         const fileName = `${slugify(identity.itemName || identity.itemId || 'oggetto')}.webp`;
-        const form = new FormData();
-        form.set('folder', folder);
-        form.set('filename', fileName);
-        form.set('campaignId', getCurrentCampaignId());
-        form.set('file', new File([blob], fileName, { type: 'image/webp' }));
-
-        const uploadUrl = new URL(window.CriptaApp?.urls?.api?.('media/upload') || 'https://sigillo-api.khuzoe.workers.dev/media/upload');
-        uploadUrl.searchParams.set('folder', folder);
-        uploadUrl.searchParams.set('campaign', getCurrentCampaignId());
-
-        const response = await fetch(uploadUrl.toString(), {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: form
+        const payload = await window.CriptaMedia.uploadBlob(blob, {
+            folder,
+            fileName,
+            token,
+            campaignId: getCurrentCampaignId(),
+            authError: 'Login richiesto per caricare icone inventario.'
         });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-        validateMediaUploadPayload(payload, blob, fileName);
-        return payload.path || payload.key || buildCampaignScopedMediaPath(folder, fileName);
-    }
-
-    function validateMediaUploadPayload(payload, blob, fileName = 'media.webp') {
-        const expectedSize = Number(blob?.size || 0);
-        const storedSize = Number(payload?.storedSize || payload?.size || 0);
-        if (expectedSize > 0 && storedSize > 0 && expectedSize !== storedSize) {
-            throw new Error(`Upload R2 non coerente per ${fileName}: inviati ${expectedSize} byte, salvati ${storedSize} byte.`);
-        }
-        if (!payload?.key && !payload?.path) {
-            throw new Error(`Upload R2 senza path/key per ${fileName}.`);
-        }
+        return payload.path;
     }
 
     function getMediaOverridesApiUrl() {
@@ -7330,25 +7277,14 @@ window.CriptaApp.onPageReady("character", async function () {
         const fileName = entityType === 'companion'
             ? `${slugify(identity.entityId || identity.name || 'companion')}-${kind}.webp`
             : `${slugify(identity.entityId || identity.characterId || 'player')}-${kind}.webp`;
-        const form = new FormData();
-        form.set('folder', folder);
-        form.set('filename', fileName);
-        form.set('campaignId', getCurrentCampaignId());
-        form.set('file', new File([blob], fileName, { type: 'image/webp' }));
-
-        const uploadUrl = new URL(window.CriptaApp?.urls?.api?.('media/upload') || 'https://sigillo-api.khuzoe.workers.dev/media/upload');
-        uploadUrl.searchParams.set('folder', folder);
-        uploadUrl.searchParams.set('campaign', getCurrentCampaignId());
-
-        const response = await fetch(uploadUrl.toString(), {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: form
+        const payload = await window.CriptaMedia.uploadBlob(blob, {
+            folder,
+            fileName,
+            token,
+            campaignId: getCurrentCampaignId(),
+            authError: 'Login richiesto per caricare immagini.'
         });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-        validateMediaUploadPayload(payload, blob, fileName);
-        return payload.path || payload.key || '';
+        return payload.path;
     }
 
     function applySavedMediaOverrideLocally(identity, kind, imagePath) {
@@ -7864,10 +7800,6 @@ window.CriptaApp.onPageReady("character", async function () {
         return `${kind}/${slugify(ownerId || 'personaggio')}`;
     }
 
-    function buildCampaignScopedMediaPath(folder, fileName) {
-        return `media/campaigns/${getCurrentCampaignId()}/${folder}/${fileName}`;
-    }
-
     async function resolveCurrentUserIsDm(authState = null) {
         try {
             authState = authState || await window.CriptaDiscordAuth?.verify?.();
@@ -7878,9 +7810,9 @@ window.CriptaApp.onPageReady("character", async function () {
             const discordId = explicitDiscordId || (/^\d{5,32}$/.test(legacyId) ? legacyId : '');
             if (!accountId && !discordId) return false;
 
-            const response = await fetch(dataUrl('next-session.json')).catch(() => null);
-            if (!response?.ok) return false;
-            const config = await response.json();
+            const config = typeof window.CriptaApp?.data?.json === 'function'
+                ? await window.CriptaApp.data.json('next-session.json')
+                : await window.CriptaApp.fetchJson(dataUrl('next-session.json'), { clone: true });
             const dmAccountId = String(config?.dmAccountId || '').trim();
             const dmDiscordId = String(config?.dmDiscordId || '').trim();
             return Boolean(dmAccountId && accountId === dmAccountId)
@@ -8509,9 +8441,10 @@ window.CriptaApp.onPageReady("character", async function () {
             console.warn('KV transformations non disponibile per salvataggio, uso JSON statico.', error);
         }
 
-        const response = await fetch(TRANSFORMATIONS_DATA_URL);
-        if (!response.ok) return { data: [], version: 0, source: 'static' };
-        const payload = await response.json();
+        const payload = await (typeof window.CriptaApp?.data?.json === 'function'
+            ? window.CriptaApp.data.json('transformations.json')
+            : window.CriptaApp.fetchJson(TRANSFORMATIONS_DATA_URL, { clone: true })
+        ).catch(() => []);
         const data = Array.isArray(payload) ? payload : payload?.data;
         return { data: Array.isArray(data) ? data : [], version: 0, source: 'static' };
     }
@@ -8526,24 +8459,14 @@ window.CriptaApp.onPageReady("character", async function () {
             const blob = /\.webp$/i.test(file.name) ? file : await convertInlineImageFileToWebpBlob(file);
             const folder = `transformations/${slugify(subject?.id || subject?.accountId || 'player')}`;
             const fileName = `${slugify(entry.creatureName || entry.name || entry.id || 'forma')}.webp`;
-            const form = new FormData();
-            form.set('folder', folder);
-            form.set('filename', fileName);
-            form.set('campaignId', getCurrentCampaignId());
-            form.set('file', new File([blob], fileName, { type: 'image/webp' }));
-
-            const uploadUrl = new URL(window.CriptaApp?.urls?.api?.('media/upload') || 'https://sigillo-api.khuzoe.workers.dev/media/upload');
-            uploadUrl.searchParams.set('folder', folder);
-            uploadUrl.searchParams.set('campaign', getCurrentCampaignId());
-
-            const response = await fetch(uploadUrl.toString(), {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
-                body: form
+            const payload = await window.CriptaMedia.uploadBlob(blob, {
+                folder,
+                fileName,
+                token,
+                campaignId: getCurrentCampaignId(),
+                authError: 'Login richiesto per caricare immagini.'
             });
-            const payload = await response.json().catch(() => null);
-            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-            return payload.path || payload.key || '';
+            return payload.path;
         } catch (error) {
             console.error('Upload token trasformazione fallito:', error);
             alert(`Upload token fallito: ${error?.message || error}`);

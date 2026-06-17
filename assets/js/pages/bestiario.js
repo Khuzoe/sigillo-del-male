@@ -60,31 +60,29 @@ function syncBestiaryAdminLinks() {
 async function loadBestiaryData() {
     try {
         if (typeof window.CriptaApp?.api?.get === "function") {
-            const payload = await window.CriptaApp.api.get("api/data/bestiary", { query: { _: Date.now() } });
+            const payload = await window.CriptaApp.api.get("api/data/bestiary");
             if (Array.isArray(payload?.data)) return payload.data;
         }
     } catch (error) {
         console.warn("KV bestiary non disponibile, uso JSON statico.", error);
     }
 
-    const response = await fetch(window.CriptaApp?.urls?.data?.("bestiary.json") || "../assets/data/bestiary.json").catch(() => null);
-    if (!response?.ok) return [];
-    const data = await response.json().catch(() => []);
+    const data = await window.CriptaApp?.data?.json?.("bestiary.json").catch(() => []);
     return Array.isArray(data) ? data : data?.data || [];
 }
 
 async function loadItemsDataForBestiary() {
     try {
         if (typeof window.CriptaApp?.api?.get === "function") {
-            const payload = await window.CriptaApp.api.get("api/data/items", { query: { _: Date.now() } });
+            const payload = await window.CriptaApp.api.get("api/data/items");
             if (Array.isArray(payload?.data)) return payload.data;
         }
     } catch (error) {
         console.warn("KV items non disponibile per bestiario, uso JSON statico.", error);
     }
 
-    const response = await fetch(window.CriptaApp?.urls?.data?.("items.json") || "../assets/data/items.json").catch(() => null);
-    return response?.ok ? response.json() : [];
+    const data = await window.CriptaApp?.data?.json?.("items.json").catch(() => []);
+    return Array.isArray(data) ? data : data?.data || [];
 }
 
 function resolveImageUrl(path) {

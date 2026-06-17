@@ -689,13 +689,18 @@
 <body class="page-items-editor">
     <nav class="sidebar" id="sidebar-container"></nav>
 
-    <main class="main-content items-editor-page">
+    <main class="main-content items-editor-page" data-requires-dm>
         <header class="hero-mini">
             <div class="hero-title">
                 <h1>Editor Oggetti</h1>
                 <div class="subtitle">Modifica reliquie, strumenti e oggetti magici registrati nella cripta</div>
             </div>
         </header>
+
+        <div class="legacy-admin-banner" role="note">
+            <strong>Strumento admin legacy</strong>
+            <span>L'editor canonico degli oggetti e quello interno alla pagina Oggetti. Usa questa pagina solo per import, export e manutenzione massiva.</span>
+        </div>
 
         <div class="items-editor-shell">
             <section class="items-editor-main" aria-label="Tabella oggetti">
@@ -866,6 +871,7 @@
     </main>
 
     <script src="../assets/js/layout.js"></script>
+    <script src="../assets/js/shared/media-service.js"></script>
     <script src="../assets/js/tools/items-editor.js"></script>
 </body>
 </html>

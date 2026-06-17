@@ -211,9 +211,10 @@
 
     async function loadDefaultData() {
         try {
-            const response = await fetch(DEFAULT_DATA_URL);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            setData(await response.json());
+            const data = typeof window.CriptaApp?.data?.json === 'function'
+                ? await window.CriptaApp.data.json('maps/main_maps/map.json')
+                : await window.CriptaApp.fetchJson(DEFAULT_DATA_URL, { clone: true });
+            setData(data);
         } catch (error) {
             setStatus(`Impossibile caricare il JSON di default: ${error.message}. Avvia il sito in locale oppure importa il file JSON.`, 'error');
         }

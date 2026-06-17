@@ -84,11 +84,8 @@
 
         if (!list.length) {
             try {
-                const response = await fetch(window.CriptaApp?.urls?.data?.("locations.json") || "../assets/data/locations.json");
-                if (response.ok) {
-                    const payload = await response.json();
-                    list = Array.isArray(payload) ? payload : payload?.data;
-                }
+                const payload = await window.CriptaApp?.data?.json?.("locations.json");
+                list = Array.isArray(payload) ? payload : payload?.data;
             } catch (error) {
                 console.warn("locations.json non disponibile.", error);
             }

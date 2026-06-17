@@ -185,9 +185,9 @@ function parseYamlLite(yamlText) {
 
         async function loadNpcRecencyData(base_path) {
             try {
-                const response = await fetch(window.CriptaApp?.urls?.data?.('npc-recency.json') || base_path + 'data/npc-recency.json');
-                if (!response.ok) return { byId: {} };
-                const payload = await response.json();
+                const payload = typeof window.CriptaApp?.data?.json === 'function'
+                    ? await window.CriptaApp.data.json('npc-recency.json')
+                    : await window.CriptaApp.fetchJson(window.CriptaApp?.urls?.data?.('npc-recency.json') || base_path + 'data/npc-recency.json', { clone: true });
                 const byId = {};
                 (payload.items || []).forEach(item => {
                     if (item && item.id) byId[item.id] = item;
@@ -274,12 +274,11 @@ function parseYamlLite(yamlText) {
             }
 
             try {
-                const response = await fetch(window.CriptaApp?.urls?.data?.('characters.json') || '../assets/data/characters.json');
-                if (response.ok) {
-                    const payload = await response.json();
-                    const data = Array.isArray(payload) ? payload : payload?.data;
-                    if (Array.isArray(data)) return normalizeCharactersCollection(data);
-                }
+                const payload = typeof window.CriptaApp?.data?.json === 'function'
+                    ? await window.CriptaApp.data.json('characters.json')
+                    : await window.CriptaApp.fetchJson(window.CriptaApp?.urls?.data?.('characters.json') || '../assets/data/characters.json', { clone: true });
+                const data = Array.isArray(payload) ? payload : payload?.data;
+                if (Array.isArray(data)) return normalizeCharactersCollection(data);
             } catch (error) {
                 console.warn('characters.json non disponibile, provo YAML statico.', error);
             }

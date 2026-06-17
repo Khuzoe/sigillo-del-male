@@ -1,0 +1,144 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "pattern": "assets/data/search-index.json",
+      "kind": "generated",
+      "owner": "script",
+      "command": "npm run build:search",
+      "notes": "Indice ricerca globale generato dai dati e contenuti editoriali."
+    },
+    {
+      "pattern": "assets/data/npc-recency.json",
+      "kind": "generated",
+      "owner": "script",
+      "command": "npm run build:npc-recency",
+      "notes": "Recency NPC calcolata dalle sessioni."
+    },
+    {
+      "pattern": "assets/data/home-recent-npcs.json",
+      "kind": "generated",
+      "owner": "script",
+      "command": "npm run build:home-recent",
+      "notes": "Estratto NPC recenti per home."
+    },
+    {
+      "pattern": "assets/data/foundry.json",
+      "kind": "generated",
+      "owner": "script",
+      "command": "npm run build:foundry",
+      "notes": "Output locale per Foundry, ignorato da git."
+    },
+    {
+      "pattern": "campaigns/*/data/search-index.json",
+      "kind": "generated",
+      "owner": "script",
+      "command": "npm run build:search",
+      "notes": "Indice ricerca della campagna quando presente."
+    },
+    {
+      "pattern": "campaigns/*/data/npc-recency.json",
+      "kind": "generated",
+      "owner": "script",
+      "command": "npm run build:npc-recency",
+      "notes": "Recency NPC della campagna quando presente."
+    },
+    {
+      "pattern": "campaigns/*/data/home-recent-npcs.json",
+      "kind": "generated",
+      "owner": "script",
+      "command": "npm run build:home-recent",
+      "notes": "Estratto home della campagna quando presente."
+    },
+    {
+      "pattern": "campaigns/*/data/foundry.json",
+      "kind": "generated",
+      "owner": "script",
+      "command": "npm run build:foundry",
+      "notes": "Snapshot Foundry derivato per la campagna quando presente."
+    },
+    {
+      "pattern": "campaigns/*/data/timeline.draft.json",
+      "kind": "generated-draft",
+      "owner": "script",
+      "command": "npm run build:timeline-draft",
+      "notes": "Bozza generata: va revisionata prima di diventare contenuto canonico."
+    },
+    {
+      "pattern": "assets/data/items_populated.json",
+      "kind": "generated-draft",
+      "owner": "legacy-tool",
+      "command": "",
+      "notes": "Output storico popolato; non usarlo come sorgente primaria."
+    },
+    {
+      "pattern": "assets/data/reports/**",
+      "kind": "generated-draft",
+      "owner": "diagnostic-tool",
+      "command": "",
+      "notes": "Report diagnostici/audit: non sono sorgente canonica."
+    },
+    {
+      "pattern": "campaigns/*/data/items_populated.json",
+      "kind": "generated-draft",
+      "owner": "legacy-tool",
+      "command": "",
+      "notes": "Output storico popolato; non usarlo come sorgente primaria."
+    },
+    {
+      "pattern": "assets/data/characters/**",
+      "kind": "authoring",
+      "owner": "wiki-editor",
+      "notes": "NPC legacy/default in YAML."
+    },
+    {
+      "pattern": "assets/content/**",
+      "kind": "authoring",
+      "owner": "wiki-editor",
+      "notes": "Blocchi markdown legacy/default."
+    },
+    {
+      "pattern": "campaigns/*/data/characters/**",
+      "kind": "authoring",
+      "owner": "wiki-editor",
+      "notes": "NPC della campagna in YAML."
+    },
+    {
+      "pattern": "campaigns/*/data/content/**",
+      "kind": "authoring",
+      "owner": "wiki-editor",
+      "notes": "Blocchi markdown della campagna."
+    },
+    {
+      "pattern": "assets/data/maps/**",
+      "kind": "authoring",
+      "owner": "wiki-editor",
+      "notes": "Mappe/POI statici default."
+    },
+    {
+      "pattern": "campaigns/*/data/locations.json",
+      "kind": "authoring-import",
+      "owner": "wiki-editor",
+      "command": "node scripts/import_foundry_locations.js",
+      "notes": "Dati luoghi importati da Foundry ma poi editabili come contenuto wiki."
+    },
+    {
+      "pattern": "assets/data/*.json",
+      "kind": "authoring",
+      "owner": "wiki-editor",
+      "notes": "Fallback/default JSON canonici, salvo regole generated piu specifiche."
+    },
+    {
+      "pattern": "campaigns/*/data/*.json",
+      "kind": "authoring",
+      "owner": "wiki-editor",
+      "notes": "JSON canonici della campagna, salvo regole generated piu specifiche."
+    },
+    {
+      "pattern": "campaigns/_template/data/**",
+      "kind": "template",
+      "owner": "developer",
+      "notes": "Template per nuove campagne."
+    }
+  ]
+}

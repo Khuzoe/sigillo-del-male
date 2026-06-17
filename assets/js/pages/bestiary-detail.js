@@ -2217,26 +2217,16 @@ window.CriptaApp.onPageReady("creature", async () => {
         if (!selectedFile || !state.creature) return;
 
         try {
-            const blob = /\.webp$/i.test(selectedFile.name || "") ? selectedFile : await convertImageToWebp(selectedFile);
             const fileName = `${slugify(state.creature.name || creatureId || "creatura")}${suffix || ""}.webp`;
-            const form = new FormData();
-            form.set("folder", folder);
-            form.set("filename", fileName);
-            form.set("campaignId", getCampaignId());
-            form.set("file", new File([blob], fileName, { type: "image/webp" }));
-
-            const uploadUrl = new URL(window.CriptaApp?.urls?.api?.("media/upload") || "https://sigillo-api.khuzoe.workers.dev/media/upload");
-            uploadUrl.searchParams.set("folder", folder);
-            uploadUrl.searchParams.set("campaign", getCampaignId());
-            const response = await fetch(uploadUrl.toString(), {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
-                body: form
+            const payload = await window.CriptaMedia.uploadImageFile(selectedFile, {
+                folder,
+                fileName,
+                token,
+                quality: 0.88,
+                campaignId: getCampaignId(),
+                authError: "Login richiesto per caricare immagini."
             });
-            const payload = await response.json().catch(() => null);
-            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-            validateMediaUploadPayload(payload, blob, fileName);
-            state.creature[property] = payload.path || payload.key || buildCampaignMediaPath(folder, fileName);
+            state.creature[property] = payload.path;
             await persistCreatureMediaReference(property, state.creature[property]);
             state.dirty = true;
             render();
@@ -2340,27 +2330,18 @@ window.CriptaApp.onPageReady("creature", async () => {
         if (!selectedFile) return;
 
         try {
-            const blob = /\.webp$/i.test(selectedFile.name || "") ? selectedFile : await convertImageToWebp(selectedFile);
             const baseName = slugify(`${state.creature?.name || "creatura"}-${ability.name || "abilita"}`);
             const fileName = versionedWebpFileName(baseName);
             const folder = "monster-abilities";
-            const form = new FormData();
-            form.set("folder", folder);
-            form.set("filename", fileName);
-            form.set("campaignId", getCampaignId());
-            form.set("file", new File([blob], fileName, { type: "image/webp" }));
-
-            const uploadUrl = new URL(window.CriptaApp?.urls?.api?.("media/upload") || "https://sigillo-api.khuzoe.workers.dev/media/upload");
-            uploadUrl.searchParams.set("folder", folder);
-            uploadUrl.searchParams.set("campaign", getCampaignId());
-            const response = await fetch(uploadUrl.toString(), {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
-                body: form
+            const payload = await window.CriptaMedia.uploadImageFile(selectedFile, {
+                folder,
+                fileName,
+                token,
+                quality: 0.88,
+                campaignId: getCampaignId(),
+                authError: "Login richiesto per caricare immagini."
             });
-            const payload = await response.json().catch(() => null);
-            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-            ability.iconImage = payload.path || payload.key || buildCampaignMediaPath(folder, fileName);
+            ability.iconImage = payload.path;
             state.dirty = true;
             render();
         } catch (error) {
@@ -2381,27 +2362,18 @@ window.CriptaApp.onPageReady("creature", async () => {
         if (!selectedFile) return;
 
         try {
-            const blob = /\.webp$/i.test(selectedFile.name || "") ? selectedFile : await convertImageToWebp(selectedFile);
             const baseName = slugify(`${state.creature?.name || "creatura"}-${template.name || "condizione"}`);
             const fileName = versionedWebpFileName(baseName);
             const folder = "monster-conditions";
-            const form = new FormData();
-            form.set("folder", folder);
-            form.set("filename", fileName);
-            form.set("campaignId", getCampaignId());
-            form.set("file", new File([blob], fileName, { type: "image/webp" }));
-
-            const uploadUrl = new URL(window.CriptaApp?.urls?.api?.("media/upload") || "https://sigillo-api.khuzoe.workers.dev/media/upload");
-            uploadUrl.searchParams.set("folder", folder);
-            uploadUrl.searchParams.set("campaign", getCampaignId());
-            const response = await fetch(uploadUrl.toString(), {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
-                body: form
+            const payload = await window.CriptaMedia.uploadImageFile(selectedFile, {
+                folder,
+                fileName,
+                token,
+                quality: 0.88,
+                campaignId: getCampaignId(),
+                authError: "Login richiesto per caricare immagini."
             });
-            const payload = await response.json().catch(() => null);
-            if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-            const iconImage = payload.path || payload.key || buildCampaignMediaPath(folder, fileName);
+            const iconImage = payload.path;
             template.iconImage = iconImage;
             template.effect = { ...(template.effect || {}), iconImage };
             getMonsterAbilities(state.creature).forEach((ability) => {
@@ -2435,9 +2407,7 @@ async function loadBestiaryDocument() {
         console.warn("KV bestiary non disponibile, uso JSON statico.", error);
     }
 
-    const response = await fetch(window.CriptaApp?.urls?.data?.("bestiary.json") || "../../assets/data/bestiary.json").catch(() => null);
-    if (!response?.ok) return { data: [], version: 0, source: "static" };
-    const data = await response.json().catch(() => []);
+    const data = await window.CriptaApp?.data?.json?.("bestiary.json").catch(() => []);
     return { data: Array.isArray(data) ? data : data?.data, version: 0, source: "static" };
 }
 
@@ -2479,11 +2449,12 @@ async function loadMonsterAbilityTemplates() {
         console.warn("KV monster-abilities non disponibile, uso template locali.", error);
     }
 
-    const response = await fetch(window.CriptaApp?.urls?.data?.("monster-abilities.json") || "../../assets/data/monster-abilities.json").catch(() => null);
-    if (response?.ok) {
-        const data = await response.json().catch(() => null);
+    try {
+        const data = await window.CriptaApp?.data?.json?.("monster-abilities.json");
         if (Array.isArray(data)) return mergeDefaultAbilityTemplates(data);
         if (Array.isArray(data?.data)) return mergeDefaultAbilityTemplates(data.data);
+    } catch (_) {
+        // Keep default templates when the optional static file is absent.
     }
     return DEFAULT_MONSTER_ABILITY_TEMPLATES;
 }
@@ -4544,19 +4515,6 @@ function getCampaignId() {
     return window.CriptaApp?.campaigns?.currentId?.() || new URLSearchParams(window.location.search).get("campaign") || "cripta-di-sangue";
 }
 
-function buildCampaignMediaPath(folder, filename) {
-    return `media/campaigns/${getCampaignId()}/${folder}/${filename}`;
-}
-
-function validateMediaUploadPayload(payload, blob, fileName = "media.webp") {
-    const expectedSize = Number(blob?.size || 0);
-    const storedSize = Number(payload?.storedSize || payload?.size || 0);
-    if (expectedSize > 0 && storedSize > 0 && expectedSize !== storedSize) {
-        throw new Error(`Upload R2 non coerente per ${fileName}: inviati ${expectedSize} byte, salvati ${storedSize} byte.`);
-    }
-    if (!payload?.key && !payload?.path) throw new Error(`Upload R2 senza path/key per ${fileName}.`);
-}
-
 function readAuthToken() {
     try {
         return window.localStorage.getItem("discord_jwt") || "";
@@ -4579,22 +4537,6 @@ async function pickImageFile() {
         input.accept = "image/*";
         input.addEventListener("change", () => resolve(input.files?.[0] || null), { once: true });
         input.click();
-    });
-}
-
-async function convertImageToWebp(file) {
-    const bitmap = await createImageBitmap(file);
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    const context = canvas.getContext("2d");
-    context.drawImage(bitmap, 0, 0);
-    bitmap.close?.();
-    return new Promise((resolve, reject) => {
-        canvas.toBlob((blob) => {
-            if (!blob) reject(new Error("Conversione WebP non riuscita."));
-            else resolve(blob);
-        }, "image/webp", 0.88);
     });
 }
 

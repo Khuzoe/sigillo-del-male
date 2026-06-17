@@ -26,9 +26,9 @@ window.CriptaApp.onPageReady("cerca", async () => {
 
   let items = [];
   try {
-    const resp = await fetch(window.CriptaApp?.urls?.data?.("search-index.json") || siteUrl("assets/data/search-index.json"));
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const data = await resp.json();
+    const data = typeof window.CriptaApp?.data?.json === "function"
+      ? await window.CriptaApp.data.json("search-index.json")
+      : await window.CriptaApp.fetchJson(window.CriptaApp?.urls?.data?.("search-index.json") || siteUrl("assets/data/search-index.json"), { clone: true });
     items = Array.isArray(data.items)
       ? data.items.filter(item => {
         if (window.WikiSpoiler && !window.WikiSpoiler.isVisible(item)) return false;

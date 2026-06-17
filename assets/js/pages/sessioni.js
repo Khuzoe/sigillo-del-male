@@ -6,7 +6,7 @@ window.CriptaApp.onPageReady("sessioni", async function () {
     try {
         const fetchJson = (url, label) => {
             if (typeof window.CriptaApp?.fetchJson === "function") {
-                return window.CriptaApp.fetchJson(url);
+                return window.CriptaApp.fetchJson(url, { clone: true });
             }
 
             return fetch(url).then((response) => {

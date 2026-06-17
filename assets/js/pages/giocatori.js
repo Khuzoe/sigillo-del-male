@@ -150,6 +150,9 @@ window.CriptaApp.onPageReady("giocatori", async function() {
 
     async function fetchJson(url, fallback) {
         try {
+            if (typeof window.CriptaApp?.fetchJson === "function") {
+                return await window.CriptaApp.fetchJson(url, { clone: true });
+            }
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return response.json();

@@ -135,7 +135,7 @@ window.CriptaApp.onPageReady("mappa", function() {
         if (locationsLoaded) return;
         let list = [];
         try {
-            const payload = await window.CriptaApp?.api?.get?.('api/data/locations', { query: { _: Date.now() } });
+            const payload = await window.CriptaApp?.api?.get?.('api/data/locations');
             if (Array.isArray(payload?.data)) list = payload.data;
         } catch (error) {
             console.warn('Luoghi online non disponibili, uso JSON statico.', error);
@@ -143,8 +143,10 @@ window.CriptaApp.onPageReady("mappa", function() {
 
         if (!list.length) {
             try {
-                const response = await fetch(defaultLocationsData);
-                if (response.ok) list = await response.json();
+                const payload = typeof window.CriptaApp?.data?.json === 'function'
+                    ? await window.CriptaApp.data.json('locations.json')
+                    : await window.CriptaApp.fetchJson(defaultLocationsData, { clone: true });
+                list = Array.isArray(payload) ? payload : payload?.data || [];
             } catch (error) {
                 console.warn('locations.json non disponibile per la mappa.', error);
             }
@@ -228,12 +230,7 @@ window.CriptaApp.onPageReady("mappa", function() {
 
     async function loadMapData(mapPath) {
         try {
-            const response = await fetch(mapPath);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
+            const data = await window.CriptaApp.fetchJson(mapPath, { clone: true });
             await loadLocationsData();
             setLocationListMode(false);
             pointsOfInterest = Array.isArray(data.pointsOfInterest) ? data.pointsOfInterest.map(enrichPoiWithLocation) : [];

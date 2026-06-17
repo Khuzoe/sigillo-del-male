@@ -460,7 +460,11 @@
     </style>
 </head>
 <body>
-    <main class="map-editor-page">
+    <main class="map-editor-page" data-requires-dm>
+        <div class="legacy-admin-banner" role="note">
+            <strong>Strumento admin legacy</strong>
+            <span>La gestione ordinaria dei luoghi passa dalla sezione Luoghi e dalle schede interne. Usa questa pagina solo per POI, import/export e manutenzione della mappa.</span>
+        </div>
         <div class="map-editor-shell">
             <section class="map-editor-main" aria-label="Area editor mappa">
                 <header class="map-editor-topbar">
@@ -666,6 +670,7 @@
         </div>
     </main>
 
+    <script src="../assets/js/layout.js"></script>
     <script src="../assets/js/shared/map-icons.js"></script>
     <script src="../assets/js/tools/map-editor.js"></script>
 </body>

@@ -1,5 +1,4 @@
 const ITEMS_DATA_API_URL = () => window.CriptaApp?.urls?.api?.("api/data/items") || "https://sigillo-api.khuzoe.workers.dev/api/data/items";
-const ITEMS_MEDIA_WORKER_URL = window.CriptaApp?.config?.workerOrigin || "https://sigillo-api.khuzoe.workers.dev";
 const ITEMS_DISCORD_TOKEN_KEY = "discord_jwt";
 let currentMaterialTagSuggestions = [];
 const ITEM_IMAGE_ADJUST_DATASET_KEYS = { x: "itemAdjustX", y: "itemAdjustY", size: "itemAdjustSize" };
@@ -55,9 +54,7 @@ async function loadItemsData() {
         console.warn("KV items non disponibile, uso JSON statico.", error);
     }
 
-    const response = await fetch(window.CriptaApp?.urls?.data?.("items.json") || "../assets/data/items.json").catch(() => null);
-    if (!response?.ok) return [];
-    const data = await response.json().catch(() => []);
+    const data = await window.CriptaApp?.data?.json?.("items.json").catch(() => []);
     return Array.isArray(data) ? data : data?.data || [];
 }
 
@@ -85,9 +82,9 @@ async function canCurrentUserSeeHiddenItems() {
         const discordId = getAuthDiscordId(authState);
         if (!accountId && !discordId) return false;
 
-        const nextSession = typeof window.CriptaApp?.fetchJson === "function"
-            ? await window.CriptaApp.fetchJson(window.CriptaApp.urls.data("next-session.json"))
-            : await fetch(window.CriptaApp?.urls?.data?.("next-session.json") || "../assets/data/next-session.json").then(response => response.ok ? response.json() : null);
+        const nextSession = typeof window.CriptaApp?.data?.json === "function"
+            ? await window.CriptaApp.data.json("next-session.json")
+            : await window.CriptaApp.fetchJson(window.CriptaApp?.urls?.data?.("next-session.json") || "../assets/data/next-session.json", { clone: true });
         const dmAccountId = String(nextSession?.dmAccountId || "").trim();
         const dmDiscordId = String(nextSession?.dmDiscordId || "").trim();
         return Boolean(dmAccountId && accountId === dmAccountId)
@@ -891,64 +888,20 @@ async function applyItemImageFile(file, form, state) {
 
 async function uploadItemImageFile(file, item) {
     const fileName = buildItemImageFileName(file, item);
-    const blob = isWebpFile(file.name) ? file : await convertImageFileToWebpBlob(file);
-    return uploadItemImageBlob(blob, fileName);
-}
-
-async function convertImageFileToWebpBlob(file) {
-    const bitmap = await createImageBitmap(file);
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-    const context = canvas.getContext("2d");
-    context.drawImage(bitmap, 0, 0);
-    bitmap.close?.();
-    return new Promise((resolve, reject) => {
-        canvas.toBlob((blob) => {
-            if (!blob) {
-                reject(new Error("Il browser non ha prodotto un file WebP."));
-                return;
-            }
-            resolve(blob);
-        }, "image/webp", 0.96);
+    const payload = await window.CriptaMedia.uploadImageFile(file, {
+        folder: "items",
+        fileName,
+        token: readItemsAuthToken(),
+        quality: 0.96,
+        authError: "Login richiesto per caricare immagini."
     });
-}
-
-async function uploadItemImageBlob(blob, fileName) {
-    const token = readItemsAuthToken();
-    if (!token) throw new Error("Login richiesto per caricare immagini.");
-    const form = new FormData();
-    form.set("folder", "items");
-    form.set("filename", fileName);
-    form.set("campaignId", getItemsCampaignId());
-    form.set("file", new File([blob], fileName, { type: "image/webp" }));
-    const response = await fetch(withItemsCampaign(`${ITEMS_MEDIA_WORKER_URL}/media/upload?folder=items`, { force: true }), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form
-    });
-    const payload = await response.json().catch(() => null);
-    if (!response.ok || payload?.ok === false || !payload?.path) throw new Error(payload?.error || `HTTP ${response.status}`);
-    validateItemUploadPayload(payload, blob, fileName);
     return payload.path;
-}
-
-function validateItemUploadPayload(payload, blob, fileName = "media.webp") {
-    const expectedSize = Number(blob?.size || 0);
-    const storedSize = Number(payload?.storedSize || payload?.size || 0);
-    if (expectedSize > 0 && storedSize > 0 && expectedSize !== storedSize) {
-        throw new Error(`Upload R2 non coerente per ${fileName}: inviati ${expectedSize} byte, salvati ${storedSize} byte.`);
-    }
 }
 
 function buildItemImageFileName(file, item) {
     const originalName = String(file?.name || "").replace(/\.[^.]+$/, "");
     const base = slugify(item?.id || item?.name || originalName || "oggetto");
     return `${base || "oggetto"}.webp`;
-}
-
-function isWebpFile(path) {
-    return /\.webp$/i.test(String(path || "").trim());
 }
 
 function getFileNameFromPath(path) {

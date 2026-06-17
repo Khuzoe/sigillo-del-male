@@ -53,22 +53,18 @@ window.CriptaApp.onPageReady("crafting", async () => {
 async function loadItemsData() {
     try {
         if (typeof window.CriptaApp?.api?.get === "function") {
-            const payload = await window.CriptaApp.api.get("api/data/items", { query: { _: Date.now() } });
+            const payload = await window.CriptaApp.api.get("api/data/items");
             if (Array.isArray(payload?.data)) return payload.data;
         }
     } catch (error) {
         console.warn("KV items non disponibile per crafting, uso JSON statico.", error);
     }
-    const response = await fetch(window.CriptaApp?.urls?.data?.("items.json") || "../assets/data/items.json").catch(() => null);
-    if (!response?.ok) return [];
-    const payload = await response.json().catch(() => []);
+    const payload = await window.CriptaApp?.data?.json?.("items.json").catch(() => []);
     return Array.isArray(payload) ? payload : payload?.data || [];
 }
 
 async function loadPlayersData() {
-    const response = await fetch(window.CriptaApp?.urls?.data?.("players.json") || "../assets/data/players.json").catch(() => null);
-    if (!response?.ok) return [];
-    const payload = await response.json().catch(() => []);
+    const payload = await window.CriptaApp?.data?.json?.("players.json").catch(() => []);
     return Array.isArray(payload) ? payload : payload?.data || [];
 }
 
@@ -88,7 +84,7 @@ async function loadInventorySnapshot() {
 async function loadItemOverridesData() {
     try {
         if (typeof window.CriptaApp?.api?.get === "function") {
-            const payload = await window.CriptaApp.api.get("api/data/item-overrides", { query: { _: Date.now() } });
+            const payload = await window.CriptaApp.api.get("api/data/item-overrides");
             if (Array.isArray(payload?.data)) return payload.data;
         }
         const response = await fetch(CRAFTING_ITEM_OVERRIDES_API_URL());
@@ -104,7 +100,7 @@ async function loadItemOverridesData() {
 async function loadCraftingProjectsData() {
     try {
         if (typeof window.CriptaApp?.api?.get === "function") {
-            const payload = await window.CriptaApp.api.get("api/data/crafting", { query: { _: Date.now() } });
+            const payload = await window.CriptaApp.api.get("api/data/crafting");
             return {
                 data: Array.isArray(payload?.data) ? payload.data : [],
                 version: Number(payload?.version || 0),

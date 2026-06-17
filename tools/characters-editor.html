@@ -467,7 +467,11 @@
     </style>
 </head>
 <body>
-    <main class="characters-editor-page">
+    <main class="characters-editor-page" data-requires-dm>
+        <div class="legacy-admin-banner" role="note">
+            <strong>Strumento admin legacy</strong>
+            <span>L'editor canonico degli NPC e quello interno alle singole schede. Usa questa pagina solo per import, export e manutenzione massiva.</span>
+        </div>
         <section class="characters-editor-shell">
             <aside class="characters-editor-panel characters-editor-sidebar">
                 <div class="characters-editor-header">
@@ -630,6 +634,7 @@
 
     <script src="../assets/js/spoiler-policy.js"></script>
     <script src="../assets/js/layout.js"></script>
+    <script src="../assets/js/shared/media-service.js"></script>
     <script src="../assets/js/shared/markdown.js"></script>
     <script src="../assets/js/tools/characters-editor.js"></script>
 </body>

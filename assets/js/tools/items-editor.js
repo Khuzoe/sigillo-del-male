@@ -122,9 +122,12 @@
             console.warn('KV items non disponibile, uso JSON statico.', error);
         }
 
-        const response = await fetch(DATA_URL());
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return { items: await response.json(), source: 'static', version: 0, updatedAt: null };
+        const payload = typeof window.CriptaApp?.data?.json === 'function'
+            ? await window.CriptaApp.data.json('items.json')
+            : await window.CriptaApp.fetchJson(DATA_URL(), { clone: true });
+        const items = Array.isArray(payload) ? payload : payload?.data;
+        if (!Array.isArray(items)) throw new Error('Formato items.json non valido.');
+        return { items, source: 'static', version: 0, updatedAt: null };
     }
 
     function bindElements() {
@@ -1646,78 +1649,20 @@
             const finalOutputName = outputName || buildWebpImageFileName(file, item);
             const outputPath = `media/items/${finalOutputName}`;
             setStatus(isWebpPath(file.name) ? 'Upload immagine su R2...' : 'Conversione WebP e upload su R2...');
-            const blob = isWebpPath(file.name) ? file : await convertImageFileToWebpBlob(file);
             persistDraftWithImagePath(index, outputPath);
-            return await uploadWebpBlob(blob, finalOutputName);
+            const payload = await window.CriptaMedia.uploadImageFile(file, {
+                folder: 'items',
+                fileName: finalOutputName,
+                token: readAuthToken(),
+                quality: 0.88,
+                authError: 'Login richiesto: accedi alla wiki prima di caricare immagini.'
+            });
+            return payload.path;
         } catch (error) {
             console.error('Upload immagine R2 fallito:', error);
             setStatus(`Upload immagine fallito: ${error?.message || error}`, 'error');
             return '';
         }
-    }
-
-    async function convertImageFileToWebpBlob(file) {
-        const bitmap = await createImageBitmap(file);
-        const canvas = document.createElement('canvas');
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-        const context = canvas.getContext('2d');
-        context.drawImage(bitmap, 0, 0);
-        bitmap.close?.();
-
-        return new Promise((resolve, reject) => {
-            canvas.toBlob((blob) => {
-                if (!blob) {
-                    reject(new Error('Il browser non ha prodotto un file WebP.'));
-                    return;
-                }
-                resolve(blob);
-            }, 'image/webp', 0.88);
-        });
-    }
-
-    async function uploadWebpBlob(blob, fileName) {
-        const token = readAuthToken();
-        if (!token) {
-            throw new Error('Login richiesto: accedi alla wiki prima di caricare immagini.');
-        }
-
-        const form = new FormData();
-        form.set('folder', 'items');
-        form.set('filename', fileName);
-        form.set('campaignId', getCampaignId());
-        form.set('file', new File([blob], fileName, { type: 'image/webp' }));
-
-        const response = await fetch(withCampaign(`${MEDIA_WORKER_URL}/media/upload?folder=items`, { force: true }), {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${token}`
-            },
-            body: form
-        });
-
-        let payload = null;
-        try {
-            payload = await response.json();
-        } catch (_) {
-            payload = null;
-        }
-
-        if (!response.ok || !payload?.path) {
-            throw new Error(payload?.error || `HTTP ${response.status}`);
-        }
-        validateUploadPayload(payload, blob, fileName);
-
-        return payload.path;
-    }
-
-    function validateUploadPayload(payload, blob, fileName = 'media.webp') {
-        const expectedSize = Number(blob?.size || 0);
-        const storedSize = Number(payload?.storedSize || payload?.size || 0);
-        if (expectedSize > 0 && storedSize > 0 && expectedSize !== storedSize) {
-            throw new Error(`Upload R2 non coerente per ${fileName}: inviati ${expectedSize} byte, salvati ${storedSize} byte.`);
-        }
-        if (!payload?.key && !payload?.path) throw new Error(`Upload R2 senza path/key per ${fileName}.`);
     }
 
     function readAuthToken() {

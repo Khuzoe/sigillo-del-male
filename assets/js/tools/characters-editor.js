@@ -267,9 +267,9 @@
             console.warn('KV characters non disponibile, uso JSON statico.', error);
         }
 
-        const response = await fetch(DATA_URL());
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const payload = await response.json();
+        const payload = typeof window.CriptaApp?.data?.json === 'function'
+            ? await window.CriptaApp.data.json('characters.json')
+            : await window.CriptaApp.fetchJson(DATA_URL(), { clone: true });
         const data = Array.isArray(payload) ? payload : payload?.data;
         if (!Array.isArray(data)) throw new Error('Formato characters.json non valido.');
         return { characters: normalizeCharacters(data), source: 'static', version: 0 };
@@ -1206,64 +1206,21 @@
 
         try {
             setStatus(/\.webp$/i.test(file.name) ? 'Upload immagine su R2...' : 'Conversione WebP e upload su R2...');
-            const blob = /\.webp$/i.test(file.name) ? file : await convertImageFileToWebpBlob(file);
-            const path = await uploadImageBlob(blob, characterId, fileName, token);
+            const folder = `characters/${slugify(characterId || 'npc')}`;
+            const payload = await window.CriptaMedia.uploadImageFile(file, {
+                folder,
+                fileName,
+                token,
+                quality: 0.88,
+                authError: 'Login richiesto per caricare immagini.'
+            });
             setStatus('Immagine caricata su R2.');
-            return path;
+            return payload.path;
         } catch (error) {
             console.error('Upload immagine fallito:', error);
             setStatus(`Upload immagine fallito: ${error?.message || error}`, 'error');
             return '';
         }
-    }
-
-    async function uploadImageBlob(blob, characterId, fileName, token = readAuthToken()) {
-        if (!token) throw new Error('Login richiesto per caricare immagini.');
-        const folder = `characters/${slugify(characterId || 'npc')}`;
-        const form = new FormData();
-        form.set('folder', folder);
-        form.set('filename', fileName);
-        form.set('campaignId', getCampaignId());
-        form.set('file', new File([blob], fileName, { type: 'image/webp' }));
-
-        const response = await fetch(withCampaign(`${MEDIA_WORKER_URL}/media/upload?folder=${encodeURIComponent(folder)}`, { force: true }), {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: form
-        });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
-        validateUploadPayload(payload, blob, fileName);
-        return payload.path || payload.key || `media/campaigns/${getCampaignId()}/${folder}/${fileName}`;
-    }
-
-    function validateUploadPayload(payload, blob, fileName = 'media.webp') {
-        const expectedSize = Number(blob?.size || 0);
-        const storedSize = Number(payload?.storedSize || payload?.size || 0);
-        if (expectedSize > 0 && storedSize > 0 && expectedSize !== storedSize) {
-            throw new Error(`Upload R2 non coerente per ${fileName}: inviati ${expectedSize} byte, salvati ${storedSize} byte.`);
-        }
-        if (!payload?.key && !payload?.path) throw new Error(`Upload R2 senza path/key per ${fileName}.`);
-    }
-
-    async function convertImageFileToWebpBlob(file) {
-        const bitmap = await createImageBitmap(file);
-        const canvas = document.createElement('canvas');
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-        const context = canvas.getContext('2d');
-        context.drawImage(bitmap, 0, 0);
-        bitmap.close?.();
-
-        return new Promise((resolve, reject) => {
-            canvas.toBlob((blob) => {
-                if (!blob) {
-                    reject(new Error('Il browser non ha prodotto un file WebP.'));
-                    return;
-                }
-                resolve(blob);
-            }, 'image/webp', 0.88);
-        });
     }
 
     function syncImagePreviews() {
