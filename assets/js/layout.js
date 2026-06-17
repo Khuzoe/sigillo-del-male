@@ -1197,11 +1197,18 @@ function normalizeText(value) {
 }
 
 function normalizeKey(value) {
-    return normalizeText(value).replace(/[^a-z0-9]+/g, "");
+    return String(value || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "");
 }
 
 function slugifyText(value, fallback = "voce") {
-    const slug = normalizeText(value)
+    const slug = String(value || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "");
     return slug || fallback;
@@ -1226,7 +1233,20 @@ function resolveImageUrl(path, options = {}) {
     const settings = typeof options === "string" ? { fallback: options } : (options || {});
     const fallback = String(settings.fallback || "");
     const value = String(path || "").trim();
-    if (!value) return fallback ? resolveImageUrl(fallback, { ...settings, fallback: "" }) : "";
+    if (!value && fallback) {
+        const fallbackSettings = { ...settings, fallback: "" };
+        const fallbackValue = fallback.trim();
+        if (!fallbackValue) return "";
+        if (/^(https?:|data:|blob:)/i.test(fallbackValue)) return fallbackValue;
+        if (fallbackValue.startsWith("media/")) return applyCampaignToUrl(new URL(buildWorkerUrl(fallbackValue))).toString();
+        if (fallbackValue.startsWith("/media/")) return applyCampaignToUrl(new URL(buildWorkerUrl(fallbackValue.slice(1)))).toString();
+        if (fallbackValue.startsWith("assets/")) return resolveSiteUrl(fallbackValue);
+        if (/^\.\.?\//.test(fallbackValue) || fallbackValue.startsWith("/")) return new URL(fallbackValue, window.location.href).toString();
+
+        const fallbackAssetBase = String(fallbackSettings.assetBase || "assets/").replace(/^\/+/, "").replace(/\/?$/, "/");
+        return resolveSiteUrl(`${fallbackAssetBase}${fallbackValue.replace(/^\/+/, "")}`);
+    }
+    if (!value) return "";
     if (/^(https?:|data:|blob:)/i.test(value)) return value;
     if (value.startsWith("media/")) return applyCampaignToUrl(new URL(buildWorkerUrl(value))).toString();
     if (value.startsWith("/media/")) return applyCampaignToUrl(new URL(buildWorkerUrl(value.slice(1)))).toString();
@@ -1247,6 +1267,11 @@ function appendAssetVersion(url, version) {
     } catch (_) {
         return `${url}${url.includes("?") ? "&" : "?"}v=${encodeURIComponent(stamp)}`;
     }
+}
+
+function structuredCloneSafe(value) {
+    if (typeof structuredClone === "function") return structuredClone(value);
+    return JSON.parse(JSON.stringify(value));
 }
 
 function warmEmbedScript(basePath, path) {
@@ -1945,6 +1970,7 @@ window.CriptaApp = {
         normalizeKey,
         normalizeText,
         resolveImageUrl,
+        structuredCloneSafe,
         slugify: slugifyText
     },
     urls: {

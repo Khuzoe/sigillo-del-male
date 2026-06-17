@@ -4993,35 +4993,18 @@ function foundryIconFromFa(icon) {
 }
 
 function normalizeSearchKey(value) {
-    return String(value || "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "");
+    return window.CriptaApp.utils.slugify(value, "");
 }
 
 function structuredCloneSafe(value) {
-    if (typeof structuredClone === "function") return structuredClone(value);
-    return JSON.parse(JSON.stringify(value));
+    return window.CriptaApp.utils.structuredCloneSafe(value);
 }
 
 function escapeHtml(value) {
-    return String(value ?? "").replace(/[&<>"']/g, char => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
-    })[char]);
+    return window.CriptaApp.utils.escapeHtml(value);
 }
 
 function slugify(value) {
-    return String(value ?? "creatura")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "") || "creatura";
+    return window.CriptaApp.utils.slugify(value, "creatura");
 }
 

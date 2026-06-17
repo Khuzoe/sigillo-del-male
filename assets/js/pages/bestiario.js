@@ -314,10 +314,7 @@ function getBestiarySearchText(creature) {
 }
 
 function normalizeSearchText(value) {
-    return String(value || "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
+    return window.CriptaApp.utils.normalizeText(value);
 }
 
 function renderBestiary(creatures, grid, count, state = {}) {
@@ -849,20 +846,9 @@ function closeBestiaryModal(modal) {
 }
 
 function escapeHtml(value) {
-    return String(value ?? "").replace(/[&<>"']/g, char => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
-    })[char]);
+    return window.CriptaApp.utils.escapeHtml(value);
 }
 
 function slugify(value) {
-    return String(value ?? "section")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "") || "section";
+    return window.CriptaApp.utils.slugify(value, "section");
 }

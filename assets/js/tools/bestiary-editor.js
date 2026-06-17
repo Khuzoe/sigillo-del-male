@@ -1767,10 +1767,7 @@
     }
 
     function normalizeSearch(value) {
-        return String(value || '')
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '');
+        return window.CriptaApp.utils.normalizeText(value);
     }
 
     function formatImagePathForEditor(value) {
@@ -1918,16 +1915,11 @@
     }
 
     function slugify(value) {
-        return String(value || '')
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '');
+        return window.CriptaApp.utils.slugify(value, '');
     }
 
     function structuredCloneSafe(value) {
-        return JSON.parse(JSON.stringify(value));
+        return window.CriptaApp.utils.structuredCloneSafe(value);
     }
 
     function setStatus(message) {
@@ -1935,13 +1927,7 @@
     }
 
     function escapeHtml(value) {
-        return String(value ?? '').replace(/[&<>"']/g, (char) => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        })[char]);
+        return window.CriptaApp.utils.escapeHtml(value);
     }
 
     function toCamel(value) {

@@ -1151,7 +1151,7 @@ function withItemsCampaign(url, options = {}) {
 }
 
 function structuredCloneSafe(value) {
-    return JSON.parse(JSON.stringify(value));
+    return window.CriptaApp.utils.structuredCloneSafe(value);
 }
 
 function normalizeItemProperties(properties) {
@@ -1414,11 +1414,5 @@ function slugify(value) {
 }
 
 function escapeHtml(value) {
-    return String(value ?? "").replace(/[&<>"']/g, char => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
-    })[char]);
+    return window.CriptaApp.utils.escapeHtml(value);
 }

@@ -37,19 +37,11 @@
     };
 
     function escapeHtml(value) {
-        return String(value ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+        return window.CriptaApp.utils.escapeHtml(value);
     }
 
     function normalizeText(value) {
-        return String(value || '')
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase();
+        return window.CriptaApp.utils.normalizeText(value);
     }
 
     function labelStatus(status) {
@@ -539,9 +531,7 @@
     }
 
     function slugify(value) {
-        return normalizeText(value)
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '') || 'elemento';
+        return window.CriptaApp.utils.slugify(value, 'elemento');
     }
 
     function normalizeAssetToken(value) {

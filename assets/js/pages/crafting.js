@@ -848,14 +848,7 @@ function buildCraftingProjectId(name, playerId) {
 }
 
 function normalizeText(value) {
-    if (typeof window.CriptaApp?.utils?.normalizeKey === "function") {
-        return window.CriptaApp.utils.normalizeKey(value);
-    }
-    return String(value || "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "");
+    return window.CriptaApp.utils.normalizeKey(value);
 }
 
 function slugify(value) {
@@ -863,13 +856,5 @@ function slugify(value) {
 }
 
 function escapeHtml(value) {
-    if (typeof window.CriptaApp?.utils?.escapeHtml === "function") {
-        return window.CriptaApp.utils.escapeHtml(value);
-    }
-    return String(value || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#39;");
+    return window.CriptaApp.utils.escapeHtml(value);
 }

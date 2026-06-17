@@ -54,13 +54,7 @@ window.CriptaApp.onPageReady("mappa", function() {
     let locationListMode = false;
 
     function escapeHtml(value) {
-        return String(value || '').replace(/[&<>"']/g, (char) => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;'
-        }[char]));
+        return window.CriptaApp.utils.escapeHtml(value);
     }
 
     function renderMapIcon(iconValue, className, altText = '') {
@@ -81,16 +75,11 @@ window.CriptaApp.onPageReady("mappa", function() {
     }
 
     function normalizeText(value) {
-        return String(value || '')
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase();
+        return window.CriptaApp.utils.normalizeText(value);
     }
 
     function slugify(value) {
-        return normalizeText(value)
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '') || 'luogo';
+        return window.CriptaApp.utils.slugify(value, 'luogo');
     }
 
     function isPlaceholderText(value) {

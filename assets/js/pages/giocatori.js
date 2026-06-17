@@ -5,20 +5,11 @@ window.CriptaApp.onPageReady("giocatori", async function() {
     if (!container) return;
 
     function escapeHtml(value) {
-        return String(value || "")
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#39;");
+        return window.CriptaApp.utils.escapeHtml(value);
     }
 
     function normalizeText(value) {
-        return String(value || "")
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-z0-9]+/g, "");
+        return window.CriptaApp.utils.normalizeKey(value);
     }
 
     const HIDDEN_INVENTORY_ITEM_NAMES = new Set(["unarmedstrike"]);
@@ -28,12 +19,7 @@ window.CriptaApp.onPageReady("giocatori", async function() {
     }
 
     function slugify(value) {
-        return String(value || "")
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-+|-+$/g, "") || "personaggio";
+        return window.CriptaApp.utils.slugify(value, "personaggio");
     }
 
     function getCurrentCampaignId() {

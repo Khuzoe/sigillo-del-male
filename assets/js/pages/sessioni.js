@@ -62,12 +62,7 @@ window.CriptaApp.onPageReady("sessioni", async function () {
 });
 
 function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
+    return window.CriptaApp.utils.escapeHtml(value);
 }
 
 function updatePageCampaignLabel(config) {

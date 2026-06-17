@@ -67,13 +67,7 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
     }
 
     function escapeHtml(value) {
-        return String(value ?? '').replace(/[&<>"']/g, char => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#39;'
-        }[char]));
+        return window.CriptaApp.utils.escapeHtml(value);
     }
 
     function parseYamlScalar(value) {

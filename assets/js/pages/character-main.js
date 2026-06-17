@@ -439,20 +439,11 @@ let skillTreeAuthState = null;
 let skillTreeCurrentUserIsDm = false;
 
 function escapeHtml(value) {
-    return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    return window.CriptaApp.utils.escapeHtml(value);
 }
 
 function normalizeText(value) {
-    return String(value || '')
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '');
+    return window.CriptaApp.utils.normalizeKey(value);
 }
 
 function isHiddenInventoryEntry(entry) {
@@ -475,7 +466,6 @@ function getLoadoutSubtype(entry) {
 function getLoadoutAbilityLabel(entry) {
     if (getLoadoutSubtype(entry) === 'attack' || String(entry?.loadoutRole || '').trim().toLowerCase() === 'attack') return 'Attacco';
     return 'Abilita';
-    return 'AbilitÃ ';
 }
 
 function normalizeWords(value) {
@@ -490,7 +480,7 @@ function normalizeWords(value) {
 }
 
 function slugify(value) {
-    return normalizeWords(value).join('-') || 'item';
+    return window.CriptaApp.utils.slugify(value, 'item');
 }
 
 function normalizeCategoryPriority(value) {

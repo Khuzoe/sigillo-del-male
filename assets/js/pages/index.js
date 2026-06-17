@@ -23,12 +23,7 @@ window.CriptaApp.onPageReady("index", () => {
     }
 
     function slugify(value) {
-        return String(value || '')
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/^-+|-+$/g, '') || 'personaggio';
+        return window.CriptaApp.utils.slugify(value, 'personaggio');
     }
 
     function getCurrentCampaignId() {

@@ -1403,30 +1403,19 @@
     }
 
     function normalizeText(value) {
-        return String(value || "")
-            .toLowerCase()
-            .normalize("NFD")
-            .replace(/[\u0300-\u036f]/g, "");
+        return window.CriptaApp.utils.normalizeText(value);
     }
 
     function slugify(value) {
-        return normalizeText(value)
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-+|-+$/g, "") || "voce";
+        return window.CriptaApp.utils.slugify(value, "voce");
     }
 
     function structuredCloneSafe(value) {
-        return JSON.parse(JSON.stringify(value));
+        return window.CriptaApp.utils.structuredCloneSafe(value);
     }
 
     function escapeHtml(value) {
-        return String(value ?? "").replace(/[&<>"']/g, (char) => ({
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#039;"
-        })[char]);
+        return window.CriptaApp.utils.escapeHtml(value);
     }
 
     function toCamel(id) {

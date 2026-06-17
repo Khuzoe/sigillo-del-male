@@ -1343,7 +1343,7 @@
     }
 
     function normalizeSearch(value) {
-        return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        return window.CriptaApp.utils.normalizeText(value);
     }
 
     function normalizeCategoryPriority(value) {
@@ -1377,11 +1377,7 @@
     }
 
     function escapeHtml(value) {
-        return String(value || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
+        return window.CriptaApp.utils.escapeHtml(value);
     }
 
     function compactObject(object) {
