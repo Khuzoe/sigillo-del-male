@@ -5933,6 +5933,61 @@ body.is-embed .container {
     box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.08);
 }
 
+.character-inline-image-upload {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    min-height: 10rem;
+    padding: 0;
+    border: 0;
+    color: inherit;
+    background: transparent;
+    cursor: pointer;
+}
+
+.character-inline-image-upload img {
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: min(68vh, 760px);
+    object-fit: contain;
+}
+
+.character-inline-image-placeholder {
+    display: grid;
+    place-items: center;
+    min-height: 10rem;
+    width: 100%;
+    color: var(--text-muted);
+    border: 1px dashed rgba(212, 175, 55, 0.28);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.26);
+}
+
+.character-inline-upload-hint {
+    position: absolute;
+    left: 50%;
+    bottom: 0.75rem;
+    transform: translateX(-50%);
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    color: #fff3c2;
+    background: rgba(0, 0, 0, 0.72);
+    border: 1px solid rgba(212, 175, 55, 0.32);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.16s ease;
+}
+
+.character-inline-image-upload:hover .character-inline-upload-hint,
+.character-inline-image-upload:focus-visible .character-inline-upload-hint {
+    opacity: 1;
+}
+
 /* DOCUMENT STYLE BLOCKS (The fix for images) */
 .document-card {
     padding: 0;
@@ -5961,8 +6016,7 @@ body.is-embed .container {
 
 .document-body {
     display: grid;
-    /* FIX: Force image column to be 320px, text takes the rest */
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: minmax(260px, clamp(300px, 34vw, 480px)) minmax(0, 1fr);
     gap: 2rem;
     padding: 2rem;
     align-items: start;
@@ -5973,16 +6027,19 @@ body.is-embed .container {
     padding: 0.5rem;
     border-radius: 4px;
     border: 1px solid rgba(255, 255, 255, 0.05);
+    display: grid;
+    justify-items: center;
 }
 
 .document-image img {
-    width: 100%;
+    width: auto;
+    max-width: 100%;
     height: auto;
-    max-height: 450px;
-    /* Prevent extremely tall images */
-    object-fit: cover;
+    max-height: min(68vh, 760px);
+    object-fit: contain;
     border-radius: 2px;
     display: block;
+    background: rgba(0, 0, 0, 0.38);
 }
 
 .document-content {
@@ -5999,9 +6056,9 @@ body.is-embed .container {
     }
 
     .document-image img {
-        max-height: 300px;
-        /* Smaller max height on mobile */
-        width: 100%;
+        max-height: min(72vh, 680px);
+        width: auto;
+        max-width: 100%;
         object-fit: contain;
         background: #000;
     }
@@ -8438,8 +8495,40 @@ body.page-character .document-card {
 }
 
 body.page-character .document-body {
-    grid-template-columns: minmax(240px, 300px) 1fr;
+    grid-template-columns: minmax(260px, clamp(300px, 34vw, 480px)) minmax(0, 1fr);
     gap: 1.7rem;
+}
+
+body.page-character .document-card--portrait .document-body {
+    grid-template-columns: minmax(300px, clamp(360px, 42vw, 560px)) minmax(0, 1fr);
+}
+
+body.page-character .document-card--tall .document-body {
+    grid-template-columns: minmax(320px, clamp(380px, 46vw, 620px)) minmax(0, 1fr);
+}
+
+body.page-character .document-card--landscape .document-body {
+    grid-template-columns: minmax(280px, clamp(320px, 38vw, 520px)) minmax(0, 1fr);
+}
+
+body.page-character .document-image {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+body.page-character .document-image img,
+body.page-character .document-image .doc-image-popup {
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: min(72vh, 820px);
+    object-fit: contain;
+}
+
+body.page-character .document-card--tall .document-image img,
+body.page-character .document-card--tall .document-image .doc-image-popup {
+    max-height: min(80vh, 960px);
 }
 
 body.page-character .document-content {

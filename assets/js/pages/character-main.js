@@ -8990,6 +8990,7 @@ window.CriptaApp.onPageReady("character", async function () {
                         `}
                     </div>
                 `;
+        classifyDocumentCardImage(card);
         return card;
     }
 
@@ -9383,7 +9384,26 @@ window.CriptaApp.onPageReady("character", async function () {
                 card.innerHTML = `${hiddenBadge}<h3>${block.title || 'Informazioni'}</h3>${wrapMarkdown(blockHtml)}`;
         }
         normalizeRenderedInlineMarkdown(card);
+        classifyDocumentCardImage(card);
         return card;
+    }
+
+    function classifyDocumentCardImage(card) {
+        if (!card?.classList?.contains('document-card')) return;
+        const image = card.querySelector('.document-image img');
+        if (!image) return;
+        const apply = () => {
+            const width = image.naturalWidth || image.videoWidth || 0;
+            const height = image.naturalHeight || image.videoHeight || 0;
+            if (!width || !height) return;
+            const ratio = height / width;
+            card.classList.toggle('document-card--portrait', ratio >= 1.18);
+            card.classList.toggle('document-card--tall', ratio >= 1.55);
+            card.classList.toggle('document-card--landscape', ratio <= 0.82);
+            card.classList.toggle('document-card--squareish', ratio > 0.82 && ratio < 1.18);
+        };
+        if (image.complete) apply();
+        else image.addEventListener('load', apply, { once: true });
     }
 
     function getRenderableContentBlockHtml(block) {
