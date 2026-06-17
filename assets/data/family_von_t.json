@@ -43,7 +43,7 @@
       "leonora"
     ],
     "spouses": [
-      "nino-olegna"
+      "nino_olegna"
     ],
     "children": [
       "karla",
@@ -89,9 +89,15 @@
     "birthOrder": 2
   },
   {
-    "id": "nino-olegna",
+    "id": "nino_olegna",
+    "characterId": "nino_olegna",
     "name": "Nino Olegna",
     "image": "media/creatures/transp/nino_olegna_transp.webp",
+    "imageFallback": "media/creatures/transp/nino_olegna_transp.webp",
+    "images": {
+      "hover": "media/campaigns/cripta-di-sangue/characters/nino-olegna/hover.webp",
+      "idle": "media/creatures/transp/nino_olegna_transp.webp"
+    },
     "parents": [],
     "spouses": [
       "x"
@@ -108,7 +114,7 @@
     "image": "media/creatures/transp/karla_transp.webp",
     "parents": [
       "x",
-      "nino-olegna"
+      "nino_olegna"
     ],
     "spouses": [],
     "children": [],
@@ -122,7 +128,7 @@
     "image": "media/creatures/transp/tokka_transp.webp",
     "parents": [
       "x",
-      "nino-olegna"
+      "nino_olegna"
     ],
     "spouses": [],
     "children": [],

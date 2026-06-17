@@ -22,6 +22,7 @@ function appendAssetVersion(url, version) {
 }
 
 const UNKNOWN_FAMILY_IMAGE = 'https://placehold.co/100/333/fff?text=?';
+const FAMILY_CAMPAIGN_ID = 'cripta-di-sangue';
 
 window.CriptaApp.onPageReady("famiglia-von-t", async function () {
     const pageScope = window.CriptaApp.createPageScope("famiglia-von-t");
@@ -154,7 +155,12 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
         let hoverImages = new Map();
 
         try {
-            const payload = await window.CriptaApp?.api?.get?.('api/data/characters');
+            const payload = await window.CriptaApp?.api?.get?.('api/data/characters', {
+                query: {
+                    campaign: FAMILY_CAMPAIGN_ID,
+                    campaignId: FAMILY_CAMPAIGN_ID
+                }
+            });
             hoverImages = collectHoverImagesFromCharacters(payload?.data, ids);
         } catch (error) {
             console.warn('KV characters non disponibile per le immagini Von T, provo YAML statico.', error);
@@ -209,18 +215,46 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
 
     function getPersonImage(person) {
         if (person.unknown && !person.showImageWhenUnknown) return UNKNOWN_FAMILY_IMAGE;
-        return appendAssetVersion(resolveImagePath(person.hoverImage || person.images?.hover || person.image), person.imageUpdatedAt);
+        return appendAssetVersion(resolveImagePath(person.hoverImage || person.images?.hover || getPersonCanonicalImagePath(person, 'hover') || person.image), person.imageUpdatedAt);
     }
 
     function buildImageFallbackAttributes(person) {
         if (person.unknown && !person.showImageWhenUnknown) return '';
-        const fallback = resolveImagePath(person.imageFallback || '');
+        const fallback = resolveImagePath(person.imageFallback || person.images?.idle || person.image || '');
         if (!fallback) return '';
         return ` data-fallback-src="${escapeHtml(fallback)}" onerror="this.src=this.dataset.fallbackSrc || ''; this.onerror=null;"`;
     }
 
     function getPersonDisplayName(person) {
         return person.unnamed ? '???' : person.name;
+    }
+
+    function getPersonCharacterId(person) {
+        return String(person?.characterId || person?.character_id || person?.id || '').trim();
+    }
+
+    function getPersonMediaSlug(person) {
+        const id = getPersonCharacterId(person);
+        if (typeof window.CriptaApp?.utils?.slugify === 'function') return window.CriptaApp.utils.slugify(id);
+        return id
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+    }
+
+    function getPersonCanonicalImagePath(person, variant = 'hover') {
+        const slug = getPersonMediaSlug(person);
+        return slug ? `media/campaigns/${FAMILY_CAMPAIGN_ID}/characters/${slug}/${variant}.webp` : '';
+    }
+
+    function getPersonCharacterHref(person) {
+        const url = new URL('./characters/character.html', window.location.href);
+        url.searchParams.set('id', getPersonCharacterId(person));
+        url.searchParams.set('type', 'npc');
+        url.searchParams.set('campaign', FAMILY_CAMPAIGN_ID);
+        return url.toString();
     }
 
     function getBirthOrderValue(person, index) {
@@ -263,7 +297,7 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
                 return `<li><div class="birth-card birth-card--locked">${content}</div></li>`;
             }
 
-            return `<li><a href="./characters/character.html?id=${encodeURIComponent(person.id)}" class="birth-card">${content}</a></li>`;
+            return `<li><a href="${escapeHtml(getPersonCharacterHref(person))}" class="birth-card">${content}</a></li>`;
         }).join('');
 
         birthOrderContainer.innerHTML = `
@@ -312,7 +346,7 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
             }
 
             return `
-                        <a href="./characters/character.html?id=${encodeURIComponent(personId)}" class="${escapeHtml(baseClasses)}" data-person-id="${escapeHtml(personId)}">
+                        <a href="${escapeHtml(getPersonCharacterHref(person))}" class="${escapeHtml(baseClasses)}" data-person-id="${escapeHtml(personId)}">
                             <img src="${escapeHtml(personImage)}" alt="${escapeHtml(personName)}" class="member-image"${fallbackAttributes}>
                             <div class="member-separator"></div>
                             <span class="member-name">${escapeHtml(personName)}</span>

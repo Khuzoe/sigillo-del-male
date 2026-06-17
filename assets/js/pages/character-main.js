@@ -184,6 +184,25 @@ function normalizeCharactersCollection(characters) {
     });
 }
 
+function characterMatchesId(character, requestedId) {
+    const rawId = String(requestedId || '').trim();
+    if (!character || !rawId) return false;
+    const candidates = [
+        character.id,
+        character._originalId,
+        character.entityId,
+        character.name,
+        character.foundryName
+    ].map(value => String(value || '').trim()).filter(Boolean);
+    if (candidates.some(candidate => candidate === rawId)) return true;
+    const requestedSlug = slugify(rawId);
+    return Boolean(requestedSlug && candidates.some(candidate => slugify(candidate) === requestedSlug));
+}
+
+function findCharacterById(characters, requestedId) {
+    return (Array.isArray(characters) ? characters : []).find(character => characterMatchesId(character, requestedId));
+}
+
 function normalizeCharacterImages(character) {
     return window.CriptaCharacterNormalize.normalizeCharacterImages(character);
 }
@@ -424,6 +443,10 @@ let skillsVersion = null;
 let skillTreeStatesRequestPromise = null;
 let skillTreeStatesMemoryCache = null;
 let skillTreeStatesVersion = null;
+let characterSkillTreeModulePromise = null;
+let characterTransformationsModulePromise = null;
+let characterLoadoutModulePromise = null;
+let characterInlineEditorModulePromise = null;
 let wikiItemsRequestPromise = null;
 let wikiItemsMemoryCache = null;
 let transformationsRequestPromise = null;
@@ -436,8 +459,6 @@ let mediaOverridesRequestPromise = null;
 let mediaOverridesMemoryCache = null;
 let characterBootstrapData = null;
 let characterBootstrapKey = '';
-let skillTreeAuthState = null;
-let skillTreeCurrentUserIsDm = false;
 
 function escapeHtml(value) {
     return window.CriptaApp.utils.escapeHtml(value);
@@ -881,7 +902,9 @@ async function loadCharacterBootstrap(characterId, type) {
     if (characterBootstrapData && characterBootstrapKey === nextKey) return characterBootstrapData;
     if (typeof window.CriptaCharacterData?.loadBootstrap !== 'function') return null;
     characterBootstrapKey = nextKey;
-    characterBootstrapData = await window.CriptaCharacterData.loadBootstrap(characterId, type).catch((error) => {
+    characterBootstrapData = await window.CriptaCharacterData.loadBootstrap(characterId, type, {
+        campaignId: getCurrentCampaignId()
+    }).catch((error) => {
         characterBootstrapKey = '';
         console.warn('Bootstrap scheda personaggio non disponibile, uso caricamenti separati.', error);
         return null;
@@ -1009,6 +1032,134 @@ async function loadWikiItemsData() {
     }
 }
 
+function normalizeSkillTreeConnection(connection) {
+    if (!connection) return null;
+    if (typeof connection === 'object') {
+        const target = String(connection.target || connection.to || connection.id || '').trim();
+        if (!target) return null;
+        return {
+            target,
+            mode: connection.mode === 'exclusive' || connection.exclusive === true ? 'exclusive' : 'normal'
+        };
+    }
+    const target = String(connection || '').trim();
+    return target ? { target, mode: 'normal' } : null;
+}
+
+function getSkillTreeConnections(node) {
+    if (!Array.isArray(node?.connections)) return [];
+    return node.connections
+        .map((connection) => normalizeSkillTreeConnection(connection))
+        .filter(Boolean);
+}
+
+function setSkillTreeConnections(node, connections) {
+    node.connections = (connections || []).map((connection) => {
+        const normalized = normalizeSkillTreeConnection(connection);
+        if (!normalized) return null;
+        return normalized.mode === 'exclusive'
+            ? { target: normalized.target, mode: 'exclusive' }
+            : normalized.target;
+    }).filter(Boolean);
+}
+
+function extractSkillTreeNodeIdFromIcon(iconPath) {
+    const value = String(iconPath || '').trim().split(/[?#]/)[0];
+    if (!value) return '';
+    const fileName = value.split('/').pop() || '';
+    const id = fileName.replace(/\.[a-z0-9]+$/i, '');
+    return /^node-[a-z0-9-]+$/i.test(id) ? id : '';
+}
+
+function makeUniqueSkillTreeNodeId(baseId, usedIds) {
+    const base = slugify(baseId || 'node') || 'node';
+    let id = base.startsWith('node-') ? base : `node-${base}`;
+    let index = 2;
+    while (usedIds.has(id)) {
+        id = `${base}-${index}`;
+        if (!id.startsWith('node-')) id = `node-${id}`;
+        index += 1;
+    }
+    return id;
+}
+
+function chooseSkillTreeDuplicateTarget(sourceNode, candidates) {
+    const options = (candidates || []).filter((candidate) => candidate && String(candidate.id) !== String(sourceNode?.id));
+    if (!options.length) return candidates?.[0]?.id || '';
+    const sourceX = Number(sourceNode?.x) || 0;
+    const sourceY = Number(sourceNode?.y) || 0;
+    return options
+        .slice()
+        .sort((left, right) => {
+            const leftDistance = Math.hypot((Number(left.x) || 0) - sourceX, (Number(left.y) || 0) - sourceY);
+            const rightDistance = Math.hypot((Number(right.x) || 0) - sourceX, (Number(right.y) || 0) - sourceY);
+            return leftDistance - rightDistance;
+        })[0]?.id || '';
+}
+
+function normalizeSkillTreeNodeIds(tree, treeKey = '') {
+    if (!tree || !Array.isArray(tree.nodes)) return tree;
+    const rawNodes = tree.nodes.map((node, index) => ({
+        ...(node || {}),
+        id: String(node?.id || `node-${index + 1}`).trim()
+    }));
+    const counts = rawNodes.reduce((acc, node) => {
+        acc.set(node.id, (acc.get(node.id) || 0) + 1);
+        return acc;
+    }, new Map());
+    const usedIds = new Set();
+    const duplicateGroups = new Map();
+    let changed = false;
+
+    const nodes = rawNodes.map((node, index) => {
+        const originalId = node.id;
+        let id = originalId;
+        if (!id || usedIds.has(id)) {
+            const iconId = extractSkillTreeNodeIdFromIcon(node.icon);
+            id = iconId && !usedIds.has(iconId)
+                ? iconId
+                : makeUniqueSkillTreeNodeId(node.title || originalId || `node-${index + 1}`, usedIds);
+            changed = true;
+        }
+        usedIds.add(id);
+        const nextNode = { ...node, id };
+        if ((counts.get(originalId) || 0) > 1) {
+            if (!duplicateGroups.has(originalId)) duplicateGroups.set(originalId, []);
+            duplicateGroups.get(originalId).push(nextNode);
+        }
+        return nextNode;
+    });
+
+    if (!changed) return { ...tree, nodes };
+
+    const remapTarget = (sourceNode, targetId) => {
+        const target = String(targetId || '').trim();
+        const duplicateCandidates = duplicateGroups.get(target);
+        if (!duplicateCandidates?.length) return target;
+        return chooseSkillTreeDuplicateTarget(sourceNode, duplicateCandidates) || target;
+    };
+
+    const remappedNodes = nodes.map((node) => {
+        const nextNode = { ...node };
+        if (Array.isArray(nextNode.connections)) {
+            setSkillTreeConnections(nextNode, getSkillTreeConnections(nextNode).map((connection) => ({
+                ...connection,
+                target: remapTarget(nextNode, connection.target)
+            })));
+        }
+        if (Array.isArray(nextNode.requires)) {
+            nextNode.requires = nextNode.requires.map((id) => remapTarget(nextNode, id)).filter(Boolean);
+        }
+        if (Array.isArray(nextNode.requirements)) {
+            nextNode.requirements = nextNode.requirements.map((id) => remapTarget(nextNode, id)).filter(Boolean);
+        }
+        return nextNode;
+    });
+
+    console.warn('Albero abilita con id nodo duplicati normalizzato:', treeKey || tree.id || tree.name || '', Array.from(duplicateGroups.keys()));
+    return { ...tree, nodes: remappedNodes };
+}
+
 function normalizeSkillTreesCollection(data) {
     if (!Array.isArray(data)) return {};
     return data.reduce((acc, entry) => {
@@ -1065,6 +1216,134 @@ async function loadSkillTreeStates() {
     })();
 
     return skillTreeStatesRequestPromise;
+}
+
+function loadCharacterSkillTreeModule() {
+    if (window.CriptaCharacterSkillTree) return Promise.resolve(window.CriptaCharacterSkillTree);
+    if (characterSkillTreeModulePromise) return characterSkillTreeModulePromise;
+
+    characterSkillTreeModulePromise = new Promise((resolve, reject) => {
+        const existingScript = document.querySelector('script[data-character-skill-tree-module]');
+        if (existingScript) {
+            existingScript.addEventListener('load', () => resolve(window.CriptaCharacterSkillTree), { once: true });
+            existingScript.addEventListener('error', () => reject(new Error('Caricamento modulo albero abilita fallito.')), { once: true });
+            return;
+        }
+
+        const mainScript = document.querySelector('script[src*="assets/js/pages/character-main.js"]');
+        const baseUrl = mainScript?.src || new URL('../../assets/js/pages/character-main.js', window.location.href).toString();
+        const script = document.createElement('script');
+        script.src = new URL('../shared/character-skill-tree.js', baseUrl).toString();
+        script.defer = true;
+        script.dataset.characterSkillTreeModule = 'true';
+        script.addEventListener('load', () => {
+            if (window.CriptaCharacterSkillTree) {
+                resolve(window.CriptaCharacterSkillTree);
+                return;
+            }
+            reject(new Error('Modulo albero abilita non inizializzato.'));
+        }, { once: true });
+        script.addEventListener('error', () => reject(new Error('Caricamento modulo albero abilita fallito.')), { once: true });
+        document.head.appendChild(script);
+    });
+
+    return characterSkillTreeModulePromise;
+}
+
+function loadCharacterTransformationsModule() {
+    if (window.CriptaCharacterTransformations) return Promise.resolve(window.CriptaCharacterTransformations);
+    if (characterTransformationsModulePromise) return characterTransformationsModulePromise;
+
+    characterTransformationsModulePromise = new Promise((resolve, reject) => {
+        const existingScript = document.querySelector('script[data-character-transformations-module]');
+        if (existingScript) {
+            existingScript.addEventListener('load', () => resolve(window.CriptaCharacterTransformations), { once: true });
+            existingScript.addEventListener('error', () => reject(new Error('Caricamento modulo trasformazioni fallito.')), { once: true });
+            return;
+        }
+
+        const mainScript = document.querySelector('script[src*="assets/js/pages/character-main.js"]');
+        const baseUrl = mainScript?.src || new URL('../../assets/js/pages/character-main.js', window.location.href).toString();
+        const script = document.createElement('script');
+        script.src = new URL('../shared/character-transformations.js', baseUrl).toString();
+        script.defer = true;
+        script.dataset.characterTransformationsModule = 'true';
+        script.addEventListener('load', () => {
+            if (window.CriptaCharacterTransformations) {
+                resolve(window.CriptaCharacterTransformations);
+                return;
+            }
+            reject(new Error('Modulo trasformazioni non inizializzato.'));
+        }, { once: true });
+        script.addEventListener('error', () => reject(new Error('Caricamento modulo trasformazioni fallito.')), { once: true });
+        document.head.appendChild(script);
+    });
+
+    return characterTransformationsModulePromise;
+}
+
+function loadCharacterLoadoutModule() {
+    if (window.CriptaCharacterLoadout) return Promise.resolve(window.CriptaCharacterLoadout);
+    if (characterLoadoutModulePromise) return characterLoadoutModulePromise;
+
+    characterLoadoutModulePromise = new Promise((resolve, reject) => {
+        const existingScript = document.querySelector('script[data-character-loadout-module]');
+        if (existingScript) {
+            existingScript.addEventListener('load', () => resolve(window.CriptaCharacterLoadout), { once: true });
+            existingScript.addEventListener('error', () => reject(new Error('Caricamento modulo loadout fallito.')), { once: true });
+            return;
+        }
+
+        const mainScript = document.querySelector('script[src*="assets/js/pages/character-main.js"]');
+        const baseUrl = mainScript?.src || new URL('../../assets/js/pages/character-main.js', window.location.href).toString();
+        const script = document.createElement('script');
+        script.src = new URL('../shared/character-loadout.js', baseUrl).toString();
+        script.defer = true;
+        script.dataset.characterLoadoutModule = 'true';
+        script.addEventListener('load', () => {
+            if (window.CriptaCharacterLoadout) {
+                resolve(window.CriptaCharacterLoadout);
+                return;
+            }
+            reject(new Error('Modulo loadout non inizializzato.'));
+        }, { once: true });
+        script.addEventListener('error', () => reject(new Error('Caricamento modulo loadout fallito.')), { once: true });
+        document.head.appendChild(script);
+    });
+
+    return characterLoadoutModulePromise;
+}
+
+function loadCharacterInlineEditorModule() {
+    if (window.CriptaCharacterInlineEditor) return Promise.resolve(window.CriptaCharacterInlineEditor);
+    if (characterInlineEditorModulePromise) return characterInlineEditorModulePromise;
+
+    characterInlineEditorModulePromise = new Promise((resolve, reject) => {
+        const existingScript = document.querySelector('script[data-character-inline-editor-module]');
+        if (existingScript) {
+            existingScript.addEventListener('load', () => resolve(window.CriptaCharacterInlineEditor), { once: true });
+            existingScript.addEventListener('error', () => reject(new Error('Caricamento modulo editor NPC fallito.')), { once: true });
+            return;
+        }
+
+        const mainScript = document.querySelector('script[src*="assets/js/pages/character-main.js"]');
+        const baseUrl = mainScript?.src || new URL('../../assets/js/pages/character-main.js', window.location.href).toString();
+        const script = document.createElement('script');
+        script.src = new URL('../shared/character-inline-editor.js', baseUrl).toString();
+        script.defer = true;
+        script.dataset.characterInlineEditorModule = 'true';
+        script.addEventListener('load', () => {
+            if (window.CriptaCharacterInlineEditor) {
+                resolve(window.CriptaCharacterInlineEditor);
+                return;
+            }
+            reject(new Error('Modulo editor NPC non inizializzato.'));
+        }, { once: true });
+        script.addEventListener('error', () => reject(new Error('Caricamento modulo editor NPC fallito.')), { once: true });
+        document.head.appendChild(script);
+    });
+
+    return characterInlineEditorModulePromise;
 }
 
 async function loadAbilityOverrides() {
@@ -3488,8 +3767,8 @@ function buildCompanionsHtml(character, payload, wikiItems = [], mediaOverrides 
             `;
 }
 
-function mountCompanionSkillTrees(root, character, payload, mediaOverrides = [], allSkillTrees = null) {
-    if (!root || !character || !allSkillTrees) return;
+function mountCompanionSkillTrees(root, character, payload, mediaOverrides = [], allSkillTrees = null, skillTreeModule = null, skillTreeContext = null) {
+    if (!root || !character || !allSkillTrees || !skillTreeModule) return;
     const companions = getCompanionsForCharacter(payload, character);
     companions.forEach((rawCompanion) => {
         const identity = getCompanionMediaOverrideIdentity(character, rawCompanion);
@@ -3497,7 +3776,7 @@ function mountCompanionSkillTrees(root, character, payload, mediaOverrides = [],
         const subject = getCompanionSkillTreeSubject(character, companion, identity);
         const host = root.querySelector(`[data-companion-skill-tree-host="${CSS.escape(subject.id)}"]`);
         if (!host) return;
-        const treeCard = buildPlayerSkillTreeCards(subject, allSkillTrees);
+        const treeCard = skillTreeModule.buildCards(subject, allSkillTrees, skillTreeContext || {});
         if (treeCard) host.replaceChildren(treeCard);
     });
 }
@@ -3604,1905 +3883,6 @@ function initializeLoadoutTabs(cardElement) {
     initializeSpellLevelFilters(cardElement);
 }
 
-function resolvePlayerSkillTree(characterOrId, allSkillTrees) {
-    return resolvePlayerSkillTreeEntry(characterOrId, allSkillTrees)?.tree || null;
-}
-
-function resolvePlayerSkillTreeEntry(characterOrId, allSkillTrees) {
-    return resolvePlayerSkillTreeEntries(characterOrId, allSkillTrees)[0] || null;
-}
-
-function resolvePlayerSkillTreeEntries(characterOrId, allSkillTrees) {
-    if (!allSkillTrees || typeof allSkillTrees !== 'object') return [];
-    const character = typeof characterOrId === 'object' && characterOrId !== null ? characterOrId : { id: characterOrId };
-    const characterId = normalizeText(character.id || character.characterId || '');
-    const characterSlug = slugify(character.id || character.characterId || '');
-    if (!characterId) return [];
-
-    const results = [];
-    const used = new Set();
-    const addEntry = (key) => {
-        if (!key || used.has(key) || !allSkillTrees[key]) return;
-        used.add(key);
-        results.push({ key, tree: allSkillTrees[key] });
-    };
-
-    Object.entries(allSkillTrees).forEach(([key, tree]) => {
-        if (!tree || typeof tree !== 'object') return;
-        const normalizedKey = normalizeText(key);
-        const owners = [
-            tree.characterId,
-            tree.ownerCharacterId,
-            ...(Array.isArray(tree.characterIds) ? tree.characterIds : []),
-            ...(Array.isArray(tree.ownerCharacterIds) ? tree.ownerCharacterIds : [])
-        ].map(normalizeText).filter(Boolean);
-        if (owners.length) {
-            if (owners.includes(characterId)) addEntry(key);
-            return;
-        }
-
-        const mappedLegacyKey = PLAYER_SKILL_TREE_KEYS[slugify(character.id || '')] || PLAYER_SKILL_TREE_KEYS[characterId] || character.id;
-        const normalizedMappedLegacyKey = normalizeText(mappedLegacyKey);
-        if (normalizedKey === characterId || (normalizedMappedLegacyKey && normalizedKey === normalizedMappedLegacyKey)) {
-            addEntry(key);
-            return;
-        }
-        const keySlug = slugify(key);
-        if (characterSlug && (keySlug.startsWith(`${characterSlug}-`) || keySlug.startsWith(`${characterSlug}_`))) {
-            addEntry(key);
-        }
-    });
-
-    if (results.length > 1) {
-        results.sort((left, right) => {
-            const leftOrder = Number(left.tree.order ?? 0);
-            const rightOrder = Number(right.tree.order ?? 0);
-            if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-            return String(left.tree.name || left.tree.title || left.key).localeCompare(String(right.tree.name || right.tree.title || right.key), 'it');
-        });
-    }
-    return results;
-}
-
-function getSkillTreeStateKey(character, treeKey) {
-    return slugify(`${getCurrentCampaignId()}-${treeKey || ''}-${character?.id || character?.accountId || character?.name || ''}`);
-}
-
-function getCurrentAccountId() {
-    const user = skillTreeAuthState?.user || {};
-    return slugify(user.accountId || user.id || user.sub || user.discordId || '');
-}
-
-function canEditSkillTreeUnlocks(character) {
-    if (skillTreeCurrentUserIsDm) return true;
-    const user = skillTreeAuthState?.user || {};
-    const accountId = String(user.accountId || user.id || user.sub || '').trim();
-    const discordId = String(user.discordId || '').trim();
-    return Boolean(accountId && character?.accountId && slugify(accountId) === slugify(character.accountId))
-        || Boolean(discordId && character?.discordId && String(discordId) === String(character.discordId));
-}
-
-function getCharacterSkillTreeState(character, treeKey) {
-    const key = getSkillTreeStateKey(character, treeKey);
-    const characterId = slugify(character?.id || '');
-    const matches = (skillTreeStatesMemoryCache || []).filter((entry) => {
-        if (!entry || typeof entry !== 'object') return false;
-        if (entry.id === key || entry.key === key) return true;
-        return slugify(entry.characterId || '') === characterId
-            && slugify(entry.treeKey || '') === slugify(treeKey || '');
-    });
-    if (!matches.length) return null;
-    return matches.sort((left, right) => {
-        const leftExact = left.id === key || left.key === key ? 1 : 0;
-        const rightExact = right.id === key || right.key === key ? 1 : 0;
-        if (leftExact !== rightExact) return rightExact - leftExact;
-        return Date.parse(right.updatedAt || '') - Date.parse(left.updatedAt || '');
-    })[0] || null;
-}
-
-function getNodePrerequisites(node, treeData) {
-    const explicit = Array.isArray(node.requires) ? node.requires : Array.isArray(node.requirements) ? node.requirements : null;
-    if (explicit) return explicit.map(String).filter(Boolean);
-    const parents = [];
-    (treeData.nodes || []).forEach((candidate) => {
-        if (getSkillTreeConnections(candidate).some((connection) => connection.target === String(node.id))) {
-            parents.push(String(candidate.id));
-        }
-    });
-    return parents;
-}
-
-function normalizeSkillTreeConnection(connection) {
-    if (connection && typeof connection === 'object') {
-        const target = String(connection.target || connection.to || connection.id || '').trim();
-        if (!target) return null;
-        return {
-            target,
-            mode: connection.mode === 'exclusive' || connection.exclusive === true ? 'exclusive' : 'normal'
-        };
-    }
-    const target = String(connection || '').trim();
-    return target ? { target, mode: 'normal' } : null;
-}
-
-function getSkillTreeConnections(node) {
-    if (!Array.isArray(node?.connections)) return [];
-    return node.connections
-        .map((connection) => normalizeSkillTreeConnection(connection))
-        .filter(Boolean);
-}
-
-function setSkillTreeConnections(node, connections) {
-    node.connections = (connections || []).map((connection) => {
-        const normalized = normalizeSkillTreeConnection(connection);
-        if (!normalized) return null;
-        return normalized.mode === 'exclusive'
-            ? { target: normalized.target, mode: 'exclusive' }
-            : normalized.target;
-    }).filter(Boolean);
-}
-
-function extractSkillTreeNodeIdFromIcon(iconPath) {
-    const value = String(iconPath || '').trim().split(/[?#]/)[0];
-    if (!value) return '';
-    const fileName = value.split('/').pop() || '';
-    const id = fileName.replace(/\.[a-z0-9]+$/i, '');
-    return /^node-[a-z0-9-]+$/i.test(id) ? id : '';
-}
-
-function makeUniqueSkillTreeNodeId(baseId, usedIds) {
-    const base = slugify(baseId || 'node') || 'node';
-    let id = base.startsWith('node-') ? base : `node-${base}`;
-    let index = 2;
-    while (usedIds.has(id)) {
-        id = `${base}-${index}`;
-        if (!id.startsWith('node-')) id = `node-${id}`;
-        index += 1;
-    }
-    return id;
-}
-
-function chooseSkillTreeDuplicateTarget(sourceNode, candidates) {
-    const options = (candidates || []).filter((candidate) => candidate && String(candidate.id) !== String(sourceNode?.id));
-    if (!options.length) return candidates?.[0]?.id || '';
-    const sourceX = Number(sourceNode?.x) || 0;
-    const sourceY = Number(sourceNode?.y) || 0;
-    return options
-        .slice()
-        .sort((left, right) => {
-            const leftDistance = Math.hypot((Number(left.x) || 0) - sourceX, (Number(left.y) || 0) - sourceY);
-            const rightDistance = Math.hypot((Number(right.x) || 0) - sourceX, (Number(right.y) || 0) - sourceY);
-            return leftDistance - rightDistance;
-        })[0]?.id || '';
-}
-
-function normalizeSkillTreeNodeIds(tree, treeKey = '') {
-    if (!tree || !Array.isArray(tree.nodes)) return tree;
-    const rawNodes = tree.nodes.map((node, index) => ({
-        ...(node || {}),
-        id: String(node?.id || `node-${index + 1}`).trim()
-    }));
-    const counts = rawNodes.reduce((acc, node) => {
-        acc.set(node.id, (acc.get(node.id) || 0) + 1);
-        return acc;
-    }, new Map());
-    const usedIds = new Set();
-    const duplicateGroups = new Map();
-    let changed = false;
-
-    const nodes = rawNodes.map((node, index) => {
-        const originalId = node.id;
-        let id = originalId;
-        if (!id || usedIds.has(id)) {
-            const iconId = extractSkillTreeNodeIdFromIcon(node.icon);
-            id = iconId && !usedIds.has(iconId)
-                ? iconId
-                : makeUniqueSkillTreeNodeId(node.title || originalId || `node-${index + 1}`, usedIds);
-            changed = true;
-        }
-        usedIds.add(id);
-        const nextNode = { ...node, id };
-        if ((counts.get(originalId) || 0) > 1) {
-            if (!duplicateGroups.has(originalId)) duplicateGroups.set(originalId, []);
-            duplicateGroups.get(originalId).push(nextNode);
-        }
-        return nextNode;
-    });
-
-    if (!changed) return { ...tree, nodes };
-
-    const remapTarget = (sourceNode, targetId) => {
-        const target = String(targetId || '').trim();
-        const duplicateCandidates = duplicateGroups.get(target);
-        if (!duplicateCandidates?.length) return target;
-        return chooseSkillTreeDuplicateTarget(sourceNode, duplicateCandidates) || target;
-    };
-
-    const remappedNodes = nodes.map((node) => {
-        const nextNode = { ...node };
-        if (Array.isArray(nextNode.connections)) {
-            setSkillTreeConnections(nextNode, getSkillTreeConnections(nextNode).map((connection) => ({
-                ...connection,
-                target: remapTarget(nextNode, connection.target)
-            })));
-        }
-        if (Array.isArray(nextNode.requires)) {
-            nextNode.requires = nextNode.requires.map((id) => remapTarget(nextNode, id)).filter(Boolean);
-        }
-        if (Array.isArray(nextNode.requirements)) {
-            nextNode.requirements = nextNode.requirements.map((id) => remapTarget(nextNode, id)).filter(Boolean);
-        }
-        return nextNode;
-    });
-
-    console.warn('Albero abilita con id nodo duplicati normalizzato:', treeKey || tree.id || tree.name || '', Array.from(duplicateGroups.keys()));
-    return { ...tree, nodes: remappedNodes };
-}
-
-function getSkillTreeRequirementMode(node) {
-    return ['any', 'one'].includes(String(node?.requiresMode || node?.requireMode || node?.requirementMode || '').toLowerCase())
-        ? 'any'
-        : 'all';
-}
-
-function hasExplicitNodePrerequisites(node) {
-    return Array.isArray(node?.requires) || Array.isArray(node?.requirements);
-}
-
-function getExplicitNodePrerequisites(node) {
-    const explicit = Array.isArray(node?.requires)
-        ? node.requires
-        : Array.isArray(node?.requirements)
-            ? node.requirements
-            : [];
-    return explicit.map(String).filter(Boolean);
-}
-
-function setExplicitNodePrerequisites(node, ids) {
-    if (!node) return;
-    node.requires = Array.from(new Set((ids || []).map(String).filter(Boolean)));
-    if ('requirements' in node) delete node.requirements;
-}
-
-function addExplicitNodePrerequisite(node, id) {
-    if (!node || !id) return;
-    setExplicitNodePrerequisites(node, [...getExplicitNodePrerequisites(node), String(id)]);
-}
-
-function removeExplicitNodePrerequisite(node, id) {
-    if (!node || !id) return;
-    setExplicitNodePrerequisites(node, getExplicitNodePrerequisites(node).filter((entry) => String(entry) !== String(id)));
-}
-
-function getSkillTreeNodeLabel(treeData, nodeId) {
-    const id = String(nodeId || '');
-    const node = (treeData?.nodes || []).find((entry) => String(entry.id) === id);
-    return node?.title || node?.id || id;
-}
-
-function getIncomingSkillTreeConnections(treeData, targetId) {
-    const id = String(targetId || '');
-    return (treeData?.nodes || []).flatMap((source) => (
-        getSkillTreeConnections(source)
-            .filter((connection) => connection.target === id)
-            .map((connection) => ({
-                source: String(source.id),
-                target: id,
-                mode: connection.mode || 'normal'
-            }))
-    ));
-}
-
-function getSkillNodeLevels(node) {
-    const rawLevels = Array.isArray(node?.levels)
-        ? node.levels
-        : Array.isArray(node?.upgrades)
-            ? node.upgrades
-            : Array.isArray(node?.variants)
-                ? node.variants
-                : [];
-    const base = {
-        title: node?.title || '',
-        flavor: node?.flavor || '',
-        desc: node?.desc || '',
-        icon: node?.icon || ''
-    };
-    const normalized = rawLevels
-        .map((level, index) => ({
-            label: level?.label || `Livello ${index + 1}`,
-            title: level?.title || '',
-            flavor: level?.flavor || '',
-            desc: level?.desc || level?.description || '',
-            icon: level?.icon || ''
-        }))
-        .filter((level) => level.title || level.flavor || level.desc || level.icon || level.label);
-    if (!normalized.length) return [base];
-    return [
-        {
-            label: normalized[0]?.label || 'Livello 1',
-            ...base
-        },
-        ...normalized.slice(1)
-    ];
-}
-
-function applySkillNodeLevel(node, levelValue) {
-    const levels = getSkillNodeLevels(node);
-    const maxLevel = levels.length;
-    const level = Math.max(1, Math.min(maxLevel, Math.round(Number(levelValue) || 1)));
-    const data = levels[level - 1] || levels[0] || {};
-    return {
-        ...node,
-        title: data.title || node.title,
-        flavor: data.flavor || node.flavor,
-        desc: data.desc || node.desc,
-        icon: data.icon || node.icon,
-        level,
-        maxLevel,
-        levelLabel: data.label || (maxLevel > 1 ? `Livello ${level}` : '')
-    };
-}
-
-function canUnlockSkillNode(requirements, requirementMode, unlocked) {
-    if (!requirements.length) return true;
-    return requirementMode === 'any'
-        ? requirements.some((id) => unlocked.has(String(id)))
-        : requirements.every((id) => unlocked.has(String(id)));
-}
-
-function getExclusiveSkillTreeSiblingIds(treeData, nodeId) {
-    const id = String(nodeId);
-    const siblings = new Set();
-    (treeData.nodes || []).forEach((source) => {
-        const exclusiveTargets = getSkillTreeConnections(source)
-            .filter((connection) => connection.mode === 'exclusive')
-            .map((connection) => connection.target);
-        if (!exclusiveTargets.includes(id)) return;
-        exclusiveTargets.forEach((targetId) => {
-            if (targetId !== id) siblings.add(targetId);
-        });
-    });
-    return Array.from(siblings);
-}
-
-function isSkillNodeBlockedByExclusiveChoice(treeData, nodeId, unlocked) {
-    return getExclusiveSkillTreeSiblingIds(treeData, nodeId).some((siblingId) => unlocked.has(String(siblingId)));
-}
-
-function deriveSkillTreeNodes(treeData, stateRecord) {
-    const baseUnlocked = new Set(
-        (treeData.nodes || [])
-            .filter((node) => node.state === 'unlocked' || node.unlocked === true)
-            .map((node) => String(node.id))
-    );
-    const stateUnlocked = Array.isArray(stateRecord?.unlocked) ? stateRecord.unlocked : Array.isArray(stateRecord?.unlockedNodeIds) ? stateRecord.unlockedNodeIds : null;
-    const unlocked = new Set((stateUnlocked || Array.from(baseUnlocked)).map(String));
-    const stateLevels = stateRecord?.levels && typeof stateRecord.levels === 'object' ? stateRecord.levels : {};
-
-    return (treeData.nodes || []).map((node) => {
-        const nodeId = String(node.id);
-        const requirements = getNodePrerequisites(node, treeData);
-        const requirementMode = getSkillTreeRequirementMode(node);
-        let state = 'locked';
-        if (unlocked.has(nodeId)) {
-            state = 'unlocked';
-        } else if (!isSkillNodeBlockedByExclusiveChoice(treeData, nodeId, unlocked) && canUnlockSkillNode(requirements, requirementMode, unlocked)) {
-            state = 'unlockable';
-        }
-        const level = unlocked.has(nodeId) ? stateLevels[nodeId] : 1;
-        return applySkillNodeLevel({ ...node, id: nodeId, requires: requirements, requiresMode: requirementMode, state }, level);
-    });
-}
-
-function deriveSkillTreeEditorNodes(treeData, stateRecord) {
-    const runtimeById = new Map(deriveSkillTreeNodes(treeData, stateRecord).map((node) => [String(node.id), node]));
-    return (treeData.nodes || []).map((node) => {
-        const nodeId = String(node.id);
-        const runtimeNode = runtimeById.get(nodeId) || {};
-        return {
-            ...node,
-            id: nodeId,
-            requires: getNodePrerequisites(node, treeData),
-            requiresMode: getSkillTreeRequirementMode(node),
-            state: runtimeNode.state || node.state || 'locked',
-            level: runtimeNode.level || 1,
-            maxLevel: getSkillNodeLevels(node).length
-        };
-    });
-}
-
-function pruneUnlockedSkillNodes(treeData, unlockedIds) {
-    const nextUnlocked = new Set(Array.from(unlockedIds || []).map(String));
-    let changed = true;
-    while (changed) {
-        changed = false;
-        (treeData.nodes || []).forEach((node) => {
-            const nodeId = String(node.id);
-            if (!nextUnlocked.has(nodeId)) return;
-            const requirements = getNodePrerequisites(node, treeData);
-            const canStayUnlocked = canUnlockSkillNode(requirements, getSkillTreeRequirementMode(node), nextUnlocked);
-            if (!canStayUnlocked) {
-                nextUnlocked.delete(nodeId);
-                changed = true;
-            }
-        });
-    }
-    return nextUnlocked;
-}
-
-async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap = {}) {
-    const accountId = getCurrentAccountId();
-    const stateId = getSkillTreeStateKey(character, treeKey);
-    const characterId = slugify(character?.id || '');
-    const normalizedTreeKey = slugify(treeKey || '');
-    const existingStates = await loadSkillTreeStates();
-    const kept = existingStates.filter((entry) => {
-        if (!entry || typeof entry !== 'object') return false;
-        if (entry.id === stateId || entry.key === stateId) return false;
-        return !(slugify(entry.characterId || '') === characterId && slugify(entry.treeKey || '') === normalizedTreeKey);
-    });
-    const nextRecord = {
-        id: stateId,
-        treeKey,
-        characterId: character?.id || '',
-        ownerAccountId: accountId || slugify(character?.accountId || ''),
-        unlocked: Array.from(new Set((unlockedIds || []).map(String))).filter(Boolean),
-        levels: Object.fromEntries(Object.entries(levelMap || {})
-            .map(([key, value]) => [String(key), Math.max(1, Math.round(Number(value) || 1))])
-            .filter(([key, value]) => key && value > 1)),
-        updatedAt: new Date().toISOString()
-    };
-    const nextStates = [...kept, nextRecord];
-    const body = { data: nextStates };
-    const token = readSharedAuthToken();
-    if (!token) throw new Error('Login richiesto per salvare lo stato albero abilita.');
-    const result = await window.CriptaApp.api.post('api/data/skill-tree-states', body, { token });
-    skillTreeStatesVersion = Number(result?.version || skillTreeStatesVersion || 0);
-    skillTreeStatesMemoryCache = nextStates;
-    window.parent?.postMessage?.({
-        type: 'cripta-skill-tree-state-updated',
-        campaignId: window.CriptaApp?.campaigns?.currentId?.() || '',
-        characterId: character?.id || '',
-        treeKey,
-        unlocked: nextRecord.unlocked
-    }, '*');
-    return result;
-}
-
-function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry = null) {
-    const treeEntry = forcedTreeEntry || resolvePlayerSkillTreeEntry(characterOrId, allSkillTrees);
-    const treeData = treeEntry?.tree || null;
-    if (!treeData || !Array.isArray(treeData.nodes) || treeData.nodes.length === 0) {
-        return null;
-    }
-    const character = typeof characterOrId === 'object' && characterOrId !== null ? characterOrId : { id: characterOrId };
-    const treeKey = treeEntry.key;
-    const canEditUnlocks = canEditSkillTreeUnlocks(character);
-    const canEditTree = skillTreeCurrentUserIsDm;
-    const stateRecord = getCharacterSkillTreeState(character, treeKey);
-    let workingTree = {
-        ...treeData,
-        nodes: (treeData.nodes || []).map((node) => ({ ...node, id: String(node.id) }))
-    };
-    let currentNodes = deriveSkillTreeNodes(workingTree, stateRecord);
-    let unlockedIds = new Set(currentNodes.filter((node) => node.state === 'unlocked').map((node) => String(node.id)));
-    let nodeLevels = { ...(stateRecord?.levels && typeof stateRecord.levels === 'object' ? stateRecord.levels : {}) };
-    let selectedNodeId = currentNodes[0]?.id || '';
-    let editMode = false;
-    let snapToGrid = false;
-    let snapToNodes = true;
-    let snapGridStep = 5;
-    let linkDrag = null;
-    let selectedConnection = null;
-    const snapThreshold = 1.4;
-
-    const card = document.createElement('div');
-    card.className = 'content-card player-skill-tree-card';
-    card.id = `player-skill-tree-card-${slugify(treeKey || 'default')}`;
-    card.tabIndex = -1;
-    const treeLabel = workingTree.name || workingTree.title || (treeKey ? treeKey.replace(/[-_]+/g, ' ') : 'Albero abilita');
-    card.innerHTML = `
-                <div class="player-skill-tree-card-head">
-                    <h3><i class="fas fa-crown"></i> Albero Abilita <small data-skill-tree-label>${escapeHtml(treeLabel)}</small></h3>
-                    ${canEditTree ? '<button type="button" class="player-skill-edit-toggle" data-skill-edit-toggle title="Modifica albero" aria-label="Modifica albero"><i class="fas fa-pen"></i></button>' : ''}
-                </div>
-                <div class="player-skill-tree-layout">
-                    <div class="player-skill-tree-column">
-                        <div class="player-skill-tree-wrapper" data-skill-tree>
-                            <svg class="player-skill-tree-connections" data-skill-tree-lines></svg>
-                            <div class="player-skill-snap-guide player-skill-snap-guide--x" data-skill-snap-x hidden></div>
-                            <div class="player-skill-snap-guide player-skill-snap-guide--y" data-skill-snap-y hidden></div>
-                        </div>
-                    </div>
-                    <aside class="player-skill-info" data-skill-info></aside>
-                </div>
-                <section class="player-skill-tree-editor" data-skill-editor hidden></section>
-            `;
-
-    const treeContainer = card.querySelector('[data-skill-tree]');
-    const linesLayer = card.querySelector('[data-skill-tree-lines]');
-    const infoPanel = card.querySelector('[data-skill-info]');
-    const editorPanel = card.querySelector('[data-skill-editor]');
-    const editToggle = card.querySelector('[data-skill-edit-toggle]');
-    const treeTitleLabel = card.querySelector('[data-skill-tree-label]');
-    const snapGuideX = card.querySelector('[data-skill-snap-x]');
-    const snapGuideY = card.querySelector('[data-skill-snap-y]');
-    if (!treeContainer || !linesLayer || !infoPanel) return card;
-
-    const setDefaultInfo = () => {
-        infoPanel.innerHTML = `
-                    <div class="player-skill-info-empty">
-                        <i class="fas fa-hand-pointer" aria-hidden="true"></i>
-                        <p>Seleziona un nodo per vedere i dettagli dell'abilita.</p>
-                    </div>
-                `;
-    };
-
-    const updateInfo = (node) => {
-        if (!node) {
-            setDefaultInfo();
-            return;
-        }
-
-        const icon = resolveSkillAssetPath(node.icon);
-        const editable = editMode && canEditTree;
-        const requirementNames = getNodePrerequisites(node, workingTree)
-            .map((id) => getSkillTreeNodeLabel(workingTree, id))
-            .filter(Boolean);
-        const requirementsLabel = requirementNames.length
-            ? `<p class="player-skill-info-requirements"><strong>REQUISITI:</strong> ${escapeHtml(requirementNames.join(', '))}</p>`
-            : '';
-        const richTextToolbar = editable ? `
-                    <div class="player-skill-rich-toolbar" role="toolbar" aria-label="Formato descrizione abilita">
-                        <button type="button" data-skill-rich-command="bold" title="Grassetto"><i class="fas fa-bold" aria-hidden="true"></i></button>
-                        <button type="button" data-skill-rich-command="italic" title="Corsivo"><i class="fas fa-italic" aria-hidden="true"></i></button>
-                        <button type="button" data-skill-rich-command="insertUnorderedList" title="Elenco puntato"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
-                        <button type="button" data-skill-rich-command="insertOrderedList" title="Elenco numerato"><i class="fas fa-list-ol" aria-hidden="true"></i></button>
-                    </div>
-        ` : '';
-        infoPanel.innerHTML = `
-                    <header class="player-skill-info-header">
-                        ${icon ? `<img src="${icon}" alt="${escapeHtml(node.title || 'Abilita')}" class="player-skill-info-icon">` : ''}
-                        <h4 class="player-skill-info-title" ${editable ? 'contenteditable="true" data-skill-preview-field="title" spellcheck="false"' : ''}>${escapeHtml(node.title || 'Abilita')}</h4>
-                    </header>
-                    <div class="player-skill-info-state-row">
-                        <div class="player-skill-info-state is-${escapeHtml(node.state || 'locked')}">${escapeHtml(node.state === 'unlocked' ? 'Sbloccata' : node.state === 'unlockable' ? 'Disponibile' : 'Bloccata')}</div>
-                        ${Number(node.maxLevel || 1) > 1 ? `<div class="player-skill-info-level">Livello ${escapeHtml(node.level || 1)} / ${escapeHtml(node.maxLevel)}</div>` : ''}
-                    </div>
-                    ${editable || node.flavor ? `<p class="player-skill-info-flavor" ${editable ? 'contenteditable="true" data-skill-preview-field="flavor" spellcheck="true"' : ''}>${escapeHtml(node.flavor || '')}</p>` : ''}
-                    ${richTextToolbar}
-                    ${requirementsLabel}
-                    <div class="player-skill-info-desc ${editable ? 'is-editable' : ''}" ${editable ? 'contenteditable="true" data-skill-preview-field="desc" spellcheck="true"' : ''}>${node.desc || '<p>Nessun dettaglio disponibile.</p>'}</div>
-                `;
-    };
-
-    const applyTreeBackground = () => {
-        const bgImage = resolveSkillAssetPath(workingTree.bgImage);
-        const bgOpacity = Number.isFinite(Number(workingTree.bgOpacity))
-            ? Math.max(0, Math.min(1, Number(workingTree.bgOpacity)))
-            : 1;
-        treeContainer.style.setProperty('--skill-tree-bg-image', bgImage ? `url('${bgImage}')` : 'none');
-        treeContainer.style.setProperty('--skill-tree-bg-opacity', String(bgOpacity));
-        treeContainer.style.setProperty(
-            '--skill-tree-bg-overlay',
-            workingTree.bgOverlay || 'radial-gradient(circle at 50% 50%, rgba(56, 22, 22, 0.45), rgba(0, 0, 0, 0.92))'
-        );
-    };
-
-    const recalculateNodes = () => {
-        const stateSnapshot = { unlocked: Array.from(unlockedIds), levels: nodeLevels };
-        currentNodes = editMode && canEditTree
-            ? deriveSkillTreeEditorNodes(workingTree, stateSnapshot)
-            : deriveSkillTreeNodes(workingTree, stateSnapshot);
-    };
-
-    const persistUnlocks = async () => {
-        const activeLevels = Object.fromEntries(Object.entries(nodeLevels).filter(([nodeId]) => unlockedIds.has(String(nodeId))));
-        nodeLevels = activeLevels;
-        await saveCharacterSkillTreeState(character, treeKey, Array.from(unlockedIds), activeLevels);
-    };
-
-    const deleteSelectedConnection = () => {
-        if (!selectedConnection) return false;
-        const source = workingTree.nodes.find((entry) => String(entry.id) === String(selectedConnection.source));
-        if (!source) {
-            selectedConnection = null;
-            return false;
-        }
-        setSkillTreeConnections(
-            source,
-            getSkillTreeConnections(source).filter((connection) => connection.target !== String(selectedConnection.target))
-        );
-        selectedConnection = null;
-        unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
-        renderTree();
-        renderEditor();
-        return true;
-    };
-
-    const connectionMarkerPrefix = `skill-link-arrow-${slugify(treeKey || character?.id || 'tree')}`;
-
-    const getConnectionMarkerId = (state, selected = false) => {
-        if (selected) return `${connectionMarkerPrefix}-selected`;
-        if (state === 'unlocked') return `${connectionMarkerPrefix}-unlocked`;
-        if (state === 'unlockable') return `${connectionMarkerPrefix}-unlockable`;
-        return `${connectionMarkerPrefix}-locked`;
-    };
-
-    const appendConnectionMarkers = () => {
-        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-        [
-            ['locked', 'rgba(238, 238, 238, 0.82)'],
-            ['unlockable', 'rgba(222, 186, 104, 0.9)'],
-            ['unlocked', 'rgba(230, 190, 70, 0.95)'],
-            ['selected', 'rgba(255, 230, 140, 0.98)']
-        ].forEach(([state, fill]) => {
-            const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
-            marker.setAttribute('id', getConnectionMarkerId(state, state === 'selected'));
-            marker.setAttribute('viewBox', '0 0 8 8');
-            marker.setAttribute('refX', '7');
-            marker.setAttribute('refY', '4');
-            marker.setAttribute('markerWidth', '8');
-            marker.setAttribute('markerHeight', '8');
-            marker.setAttribute('orient', 'auto');
-            marker.setAttribute('markerUnits', 'userSpaceOnUse');
-            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-            path.setAttribute('d', 'M 0 1 L 8 4 L 0 7 z');
-            path.setAttribute('fill', fill);
-            marker.appendChild(path);
-            defs.appendChild(marker);
-        });
-        linesLayer.appendChild(defs);
-    };
-
-    const getConnectionLinePoints = (startNode, targetNode) => {
-        const sx = Number(startNode.x) || 50;
-        const sy = Number(startNode.y) || 50;
-        const tx = Number(targetNode.x) || 50;
-        const ty = Number(targetNode.y) || 50;
-        const dx = tx - sx;
-        const dy = ty - sy;
-        const distance = Math.hypot(dx, dy);
-        if (!distance) return { x1: sx, y1: sy, x2: tx, y2: ty };
-        const ux = dx / distance;
-        const uy = dy / distance;
-        const sourceRadius = startNode.keyNode ? 5.85 : 4.35;
-        const targetRadius = targetNode.keyNode ? 5.85 : 4.35;
-        const sourceOffset = Math.min(sourceRadius, distance * 0.28);
-        const targetOffset = Math.min(targetRadius, distance * 0.36);
-        return {
-            x1: sx + ux * sourceOffset,
-            y1: sy + uy * sourceOffset,
-            x2: tx - ux * targetOffset,
-            y2: ty - uy * targetOffset
-        };
-    };
-
-    const renderConnections = () => {
-        linesLayer.replaceChildren();
-        appendConnectionMarkers();
-
-        const nodeById = new Map(currentNodes.map((node) => [String(node.id), node]));
-        currentNodes.forEach((startNode) => {
-            getSkillTreeConnections(startNode).forEach((connection) => {
-                const targetNode = nodeById.get(String(connection.target));
-                if (!targetNode) return;
-
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                const points = getConnectionLinePoints(startNode, targetNode);
-                line.setAttribute('x1', `${points.x1}%`);
-                line.setAttribute('y1', `${points.y1}%`);
-                line.setAttribute('x2', `${points.x2}%`);
-                line.setAttribute('y2', `${points.y2}%`);
-                const isSelected = selectedConnection
-                    && selectedConnection.source === String(startNode.id)
-                    && selectedConnection.target === String(connection.target);
-                line.setAttribute('class', `player-skill-connection is-${targetNode.state || 'locked'} is-${connection.mode || 'normal'}${isSelected ? ' is-selected' : ''}${editMode && canEditTree ? ' is-editable' : ''}`);
-                line.setAttribute('marker-end', `url(#${getConnectionMarkerId(targetNode.state || 'locked', isSelected)})`);
-                line.dataset.source = String(startNode.id);
-                line.dataset.target = String(connection.target);
-                line.dataset.mode = connection.mode || 'normal';
-                if (editMode && canEditTree) {
-                    line.addEventListener('click', (event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        selectedConnection = {
-                            source: String(startNode.id),
-                            target: String(connection.target)
-                        };
-                        selectedNodeId = String(connection.target);
-                        card.focus({ preventScroll: true });
-                        updateInfo(targetNode);
-                        renderConnections();
-                        renderEditor();
-                    });
-                }
-                linesLayer.appendChild(line);
-            });
-        });
-    };
-
-    const syncCurrentNodeSnapshot = () => {
-        const byId = new Map(workingTree.nodes.map((node) => [String(node.id), node]));
-        currentNodes = currentNodes.map((node) => {
-            const source = byId.get(String(node.id));
-            return source ? { ...node, x: source.x, y: source.y } : node;
-        });
-    };
-
-    const hideSnapGuides = () => {
-        if (snapGuideX) snapGuideX.hidden = true;
-        if (snapGuideY) snapGuideY.hidden = true;
-    };
-
-    const getTreePointerPosition = (event) => {
-        const rect = treeContainer.getBoundingClientRect();
-        return {
-            x: Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100)),
-            y: Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100))
-        };
-    };
-
-    const updateLinkPreview = (event) => {
-        if (!linkDrag?.line) return;
-        const point = getTreePointerPosition(event);
-        linkDrag.line.setAttribute('x2', `${point.x}%`);
-        linkDrag.line.setAttribute('y2', `${point.y}%`);
-        const targetNodeElement = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.player-skill-node');
-        const targetId = targetNodeElement?.dataset?.nodeId || '';
-        treeContainer.querySelectorAll('.player-skill-node.is-link-target').forEach((entry) => {
-            entry.classList.remove('is-link-target');
-        });
-        if (targetId && targetId !== linkDrag.sourceId) {
-            targetNodeElement.classList.add('is-link-target');
-        }
-    };
-
-    const clearLinkPreview = () => {
-        linkDrag?.line?.remove();
-        linkDrag = null;
-        window.removeEventListener('pointermove', updateLinkPreview);
-        window.removeEventListener('pointerup', finishLinkDrag);
-        window.removeEventListener('pointercancel', cancelLinkDrag);
-        treeContainer.classList.remove('is-linking-skill-tree');
-        treeContainer.querySelectorAll('.player-skill-node.is-link-target').forEach((entry) => {
-            entry.classList.remove('is-link-target');
-        });
-    };
-
-    const finishLinkDrag = (event) => {
-        if (!linkDrag || event.pointerId !== linkDrag.pointerId) return;
-        event.preventDefault();
-        const targetNodeElement = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.player-skill-node');
-        const targetId = targetNodeElement?.dataset?.nodeId || '';
-        const source = workingTree.nodes.find((entry) => String(entry.id) === linkDrag.sourceId);
-        const target = workingTree.nodes.find((entry) => String(entry.id) === String(targetId));
-        if (source && targetId && targetId !== linkDrag.sourceId) {
-            const nextConnections = getSkillTreeConnections(source);
-            if (!nextConnections.some((connection) => connection.target === String(targetId))) {
-                setSkillTreeConnections(source, [...nextConnections, { target: String(targetId), mode: 'normal' }]);
-                if (hasExplicitNodePrerequisites(target)) addExplicitNodePrerequisite(target, linkDrag.sourceId);
-                selectedNodeId = linkDrag.sourceId;
-                selectedConnection = { source: linkDrag.sourceId, target: String(targetId) };
-            }
-        }
-        clearLinkPreview();
-        renderTree();
-        renderEditor();
-    };
-
-    const cancelLinkDrag = (event) => {
-        if (!linkDrag || (event?.pointerId !== undefined && event.pointerId !== linkDrag.pointerId)) return;
-        clearLinkPreview();
-        renderTree();
-    };
-
-    const startLinkDrag = (node, event) => {
-        if (!editMode || !canEditTree) return;
-        event.preventDefault();
-        event.stopPropagation();
-        const sourceId = String(node.id);
-        selectedNodeId = sourceId;
-        const startX = Number(node.x) || 50;
-        const startY = Number(node.y) || 50;
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', `${startX}%`);
-        line.setAttribute('y1', `${startY}%`);
-        line.setAttribute('x2', `${startX}%`);
-        line.setAttribute('y2', `${startY}%`);
-        line.setAttribute('class', 'player-skill-connection is-link-preview');
-        linesLayer.appendChild(line);
-        linkDrag = {
-            sourceId,
-            pointerId: event.pointerId,
-            line
-        };
-        treeContainer.classList.add('is-linking-skill-tree');
-        event.currentTarget.setPointerCapture?.(event.pointerId);
-        window.addEventListener('pointermove', updateLinkPreview);
-        window.addEventListener('pointerup', finishLinkDrag);
-        window.addEventListener('pointercancel', cancelLinkDrag);
-        updateInfo(node);
-        updateLinkPreview(event);
-    };
-
-    const applySnapToPosition = (rawX, rawY, nodeId) => {
-        let x = rawX;
-        let y = rawY;
-        let guideX = null;
-        let guideY = null;
-
-        if (snapToGrid && snapGridStep > 0) {
-            x = Math.round(x / snapGridStep) * snapGridStep;
-            y = Math.round(y / snapGridStep) * snapGridStep;
-        }
-
-        if (snapToNodes) {
-            const otherNodes = (workingTree.nodes || []).filter((entry) => String(entry.id) !== String(nodeId));
-            for (const other of otherNodes) {
-                const otherX = Number(other.x);
-                const otherY = Number(other.y);
-                if (Number.isFinite(otherX) && Math.abs(otherX - x) <= snapThreshold) {
-                    x = otherX;
-                    guideX = otherX;
-                }
-                if (Number.isFinite(otherY) && Math.abs(otherY - y) <= snapThreshold) {
-                    y = otherY;
-                    guideY = otherY;
-                }
-            }
-        }
-
-        x = Math.round(Math.max(2, Math.min(98, x)));
-        y = Math.round(Math.max(2, Math.min(98, y)));
-        if (snapGuideX) {
-            snapGuideX.style.left = `${guideX ?? x}%`;
-            snapGuideX.hidden = guideX === null;
-        }
-        if (snapGuideY) {
-            snapGuideY.style.top = `${guideY ?? y}%`;
-            snapGuideY.hidden = guideY === null;
-        }
-        return { x, y };
-    };
-
-    const renderTree = () => {
-        applyTreeBackground();
-        recalculateNodes();
-        renderConnections();
-        treeContainer.querySelectorAll('.player-skill-node').forEach((node) => node.remove());
-
-        currentNodes.forEach((node) => {
-            const nodeElement = document.createElement('button');
-            nodeElement.type = 'button';
-            const stateClass = node.state === 'unlocked' || node.state === 'unlockable' ? node.state : 'locked';
-            nodeElement.className = `player-skill-node is-${stateClass}${node.keyNode ? ' is-key' : ''}${String(node.id) === String(selectedNodeId) ? ' is-selected' : ''}`;
-            nodeElement.style.left = `${Number(node.x) || 50}%`;
-            nodeElement.style.top = `${Number(node.y) || 50}%`;
-            const icon = resolveSkillAssetPath(node.icon);
-            if (icon) nodeElement.style.backgroundImage = `url('${icon}')`;
-            nodeElement.setAttribute('aria-label', node.title || 'Abilita');
-            nodeElement.dataset.nodeId = String(node.id);
-            if (canEditTree) {
-                const linkAnchor = document.createElement('span');
-                linkAnchor.className = 'player-skill-node-link-anchor';
-                linkAnchor.setAttribute('title', 'Trascina per collegare');
-                linkAnchor.setAttribute('aria-hidden', 'true');
-                linkAnchor.innerHTML = '<i class="fas fa-link"></i>';
-                linkAnchor.addEventListener('pointerdown', (event) => startLinkDrag(node, event));
-                linkAnchor.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                });
-                nodeElement.appendChild(linkAnchor);
-            }
-
-            const selectNode = () => {
-                selectedNodeId = String(node.id);
-                selectedConnection = null;
-                updateInfo(node);
-                if (editMode) renderEditor();
-                renderTree();
-            };
-
-            nodeElement.addEventListener('mouseenter', () => {
-                if (!editMode) updateInfo(node);
-            });
-            nodeElement.addEventListener('focus', () => {
-                if (!editMode) updateInfo(node);
-            });
-            nodeElement.addEventListener('click', async () => {
-                selectedNodeId = String(node.id);
-                selectedConnection = null;
-                updateInfo(node);
-                if (editMode && canEditTree) {
-                    renderTree();
-                    renderEditor();
-                    return;
-                }
-                if (!canEditUnlocks) {
-                    renderTree();
-                    return;
-                }
-                if (node.state !== 'unlocked' && (node.state === 'unlockable' || skillTreeCurrentUserIsDm)) {
-                    getExclusiveSkillTreeSiblingIds(workingTree, node.id).forEach((siblingId) => unlockedIds.delete(String(siblingId)));
-                    unlockedIds.add(String(node.id));
-                    nodeLevels[String(node.id)] = 1;
-                    unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
-                    await persistUnlocks().catch((error) => {
-                        console.error('Salvataggio albero abilita fallito:', error);
-                        alert('Impossibile salvare lo sblocco online.');
-                    });
-                    renderTree();
-                } else if (node.state === 'unlocked' && Number(node.maxLevel || 1) > Number(node.level || 1)) {
-                    nodeLevels[String(node.id)] = Number(node.level || 1) + 1;
-                    await persistUnlocks().catch((error) => {
-                        console.error('Salvataggio livello albero abilita fallito:', error);
-                        alert('Impossibile salvare il livello online.');
-                    });
-                    renderTree();
-                } else {
-                    renderTree();
-                }
-            });
-            nodeElement.addEventListener('contextmenu', async (event) => {
-                event.preventDefault();
-                selectedNodeId = String(node.id);
-                if (!canEditUnlocks) return;
-                if (unlockedIds.has(String(node.id))) {
-                    const currentLevel = Math.max(1, Number(nodeLevels[String(node.id)] || node.level || 1));
-                    if (currentLevel > 1) {
-                        nodeLevels[String(node.id)] = currentLevel - 1;
-                    } else {
-                        delete nodeLevels[String(node.id)];
-                        unlockedIds.delete(String(node.id));
-                        unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
-                    }
-                    await persistUnlocks().catch((error) => {
-                        console.error('Salvataggio albero abilita fallito:', error);
-                        alert('Impossibile salvare lo stato online.');
-                    });
-                    renderTree();
-                    updateInfo(currentNodes.find((entry) => String(entry.id) === String(selectedNodeId)));
-                }
-            });
-
-            if (canEditTree) {
-                let dragging = false;
-                let dragPointerId = null;
-                const moveNode = (event) => {
-                    if (!dragging || !editMode || event.pointerId !== dragPointerId) return;
-                    const rect = treeContainer.getBoundingClientRect();
-                    const target = workingTree.nodes.find((entry) => String(entry.id) === String(node.id));
-                    if (!target) return;
-                    const rawX = Math.max(2, Math.min(98, ((event.clientX - rect.left) / rect.width) * 100));
-                    const rawY = Math.max(2, Math.min(98, ((event.clientY - rect.top) / rect.height) * 100));
-                    const snapped = applySnapToPosition(rawX, rawY, node.id);
-                    target.x = snapped.x;
-                    target.y = snapped.y;
-                    nodeElement.style.left = `${target.x}%`;
-                    nodeElement.style.top = `${target.y}%`;
-                    syncCurrentNodeSnapshot();
-                    renderConnections();
-                };
-                const finishDrag = (event) => {
-                    if (!dragging || event.pointerId !== dragPointerId) return;
-                    dragging = false;
-                    dragPointerId = null;
-                    nodeElement.classList.remove('is-dragging');
-                    hideSnapGuides();
-                    if (nodeElement.hasPointerCapture?.(event.pointerId)) {
-                        nodeElement.releasePointerCapture(event.pointerId);
-                    }
-                    renderTree();
-                    renderEditor();
-                };
-                nodeElement.addEventListener('pointerdown', (event) => {
-                    if (!editMode || event.target.closest?.('.player-skill-node-link-anchor')) return;
-                    event.preventDefault();
-                    dragging = true;
-                    dragPointerId = event.pointerId;
-                    selectedNodeId = String(node.id);
-                    nodeElement.classList.add('is-dragging');
-                    nodeElement.setPointerCapture(event.pointerId);
-                });
-                nodeElement.addEventListener('pointermove', moveNode);
-                nodeElement.addEventListener('pointerup', finishDrag);
-                nodeElement.addEventListener('pointercancel', finishDrag);
-                nodeElement.addEventListener('lostpointercapture', () => {
-                    if (!dragging) return;
-                    dragging = false;
-                    dragPointerId = null;
-                    nodeElement.classList.remove('is-dragging');
-                    hideSnapGuides();
-                    renderTree();
-                    renderEditor();
-                });
-                nodeElement.addEventListener('dblclick', selectNode);
-            }
-
-            treeContainer.appendChild(nodeElement);
-        });
-
-        const selected = currentNodes.find((node) => String(node.id) === String(selectedNodeId)) || currentNodes[0];
-        if (selected) updateInfo(selected);
-    };
-
-    const readEditorNode = () => workingTree.nodes.find((node) => String(node.id) === String(selectedNodeId)) || workingTree.nodes[0] || null;
-    const uploadSkillTreeMedia = async (file, fileName, blobFactory) => {
-        if (!file || !/^image\//i.test(file.type || '')) return null;
-        const token = readSharedAuthToken();
-        if (!token) {
-            alert('Login richiesto per caricare immagini albero.');
-            return null;
-        }
-
-        const folder = `skill-trees/${slugify(treeKey || character?.id || 'albero')}`;
-        const safeFileName = `${slugify(fileName || 'immagine')}.webp`;
-        const blob = await blobFactory(file);
-        const payload = await window.CriptaMedia.uploadBlob(blob, {
-            folder,
-            fileName: safeFileName,
-            token,
-            campaignId: getCurrentCampaignId(),
-            authError: 'Login richiesto per caricare immagini albero.'
-        });
-        return payload.path;
-    };
-
-    const uploadSelectedNodeIcon = async (file) => {
-        const node = readEditorNode();
-        if (!node || !file || !/^image\//i.test(file.type || '')) return;
-        const path = await uploadSkillTreeMedia(
-            file,
-            `${slugify(node.id || node.title || 'nodo')}`,
-            (entry) => resizeImageFileToSquareWebpBlobShared(entry, SKILL_TREE_ICON_SIZE, 0.86)
-        );
-        if (!path) return;
-        node.icon = path;
-        renderTree();
-        renderEditor();
-    };
-
-    const uploadTreeBackground = async (file) => {
-        if (!file || !/^image\//i.test(file.type || '')) return;
-        const path = await uploadSkillTreeMedia(
-            file,
-            'sfondo',
-            (entry) => resizeImageFileToWebpBlobShared(entry, 1600, 0.86)
-        );
-        if (!path) return;
-        workingTree.bgImage = path;
-        renderTree();
-        renderEditor();
-    };
-
-    const ensureEditableNodeLevels = (node) => {
-        if (!node) return [];
-        if (!Array.isArray(node.levels) || !node.levels.length) {
-            node.levels = [{
-                label: 'Livello 1',
-                title: node.title || '',
-                flavor: node.flavor || '',
-                desc: node.desc || '',
-                icon: node.icon || ''
-            }];
-        }
-        return node.levels;
-    };
-
-    const saveTreeDefinition = async () => {
-        const nextTrees = { ...(skillsMemoryCache || allSkillTrees || {}) };
-        nextTrees[treeKey] = workingTree;
-        await saveSkillTreesData(nextTrees);
-        alert('Albero abilita salvato.');
-    };
-
-    const buildConnectionSelectButton = (connection, direction = 'out') => {
-        const sourceId = String(connection.source || '');
-        const targetId = String(connection.target || '');
-        const otherId = direction === 'in' ? sourceId : targetId;
-        const icon = direction === 'in' ? 'fa-arrow-right-to-bracket' : 'fa-arrow-up-right-from-square';
-        const modeLabel = connection.mode === 'exclusive' ? 'esclusivo' : 'normale';
-        return `
-            <button type="button" class="player-skill-relation-chip" data-skill-action="select-link" data-link-source="${escapeHtml(sourceId)}" data-link-target="${escapeHtml(targetId)}">
-                <i class="fas ${icon}"></i>
-                <span>${escapeHtml(getSkillTreeNodeLabel(workingTree, otherId))}</span>
-                <small>${escapeHtml(modeLabel)}</small>
-            </button>
-        `;
-    };
-
-    const buildNodeRelationshipPanel = (node) => {
-        if (!node) return '';
-        const nodeId = String(node.id || '');
-        const incoming = getIncomingSkillTreeConnections(workingTree, nodeId);
-        const outgoing = getSkillTreeConnections(node).map((connection) => ({
-            source: nodeId,
-            target: String(connection.target),
-            mode: connection.mode || 'normal'
-        }));
-        const requirementIds = new Set(getNodePrerequisites(node, workingTree).map(String));
-        const explicitRequirements = hasExplicitNodePrerequisites(node);
-        const otherNodes = (workingTree.nodes || []).filter((entry) => String(entry.id) !== nodeId);
-        const modeLabel = getSkillTreeRequirementMode(node) === 'any'
-            ? 'basta uno dei requisiti selezionati'
-            : 'servono tutti i requisiti selezionati';
-        const requirementRows = otherNodes.length
-            ? otherNodes.map((entry) => {
-                const id = String(entry.id);
-                const isParent = incoming.some((connection) => connection.source === id);
-                const isRequired = requirementIds.has(id);
-                return `
-                    <label class="player-skill-requirement-row ${isParent ? 'is-linked' : ''}">
-                        <input type="checkbox" data-node-requirement-id="${escapeHtml(id)}" ${isRequired ? 'checked' : ''}>
-                        <span>${escapeHtml(entry.title || entry.id)}</span>
-                        ${isParent ? '<small>link entrante</small>' : ''}
-                    </label>
-                `;
-            }).join('')
-            : '<p class="player-skill-editor-help">Non ci sono altri nodi da usare come requisito.</p>';
-
-        return `
-            <details class="player-skill-editor-section player-skill-relations-editor" open>
-                <summary>Relazioni e sblocco</summary>
-                <div class="player-skill-relations-summary">
-                    <div>
-                        <span>Regola attiva</span>
-                        <strong>${escapeHtml(modeLabel)}</strong>
-                        <small>${explicitRequirements ? 'Lista requisiti esplicita' : 'Auto: i link entranti sono requisiti'}</small>
-                    </div>
-                    <div>
-                        <span>Link entranti</span>
-                        <strong>${incoming.length}</strong>
-                        <small>Chi punta a questo nodo</small>
-                    </div>
-                    <div>
-                        <span>Link uscenti</span>
-                        <strong>${outgoing.length}</strong>
-                        <small>Cosa parte da questo nodo</small>
-                    </div>
-                </div>
-                <div class="player-skill-relations-grid">
-                    <section>
-                        <h5>Prerequisiti del nodo</h5>
-                        <div class="player-skill-requirement-list">
-                            ${requirementRows}
-                        </div>
-                        <div class="player-skill-relations-actions">
-                            <button type="button" class="player-skill-action-button is-compact" data-skill-action="reset-requirements-auto">
-                                <i class="fas fa-rotate-left"></i> Usa link entranti automatici
-                            </button>
-                        </div>
-                    </section>
-                    <section>
-                        <h5>Link entranti</h5>
-                        <div class="player-skill-relation-chip-list">
-                            ${incoming.length ? incoming.map((connection) => buildConnectionSelectButton(connection, 'in')).join('') : '<p class="player-skill-editor-help">Nessun link entra in questo nodo.</p>'}
-                        </div>
-                    </section>
-                    <section>
-                        <h5>Link uscenti</h5>
-                        <div class="player-skill-relation-chip-list">
-                            ${outgoing.length ? outgoing.map((connection) => buildConnectionSelectButton(connection, 'out')).join('') : '<p class="player-skill-editor-help">Questo nodo non sblocca ancora altri nodi.</p>'}
-                        </div>
-                    </section>
-                </div>
-            </details>
-        `;
-    };
-
-    const renderEditor = () => {
-        if (!editorPanel || !canEditTree) return;
-        const node = readEditorNode();
-        editorPanel.hidden = !editMode;
-        if (!editMode) return;
-        const bgPath = workingTree.bgImage || '';
-        const bgOpacityValue = Number.isFinite(Number(workingTree.bgOpacity))
-            ? Math.max(0, Math.min(1, Number(workingTree.bgOpacity)))
-            : 1;
-        const selectedSourceNode = selectedConnection
-            ? workingTree.nodes.find((entry) => String(entry.id) === String(selectedConnection.source))
-            : null;
-        const selectedTargetNode = selectedConnection
-            ? workingTree.nodes.find((entry) => String(entry.id) === String(selectedConnection.target))
-            : null;
-        const selectedLink = selectedSourceNode
-            ? getSkillTreeConnections(selectedSourceNode).find((connection) => connection.target === String(selectedConnection.target))
-            : null;
-        const selectedLinkIsRequirement = selectedSourceNode && selectedTargetNode
-            ? getNodePrerequisites(selectedTargetNode, workingTree).map(String).includes(String(selectedSourceNode.id))
-            : false;
-        const selectedTargetUsesExplicitRequirements = hasExplicitNodePrerequisites(selectedTargetNode);
-        const selectedLinkHtml = selectedSourceNode && selectedTargetNode && selectedLink ? `
-            <details class="player-skill-editor-section player-skill-link-editor" open>
-                <summary>Collegamento selezionato</summary>
-                <div class="player-skill-link-editor-grid">
-                    <div>
-                        <span>Origine</span>
-                        <strong>${escapeHtml(selectedSourceNode.title || selectedSourceNode.id)}</strong>
-                    </div>
-                    <div>
-                        <span>Destinazione</span>
-                        <strong>${escapeHtml(selectedTargetNode.title || selectedTargetNode.id)}</strong>
-                    </div>
-                    <label>Tipo ramo
-                        <select data-skill-link-field="mode">
-                            <option value="normal" ${selectedLink.mode !== 'exclusive' ? 'selected' : ''}>Normale</option>
-                            <option value="exclusive" ${selectedLink.mode === 'exclusive' ? 'selected' : ''}>Esclusivo</option>
-                        </select>
-                    </label>
-                    <label>Prerequisiti destinazione
-                        <select data-skill-link-field="targetRequiresMode">
-                            <option value="all" ${getSkillTreeRequirementMode(selectedTargetNode) !== 'any' ? 'selected' : ''}>Tutti richiesti</option>
-                            <option value="any" ${getSkillTreeRequirementMode(selectedTargetNode) === 'any' ? 'selected' : ''}>Uno qualsiasi</option>
-                        </select>
-                    </label>
-                    <div class="player-skill-link-requirement-state ${selectedLinkIsRequirement ? 'is-active' : ''}">
-                        <span>Effetto sullo sblocco</span>
-                        <strong>${selectedLinkIsRequirement ? 'Questo link attiva la destinazione' : 'Questo link è solo visivo'}</strong>
-                        <small>${selectedTargetUsesExplicitRequirements ? 'La destinazione usa requisiti espliciti.' : 'Auto: ogni link entrante è requisito.'}</small>
-                    </div>
-                    <button type="button" class="player-skill-action-button is-compact" data-skill-action="toggle-link-requirement" data-link-source="${escapeHtml(selectedSourceNode.id)}" data-link-target="${escapeHtml(selectedTargetNode.id)}">
-                        <i class="fas ${selectedLinkIsRequirement ? 'fa-link-slash' : 'fa-link'}"></i>
-                        ${selectedLinkIsRequirement ? 'Togli dai requisiti' : 'Usa come requisito'}
-                    </button>
-                    <button type="button" class="player-skill-action-button is-danger" data-skill-action="delete-link"><i class="fas fa-unlink"></i> Rimuovi collegamento</button>
-                </div>
-            </details>
-        ` : '';
-        const upgradeLevels = Array.isArray(node?.levels) ? node.levels.slice(1) : [];
-        const upgradeLevelsHtml = `
-            <details class="player-skill-editor-section player-skill-level-editor" ${upgradeLevels.length ? 'open' : ''}>
-                <summary>Livelli nodo</summary>
-                <div class="player-skill-level-list">
-                    ${upgradeLevels.length ? upgradeLevels.map((level, offset) => {
-                        const index = offset + 1;
-                        return `
-                            <div class="player-skill-level-row" data-skill-level-row="${index}">
-                                <label>Etichetta
-                                    <input type="text" data-node-level-index="${index}" data-node-level-field="label" value="${escapeHtml(level.label || `Livello ${index + 1}`)}">
-                                </label>
-                                <label>Titolo
-                                    <input type="text" data-node-level-index="${index}" data-node-level-field="title" value="${escapeHtml(level.title || '')}" placeholder="vuoto = titolo base">
-                                </label>
-                                <label>Descrizione
-                                    <textarea rows="4" data-node-level-index="${index}" data-node-level-field="desc" placeholder="Descrizione del potenziamento">${escapeHtml(level.desc || level.description || '')}</textarea>
-                                </label>
-                                <button type="button" class="player-skill-action-button is-danger is-compact" data-skill-action="delete-node-level" data-node-level-index="${index}">
-                                    <i class="fas fa-trash"></i> Livello
-                                </button>
-                            </div>
-                        `;
-                    }).join('') : '<p class="player-skill-editor-help">Nessun potenziamento. Il livello 1 usa il testo del nodo base.</p>'}
-                </div>
-                <button type="button" class="player-skill-action-button is-compact" data-skill-action="add-node-level"><i class="fas fa-plus"></i> Aggiungi livello</button>
-            </details>
-        `;
-        editorPanel.innerHTML = `
-            <details class="player-skill-editor-section" open>
-                <summary>Albero</summary>
-                <div class="player-skill-editor-grid">
-                    <label>Nome albero
-                        <input type="text" data-skill-field="name" value="${escapeHtml(workingTree.name || workingTree.title || '')}" placeholder="Es. Cammino del Sangue">
-                    </label>
-                    <div class="player-skill-tree-bg-upload ${bgPath ? 'has-image' : ''}" data-skill-bg-drop tabindex="0">
-                        <div>
-                            <strong>Sfondo albero</strong>
-                            <span>${bgPath ? escapeHtml(bgPath) : 'Trascina, incolla con CTRL+V o scegli un file.'}</span>
-                        </div>
-                        <button type="button" class="player-skill-action-button is-compact" data-skill-action="pick-bg-image"><i class="fas fa-upload"></i> Cambia</button>
-                        <input type="file" accept="image/*" data-skill-bg-file hidden>
-                    </div>
-                    <label class="player-skill-opacity-control">Opacita sfondo
-                        <input type="range" min="0" max="1" step="0.05" data-skill-field="bgOpacity" value="${escapeHtml(bgOpacityValue)}">
-                        <output data-skill-bg-opacity>${Math.round(bgOpacityValue * 100)}%</output>
-                    </label>
-                </div>
-            </details>
-            <div class="player-skill-editor-tools">
-                <label>
-                    <input type="checkbox" data-skill-tool="snapGrid" ${snapToGrid ? 'checked' : ''}>
-                    Snap griglia
-                </label>
-                <label>
-                    <input type="checkbox" data-skill-tool="snapNodes" ${snapToNodes ? 'checked' : ''}>
-                    Allinea ai nodi
-                </label>
-                <label>
-                    Griglia %
-                    <input type="number" min="1" max="25" step="1" data-skill-tool="gridStep" value="${escapeHtml(snapGridStep)}">
-                </label>
-            </div>
-            ${selectedLinkHtml}
-            <h4 class="player-skill-editor-subtitle">Nodo selezionato</h4>
-            <div class="player-skill-editor-grid">
-                <label>Nodo selezionato
-                    <select data-skill-node-select>
-                        ${workingTree.nodes.map((entry) => `<option value="${escapeHtml(entry.id)}" ${String(entry.id) === String(node?.id) ? 'selected' : ''}>${escapeHtml(entry.title || entry.id)}</option>`).join('')}
-                    </select>
-                </label>
-                <label>ID nodo
-                    <input type="text" data-node-field="id" value="${escapeHtml(node?.id || '')}">
-                </label>
-                <div class="player-skill-node-icon-upload ${node?.icon ? 'has-icon' : ''}" data-skill-node-icon-drop tabindex="0">
-                    <div class="player-skill-node-icon-preview">
-                        ${node?.icon ? `<img src="${escapeHtml(resolveSkillAssetPath(node.icon))}" alt="">` : '<i class="fas fa-image" aria-hidden="true"></i>'}
-                    </div>
-                    <div>
-                        <strong>Icona nodo</strong>
-                        <span>Trascina, incolla con CTRL+V o scegli un file.</span>
-                        <button type="button" class="player-skill-action-button is-compact" data-skill-action="pick-node-icon"><i class="fas fa-upload"></i> File</button>
-                    </div>
-                    <input type="file" accept="image/*" data-skill-node-icon-file hidden>
-                </div>
-                <div class="player-skill-position-fields">
-                    <span>Posizione</span>
-                    <label>X %
-                        <input type="number" min="0" max="100" step="1" data-node-field="x" value="${escapeHtml(Math.round(Number(node?.x ?? 50)))}">
-                    </label>
-                    <label>Y %
-                        <input type="number" min="0" max="100" step="1" data-node-field="y" value="${escapeHtml(Math.round(Number(node?.y ?? 50)))}">
-                    </label>
-                </div>
-                <label>Collega verso nodi
-                    <input type="text" data-node-field="connections" value="${escapeHtml(getSkillTreeConnections(node || {}).map((connection) => connection.target).join(', '))}" placeholder="id-nodo-1, id-nodo-2">
-                </label>
-                <label>Regola prerequisiti
-                    <select data-node-field="requiresMode">
-                        <option value="all" ${getSkillTreeRequirementMode(node || {}) !== 'any' ? 'selected' : ''}>Tutti</option>
-                        <option value="any" ${getSkillTreeRequirementMode(node || {}) === 'any' ? 'selected' : ''}>Uno qualsiasi</option>
-                    </select>
-                </label>
-            </div>
-            ${buildNodeRelationshipPanel(node)}
-            ${upgradeLevelsHtml}
-            <div class="player-skill-editor-actions">
-                <button type="button" class="player-skill-action-button" data-skill-action="add-node"><i class="fas fa-plus"></i> Nodo</button>
-                <button type="button" class="player-skill-action-button is-danger" data-skill-action="delete-node"><i class="fas fa-trash"></i> Elimina</button>
-                <button type="button" class="player-skill-action-button is-primary" data-skill-action="save-tree"><i class="fas fa-save"></i> Salva</button>
-            </div>
-        `;
-    };
-
-    editorPanel?.addEventListener('change', (event) => {
-        const target = event.target;
-        if (!(target instanceof HTMLElement)) return;
-        if (target.matches('[data-skill-node-select]')) {
-            selectedNodeId = target.value;
-            selectedConnection = null;
-            renderEditor();
-            renderTree();
-            return;
-        }
-        const linkField = target.dataset.skillLinkField;
-        if (linkField && selectedConnection) {
-            const source = workingTree.nodes.find((entry) => String(entry.id) === String(selectedConnection.source));
-            const targetNode = workingTree.nodes.find((entry) => String(entry.id) === String(selectedConnection.target));
-            if (linkField === 'mode' && source) {
-                const connections = getSkillTreeConnections(source).map((connection) => (
-                    connection.target === String(selectedConnection.target)
-                        ? { ...connection, mode: target.value === 'exclusive' ? 'exclusive' : 'normal' }
-                        : connection
-                ));
-                setSkillTreeConnections(source, connections);
-            }
-            if (linkField === 'targetRequiresMode' && targetNode) {
-                targetNode.requiresMode = target.value === 'any' ? 'any' : 'all';
-            }
-            unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
-            renderTree();
-            renderEditor();
-            return;
-        }
-        const nodeField = target.dataset.nodeField;
-        if (nodeField === 'requiresMode') {
-            const node = readEditorNode();
-            if (!node) return;
-            node.requiresMode = target.value === 'any' ? 'any' : 'all';
-            unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
-            renderTree();
-            renderEditor();
-        }
-        const requirementId = target.dataset.nodeRequirementId;
-        if (requirementId) {
-            const node = readEditorNode();
-            if (!node) return;
-            if (target.checked) {
-                addExplicitNodePrerequisite(node, requirementId);
-            } else {
-                removeExplicitNodePrerequisite(node, requirementId);
-            }
-            unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
-            renderTree();
-            renderEditor();
-        }
-    });
-
-    editorPanel?.addEventListener('input', (event) => {
-        const target = event.target;
-        if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
-        const levelIndex = target.dataset.nodeLevelIndex;
-        const levelField = target.dataset.nodeLevelField;
-        if (levelIndex !== undefined && levelField) {
-            const node = readEditorNode();
-            const levels = ensureEditableNodeLevels(node);
-            const index = Math.max(1, Math.round(Number(levelIndex) || 1));
-            if (!levels[index]) levels[index] = { label: `Livello ${index + 1}`, title: '', flavor: '', desc: '', icon: '' };
-            levels[index][levelField] = target.value;
-            return;
-        }
-        const tool = target.dataset.skillTool;
-        if (tool === 'snapGrid') {
-            snapToGrid = target.checked;
-            return;
-        }
-        if (tool === 'snapNodes') {
-            snapToNodes = target.checked;
-            hideSnapGuides();
-            return;
-        }
-        if (tool === 'gridStep') {
-            snapGridStep = Math.max(1, Math.min(25, Number(target.value) || 5));
-            return;
-        }
-        const treeField = target.dataset.skillField;
-        const nodeField = target.dataset.nodeField;
-        if (treeField) {
-            workingTree[treeField] = treeField === 'bgOpacity' ? Number(target.value) : target.value;
-            if (treeField === 'name' && treeTitleLabel) {
-                treeTitleLabel.textContent = target.value || treeKey;
-            }
-            if (treeField === 'bgOpacity') {
-                const output = editorPanel?.querySelector('[data-skill-bg-opacity]');
-                if (output) output.textContent = `${Math.round((Number(target.value) || 0) * 100)}%`;
-            }
-            renderTree();
-            return;
-        }
-        if (nodeField) {
-            const node = readEditorNode();
-            if (!node) return;
-            if (nodeField === 'id') {
-                const oldId = String(node.id);
-                const nextId = String(target.value || oldId).trim();
-                if (!nextId) return;
-                node.id = nextId;
-                selectedNodeId = nextId;
-                workingTree.nodes.forEach((entry) => {
-                    if (Array.isArray(entry.connections)) {
-                        setSkillTreeConnections(entry, getSkillTreeConnections(entry).map((connection) => ({
-                            ...connection,
-                            target: connection.target === oldId ? nextId : connection.target
-                        })));
-                    }
-                    if (Array.isArray(entry.requires)) entry.requires = entry.requires.map((id) => String(id) === oldId ? nextId : id);
-                });
-            } else if (nodeField === 'connections' || nodeField === 'requires') {
-                const values = target.value.split(',').map((entry) => entry.trim()).filter(Boolean);
-                if (nodeField === 'connections') {
-                    setSkillTreeConnections(node, values.map((entry) => ({ target: entry, mode: 'normal' })));
-                    values.forEach((targetId) => {
-                        const targetNode = workingTree.nodes.find((entry) => String(entry.id) === String(targetId));
-                        if (hasExplicitNodePrerequisites(targetNode)) addExplicitNodePrerequisite(targetNode, node.id);
-                    });
-                } else {
-                    node[nodeField] = values;
-                }
-            } else if (nodeField === 'x' || nodeField === 'y') {
-                node[nodeField] = Math.round(Math.max(0, Math.min(100, Number(target.value) || 0)));
-            } else {
-                node[nodeField] = target.value;
-            }
-            renderTree();
-        }
-    });
-
-    infoPanel.addEventListener('input', (event) => {
-        const target = event.target;
-        if (!editMode || !canEditTree || !(target instanceof HTMLElement)) return;
-        const field = target.dataset.skillPreviewField;
-        if (!field) return;
-        const node = readEditorNode();
-        if (!node) return;
-        if (field === 'desc') {
-            node.desc = normalizeSkillTreeEditableHtml(target);
-        } else if (field === 'title' || field === 'flavor') {
-            const value = target.innerText.trim();
-            node[field] = value;
-        }
-    });
-
-    infoPanel.addEventListener('click', (event) => {
-        const button = event.target.closest('[data-skill-rich-command]');
-        if (!editMode || !canEditTree || !button) return;
-        event.preventDefault();
-        const node = readEditorNode();
-        const descEditor = infoPanel.querySelector('[data-skill-preview-field="desc"]');
-        if (!node || !(descEditor instanceof HTMLElement)) return;
-        descEditor.focus();
-        document.execCommand(button.dataset.skillRichCommand, false, null);
-        node.desc = normalizeSkillTreeEditableHtml(descEditor);
-    });
-
-    infoPanel.addEventListener('mousedown', (event) => {
-        if (event.target.closest('[data-skill-rich-command]')) {
-            event.preventDefault();
-        }
-    });
-
-    infoPanel.addEventListener('blur', (event) => {
-        if (!editMode || !canEditTree || !(event.target instanceof HTMLElement)) return;
-        if (!event.target.dataset.skillPreviewField) return;
-        renderTree();
-        renderEditor();
-    }, true);
-
-    editorPanel?.addEventListener('click', async (event) => {
-        const button = event.target.closest('[data-skill-action]');
-        if (!button) return;
-        const action = button.dataset.skillAction;
-        if (action === 'delete-link') {
-            deleteSelectedConnection();
-            return;
-        }
-        if (action === 'select-link') {
-            const source = String(button.dataset.linkSource || '');
-            const target = String(button.dataset.linkTarget || '');
-            if (source && target) {
-                selectedConnection = { source, target };
-                selectedNodeId = target;
-                const targetNode = workingTree.nodes.find((entry) => String(entry.id) === target);
-                if (targetNode) updateInfo(targetNode);
-                renderTree();
-                renderEditor();
-            }
-            return;
-        }
-        if (action === 'toggle-link-requirement') {
-            const source = String(button.dataset.linkSource || selectedConnection?.source || '');
-            const target = String(button.dataset.linkTarget || selectedConnection?.target || '');
-            const targetNode = workingTree.nodes.find((entry) => String(entry.id) === target);
-            if (!source || !targetNode) return;
-            const currentRequirements = getNodePrerequisites(targetNode, workingTree).map(String);
-            if (currentRequirements.includes(source)) {
-                const explicit = hasExplicitNodePrerequisites(targetNode)
-                    ? getExplicitNodePrerequisites(targetNode)
-                    : currentRequirements;
-                setExplicitNodePrerequisites(targetNode, explicit.filter((entry) => String(entry) !== source));
-            } else {
-                addExplicitNodePrerequisite(targetNode, source);
-            }
-            unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
-            renderTree();
-            renderEditor();
-            return;
-        }
-        if (action === 'reset-requirements-auto') {
-            const node = readEditorNode();
-            if (!node) return;
-            delete node.requires;
-            delete node.requirements;
-            unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
-            renderTree();
-            renderEditor();
-            return;
-        }
-        if (action === 'add-node') {
-            const id = `node-${Date.now().toString(36)}`;
-            workingTree.nodes.push({
-                id,
-                x: 50,
-                y: 50,
-                title: 'Nuova abilita',
-                flavor: '',
-                desc: '<p>Descrizione.</p>',
-                icon: '',
-                connections: []
-            });
-            selectedNodeId = id;
-            renderTree();
-            renderEditor();
-        }
-        if (action === 'add-node-level') {
-            const node = readEditorNode();
-            if (!node) return;
-            const levels = ensureEditableNodeLevels(node);
-            levels.push({
-                label: `Livello ${levels.length + 1}`,
-                title: '',
-                flavor: '',
-                desc: node.desc || '<p>Descrizione potenziamento.</p>',
-                icon: ''
-            });
-            renderTree();
-            renderEditor();
-        }
-        if (action === 'delete-node-level') {
-            const node = readEditorNode();
-            const index = Math.max(1, Math.round(Number(button.dataset.nodeLevelIndex) || 1));
-            if (!node || !Array.isArray(node.levels) || !node.levels[index]) return;
-            node.levels.splice(index, 1);
-            Object.keys(nodeLevels).forEach((nodeId) => {
-                if (nodeId === String(node.id)) nodeLevels[nodeId] = Math.min(Number(nodeLevels[nodeId]) || 1, getSkillNodeLevels(node).length);
-            });
-            renderTree();
-            renderEditor();
-        }
-        if (action === 'delete-node') {
-            const node = readEditorNode();
-            if (!node || !confirm(`Eliminare il nodo "${node.title || node.id}"?`)) return;
-            const id = String(node.id);
-            workingTree.nodes = workingTree.nodes
-                .filter((entry) => String(entry.id) !== id)
-                .map((entry) => ({
-                    ...entry,
-                    connections: getSkillTreeConnections(entry).filter((connection) => connection.target !== id).map((connection) => (
-                        connection.mode === 'exclusive' ? { target: connection.target, mode: 'exclusive' } : connection.target
-                    )),
-                    requires: (entry.requires || []).filter((targetId) => String(targetId) !== id)
-            }));
-            unlockedIds.delete(id);
-            delete nodeLevels[id];
-            unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
-            if (selectedConnection?.source === id || selectedConnection?.target === id) selectedConnection = null;
-            selectedNodeId = workingTree.nodes[0]?.id || '';
-            renderTree();
-            renderEditor();
-        }
-        if (action === 'save-tree') {
-            button.disabled = true;
-            try {
-                await saveTreeDefinition();
-            } catch (error) {
-                console.error('Salvataggio definizione albero fallito:', error);
-                alert('Impossibile salvare la definizione dell albero.');
-            } finally {
-                button.disabled = false;
-            }
-        }
-        if (action === 'pick-node-icon') {
-            editorPanel.querySelector('[data-skill-node-icon-file]')?.click();
-        }
-        if (action === 'pick-bg-image') {
-            editorPanel.querySelector('[data-skill-bg-file]')?.click();
-        }
-    });
-
-    editorPanel?.addEventListener('change', async (event) => {
-        const input = event.target;
-        if (!(input instanceof HTMLInputElement)) return;
-        if (!input.matches('[data-skill-node-icon-file], [data-skill-bg-file]')) return;
-        const file = input.files?.[0];
-        if (!file) return;
-        input.disabled = true;
-        try {
-            if (input.matches('[data-skill-bg-file]')) {
-                await uploadTreeBackground(file);
-            } else {
-                await uploadSelectedNodeIcon(file);
-            }
-        } catch (error) {
-            console.error('Upload immagine albero fallito:', error);
-            alert(`Upload immagine albero fallito: ${error?.message || error}`);
-        } finally {
-            input.value = '';
-            input.disabled = false;
-        }
-    });
-
-    editorPanel?.addEventListener('dragover', (event) => {
-        const dropZone = event.target.closest('[data-skill-node-icon-drop], [data-skill-bg-drop]');
-        if (!dropZone) return;
-        event.preventDefault();
-        dropZone.classList.add('is-drag-over');
-    });
-
-    editorPanel?.addEventListener('dragleave', (event) => {
-        const dropZone = event.target.closest('[data-skill-node-icon-drop], [data-skill-bg-drop]');
-        if (!dropZone) return;
-        dropZone.classList.remove('is-drag-over');
-    });
-
-    editorPanel?.addEventListener('drop', async (event) => {
-        const dropZone = event.target.closest('[data-skill-node-icon-drop], [data-skill-bg-drop]');
-        if (!dropZone) return;
-        event.preventDefault();
-        dropZone.classList.remove('is-drag-over');
-        const file = Array.from(event.dataTransfer?.files || []).find((entry) => /^image\//i.test(entry.type || ''));
-        if (!file) return;
-        dropZone.setAttribute('aria-busy', 'true');
-        try {
-            if (dropZone.matches('[data-skill-bg-drop]')) {
-                await uploadTreeBackground(file);
-            } else {
-                await uploadSelectedNodeIcon(file);
-            }
-        } catch (error) {
-            console.error('Upload immagine albero fallito:', error);
-            alert(`Upload immagine albero fallito: ${error?.message || error}`);
-        } finally {
-            dropZone.removeAttribute('aria-busy');
-        }
-    });
-
-    editorPanel?.addEventListener('paste', async (event) => {
-        if (!editMode) return;
-        const file = Array.from(event.clipboardData?.files || []).find((entry) => /^image\//i.test(entry.type || ''));
-        if (!file) return;
-        event.preventDefault();
-        try {
-            const bgDrop = event.target.closest?.('[data-skill-bg-drop]');
-            if (bgDrop) {
-                await uploadTreeBackground(file);
-            } else {
-                await uploadSelectedNodeIcon(file);
-            }
-        } catch (error) {
-            console.error('Upload immagine albero fallito:', error);
-            alert(`Upload immagine albero fallito: ${error?.message || error}`);
-        }
-    });
-
-    treeContainer.addEventListener('pointermove', updateLinkPreview);
-    treeContainer.addEventListener('pointerup', finishLinkDrag);
-    treeContainer.addEventListener('pointercancel', cancelLinkDrag);
-    treeContainer.addEventListener('mouseleave', cancelLinkDrag);
-
-    card.addEventListener('keydown', (event) => {
-        if (!editMode || !canEditTree || !selectedConnection) return;
-        if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-        const target = event.target;
-        if (target instanceof HTMLElement && (
-            target.matches('input, textarea, select, [contenteditable="true"], [contenteditable="plaintext-only"]')
-            || target.closest('[contenteditable="true"], [contenteditable="plaintext-only"]')
-        )) return;
-        event.preventDefault();
-        deleteSelectedConnection();
-    });
-
-    editToggle?.addEventListener('click', () => {
-        editMode = !editMode;
-        if (!editMode) clearLinkPreview();
-        card.classList.toggle('is-editing-skill-tree', editMode);
-        editToggle.classList.toggle('is-active', editMode);
-        editToggle.innerHTML = editMode
-            ? '<i class="fas fa-eye"></i>'
-            : '<i class="fas fa-pen"></i>';
-        editToggle.title = editMode ? 'Fine modifica' : 'Modifica albero';
-        editToggle.setAttribute('aria-label', editToggle.title);
-        renderEditor();
-        renderTree();
-    });
-
-    setDefaultInfo();
-    renderTree();
-
-    return card;
-}
-
-function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
-    const character = typeof characterOrId === 'object' && characterOrId !== null ? characterOrId : { id: characterOrId };
-    const entries = resolvePlayerSkillTreeEntries(character, allSkillTrees);
-    if (!entries.length && !skillTreeCurrentUserIsDm) return null;
-
-    const stack = document.createElement('div');
-    stack.className = 'player-skill-tree-stack';
-    let activeTreeIndex = 0;
-
-    const toolbar = document.createElement('div');
-    toolbar.className = 'player-skill-tree-stack-toolbar';
-    toolbar.innerHTML = `
-        <div class="player-skill-tree-nav-title">
-            <span>Alberi abilita</span>
-            <strong data-skill-tree-nav-label>${entries[0]?.tree?.name || entries[0]?.tree?.title || entries[0]?.key || 'Nessun albero'}</strong>
-        </div>
-        <div class="player-skill-tree-nav-controls">
-            <button type="button" class="player-skill-tree-nav-button" data-skill-tree-prev aria-label="Albero precedente"><i class="fas fa-chevron-left"></i></button>
-            <span data-skill-tree-nav-count>${entries.length ? `1 / ${entries.length}` : '0 / 0'}</span>
-            <button type="button" class="player-skill-tree-nav-button" data-skill-tree-next aria-label="Albero successivo"><i class="fas fa-chevron-right"></i></button>
-            ${skillTreeCurrentUserIsDm ? `
-                <button type="button" class="player-skill-action-button is-primary is-compact" data-skill-create-tree>
-                    <i class="fas fa-plus"></i> Nuovo albero
-                </button>
-            ` : ''}
-        </div>
-    `;
-    stack.appendChild(toolbar);
-
-    const viewport = document.createElement('div');
-    viewport.className = 'player-skill-tree-stack-viewport';
-    stack.appendChild(viewport);
-
-    const cards = entries.map((entry) => {
-        const card = buildPlayerSkillTreeCard(character, allSkillTrees, entry);
-        if (!card) return null;
-        card.dataset.skillTreeSlide = 'true';
-        viewport.appendChild(card);
-        return { entry, card };
-    }).filter(Boolean);
-
-    const navLabel = toolbar.querySelector('[data-skill-tree-nav-label]');
-    const navCount = toolbar.querySelector('[data-skill-tree-nav-count]');
-    const prevButton = toolbar.querySelector('[data-skill-tree-prev]');
-    const nextButton = toolbar.querySelector('[data-skill-tree-next]');
-
-    const createSkillTree = async () => {
-        const name = window.prompt('Nome nuovo albero abilita', 'Nuovo albero');
-        if (name === null) return;
-        const baseKey = slugify(character.id || character.accountId || character.name || 'personaggio');
-        const key = `${baseKey}-${Date.now().toString(36)}`;
-        const nextTrees = { ...(skillsMemoryCache || allSkillTrees || {}) };
-        nextTrees[key] = {
-            id: key,
-            name: name.trim() || 'Nuovo albero',
-            ownerCharacterId: character.id || '',
-            characterId: character.id || '',
-            bgImage: '',
-            bgOpacity: 1,
-            nodes: [{
-                id: 'inizio',
-                x: 50,
-                y: 50,
-                title: 'Inizio',
-                flavor: '',
-                desc: '<p>Prima abilita dell albero.</p>',
-                icon: '',
-                connections: [],
-                state: 'unlocked'
-            }]
-        };
-        try {
-            await saveSkillTreesData(nextTrees);
-            window.location.reload();
-        } catch (error) {
-            console.error('Creazione albero abilita fallita:', error);
-            alert(`Creazione albero fallita: ${error?.message || error}`);
-        }
-    };
-
-    const renderActiveTree = () => {
-        const total = cards.length;
-        if (!total) {
-            activeTreeIndex = 0;
-            viewport.innerHTML = '<div class="player-skill-tree-empty"><span>Nessun albero abilita configurato.</span></div>';
-        } else {
-            activeTreeIndex = Math.max(0, Math.min(total - 1, activeTreeIndex));
-            cards.forEach((item, index) => {
-                item.card.hidden = index !== activeTreeIndex;
-            });
-        }
-        const active = cards[activeTreeIndex];
-        if (navLabel) navLabel.textContent = active
-            ? (active.entry.tree?.name || active.entry.tree?.title || active.entry.key || 'Albero abilita')
-            : 'Nessun albero';
-        if (navCount) navCount.textContent = total ? `${activeTreeIndex + 1} / ${total}` : '0 / 0';
-        if (prevButton) prevButton.disabled = total <= 1;
-        if (nextButton) nextButton.disabled = total <= 1;
-        toolbar.hidden = total <= 1 && !skillTreeCurrentUserIsDm;
-    };
-
-    prevButton?.addEventListener('click', () => {
-        if (cards.length <= 1) return;
-        activeTreeIndex = (activeTreeIndex - 1 + cards.length) % cards.length;
-        renderActiveTree();
-    });
-
-    nextButton?.addEventListener('click', () => {
-        if (cards.length <= 1) return;
-        activeTreeIndex = (activeTreeIndex + 1) % cards.length;
-        renderActiveTree();
-    });
-
-    if (skillTreeCurrentUserIsDm) {
-        toolbar.querySelector('[data-skill-create-tree]')?.addEventListener('click', createSkillTree);
-    }
-
-    renderActiveTree();
-
-    return cards.length || skillTreeCurrentUserIsDm ? stack : null;
-}
-
 window.CriptaApp.onPageReady("character", async function () {
     const container = document.getElementById('character-content-container');
     const charNameEl = document.getElementById('char-name');
@@ -5518,49 +3898,199 @@ window.CriptaApp.onPageReady("character", async function () {
     let currentAllCharacters = [];
     let currentNpcQuests = null;
     let currentPlayerSkillTrees = null;
-    const transformationSubjectMap = new Map();
-    let isInlineEditing = false;
-    let inlineEditDirty = false;
-    let inlineCharacterSaveInFlight = false;
-    let inlineEditBlocks = [];
-    let inlineAdjustKind = '';
-    let inlineAdjustDrag = null;
-    const INLINE_IMAGE_ADJUST_DRAG_SENSITIVITY = 0.35;
-    const INLINE_IMAGE_ADJUST_WHEEL_STEP = 0.05;
-    const INLINE_IMAGE_ADJUST_WHEEL_FINE_STEP = 0.01;
-    const INLINE_IMAGE_ADJUST_MIN_ZOOM = 0.25;
-    const INLINE_IMAGE_ADJUST_MAX_ZOOM = 2.75;
+    let currentSkillTreeModule = null;
+    let currentTransformationsModule = null;
+    let currentLoadoutModule = null;
+    let currentInlineEditorModule = null;
     let currentUserIsDm = false;
     let currentAuthState = null;
     let currentTransformations = [];
-    const inlineImageVersions = new Map();
 
     if (!charId && !createMode) {
         displayError("ID del personaggio non specificato.");
         return;
     }
 
-    editLinkEl?.addEventListener('click', (event) => {
+    editLinkEl?.addEventListener('click', async (event) => {
         if (charType === 'player') return;
         event.preventDefault();
-        enterInlineEditMode();
+        const inlineEditor = await ensureInlineEditorModule();
+        inlineEditor.enter(getInlineEditorRuntimeContext());
     });
 
-    container.addEventListener('input', handleInlineEditInput);
-    container.addEventListener('keydown', handleInlineEditKeyDown);
-    container.addEventListener('change', handleInlineEditChange);
-    container.addEventListener('mousedown', handleInlineEditMouseDown);
-    container.addEventListener('click', handleInlineEditClick);
-    container.addEventListener('dragover', handleInlineEditDragOver);
-    container.addEventListener('dragleave', handleInlineEditDragLeave);
-    container.addEventListener('drop', handleInlineEditDrop);
+    container.addEventListener('input', (event) => currentInlineEditorModule?.handleInput(event, getInlineEditorRuntimeContext()));
+    container.addEventListener('keydown', (event) => currentInlineEditorModule?.handleKeyDown(event, getInlineEditorRuntimeContext()));
+    container.addEventListener('change', (event) => currentInlineEditorModule?.handleChange(event, getInlineEditorRuntimeContext()));
+    container.addEventListener('mousedown', (event) => currentInlineEditorModule?.handleMouseDown(event, getInlineEditorRuntimeContext()));
+    container.addEventListener('click', (event) => currentInlineEditorModule?.handleClick(event, getInlineEditorRuntimeContext()));
+    container.addEventListener('dragover', (event) => currentInlineEditorModule?.handleDragOver(event, getInlineEditorRuntimeContext()));
+    container.addEventListener('dragleave', (event) => currentInlineEditorModule?.handleDragLeave(event, getInlineEditorRuntimeContext()));
+    container.addEventListener('drop', (event) => currentInlineEditorModule?.handleDrop(event, getInlineEditorRuntimeContext()));
     container.addEventListener('click', handleMediaOverrideClick);
-    container.addEventListener('click', handleTransformationClick);
+    container.addEventListener('click', (event) => {
+        currentTransformationsModule?.handleClick(event, getTransformationRuntimeContext());
+    });
 
     currentAuthState = await window.CriptaDiscordAuth?.verify?.().catch(() => null);
     currentUserIsDm = await resolveCurrentUserIsDm(currentAuthState);
-    skillTreeAuthState = currentAuthState;
-    skillTreeCurrentUserIsDm = currentUserIsDm;
+
+    function getSkillTreeRuntimeContext() {
+        return {
+            PLAYER_SKILL_TREE_KEYS,
+            skillsMemoryCache: skillsMemoryCache || currentPlayerSkillTrees || null,
+            skillTreeStatesMemoryCache,
+            skillTreeStatesVersion,
+            skillTreeAuthState: currentAuthState,
+            skillTreeCurrentUserIsDm: currentUserIsDm,
+            escapeHtml,
+            normalizeText,
+            slugify,
+            getCurrentCampaignId,
+            readSharedAuthToken,
+            resolveSkillAssetPath,
+            normalizeSkillTreeEditableHtml,
+            resizeImageFileToSquareWebpBlobShared,
+            resizeImageFileToWebpBlobShared,
+            loadSkillTreeStates,
+            saveSkillTreesData,
+            setSkillTreeStates(states, version) {
+                skillTreeStatesMemoryCache = Array.isArray(states) ? states : [];
+                if (Number.isFinite(Number(version))) skillTreeStatesVersion = Number(version);
+            },
+            setSkillsCache(trees, version) {
+                skillsMemoryCache = trees || {};
+                currentPlayerSkillTrees = skillsMemoryCache;
+                if (Number.isFinite(Number(version))) skillsVersion = Number(version);
+            }
+        };
+    }
+
+    function canEditCurrentPlayerTransformations(character) {
+        if (currentUserIsDm) return true;
+        const user = currentAuthState?.user || {};
+        const accountId = String(user.accountId || user.id || user.sub || '').trim();
+        const discordId = String(user.discordId || '').trim();
+        return Boolean(accountId && character?.accountId && accountId === String(character.accountId))
+            || Boolean(discordId && character?.discordId && discordId === String(character.discordId));
+    }
+
+    function getTransformationRuntimeContext() {
+        return {
+            currentTransformations,
+            currentUserIsDm,
+            currentAuthState,
+            currentCharacter,
+            charType,
+            container,
+            TRANSFORMATIONS_DATA_URL,
+            escapeHtml,
+            normalizeText,
+            slugify,
+            mergeTransformations,
+            getCurrentCampaignId,
+            getSyncedPlayerImagePath,
+            resolveCharacterAssetPath,
+            getCompanionsForCharacter,
+            getCompanionMediaOverrideIdentity,
+            getCompanionSkillTreeSubject,
+            applyCompanionMediaOverride,
+            readAuthToken,
+            pickInlineImageFile,
+            convertInlineImageFileToWebpBlob,
+            saveVersionedCollection,
+            getTransformationsApiUrl,
+            buildNoStoreApiUrl,
+            loadTransformationsData,
+            copyTextToClipboard,
+            setTransformations(transformations) {
+                currentTransformations = Array.isArray(transformations) ? transformations : [];
+            }
+        };
+    }
+
+    function getLoadoutRuntimeContext() {
+        return {
+            currentPlayerSkillTrees,
+            currentSkillTreeModule,
+            currentTransformationsModule,
+            normalizeText,
+            pickInlineImageFile,
+            cropAbilityIconFileToWebpBlob,
+            uploadAbilityOverrideFile,
+            uploadItemOverrideFile,
+            saveAbilityOverride,
+            saveItemOverride,
+            getTransferableItemKey,
+            collectItemProgressEditorDraft,
+            normalizeInventoryProgressMaterials,
+            loadInventoryData,
+            loadWikiItemsData,
+            loadAbilityOverrides,
+            loadItemOverrides,
+            loadMediaOverrides,
+            buildPlayerLoadoutHtml,
+            initializeLoadoutTabs,
+            initializeLoadoutCopyButtons,
+            buildCompanionsHtml,
+            canEditCurrentPlayerTransformations,
+            mountCompanionSkillTrees,
+            getSkillTreeRuntimeContext,
+            getTransformationRuntimeContext,
+            hydratePlayerRightOverview,
+            renderPlayerXpSidebarError
+        };
+    }
+
+    async function ensureInlineEditorModule() {
+        if (currentInlineEditorModule) return currentInlineEditorModule;
+        currentInlineEditorModule = await loadCharacterInlineEditorModule();
+        return currentInlineEditorModule;
+    }
+
+    function getInlineEditorRuntimeContext() {
+        return {
+            currentCharacter,
+            currentAllCharacters,
+            currentNpcQuests,
+            currentPlayerSkillTrees,
+            charId,
+            charType,
+            container,
+            editLinkEl,
+            charNameEl,
+            charRoleEl,
+            escapeHtml,
+            slugify,
+            looksLikeHtml,
+            renderMarkdown,
+            renderCharacterPage,
+            normalizeCharactersCollection,
+            ensureDefaultNpcListImagePaths,
+            getSyncedNpcImagePath,
+            normalizeCategoryPriority,
+            formatCategoryPriority,
+            normalizeImageAdjust,
+            serializeImageAdjust,
+            compactObject,
+            classifyDocumentCardImage,
+            resolveCharacterAssetPath,
+            appendAssetVersion,
+            readAuthToken,
+            saveVersionedCollection,
+            loadCharactersDocumentForSave,
+            getCharactersApiUrl,
+            copyInlineCharacterMediaFolder,
+            rewriteInlineCharacterMediaFolderPaths,
+            pickInlineImageFile,
+            uploadInlineImageFile,
+            setCurrentCharacter(character) {
+                currentCharacter = character;
+            },
+            setCurrentAllCharacters(characters) {
+                currentAllCharacters = Array.isArray(characters) ? characters : [];
+            }
+        };
+    }
 
     try {
         let character = null;
@@ -5582,7 +4112,7 @@ window.CriptaApp.onPageReady("character", async function () {
             allCharacters = normalizeCharactersCollection(window.NPC_DATA);
             character = createMode
                 ? createEmptyNpcCharacter()
-                : allCharacters.find(c => c.id === charId);
+                : findCharacterById(allCharacters, charId);
         } else {
             // Fallback Fetch Logic
             let characters;
@@ -5606,7 +4136,7 @@ window.CriptaApp.onPageReady("character", async function () {
             allCharacters = characters;
             character = createMode
                 ? createEmptyNpcCharacter()
-                : characters.find(c => c.id === charId);
+                : findCharacterById(characters, charId);
 
             // Fetch Markdown content if not static
             await hydrateContentBlocks(character);
@@ -5641,6 +4171,7 @@ window.CriptaApp.onPageReady("character", async function () {
         if (charType === 'player') {
             try {
                 playerSkillTrees = await loadSkillsData();
+                currentSkillTreeModule = await loadCharacterSkillTreeModule();
                 await loadSkillTreeStates();
             } catch (skillError) {
                 console.warn('Impossibile caricare gli alberi abilita:', skillError);
@@ -5648,6 +4179,14 @@ window.CriptaApp.onPageReady("character", async function () {
         }
 
         if (charType === 'player') {
+            currentLoadoutModule = await loadCharacterLoadoutModule().catch((error) => {
+                console.warn('Modulo loadout non disponibile:', error);
+                return null;
+            });
+            currentTransformationsModule = await loadCharacterTransformationsModule().catch((error) => {
+                console.warn('Modulo trasformazioni non disponibile:', error);
+                return null;
+            });
             currentTransformations = await loadTransformationsData().catch((error) => {
                 console.warn('Impossibile caricare trasformazioni token:', error);
                 return [];
@@ -5659,7 +4198,8 @@ window.CriptaApp.onPageReady("character", async function () {
         currentPlayerSkillTrees = playerSkillTrees;
         renderCharacterPage(character, allCharacters, npcQuests, playerSkillTrees);
         if (params.get('edit') === '1' && charType !== 'player' && currentUserIsDm) {
-            enterInlineEditMode();
+            const inlineEditor = await ensureInlineEditorModule();
+            inlineEditor.enter(getInlineEditorRuntimeContext());
         }
 
     } catch (error) {
@@ -5680,581 +4220,6 @@ window.CriptaApp.onPageReady("character", async function () {
         const campaignId = window.CriptaApp?.campaigns?.currentId?.() || params.get('campaign') || '';
         if (campaignId) editUrl.searchParams.set('campaign', campaignId);
         editLinkEl.href = editUrl.toString();
-    }
-
-    function enterInlineEditMode() {
-        if (!currentCharacter || charType === 'player') return;
-        isInlineEditing = true;
-        inlineEditDirty = false;
-        inlineEditBlocks = normalizeInlineEditBlocks(currentCharacter);
-        editLinkEl?.classList.add('is-editing');
-        renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-    }
-
-    function exitInlineEditMode() {
-        isInlineEditing = false;
-        inlineEditDirty = false;
-        inlineEditBlocks = [];
-        editLinkEl?.classList.remove('is-editing');
-        renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-    }
-
-    function normalizeInlineEditBlocks(character) {
-        const blocks = Array.isArray(character?.content_blocks) ? character.content_blocks : [];
-        return blocks
-            .map((block, index) => ({
-                id: slugify(block.id || block.title || `blocco-${index + 1}`),
-                type: block.type === 'image_box' || block.type === 'image' || block.image ? 'image' : 'text',
-                title: block.title || 'Informazioni',
-                icon: block.icon || 'fa-book-open',
-                image: block.image || '',
-                hidden: Boolean(block.hidden),
-                text: getInlineEditableBlockText(block)
-            }));
-    }
-
-    function getInlineEditableBlockText(block) {
-        const candidates = [
-            block?.markdownText,
-            block?.text,
-            block?.markdownHtml,
-            block?.content
-        ];
-        for (const candidate of candidates) {
-            if (typeof candidate !== 'string' || !candidate.trim()) continue;
-            if (looksLikeHtml(candidate)) return convertInlineHtmlStringToMarkdown(candidate);
-            return candidate;
-        }
-        return '';
-    }
-
-    function convertInlineHtmlStringToMarkdown(html) {
-        const wrapper = document.createElement('div');
-        wrapper.innerHTML = html;
-        return convertInlineEditorHtmlToMarkdown(wrapper) || stripHtmlToText(html);
-    }
-
-    function handleInlineEditInput(event) {
-        const target = event.target;
-        const characterField = target?.dataset?.inlineCharacterField;
-        const characterImageField = target?.dataset?.inlineCharacterImageField;
-        const characterSummaryField = target?.dataset?.inlineCharacterSummaryField;
-        const imageAdjustKind = target?.dataset?.inlineImageAdjustKind;
-        const imageAdjustField = target?.dataset?.inlineImageAdjustField;
-        if (characterField || characterImageField || characterSummaryField) {
-            updateInlineCharacterField(target, { characterField, characterImageField, characterSummaryField });
-            return;
-        }
-        if (imageAdjustKind && imageAdjustField) {
-            updateInlineImageAdjust(imageAdjustKind, imageAdjustField, target.value);
-            return;
-        }
-
-        const visualBlockIndex = Number(target?.dataset?.inlineVisualEditor);
-        if (Number.isInteger(visualBlockIndex) && inlineEditBlocks[visualBlockIndex]) {
-            syncInlineVisualEditor(target, visualBlockIndex);
-            return;
-        }
-
-        const blockIndex = Number(target?.dataset?.inlineBlockIndex);
-        const blockField = target?.dataset?.inlineBlockField;
-        if (!Number.isInteger(blockIndex) || !blockField || !inlineEditBlocks[blockIndex]) return;
-        const value = target.matches?.('textarea, input, select')
-            ? target.value
-            : target.innerText.replace(/\u00a0/g, ' ').trimEnd();
-        inlineEditBlocks[blockIndex][blockField] = value;
-        if (blockField === 'text') updateInlineMarkdownPreview(target, blockIndex);
-        if (blockField === 'image' && currentCharacter) currentCharacter.updatedAt = new Date().toISOString();
-        inlineEditDirty = true;
-    }
-
-    function handleInlineEditKeyDown(event) {
-        if (!isInlineEditing || event.altKey || !(event.ctrlKey || event.metaKey)) return;
-        const editor = event.target?.closest?.('[data-inline-visual-editor]');
-        if (!editor) return;
-        const key = String(event.key || '').toLowerCase();
-        if (key !== 'z' && key !== 'y') return;
-        const blockIndex = Number(editor.dataset.inlineVisualEditor);
-        if (!Number.isInteger(blockIndex) || !inlineEditBlocks[blockIndex]) return;
-        const command = key === 'y' || event.shiftKey ? 'redo' : 'undo';
-        event.preventDefault();
-        document.execCommand(command, false, null);
-        window.requestAnimationFrame(() => syncInlineVisualEditor(editor, blockIndex));
-    }
-
-    function handleInlineEditChange(event) {
-        const target = event.target;
-        const characterField = target?.dataset?.inlineCharacterField;
-        const characterImageField = target?.dataset?.inlineCharacterImageField;
-        const characterSummaryField = target?.dataset?.inlineCharacterSummaryField;
-        const imageAdjustKind = target?.dataset?.inlineImageAdjustKind;
-        const imageAdjustField = target?.dataset?.inlineImageAdjustField;
-        if (characterField || characterImageField || characterSummaryField) {
-            updateInlineCharacterField(target, { characterField, characterImageField, characterSummaryField });
-            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-            return;
-        }
-        if (imageAdjustKind && imageAdjustField) {
-            updateInlineImageAdjust(imageAdjustKind, imageAdjustField, target.value);
-            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-            return;
-        }
-
-        const blockIndex = Number(target?.dataset?.inlineBlockIndex);
-        const blockField = target?.dataset?.inlineBlockField;
-        if (!Number.isInteger(blockIndex) || !blockField || !inlineEditBlocks[blockIndex]) return;
-        inlineEditBlocks[blockIndex][blockField] = target.value;
-        if (blockField === 'image' && currentCharacter) currentCharacter.updatedAt = new Date().toISOString();
-        inlineEditDirty = true;
-        renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-    }
-
-    function applyInlineMarkdownFormat(blockIndex, format) {
-        const editor = container.querySelector(`[data-inline-visual-editor="${blockIndex}"]`);
-        if (!editor || !inlineEditBlocks[blockIndex]) return;
-        editor.focus();
-        if (!getInlineEditorSelection(editor)) return;
-        document.execCommand('styleWithCSS', false, false);
-        if (format === 'bold') {
-            document.execCommand('bold', false, null);
-        } else if (format === 'italic') {
-            document.execCommand('italic', false, null);
-        } else if (format === 'list') {
-            document.execCommand('insertUnorderedList');
-        } else if (format === 'quote') {
-            document.execCommand('formatBlock', false, 'blockquote');
-        } else if (format === 'gold') {
-            applyInlineHighlightFormat(editor, getInlineMarkdownFormatFallback(format));
-        } else {
-            return;
-        }
-        syncInlineVisualEditor(editor, blockIndex);
-    }
-
-    function getInlineEditorSelection(editor) {
-        const selection = window.getSelection?.();
-        if (!selection) return;
-        if (
-            selection.rangeCount > 0
-            && editor.contains(selection.anchorNode)
-            && editor.contains(selection.focusNode)
-        ) {
-            return selection;
-        }
-        const range = document.createRange();
-        if (!editor.childNodes.length) {
-            editor.innerHTML = '<p><br></p>';
-        }
-        range.selectNodeContents(editor);
-        range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
-        return selection;
-    }
-
-    function applyInlineHighlightFormat(editor, fallbackText) {
-        const selection = getInlineEditorSelection(editor);
-        if (!selection || selection.rangeCount === 0) return;
-        const range = selection.getRangeAt(0);
-        if (range.collapsed) {
-            replaceInlineSelectionWithHtml(editor, `<mark>${escapeHtml(fallbackText)}</mark>`);
-            return;
-        }
-        const fragment = range.cloneContents();
-        if (inlineFragmentIsFullyHighlighted(fragment)) {
-            unwrapInlineHighlightElements(fragment);
-        } else {
-            unwrapInlineHighlightElements(fragment);
-            wrapInlineTextNodesWithHighlight(fragment);
-        }
-        replaceInlineSelectionWithHtml(editor, inlineFragmentToHtml(fragment));
-    }
-
-    function replaceInlineSelectionWithHtml(editor, html) {
-        const selection = getInlineEditorSelection(editor);
-        if (!selection || selection.rangeCount === 0) return;
-        const startId = `inline-selection-start-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        const endId = `inline-selection-end-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        const wrappedHtml = [
-            `<span data-inline-selection-marker="${startId}"></span>`,
-            html || '',
-            `<span data-inline-selection-marker="${endId}"></span>`
-        ].join('');
-        const inserted = document.execCommand('insertHTML', false, wrappedHtml);
-        if (!inserted) {
-            const range = selection.getRangeAt(0);
-            const template = document.createElement('template');
-            template.innerHTML = wrappedHtml;
-            range.deleteContents();
-            range.insertNode(template.content);
-        }
-        restoreInlineSelectionBetweenMarkers(editor, startId, endId);
-    }
-
-    function restoreInlineSelectionBetweenMarkers(editor, startId, endId) {
-        const startMarker = editor.querySelector(`[data-inline-selection-marker="${startId}"]`);
-        const endMarker = editor.querySelector(`[data-inline-selection-marker="${endId}"]`);
-        if (!startMarker || !endMarker) return;
-        const range = document.createRange();
-        range.setStartAfter(startMarker);
-        range.setEndBefore(endMarker);
-        const selection = window.getSelection?.();
-        if (selection) {
-            editor.focus();
-            selection.removeAllRanges();
-            selection.addRange(range);
-        }
-        startMarker.remove();
-        endMarker.remove();
-    }
-
-    function inlineFragmentToHtml(fragment) {
-        const wrapper = document.createElement('div');
-        wrapper.appendChild(fragment);
-        return wrapper.innerHTML;
-    }
-
-    function inlineFragmentIsFullyHighlighted(fragment) {
-        const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_TEXT);
-        let hasText = false;
-        while (walker.nextNode()) {
-            const node = walker.currentNode;
-            if (!String(node.textContent || '').trim()) continue;
-            hasText = true;
-            if (!isInlineHighlightNode(node)) return false;
-        }
-        return hasText;
-    }
-
-    function isInlineHighlightNode(node) {
-        let element = node?.parentElement || null;
-        while (element) {
-            if (isInlineHighlightElement(element)) return true;
-            element = element.parentElement;
-        }
-        return false;
-    }
-
-    function isInlineHighlightElement(element) {
-        if (!element || element.nodeType !== Node.ELEMENT_NODE) return false;
-        const tag = element.tagName.toLowerCase();
-        if (tag === 'mark') return true;
-        if (tag !== 'span') return false;
-        const background = String(element.style?.backgroundColor || '').trim().toLowerCase();
-        return Boolean(background && background !== 'transparent' && background !== 'rgba(0, 0, 0, 0)');
-    }
-
-    function unwrapInlineHighlightElements(root) {
-        Array.from(root.querySelectorAll?.('mark, span') || [])
-            .filter(isInlineHighlightElement)
-            .forEach((element) => {
-                const parent = element.parentNode;
-                if (!parent) return;
-                while (element.firstChild) parent.insertBefore(element.firstChild, element);
-                parent.removeChild(element);
-            });
-    }
-
-    function wrapInlineTextNodesWithHighlight(root) {
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-        const nodes = [];
-        while (walker.nextNode()) {
-            const node = walker.currentNode;
-            if (String(node.textContent || '').trim()) nodes.push(node);
-        }
-        nodes.forEach((node) => {
-            if (!node.parentNode) return;
-            const mark = document.createElement('mark');
-            node.parentNode.insertBefore(mark, node);
-            mark.appendChild(node);
-        });
-    }
-
-    function renderInlineVisualEditorFromMarkdown(editor, blockIndex) {
-        const block = inlineEditBlocks[blockIndex];
-        const html = renderMarkdown(block.text || '', { context: block.type === 'image' ? 'image_box' : 'lore' }) || '<p></p>';
-        editor.innerHTML = html;
-        const textarea = editor.closest('.character-inline-markdown-shell')?.querySelector('textarea[data-inline-block-field="text"]');
-        if (textarea) textarea.value = block.text || '';
-    }
-
-    function syncInlineVisualEditor(editor, blockIndex) {
-        const markdown = convertInlineEditorHtmlToMarkdown(editor);
-        inlineEditBlocks[blockIndex].text = markdown;
-        const textarea = editor.closest('.character-inline-markdown-shell')?.querySelector('textarea[data-inline-block-field="text"]');
-        if (textarea) textarea.value = markdown;
-        inlineEditDirty = true;
-    }
-
-    function getInlineMarkdownFormatFallback(format) {
-        if (format === 'list') return 'Nuovo punto elenco';
-        if (format === 'quote') return 'Testo in evidenza';
-        if (format === 'gold') return 'parola importante';
-        return 'testo';
-    }
-
-    function convertInlineEditorHtmlToMarkdown(editor) {
-        const blocks = Array.from(editor.childNodes)
-            .map((node) => convertInlineEditorBlockToMarkdown(node))
-            .map((text) => text.trim())
-            .filter(Boolean);
-        return blocks.join('\n\n').trim();
-    }
-
-    function convertInlineEditorBlockToMarkdown(node) {
-        if (node.nodeType === Node.TEXT_NODE) return convertInlineEditorInlineToMarkdown(node).trim();
-        if (node.nodeType !== Node.ELEMENT_NODE) return '';
-        const tag = node.tagName.toLowerCase();
-        if (tag === 'ul') {
-            return Array.from(node.children)
-                .filter((child) => child.tagName?.toLowerCase() === 'li')
-                .map((child) => `- ${convertInlineEditorInlineToMarkdown(child).trim()}`)
-                .join('\n');
-        }
-        if (tag === 'blockquote') {
-            return convertInlineEditorInlineToMarkdown(node)
-                .split(/\n+/)
-                .map((line) => `> ${line.trim()}`)
-                .join('\n');
-        }
-        if (node.classList?.contains('document-quote')) {
-            const quoteText = convertInlineEditorInlineToMarkdown(node.querySelector('span') || node);
-            return quoteText.split(/\n+/).map((line) => `> ${line.trim()}`).join('\n');
-        }
-        if (/^h[1-6]$/.test(tag)) {
-            return convertInlineEditorInlineToMarkdown(node).trim();
-        }
-        if (tag === 'div' || tag === 'p') return convertInlineEditorInlineToMarkdown(node).trim();
-        return convertInlineEditorInlineToMarkdown(node).trim();
-    }
-
-    function convertInlineEditorInlineToMarkdown(node) {
-        if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
-        if (node.nodeType !== Node.ELEMENT_NODE) return '';
-        const tag = node.tagName.toLowerCase();
-        const inner = Array.from(node.childNodes).map(convertInlineEditorInlineToMarkdown).join('');
-        if (tag === 'br') return '\n';
-        if (tag === 'strong' || tag === 'b') return `**${inner}**`;
-        if (tag === 'em' || tag === 'i') return `*${inner}*`;
-        if (tag === 'mark') return `==${inner}==`;
-        if (tag === 'span' && isInlineHighlightElement(node)) return `==${inner}==`;
-        if (tag === 'code') return `\`${inner}\``;
-        if (tag === 'li') return inner;
-        if (tag === 'a') return inner;
-        return inner;
-    }
-
-    function handleInlineEditMouseDown(event) {
-        if (event.target.closest('[data-inline-edit-action="format-block"]')) {
-            event.preventDefault();
-        }
-    }
-
-    function handleInlineEditClick(event) {
-        const actionButton = event.target.closest('[data-inline-edit-action]');
-        if (!actionButton || !isInlineEditing) return;
-        event.preventDefault();
-        const action = actionButton.dataset.inlineEditAction;
-        const blockIndex = Number(actionButton.dataset.inlineBlockIndex);
-
-        if (action === 'cancel') {
-            if (inlineEditDirty && !window.confirm('Annullare le modifiche non salvate?')) return;
-            exitInlineEditMode();
-            return;
-        }
-        if (action === 'save') {
-            saveInlineCharacterEdits();
-            return;
-        }
-        if (action === 'upload-character-image') {
-            uploadInlineCharacterImage(actionButton.dataset.inlineCharacterImageTarget || 'avatar');
-            return;
-        }
-        if (action === 'adjust-character-image') {
-            openInlineImageAdjustModal(actionButton.dataset.inlineCharacterImageTarget || 'hover');
-            return;
-        }
-        if (action === 'upload-block-image') {
-            if (!Number.isInteger(blockIndex) || !inlineEditBlocks[blockIndex]) return;
-            uploadInlineBlockImage(blockIndex);
-            return;
-        }
-        if (action === 'set-icon') {
-            if (!Number.isInteger(blockIndex) || !inlineEditBlocks[blockIndex]) return;
-            inlineEditBlocks[blockIndex].icon = actionButton.dataset.inlineIcon || 'fa-book-open';
-            inlineEditDirty = true;
-            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-            return;
-        }
-        if (action === 'format-block') {
-            if (!Number.isInteger(blockIndex) || !inlineEditBlocks[blockIndex]) return;
-            applyInlineMarkdownFormat(blockIndex, actionButton.dataset.inlineBlockFormat || '');
-            return;
-        }
-        if (action === 'toggle-hidden') {
-            if (!Number.isInteger(blockIndex) || !inlineEditBlocks[blockIndex]) return;
-            inlineEditBlocks[blockIndex].hidden = !inlineEditBlocks[blockIndex].hidden;
-            inlineEditDirty = true;
-            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-            return;
-        }
-        if (action === 'add-block') {
-            inlineEditBlocks.push({
-                id: uniqueInlineBlockId('nuovo-blocco'),
-                type: 'text',
-                title: 'Nuovo blocco',
-                icon: 'fa-book-open',
-                image: '',
-                text: ''
-            });
-            inlineEditDirty = true;
-            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-            return;
-        }
-        if (!Number.isInteger(blockIndex) || !inlineEditBlocks[blockIndex]) return;
-        if (action === 'delete-block') {
-            if (!window.confirm('Eliminare questo blocco?')) return;
-            inlineEditBlocks.splice(blockIndex, 1);
-        } else if (action === 'move-up' && blockIndex > 0) {
-            [inlineEditBlocks[blockIndex - 1], inlineEditBlocks[blockIndex]] = [inlineEditBlocks[blockIndex], inlineEditBlocks[blockIndex - 1]];
-        } else if (action === 'move-down' && blockIndex < inlineEditBlocks.length - 1) {
-            [inlineEditBlocks[blockIndex + 1], inlineEditBlocks[blockIndex]] = [inlineEditBlocks[blockIndex], inlineEditBlocks[blockIndex + 1]];
-        }
-        inlineEditDirty = true;
-        renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-    }
-
-    function handleInlineEditDragOver(event) {
-        const dropTarget = event.target.closest('[data-inline-character-image-drop-target], [data-inline-block-image-drop-target]');
-        if (!isInlineEditing || !dropTarget) return;
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'copy';
-        dropTarget.classList.add('is-drop-target');
-    }
-
-    function handleInlineEditDragLeave(event) {
-        const dropTarget = event.target.closest('[data-inline-character-image-drop-target], [data-inline-block-image-drop-target]');
-        if (!isInlineEditing || !dropTarget || dropTarget.contains(event.relatedTarget)) return;
-        dropTarget.classList.remove('is-drop-target');
-    }
-
-    async function handleInlineEditDrop(event) {
-        const dropTarget = event.target.closest('[data-inline-character-image-drop-target], [data-inline-block-image-drop-target]');
-        if (!isInlineEditing || !dropTarget) return;
-        event.preventDefault();
-        dropTarget.classList.remove('is-drop-target');
-        if (dropTarget.dataset.inlineBlockImageDropTarget !== undefined) {
-            await handleInlineBlockImageDrop(Number(dropTarget.dataset.inlineBlockImageDropTarget), event.dataTransfer?.files);
-            return;
-        }
-        await handleInlineImageDrop(dropTarget.dataset.inlineCharacterImageDropTarget, event.dataTransfer?.files);
-    }
-
-    async function uploadInlineCharacterImage(field) {
-        if (!currentCharacter) return;
-        const file = await pickInlineImageFile();
-        if (!file) return;
-        const fileName = `${field}.webp`;
-        const path = await uploadInlineImageFile(file, currentCharacter.id || charId, fileName);
-        if (!path) return;
-        markInlineImageUpdated(path);
-        currentCharacter.images = currentCharacter.images || {};
-        currentCharacter.images[field] = path;
-        if (field === 'avatar' || field === 'token') ensureDefaultNpcListImagePaths(currentCharacter);
-        inlineEditDirty = true;
-        renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-    }
-
-    async function handleInlineImageDrop(field, fileList) {
-        const files = Array.from(fileList || []).filter((file) => file?.type?.startsWith('image/'));
-        if (!field || !files.length) return;
-        if (field === 'avatar' && files.length === 2) {
-            await handleInlineAvatarTokenDrop(files);
-            return;
-        }
-        await uploadDroppedInlineCharacterImage(field, files[0]);
-    }
-
-    async function uploadDroppedInlineCharacterImage(field, file) {
-        if (!currentCharacter || !file) return;
-        const path = await uploadInlineImageFile(file, currentCharacter.id || charId, `${field}.webp`);
-        if (!path) return;
-        markInlineImageUpdated(path);
-        currentCharacter.images = currentCharacter.images || {};
-        currentCharacter.images[field] = path;
-        if (field === 'avatar' || field === 'token') ensureDefaultNpcListImagePaths(currentCharacter);
-        inlineEditDirty = true;
-        renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-    }
-
-    async function handleInlineAvatarTokenDrop(fileList) {
-        if (!currentCharacter) return;
-        const files = Array.from(fileList || []).filter((file) => file?.type?.startsWith('image/'));
-        if (files.length !== 2) return;
-
-        try {
-            const assignment = await assignAvatarAndTokenFiles(files);
-            const avatarPath = await uploadInlineImageFile(assignment.avatar.file, currentCharacter.id || charId, 'avatar.webp');
-            const tokenPath = await uploadInlineImageFile(assignment.token.file, currentCharacter.id || charId, 'token.webp');
-            if (!avatarPath || !tokenPath) return;
-            markInlineImageUpdated(avatarPath);
-            markInlineImageUpdated(tokenPath);
-            currentCharacter.images = currentCharacter.images || {};
-            currentCharacter.images.avatar = avatarPath;
-            currentCharacter.images.token = tokenPath;
-            ensureDefaultNpcListImagePaths(currentCharacter);
-            inlineEditDirty = true;
-            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-        } catch (error) {
-            console.error('Drop avatar/token fallito:', error);
-            alert(`Drop avatar/token fallito: ${error?.message || error}`);
-        }
-    }
-
-    async function assignAvatarAndTokenFiles(files) {
-        const analyzed = await Promise.all(files.map(async (file) => {
-            const dimensions = await readInlineImageDimensions(file);
-            const area = dimensions.width * dimensions.height;
-            const squareDelta = Math.abs(dimensions.width - dimensions.height) / Math.max(dimensions.width, dimensions.height, 1);
-            return { file, ...dimensions, area, squareDelta };
-        }));
-        analyzed.sort((left, right) => {
-            const squareSort = left.squareDelta - right.squareDelta;
-            if (Math.abs(squareSort) > 0.04) return squareSort;
-            return left.area - right.area;
-        });
-        return {
-            token: analyzed[0],
-            avatar: analyzed[1]
-        };
-    }
-
-    async function readInlineImageDimensions(file) {
-        const bitmap = await createImageBitmap(file);
-        const dimensions = { width: bitmap.width, height: bitmap.height };
-        bitmap.close?.();
-        return dimensions;
-    }
-
-    async function uploadInlineBlockImage(index, providedFile = null) {
-        const block = inlineEditBlocks[index];
-        if (!currentCharacter || !block) return;
-        const file = providedFile || await pickInlineImageFile();
-        if (!file) return;
-        const fileName = `${slugify(block.id || block.title || `blocco-${index + 1}`)}.webp`;
-        const path = await uploadInlineImageFile(file, currentCharacter.id || charId, fileName);
-        if (!path) return;
-        markInlineImageUpdated(path);
-        block.image = path;
-        block.type = 'image';
-        inlineEditDirty = true;
-        renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-    }
-
-    async function handleInlineBlockImageDrop(index, fileList) {
-        const file = Array.from(fileList || []).find((entry) => entry?.type?.startsWith('image/'));
-        if (!Number.isInteger(index) || !file) return;
-        await uploadInlineBlockImage(index, file);
     }
 
     async function handleMediaOverrideClick(event) {
@@ -6291,7 +4256,7 @@ window.CriptaApp.onPageReady("character", async function () {
             await saveMediaOverride(identity, kind, imagePath);
             applySavedMediaOverrideLocally(identity, kind, imagePath);
             if (entityType === 'companion') {
-                await hydratePlayerLoadout(currentCharacter);
+                await currentLoadoutModule?.hydrate(currentCharacter, getLoadoutRuntimeContext());
             } else {
                 renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
             }
@@ -6599,389 +4564,6 @@ window.CriptaApp.onPageReady("character", async function () {
                 }
             });
         });
-    }
-
-    function updateInlineCharacterField(target, fields) {
-        if (!currentCharacter) return;
-        const value = target.value;
-        if (fields.characterField) {
-            if (fields.characterField === 'categoryPriority') {
-                const priority = normalizeCategoryPriority(value);
-                if (priority === null) delete currentCharacter.categoryPriority;
-                else currentCharacter.categoryPriority = priority;
-            } else {
-                currentCharacter[fields.characterField] = value;
-            }
-            if (fields.characterField === 'name') {
-                charNameEl.textContent = value;
-                if ((currentCharacter.type || 'npc') !== 'player') {
-                    const nextId = slugify(value);
-                    if (nextId) currentCharacter.id = nextId;
-                }
-            }
-            if (fields.characterField === 'role') charRoleEl.textContent = value;
-            currentCharacter.updatedAt = new Date().toISOString();
-        }
-        if (fields.characterImageField) {
-            currentCharacter.images = currentCharacter.images || {};
-            currentCharacter.images[fields.characterImageField] = value;
-            currentCharacter.updatedAt = new Date().toISOString();
-            const fieldPreview = container.querySelector(`[data-inline-character-image-preview="${fields.characterImageField}"]`);
-            if (fieldPreview) fieldPreview.src = resolveInlineImagePath(value);
-            if (fields.characterImageField === 'avatar') {
-                const preview = container.querySelector('[data-inline-portrait-preview]');
-                if (preview) preview.src = resolveInlineImagePath(value);
-            }
-        }
-        if (fields.characterSummaryField) {
-            currentCharacter.summary = currentCharacter.summary || {};
-            currentCharacter.summary[fields.characterSummaryField] = value;
-        }
-        inlineEditDirty = true;
-    }
-
-    function updateInlineImageAdjust(kind, field, value) {
-        if (!currentCharacter || !kind || !field) return;
-        currentCharacter.images = currentCharacter.images || {};
-        const key = `${kind}Adjust`;
-        const current = normalizeImageAdjust(currentCharacter.images[key]);
-        const nextValue = field === 'size'
-            ? clampInlineAdjustZoom(Number(value) || 1)
-            : Number(value) || 0;
-        currentCharacter.images[key] = { ...current, [field]: nextValue };
-        currentCharacter.updatedAt = new Date().toISOString();
-        inlineEditDirty = true;
-
-        const preview = container.querySelector(`[data-inline-character-image-preview="${CSS.escape(kind)}"]`);
-        if (preview) preview.setAttribute('style', buildInlineAdjustStyle(currentCharacter.images[key]));
-        if (kind === 'avatar') {
-            const portrait = container.querySelector('[data-inline-portrait-preview]');
-            if (portrait) portrait.setAttribute('style', buildInlineAdjustStyle(currentCharacter.images[key]));
-        }
-    }
-
-    function buildInlineNpcAdjustPreviewStyle(kind, adjust) {
-        const normalized = normalizeImageAdjust(adjust);
-        const scale = kind === 'hover'
-            ? (normalized.size || 1.20)
-            : (normalized.size || 1);
-        return `--img-x:${normalized.x}px; --img-y:${normalized.y}px; --img-scale-rest:${scale}; --img-scale-hover:${scale};`;
-    }
-
-    function getInlineImagePathForAdjust(kind) {
-        const images = currentCharacter?.images || {};
-        if (kind === 'idle') return images.idle || images.token || images.avatar || '';
-        if (kind === 'hover') return images.hover || images.token || images.idle || images.avatar || '';
-        return images[kind] || images.token || images.avatar || images.idle || '';
-    }
-
-    function getInlineImageAdjust(kind) {
-        return normalizeImageAdjust(currentCharacter?.images?.[`${kind}Adjust`]);
-    }
-
-    function setInlineImageAdjust(kind, adjust) {
-        if (!currentCharacter || !kind) return;
-        currentCharacter.images = currentCharacter.images || {};
-        currentCharacter.images[`${kind}Adjust`] = normalizeImageAdjust(adjust);
-        currentCharacter.updatedAt = new Date().toISOString();
-        inlineEditDirty = true;
-    }
-
-    function getInlineAdjustModal() {
-        let modal = document.getElementById('character-inline-image-adjust-modal');
-        const ownerId = String(currentCharacter?.id || charId || '');
-        if (modal && modal.dataset.inlineAdjustOwnerId !== ownerId) {
-            modal.remove();
-            modal = null;
-        }
-        if (modal) return modal;
-        modal = document.createElement('div');
-        modal.id = 'character-inline-image-adjust-modal';
-        modal.className = 'character-inline-adjust-modal';
-        modal.dataset.inlineAdjustOwnerId = ownerId;
-        modal.hidden = true;
-        modal.innerHTML = `
-            <button class="character-inline-adjust-backdrop" type="button" data-inline-adjust-action="close" aria-label="Chiudi"></button>
-            <div class="character-inline-adjust-dialog" role="dialog" aria-modal="true" aria-labelledby="character-inline-adjust-title">
-                <section class="character-inline-adjust-preview">
-                    <div class="character-inline-adjust-card">
-                        <span class="character-inline-adjust-label">Idle</span>
-                        <div class="npc-avatar-container" data-inline-adjust-preview-frame="idle">
-                            <img class="npc-img-pop img-main" data-inline-adjust-preview-img="idle" src="" alt="" draggable="false">
-                        </div>
-                    </div>
-                    <div class="character-inline-adjust-card">
-                        <span class="character-inline-adjust-label">Hover</span>
-                        <div class="npc-avatar-container" data-inline-adjust-preview-frame="hover">
-                            <img class="npc-img-pop img-hover" data-inline-adjust-preview-img="hover" src="" alt="" draggable="false">
-                        </div>
-                    </div>
-                </section>
-                <section class="character-inline-adjust-controls">
-                    <h2 id="character-inline-adjust-title">Regola immagine</h2>
-                    <label class="character-inline-adjust-field">
-                        <span>X</span>
-                        <input type="range" min="-120" max="120" step="1" data-inline-adjust-field="x">
-                        <input type="number" min="-120" max="120" step="1" data-inline-adjust-number="x">
-                    </label>
-                    <label class="character-inline-adjust-field">
-                        <span>Y</span>
-                        <input type="range" min="-120" max="120" step="1" data-inline-adjust-field="y">
-                        <input type="number" min="-120" max="120" step="1" data-inline-adjust-number="y">
-                    </label>
-                    <label class="character-inline-adjust-field">
-                        <span>Zoom</span>
-                        <input type="range" min="0.25" max="2.75" step="0.01" data-inline-adjust-field="size">
-                        <input type="number" min="0.25" max="2.75" step="0.01" data-inline-adjust-number="size">
-                    </label>
-                    <div class="character-inline-adjust-actions">
-                        <button class="character-inline-btn character-inline-btn--ghost" type="button" data-inline-adjust-action="reset">Reset</button>
-                        <button class="character-inline-btn character-inline-btn--primary" type="button" data-inline-adjust-action="close">Chiudi</button>
-                    </div>
-                </section>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        bindInlineAdjustModal(modal);
-        return modal;
-    }
-
-    function bindInlineAdjustModal(modal) {
-        modal.addEventListener('input', (event) => {
-            const field = event.target?.dataset?.inlineAdjustField || event.target?.dataset?.inlineAdjustNumber;
-            if (!field || !inlineAdjustKind) return;
-            updateInlineImageAdjust(inlineAdjustKind, field, event.target.value);
-            renderInlineImageAdjustModal();
-        });
-        modal.addEventListener('click', (event) => {
-            const action = event.target.closest('[data-inline-adjust-action]')?.dataset?.inlineAdjustAction;
-            if (!action) return;
-            event.preventDefault();
-            if (action === 'reset') {
-                resetInlineImageAdjust();
-                return;
-            }
-            if (action === 'close') closeInlineImageAdjustModal();
-        });
-        modal.querySelectorAll('[data-inline-adjust-preview-frame]').forEach((frame) => {
-            frame.addEventListener('pointerdown', startInlineImageAdjustDrag);
-            frame.addEventListener('wheel', handleInlineImageAdjustWheel, { passive: false });
-        });
-        window.addEventListener('pointermove', continueInlineImageAdjustDrag);
-        window.addEventListener('pointerup', endInlineImageAdjustDrag);
-        window.addEventListener('pointercancel', endInlineImageAdjustDrag);
-    }
-
-    function openInlineImageAdjustModal(kind) {
-        if (!currentCharacter) return;
-        inlineAdjustKind = kind || 'hover';
-        inlineAdjustDrag = null;
-        const modal = getInlineAdjustModal();
-        renderInlineImageAdjustModal();
-        modal.hidden = false;
-    }
-
-    function closeInlineImageAdjustModal() {
-        const modal = document.getElementById('character-inline-image-adjust-modal');
-        if (modal) modal.hidden = true;
-        inlineAdjustDrag = null;
-        clearInlineImageAdjustModalImages();
-    }
-
-    function renderInlineImageAdjustModal() {
-        const modal = document.getElementById('character-inline-image-adjust-modal');
-        if (!modal || !currentCharacter) return;
-        if (modal.dataset.inlineAdjustOwnerId !== String(currentCharacter.id || charId || '')) {
-            closeInlineImageAdjustModal();
-            return;
-        }
-        const title = modal.querySelector('#character-inline-adjust-title');
-        if (title) title.textContent = `Regola ${inlineAdjustKind === 'idle' ? 'Idle' : inlineAdjustKind === 'hover' ? 'Hover' : inlineAdjustKind || 'immagine'}`;
-
-        ['idle', 'hover'].forEach((kind) => {
-            const img = modal.querySelector(`[data-inline-adjust-preview-img="${kind}"]`);
-            const frame = modal.querySelector(`[data-inline-adjust-preview-frame="${kind}"]`);
-            const card = frame?.closest('.character-inline-adjust-card');
-            if (img) {
-                setInlineImageAdjustPreviewImage(
-                    img,
-                    resolveInlineImagePath(getInlineImagePathForAdjust(kind)),
-                    buildInlineNpcAdjustPreviewStyle(kind, getInlineImageAdjust(kind))
-                );
-            }
-            if (card) card.classList.toggle('is-active', kind === inlineAdjustKind);
-        });
-
-        const activeAdjust = getInlineImageAdjust(inlineAdjustKind);
-        ['x', 'y', 'size'].forEach((field) => {
-            const value = field === 'size' ? activeAdjust.size || 1 : activeAdjust[field] || 0;
-            modal.querySelectorAll(`[data-inline-adjust-field="${field}"], [data-inline-adjust-number="${field}"]`).forEach((input) => {
-                input.value = String(value);
-            });
-        });
-    }
-
-    function clearInlineImageAdjustModalImages() {
-        document.getElementById('character-inline-image-adjust-modal')
-            ?.querySelectorAll('[data-inline-adjust-preview-img]')
-            .forEach((img) => {
-                delete img.dataset.inlineAdjustPreviewSrc;
-                img.removeAttribute('src');
-                img.removeAttribute('style');
-            });
-    }
-
-    function setInlineImageAdjustPreviewImage(img, src, style) {
-        const nextSrc = String(src || '');
-        if (img.dataset.inlineAdjustPreviewSrc !== nextSrc) {
-            img.removeAttribute('src');
-            img.dataset.inlineAdjustPreviewSrc = nextSrc;
-        }
-        img.setAttribute('style', style);
-        img.src = nextSrc;
-    }
-
-    function resetInlineImageAdjust() {
-        if (!currentCharacter || !inlineAdjustKind) return;
-        setInlineImageAdjust(inlineAdjustKind, { x: 0, y: 0, size: 1 });
-        const preview = container.querySelector(`[data-inline-character-image-preview="${CSS.escape(inlineAdjustKind)}"]`);
-        if (preview) preview.setAttribute('style', buildInlineAdjustStyle(getInlineImageAdjust(inlineAdjustKind)));
-        if (inlineAdjustKind === 'avatar') {
-            const portrait = container.querySelector('[data-inline-portrait-preview]');
-            if (portrait) portrait.setAttribute('style', buildInlineAdjustStyle(getInlineImageAdjust(inlineAdjustKind)));
-        }
-        renderInlineImageAdjustModal();
-    }
-
-    function startInlineImageAdjustDrag(event) {
-        const kind = event.currentTarget?.dataset?.inlineAdjustPreviewFrame;
-        if (!currentCharacter || !kind) return;
-        event.preventDefault();
-        inlineAdjustKind = kind;
-        const adjust = getInlineImageAdjust(kind);
-        inlineAdjustDrag = {
-            kind,
-            pointerId: event.pointerId,
-            startX: event.clientX,
-            startY: event.clientY,
-            originX: adjust.x,
-            originY: adjust.y,
-            frame: event.currentTarget
-        };
-        event.currentTarget.setPointerCapture?.(event.pointerId);
-        event.currentTarget.classList.add('is-dragging');
-        renderInlineImageAdjustModal();
-    }
-
-    function continueInlineImageAdjustDrag(event) {
-        if (!inlineAdjustDrag || inlineAdjustDrag.pointerId !== event.pointerId) return;
-        const current = getInlineImageAdjust(inlineAdjustDrag.kind);
-        setInlineImageAdjust(inlineAdjustDrag.kind, {
-            ...current,
-            x: Math.round(inlineAdjustDrag.originX + (event.clientX - inlineAdjustDrag.startX) * INLINE_IMAGE_ADJUST_DRAG_SENSITIVITY),
-            y: Math.round(inlineAdjustDrag.originY + (event.clientY - inlineAdjustDrag.startY) * INLINE_IMAGE_ADJUST_DRAG_SENSITIVITY)
-        });
-        const preview = container.querySelector(`[data-inline-character-image-preview="${CSS.escape(inlineAdjustDrag.kind)}"]`);
-        if (preview) preview.setAttribute('style', buildInlineAdjustStyle(getInlineImageAdjust(inlineAdjustDrag.kind)));
-        renderInlineImageAdjustModal();
-        inlineAdjustDrag.frame?.classList.add('is-dragging');
-    }
-
-    function endInlineImageAdjustDrag() {
-        if (!inlineAdjustDrag) return;
-        inlineAdjustDrag.frame?.classList.remove('is-dragging');
-        inlineAdjustDrag = null;
-    }
-
-    function handleInlineImageAdjustWheel(event) {
-        const kind = event.currentTarget?.dataset?.inlineAdjustPreviewFrame;
-        if (!currentCharacter || !kind) return;
-        event.preventDefault();
-        inlineAdjustKind = kind;
-        const current = getInlineImageAdjust(kind);
-        const visibleSize = current.size || (kind === 'hover' ? 1.20 : 1);
-        const direction = event.deltaY < 0 ? 1 : -1;
-        const step = event.shiftKey ? INLINE_IMAGE_ADJUST_WHEEL_FINE_STEP : INLINE_IMAGE_ADJUST_WHEEL_STEP;
-        setInlineImageAdjust(kind, {
-            ...current,
-            size: roundInlineAdjustZoom(clampInlineAdjustZoom(visibleSize + direction * step))
-        });
-        const preview = container.querySelector(`[data-inline-character-image-preview="${CSS.escape(kind)}"]`);
-        if (preview) preview.setAttribute('style', buildInlineAdjustStyle(getInlineImageAdjust(kind)));
-        renderInlineImageAdjustModal();
-    }
-
-    function clampInlineAdjustZoom(value) {
-        return Math.min(INLINE_IMAGE_ADJUST_MAX_ZOOM, Math.max(INLINE_IMAGE_ADJUST_MIN_ZOOM, Number(value) || 1));
-    }
-
-    function roundInlineAdjustZoom(value) {
-        return Math.round(value * 100) / 100;
-    }
-
-    async function saveInlineCharacterEdits() {
-        if (inlineCharacterSaveInFlight) return;
-        const token = readAuthToken();
-        if (!token) {
-            alert('Login richiesto: accedi come DM prima di salvare.');
-            return;
-        }
-
-        inlineCharacterSaveInFlight = true;
-        const toolbar = container.querySelector('[data-inline-edit-toolbar]');
-        toolbar?.setAttribute('data-saving', 'true');
-
-        try {
-            const updatedCharacter = serializeInlineEditedCharacter(currentCharacter);
-            const originalId = slugify(currentCharacter._originalId || charId || updatedCharacter.id || updatedCharacter.name || 'npc');
-            const nextId = slugify(updatedCharacter.id || updatedCharacter.name || 'npc');
-            if (originalId && nextId && originalId !== nextId) {
-                await copyInlineCharacterMediaFolder(originalId, nextId, token);
-                rewriteInlineCharacterMediaFolderPaths(updatedCharacter, originalId, nextId);
-            }
-            const buildNextData = (sourceData) => mergeInlineCharacterIntoCollection(sourceData, updatedCharacter, originalId, nextId);
-            await saveVersionedCollection({
-                load: loadCharactersDocumentForSave,
-                url: getCharactersApiUrl(),
-                token,
-                buildData: buildNextData
-            });
-            window.CriptaApp?.api?.clearCache?.();
-
-            currentCharacter = normalizeCharactersCollection([updatedCharacter])[0];
-            const allIndex = currentAllCharacters.findIndex((entry) => {
-                const entryId = slugify(entry?.id || entry?.name || '');
-                return entryId === originalId || entryId === currentCharacter.id;
-            });
-            if (allIndex >= 0) currentAllCharacters[allIndex] = currentCharacter;
-            isInlineEditing = false;
-            inlineEditDirty = false;
-            inlineEditBlocks = [];
-            editLinkEl?.classList.remove('is-editing');
-            renderCharacterPage(currentCharacter, currentAllCharacters, currentNpcQuests, currentPlayerSkillTrees);
-        } catch (error) {
-            console.error('Salvataggio inline NPC fallito:', error);
-            alert(`Salvataggio fallito: ${error?.message || error}`);
-        } finally {
-            inlineCharacterSaveInFlight = false;
-            toolbar?.removeAttribute('data-saving');
-        }
-    }
-
-    function mergeInlineCharacterIntoCollection(sourceData, updatedCharacter, originalId, nextId) {
-        const nextData = Array.isArray(sourceData) ? sourceData.slice() : [];
-        const targetIndex = nextData.findIndex((entry) => {
-            const entryId = slugify(entry?.id || entry?.name || '');
-            return entryId === originalId || entryId === nextId;
-        });
-        if (targetIndex >= 0) {
-            const mergedCharacter = { ...nextData[targetIndex], ...updatedCharacter };
-            delete mergedCharacter.content_blocks;
-            nextData[targetIndex] = mergedCharacter;
-        } else {
-            nextData.push(updatedCharacter);
-        }
-        return nextData;
     }
 
     function isVersionConflictResponse(result) {
@@ -7299,428 +4881,6 @@ window.CriptaApp.onPageReady("character", async function () {
         if (index >= 0) currentAllCharacters[index] = currentCharacter;
     }
 
-    function getLoadoutEntryRestoreKey(entry) {
-        if (!entry) return '';
-        if (entry.dataset.inventoryItemKey) return `inventory:${entry.dataset.inventoryItemKey}`;
-        if (entry.dataset.abilityEntryKey) return `ability:${entry.dataset.abilityEntryKey}`;
-        const panel = entry.closest('.loadout-panel')?.dataset?.panel || '';
-        const title = entry.querySelector('.loadout-entry-title span:last-child')?.textContent?.trim() || '';
-        return title ? `${panel}:title:${normalizeText(title)}` : '';
-    }
-
-    function captureLoadoutRefreshState(trigger = null) {
-        const loadoutCard = document.getElementById('player-loadout-card');
-        if (!loadoutCard) return null;
-        return {
-            scrollX: window.scrollX,
-            scrollY: window.scrollY,
-            activePanel: loadoutCard.querySelector('.loadout-tab.is-active')?.dataset?.panelTarget || 'inventory',
-            openEntryKeys: Array.from(loadoutCard.querySelectorAll('.loadout-entry[open]'))
-                .map(getLoadoutEntryRestoreKey)
-                .filter(Boolean),
-            triggerEntryKey: getLoadoutEntryRestoreKey(trigger?.closest?.('.loadout-entry'))
-        };
-    }
-
-    function restoreLoadoutRefreshState(state) {
-        if (!state) return;
-        const loadoutCard = document.getElementById('player-loadout-card');
-        if (!loadoutCard) return;
-
-        const activePanel = state.activePanel || 'inventory';
-        loadoutCard.querySelector(`.loadout-tab[data-panel-target="${CSS.escape(activePanel)}"]`)?.click();
-
-        const keysToOpen = new Set([...(state.openEntryKeys || []), state.triggerEntryKey].filter(Boolean));
-        if (keysToOpen.size) {
-            loadoutCard.querySelectorAll('.loadout-entry').forEach((entry) => {
-                if (keysToOpen.has(getLoadoutEntryRestoreKey(entry))) entry.setAttribute('open', '');
-            });
-        }
-
-        window.requestAnimationFrame(() => {
-            window.scrollTo({ left: state.scrollX || 0, top: state.scrollY || 0, behavior: 'auto' });
-        });
-    }
-
-    async function hydratePlayerLoadoutPreservingState(character, trigger = null) {
-        const state = captureLoadoutRefreshState(trigger);
-        await hydratePlayerLoadout(character);
-        restoreLoadoutRefreshState(state);
-    }
-
-    function initializeAbilityOverrideUploads(cardElement, character) {
-        const getIdentityFromButton = (button) => ({
-            key: button.dataset.abilityKey || '',
-            characterId: button.dataset.characterId || '',
-            characterName: button.dataset.characterName || '',
-            actorId: button.dataset.actorId || '',
-            actorName: button.dataset.actorName || '',
-            abilityId: button.dataset.abilityId || '',
-            abilityName: button.dataset.abilityName || ''
-        });
-
-        const iconButtons = Array.from(cardElement.querySelectorAll('[data-ability-icon-upload]'));
-        iconButtons.forEach((button) => {
-            button.addEventListener('click', async () => {
-                const identity = getIdentityFromButton(button);
-                if (!identity.key) return;
-
-                const file = await pickInlineImageFile();
-                if (!file) return;
-                let iconBlob = null;
-                try {
-                    iconBlob = await cropAbilityIconFileToWebpBlob(file);
-                } catch (error) {
-                    console.error('Preparazione icona abilita fallita:', error);
-                    alert(`Preparazione icona fallita: ${error?.message || error}`);
-                    return;
-                }
-                if (!iconBlob) return;
-
-                button.disabled = true;
-                button.setAttribute('aria-busy', 'true');
-                try {
-                    const imagePath = await uploadAbilityOverrideFile(iconBlob, identity);
-                    if (!imagePath) return;
-                    await saveAbilityOverride(identity, { image: imagePath });
-                    await hydratePlayerLoadoutPreservingState(character, button);
-                } catch (error) {
-                    console.error('Salvataggio icona abilità fallito:', error);
-                    alert(`Salvataggio icona abilità fallito: ${error?.message || error}`);
-                } finally {
-                    button.disabled = false;
-                    button.removeAttribute('aria-busy');
-                }
-            });
-        });
-
-        const descriptionButtons = Array.from(cardElement.querySelectorAll('[data-ability-description-edit]'));
-        descriptionButtons.forEach((button) => {
-            button.addEventListener('click', async () => {
-                const identity = getIdentityFromButton(button);
-                if (!identity.key) return;
-
-                const currentText = button
-                    .closest('.loadout-entry')
-                    ?.querySelector('.loadout-entry-description')
-                    ?.innerText
-                    ?.trim() || '';
-                const nextDescription = window.prompt(`Descrizione per ${identity.abilityName || 'abilità'}`, currentText);
-                if (nextDescription === null) return;
-
-                button.disabled = true;
-                button.setAttribute('aria-busy', 'true');
-                try {
-                    await saveAbilityOverride(identity, { description: nextDescription.trim() });
-                    await hydratePlayerLoadoutPreservingState(character, button);
-                } catch (error) {
-                    console.error('Salvataggio testo abilità fallito:', error);
-                    alert(`Salvataggio testo abilità fallito: ${error?.message || error}`);
-                } finally {
-                    button.disabled = false;
-                    button.removeAttribute('aria-busy');
-                }
-            });
-        });
-    }
-
-    function initializeItemOverrideUploads(cardElement, character) {
-        const getIdentityFromButton = (button) => {
-            const identity = {
-                key: button.dataset.itemKey || '',
-                characterId: button.dataset.characterId || '',
-                characterName: button.dataset.characterName || '',
-                actorId: button.dataset.actorId || '',
-                actorName: button.dataset.actorName || '',
-                itemUuid: button.dataset.itemUuid || '',
-                transferId: button.dataset.transferId || '',
-                sourceId: button.dataset.sourceId || '',
-                transferKey: button.dataset.transferKey || '',
-                itemId: button.dataset.itemId || '',
-                itemName: button.dataset.itemName || '',
-                itemType: button.dataset.itemType || ''
-            };
-            identity.transferKey = getTransferableItemKey({ ...identity, existingTransferKey: identity.transferKey });
-            return identity;
-        };
-
-        const iconButtons = Array.from(cardElement.querySelectorAll('[data-item-icon-upload]'));
-        iconButtons.forEach((button) => {
-            button.addEventListener('click', async () => {
-                const identity = getIdentityFromButton(button);
-                if (!identity.key) return;
-
-                const file = await pickInlineImageFile();
-                if (!file) return;
-                let iconBlob = null;
-                try {
-                    iconBlob = await cropAbilityIconFileToWebpBlob(file);
-                } catch (error) {
-                    console.error('Preparazione icona inventario fallita:', error);
-                    alert(`Preparazione icona fallita: ${error?.message || error}`);
-                    return;
-                }
-                if (!iconBlob) return;
-
-                button.disabled = true;
-                button.setAttribute('aria-busy', 'true');
-                try {
-                    const imagePath = await uploadItemOverrideFile(iconBlob, identity);
-                    if (!imagePath) return;
-                    await saveItemOverride(identity, { image: imagePath, imageSource: 'site' });
-                    await hydratePlayerLoadout(character);
-                } catch (error) {
-                    console.error('Salvataggio icona inventario fallito:', error);
-                    alert(`Salvataggio icona inventario fallito: ${error?.message || error}`);
-                } finally {
-                    button.disabled = false;
-                    button.removeAttribute('aria-busy');
-                }
-            });
-        });
-
-        const descriptionButtons = Array.from(cardElement.querySelectorAll('[data-item-description-edit]'));
-        descriptionButtons.forEach((button) => {
-            button.addEventListener('click', () => {
-                const identity = getIdentityFromButton(button);
-                if (!identity.key) return;
-
-                const entry = button.closest('.loadout-entry');
-                const editor = entry?.querySelector('[data-item-description-editor]');
-                const textarea = editor?.querySelector('[data-item-description-text]');
-                if (!editor || !textarea) return;
-                textarea.value = button.dataset.currentDescription || textarea.value || '';
-                editor.hidden = false;
-                textarea.focus();
-                textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-            });
-        });
-
-        const cancelButtons = Array.from(cardElement.querySelectorAll('[data-item-description-cancel]'));
-        cancelButtons.forEach((button) => {
-            button.addEventListener('click', () => {
-                const editor = button.closest('[data-item-description-editor]');
-                const entry = button.closest('.loadout-entry');
-                const editButton = entry?.querySelector('[data-item-description-edit]');
-                const textarea = editor?.querySelector('[data-item-description-text]');
-                if (textarea && editButton) textarea.value = editButton.dataset.currentDescription || '';
-                if (editor) editor.hidden = true;
-            });
-        });
-
-        const saveButtons = Array.from(cardElement.querySelectorAll('[data-item-description-save]'));
-        saveButtons.forEach((button) => {
-            button.addEventListener('click', async () => {
-                const entry = button.closest('.loadout-entry');
-                const editButton = entry?.querySelector('[data-item-description-edit]');
-                const editor = button.closest('[data-item-description-editor]');
-                const textarea = editor?.querySelector('[data-item-description-text]');
-                if (!editButton || !textarea) return;
-                const identity = getIdentityFromButton(editButton);
-                if (!identity.key) return;
-
-                button.disabled = true;
-                button.setAttribute('aria-busy', 'true');
-                try {
-                    await saveItemOverride(identity, { description: textarea.value.trim() });
-                    await hydratePlayerLoadout(character);
-                } catch (error) {
-                    console.error('Salvataggio testo inventario fallito:', error);
-                    alert(`Salvataggio testo inventario fallito: ${error?.message || error}`);
-                } finally {
-                    button.disabled = false;
-                    button.removeAttribute('aria-busy');
-                }
-            });
-        });
-
-        const progressButtons = Array.from(cardElement.querySelectorAll('[data-item-progress-edit]'));
-        progressButtons.forEach((button) => {
-            button.addEventListener('click', () => {
-                const identity = getIdentityFromButton(button);
-                if (!identity.key) return;
-                const editor = button.closest('.loadout-entry')?.querySelector('[data-item-progress-editor]');
-                if (!editor) return;
-                editor.hidden = false;
-                editor.querySelector('[data-item-progress-field="done"]')?.focus();
-            });
-        });
-
-        const progressCancelButtons = Array.from(cardElement.querySelectorAll('[data-item-progress-cancel]'));
-        progressCancelButtons.forEach((button) => {
-            button.addEventListener('click', () => {
-                const editor = button.closest('[data-item-progress-editor]');
-                if (editor) editor.hidden = true;
-            });
-        });
-
-        const progressSaveButtons = Array.from(cardElement.querySelectorAll('[data-item-progress-save]'));
-        progressSaveButtons.forEach((button) => {
-            button.addEventListener('click', async () => {
-                const entry = button.closest('.loadout-entry');
-                const editButton = entry?.querySelector('[data-item-progress-edit]');
-                const editor = button.closest('[data-item-progress-editor]');
-                if (!editButton || !editor) return;
-                const identity = getIdentityFromButton(editButton);
-                if (!identity.key) return;
-                const progress = collectItemProgressEditorDraft(editor);
-                if (!progress) {
-                    alert('Imposta almeno un totale maggiore di zero.');
-                    return;
-                }
-
-                button.disabled = true;
-                button.setAttribute('aria-busy', 'true');
-                try {
-                    await saveItemOverride(identity, { progress });
-                    await hydratePlayerLoadout(character);
-                } catch (error) {
-                    console.error('Salvataggio progresso inventario fallito:', error);
-                    alert(`Salvataggio progresso fallito: ${error?.message || error}`);
-                } finally {
-                    button.disabled = false;
-                    button.removeAttribute('aria-busy');
-                }
-            });
-        });
-
-        const progressClearButtons = Array.from(cardElement.querySelectorAll('[data-item-progress-clear]'));
-        progressClearButtons.forEach((button) => {
-            button.addEventListener('click', async () => {
-                const entry = button.closest('.loadout-entry');
-                const editButton = entry?.querySelector('[data-item-progress-edit]');
-                if (!editButton) return;
-                const identity = getIdentityFromButton(editButton);
-                if (!identity.key) return;
-                if (!window.confirm('Rimuovere il progresso wiki da questo oggetto?')) return;
-
-                button.disabled = true;
-                button.setAttribute('aria-busy', 'true');
-                try {
-                    await saveItemOverride(identity, { progress: null });
-                    await hydratePlayerLoadout(character);
-                } catch (error) {
-                    console.error('Rimozione progresso inventario fallita:', error);
-                    alert(`Rimozione progresso fallita: ${error?.message || error}`);
-                } finally {
-                    button.disabled = false;
-                    button.removeAttribute('aria-busy');
-                }
-            });
-        });
-
-        const progressJumpButtons = Array.from(cardElement.querySelectorAll('[data-progress-jump-key]'));
-        progressJumpButtons.forEach((button) => {
-            button.addEventListener('click', () => {
-                jumpToInventoryProgressItem(cardElement, button.dataset.progressJumpKey || '');
-            });
-        });
-
-        const progressIncrementForms = Array.from(cardElement.querySelectorAll('[data-progress-increment-form]'));
-        progressIncrementForms.forEach((form) => {
-            form.addEventListener('submit', async (event) => {
-                event.preventDefault();
-                const submitButton = form.querySelector('[data-progress-increment-submit]');
-                const input = form.querySelector('[data-progress-increment-value]');
-                const delta = Number(input?.value || 0);
-                if (!submitButton || !Number.isFinite(delta) || delta <= 0) {
-                    alert('Inserisci un valore positivo da aggiungere.');
-                    return;
-                }
-                const identity = getIdentityFromButton(submitButton);
-                if (!identity.key) return;
-                const progress = parseProgressIncrementDraft(form);
-                if (!progress) return;
-                progress.done = Math.max(0, Number(progress.done || 0) + delta);
-
-                submitButton.disabled = true;
-                submitButton.setAttribute('aria-busy', 'true');
-                try {
-                    await saveItemOverride(identity, { progress });
-                    await hydratePlayerLoadout(character);
-                } catch (error) {
-                    console.error('Incremento progresso inventario fallito:', error);
-                    alert(`Incremento progresso fallito: ${error?.message || error}`);
-                } finally {
-                    submitButton.disabled = false;
-                    submitButton.removeAttribute('aria-busy');
-                }
-            });
-        });
-    }
-
-    function parseProgressIncrementDraft(form) {
-        try {
-            const progress = JSON.parse(form?.dataset?.progressJson || '{}');
-            if (!progress || typeof progress !== 'object') return null;
-            const total = Number(progress.total || 0);
-            if (!Number.isFinite(total) || total <= 0) return null;
-            return {
-                label: String(progress.label || 'Progresso').trim() || 'Progresso',
-                done: Number.isFinite(Number(progress.done)) ? Math.max(0, Number(progress.done)) : 0,
-                total: Math.max(1, total),
-                unit: String(progress.unit || '').trim(),
-                crafting: Boolean(progress.crafting || (Array.isArray(progress.materials) && progress.materials.length)),
-                materials: normalizeInventoryProgressMaterials(progress.materials)
-            };
-        } catch (_) {
-            return null;
-        }
-    }
-
-    function jumpToInventoryProgressItem(cardElement, key) {
-        const safeKey = String(key || '').trim();
-        if (!safeKey || !cardElement) return;
-        cardElement.querySelector('[data-panel-target="inventory"]')?.click();
-        const target = cardElement.querySelector(`.loadout-entry[data-inventory-item-key="${CSS.escape(safeKey)}"]`);
-        if (!target) return;
-        target.closest('[data-inventory-group]')?.setAttribute('open', '');
-        target.setAttribute('open', '');
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        target.classList.add('is-jump-highlight');
-        window.setTimeout(() => target.classList.remove('is-jump-highlight'), 1400);
-    }
-
-    function serializeInlineEditedCharacter(character) {
-        const serialized = { ...character };
-        delete serialized._originalId;
-        delete serialized.content_blocks;
-        serialized.id = character.id || charId;
-        serialized.name = character.name || 'NPC senza nome';
-        serialized.type = character.type || 'npc';
-        serialized.category = character.category || '';
-        const categoryPriority = normalizeCategoryPriority(character.categoryPriority);
-        if (categoryPriority === null) delete serialized.categoryPriority;
-        else serialized.categoryPriority = categoryPriority;
-        serialized.updatedAt = character.updatedAt || new Date().toISOString();
-        if ((serialized.type || 'npc') !== 'player') {
-            ensureDefaultNpcListImagePaths(serialized);
-            const images = character.images || {};
-            serialized.images = {
-                idle: images.idle || getSyncedNpcImagePath(serialized, 'idle'),
-                hover: images.hover || getSyncedNpcImagePath(serialized, 'hover'),
-                token: images.token || images.idle || '',
-                avatar: images.avatar || images.token || '',
-                ...compactObject({
-                    idleAdjust: serializeImageAdjust(images.idleAdjust),
-                    hoverAdjust: serializeImageAdjust(images.hoverAdjust),
-                    tokenAdjust: serializeImageAdjust(images.tokenAdjust),
-                    avatarAdjust: serializeImageAdjust(images.avatarAdjust)
-                })
-            };
-        }
-        serialized.blocks = inlineEditBlocks.map((block) => ({
-            id: slugify(block.id || block.title || 'blocco'),
-            type: block.type === 'image' ? 'image' : 'text',
-            title: block.title || 'Informazioni',
-            icon: block.icon || 'fa-book-open',
-            image: block.type === 'image' ? (block.image || '') : '',
-            hidden: Boolean(block.hidden),
-            text: block.text || ''
-        }));
-        return serialized;
-    }
-
     async function copyInlineCharacterMediaFolder(fromId, toId, token = readAuthToken()) {
         if (!token) throw new Error('Login richiesto per rinominare media NPC.');
         const copyUrl = new URL(window.CriptaApp?.urls?.api?.('media/copy-folder') || 'https://sigillo-api.khuzoe.workers.dev/media/copy-folder');
@@ -7793,7 +4953,7 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     function getCurrentCampaignId() {
-        return window.CriptaApp?.campaigns?.currentId?.() || params.get('campaign') || 'cripta-di-sangue';
+        return params.get('campaign') || window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
     }
 
     function buildCampaignScopedOverrideFolder(kind, ownerId) {
@@ -7830,47 +4990,6 @@ window.CriptaApp.onPageReady("character", async function () {
         }
     }
 
-    function stripHtmlToText(html) {
-        const div = document.createElement('div');
-        div.innerHTML = html || '';
-        return div.innerText || '';
-    }
-
-    function uniqueInlineBlockId(base) {
-        const used = new Set(inlineEditBlocks.map((block) => block.id));
-        let id = slugify(base);
-        let index = 2;
-        while (used.has(id)) id = `${slugify(base)}-${index++}`;
-        return id;
-    }
-
-    function renderIconPicker(selectedIcon, blockIndex) {
-        const options = [
-            ['fa-book-open', 'Libro'],
-            ['fa-scroll', 'Pergamena'],
-            ['fa-feather-alt', 'Nota / diario'],
-            ['fa-user-secret', 'Segreto'],
-            ['fa-crown', 'Corona'],
-            ['fa-skull', 'Pericolo'],
-            ['fa-book-dead', 'Bestiario'],
-            ['fa-gem', 'Reliquia'],
-            ['fa-hand-sparkles', 'Magia'],
-            ['fa-heart', 'Cuore'],
-            ['fa-shield-halved', 'Difesa'],
-            ['fa-flag', 'Bandiera'],
-            ['fa-box', 'Generico']
-        ];
-        const normalizedIcon = selectedIcon || 'fa-book-open';
-        const known = options.some(([value]) => value === normalizedIcon);
-        const effectiveOptions = known ? options : [[normalizedIcon, 'Attuale'], ...options];
-        return effectiveOptions.map(([value, label]) => `
-            <button type="button" class="character-inline-icon-choice ${value === normalizedIcon ? 'is-selected' : ''}" data-inline-edit-action="set-icon" data-inline-block-index="${blockIndex}" data-inline-icon="${escapeHtml(value)}" title="${escapeHtml(label)}">
-                <i class="fas ${escapeHtml(value)}"></i>
-                <span>${escapeHtml(label)}</span>
-            </button>
-        `).join('');
-    }
-
     function displayError(message) {
         if (editLinkEl) editLinkEl.hidden = true;
         charNameEl.textContent = "Errore";
@@ -7879,32 +4998,10 @@ window.CriptaApp.onPageReady("character", async function () {
 
     function resolveImagePath(imagePath) {
         const resolved = resolveCharacterAssetPath(imagePath);
-        if (isInlineEditing) return appendInlineImageVersion(resolved, imagePath);
-        return appendAssetVersion(resolved, currentCharacter?.updatedAt);
-    }
-
-    function markInlineImageUpdated(path) {
-        const key = String(path || '').trim();
-        if (key) inlineImageVersions.set(key, Date.now());
-        if (currentCharacter) currentCharacter.updatedAt = new Date().toISOString();
-    }
-
-    function resolveInlineImagePath(imagePath) {
-        const resolved = resolveImagePath(imagePath);
-        return appendInlineImageVersion(resolved, imagePath);
-    }
-
-    function appendInlineImageVersion(resolved, imagePath) {
-        const version = inlineImageVersions.get(String(imagePath || '').trim());
-        if (!version || !resolved) return resolved;
-        try {
-            const url = new URL(resolved, window.location.href);
-            url.searchParams.set('v', String(version));
-            return url.toString();
-        } catch (_) {
-            const separator = resolved.includes('?') ? '&' : '?';
-            return `${resolved}${separator}v=${version}`;
+        if (currentInlineEditorModule?.isEditing?.()) {
+            return currentInlineEditorModule.resolveImagePath(resolved, imagePath, getInlineEditorRuntimeContext());
         }
+        return appendAssetVersion(resolved, currentCharacter?.updatedAt);
     }
 
     function normalizeImageAdjust(adjust) {
@@ -7967,515 +5064,9 @@ window.CriptaApp.onPageReady("character", async function () {
         return card;
     }
 
-    async function hydratePlayerLoadout(character) {
-        const loadoutCard = document.getElementById('player-loadout-card');
-        const companionsCard = document.getElementById('player-companions-card');
-        if (!loadoutCard) return;
-
-        try {
-            const [inventoryPayload, wikiItems, abilityOverrides, itemOverrides, mediaOverrides] = await Promise.all([
-                loadInventoryData(),
-                loadWikiItemsData().catch((error) => {
-                    console.warn('Impossibile caricare items.json per collegare gli oggetti:', error);
-                    return [];
-                }),
-                loadAbilityOverrides(),
-                loadItemOverrides(),
-                loadMediaOverrides()
-            ]);
-            loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload, wikiItems, abilityOverrides, itemOverrides);
-            initializeLoadoutTabs(loadoutCard);
-            initializeLoadoutCopyButtons(loadoutCard);
-            initializeItemOverrideUploads(loadoutCard, character);
-            initializeAbilityOverrideUploads(loadoutCard, character);
-            if (companionsCard) {
-                const companionsHtml = buildCompanionsHtml(character, inventoryPayload, wikiItems, mediaOverrides, {
-                    canEdit: canEditCurrentPlayerTransformations(character)
-                });
-                companionsCard.hidden = !companionsHtml;
-                companionsCard.innerHTML = companionsHtml;
-                if (companionsHtml) initializeLoadoutCopyButtons(companionsCard);
-                if (companionsHtml) mountCompanionSkillTrees(companionsCard, character, inventoryPayload, mediaOverrides, currentPlayerSkillTrees);
-                if (companionsHtml) mountCompanionTransformations(companionsCard, character, inventoryPayload, mediaOverrides);
-            }
-            hydratePlayerRightOverview(character, inventoryPayload);
-        } catch (error) {
-            console.error('Errore nel caricamento inventario API:', error);
-            loadoutCard.innerHTML = `
-                        <h3><i class="fas fa-box-open"></i> Inventario e Incantesimi</h3>
-                        <div class="loadout-state is-error">
-                            <i class="fas fa-triangle-exclamation"></i>
-                            <span>Impossibile sincronizzare l'inventario dal server.</span>
-                        </div>
-                    `;
-            if (companionsCard) {
-                companionsCard.hidden = true;
-                companionsCard.innerHTML = '';
-            }
-            renderPlayerXpSidebarError("Impossibile sincronizzare l'XP dal server.");
-        }
-    }
-
-    function registerTransformationSubject(subject) {
-        if (subject?.id) transformationSubjectMap.set(String(subject.id), subject);
-        return subject;
-    }
-
-    function getTransformationSubjectFromButton(button) {
-        const card = button?.closest?.('[data-transformation-subject-id]');
-        const subjectId = card?.dataset?.transformationSubjectId || '';
-        return transformationSubjectMap.get(subjectId) || currentCharacter;
-    }
-
-    function buildPlayerTransformationsCard(character) {
-        registerTransformationSubject(character);
-        const card = document.createElement('div');
-        card.className = 'content-card player-transformations-card';
-        card.id = `player-transformations-card-${slugify(character?.id || 'player')}`;
-        card.dataset.transformationSubjectId = String(character?.id || '');
-        card.innerHTML = renderPlayerTransformationsHtml(character);
-        return card;
-    }
-
-    function mountCompanionTransformations(root, character, payload, mediaOverrides = []) {
-        if (!root || !character) return;
-        const companions = getCompanionsForCharacter(payload, character);
-        companions.forEach((rawCompanion) => {
-            const identity = getCompanionMediaOverrideIdentity(character, rawCompanion);
-            const companion = applyCompanionMediaOverride(rawCompanion, identity, mediaOverrides);
-            const subject = registerTransformationSubject(getCompanionSkillTreeSubject(character, companion, identity));
-            const host = root.querySelector(`[data-companion-transformations-host="${CSS.escape(subject.id)}"]`);
-            if (!host) return;
-            const card = document.createElement('div');
-            card.className = 'content-card player-transformations-card companion-transformations-card';
-            card.dataset.transformationSubjectId = subject.id;
-            card.innerHTML = renderPlayerTransformationsHtml(subject);
-            host.replaceChildren(card);
-        });
-    }
-
-    function getCharacterTransformations(character) {
-        const characterId = String(character?.id || '').trim();
-        const accountId = String(character?.accountId || '').trim();
-        const actorId = String(character?.actorId || '').trim();
-        const staticEntries = Array.isArray(character?.transformations) ? character.transformations : [];
-        return mergeTransformations(staticEntries.map((entry) => normalizeTransformationEntry(entry, character)), currentTransformations)
-            .filter((entry) => {
-                if (!entry?.enabled && entry?.enabled !== undefined) return false;
-                const isCompanionEntry = isCompanionTransformationEntry(entry);
-                if (character?.isCompanion) {
-                    if (characterId && String(entry.characterId || '') === characterId) return true;
-                    return Boolean(actorId && String(entry.actorId || '') === actorId);
-                }
-                if (isCompanionEntry) return false;
-                if (characterId && String(entry.characterId || '') === characterId) return true;
-                return Boolean(accountId && String(entry.ownerAccountId || '') === accountId);
-            })
-            .sort((left, right) => String(left.creatureName || left.name || '').localeCompare(String(right.creatureName || right.name || ''), 'it'));
-    }
-
-    function preserveVersionedCanonicalImage(canonicalPath, currentPath) {
-        const canonical = String(canonicalPath || '').trim();
-        const current = String(currentPath || '').trim();
-        if (!canonical || !current) return canonical || current;
-        const cleanCurrent = current.split(/[?#]/)[0].replace(/^\/+/, '');
-        return cleanCurrent === canonical ? current : canonical;
-    }
-
-    function getCompanionCanonicalTokenPath(character) {
-        const ownerCharacterId = slugify(character?.ownerCharacterId || '');
-        const entityId = String(character?.entityId || character?.id || character?.characterId || '')
-            .replace(/^companion-/, '')
-            .trim();
-        if (!ownerCharacterId || !entityId) return '';
-        return `media/campaigns/${getCurrentCampaignId()}/companions/${ownerCharacterId}/${entityId}-token.webp`;
-    }
-
-    function getBaseTransformationTokenImage(character) {
-        const images = character?.images || {};
-        const canonicalToken = character?.isCompanion
-            ? getCompanionCanonicalTokenPath(character)
-            : getSyncedPlayerImagePath(character, 'token');
-        const tokenImage = preserveVersionedCanonicalImage(canonicalToken, images.token);
-        return tokenImage
-            || images.tokenFallback
-            || images.avatar
-            || images.portrait
-            || images.idle
-            || '';
-    }
-
-    function getBaseTransformationEntry(character, entries = []) {
-        if (!entries.length) return null;
-        const tokenImage = getBaseTransformationTokenImage(character);
-        if (!tokenImage) return null;
-        const id = `${character?.id || character?.actorId || 'character'}-base-token`;
-        return {
-            id,
-            characterId: character?.id || '',
-            entityType: character?.isCompanion ? 'companion' : 'player',
-            isCompanion: Boolean(character?.isCompanion),
-            actorId: character?.actorId || '',
-            ownerCharacterId: character?.ownerCharacterId || '',
-            ownerAccountId: character?.accountId || '',
-            ownerDiscordId: character?.discordId || '',
-            creatureName: 'Base',
-            name: 'Base',
-            foundryName: character?.foundryName || character?.name || '',
-            foundryNames: [character?.foundryName || character?.name || ''].filter(Boolean),
-            tokenImage,
-            switcher: true,
-            isBaseTransformation: true
-        };
-    }
-
-    function getDisplayCharacterTransformations(character) {
-        const entries = getCharacterTransformations(character);
-        const baseEntry = getBaseTransformationEntry(character, entries);
-        return baseEntry ? [baseEntry, ...entries] : entries;
-    }
-
-    function isCompanionTransformationEntry(entry) {
-        return Boolean(entry?.isCompanion)
-            || String(entry?.entityType || '') === 'companion'
-            || String(entry?.characterId || '').startsWith('companion-')
-            || String(entry?.id || '').startsWith('companion-');
-    }
-
-    function normalizeTransformationEntry(entry, character) {
-        const creatureName = String(entry?.creatureName || entry?.name || entry?.foundryName || '').trim();
-        const id = entry?.id || `${character?.id || 'player'}-${slugify(creatureName || 'forma')}`;
-        const size = parsePositiveNumberOrNull(entry?.size)
-            || parsePositiveNumberOrNull(entry?.width)
-            || parsePositiveNumberOrNull(entry?.height);
-        const foundryNames = Array.from(new Set([
-            entry?.foundryName,
-            ...(Array.isArray(entry?.foundryNames) ? entry.foundryNames : []),
-            creatureName
-        ].filter(Boolean)));
-        return {
-            ...entry,
-            id,
-            characterId: entry?.characterId || character?.id || '',
-            entityType: entry?.entityType || (character?.isCompanion ? 'companion' : 'player'),
-            isCompanion: Boolean(entry?.isCompanion || character?.isCompanion),
-            actorId: entry?.actorId || character?.actorId || '',
-            ownerCharacterId: entry?.ownerCharacterId || character?.ownerCharacterId || '',
-            ownerAccountId: entry?.ownerAccountId || character?.accountId || '',
-            ownerDiscordId: entry?.ownerDiscordId || character?.discordId || '',
-            ownerAliases: Array.from(new Set([
-                ...(Array.isArray(entry?.ownerAliases) ? entry.ownerAliases : []),
-                character?.id,
-                character?.characterId,
-                character?.name,
-                character?.foundryName,
-                character?.actorId,
-                character?.uuid,
-                character?.accountId,
-                character?.discordId
-            ].filter(Boolean))),
-            creatureName,
-            foundryNames,
-            tokenImage: entry?.tokenImage || '',
-            size,
-            width: undefined,
-            height: undefined
-        };
-    }
-
-    function canEditCurrentPlayerTransformations(character) {
-        if (currentUserIsDm) return true;
-        const user = currentAuthState?.user || {};
-        const accountId = String(user.accountId || user.id || user.sub || '').trim();
-        const discordId = String(user.discordId || '').trim();
-        return Boolean(accountId && character?.accountId && accountId === String(character.accountId))
-            || Boolean(discordId && character?.discordId && discordId === String(character.discordId));
-    }
-
-    function renderPlayerTransformationsHtml(character) {
-        const entries = getDisplayCharacterTransformations(character);
-        const canEdit = canEditCurrentPlayerTransformations(character);
-        const empty = canEdit
-            ? 'Nessuna trasformazione configurata. Aggiungi una creatura e carica il token personalizzato.'
-            : 'Nessuna trasformazione configurata.';
-        const cards = entries.map((entry) => {
-            const title = entry.creatureName || entry.name || entry.foundryName || 'Forma';
-            const foundryLabel = (Array.isArray(entry.foundryNames) ? entry.foundryNames : [entry.foundryName]).filter(Boolean).join(', ');
-            const image = entry.tokenImage ? resolveCharacterAssetPath(entry.tokenImage) : '';
-            const initials = String(title || '?').trim().charAt(0).toUpperCase() || '?';
-            const sizeLabel = entry.size ? `Dimensione token: ${entry.size} x ${entry.size}` : '';
-            const isBaseEntry = Boolean(entry.isBaseTransformation);
-            return `
-                <article class="player-transformation-card ${isBaseEntry ? 'is-base' : ''}" data-transformation-id="${escapeHtml(entry.id)}">
-                    ${isBaseEntry ? `
-                    <div class="player-transformation-token ${image ? 'has-image' : ''} is-base" title="Token base del personaggio">
-                        ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}">` : `<span>${escapeHtml(initials)}</span>`}
-                        <small><i class="fas fa-home"></i> Base</small>
-                    </div>
-                    ` : `
-                    <button type="button" class="player-transformation-token ${image ? 'has-image' : ''}" data-transformation-action="upload" data-transformation-id="${escapeHtml(entry.id)}" ${canEdit ? '' : 'disabled'} title="${canEdit ? 'Carica token personalizzato' : 'Token personalizzato'}">
-                        ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}">` : `<span>${escapeHtml(initials)}</span>`}
-                        ${canEdit ? '<small><i class="fas fa-upload"></i> Cambia</small>' : ''}
-                    </button>
-                    `}
-                    <div class="player-transformation-info">
-                        ${canEdit && !isBaseEntry ? `
-                            <label class="player-transformation-name-field">
-                                <span>Creatura Foundry</span>
-                                <input type="text" value="${escapeHtml(title)}" data-transformation-name-input data-transformation-id="${escapeHtml(entry.id)}" aria-label="Nome creatura Foundry">
-                            </label>
-                        ` : `<strong>${escapeHtml(title)}</strong>`}
-                        ${canEdit ? `
-                            <div class="player-transformation-size-fields">
-                                <label>
-                                    <span>Dimensione token</span>
-                                    <input type="number" min="0.25" step="0.25" value="${entry.size || ''}" placeholder="auto" data-transformation-size-input data-transformation-id="${escapeHtml(entry.id)}" aria-label="Dimensione token">
-                                </label>
-                            </div>
-                        ` : ''}
-                        ${foundryLabel ? `<span>Foundry: ${escapeHtml(foundryLabel)}</span>` : ''}
-                        ${!canEdit && sizeLabel ? `<span>${escapeHtml(sizeLabel)}</span>` : ''}
-                        <span class="player-transformation-mode ${entry.switcher === false ? 'is-muted' : ''}">
-                            <i class="fas fa-retweet"></i>
-                            ${isBaseEntry ? 'Token base' : (entry.switcher === false ? 'Non nel Token Switcher' : 'Disponibile nel Token Switcher')}
-                        </span>
-                    </div>
-                    ${canEdit && !isBaseEntry ? `
-                        <div class="player-transformation-actions">
-                            <button type="button" data-transformation-action="rename" data-transformation-id="${escapeHtml(entry.id)}">Salva dati</button>
-                            ${foundryLabel ? `<button type="button" data-transformation-action="copy-foundry-name" data-transformation-id="${escapeHtml(entry.id)}">Copia nome Foundry</button>` : ''}
-                            <button type="button" data-transformation-action="toggle-switcher" data-transformation-id="${escapeHtml(entry.id)}">${entry.switcher === false ? 'Attiva switcher' : 'Disattiva switcher'}</button>
-                            ${entry.tokenImage ? `<button type="button" data-transformation-action="clear" data-transformation-id="${escapeHtml(entry.id)}">Reset token</button>` : ''}
-                            <button type="button" data-transformation-action="remove" data-transformation-id="${escapeHtml(entry.id)}">Rimuovi</button>
-                        </div>
-                    ` : ''}
-                </article>
-            `;
-        }).join('');
-
-        return `
-            <div class="player-transformations-header">
-                <div>
-                    <h3><i class="fas fa-shapes"></i> Token trasformazioni</h3>
-                    <p>Override estetici: Foundry continua a gestire la trasformazione, il modulo sostituisce solo l'immagine se trova un match.</p>
-                </div>
-                ${canEdit ? `<button type="button" class="button-gold-outline" data-transformation-action="add"><i class="fas fa-plus"></i> Aggiungi forma</button>` : ''}
-            </div>
-            ${entries.length ? `<div class="player-transformations-grid">${cards}</div>` : `<p class="player-overview-empty">${escapeHtml(empty)}</p>`}
-        `;
-    }
-
-    async function handleTransformationClick(event) {
-        const button = event.target.closest('[data-transformation-action]');
-        if (!button || charType !== 'player' || !currentCharacter) return;
-        event.preventDefault();
-        const subject = getTransformationSubjectFromButton(button);
-        if (!subject) return;
-        const action = button.dataset.transformationAction;
-        const id = button.dataset.transformationId || '';
-        if (!canEditCurrentPlayerTransformations(subject)) {
-            alert('Login richiesto con il proprietario del personaggio o con un account DM.');
-            return;
-        }
-
-        if (action === 'add') {
-            const name = window.prompt('Nome della creatura su Foundry');
-            if (!String(name || '').trim()) return;
-            const entry = normalizeTransformationEntry({
-                creatureName: String(name).trim(),
-                foundryNames: [String(name).trim()],
-                enabled: true
-            }, subject);
-            await savePlayerTransformationList(subject, upsertTransformation(getCharacterTransformations(subject), entry));
-            return;
-        }
-
-        const list = getCharacterTransformations(subject);
-        const entry = list.find((item) => item.id === id);
-        if (!entry) return;
-
-        if (action === 'copy-foundry-name') {
-            const name = (Array.isArray(entry.foundryNames) ? entry.foundryNames[0] : entry.foundryName)
-                || entry.creatureName
-                || entry.name
-                || '';
-            const copied = await copyTextToClipboard(name);
-            if (!copied) alert('Impossibile copiare automaticamente il nome Foundry.');
-            return;
-        }
-
-        if (action === 'rename') {
-            const nextEntry = readTransformationCardUpdate(entry, id);
-            if (!nextEntry) return;
-            await savePlayerTransformationList(subject, upsertTransformation(list, nextEntry));
-            return;
-        }
-
-        if (action === 'upload') {
-            const file = await pickInlineImageFile();
-            if (!file) return;
-            const path = await uploadTransformationTokenImage(file, entry, subject);
-            if (!path) return;
-            await savePlayerTransformationList(subject, upsertTransformation(list, { ...entry, tokenImage: path, updatedAt: new Date().toISOString() }));
-            return;
-        }
-
-        if (action === 'clear') {
-            await savePlayerTransformationList(subject, upsertTransformation(list, { ...entry, tokenImage: '', updatedAt: new Date().toISOString() }));
-            return;
-        }
-
-        if (action === 'toggle-switcher') {
-            await savePlayerTransformationList(subject, upsertTransformation(list, {
-                ...entry,
-                switcher: entry.switcher === false,
-                updatedAt: new Date().toISOString()
-            }));
-            return;
-        }
-
-        if (action === 'remove') {
-            if (!window.confirm(`Rimuovere "${entry.creatureName || entry.name || 'questa forma'}"?`)) return;
-            await savePlayerTransformationList(subject, list.filter((item) => item.id !== id));
-        }
-    }
-
-    function renameTransformationEntry(entry, nextName) {
-        const previousName = String(entry.creatureName || entry.name || entry.foundryName || '').trim();
-        const names = Array.isArray(entry.foundryNames) ? entry.foundryNames.slice() : [];
-        const hadOnlyDefaultName = !names.length
-            || (names.length === 1 && normalizeText(names[0]) === normalizeText(previousName));
-        return {
-            ...entry,
-            creatureName: nextName,
-            name: nextName,
-            foundryNames: hadOnlyDefaultName
-                ? [nextName]
-                : Array.from(new Set([nextName, ...names].filter(Boolean))),
-            updatedAt: new Date().toISOString()
-        };
-    }
-
-    function readTransformationCardUpdate(entry, id) {
-        const escapedId = CSS.escape(id);
-        const input = container.querySelector(`[data-transformation-name-input][data-transformation-id="${escapedId}"]`);
-        const sizeInput = container.querySelector(`[data-transformation-size-input][data-transformation-id="${escapedId}"]`);
-        const nextName = String(input?.value || '').trim();
-        if (!nextName) {
-            alert('Il nome della creatura non puo essere vuoto.');
-            return null;
-        }
-        return {
-            ...renameTransformationEntry(entry, nextName),
-            size: parsePositiveNumberOrNull(sizeInput?.value),
-            width: undefined,
-            height: undefined
-        };
-    }
-
-    function parsePositiveNumberOrNull(value) {
-        if (value === '' || value === null || value === undefined) return null;
-        const number = Number(value);
-        return Number.isFinite(number) && number > 0 ? number : null;
-    }
-
-    function upsertTransformation(list, entry) {
-        const next = list.filter((item) => item.id !== entry.id);
-        next.push(entry);
-        return next;
-    }
-
-    async function savePlayerTransformationList(subject, characterEntries) {
-        const token = readAuthToken();
-        if (!token) {
-            alert('Login richiesto per salvare i token trasformazione.');
-            return;
-        }
-        const subjectId = String(subject?.id || '');
-        const card = container.querySelector(`[data-transformation-subject-id="${CSS.escape(subjectId)}"]`);
-        card?.setAttribute('data-saving', 'true');
-        try {
-            const characterId = String(subject?.id || '');
-            const accountId = String(subject?.accountId || '');
-            const nextOwnEntries = characterEntries.map((entry) => normalizeTransformationEntry(entry, subject));
-            const buildTransformationsData = (records) => {
-                const otherEntries = (Array.isArray(records) ? records : []).filter((entry) => {
-                    if (String(entry?.characterId || '') === characterId) return false;
-                    if (!subject?.isCompanion && !isCompanionTransformationEntry(entry) && accountId && String(entry?.ownerAccountId || '') === accountId) return false;
-                    return true;
-                });
-                return [...otherEntries, ...nextOwnEntries];
-            };
-            await saveVersionedCollection({
-                load: loadTransformationsDocumentForSave,
-                url: getTransformationsApiUrl(),
-                token,
-                buildData: buildTransformationsData
-            });
-            transformationsMemoryCache = null;
-            currentTransformations = await loadTransformationsData({ force: true });
-            const target = container.querySelector(`[data-transformation-subject-id="${CSS.escape(subjectId)}"]`);
-            if (target) target.innerHTML = renderPlayerTransformationsHtml(subject);
-        } catch (error) {
-            console.error('Salvataggio trasformazioni fallito:', error);
-            alert(`Salvataggio trasformazioni fallito: ${error?.message || error}`);
-        } finally {
-            card?.removeAttribute('data-saving');
-        }
-    }
-
-    async function loadTransformationsDocumentForSave() {
-        try {
-            const response = await fetch(buildNoStoreApiUrl(getTransformationsApiUrl()));
-            if (response.ok) {
-                const payload = await response.json();
-                if (Array.isArray(payload?.data)) {
-                    return {
-                        data: payload.data,
-                        version: Number(payload.version || 0),
-                        source: payload.source || 'kv'
-                    };
-                }
-            }
-        } catch (error) {
-            console.warn('KV transformations non disponibile per salvataggio, uso JSON statico.', error);
-        }
-
-        const payload = await (typeof window.CriptaApp?.data?.json === 'function'
-            ? window.CriptaApp.data.json('transformations.json')
-            : window.CriptaApp.fetchJson(TRANSFORMATIONS_DATA_URL, { clone: true })
-        ).catch(() => []);
-        const data = Array.isArray(payload) ? payload : payload?.data;
-        return { data: Array.isArray(data) ? data : [], version: 0, source: 'static' };
-    }
-
-    async function uploadTransformationTokenImage(file, entry, subject = currentCharacter) {
-        const token = readAuthToken();
-        if (!token) {
-            alert('Login richiesto per caricare immagini.');
-            return '';
-        }
-        try {
-            const blob = /\.webp$/i.test(file.name) ? file : await convertInlineImageFileToWebpBlob(file);
-            const folder = `transformations/${slugify(subject?.id || subject?.accountId || 'player')}`;
-            const fileName = `${slugify(entry.creatureName || entry.name || entry.id || 'forma')}.webp`;
-            const payload = await window.CriptaMedia.uploadBlob(blob, {
-                folder,
-                fileName,
-                token,
-                campaignId: getCurrentCampaignId(),
-                authError: 'Login richiesto per caricare immagini.'
-            });
-            return payload.path;
-        } catch (error) {
-            console.error('Upload token trasformazione fallito:', error);
-            alert(`Upload token fallito: ${error?.message || error}`);
-            return '';
-        }
-    }
-
     function renderCharacterPage(character, allCharacters, npcQuests, playerSkillTrees) {
-        removeStaleInlineAdjustModal(character);
+        currentInlineEditorModule?.removeStaleAdjustModal(character, getInlineEditorRuntimeContext());
+        const inlineEditing = currentInlineEditorModule?.isEditing?.() === true;
         // Set page title and header
         document.title = `${character.name} | Cripta di Sangue`;
         charNameEl.textContent = character.name;
@@ -8498,17 +5089,8 @@ window.CriptaApp.onPageReady("character", async function () {
         leftCol.className = 'left-col';
 
         if (charType !== 'player') {
-            if (isInlineEditing) {
-                leftCol.appendChild(renderInlineEditToolbar());
-                inlineEditBlocks.forEach((block, index) => {
-                    leftCol.appendChild(renderInlineEditBlock(block, index));
-                });
-                const addCard = document.createElement('button');
-                addCard.className = 'character-inline-add-block';
-                addCard.type = 'button';
-                addCard.dataset.inlineEditAction = 'add-block';
-                addCard.innerHTML = '<i class="fas fa-plus"></i><span>Aggiungi blocco</span>';
-                leftCol.appendChild(addCard);
+            if (inlineEditing) {
+                currentInlineEditorModule?.renderLeftColumn(leftCol, getInlineEditorRuntimeContext());
             } else {
                 const visibleBlocks = (character.content_blocks || []).filter(block => !block.hidden || currentUserIsDm);
 
@@ -8552,9 +5134,10 @@ window.CriptaApp.onPageReady("character", async function () {
                     `;
             leftCol.appendChild(playerCompanionsCard);
 
-            leftCol.appendChild(buildPlayerTransformationsCard(character));
+            const transformationsCard = currentTransformationsModule?.buildCard(character, getTransformationRuntimeContext());
+            if (transformationsCard) leftCol.appendChild(transformationsCard);
 
-            const skillTreeCard = buildPlayerSkillTreeCards(character, playerSkillTrees);
+            const skillTreeCard = currentSkillTreeModule?.buildCards(character, playerSkillTrees, getSkillTreeRuntimeContext());
             if (skillTreeCard) leftCol.appendChild(skillTreeCard);
         }
 
@@ -8566,8 +5149,8 @@ window.CriptaApp.onPageReady("character", async function () {
 
         const rightCol = document.createElement('div');
         rightCol.className = 'right-col';
-        rightCol.innerHTML = isInlineEditing && charType !== 'player'
-            ? getEditableRightColumnHtml(character)
+        rightCol.innerHTML = inlineEditing && charType !== 'player'
+            ? currentInlineEditorModule?.getEditableRightColumnHtml(character, getInlineEditorRuntimeContext()) || ''
             : getRightColumnHtml(character, allCharacters, npcQuests);
 
         grid.appendChild(leftCol);
@@ -8575,7 +5158,7 @@ window.CriptaApp.onPageReady("character", async function () {
         container.appendChild(grid);
 
         if (charType === 'player') {
-            hydratePlayerLoadout(character);
+            currentLoadoutModule?.hydrate(character, getLoadoutRuntimeContext());
         }
 
         // After rendering everything, initialize modal logic
@@ -8588,7 +5171,7 @@ window.CriptaApp.onPageReady("character", async function () {
         charRoleEl.textContent = character.name || '';
         editLinkEl.hidden = true;
 
-        const skillTreeCard = buildPlayerSkillTreeCards(character, playerSkillTrees);
+        const skillTreeCard = currentSkillTreeModule?.buildCards(character, playerSkillTrees, getSkillTreeRuntimeContext());
         if (skillTreeCard) {
             skillTreeCard.classList.add('player-skill-tree-stack--standalone');
             container.appendChild(skillTreeCard);
@@ -8600,241 +5183,6 @@ window.CriptaApp.onPageReady("character", async function () {
         }
 
         initializeImageModal();
-    }
-
-    function removeStaleInlineAdjustModal(character) {
-        const modal = document.getElementById('character-inline-image-adjust-modal');
-        const ownerId = String(character?.id || charId || '');
-        if (modal && modal.dataset.inlineAdjustOwnerId !== ownerId) modal.remove();
-    }
-
-    function getInlineImageFileName(path) {
-        return String(path || '').split(/[?#]/)[0].split(/[\\/]/).pop() || '';
-    }
-
-    function renderInlineImageFileName(path, fallback = 'Trascina o scegli un file webp') {
-        return `<small class="character-inline-image-file-name">${escapeHtml(getInlineImageFileName(path) || fallback)}</small>`;
-    }
-
-    function renderInlineEditToolbar() {
-        const toolbar = document.createElement('div');
-        toolbar.className = 'character-inline-toolbar';
-        toolbar.dataset.inlineEditToolbar = 'true';
-        toolbar.innerHTML = `
-                    <div>
-                        <strong>Modifica pagina NPC</strong>
-                        <span>Scrivi nei blocchi, aggiungi sezioni o elimina quelle inutili.</span>
-                    </div>
-                    <div class="character-inline-toolbar__actions">
-                        <button type="button" class="character-inline-btn character-inline-btn--ghost" data-inline-edit-action="cancel">
-                            <i class="fas fa-xmark"></i> Annulla
-                        </button>
-                        <button type="button" class="character-inline-btn character-inline-btn--primary" data-inline-edit-action="save">
-                            <i class="fas fa-cloud-arrow-up"></i> Salva
-                        </button>
-                    </div>
-                `;
-        return toolbar;
-    }
-
-    function renderInlineEditBlock(block, index) {
-        const card = document.createElement('article');
-        card.className = `content-card character-inline-block ${block.type === 'image' ? 'document-card' : ''}`;
-        card.dataset.inlineBlock = String(index);
-
-        const imageControls = block.type === 'image' ? `
-                    <div class="character-inline-field character-inline-field--full">
-                        <span>Immagine</span>
-                        <input type="hidden" value="${escapeHtml(block.image || '')}" data-inline-block-index="${index}" data-inline-block-field="image">
-                        ${renderInlineImageFileName(block.image)}
-                    </div>
-                ` : '';
-
-        card.innerHTML = `
-                    <div class="character-inline-controls">
-                        <div class="character-inline-field character-inline-field--icons">
-                            <span>Icona</span>
-                            <div class="character-inline-icon-grid">
-                                ${renderIconPicker(block.icon || 'fa-book-open', index)}
-                            </div>
-                        </div>
-                        <label class="character-inline-field">
-                            <span>Tipo</span>
-                            <select data-inline-block-index="${index}" data-inline-block-field="type">
-                                <option value="text"${block.type !== 'image' ? ' selected' : ''}>Testo</option>
-                                <option value="image"${block.type === 'image' ? ' selected' : ''}>Testo + immagine</option>
-                            </select>
-                        </label>
-                        ${imageControls}
-                        <div class="character-inline-actions">
-                            <button type="button" class="character-inline-icon-btn ${block.hidden ? 'is-active' : ''}" data-inline-edit-action="toggle-hidden" data-inline-block-index="${index}" title="${block.hidden ? 'Blocco nascosto ai giocatori' : 'Nascondi ai giocatori'}"><i class="fas ${block.hidden ? 'fa-eye-slash' : 'fa-eye'}"></i></button>
-                            <button type="button" class="character-inline-icon-btn" data-inline-edit-action="move-up" data-inline-block-index="${index}" title="Sposta su"><i class="fas fa-arrow-up"></i></button>
-                            <button type="button" class="character-inline-icon-btn" data-inline-edit-action="move-down" data-inline-block-index="${index}" title="Sposta giu"><i class="fas fa-arrow-down"></i></button>
-                            <button type="button" class="character-inline-icon-btn character-inline-icon-btn--danger" data-inline-edit-action="delete-block" data-inline-block-index="${index}" title="Elimina"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </div>
-                    <div class="character-inline-final ${block.hidden ? 'character-inline-final--hidden' : ''}">
-                        ${block.hidden ? '<span class="character-hidden-badge"><i class="fas fa-eye-slash"></i> Nascosto</span>' : ''}
-                        ${block.type === 'image' ? `
-                            <div class="document-header">
-                                <div class="doc-label">
-                                    <i class="fas ${escapeHtml(block.icon || 'fa-book-dead')}"></i>
-                                    <span class="character-inline-title" contenteditable="plaintext-only" spellcheck="true" data-inline-block-index="${index}" data-inline-block-field="title">${escapeHtml(block.title || 'Informazioni')}</span>
-                                </div>
-                            </div>
-                            <div class="document-body">
-                                <div class="document-image">
-                                    <button type="button" class="character-inline-image-upload" data-inline-edit-action="upload-block-image" data-inline-block-index="${index}" data-inline-block-image-drop-target="${index}" title="Carica nuova immagine">
-                                        ${block.image ? `<img src="${resolveInlineImagePath(block.image)}" alt="${escapeHtml(block.title || '')}" onerror="this.style.display='none'">` : '<span class="character-inline-image-placeholder">Nessuna immagine</span>'}
-                                        <span class="character-inline-upload-hint">Cambia immagine</span>
-                                    </button>
-                                </div>
-                                <div class="document-content">
-                                    ${renderInlineMarkdownEditor(block, index, 'chapter-content--compact')}
-                                </div>
-                            </div>
-                        ` : `
-                            <h3>
-                                <i class="fas ${escapeHtml(block.icon || 'fa-book-open')}"></i>
-                                <span class="character-inline-title" contenteditable="plaintext-only" spellcheck="true" data-inline-block-index="${index}" data-inline-block-field="title">${escapeHtml(block.title || 'Informazioni')}</span>
-                            </h3>
-                            ${renderInlineMarkdownEditor(block, index)}
-                        `}
-                    </div>
-                `;
-        classifyDocumentCardImage(card);
-        return card;
-    }
-
-    function renderInlineMarkdownEditor(block, index, extraClass = '') {
-        const previewHtml = renderMarkdown(block.text || '', { context: block.type === 'image' ? 'image_box' : 'lore' });
-        const previewClass = extraClass ? `chapter-content ${extraClass}` : 'chapter-content';
-        return `
-            <div class="character-inline-markdown-shell">
-                <div class="character-inline-format-toolbar" aria-label="Strumenti testo blocco">
-                    ${renderInlineFormatButton(index, 'bold', 'fa-bold', 'Grassetto')}
-                    ${renderInlineFormatButton(index, 'italic', 'fa-italic', 'Corsivo')}
-                    ${renderInlineFormatButton(index, 'list', 'fa-list-ul', 'Elenco')}
-                    ${renderInlineFormatButton(index, 'quote', 'fa-quote-left', 'Citazione')}
-                    ${renderInlineFormatButton(index, 'gold', 'fa-highlighter', 'Evidenzia oro')}
-                </div>
-                <textarea class="character-inline-markdown-editor" hidden data-inline-block-index="${index}" data-inline-block-field="text">${escapeHtml(block.text || '')}</textarea>
-                <div class="${previewClass} character-inline-markdown-preview character-inline-visual-editor" contenteditable="true" spellcheck="true" data-inline-visual-editor="${index}">${previewHtml || '<p></p>'}</div>
-            </div>
-        `;
-    }
-
-    function renderInlineFormatButton(index, format, icon, label) {
-        return `
-            <button type="button" class="character-inline-format-btn" data-inline-edit-action="format-block" data-inline-block-index="${index}" data-inline-block-format="${escapeHtml(format)}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">
-                <i class="fas ${escapeHtml(icon)}"></i>
-            </button>
-        `;
-    }
-
-    function buildInlineAdjustStyle(adjust) {
-        const normalized = normalizeImageAdjust(adjust);
-        return `transform: translate(${normalized.x}px, ${normalized.y}px) scale(${normalized.size || 1});`;
-    }
-
-    function renderInlineImageAdjustControls(kind) {
-        if (kind !== 'idle' && kind !== 'hover') return '';
-        const safeKind = escapeHtml(kind);
-        return `
-                                <div class="character-inline-image-adjust" data-inline-image-adjust-group="${safeKind}">
-                                    <button type="button" class="character-inline-adjust-open" data-inline-edit-action="adjust-character-image" data-inline-character-image-target="${safeKind}">
-                                        <i class="fas fa-sliders"></i> Regola
-                                    </button>
-                                </div>
-        `;
-    }
-
-    function getEditableRightColumnHtml(character) {
-        const summary = character.summary || {};
-        const images = character.images || {};
-        const editableStats = [
-            ['race', 'Razza'],
-            ['period', 'Nascita / periodo'],
-            ['age', 'Eta'],
-            ['height', 'Altezza'],
-            ['weight', 'Peso'],
-            ['cause_of_death', 'Causa del decesso']
-        ];
-
-        return `
-                    <div class="image-card character-inline-side-editor">
-                        <button type="button" class="character-inline-portrait-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="avatar" data-inline-character-image-drop-target="avatar" data-avatar-token-drop-zone title="Carica avatar scheda">
-                            <img src="${resolveInlineImagePath(images.avatar || images.token)}" class="char-portrait" data-inline-portrait-preview style="${buildInlineAdjustStyle(images.avatarAdjust)}" onerror="this.src='https://placehold.co/400x500/111/333?text=No+Image'">
-                            <span class="character-inline-upload-hint">Cambia avatar scheda</span>
-                        </button>
-                        <div class="character-inline-side-fields">
-                            <label class="character-inline-field">
-                                <span>Nome</span>
-                                <input type="text" value="${escapeHtml(character.name || '')}" data-inline-character-field="name">
-                            </label>
-                            <label class="character-inline-field">
-                                <span>Ruolo</span>
-                                <input type="text" value="${escapeHtml(character.role || '')}" data-inline-character-field="role">
-                            </label>
-                            <label class="character-inline-field">
-                                <span>Categoria</span>
-                                <input type="text" value="${escapeHtml(character.category || '')}" data-inline-character-field="category" placeholder="es. Corte, Criminali, Alleati">
-                            </label>
-                            <label class="character-inline-field">
-                                <span>Priorità categoria</span>
-                                <input type="number" step="1" value="${escapeHtml(formatCategoryPriority(character.categoryPriority))}" data-inline-character-field="categoryPriority" placeholder="vuoto = alfabetico">
-                            </label>
-                            <label class="character-inline-field">
-                                <span>Idle lista</span>
-                                <div class="character-inline-image-field-row" data-inline-character-image-drop-target="idle">
-                                    <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.idle || images.token)}" alt="" data-inline-character-image-preview="idle" style="${buildInlineAdjustStyle(images.idleAdjust)}" onerror="this.style.visibility='hidden'">
-                                    <input type="hidden" value="${escapeHtml(images.idle || '')}" data-inline-character-image-field="idle">
-                                    ${renderInlineImageFileName(images.idle)}
-                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="idle" title="Carica idle">File</button>
-                                </div>
-                                ${renderInlineImageAdjustControls('idle', images.idleAdjust)}
-                            </label>
-                            <label class="character-inline-field">
-                                <span>Hover lista</span>
-                                <div class="character-inline-image-field-row" data-inline-character-image-drop-target="hover">
-                                    <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.hover || images.token)}" alt="" data-inline-character-image-preview="hover" style="${buildInlineAdjustStyle(images.hoverAdjust)}" onerror="this.style.visibility='hidden'">
-                                    <input type="hidden" value="${escapeHtml(images.hover || '')}" data-inline-character-image-field="hover">
-                                    ${renderInlineImageFileName(images.hover)}
-                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="hover" title="Carica hover">File</button>
-                                </div>
-                                ${renderInlineImageAdjustControls('hover', images.hoverAdjust)}
-                            </label>
-                            <label class="character-inline-field">
-                                <span>Token fallback</span>
-                                <div class="character-inline-image-field-row" data-inline-character-image-drop-target="token">
-                                    <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.token || images.idle || images.avatar)}" alt="" data-inline-character-image-preview="token" style="${buildInlineAdjustStyle(images.tokenAdjust)}" onerror="this.style.visibility='hidden'">
-                                    <input type="hidden" value="${escapeHtml(images.token || '')}" data-inline-character-image-field="token">
-                                    ${renderInlineImageFileName(images.token)}
-                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="token" title="Carica token">File</button>
-                                </div>
-                                ${renderInlineImageAdjustControls('token', images.tokenAdjust)}
-                            </label>
-                            <label class="character-inline-field">
-                                <span>Avatar scheda</span>
-                                <div class="character-inline-image-field-row" data-inline-character-image-drop-target="avatar" data-avatar-token-drop-zone>
-                                    <img class="character-inline-image-preview" src="${resolveInlineImagePath(images.avatar || images.token)}" alt="" data-inline-character-image-preview="avatar" style="${buildInlineAdjustStyle(images.avatarAdjust)}" onerror="this.style.visibility='hidden'">
-                                    <input type="hidden" value="${escapeHtml(images.avatar || '')}" data-inline-character-image-field="avatar">
-                                    ${renderInlineImageFileName(images.avatar)}
-                                    <button type="button" class="character-inline-mini-upload" data-inline-edit-action="upload-character-image" data-inline-character-image-target="avatar" title="Carica avatar scheda">File</button>
-                                </div>
-                                ${renderInlineImageAdjustControls('avatar', images.avatarAdjust)}
-                            </label>
-                        </div>
-                        <div class="stats-grid character-inline-stats-grid">
-                            ${editableStats.map(([field, label]) => `
-                                <label class="stat-box character-inline-stat-field">
-                                    <span class="stat-label">${label}</span>
-                                    <input type="text" value="${escapeHtml(summary[field] || '')}" data-inline-character-summary-field="${field}" placeholder="Non disponibile">
-                                </label>
-                            `).join('')}
-                        </div>
-                    </div>
-                `;
     }
 
     function getRightColumnHtml(character, allCharacters, npcQuests) {

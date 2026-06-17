@@ -1,22 +1,26 @@
 (function () {
     const bootstrapCache = new Map();
 
-    function getCampaignId() {
-        return window.CriptaApp?.campaigns?.currentId?.() || "cripta-di-sangue";
+    function getCampaignId(options = {}) {
+        const urlCampaign = new URLSearchParams(window.location.search).get("campaign");
+        return options.campaignId || urlCampaign || window.CriptaApp?.campaigns?.currentId?.() || "cripta-di-sangue";
     }
 
-    function buildCacheKey(characterId, type) {
-        return `${getCampaignId()}::${String(type || "player")}::${String(characterId || "")}`;
+    function buildCacheKey(characterId, type, campaignId = getCampaignId()) {
+        return `${campaignId}::${String(type || "player")}::${String(characterId || "")}`;
     }
 
     async function loadBootstrap(characterId, type = "player", options = {}) {
-        const key = buildCacheKey(characterId, type);
+        const campaignId = getCampaignId(options);
+        const key = buildCacheKey(characterId, type, campaignId);
         if (options.cache !== false && bootstrapCache.has(key)) return bootstrapCache.get(key);
 
         const request = window.CriptaApp.api.get("api/bootstrap/character", {
             query: {
                 id: characterId,
-                type
+                type,
+                campaign: campaignId,
+                campaignId
             },
             cache: options.cache !== false,
             cacheTtlMs: options.cacheTtlMs || 45 * 1000

@@ -90,8 +90,14 @@
   },
   {
     "id": "nino_olegna",
+    "characterId": "nino_olegna",
     "name": "Nino Olegna",
     "image": "media/creatures/transp/nino_olegna_transp.webp",
+    "imageFallback": "media/creatures/transp/nino_olegna_transp.webp",
+    "images": {
+      "hover": "media/campaigns/cripta-di-sangue/characters/nino-olegna/hover.webp",
+      "idle": "media/creatures/transp/nino_olegna_transp.webp"
+    },
     "parents": [],
     "spouses": [
       "x"
