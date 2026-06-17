@@ -354,20 +354,124 @@ function createEmptyNpcCharacter() {
 }
 
 function normalizeCharacterBlocks(character) {
-    if (Array.isArray(character.content_blocks)) return character.content_blocks;
+    if (Array.isArray(character.content_blocks)) {
+        return character.content_blocks.map(normalizeCharacterBlock);
+    }
     if (!Array.isArray(character.blocks)) return [];
-    return character.blocks.map((block) => {
-        const markdownText = String(block.text || '');
-        return {
-            type: block.type === 'image' || block.image ? 'image_box' : 'lore',
-            title: block.title || 'Informazioni',
-            icon: block.icon || 'fa-book-open',
-            image: block.image || '',
-            hidden: Boolean(block.hidden),
-            markdownText,
-            markdownHtml: markdownText ? renderMarkdown(markdownText, { context: block.image ? 'image_box' : 'lore' }) : ''
-        };
+    return character.blocks.map((block) => normalizeCharacterBlock({
+        ...block,
+        type: block.type === 'image' || block.image ? 'image_box' : 'lore',
+        markdownText: String(block.text || '')
+    }));
+}
+
+function normalizeCharacterBlock(block) {
+    const normalized = {
+        ...block,
+        type: block.type || (block.image ? 'image_box' : 'lore'),
+        title: block.title || 'Informazioni',
+        icon: block.icon || 'fa-book-open',
+        image: block.image || '',
+        hidden: Boolean(block.hidden)
+    };
+    if (normalized.type === 'image') normalized.type = 'image_box';
+
+    const markdownText = typeof normalized.markdownText === 'string'
+        ? normalized.markdownText
+        : (typeof normalized.text === 'string' ? normalized.text : '');
+    const context = getCharacterBlockMarkdownContext(normalized);
+
+    if (markdownText) {
+        normalized.markdownText = markdownText;
+        normalized.markdownHtml = renderCharacterBlockMarkup(markdownText, context);
+        return normalized;
+    }
+
+    if (typeof normalized.markdownHtml === 'string' && looksLikeRawMarkdown(normalized.markdownHtml)) {
+        normalized.markdownText = normalized.markdownHtml;
+        normalized.markdownHtml = renderCharacterBlockMarkup(normalized.markdownHtml, context);
+        return normalized;
+    }
+
+    if (!normalized.markdownHtml && typeof normalized.content === 'string') {
+        normalized.markdownHtml = renderCharacterBlockMarkup(normalized.content, context);
+    }
+
+    return normalized;
+}
+
+function getCharacterBlockMarkdownContext(block) {
+    return block?.type === 'image_box' || block?.type === 'image' || block?.image ? 'image_box' : 'lore';
+}
+
+function looksLikeRawMarkdown(value) {
+    const text = String(value || '');
+    if (!text.trim()) return false;
+    if (looksLikeHtml(text)) return false;
+    return containsMarkdownSyntax(text);
+}
+
+function containsMarkdownSyntax(value) {
+    return /(^|\n)\s{0,3}(#{1,6}\s|[-*]\s|>\s)|\*\*[^*]+\*\*|==[^=]+==|`[^`]+`|\*[^*\n]+\*/.test(String(value || ''));
+}
+
+function containsInlineMarkdownSyntax(value) {
+    return /\*\*[^*]+\*\*|==[^=]+==|`[^`]+`|\*[^*\n]+\*/.test(String(value || ''));
+}
+
+function looksLikeHtml(value) {
+    return /<\/?[a-z][\s\S]*>/i.test(String(value || ''));
+}
+
+function renderCharacterBlockMarkup(value, context = 'lore') {
+    const source = String(value || '');
+    if (!source.trim()) return '';
+    if (looksLikeHtml(source)) return renderMarkdownInsideHtml(source, context);
+    return renderMarkdown(source, { context });
+}
+
+function renderMarkdownInsideHtml(html, context = 'lore') {
+    if (!containsMarkdownSyntax(html)) return html;
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    textNodes.forEach((node) => {
+        const text = node.textContent || '';
+        if (!looksLikeRawMarkdown(text)) return;
+        const fragment = document.createElement('template');
+        fragment.innerHTML = renderInlineMarkdownText(text);
+        node.replaceWith(fragment.content);
     });
+    return template.innerHTML;
+}
+
+function renderInlineMarkdownText(text) {
+    const wikiLinks = [];
+    const withWikiPlaceholders = String(text || '').replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_match, target, label) => {
+        const index = wikiLinks.length;
+        wikiLinks.push({
+            target: String(target || '').trim(),
+            label: String(label || target || '').trim()
+        });
+        return `\u0000WIKI${index}\u0000`;
+    });
+    let escaped = withWikiPlaceholders
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    escaped = escaped
+        .replace(/==([^=]+)==/g, '<mark>$1</mark>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`(.+?)`/g, '<code>$1</code>');
+    wikiLinks.forEach((link, index) => {
+        const label = escapeInlineHtml(link.label || link.target);
+        const href = escapeInlineAttr(buildWikiSearchUrl(link.target || link.label));
+        escaped = escaped.replace(`\u0000WIKI${index}\u0000`, `<a class="wiki-term-link" href="${href}">${label}</a>`);
+    });
+    return escaped;
 }
 
 async function loadPlayersData() {
@@ -397,7 +501,7 @@ async function hydrateContentBlocks(character) {
                 break;
             }
             block.markdownText = md;
-            block.markdownHtml = md ? renderMarkdown(md, { context: block.type }) : `<p>Impossibile caricare ${block.markdown}</p>`;
+            block.markdownHtml = md ? renderCharacterBlockMarkup(md, getCharacterBlockMarkdownContext(block)) : `<p>Impossibile caricare ${block.markdown}</p>`;
         } catch (err) {
             console.warn(`Errore nel caricare ${block.markdown}:`, err);
             block.markdownHtml = `<p>Impossibile caricare ${block.markdown}</p>`;
@@ -5644,13 +5748,14 @@ window.CriptaApp.onPageReady("character", async function () {
         enterInlineEditMode();
     });
 
-        container.addEventListener('input', handleInlineEditInput);
-        container.addEventListener('change', handleInlineEditChange);
-        container.addEventListener('mousedown', handleInlineEditMouseDown);
-        container.addEventListener('click', handleInlineEditClick);
-        container.addEventListener('dragover', handleInlineEditDragOver);
-        container.addEventListener('dragleave', handleInlineEditDragLeave);
-        container.addEventListener('drop', handleInlineEditDrop);
+    container.addEventListener('input', handleInlineEditInput);
+    container.addEventListener('keydown', handleInlineEditKeyDown);
+    container.addEventListener('change', handleInlineEditChange);
+    container.addEventListener('mousedown', handleInlineEditMouseDown);
+    container.addEventListener('click', handleInlineEditClick);
+    container.addEventListener('dragover', handleInlineEditDragOver);
+    container.addEventListener('dragleave', handleInlineEditDragLeave);
+    container.addEventListener('drop', handleInlineEditDrop);
     container.addEventListener('click', handleMediaOverrideClick);
     container.addEventListener('click', handleTransformationClick);
 
@@ -5676,7 +5781,7 @@ window.CriptaApp.onPageReady("character", async function () {
         // IBRIDO: Se abbiamo dati statici, usiamoli.
         if (window.NPC_DATA && window.NPC_DATA.length > 0) {
             console.log("Using static NPC data for character details");
-            allCharacters = window.NPC_DATA;
+            allCharacters = normalizeCharactersCollection(window.NPC_DATA);
             character = createMode
                 ? createEmptyNpcCharacter()
                 : allCharacters.find(c => c.id === charId);
@@ -5724,8 +5829,12 @@ window.CriptaApp.onPageReady("character", async function () {
         // because build script only loads text.
         if (character.content_blocks) {
             character.content_blocks.forEach(block => {
-                if (block.markdownText && !block.markdownHtml) {
-                    block.markdownHtml = renderMarkdown(block.markdownText, { context: block.type });
+                const context = getCharacterBlockMarkdownContext(block);
+                if (block.markdownText) {
+                    block.markdownHtml = renderCharacterBlockMarkup(block.markdownText, context);
+                } else if (block.markdownHtml && looksLikeRawMarkdown(block.markdownHtml)) {
+                    block.markdownText = block.markdownHtml;
+                    block.markdownHtml = renderCharacterBlockMarkup(block.markdownText, context);
                 }
             });
         }
@@ -5802,8 +5911,29 @@ window.CriptaApp.onPageReady("character", async function () {
                 icon: block.icon || 'fa-book-open',
                 image: block.image || '',
                 hidden: Boolean(block.hidden),
-                text: block.markdownText || stripHtmlToText(block.markdownHtml || block.content || '')
+                text: getInlineEditableBlockText(block)
             }));
+    }
+
+    function getInlineEditableBlockText(block) {
+        const candidates = [
+            block?.markdownText,
+            block?.text,
+            block?.markdownHtml,
+            block?.content
+        ];
+        for (const candidate of candidates) {
+            if (typeof candidate !== 'string' || !candidate.trim()) continue;
+            if (looksLikeHtml(candidate)) return convertInlineHtmlStringToMarkdown(candidate);
+            return candidate;
+        }
+        return '';
+    }
+
+    function convertInlineHtmlStringToMarkdown(html) {
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = html;
+        return convertInlineEditorHtmlToMarkdown(wrapper) || stripHtmlToText(html);
     }
 
     function handleInlineEditInput(event) {
@@ -5840,6 +5970,20 @@ window.CriptaApp.onPageReady("character", async function () {
         inlineEditDirty = true;
     }
 
+    function handleInlineEditKeyDown(event) {
+        if (!isInlineEditing || event.altKey || !(event.ctrlKey || event.metaKey)) return;
+        const editor = event.target?.closest?.('[data-inline-visual-editor]');
+        if (!editor) return;
+        const key = String(event.key || '').toLowerCase();
+        if (key !== 'z' && key !== 'y') return;
+        const blockIndex = Number(editor.dataset.inlineVisualEditor);
+        if (!Number.isInteger(blockIndex) || !inlineEditBlocks[blockIndex]) return;
+        const command = key === 'y' || event.shiftKey ? 'redo' : 'undo';
+        event.preventDefault();
+        document.execCommand(command, false, null);
+        window.requestAnimationFrame(() => syncInlineVisualEditor(editor, blockIndex));
+    }
+
     function handleInlineEditChange(event) {
         const target = event.target;
         const characterField = target?.dataset?.inlineCharacterField;
@@ -5871,250 +6015,161 @@ window.CriptaApp.onPageReady("character", async function () {
         const editor = container.querySelector(`[data-inline-visual-editor="${blockIndex}"]`);
         if (!editor || !inlineEditBlocks[blockIndex]) return;
         editor.focus();
+        if (!getInlineEditorSelection(editor)) return;
+        document.execCommand('styleWithCSS', false, false);
         if (format === 'bold') {
-            toggleInlineMarkdownMarkerByVisualSelection(editor, blockIndex, '**', getInlineMarkdownFormatFallback(format));
+            document.execCommand('bold', false, null);
         } else if (format === 'italic') {
-            toggleInlineMarkdownMarkerByVisualSelection(editor, blockIndex, '*', getInlineMarkdownFormatFallback(format));
+            document.execCommand('italic', false, null);
         } else if (format === 'list') {
             document.execCommand('insertUnorderedList');
         } else if (format === 'quote') {
             document.execCommand('formatBlock', false, 'blockquote');
         } else if (format === 'gold') {
-            toggleInlineMarkdownMarkerByVisualSelection(editor, blockIndex, '==', getInlineMarkdownFormatFallback(format));
+            applyInlineHighlightFormat(editor, getInlineMarkdownFormatFallback(format));
         } else {
             return;
         }
         syncInlineVisualEditor(editor, blockIndex);
     }
 
-    function toggleInlineMarkdownMarkerByVisualSelection(editor, blockIndex, marker, fallbackText) {
-        const selection = window.getSelection?.();
-        if (!selection || selection.rangeCount === 0 || !editor.contains(selection.anchorNode)) {
-            inlineEditBlocks[blockIndex].text = `${inlineEditBlocks[blockIndex].text || ''}${inlineEditBlocks[blockIndex].text ? '\n\n' : ''}${marker}${fallbackText}${marker}`;
-            renderInlineVisualEditorFromMarkdown(editor, blockIndex);
-            return;
-        }
-        const range = selection.getRangeAt(0);
-        const offsets = getInlineEditorSelectionOffsets(editor, range);
-        if (!offsets || offsets.start === offsets.end) {
-            inlineEditBlocks[blockIndex].text = `${inlineEditBlocks[blockIndex].text || ''}${marker}${fallbackText}${marker}`;
-            renderInlineVisualEditorFromMarkdown(editor, blockIndex);
-            return;
-        }
-        const currentMarkdown = inlineEditBlocks[blockIndex].text || convertInlineEditorHtmlToMarkdown(editor);
-        inlineEditBlocks[blockIndex].text = toggleInlineMarkdownMarker(currentMarkdown, offsets.start, offsets.end, marker);
-        renderInlineVisualEditorFromMarkdown(editor, blockIndex);
-        restoreInlineEditorSelection(editor, offsets);
-    }
-
-    function getInlineEditorSelectionOffsets(editor, range) {
-        const before = range.cloneRange();
-        before.selectNodeContents(editor);
-        before.setEnd(range.startContainer, range.startOffset);
-        const start = before.toString().length;
-        const selectedLength = range.toString().length;
-        if (!selectedLength) return null;
-        return { start, end: start + selectedLength };
-    }
-
-    function restoreInlineEditorSelection(editor, offsets) {
-        if (!editor || !offsets) return;
-        const start = getInlineEditorTextPosition(editor, offsets.start);
-        const end = getInlineEditorTextPosition(editor, offsets.end);
-        if (!start || !end) return;
-        const range = document.createRange();
-        range.setStart(start.node, start.offset);
-        range.setEnd(end.node, end.offset);
+    function getInlineEditorSelection(editor) {
         const selection = window.getSelection?.();
         if (!selection) return;
-        editor.focus();
+        if (
+            selection.rangeCount > 0
+            && editor.contains(selection.anchorNode)
+            && editor.contains(selection.focusNode)
+        ) {
+            return selection;
+        }
+        const range = document.createRange();
+        if (!editor.childNodes.length) {
+            editor.innerHTML = '<p><br></p>';
+        }
+        range.selectNodeContents(editor);
+        range.collapse(false);
         selection.removeAllRanges();
         selection.addRange(range);
+        return selection;
     }
 
-    function getInlineEditorTextPosition(editor, plainOffset) {
-        const targetOffset = Math.max(0, Number(plainOffset) || 0);
-        const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-        let consumed = 0;
-        let lastTextNode = null;
+    function applyInlineHighlightFormat(editor, fallbackText) {
+        const selection = getInlineEditorSelection(editor);
+        if (!selection || selection.rangeCount === 0) return;
+        const range = selection.getRangeAt(0);
+        if (range.collapsed) {
+            replaceInlineSelectionWithHtml(editor, `<mark>${escapeHtml(fallbackText)}</mark>`);
+            return;
+        }
+        const fragment = range.cloneContents();
+        if (inlineFragmentIsFullyHighlighted(fragment)) {
+            unwrapInlineHighlightElements(fragment);
+        } else {
+            unwrapInlineHighlightElements(fragment);
+            wrapInlineTextNodesWithHighlight(fragment);
+        }
+        replaceInlineSelectionWithHtml(editor, inlineFragmentToHtml(fragment));
+    }
+
+    function replaceInlineSelectionWithHtml(editor, html) {
+        const selection = getInlineEditorSelection(editor);
+        if (!selection || selection.rangeCount === 0) return;
+        const startId = `inline-selection-start-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const endId = `inline-selection-end-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const wrappedHtml = [
+            `<span data-inline-selection-marker="${startId}"></span>`,
+            html || '',
+            `<span data-inline-selection-marker="${endId}"></span>`
+        ].join('');
+        const inserted = document.execCommand('insertHTML', false, wrappedHtml);
+        if (!inserted) {
+            const range = selection.getRangeAt(0);
+            const template = document.createElement('template');
+            template.innerHTML = wrappedHtml;
+            range.deleteContents();
+            range.insertNode(template.content);
+        }
+        restoreInlineSelectionBetweenMarkers(editor, startId, endId);
+    }
+
+    function restoreInlineSelectionBetweenMarkers(editor, startId, endId) {
+        const startMarker = editor.querySelector(`[data-inline-selection-marker="${startId}"]`);
+        const endMarker = editor.querySelector(`[data-inline-selection-marker="${endId}"]`);
+        if (!startMarker || !endMarker) return;
+        const range = document.createRange();
+        range.setStartAfter(startMarker);
+        range.setEndBefore(endMarker);
+        const selection = window.getSelection?.();
+        if (selection) {
+            editor.focus();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+        startMarker.remove();
+        endMarker.remove();
+    }
+
+    function inlineFragmentToHtml(fragment) {
+        const wrapper = document.createElement('div');
+        wrapper.appendChild(fragment);
+        return wrapper.innerHTML;
+    }
+
+    function inlineFragmentIsFullyHighlighted(fragment) {
+        const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_TEXT);
+        let hasText = false;
         while (walker.nextNode()) {
             const node = walker.currentNode;
-            const length = node.textContent?.length || 0;
-            lastTextNode = node;
-            if (targetOffset <= consumed + length) {
-                return { node, offset: Math.max(0, Math.min(length, targetOffset - consumed)) };
-            }
-            consumed += length;
+            if (!String(node.textContent || '').trim()) continue;
+            hasText = true;
+            if (!isInlineHighlightNode(node)) return false;
         }
-        if (lastTextNode) return { node: lastTextNode, offset: lastTextNode.textContent?.length || 0 };
-        return { node: editor, offset: 0 };
+        return hasText;
     }
 
-    function toggleInlineMarkdownMarker(markdown, startPlain, endPlain, marker) {
-        const mapped = mapMarkdownPlainText(markdown);
-        const startRaw = plainOffsetToMarkdownIndex(mapped, startPlain, 'start');
-        const endRaw = plainOffsetToMarkdownIndex(mapped, endPlain, 'end');
-        if (startRaw === endRaw) return markdown;
-        if (canMergeInlineMarkdownMarkerRuns(markdown, startRaw, endRaw, marker)) {
-            return `${markdown.slice(0, startRaw - marker.length)}${markdown.slice(startRaw, endRaw)}${markdown.slice(endRaw + marker.length)}`;
-        }
-        const pair = findContainingMarkdownMarkerPair(markdown, startRaw, endRaw, marker);
-        if (pair) {
-            const beforeRun = markdown.slice(pair.open + marker.length, startRaw);
-            const selected = markdown.slice(startRaw, endRaw);
-            const afterRun = markdown.slice(endRaw, pair.close);
-            return [
-                markdown.slice(0, pair.open),
-                beforeRun ? `${marker}${beforeRun}${marker}` : '',
-                selected,
-                afterRun ? `${marker}${afterRun}${marker}` : '',
-                markdown.slice(pair.close + marker.length)
-            ].join('');
-        }
-        return applyInlineMarkdownMarkerToSelection(markdown, startRaw, endRaw, marker);
-    }
-
-    function applyInlineMarkdownMarkerToSelection(markdown, startRaw, endRaw, marker) {
-        let expandedStart = startRaw;
-        let expandedEnd = endRaw;
-        let changed = true;
-        while (changed) {
-            changed = false;
-            for (const pair of findMarkdownMarkerPairs(markdown, marker)) {
-                const contentStart = pair.open + marker.length;
-                const contentEnd = pair.close;
-                const overlapsSelection = contentStart < expandedEnd && contentEnd > expandedStart;
-                if (!overlapsSelection) continue;
-                const nextStart = Math.min(expandedStart, pair.open);
-                const nextEnd = Math.max(expandedEnd, pair.close + marker.length);
-                if (nextStart !== expandedStart || nextEnd !== expandedEnd) {
-                    expandedStart = nextStart;
-                    expandedEnd = nextEnd;
-                    changed = true;
-                }
-            }
-        }
-        const selected = removeInlineMarkdownMarkers(markdown.slice(expandedStart, expandedEnd), marker);
-        if (!selected) return markdown;
-        return `${markdown.slice(0, expandedStart)}${marker}${selected}${marker}${markdown.slice(expandedEnd)}`;
-    }
-
-    function removeInlineMarkdownMarkers(value, marker) {
-        const source = String(value || '');
-        let clean = '';
-        for (let i = 0; i < source.length;) {
-            if (isInlineMarkdownMarkerAt(source, i, marker)) {
-                i += marker.length;
-                continue;
-            }
-            clean += source[i];
-            i += 1;
-        }
-        return clean;
-    }
-
-    function canMergeInlineMarkdownMarkerRuns(markdown, startRaw, endRaw, marker) {
-        const beforeMarkerIndex = startRaw - marker.length;
-        return beforeMarkerIndex >= 0
-            && isInlineMarkdownMarkerAt(markdown, beforeMarkerIndex, marker)
-            && isInlineMarkdownMarkerAt(markdown, endRaw, marker)
-            && !containsInlineMarkdownMarker(markdown.slice(startRaw, endRaw), marker);
-    }
-
-    function containsInlineMarkdownMarker(value, marker) {
-        const source = String(value || '');
-        for (let i = 0; i <= source.length - marker.length; i += 1) {
-            if (isInlineMarkdownMarkerAt(source, i, marker)) return true;
+    function isInlineHighlightNode(node) {
+        let element = node?.parentElement || null;
+        while (element) {
+            if (isInlineHighlightElement(element)) return true;
+            element = element.parentElement;
         }
         return false;
     }
 
-    function mapMarkdownPlainText(markdown) {
-        const source = String(markdown || '');
-        const plainToRaw = [];
-        let plain = '';
-        let atLineStart = true;
-        for (let i = 0; i < source.length;) {
-            if (atLineStart && source.startsWith('### ', i)) {
-                i += 4;
-                atLineStart = false;
-                continue;
-            }
-            if (atLineStart && (source.startsWith('- ', i) || source.startsWith('> ', i))) {
-                i += 2;
-                atLineStart = false;
-                continue;
-            }
-            if (source.startsWith('**', i) || source.startsWith('==', i)) {
-                i += 2;
-                continue;
-            }
-            if (source[i] === '*' || source[i] === '`') {
-                i += 1;
-                continue;
-            }
-            plainToRaw[plain.length] = i;
-            plain += source[i];
-            atLineStart = source[i] === '\n';
-            i += 1;
-        }
-        return { source, plain, plainToRaw };
+    function isInlineHighlightElement(element) {
+        if (!element || element.nodeType !== Node.ELEMENT_NODE) return false;
+        const tag = element.tagName.toLowerCase();
+        if (tag === 'mark') return true;
+        if (tag !== 'span') return false;
+        const background = String(element.style?.backgroundColor || '').trim().toLowerCase();
+        return Boolean(background && background !== 'transparent' && background !== 'rgba(0, 0, 0, 0)');
     }
 
-    function plainOffsetToMarkdownIndex(mapped, offset, boundary = 'start') {
-        if (offset <= 0) return mapped.plainToRaw[0] ?? 0;
-        if (offset >= mapped.plain.length) {
-            const lastRaw = mapped.plainToRaw[mapped.plain.length - 1];
-            return Number.isInteger(lastRaw) ? lastRaw + 1 : mapped.source.length;
-        }
-        const raw = mapped.plainToRaw[offset] ?? mapped.source.length;
-        return boundary === 'end' ? moveMarkdownBoundaryBeforeInlineMarkers(mapped.source, raw) : raw;
+    function unwrapInlineHighlightElements(root) {
+        Array.from(root.querySelectorAll?.('mark, span') || [])
+            .filter(isInlineHighlightElement)
+            .forEach((element) => {
+                const parent = element.parentNode;
+                if (!parent) return;
+                while (element.firstChild) parent.insertBefore(element.firstChild, element);
+                parent.removeChild(element);
+            });
     }
 
-    function moveMarkdownBoundaryBeforeInlineMarkers(markdown, rawIndex) {
-        let boundary = rawIndex;
-        let moved = true;
-        while (moved) {
-            moved = false;
-            for (const marker of ['**', '==', '*', '`']) {
-                const candidate = boundary - marker.length;
-                if (candidate < 0) continue;
-                if (!isInlineMarkdownMarkerAt(markdown, candidate, marker)) continue;
-                boundary = candidate;
-                moved = true;
-                break;
-            }
+    function wrapInlineTextNodesWithHighlight(root) {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const nodes = [];
+        while (walker.nextNode()) {
+            const node = walker.currentNode;
+            if (String(node.textContent || '').trim()) nodes.push(node);
         }
-        return boundary;
-    }
-
-    function findContainingMarkdownMarkerPair(markdown, startRaw, endRaw, marker) {
-        return findMarkdownMarkerPairs(markdown, marker)
-            .find((pair) => pair.open < startRaw && pair.close >= endRaw) || null;
-    }
-
-    function findMarkdownMarkerPairs(markdown, marker) {
-        const pairs = [];
-        const stack = [];
-        for (let i = 0; i <= markdown.length - marker.length;) {
-            if (isInlineMarkdownMarkerAt(markdown, i, marker)) {
-                if (stack.length) pairs.push({ open: stack.pop(), close: i });
-                else stack.push(i);
-                i += marker.length;
-                continue;
-            }
-            i += 1;
-        }
-        return pairs;
-    }
-
-    function isInlineMarkdownMarkerAt(markdown, index, marker) {
-        if (marker === '*') {
-            return markdown[index] === '*'
-                && markdown[index - 1] !== '*'
-                && markdown[index + 1] !== '*';
-        }
-        return markdown.startsWith(marker, index);
+        nodes.forEach((node) => {
+            if (!node.parentNode) return;
+            const mark = document.createElement('mark');
+            node.parentNode.insertBefore(mark, node);
+            mark.appendChild(node);
+        });
     }
 
     function renderInlineVisualEditorFromMarkdown(editor, blockIndex) {
@@ -6168,8 +6223,8 @@ window.CriptaApp.onPageReady("character", async function () {
             const quoteText = convertInlineEditorInlineToMarkdown(node.querySelector('span') || node);
             return quoteText.split(/\n+/).map((line) => `> ${line.trim()}`).join('\n');
         }
-        if (tag === 'h2' || tag === 'h3' || tag === 'h4' || tag === 'h5') {
-            return `### ${convertInlineEditorInlineToMarkdown(node).trim()}`;
+        if (/^h[1-6]$/.test(tag)) {
+            return convertInlineEditorInlineToMarkdown(node).trim();
         }
         if (tag === 'div' || tag === 'p') return convertInlineEditorInlineToMarkdown(node).trim();
         return convertInlineEditorInlineToMarkdown(node).trim();
@@ -6184,6 +6239,7 @@ window.CriptaApp.onPageReady("character", async function () {
         if (tag === 'strong' || tag === 'b') return `**${inner}**`;
         if (tag === 'em' || tag === 'i') return `*${inner}*`;
         if (tag === 'mark') return `==${inner}==`;
+        if (tag === 'span' && isInlineHighlightElement(node)) return `==${inner}==`;
         if (tag === 'code') return `\`${inner}\``;
         if (tag === 'li') return inner;
         if (tag === 'a') return inner;
@@ -9251,6 +9307,7 @@ window.CriptaApp.onPageReady("character", async function () {
             card.classList.add('content-card--dm-hidden');
         }
         const hiddenBadge = block.hidden ? '<span class="character-hidden-badge"><i class="fas fa-eye-slash"></i> Nascosto</span>' : '';
+        const blockHtml = getRenderableContentBlockHtml(block);
         const wrapMarkdown = (html, extraClass = '') => {
             if (!html) return '';
             const className = extraClass ? `chapter-content ${extraClass}` : 'chapter-content';
@@ -9260,7 +9317,7 @@ window.CriptaApp.onPageReady("character", async function () {
         // Use a switch to handle different block types
         switch (block.type) {
             case 'lore':
-                card.innerHTML = `${hiddenBadge}<h3><i class="fas ${block.icon || 'fa-book-open'}"></i> ${block.title}</h3>${wrapMarkdown(block.markdownHtml)}`;
+                card.innerHTML = `${hiddenBadge}<h3><i class="fas ${block.icon || 'fa-book-open'}"></i> ${block.title}</h3>${wrapMarkdown(blockHtml)}`;
                 break;
 
             case 'secret_dossier':
@@ -9275,7 +9332,7 @@ window.CriptaApp.onPageReady("character", async function () {
                             <div class="secret-badge">${block.badge}</div>
                             <div class="dossier-content">
                                 <img src="${resolveImagePath(block.image)}" class="elena-img" onerror="this.style.display='none'">
-                                ${wrapMarkdown(block.markdownHtml, 'chapter-content--compact')}
+                                ${wrapMarkdown(blockHtml, 'chapter-content--compact')}
                             </div>
                         </div>`;
                 break;
@@ -9288,7 +9345,7 @@ window.CriptaApp.onPageReady("character", async function () {
                              </div>
                              <div class="banner-body">
                                  <h3><i class="fas ${block.icon || 'fa-flag'}"></i> ${block.title}</h3>
-                                 ${wrapMarkdown(block.markdownHtml)}
+                                 ${wrapMarkdown(blockHtml)}
                              </div>
                          `;
                 break;
@@ -9297,7 +9354,7 @@ window.CriptaApp.onPageReady("character", async function () {
                 if (block.borderColor) {
                     card.style.borderColor = block.borderColor;
                 }
-                card.innerHTML = `${hiddenBadge}<h3><i class="fas ${block.icon || 'fa-box'}"></i> ${block.title}</h3>${wrapMarkdown(block.markdownHtml)}`;
+                card.innerHTML = `${hiddenBadge}<h3><i class="fas ${block.icon || 'fa-box'}"></i> ${block.title}</h3>${wrapMarkdown(blockHtml)}`;
                 break;
 
             case 'image_box':
@@ -9316,16 +9373,49 @@ window.CriptaApp.onPageReady("character", async function () {
                                 ${block.image_caption ? `<p class="document-caption">${block.image_caption}</p>` : ''}
                             </div>
                             <div class="document-content">
-                                ${wrapMarkdown(block.markdownHtml, 'chapter-content--compact')}
+                                ${wrapMarkdown(blockHtml, 'chapter-content--compact')}
                             </div>
                         </div>`;
                 break;
 
             default:
                 // Default handler for unknown block types
-                card.innerHTML = `${hiddenBadge}<h3>${block.title || 'Informazioni'}</h3>${wrapMarkdown(block.markdownHtml || block.content || '')}`;
+                card.innerHTML = `${hiddenBadge}<h3>${block.title || 'Informazioni'}</h3>${wrapMarkdown(blockHtml)}`;
         }
+        normalizeRenderedInlineMarkdown(card);
         return card;
+    }
+
+    function getRenderableContentBlockHtml(block) {
+        const context = getCharacterBlockMarkdownContext(block);
+        if (typeof block?.markdownText === 'string' && block.markdownText.trim()) {
+            return renderCharacterBlockMarkup(block.markdownText, context);
+        }
+        if (typeof block?.text === 'string' && block.text.trim()) {
+            return renderCharacterBlockMarkup(block.text, context);
+        }
+        if (typeof block?.markdownHtml === 'string' && block.markdownHtml.trim()) {
+            return renderCharacterBlockMarkup(block.markdownHtml, context);
+        }
+        if (typeof block?.content === 'string' && block.content.trim()) {
+            return renderCharacterBlockMarkup(block.content, context);
+        }
+        return '';
+    }
+
+    function normalizeRenderedInlineMarkdown(root) {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const nodes = [];
+        while (walker.nextNode()) {
+            const node = walker.currentNode;
+            if (!containsInlineMarkdownSyntax(node.textContent || '')) continue;
+            nodes.push(node);
+        }
+        nodes.forEach((node) => {
+            const template = document.createElement('template');
+            template.innerHTML = renderInlineMarkdownText(node.textContent || '');
+            node.replaceWith(template.content);
+        });
     }
 });
 

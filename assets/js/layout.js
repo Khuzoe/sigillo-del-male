@@ -21,6 +21,7 @@ const prefetchedUrls = new Set();
 const loadedSpaScripts = new Set();
 const pageScopes = new Map();
 const initialInlineHeadStyles = new WeakSet();
+const spaScrollPositions = new Map();
 let discordAuthCache = null;
 let discordAuthPromise = null;
 const dmIdentityCache = new Map();
@@ -36,6 +37,7 @@ let spaNavigationInProgress = false;
 let currentCampaignId = DEFAULT_CAMPAIGN_ID;
 let currentCampaignConfig = null;
 let campaignConfigPromise = null;
+let currentSpaUrl = window.location.href;
 
 document.addEventListener("DOMContentLoaded", async function () {
     const scriptTag = document.querySelector('script[src*="layout.js"]');
@@ -67,6 +69,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     initPageAccessControls(basePath);
     markInitialSpaScripts();
     initSpaNavigation();
+    saveSpaScrollPosition(currentSpaUrl);
     window.requestAnimationFrame(() => {
         document.body.classList.add("page-ready");
         notifyEmbeddedLocation();
@@ -102,6 +105,10 @@ function onPageReady(pageId, init) {
 }
 
 function initSpaNavigation() {
+    if ("scrollRestoration" in history) {
+        history.scrollRestoration = "manual";
+    }
+
     document.addEventListener("click", (event) => {
         const link = event.target?.closest?.("a[href]");
         if (!shouldHandleSpaClick(event, link)) return;
@@ -114,7 +121,12 @@ function initSpaNavigation() {
     });
 
     window.addEventListener("popstate", () => {
+        saveSpaScrollPosition(currentSpaUrl);
         navigateSpa(window.location.href, { push: false });
+    });
+
+    window.addEventListener("beforeunload", () => {
+        saveSpaScrollPosition(currentSpaUrl);
     });
 }
 
@@ -157,7 +169,8 @@ function buildSpaTargetUrl(href) {
 async function navigateSpa(targetUrl, options = {}) {
     const { push = true } = options;
     const target = new URL(targetUrl, window.location.href);
-    const current = new URL(window.location.href);
+    const current = new URL(currentSpaUrl, window.location.href);
+    const targetScroll = getSpaScrollPosition(target.toString());
 
     if (target.pathname === current.pathname && target.search === current.search) {
         if (target.hash && target.hash !== current.hash) {
@@ -176,6 +189,7 @@ async function navigateSpa(targetUrl, options = {}) {
     spaNavigationInProgress = true;
     document.body.classList.add("spa-loading");
     currentMain.setAttribute("aria-busy", "true");
+    saveSpaScrollPosition(currentSpaUrl);
 
     try {
         const response = await fetch(target.toString(), {
@@ -197,6 +211,7 @@ async function navigateSpa(targetUrl, options = {}) {
         if (push) {
             history.pushState({}, "", target.toString());
         }
+        currentSpaUrl = target.toString();
 
         currentCampaignId = resolveCurrentCampaignId(target);
         document.documentElement.dataset.campaign = currentCampaignId;
@@ -231,15 +246,34 @@ async function navigateSpa(targetUrl, options = {}) {
         notifyEmbeddedLocation();
 
         if (target.hash) scrollToCurrentHash();
+        else if (!push && targetScroll) window.scrollTo({ top: targetScroll.y, left: targetScroll.x, behavior: "auto" });
         else window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     } catch (error) {
         console.error("Errore navigazione SPA:", error);
         window.location.href = target.toString();
     } finally {
+        currentSpaUrl = window.location.href;
         spaNavigationInProgress = false;
         document.body.classList.remove("spa-loading");
         document.querySelector("main")?.removeAttribute("aria-busy");
     }
+}
+
+function getSpaUrlKey(url = window.location.href) {
+    const target = new URL(url, window.location.href);
+    target.hash = "";
+    return target.toString();
+}
+
+function saveSpaScrollPosition(url = window.location.href) {
+    spaScrollPositions.set(getSpaUrlKey(url), {
+        x: window.scrollX || 0,
+        y: window.scrollY || 0
+    });
+}
+
+function getSpaScrollPosition(url = window.location.href) {
+    return spaScrollPositions.get(getSpaUrlKey(url)) || null;
 }
 
 function computeBasePathForUrl(url) {

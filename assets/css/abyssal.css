@@ -5902,6 +5902,32 @@ body.is-embed .container {
     cursor: text;
 }
 
+.character-inline-visual-editor :is(h1, h2, h3, h4, h5, h6) {
+    display: block;
+    margin: 0 0 1rem 0;
+    padding: 0;
+    border: 0;
+    font: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    text-transform: none;
+    color: inherit;
+    background: transparent;
+    -webkit-text-fill-color: currentColor;
+}
+
+.character-inline-visual-editor [style*="font-size"] {
+    font-size: inherit !important;
+}
+
+.character-inline-visual-editor :is(font, big, small) {
+    font: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit !important;
+}
+
 .character-inline-visual-editor:focus {
     border-color: rgba(212, 175, 55, 0.48);
     box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.08);
