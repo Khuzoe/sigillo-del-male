@@ -215,7 +215,7 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
 
     function getPersonImage(person) {
         if (person.unknown && !person.showImageWhenUnknown) return UNKNOWN_FAMILY_IMAGE;
-        return appendAssetVersion(resolveImagePath(person.hoverImage || person.images?.hover || getPersonCanonicalImagePath(person, 'hover') || person.image), person.imageUpdatedAt);
+        return appendAssetVersion(resolveImagePath(person.images?.hover || getPersonCanonicalImagePath(person, 'hover') || person.hoverImage || person.image), person.imageUpdatedAt);
     }
 
     function buildImageFallbackAttributes(person) {
