@@ -1,5 +1,6 @@
 const CRAFTING_ITEM_OVERRIDES_API_URL = () => window.CriptaApp?.urls?.api?.("api/data/item-overrides") || "https://sigillo-api.khuzoe.workers.dev/api/data/item-overrides";
 const CRAFTING_DISCORD_TOKEN_KEY = "discord_jwt";
+let craftingAdjustedImagesResizeBound = false;
 
 window.CriptaApp.onPageReady("crafting", async () => {
     const root = document.getElementById("crafting-root");
@@ -20,7 +21,9 @@ window.CriptaApp.onPageReady("crafting", async () => {
         projectProgressDone: 0,
         status: "",
         statusError: false,
-        query: ""
+        query: "",
+        rarityFilter: "all",
+        tagFilter: "all"
     };
 
     try {
@@ -122,7 +125,7 @@ async function loadCraftingProjectsData() {
 }
 
 function render(root, state) {
-    const filteredMaterials = filterMaterials(state.materials, state.query);
+    const filteredMaterials = filterMaterials(state.materials, state);
     const summary = getCraftingSummary(state);
     root.innerHTML = `
         ${renderCraftingRulesNote()}
@@ -184,17 +187,35 @@ function render(root, state) {
         <section class="crafting-materials-panel">
             <div class="crafting-materials-head">
                 <h3>Materiali</h3>
-                <label class="items-search crafting-search">
-                    <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
-                    <input type="search" value="${escapeHtml(state.query)}" placeholder="Cerca materiale, proprieta o tag..." data-crafting-search>
-                </label>
+                <div class="crafting-material-controls">
+                    <label class="items-search crafting-search">
+                        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                        <input type="search" value="${escapeHtml(state.query)}" placeholder="Cerca materiale o tag..." data-crafting-search>
+                    </label>
+                    <label class="crafting-filter-field">
+                        <span>Rarita</span>
+                        <select data-crafting-rarity-filter>
+                            <option value="all">Tutte</option>
+                            ${getCraftingRarityOptions(state.materials).map((rarity) => `<option value="${escapeHtml(rarity)}" ${state.rarityFilter === rarity ? "selected" : ""}>${escapeHtml(rarity)}</option>`).join("")}
+                        </select>
+                    </label>
+                    <label class="crafting-filter-field">
+                        <span>Tag</span>
+                        <select data-crafting-tag-filter>
+                            <option value="all">Tutti</option>
+                            ${getCraftingTagOptions(state.materials).map((tag) => `<option value="${escapeHtml(tag)}" ${state.tagFilter === tag ? "selected" : ""}>${escapeHtml(tag)}</option>`).join("")}
+                        </select>
+                    </label>
+                </div>
             </div>
+            <p class="crafting-materials-count">${filteredMaterials.length} ${filteredMaterials.length === 1 ? "materiale visibile" : "materiali visibili"}</p>
             <div class="crafting-material-grid">
                 ${filteredMaterials.length ? filteredMaterials.map((material) => renderMaterialCard(material, state)).join("") : '<p class="items-state">Nessun materiale trovato.</p>'}
             </div>
         </section>
     `;
     bindCrafting(root, state);
+    initCraftingAdjustedImages(root);
 }
 
 function bindCrafting(root, state) {
@@ -206,6 +227,14 @@ function bindCrafting(root, state) {
     });
     root.querySelector("[data-crafting-search]")?.addEventListener("input", (event) => {
         state.query = event.target.value.trim();
+        render(root, state);
+    });
+    root.querySelector("[data-crafting-rarity-filter]")?.addEventListener("change", (event) => {
+        state.rarityFilter = event.target.value || "all";
+        render(root, state);
+    });
+    root.querySelector("[data-crafting-tag-filter]")?.addEventListener("change", (event) => {
+        state.tagFilter = event.target.value || "all";
         render(root, state);
     });
     root.querySelector("[data-crafting-player]")?.addEventListener("change", (event) => {
@@ -405,7 +434,7 @@ function renderMaterialCard(material, state) {
             <header>
                 <div class="crafting-material-card__head-main">
                     <div class="crafting-material-thumb">
-                        ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="">` : `<i class="fas fa-cubes-stacked" aria-hidden="true"></i>`}
+                        ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" ${renderCraftingAdjustedImageAttributes(material.imageAdjust)}>` : `<i class="fas fa-cubes-stacked" aria-hidden="true"></i>`}
                     </div>
                     <div>
                         <span><i class="fas ${escapeHtml(rarity.icon)}" aria-hidden="true"></i>${escapeHtml(rarity.label)}</span>
@@ -646,18 +675,51 @@ function filterVisibleItems(items) {
     return list.filter((item) => item?.hidden !== true && item?.status !== "hidden");
 }
 
-function filterMaterials(materials, query) {
-    const needle = normalizeText(query);
-    if (!needle) return materials;
-    return materials.filter((material) => normalizeText([
+function filterMaterials(materials, state) {
+    const needle = normalizeText(state.query);
+    const rarityFilter = String(state.rarityFilter || "all");
+    const tagFilter = String(state.tagFilter || "all");
+    return (Array.isArray(materials) ? materials : []).filter((material) => {
+        if (rarityFilter !== "all" && normalizeText(material.rarity || "Sconosciuta") !== normalizeText(rarityFilter)) return false;
+        const tags = getVisibleMaterialTags(material);
+        if (tagFilter !== "all" && !tags.some((tag) => normalizeText(tag.name) === normalizeText(tagFilter))) return false;
+        if (!needle) return true;
+        return normalizeText([
         material.name,
         material.summary,
         material.notes,
         material.rarity,
         material.valueGold,
         material.value,
-        ...getVisibleMaterialTags(material).flatMap((tag) => [tag.name, tag.description])
-    ].filter(Boolean).join(" ")).includes(needle));
+            ...tags.flatMap((tag) => [tag.name, tag.description])
+        ].filter(Boolean).join(" ")).includes(needle);
+    });
+}
+
+function getCraftingRarityOptions(materials) {
+    const values = new Set();
+    (Array.isArray(materials) ? materials : []).forEach((material) => {
+        const rarity = String(material?.rarity || "Sconosciuta").trim() || "Sconosciuta";
+        values.add(rarity);
+    });
+    return Array.from(values).sort((a, b) => {
+        const rank = getRarityRank(a) - getRarityRank(b);
+        if (rank !== 0) return rank;
+        return String(a).localeCompare(String(b), "it");
+    });
+}
+
+function getCraftingTagOptions(materials) {
+    const values = new Map();
+    (Array.isArray(materials) ? materials : []).forEach((material) => {
+        getVisibleMaterialTags(material).forEach((tag) => {
+            const name = String(tag.name || "").trim();
+            if (!name) return;
+            const key = normalizeText(name);
+            if (!values.has(key)) values.set(key, name);
+        });
+    });
+    return Array.from(values.values()).sort((a, b) => String(a).localeCompare(String(b), "it"));
 }
 
 function isMaterialItem(item) {
@@ -695,6 +757,91 @@ function resolveImageUrl(path) {
     if (value.startsWith("/media/")) return window.CriptaApp.urls.api(value.slice(1));
     if (value.startsWith("assets/")) return `../${value}`;
     return `../assets/${value}`;
+}
+
+function renderCraftingAdjustedImageAttributes(adjust) {
+    const normalized = normalizeCraftingImageAdjust(adjust);
+    return [
+        "data-crafting-adjusted-image",
+        `data-crafting-adjust-x="${escapeHtml(normalized.x)}"`,
+        `data-crafting-adjust-y="${escapeHtml(normalized.y)}"`,
+        `data-crafting-adjust-size="${escapeHtml(normalized.size)}"`
+    ].join(" ");
+}
+
+function normalizeCraftingImageAdjust(adjust) {
+    return {
+        x: normalizePercent(adjust?.x, 50),
+        y: normalizePercent(adjust?.y, 50),
+        size: normalizeScale(adjust?.size, 1)
+    };
+}
+
+function normalizePercent(value, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
+}
+
+function normalizeScale(value, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? Math.max(0.75, number) : fallback;
+}
+
+function initCraftingAdjustedImages(root = document) {
+    if (!craftingAdjustedImagesResizeBound) {
+        craftingAdjustedImagesResizeBound = true;
+        window.addEventListener("resize", () => {
+            document.querySelectorAll("[data-crafting-adjusted-image]").forEach((image) => applyCraftingAdjustedImageLayout(image));
+        });
+    }
+    root.querySelectorAll?.("[data-crafting-adjusted-image]").forEach((image) => {
+        if (image.dataset.craftingAdjustedBound !== "1") {
+            image.dataset.craftingAdjustedBound = "1";
+            image.addEventListener("load", () => applyCraftingAdjustedImageLayout(image));
+        }
+        applyCraftingAdjustedImageLayout(image);
+    });
+}
+
+function applyCraftingAdjustedImageLayout(image) {
+    if (!image || !image.naturalWidth || !image.naturalHeight) return;
+    const frame = image.closest(".crafting-material-thumb") || image.parentElement;
+    const rect = frame?.getBoundingClientRect?.();
+    if (!rect?.width || !rect?.height) return;
+
+    const adjust = normalizeCraftingImageAdjust({
+        x: image.dataset.craftingAdjustX,
+        y: image.dataset.craftingAdjustY,
+        size: image.dataset.craftingAdjustSize
+    });
+    const imageRatio = image.naturalWidth / image.naturalHeight;
+    const frameRatio = rect.width / rect.height;
+    let drawWidth;
+    let drawHeight;
+    if (imageRatio >= frameRatio) {
+        drawHeight = rect.height;
+        drawWidth = rect.height * imageRatio;
+    } else {
+        drawWidth = rect.width;
+        drawHeight = rect.width / imageRatio;
+    }
+    drawWidth *= adjust.size;
+    drawHeight *= adjust.size;
+
+    const overflowX = Math.max(0, drawWidth - rect.width);
+    const overflowY = Math.max(0, drawHeight - rect.height);
+    const offsetX = ((50 - adjust.x) / 100) * overflowX;
+    const offsetY = ((50 - adjust.y) / 100) * overflowY;
+
+    image.style.position = "absolute";
+    image.style.left = "50%";
+    image.style.top = "50%";
+    image.style.width = `${drawWidth}px`;
+    image.style.height = `${drawHeight}px`;
+    image.style.maxWidth = "none";
+    image.style.objectFit = "fill";
+    image.style.transformOrigin = "50% 50%";
+    image.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
 }
 
 function getItemRarityMeta(rarity) {

@@ -2,6 +2,7 @@ const ITEMS_DATA_API_URL = () => window.CriptaApp?.urls?.api?.("api/data/items")
 const ITEMS_MEDIA_WORKER_URL = window.CriptaApp?.config?.workerOrigin || "https://sigillo-api.khuzoe.workers.dev";
 const ITEMS_DISCORD_TOKEN_KEY = "discord_jwt";
 let currentMaterialTagSuggestions = [];
+let itemAdjustedImagesResizeBound = false;
 
 window.CriptaApp.onPageReady("oggetti", async () => {
     const grid = document.getElementById("items-grid");
@@ -260,6 +261,7 @@ function updateItemsView(items, state, grid, count) {
     });
     bindItemExpansion(grid);
     bindItemInlineEditor(grid, state, count);
+    initItemAdjustedImages(grid);
 }
 
 function renderItemsGrid(items, { canEdit = false, editingItemId = "", itemDraft = null } = {}) {
@@ -498,8 +500,9 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
 
 function renderItemInlineEditor(item) {
     const imagePath = String(item.image || "").trim();
+    const imageAdjust = normalizeItemImageAdjust(item.imageAdjust);
     const preview = imagePath
-        ? `<img src="${escapeHtml(resolveImageUrl(imagePath))}" alt="">`
+        ? `<img src="${escapeHtml(resolveImageUrl(imagePath))}" alt="" ${renderItemAdjustedImageAttributes(imageAdjust)}>`
         : '<span>Nessuna immagine</span>';
     const fileName = getFileNameFromPath(imagePath);
     return `
@@ -523,6 +526,11 @@ function renderItemInlineEditor(item) {
                     </button>
                     <input type="hidden" data-item-field="image" value="${escapeHtml(imagePath)}">
                     <small class="item-inline-editor-file-name" data-item-image-file-name>${escapeHtml(fileName || "Trascina o scegli un file webp")}</small>
+                    <div class="item-inline-image-adjust" aria-label="Regola immagine oggetto">
+                        ${renderItemImageAdjustControl("x", "X", imageAdjust.x, 0, 100, 1)}
+                        ${renderItemImageAdjustControl("y", "Y", imageAdjust.y, 0, 100, 1)}
+                        ${renderItemImageAdjustControl("size", "Zoom", imageAdjust.size, 0.75, 2.5, 0.01)}
+                    </div>
                     <div class="item-inline-editor-checks">
                         ${renderItemEditCheck("Sintonia", "attunement", item.attunement === true)}
                         ${renderItemEditCheck("Non identificato", "unidentified", item.unidentified === true)}
@@ -586,6 +594,15 @@ function renderItemInlineEditor(item) {
             </div>
             <p class="item-inline-editor-status" data-item-editor-status></p>
         </div>
+    `;
+}
+
+function renderItemImageAdjustControl(key, label, value, min, max, step) {
+    return `
+        <label class="item-inline-image-adjust-control">
+            <span>${escapeHtml(label)}</span>
+            <input type="range" min="${escapeHtml(min)}" max="${escapeHtml(max)}" step="${escapeHtml(step)}" value="${escapeHtml(value)}" data-item-image-adjust="${escapeHtml(key)}">
+        </label>
     `;
 }
 
@@ -788,6 +805,11 @@ function bindItemInlineEditor(grid, state, count) {
         });
     });
 
+    grid.querySelectorAll("[data-item-image-adjust]").forEach(input => {
+        input.addEventListener("input", () => updateItemImageAdjustPreview(input));
+        input.addEventListener("change", () => updateItemImageAdjustPreview(input));
+    });
+
     grid.querySelectorAll("[data-item-image-dropzone]").forEach((dropzone) => {
         bindItemImageDropzone(dropzone, state);
     });
@@ -811,6 +833,17 @@ function bindInlineRowRemoveAction(row) {
     row?.querySelector("[data-material-tag-template]")?.addEventListener("change", event => {
         applyMaterialTagSuggestion(event.currentTarget);
     });
+}
+
+function updateItemImageAdjustPreview(input) {
+    const form = input.closest("[data-item-inline-editor]");
+    if (!form) return;
+    const adjust = readItemImageAdjust(form);
+    const previewImage = form.querySelector("[data-item-image-preview] img");
+    if (previewImage) {
+        setItemAdjustedImageDataset(previewImage, adjust);
+        applyItemAdjustedImageLayout(previewImage);
+    }
 }
 
 function applyMaterialTagSuggestion(select) {
@@ -868,7 +901,10 @@ async function applyItemImageFile(file, form, state) {
         const preview = form.querySelector("[data-item-image-preview]");
         const fileName = form.querySelector("[data-item-image-file-name]");
         if (field) field.value = path;
-        if (preview) preview.innerHTML = `<img src="${escapeHtml(resolveImageUrl(path))}" alt="">`;
+        if (preview) {
+            preview.innerHTML = `<img src="${escapeHtml(resolveImageUrl(path))}" alt="" ${renderItemAdjustedImageAttributes(readItemImageAdjust(form))}>`;
+            initItemAdjustedImages(preview);
+        }
         if (fileName) fileName.textContent = getFileNameFromPath(path) || getFileNameFromPath(file.name) || "immagine.webp";
         setItemEditorStatus(form, "Immagine caricata. Salva l'oggetto per confermare.");
     } catch (error) {
@@ -1021,6 +1057,7 @@ function collectItemDraft(form, original) {
     });
     draft.properties = collectItemPropertyRows(form);
     draft.materialTags = collectItemMaterialTagRows(form);
+    draft.imageAdjust = readItemImageAdjust(form);
     delete draft.tags;
     draft.id = getItemId(draft);
     if (!draft.name) draft.name = draft.id || "Oggetto senza nome";
@@ -1088,6 +1125,7 @@ function pruneInlineItem(item) {
     if (Array.isArray(item.materialTags) && !item.materialTags.length) delete item.materialTags;
     if (Array.isArray(item.foundryNames) && !item.foundryNames.length) delete item.foundryNames;
     if (Array.isArray(item.aliases) && !item.aliases.length) delete item.aliases;
+    if (isDefaultItemImageAdjust(item.imageAdjust)) delete item.imageAdjust;
 }
 
 async function loadItemsDocumentForSave() {
@@ -1265,7 +1303,7 @@ function renderItemMedia(item, type, rarity) {
         const imageUrl = resolveImageUrl(item.image);
         return `
             <button class="item-card-media ${escapeHtml(rarityClass)}" type="button" data-item-image="${escapeHtml(imageUrl)}" data-item-name="${escapeHtml(item.name || "Oggetto")}" aria-label="Ingrandisci immagine: ${escapeHtml(item.name || "Oggetto")}">
-                <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name || "Oggetto")}">
+                <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name || "Oggetto")}" ${renderItemAdjustedImageAttributes(item.imageAdjust)}>
             </button>
         `;
     }
@@ -1274,6 +1312,124 @@ function renderItemMedia(item, type, rarity) {
             <i class="fas ${escapeHtml(item.icon || type.icon)}"></i>
         </div>
     `;
+}
+
+function readItemImageAdjust(form) {
+    const values = {};
+    form?.querySelectorAll("[data-item-image-adjust]").forEach(input => {
+        const key = input.dataset.itemImageAdjust;
+        if (!key) return;
+        values[key] = input.value;
+    });
+    return normalizeItemImageAdjust(values);
+}
+
+function normalizeItemImageAdjust(adjust) {
+    return {
+        x: normalizeItemImagePercent(adjust?.x, 50),
+        y: normalizeItemImagePercent(adjust?.y, 50),
+        size: normalizeItemImageScale(adjust?.size, 1)
+    };
+}
+
+function normalizeItemImagePercent(value, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
+}
+
+function normalizeItemImageScale(value, fallback) {
+    const number = Number(value);
+    return Number.isFinite(number) && number > 0 ? Math.max(0.75, number) : fallback;
+}
+
+function isDefaultItemImageAdjust(adjust) {
+    const normalized = normalizeItemImageAdjust(adjust);
+    return normalized.x === 50 && normalized.y === 50 && normalized.size === 1;
+}
+
+function buildItemImageStyle(adjust) {
+    const normalized = normalizeItemImageAdjust(adjust);
+    return [
+        `--item-img-x:${normalized.x}%`,
+        `--item-img-y:${normalized.y}%`,
+        `--item-img-scale:${normalized.size}`
+    ].join("; ") + ";";
+}
+
+function renderItemAdjustedImageAttributes(adjust) {
+    const normalized = normalizeItemImageAdjust(adjust);
+    return [
+        "data-item-adjusted-image",
+        `data-item-adjust-x="${escapeHtml(normalized.x)}"`,
+        `data-item-adjust-y="${escapeHtml(normalized.y)}"`,
+        `data-item-adjust-size="${escapeHtml(normalized.size)}"`,
+        `style="${buildItemImageStyle(normalized)}"`
+    ].join(" ");
+}
+
+function setItemAdjustedImageDataset(image, adjust) {
+    const normalized = normalizeItemImageAdjust(adjust);
+    image.dataset.itemAdjustX = String(normalized.x);
+    image.dataset.itemAdjustY = String(normalized.y);
+    image.dataset.itemAdjustSize = String(normalized.size);
+    image.setAttribute("style", buildItemImageStyle(normalized));
+}
+
+function initItemAdjustedImages(root = document) {
+    if (!itemAdjustedImagesResizeBound) {
+        itemAdjustedImagesResizeBound = true;
+        window.addEventListener("resize", () => {
+            document.querySelectorAll("[data-item-adjusted-image]").forEach((image) => applyItemAdjustedImageLayout(image));
+        });
+    }
+    root.querySelectorAll?.("[data-item-adjusted-image]").forEach((image) => {
+        if (image.dataset.itemAdjustedBound !== "1") {
+            image.dataset.itemAdjustedBound = "1";
+            image.addEventListener("load", () => applyItemAdjustedImageLayout(image));
+        }
+        applyItemAdjustedImageLayout(image);
+    });
+}
+
+function applyItemAdjustedImageLayout(image) {
+    if (!image || !image.naturalWidth || !image.naturalHeight) return;
+    const frame = image.closest("[data-item-image-preview]") || image.closest(".item-card-media") || image.parentElement;
+    const rect = frame?.getBoundingClientRect?.();
+    if (!rect?.width || !rect?.height) return;
+
+    const adjust = normalizeItemImageAdjust({
+        x: image.dataset.itemAdjustX,
+        y: image.dataset.itemAdjustY,
+        size: image.dataset.itemAdjustSize
+    });
+    const imageRatio = image.naturalWidth / image.naturalHeight;
+    const frameRatio = rect.width / rect.height;
+    let drawWidth;
+    let drawHeight;
+    if (imageRatio >= frameRatio) {
+        drawHeight = rect.height;
+        drawWidth = rect.height * imageRatio;
+    } else {
+        drawWidth = rect.width;
+        drawHeight = rect.width / imageRatio;
+    }
+    drawWidth *= adjust.size;
+    drawHeight *= adjust.size;
+
+    const overflowX = Math.max(0, drawWidth - rect.width);
+    const overflowY = Math.max(0, drawHeight - rect.height);
+    const offsetX = ((50 - adjust.x) / 100) * overflowX;
+    const offsetY = ((50 - adjust.y) / 100) * overflowY;
+
+    image.style.position = "absolute";
+    image.style.left = "50%";
+    image.style.top = "50%";
+    image.style.width = `${drawWidth}px`;
+    image.style.height = `${drawHeight}px`;
+    image.style.maxWidth = "none";
+    image.style.objectFit = "fill";
+    image.style.transformOrigin = "50% 50%";
+    image.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
 }
 
 function formatItemTypeLabel(item) {

@@ -9610,6 +9610,7 @@ body.page-oggetti .hero-mini {
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.26);
     color: rgba(212, 175, 55, 0.68);
+    cursor: pointer;
     font-size: 3rem;
 }
 
@@ -9620,10 +9621,49 @@ body.page-oggetti .hero-mini {
     border-color: rgba(212, 175, 55, 0.58);
 }
 
-.item-inline-editor-preview img {
+.item-inline-editor-preview [data-item-image-preview] {
+    display: grid;
+    place-items: center;
+    position: relative;
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    overflow: hidden;
+}
+
+.item-inline-editor-preview img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.item-inline-image-adjust {
+    display: grid;
+    gap: 0.45rem;
+    width: 100%;
+    max-width: 14rem;
+    padding: 0.7rem;
+    border: 1px solid rgba(212, 175, 55, 0.14);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.item-inline-image-adjust-control {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr);
+    gap: 0.55rem;
+    align-items: center;
+    color: var(--gold-dim);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.item-inline-image-adjust-control input {
+    width: 100%;
+    accent-color: var(--gold);
 }
 
 .item-inline-editor-file-name {
@@ -9766,6 +9806,7 @@ body.page-oggetti .hero-mini {
 }
 
 .item-card-media {
+    position: relative;
     width: 7rem;
     aspect-ratio: 1;
     overflow: hidden;
