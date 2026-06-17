@@ -2,7 +2,9 @@ const ITEMS_DATA_API_URL = () => window.CriptaApp?.urls?.api?.("api/data/items")
 const ITEMS_MEDIA_WORKER_URL = window.CriptaApp?.config?.workerOrigin || "https://sigillo-api.khuzoe.workers.dev";
 const ITEMS_DISCORD_TOKEN_KEY = "discord_jwt";
 let currentMaterialTagSuggestions = [];
-let itemAdjustedImagesResizeBound = false;
+const ITEM_IMAGE_ADJUST_DATASET_KEYS = { x: "itemAdjustX", y: "itemAdjustY", size: "itemAdjustSize" };
+const ITEM_IMAGE_ADJUST_CSS_VARS = { x: "--item-img-x", y: "--item-img-y", size: "--item-img-scale" };
+const ITEM_IMAGE_ADJUST_FRAME_SELECTORS = ["[data-item-image-preview]", ".item-card-media"];
 
 window.CriptaApp.onPageReady("oggetti", async () => {
     const grid = document.getElementById("items-grid");
@@ -59,31 +61,8 @@ async function loadItemsData() {
     return Array.isArray(data) ? data : data?.data || [];
 }
 
-const ITEM_TYPES = [
-    { value: "Arma", icon: "fa-khanda" },
-    { value: "Armatura", icon: "fa-shield-halved" },
-    { value: "Anello", icon: "fa-ring" },
-    { value: "Bacchetta", icon: "fa-wand-sparkles" },
-    { value: "Bastone", icon: "fa-staff-snake" },
-    { value: "Oggetto meraviglioso", icon: "fa-hat-wizard" },
-    { value: "Pergamena", icon: "fa-scroll" },
-    { value: "Pozione", icon: "fa-flask-vial" },
-    { value: "Materiali", icon: "fa-cubes-stacked" },
-    { value: "Bottino", icon: "fa-gem" },
-    { value: "Scudo", icon: "fa-shield" },
-    { value: "Verga", icon: "fa-wand-magic-sparkles" }
-];
-
-const ITEM_RARITIES = [
-    { value: "Comune", icon: "fa-circle" },
-    { value: "Non comune", icon: "fa-circle-plus" },
-    { value: "Raro", icon: "fa-gem" },
-    { value: "Epico", icon: "fa-star" },
-    { value: "Molto raro", icon: "fa-star" },
-    { value: "Leggendario", icon: "fa-crown" },
-    { value: "Artefatto", icon: "fa-sun" },
-    { value: "Sconosciuta", icon: "fa-circle-question" }
-];
+const ITEM_TYPES = window.CriptaItemNormalize.ITEM_TYPES;
+const ITEM_RARITIES = window.CriptaItemNormalize.ITEM_RARITIES;
 
 function resolveImageUrl(path) {
     const value = String(path || "").trim();
@@ -96,10 +75,7 @@ function resolveImageUrl(path) {
 }
 
 function filterVisibleItems(items, { includeHidden = false } = {}) {
-    const list = Array.isArray(items) ? items : [];
-    if (includeHidden) return list;
-    if (window.WikiSpoiler) return window.WikiSpoiler.filterVisible(list);
-    return list.filter(item => !isHiddenItem(item));
+    return window.CriptaItemNormalize.filterVisibleItems(items, { includeHidden });
 }
 
 async function canCurrentUserSeeHiddenItems() {
@@ -133,7 +109,7 @@ function getAuthDiscordId(authState) {
 }
 
 function isHiddenItem(item) {
-    return item?.hidden === true || item?.status === "hidden";
+    return window.CriptaItemNormalize.isHiddenItem(item);
 }
 
 function initItemFilters(items, state, elements) {
@@ -1204,30 +1180,11 @@ function getVisibleItemProperties(item) {
 }
 
 function normalizeMaterialTags(value) {
-    if (!Array.isArray(value)) return [];
-    return value
-        .map(tag => {
-            if (typeof tag === "string") {
-                const name = tag.trim();
-                return name ? { name, description: "" } : null;
-            }
-            if (!tag || typeof tag !== "object") return null;
-            const name = String(tag.name || tag.label || tag.tag || "").trim();
-            const description = String(tag.description || tag.desc || tag.note || "").trim();
-            const hidden = tag.hidden === true;
-            if (!name && !description) return null;
-            return { name, description, hidden };
-        })
-        .filter(Boolean);
+    return window.CriptaItemNormalize.normalizeMaterialTags(value);
 }
 
 function getVisibleMaterialTags(item) {
-    const rawTags = Array.isArray(item?.materialTags)
-        ? item.materialTags
-        : Array.isArray(item?.tags)
-            ? item.tags
-            : item?.properties;
-    return normalizeMaterialTags(rawTags).filter(tag => tag.hidden !== true);
+    return window.CriptaItemNormalize.getVisibleMaterialTags(item);
 }
 
 function collectMaterialTagSuggestions(items) {
@@ -1279,9 +1236,7 @@ function formatGoldValue(value) {
 }
 
 function formatWeightValue(value) {
-    const text = String(value ?? "").trim();
-    if (!text) return "";
-    return /^-?\d+(?:[.,]\d+)?$/.test(text) ? `${text.replace(".", ",")} kg` : text;
+    return window.CriptaItemNormalize.formatWeightValue(value);
 }
 
 function renderItemProperty(property) {
@@ -1325,35 +1280,15 @@ function readItemImageAdjust(form) {
 }
 
 function normalizeItemImageAdjust(adjust) {
-    return {
-        x: normalizeItemImagePercent(adjust?.x, 50),
-        y: normalizeItemImagePercent(adjust?.y, 50),
-        size: normalizeItemImageScale(adjust?.size, 1)
-    };
-}
-
-function normalizeItemImagePercent(value, fallback) {
-    const number = Number(value);
-    return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
-}
-
-function normalizeItemImageScale(value, fallback) {
-    const number = Number(value);
-    return Number.isFinite(number) && number > 0 ? Math.max(0.75, number) : fallback;
+    return window.CriptaImageAdjust.normalizePercentAdjust(adjust);
 }
 
 function isDefaultItemImageAdjust(adjust) {
-    const normalized = normalizeItemImageAdjust(adjust);
-    return normalized.x === 50 && normalized.y === 50 && normalized.size === 1;
+    return window.CriptaImageAdjust.isDefaultPercentAdjust(adjust);
 }
 
 function buildItemImageStyle(adjust) {
-    const normalized = normalizeItemImageAdjust(adjust);
-    return [
-        `--item-img-x:${normalized.x}%`,
-        `--item-img-y:${normalized.y}%`,
-        `--item-img-scale:${normalized.size}`
-    ].join("; ") + ";";
+    return window.CriptaImageAdjust.buildPercentCssVars(adjust, ITEM_IMAGE_ADJUST_CSS_VARS);
 }
 
 function renderItemAdjustedImageAttributes(adjust) {
@@ -1368,68 +1303,24 @@ function renderItemAdjustedImageAttributes(adjust) {
 }
 
 function setItemAdjustedImageDataset(image, adjust) {
-    const normalized = normalizeItemImageAdjust(adjust);
-    image.dataset.itemAdjustX = String(normalized.x);
-    image.dataset.itemAdjustY = String(normalized.y);
-    image.dataset.itemAdjustSize = String(normalized.size);
-    image.setAttribute("style", buildItemImageStyle(normalized));
+    window.CriptaImageAdjust.setDatasetAdjust(image, adjust, ITEM_IMAGE_ADJUST_DATASET_KEYS, ITEM_IMAGE_ADJUST_CSS_VARS);
 }
 
 function initItemAdjustedImages(root = document) {
-    if (!itemAdjustedImagesResizeBound) {
-        itemAdjustedImagesResizeBound = true;
-        window.addEventListener("resize", () => {
-            document.querySelectorAll("[data-item-adjusted-image]").forEach((image) => applyItemAdjustedImageLayout(image));
-        });
-    }
-    root.querySelectorAll?.("[data-item-adjusted-image]").forEach((image) => {
-        if (image.dataset.itemAdjustedBound !== "1") {
-            image.dataset.itemAdjustedBound = "1";
-            image.addEventListener("load", () => applyItemAdjustedImageLayout(image));
-        }
-        applyItemAdjustedImageLayout(image);
+    window.CriptaImageAdjust.initContainedImages(root, {
+        selector: "[data-item-adjusted-image]",
+        bindingKey: "item-adjusted-images",
+        boundDatasetKey: "itemAdjustedBound",
+        datasetKeys: ITEM_IMAGE_ADJUST_DATASET_KEYS,
+        frameSelectors: ITEM_IMAGE_ADJUST_FRAME_SELECTORS
     });
 }
 
 function applyItemAdjustedImageLayout(image) {
-    if (!image || !image.naturalWidth || !image.naturalHeight) return;
-    const frame = image.closest("[data-item-image-preview]") || image.closest(".item-card-media") || image.parentElement;
-    const rect = frame?.getBoundingClientRect?.();
-    if (!rect?.width || !rect?.height) return;
-
-    const adjust = normalizeItemImageAdjust({
-        x: image.dataset.itemAdjustX,
-        y: image.dataset.itemAdjustY,
-        size: image.dataset.itemAdjustSize
+    window.CriptaImageAdjust.applyContainedImageLayout(image, {
+        datasetKeys: ITEM_IMAGE_ADJUST_DATASET_KEYS,
+        frameSelectors: ITEM_IMAGE_ADJUST_FRAME_SELECTORS
     });
-    const imageRatio = image.naturalWidth / image.naturalHeight;
-    const frameRatio = rect.width / rect.height;
-    let drawWidth;
-    let drawHeight;
-    if (imageRatio >= frameRatio) {
-        drawHeight = rect.height;
-        drawWidth = rect.height * imageRatio;
-    } else {
-        drawWidth = rect.width;
-        drawHeight = rect.width / imageRatio;
-    }
-    drawWidth *= adjust.size;
-    drawHeight *= adjust.size;
-
-    const overflowX = Math.max(0, drawWidth - rect.width);
-    const overflowY = Math.max(0, drawHeight - rect.height);
-    const offsetX = ((50 - adjust.x) / 100) * overflowX;
-    const offsetY = ((50 - adjust.y) / 100) * overflowY;
-
-    image.style.position = "absolute";
-    image.style.left = "50%";
-    image.style.top = "50%";
-    image.style.width = `${drawWidth}px`;
-    image.style.height = `${drawHeight}px`;
-    image.style.maxWidth = "none";
-    image.style.objectFit = "fill";
-    image.style.transformOrigin = "50% 50%";
-    image.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
 }
 
 function formatItemTypeLabel(item) {
@@ -1440,51 +1331,19 @@ function formatItemTypeLabel(item) {
 }
 
 function getItemCategory(item) {
-    const type = String(item?.type || "").trim();
-    const subtype = String(item?.subtype || "").trim();
-    const name = String(item?.name || "").trim();
-    const normalizedType = normalizeSearch(type);
-    const normalizedSubtype = normalizeSearch(subtype);
-    const normalizedName = normalizeSearch(name);
-    const materialTokens = [
-        "materiale",
-        "materiali",
-        "minerale",
-        "minerali",
-        "reagente",
-        "reagenti",
-        "ingrediente",
-        "ingredienti"
-    ];
-    const isMaterial = materialTokens.some(token =>
-        normalizedType === token
-        || normalizedSubtype === token
-        || normalizedName.includes(token)
-    );
-    return isMaterial ? "Materiali" : type;
+    return window.CriptaItemNormalize.getItemCategory(item);
 }
 
 function getItemTypeMeta(type) {
-    const label = String(type || "").trim();
-    const meta = ITEM_TYPES.find(item => item.value.toLowerCase() === label.toLowerCase());
-    return meta ? { label: meta.value, icon: meta.icon } : { label: label || "Oggetto", icon: "fa-box-open" };
+    return window.CriptaItemNormalize.getItemTypeMeta(type);
 }
 
 function getItemRarityMeta(rarity) {
-    const label = String(rarity || "Sconosciuta").trim();
-    const meta = ITEM_RARITIES.find(item => item.value.toLowerCase() === label.toLowerCase());
-    return meta ? { label: meta.value, icon: meta.icon } : { label, icon: "fa-circle-question" };
+    return window.CriptaItemNormalize.getItemRarityMeta(rarity);
 }
 
 function getItemRarityFrameClass(rarity) {
-    const normalized = normalizeSearch(rarity);
-    if (normalized === "comune") return "item-rarity-frame--common";
-    if (normalized === "non comune") return "item-rarity-frame--uncommon";
-    if (normalized === "raro") return "item-rarity-frame--rare";
-    if (normalized === "epico" || normalized === "molto raro") return "item-rarity-frame--epic";
-    if (normalized === "leggendario") return "item-rarity-frame--legendary";
-    if (normalized === "artefatto") return "item-rarity-frame--artifact";
-    return "";
+    return window.CriptaItemNormalize.getItemRarityFrameClass(rarity);
 }
 
 function initItemImageModal() {
@@ -1547,19 +1406,11 @@ function uniqueSorted(values) {
 }
 
 function normalizeSearch(value) {
-    return String(value || "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
+    return window.CriptaItemNormalize.normalizeSearch(value);
 }
 
 function slugify(value) {
-    return String(value || "item")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "") || "item";
+    return window.CriptaItemNormalize.slugify(value, "item");
 }
 
 function escapeHtml(value) {

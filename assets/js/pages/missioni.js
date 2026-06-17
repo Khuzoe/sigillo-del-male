@@ -13,21 +13,8 @@
             return new URL(`../${cleanPath}`, window.location.href).toString();
         }
 
-        function slugify(value) {
-            return String(value || '')
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '') || 'npc';
-        }
-
-        function getCurrentCampaignId() {
-            return window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
-        }
-
         function getSyncedNpcImagePath(npcId, variant = 'hover') {
-            return `media/campaigns/${getCurrentCampaignId()}/characters/${slugify(npcId)}/${variant}.webp`;
+            return window.CriptaCharacterNormalize.getSyncedNpcImagePath(npcId, variant);
         }
 
         // Funzione helper per parsare YAML (molto semplificata, solo per estrarre immagini)
@@ -102,12 +89,7 @@
         }
 
         function resolveImagePath(path) {
-            const value = String(path || '').trim();
-            if (!value) return '';
-            if (/^(https?:|data:|blob:)/i.test(value)) return value;
-            if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
-            if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
-            return siteUrl(`assets/${value}`);
+            return window.CriptaApp.utils.resolveImageUrl(path);
         }
 
         function buildImageFallbackHandler(fallbackPath, legacyFallbackPath = '') {

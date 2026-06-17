@@ -1196,6 +1196,17 @@ function normalizeText(value) {
         .replace(/[\u0300-\u036f]/g, "");
 }
 
+function normalizeKey(value) {
+    return normalizeText(value).replace(/[^a-z0-9]+/g, "");
+}
+
+function slugifyText(value, fallback = "voce") {
+    const slug = normalizeText(value)
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    return slug || fallback;
+}
+
 function trimPreviewText(value, maxLength) {
     const text = String(value || "").replace(/\s+/g, " ").trim();
     return text.length > maxLength ? `${text.slice(0, maxLength).trim()}...` : text;
@@ -1209,6 +1220,33 @@ function escapeHtml(value) {
         "\"": "&quot;",
         "'": "&#039;"
     })[char]);
+}
+
+function resolveImageUrl(path, options = {}) {
+    const settings = typeof options === "string" ? { fallback: options } : (options || {});
+    const fallback = String(settings.fallback || "");
+    const value = String(path || "").trim();
+    if (!value) return fallback ? resolveImageUrl(fallback, { ...settings, fallback: "" }) : "";
+    if (/^(https?:|data:|blob:)/i.test(value)) return value;
+    if (value.startsWith("media/")) return applyCampaignToUrl(new URL(buildWorkerUrl(value))).toString();
+    if (value.startsWith("/media/")) return applyCampaignToUrl(new URL(buildWorkerUrl(value.slice(1)))).toString();
+    if (value.startsWith("assets/")) return resolveSiteUrl(value);
+    if (/^\.\.?\//.test(value) || value.startsWith("/")) return new URL(value, window.location.href).toString();
+
+    const assetBase = String(settings.assetBase || "assets/").replace(/^\/+/, "").replace(/\/?$/, "/");
+    return resolveSiteUrl(`${assetBase}${value.replace(/^\/+/, "")}`);
+}
+
+function appendAssetVersion(url, version) {
+    const stamp = String(version || "").trim();
+    if (!url || !stamp || /^(data:|blob:)/i.test(url)) return url;
+    try {
+        const nextUrl = new URL(url, window.location.href);
+        nextUrl.searchParams.set("v", stamp);
+        return nextUrl.toString();
+    } catch (_) {
+        return `${url}${url.includes("?") ? "&" : "?"}v=${encodeURIComponent(stamp)}`;
+    }
 }
 
 function warmEmbedScript(basePath, path) {
@@ -1900,6 +1938,14 @@ window.CriptaApp = {
     config: {
         workerOrigin: DISCORD_WORKER_URL,
         tokenStorageKey: DISCORD_TOKEN_KEY
+    },
+    utils: {
+        appendAssetVersion,
+        escapeHtml,
+        normalizeKey,
+        normalizeText,
+        resolveImageUrl,
+        slugify: slugifyText
     },
     urls: {
         api(pathname) {

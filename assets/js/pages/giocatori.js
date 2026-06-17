@@ -120,26 +120,8 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         });
     }
 
-    function normalizeImageAdjust(adjust) {
-        const x = Number(adjust?.x);
-        const y = Number(adjust?.y);
-        const size = Number(adjust?.size);
-        return {
-            x: Number.isFinite(x) ? x : 0,
-            y: Number.isFinite(y) ? y : 0,
-            size: Number.isFinite(size) && size > 0 ? size : null
-        };
-    }
-
     function buildImageStyle(kind, adjust, counterpartAdjust) {
-        const normalized = normalizeImageAdjust(adjust);
-        const counterpart = normalizeImageAdjust(counterpartAdjust);
-        const isHover = kind === "hover";
-        const restScale = isHover ? (counterpart.size || 1) : (normalized.size || 1);
-        const hoverScale = isHover
-            ? (normalized.size || 1.20)
-            : (counterpart.size || (normalized.size ? normalized.size * 1.20 : 1.20));
-        return `--img-x:${normalized.x}px; --img-y:${normalized.y}px; --img-scale-rest:${restScale}; --img-scale-hover:${hoverScale};`;
+        return window.CriptaImageAdjust.buildNpcImageStyle(kind, adjust, counterpartAdjust);
     }
 
     function resolveImageUrl(path) {

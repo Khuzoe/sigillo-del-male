@@ -456,22 +456,11 @@ function buildBestiaryDetailUrl(creature) {
 }
 
 function buildBestiaryImageStyle(adjust) {
-    const x = normalizePercent(adjust?.x, 50);
-    const y = normalizePercent(adjust?.y, 50);
-    const size = normalizeScale(adjust?.size, 1);
-    return `--bestiary-img-x:${x}%; --bestiary-img-y:${y}%; --bestiary-img-scale:${size};`;
-}
-
-function normalizePercent(value, fallback) {
-    const number = Number(value);
-    if (!Number.isFinite(number)) return fallback;
-    return Math.max(0, Math.min(100, number));
-}
-
-function normalizeScale(value, fallback) {
-    const number = Number(value);
-    if (!Number.isFinite(number) || number <= 0) return fallback;
-    return Math.max(0.75, number);
+    return window.CriptaImageAdjust.buildPercentCssVars(adjust, {
+        x: "--bestiary-img-x",
+        y: "--bestiary-img-y",
+        size: "--bestiary-img-scale"
+    });
 }
 
 function getBestiaryRank(rank) {

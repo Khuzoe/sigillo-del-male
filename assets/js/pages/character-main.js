@@ -106,114 +106,7 @@ function parseYamlLite(yamlText) {
 }
 
 function renderMarkdown(md, options = {}) {
-    const context = options.context || null;
-    if (!md) return '';
-    const inline = (text) => {
-        const wikiLinks = [];
-        const withWikiPlaceholders = String(text || '').replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_match, target, label) => {
-            const index = wikiLinks.length;
-            wikiLinks.push({
-                target: String(target || '').trim(),
-                label: String(label || target || '').trim()
-            });
-            return `\u0000WIKI${index}\u0000`;
-        });
-        let escaped = withWikiPlaceholders
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-        escaped = escaped
-            .replace(/==([^=]+)==/g, '<mark>$1</mark>')
-            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.+?)\*/g, '<em>$1</em>')
-            .replace(/`(.+?)`/g, '<code>$1</code>');
-        wikiLinks.forEach((link, index) => {
-            const label = escapeInlineHtml(link.label || link.target);
-            const href = escapeInlineAttr(buildWikiSearchUrl(link.target || link.label));
-            escaped = escaped.replace(`\u0000WIKI${index}\u0000`, `<a class="wiki-term-link" href="${href}">${label}</a>`);
-        });
-        return escaped;
-    };
-
-    const lines = md.replace(/\r\n?/g, '\n').split('\n');
-    const out = [];
-    let i = 0;
-    while (i < lines.length) {
-        if (/^\s*$/.test(lines[i])) { i++; continue; }
-
-        // Subtitle as a single italic line at start (image_box, etc.)
-        if (context === 'image_box' && i === 0) {
-            const m = lines[i].trim().match(/^\*(.+)\*$/);
-            if (m) {
-                out.push(`<p class="doc-subtitle">${inline(m[1])}</p>`);
-                i++; continue;
-            }
-        }
-
-        if (/^###\s+/.test(lines[i])) {
-            out.push(`<h4 class="doc-heading">${inline(lines[i].replace(/^###\s+/, ''))}</h4>`);
-            i++; continue;
-        }
-        if (/^##\s+/.test(lines[i])) {
-            out.push(`<h3 class="doc-heading">${inline(lines[i].replace(/^##\s+/, ''))}</h3>`);
-            i++; continue;
-        }
-        if (/^#\s+/.test(lines[i])) {
-            out.push(`<h2 class="doc-heading">${inline(lines[i].replace(/^#\s+/, ''))}</h2>`);
-            i++; continue;
-        }
-
-        if (/^>\s?/.test(lines[i])) {
-            const quote = [];
-            while (i < lines.length && /^>\s?/.test(lines[i])) {
-                quote.push(lines[i].replace(/^>\s?/, ''));
-                i++;
-            }
-            const rawQuote = quote.join('\n').trim();
-            const quoteText = inline(rawQuote).replace(/\n/g, '<br>');
-            out.push(`<div class="document-quote"><i class="fas fa-feather-alt"></i><span>${quoteText}</span></div>`);
-            continue;
-        }
-
-        if (/^- /.test(lines[i])) {
-            const items = [];
-            while (i < lines.length && /^- /.test(lines[i])) {
-                items.push(lines[i].replace(/^- /, ''));
-                i++;
-            }
-            const lis = items.map(t => `<li>${inline(t)}</li>`).join('');
-            out.push(`<ul class="doc-list">${lis}</ul>`);
-            continue;
-        }
-
-        const para = [];
-        while (i < lines.length && !/^\s*$/.test(lines[i])) {
-            para.push(lines[i]);
-            i++;
-        }
-        const paraClass = context === 'image_box' ? ' class="doc-paragraph"' : '';
-        out.push(`<p${paraClass}>${inline(para.join(' '))}</p>`);
-    }
-    return out.join('\n');
-}
-
-function buildWikiSearchUrl(query) {
-    const url = new URL('cerca.html', window.location.href);
-    url.searchParams.set('q', String(query || '').trim());
-    const campaignId = window.CriptaApp?.campaigns?.currentId?.() || new URLSearchParams(window.location.search).get('campaign') || '';
-    if (campaignId && campaignId !== 'cripta-di-sangue') url.searchParams.set('campaign', campaignId);
-    return url.toString();
-}
-
-function escapeInlineHtml(value) {
-    return String(value || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
-
-function escapeInlineAttr(value) {
-    return escapeInlineHtml(value).replace(/"/g, '&quot;');
+    return window.CriptaMarkdown.render(md, options);
 }
 
 async function loadCharactersManifest() {
@@ -286,38 +179,14 @@ async function loadCharactersCollection() {
 }
 
 function normalizeCharactersCollection(characters) {
-    return characters.map((character) => {
-        const normalized = { ...character };
-        normalized._originalId = slugify(character.id || character.name || 'npc');
-        normalized.category = character.category || character.group || character.faction || '';
-        normalized.categoryPriority = normalizeCategoryPriority(character.categoryPriority);
-        normalized.content_blocks = normalizeCharacterBlocks(character);
-        normalized.images = normalizeCharacterImages(normalized);
-        return normalized;
+    return window.CriptaCharacterNormalize.normalizeCharactersCollection(characters, {
+        includeOriginalId: true,
+        normalizeBlocks: normalizeCharacterBlocks
     });
 }
 
 function normalizeCharacterImages(character) {
-    const raw = character?.images || {};
-    if ((character?.type || 'npc') === 'player') {
-        const images = { ...raw };
-        if (!images.hover) images.hover = images.avatar || images.portrait || '';
-        if (!images.avatar) images.avatar = images.portrait || images.hover || '';
-        return images;
-    }
-
-    const token = raw.token || getSyncedNpcImagePath(character, 'token');
-    const legacyList = raw.avatar || raw.portrait || raw.hover || '';
-    return {
-        ...raw,
-        idle: raw.idle || raw.card || raw.list || raw.showcase || getSyncedNpcImagePath(character, 'idle'),
-        hover: raw.hover || raw.cardHover || raw.listHover || raw.showcaseHover || getSyncedNpcImagePath(character, 'hover'),
-        token,
-        avatar: raw.avatar || raw.portrait || getSyncedNpcImagePath(character, 'avatar'),
-        idleFallback: raw.idleFallback || token || legacyList,
-        hoverFallback: raw.hoverFallback || token || legacyList,
-        avatarFallback: raw.avatarFallback || raw.portrait || legacyList
-    };
+    return window.CriptaCharacterNormalize.normalizeCharacterImages(character);
 }
 
 function createEmptyNpcCharacter() {
@@ -405,14 +274,11 @@ function getCharacterBlockMarkdownContext(block) {
 }
 
 function looksLikeRawMarkdown(value) {
-    const text = String(value || '');
-    if (!text.trim()) return false;
-    if (looksLikeHtml(text)) return false;
-    return containsMarkdownSyntax(text);
+    return window.CriptaMarkdown.looksLikeRawMarkdown(value);
 }
 
 function containsMarkdownSyntax(value) {
-    return /(^|\n)\s{0,3}(#{1,6}\s|[-*]\s|>\s)|\*\*[^*]+\*\*|==[^=]+==|`[^`]+`|\*[^*\n]+\*/.test(String(value || ''));
+    return window.CriptaMarkdown.containsMarkdownSyntax(value);
 }
 
 function containsInlineMarkdownSyntax(value) {
@@ -420,58 +286,14 @@ function containsInlineMarkdownSyntax(value) {
 }
 
 function looksLikeHtml(value) {
-    return /<\/?[a-z][\s\S]*>/i.test(String(value || ''));
+    return window.CriptaMarkdown.looksLikeHtml(value);
 }
 
 function renderCharacterBlockMarkup(value, context = 'lore') {
     const source = String(value || '');
     if (!source.trim()) return '';
-    if (looksLikeHtml(source)) return renderMarkdownInsideHtml(source, context);
-    return renderMarkdown(source, { context });
-}
-
-function renderMarkdownInsideHtml(html, context = 'lore') {
-    if (!containsMarkdownSyntax(html)) return html;
-    const template = document.createElement('template');
-    template.innerHTML = html;
-    const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
-    const textNodes = [];
-    while (walker.nextNode()) textNodes.push(walker.currentNode);
-    textNodes.forEach((node) => {
-        const text = node.textContent || '';
-        if (!looksLikeRawMarkdown(text)) return;
-        const fragment = document.createElement('template');
-        fragment.innerHTML = renderInlineMarkdownText(text);
-        node.replaceWith(fragment.content);
-    });
-    return template.innerHTML;
-}
-
-function renderInlineMarkdownText(text) {
-    const wikiLinks = [];
-    const withWikiPlaceholders = String(text || '').replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_match, target, label) => {
-        const index = wikiLinks.length;
-        wikiLinks.push({
-            target: String(target || '').trim(),
-            label: String(label || target || '').trim()
-        });
-        return `\u0000WIKI${index}\u0000`;
-    });
-    let escaped = withWikiPlaceholders
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-    escaped = escaped
-        .replace(/==([^=]+)==/g, '<mark>$1</mark>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/`(.+?)`/g, '<code>$1</code>');
-    wikiLinks.forEach((link, index) => {
-        const label = escapeInlineHtml(link.label || link.target);
-        const href = escapeInlineAttr(buildWikiSearchUrl(link.target || link.label));
-        escaped = escaped.replace(`\u0000WIKI${index}\u0000`, `<a class="wiki-term-link" href="${href}">${label}</a>`);
-    });
-    return escaped;
+    if (looksLikeHtml(source)) return window.CriptaMarkdown.renderInsideHtml(source, { context });
+    return window.CriptaMarkdown.render(source, { context });
 }
 
 async function loadPlayersData() {
@@ -672,9 +494,7 @@ function slugify(value) {
 }
 
 function normalizeCategoryPriority(value) {
-    if (value === '' || value === null || value === undefined) return null;
-    const number = Number(value);
-    return Number.isFinite(number) ? Math.trunc(number) : null;
+    return window.CriptaCharacterNormalize.normalizeCategoryPriority(value);
 }
 
 function formatCategoryPriority(value) {
@@ -910,15 +730,11 @@ async function resizeImageFileToWebpBlobShared(file, maxSize = 1600, quality = 0
 }
 
 function getSyncedPlayerImagePath(character, variant = 'avatar') {
-    const characterId = slugify(character?.id || character?.name || 'personaggio');
-    const campaignId = getCurrentCampaignId();
-    const suffix = variant === 'token' ? '-token' : '-avatar';
-    return `media/campaigns/${campaignId}/players/${characterId}${suffix}.webp`;
+    return window.CriptaCharacterNormalize.getSyncedPlayerImagePath(character, variant);
 }
 
 function getSyncedNpcImagePath(character, variant = 'avatar') {
-    const characterId = slugify(character?.id || character?.name || 'npc');
-    return `media/campaigns/${getCurrentCampaignId()}/characters/${characterId}/${variant}.webp`;
+    return window.CriptaCharacterNormalize.getSyncedNpcImagePath(character, variant);
 }
 
 function ensureDefaultNpcListImagePaths(character) {
@@ -8170,14 +7986,7 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     function normalizeImageAdjust(adjust) {
-        const x = Number(adjust?.x);
-        const y = Number(adjust?.y);
-        const size = Number(adjust?.size);
-        return {
-            x: Number.isFinite(x) ? x : 0,
-            y: Number.isFinite(y) ? y : 0,
-            size: Number.isFinite(size) && size > 0 ? size : null
-        };
+        return window.CriptaCharacterNormalize.normalizeImageAdjust(adjust);
     }
 
     function serializeImageAdjust(adjust) {
@@ -8195,17 +8004,7 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     function buildImageStyle(kind, adjust, counterpartAdjust) {
-        const normalized = normalizeImageAdjust(adjust);
-        const counterpart = normalizeImageAdjust(counterpartAdjust);
-        const isHover = kind === 'hover';
-        const restScale = isHover
-            ? (counterpart.size || 1)
-            : (normalized.size || 1);
-        const hoverScale = isHover
-            ? (normalized.size || 1.20)
-            : (counterpart.size || (normalized.size ? normalized.size * 1.20 : 1.20));
-
-        return `--img-x:${normalized.x}px; --img-y:${normalized.y}px; --img-scale-rest:${restScale}; --img-scale-hover:${hoverScale};`;
+        return window.CriptaCharacterNormalize.buildNpcImageStyle(kind, adjust, counterpartAdjust);
     }
 
     function renderRelationships(relationships, allCharacters) {
@@ -9433,7 +9232,7 @@ window.CriptaApp.onPageReady("character", async function () {
         }
         nodes.forEach((node) => {
             const template = document.createElement('template');
-            template.innerHTML = renderInlineMarkdownText(node.textContent || '');
+            template.innerHTML = window.CriptaMarkdown.renderInline(node.textContent || '');
             node.replaceWith(template.content);
         });
     }

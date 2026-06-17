@@ -1,6 +1,7 @@
 const CRAFTING_ITEM_OVERRIDES_API_URL = () => window.CriptaApp?.urls?.api?.("api/data/item-overrides") || "https://sigillo-api.khuzoe.workers.dev/api/data/item-overrides";
 const CRAFTING_DISCORD_TOKEN_KEY = "discord_jwt";
-let craftingAdjustedImagesResizeBound = false;
+const CRAFTING_IMAGE_ADJUST_DATASET_KEYS = { x: "craftingAdjustX", y: "craftingAdjustY", size: "craftingAdjustSize" };
+const CRAFTING_IMAGE_ADJUST_FRAME_SELECTORS = [".crafting-material-thumb"];
 
 window.CriptaApp.onPageReady("crafting", async () => {
     const root = document.getElementById("crafting-root");
@@ -670,9 +671,7 @@ function getPlayerOptions(state) {
 }
 
 function filterVisibleItems(items) {
-    const list = Array.isArray(items) ? items : [];
-    if (window.WikiSpoiler) return window.WikiSpoiler.filterVisible(list);
-    return list.filter((item) => item?.hidden !== true && item?.status !== "hidden");
+    return window.CriptaItemNormalize.filterVisibleItems(items);
 }
 
 function filterMaterials(materials, state) {
@@ -723,7 +722,7 @@ function getCraftingTagOptions(materials) {
 }
 
 function isMaterialItem(item) {
-    return getItemCategory(item) === "Materiali";
+    return window.CriptaItemNormalize.isMaterialItem(item);
 }
 
 function compareMaterials(a, b) {
@@ -733,12 +732,7 @@ function compareMaterials(a, b) {
 }
 
 function getItemCategory(item) {
-    const type = String(item?.type || "").trim();
-    const subtype = String(item?.subtype || "").trim();
-    const name = String(item?.name || "").trim();
-    const haystack = [type, subtype, name].map(normalizeText);
-    const materialTokens = ["materiale", "materiali", "minerale", "minerali", "reagente", "reagenti", "ingrediente", "ingredienti"];
-    return haystack.some((value) => materialTokens.some((token) => value === token || value.includes(token))) ? "Materiali" : type;
+    return window.CriptaItemNormalize.getItemCategory(item);
 }
 
 function getItemId(item) {
@@ -746,7 +740,7 @@ function getItemId(item) {
 }
 
 function getMaterialImagePath(item) {
-    return String(item?.image || item?.img || item?.icon || item?.avatar || "").trim();
+    return window.CriptaItemNormalize.getItemImagePath(item);
 }
 
 function resolveImageUrl(path) {
@@ -770,112 +764,36 @@ function renderCraftingAdjustedImageAttributes(adjust) {
 }
 
 function normalizeCraftingImageAdjust(adjust) {
-    return {
-        x: normalizePercent(adjust?.x, 50),
-        y: normalizePercent(adjust?.y, 50),
-        size: normalizeScale(adjust?.size, 1)
-    };
-}
-
-function normalizePercent(value, fallback) {
-    const number = Number(value);
-    return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
-}
-
-function normalizeScale(value, fallback) {
-    const number = Number(value);
-    return Number.isFinite(number) && number > 0 ? Math.max(0.75, number) : fallback;
+    return window.CriptaImageAdjust.normalizePercentAdjust(adjust);
 }
 
 function initCraftingAdjustedImages(root = document) {
-    if (!craftingAdjustedImagesResizeBound) {
-        craftingAdjustedImagesResizeBound = true;
-        window.addEventListener("resize", () => {
-            document.querySelectorAll("[data-crafting-adjusted-image]").forEach((image) => applyCraftingAdjustedImageLayout(image));
-        });
-    }
-    root.querySelectorAll?.("[data-crafting-adjusted-image]").forEach((image) => {
-        if (image.dataset.craftingAdjustedBound !== "1") {
-            image.dataset.craftingAdjustedBound = "1";
-            image.addEventListener("load", () => applyCraftingAdjustedImageLayout(image));
-        }
-        applyCraftingAdjustedImageLayout(image);
+    window.CriptaImageAdjust.initContainedImages(root, {
+        selector: "[data-crafting-adjusted-image]",
+        bindingKey: "crafting-adjusted-images",
+        boundDatasetKey: "craftingAdjustedBound",
+        datasetKeys: CRAFTING_IMAGE_ADJUST_DATASET_KEYS,
+        frameSelectors: CRAFTING_IMAGE_ADJUST_FRAME_SELECTORS
     });
 }
 
 function applyCraftingAdjustedImageLayout(image) {
-    if (!image || !image.naturalWidth || !image.naturalHeight) return;
-    const frame = image.closest(".crafting-material-thumb") || image.parentElement;
-    const rect = frame?.getBoundingClientRect?.();
-    if (!rect?.width || !rect?.height) return;
-
-    const adjust = normalizeCraftingImageAdjust({
-        x: image.dataset.craftingAdjustX,
-        y: image.dataset.craftingAdjustY,
-        size: image.dataset.craftingAdjustSize
+    window.CriptaImageAdjust.applyContainedImageLayout(image, {
+        datasetKeys: CRAFTING_IMAGE_ADJUST_DATASET_KEYS,
+        frameSelectors: CRAFTING_IMAGE_ADJUST_FRAME_SELECTORS
     });
-    const imageRatio = image.naturalWidth / image.naturalHeight;
-    const frameRatio = rect.width / rect.height;
-    let drawWidth;
-    let drawHeight;
-    if (imageRatio >= frameRatio) {
-        drawHeight = rect.height;
-        drawWidth = rect.height * imageRatio;
-    } else {
-        drawWidth = rect.width;
-        drawHeight = rect.width / imageRatio;
-    }
-    drawWidth *= adjust.size;
-    drawHeight *= adjust.size;
-
-    const overflowX = Math.max(0, drawWidth - rect.width);
-    const overflowY = Math.max(0, drawHeight - rect.height);
-    const offsetX = ((50 - adjust.x) / 100) * overflowX;
-    const offsetY = ((50 - adjust.y) / 100) * overflowY;
-
-    image.style.position = "absolute";
-    image.style.left = "50%";
-    image.style.top = "50%";
-    image.style.width = `${drawWidth}px`;
-    image.style.height = `${drawHeight}px`;
-    image.style.maxWidth = "none";
-    image.style.objectFit = "fill";
-    image.style.transformOrigin = "50% 50%";
-    image.style.transform = `translate(calc(-50% + ${offsetX}px), calc(-50% + ${offsetY}px))`;
 }
 
 function getItemRarityMeta(rarity) {
-    const label = String(rarity || "Sconosciuta").trim();
-    const meta = [
-        { value: "Comune", icon: "fa-circle" },
-        { value: "Non comune", icon: "fa-circle-plus" },
-        { value: "Raro", icon: "fa-gem" },
-        { value: "Epico", icon: "fa-star" },
-        { value: "Molto raro", icon: "fa-star" },
-        { value: "Leggendario", icon: "fa-crown" },
-        { value: "Artefatto", icon: "fa-sun" },
-        { value: "Sconosciuta", icon: "fa-circle-question" }
-    ].find((item) => item.value.toLowerCase() === label.toLowerCase());
-    return meta ? { label: meta.value, icon: meta.icon } : { label, icon: "fa-circle-question" };
+    return window.CriptaItemNormalize.getItemRarityMeta(rarity);
 }
 
 function normalizeMaterialTags(value) {
-    if (!Array.isArray(value)) return [];
-    return value
-        .map((tag) => {
-            if (typeof tag === "string") return tag.trim() ? { name: tag.trim(), description: "" } : null;
-            if (!tag || typeof tag !== "object") return null;
-            const name = String(tag.name || tag.label || tag.tag || "").trim();
-            const description = String(tag.description || tag.desc || tag.note || "").trim();
-            if (!name && !description) return null;
-            return { name, description, hidden: tag.hidden === true };
-        })
-        .filter(Boolean);
+    return window.CriptaItemNormalize.normalizeMaterialTags(value);
 }
 
 function getVisibleMaterialTags(item) {
-    const source = Array.isArray(item?.materialTags) ? item.materialTags : Array.isArray(item?.tags) ? item.tags : item?.properties;
-    return normalizeMaterialTags(source).filter((tag) => tag.hidden !== true);
+    return window.CriptaItemNormalize.getVisibleMaterialTags(item);
 }
 
 function renderMaterialMeta(item) {
@@ -898,8 +816,7 @@ function formatGoldValue(value) {
 }
 
 function formatWeightValue(value) {
-    const text = String(value ?? "").trim();
-    return /^-?\d+(?:[.,]\d+)?$/.test(text) ? `${text.replace(".", ",")} kg` : text;
+    return window.CriptaItemNormalize.formatWeightValue(value);
 }
 
 function formatProgressAmount(value, unit = "") {
@@ -931,6 +848,9 @@ function buildCraftingProjectId(name, playerId) {
 }
 
 function normalizeText(value) {
+    if (typeof window.CriptaApp?.utils?.normalizeKey === "function") {
+        return window.CriptaApp.utils.normalizeKey(value);
+    }
     return String(value || "")
         .toLowerCase()
         .normalize("NFD")
@@ -939,15 +859,13 @@ function normalizeText(value) {
 }
 
 function slugify(value) {
-    return String(value || "")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "") || "materiale";
+    return window.CriptaItemNormalize.slugify(value, "materiale");
 }
 
 function escapeHtml(value) {
+    if (typeof window.CriptaApp?.utils?.escapeHtml === "function") {
+        return window.CriptaApp.utils.escapeHtml(value);
+    }
     return String(value || "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")

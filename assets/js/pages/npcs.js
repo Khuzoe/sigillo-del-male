@@ -105,38 +105,8 @@ function parseYamlLite(yamlText) {
             return root;
         }
 
-        function normalizeImageAdjust(adjust) {
-            const x = Number(adjust?.x);
-            const y = Number(adjust?.y);
-            const size = Number(adjust?.size);
-            return {
-                x: Number.isFinite(x) ? x : 0,
-                y: Number.isFinite(y) ? y : 0,
-                size: Number.isFinite(size) && size > 0 ? size : null
-            };
-        }
-
         function buildImageStyle(kind, adjust, counterpartAdjust) {
-            const normalized = normalizeImageAdjust(adjust);
-            const counterpart = normalizeImageAdjust(counterpartAdjust);
-            const isHover = kind === 'hover';
-            const restScale = isHover
-                ? (counterpart.size || 1)
-                : (normalized.size || 1);
-            const hoverScale = isHover
-                ? (normalized.size || 1.20)
-                : (counterpart.size || (normalized.size ? normalized.size * 1.20 : 1.20));
-
-            return `--img-x:${normalized.x}px; --img-y:${normalized.y}px; --img-scale-rest:${restScale}; --img-scale-hover:${hoverScale};`;
-        }
-
-        function slugify(value) {
-            return String(value || '')
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '') || 'npc';
+            return window.CriptaCharacterNormalize.buildNpcImageStyle(kind, adjust, counterpartAdjust);
         }
 
         function getCurrentCampaignId() {
@@ -144,8 +114,7 @@ function parseYamlLite(yamlText) {
         }
 
         function getSyncedNpcImagePath(npc, variant) {
-            const npcId = slugify(npc?.id || npc?.name || 'npc');
-            return `media/campaigns/${getCurrentCampaignId()}/characters/${npcId}/${variant}.webp`;
+            return window.CriptaCharacterNormalize.getSyncedNpcImagePath(npc, variant);
         }
 
         window.CriptaApp.onPageReady("npcs", async function () {
@@ -187,13 +156,7 @@ function parseYamlLite(yamlText) {
         });
 
         function resolveImageUrl(path, base_path = '../assets/') {
-            const value = String(path || '').trim();
-            if (!value) return '';
-            if (/^(https?:|data:|blob:)/i.test(value)) return value;
-            if (value.startsWith('media/')) return window.CriptaApp.urls.api(value);
-            if (value.startsWith('/media/')) return window.CriptaApp.urls.api(value.slice(1));
-            if (value.startsWith('assets/')) return `../${value}`;
-            return `${base_path}${value}`;
+            return window.CriptaApp.utils.resolveImageUrl(path);
         }
 
         function buildNpcDetailUrl(params = {}) {
@@ -213,15 +176,7 @@ function parseYamlLite(yamlText) {
         }
 
         function appendAssetVersion(url, version) {
-            const stamp = String(version || '').trim();
-            if (!url || !stamp || /^(data:|blob:)/i.test(url)) return url;
-            try {
-                const nextUrl = new URL(url, window.location.href);
-                nextUrl.searchParams.set('v', stamp);
-                return nextUrl.toString();
-            } catch (_error) {
-                return `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(stamp)}`;
-            }
+            return window.CriptaApp.utils.appendAssetVersion(url, version);
         }
 
         function resolveNpcImageUrl(npc, path, base_path = '../assets/') {
@@ -333,13 +288,8 @@ function parseYamlLite(yamlText) {
         }
 
         function normalizeCharactersCollection(characters) {
-            return characters.map((character) => {
-                const normalized = { ...character };
-                normalized.category = character.category || character.group || character.faction || '';
-                normalized.categoryPriority = normalizeCategoryPriority(character.categoryPriority);
-                normalized.content_blocks = normalizeCharacterBlocks(character);
-                normalized.images = normalizeNpcImages(normalized);
-                return normalized;
+            return window.CriptaCharacterNormalize.normalizeCharactersCollection(characters, {
+                normalizeBlocks: normalizeCharacterBlocks
             });
         }
 
@@ -400,25 +350,7 @@ function parseYamlLite(yamlText) {
         }
 
         function normalizeCategoryPriority(value) {
-            if (value === '' || value === null || value === undefined) return null;
-            const number = Number(value);
-            return Number.isFinite(number) ? Math.trunc(number) : null;
-        }
-
-        function normalizeNpcImages(character) {
-            const raw = character?.images || {};
-            const token = raw.token || getSyncedNpcImagePath(character, 'token');
-            const legacyList = raw.avatar || raw.portrait || raw.hover || '';
-            return {
-                ...raw,
-                idle: raw.idle || raw.card || raw.list || raw.showcase || getSyncedNpcImagePath(character, 'idle'),
-                hover: raw.hover || raw.cardHover || raw.listHover || raw.showcaseHover || getSyncedNpcImagePath(character, 'hover'),
-                token,
-                avatar: raw.avatar || raw.portrait || getSyncedNpcImagePath(character, 'avatar'),
-                idleFallback: raw.idleFallback || token || legacyList,
-                hoverFallback: raw.hoverFallback || token || legacyList,
-                avatarFallback: raw.avatarFallback || raw.portrait || legacyList
-            };
+            return window.CriptaCharacterNormalize.normalizeCategoryPriority(value);
         }
 
         function normalizeCharacterBlocks(character) {
@@ -435,14 +367,7 @@ function parseYamlLite(yamlText) {
         }
 
         function renderMarkdown(markdown) {
-            const escapeHtml = (value) => String(value || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;');
-            return String(markdown || '')
-                .split(/\n{2,}/)
-                .map(paragraph => `<p>${escapeHtml(paragraph).replace(/\n/g, '<br>')}</p>`)
-                .join('');
+            return window.CriptaMarkdown.render(markdown);
         }
 
         async function loadCharactersManifest(base_path) {

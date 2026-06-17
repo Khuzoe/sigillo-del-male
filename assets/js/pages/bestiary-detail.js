@@ -4501,27 +4501,23 @@ function resolveImageUrl(path) {
 }
 
 function buildImageStyle(adjust) {
-    const x = normalizePercent(adjust?.x, 50);
-    const y = normalizePercent(adjust?.y, 50);
-    const size = normalizeScale(adjust?.size, 1);
+    const normalized = window.CriptaImageAdjust.normalizePercentAdjust(adjust);
     return [
-        `--creature-img-x:${x}%`,
-        `--creature-img-y:${y}%`,
-        `--creature-img-scale:${size}`,
-        `--bestiary-img-x:${x}%`,
-        `--bestiary-img-y:${y}%`,
-        `--bestiary-img-scale:${size}`
+        `--creature-img-x:${normalized.x}%`,
+        `--creature-img-y:${normalized.y}%`,
+        `--creature-img-scale:${normalized.size}`,
+        `--bestiary-img-x:${normalized.x}%`,
+        `--bestiary-img-y:${normalized.y}%`,
+        `--bestiary-img-scale:${normalized.size}`
     ].join('; ') + ';';
 }
 
 function normalizePercent(value, fallback) {
-    const number = Number(value);
-    return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
+    return window.CriptaImageAdjust.normalizePercentAdjust({ x: value }, { fallbackX: fallback }).x;
 }
 
 function normalizeScale(value, fallback) {
-    const number = Number(value);
-    return Number.isFinite(number) && number > 0 ? Math.max(0.75, number) : fallback;
+    return window.CriptaImageAdjust.normalizePercentAdjust({ size: value }, { fallbackSize: fallback }).size;
 }
 
 function getRankLabel(rank) {
