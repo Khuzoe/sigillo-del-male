@@ -6,8 +6,26 @@
         return window.CriptaApp?.config?.workerOrigin || DEFAULT_WORKER_ORIGIN;
     }
 
-    function getCampaignId() {
-        return window.CriptaApp?.campaigns?.currentId?.() || DEFAULT_CAMPAIGN_ID;
+    function sanitizeCampaignId(value) {
+        const campaignId = String(value || "")
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, "-")
+            .replace(/-+/g, "-")
+            .replace(/^-+|-+$/g, "");
+        return campaignId || DEFAULT_CAMPAIGN_ID;
+    }
+
+    function getCampaignId(options = {}) {
+        if (options.campaignId) return sanitizeCampaignId(options.campaignId);
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const urlCampaign = params.get("campaign") || params.get("campaignId");
+            if (urlCampaign) return sanitizeCampaignId(urlCampaign);
+        } catch (_) {
+            // Ignore malformed locations.
+        }
+        return sanitizeCampaignId(window.CriptaApp?.campaigns?.currentId?.() || DEFAULT_CAMPAIGN_ID);
     }
 
     function getAuthToken() {
@@ -23,7 +41,7 @@
 
     function withCampaign(url, options = {}) {
         const target = new URL(url, window.location.href);
-        const campaignId = options.campaignId || getCampaignId();
+        const campaignId = getCampaignId(options);
         if (options.force === true || campaignId !== DEFAULT_CAMPAIGN_ID) {
             target.searchParams.set("campaign", campaignId);
         }
@@ -42,7 +60,84 @@
     function buildCampaignMediaPath(folder, fileName, options = {}) {
         const cleanFolder = String(folder || "").replace(/^\/+|\/+$/g, "");
         const cleanFileName = String(fileName || "").replace(/^\/+/, "");
-        return `media/campaigns/${options.campaignId || getCampaignId()}/${cleanFolder}/${cleanFileName}`;
+        return `media/campaigns/${getCampaignId(options)}/${cleanFolder}/${cleanFileName}`;
+    }
+
+    function slugify(value, fallback = "media") {
+        if (typeof window.CriptaApp?.utils?.slugify === "function") {
+            return window.CriptaApp.utils.slugify(value, fallback);
+        }
+        const slug = String(value || "")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+        return slug || fallback;
+    }
+
+    function getMediaSlug(entity, fallback = "media") {
+        if (entity && typeof entity === "object") {
+            return slugify(
+                entity.mediaSlug
+                    || entity.media_slug
+                    || entity.mediaId
+                    || entity.media_id
+                    || entity.folderSlug
+                    || entity.folder_slug
+                    || entity.id
+                    || entity.name
+                    || fallback,
+                fallback
+            );
+        }
+        return slugify(entity || fallback, fallback);
+    }
+
+    function getEntityId(entity, fallback = "entity") {
+        if (entity && typeof entity === "object") {
+            return String(entity.id || entity.entityId || entity.characterId || entity.name || fallback).trim() || fallback;
+        }
+        return String(entity || fallback).trim() || fallback;
+    }
+
+    function buildNpcMediaPath(entity, variant = "avatar", options = {}) {
+        const folder = `characters/${getMediaSlug(entity, "npc")}`;
+        return buildCampaignMediaPath(folder, `${variant}.webp`, options);
+    }
+
+    function buildPlayerMediaPath(player, variant = "avatar", options = {}) {
+        const playerId = getMediaSlug(player, "personaggio");
+        const suffix = variant === "token"
+            ? "-token"
+            : variant === "hover"
+                ? "-hover"
+                : variant === "idle" || variant === "card"
+                    ? "-idle"
+                    : "-avatar";
+        return buildCampaignMediaPath("players", `${playerId}${suffix}.webp`, options);
+    }
+
+    function buildEntityMediaPath(entity, variant = "avatar", options = {}) {
+        const kind = String(options.kind || entity?.type || "npc").toLowerCase();
+        return kind === "player"
+            ? buildPlayerMediaPath(entity, variant, options)
+            : buildNpcMediaPath(entity, variant, options);
+    }
+
+    function getImagePath(entity, variant = "avatar", options = {}) {
+        const images = entity?.images || {};
+        const explicit = images[variant]
+            || (variant === "avatar" ? images.portrait : "")
+            || entity?.[`${variant}Image`]
+            || entity?.[variant]
+            || "";
+        if (explicit && options.preferCanonical !== true) return explicit;
+        return buildEntityMediaPath(entity, variant, options);
+    }
+
+    function resolveEntityImage(entity, variant = "avatar", options = {}) {
+        return resolveUrl(getImagePath(entity, variant, options), options.urlOptions);
     }
 
     function isWebpFile(fileOrName) {
@@ -87,6 +182,36 @@
         }
     }
 
+    function clearRuntimeCachesAfterMediaWrite() {
+        try {
+            window.CriptaApp?.api?.clearCache?.();
+            window.CriptaApp?.data?.clearCache?.();
+        } catch (_) {
+            // Cache cleanup is best-effort.
+        }
+    }
+
+    async function verifyUploadedMediaPath(path, options = {}) {
+        if (typeof window.CriptaApp?.media?.check !== "function" || !path) return null;
+        let payload = null;
+        try {
+            payload = await window.CriptaApp.media.check(path, {
+                campaignId: options.campaignId || getCampaignId(options),
+                exact: true,
+                cache: false
+            });
+        } catch (error) {
+            // Keep compatibility with workers that do not expose /api/media/check yet.
+            console.warn("Verifica media R2 non disponibile.", error);
+            return null;
+        }
+        const result = Array.isArray(payload?.results) ? payload.results[0] : null;
+        if (result && result.exists === false) {
+            throw new Error(`Upload R2 non verificabile: ${path}`);
+        }
+        return result;
+    }
+
     async function uploadBlob(blob, options = {}) {
         const folder = String(options.folder || "").replace(/^\/+|\/+$/g, "");
         const fileName = String(options.fileName || options.filename || "media.webp").replace(/^\/+/, "");
@@ -98,7 +223,7 @@
         const form = new FormData();
         form.set("folder", folder);
         form.set("filename", fileName);
-        form.set("campaignId", options.campaignId || getCampaignId());
+        form.set("campaignId", getCampaignId(options));
         form.set("file", new File([blob], fileName, { type: options.type || blob?.type || "image/webp" }));
 
         const response = await fetch(buildUploadUrl(folder, options), {
@@ -111,6 +236,8 @@
             throw new Error(payload?.error || `HTTP ${response.status}`);
         }
         validateUploadPayload(payload, blob, fileName);
+        clearRuntimeCachesAfterMediaWrite();
+        await verifyUploadedMediaPath(payload.path || payload.key || buildCampaignMediaPath(folder, fileName, options), options);
         return {
             ...payload,
             path: payload.path || payload.key || buildCampaignMediaPath(folder, fileName, options)
@@ -141,16 +268,26 @@
     window.CriptaMedia = {
         appendVersion,
         buildCampaignMediaPath,
+        buildEntityMediaPath,
+        buildNpcMediaPath,
+        buildPlayerMediaPath,
         buildUploadUrl,
         convertImageFileToWebpBlob,
         getAuthToken,
         getCampaignId,
+        getEntityId,
+        getImagePath,
+        getMediaSlug,
         imageFileToUploadBlob,
         isWebpFile,
+        resolveEntityImage,
         resolveUrl,
+        sanitizeCampaignId,
+        slugify,
         uploadBlob,
         uploadImageFile,
         validateUploadPayload,
+        verifyUploadedMediaPath,
         withCampaign
     };
 })();

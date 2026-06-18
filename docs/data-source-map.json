@@ -51,6 +51,13 @@
       "notes": "Estratto home della campagna quando presente."
     },
     {
+      "pattern": "campaigns/*/data/media-manifest.json",
+      "kind": "generated",
+      "owner": "script",
+      "command": "npm run build:media-manifest",
+      "notes": "Manifest canonico dei path media R2/locali derivato dai dati della campagna."
+    },
+    {
       "pattern": "campaigns/*/data/foundry.json",
       "kind": "generated",
       "owner": "script",

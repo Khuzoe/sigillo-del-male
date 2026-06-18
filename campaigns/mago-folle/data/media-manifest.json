@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "collection": "media-manifest",
+  "campaignId": "mago-folle",
+  "entities": {
+    "characters": {},
+    "players": {
+      "archimede": {
+        "id": "archimede",
+        "name": "Archimede",
+        "type": "player",
+        "mediaSlug": "archimede",
+        "canonical": {
+          "idle": "media/campaigns/mago-folle/players/archimede-idle.webp",
+          "hover": "media/campaigns/mago-folle/players/archimede-hover.webp",
+          "token": "media/campaigns/mago-folle/players/archimede-token.webp",
+          "avatar": "media/campaigns/mago-folle/players/archimede-avatar.webp"
+        },
+        "current": {}
+      },
+      "lila": {
+        "id": "lila",
+        "name": "Lila Devaren",
+        "type": "player",
+        "mediaSlug": "lila",
+        "canonical": {
+          "idle": "media/campaigns/mago-folle/players/lila-idle.webp",
+          "hover": "media/campaigns/mago-folle/players/lila-hover.webp",
+          "token": "media/campaigns/mago-folle/players/lila-token.webp",
+          "avatar": "media/campaigns/mago-folle/players/lila-avatar.webp"
+        },
+        "current": {}
+      },
+      "sir-elric": {
+        "id": "sir-elric",
+        "name": "Sir Elric",
+        "type": "player",
+        "mediaSlug": "sir-elric",
+        "canonical": {
+          "idle": "media/campaigns/mago-folle/players/sir-elric-idle.webp",
+          "hover": "media/campaigns/mago-folle/players/sir-elric-hover.webp",
+          "token": "media/campaigns/mago-folle/players/sir-elric-token.webp",
+          "avatar": "media/campaigns/mago-folle/players/sir-elric-avatar.webp"
+        },
+        "current": {}
+      }
+    }
+  }
+}

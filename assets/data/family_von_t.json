@@ -91,6 +91,7 @@
   {
     "id": "nino_olegna",
     "characterId": "nino_olegna",
+    "mediaSlug": "nino-olegna",
     "name": "Nino Olegna",
     "image": "media/creatures/transp/nino_olegna_transp.webp",
     "imageFallback": "media/creatures/transp/nino_olegna_transp.webp",

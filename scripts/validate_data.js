@@ -43,6 +43,11 @@ function readJson(filePath) {
   }
 }
 
+function readJsonIfExists(filePath, fallback = null) {
+  if (!fileExists(filePath)) return fallback;
+  return readJson(filePath);
+}
+
 function readYaml(filePath) {
   try {
     return parseYamlLite(readText(filePath));
@@ -58,6 +63,59 @@ function assert(condition, message) {
 
 function isObject(value) {
   return value && typeof value === "object" && !Array.isArray(value);
+}
+
+function slugify(value, fallback = "media") {
+  const slug = String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || fallback;
+}
+
+function getMediaSlug(entity, fallback = "media") {
+  return slugify(
+    entity?.mediaSlug
+      || entity?.media_slug
+      || entity?.mediaId
+      || entity?.media_id
+      || entity?.folderSlug
+      || entity?.folder_slug
+      || entity?.id
+      || entity?.name
+      || fallback,
+    fallback
+  );
+}
+
+function getCollectionData(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.data)) return payload.data;
+  return [];
+}
+
+function listCampaignDataDirs() {
+  const campaignsDir = path.join(ROOT, "campaigns");
+  if (!fs.existsSync(campaignsDir)) return [];
+  return fs.readdirSync(campaignsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))
+    .map((entry) => ({
+      campaignId: entry.name,
+      dataDir: path.join(campaignsDir, entry.name, "data"),
+    }))
+    .filter((entry) => fs.existsSync(entry.dataDir));
+}
+
+function extractCampaignCharacterMedia(pathValue) {
+  const match = String(pathValue || "").match(/^media\/campaigns\/([^/]+)\/characters\/([^/]+)\/([^/]+)\.webp$/i);
+  if (!match) return null;
+  return {
+    campaignId: match[1],
+    mediaSlug: match[2],
+    variant: match[3],
+  };
 }
 
 function validateCoreJsonFiles() {
@@ -251,6 +309,166 @@ function validatePlayers() {
   });
 
   return playersById;
+}
+
+function validateFamilyTreeFile(filePath, options = {}) {
+  if (!fileExists(filePath)) return;
+  const family = readJson(filePath);
+  if (!Array.isArray(family)) {
+    pushError(`${rel(filePath)}: deve contenere una lista`);
+    return;
+  }
+
+  const ids = new Set();
+  family.forEach((person, index) => {
+    const context = `${rel(filePath)}[${index}]`;
+    if (!isObject(person)) {
+      pushError(`${context}: entry non valida`);
+      return;
+    }
+    if (!person.id) {
+      pushError(`${context}: id mancante`);
+      return;
+    }
+    if (ids.has(person.id)) pushError(`${context}: id duplicato "${person.id}"`);
+    ids.add(person.id);
+  });
+
+  const validCharacterIds = options.validCharacterIds || new Set();
+  const campaignId = options.campaignId || "cripta-di-sangue";
+
+  family.forEach((person, index) => {
+    if (!isObject(person) || !person.id) return;
+    const context = `${rel(filePath)}[${index}:${person.id}]`;
+    ["parents", "spouses", "children"].forEach((key) => {
+      const refs = person[key];
+      if (refs === undefined) return;
+      if (!Array.isArray(refs)) {
+        pushError(`${context}: ${key} deve essere una lista`);
+        return;
+      }
+      refs.forEach((refId) => {
+        if (!ids.has(refId)) pushError(`${context}: ${key} punta a "${refId}", non presente nell'albero`);
+      });
+    });
+
+    const characterId = String(person.characterId || person.character_id || "").trim();
+    if (characterId && validCharacterIds.size && !validCharacterIds.has(characterId)) {
+      pushWarning(`${context}: characterId "${characterId}" non trovato nei personaggi della campagna`);
+    }
+
+    const hover = person.images?.hover || "";
+    const parsedHover = extractCampaignCharacterMedia(hover);
+    if (parsedHover) {
+      const expectedSlug = getMediaSlug({ ...person, id: characterId || person.id }, "npc");
+      if (parsedHover.campaignId !== campaignId) {
+        pushError(`${context}: images.hover usa campaign "${parsedHover.campaignId}" invece di "${campaignId}"`);
+      }
+      if (parsedHover.mediaSlug !== expectedSlug) {
+        pushError(`${context}: images.hover usa cartella "${parsedHover.mediaSlug}" invece di mediaSlug "${expectedSlug}"`);
+      }
+      if (parsedHover.variant !== "hover") {
+        pushError(`${context}: images.hover punta a variante "${parsedHover.variant}"`);
+      }
+    }
+  });
+}
+
+function validateMediaManifestForCampaign(campaignId, dataDir) {
+  const manifestPath = path.join(dataDir, "media-manifest.json");
+  if (!fileExists(manifestPath)) {
+    pushWarning(`${rel(dataDir)}: media-manifest.json mancante; esegui npm run build:media-manifest`);
+    return;
+  }
+
+  const manifest = readJson(manifestPath);
+  if (!isObject(manifest)) {
+    pushError(`${rel(manifestPath)}: struttura non valida`);
+    return;
+  }
+  if (manifest.collection !== "media-manifest") {
+    pushError(`${rel(manifestPath)}: collection deve essere "media-manifest"`);
+  }
+  if (manifest.campaignId !== campaignId) {
+    pushError(`${rel(manifestPath)}: campaignId "${manifest.campaignId}" diverso da "${campaignId}"`);
+  }
+
+  const characters = getCollectionData(readJsonIfExists(path.join(dataDir, "characters.json"), []));
+  const players = getCollectionData(readJsonIfExists(path.join(dataDir, "players.json"), []));
+  validateMediaManifestCollection(manifestPath, manifest.entities?.characters, characters, campaignId, "characters", "npc");
+  validateMediaManifestCollection(manifestPath, manifest.entities?.players, players, campaignId, "players", "player");
+}
+
+function validateMediaManifestCollection(manifestPath, entries, sourceEntities, campaignId, collectionName, kind) {
+  const context = `${rel(manifestPath)}.entities.${collectionName}`;
+  if (!isObject(entries)) {
+    pushError(`${context}: sezione mancante o non valida`);
+    return;
+  }
+
+  const sourceById = new Map(
+    sourceEntities
+      .filter((entity) => isObject(entity) && entity.id)
+      .map((entity) => [String(entity.id), entity])
+  );
+  const manifestIds = new Set(Object.keys(entries));
+  const mediaSlugs = new Map();
+
+  sourceById.forEach((entity, id) => {
+    if (!manifestIds.has(id)) pushError(`${context}: manca entry per "${id}"`);
+  });
+  manifestIds.forEach((id) => {
+    if (!sourceById.has(id)) pushWarning(`${context}.${id}: entry senza sorgente dati corrispondente`);
+  });
+
+  Object.entries(entries).forEach(([id, entry]) => {
+    if (!isObject(entry)) {
+      pushError(`${context}.${id}: entry non valida`);
+      return;
+    }
+    const source = sourceById.get(id) || entry;
+    const expectedSlug = getMediaSlug(source, kind === "player" ? "personaggio" : "npc");
+    if (entry.mediaSlug !== expectedSlug) {
+      pushError(`${context}.${id}: mediaSlug "${entry.mediaSlug}" diverso da "${expectedSlug}"`);
+    }
+    if (mediaSlugs.has(entry.mediaSlug)) {
+      pushWarning(`${context}.${id}: mediaSlug duplicato con "${mediaSlugs.get(entry.mediaSlug)}"`);
+    } else {
+      mediaSlugs.set(entry.mediaSlug, id);
+    }
+
+    const expectedPaths = kind === "player"
+      ? {
+          idle: `media/campaigns/${campaignId}/players/${expectedSlug}-idle.webp`,
+          hover: `media/campaigns/${campaignId}/players/${expectedSlug}-hover.webp`,
+          token: `media/campaigns/${campaignId}/players/${expectedSlug}-token.webp`,
+          avatar: `media/campaigns/${campaignId}/players/${expectedSlug}-avatar.webp`,
+        }
+      : {
+          idle: `media/campaigns/${campaignId}/characters/${expectedSlug}/idle.webp`,
+          hover: `media/campaigns/${campaignId}/characters/${expectedSlug}/hover.webp`,
+          token: `media/campaigns/${campaignId}/characters/${expectedSlug}/token.webp`,
+          avatar: `media/campaigns/${campaignId}/characters/${expectedSlug}/avatar.webp`,
+        };
+
+    Object.entries(expectedPaths).forEach(([variant, expectedPath]) => {
+      if (entry.canonical?.[variant] !== expectedPath) {
+        pushError(`${context}.${id}: canonical.${variant} deve essere "${expectedPath}"`);
+      }
+    });
+  });
+}
+
+function validateCampaignData() {
+  listCampaignDataDirs().forEach(({ campaignId, dataDir }) => {
+    const characters = getCollectionData(readJsonIfExists(path.join(dataDir, "characters.json"), []));
+    const characterIds = new Set(characters.map((character) => String(character?.id || "")).filter(Boolean));
+    validateFamilyTreeFile(path.join(dataDir, "family_von_t.json"), {
+      campaignId,
+      validCharacterIds: characterIds,
+    });
+    validateMediaManifestForCampaign(campaignId, dataDir);
+  });
 }
 
 function validateQuests(validNpcIds, validPlayerIds) {
@@ -523,6 +741,11 @@ function main() {
 
   const playersById = validatePlayers();
   const { npcById, markdownRefs } = validateCharacters(playersById);
+  validateFamilyTreeFile(path.join(DATA_DIR, "family_von_t.json"), {
+    campaignId: "cripta-di-sangue",
+    validCharacterIds: new Set(npcById.keys()),
+  });
+  validateCampaignData();
   validateQuests(new Set(npcById.keys()), new Set(playersById.keys()));
   validateMagicItems();
   validateSessions();

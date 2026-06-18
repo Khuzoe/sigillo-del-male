@@ -1865,6 +1865,61 @@ function invalidateApiCache(url = null) {
     }
 }
 
+function getSyncCampaignId(options = {}) {
+    return sanitizeCampaignId(options.campaignId || options.campaign || getCampaignId());
+}
+
+function apiCacheOptions(options = {}, defaultCache = false) {
+    return {
+        cache: options.cache !== undefined ? options.cache : defaultCache,
+        cacheTtlMs: options.cacheTtlMs,
+        campaignId: getSyncCampaignId(options),
+        query: options.query
+    };
+}
+
+function getWorkerVersion(options = {}) {
+    return requestApi("api/version", apiCacheOptions(options, false));
+}
+
+function getSyncBootstrap(options = {}) {
+    return requestApi("api/sync/bootstrap", apiCacheOptions({
+        ...options,
+        query: {
+            ...(options.collections ? { collections: Array.isArray(options.collections) ? options.collections.join(",") : options.collections } : {}),
+            ...(options.query || {})
+        }
+    }, false));
+}
+
+function getSyncStatus(options = {}) {
+    return requestApi("api/sync/status", apiCacheOptions(options, false));
+}
+
+function getSyncChanges(options = {}) {
+    return requestApi("api/sync/changes", apiCacheOptions({
+        ...options,
+        query: {
+            ...(options.since ? { since: options.since } : {}),
+            ...(options.collections ? { collections: Array.isArray(options.collections) ? options.collections.join(",") : options.collections } : {}),
+            ...(options.query || {})
+        }
+    }, false));
+}
+
+function checkMedia(paths, options = {}) {
+    const list = Array.isArray(paths) ? paths : [paths];
+    return requestApi("api/media/check", {
+        ...apiCacheOptions(options, false),
+        method: "POST",
+        body: {
+            paths: list.map((path) => String(path || "").trim()).filter(Boolean),
+            exact: options.exact === true,
+            campaignId: getSyncCampaignId(options)
+        }
+    });
+}
+
 async function verifyDiscordAuth() {
     if (discordAuthCache?.user) {
         return discordAuthCache;
@@ -2004,14 +2059,40 @@ window.CriptaApp = {
         post(pathname, body, options = {}) {
             return requestApi(pathname, { ...options, method: "POST", body });
         },
-        clearCache() {
-            invalidateApiCache();
+        clearCache(pathname = null, options = {}) {
+            if (!pathname) {
+                invalidateApiCache();
+                return;
+            }
+            const url = new URL(buildWorkerUrl(pathname));
+            if (options.query && typeof options.query === "object") {
+                Object.entries(options.query).forEach(([key, value]) => {
+                    if (value === undefined || value === null || value === "") return;
+                    url.searchParams.set(key, String(value));
+                });
+            }
+            if (options.withCampaign !== false) {
+                applyCampaignToUrl(url, {
+                    campaignId: options.campaignId || getCampaignId(),
+                    force: true
+                });
+            }
+            invalidateApiCache(url);
         }
     },
     data: {
         json: fetchCampaignJson,
         globalJson: fetchGlobalJson,
         clearCache: clearJsonCache
+    },
+    sync: {
+        version: getWorkerVersion,
+        bootstrap: getSyncBootstrap,
+        status: getSyncStatus,
+        changes: getSyncChanges
+    },
+    media: {
+        check: checkMedia
     },
     config: {
         workerOrigin: DISCORD_WORKER_URL,

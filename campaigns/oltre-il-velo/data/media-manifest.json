@@ -1,0 +1,305 @@
+{
+  "version": 1,
+  "collection": "media-manifest",
+  "campaignId": "oltre-il-velo",
+  "entities": {
+    "characters": {
+      "algon": {
+        "id": "algon",
+        "name": "Algon, il Padre Abissale",
+        "type": "npc",
+        "mediaSlug": "algon",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/algon/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/algon/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/algon/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/algon/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "demorgan": {
+        "id": "demorgan",
+        "name": "Demorgan, Dio Drago del Tempo",
+        "type": "npc",
+        "mediaSlug": "demorgan",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/demorgan/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/demorgan/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/demorgan/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/demorgan/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "garrona": {
+        "id": "garrona",
+        "name": "Garrona, la Luna e la Vita",
+        "type": "npc",
+        "mediaSlug": "garrona",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/garrona/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/garrona/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/garrona/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/garrona/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "gaul-e-diomede": {
+        "id": "gaul-e-diomede",
+        "name": "Gaul e Diomede, gli Anziani Inverni, Signori dell’Aria e della Memoria",
+        "type": "npc",
+        "mediaSlug": "gaul-e-diomede",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/gaul-e-diomede/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/gaul-e-diomede/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/gaul-e-diomede/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/gaul-e-diomede/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "grande-verme": {
+        "id": "grande-verme",
+        "name": "Grande Verme",
+        "type": "npc",
+        "mediaSlug": "grande-verme",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/grande-verme/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/grande-verme/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/grande-verme/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/grande-verme/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "guglielmo": {
+        "id": "guglielmo",
+        "name": "Guglielmo, l'Antico Dorato",
+        "type": "npc",
+        "mediaSlug": "guglielmo",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/guglielmo/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/guglielmo/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/guglielmo/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/guglielmo/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "hecatombe": {
+        "id": "hecatombe",
+        "name": "Hecatombe, la Sigillatrice dell’Altro Mondo",
+        "type": "npc",
+        "mediaSlug": "hecatombe",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/hecatombe/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/hecatombe/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/hecatombe/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/hecatombe/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "merida": {
+        "id": "merida",
+        "name": "Merida, Matrigna dei Giganti",
+        "type": "npc",
+        "mediaSlug": "merida",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/merida/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/merida/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/merida/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/merida/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "moara": {
+        "id": "moara",
+        "name": "Moara, la Madre delle Profondità",
+        "type": "npc",
+        "mediaSlug": "moara",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/moara/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/moara/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/moara/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/moara/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "quimbur": {
+        "id": "quimbur",
+        "name": "Quimbur, il Cervo Nero",
+        "type": "npc",
+        "mediaSlug": "quimbur",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/quimbur/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/quimbur/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/quimbur/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/quimbur/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "settimpur": {
+        "id": "settimpur",
+        "name": "Settimpur, il Sole e la Morte",
+        "type": "npc",
+        "mediaSlug": "settimpur",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/settimpur/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/settimpur/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/settimpur/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/settimpur/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "teclis": {
+        "id": "teclis",
+        "name": "Teclis, il Conte d’Avorio",
+        "type": "npc",
+        "mediaSlug": "teclis",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/teclis/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/teclis/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/teclis/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/teclis/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "vanisa": {
+        "id": "vanisa",
+        "name": "Vanisa, Dea del Ferro e degli Ingranaggi",
+        "type": "npc",
+        "mediaSlug": "vanisa",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/vanisa/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/vanisa/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/vanisa/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/vanisa/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "vodrenno": {
+        "id": "vodrenno",
+        "name": "Vodrenno, Dio Serpente dell'Ombra e del Mana",
+        "type": "npc",
+        "mediaSlug": "vodrenno",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/vodrenno/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/vodrenno/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/vodrenno/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/vodrenno/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      },
+      "zaahul": {
+        "id": "zaahul",
+        "name": "Zaahul, il Dio Colossale",
+        "type": "npc",
+        "mediaSlug": "zaahul",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/characters/zaahul/idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/characters/zaahul/hover.webp",
+          "token": "media/campaigns/oltre-il-velo/characters/zaahul/token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/characters/zaahul/avatar.webp"
+        },
+        "current": {
+          "hover": "assets/img/logo.webp",
+          "avatar": "assets/img/logo.webp",
+          "portrait": "assets/img/logo.webp"
+        }
+      }
+    },
+    "players": {
+      "mena": {
+        "id": "mena",
+        "name": "Mena",
+        "type": "player",
+        "mediaSlug": "mena",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/players/mena-idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/players/mena-hover.webp",
+          "token": "media/campaigns/oltre-il-velo/players/mena-token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/players/mena-avatar.webp"
+        },
+        "current": {}
+      },
+      "orion": {
+        "id": "orion",
+        "name": "Orion",
+        "type": "player",
+        "mediaSlug": "orion",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/players/orion-idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/players/orion-hover.webp",
+          "token": "media/campaigns/oltre-il-velo/players/orion-token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/players/orion-avatar.webp"
+        },
+        "current": {}
+      },
+      "sion": {
+        "id": "sion",
+        "name": "Sion",
+        "type": "player",
+        "mediaSlug": "sion",
+        "canonical": {
+          "idle": "media/campaigns/oltre-il-velo/players/sion-idle.webp",
+          "hover": "media/campaigns/oltre-il-velo/players/sion-hover.webp",
+          "token": "media/campaigns/oltre-il-velo/players/sion-token.webp",
+          "avatar": "media/campaigns/oltre-il-velo/players/sion-avatar.webp"
+        },
+        "current": {}
+      }
+    }
+  }
+}

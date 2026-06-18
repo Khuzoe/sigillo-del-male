@@ -31,11 +31,17 @@ window.CriptaApp.onPageReady("index", () => {
     }
 
     function getSyncedPlayerImagePath(player, variant = 'hover') {
+        if (typeof window.CriptaMedia?.buildPlayerMediaPath === 'function') {
+            return window.CriptaMedia.buildPlayerMediaPath(player, variant, { campaignId: getCurrentCampaignId() });
+        }
         const playerId = slugify(player?.id || player?.name || 'personaggio');
         return `media/campaigns/${getCurrentCampaignId()}/players/${playerId}-${variant}.webp`;
     }
 
     function getSyncedNpcImagePath(npc, variant = 'hover') {
+        if (typeof window.CriptaMedia?.buildNpcMediaPath === 'function') {
+            return window.CriptaMedia.buildNpcMediaPath(npc, variant, { campaignId: getCurrentCampaignId() });
+        }
         const npcId = slugify(npc?.id || npc?.name || 'npc');
         return `media/campaigns/${getCurrentCampaignId()}/characters/${npcId}/${variant}.webp`;
     }

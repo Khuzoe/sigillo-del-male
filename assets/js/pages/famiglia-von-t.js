@@ -234,6 +234,9 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
     }
 
     function getPersonMediaSlug(person) {
+        if (typeof window.CriptaMedia?.getMediaSlug === 'function') {
+            return window.CriptaMedia.getMediaSlug({ ...person, id: getPersonCharacterId(person) }, 'npc');
+        }
         const id = getPersonCharacterId(person);
         if (typeof window.CriptaApp?.utils?.slugify === 'function') return window.CriptaApp.utils.slugify(id);
         return id
@@ -245,6 +248,11 @@ window.CriptaApp.onPageReady("famiglia-von-t", async function () {
     }
 
     function getPersonCanonicalImagePath(person, variant = 'hover') {
+        if (typeof window.CriptaMedia?.buildNpcMediaPath === 'function') {
+            return window.CriptaMedia.buildNpcMediaPath({ ...person, id: getPersonCharacterId(person) }, variant, {
+                campaignId: FAMILY_CAMPAIGN_ID
+            });
+        }
         const slug = getPersonMediaSlug(person);
         return slug ? `media/campaigns/${FAMILY_CAMPAIGN_ID}/characters/${slug}/${variant}.webp` : '';
     }

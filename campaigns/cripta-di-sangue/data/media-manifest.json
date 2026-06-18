@@ -1,0 +1,283 @@
+{
+  "version": 1,
+  "collection": "media-manifest",
+  "campaignId": "cripta-di-sangue",
+  "entities": {
+    "characters": {
+      "deborah": {
+        "id": "deborah",
+        "name": "Deborah Von T",
+        "type": "npc",
+        "mediaSlug": "deborah",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/characters/deborah/idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/characters/deborah/hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/characters/deborah/token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/characters/deborah/avatar.webp"
+        },
+        "current": {
+          "hover": "media/creatures/transp/deborah_animation.webp",
+          "avatar": "media/creatures/transp/deborah_transp.webp",
+          "portrait": "media/creatures/deborah.webp"
+        }
+      },
+      "elena": {
+        "id": "elena",
+        "name": "Elena Erbadath",
+        "type": "npc",
+        "mediaSlug": "elena",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/characters/elena/idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/characters/elena/hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/characters/elena/token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/characters/elena/avatar.webp"
+        },
+        "current": {
+          "hover": "media/creatures/transp/elena_animation.webp",
+          "avatar": "media/creatures/transp/elena_transp.webp",
+          "portrait": "media/creatures/elena.webp"
+        }
+      },
+      "franky": {
+        "id": "franky",
+        "name": "Franky",
+        "type": "npc",
+        "mediaSlug": "franky",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/characters/franky/idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/characters/franky/hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/characters/franky/token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/characters/franky/avatar.webp"
+        },
+        "current": {
+          "hover": "media/creatures/transp/franky_animation.webp",
+          "avatar": "media/creatures/transp/franky_transp.webp",
+          "portrait": "media/creatures/franky.webp"
+        }
+      },
+      "ginevra": {
+        "id": "ginevra",
+        "name": "Ginevra Von T",
+        "type": "npc",
+        "mediaSlug": "ginevra",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/characters/ginevra/idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/characters/ginevra/hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/characters/ginevra/token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/characters/ginevra/avatar.webp"
+        },
+        "current": {
+          "hover": "media/creatures/transp/ginevra_animation.webp",
+          "avatar": "media/creatures/transp/ginevra_transp.webp",
+          "portrait": "media/creatures/ginevra.webp"
+        }
+      },
+      "karla": {
+        "id": "karla",
+        "name": "Karla Von T",
+        "type": "npc",
+        "mediaSlug": "karla",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/characters/karla/idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/characters/karla/hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/characters/karla/token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/characters/karla/avatar.webp"
+        },
+        "current": {
+          "hover": "media/creatures/transp/karla_animation.webp",
+          "avatar": "media/creatures/transp/karla_transp.webp",
+          "portrait": "media/creatures/karla.webp"
+        }
+      },
+      "leonora": {
+        "id": "leonora",
+        "name": "Leonora Von T",
+        "type": "npc",
+        "mediaSlug": "leonora",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/characters/leonora/idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/characters/leonora/hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/characters/leonora/token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/characters/leonora/avatar.webp"
+        },
+        "current": {
+          "hover": "media/creatures/transp/leonora_animation.webp",
+          "avatar": "media/creatures/transp/leonora_transp.webp",
+          "portrait": "media/creatures/leonora.webp"
+        }
+      },
+      "nino_olegna": {
+        "id": "nino_olegna",
+        "name": "Nino Olegna",
+        "type": "npc",
+        "mediaSlug": "nino-olegna",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/characters/nino-olegna/idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/characters/nino-olegna/hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/characters/nino-olegna/token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/characters/nino-olegna/avatar.webp"
+        },
+        "current": {
+          "hover": "media/creatures/transp/nino_olegna_animation.webp",
+          "avatar": "media/creatures/transp/nino_olegna_transp.webp",
+          "portrait": "media/creatures/nino_olegna.webp"
+        }
+      },
+      "rabberduscolanderson": {
+        "id": "rabberduscolanderson",
+        "name": "Rabberduscolanderson Von T",
+        "type": "npc",
+        "mediaSlug": "rabberduscolanderson",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/characters/rabberduscolanderson/idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/characters/rabberduscolanderson/hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/characters/rabberduscolanderson/token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/characters/rabberduscolanderson/avatar.webp"
+        },
+        "current": {
+          "hover": "media/creatures/transp/rabber_animation.webp",
+          "avatar": "media/creatures/transp/rabberduscolanderson_transp.webp",
+          "portrait": "media/creatures/rabberduscolanderson.webp"
+        }
+      },
+      "tokka": {
+        "id": "tokka",
+        "name": "Tokka Von T",
+        "type": "npc",
+        "mediaSlug": "tokka",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/characters/tokka/idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/characters/tokka/hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/characters/tokka/token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/characters/tokka/avatar.webp"
+        },
+        "current": {
+          "hover": "media/creatures/transp/tokka_animation.webp",
+          "avatar": "media/creatures/transp/tokka_transp.webp",
+          "portrait": "media/creatures/tokka.webp"
+        }
+      },
+      "x": {
+        "id": "x",
+        "name": "X Von T",
+        "type": "npc",
+        "mediaSlug": "x",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/characters/x/idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/characters/x/hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/characters/x/token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/characters/x/avatar.webp"
+        },
+        "current": {
+          "hover": "media/creatures/transp/x_animation.webp",
+          "avatar": "media/creatures/transp/x_transp.webp",
+          "portrait": "media/creatures/x.webp"
+        }
+      },
+      "zara": {
+        "id": "zara",
+        "name": "Zara Klaren",
+        "type": "npc",
+        "mediaSlug": "zara",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/characters/zara/idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/characters/zara/hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/characters/zara/token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/characters/zara/avatar.webp"
+        },
+        "current": {
+          "hover": "media/creatures/transp/zara_animation.webp",
+          "avatar": "media/creatures/transp/zara_transp.webp",
+          "portrait": "media/creatures/zara.webp"
+        }
+      }
+    },
+    "players": {
+      "apothecary": {
+        "id": "apothecary",
+        "name": "Apothecary",
+        "type": "player",
+        "mediaSlug": "apothecary",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/players/apothecary-idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/players/apothecary-hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/players/apothecary-token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/players/apothecary-avatar.webp"
+        },
+        "current": {
+          "hover": "media/players/apothecary_animation.webp",
+          "avatar": "media/players/apothecary_transp.webp",
+          "portrait": "media/players/apothecary.webp"
+        }
+      },
+      "garun": {
+        "id": "garun",
+        "name": "Ga'Run",
+        "type": "player",
+        "mediaSlug": "garun",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/players/garun-idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/players/garun-hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/players/garun-token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/players/garun-avatar.webp"
+        },
+        "current": {
+          "hover": "media/players/garun_animation.webp",
+          "avatar": "media/players/garun_transp.webp",
+          "portrait": "media/players/garun.webp"
+        }
+      },
+      "randra": {
+        "id": "randra",
+        "name": "Ran'Dra",
+        "type": "player",
+        "mediaSlug": "randra",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/players/randra-idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/players/randra-hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/players/randra-token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/players/randra-avatar.webp"
+        },
+        "current": {
+          "hover": "media/players/randra_animation.webp",
+          "avatar": "media/players/randra_transp.webp",
+          "portrait": "media/players/randra.webp"
+        }
+      },
+      "theldarion": {
+        "id": "theldarion",
+        "name": "Theldarion",
+        "type": "player",
+        "mediaSlug": "theldarion",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/players/theldarion-idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/players/theldarion-hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/players/theldarion-token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/players/theldarion-avatar.webp"
+        },
+        "current": {
+          "hover": "media/players/theldarion_animation.webp",
+          "avatar": "media/players/theldarion_transp.webp",
+          "portrait": "media/players/theldarion.webp"
+        }
+      },
+      "valdor": {
+        "id": "valdor",
+        "name": "Valdor",
+        "type": "player",
+        "mediaSlug": "valdor",
+        "canonical": {
+          "idle": "media/campaigns/cripta-di-sangue/players/valdor-idle.webp",
+          "hover": "media/campaigns/cripta-di-sangue/players/valdor-hover.webp",
+          "token": "media/campaigns/cripta-di-sangue/players/valdor-token.webp",
+          "avatar": "media/campaigns/cripta-di-sangue/players/valdor-avatar.webp"
+        },
+        "current": {
+          "hover": "media/players/valdor_animation.webp",
+          "avatar": "media/players/valdor_transp.webp",
+          "portrait": "media/players/valdor.webp"
+        }
+      }
+    }
+  }
+}

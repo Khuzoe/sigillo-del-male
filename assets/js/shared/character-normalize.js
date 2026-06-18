@@ -13,21 +13,48 @@
     }
 
     function getCurrentCampaignId() {
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const urlCampaign = params.get("campaign") || params.get("campaignId");
+            if (urlCampaign) return urlCampaign;
+        } catch (_) {
+            // Ignore malformed locations.
+        }
         return window.CriptaApp?.campaigns?.currentId?.() || "cripta-di-sangue";
     }
 
     function getEntitySlug(entity, fallback = "npc") {
+        if (typeof window.CriptaMedia?.getMediaSlug === "function") {
+            return window.CriptaMedia.getMediaSlug(entity, fallback);
+        }
         if (entity && typeof entity === "object") {
-            return slugify(entity.id || entity.name || fallback, fallback);
+            return slugify(
+                entity.mediaSlug
+                    || entity.media_slug
+                    || entity.mediaId
+                    || entity.media_id
+                    || entity.folderSlug
+                    || entity.folder_slug
+                    || entity.id
+                    || entity.name
+                    || fallback,
+                fallback
+            );
         }
         return slugify(entity || fallback, fallback);
     }
 
     function getSyncedNpcImagePath(character, variant = "avatar") {
+        if (typeof window.CriptaMedia?.buildNpcMediaPath === "function") {
+            return window.CriptaMedia.buildNpcMediaPath(character, variant, { campaignId: getCurrentCampaignId() });
+        }
         return `media/campaigns/${getCurrentCampaignId()}/characters/${getEntitySlug(character, "npc")}/${variant}.webp`;
     }
 
     function getSyncedPlayerImagePath(player, variant = "avatar") {
+        if (typeof window.CriptaMedia?.buildPlayerMediaPath === "function") {
+            return window.CriptaMedia.buildPlayerMediaPath(player, variant, { campaignId: getCurrentCampaignId() });
+        }
         const playerId = getEntitySlug(player, "personaggio");
         const suffix = variant === "token"
             ? "-token"
@@ -74,6 +101,8 @@
             normalized._originalId = getEntitySlug(character, "npc");
         }
         normalized.category = normalized.category || normalized.group || normalized.faction || "";
+        const explicitMediaSlug = normalized.mediaSlug || normalized.media_slug || normalized.mediaId || normalized.media_id || "";
+        if (explicitMediaSlug) normalized.mediaSlug = explicitMediaSlug;
         normalized.categoryPriority = normalizeCategoryPriority(normalized.categoryPriority);
         if (typeof options.normalizeBlocks === "function") {
             normalized.content_blocks = options.normalizeBlocks(normalized);
