@@ -6,7 +6,8 @@
             source: 'static',
             version: 0,
             canEdit: false,
-            saving: false
+            saving: false,
+            editing: null
         };
 
         const QUEST_STATUS_OPTIONS = [
@@ -51,6 +52,40 @@
 
         function getSyncedNpcImagePath(npcId, variant = 'hover') {
             return window.CriptaCharacterNormalize.getSyncedNpcImagePath(npcId, variant);
+        }
+
+        function getSyncedPlayerImagePath(player, variant = 'avatar') {
+            return window.CriptaCharacterNormalize.getSyncedPlayerImagePath(player, variant);
+        }
+
+        function slugifyQuestValue(value, fallback = 'missione') {
+            if (typeof window.CriptaApp?.utils?.slugify === 'function') {
+                return window.CriptaApp.utils.slugify(value, fallback);
+            }
+            const slug = String(value || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+            return slug || fallback;
+        }
+
+        function createUniqueQuestGroupId(seed, excludingIndex = -1) {
+            const base = `${slugifyQuestValue(seed, 'missione')}_quests`;
+            const used = new Set(
+                questState.groups
+                    .map((group, index) => (index === excludingIndex ? '' : String(group?.id || '').trim()))
+                    .filter(Boolean)
+            );
+            if (!used.has(base)) return base;
+            let counter = 2;
+            let candidate = `${base}-${counter}`;
+            while (used.has(candidate)) {
+                counter += 1;
+                candidate = `${base}-${counter}`;
+            }
+            return candidate;
         }
 
         // Funzione helper per parsare YAML (molto semplificata, solo per estrarre immagini)
@@ -177,10 +212,14 @@
                 const playersPayload = await fetchCampaignJson('players.json', []);
                 const players = Array.isArray(playersPayload) ? playersPayload : playersPayload?.data || [];
                 players.forEach((player) => {
-                    if (player?.images?.avatar) {
-                        characterImages[player.id] = player.images.avatar;
-                        characterImageMeta[player.id] = { type: 'player', fallback: player.images.avatar };
-                    }
+                    const id = String(player?.id || '').trim();
+                    if (!id) return;
+                    characterImages[id] = getSyncedPlayerImagePath({ ...player, type: 'player' }, 'avatar');
+                    characterImageMeta[id] = {
+                        type: 'player',
+                        fallback: getSyncedPlayerImagePath({ ...player, type: 'player' }, 'token'),
+                        legacyFallback: player?.images?.avatar || player?.avatar || ''
+                    };
                 });
 
                 const charactersPayload = await fetchCampaignJson('characters.json', null);
@@ -437,6 +476,14 @@
                     <span data-quest-status>${questState.source === 'kv' ? 'Dati online KV.' : 'Dati statici: il primo salvataggio creerà la versione KV.'}</span>
                 </div>
             `;
+            toolbar.firstElementChild?.insertAdjacentHTML('afterend', `
+                <div class="quest-admin-toolbar__actions">
+                    <button type="button" class="quest-admin-btn" data-quest-action="create-group">
+                        <i class="fas fa-plus"></i>
+                        Nuova missione
+                    </button>
+                </div>
+            `);
             root.prepend(toolbar);
         }
 
@@ -521,10 +568,34 @@
             questState.editing = null;
         }
 
+        function createEmptyQuestGroup() {
+            return {
+                id: createUniqueQuestGroupId('nuova-missione'),
+                title: 'Nuova missione',
+                npc_id: null,
+                description: '',
+                quests: [
+                    { title: 'Nuovo obiettivo', status: 'active' }
+                ]
+            };
+        }
+
+        function openNewQuestEditor() {
+            const draft = createEmptyQuestGroup();
+            questState.editing = {
+                mode: 'create',
+                groupIndex: -1,
+                original: null,
+                draft
+            };
+            renderQuestEditor();
+        }
+
         function openQuestEditor(groupIndex) {
             const group = questState.groups[groupIndex];
             if (!group) return;
             questState.editing = {
+                mode: 'edit',
                 groupIndex,
                 original: cloneQuestData(group),
                 draft: cloneQuestData(group)
@@ -539,10 +610,10 @@
             if (!draft) return;
             modal.hidden = false;
             modal.innerHTML = `
-                <div class="quest-editor-panel" role="dialog" aria-modal="true" aria-label="Modifica missione">
+                <div class="quest-editor-panel" role="dialog" aria-modal="true" aria-label="${editing.mode === 'create' ? 'Nuova missione' : 'Modifica missione'}">
                     <div class="quest-editor-head">
                         <div>
-                            <p>Missione</p>
+                            <p>${editing.mode === 'create' ? 'Nuova missione' : 'Missione'}</p>
                             <h3>${escapeHtml(draft.title || 'Missione')}</h3>
                         </div>
                         <button type="button" class="quest-editor-close" data-quest-action="close-editor" title="Chiudi"><i class="fas fa-xmark"></i></button>
@@ -553,8 +624,8 @@
                             <input type="text" data-quest-editor-field="title" value="${escapeHtml(draft.title || '')}">
                         </label>
                         <label>
-                            <span>NPC ID</span>
-                            <input type="text" data-quest-editor-field="npc_id" value="${escapeHtml(draft.npc_id || '')}">
+                            <span>Legame NPC/Giocatore</span>
+                            <input type="text" data-quest-editor-field="npc_id" value="${escapeHtml(draft.npc_id || '')}" placeholder="id opzionale">
                         </label>
                         <label class="quest-editor-field--full">
                             <span>Descrizione</span>
@@ -603,6 +674,9 @@
             const draft = editing.draft;
             draft.title = modal.querySelector('[data-quest-editor-field="title"]')?.value.trim() || 'Missione';
             draft.npc_id = modal.querySelector('[data-quest-editor-field="npc_id"]')?.value.trim() || null;
+            if (editing.mode === 'create' || !String(draft.id || '').trim()) {
+                draft.id = createUniqueQuestGroupId(draft.npc_id || draft.title, editing.groupIndex);
+            }
             const description = modal.querySelector('[data-quest-editor-field="description"]')?.value.trim() || '';
             if (description) draft.description = description;
             else delete draft.description;
@@ -635,13 +709,18 @@
             const editing = questState.editing;
             const draft = collectQuestEditorDraft();
             if (!editing || !draft) return;
-            questState.groups[editing.groupIndex] = draft;
+            const previousGroups = cloneQuestData(questState.groups);
+            if (editing.mode === 'create') {
+                questState.groups.push(draft);
+            } else {
+                questState.groups[editing.groupIndex] = draft;
+            }
             try {
                 await saveQuestsToKv();
                 closeQuestEditor();
                 renderQuests();
             } catch (error) {
-                questState.groups[editing.groupIndex] = cloneQuestData(questState.editing?.original || questState.groups[editing.groupIndex]);
+                questState.groups = previousGroups;
                 console.error('Salvataggio missione fallito:', error);
                 updateQuestStatus(error?.message || 'Salvataggio fallito.', true);
                 alert(`Salvataggio fallito: ${error?.message || error}`);
@@ -656,6 +735,8 @@
             const action = button.dataset.questAction;
             if (action === 'toggle-objective') {
                 toggleQuestObjective(Number(button.dataset.questGroupIndex), button.dataset.questPath || '');
+            } else if (action === 'create-group') {
+                openNewQuestEditor();
             } else if (action === 'edit-group') {
                 openQuestEditor(Number(button.dataset.questGroupIndex));
             } else if (action === 'close-editor') {

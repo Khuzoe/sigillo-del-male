@@ -75,10 +75,21 @@
     function normalizeCharacterImages(character) {
         const raw = character?.images || {};
         if ((character?.type || "npc") === "player") {
-            const images = { ...raw };
-            if (!images.hover) images.hover = images.avatar || images.portrait || "";
-            if (!images.avatar) images.avatar = images.portrait || images.hover || "";
-            return images;
+            const legacyAvatar = raw.avatar || raw.portrait || raw.hover || "";
+            const legacyToken = raw.token || "";
+            return {
+                ...raw,
+                idle: getSyncedPlayerImagePath(character, "idle"),
+                hover: getSyncedPlayerImagePath(character, "hover"),
+                token: getSyncedPlayerImagePath(character, "token"),
+                avatar: getSyncedPlayerImagePath(character, "avatar"),
+                portrait: getSyncedPlayerImagePath(character, "avatar"),
+                idleFallback: raw.idleFallback || raw.idle || legacyAvatar,
+                hoverFallback: raw.hoverFallback || raw.hover || legacyAvatar,
+                tokenFallback: raw.tokenFallback || legacyToken,
+                avatarFallback: raw.avatarFallback || legacyAvatar,
+                portraitFallback: raw.portraitFallback || legacyAvatar
+            };
         }
 
         const token = raw.token || getSyncedNpcImagePath(character, "token");

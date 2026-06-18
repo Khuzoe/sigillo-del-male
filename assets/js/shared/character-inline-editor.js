@@ -123,8 +123,8 @@
         ];
         for (const candidate of candidates) {
             if (typeof candidate !== 'string' || !candidate.trim()) continue;
-            if (looksLikeHtml(candidate)) return convertInlineHtmlStringToMarkdown(candidate);
-            return candidate;
+            if (looksLikeHtml(candidate)) return normalizeInlineMarkdownText(convertInlineHtmlStringToMarkdown(candidate));
+            return normalizeInlineMarkdownText(candidate);
         }
         return '';
     }
@@ -229,6 +229,8 @@
             document.execCommand('formatBlock', false, 'blockquote');
         } else if (format === 'gold') {
             applyInlineHighlightFormat(editor, getInlineMarkdownFormatFallback(format));
+        } else if (format === 'secret') {
+            applyInlineSecretFormat(editor, getInlineMarkdownFormatFallback(format));
         } else {
             return;
         }
@@ -262,17 +264,43 @@
             replaceInlineSelectionWithHtml(editor, `<mark>${escapeHtml(fallbackText)}</mark>`);
             return;
         }
+        const selectionWasFullyHighlighted = inlineRangeIsFullyFormatted(range, isInlineHighlightNode);
         const fragment = range.cloneContents();
-        if (inlineFragmentIsFullyHighlighted(fragment)) {
+        if (selectionWasFullyHighlighted) {
             unwrapInlineHighlightElements(fragment);
         } else {
             unwrapInlineHighlightElements(fragment);
             wrapInlineTextNodesWithHighlight(fragment);
         }
-        replaceInlineSelectionWithHtml(editor, inlineFragmentToHtml(fragment));
+        replaceInlineSelectionWithHtml(editor, inlineFragmentToHtml(fragment), {
+            unwrapInsertedFormat: selectionWasFullyHighlighted ? isInlineHighlightElement : null
+        });
     }
 
-    function replaceInlineSelectionWithHtml(editor, html) {
+    function applyInlineSecretFormat(editor, fallbackText) {
+        const selection = getInlineEditorSelection(editor);
+        if (!selection || selection.rangeCount === 0) return;
+        const range = selection.getRangeAt(0);
+        if (range.collapsed) {
+            replaceInlineSelectionWithHtml(editor, `<span class="inline-secret inline-secret--dm">${escapeHtml(fallbackText)}</span>`);
+            return;
+        }
+        const selectionWasFullySecret = inlineRangeIsFullyFormatted(range, isInlineSecretNode);
+        const fragment = range.cloneContents();
+        if (selectionWasFullySecret) {
+            unwrapInlineSecretElements(fragment);
+        } else {
+            unwrapInlineSecretElements(fragment);
+            unwrapInlineHighlightElements(fragment);
+            wrapInlineFragmentWithSecret(fragment);
+        }
+        replaceInlineSelectionWithHtml(editor, inlineFragmentToHtml(fragment), {
+            unwrapInsertedFormat: selectionWasFullySecret ? isInlineSecretElement : null
+        });
+        unwrapSecretHighlightAncestors(editor);
+    }
+
+    function replaceInlineSelectionWithHtml(editor, html, options = {}) {
         const selection = getInlineEditorSelection(editor);
         if (!selection || selection.rangeCount === 0) return;
         const startId = `inline-selection-start-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -290,13 +318,16 @@
             range.deleteContents();
             range.insertNode(template.content);
         }
-        restoreInlineSelectionBetweenMarkers(editor, startId, endId);
+        restoreInlineSelectionBetweenMarkers(editor, startId, endId, options);
     }
 
-    function restoreInlineSelectionBetweenMarkers(editor, startId, endId) {
+    function restoreInlineSelectionBetweenMarkers(editor, startId, endId, options = {}) {
         const startMarker = editor.querySelector(`[data-inline-selection-marker="${startId}"]`);
         const endMarker = editor.querySelector(`[data-inline-selection-marker="${endId}"]`);
         if (!startMarker || !endMarker) return;
+        if (typeof options.unwrapInsertedFormat === 'function') {
+            unwrapInsertedSelectionFromFormat(editor, startMarker, endMarker, options.unwrapInsertedFormat);
+        }
         const range = document.createRange();
         range.setStartAfter(startMarker);
         range.setEndBefore(endMarker);
@@ -310,22 +341,95 @@
         endMarker.remove();
     }
 
+    function unwrapInsertedSelectionFromFormat(root, startMarker, endMarker, predicate) {
+        let element = findClosestInlineFormatElement(startMarker, root, predicate);
+        while (element && element.contains(endMarker)) {
+            if (!splitInlineFormatElementAroundMarkers(element, startMarker, endMarker)) break;
+            element = findClosestInlineFormatElement(startMarker, root, predicate);
+        }
+    }
+
+    function findClosestInlineFormatElement(node, root, predicate) {
+        let element = node?.parentElement || null;
+        while (element && element !== root) {
+            if (predicate(element)) return element;
+            element = element.parentElement;
+        }
+        return null;
+    }
+
+    function splitInlineFormatElementAroundMarkers(element, startMarker, endMarker) {
+        const parent = element?.parentNode;
+        if (!parent) return false;
+        if (startMarker.parentNode !== element || endMarker.parentNode !== element) return false;
+
+        const before = element.cloneNode(false);
+        const after = element.cloneNode(false);
+        const selected = document.createDocumentFragment();
+        let phase = 'before';
+
+        while (element.firstChild) {
+            const node = element.firstChild;
+            if (node === startMarker) phase = 'selected';
+            if (phase === 'before') before.appendChild(node);
+            else if (phase === 'selected') selected.appendChild(node);
+            else after.appendChild(node);
+            if (node === endMarker) phase = 'after';
+        }
+
+        if (hasMeaningfulInlineChildren(before)) parent.insertBefore(before, element);
+        parent.insertBefore(selected, element);
+        if (hasMeaningfulInlineChildren(after)) parent.insertBefore(after, element);
+        parent.removeChild(element);
+        return true;
+    }
+
+    function hasMeaningfulInlineChildren(element) {
+        return Boolean(
+            String(element?.textContent || '').length
+            || element?.querySelector?.('img, br, i, strong, em, mark, span, a, code')
+        );
+    }
+
     function inlineFragmentToHtml(fragment) {
         const wrapper = document.createElement('div');
         wrapper.appendChild(fragment);
         return wrapper.innerHTML;
     }
 
-    function inlineFragmentIsFullyHighlighted(fragment) {
-        const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_TEXT);
+    function inlineRangeIsFullyFormatted(range, predicate) {
+        if (!range || typeof predicate !== 'function') return false;
+        const root = range.commonAncestorContainer?.nodeType === Node.TEXT_NODE
+            ? range.commonAncestorContainer.parentNode
+            : range.commonAncestorContainer;
+        if (!root) return false;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
         let hasText = false;
         while (walker.nextNode()) {
             const node = walker.currentNode;
-            if (!String(node.textContent || '').trim()) continue;
+            if (!rangeIntersectsTextNode(range, node)) continue;
+            if (!getSelectedTextInNode(range, node).trim()) continue;
             hasText = true;
-            if (!isInlineHighlightNode(node)) return false;
+            if (!predicate(node)) return false;
         }
         return hasText;
+    }
+
+    function rangeIntersectsTextNode(range, node) {
+        try {
+            return range.intersectsNode(node);
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function getSelectedTextInNode(range, node) {
+        const text = String(node?.textContent || '');
+        let start = 0;
+        let end = text.length;
+        if (range.startContainer === node) start = range.startOffset;
+        if (range.endContainer === node) end = range.endOffset;
+        return text.slice(Math.max(0, start), Math.max(start, end));
     }
 
     function isInlineHighlightNode(node) {
@@ -337,8 +441,18 @@
         return false;
     }
 
+    function isInlineSecretNode(node) {
+        let element = node?.parentElement || null;
+        while (element) {
+            if (isInlineSecretElement(element)) return true;
+            element = element.parentElement;
+        }
+        return false;
+    }
+
     function isInlineHighlightElement(element) {
         if (!element || element.nodeType !== Node.ELEMENT_NODE) return false;
+        if (isInlineSecretElement(element)) return false;
         const tag = element.tagName.toLowerCase();
         if (tag === 'mark') return true;
         if (tag !== 'span') return false;
@@ -346,15 +460,42 @@
         return Boolean(background && background !== 'transparent' && background !== 'rgba(0, 0, 0, 0)');
     }
 
+    function isInlineSecretElement(element) {
+        return Boolean(element?.nodeType === Node.ELEMENT_NODE && element.classList?.contains('inline-secret'));
+    }
+
     function unwrapInlineHighlightElements(root) {
         Array.from(root.querySelectorAll?.('mark, span') || [])
             .filter(isInlineHighlightElement)
             .forEach((element) => {
-                const parent = element.parentNode;
-                if (!parent) return;
-                while (element.firstChild) parent.insertBefore(element.firstChild, element);
-                parent.removeChild(element);
+                unwrapInlineElement(element);
             });
+    }
+
+    function unwrapInlineSecretElements(root) {
+        Array.from(root.querySelectorAll?.('.inline-secret') || [])
+            .forEach((element) => {
+                unwrapInlineElement(element);
+            });
+    }
+
+    function unwrapSecretHighlightAncestors(root) {
+        Array.from(root.querySelectorAll?.('.inline-secret') || [])
+            .forEach((secret) => {
+                let element = secret.parentElement;
+                while (element && element !== root) {
+                    const parent = element.parentElement;
+                    if (isInlineHighlightElement(element)) unwrapInlineElement(element);
+                    element = parent;
+                }
+            });
+    }
+
+    function unwrapInlineElement(element) {
+        const parent = element?.parentNode;
+        if (!parent) return;
+        while (element.firstChild) parent.insertBefore(element.firstChild, element);
+        parent.removeChild(element);
     }
 
     function wrapInlineTextNodesWithHighlight(root) {
@@ -372,9 +513,18 @@
         });
     }
 
+    function wrapInlineFragmentWithSecret(fragment) {
+        if (!String(fragment?.textContent || '').trim()) return;
+        const secret = document.createElement('span');
+        secret.className = 'inline-secret inline-secret--dm';
+        while (fragment.firstChild) secret.appendChild(fragment.firstChild);
+        fragment.appendChild(secret);
+    }
+
     function renderInlineVisualEditorFromMarkdown(editor, blockIndex) {
         const block = inlineEditBlocks[blockIndex];
-        const html = renderMarkdown(block.text || '', { context: block.type === 'image' ? 'image_box' : 'lore' }) || '<p></p>';
+        block.text = normalizeInlineMarkdownText(block.text || '');
+        const html = renderMarkdown(block.text || '', { context: block.type === 'image' ? 'image_box' : 'lore', showInlineSecrets: true }) || '<p></p>';
         editor.innerHTML = html;
         const textarea = editor.closest('.character-inline-markdown-shell')?.querySelector('textarea[data-inline-block-field="text"]');
         if (textarea) textarea.value = block.text || '';
@@ -386,7 +536,8 @@
     }
 
     function syncInlineVisualEditor(editor, blockIndex) {
-        const markdown = convertInlineEditorHtmlToMarkdown(editor);
+        unwrapSecretHighlightAncestors(editor);
+        const markdown = normalizeInlineMarkdownText(convertInlineEditorHtmlToMarkdown(editor));
         inlineEditBlocks[blockIndex].text = markdown;
         const textarea = editor.closest('.character-inline-markdown-shell')?.querySelector('textarea[data-inline-block-field="text"]');
         if (textarea) textarea.value = markdown;
@@ -397,6 +548,7 @@
         if (format === 'list') return 'Nuovo punto elenco';
         if (format === 'quote') return 'Testo in evidenza';
         if (format === 'gold') return 'parola importante';
+        if (format === 'secret') return 'frase nascosta';
         return 'testo';
     }
 
@@ -405,7 +557,23 @@
             .map((node) => convertInlineEditorBlockToMarkdown(node))
             .map((text) => text.trim())
             .filter(Boolean);
-        return blocks.join('\n\n').trim();
+        return normalizeInlineMarkdownText(blocks.join('\n\n').trim());
+    }
+
+    function normalizeInlineMarkdownText(value) {
+        let text = String(value || '').replace(/\r\n?/g, '\n');
+        let previous = '';
+        while (text !== previous) {
+            previous = text;
+            text = text
+                .replace(/%%[ \t]*==([^%\n]*?)==[ \t]*%%/g, '%%$1%%')
+                .replace(/==[ \t]*%%([^%\n]*)%%[ \t]*==/g, '%%$1%%')
+                .replace(/%%([^%\n]*)%%([ \t]*)%%([^%\n]*)%%/g, '%%$1$2$3%%')
+                .replace(/==([^=\n]*)==([ \t]*)==([^=\n]*)==/g, '==$1$2$3==')
+                .replace(/\*\*([^*\n]*)\*\*([ \t]*)\*\*([^*\n]*)\*\*/g, '**$1$2$3**')
+                .replace(/%%%%/g, '');
+        }
+        return text.trim();
     }
 
     function convertInlineEditorBlockToMarkdown(node) {
@@ -441,8 +609,9 @@
         if (tag === 'br') return '\n';
         if (tag === 'strong' || tag === 'b') return `**${inner}**`;
         if (tag === 'em' || tag === 'i') return `*${inner}*`;
-        if (tag === 'mark') return `==${inner}==`;
-        if (tag === 'span' && isInlineHighlightElement(node)) return `==${inner}==`;
+        if (isInlineSecretElement(node)) return `%%${node.textContent || ''}%%`;
+        if (tag === 'mark') return node.querySelector?.('.inline-secret') ? inner : `==${inner}==`;
+        if (tag === 'span' && isInlineHighlightElement(node)) return node.querySelector?.('.inline-secret') ? inner : `==${inner}==`;
         if (tag === 'code') return `\`${inner}\``;
         if (tag === 'li') return inner;
         if (tag === 'a') return inner;
@@ -1095,12 +1264,12 @@
             icon: block.icon || 'fa-book-open',
             image: block.type === 'image' ? (block.image || '') : '',
             hidden: Boolean(block.hidden),
-            text: block.text || ''
+            text: normalizeInlineMarkdownText(block.text || '')
         }));
     }
 
     function serializeInlineContentBlockForSave(block) {
-        const text = block.text || '';
+        const text = normalizeInlineMarkdownText(block.text || '');
         const type = block.type === 'image' ? 'image_box' : 'lore';
         return compactObject({
             id: slugify(block.id || block.title || 'blocco'),
@@ -1110,7 +1279,7 @@
             image: block.type === 'image' ? (block.image || '') : '',
             hidden: Boolean(block.hidden),
             markdownText: text,
-            markdownHtml: text && typeof runtime.renderMarkdown === 'function' ? runtime.renderMarkdown(text) : ''
+            markdownHtml: text && typeof runtime.renderMarkdown === 'function' ? runtime.renderMarkdown(text, { showInlineSecrets: false }) : ''
         });
     }
 
@@ -1275,7 +1444,7 @@
     }
 
     function renderInlineMarkdownEditor(block, index, extraClass = '') {
-        const previewHtml = renderMarkdown(block.text || '', { context: block.type === 'image' ? 'image_box' : 'lore' });
+        const previewHtml = renderMarkdown(block.text || '', { context: block.type === 'image' ? 'image_box' : 'lore', showInlineSecrets: true });
         const previewClass = extraClass ? `chapter-content ${extraClass}` : 'chapter-content';
         return `
             <div class="character-inline-markdown-shell">
@@ -1285,6 +1454,7 @@
                     ${renderInlineFormatButton(index, 'list', 'fa-list-ul', 'Elenco')}
                     ${renderInlineFormatButton(index, 'quote', 'fa-quote-left', 'Citazione')}
                     ${renderInlineFormatButton(index, 'gold', 'fa-highlighter', 'Evidenzia oro')}
+                    ${renderInlineFormatButton(index, 'secret', 'fa-eye-slash', 'Oscura frase')}
                 </div>
                 <textarea class="character-inline-markdown-editor" hidden data-inline-block-index="${index}" data-inline-block-field="text">${escapeHtml(block.text || '')}</textarea>
                 <div class="${previewClass} character-inline-markdown-preview character-inline-visual-editor" contenteditable="true" spellcheck="true" data-inline-visual-editor="${index}">${previewHtml || '<p></p>'}</div>

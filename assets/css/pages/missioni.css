@@ -396,6 +396,35 @@
             color: #ff8f8f;
         }
 
+        .quest-admin-toolbar__actions {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            flex-wrap: wrap;
+        }
+
+        .quest-admin-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.45rem;
+            border: 1px solid rgba(212, 175, 55, 0.42);
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.42);
+            color: var(--gold);
+            font: 700 0.78rem/1 var(--font-ui);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 0.72rem 1rem;
+            cursor: pointer;
+        }
+
+        .quest-admin-btn:hover,
+        .quest-admin-btn:focus-visible {
+            background: rgba(212, 175, 55, 0.14);
+            border-color: rgba(212, 175, 55, 0.66);
+        }
+
         .quest-edit-btn {
             flex: 0 0 auto;
             width: 2.4rem;
@@ -499,6 +528,7 @@
 
         .quest-editor-grid input,
         .quest-editor-grid textarea,
+        .quest-editor-grid select,
         .quest-editor-objective input,
         .quest-editor-objective select {
             width: 100%;
@@ -509,6 +539,12 @@
             font-family: var(--font-ui);
             font-size: 0.95rem;
             padding: 0.72rem 0.85rem;
+        }
+
+        .quest-editor-grid select option,
+        .quest-editor-objective select option {
+            background: #14100d;
+            color: var(--text-main);
         }
 
         .quest-editor-objectives {

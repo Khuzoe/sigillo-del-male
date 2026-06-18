@@ -316,209 +316,6 @@ body.is-embed .container {
     box-sizing: border-box;
 }
 
-/* Hero Section (Home) - REMOVED/ADAPTED */
-.hero {
-    display: none;
-    /* Hide old hero */
-}
-
-/* =========================================
-   DASHBOARD LAYOUT (Home)
-   ========================================= */
-.dashboard-wrapper {
-    height: 100vh;
-    overflow: hidden;
-    /* No main scroll */
-    padding: 1rem;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-}
-
-.dashboard-container {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.dashboard-header {
-    flex: 0 0 auto;
-    text-align: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: 1rem;
-}
-
-.dashboard-header h1 {
-    font-family: var(--font-heading);
-    font-size: 3rem;
-    /* Smaller than 6rem */
-    margin: 0;
-
-    /* Gold Gradient Style */
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 400;
-    background: linear-gradient(to bottom, #cfc09f 0%, #ffecb3 45%, #9e7f2a 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    color: transparent;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
-}
-
-.dashboard-header p {
-    color: var(--text-muted);
-    font-style: italic;
-    margin: 0.5rem 0 0 0;
-    font-size: 1rem;
-}
-
-.dashboard-grid {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1.2fr 1fr;
-    /* Left (Session) larger */
-    gap: 1.5rem;
-    min-height: 0;
-    /* Allow flex shrinking */
-}
-
-/* LEFT COLUMN: NEXT SESSION */
-.next-session-area {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-}
-
-.next-session-card {
-    position: relative;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    /* Center content vertically */
-    margin: 0;
-    /* reset */
-}
-
-/* RIGHT COLUMN: CHARACTERS & EVENTS */
-.dash-column-right {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    height: 100%;
-}
-
-.dash-section-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    border-bottom: 1px solid rgba(212, 175, 55, 0.12);
-    padding-bottom: 0.7rem;
-    margin-bottom: 0.85rem;
-}
-
-.dash-section-title h2 {
-    font-family: var(--font-heading);
-    color: var(--ink-ivory);
-    font-size: 1.05rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    font-weight: 400;
-    margin: 0;
-}
-
-.dash-chars-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    /* 2x2 grid for chars */
-    gap: 0.8rem;
-    flex: 0 0 auto;
-}
-
-.home-char-card.mini {
-    padding: 0.8rem;
-    margin: 0;
-    gap: 0.8rem;
-}
-
-.home-char-card.mini .home-char-avatar img {
-    width: 50px;
-    height: 50px;
-}
-
-.home-char-card.mini .home-char-info .name {
-    font-size: 1rem;
-    margin-bottom: 0;
-}
-
-.home-char-card.mini .home-char-info .role {
-    font-size: 0.75rem;
-}
-
-/* EVENTS AREA */
-.dash-events-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    background: linear-gradient(180deg, rgba(10, 10, 10, 0.28), rgba(10, 10, 10, 0.1));
-    border-radius: 14px;
-    padding: 1.25rem 1.25rem 1rem;
-    border: 1px solid var(--border-soft);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-.dash-section-title-small {
-    font-family: var(--font-heading);
-    color: var(--ink-warm);
-    font-size: 0.9rem;
-    margin-bottom: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    font-weight: 400;
-}
-
-.session-card.compact {
-    background: transparent;
-    border: none;
-    padding: 0;
-}
-
-.session-card.compact .session-header {
-    border-bottom: none;
-    margin-bottom: 0.5rem;
-    padding-bottom: 0;
-}
-
-.session-card.compact .session-title {
-    font-size: 1.1rem;
-}
-
-.session-card.compact .session-body {
-    font-size: 0.9rem;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    /* Limit lines */
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.read-more-mini {
-    font-size: 0.76rem;
-    color: var(--gold-dim);
-    text-decoration: none;
-    font-family: var(--font-ui);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-}
-
-.read-more-mini:hover {
-    color: var(--ink-ivory);
-}
-
 /* Hero Mini (Pagine interne) */
 .hero-mini {
     padding: 3rem 4rem;
@@ -836,7 +633,7 @@ body.is-embed .container {
     font-size: 1.3rem;
 
     /* Inherit Gradient Styles via mixin logic or duplication since CSS vars don't support full rulesets easily */
-    /* Duplicating for now or simply adding the class in HTML. 
+    /* Duplicating for now or simply adding the class in HTML.
        Better approach: Apply properties here for consistency if HTML isn't changed.
     */
     text-transform: uppercase;
@@ -2408,6 +2205,29 @@ body.is-embed .container {
     font-weight: bold;
     text-shadow: 0 0 8px rgba(212, 175, 55, 0.38);
     padding: 0 2px;
+}
+
+.chapter-content .inline-secret {
+    display: inline-block;
+    vertical-align: -0.08em;
+}
+
+.chapter-content .inline-secret--dm {
+    display: inline;
+    color: #ff9b9b;
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(255, 86, 86, 0.28);
+}
+
+.chapter-content .inline-secret--hidden {
+    width: 5.4em;
+    height: 0.86em;
+    border: 1px solid rgba(255, 100, 100, 0.24);
+    border-radius: 0.18em;
+    background:
+        linear-gradient(135deg, rgba(255, 100, 100, 0.12), rgba(0, 0, 0, 0.72)),
+        repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.62) 0 4px, rgba(45, 8, 8, 0.82) 4px 8px);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.42), 0 0 8px rgba(255, 70, 70, 0.08);
 }
 
 .chapter-content .wiki-term-link {
@@ -4766,6 +4586,11 @@ body.page-sessioni .session-card:nth-child(3n) {
         border-right: none;
         border-bottom: 1px solid rgba(212, 175, 55, 0.12);
         box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+    }
+
+    body.page-character .sidebar {
+        max-height: min(42vh, 24rem);
+        overflow-y: auto;
     }
 
     .sidebar::before {

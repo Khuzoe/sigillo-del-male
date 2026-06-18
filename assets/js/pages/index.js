@@ -26,8 +26,24 @@ window.CriptaApp.onPageReady("index", () => {
         return window.CriptaApp.utils.slugify(value, 'personaggio');
     }
 
+    function escapeHtml(value) {
+        return window.CriptaApp.utils.escapeHtml(value);
+    }
+
     function getCurrentCampaignId() {
         return window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
+    }
+
+    function buildSiteUrl(path) {
+        if (typeof window.CriptaApp?.urls?.site === 'function') {
+            return window.CriptaApp.urls.site(path);
+        }
+        const url = new URL(path, window.location.href);
+        const campaignId = getCurrentCampaignId();
+        if (campaignId && campaignId !== 'cripta-di-sangue') {
+            url.searchParams.set('campaign', campaignId);
+        }
+        return url.toString();
     }
 
     function getSyncedPlayerImagePath(player, variant = 'hover') {
@@ -44,6 +60,43 @@ window.CriptaApp.onPageReady("index", () => {
         }
         const npcId = slugify(npc?.id || npc?.name || 'npc');
         return `media/campaigns/${getCurrentCampaignId()}/characters/${npcId}/${variant}.webp`;
+    }
+
+    function addImageCandidate(candidates, path) {
+        const url = resolveImageUrl(path, '');
+        if (url && !candidates.includes(url)) candidates.push(url);
+    }
+
+    function getPlayerImageCandidates(player) {
+        const images = player?.images || {};
+        const candidates = [];
+        addImageCandidate(candidates, images.hover || images.cardHover || images.listHover || images.showcaseHover);
+        addImageCandidate(candidates, getSyncedPlayerImagePath(player, 'hover'));
+        addImageCandidate(candidates, images.idle || images.card || images.list || images.showcase);
+        addImageCandidate(candidates, getSyncedPlayerImagePath(player, 'idle'));
+        addImageCandidate(candidates, images.token);
+        addImageCandidate(candidates, getSyncedPlayerImagePath(player, 'token'));
+        addImageCandidate(candidates, images.avatar || images.portrait);
+        addImageCandidate(candidates, getSyncedPlayerImagePath(player, 'avatar'));
+
+        if (getCurrentCampaignId() === 'cripta-di-sangue') {
+            const playerId = slugify(player?.id || player?.name || 'personaggio');
+            addImageCandidate(candidates, `media/players/${playerId}_animation.webp`);
+            addImageCandidate(candidates, `media/players/${playerId}_transp.webp`);
+            addImageCandidate(candidates, `media/players/${playerId}.webp`);
+        }
+
+        addImageCandidate(candidates, 'assets/img/logo.webp');
+        return candidates;
+    }
+
+    function buildImageFallbackAttributes(urls) {
+        const candidates = Array.isArray(urls) ? urls.filter(Boolean) : [];
+        const fallbacks = candidates.slice(1);
+        if (!fallbacks.length) {
+            return ` onerror="this.style.display='none'"`;
+        }
+        return ` data-fallback-srcs='${escapeHtml(JSON.stringify(fallbacks))}' onerror="var f=JSON.parse(this.dataset.fallbackSrcs||'[]');var n=f.shift();this.dataset.fallbackSrcs=JSON.stringify(f);if(n){this.src=n;}else{this.style.display='none';this.onerror=null;}"`;
     }
 
     function buildImageFallbackHandler(fallbackUrl) {
@@ -160,12 +213,14 @@ window.CriptaApp.onPageReady("index", () => {
     }
 
     function renderHomePlayerCard(player) {
-        const avatarPath = resolveImageUrl(getSyncedPlayerImagePath(player, 'hover'));
+        const imageCandidates = getPlayerImageCandidates(player);
+        const avatarPath = imageCandidates[0] || resolveImageUrl('', 'assets/img/logo.webp');
+        const playerUrl = buildSiteUrl(`pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player`);
         return `
-            <a href="pages/characters/character.html?id=${player.id}&type=player" class="home-char-card mini">
-                <div class="home-char-avatar"><img src="${avatarPath}" alt="${player.name}" loading="lazy" decoding="async"></div>
+            <a href="${escapeHtml(playerUrl)}" class="home-char-card mini">
+                <div class="home-char-avatar"><img src="${escapeHtml(avatarPath)}" alt="${escapeHtml(player.name)}" loading="lazy" decoding="async"${buildImageFallbackAttributes(imageCandidates)}></div>
                 <div class="home-char-info">
-                    <h4 class="name">${player.name}</h4><span class="role">${player.role || 'Protagonista'}</span>
+                    <h4 class="name">${escapeHtml(player.name)}</h4><span class="role">${escapeHtml(player.role || 'Protagonista')}</span>
                 </div>
             </a>
         `;
