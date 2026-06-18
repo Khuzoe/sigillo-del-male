@@ -1047,7 +1047,6 @@
         });
         if (targetIndex >= 0) {
             const mergedCharacter = { ...nextData[targetIndex], ...updatedCharacter };
-            delete mergedCharacter.content_blocks;
             nextData[targetIndex] = mergedCharacter;
         } else {
             nextData.push(updatedCharacter);
@@ -1083,7 +1082,13 @@
                 })
             };
         }
-        serialized.blocks = inlineEditBlocks.map((block) => ({
+        serialized.blocks = serializeInlineBlocksForSave();
+        serialized.content_blocks = inlineEditBlocks.map(serializeInlineContentBlockForSave);
+        return serialized;
+    }
+
+    function serializeInlineBlocksForSave() {
+        return inlineEditBlocks.map((block) => ({
             id: slugify(block.id || block.title || 'blocco'),
             type: block.type === 'image' ? 'image' : 'text',
             title: block.title || 'Informazioni',
@@ -1092,7 +1097,21 @@
             hidden: Boolean(block.hidden),
             text: block.text || ''
         }));
-        return serialized;
+    }
+
+    function serializeInlineContentBlockForSave(block) {
+        const text = block.text || '';
+        const type = block.type === 'image' ? 'image_box' : 'lore';
+        return compactObject({
+            id: slugify(block.id || block.title || 'blocco'),
+            type,
+            title: block.title || 'Informazioni',
+            icon: block.icon || 'fa-book-open',
+            image: block.type === 'image' ? (block.image || '') : '',
+            hidden: Boolean(block.hidden),
+            markdownText: text,
+            markdownHtml: text && typeof runtime.renderMarkdown === 'function' ? runtime.renderMarkdown(text) : ''
+        });
     }
 
     function stripHtmlToText(html) {

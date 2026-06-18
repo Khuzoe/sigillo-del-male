@@ -164,6 +164,10 @@ ul {
     display: flex;
     flex-direction: column;
     padding: 2rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
     z-index: 1000;
 }
 
@@ -3906,7 +3910,8 @@ body.page-character .main-content {
 }
 
 .sidebar {
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     background:
         linear-gradient(180deg, rgba(10, 10, 10, 0.98) 0%, rgba(15, 13, 13, 0.96) 55%, rgba(10, 10, 10, 0.98) 100%);
     border-right: 1px solid rgba(212, 175, 55, 0.12);

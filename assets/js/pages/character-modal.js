@@ -8,19 +8,27 @@ function initializeImageModal() {
                 return;
             }
 
-            const images = document.querySelectorAll('.doc-image-popup');
-
-            images.forEach(image => {
-                image.addEventListener('click', () => {
-                    modal.classList.add('visible');
-                    modalImg.src = image.src;
-                });
-            });
-
             const closeModal = () => {
                 modal.classList.remove('visible');
                 modalImg.src = ""; // Clear src to stop loading if in progress
             };
+
+            const openModal = (image) => {
+                const src = image?.currentSrc || image?.src || image?.dataset?.imageSrc || '';
+                if (!src) return;
+                modal.classList.add('visible');
+                modalImg.src = src;
+            };
+
+            if (modal.dataset.imageModalInitialized === 'true') return;
+            modal.dataset.imageModalInitialized = 'true';
+
+            document.addEventListener('click', (e) => {
+                const image = e.target?.closest?.('.doc-image-popup');
+                if (!image) return;
+                e.preventDefault();
+                openModal(image);
+            });
 
             closeBtn.addEventListener('click', closeModal);
             modal.addEventListener('click', (e) => {

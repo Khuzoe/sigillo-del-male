@@ -360,6 +360,7 @@ function parseYamlLite(yamlText) {
                 title: block.title || 'Informazioni',
                 icon: block.icon || 'fa-book-open',
                 image: block.image || '',
+                hidden: Boolean(block.hidden),
                 markdownText: block.text || '',
                 markdownHtml: block.text ? renderMarkdown(block.text) : ''
             }));

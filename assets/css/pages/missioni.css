@@ -230,6 +230,20 @@
             /* Allineamento ottico col testo */
         }
 
+        button.custom-checkbox {
+            padding: 0;
+            appearance: none;
+            font: inherit;
+        }
+
+        button.custom-checkbox:not(:disabled) {
+            cursor: pointer;
+        }
+
+        button.custom-checkbox:disabled {
+            cursor: default;
+        }
+
         /* Stato Completato dell'obiettivo */
         .objective-item.done .custom-checkbox {
             border-color: var(--gold);
@@ -348,4 +362,219 @@
             display: flex;
             align-items: center;
             /* Gradient attributes moved to .text-gold-gradient utility class */
+        }
+
+        .quest-admin-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin: 1rem 0 2rem;
+            padding: 1rem 1.2rem;
+            border: 1px solid rgba(212, 175, 55, 0.22);
+            border-radius: 8px;
+            background: rgba(10, 8, 6, 0.72);
+        }
+
+        .quest-admin-toolbar strong {
+            display: block;
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: 1.05rem;
+            letter-spacing: 0.04em;
+        }
+
+        .quest-admin-toolbar span {
+            display: block;
+            margin-top: 0.15rem;
+            color: var(--text-muted);
+            font-family: var(--font-ui);
+            font-size: 0.82rem;
+        }
+
+        .quest-admin-toolbar span.is-error {
+            color: #ff8f8f;
+        }
+
+        .quest-edit-btn {
+            flex: 0 0 auto;
+            width: 2.4rem;
+            height: 2.4rem;
+            margin-left: 0.75rem;
+            border: 1px solid rgba(212, 175, 55, 0.38);
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.42);
+            color: var(--gold);
+            cursor: pointer;
+        }
+
+        .quest-edit-btn:hover {
+            background: rgba(212, 175, 55, 0.14);
+        }
+
+        .quest-editor-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 2500;
+            display: grid;
+            place-items: center;
+            padding: 1.5rem;
+            background: rgba(0, 0, 0, 0.72);
+        }
+
+        .quest-editor-modal[hidden] {
+            display: none;
+        }
+
+        .quest-editor-panel {
+            width: min(960px, 100%);
+            max-height: min(86vh, 900px);
+            overflow: auto;
+            border: 1px solid rgba(212, 175, 55, 0.28);
+            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(28, 21, 14, 0.98), rgba(8, 7, 6, 0.98));
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.62);
+        }
+
+        .quest-editor-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.18);
+        }
+
+        .quest-editor-head p {
+            margin: 0 0 0.2rem;
+            color: var(--text-muted);
+            font-family: var(--font-ui);
+            font-size: 0.75rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .quest-editor-head h3 {
+            margin: 0;
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: 1.45rem;
+        }
+
+        .quest-editor-close {
+            width: 2.35rem;
+            height: 2.35rem;
+            border: 1px solid rgba(212, 175, 55, 0.26);
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.38);
+            color: var(--text-main);
+            cursor: pointer;
+        }
+
+        .quest-editor-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+            padding: 1.5rem;
+        }
+
+        .quest-editor-grid label,
+        .quest-editor-objective {
+            display: grid;
+            gap: 0.4rem;
+        }
+
+        .quest-editor-grid span {
+            color: var(--gold);
+            font-family: var(--font-ui);
+            font-size: 0.76rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .quest-editor-field--full {
+            grid-column: 1 / -1;
+        }
+
+        .quest-editor-grid input,
+        .quest-editor-grid textarea,
+        .quest-editor-objective input,
+        .quest-editor-objective select {
+            width: 100%;
+            border: 1px solid rgba(212, 175, 55, 0.24);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.34);
+            color: var(--text-main);
+            font-family: var(--font-ui);
+            font-size: 0.95rem;
+            padding: 0.72rem 0.85rem;
+        }
+
+        .quest-editor-objectives {
+            padding: 0 1.5rem 1.5rem;
+        }
+
+        .quest-editor-objectives__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .quest-editor-objectives__head strong {
+            color: var(--gold);
+            font-family: var(--font-heading);
+            font-size: 1.15rem;
+        }
+
+        .quest-editor-objectives__head button,
+        .quest-editor-btn {
+            border: 1px solid rgba(212, 175, 55, 0.34);
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.42);
+            color: var(--gold);
+            font: 700 0.78rem/1 var(--font-ui);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 0.72rem 1rem;
+            cursor: pointer;
+        }
+
+        .quest-editor-objective {
+            grid-template-columns: minmax(16rem, 1fr) 9.5rem minmax(8rem, 0.55fr) minmax(12rem, 0.8fr);
+            align-items: center;
+            margin-left: calc(var(--quest-depth, 0) * 1.5rem);
+            margin-bottom: 0.65rem;
+            padding: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .quest-editor-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            padding: 1rem 1.5rem 1.5rem;
+        }
+
+        .quest-editor-btn--primary {
+            background: rgba(212, 175, 55, 0.18);
+        }
+
+        .quest-editor-btn--ghost {
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 760px) {
+            .quest-header {
+                flex-wrap: wrap;
+            }
+
+            .quest-editor-grid,
+            .quest-editor-objective {
+                grid-template-columns: 1fr;
+            }
         }

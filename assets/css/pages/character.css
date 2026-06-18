@@ -1001,7 +1001,7 @@
 }
 
 .companion-card__vitals .character-live-kpis {
-    grid-template-columns: repeat(auto-fit, minmax(7.4rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(8.6rem, 1fr));
     gap: 0.55rem;
 }
 
@@ -1102,6 +1102,25 @@
 
 .companion-card__image-stage span[hidden] {
     display: none;
+}
+
+.companion-card__token {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 3;
+    width: clamp(3.2rem, 6vw, 4.7rem);
+    aspect-ratio: 1;
+    display: block;
+    border: 2px solid rgba(212, 175, 55, 0.78);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.66);
+    box-shadow:
+        0 10px 24px rgba(0, 0, 0, 0.42),
+        0 0 0 1px rgba(0, 0, 0, 0.52);
+    cursor: zoom-in;
+    object-fit: cover;
+    object-position: center;
 }
 
 .character-media-actions {

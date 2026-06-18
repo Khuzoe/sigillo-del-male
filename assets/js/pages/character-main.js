@@ -1657,6 +1657,28 @@ function getCompanionAvatarImageCandidates(companion) {
     ].filter(Boolean)));
 }
 
+function getCompanionTokenImageCandidates(companion) {
+    const tokenPath = companion?.token?.img || '';
+    const ownerCharacterId = slugify(companion?.ownerCharacterId || companion?.characterId || '');
+    const syncedEntityId = ownerCharacterId ? getCompanionReadableEntityId(ownerCharacterId, companion) : '';
+    const campaignId = getCurrentCampaignId();
+    const companionFolder = `campaigns/${campaignId}/companions/${ownerCharacterId}`;
+    const legacyCompanionFolder = campaignId === 'cripta-di-sangue' ? `companions/${ownerCharacterId}` : '';
+    const syncedToken = syncedEntityId ? `media/${companionFolder}/${syncedEntityId}-token.webp` : '';
+    const legacySyncedToken = syncedEntityId && legacyCompanionFolder ? `media/${legacyCompanionFolder}/${syncedEntityId}-token.webp` : '';
+    const overrideToken = companion?._mediaOverrideImages?.token || '';
+    const currentCampaignOverrideToken = isCurrentCampaignMediaAsset(overrideToken) ? overrideToken : '';
+    const legacyOverrideToken = currentCampaignOverrideToken ? '' : overrideToken;
+    return Array.from(new Set([
+        resolveSyncedActorImagePath(currentCampaignOverrideToken),
+        resolveSyncedActorImagePath(syncedToken),
+        resolveSyncedActorImagePath(legacyOverrideToken),
+        resolveSyncedActorImagePath(legacySyncedToken),
+        resolveSyncedActorImagePath(tokenPath),
+        resolveSyncedActorImagePath(companion?.img)
+    ].filter(Boolean)));
+}
+
 function getCompanionMediaOverrideIdentity(character, companion) {
     const companionName = companion?.foundryName || companion?.name || companion?.displayName || companion?.id || 'companion';
     const companionActorId = companion?.actorId || companion?.id || '';
@@ -3645,12 +3667,21 @@ function buildCompanionsHtml(character, payload, wikiItems = [], mediaOverrides 
             const imageCandidates = getCompanionAvatarImageCandidates(companion);
             const image = imageCandidates[0] || '';
             const imageFallbacks = imageCandidates.slice(1);
+            const tokenCandidates = getCompanionTokenImageCandidates(companion);
+            const tokenImage = tokenCandidates[0] || '';
+            const tokenFallbacks = tokenCandidates.slice(1);
             const fallbackAttr = imageFallbacks.length
                 ? `data-fallback-srcs="${escapeHtml(encodeURIComponent(JSON.stringify(imageFallbacks)))}"`
+                : '';
+            const tokenFallbackAttr = tokenFallbacks.length
+                ? `data-fallback-srcs="${escapeHtml(encodeURIComponent(JSON.stringify(tokenFallbacks)))}"`
                 : '';
             const imageErrorHandler = imageFallbacks.length
                 ? `try{const l=JSON.parse(decodeURIComponent(this.dataset.fallbackSrcs||'%5B%5D'));const n=l.shift();this.dataset.fallbackSrcs=encodeURIComponent(JSON.stringify(l));if(n){this.src=n;}else{this.style.display='none';this.nextElementSibling.hidden=false;}}catch(_){this.style.display='none';this.nextElementSibling.hidden=false;}`
                 : `this.style.display='none';this.nextElementSibling.hidden=false;`;
+            const tokenErrorHandler = tokenFallbacks.length
+                ? `try{const l=JSON.parse(decodeURIComponent(this.dataset.fallbackSrcs||'%5B%5D'));const n=l.shift();this.dataset.fallbackSrcs=encodeURIComponent(JSON.stringify(l));if(n){this.src=n;}else{this.style.display='none';}}catch(_){this.style.display='none';}`
+                : `this.style.display='none';`;
             const initials = String(title || '?').trim().charAt(0).toUpperCase() || '?';
             const { inventory, spells, abilities } = splitActorLoadout(companion);
             inventory.forEach((entry) => {
@@ -3695,8 +3726,9 @@ function buildCompanionsHtml(character, payload, wikiItems = [], mediaOverrides 
                                 </section>
                             </div>
                             <div class="companion-card__hero">
+                                ${tokenImage ? `<img class="companion-card__token doc-image-popup" src="${escapeHtml(tokenImage)}" ${tokenFallbackAttr} alt="Token ${escapeHtml(title)}" onerror="${tokenErrorHandler}">` : ''}
                                 <div class="companion-card__image-stage">
-                                    ${image ? `<img src="${escapeHtml(image)}" ${fallbackAttr} alt="${escapeHtml(title)}" onerror="${imageErrorHandler}">` : ''}
+                                    ${image ? `<img class="doc-image-popup" src="${escapeHtml(image)}" ${fallbackAttr} alt="${escapeHtml(title)}" onerror="${imageErrorHandler}">` : ''}
                                     <span ${image ? 'hidden' : ''}>${escapeHtml(initials)}</span>
                                 </div>
                                 ${canEdit ? `
