@@ -475,7 +475,7 @@ function renderItemInlineEditor(item) {
     const imagePath = String(item.image || "").trim();
     const imageAdjust = normalizeItemImageAdjust(item.imageAdjust);
     const preview = imagePath
-        ? `<img src="${escapeHtml(resolveImageUrl(imagePath))}" alt="" ${renderItemAdjustedImageAttributes(imageAdjust)}>`
+        ? `<img src="${escapeHtml(resolveImageUrl(imagePath))}" alt="" loading="lazy" decoding="async" ${renderItemAdjustedImageAttributes(imageAdjust)}>`
         : '<span>Nessuna immagine</span>';
     const fileName = getFileNameFromPath(imagePath);
     return `
@@ -1211,7 +1211,7 @@ function renderItemMedia(item, type, rarity) {
         const imageUrl = resolveImageUrl(item.image);
         return `
             <button class="item-card-media ${escapeHtml(rarityClass)}" type="button" data-item-image="${escapeHtml(imageUrl)}" data-item-name="${escapeHtml(item.name || "Oggetto")}" aria-label="Ingrandisci immagine: ${escapeHtml(item.name || "Oggetto")}">
-                <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name || "Oggetto")}" ${renderItemAdjustedImageAttributes(item.imageAdjust)}>
+                <img src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name || "Oggetto")}" loading="lazy" decoding="async" ${renderItemAdjustedImageAttributes(item.imageAdjust)}>
             </button>
         `;
     }
@@ -1312,7 +1312,7 @@ function initItemImageModal() {
                 <button class="item-image-modal-close" type="button" data-close-item-image aria-label="Chiudi">
                     <i class="fas fa-xmark" aria-hidden="true"></i>
                 </button>
-                <img id="item-image-modal-img" src="" alt="">
+                <img id="item-image-modal-img" alt="">
                 <figcaption id="item-image-modal-caption"></figcaption>
             </figure>
         `;

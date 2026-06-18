@@ -10,7 +10,7 @@ function initializeImageModal() {
 
             const closeModal = () => {
                 modal.classList.remove('visible');
-                modalImg.src = ""; // Clear src to stop loading if in progress
+                modalImg.removeAttribute('src'); // Clear src to stop loading if in progress
             };
 
             const openModal = (image) => {

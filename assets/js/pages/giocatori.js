@@ -279,7 +279,7 @@ window.CriptaApp.onPageReady("giocatori", async function() {
             const initials = String(companionTitle || "?").trim().charAt(0).toUpperCase() || "?";
             return `
                 <span class="player-companion-badge" style="--companion-index: ${index};" aria-label="${escapeHtml(companionTitle)}">
-                    ${image ? `<img src="${escapeHtml(image)}" ${fallbackImage ? `data-fallback-src="${escapeHtml(fallbackImage)}"` : ""} alt="${escapeHtml(companionTitle)}" onerror="${imageErrorHandler}">` : ""}
+                    ${image ? `<img src="${escapeHtml(image)}" ${fallbackImage ? `data-fallback-src="${escapeHtml(fallbackImage)}"` : ""} alt="${escapeHtml(companionTitle)}" loading="lazy" decoding="async" onerror="${imageErrorHandler}">` : ""}
                     <span ${image ? "hidden" : ""}>${escapeHtml(initials)}</span>
                 </span>
             `;
@@ -425,8 +425,8 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         return `
             <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player${campaignQuery}" class="${cardClassWithSwap}">
                 <div class="npc-avatar-container">
-                    <img src="${escapeHtml(resolveImageUrl(listImage))}" ${listFallback ? `data-fallback-src="${escapeHtml(listFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-main" style="${buildImageStyle("avatar", listAdjust, listHoverAdjust)}" onerror="${buildFallbackImageErrorHandler(listFallbackPath, player.name)}">
-                    <img src="${escapeHtml(resolveImageUrl(listHoverImage))}" ${hoverFallback ? `data-fallback-src="${escapeHtml(hoverFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-hover" style="${buildImageStyle("hover", listHoverAdjust, listAdjust)}" onerror="${buildFallbackImageErrorHandler(hoverFallbackPath, player.name, true)}">
+                    <img src="${escapeHtml(resolveImageUrl(listImage))}" ${listFallback ? `data-fallback-src="${escapeHtml(listFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-main" loading="lazy" decoding="async" style="${buildImageStyle("avatar", listAdjust, listHoverAdjust)}" onerror="${buildFallbackImageErrorHandler(listFallbackPath, player.name)}">
+                    <img src="${escapeHtml(resolveImageUrl(listHoverImage))}" ${hoverFallback ? `data-fallback-src="${escapeHtml(hoverFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-hover" loading="lazy" decoding="async" style="${buildImageStyle("hover", listHoverAdjust, listAdjust)}" onerror="${buildFallbackImageErrorHandler(hoverFallbackPath, player.name, true)}">
                     ${renderCompanionBadge(companions)}
                 </div>
                 <div class="npc-info">

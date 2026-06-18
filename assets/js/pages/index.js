@@ -163,7 +163,7 @@ window.CriptaApp.onPageReady("index", () => {
         const avatarPath = resolveImageUrl(getSyncedPlayerImagePath(player, 'hover'));
         return `
             <a href="pages/characters/character.html?id=${player.id}&type=player" class="home-char-card mini">
-                <div class="home-char-avatar"><img src="${avatarPath}" alt="${player.name}"></div>
+                <div class="home-char-avatar"><img src="${avatarPath}" alt="${player.name}" loading="lazy" decoding="async"></div>
                 <div class="home-char-info">
                     <h4 class="name">${player.name}</h4><span class="role">${player.role || 'Protagonista'}</span>
                 </div>
@@ -177,7 +177,7 @@ window.CriptaApp.onPageReady("index", () => {
         const url = npc.url || `pages/characters/character.html?id=${npc.id}`;
         return `
             <a href="${url}" class="home-char-card mini">
-                <div class="home-char-avatar"><img src="${avatarPath}" alt="${npc.name}"${buildImageFallbackHandler(fallbackPath)}></div>
+                <div class="home-char-avatar"><img src="${avatarPath}" alt="${npc.name}" loading="lazy" decoding="async"${buildImageFallbackHandler(fallbackPath)}></div>
                 <div class="home-char-info">
                     <h4 class="name">${npc.name}</h4><span class="role">${npc.role}</span>
                 </div>

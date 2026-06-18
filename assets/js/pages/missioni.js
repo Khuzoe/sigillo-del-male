@@ -325,7 +325,7 @@
                 const imgPath = resolveImagePath(characterImages[quest.character_specific]);
                 const fallback = characterImageMeta[quest.character_specific]?.fallback || '';
                 const legacyFallback = characterImageMeta[quest.character_specific]?.legacyFallback || '';
-                charIconHtml = `<img src="${escapeHtml(imgPath)}" class="quest-char-icon-small" title="Esclusiva per ${escapeHtml(quest.character_specific)}" alt="${escapeHtml(quest.character_specific)}"${buildImageFallbackHandler(fallback, legacyFallback)}>`;
+                charIconHtml = `<img src="${escapeHtml(imgPath)}" class="quest-char-icon-small" title="Esclusiva per ${escapeHtml(quest.character_specific)}" alt="${escapeHtml(quest.character_specific)}" loading="lazy" decoding="async"${buildImageFallbackHandler(fallback, legacyFallback)}>`;
             }
 
             let html = `
@@ -396,7 +396,7 @@
                 const legacyFallback = characterImageMeta[group.npc_id]?.legacyFallback || '';
                 npcAvatarHtml = `
                     <div class="quest-npc-avatar">
-                        <img src="${escapeHtml(resolveImagePath(characterImages[group.npc_id]))}" alt="${escapeHtml(group.title)}"${buildImageFallbackHandler(fallback, legacyFallback)}>
+                        <img src="${escapeHtml(resolveImagePath(characterImages[group.npc_id]))}" alt="${escapeHtml(group.title)}" loading="lazy" decoding="async"${buildImageFallbackHandler(fallback, legacyFallback)}>
                     </div>
                 `;
             }

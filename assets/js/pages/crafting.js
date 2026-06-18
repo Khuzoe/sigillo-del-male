@@ -431,7 +431,7 @@ function renderMaterialCard(material, state) {
             <header>
                 <div class="crafting-material-card__head-main">
                     <div class="crafting-material-thumb">
-                        ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" ${renderCraftingAdjustedImageAttributes(material.imageAdjust)}>` : `<i class="fas fa-cubes-stacked" aria-hidden="true"></i>`}
+                        ${imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" ${renderCraftingAdjustedImageAttributes(material.imageAdjust)}>` : `<i class="fas fa-cubes-stacked" aria-hidden="true"></i>`}
                     </div>
                     <div>
                         <span><i class="fas ${escapeHtml(rarity.icon)}" aria-hidden="true"></i>${escapeHtml(rarity.label)}</span>

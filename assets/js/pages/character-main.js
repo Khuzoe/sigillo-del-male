@@ -327,6 +327,35 @@ async function loadPlayersData() {
         : [];
 }
 
+function normalizeCharacterType(value) {
+    return String(value || '').trim().toLowerCase() === 'player' ? 'player' : 'npc';
+}
+
+function isKnownPlayerRequestId(value) {
+    const key = normalizeText(value);
+    if (!key) return false;
+    return Object.entries(PLAYER_NAME_ALIASES).some(([id, aliases]) => (
+        normalizeText(id) === key || (Array.isArray(aliases) && aliases.some((alias) => normalizeText(alias) === key))
+    ));
+}
+
+async function inferCharacterTypeFromRequest(charId, explicitType) {
+    if (explicitType) return normalizeCharacterType(explicitType);
+    if (isKnownPlayerRequestId(charId)) return 'player';
+
+    try {
+        const payload = typeof window.CriptaApp?.data?.json === 'function'
+            ? await window.CriptaApp.data.json('players.json')
+            : await window.CriptaApp.fetchJson(dataUrl('players.json'), { clone: true });
+        const players = Array.isArray(payload) ? payload : payload?.data;
+        if (Array.isArray(players) && findCharacterById(normalizeCharactersCollection(players), charId)) return 'player';
+    } catch (_) {
+        // Keep NPC default when the lightweight player index is unavailable.
+    }
+
+    return 'npc';
+}
+
 async function hydrateContentBlocks(character) {
     if (!character || !Array.isArray(character.content_blocks)) return;
     await Promise.all(character.content_blocks.map(async (block) => {
@@ -1940,12 +1969,15 @@ function normalizeTransformationMediaPath(path) {
     return value;
 }
 
-function renderWikiItemThumb(item, className, label = 'Oggetto wiki') {
+function renderWikiItemThumb(item, className, label = 'Oggetto wiki', defer = false) {
     if (!item) return '';
     const safeLabel = escapeHtml(item.name || label);
     const image = getWikiItemImageUrl(item);
     if (image) {
-        return `<span class="${escapeHtml(className)}"><img src="${escapeHtml(image)}" alt="${safeLabel}"></span>`;
+        const srcAttribute = defer
+            ? `data-loadout-lazy-src="${escapeHtml(image)}"`
+            : `src="${escapeHtml(image)}"`;
+        return `<span class="${escapeHtml(className)}"><img ${srcAttribute} alt="${safeLabel}" loading="lazy" decoding="async"></span>`;
     }
     return `<span class="${escapeHtml(className)}" aria-hidden="true"><i class="fas ${escapeHtml(item.icon || 'fa-wand-sparkles')}"></i></span>`;
 }
@@ -1956,7 +1988,7 @@ function renderLoadoutEntryIcon(imagePath, label = 'Elemento Foundry') {
     const safeLabel = escapeHtml(label || 'Elemento Foundry');
     return `
                 <span class="loadout-entry-icon">
-                    <img src="${escapeHtml(image)}" alt="${safeLabel}" onerror="this.parentElement.remove();">
+                    <img data-loadout-lazy-src="${escapeHtml(image)}" alt="${safeLabel}" loading="lazy" decoding="async" onerror="this.parentElement.remove();">
                 </span>
             `;
 }
@@ -2855,7 +2887,7 @@ function renderWikiItemBridge(wikiItem, foundryName = '') {
     const showFoundryName = normalizedFoundryName && normalizedFoundryName !== normalizedWikiName;
     return `
                 <aside class="loadout-wiki-card" aria-label="Voce collegata dalla wiki">
-                    ${renderWikiItemThumb(wikiItem, 'loadout-wiki-icon', 'Oggetto wiki')}
+                    ${renderWikiItemThumb(wikiItem, 'loadout-wiki-icon', 'Oggetto wiki', true)}
                     <div class="loadout-wiki-content">
                         <div class="loadout-wiki-kicker">
                             <span>Voce ITEMS collegata</span>
@@ -2886,7 +2918,7 @@ function renderLoadoutDisclosure(title, quantityLabel, description, badges, extr
     const entryIcon = iconPath
         ? renderLoadoutEntryIcon(iconPath, title || 'Elemento senza nome')
         : (wikiItem
-            ? renderWikiItemThumb(wikiItem, 'loadout-entry-icon', title || 'Elemento senza nome')
+            ? renderWikiItemThumb(wikiItem, 'loadout-entry-icon', title || 'Elemento senza nome', true)
             : renderLoadoutEntryIcon(iconPath, title || 'Elemento senza nome'));
     if (wikiBridge) bodyParts.push(wikiBridge);
     if (!wikiItem && description) {
@@ -3726,9 +3758,9 @@ function buildCompanionsHtml(character, payload, wikiItems = [], mediaOverrides 
                                 </section>
                             </div>
                             <div class="companion-card__hero">
-                                ${tokenImage ? `<img class="companion-card__token doc-image-popup" src="${escapeHtml(tokenImage)}" ${tokenFallbackAttr} alt="Token ${escapeHtml(title)}" onerror="${tokenErrorHandler}">` : ''}
+                                ${tokenImage ? `<img class="companion-card__token doc-image-popup" src="${escapeHtml(tokenImage)}" ${tokenFallbackAttr} alt="Token ${escapeHtml(title)}" loading="lazy" decoding="async" onerror="${tokenErrorHandler}">` : ''}
                                 <div class="companion-card__image-stage">
-                                    ${image ? `<img class="doc-image-popup" src="${escapeHtml(image)}" ${fallbackAttr} alt="${escapeHtml(title)}" onerror="${imageErrorHandler}">` : ''}
+                                    ${image ? `<img class="doc-image-popup" src="${escapeHtml(image)}" ${fallbackAttr} alt="${escapeHtml(title)}" loading="lazy" decoding="async" onerror="${imageErrorHandler}">` : ''}
                                     <span ${image ? 'hidden' : ''}>${escapeHtml(initials)}</span>
                                 </div>
                                 ${canEdit ? `
@@ -3885,6 +3917,16 @@ function initializeSpellLevelFilters(cardElement) {
     applyFilter('all');
 }
 
+function hydrateDeferredLoadoutImages(scope) {
+    if (!scope) return;
+    scope.querySelectorAll('img[data-loadout-lazy-src]').forEach((image) => {
+        const src = image.dataset.loadoutLazySrc || '';
+        if (!src) return;
+        image.src = src;
+        image.removeAttribute('data-loadout-lazy-src');
+    });
+}
+
 function initializeLoadoutTabs(cardElement) {
     const tabButtons = Array.from(cardElement.querySelectorAll('.loadout-tab'));
     const panels = Array.from(cardElement.querySelectorAll('.loadout-panel'));
@@ -3902,6 +3944,7 @@ function initializeLoadoutTabs(cardElement) {
             const isActive = panel.dataset.panel === panelName;
             panel.classList.toggle('is-active', isActive);
             panel.hidden = !isActive;
+            if (isActive) hydrateDeferredLoadoutImages(panel);
         });
     };
 
@@ -3913,6 +3956,7 @@ function initializeLoadoutTabs(cardElement) {
 
     initializeInventoryTypeFilters(cardElement);
     initializeSpellLevelFilters(cardElement);
+    hydrateDeferredLoadoutImages(cardElement.querySelector('.loadout-panel.is-active'));
 }
 
 window.CriptaApp.onPageReady("character", async function () {
@@ -3923,7 +3967,7 @@ window.CriptaApp.onPageReady("character", async function () {
 
     const params = new URLSearchParams(window.location.search);
     const charId = params.get('id');
-    const charType = params.get('type') || 'npc'; // Default to 'npc'
+    let charType = normalizeCharacterType(params.get('type'));
     const createMode = params.get('new') === '1';
     const skillTreeOnlyView = params.get('view') === 'skill-tree' || params.get('skillTreeOnly') === '1';
     let currentCharacter = null;
@@ -3941,6 +3985,10 @@ window.CriptaApp.onPageReady("character", async function () {
     if (!charId && !createMode) {
         displayError("ID del personaggio non specificato.");
         return;
+    }
+
+    if (!params.get('type') && !createMode) {
+        charType = await inferCharacterTypeFromRequest(charId);
     }
 
     editLinkEl?.addEventListener('click', async (event) => {
@@ -5070,8 +5118,8 @@ window.CriptaApp.onPageReady("character", async function () {
             return `
                     <a href="?id=${relatedChar.id}" class="npc-card">
                         <div class="npc-avatar-container">
-                            <img src="${resolveImagePath(relatedChar.images.idle || relatedChar.images.token || relatedChar.images.avatar)}" alt="${relatedChar.name}" class="npc-img-pop img-main" style="${buildImageStyle('avatar', relatedChar.images.idleAdjust || relatedChar.images.avatarAdjust, relatedChar.images.hoverAdjust)}" onerror="this.src='${resolveImagePath(relatedChar.images.idleFallback || relatedChar.images.token || relatedChar.images.avatarFallback || '')}'; this.onerror=null;">
-                            <img src="${resolveImagePath(relatedChar.images.hover || relatedChar.images.token || relatedChar.images.idle)}" alt="${relatedChar.name} Reveal" class="npc-img-pop img-hover" style="${buildImageStyle('hover', relatedChar.images.hoverAdjust, relatedChar.images.idleAdjust || relatedChar.images.avatarAdjust)}" onerror="this.src='${resolveImagePath(relatedChar.images.hoverFallback || relatedChar.images.token || relatedChar.images.idleFallback || '')}'; this.onerror=null;">
+                            <img src="${resolveImagePath(relatedChar.images.idle || relatedChar.images.token || relatedChar.images.avatar)}" alt="${relatedChar.name}" class="npc-img-pop img-main" loading="lazy" decoding="async" style="${buildImageStyle('avatar', relatedChar.images.idleAdjust || relatedChar.images.avatarAdjust, relatedChar.images.hoverAdjust)}" onerror="this.src='${resolveImagePath(relatedChar.images.idleFallback || relatedChar.images.token || relatedChar.images.avatarFallback || '')}'; this.onerror=null;">
+                            <img src="${resolveImagePath(relatedChar.images.hover || relatedChar.images.token || relatedChar.images.idle)}" alt="${relatedChar.name} Reveal" class="npc-img-pop img-hover" loading="lazy" decoding="async" style="${buildImageStyle('hover', relatedChar.images.hoverAdjust, relatedChar.images.idleAdjust || relatedChar.images.avatarAdjust)}" onerror="this.src='${resolveImagePath(relatedChar.images.hoverFallback || relatedChar.images.token || relatedChar.images.idleFallback || '')}'; this.onerror=null;">
                         </div>
                             <div class="npc-info">
                                 <div class="npc-header">
@@ -5424,7 +5472,7 @@ window.CriptaApp.onPageReady("character", async function () {
                         <div class="secret-dossier">
                             <div class="secret-badge">${block.badge}</div>
                             <div class="dossier-content">
-                                <img src="${resolveImagePath(block.image)}" class="elena-img" onerror="this.style.display='none'">
+                                <img src="${resolveImagePath(block.image)}" class="elena-img" loading="lazy" decoding="async" onerror="this.style.display='none'">
                                 ${wrapMarkdown(blockHtml, 'chapter-content--compact')}
                             </div>
                         </div>`;
@@ -5434,7 +5482,7 @@ window.CriptaApp.onPageReady("character", async function () {
                 card.innerHTML = `
                              ${hiddenBadge}
                              <div class="banner-header">
-                                 <img src="${resolveImagePath(block.banner)}" class="banner-img" alt="${block.title}">
+                                 <img src="${resolveImagePath(block.banner)}" class="banner-img" alt="${block.title}" loading="lazy" decoding="async">
                              </div>
                              <div class="banner-body">
                                  <h3><i class="fas ${block.icon || 'fa-flag'}"></i> ${block.title}</h3>
@@ -5462,7 +5510,7 @@ window.CriptaApp.onPageReady("character", async function () {
                         </div>
                         <div class="document-body">
                             <div class="document-image">
-                                 <img src="${resolveImagePath(block.image)}" alt="${block.title}" class="doc-image-popup" onerror="this.style.display='none'">
+                                 <img src="${resolveImagePath(block.image)}" alt="${block.title}" class="doc-image-popup" loading="lazy" decoding="async" onerror="this.style.display='none'">
                                 ${block.image_caption ? `<p class="document-caption">${block.image_caption}</p>` : ''}
                             </div>
                             <div class="document-content">

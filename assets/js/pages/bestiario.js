@@ -840,6 +840,7 @@ function closeBestiaryItemModal(modal) {
 
 function closeBestiaryModal(modal) {
     modal.hidden = true;
+    modal.querySelector("#bestiary-modal-image")?.removeAttribute("src");
     document.body.classList.remove("bestiary-modal-open");
 }
 
