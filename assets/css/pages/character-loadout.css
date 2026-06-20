@@ -2736,7 +2736,12 @@
 
 .player-skill-info {
     min-height: 260px;
+    max-height: clamp(360px, 62vh, 720px);
     padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
     border-radius: 10px;
     border: 1px solid rgba(138, 28, 28, 0.5);
     background: rgba(0, 0, 0, 0.44);
@@ -2852,6 +2857,35 @@
     color: var(--text-main);
     font-size: 1rem;
     line-height: 1.5;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    padding-right: 0.45rem;
+}
+
+.player-skill-info-desc:not(.is-editable) {
+    max-height: clamp(180px, 38vh, 430px);
+}
+
+.player-skill-info-desc.is-editable {
+    max-height: clamp(220px, 44vh, 520px);
+}
+
+.player-skill-info-desc::-webkit-scrollbar {
+    width: 0.45rem;
+}
+
+.player-skill-info-desc::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.28);
+    border-radius: 999px;
+}
+
+.player-skill-info-desc::-webkit-scrollbar-thumb {
+    background: rgba(212, 175, 55, 0.36);
+    border-radius: 999px;
+}
+
+.player-skill-info-desc::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 221, 118, 0.56);
 }
 
 .player-skill-info [contenteditable="true"] {
