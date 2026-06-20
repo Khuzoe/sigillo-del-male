@@ -1814,7 +1814,11 @@ window.CriptaApp.onPageReady("creature", async () => {
     }
 
     function calculateSpellSaveDc() {
-        return calculateFoundrySpellSaveDc(ensureFoundryMonsterData(state.creature));
+        const foundry = ensureFoundryMonsterData(state.creature);
+        const ability = foundry.spellcastingAbility || "cha";
+        const score = Number(foundry.abilities?.[ability]?.value || 10);
+        const modifier = Math.floor((score - 10) / 2);
+        return 8 + getFoundryProficiency(foundry) + modifier;
     }
 
     function getAbilityDamageParts(ability) {
