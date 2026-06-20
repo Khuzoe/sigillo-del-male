@@ -44,6 +44,14 @@ relationships:
     description: "Sorella"
 summary:
   race: "Vampira"
+  birth_year: 60
+  death_year: 90
+  birth_year_absolute: 1260
+  death_year_absolute: 1290
+  period: "1260-1290"
+  death_year_note: "divenuta vampira"
+  age_at_death: "30 anni (come \"viva\")"
   height: "5 ft 9 in (1.75 m)"
   weight: "143 lbs (65 kg)"
+  cause_of_death: "Suicidio rituale per vampirismo"
 type: "npc"

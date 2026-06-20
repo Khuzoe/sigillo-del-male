@@ -2,7 +2,7 @@
   "version": 1,
   "collection": "characters",
   "campaignId": "cripta-di-sangue",
-  "updatedAt": "1970-01-01T00:00:00.000Z",
+  "updatedAt": "2026-06-19T00:00:00.000Z",
   "source": "static-seed",
   "data": [
     {
@@ -21,7 +21,14 @@
       "summary": {
         "race": "Non Morto",
         "height": "4 ft 5 in (1.35 m)",
-        "weight": "66 lbs (30 kg)"
+        "weight": "66 lbs (30 kg)",
+        "birth_year": 69,
+        "death_year": 81,
+        "birth_year_absolute": 1269,
+        "death_year_absolute": 1281,
+        "period": "1269-1281",
+        "age_at_death": "12 anni",
+        "cause_of_death": "Fame e sete dopo la morte di Rendar"
       },
       "blocks": [
         {
@@ -112,7 +119,13 @@
       "summary": {
         "height": "6 ft 0 in (1.82 m)",
         "weight": "529 lbs (240 kg)",
-        "cause_of_death": "Morte Materna"
+        "cause_of_death": "Morte di parto",
+        "birth_year": 31,
+        "death_year": 69,
+        "birth_year_absolute": 1231,
+        "death_year_absolute": 1269,
+        "period": "1231-1269",
+        "age_at_death": "38 anni"
       },
       "blocks": [
         {
@@ -172,11 +185,15 @@
       },
       "summary": {
         "race": "Non Morto",
-        "age_at_death": "49 anni",
+        "age_at_death": "50 anni",
         "height": "5 ft 4 in (1.62 m)",
         "weight": "20 lbs (9 kg)",
-        "period": "41-90",
-        "cause_of_death": "Suicidio (gettandosi in un baratro)"
+        "period": "1241-1291",
+        "cause_of_death": "Suicidio (gettandosi in un baratro)",
+        "birth_year": 41,
+        "death_year": 91,
+        "birth_year_absolute": 1241,
+        "death_year_absolute": 1291
       },
       "blocks": [
         {
@@ -259,8 +276,12 @@
         "age_at_death": "58 anni",
         "height": "5 ft 6 in (1.68 m)",
         "weight": "18 lbs (8 kg)",
-        "period": "42-100",
-        "cause_of_death": "Uccisa da Karla (???)"
+        "period": "1242-1300",
+        "cause_of_death": "Uccisa da Karla (morso di ragno velenoso)",
+        "birth_year": 42,
+        "death_year": 100,
+        "birth_year_absolute": 1242,
+        "death_year_absolute": 1300
       },
       "blocks": [
         {
@@ -334,8 +355,12 @@
         "age_at_death": "60 anni",
         "height": "8 ft 6 in (2.60 m)",
         "weight": "463 lbs (210 kg)",
-        "period": "25-85",
-        "cause_of_death": "Gettato in gabbia con un Ratto delle Sabbie a Chult"
+        "period": "1225-1285",
+        "cause_of_death": "Gettato in gabbia con un Ratto delle Sabbie a Chult",
+        "birth_year": 25,
+        "death_year": 85,
+        "birth_year_absolute": 1225,
+        "death_year_absolute": 1285
       },
       "blocks": [
         {
@@ -517,7 +542,15 @@
       "summary": {
         "race": "Vampira",
         "height": "5 ft 9 in (1.75 m)",
-        "weight": "143 lbs (65 kg)"
+        "weight": "143 lbs (65 kg)",
+        "birth_year": 60,
+        "death_year": 90,
+        "birth_year_absolute": 1260,
+        "death_year_absolute": 1290,
+        "period": "1260-1290",
+        "age_at_death": "30 anni (come \"viva\")",
+        "cause_of_death": "Suicidio rituale per vampirismo",
+        "death_year_note": "divenuta vampira"
       },
       "blocks": [
         {
@@ -590,8 +623,12 @@
         "age_at_death": "34 anni",
         "height": "5 ft 3 in (1.61 m)",
         "weight": "2 lbs (0.75 kg)",
-        "period": "56-90",
-        "cause_of_death": "Uccisa da Karla (Pugnalata al petto)"
+        "period": "1256-1290",
+        "cause_of_death": "Uccisa da Karla",
+        "birth_year": 56,
+        "death_year": 90,
+        "birth_year_absolute": 1256,
+        "death_year_absolute": 1290
       },
       "blocks": [
         {
@@ -773,7 +810,14 @@
       "summary": {
         "race": "Non Morto",
         "height": "5 ft 10 in (1.78 m)",
-        "weight": "154 lbs (70 kg)"
+        "weight": "154 lbs (70 kg)",
+        "birth_year": 59,
+        "death_year": 94,
+        "birth_year_absolute": 1259,
+        "death_year_absolute": 1294,
+        "period": "1259-1294",
+        "age_at_death": "35 anni",
+        "cause_of_death": "Suicidio rituale per forgiatura"
       },
       "blocks": [
         {
@@ -824,7 +868,14 @@
       "summary": {
         "race": "Non Morto",
         "height": "5 ft 8 in (1.73 m)",
-        "weight": "132 lbs (60 kg)"
+        "weight": "132 lbs (60 kg)",
+        "birth_year": 5,
+        "death_year": 82,
+        "birth_year_absolute": 1205,
+        "death_year_absolute": 1282,
+        "period": "1205-1282",
+        "age_at_death": "77 anni",
+        "cause_of_death": "Rituale fallito (dissanguamento)"
       },
       "blocks": [
         {

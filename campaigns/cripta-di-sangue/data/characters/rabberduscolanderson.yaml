@@ -12,10 +12,14 @@ images:
   portrait: "media/creatures/rabberduscolanderson.webp"
 summary:
   race: "Non Morto"
-  age_at_death: "49 anni"
+  birth_year: 41
+  death_year: 91
+  birth_year_absolute: 1241
+  death_year_absolute: 1291
+  period: "1241-1291"
+  age_at_death: "50 anni"
   height: "5 ft 4 in (1.62 m)"
   weight: "20 lbs (9 kg)"
-  period: "41-90"
   cause_of_death: "Suicidio (gettandosi in un baratro)"
 content_blocks:
   - type: "lore"

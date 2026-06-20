@@ -116,7 +116,7 @@ function renderMarkdown(md, options = {}) {
     return window.CriptaMarkdown.render(md, getCharacterMarkdownOptions(options));
 }
 
-const CHARACTER_MODULE_VERSION = '20260618-refactor14';
+const CHARACTER_MODULE_VERSION = '20260620-shared-skill-tree1';
 
 function versionedCharacterModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);
@@ -1302,12 +1302,23 @@ function normalizeSkillTreesCollection(data) {
         const key = String(entry.id || entry.key || entry.characterId || entry.treeKey || '').trim();
         const tree = entry.tree && typeof entry.tree === 'object' ? entry.tree : entry;
         if (!key || !Array.isArray(tree.nodes)) return acc;
+        const rawScope = tree.scope || entry.scope || tree.treeScope || entry.treeScope || '';
+        const isSharedTree = tree.shared === true
+            || entry.shared === true
+            || tree.campaignShared === true
+            || entry.campaignShared === true
+            || tree.global === true
+            || entry.global === true
+            || ['campaign', 'campagna', 'shared', 'condiviso', 'global'].includes(normalizeText(rawScope));
         acc[key] = normalizeSkillTreeNodeIds({
             ...tree,
             id: key,
+            key,
             name: tree.name || entry.name || entry.title || '',
-            ownerCharacterId: tree.ownerCharacterId || entry.ownerCharacterId || entry.characterId || '',
-            characterId: tree.characterId || entry.characterId || ''
+            scope: isSharedTree ? 'campaign' : rawScope,
+            shared: isSharedTree,
+            ownerCharacterId: isSharedTree ? '' : (tree.ownerCharacterId || entry.ownerCharacterId || entry.characterId || ''),
+            characterId: isSharedTree ? '' : (tree.characterId || entry.characterId || '')
         }, key);
         return acc;
     }, {});
@@ -1728,6 +1739,14 @@ function findItemOverride(records, identity) {
             || Boolean(record.actorId && identity.actorId && record.actorId === identity.actorId)
             || Boolean(record.actorName && identity.actorName && normalizeText(record.actorName) === normalizeText(identity.actorName));
         if (record.transferId && identity.transferId && record.transferId === identity.transferId) return true;
+        if (sameCharacter) {
+            const recordKeyItem = String(record.key || '').split(':').slice(1).join(':');
+            if (recordKeyItem && identity.itemId) {
+                const sameKeyItem = normalizeText(recordKeyItem) === normalizeText(identity.itemId);
+                if (sameKeyItem) return true;
+                return false;
+            }
+        }
         if (sameCharacter && record.transferKey && identity.transferKey && record.transferKey === identity.transferKey) return true;
         if (sameCharacter && record.sourceId && identity.sourceId && normalizeText(record.sourceId) === normalizeText(identity.sourceId)) return true;
         const sameItem = Boolean(record.itemId && identity.itemId && record.itemId === identity.itemId)
@@ -3225,7 +3244,7 @@ window.CriptaApp.onPageReady("character", async function () {
                         age = `${dYear - bYear} anni`;
                         // UPDATE: Use range for label and value if dead
                         periodLabel = "Nascita - Morte";
-                        periodValue = `${bYear} - ${dYear}`;
+                        periodValue = String(bYear) + ' - ' + String(dYear) + (summary.death_year_note ? ' (' + summary.death_year_note + ')' : '');
                     }
                 } else {
                     // Alive/Unknown Death: Age = Current - Birth
@@ -3239,6 +3258,8 @@ window.CriptaApp.onPageReady("character", async function () {
 
         if (summary.age) {
             age = summary.age;
+        } else if (summary.age_at_death) {
+            age = summary.age_at_death;
         }
 
         // --- ALTRI CAMPI ---
@@ -3318,9 +3339,9 @@ window.CriptaApp.onPageReady("character", async function () {
         let causeOfDeathHtml = '';
         if (summary.cause_of_death) {
             causeOfDeathHtml = `
-                        <div style="padding: 1rem; text-align: center; border-top: 1px solid rgba(255,255,255,0.1);">
-                            <span class="stat-label" style="margin-bottom: 5px;">Causa del Decesso</span>
-                            <span style="color: var(--accent-primary); font-family: 'Cinzel';">${summary.cause_of_death}</span>
+                        <div class="character-death-cause">
+                            <span class="stat-label">Causa del Decesso</span>
+                            <span class="character-death-cause__text">${escapeHtml(summary.cause_of_death)}</span>
                         </div>
                     `;
         }

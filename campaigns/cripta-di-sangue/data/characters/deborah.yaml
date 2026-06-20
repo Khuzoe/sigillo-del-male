@@ -53,6 +53,13 @@ relationships:
     description: "Zio"
 summary:
   race: "Non Morto"
+  birth_year: 69
+  death_year: 81
+  birth_year_absolute: 1269
+  death_year_absolute: 1281
+  period: "1269-1281"
+  age_at_death: "12 anni"
   height: "4 ft 5 in (1.35 m)"
   weight: "66 lbs (30 kg)"
+  cause_of_death: "Fame e sete dopo la morte di Rendar"
 type: "npc"

@@ -94,6 +94,60 @@
         return skillTreeStatesMemoryCache;
     }
 
+function isCampaignSharedSkillTree(tree, key = '') {
+    if (!tree || typeof tree !== 'object') return false;
+    const scope = normalizeText(tree.scope || tree.treeScope || tree.visibility || '');
+    if (tree.shared === true || tree.campaignShared === true || tree.global === true) return true;
+    if (['campaign', 'campagna', 'shared', 'condiviso', 'global'].includes(scope)) return true;
+    const keySlug = slugify(key);
+    return keySlug === 'campaign'
+        || keySlug === 'campagna'
+        || keySlug.startsWith('campaign-')
+        || keySlug.startsWith('campagna-')
+        || keySlug.startsWith('shared-')
+        || keySlug.startsWith('condiviso-');
+}
+
+function isCampaignSharedSkillTreeState(entry) {
+    if (!entry || typeof entry !== 'object') return false;
+    const scope = normalizeText(entry.scope || entry.stateScope || entry.visibility || '');
+    const characterId = slugify(entry.characterId || entry.subjectId || '');
+    return entry.shared === true
+        || entry.campaignShared === true
+        || ['campaign', 'campagna', 'shared', 'condiviso', 'global'].includes(scope)
+        || ['campaign', 'campagna', 'global', 'all', 'tutti'].includes(characterId);
+}
+
+function getSkillTreeStateSubject(character, treeKey, treeData = null) {
+    const shared = isCampaignSharedSkillTree(treeData, treeKey);
+    const subjectId = shared ? '__campaign__' : (character?.id || character?.accountId || character?.name || '');
+    return {
+        shared,
+        id: slugify(`${getCurrentCampaignId()}-${treeKey || ''}-${shared ? 'shared' : subjectId}`),
+        characterId: shared ? '__campaign__' : (character?.id || ''),
+        characterName: shared ? 'Campagna' : (character?.name || character?.id || '')
+    };
+}
+
+function mergeSkillTreeStateRecords(records) {
+    return [...(records || [])]
+        .sort((left, right) => Date.parse(left?.updatedAt || '') - Date.parse(right?.updatedAt || ''))
+        .reduce((merged, entry) => {
+            const unlocked = new Set([
+                ...((merged.unlocked || merged.unlockedNodeIds || []).map(String)),
+                ...((entry.unlocked || entry.unlockedNodeIds || []).map(String))
+            ].filter(Boolean));
+            return {
+                ...merged,
+                ...entry,
+                unlocked: Array.from(unlocked),
+                levels: {
+                    ...(merged.levels && typeof merged.levels === 'object' ? merged.levels : {}),
+                    ...(entry.levels && typeof entry.levels === 'object' ? entry.levels : {})
+                }
+            };
+        }, {});
+}
 function resolvePlayerSkillTree(characterOrId, allSkillTrees) {
     return resolvePlayerSkillTreeEntry(characterOrId, allSkillTrees)?.tree || null;
 }
@@ -119,6 +173,10 @@ function resolvePlayerSkillTreeEntries(characterOrId, allSkillTrees) {
 
     Object.entries(allSkillTrees).forEach(([key, tree]) => {
         if (!tree || typeof tree !== 'object') return;
+        if (isCampaignSharedSkillTree(tree, key)) {
+            addEntry(key);
+            return;
+        }
         const normalizedKey = normalizeText(key);
         const owners = [
             tree.characterId,
@@ -154,8 +212,8 @@ function resolvePlayerSkillTreeEntries(characterOrId, allSkillTrees) {
     return results;
 }
 
-function getSkillTreeStateKey(character, treeKey) {
-    return slugify(`${getCurrentCampaignId()}-${treeKey || ''}-${character?.id || character?.accountId || character?.name || ''}`);
+function getSkillTreeStateKey(character, treeKey, treeData = null) {
+    return getSkillTreeStateSubject(character, treeKey, treeData).id;
 }
 
 function getCurrentAccountId() {
@@ -172,22 +230,29 @@ function canEditSkillTreeUnlocks(character) {
         || Boolean(discordId && character?.discordId && String(discordId) === String(character.discordId));
 }
 
-function getCharacterSkillTreeState(character, treeKey) {
-    const key = getSkillTreeStateKey(character, treeKey);
-    const characterId = slugify(character?.id || '');
+function getCharacterSkillTreeState(character, treeKey, treeData = null) {
+    const subject = getSkillTreeStateSubject(character, treeKey, treeData);
+    const key = subject.id;
+    const characterId = slugify(subject.characterId || character?.id || '');
+    const normalizedTreeKey = slugify(treeKey || '');
     const matches = (skillTreeStatesMemoryCache || []).filter((entry) => {
         if (!entry || typeof entry !== 'object') return false;
         if (entry.id === key || entry.key === key) return true;
+        if (subject.shared) {
+            return isCampaignSharedSkillTreeState(entry)
+                && slugify(entry.treeKey || '') === normalizedTreeKey;
+        }
         return slugify(entry.characterId || '') === characterId
-            && slugify(entry.treeKey || '') === slugify(treeKey || '');
+            && slugify(entry.treeKey || '') === normalizedTreeKey;
     });
     if (!matches.length) return null;
-    return matches.sort((left, right) => {
+    const sorted = matches.sort((left, right) => {
         const leftExact = left.id === key || left.key === key ? 1 : 0;
         const rightExact = right.id === key || right.key === key ? 1 : 0;
         if (leftExact !== rightExact) return rightExact - leftExact;
         return Date.parse(right.updatedAt || '') - Date.parse(left.updatedAt || '');
-    })[0] || null;
+    });
+    return subject.shared ? mergeSkillTreeStateRecords(sorted) : (sorted[0] || null);
 }
 
 function getNodePrerequisites(node, treeData) {
@@ -520,22 +585,30 @@ function pruneUnlockedSkillNodes(treeData, unlockedIds) {
     return nextUnlocked;
 }
 
-async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap = {}) {
+async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap = {}, treeData = null) {
     const accountId = getCurrentAccountId();
-    const stateId = getSkillTreeStateKey(character, treeKey);
-    const characterId = slugify(character?.id || '');
+    const subject = getSkillTreeStateSubject(character, treeKey, treeData);
+    const stateId = subject.id;
+    const characterId = slugify(subject.characterId || character?.id || '');
     const normalizedTreeKey = slugify(treeKey || '');
     const existingStates = await loadSkillTreeStates();
     const kept = existingStates.filter((entry) => {
         if (!entry || typeof entry !== 'object') return false;
         if (entry.id === stateId || entry.key === stateId) return false;
+        if (subject.shared) {
+            return !(isCampaignSharedSkillTreeState(entry) && slugify(entry.treeKey || '') === normalizedTreeKey);
+        }
         return !(slugify(entry.characterId || '') === characterId && slugify(entry.treeKey || '') === normalizedTreeKey);
     });
     const nextRecord = {
         id: stateId,
+        key: stateId,
         treeKey,
-        characterId: character?.id || '',
+        characterId: subject.characterId,
+        characterName: subject.characterName,
         ownerAccountId: accountId || slugify(character?.accountId || ''),
+        scope: subject.shared ? 'campaign' : 'character',
+        shared: subject.shared,
         unlocked: Array.from(new Set((unlockedIds || []).map(String))).filter(Boolean),
         levels: Object.fromEntries(Object.entries(levelMap || {})
             .map(([key, value]) => [String(key), Math.max(1, Math.round(Number(value) || 1))])
@@ -553,8 +626,9 @@ async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, leve
     window.parent?.postMessage?.({
         type: 'cripta-skill-tree-state-updated',
         campaignId: getCurrentCampaignId(),
-        characterId: character?.id || '',
+        characterId: subject.characterId,
         treeKey,
+        shared: subject.shared,
         unlocked: nextRecord.unlocked
     }, '*');
     return result;
@@ -568,9 +642,10 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     }
     const character = typeof characterOrId === 'object' && characterOrId !== null ? characterOrId : { id: characterOrId };
     const treeKey = treeEntry.key;
-    const canEditUnlocks = canEditSkillTreeUnlocks(character);
+    const isSharedTree = isCampaignSharedSkillTree(treeData, treeKey);
+    const canEditUnlocks = isSharedTree ? skillTreeCurrentUserIsDm : canEditSkillTreeUnlocks(character);
     const canEditTree = skillTreeCurrentUserIsDm;
-    const stateRecord = getCharacterSkillTreeState(character, treeKey);
+    const stateRecord = getCharacterSkillTreeState(character, treeKey, treeData);
     let workingTree = {
         ...treeData,
         nodes: (treeData.nodes || []).map((node) => ({ ...node, id: String(node.id) }))
@@ -588,13 +663,13 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     const snapThreshold = 1.4;
 
     const card = document.createElement('div');
-    card.className = 'content-card player-skill-tree-card';
+    card.className = `content-card player-skill-tree-card${isSharedTree ? ' is-shared-skill-tree' : ''}`;
     card.id = `player-skill-tree-card-${slugify(treeKey || 'default')}`;
     card.tabIndex = -1;
     const treeLabel = workingTree.name || workingTree.title || (treeKey ? treeKey.replace(/[-_]+/g, ' ') : 'Albero abilita');
     card.innerHTML = `
                 <div class="player-skill-tree-card-head">
-                    <h3><i class="fas fa-crown"></i> Albero Abilita <small data-skill-tree-label>${escapeHtml(treeLabel)}</small></h3>
+                    <h3><i class="fas ${isSharedTree ? 'fa-users' : 'fa-crown'}"></i> Albero Abilita <small data-skill-tree-label>${escapeHtml(treeLabel)}</small>${isSharedTree ? '<span class="player-skill-tree-shared-badge">Condiviso</span>' : ''}</h3>
                     ${canEditTree ? '<button type="button" class="player-skill-edit-toggle" data-skill-edit-toggle title="Modifica albero" aria-label="Modifica albero"><i class="fas fa-pen"></i></button>' : ''}
                 </div>
                 <div class="player-skill-tree-layout">
@@ -690,7 +765,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     const persistUnlocks = async () => {
         const activeLevels = Object.fromEntries(Object.entries(nodeLevels).filter(([nodeId]) => unlockedIds.has(String(nodeId))));
         nodeLevels = activeLevels;
-        await saveCharacterSkillTreeState(character, treeKey, Array.from(unlockedIds), activeLevels);
+        await saveCharacterSkillTreeState(character, treeKey, Array.from(unlockedIds), activeLevels, workingTree);
     };
 
     const deleteSelectedConnection = () => {
@@ -1896,6 +1971,9 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
                 <button type="button" class="player-skill-action-button is-primary is-compact" data-skill-create-tree>
                     <i class="fas fa-plus"></i> Nuovo albero
                 </button>
+                <button type="button" class="player-skill-action-button is-primary is-compact" data-skill-create-shared-tree title="Crea un albero condiviso da tutta la campagna">
+                    <i class="fas fa-users"></i> Condiviso
+                </button>
             ` : ''}
         </div>
     `;
@@ -1918,17 +1996,21 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
     const prevButton = toolbar.querySelector('[data-skill-tree-prev]');
     const nextButton = toolbar.querySelector('[data-skill-tree-next]');
 
-    const createSkillTree = async () => {
-        const name = window.prompt('Nome nuovo albero abilita', 'Nuovo albero');
+    const createSkillTree = async (shared = false) => {
+        const name = window.prompt(shared ? 'Nome nuovo albero abilita condiviso' : 'Nome nuovo albero abilita', shared ? 'Albero condiviso' : 'Nuovo albero');
         if (name === null) return;
-        const baseKey = slugify(character.id || character.accountId || character.name || 'personaggio');
-        const key = `${baseKey}-${Date.now().toString(36)}`;
+        const cleanName = name.trim() || (shared ? 'Albero condiviso' : 'Nuovo albero');
+        const baseKey = shared ? 'campaign' : slugify(character.id || character.accountId || character.name || 'personaggio');
+        const key = `${baseKey}-${slugify(cleanName || 'albero')}-${Date.now().toString(36)}`;
         const nextTrees = { ...(skillsMemoryCache || allSkillTrees || {}) };
         nextTrees[key] = {
             id: key,
-            name: name.trim() || 'Nuovo albero',
-            ownerCharacterId: character.id || '',
-            characterId: character.id || '',
+            key,
+            name: cleanName,
+            scope: shared ? 'campaign' : 'character',
+            shared,
+            ownerCharacterId: shared ? '' : (character.id || ''),
+            characterId: shared ? '' : (character.id || ''),
             bgImage: '',
             bgOpacity: 1,
             nodes: [{
@@ -1986,7 +2068,8 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
     });
 
     if (skillTreeCurrentUserIsDm) {
-        toolbar.querySelector('[data-skill-create-tree]')?.addEventListener('click', createSkillTree);
+        toolbar.querySelector('[data-skill-create-tree]')?.addEventListener('click', () => createSkillTree(false));
+        toolbar.querySelector('[data-skill-create-shared-tree]')?.addEventListener('click', () => createSkillTree(true));
     }
 
     renderActiveTree();

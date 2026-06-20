@@ -881,3 +881,26 @@
             color: #2ecc71;
             border: 1px solid #2ecc71;
         }
+
+        .character-death-cause {
+            margin-top: 0.75rem;
+            padding: 0.9rem 0.95rem 1rem;
+            border-top: 1px solid rgba(212, 175, 55, 0.18);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.18);
+            text-align: left;
+        }
+
+        .character-death-cause .stat-label {
+            margin-bottom: 0.45rem;
+        }
+
+        .character-death-cause__text {
+            display: block;
+            color: rgba(238, 224, 190, 0.94);
+            font-family: var(--font-body);
+            font-size: 0.98rem;
+            font-weight: 600;
+            line-height: 1.38;
+            overflow-wrap: anywhere;
+        }

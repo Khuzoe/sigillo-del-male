@@ -33,6 +33,13 @@ relationships:
     description: "Sorella"
 summary:
   race: "Non Morto"
+  birth_year: 59
+  death_year: 94
+  birth_year_absolute: 1259
+  death_year_absolute: 1294
+  period: "1259-1294"
+  age_at_death: "35 anni"
   height: "5 ft 10 in (1.78 m)"
   weight: "154 lbs (70 kg)"
+  cause_of_death: "Suicidio rituale per forgiatura"
 type: "npc"

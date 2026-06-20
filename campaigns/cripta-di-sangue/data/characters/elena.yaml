@@ -45,9 +45,13 @@ relationships:
     description: "Compagno"
 summary:
   race: "Fantasma"
+  birth_year: 56
+  death_year: 90
+  birth_year_absolute: 1256
+  death_year_absolute: 1290
+  period: "1256-1290"
   age_at_death: "34 anni"
   height: "5 ft 3 in (1.61 m)"
   weight: "2 lbs (0.75 kg)"
-  period: "56-90"
-  cause_of_death: "Uccisa da Karla (Pugnalata al petto)"
+  cause_of_death: "Uccisa da Karla"
 type: "npc"

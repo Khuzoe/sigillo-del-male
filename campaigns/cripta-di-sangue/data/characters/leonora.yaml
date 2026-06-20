@@ -35,6 +35,13 @@ relationships:
     description: "Figlia"
 summary:
   race: "Non Morto"
+  birth_year: 5
+  death_year: 82
+  birth_year_absolute: 1205
+  death_year_absolute: 1282
+  period: "1205-1282"
+  age_at_death: "77 anni"
   height: "5 ft 8 in (1.73 m)"
   weight: "132 lbs (60 kg)"
+  cause_of_death: "Rituale fallito (dissanguamento)"
 type: "npc"

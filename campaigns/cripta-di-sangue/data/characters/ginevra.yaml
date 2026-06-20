@@ -30,9 +30,15 @@ content_blocks:
     markdown: "characters/ginevra/healing_fetus.md"
     hidden: true
 summary:
+  birth_year: 31
+  death_year: 69
+  birth_year_absolute: 1231
+  death_year_absolute: 1269
+  period: "1231-1269"
+  age_at_death: "38 anni"
   height: "6 ft 0 in (1.82 m)"
   weight: "529 lbs (240 kg)"
-  cause_of_death: "Morte Materna"
+  cause_of_death: "Morte di parto"
 relationships:
   - id: "leonora"
     description: "Madre"

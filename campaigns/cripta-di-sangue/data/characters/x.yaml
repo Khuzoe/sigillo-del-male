@@ -50,9 +50,13 @@ relationships:
     description: "Nipote"
 summary:
   race: "Non Morto"
+  birth_year: 42
+  death_year: 100
+  birth_year_absolute: 1242
+  death_year_absolute: 1300
+  period: "1242-1300"
   age_at_death: "58 anni"
   height: "5 ft 6 in (1.68 m)"
   weight: "18 lbs (8 kg)"
-  period: "42-100"
-  cause_of_death: "Uccisa da Karla (???)"
+  cause_of_death: "Uccisa da Karla (morso di ragno velenoso)"
 type: "npc"

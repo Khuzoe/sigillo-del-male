@@ -12,10 +12,14 @@ images:
   portrait: "media/creatures/nino_olegna.webp"
 summary:
   race: "Non Morto"
+  birth_year: 25
+  death_year: 85
+  birth_year_absolute: 1225
+  death_year_absolute: 1285
+  period: "1225-1285"
   age_at_death: "60 anni"
   height: "8 ft 6 in (2.60 m)"
   weight: "463 lbs (210 kg)"
-  period: "25-85"
   cause_of_death: "Gettato in gabbia con un Ratto delle Sabbie a Chult"
 content_blocks:
   - type: "lore"

@@ -15,7 +15,14 @@
     "hidden": false,
     "unknown": true,
     "von_t": true,
-    "birthOrder": 1
+    "birthOrder": 1,
+    "birthYear": 0,
+    "deathYear": 80,
+    "birthYearAbsolute": 1200,
+    "deathYearAbsolute": 1280,
+    "period": "1200-1280",
+    "ageAtDeath": "80 anni",
+    "causeOfDeath": "Vecchiaia"
   },
   {
     "id": "leonora",
@@ -32,7 +39,14 @@
     ],
     "hidden": false,
     "unknown": true,
-    "von_t": false
+    "von_t": false,
+    "birthYear": 5,
+    "deathYear": 82,
+    "birthYearAbsolute": 1205,
+    "deathYearAbsolute": 1282,
+    "period": "1205-1282",
+    "ageAtDeath": "77 anni",
+    "causeOfDeath": "Rituale fallito (dissanguamento)"
   },
   {
     "id": "x",
@@ -51,7 +65,14 @@
     ],
     "hidden": false,
     "von_t": true,
-    "birthOrder": 4
+    "birthOrder": 4,
+    "birthYear": 42,
+    "deathYear": 100,
+    "birthYearAbsolute": 1242,
+    "deathYearAbsolute": 1300,
+    "period": "1242-1300",
+    "ageAtDeath": "58 anni",
+    "causeOfDeath": "Uccisa da Karla (morso di ragno velenoso)"
   },
   {
     "id": "rabberduscolanderson",
@@ -67,7 +88,14 @@
     "children": [],
     "hidden": false,
     "von_t": true,
-    "birthOrder": 3
+    "birthOrder": 3,
+    "birthYear": 41,
+    "deathYear": 91,
+    "birthYearAbsolute": 1241,
+    "deathYearAbsolute": 1291,
+    "period": "1241-1291",
+    "ageAtDeath": "50 anni",
+    "causeOfDeath": "Suicidio (gettandosi in un baratro)"
   },
   {
     "id": "ginevra",
@@ -86,7 +114,14 @@
     "hidden": false,
     "unknown": false,
     "von_t": true,
-    "birthOrder": 2
+    "birthOrder": 2,
+    "birthYear": 31,
+    "deathYear": 69,
+    "birthYearAbsolute": 1231,
+    "deathYearAbsolute": 1269,
+    "period": "1231-1269",
+    "ageAtDeath": "38 anni",
+    "causeOfDeath": "Morte di parto"
   },
   {
     "id": "nino_olegna",
@@ -107,7 +142,14 @@
       "karla",
       "tokka"
     ],
-    "hidden": false
+    "hidden": false,
+    "birthYear": 25,
+    "deathYear": 85,
+    "birthYearAbsolute": 1225,
+    "deathYearAbsolute": 1285,
+    "period": "1225-1285",
+    "ageAtDeath": "60 anni",
+    "causeOfDeath": "Gettato in gabbia con un Ratto delle Sabbie a Chult"
   },
   {
     "id": "karla",
@@ -121,7 +163,15 @@
     "children": [],
     "hidden": false,
     "von_t": true,
-    "birthOrder": 6
+    "birthOrder": 6,
+    "birthYear": 60,
+    "deathYear": 90,
+    "birthYearAbsolute": 1260,
+    "deathYearAbsolute": 1290,
+    "period": "1260-1290",
+    "ageAtDeath": "30 anni (come \"viva\")",
+    "causeOfDeath": "Suicidio rituale per vampirismo",
+    "deathYearNote": "divenuta vampira"
   },
   {
     "id": "tokka",
@@ -137,7 +187,14 @@
     "von_t": true,
     "unknown": false,
     "unnamed": false,
-    "birthOrder": 5
+    "birthOrder": 5,
+    "birthYear": 59,
+    "deathYear": 94,
+    "birthYearAbsolute": 1259,
+    "deathYearAbsolute": 1294,
+    "period": "1259-1294",
+    "ageAtDeath": "35 anni",
+    "causeOfDeath": "Suicidio rituale per forgiatura"
   },
   {
     "id": "rendar",
@@ -153,7 +210,14 @@
     "hidden": false,
     "unknown": true,
     "showImageWhenUnknown": true,
-    "unnamed": false
+    "unnamed": false,
+    "birthYear": 34,
+    "deathYear": 81,
+    "birthYearAbsolute": 1234,
+    "deathYearAbsolute": 1281,
+    "period": "1234-1281",
+    "ageAtDeath": "47 anni",
+    "causeOfDeath": "Divorato da una bestia nella foresta"
   },
   {
     "id": "deborah",
@@ -167,7 +231,14 @@
     "children": [],
     "hidden": false,
     "von_t": true,
-    "birthOrder": 7
+    "birthOrder": 7,
+    "birthYear": 69,
+    "deathYear": 81,
+    "birthYearAbsolute": 1269,
+    "deathYearAbsolute": 1281,
+    "period": "1269-1281",
+    "ageAtDeath": "12 anni",
+    "causeOfDeath": "Fame e sete dopo la morte di Rendar"
   },
   {
     "id": "elena",
@@ -179,6 +250,13 @@
     ],
     "children": [],
     "hidden": false,
-    "unknown": false
+    "unknown": false,
+    "birthYear": 56,
+    "deathYear": 90,
+    "birthYearAbsolute": 1256,
+    "deathYearAbsolute": 1290,
+    "period": "1256-1290",
+    "ageAtDeath": "34 anni",
+    "causeOfDeath": "Uccisa da Karla"
   }
 ]
