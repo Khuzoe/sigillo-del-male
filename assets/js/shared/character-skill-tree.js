@@ -203,6 +203,9 @@ function resolvePlayerSkillTreeEntries(characterOrId, allSkillTrees) {
 
     if (results.length > 1) {
         results.sort((left, right) => {
+            const leftShared = isCampaignSharedSkillTree(left.tree, left.key) ? 1 : 0;
+            const rightShared = isCampaignSharedSkillTree(right.tree, right.key) ? 1 : 0;
+            if (leftShared !== rightShared) return leftShared - rightShared;
             const leftOrder = Number(left.tree.order ?? 0);
             const rightOrder = Number(right.tree.order ?? 0);
             if (leftOrder !== rightOrder) return leftOrder - rightOrder;
@@ -634,6 +637,30 @@ async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, leve
     return result;
 }
 
+async function deleteSkillTreeData(treeKey, treeData, allSkillTrees) {
+    const key = String(treeKey || '').trim();
+    if (!key) throw new Error('Albero abilita non valido.');
+    const nextTrees = { ...(skillsMemoryCache || allSkillTrees || {}) };
+    if (!nextTrees[key]) throw new Error('Albero abilita non trovato.');
+    delete nextTrees[key];
+    await saveSkillTreesData(nextTrees);
+
+    try {
+        const token = readSharedAuthToken();
+        if (!token || typeof window.CriptaApp?.api?.post !== 'function') return;
+        const existingStates = await loadSkillTreeStates();
+        const normalizedTreeKey = slugify(key);
+        const nextStates = existingStates.filter((entry) => slugify(entry?.treeKey || '') !== normalizedTreeKey);
+        if (nextStates.length === existingStates.length) return;
+        const result = await window.CriptaApp.api.post('api/data/skill-tree-states', { data: nextStates }, { token });
+        skillTreeStatesVersion = Number(result?.version || skillTreeStatesVersion || 0);
+        skillTreeStatesMemoryCache = nextStates;
+        updateRuntimeSkillTreeStates(nextStates, skillTreeStatesVersion);
+    } catch (error) {
+        console.warn('Pulizia stati albero abilita fallita:', error);
+    }
+}
+
 function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry = null) {
     const treeEntry = forcedTreeEntry || resolvePlayerSkillTreeEntry(characterOrId, allSkillTrees);
     const treeData = treeEntry?.tree || null;
@@ -670,7 +697,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     card.innerHTML = `
                 <div class="player-skill-tree-card-head">
                     <h3><i class="fas ${isSharedTree ? 'fa-users' : 'fa-crown'}"></i> Albero Abilita <small data-skill-tree-label>${escapeHtml(treeLabel)}</small>${isSharedTree ? '<span class="player-skill-tree-shared-badge">Condiviso</span>' : ''}</h3>
-                    ${canEditTree ? '<button type="button" class="player-skill-edit-toggle" data-skill-edit-toggle title="Modifica albero" aria-label="Modifica albero"><i class="fas fa-pen"></i></button>' : ''}
+                    ${canEditTree ? '<div class="player-skill-tree-card-actions"><button type="button" class="player-skill-edit-toggle player-skill-delete-tree" data-skill-delete-tree title="Elimina albero" aria-label="Elimina albero"><i class="fas fa-trash"></i></button><button type="button" class="player-skill-edit-toggle" data-skill-edit-toggle title="Modifica albero" aria-label="Modifica albero"><i class="fas fa-pen"></i></button></div>' : ''}
                 </div>
                 <div class="player-skill-tree-layout">
                     <div class="player-skill-tree-column">
@@ -690,6 +717,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     const infoPanel = card.querySelector('[data-skill-info]');
     const editorPanel = card.querySelector('[data-skill-editor]');
     const editToggle = card.querySelector('[data-skill-edit-toggle]');
+    const deleteButton = card.querySelector('[data-skill-delete-tree]');
     const treeTitleLabel = card.querySelector('[data-skill-tree-label]');
     const snapGuideX = card.querySelector('[data-skill-snap-x]');
     const snapGuideY = card.querySelector('[data-skill-snap-y]');
@@ -1925,6 +1953,23 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         )) return;
         event.preventDefault();
         deleteSelectedConnection();
+    });
+
+    deleteButton?.addEventListener('click', async () => {
+        const label = workingTree.name || workingTree.title || treeKey || 'questo albero';
+        const confirmed = window.confirm(`Eliminare definitivamente l'albero abilita "${label}"?`);
+        if (!confirmed) return;
+        deleteButton.disabled = true;
+        editToggle?.setAttribute('disabled', 'disabled');
+        try {
+            await deleteSkillTreeData(treeKey, workingTree, allSkillTrees);
+            window.location.reload();
+        } catch (error) {
+            console.error('Eliminazione albero abilita fallita:', error);
+            alert(`Eliminazione albero fallita: ${error?.message || error}`);
+            deleteButton.disabled = false;
+            editToggle?.removeAttribute('disabled');
+        }
     });
 
     editToggle?.addEventListener('click', () => {

@@ -2442,8 +2442,14 @@
     vertical-align: middle;
 }
 
-.player-skill-edit-toggle {
-    width: 2.35rem;
+.player-skill-tree-card-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+}
+
+.player-skill-edit-toggle {    width: 2.35rem;
     height: 2.35rem;
     display: inline-grid;
     place-items: center;
@@ -2469,6 +2475,18 @@
     border-color: rgba(212, 175, 55, 0.85);
     background: rgba(212, 175, 55, 0.16);
     color: var(--gold);
+}
+
+.player-skill-delete-tree {
+    border-color: rgba(176, 62, 62, 0.48);
+    color: #f0a0a0;
+}
+
+.player-skill-delete-tree:hover,
+.player-skill-delete-tree:focus-visible {
+    border-color: rgba(255, 148, 148, 0.82);
+    background: rgba(176, 62, 62, 0.18);
+    color: #ffd0d0;
 }
 
 .player-skill-tree-column {
