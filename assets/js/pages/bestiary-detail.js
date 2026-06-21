@@ -1,4 +1,4 @@
-const BESTIARY_DETAIL_MODULE_VERSION = "20260618-refactor";
+const BESTIARY_DETAIL_MODULE_VERSION = "20260621-hidden-dm1";
 
 function versionedBestiaryDetailModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);
@@ -35,7 +35,8 @@ window.CriptaApp.onPageReady("creature", async () => {
         customConditionTemplates: [],
         conditionDraft: createDefaultConditionDraft(),
         conditionBuilderOpen: false,
-        imagePasteTarget: null
+        imagePasteTarget: null,
+        currentUserIsDm: false
     };
 
     try {
@@ -44,13 +45,14 @@ window.CriptaApp.onPageReady("creature", async () => {
         state.version = loaded.version;
         state.source = loaded.source;
         state.abilityTemplates = await loadMonsterAbilityTemplates();
+        state.currentUserIsDm = await resolveBestiaryDetailUserIsDm();
         state.creature = createMode ? createEmptyCreature() : findCreature(state.creatures, creatureId);
         if (state.creature && !state.creature.id) {
             state.creature.id = slugify(state.creature.name || creatureId);
         }
         if (state.creature) ensureFoundryMonsterData(state.creature);
 
-        if (!state.creature || !isCreatureVisible(state.creature)) {
+        if (!state.creature || !isCreatureVisible(state.creature, state.currentUserIsDm)) {
             redirectToBestiaryList();
             return;
         }
@@ -3479,10 +3481,21 @@ function createEmptyCreature() {
     };
 }
 
-function isCreatureVisible(creature) {
+function isCreatureVisible(creature, canSeeHidden = false) {
     if (!creature) return false;
+    if (canSeeHidden) return true;
     if (window.WikiSpoiler) return window.WikiSpoiler.isVisible(creature);
     return creature.hidden !== true && creature.status !== "hidden";
+}
+
+async function resolveBestiaryDetailUserIsDm() {
+    if (typeof window.CriptaApp?.auth?.isCurrentUserDm === "function") {
+        return window.CriptaApp.auth.isCurrentUserDm(window.CriptaBasePath || "").catch(() => false);
+    }
+    if (typeof window.CriptaDiscordAuth?.isCurrentUserDm === "function") {
+        return window.CriptaDiscordAuth.isCurrentUserDm(window.CriptaBasePath || "").catch(() => false);
+    }
+    return false;
 }
 
 function redirectToBestiaryList() {
