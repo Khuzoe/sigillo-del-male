@@ -303,7 +303,7 @@ function openLinkedItem(grid) {
 function filterItems(items, state) {
     const query = normalizeSearch(state.query);
     return items.filter(item => {
-        const visibleProperties = getVisibleItemProperties(item);
+        const visibleProperties = getVisibleItemProperties(item, { includeHidden: state.canEditItems, includeUnidentified: state.canEditItems });
         const materialTags = getVisibleMaterialTags(item);
         if (state.rarity !== "all" && (item.rarity || "Sconosciuta") !== state.rarity) return false;
         if (state.type !== "all" && getItemCategory(item) !== state.type) return false;
@@ -339,7 +339,7 @@ function renderLegacyItemCard(item, { canEdit = false, isEditing = false, draft 
     const isMaterial = getItemCategory(item) === "Materiali";
     const type = getItemTypeMeta(getItemCategory(item));
     const rarity = getItemRarityMeta(item.rarity);
-    const properties = getVisibleItemProperties(item);
+    const properties = getVisibleItemProperties(item, { includeHidden: canEdit, includeUnidentified: canEdit });
     const materialTags = isMaterial ? getVisibleMaterialTags(item) : [];
     const positiveProperties = isMaterial ? [] : properties.filter(property => property.negative !== true);
     const negativeProperties = isMaterial ? [] : properties.filter(property => property.negative === true);
@@ -406,7 +406,7 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
     const isMaterial = getItemCategory(item) === "Materiali";
     const type = getItemTypeMeta(getItemCategory(item));
     const rarity = getItemRarityMeta(item.rarity);
-    const properties = getVisibleItemProperties(item);
+    const properties = getVisibleItemProperties(item, { includeHidden: canEdit, includeUnidentified: canEdit });
     const materialTags = isMaterial ? getVisibleMaterialTags(item) : [];
     const positiveProperties = isMaterial ? [] : properties.filter(property => property.negative !== true);
     const negativeProperties = isMaterial ? [] : properties.filter(property => property.negative === true);
@@ -932,7 +932,7 @@ async function saveInlineItemEdit(form, state, grid, count) {
         const nextId = getItemId(draft);
         let index = nextData.findIndex(item => getItemId(item) === previousId);
         if (index < 0) index = nextData.findIndex(item => getItemId(item) === nextId);
-        if (index >= 0) nextData[index] = { ...nextData[index], ...draft };
+        if (index >= 0) nextData[index] = draft;
         else nextData.push(draft);
 
         const response = await fetch(withItemsCampaign(ITEMS_DATA_API_URL(), { force: true }), {
@@ -1127,9 +1127,9 @@ function normalizeItemProperties(properties) {
         .filter(Boolean);
 }
 
-function getVisibleItemProperties(item) {
-    if (item?.unidentified === true) return [];
-    return normalizeItemProperties(item?.properties).filter(property => property.hidden !== true);
+function getVisibleItemProperties(item, { includeHidden = false, includeUnidentified = false } = {}) {
+    if (item?.unidentified === true && !includeUnidentified) return [];
+    return normalizeItemProperties(item?.properties).filter(property => includeHidden || property.hidden !== true);
 }
 
 function normalizeMaterialTags(value) {

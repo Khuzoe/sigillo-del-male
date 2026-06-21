@@ -6010,6 +6010,10 @@ body.page-oggetti .hero-mini {
     transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
+.item-card--editing {
+    grid-column: 1 / -1;
+}
+
 .item-card:hover,
 .item-card:focus-within {
     border-color: rgba(212, 175, 55, 0.34);
