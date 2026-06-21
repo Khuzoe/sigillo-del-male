@@ -5484,6 +5484,14 @@ body.page-bestiario .hero-mini {
     transition: transform 220ms ease, filter 220ms ease;
 }
 
+.bestiary-image-frame img.is-retrying {
+    opacity: 0.42;
+}
+
+.bestiary-image-frame img.is-missing {
+    display: none;
+}
+
 .bestiary-card:hover .bestiary-image-frame img,
 .bestiary-card:focus-visible .bestiary-image-frame img {
     transform: scale(calc(var(--bestiary-img-scale, 1) + 0.07));

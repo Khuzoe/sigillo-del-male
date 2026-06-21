@@ -1520,6 +1520,10 @@
                                 <span>Ruolo</span>
                                 <input type="text" value="${escapeHtml(character.role || '')}" data-inline-character-field="role">
                             </label>
+                            <label class="character-inline-field character-inline-field--wide">
+                                <span>Frase elenco</span>
+                                <textarea rows="3" data-inline-character-field="quote" placeholder="Breve descrizione mostrata nella lista NPC">${escapeHtml(character.quote || '')}</textarea>
+                            </label>
                             <label class="character-inline-field">
                                 <span>Categoria</span>
                                 <input type="text" value="${escapeHtml(character.category || '')}" data-inline-character-field="category" placeholder="es. Corte, Criminali, Alleati">

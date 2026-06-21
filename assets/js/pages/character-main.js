@@ -249,6 +249,7 @@ function createEmptyNpcCharacter() {
         type: 'npc',
         name: 'Nuovo NPC',
         role: 'NPC',
+        quote: '',
         category: '',
         summary: {
             race: '',
@@ -2134,7 +2135,7 @@ window.CriptaApp.onPageReady("character", async function () {
 
         // Quests are only rendered for NPC pages; avoid noisy 404s on player-only campaigns.
         const questsData = charType === 'player' ? [] : await loadQuestsData();
-        const npcQuests = questsData.find(g => g.npc_id === charId);
+        const npcQuests = createMode ? null : questsData.find(g => g.npc_id === charId);
 
         // IBRIDO: Se abbiamo dati statici, usiamoli.
         if (charType !== 'player' && window.NPC_DATA && window.NPC_DATA.length > 0) {
@@ -2176,8 +2177,14 @@ window.CriptaApp.onPageReady("character", async function () {
             displayError(`Personaggio con ID '${charId}' non trovato.`);
             return;
         }
-        // Keep spoiler lock for NPCs, but allow direct links to hidden players.
-        if (charType !== 'player' && window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers() && !window.WikiSpoiler.isVisible(character)) {
+        // Keep spoiler lock for hidden NPCs, but allow DMs and the new-NPC editor flow.
+        const shouldBlockHiddenNpc = charType !== 'player'
+            && !currentUserIsDm
+            && !createMode
+            && window.WikiSpoiler
+            && !window.WikiSpoiler.allowSpoilers()
+            && !window.WikiSpoiler.isVisible(character);
+        if (shouldBlockHiddenNpc) {
             displayError(`Personaggio con ID '${charId}' non trovato.`);
             return;
         }

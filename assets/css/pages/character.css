@@ -176,7 +176,8 @@
         }
 
         .character-inline-field input,
-        .character-inline-field select {
+        .character-inline-field select,
+        .character-inline-field textarea {
             width: 100%;
             min-width: 0;
             border: 1px solid rgba(212, 175, 55, 0.16);
@@ -186,6 +187,11 @@
             font-family: var(--font-ui);
             font-size: 0.84rem;
             padding: 0.55rem 0.65rem;
+        }
+
+        .character-inline-field textarea {
+            min-height: 5.4rem;
+            resize: vertical;
         }
 
         .character-inline-field select,
@@ -804,7 +810,8 @@
 
         .character-inline-stat-field input:focus,
         .character-inline-field input:focus,
-        .character-inline-field select:focus {
+        .character-inline-field select:focus,
+        .character-inline-field textarea:focus {
             border-color: rgba(212, 175, 55, 0.56);
             outline: none;
             box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.08);

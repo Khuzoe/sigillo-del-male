@@ -160,8 +160,14 @@
 }
 
 .bestiary-detail-image-upload:hover::after,
-.bestiary-detail-image-upload:focus-visible::after {
+.bestiary-detail-image-upload:focus-visible::after,
+.bestiary-detail-image-upload.is-drag-over::after {
     opacity: 1;
+}
+
+.bestiary-detail-image-upload.is-drag-over {
+    outline: 2px solid rgba(212, 175, 55, 0.58);
+    outline-offset: 4px;
 }
 
 .bestiary-detail-image-adjust {
@@ -231,9 +237,15 @@
     background: rgba(0, 0, 0, 0.34);
 }
 
-.bestiary-detail-token-upload:hover {
+.bestiary-detail-token-upload:hover,
+.bestiary-detail-token-upload.is-drag-over {
     border-color: rgba(212, 175, 55, 0.5);
     box-shadow: 0 0 18px rgba(212, 175, 55, 0.14);
+}
+
+.bestiary-detail-token-upload.is-drag-over {
+    outline: 2px solid rgba(212, 175, 55, 0.45);
+    outline-offset: 4px;
 }
 
 .bestiary-detail-meta {

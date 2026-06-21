@@ -336,6 +336,7 @@ function renderBestiary(creatures, grid, count, state = {}) {
                 ${items.map(({ creature, index }) => renderBestiaryCard(creature, index, state)).join("")}
             </div>
         `;
+        bindBestiaryImageRecovery(grid);
         return;
     }
 
@@ -352,6 +353,7 @@ function renderBestiary(creatures, grid, count, state = {}) {
             </div>
         </section>
     `).join("");
+    bindBestiaryImageRecovery(grid);
 }
 
 function groupBestiaryCreatures(indexedCreatures) {
@@ -389,6 +391,90 @@ function compareBestiaryCategoryNames(a, b) {
     return a.localeCompare(b, "it", { sensitivity: "base" });
 }
 
+function getBestiaryImageCandidates(creature) {
+    const candidates = [creature?.image, creature?.tokenImage]
+        .map(resolveImageUrl)
+        .map(value => String(value || "").trim())
+        .filter(Boolean);
+    return [...new Set(candidates)];
+}
+
+function renderBestiaryCardImage(creature, cardName) {
+    const candidates = getBestiaryImageCandidates(creature);
+    if (!candidates.length) return "";
+    return '<img src="' + escapeHtml(candidates[0])
+        + '" alt="' + escapeHtml(cardName)
+        + '" loading="lazy" decoding="async" style="' + buildBestiaryImageStyle(creature.imageAdjust)
+        + '" data-bestiary-image data-bestiary-image-srcs="' + escapeHtml(encodeURIComponent(JSON.stringify(candidates)))
+        + '" data-bestiary-image-index="0" data-bestiary-image-retry="0">';
+}
+
+function bindBestiaryImageRecovery(container) {
+    container.querySelectorAll("[data-bestiary-image]").forEach((image) => {
+        image.addEventListener("load", () => {
+            image.classList.remove("is-retrying", "is-missing");
+            image.dataset.bestiaryImageRetry = "0";
+        });
+        image.addEventListener("error", () => recoverBestiaryImage(image));
+        if (image.complete && image.naturalWidth === 0) recoverBestiaryImage(image);
+    });
+}
+
+function recoverBestiaryImage(image) {
+    if (!(image instanceof HTMLImageElement)) return;
+    const candidates = parseBestiaryImageCandidates(image.dataset.bestiaryImageSrcs);
+    if (!candidates.length) {
+        markBestiaryImageMissing(image);
+        return;
+    }
+
+    const currentIndex = Math.max(0, Number(image.dataset.bestiaryImageIndex || 0));
+    const currentRetry = Math.max(0, Number(image.dataset.bestiaryImageRetry || 0));
+    const currentUrl = candidates[currentIndex];
+    if (currentUrl && currentRetry < 2) {
+        image.dataset.bestiaryImageRetry = String(currentRetry + 1);
+        image.classList.add("is-retrying");
+        const delay = 260 + currentRetry * 620 + Math.floor(Math.random() * 220);
+        window.setTimeout(() => {
+            image.src = appendBestiaryImageRetryParam(currentUrl);
+        }, delay);
+        return;
+    }
+
+    const nextIndex = currentIndex + 1;
+    if (nextIndex < candidates.length) {
+        image.dataset.bestiaryImageIndex = String(nextIndex);
+        image.dataset.bestiaryImageRetry = "0";
+        image.classList.add("is-retrying");
+        window.setTimeout(() => {
+            image.src = appendBestiaryImageRetryParam(candidates[nextIndex]);
+        }, 240);
+        return;
+    }
+
+    markBestiaryImageMissing(image);
+}
+
+function parseBestiaryImageCandidates(value) {
+    try {
+        const parsed = JSON.parse(decodeURIComponent(String(value || "%5B%5D")));
+        return Array.isArray(parsed) ? parsed.map(item => String(item || "").trim()).filter(Boolean) : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+function appendBestiaryImageRetryParam(url) {
+    const separator = String(url || "").includes("?") ? "&" : "?";
+    return String(url || "") + separator + "img_retry=" + Date.now().toString(36);
+}
+
+function markBestiaryImageMissing(image) {
+    image.classList.remove("is-retrying");
+    image.classList.add("is-missing");
+    image.removeAttribute("src");
+}
+
 function renderBestiaryCard(creature, index, state = {}) {
     const rank = getBestiaryRank(creature.rank);
     const discovered = isBestiaryDiscovered(creature);
@@ -412,7 +498,7 @@ function renderBestiaryCard(creature, index, state = {}) {
                 ${mysteryIcon}
                 ${rankIcon}
                 ${playerVisibilityBadge}
-                <img src="${escapeHtml(resolveImageUrl(creature.image))}" alt="${escapeHtml(cardName)}" loading="lazy" style="${buildBestiaryImageStyle(creature.imageAdjust)}">
+                ${renderBestiaryCardImage(creature, cardName)}
             </span>
             <span class="bestiary-card-name">${escapeHtml(cardName)}</span>
         </a>
@@ -444,10 +530,17 @@ function renderBestiaryPlayerVisibilityBadge(creature) {
 
 function buildBestiaryDetailUrl(creature) {
     const url = new URL("./bestiary/creature.html", window.location.href);
-    url.searchParams.set("id", slugify(creature.id || creature.name || ""));
+    url.searchParams.set("id", getBestiaryRouteId(creature));
     const campaignId = window.CriptaApp?.campaigns?.currentId?.() || "";
     if (campaignId && campaignId !== "cripta-di-sangue") url.searchParams.set("campaign", campaignId);
     return url.toString();
+}
+
+function getBestiaryRouteId(creature) {
+    const id = slugify(creature?.id || "");
+    const name = slugify(creature?.name || "");
+    if (/^nuovo-mostro(?:-|$)/.test(id) && name && name !== "nuovo-mostro") return name;
+    return id || name;
 }
 
 function buildBestiaryImageStyle(adjust) {

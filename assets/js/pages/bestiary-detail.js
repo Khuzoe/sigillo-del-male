@@ -1,4 +1,4 @@
-const BESTIARY_DETAIL_MODULE_VERSION = "20260621-hidden-dm1";
+const BESTIARY_DETAIL_MODULE_VERSION = "20260621-new-creature-id1";
 
 function versionedBestiaryDetailModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);
@@ -9,7 +9,7 @@ function versionedBestiaryDetailModuleUrl(path, baseUrl) {
 window.CriptaApp.onPageReady("creature", async () => {
     const params = new URLSearchParams(window.location.search);
     const creatureId = slugify(params.get("id") || params.get("creature") || "");
-    const createMode = params.get("new") === "1";
+    let createMode = params.get("new") === "1";
     const root = document.getElementById("creature-detail-root");
     const nameEl = document.getElementById("creature-name");
     const subtitleEl = document.getElementById("creature-subtitle");
@@ -216,6 +216,7 @@ window.CriptaApp.onPageReady("creature", async () => {
 
     function bindRenderedEvents() {
         bindImagePasteTargets();
+        bindCreatureMediaDropTargets();
         root.querySelectorAll("[data-field]").forEach((field) => {
             const eventName = field.type === "checkbox" || field.tagName === "SELECT" ? "change" : "input";
             field.addEventListener(eventName, () => updateField(field));
@@ -432,6 +433,71 @@ window.CriptaApp.onPageReady("creature", async () => {
 
     function setImagePasteTarget(target) {
         state.imagePasteTarget = target;
+    }
+
+    function bindCreatureMediaDropTargets() {
+        bindCreatureMediaDropTarget('[data-action="upload-image"]', {
+            property: "image",
+            folder: "creatures/bestiary",
+            suffix: "",
+            label: "immagine creatura"
+        });
+        bindCreatureMediaDropTarget('[data-action="upload-token-image"]', {
+            property: "tokenImage",
+            folder: "creatures/bestiary/tokens",
+            suffix: "-token",
+            label: "immagine token"
+        });
+    }
+
+    function bindCreatureMediaDropTarget(selector, uploadOptions) {
+        const target = root.querySelector(selector);
+        if (!target) return;
+        const clearDragState = () => target.classList.remove("is-drag-over");
+        target.addEventListener("dragenter", (event) => {
+            if (!hasImageDragPayload(event)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.dataTransfer.dropEffect = "copy";
+            target.classList.add("is-drag-over");
+        });
+        target.addEventListener("dragover", (event) => {
+            if (!hasImageDragPayload(event)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.dataTransfer.dropEffect = "copy";
+            target.classList.add("is-drag-over");
+        });
+        target.addEventListener("dragleave", (event) => {
+            if (event.relatedTarget instanceof Node && target.contains(event.relatedTarget)) return;
+            clearDragState();
+        });
+        target.addEventListener("drop", async (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const file = getDataTransferImageFile(event);
+            if (!file) {
+                clearDragState();
+                return;
+            }
+            clearDragState();
+            await uploadCreatureMedia({ ...uploadOptions, file });
+        });
+    }
+
+    function hasImageDragPayload(event) {
+        const types = Array.from(event.dataTransfer?.types || []);
+        if (types.includes("Files")) return true;
+        return getDataTransferImageFile(event) !== null;
+    }
+
+    function getDataTransferImageFile(event) {
+        const files = Array.from(event.dataTransfer?.files || []);
+        return files.find((file) => {
+            const type = String(file?.type || "").toLowerCase();
+            const name = String(file?.name || "").toLowerCase();
+            return type.startsWith("image/") || /\.(avif|gif|jpe?g|png|webp)$/.test(name);
+        }) || null;
     }
 
     function updateField(field) {
@@ -2249,28 +2315,34 @@ window.CriptaApp.onPageReady("creature", async () => {
         toolbar?.setAttribute("data-saving", "true");
         try {
             getMonsterAbilities(state.creature).forEach(applyAbilityDefaultsForKind);
-            const cleanCreature = pruneCreature(structuredCloneSafe(state.creature));
+            const sourceCreature = structuredCloneSafe(state.creature);
+            let cleanCreature = null;
             const saved = await saveBestiaryDocumentWithRetry(token, (records) => {
                 const nextData = Array.isArray(records) ? records.slice() : [];
-                const targetSlug = slugify(state.creature.id || state.creature.name || creatureId);
+                const targetSlug = slugify(sourceCreature.id || sourceCreature.name || creatureId);
                 let index = nextData.findIndex((entry) => slugify(entry?.id || entry?.name || "") === targetSlug);
                 if (index < 0) index = nextData.findIndex((entry) => slugify(entry?.name || "") === creatureId);
+                const draft = structuredCloneSafe(sourceCreature);
+                draft.id = resolveCreatureIdForSave(draft, nextData, index, createMode);
+                cleanCreature = pruneCreature(draft);
                 if (index >= 0) nextData[index] = { ...nextData[index], ...cleanCreature };
                 else nextData.push(cleanCreature);
+                repairPlaceholderCreatureIds(nextData);
                 return nextData;
             });
 
-            state.creature = cleanCreature;
+            state.creature = cleanCreature || pruneCreature(structuredCloneSafe(sourceCreature));
             state.version = saved.payload?.version ?? state.version;
             state.source = "kv";
             state.editing = false;
             state.dirty = false;
             editButton?.classList.remove("is-editing");
-            if (createMode) {
+            if (createMode || creatureId !== state.creature.id) {
                 const nextUrl = new URL(window.location.href);
                 nextUrl.searchParams.delete("new");
-                nextUrl.searchParams.set("id", cleanCreature.id);
+                nextUrl.searchParams.set("id", state.creature.id);
                 history.replaceState({}, "", nextUrl.toString());
+                createMode = false;
             }
             render();
         } catch (error) {
@@ -2394,17 +2466,23 @@ window.CriptaApp.onPageReady("creature", async () => {
     async function persistCreatureMediaReference(property, value) {
         if (!property || !value || !state.creature) return;
         const token = readAuthToken();
+        const sourceCreature = structuredCloneSafe(state.creature);
+        let savedEntry = null;
         const saved = await saveBestiaryDocumentWithRetry(token, (records) => {
             const nextData = Array.isArray(records) ? records.slice() : [];
-            const targetSlug = slugify(state.creature.id || state.creature.name || creatureId);
+            const targetSlug = slugify(sourceCreature.id || sourceCreature.name || creatureId);
             let index = nextData.findIndex((entry) => slugify(entry?.id || entry?.name || "") === targetSlug);
             if (index < 0) index = nextData.findIndex((entry) => slugify(entry?.name || "") === creatureId);
-            const baseEntry = index >= 0 ? { ...nextData[index] } : pruneCreature(structuredCloneSafe(state.creature));
+            const baseEntry = index >= 0 ? { ...nextData[index] } : pruneCreature(structuredCloneSafe(sourceCreature));
+            baseEntry.id = resolveCreatureIdForSave(baseEntry, nextData, index, createMode);
             baseEntry[property] = value;
+            savedEntry = baseEntry;
             if (index >= 0) nextData[index] = baseEntry;
             else nextData.push(baseEntry);
+            repairPlaceholderCreatureIds(nextData);
             return nextData;
         });
+        if (savedEntry?.id) state.creature.id = savedEntry.id;
         state.version = saved.payload?.version ?? state.version;
         state.source = "kv";
     }
@@ -2486,7 +2564,7 @@ window.CriptaApp.onPageReady("creature", async () => {
 async function loadBestiaryDocument() {
     try {
         if (typeof window.CriptaApp?.api?.get === "function") {
-            const payload = await window.CriptaApp.api.get("api/data/bestiary", { query: { _: Date.now() } });
+            const payload = await window.CriptaApp.api.get("api/data/bestiary", { cache: false, query: { _: Date.now() } });
             if (Array.isArray(payload?.data)) {
                 return {
                     data: payload.data,
@@ -2503,10 +2581,11 @@ async function loadBestiaryDocument() {
     return { data: Array.isArray(data) ? data : data?.data, version: 0, source: "static" };
 }
 
-async function saveBestiaryDocumentWithRetry(token, buildData, attempts = 3) {
+async function saveBestiaryDocumentWithRetry(token, buildData, attempts = 5) {
     let lastPayload = null;
     let lastStatus = 0;
     for (let attempt = 0; attempt < attempts; attempt += 1) {
+        clearBestiaryApiCache();
         const loaded = await loadBestiaryDocument();
         const nextData = buildData(loaded.data);
         const response = await fetch(getBestiaryApiUrl(), {
@@ -2524,11 +2603,24 @@ async function saveBestiaryDocumentWithRetry(token, buildData, attempts = 3) {
         const payload = await response.json().catch(() => null);
         lastPayload = payload;
         lastStatus = response.status;
-        if (response.status === 409 || payload?.code === "VERSION_CONFLICT") continue;
+        if (response.status === 409 || payload?.code === "VERSION_CONFLICT") {
+            clearBestiaryApiCache();
+            await delayBestiaryRetry(220 + attempt * 320);
+            continue;
+        }
         if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        clearBestiaryApiCache();
         return { data: nextData, payload };
     }
     throw new Error(lastPayload?.error || `HTTP ${lastStatus || 409}`);
+}
+
+function clearBestiaryApiCache() {
+    window.CriptaApp?.api?.clearCache?.("api/data/bestiary");
+}
+
+function delayBestiaryRetry(ms) {
+    return new Promise(resolve => window.setTimeout(resolve, ms));
 }
 
 async function loadMonsterAbilityTemplates() {
@@ -3434,6 +3526,47 @@ function conditionIcon(value) {
 
 function abilityLabel(value) {
     return SAVE_ABILITY_OPTIONS.find(([key]) => key === value)?.[1] || value || "?";
+}
+
+function isDefaultNewCreatureName(value) {
+    return slugify(value || "") === "nuovo-mostro";
+}
+
+function isNewCreaturePlaceholderId(value) {
+    return /^nuovo-mostro(?:-|$)/.test(slugify(value || ""));
+}
+
+function resolveCreatureIdForSave(creature, records, existingIndex = -1, forceFromName = false) {
+    const currentId = slugify(creature?.id || "");
+    const nameId = slugify(creature?.name || "");
+    const shouldUseName = forceFromName || (isNewCreaturePlaceholderId(currentId) && nameId && !isDefaultNewCreatureName(creature?.name));
+    let baseId = shouldUseName ? nameId : currentId;
+    if (!baseId || (shouldUseName && isDefaultNewCreatureName(creature?.name))) {
+        baseId = currentId || `nuovo-mostro-${Date.now().toString(36)}`;
+    }
+    return makeUniqueCreatureId(baseId, records, existingIndex);
+}
+
+function makeUniqueCreatureId(baseId, records, existingIndex = -1) {
+    const base = slugify(baseId || "creatura") || "creatura";
+    const used = new Set((Array.isArray(records) ? records : [])
+        .map((entry, index) => index === existingIndex ? "" : slugify(entry?.id || entry?.name || ""))
+        .filter(Boolean));
+    if (!used.has(base)) return base;
+    let counter = 2;
+    while (used.has(`${base}-${counter}`)) counter += 1;
+    return `${base}-${counter}`;
+}
+
+function repairPlaceholderCreatureIds(records) {
+    if (!Array.isArray(records)) return records;
+    records.forEach((entry, index) => {
+        const currentId = slugify(entry?.id || "");
+        const nameId = slugify(entry?.name || "");
+        if (!entry || !isNewCreaturePlaceholderId(currentId) || !nameId || isDefaultNewCreatureName(entry.name)) return;
+        entry.id = makeUniqueCreatureId(nameId, records, index);
+    });
+    return records;
 }
 
 function findCreature(creatures, id) {

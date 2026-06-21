@@ -135,9 +135,12 @@ function parseYamlLite(yamlText) {
                 }
                 npcs = normalizeCharactersCollection(npcs);
 
-                const visibleNpcs = window.WikiSpoiler
-                    ? window.WikiSpoiler.filterVisible(npcs)
-                    : npcs.filter(npc => !npc.hidden);
+                const currentUserIsDm = await resolveNpcListUserIsDm(base_path);
+                const visibleNpcs = currentUserIsDm
+                    ? npcs
+                    : (window.WikiSpoiler
+                        ? window.WikiSpoiler.filterVisible(npcs)
+                        : npcs.filter(npc => !npc.hidden));
 
                 const recencyData = await loadNpcRecencyData(base_path);
                 const sortedNpcs = sortNpcsByRecency(visibleNpcs, recencyData);
@@ -173,6 +176,14 @@ function parseYamlLite(yamlText) {
             document.querySelectorAll('[data-npc-create-link]').forEach((link) => {
                 link.href = buildNpcDetailUrl({ type: 'npc', new: '1', edit: '1' });
             });
+        }
+
+        async function resolveNpcListUserIsDm(base_path) {
+            try {
+                return await window.CriptaDiscordAuth?.isCurrentUserDm?.(base_path) === true;
+            } catch (_) {
+                return false;
+            }
         }
 
         function appendAssetVersion(url, version) {
