@@ -295,6 +295,7 @@
             ].filter(Boolean))),
             creatureName,
             foundryNames,
+            switcher: entry?.switcher === false ? false : true,
             tokenImage: entry?.tokenImage || '',
             size,
             width: undefined,
@@ -344,11 +345,11 @@
                                 <input type="text" value="${escapeHtml(title)}" data-transformation-name-input data-transformation-id="${escapeHtml(entry.id)}" aria-label="Nome creatura Foundry">
                             </label>
                         ` : `<strong>${escapeHtml(title)}</strong>`}
-                        ${canEdit ? `
+                        ${canEdit && !isBaseEntry ? `
                             <div class="player-transformation-size-fields">
                                 <label>
                                     <span>Dimensione token</span>
-                                    <input type="number" min="0.25" step="0.25" value="${entry.size || ''}" placeholder="auto" data-transformation-size-input data-transformation-id="${escapeHtml(entry.id)}" aria-label="Dimensione token">
+                                    <input type="text" inputmode="decimal" value="${escapeHtml(formatTransformationSizeInput(entry.size))}" placeholder="auto" data-transformation-size-input data-transformation-id="${escapeHtml(entry.id)}" aria-label="Dimensione token" autocomplete="off">
                                 </label>
                             </div>
                         ` : ''}
@@ -484,18 +485,50 @@
             alert('Il nome della creatura non puo essere vuoto.');
             return null;
         }
+        const sizeValue = parseTransformationSizeInput(sizeInput?.value);
+        if (sizeValue === undefined) {
+            alert('Dimensione token non valida. Usa un numero positivo, ad esempio 0.5, 1, 2 oppure 1/2.');
+            sizeInput?.focus?.();
+            return null;
+        }
         return {
             ...renameTransformationEntry(entry, nextName),
-            size: parsePositiveNumberOrNull(sizeInput?.value),
+            size: sizeValue,
             width: undefined,
             height: undefined
         };
     }
 
     function parsePositiveNumberOrNull(value) {
+        const parsed = parseTransformationSizeInput(value);
+        return parsed === undefined ? null : parsed;
+    }
+
+    function parseTransformationSizeInput(value) {
         if (value === '' || value === null || value === undefined) return null;
+        const text = String(value).trim().replace(',', '.');
+        if (!text) return null;
+        const fraction = text.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+        if (fraction) {
+            const numerator = Number(fraction[1]);
+            const denominator = Number(fraction[2]);
+            const number = denominator ? numerator / denominator : NaN;
+            return Number.isFinite(number) && number > 0 ? normalizeTransformationSize(number) : undefined;
+        }
+        const number = Number(text);
+        return Number.isFinite(number) && number > 0 ? normalizeTransformationSize(number) : undefined;
+    }
+
+    function normalizeTransformationSize(value) {
         const number = Number(value);
-        return Number.isFinite(number) && number > 0 ? number : null;
+        if (!Number.isFinite(number) || number <= 0) return null;
+        return Math.round(number * 100) / 100;
+    }
+
+    function formatTransformationSizeInput(value) {
+        const number = parseTransformationSizeInput(value);
+        if (number === null || number === undefined) return '';
+        return String(number);
     }
 
     function upsertTransformation(list, entry) {

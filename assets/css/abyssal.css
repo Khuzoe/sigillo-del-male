@@ -455,6 +455,48 @@ body.is-embed .container {
     transform: scale(1);
 }
 
+.npc-card--dm-hidden {
+    border-color: rgba(214, 86, 86, 0.42);
+    background:
+        linear-gradient(135deg, rgba(214, 86, 86, 0.1), transparent 36%),
+        rgba(30, 30, 30, 0.42);
+}
+
+.npc-player-visibility-badge,
+.npc-detail-dm-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.34rem;
+    border: 1px solid rgba(214, 86, 86, 0.46);
+    border-radius: 999px;
+    background: rgba(92, 24, 24, 0.48);
+    color: rgba(255, 190, 176, 0.94);
+    font-family: var(--font-ui);
+    font-size: 0.66rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.npc-player-visibility-badge {
+    position: absolute;
+    left: 1rem;
+    top: 1rem;
+    z-index: 6;
+    padding: 0.26rem 0.52rem;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.38);
+    backdrop-filter: blur(8px);
+}
+
+.npc-detail-dm-badge {
+    margin-left: 0.55rem;
+    padding: 0.28rem 0.58rem;
+    vertical-align: middle;
+}
+
 /* --- LOGICA AVATAR POP-OUT & SWAP --- */
 
 /* Contenitore dell'avatar */
@@ -4582,15 +4624,21 @@ body.page-sessioni .session-card:nth-child(3n) {
         width: auto;
         height: auto;
         min-height: 0;
+        max-height: min(46vh, 24rem);
+        max-height: min(46dvh, 24rem);
         padding: 1rem 1rem 0.85rem;
         border-right: none;
         border-bottom: 1px solid rgba(212, 175, 55, 0.12);
         box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+        overflow-y: auto;
+        overscroll-behavior-y: auto;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y;
     }
 
     body.page-character .sidebar {
         max-height: min(42vh, 24rem);
-        overflow-y: auto;
+        max-height: min(42dvh, 24rem);
     }
 
     .sidebar::before {
@@ -4609,8 +4657,13 @@ body.page-sessioni .session-card:nth-child(3n) {
     }
 
     .logo {
-        margin-bottom: 1.2rem;
-        padding-bottom: 1rem;
+        margin-bottom: 0.85rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .logo-img {
+        max-height: 92px;
+        object-fit: contain;
     }
 
     .nav-links {

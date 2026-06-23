@@ -2630,6 +2630,26 @@
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, filter 0.2s ease;
 }
 
+.player-skill-node-level-badge {
+    position: absolute;
+    right: -0.35rem;
+    bottom: -0.35rem;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 235, 150, 0.92);
+    border-radius: 999px;
+    background: rgba(18, 12, 6, 0.94);
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 900;
+    line-height: 1;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.82), 0 0 12px rgba(212, 175, 55, 0.45);
+    pointer-events: none;
+}
+
 .player-skill-node-link-anchor {
     position: absolute;
     right: -0.5rem;
@@ -2909,6 +2929,24 @@
     margin: 0 0 0.65rem 0;
 }
 
+.player-skill-info-desc mark.player-skill-level-change-highlight {
+    background: transparent;
+    color: var(--gold);
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.32);
+}
+
+.player-skill-info-desc mark.player-skill-level-scaling-token {
+    cursor: help;
+    border-bottom: 1px dotted rgba(212, 175, 55, 0.72);
+}
+
+.player-skill-info-desc .player-skill-level-future-addition {
+    color: rgba(220, 216, 205, 0.42);
+    font-style: italic;
+    text-shadow: none;
+}
+
 .player-skill-info-desc ul,
 .player-skill-info-desc ol {
     margin: 0 0 0.65rem 0;
@@ -3145,13 +3183,137 @@
 
 .player-skill-level-row {
     display: grid;
-    grid-template-columns: minmax(120px, 0.55fr) minmax(160px, 0.8fr) minmax(220px, 1fr) auto;
+    grid-template-columns: minmax(120px, 0.55fr) minmax(160px, 0.8fr) auto;
     gap: 0.65rem;
-    align-items: end;
+    align-items: start;
     padding: 0.75rem;
     border: 1px solid rgba(212, 175, 55, 0.16);
     border-radius: 14px;
     background: rgba(0, 0, 0, 0.18);
+}
+
+.player-skill-level-row label,
+.player-skill-level-text {
+    display: grid;
+    gap: 0.35rem;
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-level-row input,
+.player-skill-level-row textarea,
+.player-skill-level-rich-editor {
+    width: 100%;
+    border: 1px solid rgba(212, 175, 55, 0.26);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.45);
+    color: var(--text-main);
+    padding: 0.75rem 0.85rem;
+    font-family: var(--font-body);
+    font-size: 1.02rem;
+    font-weight: 400;
+    line-height: 1.45;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.player-skill-level-text,
+.player-skill-level-diff {
+    grid-column: 1 / -1;
+}
+
+.player-skill-level-rich-toolbar {
+    margin: 0.15rem 0 0.35rem;
+}
+
+.player-skill-level-rich-editor {
+    min-height: 10.5rem;
+    overflow: auto;
+    font-size: 1.08rem;
+    font-weight: 400;
+    outline: none;
+    text-transform: none;
+}
+
+.player-skill-level-rich-editor strong,
+.player-skill-level-rich-editor b {
+    font-weight: 800;
+}
+
+.player-skill-level-rich-editor:focus {
+    border-color: rgba(255, 221, 118, 0.72);
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.12);
+}
+
+.player-skill-level-rich-editor p {
+    margin: 0 0 0.65rem;
+}
+
+.player-skill-level-rich-editor ul,
+.player-skill-level-rich-editor ol {
+    margin: 0 0 0.65rem;
+    padding-left: 1.2rem;
+}
+
+.player-skill-level-diff {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid rgba(180, 180, 180, 0.18);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.035);
+    color: rgba(220, 216, 205, 0.72);
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+}
+
+.player-skill-level-diff.is-same,
+.player-skill-level-diff.is-empty {
+    color: rgba(220, 216, 205, 0.52);
+    font-style: italic;
+}
+
+.player-skill-level-diff-row {
+    display: grid;
+    grid-template-columns: 6.4rem minmax(0, 1fr);
+    gap: 0.6rem;
+    align-items: start;
+}
+
+.player-skill-level-diff-row span {
+    color: rgba(212, 175, 55, 0.64);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.player-skill-level-diff-row strong {
+    min-width: 0;
+    color: rgba(224, 224, 224, 0.72);
+    font-family: var(--font-body);
+    font-size: 1.02rem;
+    font-weight: 700;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.player-skill-level-diff-row.is-before strong {
+    color: rgba(210, 210, 210, 0.52);
+}
+
+.player-skill-level-diff-row.is-after span,
+.player-skill-level-diff-row.is-after strong {
+    color: var(--gold);
+}
+
+.player-skill-level-diff-row.is-added span,
+.player-skill-level-diff-row.is-added strong {
+    color: rgba(220, 216, 205, 0.58);
+    font-style: italic;
 }
 
 .player-skill-editor-help {

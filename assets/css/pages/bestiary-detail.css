@@ -58,6 +58,18 @@
     background: linear-gradient(135deg, var(--gold), #f1d36b);
 }
 
+.bestiary-detail-action--danger {
+    color: #ffd8d8;
+    border-color: rgba(180, 54, 54, 0.62);
+    background: rgba(92, 17, 17, 0.34);
+}
+
+.bestiary-detail-action--danger:hover,
+.bestiary-detail-action--danger:focus-visible {
+    border-color: rgba(255, 104, 104, 0.72);
+    background: rgba(132, 24, 24, 0.46);
+}
+
 .bestiary-detail-shell {
     display: grid;
     gap: 1.25rem;

@@ -462,7 +462,7 @@ function getSkillNodeLevels(node) {
     const base = {
         title: node?.title || '',
         flavor: node?.flavor || '',
-        desc: node?.desc || '',
+        desc: normalizeSkillLevelStoredHtml(node?.desc || ''),
         icon: node?.icon || ''
     };
     const normalized = rawLevels
@@ -470,7 +470,7 @@ function getSkillNodeLevels(node) {
             label: level?.label || `Livello ${index + 1}`,
             title: level?.title || '',
             flavor: level?.flavor || '',
-            desc: level?.desc || level?.description || '',
+            desc: normalizeSkillLevelStoredHtml(level?.desc || level?.description || ''),
             icon: level?.icon || ''
         }))
         .filter((level) => level.title || level.flavor || level.desc || level.icon || level.label);
@@ -484,6 +484,582 @@ function getSkillNodeLevels(node) {
     ];
 }
 
+function cleanSkillLevelHtmlTemplate(template) {
+    if (!template?.content) return;
+    template.content
+        .querySelectorAll('script, style, iframe, object, embed, .player-skill-level-diff, [data-skill-level-diff], .player-skill-level-future-addition, [data-skill-level-future-addition]')
+        .forEach((entry) => entry.remove());
+    template.content
+        .querySelectorAll('mark, .player-skill-level-change-highlight, .player-skill-level-scaling-token, [data-skill-level-values]')
+        .forEach((entry) => entry.replaceWith(document.createTextNode(entry.textContent || '')));
+}
+
+function normalizeSkillLevelStoredHtml(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (typeof document === 'undefined') return skillLevelEditorTextToHtml(skillLevelHtmlToEditorText(raw));
+
+    const template = document.createElement('template');
+    template.innerHTML = /<[a-z][\s\S]*>/i.test(raw) ? raw : skillLevelEditorTextToHtml(raw);
+    cleanSkillLevelHtmlTemplate(template);
+
+    template.content.querySelectorAll('*').forEach((entry) => {
+        const tag = entry.tagName.toLowerCase();
+        if (!['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'span', 'div'].includes(tag)) {
+            entry.replaceWith(document.createTextNode(entry.textContent || ''));
+            return;
+        }
+        Array.from(entry.attributes).forEach((attribute) => entry.removeAttribute(attribute.name));
+    });
+    template.content.querySelectorAll('span').forEach((entry) => {
+        while (entry.firstChild) entry.parentNode.insertBefore(entry.firstChild, entry);
+        entry.remove();
+    });
+    template.content.querySelectorAll('div').forEach((entry) => {
+        const paragraph = document.createElement('p');
+        while (entry.firstChild) paragraph.appendChild(entry.firstChild);
+        entry.replaceWith(paragraph);
+    });
+
+    return template.innerHTML.trim();
+}
+
+function skillLevelHtmlToEditorText(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (!/<[a-z][\s\S]*>/i.test(raw)) return raw;
+
+    const withBreaks = raw
+        .replace(/<br\s*\/?>(?!\n)/gi, '\n')
+        .replace(/<\/li>\s*<li[^>]*>/gi, '</li>\n<li>')
+        .replace(/<\/(p|div|blockquote|h[1-6])>\s*<(p|div|blockquote|h[1-6])[^>]*>/gi, '</$1>\n\n<$2>');
+
+    if (typeof document !== 'undefined') {
+        const template = document.createElement('template');
+        template.innerHTML = withBreaks;
+        cleanSkillLevelHtmlTemplate(template);
+        return String(template.content?.textContent || withBreaks)
+            .replace(/\u00a0/g, ' ')
+            .replace(/[ \t]+\n/g, '\n')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
+    return withBreaks
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function skillLevelEditorTextToHtml(value) {
+    const text = String(value || '').replace(/\r\n/g, '\n').trim();
+    if (!text) return '';
+    return text.split(/\n{2,}/)
+        .map((block) => block.trim())
+        .filter(Boolean)
+        .map((block) => {
+            const lines = block.split(/\n/).map((line) => line.trim()).filter(Boolean);
+            if (lines.length && lines.every((line) => /^[-*]\s+/.test(line))) {
+                return '<ul>' + lines.map((line) => '<li>' + escapeHtml(line.replace(/^[-*]\s+/, '')) + '</li>').join('') + '</ul>';
+            }
+            return '<p>' + escapeHtml(block).replace(/\n/g, '<br>') + '</p>';
+        })
+        .join('');
+}
+
+function extractSkillLevelDiffText(value) {
+    return skillLevelHtmlToEditorText(value).replace(/\s+/g, ' ').trim();
+}
+
+function getCommonSuffixLength(left, right, prefixLength) {
+    let count = 0;
+    const max = Math.min(left.length, right.length) - prefixLength;
+    while (count < max && left[left.length - 1 - count] === right[right.length - 1 - count]) {
+        count += 1;
+    }
+    return count;
+}
+
+function buildSkillLevelTextDiff(previousValue, currentValue) {
+    const previous = extractSkillLevelDiffText(previousValue);
+    const current = extractSkillLevelDiffText(currentValue);
+    if (!previous && !current) return { state: 'empty' };
+    if (previous === current) return { state: 'same' };
+
+    let prefixLength = 0;
+    while (
+        prefixLength < previous.length
+        && prefixLength < current.length
+        && previous[prefixLength] === current[prefixLength]
+    ) {
+        prefixLength += 1;
+    }
+
+    const suffixLength = getCommonSuffixLength(previous, current, prefixLength);
+    const previousEnd = suffixLength ? previous.length - suffixLength : previous.length;
+    const currentEnd = suffixLength ? current.length - suffixLength : current.length;
+
+    return {
+        state: 'changed',
+        before: previous.slice(prefixLength, previousEnd).trim(),
+        after: current.slice(prefixLength, currentEnd).trim()
+    };
+}
+
+function getEditableLevelDescription(level) {
+    return normalizeSkillLevelStoredHtml(level?.desc || level?.description || '');
+}
+
+function getEffectiveSkillLevelDescription(node, index) {
+    if (!node) return '';
+    const descriptions = getSkillLevelScalingDescriptions(node);
+    const safeIndex = Math.max(0, Math.round(Number(index) || 0));
+    return descriptions[safeIndex]
+        || descriptions[safeIndex - 1]
+        || normalizeSkillLevelStoredHtml(node.baseDesc || node.desc || '')
+        || '<p>Descrizione potenziamento.</p>';
+}
+
+function getNodeLevelComparisonDescription(node, index) {
+    if (!node) return '';
+    return getEffectiveSkillLevelDescription(node, Math.max(0, Math.round(Number(index) || 0) - 1));
+}
+
+function renderSkillLevelDiffHtml(previousValue, currentValue, index) {
+    const previousText = extractSkillLevelDiffText(previousValue);
+    const currentText = extractSkillLevelDiffText(currentValue);
+    if (!previousText && !currentText) {
+        return `<div class="player-skill-level-diff is-empty" data-skill-level-diff="${escapeHtml(index)}">Nessun testo da confrontare.</div>`;
+    }
+    if (previousText === currentText) {
+        return `<div class="player-skill-level-diff is-same" data-skill-level-diff="${escapeHtml(index)}">Nessuna variazione rispetto al livello precedente.</div>`;
+    }
+
+    const changes = buildSkillLevelScalingChanges([previousValue, currentValue]);
+    const insertions = buildSkillLevelFutureInsertions(previousValue, currentValue)
+        .map((entry) => String(entry.text || '').trim())
+        .filter(Boolean);
+    if (!changes.length && !insertions.length) {
+        return `<div class="player-skill-level-diff is-empty" data-skill-level-diff="${escapeHtml(index)}">Testo diverso, ma nessun valore scalabile rilevato.</div>`;
+    }
+
+    const changeRows = changes.length ? `
+            <div class="player-skill-level-diff-row is-before">
+                <span>Prima</span>
+                <strong>${escapeHtml(changes.map((change) => change.values[0]).join(' / '))}</strong>
+            </div>
+            <div class="player-skill-level-diff-row is-after">
+                <span>Dopo</span>
+                <strong>${escapeHtml(changes.map((change) => change.values[1]).join(' / '))}</strong>
+            </div>` : '';
+    const insertionRows = insertions.length ? `
+            <div class="player-skill-level-diff-row is-added">
+                <span>Aggiunto</span>
+                <strong>${escapeHtml(insertions.join(' / '))}</strong>
+            </div>` : '';
+
+    return `
+        <div class="player-skill-level-diff" data-skill-level-diff="${escapeHtml(index)}">
+            ${changeRows}
+            ${insertionRows}
+        </div>
+    `;
+}
+
+function refreshSkillLevelDiffPreview(row, node, index) {
+    const diffElement = row?.querySelector?.('[data-skill-level-diff]');
+    if (!diffElement) return;
+    const current = getEffectiveSkillLevelDescription(node, index);
+    const previous = getNodeLevelComparisonDescription(node, index);
+    diffElement.outerHTML = renderSkillLevelDiffHtml(previous, current, index);
+}
+
+function buildSkillLevelTextNodeMap(text) {
+    const normalized = [];
+    const map = [];
+    let pendingWhitespaceStart = -1;
+    let pendingWhitespaceEnd = -1;
+
+    const flushWhitespace = () => {
+        if (pendingWhitespaceStart < 0) return;
+        if (normalized.length && normalized[normalized.length - 1] !== ' ') {
+            normalized.push(' ');
+            map.push({ start: pendingWhitespaceStart, end: pendingWhitespaceEnd });
+        }
+        pendingWhitespaceStart = -1;
+        pendingWhitespaceEnd = -1;
+    };
+
+    for (let index = 0; index < text.length; index += 1) {
+        const char = text[index];
+        if (/\s/.test(char)) {
+            if (pendingWhitespaceStart < 0) pendingWhitespaceStart = index;
+            pendingWhitespaceEnd = index + 1;
+            continue;
+        }
+        flushWhitespace();
+        normalized.push(char);
+        map.push({ start: index, end: index + 1 });
+    }
+
+    return { normalized: normalized.join('').trim(), map };
+}
+
+function getSkillLevelHtmlWithTextBreaks(value) {
+    return String(value || '')
+        .replace(/<br\s*\/?>(?!\n)/gi, '\n')
+        .replace(/<\/li>\s*<li[^>]*>/gi, '</li>\n<li>')
+        .replace(/<\/(p|div|blockquote|h[1-6])>\s*<(p|div|blockquote|h[1-6])[^>]*>/gi, '</$1>\n\n<$2>');
+}
+
+function tokenizeSkillLevelText(text) {
+    const tokens = [];
+    const source = String(text || '');
+    const matcher = /\S+/g;
+    let match;
+    while ((match = matcher.exec(source))) {
+        tokens.push({ value: match[0], start: match.index, end: match.index + match[0].length });
+    }
+    return tokens;
+}
+
+function getSkillLevelScalingDescriptions(node) {
+    const rawLevels = Array.isArray(node?.levels) ? node.levels : [];
+    const baseDescription = normalizeSkillLevelStoredHtml(node?.baseDesc || node?.desc || getEditableLevelDescription(rawLevels[0]) || '');
+    if (!rawLevels.length) return [baseDescription];
+
+    const descriptions = [baseDescription];
+    for (let index = 1; index < rawLevels.length; index += 1) {
+        descriptions.push(getEditableLevelDescription(rawLevels[index]) || descriptions[index - 1] || baseDescription);
+    }
+    return descriptions;
+}
+
+function normalizeSkillLevelCompareToken(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
+        .trim();
+}
+
+function getSkillLevelDisplayTokenValue(value) {
+    return String(value || '')
+        .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
+        .trim();
+}
+
+function buildSkillLevelTokenAnchors(baseTokens, targetTokens) {
+    const base = baseTokens.map((token) => normalizeSkillLevelCompareToken(token.value));
+    const target = targetTokens.map((token) => normalizeSkillLevelCompareToken(token.value));
+    const rows = base.length + 1;
+    const cols = target.length + 1;
+    const table = Array.from({ length: rows }, () => Array(cols).fill(0));
+
+    for (let row = base.length - 1; row >= 0; row -= 1) {
+        for (let col = target.length - 1; col >= 0; col -= 1) {
+            table[row][col] = base[row] && base[row] === target[col]
+                ? table[row + 1][col + 1] + 1
+                : Math.max(table[row + 1][col], table[row][col + 1]);
+        }
+    }
+
+    const anchors = [];
+    let row = 0;
+    let col = 0;
+    while (row < base.length && col < target.length) {
+        if (base[row] && base[row] === target[col]) {
+            anchors.push({ baseIndex: row, targetIndex: col });
+            row += 1;
+            col += 1;
+        } else if (table[row + 1][col] >= table[row][col + 1]) {
+            row += 1;
+        } else {
+            col += 1;
+        }
+    }
+    return anchors;
+}
+
+function alignSkillLevelTokensToBase(baseTokens, targetTokens) {
+    const aligned = Array(baseTokens.length).fill(undefined);
+    const anchors = buildSkillLevelTokenAnchors(baseTokens, targetTokens);
+    const allAnchors = [
+        { baseIndex: -1, targetIndex: -1 },
+        ...anchors,
+        { baseIndex: baseTokens.length, targetIndex: targetTokens.length }
+    ];
+
+    anchors.forEach((anchor) => {
+        aligned[anchor.baseIndex] = targetTokens[anchor.targetIndex]?.value;
+    });
+
+    for (let index = 0; index < allAnchors.length - 1; index += 1) {
+        const current = allAnchors[index];
+        const next = allAnchors[index + 1];
+        const baseStart = current.baseIndex + 1;
+        const baseEnd = next.baseIndex;
+        const targetStart = current.targetIndex + 1;
+        const targetEnd = next.targetIndex;
+        const baseGap = baseEnd - baseStart;
+        const targetGap = targetEnd - targetStart;
+
+        if (baseGap <= 0 || targetGap <= 0 || baseGap !== targetGap) continue;
+        for (let offset = 0; offset < baseGap; offset += 1) {
+            aligned[baseStart + offset] = targetTokens[targetStart + offset]?.value;
+        }
+    }
+
+    return aligned;
+}
+
+
+function trimInsertionDuplicateTrailingPunctuation(text, punctuation) {
+    if (!punctuation) return text;
+    let output = String(text || '');
+    punctuation.split('').reverse().forEach((char) => {
+        const trimmed = output.trimEnd();
+        if (!trimmed.endsWith(char)) return;
+        output = trimmed.slice(0, -char.length);
+    });
+    return output;
+}
+
+function buildSkillLevelFutureInsertions(currentHtml, futureHtml) {
+    const currentText = skillLevelHtmlToEditorText(currentHtml);
+    const futureText = skillLevelHtmlToEditorText(futureHtml);
+    const currentTokens = tokenizeSkillLevelText(currentText);
+    const futureTokens = tokenizeSkillLevelText(futureText);
+    if (!currentTokens.length || !futureTokens.length) return [];
+
+    const anchors = buildSkillLevelTokenAnchors(currentTokens, futureTokens);
+    const allAnchors = [
+        { baseIndex: -1, targetIndex: -1 },
+        ...anchors,
+        { baseIndex: currentTokens.length, targetIndex: futureTokens.length }
+    ];
+    const insertions = [];
+
+    for (let index = 0; index < allAnchors.length - 1; index += 1) {
+        const current = allAnchors[index];
+        const next = allAnchors[index + 1];
+        const currentStart = current.baseIndex + 1;
+        const currentEnd = next.baseIndex;
+        const futureStart = current.targetIndex + 1;
+        const futureEnd = next.targetIndex;
+        const currentGap = currentEnd - currentStart;
+        const futureGap = futureEnd - futureStart;
+        if (currentGap !== 0 || futureGap <= 0) continue;
+
+        const previousCurrentToken = current.baseIndex >= 0 ? currentTokens[current.baseIndex] : null;
+        const previousFutureToken = current.targetIndex >= 0 ? futureTokens[current.targetIndex] : null;
+        const nextCurrentToken = next.baseIndex < currentTokens.length ? currentTokens[next.baseIndex] : null;
+        const nextFutureToken = next.targetIndex < futureTokens.length ? futureTokens[next.targetIndex] : null;
+        const textStart = previousFutureToken ? previousFutureToken.end : futureTokens[futureStart]?.start ?? 0;
+        const textEnd = nextFutureToken ? nextFutureToken.start : futureTokens[futureEnd - 1]?.end ?? futureText.length;
+        let text = futureText.slice(textStart, textEnd);
+        let offset = previousCurrentToken ? previousCurrentToken.end : nextCurrentToken?.start ?? currentText.length;
+
+        const punctuation = previousCurrentToken?.value?.match(/[.,;:!?]+$/)?.[0] || '';
+        const samePreviousToken = previousCurrentToken && previousFutureToken
+            && normalizeSkillLevelCompareToken(previousCurrentToken.value) === normalizeSkillLevelCompareToken(previousFutureToken.value);
+        if (punctuation && samePreviousToken && !previousFutureToken.value.endsWith(punctuation)) {
+            offset = Math.max(previousCurrentToken.start, previousCurrentToken.end - punctuation.length);
+            text = trimInsertionDuplicateTrailingPunctuation(text, punctuation);
+        }
+
+        if (!String(text || '').trim()) continue;
+        insertions.push({ offset, text });
+    }
+
+    return insertions;
+}
+
+function markSkillLevelFutureAdditions(levelHtml, futureHtml, levelIndex = 0) {
+    if (!futureHtml || typeof document === 'undefined') return levelHtml;
+    const insertions = buildSkillLevelFutureInsertions(levelHtml, futureHtml);
+    if (!insertions.length) return levelHtml;
+
+    const template = document.createElement('template');
+    template.innerHTML = levelHtml;
+    const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let fullText = '';
+    while (walker.nextNode()) {
+        const node = walker.currentNode;
+        const start = fullText.length;
+        const text = String(node.textContent || '');
+        fullText += text;
+        textNodes.push({ node, start, end: fullText.length, insertions: [] });
+    }
+
+    insertions.forEach((insertion) => {
+        const offset = Math.max(0, Math.min(fullText.length, insertion.offset));
+        const owner = textNodes.find((entry) => offset >= entry.start && offset <= entry.end) || textNodes[textNodes.length - 1];
+        if (!owner) return;
+        owner.insertions.push({
+            offset: offset - owner.start,
+            text: insertion.text
+        });
+    });
+
+    textNodes.forEach((owner) => {
+        if (!owner.insertions.length) return;
+        const text = String(owner.node.textContent || '');
+        const replacements = [];
+        let cursor = 0;
+        owner.insertions
+            .sort((left, right) => left.offset - right.offset)
+            .forEach((insertion) => {
+                const offset = Math.max(cursor, Math.min(text.length, insertion.offset));
+                if (offset > cursor) replacements.push(document.createTextNode(text.slice(cursor, offset)));
+                const span = document.createElement('span');
+                span.className = 'player-skill-level-future-addition';
+                span.dataset.skillLevelFutureAddition = String(levelIndex + 2);
+                span.title = 'Aggiunto dal livello ' + (levelIndex + 2);
+                span.textContent = insertion.text;
+                replacements.push(span);
+                cursor = offset;
+            });
+        if (cursor < text.length) replacements.push(document.createTextNode(text.slice(cursor)));
+        owner.node.replaceWith(...replacements);
+    });
+
+    return template.innerHTML;
+}
+
+function buildSkillLevelScalingChanges(descriptions) {
+    const tokenLists = descriptions.map((description) => tokenizeSkillLevelText(skillLevelHtmlToEditorText(description)));
+    const baseTokens = tokenLists[0] || [];
+    if (!baseTokens.length || tokenLists.length < 2) return [];
+
+    const alignedLists = tokenLists.map((tokens, index) => (
+        index === 0 ? baseTokens.map((token) => token.value) : alignSkillLevelTokensToBase(baseTokens, tokens)
+    ));
+
+    return baseTokens.map((token, tokenIndex) => {
+        const rawValues = alignedLists.map((tokens) => tokens[tokenIndex]);
+        if (rawValues.some((value) => value === undefined || value === '')) return null;
+        const values = rawValues.map(getSkillLevelDisplayTokenValue);
+        if (values.some((value) => !value)) return null;
+        const uniqueValues = new Set(values.map((value) => normalizeSkillLevelCompareToken(value)));
+        if (uniqueValues.size <= 1) return null;
+        return { tokenIndex, values };
+    }).filter(Boolean);
+}
+
+function markSkillLevelScalingTokens(levelHtml, changes, levelIndex = 0) {
+    if (!changes.length || typeof document === 'undefined') return levelHtml;
+
+    const template = document.createElement('template');
+    template.innerHTML = getSkillLevelHtmlWithTextBreaks(levelHtml);
+    const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let fullText = '';
+    while (walker.nextNode()) {
+        const node = walker.currentNode;
+        const start = fullText.length;
+        const text = String(node.textContent || '');
+        fullText += text;
+        textNodes.push({ node, start, end: fullText.length, marks: [] });
+    }
+
+    const levelTokens = tokenizeSkillLevelText(fullText);
+    const valuesByLevelToken = new Map();
+    changes.forEach((change) => {
+        const value = change.values?.[levelIndex];
+        const normalized = normalizeSkillLevelCompareToken(value);
+        if (!normalized) return;
+        if (!valuesByLevelToken.has(normalized)) valuesByLevelToken.set(normalized, []);
+        valuesByLevelToken.get(normalized).push(change.values);
+    });
+
+    levelTokens.forEach((token) => {
+        const normalized = normalizeSkillLevelCompareToken(token.value);
+        const valueSets = valuesByLevelToken.get(normalized);
+        if (!valueSets?.length) return;
+        const values = valueSets.shift();
+        const owner = textNodes.find((entry) => token.start >= entry.start && token.end <= entry.end);
+        if (!owner) return;
+        owner.marks.push({
+            start: token.start - owner.start,
+            end: token.end - owner.start,
+            values
+        });
+    });
+
+    textNodes.forEach((owner) => {
+        if (!owner.marks.length) return;
+        const text = String(owner.node.textContent || '');
+        const replacements = [];
+        let cursor = 0;
+
+        owner.marks
+            .sort((left, right) => left.start - right.start)
+            .forEach((markData) => {
+                if (markData.start < cursor) return;
+                if (markData.start > cursor) replacements.push(document.createTextNode(text.slice(cursor, markData.start)));
+
+                const mark = document.createElement('mark');
+                mark.className = 'player-skill-level-change-highlight player-skill-level-scaling-token';
+                mark.title = markData.values.join(' / ');
+                mark.dataset.skillLevelValues = markData.values.join(' / ');
+                mark.textContent = text.slice(markData.start, markData.end);
+                replacements.push(mark);
+                cursor = markData.end;
+            });
+
+        if (cursor < text.length) replacements.push(document.createTextNode(text.slice(cursor)));
+        owner.node.replaceWith(...replacements);
+    });
+
+    return template.innerHTML;
+}
+
+function renderSkillNodeDescriptionForReading(node) {
+    const descriptions = getSkillLevelScalingDescriptions(node);
+    const levelIndex = Math.max(0, Math.min(descriptions.length - 1, Math.round(Number(node?.level) || 1) - 1));
+    const currentDescription = descriptions[levelIndex] || descriptions[0] || '<p>Nessun dettaglio disponibile.</p>';
+    if (descriptions.length <= 1) return currentDescription;
+
+    const changes = buildSkillLevelScalingChanges(descriptions);
+    let renderedDescription = changes.length
+        ? markSkillLevelScalingTokens(currentDescription, changes, levelIndex)
+        : currentDescription;
+    if (descriptions[levelIndex + 1]) {
+        renderedDescription = markSkillLevelFutureAdditions(renderedDescription, descriptions[levelIndex + 1], levelIndex);
+    }
+    return renderedDescription;
+}
+
+function normalizeSkillTreeDefinitionForSave(treeData) {
+    if (!treeData || typeof treeData !== 'object') return treeData;
+    return {
+        ...treeData,
+        nodes: Array.isArray(treeData.nodes)
+            ? treeData.nodes.map((node) => ({
+                ...node,
+                desc: normalizeSkillLevelStoredHtml(node?.desc || ''),
+                levels: Array.isArray(node?.levels)
+                    ? node.levels.map((level) => {
+                        const normalizedDesc = normalizeSkillLevelStoredHtml(level?.desc || level?.description || '');
+                        return {
+                            ...level,
+                            desc: normalizedDesc,
+                            ...(level && Object.prototype.hasOwnProperty.call(level, 'description') ? { description: normalizedDesc } : {})
+                        };
+                    })
+                    : node?.levels
+            }))
+            : treeData.nodes
+    };
+}
+
 function applySkillNodeLevel(node, levelValue) {
     const levels = getSkillNodeLevels(node);
     const maxLevel = levels.length;
@@ -491,6 +1067,10 @@ function applySkillNodeLevel(node, levelValue) {
     const data = levels[level - 1] || levels[0] || {};
     return {
         ...node,
+        baseTitle: node.baseTitle || node.title,
+        baseFlavor: node.baseFlavor || node.flavor,
+        baseDesc: node.baseDesc || node.desc,
+        baseIcon: node.baseIcon || node.icon,
         title: data.title || node.title,
         flavor: data.flavor || node.flavor,
         desc: data.desc || node.desc,
@@ -746,6 +1326,9 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const requirementsLabel = requirementNames.length
             ? `<p class="player-skill-info-requirements"><strong>REQUISITI:</strong> ${escapeHtml(requirementNames.join(', '))}</p>`
             : '';
+        const descriptionHtml = editable
+            ? (node.desc || '<p>Nessun dettaglio disponibile.</p>')
+            : renderSkillNodeDescriptionForReading(node);
         const richTextToolbar = editable ? `
                     <div class="player-skill-rich-toolbar" role="toolbar" aria-label="Formato descrizione abilita">
                         <button type="button" data-skill-rich-command="bold" title="Grassetto"><i class="fas fa-bold" aria-hidden="true"></i></button>
@@ -766,7 +1349,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     ${editable || node.flavor ? `<p class="player-skill-info-flavor" ${editable ? 'contenteditable="true" data-skill-preview-field="flavor" spellcheck="true"' : ''}>${escapeHtml(node.flavor || '')}</p>` : ''}
                     ${richTextToolbar}
                     ${requirementsLabel}
-                    <div class="player-skill-info-desc ${editable ? 'is-editable' : ''}" ${editable ? 'contenteditable="true" data-skill-preview-field="desc" spellcheck="true"' : ''}>${node.desc || '<p>Nessun dettaglio disponibile.</p>'}</div>
+                    <div class="player-skill-info-desc ${editable ? 'is-editable' : ''}" ${editable ? 'contenteditable="true" data-skill-preview-field="desc" spellcheck="true"' : ''}>${descriptionHtml}</div>
                 `;
     };
 
@@ -1077,6 +1660,13 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             if (icon) nodeElement.style.backgroundImage = `url('${icon}')`;
             nodeElement.setAttribute('aria-label', node.title || 'Abilita');
             nodeElement.dataset.nodeId = String(node.id);
+            if (Number(node.maxLevel || 1) > 1 && Number(node.level || 1) > 1) {
+                const levelBadge = document.createElement('span');
+                levelBadge.className = 'player-skill-node-level-badge';
+                levelBadge.textContent = String(node.level || 1);
+                levelBadge.setAttribute('aria-hidden', 'true');
+                nodeElement.appendChild(levelBadge);
+            }
             if (canEditTree) {
                 const linkAnchor = document.createElement('span');
                 linkAnchor.className = 'player-skill-node-link-anchor';
@@ -1287,8 +1877,11 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
 
     const saveTreeDefinition = async () => {
         const nextTrees = { ...(skillsMemoryCache || allSkillTrees || {}) };
-        nextTrees[treeKey] = workingTree;
+        nextTrees[treeKey] = normalizeSkillTreeDefinitionForSave(workingTree);
         await saveSkillTreesData(nextTrees);
+        workingTree = structuredClone(nextTrees[treeKey]);
+        renderTree();
+        renderEditor();
         alert('Albero abilita salvato.');
     };
 
@@ -1445,27 +2038,39 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 </div>
             </details>
         ` : '';
-        const upgradeLevels = Array.isArray(node?.levels) ? node.levels.slice(1) : [];
+        const allNodeLevels = Array.isArray(node?.levels) ? node.levels : [];
+        const upgradeLevels = allNodeLevels.slice(1);
         const upgradeLevelsHtml = `
             <details class="player-skill-editor-section player-skill-level-editor" ${upgradeLevels.length ? 'open' : ''}>
                 <summary>Livelli nodo</summary>
                 <div class="player-skill-level-list">
                     ${upgradeLevels.length ? upgradeLevels.map((level, offset) => {
                         const index = offset + 1;
+                        const currentDescription = getEffectiveSkillLevelDescription(node, index);
+                        const currentEditorHtml = normalizeSkillLevelStoredHtml(currentDescription) || '<p><br></p>';
+                        const previousDescription = getNodeLevelComparisonDescription(node, index);
                         return `
                             <div class="player-skill-level-row" data-skill-level-row="${index}">
-                                <label>Etichetta
+                                <label class="player-skill-level-meta">Etichetta
                                     <input type="text" data-node-level-index="${index}" data-node-level-field="label" value="${escapeHtml(level.label || `Livello ${index + 1}`)}">
                                 </label>
-                                <label>Titolo
+                                <label class="player-skill-level-meta">Titolo
                                     <input type="text" data-node-level-index="${index}" data-node-level-field="title" value="${escapeHtml(level.title || '')}" placeholder="vuoto = titolo base">
-                                </label>
-                                <label>Descrizione
-                                    <textarea rows="4" data-node-level-index="${index}" data-node-level-field="desc" placeholder="Descrizione del potenziamento">${escapeHtml(level.desc || level.description || '')}</textarea>
                                 </label>
                                 <button type="button" class="player-skill-action-button is-danger is-compact" data-skill-action="delete-node-level" data-node-level-index="${index}">
                                     <i class="fas fa-trash"></i> Livello
                                 </button>
+                                <div class="player-skill-level-text">
+                                    <span>Testo livello</span>
+                                    <div class="player-skill-rich-toolbar player-skill-level-rich-toolbar" role="toolbar" aria-label="Formato testo livello">
+                                        <button type="button" data-skill-level-rich-command="bold" title="Grassetto"><i class="fas fa-bold" aria-hidden="true"></i></button>
+                                        <button type="button" data-skill-level-rich-command="italic" title="Corsivo"><i class="fas fa-italic" aria-hidden="true"></i></button>
+                                        <button type="button" data-skill-level-rich-command="insertUnorderedList" title="Elenco puntato"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
+                                        <button type="button" data-skill-level-rich-command="insertOrderedList" title="Elenco numerato"><i class="fas fa-list-ol" aria-hidden="true"></i></button>
+                                    </div>
+                                    <div class="player-skill-level-rich-editor" contenteditable="true" data-node-level-index="${index}" data-node-level-field="desc" spellcheck="true">${currentEditorHtml}</div>
+                                </div>
+                                ${renderSkillLevelDiffHtml(previousDescription, currentDescription, index)}
                             </div>
                         `;
                     }).join('') : '<p class="player-skill-editor-help">Nessun potenziamento. Il livello 1 usa il testo del nodo base.</p>'}
@@ -1615,7 +2220,8 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
 
     editorPanel?.addEventListener('input', (event) => {
         const target = event.target;
-        if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)) return;
+        if (!(target instanceof HTMLElement)) return;
+        const isFormControl = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
         const levelIndex = target.dataset.nodeLevelIndex;
         const levelField = target.dataset.nodeLevelField;
         if (levelIndex !== undefined && levelField) {
@@ -1623,9 +2229,18 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             const levels = ensureEditableNodeLevels(node);
             const index = Math.max(1, Math.round(Number(levelIndex) || 1));
             if (!levels[index]) levels[index] = { label: `Livello ${index + 1}`, title: '', flavor: '', desc: '', icon: '' };
-            levels[index][levelField] = target.value;
+            if (levelField === 'desc' || levelField === 'description') {
+                const editorHtml = target.isContentEditable
+                    ? normalizeSkillTreeEditableHtml(target)
+                    : skillLevelEditorTextToHtml(target.value);
+                levels[index][levelField] = normalizeSkillLevelStoredHtml(editorHtml);
+                refreshSkillLevelDiffPreview(target.closest('.player-skill-level-row'), node, index);
+            } else if (isFormControl) {
+                levels[index][levelField] = target.value;
+            }
             return;
         }
+        if (!isFormControl) return;
         const tool = target.dataset.skillTool;
         if (tool === 'snapGrid') {
             snapToGrid = target.checked;
@@ -1732,7 +2347,29 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         renderEditor();
     }, true);
 
+    editorPanel?.addEventListener('mousedown', (event) => {
+        if (event.target.closest('[data-skill-level-rich-command]')) {
+            event.preventDefault();
+        }
+    });
+
     editorPanel?.addEventListener('click', async (event) => {
+        const richButton = event.target.closest('[data-skill-level-rich-command]');
+        if (richButton) {
+            event.preventDefault();
+            const row = richButton.closest('[data-skill-level-row]');
+            const descEditor = row?.querySelector('[data-node-level-field="desc"]');
+            if (!(descEditor instanceof HTMLElement)) return;
+            descEditor.focus();
+            document.execCommand(richButton.dataset.skillLevelRichCommand, false, null);
+            const node = readEditorNode();
+            const levels = ensureEditableNodeLevels(node);
+            const index = Math.max(1, Math.round(Number(descEditor.dataset.nodeLevelIndex) || 1));
+            if (!levels[index]) levels[index] = { label: `Livello ${index + 1}`, title: '', flavor: '', desc: '', icon: '' };
+            levels[index].desc = normalizeSkillLevelStoredHtml(normalizeSkillTreeEditableHtml(descEditor));
+            refreshSkillLevelDiffPreview(row, node, index);
+            return;
+        }
         const button = event.target.closest('[data-skill-action]');
         if (!button) return;
         const action = button.dataset.skillAction;
@@ -1802,11 +2439,14 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             const node = readEditorNode();
             if (!node) return;
             const levels = ensureEditableNodeLevels(node);
+            const previousIndex = Math.max(0, levels.length - 1);
+            const previousLevel = levels[previousIndex] || null;
+            const previousDescription = getEffectiveSkillLevelDescription(node, previousIndex);
             levels.push({
                 label: `Livello ${levels.length + 1}`,
-                title: '',
-                flavor: '',
-                desc: node.desc || '<p>Descrizione potenziamento.</p>',
+                title: previousLevel?.title || node.title || '',
+                flavor: previousLevel?.flavor || '',
+                desc: normalizeSkillLevelStoredHtml(previousDescription || node.desc || '<p>Descrizione potenziamento.</p>'),
                 icon: ''
             });
             renderTree();

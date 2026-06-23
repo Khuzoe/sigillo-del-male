@@ -640,6 +640,10 @@
             saveInlineCharacterEdits();
             return;
         }
+        if (action === 'delete-character') {
+            deleteInlineCharacter();
+            return;
+        }
         if (action === 'upload-character-image') {
             uploadInlineCharacterImage(actionButton.dataset.inlineCharacterImageTarget || 'avatar');
             return;
@@ -842,6 +846,9 @@
                 const priority = runtime.normalizeCategoryPriority?.(value);
                 if (priority === null) delete character.categoryPriority;
                 else character.categoryPriority = priority;
+            } else if (fields.characterField === 'hidden') {
+                if (target.checked) character.hidden = true;
+                else delete character.hidden;
             } else {
                 character[fields.characterField] = value;
             }
@@ -1208,6 +1215,63 @@
         }
     }
 
+    async function deleteInlineCharacter() {
+        if (inlineCharacterSaveInFlight || !runtime.currentCharacter) return;
+        const token = runtime.readAuthToken?.() || '';
+        if (!token) {
+            alert('Login richiesto: accedi come DM prima di eliminare.');
+            return;
+        }
+
+        const character = runtime.currentCharacter;
+        const characterName = character.name || 'questo NPC';
+        if (!window.confirm(`Eliminare definitivamente "${characterName}" dalla wiki? I media locali e R2 non verranno cancellati.`)) return;
+
+        inlineCharacterSaveInFlight = true;
+        const toolbar = runtime.container?.querySelector('[data-inline-edit-toolbar]');
+        toolbar?.setAttribute('data-saving', 'true');
+
+        try {
+            const originalId = slugify(character._originalId || runtime.charId || character.id || character.name || '');
+            const currentId = slugify(character.id || character.name || '');
+            const idsToDelete = new Set([originalId, currentId].filter(Boolean));
+            await runtime.saveVersionedCollection?.({
+                load: runtime.loadCharactersDocumentForSave,
+                url: runtime.getCharactersApiUrl?.(),
+                token,
+                buildData: (sourceData) => {
+                    const nextData = Array.isArray(sourceData) ? sourceData.slice() : [];
+                    return nextData.filter((entry) => {
+                        const entryId = slugify(entry?.id || entry?.name || '');
+                        return !idsToDelete.has(entryId);
+                    });
+                }
+            });
+            window.CriptaApp?.api?.clearCache?.();
+
+            const nextAllCharacters = (Array.isArray(runtime.currentAllCharacters) ? runtime.currentAllCharacters : []).filter((entry) => {
+                const entryId = slugify(entry?.id || entry?.name || '');
+                return !idsToDelete.has(entryId);
+            });
+            setCurrentAllCharacters(nextAllCharacters);
+            isInlineEditing = false;
+            inlineEditDirty = false;
+            inlineEditBlocks = [];
+            runtime.editLinkEl?.classList.remove('is-editing');
+
+            const targetUrl = new URL('../npcs.html', window.location.href);
+            const campaignId = window.CriptaApp?.campaigns?.currentId?.();
+            if (campaignId && campaignId !== 'cripta-di-sangue') targetUrl.searchParams.set('campaign', campaignId);
+            window.location.href = targetUrl.toString();
+        } catch (error) {
+            console.error('Eliminazione inline NPC fallita:', error);
+            alert(`Eliminazione fallita: ${error?.message || error}`);
+        } finally {
+            inlineCharacterSaveInFlight = false;
+            toolbar?.removeAttribute('data-saving');
+        }
+    }
+
     function mergeInlineCharacterIntoCollection(sourceData, updatedCharacter, originalId, nextId) {
         const nextData = Array.isArray(sourceData) ? sourceData.slice() : [];
         const targetIndex = nextData.findIndex((entry) => {
@@ -1231,6 +1295,8 @@
         serialized.name = character.name || 'NPC senza nome';
         serialized.type = character.type || 'npc';
         serialized.category = character.category || '';
+        if (character.hidden === true) serialized.hidden = true;
+        else delete serialized.hidden;
         const categoryPriority = runtime.normalizeCategoryPriority?.(character.categoryPriority);
         if (categoryPriority === null) delete serialized.categoryPriority;
         else serialized.categoryPriority = categoryPriority;
@@ -1363,6 +1429,9 @@
                         <span>Scrivi nei blocchi, aggiungi sezioni o elimina quelle inutili.</span>
                     </div>
                     <div class="character-inline-toolbar__actions">
+                        <button type="button" class="character-inline-btn character-inline-btn--danger" data-inline-edit-action="delete-character">
+                            <i class="fas fa-trash"></i> Elimina NPC
+                        </button>
                         <button type="button" class="character-inline-btn character-inline-btn--ghost" data-inline-edit-action="cancel">
                             <i class="fas fa-xmark"></i> Annulla
                         </button>
@@ -1532,6 +1601,13 @@
                                 <span>Priorita categoria</span>
                                 <input type="number" step="1" value="${escapeHtml(formatCategoryPriorityValue(character.categoryPriority))}" data-inline-character-field="categoryPriority" placeholder="vuoto = alfabetico">
                             </label>
+                            <div class="character-inline-field character-inline-field--toggle">
+                                <span>Visibilita</span>
+                                <label class="character-inline-check">
+                                    <input type="checkbox" data-inline-character-field="hidden"${character.hidden === true ? ' checked' : ''}>
+                                    <strong>Nascosto ai giocatori</strong>
+                                </label>
+                            </div>
                             <label class="character-inline-field">
                                 <span>Idle lista</span>
                                 <div class="character-inline-image-field-row" data-inline-character-image-drop-target="idle">

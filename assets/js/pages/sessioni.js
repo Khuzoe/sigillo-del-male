@@ -153,6 +153,7 @@ function renderTimeline(sessions) {
         let xpFooter = '';
         if (session.xp) {
             const xpBonusHtml = renderXpBonusList(session.xp.bonus);
+            const rewardHtml = renderSessionReward(session.reward);
             xpFooter = `
             <div class="xp-footer">
                 <div class="xp-main">
@@ -163,14 +164,12 @@ function renderTimeline(sessions) {
                     </div>
                 </div>
                 ${xpBonusHtml}
+                ${rewardHtml}
             </div>`;
         } else if (session.reward) {
             xpFooter = `
             <div class="xp-footer">
-                <i class="fas fa-gift" style="color: var(--gold); font-size: 1.2rem;"></i>
-                <div>
-                    <span class="xp-value">${session.reward}</span>
-                </div>
+                ${renderSessionReward(session.reward)}
             </div>`;
         } else {
             xpFooter = "";
@@ -202,6 +201,17 @@ function renderPartyChangeBadge(change) {
 
     const icon = type === 'in' ? 'fa-right-to-bracket' : 'fa-right-from-bracket';
     return `<span class="party-change-badge party-change-${type}"><i class="fas ${icon}"></i>${name}</span>`;
+}
+
+function renderSessionReward(reward) {
+    const text = String(reward || '').trim();
+    if (!text) return '';
+    return `
+        <div class="xp-reward">
+            <i class="fas fa-gift" aria-hidden="true"></i>
+            <span>${escapeHtml(text)}</span>
+        </div>
+    `;
 }
 
 function renderXpBonusList(bonuses) {

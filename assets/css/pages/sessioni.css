@@ -330,6 +330,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
             gap: 1.5rem;
             font-family: var(--font-ui);
             font-size: 1rem;
@@ -361,6 +362,21 @@
             min-width: min(100%, 360px);
             padding-left: 1.25rem;
             border-left: 1px solid rgba(212, 175, 55, 0.14);
+        }
+
+        .xp-reward {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            min-width: min(100%, 260px);
+            padding-left: 1.25rem;
+            border-left: 1px solid rgba(212, 175, 55, 0.14);
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        .xp-reward i {
+            color: var(--gold);
         }
 
         .xp-bonus-label {

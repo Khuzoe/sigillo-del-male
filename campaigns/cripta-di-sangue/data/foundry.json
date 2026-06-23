@@ -2007,8 +2007,43 @@
           "total": "0",
           "each": "0"
         }
+      },
+      {
+        "id": 25,
+        "date": "24/05/2026",
+        "summary": "<p>Non intenzionato ad attendere 830 settimane per l'appuntamento con Tokka, Valdor decide di entrare nel suo laboratorio. Nota intorno esperimenti, progetti, oggetti magici e materiali pregiati disseminati nella stanza.</p><p>Iniziate ad interagire con lui, specialmente Valdor, e notate che sta realizzando una spada particolare composta da minerali grezzi, raggruppati tra loro da una forza gravitazionale in fase di calibrazione.</p><p>Venite a conoscenza di un costrutto impazzito, una delle prime creazioni di Tokka in ambito meccanico e biologico. Questo sembra essere alimentato da un cuore dentro di lui, che plausibilmente lo ha fatto impazzire.</p><p>Tokka vi chiede di recuperarlo, senza entrare troppo nel dettaglio riguardo alla ricompensa; inoltre, vi concede l'aiuto della sua Vergine di Ferro durante questo scontro.</p><p>Vi dirigete dall'enorme costrutto e riuscite ad abbatterlo, modulo dopo modulo, liberando la caverna in cui stava ancora scavando.</p>",
+        "xp": {
+          "total": "12000",
+          "each": "3000"
+        }
+      },
+      {
+        "id": 26,
+        "date": "02/06/2026",
+        "summary": "<p>Dopo aver sconfitto l'enorme costrutto trivella, iniziate ad esaminare il suo corpo e la zona circostante. Recuperate qualche minerale particolare, un diamante, il cuore della creatura e notate una galleria che porta verso il basso.</p><p>Vi dirigete nuovamente verso Tokka e gli fornite il cuore che avete recuperato. Lui, in cambio, vi fornisce il suo cuore dandovi la possibilità di controllare una delle sue creazioni: uno scudo guardiano di nome Velkarya Klaren. Tokka vi chiede nuovamente di recuperare il suo minerale prezioso, sottrattogli da Zara, facendovi aiutare anche da Velkarya. Inoltre, una volta ottenuto il cuore, il vostro sigillo sembra reagire, fornendovi ulteriore poteri.</p><p>Proseguite poi con l'esplorazione, risolvendo l'enigma con gli specchi ed aprendo qualcosa che per il momento non vi è chiaro. La figura di Theldarion è ancora adesso presente su ognuno di loro, saltellando sorridente.</p><p>Infine, iniziate a dirigervi verso nord dove intravedete una figura che rimanda a Rendar, l'uomo che avete visto più volte nelle visioni. Capite immediatamente che egli è afflitto dai rimorsi e, nel vero senso della parola, lo aiutate a combatterli.</p>",
+        "xp": {
+          "total": "0",
+          "each": "0"
+        },
+        "skillPoint": true
+      },
+      {
+        "id": 27,
+        "date": "21/06/2026",
+        "summary": "<p>Riuscite a sconfiggere tutti i rimorsi di Rendar e a farlo tornare in sé. Poi, lo convincete a seguirvi, per farlo riunire a Ginevra.</p><p>Lungo la via del ritorno incontrate Karla, la quale in modo enigmatico vi porge alcune domande riguardanti i vostri progressi. Parlando con lei, vi rendete conto che sembra essere interessata a qualcosa che possa interagire con i sigilli che ha creato sul vostro petto; per il momento fate finta di niente e tornate ognuno per la sua strada.</p><p>Riuscite a portare Rendar da Ginevra: quando questo accade, lei partorisce uno dei cuori nella sfera e il vostro sigillo interagisce immediatamente, incrementando i poteri che vi fornisce.</p><p>Infine tornate a riposare, e Ran'Dra inizia a preparare qualcosa da mangiare per voi. Tuttavia, inserisce del sangue di cane decomposto nel panino di Valdor per fargli uno scherzo. Valdor e Ga'Run si arrabbiano, e mentre Ran'Dra ride divertita, Ga'Run le dà uno schiaffo.</p>",
+        "xp": {
+          "total": "24850",
+          "each": "6212",
+          "bonus": [
+            {
+              "name": "Randra",
+              "amount": "500"
+            }
+          ]
+        },
+        "reward": "Randra +1 punto abilità (Albero Zara)",
+        "skillPoint": true
       }
     ]
   }
 }
-

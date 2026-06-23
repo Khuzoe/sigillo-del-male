@@ -1,10 +1,32 @@
 {
-  "itemCount": 3,
+  "itemCount": 4,
   "sessionIds": [
-    24,
-    25
+    26,
+    27
   ],
   "items": [
+    {
+      "id": "ginevra",
+      "name": "Ginevra Von T",
+      "role": "L'Alambicco Vivente",
+      "avatar": "media/creatures/transp/ginevra_transp.webp",
+      "hover": "media/campaigns/cripta-di-sangue/characters/ginevra/hover.webp",
+      "token": "media/campaigns/cripta-di-sangue/characters/ginevra/token.webp",
+      "hoverFallback": "media/campaigns/cripta-di-sangue/characters/ginevra/token.webp",
+      "url": "pages/characters/character.html?id=ginevra",
+      "score": 8
+    },
+    {
+      "id": "karla",
+      "name": "Karla Von T",
+      "role": "La Vampira",
+      "avatar": "media/creatures/transp/karla_transp.webp",
+      "hover": "media/campaigns/cripta-di-sangue/characters/karla/hover.webp",
+      "token": "media/campaigns/cripta-di-sangue/characters/karla/token.webp",
+      "hoverFallback": "media/campaigns/cripta-di-sangue/characters/karla/token.webp",
+      "url": "pages/characters/character.html?id=karla",
+      "score": 4
+    },
     {
       "id": "tokka",
       "name": "Tokka Von T",
@@ -14,18 +36,7 @@
       "token": "media/campaigns/cripta-di-sangue/characters/tokka/token.webp",
       "hoverFallback": "media/campaigns/cripta-di-sangue/characters/tokka/token.webp",
       "url": "pages/characters/character.html?id=tokka",
-      "score": 14
-    },
-    {
-      "id": "franky",
-      "name": "Franky",
-      "role": "Lo Scienziato",
-      "avatar": "media/creatures/transp/franky_transp.webp",
-      "hover": "media/campaigns/cripta-di-sangue/characters/franky/hover.webp",
-      "token": "media/campaigns/cripta-di-sangue/characters/franky/token.webp",
-      "hoverFallback": "media/campaigns/cripta-di-sangue/characters/franky/token.webp",
-      "url": "pages/characters/character.html?id=franky",
-      "score": 2
+      "score": 4
     },
     {
       "id": "zara",

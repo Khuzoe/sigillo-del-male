@@ -116,7 +116,7 @@ function renderMarkdown(md, options = {}) {
     return window.CriptaMarkdown.render(md, getCharacterMarkdownOptions(options));
 }
 
-const CHARACTER_MODULE_VERSION = '20260620-shared-skill-tree3';
+const CHARACTER_MODULE_VERSION = '20260623-npc-solo-dm1';
 
 function versionedCharacterModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);
@@ -3072,8 +3072,10 @@ window.CriptaApp.onPageReady("character", async function () {
             if (!relatedChar) return '';
             if (window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers() && !window.WikiSpoiler.isVisible(relatedChar)) return '';
 
+            const hiddenFromPlayers = relatedChar.hidden === true || relatedChar.status === 'hidden';
             return `
-                    <a href="?id=${relatedChar.id}" class="npc-card">
+                    <a href="?id=${relatedChar.id}" class="npc-card ${hiddenFromPlayers ? 'npc-card--dm-hidden' : ''}">
+                        ${hiddenFromPlayers ? '<span class="npc-player-visibility-badge"><i class="fas fa-user-shield" aria-hidden="true"></i>Solo M</span>' : ''}
                         <div class="npc-avatar-container">
                             <img src="${resolveImagePath(relatedChar.images.idle || relatedChar.images.token || relatedChar.images.avatar)}" alt="${relatedChar.name}" class="npc-img-pop img-main" loading="lazy" decoding="async" style="${buildImageStyle('avatar', relatedChar.images.idleAdjust || relatedChar.images.avatarAdjust, relatedChar.images.hoverAdjust)}" onerror="this.src='${resolveImagePath(relatedChar.images.idleFallback || relatedChar.images.token || relatedChar.images.avatarFallback || '')}'; this.onerror=null;">
                             <img src="${resolveImagePath(relatedChar.images.hover || relatedChar.images.token || relatedChar.images.idle)}" alt="${relatedChar.name} Reveal" class="npc-img-pop img-hover" loading="lazy" decoding="async" style="${buildImageStyle('hover', relatedChar.images.hoverAdjust, relatedChar.images.idleAdjust || relatedChar.images.avatarAdjust)}" onerror="this.src='${resolveImagePath(relatedChar.images.hoverFallback || relatedChar.images.token || relatedChar.images.idleFallback || '')}'; this.onerror=null;">
@@ -3107,7 +3109,11 @@ window.CriptaApp.onPageReady("character", async function () {
         // Set page title and header
         document.title = `${character.name} | Cripta di Sangue`;
         charNameEl.textContent = character.name;
-        charRoleEl.textContent = character.role;
+        const hiddenFromPlayers = charType !== 'player' && (character.hidden === true || character.status === 'hidden');
+        const dmOnlyBadge = currentUserIsDm && hiddenFromPlayers
+            ? '<span class="npc-detail-dm-badge"><i class="fas fa-user-shield" aria-hidden="true"></i>Solo M</span>'
+            : '';
+        charRoleEl.innerHTML = `${escapeHtml(character.role || '')}${dmOnlyBadge}`;
         container.innerHTML = '';
 
         document.body.classList.toggle('page-character--skill-tree-only', skillTreeOnlyView);

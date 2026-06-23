@@ -433,6 +433,8 @@ function parseYamlLite(yamlText) {
             const card = document.createElement('a');
             card.href = buildNpcDetailUrl({ id: npc.id, type: 'npc' });
             card.className = 'npc-card';
+            const hiddenFromPlayers = npc.hidden === true || npc.status === 'hidden';
+            if (hiddenFromPlayers) card.classList.add('npc-card--dm-hidden');
             const avatarImage = npc.images.idle || npc.images.token || npc.images.avatar || '';
             const hoverImage = npc.images.hover || npc.images.token || avatarImage;
             const avatarFallback = npc.images.idleFallback || npc.images.token || npc.images.avatarFallback || '';
@@ -443,6 +445,7 @@ function parseYamlLite(yamlText) {
 
             card.innerHTML = `
                 <span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>
+                ${hiddenFromPlayers ? '<span class="npc-player-visibility-badge"><i class="fas fa-user-shield" aria-hidden="true"></i>Solo M</span>' : ''}
                 <div class="npc-avatar-container">
                     <img src="${resolveNpcImageUrl(npc, avatarImage, base_path)}" data-fallback-src="${resolveNpcImageUrl(npc, avatarFallback, base_path)}" alt="${npc.name}" class="npc-img-pop img-main" loading="lazy" decoding="async" style="${buildImageStyle('avatar', npc.images.idleAdjust || npc.images.avatarAdjust, npc.images.hoverAdjust)}" onerror="this.src=this.dataset.fallbackSrc || ''; this.onerror=null;">
                     <img src="${resolveNpcImageUrl(npc, hoverImage, base_path)}" data-fallback-src="${resolveNpcImageUrl(npc, hoverFallback, base_path)}" alt="${npc.name} Reveal" class="npc-img-pop img-hover" loading="lazy" decoding="async" style="${buildImageStyle('hover', npc.images.hoverAdjust, npc.images.idleAdjust || npc.images.avatarAdjust)}" onerror="this.src=this.dataset.fallbackSrc || ''; this.onerror=null;">

@@ -1,5 +1,5 @@
 {
-  "itemCount": 87,
+  "itemCount": 89,
   "items": [
     {
       "id": "item:cuore-di-albert",
@@ -858,6 +858,32 @@
         "session"
       ],
       "content": "Non intenzionato ad attendere 830 settimane per l'appuntamento con Tokka, Valdor decide di entrare nel suo laboratorio. Nota intorno esperimenti, progetti, oggetti magici e materiali pregiati disseminati nella stanza. Iniziate ad interagire con lui, specialmente Valdor, e notate che sta realizzando una spada particolare composta da minerali grezzi, raggruppati tra loro da una forza gravitazionale in fase di calibrazione. Venite a conoscenza di un costrutto impazzito, una delle prime creazioni di Tokka in ambito meccanico e biologico. Questo sembra essere alimentato da un cuore dentro di lui, ..."
+    },
+    {
+      "id": "session:26",
+      "type": "session",
+      "entityId": "26",
+      "title": "Sessione 26",
+      "subtitle": "02/06/2026",
+      "url": "pages/sessioni.html#session-26",
+      "tags": [
+        "session",
+        "skill-point"
+      ],
+      "content": "Dopo aver sconfitto l'enorme costrutto trivella, iniziate ad esaminare il suo corpo e la zona circostante. Recuperate qualche minerale particolare, un diamante, il cuore della creatura e notate una galleria che porta verso il basso. Vi dirigete nuovamente verso Tokka e gli fornite il cuore che avete recuperato. Lui, in cambio, vi fornisce il suo cuore dandovi la possibilità di controllare una delle sue creazioni: uno scudo guardiano di nome Velkarya Klaren. Tokka vi chiede nuovamente di recuperare il suo minerale prezioso, sottrattogli da Zara, facendovi aiutare anche da Velkarya. Inoltre, un..."
+    },
+    {
+      "id": "session:27",
+      "type": "session",
+      "entityId": "27",
+      "title": "Sessione 27",
+      "subtitle": "21/06/2026",
+      "url": "pages/sessioni.html#session-27",
+      "tags": [
+        "session",
+        "skill-point"
+      ],
+      "content": "Riuscite a sconfiggere tutti i rimorsi di Rendar e a farlo tornare in sé. Poi, lo convincete a seguirvi, per farlo riunire a Ginevra. Lungo la via del ritorno incontrate Karla, la quale in modo enigmatico vi porge alcune domande riguardanti i vostri progressi. Parlando con lei, vi rendete conto che sembra essere interessata a qualcosa che possa interagire con i sigilli che ha creato sul vostro petto; per il momento fate finta di niente e tornate ognuno per la sua strada. Riuscite a portare Rendar da Ginevra: quando questo accade, lei partorisce uno dei cuori nella sfera e il vostro sigillo in..."
     },
     {
       "id": "session:3",
