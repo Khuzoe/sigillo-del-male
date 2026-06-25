@@ -1,6 +1,14 @@
 assets/data/foundry.json
 module/
 workers/
+!workers/
+workers/*
+!workers/main-worker/
+workers/main-worker/*
+!workers/main-worker/src/
+workers/main-worker/src/*
+!workers/main-worker/src/index.js
+!workers/main-worker/wrangler.jsonc
 workers/*/node_modules/
 workers/*/.wrangler/
 workers/*/.dev.vars

@@ -2,7 +2,6 @@
   "campaignName": "Nome Campagna",
   "pollTitle": "Sondaggio disponibilità",
   "pollSubtitle": "Prossima sessione",
-  "discordWebhookUrl": "",
   "disableDiscordNotifications": false,
   "number": 1,
   "dmAccountId": "",

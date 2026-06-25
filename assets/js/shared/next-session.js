@@ -2,7 +2,6 @@
     const API_BASE_URL = typeof window.CriptaApp?.config?.workerOrigin === 'string'
         ? window.CriptaApp.config.workerOrigin
         : (typeof DISCORD_WORKER_URL === 'string' ? DISCORD_WORKER_URL : 'https://sigillo-api.khuzoe.workers.dev');
-    const SESSION_CARD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1482056374731931860/7ls24iTa_HMAgwwTbY8Qc96tf79LOxk3f6epN_iW6PHDgI51Dg70UkKgFT5aVQSZRM03';
     const STORAGE_PREFIX = 'cripta-next-session-votes';
     const NEXT_SESSION_CONFIG_OVERRIDE_KEY = 'cripta-next-session-config-override';
     const PLAYERS_DATA_PATH = 'data/players.json';
@@ -164,6 +163,17 @@
                 body: buildSessionSavePayload(config)
             }, 'Session API POST');
         },
+        sendPollLink(config, token = '') {
+            return this.request('api/session/discord/poll-link', {
+                method: 'POST',
+                token,
+                body: {
+                    campaignId: config?.campaignId || getCurrentCampaignId(),
+                    number: config?.number,
+                    pollUrl: getSessionPollUrl(config)
+                }
+            }, 'Session Discord API');
+        },
         getVotes(sessionNumber) {
             return this.request('api/session-votes', {
                 method: 'GET',
@@ -241,7 +251,6 @@
             pollSubtitle: normalizeItalianLabel(config?.pollSubtitle),
             sessionCardImage: String(config?.sessionCardImage || config?.ui?.sessionCardImage || '').trim(),
             sessionCardImageVersion: String(config?.sessionCardImageVersion || config?.ui?.sessionCardImageVersion || '').trim(),
-            discordWebhookUrl: String(config?.discordWebhookUrl || '').trim(),
             disableDiscordNotifications: Boolean(config?.disableDiscordNotifications),
             number: Number(config?.number) || 1,
             dmAccountId: String(config?.dmAccountId || '').trim(),
@@ -315,7 +324,6 @@
             pollSubtitle: cleanConfig.pollSubtitle,
             sessionCardImage: cleanConfig.sessionCardImage,
             sessionCardImageVersion: cleanConfig.sessionCardImageVersion,
-            discordWebhookUrl: cleanConfig.discordWebhookUrl,
             disableDiscordNotifications: cleanConfig.disableDiscordNotifications,
             date: cleanConfig.date,
             timeStart: cleanConfig.timeStart,
@@ -327,13 +335,6 @@
 
     function getCurrentCampaignId() {
         return String(window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue').trim() || 'cripta-di-sangue';
-    }
-
-    function getSessionWebhookUrl(config) {
-        if (config?.disableDiscordNotifications) return '';
-        const explicitWebhookUrl = String(config?.discordWebhookUrl || '').trim();
-        if (explicitWebhookUrl) return explicitWebhookUrl;
-        return getCurrentCampaignId() === 'cripta-di-sangue' ? SESSION_CARD_WEBHOOK_URL : '';
     }
 
     function getAssetsBasePath() {
@@ -1057,55 +1058,52 @@
         downloadBlob(blob, filename);
     }
 
-    async function postSessionCardToDiscord(config, viewMode = '') {
+    function buildSessionDiscordApiUrl(pathname, campaignId) {
+        const cleanPath = String(pathname || '').replace(/^\/+/, '');
+        const url = new URL(`${API_BASE_URL}/${cleanPath}`);
+        url.searchParams.set('campaign', campaignId || getCurrentCampaignId());
+        return url;
+    }
+
+    async function readSessionDiscordApiResponse(response, label) {
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+            const message = payload?.error || payload?.message || '';
+            throw new Error(message ? `${label} HTTP ${response.status}: ${message}` : `${label} HTTP ${response.status}`);
+        }
+        if (payload?.missingWebhook || payload?.disabled) return null;
+        return payload;
+    }
+
+    async function postSessionCardToDiscord(config, viewMode = '', token = '') {
         const effectiveConfig = sanitizeNextSessionConfig(config);
-        const webhookUrl = getSessionWebhookUrl(effectiveConfig);
-        if (!webhookUrl) return null;
+        if (effectiveConfig.disableDiscordNotifications) return null;
         const { blob, filename } = await renderSessionCardPngBlob(effectiveConfig, viewMode);
         const formData = new FormData();
-        const content = effectiveConfig.isScheduled
-            ? `@everyone Sessione ${effectiveConfig.number} fissata: ${effectiveConfig.date} · ${effectiveConfig.timeStart} - ${effectiveConfig.timeEnd}`
-            : `Sessione ${effectiveConfig.number} - card generata`;
-
-        formData.append('content', content);
+        formData.append('campaignId', effectiveConfig.campaignId || getCurrentCampaignId());
+        formData.append('number', String(effectiveConfig.number || ''));
+        formData.append('viewMode', viewMode || '');
         formData.append('file', blob, filename);
 
-        const response = await fetch(`${webhookUrl}?wait=true`, {
+        const response = await fetch(buildSessionDiscordApiUrl('api/session/discord/card', effectiveConfig.campaignId), {
             method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
             body: formData
         });
 
-        if (!response.ok) {
-            const responseText = await response.text().catch(() => '');
-            throw new Error(responseText || `Webhook Discord HTTP ${response.status}`);
-        }
-
-        return response.json().catch(() => null);
+        return readSessionDiscordApiResponse(response, 'Session Discord API');
     }
 
-    async function postSessionPollLinkToDiscord(config) {
+    async function postSessionPollLinkToDiscord(config, token = '') {
         const effectiveConfig = sanitizeNextSessionConfig(config);
-        const webhookUrl = getSessionWebhookUrl(effectiveConfig);
-        if (!webhookUrl) return null;
-        const pollUrl = getSessionPollUrl(effectiveConfig);
-        const response = await fetch(`${webhookUrl}?wait=true`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                content: `@everyone Nuova sessione ${effectiveConfig.number} creata.\nVota qui: ${pollUrl}`
-            })
-        });
-
-        if (!response.ok) {
-            const responseText = await response.text().catch(() => '');
-            throw new Error(responseText || `Webhook Discord HTTP ${response.status}`);
-        }
-
-        return response.json().catch(() => null);
+        if (effectiveConfig.disableDiscordNotifications) return null;
+        const payload = await sessionApiService.sendPollLink(effectiveConfig, token);
+        if (payload?.missingWebhook || payload?.disabled) return null;
+        return payload;
     }
-
     function getSessionPollUrl(config) {
         const campaignId = String(config?.campaignId || '').trim();
         if (typeof window.CriptaApp?.urls?.pollPage === 'function') {
@@ -1417,7 +1415,6 @@
                 pollSubtitle: localOnlyConfig.pollSubtitle || remoteConfig.pollSubtitle,
                 sessionCardImage: localOnlyConfig.sessionCardImage || remoteConfig.sessionCardImage,
                 sessionCardImageVersion: localOnlyConfig.sessionCardImageVersion || remoteConfig.sessionCardImageVersion,
-                discordWebhookUrl: localOnlyConfig.discordWebhookUrl || remoteConfig.discordWebhookUrl,
                 disableDiscordNotifications: typeof localOnlyConfig.disableDiscordNotifications === 'boolean'
                     ? localOnlyConfig.disableDiscordNotifications
                     : remoteConfig.disableDiscordNotifications,
@@ -2272,7 +2269,7 @@
                             const savedConfig = await postRemoteSessionConfig(scheduledConfig, authToken);
                             persistNextSessionConfig(savedConfig);
                             try {
-                                await postSessionCardToDiscord(savedConfig, VIEW_MODES.scheduled);
+                                await postSessionCardToDiscord(savedConfig, VIEW_MODES.scheduled, authToken);
                             } catch (discordError) {
                                 console.error('Impossibile inviare la card su Discord:', discordError);
                             }
@@ -2352,7 +2349,7 @@
                         statusMessage = 'Invio link del sondaggio su Discord...';
                         refreshPollVotesDom();
                         try {
-                            const result = await postSessionPollLinkToDiscord(effectiveConfig);
+                            const result = await postSessionPollLinkToDiscord(effectiveConfig, authToken);
                             statusMessage = result === null
                                 ? 'Webhook Discord non configurato per questa campagna.'
                                 : 'Link del sondaggio inviato su Discord.';
@@ -2566,7 +2563,7 @@
                             const savedConfig = await postRemoteSessionConfig(nextConfig, authToken);
                             persistNextSessionConfig(savedConfig);
                             try {
-                                await postSessionPollLinkToDiscord(savedConfig);
+                                await postSessionPollLinkToDiscord(savedConfig, authToken);
                             } catch (discordError) {
                                 console.error('Impossibile inviare il link del sondaggio su Discord:', discordError);
                             }

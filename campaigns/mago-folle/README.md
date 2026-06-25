@@ -17,8 +17,8 @@ Gli asset icona possono essere:
 
 Non serve avere `sessions.json` o riassunti sessione se usi solo la pagina sondaggio.
 
-Se vuoi l'invio automatico su Discord per questa campagna, imposta `discordWebhookUrl`.
-Se lo lasci vuoto, il sondaggio funziona comunque ma non posta nel canale Discord.
+Se vuoi l'invio automatico su Discord per questa campagna, configura il secret Worker `SESSION_DISCORD_WEBHOOKS`. Non mettere webhook Discord nei JSON pubblici.
+Se il secret non contiene la campagna, il sondaggio funziona comunque ma non posta nel canale Discord.
 
 Se un utente non e DM ma deve poter gestire il sondaggio, aggiungilo a `pollManagerAccountIds` e `pollManagerDiscordIds`.
 
