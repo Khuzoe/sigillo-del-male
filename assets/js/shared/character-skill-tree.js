@@ -1,5 +1,6 @@
 (function () {
     const SKILL_TREE_ICON_SIZE = 256;
+    const SKILL_NODE_DRAG_THRESHOLD_PX = 5;
     let skillTreeRuntime = {};
     let PLAYER_SKILL_TREE_KEYS = {};
     let skillsMemoryCache = null;
@@ -1323,8 +1324,11 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const requirementNames = getNodePrerequisites(node, workingTree)
             .map((id) => getSkillTreeNodeLabel(workingTree, id))
             .filter(Boolean);
+        const requirementMode = getSkillTreeRequirementMode(node);
         const requirementsLabel = requirementNames.length
-            ? `<p class="player-skill-info-requirements"><strong>REQUISITI:</strong> ${escapeHtml(requirementNames.join(', '))}</p>`
+            ? requirementMode === 'any'
+                ? `<p class="player-skill-info-requirements is-any"><strong>REQUISITO:</strong> almeno uno tra ${escapeHtml(requirementNames.join(', '))}</p>`
+                : `<p class="player-skill-info-requirements is-all"><strong>REQUISITI:</strong> ${escapeHtml(requirementNames.join(', '))}</p>`
             : '';
         const descriptionHtml = editable
             ? (node.desc || '<p>Nessun dettaglio disponibile.</p>')
@@ -1753,9 +1757,20 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
 
             if (canEditTree) {
                 let dragging = false;
+                let dragStarted = false;
                 let dragPointerId = null;
+                let dragStartClientX = 0;
+                let dragStartClientY = 0;
                 const moveNode = (event) => {
                     if (!dragging || !editMode || event.pointerId !== dragPointerId) return;
+                    const deltaX = event.clientX - dragStartClientX;
+                    const deltaY = event.clientY - dragStartClientY;
+                    if (!dragStarted && Math.hypot(deltaX, deltaY) < SKILL_NODE_DRAG_THRESHOLD_PX) return;
+                    if (!dragStarted) {
+                        dragStarted = true;
+                        nodeElement.classList.add('is-dragging');
+                    }
+                    event.preventDefault();
                     const rect = treeContainer.getBoundingClientRect();
                     const target = workingTree.nodes.find((entry) => String(entry.id) === String(node.id));
                     if (!target) return;
@@ -1771,23 +1786,29 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 };
                 const finishDrag = (event) => {
                     if (!dragging || event.pointerId !== dragPointerId) return;
+                    const shouldRenderAfterDrag = dragStarted;
                     dragging = false;
+                    dragStarted = false;
                     dragPointerId = null;
                     nodeElement.classList.remove('is-dragging');
                     hideSnapGuides();
                     if (nodeElement.hasPointerCapture?.(event.pointerId)) {
                         nodeElement.releasePointerCapture(event.pointerId);
                     }
-                    renderTree();
-                    renderEditor();
+                    if (shouldRenderAfterDrag) {
+                        renderTree();
+                        renderEditor();
+                    }
                 };
                 nodeElement.addEventListener('pointerdown', (event) => {
                     if (!editMode || event.target.closest?.('.player-skill-node-link-anchor')) return;
                     event.preventDefault();
                     dragging = true;
+                    dragStarted = false;
                     dragPointerId = event.pointerId;
+                    dragStartClientX = event.clientX;
+                    dragStartClientY = event.clientY;
                     selectedNodeId = String(node.id);
-                    nodeElement.classList.add('is-dragging');
                     nodeElement.setPointerCapture(event.pointerId);
                 });
                 nodeElement.addEventListener('pointermove', moveNode);
@@ -1795,12 +1816,16 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 nodeElement.addEventListener('pointercancel', finishDrag);
                 nodeElement.addEventListener('lostpointercapture', () => {
                     if (!dragging) return;
+                    const shouldRenderAfterDrag = dragStarted;
                     dragging = false;
+                    dragStarted = false;
                     dragPointerId = null;
                     nodeElement.classList.remove('is-dragging');
                     hideSnapGuides();
-                    renderTree();
-                    renderEditor();
+                    if (shouldRenderAfterDrag) {
+                        renderTree();
+                        renderEditor();
+                    }
                 });
                 nodeElement.addEventListener('dblclick', selectNode);
             }

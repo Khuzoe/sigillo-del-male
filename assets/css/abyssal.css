@@ -473,7 +473,7 @@ body.is-embed .container {
     background: rgba(92, 24, 24, 0.48);
     color: rgba(255, 190, 176, 0.94);
     font-family: var(--font-ui);
-    font-size: 0.66rem;
+    font-size: 0.64rem;
     font-weight: 900;
     letter-spacing: 0.06em;
     line-height: 1;
@@ -703,7 +703,7 @@ body.is-embed .container {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 0.35rem;
+    gap: 0.28rem;
 }
 
 .player-status-badge {
@@ -1584,6 +1584,34 @@ body.is-embed .container {
     border-color: rgba(212, 175, 55, 0.72);
     background: rgba(212, 175, 55, 0.08);
     color: var(--text-main);
+}
+
+.player-skill-info-requirements {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.28rem;
+    align-items: center;
+    margin: 0.6rem 0 0;
+    color: #ff7a70;
+    font-family: var(--font-ui);
+    font-size: 0.64rem;
+    line-height: 1.45;
+    letter-spacing: 0.015em;
+    text-transform: none;
+}
+
+.player-skill-info-requirements strong {
+    color: #ff7a70;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.player-skill-info-requirements.is-any {
+    color: #d9bd64;
+}
+
+.player-skill-info-requirements.is-any strong {
+    color: #d9bd64;
 }
 
 .player-skill-link-editor-grid {
@@ -2987,7 +3015,7 @@ body.is-embed .container {
 .availability-option-time {
     margin-top: 0.28rem;
     font-family: var(--font-ui);
-    font-size: 0.66rem;
+    font-size: 0.64rem;
     line-height: 1.1;
     color: #d6b35f;
     letter-spacing: 0.04em;
@@ -3448,7 +3476,7 @@ body.next-session-editor-open {
 }
 
 .next-session-calendar-grid {
-    gap: 0.35rem;
+    gap: 0.28rem;
     padding: 0.6rem;
 }
 
@@ -5314,7 +5342,7 @@ body.page-bestiario .hero-mini {
     font-family: var(--font-ui);
     font-size: 0.72rem;
     font-weight: 700;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.015em;
     cursor: pointer;
     transition:
         border-color 160ms ease,
@@ -5793,7 +5821,7 @@ body.page-bestiario .hero-mini {
 .bestiary-modal-stats dt {
     margin-bottom: 0.3rem;
     font-family: var(--font-ui);
-    font-size: 0.66rem;
+    font-size: 0.64rem;
     font-weight: 800;
     letter-spacing: 0.11em;
     text-transform: uppercase;
@@ -6191,7 +6219,7 @@ body.page-oggetti .hero-mini {
 
 .item-inline-editor-field {
     display: grid;
-    gap: 0.35rem;
+    gap: 0.28rem;
     color: rgba(232, 219, 188, 0.76);
     font-family: var(--font-ui);
     font-size: 0.7rem;
@@ -6877,7 +6905,7 @@ body.page-oggetti .hero-mini {
     .items-grid-section-header {
         align-items: flex-start;
         flex-direction: column;
-        gap: 0.35rem;
+        gap: 0.28rem;
     }
 
     .item-card {
@@ -6926,7 +6954,7 @@ body.page-oggetti .hero-mini {
 .bestiary-modal-defense h3 {
     margin: 0 0 0.55rem;
     font-family: var(--font-ui);
-    font-size: 0.66rem;
+    font-size: 0.64rem;
     font-weight: 800;
     letter-spacing: 0.11em;
     text-transform: uppercase;
@@ -7185,7 +7213,7 @@ body.page-appunti .hero-mini {
 .notes-sync-status {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.28rem;
     color: rgba(232, 219, 188, 0.56);
     font-family: var(--font-ui);
     font-size: 0.7rem;
@@ -7267,7 +7295,7 @@ body.page-appunti .hero-mini {
     align-items: flex-start;
     justify-content: flex-start;
     align-content: flex-start;
-    gap: 0.35rem;
+    gap: 0.28rem;
 }
 
 .notes-tag-filters[hidden] {
@@ -7287,7 +7315,7 @@ body.page-appunti .hero-mini {
     background: rgba(0, 0, 0, 0.18);
     color: rgba(232, 219, 188, 0.7);
     font-family: var(--font-ui);
-    font-size: 0.66rem;
+    font-size: 0.64rem;
     font-weight: 800;
     cursor: pointer;
 }
@@ -7331,7 +7359,7 @@ body.page-appunti .hero-mini {
 .notes-shared-field {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.28rem;
     min-height: 2.15rem;
     padding: 0 0.55rem;
     border: 1px solid rgba(212, 175, 55, 0.18);
@@ -7386,7 +7414,7 @@ body.page-appunti .hero-mini {
 .notes-list-item strong {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.28rem;
     color: var(--ink-ivory);
     font-family: var(--font-heading);
     font-size: 0.98rem;
@@ -7462,7 +7490,7 @@ body.page-appunti .hero-mini {
 .notes-merged-author-filter {
     display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.28rem;
     min-height: 1.9rem;
     padding: 0.28rem 0.58rem;
     border: 1px solid rgba(212, 175, 55, 0.24);
@@ -7858,7 +7886,7 @@ body.page-appunti .hero-mini {
     .bestiary-heading {
         align-items: flex-start;
         flex-direction: column;
-        gap: 0.35rem;
+        gap: 0.28rem;
     }
 
     .bestiary-grid {
@@ -7867,7 +7895,7 @@ body.page-appunti .hero-mini {
 
     .bestiary-filter-row {
         grid-template-columns: 1fr;
-        gap: 0.35rem;
+        gap: 0.28rem;
     }
 
     .bestiary-filter-row>span {
