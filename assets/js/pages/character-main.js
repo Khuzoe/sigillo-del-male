@@ -116,7 +116,7 @@ function renderMarkdown(md, options = {}) {
     return window.CriptaMarkdown.render(md, getCharacterMarkdownOptions(options));
 }
 
-const CHARACTER_MODULE_VERSION = '20260705-skill-node-drag1';
+const CHARACTER_MODULE_VERSION = '20260705-skill-desc-font1';
 
 function versionedCharacterModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);
@@ -729,19 +729,25 @@ function normalizeSkillTreeEditableHtml(element) {
     source.querySelectorAll('script, style, iframe, object, embed').forEach((entry) => entry.remove());
     source.querySelectorAll('*').forEach((entry) => {
         const tag = entry.tagName.toLowerCase();
-        if (!['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'span', 'div'].includes(tag)) {
+        if (/^h[1-6]$/.test(tag) || tag === 'blockquote' || tag === 'section' || tag === 'article' || tag === 'div') {
+            const paragraph = document.createElement('p');
+            while (entry.firstChild) paragraph.appendChild(entry.firstChild);
+            if (!paragraph.textContent.trim() && !paragraph.querySelector('br')) {
+                paragraph.appendChild(document.createElement('br'));
+            }
+            entry.replaceWith(paragraph);
+            return;
+        }
+        if (['font', 'small', 'big', 'span'].includes(tag)) {
+            while (entry.firstChild) entry.parentNode.insertBefore(entry.firstChild, entry);
+            entry.remove();
+            return;
+        }
+        if (!['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li'].includes(tag)) {
             entry.replaceWith(document.createTextNode(entry.textContent || ''));
             return;
         }
         Array.from(entry.attributes).forEach((attribute) => entry.removeAttribute(attribute.name));
-    });
-    source.querySelectorAll('div').forEach((entry) => {
-        const paragraph = document.createElement('p');
-        while (entry.firstChild) paragraph.appendChild(entry.firstChild);
-        if (!paragraph.textContent.trim() && !paragraph.querySelector('br')) {
-            paragraph.appendChild(document.createElement('br'));
-        }
-        entry.replaceWith(paragraph);
     });
     const html = source.innerHTML.trim();
     return html || '<p></p>';

@@ -495,6 +495,22 @@ function cleanSkillLevelHtmlTemplate(template) {
         .forEach((entry) => entry.replaceWith(document.createTextNode(entry.textContent || '')));
 }
 
+function unwrapSkillLevelFormattingElement(entry) {
+    if (!entry?.parentNode) return;
+    while (entry.firstChild) entry.parentNode.insertBefore(entry.firstChild, entry);
+    entry.remove();
+}
+
+function replaceSkillLevelBlockWithParagraph(entry) {
+    if (!entry?.parentNode) return;
+    const paragraph = document.createElement('p');
+    while (entry.firstChild) paragraph.appendChild(entry.firstChild);
+    if (!paragraph.textContent.trim() && !paragraph.querySelector('br')) {
+        paragraph.appendChild(document.createElement('br'));
+    }
+    entry.replaceWith(paragraph);
+}
+
 function normalizeSkillLevelStoredHtml(value) {
     const raw = String(value || '').trim();
     if (!raw) return '';
@@ -506,20 +522,23 @@ function normalizeSkillLevelStoredHtml(value) {
 
     template.content.querySelectorAll('*').forEach((entry) => {
         const tag = entry.tagName.toLowerCase();
-        if (!['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'span', 'div'].includes(tag)) {
+        if (/^h[1-6]$/.test(tag) || tag === 'blockquote' || tag === 'section' || tag === 'article') {
+            replaceSkillLevelBlockWithParagraph(entry);
+            return;
+        }
+        if (['font', 'small', 'big', 'span'].includes(tag)) {
+            unwrapSkillLevelFormattingElement(entry);
+            return;
+        }
+        if (tag === 'div') {
+            replaceSkillLevelBlockWithParagraph(entry);
+            return;
+        }
+        if (!['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li'].includes(tag)) {
             entry.replaceWith(document.createTextNode(entry.textContent || ''));
             return;
         }
         Array.from(entry.attributes).forEach((attribute) => entry.removeAttribute(attribute.name));
-    });
-    template.content.querySelectorAll('span').forEach((entry) => {
-        while (entry.firstChild) entry.parentNode.insertBefore(entry.firstChild, entry);
-        entry.remove();
-    });
-    template.content.querySelectorAll('div').forEach((entry) => {
-        const paragraph = document.createElement('p');
-        while (entry.firstChild) paragraph.appendChild(entry.firstChild);
-        entry.replaceWith(paragraph);
     });
 
     return template.innerHTML.trim();

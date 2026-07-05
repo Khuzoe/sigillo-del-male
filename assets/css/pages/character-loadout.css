@@ -2929,6 +2929,22 @@
     margin: 0 0 0.65rem 0;
 }
 
+.player-skill-info-desc :is(p, div, span, li, strong, b, em, i, u, mark, small, big, font),
+.player-skill-level-rich-editor :is(p, div, span, li, strong, b, em, i, u, small, big, font) {
+    font-family: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit;
+}
+
+.player-skill-info-desc :is(h1, h2, h3, h4, h5, h6),
+.player-skill-level-rich-editor :is(h1, h2, h3, h4, h5, h6) {
+    margin: 0 0 0.65rem;
+    font-family: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit;
+    font-weight: 800;
+}
+
 .player-skill-info-desc mark.player-skill-level-change-highlight {
     background: transparent;
     color: var(--gold);
