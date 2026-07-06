@@ -1,0 +1,22 @@
+exclude:
+  - .agents/
+  - .codex/
+  - .codex-tmp/
+  - .github/
+  - .githooks/
+  - .vscode/
+  - assets/data/reports/
+  - assets/js/tools/
+  - build_foundry_data.js
+  - campaigns/_template/
+  - dist/
+  - docs/
+  - fixchars.js
+  - module/
+  - module.zip
+  - package.json
+  - package-lock.json
+  - scripts/
+  - templates/
+  - tools/
+  - workers/
