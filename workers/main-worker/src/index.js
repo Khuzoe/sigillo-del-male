@@ -1,6 +1,9 @@
+import { discordBotPreferencesKey, handleDiscordBotDmNotifications, normalizeDiscordBotPreferences } from "./discord-bot/notifications.js";
+
 export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(handleSessionStartNotifications(env));
+    ctx.waitUntil(handleDiscordBotDmNotifications(event, env));
   },
 
   async fetch(request, env, ctx) {
@@ -815,6 +818,80 @@ export default {
       }
 
       // ======================================================
+      // DISCORD BOT PREFERENCES - GET/POST
+      // Preferenze DM del bot per utente e campagna.
+      // ======================================================
+      if (url.pathname === "/api/discord-bot/preferences" && request.method === "GET") {
+        if (!env.SIGILLO_KV) {
+          return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+        }
+
+        if (!env.JWT_SECRET) {
+          return json({ ok: false, error: "Missing env.JWT_SECRET" }, 500, corsHeaders);
+        }
+
+        const user = await requireUser(request, env, corsHeaders);
+        if (user instanceof Response) return user;
+
+        const campaignId = queryCampaignId;
+        const accountId = getAuthenticatedAccountId(user, env);
+        const discordId = getAuthenticatedDiscordId(user);
+        if (!accountId) {
+          return json({ ok: false, error: "Missing authenticated account id" }, 400, corsHeaders);
+        }
+
+        const raw = await env.SIGILLO_KV.get(discordBotPreferencesKey(campaignId, accountId));
+        const preferences = normalizeDiscordBotPreferences({
+          ...safeJsonParse(raw),
+          campaignId,
+          accountId,
+          discordId,
+        });
+
+        return json({ ok: true, campaignId, accountId, preferences }, 200, corsHeaders);
+      }
+
+      if (url.pathname === "/api/discord-bot/preferences" && request.method === "POST") {
+        if (!env.SIGILLO_KV) {
+          return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+        }
+
+        if (!env.JWT_SECRET) {
+          return json({ ok: false, error: "Missing env.JWT_SECRET" }, 500, corsHeaders);
+        }
+
+        const user = await requireUser(request, env, corsHeaders);
+        if (user instanceof Response) return user;
+
+        let body;
+        try {
+          body = await request.json();
+        } catch {
+          return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+        }
+
+        const campaignId = getCampaignIdFromBodyOrUrl(body, url);
+        const accountId = getAuthenticatedAccountId(user, env);
+        const discordId = getAuthenticatedDiscordId(user);
+        if (!accountId) {
+          return json({ ok: false, error: "Missing authenticated account id" }, 400, corsHeaders);
+        }
+
+        const key = discordBotPreferencesKey(campaignId, accountId);
+        const existing = safeJsonParse(await env.SIGILLO_KV.get(key)) || {};
+        const preferences = normalizeDiscordBotPreferences({
+          ...existing,
+          ...body,
+          campaignId,
+          accountId,
+          discordId,
+          updatedAt: new Date().toISOString(),
+        });
+
+        await env.SIGILLO_KV.put(key, JSON.stringify(preferences));
+        return json({ ok: true, campaignId, accountId, preferences }, 200, corsHeaders);
+      }
+      // ======================================================
       // SESSION CURRENT - GET
       // GET /api/session/current
       // restituisce la prossima sessione attiva
@@ -989,6 +1066,14 @@ export default {
           });
         }
 
+        const sessionStorageKey = sessionKey(campaignId, number);
+        const existingSessionRaw = await getCampaignKv(env.SIGILLO_KV, sessionStorageKey, `session/${number}`);
+        const existingSession = safeJsonParse(existingSessionRaw) || {};
+        const nowIso = new Date().toISOString();
+        const createdAt = typeof body?.createdAt === "string" && body.createdAt.trim()
+          ? body.createdAt.trim()
+          : (typeof existingSession?.createdAt === "string" && existingSession.createdAt.trim() ? existingSession.createdAt.trim() : nowIso);
+
         const sessionData = {
           number,
           campaignId,
@@ -1005,9 +1090,10 @@ export default {
           timeEnd,
           isScheduled,
           availabilityOptions,
+          createdAt,
+          updatedAt: nowIso,
         };
 
-        const sessionStorageKey = sessionKey(campaignId, number);
         await putCampaignKv(env.SIGILLO_KV, sessionStorageKey, `session/${number}`, JSON.stringify(sessionData));
 
         // aggiorna il puntatore alla prossima sessione attiva

@@ -789,6 +789,10 @@ function ensureTopAuthBar() {
             </button>
             <div class="discord-auth-menu" data-auth-menu hidden>
                 <div class="discord-auth-menu__user" data-auth-menu-user>Account wiki</div>
+                <button type="button" class="discord-auth-menu__action" data-discord-notification-settings>
+                    <i class="fas fa-bell" aria-hidden="true"></i>
+                    Notifiche
+                </button>
                 <button type="button" class="discord-auth-menu__logout" data-discord-logout>
                     <i class="fas fa-right-from-bracket" aria-hidden="true"></i>
                     Logout
@@ -1318,6 +1322,7 @@ function initDiscordAuth(scope) {
     const loginBtn = scope.querySelector("[data-discord-login], #discord-login");
     const deviceLoginBtn = scope.querySelector("[data-device-login], #device-login");
     const logoutBtn = scope.querySelector("[data-discord-logout], #discord-logout");
+    const notificationSettingsBtn = scope.querySelector("[data-discord-notification-settings]");
     const menuToggle = scope.querySelector("[data-auth-menu-toggle]");
     const menu = scope.querySelector("[data-auth-menu]");
     if (!status || !loginBtn || !logoutBtn) return;
@@ -1343,6 +1348,11 @@ function initDiscordAuth(scope) {
 
     document.addEventListener("click", (event) => {
         if (!scope.contains(event.target)) closeAuthMenu(scope);
+    });
+
+    notificationSettingsBtn?.addEventListener("click", () => {
+        closeAuthMenu(scope);
+        openDiscordNotificationSettings();
     });
 
     logoutBtn.addEventListener("click", () => {
@@ -1463,6 +1473,154 @@ function closeAuthMenu(scope) {
     if (menu) menu.hidden = true;
 }
 
+function openDiscordNotificationSettings() {
+    const token = readStoredToken();
+    if (!token) {
+        redirectToDiscordLogin();
+        return;
+    }
+
+    const modal = ensureDiscordNotificationSettingsModal();
+    const status = modal.querySelector("[data-discord-notification-status]");
+    modal.hidden = false;
+    modal.dataset.loading = "true";
+    setDiscordNotificationStatus(status, "Caricamento preferenze...");
+
+    requestApi("api/discord-bot/preferences", { token, cache: false })
+        .then((payload) => {
+            fillDiscordNotificationSettings(modal, payload?.preferences || {});
+            setDiscordNotificationStatus(status, "");
+        })
+        .catch((error) => {
+            setDiscordNotificationStatus(status, error?.message || "Impossibile caricare le preferenze.", true);
+        })
+        .finally(() => {
+            delete modal.dataset.loading;
+        });
+}
+
+function ensureDiscordNotificationSettingsModal() {
+    let modal = document.querySelector("[data-discord-notification-modal]");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.className = "discord-notification-modal";
+    modal.dataset.discordNotificationModal = "true";
+    modal.hidden = true;
+    modal.innerHTML = `
+        <div class="discord-notification-modal__backdrop" data-discord-notification-close></div>
+        <section class="discord-notification-modal__panel" role="dialog" aria-modal="true" aria-labelledby="discord-notification-title">
+            <header class="discord-notification-modal__header">
+                <h2 id="discord-notification-title">Notifiche bot</h2>
+                <button type="button" class="discord-notification-modal__icon" data-discord-notification-close aria-label="Chiudi">
+                    <i class="fas fa-xmark" aria-hidden="true"></i>
+                </button>
+            </header>
+            <div class="discord-notification-modal__body">
+                <label class="discord-notification-toggle">
+                    <input type="checkbox" data-discord-pref="dmEnabled">
+                    <span>Ricevere DM dal bot</span>
+                </label>
+                <label class="discord-notification-toggle">
+                    <input type="checkbox" data-discord-pref="pollRemindersEnabled">
+                    <span>Promemoria sondaggio non votato</span>
+                </label>
+                <label class="discord-notification-toggle">
+                    <input type="checkbox" data-discord-pref="sessionDayReminderEnabled">
+                    <span>Promemoria sessione del giorno alle 10</span>
+                </label>
+                <label class="discord-notification-toggle">
+                    <input type="checkbox" data-discord-pref="sessionAdvanceReminderEnabled">
+                    <span>Promemoria personalizzato prima della sessione</span>
+                </label>
+                <label class="discord-notification-field">
+                    <span>Minuti prima della sessione</span>
+                    <input type="number" min="1" max="1440" step="5" data-discord-pref="sessionReminderMinutes">
+                </label>
+                <p class="discord-notification-modal__status" data-discord-notification-status></p>
+            </div>
+            <footer class="discord-notification-modal__footer">
+                <button type="button" class="discord-notification-modal__secondary" data-discord-notification-close>Chiudi</button>
+                <button type="button" class="discord-notification-modal__primary" data-discord-notification-save>Salva</button>
+            </footer>
+        </section>
+    `;
+    document.body.appendChild(modal);
+
+    modal.querySelectorAll("[data-discord-notification-close]").forEach((button) => {
+        button.addEventListener("click", () => {
+            modal.hidden = true;
+        });
+    });
+
+    modal.querySelector("[data-discord-notification-save]")?.addEventListener("click", () => {
+        saveDiscordNotificationSettings(modal);
+    });
+
+    modal.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") modal.hidden = true;
+    });
+
+    return modal;
+}
+
+function fillDiscordNotificationSettings(modal, preferences) {
+    const defaults = {
+        dmEnabled: true,
+        pollRemindersEnabled: true,
+        sessionDayReminderEnabled: true,
+        sessionAdvanceReminderEnabled: false,
+        sessionReminderMinutes: 60
+    };
+    const values = { ...defaults, ...(preferences || {}) };
+    modal.querySelector('[data-discord-pref="dmEnabled"]').checked = values.dmEnabled !== false;
+    modal.querySelector('[data-discord-pref="pollRemindersEnabled"]').checked = values.pollRemindersEnabled !== false;
+    modal.querySelector('[data-discord-pref="sessionDayReminderEnabled"]').checked = values.sessionDayReminderEnabled !== false;
+    modal.querySelector('[data-discord-pref="sessionAdvanceReminderEnabled"]').checked = values.sessionAdvanceReminderEnabled === true;
+    modal.querySelector('[data-discord-pref="sessionReminderMinutes"]').value = String(Number(values.sessionReminderMinutes) || 60);
+}
+
+async function saveDiscordNotificationSettings(modal) {
+    const token = readStoredToken();
+    const status = modal.querySelector("[data-discord-notification-status]");
+    if (!token) {
+        setDiscordNotificationStatus(status, "Login richiesto.", true);
+        return;
+    }
+
+    const minutesInput = modal.querySelector('[data-discord-pref="sessionReminderMinutes"]');
+    const sessionReminderMinutes = Math.max(0, Math.min(1440, Math.round(Number(minutesInput?.value || 0))));
+    const body = {
+        dmEnabled: modal.querySelector('[data-discord-pref="dmEnabled"]')?.checked === true,
+        pollRemindersEnabled: modal.querySelector('[data-discord-pref="pollRemindersEnabled"]')?.checked === true,
+        sessionDayReminderEnabled: modal.querySelector('[data-discord-pref="sessionDayReminderEnabled"]')?.checked === true,
+        sessionAdvanceReminderEnabled: modal.querySelector('[data-discord-pref="sessionAdvanceReminderEnabled"]')?.checked === true && sessionReminderMinutes > 0,
+        sessionReminderMinutes
+    };
+
+    modal.dataset.saving = "true";
+    setDiscordNotificationStatus(status, "Salvataggio...");
+    try {
+        const payload = await requestApi("api/discord-bot/preferences", {
+            method: "POST",
+            token,
+            body,
+            cache: false
+        });
+        fillDiscordNotificationSettings(modal, payload?.preferences || body);
+        setDiscordNotificationStatus(status, "Preferenze salvate.");
+    } catch (error) {
+        setDiscordNotificationStatus(status, error?.message || "Salvataggio fallito.", true);
+    } finally {
+        delete modal.dataset.saving;
+    }
+}
+
+function setDiscordNotificationStatus(node, message, isError = false) {
+    if (!node) return;
+    node.textContent = message || "";
+    node.classList.toggle("is-error", Boolean(isError));
+}
 function readStoredToken() {
     if (embeddedDiscordToken) return embeddedDiscordToken;
     try {

@@ -4230,6 +4230,156 @@ body.page-character .main-content {
     color: var(--ink-ivory);
     background: rgba(138, 28, 28, 0.22);
 }
+.discord-auth-menu__action {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+    margin-top: 0.35rem;
+    padding: 0.65rem;
+    border: 0;
+    border-radius: 10px;
+    color: rgba(241, 232, 206, 0.78);
+    background: transparent;
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    cursor: pointer;
+    text-align: left;
+}
+
+.discord-auth-menu__action:hover {
+    color: var(--ink-ivory);
+    background: rgba(212, 175, 55, 0.14);
+}
+
+.discord-notification-modal[hidden] {
+    display: none;
+}
+
+.discord-notification-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2500;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+}
+
+.discord-notification-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.68);
+    backdrop-filter: blur(3px);
+}
+
+.discord-notification-modal__panel {
+    position: relative;
+    width: min(460px, calc(100vw - 2rem));
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(24, 21, 19, 0.98), rgba(8, 8, 10, 0.99));
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.58);
+    color: var(--ink-ivory);
+    overflow: hidden;
+}
+
+.discord-notification-modal__header,
+.discord-notification-modal__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.discord-notification-modal__footer {
+    justify-content: flex-end;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 0;
+}
+
+.discord-notification-modal__header h2 {
+    margin: 0;
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.92rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.discord-notification-modal__icon,
+.discord-notification-modal__secondary,
+.discord-notification-modal__primary {
+    border: 1px solid rgba(212, 175, 55, 0.34);
+    border-radius: 10px;
+    color: var(--ink-ivory);
+    background: rgba(0, 0, 0, 0.24);
+    font-family: var(--font-ui);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.discord-notification-modal__icon {
+    width: 2rem;
+    height: 2rem;
+}
+
+.discord-notification-modal__secondary,
+.discord-notification-modal__primary {
+    padding: 0.58rem 0.9rem;
+}
+
+.discord-notification-modal__primary {
+    color: #120f0a;
+    background: var(--gold);
+}
+
+.discord-notification-modal__body {
+    display: grid;
+    gap: 0.75rem;
+    padding: 1rem;
+}
+
+.discord-notification-toggle,
+.discord-notification-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.85rem;
+    color: rgba(241, 232, 206, 0.84);
+    font-family: var(--font-ui);
+    font-size: 0.84rem;
+}
+
+.discord-notification-toggle input {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--gold);
+}
+
+.discord-notification-field input {
+    width: 6.5rem;
+    padding: 0.45rem 0.55rem;
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    border-radius: 8px;
+    color: var(--ink-ivory);
+    background: rgba(0, 0, 0, 0.35);
+    font-family: var(--font-ui);
+}
+
+.discord-notification-modal__status {
+    min-height: 1.1rem;
+    margin: 0;
+    color: rgba(212, 175, 55, 0.9);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+}
+
+.discord-notification-modal__status.is-error {
+    color: #ff9b8f;
+}
+
 
 .spa-page-exit {
     opacity: 0;

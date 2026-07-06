@@ -5,7 +5,7 @@
   "compatibility_date": "2026-05-15",
   "triggers": {
     "crons": [
-      "*/5 * * * *"
+      "*/15 * * * *"
     ]
   },
   "kv_namespaces": [
@@ -26,14 +26,18 @@
     "FE_URL": "https://khuzoe.github.io/sigillo-del-male/",
     "NOTES_ADMIN_DISCORD_IDS": "142960432389423104",
     "CAMPAIGN_EDITOR_ACCOUNT_IDS": "oltre-il-velo:dona,andre;mago-folle:sommo,andre",
-    "SESSION_START_NOTIFY_CAMPAIGNS": "cripta-di-sangue,mago-folle,oltre-il-velo"
+    "SESSION_START_NOTIFY_CAMPAIGNS": "cripta-di-sangue,mago-folle,oltre-il-velo",
+    "DISCORD_BOT_NOTIFY_CAMPAIGNS": "cripta-di-sangue,mago-folle,oltre-il-velo",
+    "DISCORD_BOT_POLL_REMINDER_DAYS": "2",
+    "DISCORD_BOT_DAY_REMINDER_HOUR": "10"
   },
   "secrets": {
     "required": [
       "DEVICE_LOGIN_CODES_SECRET",
       "DISCORD_CLIENT_SECRET",
       "JWT_SECRET",
-      "SESSION_DISCORD_WEBHOOKS"
+      "SESSION_DISCORD_WEBHOOKS",
+      "DISCORD_BOT_TOKEN"
     ]
   }
 }

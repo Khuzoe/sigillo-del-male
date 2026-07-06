@@ -8,6 +8,8 @@ workers/main-worker/*
 !workers/main-worker/src/
 workers/main-worker/src/*
 !workers/main-worker/src/index.js
+!workers/main-worker/src/discord-bot/
+!workers/main-worker/src/discord-bot/**
 !workers/main-worker/wrangler.jsonc
 workers/*/node_modules/
 workers/*/.wrangler/

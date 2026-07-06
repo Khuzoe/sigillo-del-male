@@ -59,6 +59,60 @@
         return String(path || '');
     }
 
+    function ensureSkillTreeImageModal() {
+        let modal = document.getElementById('image-modal');
+        let modalImg = document.getElementById('modal-image-content');
+        let closeBtn = document.getElementById('image-modal-close');
+
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.className = 'image-modal';
+            modal.id = 'image-modal';
+            document.body.appendChild(modal);
+        }
+
+        if (!modalImg || !closeBtn) {
+            modal.innerHTML = `
+                <div class="image-modal-content">
+                    <button class="image-modal-close" id="image-modal-close" type="button" title="Chiudi" aria-label="Chiudi">
+                        <i class="fas fa-times" aria-hidden="true"></i>
+                    </button>
+                    <img alt="" id="modal-image-content">
+                </div>
+            `;
+            modalImg = modal.querySelector('#modal-image-content');
+            closeBtn = modal.querySelector('#image-modal-close');
+        }
+
+        if (modal.dataset.skillTreeImageModalInitialized !== 'true') {
+            const closeModal = () => {
+                modal.classList.remove('visible');
+                modalImg?.removeAttribute('src');
+            };
+            modal.dataset.skillTreeImageModalInitialized = 'true';
+            closeBtn?.addEventListener('click', closeModal);
+            modal.addEventListener('click', (event) => {
+                if (modalImg?.contains(event.target) || closeBtn?.contains(event.target)) return;
+                closeModal();
+            });
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && modal.classList.contains('visible')) closeModal();
+            });
+        }
+
+        return { modal, modalImg };
+    }
+
+    function openSkillTreeImagePreview(src, alt = '') {
+        const source = String(src || '').trim();
+        if (!source) return;
+        const { modal, modalImg } = ensureSkillTreeImageModal();
+        if (!modal || !modalImg) return;
+        modalImg.src = source;
+        modalImg.alt = alt || 'Immagine abilita';
+        modal.classList.add('visible');
+    }
+
     function normalizeSkillTreeEditableHtml(element) {
         if (typeof skillTreeRuntime.normalizeSkillTreeEditableHtml === 'function') return skillTreeRuntime.normalizeSkillTreeEditableHtml(element);
         return element?.innerHTML || '<p></p>';
@@ -107,6 +161,15 @@ function isCampaignSharedSkillTree(tree, key = '') {
         || keySlug.startsWith('campagna-')
         || keySlug.startsWith('shared-')
         || keySlug.startsWith('condiviso-');
+}
+
+function isArchivedSkillTree(tree) {
+    if (!tree || typeof tree !== 'object') return false;
+    if (Object.prototype.hasOwnProperty.call(tree, 'archived')) return tree.archived === true;
+    const status = normalizeText(tree.status || tree.state || tree.visibility || '');
+    return tree.isArchived === true
+        || tree.disabled === true
+        || ['archived', 'archiviato', 'archive', 'archivio'].includes(status);
 }
 
 function isCampaignSharedSkillTreeState(entry) {
@@ -202,8 +265,15 @@ function resolvePlayerSkillTreeEntries(characterOrId, allSkillTrees) {
         }
     });
 
-    if (results.length > 1) {
-        results.sort((left, right) => {
+    const visibleResults = skillTreeCurrentUserIsDm
+        ? results
+        : results.filter((entry) => !isArchivedSkillTree(entry.tree));
+
+    if (visibleResults.length > 1) {
+        visibleResults.sort((left, right) => {
+            const leftArchived = isArchivedSkillTree(left.tree) ? 1 : 0;
+            const rightArchived = isArchivedSkillTree(right.tree) ? 1 : 0;
+            if (leftArchived !== rightArchived) return leftArchived - rightArchived;
             const leftShared = isCampaignSharedSkillTree(left.tree, left.key) ? 1 : 0;
             const rightShared = isCampaignSharedSkillTree(right.tree, right.key) ? 1 : 0;
             if (leftShared !== rightShared) return leftShared - rightShared;
@@ -213,7 +283,7 @@ function resolvePlayerSkillTreeEntries(characterOrId, allSkillTrees) {
             return String(left.tree.name || left.tree.title || left.key).localeCompare(String(right.tree.name || right.tree.title || right.key), 'it');
         });
     }
-    return results;
+    return visibleResults;
 }
 
 function getSkillTreeStateKey(character, treeKey, treeData = null) {
@@ -1188,6 +1258,18 @@ function pruneUnlockedSkillNodes(treeData, unlockedIds) {
     return nextUnlocked;
 }
 
+function canDisableUnlockedSkillNode(treeData, nodeId, unlockedIds) {
+    const id = String(nodeId || '');
+    const currentUnlocked = new Set(Array.from(unlockedIds || []).map(String));
+    if (!id || !currentUnlocked.has(id)) return false;
+
+    const withoutNode = new Set(currentUnlocked);
+    withoutNode.delete(id);
+    const pruned = pruneUnlockedSkillNodes(treeData, withoutNode);
+
+    return Array.from(currentUnlocked).every((unlockedId) => unlockedId === id || pruned.has(unlockedId));
+}
+
 async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap = {}, treeData = null) {
     const accountId = getCurrentAccountId();
     const subject = getSkillTreeStateSubject(character, treeKey, treeData);
@@ -1270,6 +1352,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     const character = typeof characterOrId === 'object' && characterOrId !== null ? characterOrId : { id: characterOrId };
     const treeKey = treeEntry.key;
     const isSharedTree = isCampaignSharedSkillTree(treeData, treeKey);
+    const isArchivedTree = isArchivedSkillTree(treeData);
     const canEditUnlocks = isSharedTree ? skillTreeCurrentUserIsDm : canEditSkillTreeUnlocks(character);
     const canEditTree = skillTreeCurrentUserIsDm;
     const stateRecord = getCharacterSkillTreeState(character, treeKey, treeData);
@@ -1281,6 +1364,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     let unlockedIds = new Set(currentNodes.filter((node) => node.state === 'unlocked').map((node) => String(node.id)));
     let nodeLevels = { ...(stateRecord?.levels && typeof stateRecord.levels === 'object' ? stateRecord.levels : {}) };
     let selectedNodeId = currentNodes[0]?.id || '';
+    let lockedInfoNodeId = '';
     let editMode = false;
     let snapToGrid = false;
     let snapToNodes = true;
@@ -1290,13 +1374,13 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     const snapThreshold = 1.4;
 
     const card = document.createElement('div');
-    card.className = `content-card player-skill-tree-card${isSharedTree ? ' is-shared-skill-tree' : ''}`;
+    card.className = `content-card player-skill-tree-card${isSharedTree ? ' is-shared-skill-tree' : ''}${isArchivedTree ? ' is-archived-skill-tree' : ''}`;
     card.id = `player-skill-tree-card-${slugify(treeKey || 'default')}`;
     card.tabIndex = -1;
     const treeLabel = workingTree.name || workingTree.title || (treeKey ? treeKey.replace(/[-_]+/g, ' ') : 'Albero abilita');
     card.innerHTML = `
                 <div class="player-skill-tree-card-head">
-                    <h3><i class="fas ${isSharedTree ? 'fa-users' : 'fa-crown'}"></i> Albero Abilita <small data-skill-tree-label>${escapeHtml(treeLabel)}</small>${isSharedTree ? '<span class="player-skill-tree-shared-badge">Condiviso</span>' : ''}</h3>
+                    <h3><i class="fas ${isSharedTree ? 'fa-users' : 'fa-crown'}"></i> Albero Abilita <small data-skill-tree-label>${escapeHtml(treeLabel)}</small>${isSharedTree ? '<span class="player-skill-tree-shared-badge">Condiviso</span>' : ''}${isArchivedTree ? '<span class="player-skill-tree-archived-badge">Archiviato</span>' : ''}</h3>
                     ${canEditTree ? '<div class="player-skill-tree-card-actions"><button type="button" class="player-skill-edit-toggle player-skill-delete-tree" data-skill-delete-tree title="Elimina albero" aria-label="Elimina albero"><i class="fas fa-trash"></i></button><button type="button" class="player-skill-edit-toggle" data-skill-edit-toggle title="Modifica albero" aria-label="Modifica albero"><i class="fas fa-pen"></i></button></div>' : ''}
                 </div>
                 <div class="player-skill-tree-layout">
@@ -1332,6 +1416,53 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 `;
     };
 
+    const renderNodeProgressActions = (node) => {
+        if (editMode || !canEditUnlocks || !node) return '';
+        const nodeId = String(node.id || '');
+        const state = String(node.state || 'locked');
+        const level = Math.max(1, Number(node.level || 1));
+        const maxLevel = Math.max(1, Number(node.maxLevel || 1));
+        const buttons = [];
+
+        if (state === 'unlockable') {
+            buttons.push(`
+                <button type="button" class="player-skill-info-action" data-skill-node-action="unlock" data-skill-node-id="${escapeHtml(nodeId)}">
+                    <i class="fas fa-unlock" aria-hidden="true"></i>
+                    <span>Sblocca</span>
+                </button>
+            `);
+        }
+
+        if (state === 'unlocked') {
+            if (maxLevel > level) {
+                buttons.push(`
+                    <button type="button" class="player-skill-info-action" data-skill-node-action="level-up" data-skill-node-id="${escapeHtml(nodeId)}">
+                        <i class="fas fa-plus" aria-hidden="true"></i>
+                        <span>Aumenta</span>
+                    </button>
+                `);
+            }
+            if (level > 1) {
+                buttons.push(`
+                    <button type="button" class="player-skill-info-action" data-skill-node-action="level-down" data-skill-node-id="${escapeHtml(nodeId)}">
+                        <i class="fas fa-minus" aria-hidden="true"></i>
+                        <span>Togli</span>
+                    </button>
+                `);
+            }
+            if (canDisableUnlockedSkillNode(workingTree, nodeId, unlockedIds)) {
+                buttons.push(`
+                    <button type="button" class="player-skill-info-action is-danger" data-skill-node-action="lock" data-skill-node-id="${escapeHtml(nodeId)}">
+                        <i class="fas fa-lock" aria-hidden="true"></i>
+                        <span>Disattiva</span>
+                    </button>
+                `);
+            }
+        }
+
+        if (!buttons.length) return '';
+        return `<div class="player-skill-info-actions" aria-label="Azioni nodo">${buttons.join('')}</div>`;
+    };
     const updateInfo = (node) => {
         if (!node) {
             setDefaultInfo();
@@ -1340,6 +1471,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
 
         const icon = resolveSkillAssetPath(node.icon);
         const editable = editMode && canEditTree;
+        const isInfoLocked = !editable && lockedInfoNodeId && String(node.id) === String(lockedInfoNodeId);
         const requirementNames = getNodePrerequisites(node, workingTree)
             .map((id) => getSkillTreeNodeLabel(workingTree, id))
             .filter(Boolean);
@@ -1350,8 +1482,10 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 : `<p class="player-skill-info-requirements is-all"><strong>REQUISITI:</strong> ${escapeHtml(requirementNames.join(', '))}</p>`
             : '';
         const descriptionHtml = editable
-            ? (node.desc || '<p>Nessun dettaglio disponibile.</p>')
+            ? (normalizeSkillLevelStoredHtml(node.desc || '') || '<p>Nessun dettaglio disponibile.</p>')
             : renderSkillNodeDescriptionForReading(node);
+
+        const actionButtons = isInfoLocked ? renderNodeProgressActions(node) : '';
         const richTextToolbar = editable ? `
                     <div class="player-skill-rich-toolbar" role="toolbar" aria-label="Formato descrizione abilita">
                         <button type="button" data-skill-rich-command="bold" title="Grassetto"><i class="fas fa-bold" aria-hidden="true"></i></button>
@@ -1362,13 +1496,14 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         ` : '';
         infoPanel.innerHTML = `
                     <header class="player-skill-info-header">
-                        ${icon ? `<img src="${icon}" alt="${escapeHtml(node.title || 'Abilita')}" class="player-skill-info-icon">` : ''}
+                        ${icon ? `<button type="button" class="player-skill-info-icon-button" data-skill-node-icon-preview data-image-src="${escapeHtml(icon)}" aria-label="Ingrandisci icona: ${escapeHtml(node.title || 'Abilita')}" title="Ingrandisci immagine"><img src="${icon}" alt="${escapeHtml(node.title || 'Abilita')}" class="player-skill-info-icon doc-image-popup" data-image-src="${escapeHtml(icon)}"></button>` : ''}
                         <h4 class="player-skill-info-title" ${editable ? 'contenteditable="true" data-skill-preview-field="title" spellcheck="false"' : ''}>${escapeHtml(node.title || 'Abilita')}</h4>
                     </header>
                     <div class="player-skill-info-state-row">
                         <div class="player-skill-info-state is-${escapeHtml(node.state || 'locked')}">${escapeHtml(node.state === 'unlocked' ? 'Sbloccata' : node.state === 'unlockable' ? 'Disponibile' : 'Bloccata')}</div>
                         ${Number(node.maxLevel || 1) > 1 ? `<div class="player-skill-info-level">Livello ${escapeHtml(node.level || 1)} / ${escapeHtml(node.maxLevel)}</div>` : ''}
                     </div>
+                    ${actionButtons}
                     ${editable || node.flavor ? `<p class="player-skill-info-flavor" ${editable ? 'contenteditable="true" data-skill-preview-field="flavor" spellcheck="true"' : ''}>${escapeHtml(node.flavor || '')}</p>` : ''}
                     ${richTextToolbar}
                     ${requirementsLabel}
@@ -1402,6 +1537,47 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         await saveCharacterSkillTreeState(character, treeKey, Array.from(unlockedIds), activeLevels, workingTree);
     };
 
+    const applyNodeProgressAction = async (action, nodeId) => {
+        const id = String(nodeId || '');
+        if (!id || !canEditUnlocks) return;
+        const node = currentNodes.find((entry) => String(entry.id) === id);
+        if (!node) return;
+        let changed = false;
+
+        if (action === 'unlock') {
+            if (node.state === 'unlockable') {
+                getExclusiveSkillTreeSiblingIds(workingTree, id).forEach((siblingId) => unlockedIds.delete(String(siblingId)));
+                unlockedIds.add(id);
+                nodeLevels[id] = 1;
+                changed = true;
+            }
+        } else if (action === 'level-up') {
+            if (node.state === 'unlocked' && Number(node.maxLevel || 1) > Number(node.level || 1)) {
+                nodeLevels[id] = Number(node.level || 1) + 1;
+                changed = true;
+            }
+        } else if (action === 'level-down') {
+            if (node.state === 'unlocked') {
+                const currentLevel = Math.max(1, Number(nodeLevels[id] || node.level || 1));
+                if (currentLevel > 1) {
+                    nodeLevels[id] = currentLevel - 1;
+                    changed = true;
+                }
+            }
+        } else if (action === 'lock') {
+            if (!canDisableUnlockedSkillNode(workingTree, id, unlockedIds)) return;
+            delete nodeLevels[id];
+            unlockedIds.delete(id);
+            changed = true;
+        }
+
+        if (!changed) return;
+        unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
+        await persistUnlocks();
+        selectedNodeId = id;
+        lockedInfoNodeId = id;
+        renderTree();
+    };
     const deleteSelectedConnection = () => {
         if (!selectedConnection) return false;
         const source = workingTree.nodes.find((entry) => String(entry.id) === String(selectedConnection.source));
@@ -1676,7 +1852,8 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             const nodeElement = document.createElement('button');
             nodeElement.type = 'button';
             const stateClass = node.state === 'unlocked' || node.state === 'unlockable' ? node.state : 'locked';
-            nodeElement.className = `player-skill-node is-${stateClass}${node.keyNode ? ' is-key' : ''}${String(node.id) === String(selectedNodeId) ? ' is-selected' : ''}`;
+            const isSelectedNode = editMode ? String(node.id) === String(selectedNodeId) : String(node.id) === String(lockedInfoNodeId);
+            nodeElement.className = `player-skill-node is-${stateClass}${node.keyNode ? ' is-key' : ''}${isSelectedNode ? ' is-selected' : ''}`;
             nodeElement.style.left = `${Number(node.x) || 50}%`;
             nodeElement.style.top = `${Number(node.y) || 50}%`;
             const icon = resolveSkillAssetPath(node.icon);
@@ -1713,65 +1890,28 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             };
 
             nodeElement.addEventListener('mouseenter', () => {
-                if (!editMode) updateInfo(node);
+                if (!editMode && !lockedInfoNodeId) updateInfo(node);
             });
             nodeElement.addEventListener('focus', () => {
-                if (!editMode) updateInfo(node);
+                if (!editMode && !lockedInfoNodeId) updateInfo(node);
             });
-            nodeElement.addEventListener('click', async () => {
+            nodeElement.addEventListener('click', () => {
                 selectedNodeId = String(node.id);
                 selectedConnection = null;
-                updateInfo(node);
                 if (editMode && canEditTree) {
+                    lockedInfoNodeId = '';
+                    updateInfo(node);
                     renderTree();
                     renderEditor();
                     return;
                 }
-                if (!canEditUnlocks) {
-                    renderTree();
-                    return;
-                }
-                if (node.state !== 'unlocked' && (node.state === 'unlockable' || skillTreeCurrentUserIsDm)) {
-                    getExclusiveSkillTreeSiblingIds(workingTree, node.id).forEach((siblingId) => unlockedIds.delete(String(siblingId)));
-                    unlockedIds.add(String(node.id));
-                    nodeLevels[String(node.id)] = 1;
-                    unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
-                    await persistUnlocks().catch((error) => {
-                        console.error('Salvataggio albero abilita fallito:', error);
-                        alert('Impossibile salvare lo sblocco online.');
-                    });
-                    renderTree();
-                } else if (node.state === 'unlocked' && Number(node.maxLevel || 1) > Number(node.level || 1)) {
-                    nodeLevels[String(node.id)] = Number(node.level || 1) + 1;
-                    await persistUnlocks().catch((error) => {
-                        console.error('Salvataggio livello albero abilita fallito:', error);
-                        alert('Impossibile salvare il livello online.');
-                    });
-                    renderTree();
-                } else {
-                    renderTree();
-                }
+
+                lockedInfoNodeId = lockedInfoNodeId === String(node.id) ? '' : String(node.id);
+                updateInfo(node);
+                renderTree();
             });
-            nodeElement.addEventListener('contextmenu', async (event) => {
+            nodeElement.addEventListener('contextmenu', (event) => {
                 event.preventDefault();
-                selectedNodeId = String(node.id);
-                if (!canEditUnlocks) return;
-                if (unlockedIds.has(String(node.id))) {
-                    const currentLevel = Math.max(1, Number(nodeLevels[String(node.id)] || node.level || 1));
-                    if (currentLevel > 1) {
-                        nodeLevels[String(node.id)] = currentLevel - 1;
-                    } else {
-                        delete nodeLevels[String(node.id)];
-                        unlockedIds.delete(String(node.id));
-                        unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
-                    }
-                    await persistUnlocks().catch((error) => {
-                        console.error('Salvataggio albero abilita fallito:', error);
-                        alert('Impossibile salvare lo stato online.');
-                    });
-                    renderTree();
-                    updateInfo(currentNodes.find((entry) => String(entry.id) === String(selectedNodeId)));
-                }
             });
 
             if (canEditTree) {
@@ -1852,7 +1992,8 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             treeContainer.appendChild(nodeElement);
         });
 
-        const selected = currentNodes.find((node) => String(node.id) === String(selectedNodeId)) || currentNodes[0];
+        const infoNodeId = editMode ? selectedNodeId : (lockedInfoNodeId || selectedNodeId);
+        const selected = currentNodes.find((node) => String(node.id) === String(infoNodeId)) || currentNodes[0];
         if (selected) updateInfo(selected);
     };
 
@@ -1920,10 +2061,15 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     };
 
     const saveTreeDefinition = async () => {
+        const archiveStateChanged = isArchivedSkillTree(treeData) !== isArchivedSkillTree(workingTree);
         const nextTrees = { ...(skillsMemoryCache || allSkillTrees || {}) };
         nextTrees[treeKey] = normalizeSkillTreeDefinitionForSave(workingTree);
         await saveSkillTreesData(nextTrees);
         workingTree = structuredClone(nextTrees[treeKey]);
+        if (archiveStateChanged) {
+            window.location.reload();
+            return;
+        }
         renderTree();
         renderEditor();
         alert('Albero abilita salvato.');
@@ -2129,6 +2275,12 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     <label>Nome albero
                         <input type="text" data-skill-field="name" value="${escapeHtml(workingTree.name || workingTree.title || '')}" placeholder="Es. Cammino del Sangue">
                     </label>
+                    <label class="player-skill-editor-toggle">Archiviato
+                        <span>
+                            <input type="checkbox" data-skill-field="archived" ${isArchivedSkillTree(workingTree) ? 'checked' : ''}>
+                            <strong>Visibile solo al DM</strong>
+                        </span>
+                    </label>
                     <div class="player-skill-tree-bg-upload ${bgPath ? 'has-image' : ''}" data-skill-bg-drop tabindex="0">
                         <div>
                             <strong>Sfondo albero</strong>
@@ -2302,7 +2454,14 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const treeField = target.dataset.skillField;
         const nodeField = target.dataset.nodeField;
         if (treeField) {
-            workingTree[treeField] = treeField === 'bgOpacity' ? Number(target.value) : target.value;
+            if (treeField === 'bgOpacity') {
+                workingTree[treeField] = Number(target.value);
+            } else if (treeField === 'archived') {
+                workingTree.archived = target.checked;
+                card.classList.toggle('is-archived-skill-tree', workingTree.archived === true);
+            } else {
+                workingTree[treeField] = target.value;
+            }
             if (treeField === 'name' && treeTitleLabel) {
                 treeTitleLabel.textContent = target.value || treeKey;
             }
@@ -2359,14 +2518,34 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const node = readEditorNode();
         if (!node) return;
         if (field === 'desc') {
-            node.desc = normalizeSkillTreeEditableHtml(target);
+            node.desc = normalizeSkillLevelStoredHtml(normalizeSkillTreeEditableHtml(target));
         } else if (field === 'title' || field === 'flavor') {
             const value = target.innerText.trim();
             node[field] = value;
         }
     });
 
-    infoPanel.addEventListener('click', (event) => {
+    infoPanel.addEventListener('click', async (event) => {
+        const iconPreview = event.target.closest('[data-skill-node-icon-preview]');
+        if (iconPreview) {
+            event.preventDefault();
+            event.stopPropagation();
+            openSkillTreeImagePreview(iconPreview.dataset.imageSrc, iconPreview.querySelector('img')?.alt || '');
+            return;
+        }
+
+        const actionButton = event.target.closest('[data-skill-node-action]');
+        if (actionButton) {
+            event.preventDefault();
+            try {
+                await applyNodeProgressAction(actionButton.dataset.skillNodeAction, actionButton.dataset.skillNodeId);
+            } catch (error) {
+                console.error('Salvataggio albero abilita fallito:', error);
+                alert('Impossibile salvare lo stato online.');
+            }
+            return;
+        }
+
         const button = event.target.closest('[data-skill-rich-command]');
         if (!editMode || !canEditTree || !button) return;
         event.preventDefault();
@@ -2375,7 +2554,15 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         if (!node || !(descEditor instanceof HTMLElement)) return;
         descEditor.focus();
         document.execCommand(button.dataset.skillRichCommand, false, null);
-        node.desc = normalizeSkillTreeEditableHtml(descEditor);
+        node.desc = normalizeSkillLevelStoredHtml(normalizeSkillTreeEditableHtml(descEditor));
+    });
+
+    infoPanel.addEventListener('keydown', (event) => {
+        const iconPreview = event.target.closest?.('[data-skill-node-icon-preview]');
+        if (!iconPreview || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        openSkillTreeImagePreview(iconPreview.dataset.imageSrc, iconPreview.querySelector('img')?.alt || '');
     });
 
     infoPanel.addEventListener('mousedown', (event) => {
@@ -2742,6 +2929,7 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
             characterId: shared ? '' : (character.id || ''),
             bgImage: '',
             bgOpacity: 1,
+            archived: false,
             nodes: [{
                 id: 'inizio',
                 x: 50,
