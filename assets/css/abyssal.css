@@ -1587,33 +1587,76 @@ body.is-embed .container {
 }
 
 .player-skill-info-requirements {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.28rem;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.35rem 0.65rem;
     align-items: center;
-    margin: 0.6rem 0 0;
-    color: #ff7a70;
+    margin: 0.75rem 0 0;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid rgba(255, 122, 112, 0.28);
+    border-left: 3px solid rgba(255, 122, 112, 0.78);
+    border-radius: 8px;
+    background: rgba(138, 28, 28, 0.16);
+    color: #f3d8c2;
     font-family: var(--font-ui);
-    font-size: 0.64rem;
-    line-height: 1.45;
-    letter-spacing: 0.015em;
+    font-size: 0.76rem;
+    line-height: 1.35;
+    letter-spacing: 0;
     text-transform: none;
 }
 
-.player-skill-info-requirements strong {
-    color: #ff7a70;
+.player-skill-requirement-label {
+    color: #ff8a80;
+    font-size: 0.66rem;
     font-weight: 900;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
 }
 
+.player-skill-requirement-mode {
+    color: rgba(243, 216, 194, 0.86);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.player-skill-info-requirement-list {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.player-skill-requirement-pill {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 0.16rem 0.45rem;
+    border: 1px solid rgba(255, 122, 112, 0.32);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.28);
+    color: #f0e4cc;
+    overflow-wrap: anywhere;
+}
+
 .player-skill-info-requirements.is-any {
-    color: #d9bd64;
+    border-color: rgba(217, 189, 100, 0.3);
+    border-left-color: rgba(217, 189, 100, 0.86);
+    background: rgba(120, 90, 28, 0.18);
 }
 
-.player-skill-info-requirements.is-any strong {
-    color: #d9bd64;
+.player-skill-info-requirements.is-any .player-skill-requirement-label {
+    color: #f0cf63;
 }
 
+.player-skill-info-requirements.is-any .player-skill-requirement-mode {
+    color: rgba(240, 207, 99, 0.88);
+}
+
+.player-skill-info-requirements.is-any .player-skill-requirement-pill {
+    border-color: rgba(217, 189, 100, 0.36);
+}
 .player-skill-link-editor-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

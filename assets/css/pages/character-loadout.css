@@ -2915,24 +2915,78 @@
 }
 
 .player-skill-info-requirements {
-    display: block;
-    width: 166.67%;
-    margin: 0 0 -0.05rem 0;
-    color: #ff6961;
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.35rem 0.65rem;
+    align-items: center;
+    width: auto;
+    margin: 0.65rem 0 0.8rem 0;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid rgba(255, 122, 112, 0.28);
+    border-left: 3px solid rgba(255, 122, 112, 0.78);
+    border-radius: 8px;
+    background: rgba(138, 28, 28, 0.16);
+    color: #f3d8c2;
     font-family: var(--font-ui);
-    font-size: 0.68rem;
-    line-height: 1.15;
+    font-size: 0.76rem;
+    line-height: 1.35;
     letter-spacing: 0;
-    text-transform: uppercase;
-    transform: scale(0.6);
-    transform-origin: left top;
+    text-transform: none;
+    transform: none;
 }
 
-.player-skill-info-requirements strong {
+.player-skill-requirement-label {
     color: #ff8a80;
-    font-size: inherit;
+    font-size: 0.66rem;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
 }
 
+.player-skill-requirement-mode {
+    color: rgba(243, 216, 194, 0.86);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.player-skill-info-requirement-list {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.player-skill-requirement-pill {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 0.16rem 0.45rem;
+    border: 1px solid rgba(255, 122, 112, 0.32);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.28);
+    color: #f0e4cc;
+    overflow-wrap: anywhere;
+}
+
+.player-skill-info-requirements.is-any {
+    border-color: rgba(217, 189, 100, 0.3);
+    border-left-color: rgba(217, 189, 100, 0.86);
+    background: rgba(120, 90, 28, 0.18);
+}
+
+.player-skill-info-requirements.is-any .player-skill-requirement-label {
+    color: #f0cf63;
+}
+
+.player-skill-info-requirements.is-any .player-skill-requirement-mode {
+    color: rgba(240, 207, 99, 0.88);
+}
+
+.player-skill-info-requirements.is-any .player-skill-requirement-pill {
+    border-color: rgba(217, 189, 100, 0.36);
+}
 .player-skill-rich-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -3027,6 +3081,15 @@
     font-family: inherit !important;
     font-size: inherit !important;
     line-height: inherit;
+}
+
+.player-skill-info-desc strong,
+.player-skill-info-desc b,
+.player-skill-level-rich-editor strong,
+.player-skill-level-rich-editor b {
+    color: var(--gold);
+    font-weight: 900;
+    text-shadow: 0 0 8px rgba(212, 175, 55, 0.28);
 }
 
 .player-skill-info-desc :is(h1, h2, h3, h4, h5, h6),
@@ -3378,10 +3441,6 @@
     text-transform: none;
 }
 
-.player-skill-level-rich-editor strong,
-.player-skill-level-rich-editor b {
-    font-weight: 800;
-}
 
 .player-skill-level-rich-editor:focus {
     border-color: rgba(255, 221, 118, 0.72);

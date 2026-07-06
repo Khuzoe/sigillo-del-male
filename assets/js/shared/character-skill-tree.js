@@ -571,6 +571,28 @@ function unwrapSkillLevelFormattingElement(entry) {
     entry.remove();
 }
 
+function preserveSkillLevelTextLineBreaks(root) {
+    if (!root || typeof document === 'undefined' || typeof NodeFilter === 'undefined') return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let node = walker.nextNode();
+    while (node) {
+        const value = String(node.nodeValue || '');
+        if (/[\r\n]/.test(value) && value.trim()) textNodes.push(node);
+        node = walker.nextNode();
+    }
+
+    textNodes.forEach((textNode) => {
+        const value = String(textNode.nodeValue || '').replace(/\r\n?/g, '\n');
+        const fragment = document.createDocumentFragment();
+        value.split('\n').forEach((line, index) => {
+            if (index > 0) fragment.appendChild(document.createElement('br'));
+            if (line) fragment.appendChild(document.createTextNode(line));
+        });
+        textNode.replaceWith(fragment);
+    });
+}
+
 function replaceSkillLevelBlockWithParagraph(entry) {
     if (!entry?.parentNode) return;
     const paragraph = document.createElement('p');
@@ -611,6 +633,7 @@ function normalizeSkillLevelStoredHtml(value) {
         Array.from(entry.attributes).forEach((attribute) => entry.removeAttribute(attribute.name));
     });
 
+    preserveSkillLevelTextLineBreaks(template.content);
     return template.innerHTML.trim();
 }
 
@@ -1476,10 +1499,13 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             .map((id) => getSkillTreeNodeLabel(workingTree, id))
             .filter(Boolean);
         const requirementMode = getSkillTreeRequirementMode(node);
+        const requirementPills = requirementNames
+            .map((name) => `<span class="player-skill-requirement-pill">${escapeHtml(name)}</span>`)
+            .join('');
         const requirementsLabel = requirementNames.length
             ? requirementMode === 'any'
-                ? `<p class="player-skill-info-requirements is-any"><strong>REQUISITO:</strong> almeno uno tra ${escapeHtml(requirementNames.join(', '))}</p>`
-                : `<p class="player-skill-info-requirements is-all"><strong>REQUISITI:</strong> ${escapeHtml(requirementNames.join(', '))}</p>`
+                ? `<div class="player-skill-info-requirements is-any"><span class="player-skill-requirement-label">Requisito alternativo</span><span class="player-skill-requirement-mode">Sblocca uno qualsiasi</span><span class="player-skill-info-requirement-list">${requirementPills}</span></div>`
+                : `<div class="player-skill-info-requirements is-all"><span class="player-skill-requirement-label">Requisiti</span><span class="player-skill-requirement-mode">Sblocca tutti</span><span class="player-skill-info-requirement-list">${requirementPills}</span></div>`
             : '';
         const descriptionHtml = editable
             ? (normalizeSkillLevelStoredHtml(node.desc || '') || '<p>Nessun dettaglio disponibile.</p>')
@@ -1490,6 +1516,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     <div class="player-skill-rich-toolbar" role="toolbar" aria-label="Formato descrizione abilita">
                         <button type="button" data-skill-rich-command="bold" title="Grassetto"><i class="fas fa-bold" aria-hidden="true"></i></button>
                         <button type="button" data-skill-rich-command="italic" title="Corsivo"><i class="fas fa-italic" aria-hidden="true"></i></button>
+                        <button type="button" data-skill-rich-command="underline" title="Sottolineato"><i class="fas fa-underline" aria-hidden="true"></i></button>
                         <button type="button" data-skill-rich-command="insertUnorderedList" title="Elenco puntato"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
                         <button type="button" data-skill-rich-command="insertOrderedList" title="Elenco numerato"><i class="fas fa-list-ol" aria-hidden="true"></i></button>
                     </div>
@@ -2255,6 +2282,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                                     <div class="player-skill-rich-toolbar player-skill-level-rich-toolbar" role="toolbar" aria-label="Formato testo livello">
                                         <button type="button" data-skill-level-rich-command="bold" title="Grassetto"><i class="fas fa-bold" aria-hidden="true"></i></button>
                                         <button type="button" data-skill-level-rich-command="italic" title="Corsivo"><i class="fas fa-italic" aria-hidden="true"></i></button>
+                                        <button type="button" data-skill-level-rich-command="underline" title="Sottolineato"><i class="fas fa-underline" aria-hidden="true"></i></button>
                                         <button type="button" data-skill-level-rich-command="insertUnorderedList" title="Elenco puntato"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
                                         <button type="button" data-skill-level-rich-command="insertOrderedList" title="Elenco numerato"><i class="fas fa-list-ol" aria-hidden="true"></i></button>
                                     </div>

@@ -116,7 +116,7 @@ function renderMarkdown(md, options = {}) {
     return window.CriptaMarkdown.render(md, getCharacterMarkdownOptions(options));
 }
 
-const CHARACTER_MODULE_VERSION = '20260705-skill-desc-font1';
+const CHARACTER_MODULE_VERSION = '20260706-skill-underline1';
 
 function versionedCharacterModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);
