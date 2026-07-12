@@ -2733,7 +2733,8 @@
                 target.searchParams.set('actor', managedActorLink.actorId);
                 const campaignId = window.CriptaApp?.campaigns?.currentId?.() || '';
                 if (campaignId && campaignId !== 'cripta-di-sangue') target.searchParams.set('campaign', campaignId);
-                loadoutCard.insertAdjacentHTML('afterbegin', `<a class="button-gold-outline managed-actor-loadout-link" href="${escapeHtml(`${target.pathname}${target.search}`)}"><i class="fas fa-cloud"></i> Gestisci scheda condivisa</a>`);
+                const managedActorAction = managedActorLink.canEdit === true ? 'Gestisci scheda condivisa' : 'Apri scheda condivisa';
+                loadoutCard.insertAdjacentHTML('afterbegin', `<a class="button-gold-outline managed-actor-loadout-link" href="${escapeHtml(`${target.pathname}${target.search}`)}"><i class="fas fa-cloud"></i> ${managedActorAction}</a>`);
             }
             const transformationsCard = document.querySelector(`[data-transformation-subject-id="${CSS.escape(String(character?.id || ''))}"]`);
             if (transformationsCard && currentTransformationsModule?.renderHtml && managedActorLink) {

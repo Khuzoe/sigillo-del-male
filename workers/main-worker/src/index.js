@@ -1410,7 +1410,7 @@ function json(data, status = 200, corsHeaders = {}) {
 }
 
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
-const WORKER_CODE_VERSION = "2026-07-12-managed-actors-v8-full-editor";
+const WORKER_CODE_VERSION = "2026-07-12-managed-actors-v9-owner-editor";
 const SYNC_BOOTSTRAP_COLLECTIONS = [
   "characters",
   "quests",
@@ -2278,14 +2278,16 @@ function isFoundrySyncSecretAuthorized(request, env) {
   return Boolean(provided && provided === expected);
 }
 
-async function authorizeManagedActorWrite(request, env, campaignId, corsHeaders) {
-  if (isFoundrySyncSecretAuthorized(request, env)) return { source: "foundry", user: null };
+async function authorizeManagedActorWrite(request, env, campaignId, corsHeaders, actor = null) {
+  if (isFoundrySyncSecretAuthorized(request, env)) return { source: "foundry", user: null, isEditor: true, isOwner: false };
   const user = await requireUser(request, env, corsHeaders);
   if (user instanceof Response) return user;
-  if (!(await isAuthenticatedCampaignEditor(user, env, campaignId))) {
-    return json({ ok: false, error: "Forbidden: managed actor editing requires campaign editor permissions" }, 403, corsHeaders);
+  const isEditor = await isAuthenticatedCampaignEditor(user, env, campaignId);
+  const isOwner = isManagedActorOwner(actor, user, env);
+  if (!isEditor && !isOwner) {
+    return json({ ok: false, error: "Forbidden: managed actor editing requires campaign editor or actor owner permissions" }, 403, corsHeaders);
   }
-  return { source: "site", user };
+  return { source: "site", user, isEditor, isOwner };
 }
 
 function managedActorIndexEntry(document) {
@@ -2322,9 +2324,13 @@ function canReadManagedActor(entry, user, isEditor, env) {
   if (isEditor) return true;
   if (!user) return false;
   if (state === "players") return true;
+  return isManagedActorOwner(entry, user, env);
+}
+
+function isManagedActorOwner(entry, user, env) {
   const accountId = getAuthenticatedAccountId(user, env);
   const owners = Array.isArray(entry?.ownerAccountIds) ? entry.ownerAccountIds.map(sanitizeAccountId) : [];
-  return Boolean(accountId && owners.includes(accountId) && state === "owners");
+  return Boolean(accountId && owners.includes(accountId));
 }
 
 async function getManagedActorReader(request, env, campaignId) {
@@ -2618,13 +2624,12 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
   }
   if (JSON.stringify(body || {}).length > 128 * 1024) return json({ ok: false, error: "Managed actor command too large" }, 413, corsHeaders);
   const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
-  const authorization = await authorizeManagedActorWrite(request, env, campaignId, corsHeaders);
-  if (authorization instanceof Response) return authorization;
-  if (authorization.source !== "site") return json({ ok: false, error: "Managed actor commands must originate from the site" }, 400, corsHeaders);
-
   const actorRaw = await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId));
   const actor = safeJsonParse(actorRaw);
   if (!actor) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+  const authorization = await authorizeManagedActorWrite(request, env, campaignId, corsHeaders, actor);
+  if (authorization instanceof Response) return authorization;
+  if (authorization.source !== "site") return json({ ok: false, error: "Managed actor commands must originate from the site" }, 400, corsHeaders);
   const expectedRevision = Number(body?.expectedRevision);
   if (!Number.isFinite(expectedRevision) || expectedRevision !== Number(actor.revision || 0)) {
     return json({ ok: false, error: "Managed actor revision conflict", code: "VERSION_CONFLICT", currentRevision: actor.revision || 0 }, 409, corsHeaders);
@@ -2946,10 +2951,10 @@ async function handleManagedActorPost(request, route, fallbackCampaignId, env, c
   const serialized = JSON.stringify(body || {});
   if (serialized.length > 4 * 1024 * 1024) return json({ ok: false, error: "Managed actor payload too large" }, 413, corsHeaders);
   const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
-  const authorization = await authorizeManagedActorWrite(request, env, campaignId, corsHeaders);
-  if (authorization instanceof Response) return authorization;
   const key = managedActorDocumentKey(campaignId, route.worldId, route.actorId);
   const existing = safeJsonParse(await env.SIGILLO_KV.get(key));
+  const authorization = await authorizeManagedActorWrite(request, env, campaignId, corsHeaders, existing);
+  if (authorization instanceof Response) return authorization;
   if (authorization.source === "site" && !existing) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
   if (authorization.source === "site") {
     const expectedRevision = Number(body?.expectedRevision);
@@ -2958,6 +2963,9 @@ async function handleManagedActorPost(request, route, fallbackCampaignId, env, c
     }
   }
   const next = normalizeManagedActorDocument(body, existing, campaignId, route, authorization.source);
+  if (authorization.source === "site" && authorization.isOwner && !authorization.isEditor && existing?.visibility) {
+    next.visibility = existing.visibility;
+  }
   const unchanged = existing
     && authorization.source === "foundry"
     && next.contentHash
@@ -3053,15 +3061,16 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
 async function handleManagedActorGet(request, route, campaignId, env, corsHeaders = {}) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   const reader = await getManagedActorReader(request, env, campaignId);
-  const [documentRaw, runtimeRaw, commandRaw] = await Promise.all([
+  const [documentRaw, runtimeRaw] = await Promise.all([
     env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId)),
     env.SIGILLO_KV.get(managedActorRuntimeKey(campaignId, route.worldId, route.actorId)),
-    reader.isEditor ? env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId)) : Promise.resolve(null),
   ]);
   const document = safeJsonParse(documentRaw);
   const runtimeRecord = safeJsonParse(runtimeRaw);
   if (!document) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
   if (!canReadManagedActor(document, reader.user, reader.isEditor, env)) return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
+  const isOwner = isManagedActorOwner(document, reader.user, env);
+  const canEdit = Boolean(reader.isEditor || isOwner);
   const baselineRuntimeAt = Date.parse(document.runtimeUpdatedAt || document.updatedAt || "") || 0;
   const overlayRuntimeAt = Date.parse(runtimeRecord?.updatedAt || "") || 0;
   const runtimeData = overlayRuntimeAt > baselineRuntimeAt
@@ -3071,16 +3080,29 @@ async function handleManagedActorGet(request, route, campaignId, env, corsHeader
       runtimeUpdatedAt: runtimeRecord.updatedAt,
     }
     : document;
-  const commandQueue = reader.isEditor ? readManagedActorCommandQueue(commandRaw, campaignId, route.worldId) : null;
+  const commandRaw = canEdit
+    ? await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId))
+    : null;
+  const commandQueue = canEdit ? readManagedActorCommandQueue(commandRaw, campaignId, route.worldId) : null;
   const commands = commandQueue
     ? commandQueue.commands.filter((command) => command.actorId === route.actorId && ["pending", "conflict", "failed"].includes(command.status)).slice(0, 64).map(publicManagedActorCommand)
     : [];
-  const data = { ...runtimeData, permissions: { canEdit: reader.isEditor }, ...(commands.length ? { sync: { queueVersion: commandQueue.version, commands } } : {}) };
+  const data = {
+    ...runtimeData,
+    permissions: {
+      canEdit,
+      isEditor: reader.isEditor,
+      isOwner,
+      canManageVisibility: reader.isEditor,
+    },
+    ...(commands.length ? { sync: { queueVersion: commandQueue.version, commands } } : {}),
+  };
   return json({ ok: true, campaignId, data }, 200, {
     ...corsHeaders,
     "Cache-Control": reader.user || reader.isEditor ? "private, no-store" : "public, max-age=60, must-revalidate",
   });
 }
+
 async function handleFoundryAssetSnapshot(request, fallbackCampaignId, env, corsHeaders = {}) {
   if (!env.SIGILLO_KV) {
     return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
@@ -4005,14 +4027,23 @@ async function getEditableCharacterIdsForAccount(env, campaignId, accountId) {
 
 async function canAuthenticatedUserUploadMedia(user, env, campaignId, folder, filename) {
   const accountId = getAuthenticatedAccountId(user, env);
+  const parts = String(folder || "").split("/");
+  const root = parts[0] || "";
+
+  if (root === "managed-actors") {
+    const worldId = sanitizeManagedActorId(parts[1] || "");
+    const actorId = sanitizeManagedActorId(parts[2] || "");
+    if (!worldId || !actorId || !env.SIGILLO_KV) return false;
+    const actor = safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, worldId, actorId)));
+    return isManagedActorOwner(actor, user, env);
+  }
+
   const ownedCharacterIds = await getEditableCharacterIdsForAccount(env, campaignId, accountId);
   if (!ownedCharacterIds.size) return false;
 
   if (folder === "transformations" || folder.startsWith("transformations/")) return true;
   if (folder === "companion-transformations" || folder.startsWith("companion-transformations/")) return true;
 
-  const parts = String(folder || "").split("/");
-  const root = parts[0] || "";
   const scopedCharacterId = sanitizeAssetToken(parts[1] || "");
 
   if (["ability-overrides", "item-overrides", "companions"].includes(root)) {
@@ -4030,7 +4061,6 @@ async function canAuthenticatedUserUploadMedia(user, env, campaignId, folder, fi
 
   return false;
 }
-
 function requireInventorySyncSecret(request, env, corsHeaders = {}) {
   const expected = String(env.INVENTORY_SYNC_SECRET || "").trim();
   if (!expected) return true;

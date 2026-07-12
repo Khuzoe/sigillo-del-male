@@ -1757,7 +1757,9 @@ function adaptManagedActorToInventory(documentValue) {
             actorId: documentValue.actorId,
             revision: documentValue.revision,
             visibility: documentValue.visibility,
-            media: documentValue.media
+            media: documentValue.media,
+            canEdit: documentValue.permissions?.canEdit === true,
+            isOwner: documentValue.permissions?.isOwner === true
         }
     };
 }

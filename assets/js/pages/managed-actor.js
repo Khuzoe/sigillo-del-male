@@ -1070,6 +1070,12 @@
     }
     function renderAdmin(actor) {
         const state = String(actor.visibility?.state || "dm");
+        const canManageVisibility = actor.permissions?.canManageVisibility === true
+            || (actor.permissions?.canManageVisibility === undefined && actor.permissions?.canEdit === true);
+        const visibilityControl = canManageVisibility ? `<div class="managed-visibility-control">
+                <div><i class="fas fa-eye"></i><span><strong>Visibilità</strong><small>Decidi chi può consultare questa scheda.</small></span></div>
+                <select data-managed-visibility aria-label="Visibilità scheda"><option value="dm" ${state === "dm" ? "selected" : ""}>Solo DM</option><option value="owners" ${state === "owners" ? "selected" : ""}>Proprietari</option><option value="players" ${state === "players" ? "selected" : ""}>Giocatori</option><option value="public" ${state === "public" ? "selected" : ""}>Pubblico</option></select>
+            </div>` : "";
         return `<section id="managed-appearance" class="managed-panel managed-panel--admin" data-managed-admin>
             <header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Sito e Foundry</span><h2><i class="fas fa-sliders"></i> Aspetto condiviso</h2></div></header>
             <div class="managed-media-strip" aria-label="Immagini del personaggio">
@@ -1078,13 +1084,9 @@
                 ${renderSiteSlotEditor("idle", actor.media?.idle)}
                 ${renderSiteSlotEditor("hover", actor.media?.hover)}
             </div>
-            <div class="managed-visibility-control">
-                <div><i class="fas fa-eye"></i><span><strong>Visibilità</strong><small>Decidi chi può consultare questa scheda.</small></span></div>
-                <select data-managed-visibility aria-label="Visibilità scheda"><option value="dm" ${state === "dm" ? "selected" : ""}>Solo DM</option><option value="owners" ${state === "owners" ? "selected" : ""}>Proprietari</option><option value="players" ${state === "players" ? "selected" : ""}>Giocatori</option><option value="public" ${state === "public" ? "selected" : ""}>Pubblico</option></select>
-            </div>
+            ${visibilityControl}
         </section>`;
     }
-
     function renderBaseMediaEditor(slot, descriptor) {
         const avatar = slot === "avatar";
         const label = avatar ? "Avatar" : "Token base";
@@ -1425,8 +1427,11 @@
             if (presentationChanged) {
                 next.expectedRevision = revision;
                 next.media ||= {};
-                const visibility = root.querySelector("[data-managed-visibility]")?.value || "dm";
-                next.visibility = { state: visibility, published: visibility === "public" };
+                const visibilityControl = root.querySelector("[data-managed-visibility]");
+                if (visibilityControl) {
+                    const visibility = visibilityControl.value || "dm";
+                    next.visibility = { state: visibility, published: visibility === "public" };
+                }
                 for (const slot of ["avatar", "token"]) {
                     const file = root.querySelector(`[data-managed-file="${slot}"]`)?.files?.[0];
                     if (!file) continue;
@@ -1482,8 +1487,8 @@
     }
 
     function hasManagedPresentationChanges(root, actor) {
-        const visibility = root.querySelector("[data-managed-visibility]")?.value || "dm";
-        if (visibility !== String(actor.visibility?.state || "dm")) return true;
+        const visibilityControl = root.querySelector("[data-managed-visibility]");
+        if (visibilityControl && visibilityControl.value !== String(actor.visibility?.state || "dm")) return true;
         if (["avatar", "token"].some((slot) => root.querySelector(`[data-managed-file="${slot}"]`)?.files?.length)) return true;
         for (const slot of ["idle", "hover"]) {
             if (root.querySelector(`[data-managed-remove="${slot}"]`)?.checked) return true;
