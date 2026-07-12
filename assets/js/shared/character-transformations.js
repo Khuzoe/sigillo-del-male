@@ -178,7 +178,8 @@
         const accountId = String(character?.accountId || '').trim();
         const actorId = String(character?.actorId || '').trim();
         const staticEntries = Array.isArray(character?.transformations) ? character.transformations : [];
-        return mergeTransformations(staticEntries.map((entry) => normalizeTransformationEntry(entry, character)), currentTransformations)
+        const legacyEntries = mergeTransformations(staticEntries.map((entry) => normalizeTransformationEntry(entry, character)), currentTransformations);
+        return mergeTransformations(legacyEntries, getManagedActorTokenVariants(character))
             .filter((entry) => {
                 if (!entry?.enabled && entry?.enabled !== undefined) return false;
                 const isCompanionEntry = isCompanionTransformationEntry(entry);
@@ -191,6 +192,29 @@
                 return Boolean(accountId && String(entry.ownerAccountId || '') === accountId);
             })
             .sort((left, right) => String(left.creatureName || left.name || '').localeCompare(String(right.creatureName || right.name || ''), 'it'));
+    }
+
+    function getManagedActorTokenVariants(character) {
+        const managedActor = character?.managedActor || {};
+        const variants = Array.isArray(managedActor?.media?.variants) ? managedActor.media.variants : [];
+        return variants.map((variant) => ({
+            id: `managed-${managedActor.actorId || character?.actorId || 'actor'}-${variant.id || slugify(variant.name || 'variante')}`,
+            characterId: character?.id || '',
+            entityType: 'player',
+            actorId: managedActor.actorId || character?.actorId || '',
+            ownerAccountId: character?.accountId || '',
+            ownerDiscordId: character?.discordId || '',
+            creatureName: variant.name || 'Variante',
+            name: variant.name || 'Variante',
+            foundryName: variant.name || 'Variante',
+            foundryNames: [variant.name || 'Variante'],
+            tokenImage: variant.path || '',
+            revision: variant.revision || 1,
+            size: variant.width || variant.height || 1,
+            switcher: true,
+            enabled: true,
+            managedActorOwned: true
+        })).filter((entry) => entry.tokenImage);
     }
 
     function preserveVersionedCanonicalImage(canonicalPath, currentPath) {
@@ -297,6 +321,7 @@
             foundryNames,
             switcher: entry?.switcher === false ? false : true,
             tokenImage: entry?.tokenImage || '',
+            revision: normalizeTransformationRevision(entry?.revision || entry?.imageRevision),
             size,
             width: undefined,
             height: undefined
@@ -321,31 +346,33 @@
         const cards = entries.map((entry) => {
             const title = entry.creatureName || entry.name || entry.foundryName || 'Forma';
             const foundryLabel = (Array.isArray(entry.foundryNames) ? entry.foundryNames : [entry.foundryName]).filter(Boolean).join(', ');
-            const image = entry.tokenImage ? resolveCharacterAssetPath(entry.tokenImage) : '';
+            const image = entry.tokenImage ? appendTransformationRevision(resolveCharacterAssetPath(entry.tokenImage), entry.revision) : '';
             const initials = String(title || '?').trim().charAt(0).toUpperCase() || '?';
             const sizeLabel = entry.size ? `Dimensione token: ${entry.size} x ${entry.size}` : '';
             const isBaseEntry = Boolean(entry.isBaseTransformation);
+            const managedByFoundry = Boolean(entry.managedActorOwned);
+            const canEditEntry = canEdit && !isBaseEntry && !managedByFoundry;
             return `
-                <article class="player-transformation-card ${isBaseEntry ? 'is-base' : ''}" data-transformation-id="${escapeHtml(entry.id)}">
-                    ${isBaseEntry ? `
-                    <div class="player-transformation-token ${image ? 'has-image' : ''} is-base" title="Token base del personaggio">
+                <article class="player-transformation-card ${isBaseEntry ? 'is-base' : ''} ${managedByFoundry ? 'is-managed-actor' : ''}" data-transformation-id="${escapeHtml(entry.id)}">
+                    ${isBaseEntry || managedByFoundry ? `
+                    <div class="player-transformation-token ${image ? 'has-image' : ''} ${isBaseEntry ? 'is-base' : ''}" title="${managedByFoundry ? 'Variante condivisa tra sito e Foundry' : 'Token base del personaggio'}">
                         ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}">` : `<span>${escapeHtml(initials)}</span>`}
-                        <small><i class="fas fa-home"></i> Base</small>
+                        <small><i class="fas ${managedByFoundry ? 'fa-cloud' : 'fa-home'}"></i> ${managedByFoundry ? 'Condivisa' : 'Base'}</small>
                     </div>
                     ` : `
-                    <button type="button" class="player-transformation-token ${image ? 'has-image' : ''}" data-transformation-action="upload" data-transformation-id="${escapeHtml(entry.id)}" ${canEdit ? '' : 'disabled'} title="${canEdit ? 'Carica token personalizzato' : 'Token personalizzato'}">
+                    <button type="button" class="player-transformation-token ${image ? 'has-image' : ''}" data-transformation-action="upload" data-transformation-id="${escapeHtml(entry.id)}" ${canEditEntry ? '' : 'disabled'} title="${canEditEntry ? 'Carica token personalizzato' : 'Token personalizzato'}">
                         ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(title)}">` : `<span>${escapeHtml(initials)}</span>`}
-                        ${canEdit ? '<small><i class="fas fa-upload"></i> Cambia</small>' : ''}
+                        ${canEditEntry ? '<small><i class="fas fa-upload"></i> Cambia</small>' : ''}
                     </button>
                     `}
                     <div class="player-transformation-info">
-                        ${canEdit && !isBaseEntry ? `
+                        ${canEditEntry ? `
                             <label class="player-transformation-name-field">
                                 <span>Creatura Foundry</span>
                                 <input type="text" value="${escapeHtml(title)}" data-transformation-name-input data-transformation-id="${escapeHtml(entry.id)}" aria-label="Nome creatura Foundry">
                             </label>
                         ` : `<strong>${escapeHtml(title)}</strong>`}
-                        ${canEdit && !isBaseEntry ? `
+                        ${canEditEntry ? `
                             <div class="player-transformation-size-fields">
                                 <label>
                                     <span>Dimensione token</span>
@@ -354,17 +381,17 @@
                             </div>
                         ` : ''}
                         ${foundryLabel ? `<span>Foundry: ${escapeHtml(foundryLabel)}</span>` : ''}
-                        ${!canEdit && sizeLabel ? `<span>${escapeHtml(sizeLabel)}</span>` : ''}
+                        ${!canEditEntry && sizeLabel ? `<span>${escapeHtml(sizeLabel)}</span>` : ''}
                         <span class="player-transformation-mode ${entry.switcher === false ? 'is-muted' : ''}">
-                            <i class="fas fa-retweet"></i>
-                            ${isBaseEntry ? 'Token base' : (entry.switcher === false ? 'Non nel Token Switcher' : 'Disponibile nel Token Switcher')}
+                            <i class="fas ${managedByFoundry ? 'fa-cloud' : 'fa-retweet'}"></i>
+                            ${managedByFoundry ? 'Gestibile dal sito e da Foundry' : (isBaseEntry ? 'Token base' : (entry.switcher === false ? 'Non nel Tokenizer' : 'Disponibile nel Tokenizer'))}
                         </span>
                     </div>
-                    ${canEdit && !isBaseEntry ? `
+                    ${canEditEntry ? `
                         <div class="player-transformation-actions">
                             <button type="button" data-transformation-action="rename" data-transformation-id="${escapeHtml(entry.id)}">Salva dati</button>
                             ${foundryLabel ? `<button type="button" data-transformation-action="copy-foundry-name" data-transformation-id="${escapeHtml(entry.id)}">Copia nome Foundry</button>` : ''}
-                            <button type="button" data-transformation-action="toggle-switcher" data-transformation-id="${escapeHtml(entry.id)}">${entry.switcher === false ? 'Attiva switcher' : 'Disattiva switcher'}</button>
+                            <button type="button" data-transformation-action="toggle-switcher" data-transformation-id="${escapeHtml(entry.id)}">${entry.switcher === false ? 'Attiva Tokenizer' : 'Disattiva Tokenizer'}</button>
                             ${entry.tokenImage ? `<button type="button" data-transformation-action="clear" data-transformation-id="${escapeHtml(entry.id)}">Reset token</button>` : ''}
                             <button type="button" data-transformation-action="remove" data-transformation-id="${escapeHtml(entry.id)}">Rimuovi</button>
                         </div>
@@ -377,7 +404,7 @@
             <div class="player-transformations-header">
                 <div>
                     <h3><i class="fas fa-shapes"></i> Token trasformazioni</h3>
-                    <p>Override estetici: Foundry continua a gestire la trasformazione, il modulo sostituisce solo l'immagine se trova un match.</p>
+                    <p>Le nuove varianti arrivano da Khuzoe Tokenizer e si modificano in Foundry; le trasformazioni legacy restano disponibili durante la transizione.</p>
                 </div>
                 ${canEdit ? `<button type="button" class="button-gold-outline" data-transformation-action="add"><i class="fas fa-plus"></i> Aggiungi forma</button>` : ''}
             </div>
@@ -436,12 +463,22 @@
             if (!file) return;
             const path = await uploadTransformationTokenImage(file, entry, subject);
             if (!path) return;
-            await savePlayerTransformationList(subject, upsertTransformation(list, { ...entry, tokenImage: path, updatedAt: new Date().toISOString() }));
+            await savePlayerTransformationList(subject, upsertTransformation(list, {
+                ...entry,
+                tokenImage: path,
+                revision: nextTransformationRevision(entry.revision),
+                updatedAt: new Date().toISOString()
+            }));
             return;
         }
 
         if (action === 'clear') {
-            await savePlayerTransformationList(subject, upsertTransformation(list, { ...entry, tokenImage: '', updatedAt: new Date().toISOString() }));
+            await savePlayerTransformationList(subject, upsertTransformation(list, {
+                ...entry,
+                tokenImage: '',
+                revision: nextTransformationRevision(entry.revision),
+                updatedAt: new Date().toISOString()
+            }));
             return;
         }
 
@@ -517,6 +554,28 @@
         }
         const number = Number(text);
         return Number.isFinite(number) && number > 0 ? normalizeTransformationSize(number) : undefined;
+    }
+
+    function appendTransformationRevision(path, revision) {
+        const value = String(path || '').trim();
+        if (!value || !/^https?:/i.test(value)) return value;
+        try {
+            const url = new URL(value);
+            url.searchParams.set('v', String(normalizeTransformationRevision(revision)));
+            return url.toString();
+        } catch (_) {
+            return value;
+        }
+    }
+
+    function nextTransformationRevision(value) {
+        const revision = Math.floor(Number(value));
+        return Number.isFinite(revision) && revision > 0 ? revision + 1 : 1;
+    }
+
+    function normalizeTransformationRevision(value) {
+        const revision = Math.floor(Number(value));
+        return Number.isFinite(revision) && revision > 0 ? revision : 1;
     }
 
     function normalizeTransformationSize(value) {
@@ -611,7 +670,7 @@
         try {
             const blob = /\.webp$/i.test(file.name) ? file : await convertInlineImageFileToWebpBlob(file);
             const folder = `transformations/${slugify(subject?.id || subject?.accountId || 'player')}`;
-            const fileName = `${slugify(entry.creatureName || entry.name || entry.id || 'forma')}.webp`;
+            const fileName = `${slugify(entry.id || entry.creatureName || entry.name || 'forma')}.webp`;
             const payload = await window.CriptaMedia.uploadBlob(blob, {
                 folder,
                 fileName,
@@ -648,6 +707,7 @@
         handleClick,
         renderHtml(character, context = {}) {
             applyTransformationRuntime(context);
+            registerTransformationSubject(character);
             return renderPlayerTransformationsHtml(character);
         }
     });

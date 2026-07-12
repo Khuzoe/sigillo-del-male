@@ -329,6 +329,95 @@ function getCharacterSkillTreeState(character, treeKey, treeData = null) {
     return subject.shared ? mergeSkillTreeStateRecords(sorted) : (sorted[0] || null);
 }
 
+function isSkillTreeGroupNode(node) {
+    if (!node || typeof node !== 'object') return false;
+    const type = normalizeText(node.type || node.kind || node.nodeType || '');
+    return node.group === true || type === 'group' || type === 'gruppo';
+}
+
+function getSkillTreeNodeById(treeData, nodeId) {
+    const id = String(nodeId || '');
+    return (treeData?.nodes || []).find((entry) => String(entry.id) === id) || null;
+}
+
+function getSkillTreeGroupChildren(node) {
+    const raw = Array.isArray(node?.children)
+        ? node.children
+        : Array.isArray(node?.childNodes)
+            ? node.childNodes
+            : Array.isArray(node?.groupChildren)
+                ? node.groupChildren
+                : Array.isArray(node?.nodeIds)
+                    ? node.nodeIds
+                    : [];
+    const ownId = String(node?.id || '');
+    return Array.from(new Set(raw.map(String).map((entry) => entry.trim()).filter((entry) => entry && entry !== ownId)));
+}
+
+function setSkillTreeGroupChildren(node, ids) {
+    if (!node) return;
+    node.children = Array.from(new Set((ids || []).map(String).map((entry) => entry.trim()).filter((entry) => entry && entry !== String(node.id || ''))));
+    delete node.childNodes;
+    delete node.groupChildren;
+    delete node.nodeIds;
+}
+
+function getSkillTreeNodeGroup(treeData, nodeId) {
+    const id = String(nodeId || '');
+    if (!id) return null;
+    const node = getSkillTreeNodeById(treeData, id);
+    const explicitGroupId = String(node?.groupId || node?.parentGroupId || node?.groupNodeId || '').trim();
+    if (explicitGroupId) {
+        const explicitGroup = getSkillTreeNodeById(treeData, explicitGroupId);
+        if (isSkillTreeGroupNode(explicitGroup)) return explicitGroup;
+    }
+    return (treeData?.nodes || []).find((entry) => (
+        isSkillTreeGroupNode(entry)
+        && getSkillTreeGroupChildren(entry).includes(id)
+    )) || null;
+}
+
+function readSkillTreeChoiceLimit(value, fallback = 1) {
+    if (value === null || value === undefined || value === '') return fallback;
+    if (String(value).trim().toLowerCase() === 'all') return Infinity;
+    const parsed = Math.round(Number(value));
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
+}
+
+function getSkillTreeGroupChoiceLimits(groupNode, totalChildren = 0) {
+    const min = readSkillTreeChoiceLimit(groupNode?.minChoices ?? groupNode?.minimumChoices ?? groupNode?.requiredChoices, 1);
+    const maxRaw = groupNode?.maxChoices ?? groupNode?.maximumChoices ?? groupNode?.allowedChoices;
+    const max = readSkillTreeChoiceLimit(maxRaw, 1);
+    const childCount = Math.max(0, Number(totalChildren) || 0);
+    const safeMin = Math.max(0, Math.min(Number.isFinite(max) ? max : childCount || min, min));
+    const safeMax = Number.isFinite(max) ? Math.max(safeMin, max) : Infinity;
+    return { min: safeMin, max: safeMax };
+}
+
+function countUnlockedSkillTreeGroupChildren(groupNode, unlocked) {
+    const unlockedSet = new Set(Array.from(unlocked || []).map(String));
+    return getSkillTreeGroupChildren(groupNode).filter((id) => unlockedSet.has(String(id))).length;
+}
+
+function isSkillTreeGroupSatisfied(treeData, groupNode, unlocked) {
+    if (!isSkillTreeGroupNode(groupNode)) return false;
+    const children = getSkillTreeGroupChildren(groupNode);
+    const { min } = getSkillTreeGroupChoiceLimits(groupNode, children.length);
+    if (min <= 0) return true;
+    return countUnlockedSkillTreeGroupChildren(groupNode, unlocked) >= min;
+}
+
+function canUnlockSkillTreeGroupChild(treeData, node, unlocked) {
+    const groupNode = getSkillTreeNodeGroup(treeData, node?.id);
+    if (!groupNode) return true;
+    const groupRequirements = getNodePrerequisites(groupNode, treeData);
+    if (!canUnlockSkillNode(groupRequirements, getSkillTreeRequirementMode(groupNode), unlocked, treeData)) return false;
+    const children = getSkillTreeGroupChildren(groupNode);
+    const { max } = getSkillTreeGroupChoiceLimits(groupNode, children.length);
+    if (!Number.isFinite(max)) return true;
+    const selectedCount = countUnlockedSkillTreeGroupChildren(groupNode, unlocked);
+    return selectedCount < max || unlocked.has(String(node?.id));
+}
 function getNodePrerequisites(node, treeData) {
     const explicit = Array.isArray(node.requires) ? node.requires : Array.isArray(node.requirements) ? node.requirements : null;
     if (explicit) return explicit.map(String).filter(Boolean);
@@ -461,6 +550,11 @@ function normalizeSkillTreeNodeIds(tree, treeKey = '') {
         if (Array.isArray(nextNode.requirements)) {
             nextNode.requirements = nextNode.requirements.map((id) => remapTarget(nextNode, id)).filter(Boolean);
         }
+        ['children', 'childNodes', 'groupChildren', 'nodeIds'].forEach((field) => {
+            if (Array.isArray(nextNode[field])) {
+                nextNode[field] = nextNode[field].map((id) => remapTarget(nextNode, id)).filter(Boolean);
+            }
+        });
         return nextNode;
     });
 
@@ -1155,20 +1249,35 @@ function normalizeSkillTreeDefinitionForSave(treeData) {
     return {
         ...treeData,
         nodes: Array.isArray(treeData.nodes)
-            ? treeData.nodes.map((node) => ({
-                ...node,
-                desc: normalizeSkillLevelStoredHtml(node?.desc || ''),
-                levels: Array.isArray(node?.levels)
-                    ? node.levels.map((level) => {
-                        const normalizedDesc = normalizeSkillLevelStoredHtml(level?.desc || level?.description || '');
-                        return {
-                            ...level,
-                            desc: normalizedDesc,
-                            ...(level && Object.prototype.hasOwnProperty.call(level, 'description') ? { description: normalizedDesc } : {})
-                        };
-                    })
-                    : node?.levels
-            }))
+            ? treeData.nodes.map((node) => {
+                const normalizedNode = {
+                    ...node,
+                    desc: normalizeSkillLevelStoredHtml(node?.desc || ''),
+                    levels: Array.isArray(node?.levels)
+                        ? node.levels.map((level) => {
+                            const normalizedDesc = normalizeSkillLevelStoredHtml(level?.desc || level?.description || '');
+                            return {
+                                ...level,
+                                desc: normalizedDesc,
+                                ...(level && Object.prototype.hasOwnProperty.call(level, 'description') ? { description: normalizedDesc } : {})
+                            };
+                        })
+                        : node?.levels
+                };
+                if (isSkillTreeGroupNode(normalizedNode)) {
+                    const children = getSkillTreeGroupChildren(normalizedNode);
+                    const limits = getSkillTreeGroupChoiceLimits(normalizedNode, children.length);
+                    normalizedNode.type = 'group';
+                    normalizedNode.children = children;
+                    normalizedNode.minChoices = limits.min;
+                    normalizedNode.maxChoices = Number.isFinite(limits.max) ? limits.max : 'all';
+                    delete normalizedNode.childNodes;
+                    delete normalizedNode.groupChildren;
+                    delete normalizedNode.nodeIds;
+                    delete normalizedNode.levels;
+                }
+                return normalizedNode;
+            })
             : treeData.nodes
     };
 }
@@ -1194,11 +1303,19 @@ function applySkillNodeLevel(node, levelValue) {
     };
 }
 
-function canUnlockSkillNode(requirements, requirementMode, unlocked) {
+function isSkillTreeRequirementSatisfied(requirementId, unlocked, treeData = null) {
+    const id = String(requirementId || '');
+    if (!id) return false;
+    if (unlocked.has(id)) return true;
+    const requirementNode = getSkillTreeNodeById(treeData, id);
+    return isSkillTreeGroupNode(requirementNode) && isSkillTreeGroupSatisfied(treeData, requirementNode, unlocked);
+}
+
+function canUnlockSkillNode(requirements, requirementMode, unlocked, treeData = null) {
     if (!requirements.length) return true;
     return requirementMode === 'any'
-        ? requirements.some((id) => unlocked.has(String(id)))
-        : requirements.every((id) => unlocked.has(String(id)));
+        ? requirements.some((id) => isSkillTreeRequirementSatisfied(id, unlocked, treeData))
+        : requirements.every((id) => isSkillTreeRequirementSatisfied(id, unlocked, treeData));
 }
 
 function getExclusiveSkillTreeSiblingIds(treeData, nodeId) {
@@ -1223,7 +1340,7 @@ function isSkillNodeBlockedByExclusiveChoice(treeData, nodeId, unlocked) {
 function deriveSkillTreeNodes(treeData, stateRecord) {
     const baseUnlocked = new Set(
         (treeData.nodes || [])
-            .filter((node) => node.state === 'unlocked' || node.unlocked === true)
+            .filter((node) => !isSkillTreeGroupNode(node) && (node.state === 'unlocked' || node.unlocked === true))
             .map((node) => String(node.id))
     );
     const stateUnlocked = Array.isArray(stateRecord?.unlocked) ? stateRecord.unlocked : Array.isArray(stateRecord?.unlockedNodeIds) ? stateRecord.unlockedNodeIds : null;
@@ -1235,9 +1352,23 @@ function deriveSkillTreeNodes(treeData, stateRecord) {
         const requirements = getNodePrerequisites(node, treeData);
         const requirementMode = getSkillTreeRequirementMode(node);
         let state = 'locked';
+        const isGroup = isSkillTreeGroupNode(node);
+        if (isGroup) {
+            if (isSkillTreeGroupSatisfied(treeData, node, unlocked)) {
+                state = 'unlocked';
+            } else if (canUnlockSkillNode(requirements, requirementMode, unlocked, treeData)) {
+                state = 'unlockable';
+            }
+            return { ...node, id: nodeId, requires: requirements, requiresMode: requirementMode, state, level: 1, maxLevel: 1 };
+        }
+
         if (unlocked.has(nodeId)) {
             state = 'unlocked';
-        } else if (!isSkillNodeBlockedByExclusiveChoice(treeData, nodeId, unlocked) && canUnlockSkillNode(requirements, requirementMode, unlocked)) {
+        } else if (
+            !isSkillNodeBlockedByExclusiveChoice(treeData, nodeId, unlocked)
+            && canUnlockSkillTreeGroupChild(treeData, node, unlocked)
+            && canUnlockSkillNode(requirements, requirementMode, unlocked, treeData)
+        ) {
             state = 'unlockable';
         }
         const level = unlocked.has(nodeId) ? stateLevels[nodeId] : 1;
@@ -1270,8 +1401,15 @@ function pruneUnlockedSkillNodes(treeData, unlockedIds) {
         (treeData.nodes || []).forEach((node) => {
             const nodeId = String(node.id);
             if (!nextUnlocked.has(nodeId)) return;
+            if (isSkillTreeGroupNode(node)) {
+                nextUnlocked.delete(nodeId);
+                changed = true;
+                return;
+            }
             const requirements = getNodePrerequisites(node, treeData);
-            const canStayUnlocked = canUnlockSkillNode(requirements, getSkillTreeRequirementMode(node), nextUnlocked);
+            const groupNode = getSkillTreeNodeGroup(treeData, nodeId);
+            const groupAvailable = !groupNode || canUnlockSkillNode(getNodePrerequisites(groupNode, treeData), getSkillTreeRequirementMode(groupNode), nextUnlocked, treeData);
+            const canStayUnlocked = groupAvailable && canUnlockSkillNode(requirements, getSkillTreeRequirementMode(node), nextUnlocked, treeData);
             if (!canStayUnlocked) {
                 nextUnlocked.delete(nodeId);
                 changed = true;
@@ -1366,6 +1504,63 @@ async function deleteSkillTreeData(treeKey, treeData, allSkillTrees) {
     }
 }
 
+function getSkillTreeNodeVisualRadius(node) {
+    if (isSkillTreeGroupNode(node)) return Math.max(8, Math.min(46, Number(node?.groupRadius) || 12));
+    return node?.keyNode ? 5.85 : 4.35;
+}
+
+function calculateSkillTreeGroupLayout(groupNode, nodes) {
+    const childIds = new Set(getSkillTreeGroupChildren(groupNode));
+    const childNodes = (nodes || []).filter((node) => childIds.has(String(node.id)) && !isSkillTreeGroupNode(node));
+    if (!childNodes.length) {
+        return {
+            x: Math.max(6, Math.min(94, Number(groupNode?.x) || 50)),
+            y: Math.max(6, Math.min(94, Number(groupNode?.y) || 50)),
+            radius: Math.max(10, Math.min(24, Number(groupNode?.groupRadius) || 12))
+        };
+    }
+
+    const xs = childNodes.map((node) => Number(node.x) || 50);
+    const ys = childNodes.map((node) => Number(node.y) || 50);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+    const requiredRadius = childNodes.reduce((max, node) => {
+        const distance = Math.hypot((Number(node.x) || 50) - centerX, (Number(node.y) || 50) - centerY);
+        return Math.max(max, distance + getSkillTreeNodeVisualRadius(node) + 4.5);
+    }, 11);
+
+    return {
+        x: Math.max(6, Math.min(94, centerX)),
+        y: Math.max(6, Math.min(94, centerY)),
+        radius: Math.max(11, Math.min(46, requiredRadius))
+    };
+}
+
+function applySkillTreeGroupLayouts(nodes, treeData) {
+    const sourceNodes = (nodes || []).map((node) => ({ ...node }));
+    return sourceNodes.map((node) => {
+        if (!isSkillTreeGroupNode(node)) return node;
+        const layout = calculateSkillTreeGroupLayout(node, sourceNodes, treeData);
+        return {
+            ...node,
+            x: layout.x,
+            y: layout.y,
+            groupRadius: layout.radius
+        };
+    });
+}
+
+function getSkillTreeGroupStatusLabel(groupNode, unlocked) {
+    const children = getSkillTreeGroupChildren(groupNode);
+    const limits = getSkillTreeGroupChoiceLimits(groupNode, children.length);
+    const selected = countUnlockedSkillTreeGroupChildren(groupNode, unlocked);
+    const maxLabel = Number.isFinite(limits.max) ? String(limits.max) : String(children.length || 'tutti');
+    return `Scelte ${selected} / ${maxLabel}${limits.min > 0 ? `, minimo ${limits.min}` : ''}`;
+}
 function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry = null) {
     const treeEntry = forcedTreeEntry || resolvePlayerSkillTreeEntry(characterOrId, allSkillTrees);
     const treeData = treeEntry?.tree || null;
@@ -1383,8 +1578,8 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         ...treeData,
         nodes: (treeData.nodes || []).map((node) => ({ ...node, id: String(node.id) }))
     };
-    let currentNodes = deriveSkillTreeNodes(workingTree, stateRecord);
-    let unlockedIds = new Set(currentNodes.filter((node) => node.state === 'unlocked').map((node) => String(node.id)));
+    let currentNodes = applySkillTreeGroupLayouts(deriveSkillTreeNodes(workingTree, stateRecord), workingTree);
+    let unlockedIds = new Set(currentNodes.filter((node) => !isSkillTreeGroupNode(node) && node.state === 'unlocked').map((node) => String(node.id)));
     let nodeLevels = { ...(stateRecord?.levels && typeof stateRecord.levels === 'object' ? stateRecord.levels : {}) };
     let selectedNodeId = currentNodes[0]?.id || '';
     let lockedInfoNodeId = '';
@@ -1440,7 +1635,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     };
 
     const renderNodeProgressActions = (node) => {
-        if (editMode || !canEditUnlocks || !node) return '';
+        if (editMode || !canEditUnlocks || !node || isSkillTreeGroupNode(node)) return '';
         const nodeId = String(node.id || '');
         const state = String(node.state || 'locked');
         const level = Math.max(1, Number(node.level || 1));
@@ -1492,7 +1687,8 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             return;
         }
 
-        const icon = resolveSkillAssetPath(node.icon);
+        const isGroupNode = isSkillTreeGroupNode(node);
+        const icon = isGroupNode ? '' : resolveSkillAssetPath(node.icon);
         const editable = editMode && canEditTree;
         const isInfoLocked = !editable && lockedInfoNodeId && String(node.id) === String(lockedInfoNodeId);
         const requirementNames = getNodePrerequisites(node, workingTree)
@@ -1509,8 +1705,34 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             : '';
         const descriptionHtml = editable
             ? (normalizeSkillLevelStoredHtml(node.desc || '') || '<p>Nessun dettaglio disponibile.</p>')
-            : renderSkillNodeDescriptionForReading(node);
+            : isGroupNode
+                ? (normalizeSkillLevelStoredHtml(node.desc || '') || '<p>Gruppo di scelte dell albero.</p>')
+                : renderSkillNodeDescriptionForReading(node);
 
+        const groupDetails = isGroupNode ? (() => {
+            const childIds = getSkillTreeGroupChildren(node);
+            const limits = getSkillTreeGroupChoiceLimits(node, childIds.length);
+            const selected = countUnlockedSkillTreeGroupChildren(node, unlockedIds);
+            const maxLabel = Number.isFinite(limits.max) ? String(limits.max) : 'tutte';
+            const childPills = childIds
+                .map((id) => {
+                    const child = getSkillTreeNodeById(workingTree, id);
+                    const selectedClass = unlockedIds.has(String(id)) ? ' is-selected' : '';
+                    return `<span class="player-skill-requirement-pill${selectedClass}">${escapeHtml(child?.title || id)}</span>`;
+                })
+                .join('');
+            return `
+                <div class="player-skill-info-group-summary">
+                    <span>Gruppo scelte</span>
+                    <strong>${escapeHtml(String(selected))} / ${escapeHtml(maxLabel)}</strong>
+                    <small>Minimo ${escapeHtml(String(limits.min))}</small>
+                    <div class="player-skill-info-requirement-list">${childPills || '<span class="player-skill-requirement-pill">Nessun nodo interno</span>'}</div>
+                </div>
+            `;
+        })() : '';
+        const stateText = isGroupNode
+            ? (node.state === 'unlocked' ? 'Completato' : node.state === 'unlockable' ? 'Disponibile' : 'Bloccato')
+            : (node.state === 'unlocked' ? 'Sbloccata' : node.state === 'unlockable' ? 'Disponibile' : 'Bloccata');
         const actionButtons = isInfoLocked ? renderNodeProgressActions(node) : '';
         const richTextToolbar = editable ? `
                     <div class="player-skill-rich-toolbar" role="toolbar" aria-label="Formato descrizione abilita">
@@ -1527,12 +1749,13 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                         <h4 class="player-skill-info-title" ${editable ? 'contenteditable="true" data-skill-preview-field="title" spellcheck="false"' : ''}>${escapeHtml(node.title || 'Abilita')}</h4>
                     </header>
                     <div class="player-skill-info-state-row">
-                        <div class="player-skill-info-state is-${escapeHtml(node.state || 'locked')}">${escapeHtml(node.state === 'unlocked' ? 'Sbloccata' : node.state === 'unlockable' ? 'Disponibile' : 'Bloccata')}</div>
-                        ${Number(node.maxLevel || 1) > 1 ? `<div class="player-skill-info-level">Livello ${escapeHtml(node.level || 1)} / ${escapeHtml(node.maxLevel)}</div>` : ''}
+                        <div class="player-skill-info-state is-${escapeHtml(node.state || 'locked')}">${escapeHtml(stateText)}</div>
+                        ${!isGroupNode && Number(node.maxLevel || 1) > 1 ? `<div class="player-skill-info-level">Livello ${escapeHtml(node.level || 1)} / ${escapeHtml(node.maxLevel)}</div>` : ''}
+                        ${actionButtons}
                     </div>
-                    ${actionButtons}
                     ${editable || node.flavor ? `<p class="player-skill-info-flavor" ${editable ? 'contenteditable="true" data-skill-preview-field="flavor" spellcheck="true"' : ''}>${escapeHtml(node.flavor || '')}</p>` : ''}
                     ${richTextToolbar}
+                    ${groupDetails}
                     ${requirementsLabel}
                     <div class="player-skill-info-desc ${editable ? 'is-editable' : ''}" ${editable ? 'contenteditable="true" data-skill-preview-field="desc" spellcheck="true"' : ''}>${descriptionHtml}</div>
                 `;
@@ -1556,19 +1779,20 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         currentNodes = editMode && canEditTree
             ? deriveSkillTreeEditorNodes(workingTree, stateSnapshot)
             : deriveSkillTreeNodes(workingTree, stateSnapshot);
+        currentNodes = applySkillTreeGroupLayouts(currentNodes, workingTree);
     };
 
     const persistUnlocks = async () => {
         const activeLevels = Object.fromEntries(Object.entries(nodeLevels).filter(([nodeId]) => unlockedIds.has(String(nodeId))));
         nodeLevels = activeLevels;
-        await saveCharacterSkillTreeState(character, treeKey, Array.from(unlockedIds), activeLevels, workingTree);
+        await saveCharacterSkillTreeState(character, treeKey, Array.from(unlockedIds).filter((nodeId) => !isSkillTreeGroupNode(getSkillTreeNodeById(workingTree, nodeId))), activeLevels, workingTree);
     };
 
     const applyNodeProgressAction = async (action, nodeId) => {
         const id = String(nodeId || '');
         if (!id || !canEditUnlocks) return;
         const node = currentNodes.find((entry) => String(entry.id) === id);
-        if (!node) return;
+        if (!node || isSkillTreeGroupNode(node)) return;
         let changed = false;
 
         if (action === 'unlock') {
@@ -1669,10 +1893,11 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         if (!distance) return { x1: sx, y1: sy, x2: tx, y2: ty };
         const ux = dx / distance;
         const uy = dy / distance;
-        const sourceRadius = startNode.keyNode ? 5.85 : 4.35;
-        const targetRadius = targetNode.keyNode ? 5.85 : 4.35;
-        const sourceOffset = Math.min(sourceRadius, distance * 0.28);
-        const targetOffset = Math.min(targetRadius, distance * 0.36);
+        const sourceRadius = getSkillTreeNodeVisualRadius(startNode);
+        const targetRadius = getSkillTreeNodeVisualRadius(targetNode);
+        const edgeGap = 0.55;
+        const sourceOffset = Math.min(sourceRadius, Math.max(0, distance - targetRadius - edgeGap));
+        const targetOffset = Math.min(targetRadius, Math.max(0, distance - sourceOffset - edgeGap));
         return {
             x1: sx + ux * sourceOffset,
             y1: sy + uy * sourceOffset,
@@ -1731,6 +1956,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             const source = byId.get(String(node.id));
             return source ? { ...node, x: source.x, y: source.y } : node;
         });
+        currentNodes = applySkillTreeGroupLayouts(currentNodes, workingTree);
     };
 
     const hideSnapGuides = () => {
@@ -1749,11 +1975,24 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     const updateLinkPreview = (event) => {
         if (!linkDrag?.line) return;
         const point = getTreePointerPosition(event);
+        const sourceNode = linkDrag.sourceNode || { x: linkDrag.startX, y: linkDrag.startY };
+        const sx = Number(sourceNode.x) || 50;
+        const sy = Number(sourceNode.y) || 50;
+        const dx = point.x - sx;
+        const dy = point.y - sy;
+        const distance = Math.hypot(dx, dy);
+        if (distance > 0) {
+            const ux = dx / distance;
+            const uy = dy / distance;
+            const offset = Math.min(getSkillTreeNodeVisualRadius(sourceNode), Math.max(0, distance - 0.55));
+            linkDrag.line.setAttribute('x1', `${sx + ux * offset}%`);
+            linkDrag.line.setAttribute('y1', `${sy + uy * offset}%`);
+        }
         linkDrag.line.setAttribute('x2', `${point.x}%`);
         linkDrag.line.setAttribute('y2', `${point.y}%`);
-        const targetNodeElement = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.player-skill-node');
+        const targetNodeElement = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.player-skill-node, .player-skill-group-node');
         const targetId = targetNodeElement?.dataset?.nodeId || '';
-        treeContainer.querySelectorAll('.player-skill-node.is-link-target').forEach((entry) => {
+        treeContainer.querySelectorAll('.player-skill-node.is-link-target, .player-skill-group-node.is-link-target').forEach((entry) => {
             entry.classList.remove('is-link-target');
         });
         if (targetId && targetId !== linkDrag.sourceId) {
@@ -1768,7 +2007,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         window.removeEventListener('pointerup', finishLinkDrag);
         window.removeEventListener('pointercancel', cancelLinkDrag);
         treeContainer.classList.remove('is-linking-skill-tree');
-        treeContainer.querySelectorAll('.player-skill-node.is-link-target').forEach((entry) => {
+        treeContainer.querySelectorAll('.player-skill-node.is-link-target, .player-skill-group-node.is-link-target').forEach((entry) => {
             entry.classList.remove('is-link-target');
         });
     };
@@ -1776,7 +2015,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     const finishLinkDrag = (event) => {
         if (!linkDrag || event.pointerId !== linkDrag.pointerId) return;
         event.preventDefault();
-        const targetNodeElement = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.player-skill-node');
+        const targetNodeElement = document.elementFromPoint(event.clientX, event.clientY)?.closest?.('.player-skill-node, .player-skill-group-node');
         const targetId = targetNodeElement?.dataset?.nodeId || '';
         const source = workingTree.nodes.find((entry) => String(entry.id) === linkDrag.sourceId);
         const target = workingTree.nodes.find((entry) => String(entry.id) === String(targetId));
@@ -1818,6 +2057,9 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         linkDrag = {
             sourceId,
             pointerId: event.pointerId,
+            startX,
+            startY,
+            sourceNode: node,
             line
         };
         treeContainer.classList.add('is-linking-skill-tree');
@@ -1869,13 +2111,73 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         return { x, y };
     };
 
+    const renderGroupNodes = () => {
+        currentNodes.filter(isSkillTreeGroupNode).forEach((groupNode) => {
+            const groupElement = document.createElement('button');
+            groupElement.type = 'button';
+            const stateClass = groupNode.state === 'unlocked' || groupNode.state === 'unlockable' ? groupNode.state : 'locked';
+            const isSelectedNode = editMode ? String(groupNode.id) === String(selectedNodeId) : String(groupNode.id) === String(lockedInfoNodeId);
+            const diameter = Math.max(18, Math.min(92, getSkillTreeNodeVisualRadius(groupNode) * 2));
+            groupElement.className = `player-skill-group-node is-${stateClass}${isSelectedNode ? ' is-selected' : ''}`;
+            groupElement.style.left = `${Number(groupNode.x) || 50}%`;
+            groupElement.style.top = `${Number(groupNode.y) || 50}%`;
+            groupElement.style.width = `${diameter}%`;
+            groupElement.style.setProperty('--skill-group-diameter', `${diameter}%`);
+            groupElement.setAttribute('aria-label', groupNode.title || 'Gruppo abilita');
+            groupElement.dataset.nodeId = String(groupNode.id);
+            groupElement.innerHTML = `
+                <span class="player-skill-group-node-label">${escapeHtml(groupNode.title || 'Gruppo')}</span>
+                <small>${escapeHtml(getSkillTreeGroupStatusLabel(groupNode, unlockedIds))}</small>
+            `;
+
+            if (canEditTree) {
+                const linkAnchor = document.createElement('span');
+                linkAnchor.className = 'player-skill-node-link-anchor player-skill-group-link-anchor';
+                linkAnchor.setAttribute('title', 'Trascina per collegare');
+                linkAnchor.setAttribute('aria-hidden', 'true');
+                linkAnchor.innerHTML = '<i class="fas fa-link"></i>';
+                linkAnchor.addEventListener('pointerdown', (event) => startLinkDrag(groupNode, event));
+                linkAnchor.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                });
+                groupElement.appendChild(linkAnchor);
+            }
+
+            groupElement.addEventListener('mouseenter', () => {
+                if (!editMode && !lockedInfoNodeId) updateInfo(groupNode);
+            });
+            groupElement.addEventListener('focus', () => {
+                if (!editMode && !lockedInfoNodeId) updateInfo(groupNode);
+            });
+            groupElement.addEventListener('click', () => {
+                selectedNodeId = String(groupNode.id);
+                selectedConnection = null;
+                if (editMode && canEditTree) {
+                    lockedInfoNodeId = '';
+                    updateInfo(groupNode);
+                    renderTree();
+                    renderEditor();
+                    return;
+                }
+                lockedInfoNodeId = lockedInfoNodeId === String(groupNode.id) ? '' : String(groupNode.id);
+                updateInfo(groupNode);
+                renderTree();
+            });
+            groupElement.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+            });
+            treeContainer.appendChild(groupElement);
+        });
+    };
     const renderTree = () => {
         applyTreeBackground();
         recalculateNodes();
         renderConnections();
-        treeContainer.querySelectorAll('.player-skill-node').forEach((node) => node.remove());
+        treeContainer.querySelectorAll('.player-skill-node, .player-skill-group-node').forEach((node) => node.remove());
+        renderGroupNodes();
 
-        currentNodes.forEach((node) => {
+        currentNodes.filter((node) => !isSkillTreeGroupNode(node)).forEach((node) => {
             const nodeElement = document.createElement('button');
             nodeElement.type = 'button';
             const stateClass = node.state === 'unlocked' || node.state === 'unlockable' ? node.state : 'locked';
@@ -2196,9 +2498,48 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         `;
     };
 
+    const buildGroupNodeEditorPanel = (node) => {
+        if (!isSkillTreeGroupNode(node)) return '';
+        const nodeId = String(node?.id || '');
+        const children = new Set(getSkillTreeGroupChildren(node));
+        const availableNodes = (workingTree.nodes || []).filter((entry) => String(entry.id) !== nodeId && !isSkillTreeGroupNode(entry));
+        const limits = getSkillTreeGroupChoiceLimits(node, children.size);
+        const childRows = availableNodes.length
+            ? availableNodes.map((entry) => {
+                const id = String(entry.id);
+                return `
+                    <label class="player-skill-requirement-row">
+                        <input type="checkbox" data-node-group-child-id="${escapeHtml(id)}" ${children.has(id) ? 'checked' : ''}>
+                        <span>${escapeHtml(entry.title || entry.id)}</span>
+                    </label>
+                `;
+            }).join('')
+            : '<p class="player-skill-editor-help">Crea almeno un nodo abilita da inserire nel gruppo.</p>';
+
+        return `
+            <details class="player-skill-editor-section player-skill-group-editor" open>
+                <summary>Gruppo di scelte</summary>
+                <div class="player-skill-group-editor-grid">
+                    <label>Scelte minime
+                        <input type="number" min="0" max="20" step="1" data-node-group-field="minChoices" value="${escapeHtml(limits.min)}">
+                    </label>
+                    <label>Scelte massime
+                        <input type="text" data-node-group-field="maxChoices" value="${escapeHtml(Number.isFinite(limits.max) ? limits.max : 'all')}" placeholder="1, 2, all">
+                    </label>
+                    <div class="player-skill-group-child-list">
+                        <h5>Nodi contenuti</h5>
+                        <div class="player-skill-requirement-list">
+                            ${childRows}
+                        </div>
+                    </div>
+                </div>
+            </details>
+        `;
+    };
     const renderEditor = () => {
         if (!editorPanel || !canEditTree) return;
         const node = readEditorNode();
+        const isGroupNode = isSkillTreeGroupNode(node);
         editorPanel.hidden = !editMode;
         if (!editMode) return;
         const bgPath = workingTree.bgImage || '';
@@ -2257,7 +2598,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         ` : '';
         const allNodeLevels = Array.isArray(node?.levels) ? node.levels : [];
         const upgradeLevels = allNodeLevels.slice(1);
-        const upgradeLevelsHtml = `
+        const upgradeLevelsHtml = isGroupNode ? '' : `
             <details class="player-skill-editor-section player-skill-level-editor" ${upgradeLevels.length ? 'open' : ''}>
                 <summary>Livelli nodo</summary>
                 <div class="player-skill-level-list">
@@ -2348,7 +2689,13 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 <label>ID nodo
                     <input type="text" data-node-field="id" value="${escapeHtml(node?.id || '')}">
                 </label>
-                <div class="player-skill-node-icon-upload ${node?.icon ? 'has-icon' : ''}" data-skill-node-icon-drop tabindex="0">
+                <label>Tipo nodo
+                    <select data-node-field="type">
+                        <option value="skill" ${!isGroupNode ? 'selected' : ''}>Abilita</option>
+                        <option value="group" ${isGroupNode ? 'selected' : ''}>Gruppo</option>
+                    </select>
+                </label>
+                ${!isGroupNode ? `<div class="player-skill-node-icon-upload ${node?.icon ? 'has-icon' : ''}" data-skill-node-icon-drop tabindex="0">
                     <div class="player-skill-node-icon-preview">
                         ${node?.icon ? `<img src="${escapeHtml(resolveSkillAssetPath(node.icon))}" alt="">` : '<i class="fas fa-image" aria-hidden="true"></i>'}
                     </div>
@@ -2358,7 +2705,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                         <button type="button" class="player-skill-action-button is-compact" data-skill-action="pick-node-icon"><i class="fas fa-upload"></i> File</button>
                     </div>
                     <input type="file" accept="image/*" data-skill-node-icon-file hidden>
-                </div>
+                </div>` : ''}
                 <div class="player-skill-position-fields">
                     <span>Posizione</span>
                     <label>X %
@@ -2378,10 +2725,12 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     </select>
                 </label>
             </div>
+            ${buildGroupNodeEditorPanel(node)}
             ${buildNodeRelationshipPanel(node)}
             ${upgradeLevelsHtml}
             <div class="player-skill-editor-actions">
                 <button type="button" class="player-skill-action-button" data-skill-action="add-node"><i class="fas fa-plus"></i> Nodo</button>
+                <button type="button" class="player-skill-action-button" data-skill-action="add-group-node"><i class="fas fa-circle-nodes"></i> Gruppo</button>
                 <button type="button" class="player-skill-action-button is-danger" data-skill-action="delete-node"><i class="fas fa-trash"></i> Elimina</button>
                 <button type="button" class="player-skill-action-button is-primary" data-skill-action="save-tree"><i class="fas fa-save"></i> Salva</button>
             </div>
@@ -2396,6 +2745,19 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             selectedConnection = null;
             renderEditor();
             renderTree();
+            return;
+        }
+        const groupChildId = target.dataset.nodeGroupChildId;
+        if (groupChildId) {
+            const node = readEditorNode();
+            if (!isSkillTreeGroupNode(node)) return;
+            const children = new Set(getSkillTreeGroupChildren(node));
+            if (target.checked) children.add(String(groupChildId));
+            else children.delete(String(groupChildId));
+            setSkillTreeGroupChildren(node, Array.from(children));
+            unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
+            renderTree();
+            renderEditor();
             return;
         }
         const linkField = target.dataset.skillLinkField;
@@ -2464,6 +2826,19 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             }
             return;
         }
+        const groupField = target.dataset.nodeGroupField;
+        if (groupField) {
+            const node = readEditorNode();
+            if (!isSkillTreeGroupNode(node)) return;
+            if (groupField === 'minChoices') {
+                node.minChoices = Math.max(0, Math.round(Number(target.value) || 0));
+            } else if (groupField === 'maxChoices') {
+                const value = String(target.value || '').trim();
+                node.maxChoices = value.toLowerCase() === 'all' ? 'all' : Math.max(0, Math.round(Number(value) || 0));
+            }
+            renderTree();
+            return;
+        }
         if (!isFormControl) return;
         const tool = target.dataset.skillTool;
         if (tool === 'snapGrid') {
@@ -2517,7 +2892,20 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                         })));
                     }
                     if (Array.isArray(entry.requires)) entry.requires = entry.requires.map((id) => String(id) === oldId ? nextId : id);
+                    if (Array.isArray(entry.requirements)) entry.requirements = entry.requirements.map((id) => String(id) === oldId ? nextId : id);
+                    if (isSkillTreeGroupNode(entry)) setSkillTreeGroupChildren(entry, getSkillTreeGroupChildren(entry).map((id) => String(id) === oldId ? nextId : id));
                 });
+            } else if (nodeField === 'type') {
+                if (target.value === 'group') {
+                    node.type = 'group';
+                    if (!Array.isArray(node.children)) node.children = [];
+                    node.minChoices = Math.max(0, Math.round(Number(node.minChoices ?? 1) || 1));
+                    node.maxChoices = node.maxChoices ?? 1;
+                } else {
+                    if (node.type === 'group') node.type = 'skill';
+                }
+                unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
+                renderEditor();
             } else if (nodeField === 'connections' || nodeField === 'requires') {
                 const values = target.value.split(',').map((entry) => entry.trim()).filter(Boolean);
                 if (nodeField === 'connections') {
@@ -2694,6 +3082,26 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             renderTree();
             renderEditor();
         }
+        if (action === 'add-group-node') {
+            const id = `group-${Date.now().toString(36)}`;
+            workingTree.nodes.push({
+                id,
+                type: 'group',
+                x: 50,
+                y: 50,
+                title: 'Nuovo gruppo',
+                flavor: '',
+                desc: '<p>Gruppo di scelte.</p>',
+                children: [],
+                minChoices: 1,
+                maxChoices: 1,
+                connections: []
+            });
+            selectedNodeId = id;
+            selectedConnection = null;
+            renderTree();
+            renderEditor();
+        }
         if (action === 'add-node-level') {
             const node = readEditorNode();
             if (!node) return;
@@ -2735,6 +3143,10 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     )),
                     requires: (entry.requires || []).filter((targetId) => String(targetId) !== id)
             }));
+            workingTree.nodes.forEach((entry) => {
+                if (Array.isArray(entry.requirements)) entry.requirements = entry.requirements.filter((targetId) => String(targetId) !== id);
+                if (isSkillTreeGroupNode(entry)) setSkillTreeGroupChildren(entry, getSkillTreeGroupChildren(entry).filter((targetId) => String(targetId) !== id));
+            });
             unlockedIds.delete(id);
             delete nodeLevels[id];
             unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);

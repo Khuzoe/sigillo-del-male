@@ -33,6 +33,32 @@ export default {
         return handleFoundryAssetSnapshot(request, queryCampaignId, env, corsHeaders);
       }
 
+      const managedActorRoute = matchManagedActorRoute(url.pathname);
+      const managedActorRuntimeRoute = matchManagedActorRuntimeRoute(url.pathname);
+      const managedActorCommandRoute = matchManagedActorCommandRoute(url.pathname);
+      const managedActorCommandBatchRoute = matchManagedActorCommandBatchRoute(url.pathname);
+      if (managedActorCommandRoute && request.method === "POST") {
+        return handleManagedActorCommandEnqueue(request, managedActorCommandRoute, queryCampaignId, env, corsHeaders);
+      }
+      if (managedActorCommandBatchRoute?.action === "ack" && request.method === "POST") {
+        return handleManagedActorCommandAck(request, managedActorCommandBatchRoute, queryCampaignId, env, corsHeaders);
+      }
+      if (managedActorCommandBatchRoute?.action === "list" && request.method === "GET") {
+        return handleManagedActorCommandList(request, managedActorCommandBatchRoute, queryCampaignId, env, corsHeaders);
+      }
+      if (managedActorRuntimeRoute && request.method === "POST") {
+        return handleManagedActorRuntimePost(request, managedActorRuntimeRoute, queryCampaignId, env, corsHeaders);
+      }
+      if (managedActorRoute && request.method === "POST") {
+        return handleManagedActorPost(request, managedActorRoute, queryCampaignId, env, corsHeaders);
+      }
+      if (managedActorRoute && request.method === "GET") {
+        return handleManagedActorGet(request, managedActorRoute, queryCampaignId, env, corsHeaders);
+      }
+      if (url.pathname === "/api/managed-actors" && request.method === "GET") {
+        return handleManagedActorIndexGet(request, queryCampaignId, env, corsHeaders);
+      }
+
       if (url.pathname === "/api/asset-cleanup/dry-run" && request.method === "GET") {
         return handleAssetCleanupDryRun(request, queryCampaignId, env, corsHeaders);
       }
@@ -1384,7 +1410,7 @@ function json(data, status = 200, corsHeaders = {}) {
 }
 
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
-const WORKER_CODE_VERSION = "2026-06-18-quests-v1";
+const WORKER_CODE_VERSION = "2026-07-12-managed-actors-v8-full-editor";
 const SYNC_BOOTSTRAP_COLLECTIONS = [
   "characters",
   "quests",
@@ -1478,6 +1504,22 @@ function sanitizeDataCollection(value) {
 
 function dataCollectionKey(collection, campaignId = DEFAULT_CAMPAIGN_ID) {
   return campaignKey(campaignId, `data:${collection}:override`);
+}
+
+function managedActorIndexKey(campaignId = DEFAULT_CAMPAIGN_ID) {
+  return campaignKey(campaignId, "managed-actors:index");
+}
+
+function managedActorRuntimeKey(campaignId, worldId, actorId) {
+  return campaignKey(campaignId, `managed-actor-runtime:${sanitizeManagedActorId(worldId)}:${sanitizeManagedActorId(actorId)}`);
+}
+
+function managedActorDocumentKey(campaignId, worldId, actorId) {
+  return campaignKey(campaignId, `managed-actor:${sanitizeManagedActorId(worldId)}:${sanitizeManagedActorId(actorId)}`);
+}
+
+function managedActorCommandQueueKey(campaignId, worldId) {
+  return campaignKey(campaignId, `managed-actor-commands:${sanitizeManagedActorId(worldId)}`);
 }
 
 function inventoryKey(campaignId = DEFAULT_CAMPAIGN_ID) {
@@ -1931,6 +1973,7 @@ async function handleCharacterBootstrapGet(request, campaignId, env, corsHeaders
     "ability-overrides",
     "item-overrides",
     "media-overrides",
+    "managed-actors",
     "transformations",
   ];
 
@@ -2177,6 +2220,867 @@ function sanitizeBootstrapId(value) {
     .slice(0, 128);
 }
 
+
+function matchManagedActorRoute(pathname) {
+  const match = String(pathname || "").match(/^\/api\/managed-actors\/([A-Za-z0-9_-]{1,96})\/([A-Za-z0-9_-]{1,96})$/);
+  if (!match) return null;
+  const worldId = sanitizeManagedActorId(match[1]);
+  const actorId = sanitizeManagedActorId(match[2]);
+  return worldId && actorId ? { worldId, actorId } : null;
+}
+
+function matchManagedActorRuntimeRoute(pathname) {
+  const match = String(pathname || "").match(/^\/api\/managed-actors\/([A-Za-z0-9_-]{1,96})\/([A-Za-z0-9_-]{1,96})\/runtime$/);
+  if (!match) return null;
+  const worldId = sanitizeManagedActorId(match[1]);
+  const actorId = sanitizeManagedActorId(match[2]);
+  return worldId && actorId ? { worldId, actorId } : null;
+}
+
+function matchManagedActorCommandRoute(pathname) {
+  const match = String(pathname || "").match(/^\/api\/managed-actors\/([A-Za-z0-9_-]{1,96})\/([A-Za-z0-9_-]{1,96})\/commands$/);
+  if (!match) return null;
+  const worldId = sanitizeManagedActorId(match[1]);
+  const actorId = sanitizeManagedActorId(match[2]);
+  return worldId && actorId ? { worldId, actorId } : null;
+}
+
+function matchManagedActorCommandBatchRoute(pathname) {
+  const match = String(pathname || "").match(/^\/api\/managed-actor-commands\/([A-Za-z0-9_-]{1,96})(?:\/(ack))?$/);
+  if (!match) return null;
+  const worldId = sanitizeManagedActorId(match[1]);
+  return worldId ? { worldId, action: match[2] === "ack" ? "ack" : "list" } : null;
+}
+function sanitizeManagedActorId(value) {
+  const id = String(value || "").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/-+/g, "-").replace(/^-+|-+$/g, "");
+  return id && id.length <= 96 ? id : "";
+}
+
+function managedActorVisibilityState(value) {
+  const state = String(value?.state || value || "dm").trim().toLowerCase();
+  return ["public", "players", "owners", "dm"].includes(state) ? state : "dm";
+}
+
+function getOptionalAuthenticatedUser(request, env) {
+  const auth = String(request.headers.get("Authorization") || "");
+  if (!auth.toLowerCase().startsWith("bearer ")) return Promise.resolve(null);
+  return verifyJWT(String(env.JWT_SECRET), auth.slice(7).trim());
+}
+
+function isFoundrySyncSecretAuthorized(request, env) {
+  const expected = String(env.INVENTORY_SYNC_SECRET || "").trim();
+  if (!expected) return false;
+  const provided = String(
+    request.headers.get("X-Cripta-Inventory-Secret")
+    || request.headers.get("X-Inventory-Sync-Secret")
+    || ""
+  ).trim();
+  return Boolean(provided && provided === expected);
+}
+
+async function authorizeManagedActorWrite(request, env, campaignId, corsHeaders) {
+  if (isFoundrySyncSecretAuthorized(request, env)) return { source: "foundry", user: null };
+  const user = await requireUser(request, env, corsHeaders);
+  if (user instanceof Response) return user;
+  if (!(await isAuthenticatedCampaignEditor(user, env, campaignId))) {
+    return json({ ok: false, error: "Forbidden: managed actor editing requires campaign editor permissions" }, 403, corsHeaders);
+  }
+  return { source: "site", user };
+}
+
+function managedActorIndexEntry(document) {
+  return {
+    id: document.id,
+    worldId: document.worldId,
+    actorId: document.actorId,
+    foundryActorId: document.foundryActorId || document.actorId,
+    name: document.name,
+    actorType: document.actorType,
+    ownerCharacterId: document.ownerCharacterId || "",
+    ownerAccountIds: Array.isArray(document.ownerAccountIds) ? document.ownerAccountIds : [],
+    visibility: document.visibility,
+    media: {
+      avatar: document.media?.avatar || null,
+      token: document.media?.token || null,
+      idle: document.media?.idle || null,
+      hover: document.media?.hover || null,
+    },
+    revision: document.revision,
+    updatedAt: document.updatedAt,
+  };
+}
+
+function managedActorIndexEntryComparable(entry) {
+  if (!entry) return "";
+  const { updatedAt, ...stable } = entry;
+  return JSON.stringify(stable);
+}
+
+function canReadManagedActor(entry, user, isEditor, env) {
+  const state = managedActorVisibilityState(entry?.visibility);
+  if (state === "public" || entry?.visibility?.published === true) return true;
+  if (isEditor) return true;
+  if (!user) return false;
+  if (state === "players") return true;
+  const accountId = getAuthenticatedAccountId(user, env);
+  const owners = Array.isArray(entry?.ownerAccountIds) ? entry.ownerAccountIds.map(sanitizeAccountId) : [];
+  return Boolean(accountId && owners.includes(accountId) && state === "owners");
+}
+
+async function getManagedActorReader(request, env, campaignId) {
+  if (isFoundrySyncSecretAuthorized(request, env)) return { user: null, isEditor: true };
+  const user = await getOptionalAuthenticatedUser(request, env);
+  const isEditor = Boolean(user && await isAuthenticatedCampaignEditor(user, env, campaignId));
+  return { user, isEditor };
+}
+
+const MANAGED_ACTOR_ITEM_PATCH_PATHS = new Set([
+  "name",
+  "img",
+  "system.description.value",
+  "system.quantity",
+  "system.equipped",
+  "system.attuned",
+  "system.attunement",
+  "system.preparation.prepared",
+  "system.preparation.mode",
+  "system.uses.value",
+  "system.uses.spent",
+  "system.uses.max",
+  "system.uses.per",
+  "system.level",
+  "system.school",
+  "system.identifier",
+  "system.requirements",
+]);
+
+const MANAGED_ACTOR_ITEM_OBJECT_PATCH_PATHS = new Set([
+  "system.properties",
+  "system.activation",
+  "system.target",
+  "system.range",
+  "system.duration",
+  "system.uses.recovery",
+  "system.recharge",
+  "system.damage",
+  "system.attack",
+  "system.save",
+  "system.activities",
+  "system.type",
+  "system.materials",
+  "system.weight",
+  "system.price",
+  "system.currency",
+  "system.capacity",
+]);
+
+const MANAGED_ACTOR_EFFECT_PATCH_PATHS = new Set([
+  "name",
+  "img",
+  "disabled",
+  "duration",
+  "changes",
+  "statuses",
+]);
+
+const MANAGED_ACTOR_UPDATE_STATIC_PATHS = new Set([
+  "name",
+  "system.attributes.hp.value",
+  "system.attributes.hp.temp",
+  "system.attributes.hp.max",
+  "system.attributes.hp.tempmax",
+  "system.attributes.ac.flat",
+  "system.attributes.ac.calc",
+  "system.attributes.prof",
+  "system.attributes.init.bonus",
+  "system.attributes.movement.walk",
+  "system.attributes.movement.fly",
+  "system.attributes.movement.swim",
+  "system.attributes.movement.climb",
+  "system.attributes.movement.burrow",
+  "system.attributes.movement.units",
+  "system.attributes.movement.hover",
+  "system.details.cr",
+  "system.traits.size",
+]);
+
+function isManagedActorUpdatePatchPath(path) {
+  return MANAGED_ACTOR_UPDATE_STATIC_PATHS.has(path)
+    || /^system\.abilities\.(str|dex|con|int|wis|cha)\.(value|proficient)$/.test(path)
+    || /^system\.skills\.[a-z0-9_-]{2,16}\.value$/.test(path)
+    || /^system\.traits\.(dr|di|dv|ci|languages)\.(value|bypasses|custom)$/.test(path)
+    || /^system\.spells\.(spell[0-9]|pact)\.(value|spent|max|override)$/.test(path);
+}
+
+function sanitizeManagedCommandObject(value, depth = 0) {
+  if (depth > 12) return null;
+  if (value === null || value === undefined) return null;
+  if (["string", "number", "boolean"].includes(typeof value)) {
+    if (typeof value === "string") return value.slice(0, 12_000);
+    return typeof value === "number" && !Number.isFinite(value) ? null : value;
+  }
+  if (Array.isArray(value)) return value.slice(0, 256).map((entry) => sanitizeManagedCommandObject(entry, depth + 1));
+  if (typeof value !== "object") return null;
+  return Object.fromEntries(Object.entries(value).slice(0, 256)
+    .filter(([key]) => /^[A-Za-z0-9_-]{1,96}$/.test(key) && !["__proto__", "prototype", "constructor"].includes(key))
+    .map(([key, entry]) => [key, sanitizeManagedCommandObject(entry, depth + 1)]));
+}
+
+function normalizeManagedCommandObject(value, maxBytes = 64 * 1024) {
+  if ((!value || typeof value !== "object") && !Array.isArray(value)) return { valid: false, value: null };
+  const normalized = sanitizeManagedCommandObject(value);
+  return JSON.stringify(normalized).length <= maxBytes ? { valid: true, value: normalized } : { valid: false, value: null };
+}
+
+function normalizeManagedMediaReference(value) {
+  if (typeof value !== "string") return { valid: false, value: "" };
+  const clean = String(value || "").trim().slice(0, 1_000);
+  if (!clean) return { valid: true, value: "" };
+  if (/^media\/campaigns\/[a-z0-9_-]+\/managed-actors\//.test(clean)) return { valid: true, value: clean };
+  if (/^https:\/\/sigillo-api\.khuzoe\.workers\.dev\/media\//i.test(clean)) return { valid: true, value: clean };
+  if (/^(icons|systems|modules|worlds)\/[A-Za-z0-9_./%+@-]+\.(png|jpe?g|webp|gif|svg)$/i.test(clean) && !clean.includes("..")) return { valid: true, value: clean };
+  return { valid: false, value: "" };
+}
+
+function normalizeManagedActorItemCommandValue(path, value) {
+  if (path === "name") return { valid: typeof value === "string" && Boolean(String(value).trim()), value: String(value || "").trim().slice(0, 180) };
+  if (path === "img") return normalizeManagedMediaReference(value);
+  if (path === "system.description.value") {
+    if (typeof value !== "string") return { valid: false, value: "" };
+    return { valid: true, value: String(value).replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/\son\w+\s*=\s*(["']).*?\1/gi, "").slice(0, 24_000) };
+  }
+  if (["system.equipped", "system.attuned", "system.preparation.prepared"].includes(path)) {
+    return { valid: typeof value === "boolean", value: Boolean(value) };
+  }
+  if (["system.quantity", "system.uses.value", "system.uses.spent", "system.uses.max", "system.level"].includes(path)) {
+    const number = Number(value);
+    return { valid: Number.isFinite(number), value: Math.max(0, Math.min(999_999, number)) };
+  }
+  if (["system.attunement", "system.uses.per", "system.school", "system.identifier", "system.requirements", "system.preparation.mode"].includes(path)) {
+    if (!["string", "number", "boolean"].includes(typeof value)) return { valid: false, value: null };
+    return { valid: true, value: typeof value === "string" ? value.trim().slice(0, 180) : value };
+  }
+  if (MANAGED_ACTOR_ITEM_OBJECT_PATCH_PATHS.has(path)) return normalizeManagedCommandObject(value);
+  return { valid: false, value: null };
+}
+
+function normalizeManagedActorEffectCommandValue(path, value) {
+  if (path === "name") return { valid: typeof value === "string" && Boolean(String(value).trim()), value: String(value).trim().slice(0, 180) };
+  if (path === "img") return normalizeManagedMediaReference(value);
+  if (path === "disabled") return { valid: typeof value === "boolean", value: value };
+  if (["duration", "changes"].includes(path)) return normalizeManagedCommandObject(value, 32 * 1024);
+  if (path === "statuses") {
+    if (!Array.isArray(value)) return { valid: false, value: [] };
+    return { valid: true, value: Array.from(new Set(value.map((entry) => String(entry || "").trim().slice(0, 96)).filter(Boolean))).slice(0, 64) };
+  }
+  return { valid: false, value: null };
+}
+
+function normalizeManagedActorUpdateCommandValue(path, value) {
+  if (path === "name") return { valid: typeof value === "string" && Boolean(String(value).trim()), value: String(value || "").trim().slice(0, 180) };
+  if (path === "system.attributes.movement.hover") return { valid: typeof value === "boolean", value: Boolean(value) };
+  if (/^system\.traits\.(dr|di|dv|ci|languages)\.(value|bypasses)$/.test(path)) {
+    if (!Array.isArray(value)) return { valid: false, value: [] };
+    const values = Array.from(new Set(value.map((entry) => String(entry || "").trim().slice(0, 80)).filter(Boolean))).slice(0, 64);
+    return { valid: true, value: values };
+  }
+  if (/^system\.traits\.(dr|di|dv|ci|languages)\.custom$/.test(path)) {
+    return { valid: typeof value === "string", value: String(value || "").trim().slice(0, 2_000) };
+  }
+  if (path === "system.details.cr") {
+    if (typeof value === "string") return { valid: Boolean(value.trim()), value: value.trim().slice(0, 16) };
+    const number = Number(value);
+    return { valid: Number.isFinite(number), value: Math.max(0, Math.min(99, number)) };
+  }
+  if (["system.attributes.ac.calc", "system.attributes.movement.units", "system.traits.size"].includes(path)) {
+    return { valid: typeof value === "string", value: String(value || "").trim().slice(0, 40) };
+  }
+  if (/^system\.abilities\.(str|dex|con|int|wis|cha)\.proficient$/.test(path)
+    || /^system\.skills\.[a-z0-9_-]{2,16}\.value$/.test(path)) {
+    const number = Number(value);
+    return { valid: Number.isFinite(number), value: Math.max(0, Math.min(2, number)) };
+  }
+  if (/^system\.abilities\.(str|dex|con|int|wis|cha)\.value$/.test(path)) {
+    const number = Number(value);
+    return { valid: Number.isFinite(number), value: Math.max(0, Math.min(99, Math.round(number))) };
+  }
+  if (path === "system.attributes.init.bonus") {
+    const number = Number(value);
+    return { valid: Number.isFinite(number), value: Math.max(-99, Math.min(99, number)) };
+  }
+  if (path === "system.attributes.ac.flat" || path === "system.attributes.prof") {
+    const number = Number(value);
+    return { valid: Number.isFinite(number), value: Math.max(0, Math.min(99, number)) };
+  }
+  if (/^system\.attributes\.hp\.(value|temp|max|tempmax)$/.test(path)
+    || /^system\.attributes\.movement\.(walk|fly|swim|climb|burrow)$/.test(path)
+    || /^system\.spells\.(spell[0-9]|pact)\.(value|spent|max|override)$/.test(path)) {
+    const number = Number(value);
+    return { valid: Number.isFinite(number), value: Math.max(0, Math.min(999_999, number)) };
+  }
+  return { valid: false, value: null };
+}
+
+function normalizeManagedActorCommandPatch(input, kind = "item.update") {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const path = String(input.path || "").trim();
+  let normalizeValue;
+  if (kind === "actor.update") {
+    if (!isManagedActorUpdatePatchPath(path)) return null;
+    normalizeValue = normalizeManagedActorUpdateCommandValue;
+  } else if (kind === "item.update") {
+    if (!MANAGED_ACTOR_ITEM_PATCH_PATHS.has(path) && !MANAGED_ACTOR_ITEM_OBJECT_PATCH_PATHS.has(path)) return null;
+    normalizeValue = normalizeManagedActorItemCommandValue;
+  } else if (kind === "effect.update") {
+    if (!MANAGED_ACTOR_EFFECT_PATCH_PATHS.has(path)) return null;
+    normalizeValue = normalizeManagedActorEffectCommandValue;
+  } else return null;
+  const normalized = normalizeValue(path, input.value);
+  if (!normalized.valid) return null;
+  const base = input.baseValue === null || input.baseValue === undefined || input.baseValue === ""
+    ? { valid: true, value: null }
+    : normalizeValue(path, input.baseValue);
+  return { path, value: normalized.value, baseValue: base.valid ? base.value : null };
+}
+
+function normalizeManagedCreateDocument(input, kind) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  if (kind === "item.create") {
+    const name = String(input.name || "").trim().slice(0, 180);
+    const type = String(input.type || "").trim().toLowerCase();
+    if (!name || !["weapon", "equipment", "consumable", "tool", "loot", "container", "feat", "spell", "background", "class", "subclass"].includes(type)) return null;
+    const img = input.img ? normalizeManagedMediaReference(input.img) : { valid: true, value: "" };
+    const system = normalizeManagedCommandObject(input.system || {}, 96 * 1024);
+    if (!img.valid || !system.valid) return null;
+    return { name, type, img: img.value, system: system.value, transferId: String(input.transferId || "").trim().slice(0, 180) };
+  }
+  if (kind === "effect.create") {
+    const name = String(input.name || "").trim().slice(0, 180);
+    if (!name) return null;
+    const img = input.img ? normalizeManagedMediaReference(input.img) : { valid: true, value: "" };
+    const duration = normalizeManagedCommandObject(input.duration || {}, 16 * 1024);
+    const changes = normalizeManagedCommandObject(Array.isArray(input.changes) ? input.changes : [], 32 * 1024);
+    const statuses = normalizeManagedActorEffectCommandValue("statuses", Array.isArray(input.statuses) ? input.statuses : []);
+    if (!img.valid || !duration.valid || !changes.valid || !statuses.valid) return null;
+    return { name, img: img.value, disabled: input.disabled === true, duration: duration.value, changes: changes.value, statuses: statuses.value, clientId: String(input.clientId || "").trim().slice(0, 96) };
+  }
+  return null;
+}
+function normalizeManagedActorCommandTarget(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const transferId = String(input.transferId || "").trim().slice(0, 180);
+  const itemId = String(input.itemId || "").trim().slice(0, 96);
+  const effectId = String(input.effectId || "").trim().slice(0, 96);
+  const clientId = String(input.clientId || "").trim().slice(0, 96);
+  return transferId || itemId || effectId || clientId ? { transferId, itemId, effectId, clientId } : null;
+}
+
+function readManagedActorCommandQueue(raw, campaignId, worldId) {
+  const parsed = typeof raw === "string" ? safeJsonParse(raw) : raw;
+  return {
+    schemaVersion: 1,
+    campaignId,
+    worldId,
+    version: Number(parsed?.version || 0),
+    updatedAt: parsed?.updatedAt || null,
+    commands: Array.isArray(parsed?.commands) ? parsed.commands.slice(0, 256) : [],
+  };
+}
+
+async function writeManagedActorCommandQueue(env, queue) {
+  await env.SIGILLO_KV.put(managedActorCommandQueueKey(queue.campaignId, queue.worldId), JSON.stringify(queue), { expirationTtl: 60 * 24 * 60 * 60 });
+}
+
+function publicManagedActorCommand(command) {
+  return {
+    id: command.id,
+    kind: command.kind,
+    actorId: command.actorId,
+    foundryActorId: command.foundryActorId,
+    target: command.target,
+    patches: command.patches,
+    document: command.document,
+    status: command.status,
+    error: command.error || "",
+    current: command.current && typeof command.current === "object" ? command.current : undefined,
+    createdAt: command.createdAt,
+    updatedAt: command.updatedAt,
+  };
+}
+
+async function handleManagedActorCommandEnqueue(request, route, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  let body;
+  try {
+    body = await request.json();
+  } catch (_) {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  if (JSON.stringify(body || {}).length > 128 * 1024) return json({ ok: false, error: "Managed actor command too large" }, 413, corsHeaders);
+  const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
+  const authorization = await authorizeManagedActorWrite(request, env, campaignId, corsHeaders);
+  if (authorization instanceof Response) return authorization;
+  if (authorization.source !== "site") return json({ ok: false, error: "Managed actor commands must originate from the site" }, 400, corsHeaders);
+
+  const actorRaw = await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId));
+  const actor = safeJsonParse(actorRaw);
+  if (!actor) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+  const expectedRevision = Number(body?.expectedRevision);
+  if (!Number.isFinite(expectedRevision) || expectedRevision !== Number(actor.revision || 0)) {
+    return json({ ok: false, error: "Managed actor revision conflict", code: "VERSION_CONFLICT", currentRevision: actor.revision || 0 }, 409, corsHeaders);
+  }
+
+  const kind = String(body?.kind || "item.update").trim().toLowerCase();
+  const allowedKinds = new Set(["actor.update", "item.update", "item.create", "item.delete", "effect.update", "effect.create", "effect.delete"]);
+  if (!allowedKinds.has(kind)) return json({ ok: false, error: "Unsupported managed actor command" }, 400, corsHeaders);
+
+  const isUpdate = kind.endsWith(".update");
+  const isCreate = kind.endsWith(".create");
+  const isDelete = kind.endsWith(".delete");
+  const isItemKind = kind.startsWith("item.");
+  const isEffectKind = kind.startsWith("effect.");
+  let document = isCreate ? normalizeManagedCreateDocument(body?.document, kind) : null;
+  let target = kind === "actor.update" ? {} : normalizeManagedActorCommandTarget(body?.target);
+  if (kind === "item.create" && document) {
+    document.transferId ||= `item-${crypto.randomUUID()}`;
+    target = { transferId: document.transferId, itemId: "", effectId: "", clientId: "" };
+  }
+  if (kind === "effect.create" && document) {
+    document.clientId ||= `effect-${crypto.randomUUID()}`;
+    target = { transferId: "", itemId: "", effectId: "", clientId: document.clientId };
+  }
+  const patches = isUpdate
+    ? (Array.isArray(body?.patches) ? body.patches : []).slice(0, 64).map((patch) => normalizeManagedActorCommandPatch(patch, kind)).filter(Boolean)
+    : [];
+  if ((isUpdate && !patches.length) || ((isItemKind || isEffectKind) && !target) || (isCreate && !document) || (!isUpdate && !isCreate && !isDelete)) {
+    return json({ ok: false, error: "Managed actor command has no valid target or payload" }, 400, corsHeaders);
+  }
+
+  const queueKey = managedActorCommandQueueKey(campaignId, route.worldId);
+  const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(queueKey), campaignId, route.worldId);
+  const now = new Date().toISOString();
+  const entityMatches = (command) => {
+    if (command.actorId !== route.actorId) return false;
+    if (kind === "actor.update") return command.kind === "actor.update";
+    if (isItemKind && !String(command.kind || "").startsWith("item.")) return false;
+    if (isEffectKind && !String(command.kind || "").startsWith("effect.")) return false;
+    if (target.transferId) return command.target?.transferId === target.transferId;
+    if (target.itemId) return command.target?.itemId === target.itemId;
+    if (target.effectId) return command.target?.effectId === target.effectId;
+    return Boolean(target.clientId && command.target?.clientId === target.clientId);
+  };
+  const sameTarget = (command) => command.kind === kind && entityMatches(command);
+  const pendingIndex = queue.commands.findIndex((command) => command.status === "pending" && sameTarget(command));
+  let command;
+  if (pendingIndex >= 0) {
+    const previous = queue.commands[pendingIndex];
+    if (isUpdate) {
+      const byPath = new Map((Array.isArray(previous.patches) ? previous.patches : []).map((patch) => [patch.path, patch]));
+      for (const patch of patches) {
+        const existingPatch = byPath.get(patch.path);
+        byPath.set(patch.path, existingPatch ? { ...patch, baseValue: existingPatch.baseValue } : patch);
+      }
+      command = { ...previous, patches: Array.from(byPath.values()), updatedAt: now };
+      queue.commands[pendingIndex] = command;
+    } else command = previous;
+  } else {
+    const commands = queue.commands.filter((entry) => {
+      if (sameTarget(entry) && ["conflict", "failed"].includes(entry.status)) return false;
+      if (isDelete && entry.status === "pending" && entityMatches(entry)) return false;
+      return true;
+    });
+    if (commands.length >= 256) return json({ ok: false, error: "Managed actor command queue is full" }, 429, corsHeaders);
+    command = {
+      id: crypto.randomUUID(),
+      kind,
+      campaignId,
+      worldId: route.worldId,
+      actorId: route.actorId,
+      foundryActorId: String(actor.foundryActorId || actor.actorId || route.actorId).slice(0, 96),
+      baseRevision: Number(actor.revision || 0),
+      target,
+      patches,
+      ...(document ? { document } : {}),
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
+      createdBy: getAuthenticatedAccountId(authorization.user, env) || "editor",
+    };
+    queue.commands = [...commands, command];
+  }  queue.version += 1;
+  queue.updatedAt = now;
+  await writeManagedActorCommandQueue(env, queue);
+  return json({ ok: true, queued: true, campaignId, worldId: route.worldId, actorId: route.actorId, queueVersion: queue.version, command: publicManagedActorCommand(command) }, 202, { ...corsHeaders, "Cache-Control": "private, no-store" });
+}
+
+async function handleManagedActorCommandList(request, route, campaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  if (!isFoundrySyncSecretAuthorized(request, env)) return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
+  const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId)), campaignId, route.worldId);
+  const commands = queue.commands.filter((command) => command.status === "pending").map(publicManagedActorCommand);
+  return json({ ok: true, campaignId, worldId: route.worldId, version: queue.version, commands }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
+}
+
+async function handleManagedActorCommandAck(request, route, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  if (!isFoundrySyncSecretAuthorized(request, env)) return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
+  let body;
+  try {
+    body = await request.json();
+  } catch (_) {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
+  const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId)), campaignId, route.worldId);
+  const results = new Map((Array.isArray(body?.results) ? body.results : []).slice(0, 256).map((result) => [String(result?.id || ""), result]));
+  if (!results.size) return json({ ok: false, error: "Missing command results" }, 400, corsHeaders);
+  const now = new Date().toISOString();
+  let changed = false;
+  queue.commands = queue.commands.flatMap((command) => {
+    const result = results.get(command.id);
+    if (!result) return [command];
+    const status = String(result.status || "").toLowerCase();
+    if (status === "applied") {
+      changed = true;
+      return [];
+    }
+    if (["conflict", "failed"].includes(status)) {
+      changed = true;
+      return [{ ...command, status, error: String(result.error || result.message || status).slice(0, 800), current: result.current && typeof result.current === "object" ? result.current : undefined, updatedAt: now }];
+    }
+    return [command];
+  });
+  if (changed) {
+    queue.version += 1;
+    queue.updatedAt = now;
+    await writeManagedActorCommandQueue(env, queue);
+  }
+  return json({ ok: true, campaignId, worldId: route.worldId, acknowledged: changed, queueVersion: queue.version }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
+}
+
+function normalizeManagedActorMediaSlot(slot) {
+  if (!slot || typeof slot !== "object" || Array.isArray(slot)) return null;
+  const path = String(slot.path || slot.src || "").trim();
+  if (!path) return null;
+  return {
+    path,
+    revision: Math.max(1, Math.floor(Number(slot.revision) || 1)),
+    hash: String(slot.hash || "").slice(0, 160),
+    source: String(slot.source || "foundry").slice(0, 24),
+    presentation: slot.presentation && typeof slot.presentation === "object" ? slot.presentation : undefined,
+  };
+}
+
+function normalizeManagedActorMedia(media, existingMedia = {}, source = "foundry", variantOptions = {}) {
+  const submitted = media && typeof media === "object" && !Array.isArray(media) ? media : {};
+  const variants = Array.isArray(submitted.variants)
+    ? submitted.variants.slice(0, 128).map((variant) => {
+      if (!variant || typeof variant !== "object") return null;
+      const normalized = normalizeManagedActorMediaSlot(variant);
+      if (!normalized) return null;
+      return {
+        ...normalized,
+        id: sanitizeAssetId(variant.id),
+        name: String(variant.name || "Variante").trim().slice(0, 160),
+        width: Math.max(0.5, Math.min(12, Number(variant.width) || 1)),
+        height: Math.max(0.5, Math.min(12, Number(variant.height) || Number(variant.width) || 1)),
+      };
+    }).filter((variant) => variant?.id)
+    : [];
+  const mode = ["replace", "merge"].includes(variantOptions.mode) ? variantOptions.mode : "preserve";
+  const existingVariants = Array.isArray(existingMedia.variants) ? existingMedia.variants : [];
+  let canonicalVariants = existingVariants;
+  if (mode === "replace") {
+    canonicalVariants = variants;
+  } else if (mode === "merge") {
+    const upsertIds = new Set((Array.isArray(variantOptions.upsertIds) ? variantOptions.upsertIds : []).map(sanitizeAssetId).filter(Boolean));
+    const removedIds = new Set((Array.isArray(variantOptions.removedIds) ? variantOptions.removedIds : []).map(sanitizeAssetId).filter(Boolean));
+    const byId = new Map(existingVariants.filter((variant) => variant?.id && !removedIds.has(variant.id)).map((variant) => [variant.id, variant]));
+    for (const variant of variants) {
+      if (upsertIds.has(variant.id)) byId.set(variant.id, variant);
+    }
+    canonicalVariants = Array.from(byId.values()).slice(0, 128);
+  }
+  const hasAvatar = Object.prototype.hasOwnProperty.call(submitted, "avatar");
+  const hasToken = Object.prototype.hasOwnProperty.call(submitted, "token");
+  const hasIdle = Object.prototype.hasOwnProperty.call(submitted, "idle");
+  const hasHover = Object.prototype.hasOwnProperty.call(submitted, "hover");
+  return {
+    avatar: source === "foundry"
+      ? (normalizeManagedActorMediaSlot(submitted.avatar) || existingMedia.avatar || null)
+      : (hasAvatar ? (normalizeManagedActorMediaSlot(submitted.avatar) || existingMedia.avatar || null) : (existingMedia.avatar || null)),
+    token: source === "foundry"
+      ? (normalizeManagedActorMediaSlot(submitted.token) || existingMedia.token || null)
+      : (hasToken ? (normalizeManagedActorMediaSlot(submitted.token) || existingMedia.token || null) : (existingMedia.token || null)),
+    idle: source === "site" ? (hasIdle ? normalizeManagedActorMediaSlot(submitted.idle) : (existingMedia.idle || null)) : (existingMedia.idle || null),
+    hover: source === "site" ? (hasHover ? normalizeManagedActorMediaSlot(submitted.hover) : (existingMedia.hover || null)) : (existingMedia.hover || null),
+    variants: canonicalVariants,
+  };
+}
+
+function managedRuntimeNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function normalizeManagedActorRuntime(input = {}) {
+  const runtime = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+  const hp = runtime.hp && typeof runtime.hp === "object" ? runtime.hp : {};
+  const xp = runtime.xp && typeof runtime.xp === "object" ? runtime.xp : {};
+  const weight = runtime.weight && typeof runtime.weight === "object" ? runtime.weight : {};
+  const death = runtime.death && typeof runtime.death === "object" ? runtime.death : {};
+  const resources = Object.fromEntries(Object.entries(runtime.resources && typeof runtime.resources === "object" ? runtime.resources : {})
+    .slice(0, 32)
+    .map(([key, value]) => [sanitizeAssetId(key), {
+      value: managedRuntimeNumber(value?.value),
+      max: managedRuntimeNumber(value?.max),
+    }])
+    .filter(([key]) => key));
+  const spellSlots = Object.fromEntries(Object.entries(runtime.spellSlots && typeof runtime.spellSlots === "object" ? runtime.spellSlots : {})
+    .filter(([key]) => key === "pact" || /^spell\d+$/.test(key))
+    .slice(0, 12)
+    .map(([key, value]) => [key, {
+      value: managedRuntimeNumber(value?.value),
+      spent: managedRuntimeNumber(value?.spent),
+      max: managedRuntimeNumber(value?.max),
+    }]));
+  return {
+    hp: {
+      value: managedRuntimeNumber(hp.value),
+      temp: managedRuntimeNumber(hp.temp),
+      max: managedRuntimeNumber(hp.max),
+      tempmax: managedRuntimeNumber(hp.tempmax),
+    },
+    inspiration: typeof runtime.inspiration === "boolean" ? runtime.inspiration : null,
+    xp: {
+      value: managedRuntimeNumber(xp.value),
+      max: managedRuntimeNumber(xp.max),
+    },
+    weight: {
+      value: managedRuntimeNumber(weight.value),
+      max: managedRuntimeNumber(weight.max),
+      pct: managedRuntimeNumber(weight.pct),
+      encumbered: typeof weight.encumbered === "boolean" ? weight.encumbered : null,
+    },
+    death: {
+      success: managedRuntimeNumber(death.success),
+      failure: managedRuntimeNumber(death.failure),
+    },
+    resources,
+    spellSlots,
+  };
+}
+
+function mergeManagedActorRuntime(base = {}, overlay = {}) {
+  return {
+    ...base,
+    ...overlay,
+    hp: { ...(base.hp || {}), ...(overlay.hp || {}) },
+    death: { ...(base.death || {}), ...(overlay.death || {}) },
+    resources: { ...(base.resources || {}), ...(overlay.resources || {}) },
+    spellSlots: { ...(base.spellSlots || {}), ...(overlay.spellSlots || {}) },
+  };
+}
+function normalizeManagedActorDocument(input, existing, campaignId, route, source) {
+  const now = new Date().toISOString();
+  const requestedVariantMode = String(input.variantSyncMode || "").toLowerCase();
+  const variantMode = !existing
+    ? "replace"
+    : ["replace", "merge"].includes(requestedVariantMode)
+      ? requestedVariantMode
+      : (input.variantSync === true ? "replace" : "preserve");
+  const ownerAccountIds = Array.from(new Set(
+    (Array.isArray(input.ownerAccountIds) ? input.ownerAccountIds : [])
+      .map(sanitizeAccountId)
+      .filter(Boolean)
+  )).slice(0, 16);
+  const requestedVisibility = input.visibility && typeof input.visibility === "object" ? input.visibility : {};
+  const existingVisibility = existing?.visibility && typeof existing.visibility === "object" ? existing.visibility : null;
+  const visibility = source === "site" || !existingVisibility
+    ? {
+      state: managedActorVisibilityState(requestedVisibility),
+      published: requestedVisibility.published === true || managedActorVisibilityState(requestedVisibility) === "public",
+    }
+    : existingVisibility;
+  return {
+    schemaVersion: Math.max(1, Math.floor(Number(input.schemaVersion) || 1)),
+    id: `${route.worldId}:${route.actorId}`,
+    campaignId,
+    worldId: route.worldId,
+    actorId: route.actorId,
+    actorUuid: String(source === "foundry" ? (input.actorUuid || `Actor.${route.actorId}`) : (existing?.actorUuid || `Actor.${route.actorId}`)).slice(0, 180),
+    foundryActorId: String(source === "foundry" ? (input.foundryActorId || input.actorId || route.actorId) : (existing?.foundryActorId || route.actorId)).trim().slice(0, 96),
+    name: String(source === "foundry" ? (input.name || existing?.name || "Actor") : (existing?.name || "Actor")).trim().slice(0, 180),
+    actorType: String(source === "foundry" ? (input.actorType || input.type || existing?.actorType || "npc") : (existing?.actorType || "npc")).trim().slice(0, 48),
+    ownerCharacterId: sanitizeAssetId(source === "foundry" ? (input.ownerCharacterId || existing?.ownerCharacterId || "") : (existing?.ownerCharacterId || "")),
+    ownerAccountIds: source === "foundry" ? ownerAccountIds : (existing?.ownerAccountIds || ownerAccountIds),
+    visibility,
+    media: normalizeManagedActorMedia(input.media, existing?.media || {}, source, {
+      mode: variantMode,
+      upsertIds: input.variantUpsertIds,
+      removedIds: input.removedVariantIds,
+    }),
+    definition: source === "foundry" && input.definition && typeof input.definition === "object" ? input.definition : (existing?.definition || {}),
+    runtime: source === "foundry" && input.runtime && typeof input.runtime === "object" ? input.runtime : (existing?.runtime || {}),
+    runtimeUpdatedAt: source === "foundry" ? now : (existing?.runtimeUpdatedAt || existing?.updatedAt || now),
+    system: source === "foundry" && input.system && typeof input.system === "object" ? input.system : (existing?.system || {}),
+    site: source === "site" && input.site && typeof input.site === "object" ? input.site : (existing?.site || {}),
+    contentHash: String(source === "foundry" ? (input.contentHash || "") : (existing?.contentHash || "")).slice(0, 160),
+    mediaHash: String(source === "foundry" ? (input.mediaHash || "") : (existing?.mediaHash || "")).slice(0, 160),
+    revision: Number(existing?.revision || 0) + 1,
+    createdAt: existing?.createdAt || now,
+    updatedAt: now,
+    updatedBy: source,
+  };
+}
+
+async function handleManagedActorPost(request, route, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  let body;
+  try {
+    body = await request.json();
+  } catch (_) {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  const serialized = JSON.stringify(body || {});
+  if (serialized.length > 4 * 1024 * 1024) return json({ ok: false, error: "Managed actor payload too large" }, 413, corsHeaders);
+  const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
+  const authorization = await authorizeManagedActorWrite(request, env, campaignId, corsHeaders);
+  if (authorization instanceof Response) return authorization;
+  const key = managedActorDocumentKey(campaignId, route.worldId, route.actorId);
+  const existing = safeJsonParse(await env.SIGILLO_KV.get(key));
+  if (authorization.source === "site" && !existing) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+  if (authorization.source === "site") {
+    const expectedRevision = Number(body?.expectedRevision);
+    if (existing && Number.isFinite(expectedRevision) && expectedRevision !== Number(existing.revision || 0)) {
+      return json({ ok: false, error: "Managed actor revision conflict", code: "VERSION_CONFLICT", currentRevision: existing.revision || 0 }, 409, corsHeaders);
+    }
+  }
+  const next = normalizeManagedActorDocument(body, existing, campaignId, route, authorization.source);
+  const unchanged = existing
+    && authorization.source === "foundry"
+    && next.contentHash
+    && next.contentHash === existing.contentHash
+    && next.mediaHash === existing.mediaHash;
+
+  const indexKey = managedActorIndexKey(campaignId);
+  const indexDoc = safeJsonParse(await env.SIGILLO_KV.get(indexKey)) || { version: 0, data: [] };
+  const currentEntries = Array.isArray(indexDoc.data) ? indexDoc.data : [];
+  const nextIndexEntry = managedActorIndexEntry(unchanged ? existing : next);
+  const previousIndexEntry = currentEntries.find((entry) => entry?.id === nextIndexEntry.id) || null;
+  const indexChanged = managedActorIndexEntryComparable(previousIndexEntry) !== managedActorIndexEntryComparable(nextIndexEntry);
+
+  if (!unchanged) await env.SIGILLO_KV.put(key, JSON.stringify(next));
+  if (indexChanged) {
+    const data = [...currentEntries.filter((entry) => entry?.id !== nextIndexEntry.id), nextIndexEntry]
+      .sort((left, right) => String(left.name || "").localeCompare(String(right.name || "")));
+    await env.SIGILLO_KV.put(indexKey, JSON.stringify({
+      version: Number(indexDoc.version || 0) + 1,
+      campaignId,
+      updatedAt: new Date().toISOString(),
+      data,
+    }));
+  }
+
+  const deletedMedia = [];
+  if (!unchanged && existing && env.MEDIA_BUCKET) {
+    const previousKeys = collectMediaKeysFromValue(existing);
+    const nextKeys = collectMediaKeysFromValue(next);
+    const actorPrefix = `campaigns/${campaignId}/managed-actors/${route.worldId}/${route.actorId}/`;
+    for (const mediaKey of previousKeys) {
+      if (!mediaKey.startsWith(actorPrefix) || nextKeys.has(mediaKey)) continue;
+      await env.MEDIA_BUCKET.delete(mediaKey);
+      deletedMedia.push(mediaKey);
+    }
+  }
+
+  const stored = unchanged ? existing : next;
+  return json({
+    ok: true,
+    saved: !unchanged,
+    indexChanged,
+    campaignId,
+    worldId: route.worldId,
+    actorId: route.actorId,
+    revision: stored?.revision || 0,
+    updatedAt: stored?.updatedAt || null,
+    deletedMedia,
+  }, 200, corsHeaders);
+}
+
+async function handleManagedActorRuntimePost(request, route, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  if (!isFoundrySyncSecretAuthorized(request, env)) return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
+  let body;
+  try {
+    body = await request.json();
+  } catch (_) {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  if (JSON.stringify(body || {}).length > 64 * 1024) return json({ ok: false, error: "Managed actor runtime payload too large" }, 413, corsHeaders);
+  const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
+  const actorKey = managedActorDocumentKey(campaignId, route.worldId, route.actorId);
+  const actorExists = await env.SIGILLO_KV.get(actorKey);
+  if (!actorExists) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+  const updatedAt = new Date().toISOString();
+  const runtime = normalizeManagedActorRuntime(body?.runtime);
+  await env.SIGILLO_KV.put(managedActorRuntimeKey(campaignId, route.worldId, route.actorId), JSON.stringify({
+    schemaVersion: 1,
+    campaignId,
+    worldId: route.worldId,
+    actorId: route.actorId,
+    runtime,
+    updatedAt,
+  }));
+  return json({ ok: true, saved: true, campaignId, worldId: route.worldId, actorId: route.actorId, runtimeUpdatedAt: updatedAt }, 200, {
+    ...corsHeaders,
+    "Cache-Control": "private, no-store",
+  });
+}
+async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  const reader = await getManagedActorReader(request, env, campaignId);
+  const raw = await env.SIGILLO_KV.get(managedActorIndexKey(campaignId));
+  const doc = safeJsonParse(raw) || { version: 0, data: [] };
+  const data = (Array.isArray(doc.data) ? doc.data : []).filter((entry) => canReadManagedActor(entry, reader.user, reader.isEditor, env));
+  return json({ ok: true, campaignId, version: Number(doc.version || 0), updatedAt: doc.updatedAt || null, data }, 200, {
+    ...corsHeaders,
+    "Cache-Control": reader.user || reader.isEditor ? "private, no-store" : "public, max-age=60, must-revalidate",
+  });
+}
+
+async function handleManagedActorGet(request, route, campaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  const reader = await getManagedActorReader(request, env, campaignId);
+  const [documentRaw, runtimeRaw, commandRaw] = await Promise.all([
+    env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId)),
+    env.SIGILLO_KV.get(managedActorRuntimeKey(campaignId, route.worldId, route.actorId)),
+    reader.isEditor ? env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId)) : Promise.resolve(null),
+  ]);
+  const document = safeJsonParse(documentRaw);
+  const runtimeRecord = safeJsonParse(runtimeRaw);
+  if (!document) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+  if (!canReadManagedActor(document, reader.user, reader.isEditor, env)) return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
+  const baselineRuntimeAt = Date.parse(document.runtimeUpdatedAt || document.updatedAt || "") || 0;
+  const overlayRuntimeAt = Date.parse(runtimeRecord?.updatedAt || "") || 0;
+  const runtimeData = overlayRuntimeAt > baselineRuntimeAt
+    ? {
+      ...document,
+      runtime: mergeManagedActorRuntime(document.runtime || {}, runtimeRecord.runtime || {}),
+      runtimeUpdatedAt: runtimeRecord.updatedAt,
+    }
+    : document;
+  const commandQueue = reader.isEditor ? readManagedActorCommandQueue(commandRaw, campaignId, route.worldId) : null;
+  const commands = commandQueue
+    ? commandQueue.commands.filter((command) => command.actorId === route.actorId && ["pending", "conflict", "failed"].includes(command.status)).slice(0, 64).map(publicManagedActorCommand)
+    : [];
+  const data = { ...runtimeData, permissions: { canEdit: reader.isEditor }, ...(commands.length ? { sync: { queueVersion: commandQueue.version, commands } } : {}) };
+  return json({ ok: true, campaignId, data }, 200, {
+    ...corsHeaders,
+    "Cache-Control": reader.user || reader.isEditor ? "private, no-store" : "public, max-age=60, must-revalidate",
+  });
+}
 async function handleFoundryAssetSnapshot(request, fallbackCampaignId, env, corsHeaders = {}) {
   if (!env.SIGILLO_KV) {
     return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
@@ -2464,7 +3368,7 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
   }
 
   const authenticatedAccountId = getAuthenticatedAccountId(user, env);
-  const nextData = collection === "transformations" && !isCampaignEditor
+  let nextData = collection === "transformations" && !isCampaignEditor
     ? mergeUserTransformations(existingData, data, authenticatedAccountId)
     : collection === "skill-tree-states" && !isCampaignEditor
       ? mergeUserSkillTreeStates(existingData, data, authenticatedAccountId)
@@ -2473,6 +3377,13 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
       : ["ability-overrides", "item-overrides", "media-overrides"].includes(collection) && !isCampaignEditor
         ? await mergeUserOwnedOverrides(existingData, data, authenticatedAccountId, env, campaignId, collection)
         : data;
+
+  const removedTransformationMedia = collection === "transformations"
+    ? getRemovedTransformationMediaKeys(existingData, nextData)
+    : [];
+  if (collection === "transformations") {
+    nextData = normalizeTransformationRecords(existingData, nextData);
+  }
 
   const now = new Date().toISOString();
   const doc = {
@@ -2487,6 +3398,22 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
 
   await env.SIGILLO_KV.put(key, JSON.stringify(doc));
 
+  const deletedMedia = [];
+  const failedMediaDeletes = [];
+  if (collection === "transformations" && env.MEDIA_BUCKET) {
+    for (const mediaKey of removedTransformationMedia) {
+      try {
+        await env.MEDIA_BUCKET.delete(mediaKey);
+        deletedMedia.push(mediaKey);
+      } catch (error) {
+        failedMediaDeletes.push({
+          key: mediaKey,
+          error: String(error?.message || error),
+        });
+      }
+    }
+  }
+
   return json({
     ok: true,
     saved: true,
@@ -2495,6 +3422,8 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
     version: doc.version,
     updatedAt: doc.updatedAt,
     count: nextData.length,
+    deletedMedia,
+    failedMediaDeletes,
   }, 200, corsHeaders);
 }
 
@@ -2872,6 +3801,53 @@ function collectMediaKeysFromValue(value, keys = new Set()) {
   return keys;
 }
 
+function normalizeTransformationRecords(existingData, nextData) {
+  const existingById = new Map((Array.isArray(existingData) ? existingData : [])
+    .filter((entry) => entry && typeof entry === "object")
+    .map((entry) => [String(entry.id || ""), entry]));
+
+  return (Array.isArray(nextData) ? nextData : []).map((entry) => {
+    if (!entry || typeof entry !== "object") return entry;
+    const id = String(entry.id || "");
+    const previous = existingById.get(id) || null;
+    const previousImage = String(previous?.tokenImage || previous?.image || "").trim();
+    const nextImage = String(entry.tokenImage || entry.image || "").trim();
+    const previousRevision = normalizePositiveRevision(previous?.revision || previous?.imageRevision);
+    const submittedRevision = normalizePositiveRevision(entry.revision || entry.imageRevision);
+    const revision = previous && previousImage !== nextImage
+      ? Math.max(previousRevision + 1, submittedRevision)
+      : Math.max(previousRevision, submittedRevision);
+
+    return {
+      ...entry,
+      revision,
+    };
+  });
+}
+
+function getRemovedTransformationMediaKeys(existingData, nextData) {
+  const current = collectTransformationMediaKeys(existingData);
+  const next = collectTransformationMediaKeys(nextData);
+  return Array.from(current).filter((key) => !next.has(key));
+}
+
+function collectTransformationMediaKeys(records) {
+  const keys = new Set();
+  for (const entry of Array.isArray(records) ? records : []) {
+    const key = extractMediaKeyFromValue(entry?.tokenImage || entry?.image || "");
+    if (!key) continue;
+    if (key.includes("/transformations/") || key.includes("/companion-transformations/")) {
+      keys.add(key);
+    }
+  }
+  return keys;
+}
+
+function normalizePositiveRevision(value) {
+  const revision = Math.floor(Number(value));
+  return Number.isFinite(revision) && revision > 0 ? revision : 1;
+}
+
 function mergeUserTransformations(existingData, submittedData, accountId) {
   const cleanAccountId = sanitizeAccountId(accountId);
   if (!cleanAccountId) return existingData;
@@ -3074,8 +4050,7 @@ async function handleMediaUpload(request, env, corsHeaders = {}) {
     return json({ ok: false, error: "Missing env.MEDIA_BUCKET" }, 500, corsHeaders);
   }
 
-  const user = await requireUser(request, env, corsHeaders);
-  if (user instanceof Response) return user;
+  let user = null;
 
   const contentLength = Number(request.headers.get("Content-Length") || "0");
   const maxBytes = 5 * 1024 * 1024;
@@ -3111,7 +4086,13 @@ async function handleMediaUpload(request, env, corsHeaders = {}) {
     return json({ ok: false, error: "Invalid filename: expected .webp" }, 400, corsHeaders);
   }
 
-  const isCampaignEditor = await isAuthenticatedCampaignEditor(user, env, campaignId);
+  const isManagedActorFolder = folder.startsWith("managed-actors/");
+  const foundrySyncAuthorized = isManagedActorFolder && isFoundrySyncSecretAuthorized(request, env);
+  if (!foundrySyncAuthorized) {
+    user = await requireUser(request, env, corsHeaders);
+    if (user instanceof Response) return user;
+  }
+  const isCampaignEditor = foundrySyncAuthorized || await isAuthenticatedCampaignEditor(user, env, campaignId);
   if (!isCampaignEditor && !(await canAuthenticatedUserUploadMedia(user, env, campaignId, folder, filename))) {
     return json({ ok: false, error: "Forbidden: media upload requires campaign editor permissions" }, 403, corsHeaders);
   }
@@ -3124,7 +4105,7 @@ async function handleMediaUpload(request, env, corsHeaders = {}) {
       cacheControl: mediaCacheControlForKey(key),
     },
     customMetadata: {
-      uploadedBy: getAuthenticatedAccountId(user, env),
+      uploadedBy: foundrySyncAuthorized ? "foundry-sync" : getAuthenticatedAccountId(user, env),
       campaignId,
       originalName: String(file.name || ""),
       uploadedAt: new Date().toISOString(),
@@ -3369,6 +4350,7 @@ function mediaCacheControlForKey(key) {
     "ability-overrides",
     "item-overrides",
     "media-overrides",
+    "managed-actors",
     "transformations",
     "skill-trees",
     "locations",
@@ -3438,6 +4420,7 @@ function mediaFolderStoragePrefix(campaignId, folder) {
 function sanitizeMediaFolder(value) {
   const folder = String(value || "").trim().toLowerCase().replace(/[^a-z0-9/_-]+/g, "-").replace(/^\/+|\/+$/g, "");
   if (/^characters(\/[a-z0-9_-]+)?$/.test(folder)) return folder;
+  if (/^managed-actors(?:\/[a-z0-9_-]+){2,5}$/.test(folder)) return folder;
   if (/^ability-icons(\/[a-z0-9_-]+)?$/.test(folder)) return folder;
   if (/^ability-overrides(\/[a-z0-9_-]+)?$/.test(folder)) return folder;
   if (/^item-overrides(\/[a-z0-9_-]+)?$/.test(folder)) return folder;
@@ -3484,7 +4467,8 @@ function sanitizeMediaKey(value) {
   if (key.startsWith("campaigns/")) {
     const [, rawCampaignId, folder, ...rest] = key.split("/");
     const campaignId = sanitizeCampaignId(rawCampaignId);
-    if (!campaignId || campaignId !== rawCampaignId || !sanitizeMediaFolder(folder) || rest.length < 1) return "";
+    const policyFolder = folder === "managed-actors" ? [folder, ...rest.slice(0, -1)].join("/") : folder;
+    if (!campaignId || campaignId !== rawCampaignId || !sanitizeMediaFolder(policyFolder) || rest.length < 1) return "";
     const filename = sanitizeWebpFilename(rest[rest.length - 1]);
     if (!filename || filename !== rest[rest.length - 1].toLowerCase()) return "";
     const subfolders = rest.slice(0, -1).map((part) => {
@@ -3502,7 +4486,8 @@ function sanitizeMediaKey(value) {
     return ["campaigns", campaignId, folder, ...subfolders, filename].join("/");
   }
   const [folder, ...rest] = key.split("/");
-  if (!sanitizeMediaFolder(folder) || rest.length < 1) return "";
+  const policyFolder = folder === "managed-actors" ? [folder, ...rest.slice(0, -1)].join("/") : folder;
+  if (!sanitizeMediaFolder(policyFolder) || rest.length < 1) return "";
   const filename = sanitizeWebpFilename(rest[rest.length - 1]);
   if (!filename || filename !== rest[rest.length - 1].toLowerCase()) return "";
   const subfolders = rest.slice(0, -1).map((part) => {
@@ -4258,7 +5243,7 @@ function corsHeadersFor(request) {
   return {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, Cache-Control",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Cache-Control, X-Cripta-Inventory-Secret, X-Inventory-Sync-Secret",
     "Access-Control-Max-Age": "86400",
   };
 }

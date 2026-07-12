@@ -2725,6 +2725,30 @@
                 loadMediaOverrides()
             ]);
             loadoutCard.innerHTML = buildPlayerLoadoutHtml(character, inventoryPayload, wikiItems, abilityOverrides, itemOverrides);
+            const playerActor = findPlayerActor(inventoryPayload, character);
+            const managedActorLink = playerActor?.managedActor;
+            if (managedActorLink?.worldId && managedActorLink?.actorId) {
+                const target = new URL('./managed-actor.html', window.location.href);
+                target.searchParams.set('world', managedActorLink.worldId);
+                target.searchParams.set('actor', managedActorLink.actorId);
+                const campaignId = window.CriptaApp?.campaigns?.currentId?.() || '';
+                if (campaignId && campaignId !== 'cripta-di-sangue') target.searchParams.set('campaign', campaignId);
+                loadoutCard.insertAdjacentHTML('afterbegin', `<a class="button-gold-outline managed-actor-loadout-link" href="${escapeHtml(`${target.pathname}${target.search}`)}"><i class="fas fa-cloud"></i> Gestisci scheda condivisa</a>`);
+            }
+            const transformationsCard = document.querySelector(`[data-transformation-subject-id="${CSS.escape(String(character?.id || ''))}"]`);
+            if (transformationsCard && currentTransformationsModule?.renderHtml && managedActorLink) {
+                const managedCharacter = {
+                    ...character,
+                    actorId: playerActor?.actorId || character?.actorId || '',
+                    managedActor: managedActorLink,
+                    images: {
+                        ...(character?.images || {}),
+                        token: playerActor?.token?.img || character?.images?.token || ''
+                    }
+                };
+                transformationsCard.innerHTML = currentTransformationsModule.renderHtml(managedCharacter, getTransformationRuntimeContext());
+            }
+
             initializeLoadoutTabs(loadoutCard);
             initializeLoadoutCopyButtons(loadoutCard);
             initializeItemOverrideUploads(loadoutCard, character);

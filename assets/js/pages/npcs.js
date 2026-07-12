@@ -144,6 +144,9 @@ function parseYamlLite(yamlText) {
 
                 const recencyData = await loadNpcRecencyData(base_path);
                 const sortedNpcs = sortNpcsByRecency(visibleNpcs, recencyData);
+                renderManagedActorsSection().catch((error) => {
+                    console.warn('Actor Foundry non caricati:', error);
+                });
 
                 if (sortedNpcs.length === 0) {
                     npcListContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Nessun NPC disponibile.</p>';
@@ -158,6 +161,45 @@ function parseYamlLite(yamlText) {
             }
         });
 
+        async function renderManagedActorsSection() {
+            const section = document.querySelector('[data-managed-actors-section]');
+            const grid = document.querySelector('[data-managed-actors-grid]');
+            if (!section || !grid || typeof window.CriptaApp?.api?.get !== 'function') return;
+            const token = String(window.CriptaDiscordAuth?.getToken?.() || '').trim();
+            const payload = await window.CriptaApp.api.get('api/managed-actors', {
+                cache: false,
+                ...(token ? { token } : {})
+            });
+            const actors = (Array.isArray(payload?.data) ? payload.data : [])
+                .filter((actor) => String(actor?.actorType || '').toLowerCase() === 'npc');
+            if (!actors.length) {
+                section.hidden = true;
+                return;
+            }
+            grid.innerHTML = actors.map((actor) => {
+                const media = actor.media || {};
+                const tokenPath = media.token?.path || media.avatar?.path || '';
+                const idlePath = media.idle?.path || tokenPath;
+                const hoverPath = media.hover?.path || tokenPath;
+                const target = new URL('./characters/managed-actor.html', window.location.href);
+                target.searchParams.set('world', actor.worldId || '');
+                target.searchParams.set('actor', actor.actorId || '');
+                const campaignId = getCurrentCampaignId();
+                if (campaignId && campaignId !== 'cripta-di-sangue') target.searchParams.set('campaign', campaignId);
+                return `<a class="managed-actor-card" href="${target.pathname}${target.search}">
+                    <span class="managed-actor-card__image">
+                        ${idlePath ? `<img src="${managedEscapeHtml(resolveImageUrl(idlePath))}" alt="">` : ''}
+                        ${hoverPath ? `<img src="${managedEscapeHtml(resolveImageUrl(hoverPath))}" alt="">` : ''}
+                    </span>
+                    <span><h3>${managedEscapeHtml(actor.name || 'Actor')}</h3><p>${managedEscapeHtml(actor.actorType || 'npc')}</p><span class="managed-actor-badge">Foundry · ${managedEscapeHtml(actor.visibility?.state || 'dm')}</span></span>
+                </a>`;
+            }).join('');
+            section.hidden = false;
+        }
+
+        function managedEscapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+        }
         function resolveImageUrl(path, base_path = '../assets/') {
             return window.CriptaApp.utils.resolveImageUrl(path);
         }

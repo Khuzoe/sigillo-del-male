@@ -116,7 +116,7 @@ function renderMarkdown(md, options = {}) {
     return window.CriptaMarkdown.render(md, getCharacterMarkdownOptions(options));
 }
 
-const CHARACTER_MODULE_VERSION = '20260706-skill-underline1';
+const CHARACTER_MODULE_VERSION = '20260712-managed-runtime1';
 
 function versionedCharacterModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);
@@ -502,6 +502,8 @@ const PLAYER_SKILL_TREE_KEYS = {
 
 let inventoryRequestPromise = null;
 let inventoryMemoryCache = null;
+let managedInventoryMemoryCache = null;
+let managedInventoryCacheKey = '';
 let skillsRequestPromise = null;
 let skillsMemoryCache = null;
 let skillsVersion = null;
@@ -887,6 +889,8 @@ function applyCharacterMediaOverride(character, overrides = mediaOverridesMemory
     const normalized = { ...character, images: { ...(character?.images || {}) } };
     const override = findMediaOverride(overrides, 'player', normalized.id || normalized.name);
     const images = override?.images || {};
+    if (images.idle) normalized.images.idle = versionCharacterAssetPath(getSyncedPlayerImagePath(normalized, 'idle'), override.updatedAt);
+    if (images.hover) normalized.images.hover = versionCharacterAssetPath(getSyncedPlayerImagePath(normalized, 'hover'), override.updatedAt);
     if (images.avatar) {
         const avatar = versionCharacterAssetPath(getSyncedPlayerImagePath(normalized, 'avatar'), override.updatedAt);
         normalized.images.avatar = avatar;
@@ -1098,15 +1102,15 @@ function applyCharacterBootstrap(bootstrap) {
     if (transformations) transformationsMemoryCache = transformations;
 }
 
-async function loadInventoryData() {
+async function loadInventoryData(options = {}) {
     if (inventoryMemoryCache && isInventoryCacheFresh(inventoryMemoryCache)) {
-        return inventoryMemoryCache.data;
+        return mergeManagedActorIntoCachedInventory(inventoryMemoryCache.data, options);
     }
 
     const storedCache = parseInventoryCache(getSafeSessionStorageItem(INVENTORY_CACHE_KEY));
     if (storedCache && isInventoryCacheFresh(storedCache)) {
         inventoryMemoryCache = storedCache;
-        return storedCache.data;
+        return mergeManagedActorIntoCachedInventory(storedCache.data, options);
     }
 
     if (inventoryRequestPromise) {
@@ -1126,11 +1130,11 @@ async function loadInventoryData() {
             };
             inventoryMemoryCache = cacheEntry;
             setSafeSessionStorageItem(INVENTORY_CACHE_KEY, JSON.stringify(cacheEntry));
-            return payload;
+            return mergeManagedActorIntoCachedInventory(payload, options);
         } catch (error) {
             if (storedCache && storedCache.data && Array.isArray(storedCache.data.actors)) {
                 console.warn('Inventory API non raggiungibile, uso cache precedente.', error);
-                return storedCache.data;
+                return mergeManagedActorIntoCachedInventory(storedCache.data, options);
             }
             throw error;
         } finally {
@@ -1295,6 +1299,11 @@ function normalizeSkillTreeNodeIds(tree, treeKey = '') {
         if (Array.isArray(nextNode.requirements)) {
             nextNode.requirements = nextNode.requirements.map((id) => remapTarget(nextNode, id)).filter(Boolean);
         }
+        ['children', 'childNodes', 'groupChildren', 'nodeIds'].forEach((field) => {
+            if (Array.isArray(nextNode[field])) {
+                nextNode[field] = nextNode[field].map((id) => remapTarget(nextNode, id)).filter(Boolean);
+            }
+        });
         return nextNode;
     });
 
@@ -1594,6 +1603,230 @@ async function requestInventoryApi() {
     return response.json();
 }
 
+async function mergeManagedActorIntoCachedInventory(legacyPayload, options = {}) {
+    const characterId = String(options.character?.id || '').trim();
+    const user = options.authState?.user || {};
+    const accountId = String(user.accountId || user.id || user.sub || '').trim();
+    const cacheKey = `${window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue'}::${characterId}::${accountId || 'anonymous'}`;
+    if (managedInventoryMemoryCache && managedInventoryCacheKey === cacheKey) return managedInventoryMemoryCache;
+    const merged = await mergeManagedActorIntoInventory(legacyPayload, options);
+    managedInventoryCacheKey = cacheKey;
+    managedInventoryMemoryCache = merged;
+    return merged;
+}
+
+async function mergeManagedActorIntoInventory(legacyPayload, options = {}) {
+    const characterId = String(options.character?.id || "").trim();
+    if (!characterId || typeof window.CriptaApp?.api?.get !== "function") return legacyPayload;
+    const token = String(window.CriptaDiscordAuth?.getToken?.() || window.CriptaApp?.auth?.getToken?.() || "").trim();
+    try {
+        const indexPayload = await window.CriptaApp.api.get("api/managed-actors", {
+            cache: false,
+            ...(token ? { token } : {})
+        });
+        const summary = (Array.isArray(indexPayload?.data) ? indexPayload.data : []).find((entry) =>
+            normalizeText(entry?.ownerCharacterId) === normalizeText(characterId)
+        );
+        if (!summary) return legacyPayload;
+        const detailPayload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(summary.worldId)}/${encodeURIComponent(summary.actorId)}`, {
+            cache: false,
+            ...(token ? { token } : {})
+        });
+        const managedActor = adaptManagedActorToInventory(detailPayload?.data);
+        if (!managedActor) return legacyPayload;
+        const actors = Array.isArray(legacyPayload?.actors) ? [...legacyPayload.actors] : [];
+        const index = actors.findIndex((actor) => normalizeText(actor.ownerCharacterId || actor.characterId) === normalizeText(characterId));
+        if (index >= 0) {
+            const legacy = actors[index];
+            actors[index] = {
+                ...legacy,
+                ...managedActor,
+                id: legacy.id || managedActor.id,
+                characterId: legacy.characterId || legacy.ownerCharacterId || managedActor.ownerCharacterId,
+                owners: Array.isArray(legacy.owners) ? legacy.owners : [],
+                img: managedActor.img,
+                token: managedActor.token,
+                details: managedActor.details,
+                vitals: managedActor.vitals,
+                abilities: managedActor.abilities,
+                xp: managedActor.xp,
+                weight: managedActor.weight,
+                resources: managedActor.resources,
+                currency: managedActor.currency,
+                spellSlots: managedActor.spellSlots,
+                inventory: managedActor.inventory,
+                equippedItems: managedActor.equippedItems,
+                attunementItems: managedActor.attunementItems,
+                managedActor: managedActor.managedActor
+            };
+        } else {
+            actors.push(managedActor);
+        }
+        return { ...(legacyPayload || {}), generatedAt: detailPayload?.data?.runtimeUpdatedAt || detailPayload?.data?.updatedAt || legacyPayload?.generatedAt, actors };
+    } catch (error) {
+        console.warn("Managed Actor non disponibile per il loadout; uso snapshot storico.", error);
+        return legacyPayload;
+    }
+}
+
+function adaptManagedActorToInventory(documentValue) {
+    if (!documentValue || typeof documentValue !== "object") return null;
+    const definition = documentValue.definition || {};
+    const runtime = documentValue.runtime || {};
+    const attributes = definition.attributes || {};
+    const runtimeHp = runtime.hp || {};
+    const inventory = (Array.isArray(definition.items) ? definition.items : []).map((entry) => {
+        const def = entry.definition || {};
+        const state = entry.state || {};
+        return {
+            id: entry.itemId || entry.transferId,
+            uuid: entry.uuid || "",
+            transferId: entry.transferId || "",
+            sourceId: entry.sourceId || "",
+            name: entry.name || "Elemento",
+            type: entry.type || "item",
+            img: entry.media?.icon?.path || "",
+            description: def.description || "",
+            quantity: state.quantity ?? def.quantity,
+            container: def.container ?? null,
+            currency: def.currency || {},
+            capacity: def.capacity || null,
+            rarity: def.rarity,
+            identified: def.identified,
+            equipped: state.equipped ?? def.equipped,
+            attuned: state.attuned ?? def.attuned,
+            attunement: def.attunement,
+            level: def.level,
+            school: def.school,
+            preparation: def.preparation,
+            prepared: state.prepared ?? def.preparation?.prepared,
+            properties: def.properties,
+            activation: def.activation,
+            target: def.target,
+            range: def.range,
+            duration: def.duration,
+            damage: def.damage,
+            attack: def.attack,
+            save: def.save,
+            activities: def.activities,
+            uses: { ...(def.uses || {}), ...(state.uses || {}) },
+            loadoutRole: ["feat", "spell"].includes(entry.type) ? "ability" : "inventory"
+        };
+    });
+    const equippedItems = inventory.filter((entry) => entry.equipped === true).map(toManagedStatusItem);
+    const attunementItems = inventory.filter((entry) => entry.attuned === true).map(toManagedStatusItem);
+    const token = documentValue.media?.token || {};
+    const avatar = documentValue.media?.avatar || token;
+    return {
+        id: documentValue.actorId,
+        actorId: documentValue.actorId,
+        name: documentValue.name,
+        foundryName: documentValue.name,
+        type: documentValue.actorType,
+        ownerCharacterId: documentValue.ownerCharacterId,
+        img: avatar.path || "",
+        token: {
+            img: token.path || "",
+            width: definition.prototypeToken?.width,
+            height: definition.prototypeToken?.height,
+            scale: definition.prototypeToken?.texture?.scaleX
+        },
+        details: definition.details || {},
+        xp: adaptManagedXp(runtime.xp || definition.details?.xp || {}),
+        weight: adaptManagedWeight(runtime.weight || attributes.encumbrance || {}),
+        vitals: {
+            hp: {
+                value: runtimeHp.value,
+                max: runtimeHp.max ?? attributes.hp?.max,
+                temp: runtimeHp.temp
+            },
+            ac: attributes.ac?.value ?? attributes.ac?.flat ?? attributes.ac,
+            initiative: attributes.init?.total ?? attributes.init?.value,
+            speed: attributes.movement,
+            prof: attributes.prof
+        },
+        abilities: definition.abilities || {},
+        resources: runtime.resources || definition.resources || {},
+        currency: definition.currency || {},
+        spellSlots: adaptManagedSpellSlots(runtime.spellSlots || definition.spellSlots || {}),
+        equippedItems,
+        attunementItems,
+        inventory,
+        managedActor: {
+            worldId: documentValue.worldId,
+            actorId: documentValue.actorId,
+            revision: documentValue.revision,
+            visibility: documentValue.visibility,
+            media: documentValue.media
+        }
+    };
+}
+
+function toManagedStatusItem(entry) {
+    return {
+        id: entry.id,
+        name: entry.name,
+        type: entry.type,
+        quantity: entry.quantity,
+        container: entry.container,
+        equipped: entry.equipped,
+        attuned: entry.attuned,
+        attunement: entry.attunement
+    };
+}
+
+function managedActorNumber(value) {
+    if (value === null || value === undefined || value === "") return null;
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+}
+
+function adaptManagedXp(xp = {}) {
+    const current = managedActorNumber(xp.value ?? xp.current);
+    const nextLevel = managedActorNumber(xp.max ?? xp.next ?? xp.nextLevel);
+    return {
+        current,
+        nextLevel,
+        missingToLevel: current !== null && nextLevel !== null ? Math.max(nextLevel - current, 0) : null
+    };
+}
+
+function adaptManagedWeight(weight = {}) {
+    const carried = managedActorNumber(weight.value ?? weight.carried ?? weight.total);
+    const capacity = managedActorNumber(weight.max ?? weight.capacity);
+    const explicitPercent = managedActorNumber(weight.pct ?? weight.percent);
+    return {
+        carried,
+        capacity,
+        percent: explicitPercent !== null
+            ? explicitPercent
+            : (carried !== null && capacity !== null && capacity > 0 ? (carried / capacity) * 100 : null),
+        encumbered: typeof weight.encumbered === "boolean" ? weight.encumbered : undefined
+    };
+}
+
+function adaptManagedSpellSlots(spells) {
+    const perLevel = Object.entries(spells || {}).map(([slot, value]) => {
+        const total = Number(value?.max);
+        const available = Number(value?.value);
+        const explicitSpent = Number(value?.spent);
+        return {
+            slot,
+            level: slot === "pact" ? "pact" : Number(String(slot).replace("spell", "")),
+            total: Number.isFinite(total) ? total : 0,
+            available: Number.isFinite(available) ? available : 0,
+            used: Number.isFinite(explicitSpent) ? explicitSpent : (Number.isFinite(total) && Number.isFinite(available) ? Math.max(total - available, 0) : 0)
+        };
+    }).filter((entry) => entry.total > 0 || entry.available > 0 || entry.used > 0);
+    return {
+        perLevel,
+        totals: perLevel.reduce((sum, entry) => ({
+            total: sum.total + entry.total,
+            available: sum.available + entry.available,
+            used: sum.used + entry.used
+        }), { total: 0, available: 0, used: 0 })
+    };
+}
 function findPlayerActor(payload, character) {
     const actors = Array.isArray(payload && payload.actors) ? payload.actors : [];
     if (!actors.length || !character) return null;
@@ -2066,7 +2299,7 @@ window.CriptaApp.onPageReady("character", async function () {
             saveAbilityOverride,
             saveItemOverride,
             getTransferableItemKey,
-            loadInventoryData,
+            loadInventoryData: () => loadInventoryData({ character: currentCharacter, authState: currentAuthState }),
             loadWikiItemsData,
             loadAbilityOverrides,
             loadItemOverrides,
@@ -3379,6 +3612,12 @@ window.CriptaApp.onPageReady("character", async function () {
         const playerMediaActionsHtml = isPlayerView && canEditCurrentPlayerTransformations(character)
             ? `
                         <div class="character-media-actions">
+                            <button type="button" data-media-override-action="upload" data-media-entity-type="player" data-media-kind="idle" data-media-identity="${escapeHtml(character.id || charId)}" data-media-name="${escapeHtml(character.name || '')}">
+                                <i class="fas fa-image"></i> Cambia idle
+                            </button>
+                            <button type="button" data-media-override-action="upload" data-media-entity-type="player" data-media-kind="hover" data-media-identity="${escapeHtml(character.id || charId)}" data-media-name="${escapeHtml(character.name || '')}">
+                                <i class="fas fa-wand-magic-sparkles"></i> Cambia hover
+                            </button>
                             <button type="button" data-media-override-action="upload" data-media-entity-type="player" data-media-kind="avatar" data-media-identity="${escapeHtml(character.id || charId)}" data-media-name="${escapeHtml(character.name || '')}">
                                 <i class="fas fa-user"></i> Cambia avatar
                             </button>
