@@ -607,6 +607,7 @@ body.managed-image-lightbox-open { overflow: hidden; }
     max-width: min(88vw, 1080px);
     max-height: 84vh;
     place-items: center;
+    pointer-events: auto;
 }
 .managed-image-lightbox-stage .managed-image-lightbox-layer {
     grid-area: 1 / 1;
@@ -614,10 +615,10 @@ body.managed-image-lightbox-open { overflow: hidden; }
     transition: opacity .42s ease, filter .35s ease;
 }
 .managed-image-lightbox-stage .managed-image-lightbox-layer.is-hover { opacity: 0; }
-.managed-image-lightbox.has-hover figure:hover .managed-image-lightbox-layer.is-rest,
-.managed-image-lightbox.has-hover figure:focus-within .managed-image-lightbox-layer.is-rest { opacity: 0; }
-.managed-image-lightbox.has-hover figure:hover .managed-image-lightbox-layer.is-hover,
-.managed-image-lightbox.has-hover figure:focus-within .managed-image-lightbox-layer.is-hover { opacity: 1; }
+.managed-image-lightbox.has-hover .managed-image-lightbox-stage:hover .managed-image-lightbox-layer.is-rest,
+.managed-image-lightbox.has-hover.is-pointer-hover .managed-image-lightbox-layer.is-rest { opacity: 0; }
+.managed-image-lightbox.has-hover .managed-image-lightbox-stage:hover .managed-image-lightbox-layer.is-hover,
+.managed-image-lightbox.has-hover.is-pointer-hover .managed-image-lightbox-layer.is-hover { opacity: 1; }
 .managed-image-lightbox.has-hover .managed-image-lightbox-layer.is-hover {
     filter: drop-shadow(0 34px 46px rgba(0, 0, 0, .74));
 }
@@ -646,21 +647,6 @@ body.managed-image-lightbox-open { overflow: hidden; }
     @keyframes managed-lightbox-rest { 0%, 42%, 100% { opacity: 1; } 55%, 88% { opacity: 0; } }
     @keyframes managed-lightbox-hover { 0%, 42%, 100% { opacity: 0; } 55%, 88% { opacity: 1; } }
 }
-.managed-image-lightbox.has-hover .managed-image-lightbox-layer.is-rest {
-    animation: managed-lightbox-cycle-rest 5s ease-in-out infinite;
-}
-.managed-image-lightbox.has-hover .managed-image-lightbox-layer.is-hover {
-    animation: managed-lightbox-cycle-hover 5s ease-in-out infinite;
-}
-@keyframes managed-lightbox-cycle-rest {
-    0%, 42%, 100% { opacity: 1; }
-    55%, 88% { opacity: 0; }
-}
-@keyframes managed-lightbox-cycle-hover {
-    0%, 42%, 100% { opacity: 0; }
-    55%, 88% { opacity: 1; }
-}
 @media (prefers-reduced-motion: reduce) {
-    .managed-image-lightbox.has-hover .managed-image-lightbox-layer.is-rest { animation: none; opacity: 1; }
-    .managed-image-lightbox.has-hover .managed-image-lightbox-layer.is-hover { animation: none; opacity: 0; }
+    .managed-image-lightbox.has-hover .managed-image-lightbox-layer { animation: none !important; transition: none; }
 }

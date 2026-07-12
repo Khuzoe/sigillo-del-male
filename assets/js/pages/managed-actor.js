@@ -42,6 +42,7 @@
         const definition = actor.definition || {};
         const attributes = definition.attributes || {};
         const details = definition.details || {};
+        const actorDetailsLabel = formatDetails(details);
         const media = actor.media || {};
         const avatarPath = media.avatar?.path || media.token?.path || "";
         const tokenPath = media.token?.path || avatarPath;
@@ -68,12 +69,11 @@
                     ${hasSiteAnimation ? "" : renderManagedTokenArtwork(tokenPath, actor.name || "Actor")}
                 </div>
                 <div class="managed-actor-title">
-                    <div class="managed-actor-kicker"><span></span> ${escapeHtml(actor.actorType || "actor")} gestito</div>
                     <h1>${editMode ? renderManagedActorControl("name", "text", actor.name || "Actor", { className: "managed-actor-name-input" }) : escapeHtml(actor.name || "Actor")}</h1>
-                    <p class="managed-actor-subtitle">${escapeHtml(formatDetails(details) || "Scheda sincronizzata dalla campagna")}</p>
                     ${renderManagedHeroVitals(attributes, details, actor.runtime || {}, actor.actorType)}
                     ${hasSiteAnimation ? renderManagedMediaDock(media, tokenPath, actor.name || "Actor") : ""}
                     <div class="managed-actor-chips">
+                        ${actorDetailsLabel ? `<span class="managed-chip"><i class="fas fa-dna"></i> ${escapeHtml(actorDetailsLabel)}</span>` : ""}
                         <span class="managed-chip"><i class="fas fa-eye"></i> ${escapeHtml(formatVisibility(actor.visibility))}</span>
                         <span class="managed-chip"><i class="fas fa-code-branch"></i> revisione ${Number(actor.revision || 0)}</span>
                         <span class="managed-chip"><i class="fas fa-clock"></i> ${escapeHtml(formatUpdatedAt(actor.updatedAt))}</span>
@@ -165,13 +165,14 @@
         const lightbox = root.querySelector("[data-managed-image-lightbox]");
         const image = lightbox?.querySelector("[data-managed-image-lightbox-image]");
         const hoverImage = lightbox?.querySelector("[data-managed-image-lightbox-hover]");
+        const stage = lightbox?.querySelector(".managed-image-lightbox-stage");
         const title = lightbox?.querySelector("[data-managed-image-lightbox-title]");
-        if (!lightbox || !image || !hoverImage || !title) return;
+        if (!lightbox || !image || !hoverImage || !stage || !title) return;
         document.body.append(lightbox);
         let previousFocus = null;
         const close = () => {
             if (lightbox.hidden) return;
-            lightbox.classList.remove("is-visible", "has-hover");
+            lightbox.classList.remove("is-visible", "has-hover", "is-pointer-hover");
             lightbox.hidden = true;
             document.body.classList.remove("managed-image-lightbox-open");
             image.removeAttribute("src");
@@ -191,11 +192,12 @@
             hoverImage.hidden = !hasHover;
             if (hasHover) {
                 hoverImage.src = hoverSrc;
-                hoverImage.alt = `${label} · hover`;
+                hoverImage.alt = `${label} - hover`;
             } else {
                 hoverImage.removeAttribute("src");
                 hoverImage.alt = "";
             }
+            lightbox.classList.remove("is-pointer-hover");
             lightbox.classList.toggle("has-hover", hasHover);
             title.textContent = label;
             lightbox.hidden = false;
@@ -203,6 +205,8 @@
             requestAnimationFrame(() => lightbox.classList.add("is-visible"));
             lightbox.focus({ preventScroll: true });
         }));
+        stage.addEventListener("pointerenter", () => lightbox.classList.toggle("is-pointer-hover", lightbox.classList.contains("has-hover")));
+        stage.addEventListener("pointerleave", () => lightbox.classList.remove("is-pointer-hover"));
         lightbox.querySelectorAll("[data-managed-image-close]").forEach((button) => button.addEventListener("click", close));
         lightbox.tabIndex = -1;
         lightbox.addEventListener("keydown", (event) => {
@@ -769,7 +773,7 @@
         </article>`).join("");
         const empty = !variants.length ? `<div class="managed-empty-state"><i class="fas fa-layer-group"></i><strong>Nessuna variante</strong><span>Il token base continuerà a essere usato normalmente.</span></div>` : "";
         const add = canEdit ? `<fieldset class="managed-variant-add"><legend><i class="fas fa-plus"></i> Nuova variante</legend><p>Carica un WebP o un'altra immagine: verrà convertita e collegata automaticamente anche a Foundry.</p><div><label><span>Nome</span><input type="text" value="Nuova variante" data-managed-variant-add-name></label><label><span>Dimensione token</span><input type="number" min="0.5" max="12" step="0.25" value="1" data-managed-variant-add-size></label><label class="managed-file-field"><span>Immagine</span><input type="file" accept="image/*" data-managed-variant-add-file></label></div></fieldset>` : "";
-        return `<section id="managed-variants" class="managed-panel managed-panel--wide managed-panel--variants"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Raccolta condivisa</span><h2><i class="fas fa-layer-group"></i> Varianti token</h2></div><span class="managed-count-badge">${variants.length}</span></header><p class="managed-panel-lead">Aggiunte e rimozioni fatte qui vengono recepite dal Tokenizer; quelle fatte in Foundry tornano sul sito.</p><div class="managed-variants">${cards}${empty}</div>${add}</section>`;
+        return `<section id="managed-variants" class="managed-panel managed-panel--wide managed-panel--variants"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Raccolta condivisa</span><h2><i class="fas fa-layer-group"></i> Varianti token</h2></div><span class="managed-count-badge">${variants.length}</span></header><div class="managed-variants">${cards}${empty}</div>${add}</section>`;
     }
     function renderEntries(title, entries, canEdit = false, sectionId = "") {
         if (!entries.length && !canEdit) return "";
