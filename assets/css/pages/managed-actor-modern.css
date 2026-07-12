@@ -650,3 +650,84 @@ body.managed-image-lightbox-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
     .managed-image-lightbox.has-hover .managed-image-lightbox-layer { animation: none !important; transition: none; }
 }
+/* Spell preparation states */
+.managed-spell-preparation {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    gap: .36rem;
+    min-height: 27px;
+    margin-top: .38rem;
+    padding: .25rem .52rem;
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .025);
+    color: rgba(225, 213, 188, .7);
+    font: 750 .55rem var(--font-ui);
+    letter-spacing: .055em;
+    text-transform: uppercase;
+}
+.managed-spell-preparation i { font-size: .62rem; }
+.managed-spell-preparation.is-prepared {
+    border-color: rgba(133, 199, 157, .28);
+    background: rgba(76, 139, 98, .1);
+    color: #9ed8b2;
+}
+.managed-spell-preparation.is-unprepared {
+    border-color: rgba(172, 166, 154, .16);
+    background: rgba(120, 115, 106, .055);
+    color: rgba(205, 198, 184, .5);
+}
+.managed-spell-preparation.is-always {
+    border-color: rgba(223, 195, 111, .3);
+    background: rgba(223, 195, 111, .1);
+    color: var(--ma-gold-bright);
+}
+.managed-spell-preparation.is-atwill {
+    border-color: rgba(141, 184, 232, .28);
+    background: rgba(70, 118, 170, .1);
+    color: #a9cff2;
+}
+.managed-spell-preparation.is-innate,
+.managed-spell-preparation.is-pact {
+    border-color: rgba(188, 146, 223, .3);
+    background: rgba(133, 83, 173, .1);
+    color: #d2afea;
+}
+.managed-spell-preparation.is-ritual {
+    border-color: rgba(202, 148, 92, .28);
+    background: rgba(154, 96, 49, .1);
+    color: #e2b984;
+}
+.managed-entry--spell-prepared { box-shadow: inset 3px 0 rgba(133, 199, 157, .42); }
+.managed-entry--spell-always { box-shadow: inset 3px 0 rgba(223, 195, 111, .4); }
+.managed-entry--spell-atwill { box-shadow: inset 3px 0 rgba(141, 184, 232, .38); }
+.managed-entry--spell-innate,
+.managed-entry--spell-pact { box-shadow: inset 3px 0 rgba(188, 146, 223, .38); }
+.managed-entry--spell-unprepared { box-shadow: inset 3px 0 rgba(170, 164, 151, .12); }
+.managed-actor-page.is-viewing .managed-entry--spell-unprepared {
+    opacity: .68;
+    filter: saturate(.72);
+}
+.managed-actor-page.is-viewing .managed-entry--spell-unprepared:hover,
+.managed-actor-page.is-viewing .managed-entry--spell-unprepared:focus-within {
+    opacity: .92;
+    filter: saturate(.9);
+}
+@media (max-width: 560px) {
+    .managed-spell-preparation { min-height: 24px; padding: .2rem .42rem; font-size: .5rem; }
+}
+/* Prepared-only filter */
+.managed-filter-chips button[data-managed-prepared-only] {
+    display: inline-flex;
+    align-items: center;
+    gap: .34rem;
+    margin-left: .18rem;
+    border-color: rgba(133, 199, 157, .16);
+}
+.managed-filter-chips button[data-managed-prepared-only] i { color: rgba(133, 199, 157, .72); }
+.managed-filter-chips button[data-managed-prepared-only].is-active {
+    border-color: rgba(133, 199, 157, .42);
+    background: rgba(76, 139, 98, .14);
+    color: #a8dcb9;
+}

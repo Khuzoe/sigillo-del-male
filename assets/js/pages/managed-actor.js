@@ -787,25 +787,50 @@
         const cardsFor = (groupEntries, groupKey) => groupEntries.map((entry) => renderManagedEntryCard(entry, canEdit, groupKey)).join("");
         const groupedContent = groups.length ? groups.map((group) => `<section class="managed-entry-group" data-managed-entry-group="${escapeAttr(group.key)}"><header><span>${escapeHtml(group.label)}</span><b>${group.entries.length}</b></header><div class="managed-entry-grid">${cardsFor(group.entries, group.key)}</div></section>`).join("") : "";
         const empty = !entries.length ? `<div class="managed-empty-state"><i class="fas ${panelIcon}"></i><strong>Nessun elemento</strong><span>Puoi aggiungerne uno entrando in modifica.</span></div>` : "";
-        const filterButtons = groups.length > 1 ? `<div class="managed-filter-chips" role="group" aria-label="Filtra ${escapeAttr(title)}"><button type="button" class="is-active" data-managed-entry-filter="all">Tutti</button>${groups.map((group) => `<button type="button" data-managed-entry-filter="${escapeAttr(group.key)}">${escapeHtml(group.shortLabel || group.label)}</button>`).join("")}</div>` : "";
+        const hasUnprepared = collectionKind === "spells" && entries.some((entry) => getManagedSpellPreparation(entry, findManagedItemCommand(entry))?.key === "unprepared");
+        const groupFilterButtons = groups.length > 1 ? `<button type="button" class="is-active" data-managed-entry-filter="all">Tutti</button>${groups.map((group) => `<button type="button" data-managed-entry-filter="${escapeAttr(group.key)}">${escapeHtml(group.shortLabel || group.label)}</button>`).join("")}` : "";
+        const preparationFilterButton = hasUnprepared ? `<button type="button" data-managed-prepared-only aria-pressed="false"><i class="fas fa-circle-check"></i> Solo preparati</button>` : "";
+        const filterButtons = groupFilterButtons || preparationFilterButton ? `<div class="managed-filter-chips" role="group" aria-label="Filtra ${escapeAttr(title)}">${groupFilterButtons}${preparationFilterButton}</div>` : "";
         const tools = entries.length > 5 ? `<div class="managed-collection-tools"><label class="managed-collection-search"><i class="fas fa-magnifying-glass"></i><input type="search" placeholder="Cerca ${escapeAttr(title.toLowerCase())}" aria-label="Cerca ${escapeAttr(title.toLowerCase())}" data-managed-entry-search></label>${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : filterButtons ? `<div class="managed-collection-tools">${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : "";
         const lead = collectionKind === "spells" ? "Cerca e filtra il grimorio; apri soltanto ciò che vuoi leggere o modificare." : collectionKind === "capabilities" ? "Azioni, reazioni e capacità sono ordinate secondo il loro utilizzo in Foundry." : "Equipaggiamento e risorse collegate all’Actor originale.";
         return `<section${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Dati Foundry</span><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-count-badge">${entries.length}</span></header>${entries.length ? `<p class="managed-panel-lead">${escapeHtml(lead)}</p>${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</section>`;
     }
-
     function renderManagedEntryCard(entry, canEdit, groupKey) {
         const icon = entry.media?.icon?.path;
         const description = truncatePreview(stripManagedDuplicateHeading(htmlToText(entry.definition?.description || ""), entry.name), 900);
         const meta = formatEntryMeta(entry);
         const command = findManagedItemCommand(entry);
+        const preparation = getManagedSpellPreparation(entry, command);
         const editor = canEdit ? renderManagedItemEditor(entry, command) : "";
         const status = command ? renderManagedItemSyncStatus(command) : "";
-        const searchText = normalizeManagedSearch([entry.name, meta, description].filter(Boolean).join(" "));
+        const searchText = normalizeManagedSearch([entry.name, meta, preparation?.label, description].filter(Boolean).join(" "));
         const level = Number(entry.definition?.level ?? 0) || 0;
         const disclosure = description ? `<details class="managed-entry-disclosure"><summary><span><i class="fas fa-book-open"></i> Descrizione</span><i class="fas fa-chevron-down"></i></summary><div>${formatManagedPreview(description)}</div></details>` : "";
-        return `<article class="managed-entry" data-managed-item-card="${escapeAttr(entry.transferId || entry.itemId || "")}" data-managed-entry-search-value="${escapeAttr(searchText)}" data-managed-entry-level="${level}" data-managed-entry-group-key="${escapeAttr(groupKey)}">${icon ? `<img src="${escapeAttr(resolveMedia(icon))}" alt="">` : '<div class="managed-entry-icon"><i class="fas fa-dice-d20"></i></div>'}<div class="managed-entry-copy"><div class="managed-entry-title"><h3>${escapeHtml(entry.name || "Elemento")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div>${status}${disclosure}${editor}</div></article>`;
+        const preparationAttribute = preparation ? ` data-managed-spell-preparation="${escapeAttr(preparation.key)}"` : "";
+        const preparationBadge = preparation ? `<span class="managed-spell-preparation is-${escapeAttr(preparation.key)}"><i class="fas ${escapeAttr(preparation.icon)}"></i>${escapeHtml(preparation.label)}</span>` : "";
+        return `<article class="managed-entry ${preparation ? `managed-entry--spell-${escapeAttr(preparation.key)}` : ""}" data-managed-item-card="${escapeAttr(entry.transferId || entry.itemId || "")}" data-managed-entry-search-value="${escapeAttr(searchText)}" data-managed-entry-level="${level}" data-managed-entry-group-key="${escapeAttr(groupKey)}"${preparationAttribute}>${icon ? `<img src="${escapeAttr(resolveMedia(icon))}" alt="">` : '<div class="managed-entry-icon"><i class="fas fa-dice-d20"></i></div>'}<div class="managed-entry-copy"><div class="managed-entry-title"><h3>${escapeHtml(entry.name || "Elemento")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div>${preparationBadge}${status}${disclosure}${editor}</div></article>`;
     }
 
+    function getManagedSpellPreparation(entry, command) {
+        if (entry?.type !== "spell") return null;
+        const mode = String(getManagedItemDesiredValue(entry, command, "system.preparation.mode") || "").trim().toLowerCase();
+        const rawPrepared = getManagedItemDesiredValue(entry, command, "system.preparation.prepared");
+        const prepared = rawPrepared === true || rawPrepared === 1 || String(rawPrepared).toLowerCase() === "true";
+        const fixedModes = {
+            always: { key: "always", label: "Sempre preparato", icon: "fa-star" },
+            atwill: { key: "atwill", label: "A volontà", icon: "fa-infinity" },
+            innate: { key: "innate", label: "Innato", icon: "fa-sparkles" },
+            pact: { key: "pact", label: "Magia del patto", icon: "fa-moon" },
+            ritual: { key: "ritual", label: "Rituale", icon: "fa-book-open" },
+        };
+        if (fixedModes[mode]) return fixedModes[mode];
+        if (mode === "prepared" || rawPrepared !== undefined) {
+            return prepared
+                ? { key: "prepared", label: "Preparato", icon: "fa-circle-check" }
+                : { key: "unprepared", label: "Non preparato", icon: "fa-circle" };
+        }
+        return null;
+    }
     function getManagedEntryGroup(entry, kind) {
         if (kind === "spells") {
             const level = Math.max(0, Math.min(9, Number(entry.definition?.level ?? 0) || 0));
@@ -830,17 +855,21 @@
         root.querySelectorAll("[data-managed-collection]").forEach((collection) => {
             const search = collection.querySelector("[data-managed-entry-search]");
             const buttons = Array.from(collection.querySelectorAll("[data-managed-entry-filter]"));
+            const preparedOnlyButton = collection.querySelector("[data-managed-prepared-only]");
             const cards = Array.from(collection.querySelectorAll("[data-managed-entry-search-value]"));
             const groups = Array.from(collection.querySelectorAll("[data-managed-entry-group]"));
             const counter = collection.querySelector("[data-managed-visible-count]");
             let activeFilter = "all";
+            let preparedOnly = false;
             const apply = () => {
                 const query = normalizeManagedSearch(search?.value || "").trim();
                 let visible = 0;
                 cards.forEach((card) => {
                     const matchesText = !query || String(card.dataset.managedEntrySearchValue || "").includes(query);
                     const matchesFilter = activeFilter === "all" || card.dataset.managedEntryGroupKey === activeFilter;
-                    card.hidden = !(matchesText && matchesFilter);
+                    const preparation = String(card.dataset.managedSpellPreparation || "");
+                    const matchesPreparation = !preparedOnly || Boolean(preparation && preparation !== "unprepared");
+                    card.hidden = !(matchesText && matchesFilter && matchesPreparation);
                     if (!card.hidden) visible += 1;
                 });
                 groups.forEach((group) => { group.hidden = !Array.from(group.querySelectorAll("[data-managed-entry-search-value]")).some((card) => !card.hidden); });
@@ -853,6 +882,13 @@
                 buttons.forEach((candidate) => candidate.classList.toggle("is-active", candidate === button));
                 apply();
             }));
+            preparedOnlyButton?.addEventListener("click", () => {
+                preparedOnly = !preparedOnly;
+                preparedOnlyButton.classList.toggle("is-active", preparedOnly);
+                preparedOnlyButton.setAttribute("aria-pressed", String(preparedOnly));
+                collection.classList.toggle("is-prepared-only", preparedOnly);
+                apply();
+            });
         });
     }
     function findManagedItemCommand(entry) {
