@@ -79,6 +79,18 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         if (!images.portrait) images.portrait = images.avatar;
         if (!images.token) images.token = getSyncedPlayerImagePath(player, "token");
         if (!images.tokenFallback && images.token === getSyncedPlayerImagePath(player, "token")) images.tokenFallback = getLegacySyncedPlayerImagePath(player, "token");
+        const managedMedia = player?._managedActor?.media || null;
+        if (managedMedia) {
+            const idleDescriptor = managedMedia.idle || managedMedia.token || managedMedia.avatar || null;
+            const hoverDescriptor = managedMedia.hover || managedMedia.idle || managedMedia.token || managedMedia.avatar || null;
+            const tokenDescriptor = managedMedia.token || managedMedia.avatar || null;
+            if (idleDescriptor?.path) images.idle = idleDescriptor.path;
+            if (hoverDescriptor?.path) images.cardHover = hoverDescriptor.path;
+            if (tokenDescriptor?.path) images.token = tokenDescriptor.path;
+            images._managedIdleDescriptor = idleDescriptor;
+            images._managedHoverDescriptor = hoverDescriptor;
+            images._managedTokenDescriptor = tokenDescriptor;
+        }
         return images;
     }
 
@@ -178,6 +190,56 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         }
     }
 
+
+    async function loadManagedPlayerIndex() {
+        try {
+            if (typeof window.CriptaApp?.api?.get !== "function") return [];
+            const token = String(window.CriptaDiscordAuth?.getToken?.() || "").trim();
+            const payload = await window.CriptaApp.api.get("api/managed-actors", {
+                cache: false,
+                ...(token ? { token } : {})
+            });
+            return Array.isArray(payload?.data) ? payload.data : [];
+        } catch (error) {
+            console.warn("Actor gestiti non disponibili per la lista giocatori.", error);
+            return [];
+        }
+    }
+
+    function attachManagedPlayers(players, managedEntries) {
+        (Array.isArray(players) ? players : []).forEach((player) => {
+            const playerId = normalizeText(player?.id);
+            const entry = (Array.isArray(managedEntries) ? managedEntries : []).find((candidate) => {
+                const owner = normalizeText(candidate?.ownerCharacterId);
+                const relationship = normalizeText(candidate?.relationshipType);
+                const actorType = normalizeText(candidate?.actorType);
+                return owner === playerId && (relationship === "player" || actorType === "character" || actorType === "player");
+            });
+            if (entry) player._managedActor = entry;
+        });
+    }
+
+    function applyManagedPlayerFrameCircles(root, players) {
+        const cards = Array.from(root.querySelectorAll(".player-card"));
+        (Array.isArray(players) ? players : []).forEach((player, index) => {
+            const card = cards[index];
+            if (!card) return;
+            const images = getPlayerImages(player);
+            const animated = player._hasDedicatedCardImages === true && images.idle && images.cardHover && images.cardHover !== images.idle;
+            const idleDescriptor = animated ? images._managedIdleDescriptor : (images._managedTokenDescriptor || images._managedIdleDescriptor);
+            const hoverDescriptor = animated ? images._managedHoverDescriptor : idleDescriptor;
+            const idleCircle = window.CriptaImageAdjust?.normalizeFrameCircle?.(idleDescriptor?.presentation?.frameCircle);
+            const hoverCircle = window.CriptaImageAdjust?.normalizeFrameCircle?.(hoverDescriptor?.presentation?.frameCircle);
+            if (!idleCircle && !hoverCircle) return;
+            const host = card.querySelector(".npc-avatar-container");
+            const idleImage = card.querySelector(".img-main");
+            const hoverImage = card.querySelector(".img-hover");
+            if (host) host.dataset.frameCircleHost = "true";
+            if (idleImage && idleCircle) window.CriptaImageAdjust.setFrameCircleDataset(idleImage, idleCircle);
+            if (hoverImage && hoverCircle) window.CriptaImageAdjust.setFrameCircleDataset(hoverImage, hoverCircle);
+        });
+        window.CriptaImageAdjust?.initFrameCircleImages?.(root);
+    }
     function findPlayerActor(inventorySnapshot, player) {
         const actors = Array.isArray(inventorySnapshot?.actors) ? inventorySnapshot.actors : [];
         if (!actors.length) return null;
@@ -447,10 +509,12 @@ window.CriptaApp.onPageReady("giocatori", async function() {
     }
 
     try {
-        const [players, inventorySnapshot] = await Promise.all([
+        const [players, inventorySnapshot, managedPlayers] = await Promise.all([
             fetchJson(dataUrl("players.json"), []),
-            loadInventorySnapshot()
+            loadInventorySnapshot(),
+            loadManagedPlayerIndex()
         ]);
+        attachManagedPlayers(players, managedPlayers);
         const visiblePlayers = window.WikiSpoiler ? window.WikiSpoiler.filterVisible(players) : players;
 
         if (!visiblePlayers.length) {
@@ -470,6 +534,7 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         container.innerHTML = visiblePlayers
             .map((player) => renderPlayerCard(player, findPlayerActor(inventorySnapshot, player), inventorySnapshot))
             .join("");
+        applyManagedPlayerFrameCircles(container, visiblePlayers);
     } catch (error) {
         console.error("Errore nel caricamento dei dati dei giocatori:", error);
         container.innerHTML = '<p style="color: var(--status-dead);">Impossibile caricare i dati dei giocatori. Controlla la console per maggiori dettagli.</p>';

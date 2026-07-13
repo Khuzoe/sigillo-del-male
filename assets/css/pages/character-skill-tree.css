@@ -1,0 +1,1702 @@
+/* Stili condivisi del componente alberi abilita. Estratti dal loadout classico per il flusso Managed Actor. */
+
+.player-skill-tree-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
+    gap: 1rem;
+    align-items: start;
+}
+
+.player-skill-tree-stack {
+    display: grid;
+    gap: 1rem;
+}
+
+.player-skill-tree-stack-viewport {
+    min-width: 0;
+}
+
+.page-character--skill-tree-only .sidebar,
+.page-character--skill-tree-only .hero-mini {
+    display: none;
+}
+
+.page-character--skill-tree-only .main-content {
+    margin-left: 0;
+    padding: 0;
+}
+
+.page-character--skill-tree-only .container {
+    width: min(100%, 1500px);
+    max-width: none;
+    padding: 12px;
+}
+
+.page-character--skill-tree-only #character-content-container {
+    min-height: calc(100vh - 24px);
+}
+
+.page-character--skill-tree-only .player-skill-tree-stack,
+.page-character--skill-tree-only .player-skill-tree-card {
+    margin: 0;
+}
+
+.player-skill-tree-stack-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.28);
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-tree-nav-title {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.player-skill-tree-nav-title span {
+    color: var(--gold);
+    font-size: 0.72rem;
+}
+
+.player-skill-tree-nav-title strong {
+    overflow: hidden;
+    color: var(--text-main);
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    letter-spacing: 0.04em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-skill-tree-nav-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    min-width: max-content;
+}
+
+.player-skill-tree-nav-controls span {
+    min-width: 3.25rem;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    text-align: center;
+}
+
+.player-skill-tree-nav-button {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(212, 175, 55, 0.38);
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.32);
+    color: var(--gold);
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025), 0 8px 18px rgba(0, 0, 0, 0.2);
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, opacity 0.18s ease;
+}
+
+.player-skill-tree-nav-button:hover,
+.player-skill-tree-nav-button:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(255, 221, 118, 0.82);
+    background: rgba(212, 175, 55, 0.14);
+    outline: none;
+}
+
+.player-skill-tree-nav-button:disabled {
+    cursor: default;
+    opacity: 0.42;
+    transform: none;
+}
+
+.player-skill-tree-empty {
+    padding: 1.4rem;
+    border: 1px dashed rgba(212, 175, 55, 0.28);
+    border-radius: 16px;
+    background: rgba(0, 0, 0, 0.22);
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    text-align: center;
+}
+
+.player-skill-info-state-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.45rem;
+    max-width: 100%;
+    margin-bottom: 0.65rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.player-skill-info-level {
+    width: fit-content;
+    padding: 0.25rem 0.55rem;
+    border: 1px solid rgba(212, 175, 55, 0.28);
+    border-radius: 999px;
+    color: var(--gold);
+    background: rgba(212, 175, 55, 0.08);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-tree-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.player-skill-tree-card-head h3 {
+    margin: 0;
+}
+
+.player-skill-tree-card-head h3 small {
+    display: inline-block;
+    margin-left: 0.45rem;
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-tree-shared-badge,
+.player-skill-tree-archived-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.55rem;
+    padding: 0.16rem 0.5rem;
+    border: 1px solid rgba(212, 175, 55, 0.34);
+    border-radius: 999px;
+    color: var(--gold-soft);
+    background: rgba(212, 175, 55, 0.08);
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.player-skill-tree-archived-badge {
+    border-color: rgba(255, 120, 110, 0.36);
+    color: #ffb0a6;
+    background: rgba(138, 28, 28, 0.18);
+}
+
+.player-skill-tree-card-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 0 0 auto;
+}
+
+.player-skill-edit-toggle {
+    width: 2.35rem;
+    height: 2.35rem;
+    display: inline-grid;
+    place-items: center;
+    border: 1px solid rgba(212, 175, 55, 0.42);
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.34);
+    color: var(--gold);
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025), 0 8px 18px rgba(0, 0, 0, 0.2);
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.player-skill-edit-toggle:hover,
+.player-skill-edit-toggle:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(255, 221, 118, 0.82);
+    background: rgba(212, 175, 55, 0.14);
+    box-shadow: inset 0 0 0 1px rgba(255, 221, 118, 0.08), 0 10px 22px rgba(0, 0, 0, 0.26);
+    outline: none;
+}
+
+.player-skill-edit-toggle.is-active {
+    border-color: rgba(212, 175, 55, 0.85);
+    background: rgba(212, 175, 55, 0.16);
+    color: var(--gold);
+}
+
+.player-skill-delete-tree {
+    border-color: rgba(176, 62, 62, 0.48);
+    color: #f0a0a0;
+}
+
+.player-skill-delete-tree:hover,
+.player-skill-delete-tree:focus-visible {
+    border-color: rgba(255, 148, 148, 0.82);
+    background: rgba(176, 62, 62, 0.18);
+    color: #ffd0d0;
+}
+
+.player-skill-tree-column {
+    min-width: 0;
+}
+
+.player-skill-tree-wrapper {
+    position: relative;
+    isolation: isolate;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    min-height: 420px;
+    border-radius: 12px;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    background-color: rgba(0, 0, 0, 0.42);
+    overflow: hidden;
+    --skill-tree-bg-image: none;
+    --skill-tree-bg-opacity: 1;
+    --skill-tree-bg-overlay: radial-gradient(circle at 50% 50%, rgba(56, 22, 22, 0.45), rgba(0, 0, 0, 0.92));
+}
+
+.player-skill-tree-wrapper::before,
+.player-skill-tree-wrapper::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.player-skill-tree-wrapper::before {
+    background-image: var(--skill-tree-bg-image);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: var(--skill-tree-bg-opacity);
+    z-index: 0;
+}
+
+.player-skill-tree-wrapper::after {
+    background: var(--skill-tree-bg-overlay);
+    box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.9);
+    z-index: 0;
+}
+
+.player-skill-tree-connections {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.is-editing-skill-tree .player-skill-tree-connections {
+    pointer-events: auto;
+}
+
+.player-skill-snap-guide {
+    position: absolute;
+    z-index: 4;
+    pointer-events: none;
+    background: rgba(255, 221, 118, 0.82);
+    box-shadow: 0 0 10px rgba(255, 221, 118, 0.58);
+}
+
+.player-skill-snap-guide--x {
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    transform: translateX(-50%);
+}
+
+.player-skill-snap-guide--y {
+    left: 0;
+    right: 0;
+    height: 1px;
+    transform: translateY(-50%);
+}
+
+.player-skill-connection {
+    stroke-width: 0.5%;
+    stroke-linecap: round;
+    transition: stroke 0.3s ease, stroke-width 0.3s ease, filter 0.3s ease;
+}
+
+.player-skill-connection.is-editable {
+    cursor: pointer;
+    pointer-events: stroke;
+}
+
+.player-skill-connection.is-locked {
+    stroke: rgba(228, 228, 228, 0.62);
+    stroke-width: 0.58%;
+    stroke-dasharray: 1.3 0.95;
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 3px rgba(235, 235, 235, 0.25));
+}
+
+.player-skill-connection.is-unlocked {
+    stroke: rgba(212, 175, 55, 0.6);
+    stroke-width: 0.72%;
+    filter: drop-shadow(0 0 4px rgba(212, 175, 55, 0.7));
+}
+
+.player-skill-connection.is-unlockable {
+    stroke: rgba(206, 171, 89, 0.5);
+    stroke-width: 0.64%;
+    filter: drop-shadow(0 0 2px rgba(212, 175, 55, 0.45));
+}
+
+.player-skill-connection.is-link-preview {
+    stroke: rgba(255, 221, 118, 0.88);
+    stroke-width: 0.76%;
+    stroke-dasharray: 1.2 0.8;
+    filter: drop-shadow(0 0 5px rgba(255, 221, 118, 0.72));
+}
+
+.player-skill-connection.is-exclusive {
+    stroke-dasharray: 0.75 0.6;
+}
+
+.player-skill-connection.is-selected {
+    stroke: rgba(255, 230, 140, 0.95);
+    stroke-width: 0.95%;
+    filter: drop-shadow(0 0 8px rgba(255, 221, 118, 0.9));
+}
+
+
+.player-skill-group-node {
+    position: absolute;
+    z-index: 1;
+    aspect-ratio: 1 / 1;
+    transform: translate(-50%, -50%);
+    display: grid;
+    place-items: start center;
+    gap: 0.2rem;
+    padding: 0.8rem;
+    border: 2px solid rgba(154, 126, 55, 0.5);
+    border-radius: 50%;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.08), rgba(0, 0, 0, 0.04) 58%, rgba(0, 0, 0, 0.16)),
+        rgba(14, 10, 8, 0.2);
+    color: var(--gold);
+    font-family: var(--font-ui);
+    box-shadow: inset 0 0 28px rgba(212, 175, 55, 0.08), 0 0 18px rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.player-skill-group-node::before {
+    content: "";
+    position: absolute;
+    inset: 0.45rem;
+    border: 1px dashed rgba(212, 175, 55, 0.34);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.player-skill-group-node-label {
+    position: relative;
+    z-index: 1;
+    max-width: 74%;
+    margin-top: 0.1rem;
+    padding: 0.18rem 0.5rem;
+    border: 1px solid rgba(212, 175, 55, 0.24);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.66);
+    color: var(--gold);
+    font-size: clamp(0.62rem, 0.75vw, 0.78rem);
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    overflow: hidden;
+    text-align: center;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.player-skill-group-node small {
+    position: relative;
+    z-index: 1;
+    max-width: 70%;
+    padding: 0.12rem 0.45rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.48);
+    color: rgba(238, 224, 188, 0.82);
+    font-size: clamp(0.52rem, 0.62vw, 0.68rem);
+    font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-skill-group-node.is-locked {
+    border-color: rgba(160, 160, 160, 0.24);
+    filter: grayscale(0.5) brightness(0.72);
+}
+
+.player-skill-group-node.is-unlockable {
+    border-color: rgba(206, 171, 89, 0.78);
+    box-shadow: inset 0 0 30px rgba(212, 175, 55, 0.1), 0 0 18px rgba(212, 175, 55, 0.18);
+}
+
+.player-skill-group-node.is-unlocked {
+    border-color: rgba(212, 175, 55, 0.88);
+    box-shadow: inset 0 0 30px rgba(212, 175, 55, 0.16), 0 0 24px rgba(212, 175, 55, 0.28);
+}
+
+.player-skill-group-node.is-selected {
+    outline: 2px solid rgba(255, 245, 210, 0.82);
+    outline-offset: 5px;
+}
+
+.player-skill-group-node.is-link-target,
+.player-skill-group-node:hover,
+.player-skill-group-node:focus-visible {
+    border-color: rgba(255, 245, 210, 0.95);
+    box-shadow: inset 0 0 30px rgba(212, 175, 55, 0.18), 0 0 26px rgba(255, 221, 118, 0.34);
+    outline: none;
+}
+
+.player-skill-group-link-anchor {
+    right: 8%;
+    top: 50%;
+}
+
+.player-skill-info-group-summary {
+    display: grid;
+    gap: 0.45rem;
+    margin: 0.7rem 0 0.8rem;
+    padding: 0.75rem;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.24);
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+}
+
+.player-skill-info-group-summary>span,
+.player-skill-info-group-summary small {
+    color: var(--gold);
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-info-group-summary strong {
+    color: var(--text-main);
+    font-size: 1.05rem;
+}
+
+.player-skill-requirement-pill.is-selected {
+    border-color: rgba(212, 175, 55, 0.7);
+    background: rgba(212, 175, 55, 0.14);
+    color: var(--gold);
+}
+
+.player-skill-group-editor-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+    padding: 0 0.85rem 0.85rem;
+}
+
+.player-skill-group-editor-grid label {
+    display: grid;
+    gap: 0.35rem;
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.76rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-group-editor-grid input {
+    width: 100%;
+    border: 1px solid rgba(212, 175, 55, 0.26);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.45);
+    color: var(--text-main);
+    padding: 0.65rem 0.75rem;
+    font: inherit;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.player-skill-group-child-list {
+    grid-column: 1 / -1;
+}
+
+.player-skill-group-child-list h5 {
+    margin: 0 0 0.55rem;
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.76rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-node {
+    position: absolute;
+    z-index: 2;
+    width: 9%;
+    aspect-ratio: 1 / 1;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 2px solid rgba(130, 130, 130, 0.5);
+    background-color: #000;
+    background-size: cover;
+    background-position: center;
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.75);
+    cursor: pointer;
+    z-index: 2;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, filter 0.2s ease;
+}
+
+.player-skill-node-level-badge {
+    position: absolute;
+    right: -0.35rem;
+    bottom: -0.35rem;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 235, 150, 0.92);
+    border-radius: 999px;
+    background: rgba(18, 12, 6, 0.94);
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.68rem;
+    font-weight: 900;
+    line-height: 1;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.82), 0 0 12px rgba(212, 175, 55, 0.45);
+    pointer-events: none;
+}
+
+.player-skill-node-link-anchor {
+    position: absolute;
+    right: -0.5rem;
+    top: 50%;
+    width: 1.3rem;
+    height: 1.3rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255, 221, 118, 0.72);
+    border-radius: 50%;
+    background: rgba(16, 12, 8, 0.94);
+    color: var(--gold);
+    font-size: 0.62rem;
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(45%, -50%) scale(0.72);
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.82), 0 0 12px rgba(212, 175, 55, 0.28);
+    transition: opacity 0.16s ease, transform 0.16s ease, background 0.16s ease;
+}
+
+.is-editing-skill-tree .player-skill-group-node:hover .player-skill-node-link-anchor,
+.is-editing-skill-tree .player-skill-group-node:focus-visible .player-skill-node-link-anchor,
+.is-editing-skill-tree .player-skill-group-node.is-selected .player-skill-node-link-anchor,
+.is-editing-skill-tree .player-skill-node:hover .player-skill-node-link-anchor,
+.is-editing-skill-tree .player-skill-node:focus-visible .player-skill-node-link-anchor,
+.is-editing-skill-tree .player-skill-node.is-selected .player-skill-node-link-anchor,
+.player-skill-tree-wrapper.is-linking-skill-tree .player-skill-node-link-anchor {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translate(45%, -50%) scale(1);
+}
+
+.player-skill-node-link-anchor:hover {
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.98), rgba(255, 235, 150, 0.98));
+    color: #160f08;
+}
+
+.player-skill-node.is-key {
+    width: 12%;
+    border-width: 3px;
+}
+
+.player-skill-node.is-locked {
+    filter: grayscale(1) brightness(0.45);
+}
+
+.player-skill-node.is-unlocked {
+    border-color: rgba(212, 175, 55, 0.9);
+    box-shadow: 0 0 18px rgba(212, 175, 55, 0.45);
+}
+
+.player-skill-node.is-unlockable {
+    border-color: rgba(206, 171, 89, 0.85);
+    filter: grayscale(0.45);
+    animation: player-skill-pulse-unlockable 2s infinite;
+}
+
+.player-skill-node.is-selected {
+    outline: 2px solid rgba(255, 245, 210, 0.85);
+    outline-offset: 4px;
+}
+
+.player-skill-node.is-dragging {
+    cursor: grabbing;
+    transform: translate(-50%, -50%) scale(1.14);
+    z-index: 5;
+}
+
+.player-skill-node.is-link-target {
+    border-color: rgba(255, 245, 210, 0.98);
+    box-shadow: 0 0 0 4px rgba(255, 221, 118, 0.18), 0 0 24px rgba(255, 221, 118, 0.6);
+    filter: none;
+}
+
+.player-skill-tree-wrapper.is-linking-skill-tree {
+    cursor: crosshair;
+}
+
+.player-skill-node:hover,
+.player-skill-node:focus-visible {
+    transform: translate(-50%, -50%) scale(1.12);
+    border-color: #fff;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.45);
+    outline: none;
+    z-index: 3;
+}
+
+@keyframes player-skill-pulse-unlockable {
+    0% {
+        box-shadow: 0 0 0 rgba(212, 175, 55, 0);
+        border-color: rgba(130, 130, 130, 0.55);
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    50% {
+        box-shadow: 0 0 18px rgba(212, 175, 55, 0.5);
+        border-color: rgba(212, 175, 55, 0.95);
+        transform: translate(-50%, -50%) scale(1.06);
+    }
+
+    100% {
+        box-shadow: 0 0 0 rgba(212, 175, 55, 0);
+        border-color: rgba(130, 130, 130, 0.55);
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.player-skill-info {
+    min-height: 260px;
+    max-height: clamp(360px, 62vh, 720px);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+    border-radius: 10px;
+    border: 1px solid rgba(138, 28, 28, 0.5);
+    background: rgba(0, 0, 0, 0.44);
+}
+
+.player-skill-info-header {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+.player-skill-info-icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: zoom-in;
+}
+
+.player-skill-info-icon-button:focus-visible {
+    outline: 2px solid rgba(255, 221, 118, 0.86);
+    outline-offset: 4px;
+}
+
+.player-skill-info-icon-button:hover .player-skill-info-icon,
+.player-skill-info-icon-button:focus-visible .player-skill-info-icon {
+    border-color: rgba(255, 221, 118, 0.96);
+    box-shadow: 0 0 22px rgba(212, 175, 55, 0.28);
+}
+
+.player-skill-info-icon {
+    width: 104px;
+    height: 104px;
+    border-radius: 50%;
+    border: 2px solid rgba(212, 175, 55, 0.8);
+    object-fit: cover;
+    background: #000;
+}
+
+.player-skill-info-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    color: var(--gold);
+}
+
+.player-skill-info-state-row {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.45rem;
+    max-width: 100%;
+    margin-bottom: 0.65rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.player-skill-info-state {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.player-skill-info-state.is-unlocked {
+    color: var(--gold);
+    background: rgba(212, 175, 55, 0.12);
+}
+
+.player-skill-info-state.is-unlockable {
+    color: #f0d78f;
+}
+
+.player-skill-info-level {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: fit-content;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    color: var(--gold);
+    background: rgba(212, 175, 55, 0.1);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.player-skill-info-actions {
+    display: inline-flex;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.player-skill-info-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.38rem;
+    padding: 0.42rem 0.65rem;
+    border: 1px solid rgba(212, 175, 55, 0.34);
+    border-radius: 999px;
+    color: var(--gold);
+    background: rgba(212, 175, 55, 0.1);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.player-skill-info-action:hover,
+.player-skill-info-action:focus-visible {
+    border-color: rgba(255, 221, 118, 0.78);
+    background: rgba(212, 175, 55, 0.2);
+    outline: none;
+}
+
+.player-skill-info-action.is-danger {
+    color: #ff9b8f;
+    border-color: rgba(255, 120, 110, 0.36);
+    background: rgba(138, 28, 28, 0.18);
+}
+
+.player-skill-info-state,
+.player-skill-info-level,
+.player-skill-info-action {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.player-skill-info-flavor {
+    margin: 0 0 0.8rem 0;
+    color: var(--text-muted);
+    font-style: italic;
+    font-family: var(--font-body);
+}
+
+.player-skill-info-requirements {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.35rem 0.65rem;
+    align-items: center;
+    width: auto;
+    margin: 0.65rem 0 0.8rem 0;
+    padding: 0.55rem 0.65rem;
+    border: 1px solid rgba(255, 122, 112, 0.28);
+    border-left: 3px solid rgba(255, 122, 112, 0.78);
+    border-radius: 8px;
+    background: rgba(138, 28, 28, 0.16);
+    color: #f3d8c2;
+    font-family: var(--font-ui);
+    font-size: 0.76rem;
+    line-height: 1.35;
+    letter-spacing: 0;
+    text-transform: none;
+    transform: none;
+}
+
+.player-skill-requirement-label {
+    color: #ff8a80;
+    font-size: 0.66rem;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.player-skill-requirement-mode {
+    color: rgba(243, 216, 194, 0.86);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.player-skill-info-requirement-list {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.player-skill-requirement-pill {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 0.16rem 0.45rem;
+    border: 1px solid rgba(255, 122, 112, 0.32);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.28);
+    color: #f0e4cc;
+    overflow-wrap: anywhere;
+}
+
+.player-skill-info-requirements.is-any {
+    border-color: rgba(217, 189, 100, 0.3);
+    border-left-color: rgba(217, 189, 100, 0.86);
+    background: rgba(120, 90, 28, 0.18);
+}
+
+.player-skill-info-requirements.is-any .player-skill-requirement-label {
+    color: #f0cf63;
+}
+
+.player-skill-info-requirements.is-any .player-skill-requirement-mode {
+    color: rgba(240, 207, 99, 0.88);
+}
+
+.player-skill-info-requirements.is-any .player-skill-requirement-pill {
+    border-color: rgba(217, 189, 100, 0.36);
+}
+.player-skill-rich-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin: 0 0 0.75rem 0;
+    padding: 0.45rem;
+    border: 1px solid rgba(212, 175, 55, 0.24);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.24);
+    width: fit-content;
+}
+
+.player-skill-rich-toolbar button {
+    display: inline-grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid rgba(212, 175, 55, 0.32);
+    border-radius: 999px;
+    color: var(--gold);
+    background: rgba(12, 12, 12, 0.72);
+    cursor: pointer;
+    transition: transform 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+}
+
+.player-skill-rich-toolbar button:hover,
+.player-skill-rich-toolbar button:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(255, 221, 118, 0.75);
+    background: rgba(212, 175, 55, 0.14);
+    outline: none;
+}
+
+.player-skill-info-desc {
+    color: var(--text-main);
+    font-size: 1rem !important;
+    line-height: 1.5;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    padding-right: 0.45rem;
+}
+
+.player-skill-info-desc:not(.is-editable) {
+    max-height: clamp(180px, 38vh, 430px);
+}
+
+.player-skill-info-desc.is-editable {
+    max-height: clamp(220px, 44vh, 520px);
+}
+
+.player-skill-info-desc::-webkit-scrollbar {
+    width: 0.45rem;
+}
+
+.player-skill-info-desc::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.28);
+    border-radius: 999px;
+}
+
+.player-skill-info-desc::-webkit-scrollbar-thumb {
+    background: rgba(212, 175, 55, 0.36);
+    border-radius: 999px;
+}
+
+.player-skill-info-desc::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 221, 118, 0.56);
+}
+
+.player-skill-info [contenteditable="true"] {
+    border-radius: 8px;
+    outline: 1px dashed rgba(212, 175, 55, 0.34);
+    outline-offset: 4px;
+    cursor: text;
+}
+
+.player-skill-info [contenteditable="true"]:focus {
+    background: rgba(212, 175, 55, 0.08);
+    outline-color: rgba(255, 221, 118, 0.82);
+}
+
+.player-skill-info-desc.is-editable {
+    min-height: 8rem;
+    white-space: pre-wrap;
+}
+
+.player-skill-info-desc p {
+    margin: 0 0 0.65rem 0;
+}
+
+.player-skill-info-desc :is(p, div, span, li, strong, b, em, i, u, mark, small, big, font),
+.player-skill-level-rich-editor :is(p, div, span, li, strong, b, em, i, u, small, big, font) {
+    font-family: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit;
+}
+
+.player-skill-info-desc strong,
+.player-skill-info-desc b,
+.player-skill-level-rich-editor strong,
+.player-skill-level-rich-editor b {
+    color: var(--gold);
+    font-weight: 900;
+    text-shadow: 0 0 8px rgba(212, 175, 55, 0.28);
+}
+
+.player-skill-info-desc em,
+.player-skill-info-desc i,
+.player-skill-level-rich-editor em,
+.player-skill-level-rich-editor i {
+    color: #ead9b3;
+    font-style: italic;
+    font-weight: 650;
+}
+
+.player-skill-info-desc :is(h1, h2, h3, h4, h5, h6),
+.player-skill-level-rich-editor :is(h1, h2, h3, h4, h5, h6) {
+    margin: 0 0 0.65rem;
+    font-family: inherit !important;
+    font-size: inherit !important;
+    line-height: inherit;
+    font-weight: 800;
+}
+
+.player-skill-info-desc mark.player-skill-level-change-highlight {
+    background: transparent;
+    color: var(--gold);
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(212, 175, 55, 0.32);
+}
+
+.player-skill-info-desc mark.player-skill-level-scaling-token {
+    cursor: help;
+    border-bottom: 1px dotted rgba(212, 175, 55, 0.72);
+}
+
+.player-skill-info-desc .player-skill-level-future-addition {
+    color: rgba(220, 216, 205, 0.42);
+    font-style: italic;
+    text-shadow: none;
+}
+
+.player-skill-info-desc ul,
+.player-skill-info-desc ol {
+    margin: 0 0 0.65rem 0;
+    padding-left: 1.1rem;
+}
+
+.player-skill-info-empty {
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    color: var(--text-muted);
+    gap: 0.6rem;
+}
+
+.player-skill-info-empty i {
+    font-size: 1.5rem;
+    opacity: 0.65;
+}
+
+.player-skill-tree-editor {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 12px;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    background: rgba(0, 0, 0, 0.34);
+}
+
+.player-skill-editor-section {
+    margin-bottom: 0.9rem;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.22);
+}
+
+.player-skill-editor-section summary {
+    cursor: pointer;
+    padding: 0.75rem 0.85rem;
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.8rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-editor-section .player-skill-editor-grid {
+    padding: 0 0.85rem 0.85rem;
+}
+
+.player-skill-editor-subtitle {
+    margin: 0.2rem 0 0.75rem;
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-editor-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 0.9rem;
+    padding: 0.7rem;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.24);
+}
+
+.player-skill-editor-tools label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: var(--text-main);
+    font-family: var(--font-ui);
+    font-size: 0.82rem;
+}
+
+.player-skill-editor-tools input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: var(--gold);
+}
+
+.player-skill-editor-tools input[type="number"] {
+    width: 5rem;
+    border: 1px solid rgba(212, 175, 55, 0.26);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.45);
+    color: var(--text-main);
+    padding: 0.4rem 0.55rem;
+}
+
+.player-skill-editor-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.8rem;
+}
+
+.player-skill-editor-grid label {
+    display: grid;
+    gap: 0.35rem;
+    align-content: start;
+    min-height: 4.75rem;
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+
+.player-skill-editor-grid label.player-skill-editor-toggle {
+    min-height: 4.75rem;
+}
+
+.player-skill-editor-toggle span {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 2.75rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid rgba(212, 175, 55, 0.24);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.35);
+}
+
+.player-skill-editor-toggle input[type="checkbox"] {
+    width: auto;
+    min-width: 1rem;
+    accent-color: var(--gold);
+}
+
+.player-skill-editor-toggle strong {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.player-skill-editor-grid input,
+.player-skill-editor-grid select,
+.player-skill-editor-grid textarea {
+    width: 100%;
+    border: 1px solid rgba(212, 175, 55, 0.26);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.45);
+    color: var(--text-main);
+    padding: 0.65rem 0.75rem;
+    font: inherit;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.player-skill-position-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.35rem 0.55rem;
+    min-height: 4.75rem;
+    align-content: start;
+}
+
+.player-skill-position-fields>span {
+    grid-column: 1 / -1;
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.76rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-position-fields label {
+    min-height: auto;
+    gap: 0.25rem;
+    font-size: 0.68rem;
+}
+
+.player-skill-position-fields input {
+    padding: 0.65rem 0.55rem;
+}
+
+.player-skill-tree-bg-upload {
+    grid-column: span 2;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    align-items: center;
+    min-height: 4.75rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px dashed rgba(212, 175, 55, 0.34);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.26);
+    color: var(--text-muted);
+    outline: none;
+}
+
+.player-skill-tree-bg-upload.is-drag-over,
+.player-skill-tree-bg-upload:focus-visible {
+    border-color: rgba(255, 221, 118, 0.82);
+    background: rgba(212, 175, 55, 0.1);
+}
+
+.player-skill-tree-bg-upload[aria-busy="true"] {
+    opacity: 0.65;
+    pointer-events: none;
+}
+
+.player-skill-tree-bg-upload strong,
+.player-skill-tree-bg-upload span {
+    display: block;
+    font-family: var(--font-ui);
+}
+
+.player-skill-tree-bg-upload strong {
+    color: var(--gold);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-tree-bg-upload span {
+    max-width: 100%;
+    margin-top: 0.3rem;
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-skill-opacity-control {
+    align-self: stretch;
+    justify-content: start;
+    min-height: 4.75rem;
+}
+
+.player-skill-opacity-control input[type="range"] {
+    accent-color: var(--gold);
+    padding: 0;
+}
+
+.player-skill-opacity-control output {
+    width: fit-content;
+    min-width: 3.25rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid rgba(212, 175, 55, 0.26);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.34);
+    color: var(--ink-ivory);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    text-align: center;
+}
+
+.player-skill-level-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.player-skill-level-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.55fr) minmax(160px, 0.8fr) auto;
+    gap: 0.65rem;
+    align-items: start;
+    padding: 0.75rem;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.player-skill-level-row label,
+.player-skill-level-text {
+    display: grid;
+    gap: 0.35rem;
+    color: var(--gold);
+    font-family: var(--font-ui);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-level-row input,
+.player-skill-level-row textarea,
+.player-skill-level-rich-editor {
+    width: 100%;
+    border: 1px solid rgba(212, 175, 55, 0.26);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.45);
+    color: var(--text-main);
+    padding: 0.75rem 0.85rem;
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.45;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.player-skill-level-text,
+.player-skill-level-diff {
+    grid-column: 1 / -1;
+}
+
+.player-skill-level-rich-toolbar {
+    margin: 0.15rem 0 0.35rem;
+}
+
+.player-skill-level-rich-editor {
+    min-height: 10.5rem;
+    overflow: auto;
+    font-size: 1rem !important;
+    font-weight: 400;
+    outline: none;
+    text-transform: none;
+}
+
+
+.player-skill-level-rich-editor:focus {
+    border-color: rgba(255, 221, 118, 0.72);
+    box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.12);
+}
+
+.player-skill-level-rich-editor p {
+    margin: 0 0 0.65rem;
+}
+
+.player-skill-level-rich-editor ul,
+.player-skill-level-rich-editor ol {
+    margin: 0 0 0.65rem;
+    padding-left: 1.2rem;
+}
+
+.player-skill-level-diff {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.75rem 0.85rem;
+    border: 1px solid rgba(180, 180, 180, 0.18);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.035);
+    color: rgba(220, 216, 205, 0.72);
+    font-family: var(--font-ui);
+    font-size: 0.9rem;
+}
+
+.player-skill-level-diff.is-same,
+.player-skill-level-diff.is-empty {
+    color: rgba(220, 216, 205, 0.52);
+    font-style: italic;
+}
+
+.player-skill-level-diff-row {
+    display: grid;
+    grid-template-columns: 6.4rem minmax(0, 1fr);
+    gap: 0.6rem;
+    align-items: start;
+}
+
+.player-skill-level-diff-row span {
+    color: rgba(212, 175, 55, 0.64);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.player-skill-level-diff-row strong {
+    min-width: 0;
+    color: rgba(224, 224, 224, 0.72);
+    font-family: var(--font-body);
+    font-size: 1.02rem;
+    font-weight: 700;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.player-skill-level-diff-row.is-before strong {
+    color: rgba(210, 210, 210, 0.52);
+}
+
+.player-skill-level-diff-row.is-after span,
+.player-skill-level-diff-row.is-after strong {
+    color: var(--gold);
+}
+
+.player-skill-level-diff-row.is-added span,
+.player-skill-level-diff-row.is-added strong {
+    color: rgba(220, 216, 205, 0.58);
+    font-style: italic;
+}
+
+.player-skill-editor-help {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+.player-skill-node-icon-upload {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: center;
+    min-height: 5.5rem;
+    padding: 0.7rem;
+    border: 1px dashed rgba(212, 175, 55, 0.34);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.26);
+    color: var(--text-muted);
+    outline: none;
+}
+
+.player-skill-node-icon-upload.is-drag-over,
+.player-skill-node-icon-upload:focus-visible {
+    border-color: rgba(255, 221, 118, 0.82);
+    background: rgba(212, 175, 55, 0.1);
+}
+
+.player-skill-node-icon-upload[aria-busy="true"] {
+    opacity: 0.65;
+    pointer-events: none;
+}
+
+.player-skill-node-icon-preview {
+    width: 4rem;
+    height: 4rem;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 2px solid rgba(212, 175, 55, 0.5);
+    background: rgba(0, 0, 0, 0.55);
+    overflow: hidden;
+    color: var(--gold);
+}
+
+.player-skill-node-icon-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.player-skill-node-icon-upload strong,
+.player-skill-node-icon-upload span {
+    display: block;
+    font-family: var(--font-ui);
+}
+
+.player-skill-node-icon-upload strong {
+    color: var(--gold);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-node-icon-upload span {
+    margin: 0.18rem 0 0.55rem;
+    font-size: 0.78rem;
+}
+
+.player-skill-editor-grid textarea {
+    resize: vertical;
+    min-height: 120px;
+    font-family: var(--font-body);
+}
+
+.player-skill-editor-wide {
+    grid-column: span 2;
+}
+
+.player-skill-editor-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 0.9rem;
+}
+
+.player-skill-action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    min-height: 2.35rem;
+    border: 1px solid rgba(212, 175, 55, 0.38);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.32);
+    color: var(--text-main);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.45rem 0.85rem;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.025), 0 8px 18px rgba(0, 0, 0, 0.18);
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.player-skill-action-button i {
+    width: 1em;
+    text-align: center;
+    line-height: 1;
+}
+
+.player-skill-action-button.is-compact {
+    min-height: 2.05rem;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.72rem;
+}
+
+.player-skill-action-button:hover,
+.player-skill-action-button:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(255, 221, 118, 0.82);
+    background: rgba(212, 175, 55, 0.12);
+    color: var(--gold);
+    box-shadow: inset 0 0 0 1px rgba(255, 221, 118, 0.08), 0 10px 22px rgba(0, 0, 0, 0.24);
+    outline: none;
+}
+
+.player-skill-action-button.is-primary {
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.94), rgba(241, 211, 107, 0.94));
+    border-color: rgba(255, 221, 118, 0.74);
+    color: #170f08;
+}
+
+.player-skill-action-button.is-primary:hover,
+.player-skill-action-button.is-primary:focus-visible {
+    background: linear-gradient(135deg, rgba(255, 221, 118, 0.98), rgba(212, 175, 55, 0.98));
+    color: #120c05;
+}
+
+.player-skill-action-button.is-danger {
+    border-color: rgba(190, 64, 64, 0.52);
+    background: rgba(88, 20, 20, 0.22);
+    color: #f0b7b7;
+}
+
+.player-skill-action-button.is-danger:hover,
+.player-skill-action-button.is-danger:focus-visible {
+    border-color: rgba(255, 126, 126, 0.74);
+    background: rgba(120, 28, 28, 0.32);
+    color: #ffd0d0;
+}
+
+.player-skill-action-button:disabled {
+    cursor: wait;
+    opacity: 0.62;
+    transform: none;
+}
+
+.is-editing-skill-tree .player-skill-tree-wrapper {
+    cursor: crosshair;
+    user-select: none;
+    touch-action: none;
+}
+
+@media (max-width: 640px) {
+    .player-overview-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .player-skill-tree-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .player-skill-tree-card-head,
+    .player-skill-tree-stack-toolbar,
+    .player-skill-editor-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .player-skill-tree-nav-controls {
+        min-width: 0;
+        justify-content: space-between;
+    }
+
+    .player-skill-tree-wrapper {
+        min-height: 320px;
+    }
+
+    .player-skill-editor-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .player-skill-link-editor-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .player-skill-tree-bg-upload {
+        grid-column: auto;
+        grid-template-columns: 1fr;
+    }
+
+    .player-skill-editor-wide {
+        grid-column: auto;
+    }
+
+    .loadout-tab {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .loadout-entry-toggle {
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .loadout-entry-title {
+        max-width: 100%;
+    }
+
+    .loadout-entry-icon {
+        width: 3rem;
+        height: 3rem;
+    }
+
+    .loadout-wiki-card {
+        grid-template-columns: 72px minmax(0, 1fr);
+    }
+
+    .loadout-wiki-icon {
+        width: 72px;
+        height: 72px;
+    }
+}

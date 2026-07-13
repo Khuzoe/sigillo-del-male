@@ -2,7 +2,7 @@
   "id": "cripta-wiki-sync",
   "title": "Cripta Wiki Sync",
   "description": "Browser Foundry per la wiki di Cripta di Sangue con lettura diretta delle sezioni, pannello token e appunti condivisi/personali.",
-  "version": "0.6.0",
+  "version": "0.6.4",
   "authors": [
     {
       "name": "Delia + Codex"

@@ -210,7 +210,7 @@ function parseYamlLite(yamlText) {
                 quote: profile.quote || legacyNpc?.quote || '',
                 status: normalizeManagedNpcStatus(profile.status, legacyNpc?.status),
                 hidden: hiddenFromPlayers,
-                category: legacyNpc?.category || 'Altri NPC',
+                category: profile.category || legacyNpc?.category || 'Altri NPC',
                 categoryPriority: legacyNpc?.categoryPriority ?? null,
                 images: {
                     ...legacyImages,
@@ -218,7 +218,11 @@ function parseYamlLite(yamlText) {
                     token: tokenPath,
                     idle: idlePath,
                     hover: hoverPath,
+                    idleAdjust: managedPresentationToNpcAdjust(media.idle || media.token || media.avatar, legacyImages.idleAdjust || legacyImages.avatarAdjust),
+                    hoverAdjust: managedPresentationToNpcAdjust(media.hover || media.idle || media.token || media.avatar, legacyImages.hoverAdjust),
                     idleFallback: tokenPath || avatarPath || legacyImages.idleFallback || '',
+                    idleFrameCircle: managedPresentationToFrameCircle(media.idle || media.token || media.avatar, legacyImages.idleFrameCircle || legacyImages.tokenFrameCircle),
+                    hoverFrameCircle: managedPresentationToFrameCircle(media.hover || media.idle || media.token || media.avatar, legacyImages.hoverFrameCircle),
                     hoverFallback: idlePath || tokenPath || avatarPath || legacyImages.hoverFallback || '',
                     avatarFallback: tokenPath || idlePath || legacyImages.avatarFallback || ''
                 },
@@ -226,6 +230,25 @@ function parseYamlLite(yamlText) {
                 managedActorUrl: buildManagedActorDetailUrl(actor)
             };
         }
+        function managedPresentationToNpcAdjust(descriptor, fallback = null) {
+            const presentation = descriptor?.presentation;
+            if (!presentation || typeof presentation !== 'object') return fallback || null;
+            const finiteOr = (value, defaultValue) => Number.isFinite(Number(value)) ? Number(value) : defaultValue;
+            const x = Math.min(100, Math.max(0, finiteOr(presentation.x, 50)));
+            const y = Math.min(100, Math.max(0, finiteOr(presentation.y, 50)));
+            const size = Math.min(3, Math.max(.5, finiteOr(presentation.scale, 1)));
+            return {
+                x: Math.round((x - 50) * 2),
+                y: Math.round((y - 50) * 2),
+                size
+            };
+        }
+
+        function managedPresentationToFrameCircle(descriptor, fallback = null) {
+            return window.CriptaImageAdjust?.normalizeFrameCircle?.(descriptor?.presentation?.frameCircle) || fallback || null;
+        }
+
+
 
         function normalizeManagedNpcStatus(value, fallback) {
             const status = String(value || '').trim().toLowerCase();
@@ -418,6 +441,7 @@ function parseYamlLite(yamlText) {
                 section.appendChild(cards);
                 container.appendChild(section);
             });
+            window.CriptaImageAdjust?.initFrameCircleImages?.(container);
         }
 
         function groupNpcsByCategory(npcs) {
@@ -547,7 +571,17 @@ function parseYamlLite(yamlText) {
                 </div>
                 <i class="fas fa-chevron-right arrow-icon"></i>
             `;
+            const frameHost = card.querySelector(".npc-avatar-container");
+            const mainImage = card.querySelector(".img-main");
+            const hoverImageElement = card.querySelector(".img-hover");
+            const idleCircle = window.CriptaImageAdjust?.normalizeFrameCircle?.(npc.images.idleFrameCircle);
+            const hoverCircle = window.CriptaImageAdjust?.normalizeFrameCircle?.(npc.images.hoverFrameCircle);
+            if (idleCircle || hoverCircle) frameHost.dataset.frameCircleHost = "true";
+            if (idleCircle) window.CriptaImageAdjust.setFrameCircleDataset(mainImage, idleCircle, { scale: .85 });
+            if (hoverCircle) window.CriptaImageAdjust.setFrameCircleDataset(hoverImageElement, hoverCircle, { scale: 1 });
+            if (idleCircle || hoverCircle) requestAnimationFrame(() => window.CriptaImageAdjust?.initFrameCircleImages?.(card));
             return card;
+
         }
 
         function normalizeImageIdentity(path) {

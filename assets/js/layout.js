@@ -2153,6 +2153,17 @@ async function isCurrentUserDm(basePath) {
         return false;
     }
 
+    try {
+        const access = await requestApi("api/campaign/access", {
+            token: readStoredToken(),
+            cache: false
+        });
+        const canManageCampaign = access?.permissions?.canManageCampaign;
+        if (typeof canManageCampaign === "boolean") return canManageCampaign;
+    } catch (_) {
+        // Worker precedenti: continua con l identita DM pubblicata nei dati campagna.
+    }
+
     const dmIdentity = await getDmIdentity(basePath);
     return Boolean(dmIdentity.accountId && currentAccountId === dmIdentity.accountId)
         || Boolean(dmIdentity.discordId && currentDiscordId === dmIdentity.discordId);

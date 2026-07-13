@@ -1603,6 +1603,17 @@ async function requestInventoryApi() {
     return response.json();
 }
 
+function isManagedPrimaryPlayerEntry(entry, characterId = "") {
+    if (!entry || typeof entry !== "object") return false;
+    const relationshipType = normalizeText(entry.relationshipType);
+    if (relationshipType === "companion") return false;
+    const actorType = normalizeText(entry.actorType || entry.type);
+    const ownerMatches = !characterId || normalizeText(entry.ownerCharacterId || entry.characterId) === normalizeText(characterId);
+    if (!ownerMatches) return false;
+    if (relationshipType === "player") return true;
+    return actorType === "character" || actorType === "player" || (!actorType && Boolean(entry.ownerCharacterId || entry.characterId));
+}
+
 async function mergeManagedActorIntoCachedInventory(legacyPayload, options = {}) {
     const characterId = String(options.character?.id || '').trim();
     const user = options.authState?.user || {};
@@ -1624,9 +1635,7 @@ async function mergeManagedActorIntoInventory(legacyPayload, options = {}) {
             cache: false,
             ...(token ? { token } : {})
         });
-        const summary = (Array.isArray(indexPayload?.data) ? indexPayload.data : []).find((entry) =>
-            normalizeText(entry?.ownerCharacterId) === normalizeText(characterId)
-        );
+        const summary = (Array.isArray(indexPayload?.data) ? indexPayload.data : []).find((entry) => isManagedPrimaryPlayerEntry(entry, characterId));
         if (!summary) return legacyPayload;
         const detailPayload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(summary.worldId)}/${encodeURIComponent(summary.actorId)}`, {
             cache: false,
@@ -1635,7 +1644,7 @@ async function mergeManagedActorIntoInventory(legacyPayload, options = {}) {
         const managedActor = adaptManagedActorToInventory(detailPayload?.data);
         if (!managedActor) return legacyPayload;
         const actors = Array.isArray(legacyPayload?.actors) ? [...legacyPayload.actors] : [];
-        const index = actors.findIndex((actor) => normalizeText(actor.ownerCharacterId || actor.characterId) === normalizeText(characterId));
+        const index = actors.findIndex((actor) => isManagedPrimaryPlayerEntry(actor, characterId));
         if (index >= 0) {
             const legacy = actors[index];
             actors[index] = {
@@ -1724,6 +1733,7 @@ function adaptManagedActorToInventory(documentValue) {
         foundryName: documentValue.name,
         type: documentValue.actorType,
         ownerCharacterId: documentValue.ownerCharacterId,
+        relationshipType: documentValue.relationshipType,
         img: avatar.path || "",
         token: {
             img: token.path || "",
@@ -1834,7 +1844,13 @@ function findPlayerActor(payload, character) {
     if (!actors.length || !character) return null;
 
     const characterId = normalizeText(character.id);
-    const byCharacterId = actors.find((actor) => {
+    const playerActors = actors.filter((actor) => {
+        const relationshipType = normalizeText(actor?.relationshipType);
+        if (relationshipType === "companion") return false;
+        const actorType = normalizeText(actor?.actorType || actor?.type);
+        return relationshipType === "player" || actorType === "character" || actorType === "player" || !actorType;
+    });
+    const byCharacterId = playerActors.find((actor) => {
         const ownerCharacterId = normalizeText(actor.ownerCharacterId || actor.characterId);
         return ownerCharacterId && ownerCharacterId === characterId;
     });
@@ -1851,10 +1867,10 @@ function findPlayerActor(payload, character) {
     const aliases = PLAYER_NAME_ALIASES[character.id] || [];
     aliases.forEach((alias) => nameKeys.add(normalizeText(alias)));
 
-    const byExactName = actors.find((actor) => nameKeys.has(normalizeText(actor.name)));
+    const byExactName = playerActors.find((actor) => nameKeys.has(normalizeText(actor.name)));
     if (byExactName) return byExactName;
 
-    return actors.find((actor) => {
+    return playerActors.find((actor) => {
         const actorKey = normalizeText(actor.name);
         if (!actorKey) return false;
         for (const key of nameKeys) {
@@ -2437,6 +2453,11 @@ window.CriptaApp.onPageReady("character", async function () {
         }
 
 
+        if (charType === "player" && !createMode && !skillTreeOnlyView && params.get("legacy") !== "1") {
+            const redirected = await redirectToManagedPlayerActor(character.id || charId);
+            if (redirected) return;
+        }
+
         setupCharacterEditLink(character.id || charId, charType);
         // If using static data, we might need to convert markdownText to HTML on the fly
         // because build script only loads text.
@@ -2490,6 +2511,33 @@ window.CriptaApp.onPageReady("character", async function () {
     } catch (error) {
         console.error("Errore nel caricamento del personaggio:", error);
         displayError("Impossibile caricare i dati del personaggio.");
+    }
+
+    async function redirectToManagedPlayerActor(characterId) {
+        const ownerCharacterId = slugify(characterId || "");
+        if (!ownerCharacterId || typeof window.CriptaApp?.api?.get !== "function") return false;
+        try {
+            const token = readAuthToken();
+            const payload = await window.CriptaApp.api.get("api/managed-actors", {
+                cache: false,
+                ...(token ? { token } : {})
+            });
+            const summary = (Array.isArray(payload?.data) ? payload.data : []).find((entry) => isManagedPrimaryPlayerEntry(entry, ownerCharacterId));
+            if (!summary || summary?.permissions?.canReadStats === false) return false;
+            const worldId = String(summary.worldId || "");
+            const actorId = String(summary.actorId || "");
+            if (!worldId || !actorId) return false;
+            const target = new URL("./managed-actor.html", window.location.href);
+            target.searchParams.set("world", worldId);
+            target.searchParams.set("actor", actorId);
+            target.searchParams.set("character", ownerCharacterId);
+            const campaignId = window.CriptaApp?.campaigns?.currentId?.();
+            if (campaignId && campaignId !== "cripta-di-sangue") target.searchParams.set("campaign", campaignId);
+            window.location.replace(target.toString());
+            return true;
+        } catch (_) {
+            return false;
+        }
     }
 
     async function redirectToManagedActorProfile(characterId) {
@@ -3275,6 +3323,9 @@ window.CriptaApp.onPageReady("character", async function () {
     }
 
     async function resolveCurrentUserIsDm(authState = null) {
+        if (typeof window.CriptaDiscordAuth?.isCurrentUserDm === "function") {
+            return window.CriptaDiscordAuth.isCurrentUserDm("../../").catch(() => false);
+        }
         try {
             authState = authState || await window.CriptaDiscordAuth?.verify?.();
             const user = authState?.user || {};

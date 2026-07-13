@@ -67,13 +67,35 @@
         }
     });
 
+    function getManagedActorRelationshipType(actor) {
+        const requested = String(actor?.relationshipType || "").trim().toLowerCase();
+        if (requested === "player" || requested === "companion") return requested;
+        const actorType = String(actor?.actorType || "").trim().toLowerCase();
+        if (actor?.ownerCharacterId && (actorType === "character" || actorType === "player")) return "player";
+        if (actor?.ownerCharacterId && actorType === "npc") return "companion";
+        return "";
+    }
+
+    function isPrimaryManagedPlayer(actor) {
+        return getManagedActorRelationshipType(actor) === "player";
+    }
+
     function renderManagedActor(root, actor, canEdit, editing = false) {
         const editMode = Boolean(canEdit && editing);
+        const primaryPlayer = isPrimaryManagedPlayer(actor);
         clearManagedImagePreviews();
         root.classList.toggle("is-editing", editMode);
         root.classList.toggle("is-viewing", !editMode);
         root.dataset.managedDirty = "false";
         document.querySelectorAll("body > [data-managed-image-lightbox]").forEach((lightbox) => lightbox.remove());
+        document.querySelectorAll("body > [data-managed-frame-circle-dialog]").forEach((entry) => {
+            if (entry._managedFrameCircleResizeHandler) {
+                window.removeEventListener("resize", entry._managedFrameCircleResizeHandler);
+            }
+            entry._managedFrameCircleResizeObserver?.disconnect?.();
+            entry.remove();
+        });
+        document.body.classList.remove("managed-frame-circle-open");
         document.body.classList.remove("managed-image-lightbox-open");
         document.title = `${actor.name || "Actor"} - Cripta di Sangue`;
         const definition = actor.definition || {};
@@ -122,17 +144,20 @@
             ${renderManagedCommandBar({ abilities, skills, traits, variants, effects, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor })}
             <div class="managed-actor-panels">
                 ${renderManagedProfileSection(currentProfile, editMode, Boolean(canEdit && currentProfilePermissions.canEdit))}
+                ${editMode ? renderAdmin(actor) : ""}
                 ${renderCoreStats(attributes, details, actor.runtime || {}, actor.actorType, traits, definition.spellSlots || {}, editMode)}
                 ${renderAbilities(abilities, editMode)}
+                ${primaryPlayer ? `<div class="managed-player-extensions managed-player-extensions--companions" data-managed-player-companions></div>` : ""}
+                ${primaryPlayer ? `<div class="managed-player-extensions managed-player-extensions--skill-trees" data-managed-player-skill-trees></div>` : ""}
                 ${renderSkills(skills, editMode)}
                 ${renderTraits(traits, editMode)}
                 ${renderEntries("Attacchi e capacità", attackEntries, editMode, "managed-capabilities")}
                 ${renderEntries("Incantesimi", spellEntries, editMode, "managed-spells")}
                 ${renderEntries("Inventario", inventoryEntries, editMode, "managed-inventory")}
-                ${editMode ? renderAdmin(actor) : ""}
                 ${variants.length || editMode ? renderManagedVariantsEditor(variants, editMode) : ""}
                 ${effects.length || editMode ? renderManagedEffects(effects, editMode) : ""}
             </div>
+            ${editMode ? renderManagedFrameCircleDialog() : ""}
             ${renderManagedImageLightbox()}
         `;
 
@@ -146,6 +171,10 @@
         root.querySelector("[data-managed-effect-create]")?.addEventListener("click", (event) => enqueueManagedEffectCreate(event.currentTarget));
         root.querySelectorAll('[data-managed-item-type="richtext"]').forEach((editor) => editor.addEventListener("input", () => { editor.dataset.managedDescriptionDirty = "true"; }));
         setupManagedImagePreviews(root);
+        setupManagedListAdjustPreviews(root);
+        setupManagedFrameCircleEditor(root);
+        applyManagedFrameCircleBindings(root, media);
+        window.CriptaImageAdjust?.initFrameCircleImages?.(root);
         setupManagedMediaDropZones(root);
         setupManagedDamageMagicControls(root);
         setupManagedCollectionControls(root);
@@ -155,6 +184,13 @@
         if (editMode) root.addEventListener("input", () => { root.dataset.managedDirty = "true"; });
         setupManagedProfileEditor(root, editMode);
         if (editMode) root.addEventListener("change", () => { root.dataset.managedDirty = "true"; });
+        if (primaryPlayer) {
+            window.CriptaManagedPlayerExtensions?.mount?.({
+                companions: root.querySelector("[data-managed-player-companions]"),
+                skillTrees: root.querySelector("[data-managed-player-skill-trees]")
+            }, actor, { canEdit, editMode, canManageCompanions: Boolean(editMode && actor.permissions?.isEditor) })
+                .catch((error) => console.warn("Estensioni giocatore non disponibili.", error));
+        }
     }
 
     async function loadManagedActorProfile(actor, token = "") {
@@ -195,6 +231,7 @@
             worldId: input.worldId || actor.worldId || "",
             actorId: input.actorId || actor.actorId || "",
             legacyCharacterId: sanitizeId(input.legacyCharacterId || ""),
+            category: String(input.category || ""),
             name: String(input.name || actor.name || "NPC"),
             role: String(input.role || ""),
             quote: String(input.quote || ""),
@@ -229,6 +266,7 @@
             role: character.role || character.subtitle || "",
             quote: character.quote || "",
             status: character.status || "",
+            category: character.category || character.group || character.faction || "",
             visibility: { state: character.hidden === true ? "dm" : "public" },
             summary: character.summary || {},
             media: { avatar: images.avatar || images.portrait || actor.media?.avatar, idle: images.idle || actor.media?.idle, hover: images.hover || actor.media?.hover },
@@ -269,6 +307,7 @@
     }
 
     function renderManagedAccessEditor(profile) {
+        if (currentProfilePermissions.isEditor !== true) return "";
         const statsState = String(currentDocument?.visibility?.state || "dm");
         const canManageStats = currentDocument?.permissions?.canManageVisibility === true
             || (currentDocument?.permissions?.canManageVisibility === undefined && currentDocument?.permissions?.isEditor === true);
@@ -307,8 +346,9 @@
     function renderManagedProfileSection(profile, editMode = false, canEdit = false) {
         if (!profile) return "";
         const blocks = Array.isArray(profile.blocks) ? profile.blocks : [];
+        const canManageProfileLink = currentProfilePermissions.isEditor === true && !isPrimaryManagedPlayer(currentDocument);
         const summaryEntries = [["Razza", profile.summary?.race], ["Anno di nascita", profile.summary?.birthYear], ["Eta", profile.summary?.age], ["Altezza", profile.summary?.height], ["Peso", profile.summary?.weight]].filter(([, value]) => String(value || "").trim());
-        const legacyLink = profile.legacyCharacterId ? `./character.html?id=${encodeURIComponent(profile.legacyCharacterId)}&type=npc&legacy=1` : "";
+        const legacyLink = !isPrimaryManagedPlayer(currentDocument) && profile.legacyCharacterId ? `./character.html?id=${encodeURIComponent(profile.legacyCharacterId)}&type=npc&legacy=1` : "";
         if (editMode && canEdit) {
             return `<section id="managed-profile" class="managed-panel managed-panel--wide managed-profile-panel is-editing-profile" data-managed-profile>
                 <header class="managed-profile-header"><div><span class="managed-panel-kicker">Dossier narrativo</span><h2><i class="fas fa-book-open"></i> Storia e informazioni</h2></div>${legacyLink ? `<a class="managed-profile-legacy-link" href="${escapeAttr(legacyLink)}"><i class="fas fa-clock-rotate-left"></i> Versione precedente</a>` : ""}</header>
@@ -316,7 +356,8 @@
                 <div class="managed-profile-meta-editor">
                     <label><span>Ruolo o soprannome</span><input type="text" data-managed-profile-field="role" value="${escapeAttr(profile.role)}" placeholder="Es. La Giullare"></label>
                     <label><span>Stato</span><input type="text" data-managed-profile-field="status" value="${escapeAttr(profile.status)}" placeholder="Es. Vivo, disperso"></label>
-                    <label><span>ID wiki collegato</span><input type="text" data-managed-profile-field="legacyCharacterId" value="${escapeAttr(profile.legacyCharacterId)}" placeholder="zara"></label>
+                    ${canManageProfileLink ? '<label><span>Categoria nella lista NPC</span><input type="text" data-managed-profile-field="category" value="' + escapeAttr(profile.category) + '" placeholder="Es. Circo di Zara"></label>' : ""}
+                    ${canManageProfileLink ? '<label><span>ID wiki collegato</span><input type="text" data-managed-profile-field="legacyCharacterId" value="' + escapeAttr(profile.legacyCharacterId) + '" placeholder="zara"></label>' : ""}
                     <label class="managed-profile-field-wide"><span>Citazione</span><textarea rows="2" data-managed-profile-field="quote" placeholder="Una frase rappresentativa">${escapeHtml(profile.quote)}</textarea></label>
                 </div>
                 <div class="managed-profile-summary-editor">${renderManagedProfileSummaryInput("race", "Razza", profile.summary?.race)}${renderManagedProfileSummaryInput("birthYear", "Anno di nascita", profile.summary?.birthYear)}${renderManagedProfileSummaryInput("age", "Eta", profile.summary?.age)}${renderManagedProfileSummaryInput("height", "Altezza", profile.summary?.height)}${renderManagedProfileSummaryInput("weight", "Peso", profile.summary?.weight)}</div>
@@ -340,7 +381,7 @@
             <input type="hidden" data-managed-profile-block-field="id" value="${escapeAttr(block.id)}">
             <div class="managed-profile-block-fields">
                 <label><span>Tipo</span><select data-managed-profile-block-field="type"><option value="lore" ${block.type === "lore" ? "selected" : ""}>Testo</option><option value="image_box" ${block.type === "image_box" ? "selected" : ""}>Immagine e testo</option><option value="custom_box" ${block.type === "custom_box" ? "selected" : ""}>Riquadro</option><option value="banner_box" ${block.type === "banner_box" ? "selected" : ""}>Banner</option><option value="secret_dossier" ${block.type === "secret_dossier" ? "selected" : ""}>Dossier segreto</option></select></label>
-                <label><span>Visibilita</span><select data-managed-profile-block-field="visibility"><option value="public" ${block.visibility !== "dm" ? "selected" : ""}>Tutti</option><option value="dm" ${block.visibility === "dm" ? "selected" : ""}>Solo DM</option></select></label>
+                <label><span>Visibilita</span><select data-managed-profile-block-field="visibility" ${currentProfilePermissions.isEditor === true ? "" : "disabled"}><option value="public" ${block.visibility !== "dm" ? "selected" : ""}>Tutti</option><option value="dm" ${block.visibility === "dm" ? "selected" : ""}>Solo DM</option></select></label>
                 <label class="managed-profile-field-grow"><span>Titolo</span><input type="text" data-managed-profile-block-field="title" value="${escapeAttr(block.title)}"></label>
                 <label><span>Icona</span><input type="text" data-managed-profile-block-field="icon" value="${escapeAttr(block.icon)}" placeholder="fa-scroll"></label>
             </div>
@@ -471,12 +512,13 @@
         const section = root.querySelector("[data-managed-profile]");
         if (!section || !currentProfile) return structuredClone(currentProfile || {});
         const next = structuredClone(currentProfile);
-        const field = (name) => section.querySelector(`[data-managed-profile-field="${CSS.escape(name)}"]`)?.value ?? "";
+        const field = (name, fallback = "") => section.querySelector(`[data-managed-profile-field="${CSS.escape(name)}"]`)?.value ?? fallback;
         next.role = field("role");
         next.status = field("status");
+        next.category = field("category", currentProfile.category || "").trim();
         next.quote = field("quote");
-        next.legacyCharacterId = sanitizeId(field("legacyCharacterId"));
-        next.visibility = { state: normalizeManagedProfileVisibility(field("visibility")) };
+        next.legacyCharacterId = sanitizeId(field("legacyCharacterId", currentProfile.legacyCharacterId || ""));
+        next.visibility = { state: normalizeManagedProfileVisibility(field("visibility", currentProfile.visibility?.state || "dm")) };
         next.summary = {};
         section.querySelectorAll("[data-managed-profile-summary]").forEach((input) => { next.summary[input.dataset.managedProfileSummary] = input.value; });
         const previousBlocks = new Map((currentProfile.blocks || []).map((block) => [block.id, block]));
@@ -630,6 +672,26 @@
         return `<figure class="managed-actor-token"><button type="button" class="managed-token-button" data-managed-image-open="${escapeAttr(tokenUrl)}" data-managed-image-title="Token · ${escapeAttr(actorName)}" aria-label="Apri il token di ${escapeAttr(actorName)} a schermo intero"><img src="${escapeAttr(tokenUrl)}" alt="Token di ${escapeAttr(actorName)}" loading="eager" decoding="async" draggable="false"><span class="managed-image-zoom-hint" aria-hidden="true"><i class="fas fa-expand"></i></span></button><figcaption>Token mappa</figcaption></figure>`;
     }
 
+
+    function normalizeManagedFrameCircle(descriptor) {
+        return window.CriptaImageAdjust?.normalizeFrameCircle?.(descriptor?.presentation?.frameCircle) || null;
+    }
+
+    function applyManagedFrameCircleBindings(root, media) {
+        const idleDescriptor = media?.idle?.path ? media.idle : null;
+        const hoverDescriptor = media?.hover?.path ? media.hover : null;
+        const restDescriptor = idleDescriptor || (media?.token?.path ? media.token : null) || (media?.avatar?.path ? media.avatar : null) || hoverDescriptor;
+        const bindings = [
+            [root.querySelector(".managed-site-animation-layer.is-rest"), restDescriptor],
+            [root.querySelector(".managed-site-animation-layer.is-hover"), hoverDescriptor]
+        ];
+        const host = root.querySelector(".managed-site-animation-stack");
+        if (host) host.dataset.frameCircleHost = "true";
+        bindings.forEach(([image, descriptor]) => {
+            if (!image) return;
+            window.CriptaImageAdjust?.setFrameCircleDataset?.(image, normalizeManagedFrameCircle(descriptor));
+        });
+    }
     function renderManagedPresentationStyle(descriptor) {
         const presentation = descriptor?.presentation || {};
         const finiteOr = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
@@ -662,7 +724,7 @@
             hoverImage.hidden = true;
             previousFocus?.focus?.();
         };
-        root.querySelectorAll("[data-managed-image-open]").forEach((trigger) => trigger.addEventListener("click", () => {
+        const open = (trigger) => {
             const src = String(trigger.dataset.managedImageOpen || "").trim();
             if (!src) return;
             const hoverSrc = String(trigger.dataset.managedImageHover || "").trim();
@@ -686,7 +748,15 @@
             document.body.classList.add("managed-image-lightbox-open");
             requestAnimationFrame(() => lightbox.classList.add("is-visible"));
             lightbox.focus({ preventScroll: true });
-        }));
+        };
+        const clickHandler = (event) => {
+            const trigger = event.target.closest?.("[data-managed-image-open]");
+            if (!trigger || !root.contains(trigger)) return;
+            open(trigger);
+        };
+        if (root._managedImageLightboxClickHandler) root.removeEventListener("click", root._managedImageLightboxClickHandler);
+        root._managedImageLightboxClickHandler = clickHandler;
+        root.addEventListener("click", clickHandler);
         stage.addEventListener("pointerenter", () => lightbox.classList.toggle("is-pointer-hover", lightbox.classList.contains("has-hover")));
         stage.addEventListener("pointerleave", () => lightbox.classList.remove("is-pointer-hover"));
         lightbox.querySelectorAll("[data-managed-image-close]").forEach((button) => button.addEventListener("click", close));
@@ -730,6 +800,8 @@
 
             const card = input.closest("fieldset");
             card?.classList.add("managed-media-pending");
+            const circleButton = card?.querySelector(`[data-managed-frame-circle-open="${slot}"]`);
+            if (circleButton) circleButton.disabled = false;
             if (["avatar", "token"].includes(slot)) {
                 const preview = card?.querySelector(".managed-base-media-preview");
                 let image = preview?.querySelector("img");
@@ -739,6 +811,11 @@
                     preview.querySelector(".managed-slot-placeholder")?.replaceWith(image);
                 }
                 if (image) image.src = previewUrl;
+                const listPreview = root.querySelector(`[data-managed-list-adjust-image="${slot}"]`);
+                if (listPreview) {
+                    listPreview.src = previewUrl;
+                    if (root.querySelector(`[data-managed-frame-circle-enabled="${slot}"]`)?.value !== "1") window.CriptaImageAdjust?.setFrameCircleDataset?.(listPreview, null);
+                }
                 const heroImages = root.querySelectorAll(slot === "avatar" ? "[data-managed-avatar-layer]" : ".managed-actor-token img");
                 heroImages.forEach((heroImage) => { heroImage.src = previewUrl; });
                 const heroTrigger = root.querySelector(slot === "avatar" ? ".managed-avatar-button" : ".managed-token-button");
@@ -752,6 +829,11 @@
                 const livingTrigger = root.querySelector(".managed-site-animation-button");
                 if (slot === "idle" && livingTrigger) livingTrigger.dataset.managedImageOpen = previewUrl;
                 if (slot === "hover" && livingTrigger) livingTrigger.dataset.managedImageHover = previewUrl;
+                const listPreview = root.querySelector(`[data-managed-list-adjust-image="${slot}"]`);
+                if (listPreview) {
+                    listPreview.src = previewUrl;
+                    if (root.querySelector(`[data-managed-frame-circle-enabled="${slot}"]`)?.value !== "1") window.CriptaImageAdjust?.setFrameCircleDataset?.(listPreview, null);
+                }
             }
 
             let image = card?.querySelector(":scope > img");
@@ -926,16 +1008,21 @@
         return `<div class="managed-hero-vitals">${entries.map((entry) => `<div class="managed-hero-vital is-${entry.tone}"><i class="fas ${entry.icon}"></i><span><small>${escapeHtml(entry.label)}</small><strong>${escapeHtml(entry.value)}</strong></span></div>`).join("")}</div>`;
     }
     function renderManagedCommandBar({ abilities, skills, traits, variants, effects, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor }) {
+        const primaryPlayer = getManagedActorRelationshipType(actor) === "player";
         const links = [
-            ["managed-stats", "fa-gauge-high", "Panoramica", true],
             ["managed-profile", "fa-book-open", "Dossier", Boolean(currentProfile?.blocks?.length || currentProfile?.role || currentProfile?.quote || editMode)],
+            ["managed-appearance", "fa-images", "Media", editMode],
+            ["managed-stats", "fa-gauge-high", "Panoramica", true],
             ["managed-abilities", "fa-dumbbell", "Caratteristiche", Object.keys(abilities || {}).length > 0],
+            ["managed-companions", "fa-paw", "Companion", primaryPlayer],
+            ["managed-player-skill-trees", "fa-diagram-project", "Alberi", primaryPlayer],
             ["managed-skills", "fa-list-check", "Abilità", Object.keys(skills || {}).length > 0],
             ["managed-traits", "fa-shield-halved", "Difese", Object.keys(traits || {}).length > 0],
             ["managed-capabilities", "fa-burst", "Combattimento", attackEntries.length > 0 || editMode],
             ["managed-spells", "fa-wand-sparkles", "Incantesimi", spellEntries.length > 0 || editMode],
             ["managed-inventory", "fa-backpack", "Inventario", inventoryEntries.length > 0 || editMode],
-            ["managed-appearance", "fa-images", "Media", editMode],
+
+
             ["managed-variants", "fa-layer-group", "Varianti", variants.length > 0 || editMode],
             ["managed-effects", "fa-wand-magic-sparkles", "Effetti", effects.length > 0 || editMode]
         ].filter(([, , , visible]) => visible);
@@ -1595,24 +1682,386 @@
         return `<section id="managed-appearance" class="managed-panel managed-panel--admin" data-managed-admin>
             <header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Sito e Foundry</span><h2><i class="fas fa-sliders"></i> Aspetto condiviso</h2></div></header>
             <div class="managed-media-strip" aria-label="Immagini del personaggio">
-                ${renderBaseMediaEditor("avatar", actor.media?.avatar)}
-                ${renderBaseMediaEditor("token", actor.media?.token)}
-                ${renderSiteSlotEditor("idle", actor.media?.idle)}
-                ${renderSiteSlotEditor("hover", actor.media?.hover)}
+                ${renderBaseMediaCircleEditor("avatar", actor.media?.avatar)}
+                ${renderBaseMediaCircleEditor("token", actor.media?.token)}
+                ${renderSiteCircleEditor("idle", actor.media?.idle, actor.media?.token || actor.media?.avatar)}
+                ${renderSiteCircleEditor("hover", actor.media?.hover, actor.media?.idle || actor.media?.token || actor.media?.avatar)}
             </div>
         </section>`;
+    }
+
+    function renderManagedFrameCircleImageAttributes(descriptor, target = "") {
+        const circle = normalizeManagedFrameCircle(descriptor);
+        if (!circle) return "";
+        return ` data-frame-circle="1" data-frame-circle-x="${circle.x}" data-frame-circle-y="${circle.y}" data-frame-circle-radius="${circle.radius}"${target ? ` data-frame-circle-target="${escapeAttr(target)}"` : ""}`;
+    }
+
+    function renderManagedFrameCircleControls(slot, descriptor) {
+        const presentation = descriptor?.presentation || {};
+        const circle = normalizeManagedFrameCircle(descriptor);
+        const enabled = circle ? "1" : "0";
+        return `
+            <input type="hidden" value="${Number(presentation.x ?? 50)}" data-managed-adjust="${slot}:x">
+            <input type="hidden" value="${Number(presentation.y ?? 50)}" data-managed-adjust="${slot}:y">
+            <input type="hidden" value="${Number(presentation.scale ?? 1)}" data-managed-adjust="${slot}:scale">
+            <input type="hidden" value="${enabled}" data-managed-frame-circle-enabled="${slot}">
+            <input type="hidden" value="${circle?.x ?? .5}" data-managed-frame-circle="${slot}:x">
+            <input type="hidden" value="${circle?.y ?? .5}" data-managed-frame-circle="${slot}:y">
+            <input type="hidden" value="${circle?.radius ?? .42}" data-managed-frame-circle="${slot}:radius">
+            <div class="managed-frame-circle-action">
+                <button type="button" data-managed-frame-circle-open="${slot}" ${descriptor?.path ? "" : "disabled"}><i class="fas fa-circle-dot"></i><span>${circle ? "Modifica cerchio" : "Imposta cerchio"}</span></button>
+                <small data-managed-frame-circle-state="${slot}" class="${circle ? "is-ready" : ""}">${circle ? "Condiviso" : "Non impostato"}</small>
+            </div>`;
+    }
+
+    function renderBaseMediaCircleEditor(slot, descriptor) {
+        const avatar = slot === "avatar";
+        const label = avatar ? "Avatar" : "Token base";
+        const help = avatar ? "Immagine grande del personaggio" : "Immagine usata sulla mappa";
+        if (avatar) {
+            return `<fieldset class="managed-base-media managed-base-media--${slot}" data-managed-media-drop="${slot}"><legend><i class="fas fa-image-portrait"></i> ${label}</legend><div class="managed-base-media-preview">${descriptor?.path ? renderImage(descriptor.path, label) : `<div class="managed-slot-placeholder"><i class="fas fa-image"></i><span>Nessuna immagine</span></div>`}<span>${escapeHtml(help)}</span></div><label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label></fieldset>`;
+        }
+        const presentation = descriptor?.presentation || {};
+        const path = descriptor?.path || "";
+        return `<fieldset class="managed-base-media managed-base-media--${slot}" data-managed-media-drop="${slot}"><legend><i class="fas fa-chess-pawn"></i> ${label}</legend><div class="managed-slot-list-preview ${path ? "has-preview" : "is-empty"}"><div class="managed-slot-list-preview-frame is-idle" data-frame-circle-host><img ${path ? `src="${escapeAttr(resolveMedia(path))}"` : ""} alt="Anteprima ${label}" data-managed-list-adjust-image="${slot}"${renderManagedFrameCircleImageAttributes(descriptor)} style="${renderManagedListAdjustStyle(presentation)}"></div><span>Anteprima</span></div><label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label>${renderManagedFrameCircleControls(slot, descriptor)}</fieldset>`;
+    }
+
+    function renderSiteCircleEditor(slot, descriptor, fallbackDescriptor = null) {
+        const presentation = descriptor?.presentation || {};
+        const label = slot === "idle" ? "Idle" : "Hover";
+        const previewDescriptor = descriptor?.path ? descriptor : fallbackDescriptor;
+        const previewPresentation = previewDescriptor?.presentation || presentation;
+        const previewPath = previewDescriptor?.path || "";
+        const previewClass = slot === "idle" ? "is-idle" : "is-hover";
+        return `<fieldset class="managed-slot-editor ${descriptor ? "has-image" : ""}" data-managed-slot="${slot}" data-managed-media-drop="${slot}"><legend><i class="fas ${slot === "idle" ? "fa-person" : "fa-hand-pointer"}"></i> ${label}</legend><div class="managed-slot-list-preview ${previewPath ? "has-preview" : "is-empty"}"><div class="managed-slot-list-preview-frame ${previewClass}" data-frame-circle-host><img ${previewPath ? `src="${escapeAttr(resolveMedia(previewPath))}"` : ""} alt="Anteprima ${label}" data-managed-list-adjust-image="${slot}"${renderManagedFrameCircleImageAttributes(previewDescriptor)} style="${renderManagedListAdjustStyle(previewPresentation)}"></div><span>Anteprima</span></div><label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label>${renderManagedFrameCircleControls(slot, descriptor)}${descriptor ? `<label class="managed-remove-field"><input type="checkbox" data-managed-remove="${slot}"><span>Rimuovi ${label}</span></label>` : ""}</fieldset>`;
     }
     function renderBaseMediaEditor(slot, descriptor) {
         const avatar = slot === "avatar";
         const label = avatar ? "Avatar" : "Token base";
         const help = avatar ? "Immagine grande del personaggio" : "Immagine usata sulla mappa";
+        if (!avatar) {
+            const presentation = descriptor?.presentation || {};
+            const path = descriptor?.path || "";
+            return `<fieldset class="managed-base-media managed-base-media--${slot}" data-managed-media-drop="${slot}"><legend><i class="fas fa-chess-pawn"></i> ${label}</legend><div class="managed-slot-list-preview ${path ? "has-preview" : "is-empty"}"><div class="managed-slot-list-preview-frame is-idle"><img ${path ? `src="${escapeAttr(resolveMedia(path))}"` : ""} alt="Anteprima lista ${label}" data-managed-list-adjust-image="${slot}" style="${renderManagedListAdjustStyle(presentation)}"></div><span>Lista NPC</span></div><label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label><div class="managed-adjust-heading"><i class="fas fa-sliders"></i> Regola nella lista</div><div class="managed-adjust-grid"><label><span>X</span><input type="number" min="0" max="100" step="1" value="${Number(presentation.x ?? 50)}" data-managed-adjust="${slot}:x"></label><label><span>Y</span><input type="number" min="0" max="100" step="1" value="${Number(presentation.y ?? 50)}" data-managed-adjust="${slot}:y"></label><label><span>Scala</span><input type="number" min="0.5" max="3" step="0.05" value="${Number(presentation.scale ?? 1)}" data-managed-adjust="${slot}:scale"></label></div></fieldset>`;
+        }
         return `<fieldset class="managed-base-media managed-base-media--${slot}" data-managed-media-drop="${slot}"><legend><i class="fas ${avatar ? "fa-image-portrait" : "fa-chess-pawn"}"></i> ${label}</legend><div class="managed-base-media-preview">${descriptor?.path ? renderImage(descriptor.path, label) : `<div class="managed-slot-placeholder"><i class="fas fa-image"></i><span>Nessuna immagine</span></div>`}<span>${escapeHtml(help)}</span></div><label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label></fieldset>`;
     }
 
-    function renderSiteSlotEditor(slot, descriptor) {
+    function renderSiteSlotEditor(slot, descriptor, fallbackDescriptor = null) {
         const presentation = descriptor?.presentation || {};
         const label = slot === "idle" ? "Idle" : "Hover";
-        return `<fieldset class="managed-slot-editor ${descriptor ? "has-image" : ""}" data-managed-slot="${slot}" data-managed-media-drop="${slot}"><legend><i class="fas ${slot === "idle" ? "fa-person" : "fa-hand-pointer"}"></i> ${label}</legend>${descriptor?.path ? `<img src="${escapeAttr(resolveMedia(descriptor.path))}" alt="Anteprima ${label}">` : `<div class="managed-slot-placeholder"><i class="fas fa-image"></i><span>Usa il token base</span></div>`}<label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label><div class="managed-adjust-grid"><label><span>X</span><input type="number" min="0" max="100" step="1" value="${Number(presentation.x ?? 50)}" data-managed-adjust="${slot}:x"></label><label><span>Y</span><input type="number" min="0" max="100" step="1" value="${Number(presentation.y ?? 50)}" data-managed-adjust="${slot}:y"></label><label><span>Scala</span><input type="number" min="0.5" max="3" step="0.05" value="${Number(presentation.scale ?? 1)}" data-managed-adjust="${slot}:scale"></label></div>${descriptor ? `<label class="managed-remove-field"><input type="checkbox" data-managed-remove="${slot}"><span>Rimuovi ${label}</span></label>` : ""}</fieldset>`;
+        const previewDescriptor = descriptor?.path ? descriptor : fallbackDescriptor;
+        const previewPath = previewDescriptor?.path || "";
+        const previewClass = slot === "idle" ? "is-idle" : "is-hover";
+        return `<fieldset class="managed-slot-editor ${descriptor ? "has-image" : ""}" data-managed-slot="${slot}" data-managed-media-drop="${slot}"><legend><i class="fas ${slot === "idle" ? "fa-person" : "fa-hand-pointer"}"></i> ${label}</legend><div class="managed-slot-list-preview ${previewPath ? "has-preview" : "is-empty"}"><div class="managed-slot-list-preview-frame ${previewClass}"><img ${previewPath ? `src="${escapeAttr(resolveMedia(previewPath))}"` : ""} alt="Anteprima lista ${label}" data-managed-list-adjust-image="${slot}" style="${renderManagedListAdjustStyle(presentation)}"></div><span>Lista NPC</span></div><label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label><div class="managed-adjust-heading"><i class="fas fa-sliders"></i> Regola nella lista</div><div class="managed-adjust-grid"><label><span>X</span><input type="number" min="0" max="100" step="1" value="${Number(presentation.x ?? 50)}" data-managed-adjust="${slot}:x"></label><label><span>Y</span><input type="number" min="0" max="100" step="1" value="${Number(presentation.y ?? 50)}" data-managed-adjust="${slot}:y"></label><label><span>Scala</span><input type="number" min="0.5" max="3" step="0.05" value="${Number(presentation.scale ?? 1)}" data-managed-adjust="${slot}:scale"></label></div>${descriptor ? `<label class="managed-remove-field"><input type="checkbox" data-managed-remove="${slot}"><span>Rimuovi ${label}</span></label>` : ""}</fieldset>`;
+    }
+
+    function renderManagedListAdjustStyle(presentation = {}) {
+        const finiteOr = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+        const x = Math.min(100, Math.max(0, finiteOr(presentation.x, 50)));
+        const y = Math.min(100, Math.max(0, finiteOr(presentation.y, 50)));
+        const scale = Math.min(3, Math.max(.5, finiteOr(presentation.scale, 1)));
+        return `--managed-list-x:${Math.round((x - 50) * 2)}px;--managed-list-y:${Math.round((y - 50) * 2)}px;--managed-list-scale:${scale};`;
+    }
+
+    function setupManagedListAdjustPreviews(root) {
+        root.querySelectorAll("[data-managed-adjust]").forEach((control) => {
+            const parts = String(control.dataset.managedAdjust || "").split(":");
+            const slot = parts[0];
+            if (!["token", "idle", "hover"].includes(slot)) return;
+            const sync = () => {
+                const image = root.querySelector(`[data-managed-list-adjust-image="${slot}"]`);
+                if (!image) return;
+                image.setAttribute("style", renderManagedListAdjustStyle({
+                    x: readAdjust(root, slot, "x", 50),
+                    y: readAdjust(root, slot, "y", 50),
+                    scale: readAdjust(root, slot, "scale", 1)
+                }));
+            };
+            control.addEventListener("input", sync);
+            control.addEventListener("change", sync);
+            sync();
+        });
+    }
+
+    function renderManagedFrameCircleDialog() {
+        return `<div class="managed-frame-circle-dialog" data-managed-frame-circle-dialog hidden role="dialog" aria-modal="true" aria-labelledby="managed-frame-circle-title">
+            <button type="button" class="managed-frame-circle-backdrop" data-managed-frame-circle-close aria-label="Chiudi"></button>
+            <section class="managed-frame-circle-shell">
+                <header><span><small>Inquadratura condivisa</small><strong id="managed-frame-circle-title" data-managed-frame-circle-title>Regola cerchio</strong></span><button type="button" data-managed-frame-circle-close aria-label="Chiudi"><i class="fas fa-xmark"></i></button></header>
+                <div class="managed-frame-circle-body">
+                    <div class="managed-frame-circle-stage" data-managed-frame-circle-stage>
+                        <img data-managed-frame-circle-source src="" alt="">
+                        <span class="managed-frame-circle-overlay" data-managed-frame-circle-overlay tabindex="0" role="application" aria-label="Trascina il cerchio; usa il bordo per cambiarne il raggio"><i></i></span>
+                    </div>
+                    <aside>
+                        <div class="managed-frame-circle-preview" data-frame-circle-host><img data-managed-frame-circle-preview src="" alt="Anteprima"></div>
+                        <output data-managed-frame-circle-output>Centro 50% - Raggio 42%</output>
+                        <label><span>Raggio</span><input type="range" min="0.03" max="0.5" step="0.005" value="0.42" data-managed-frame-circle-radius></label>
+                        <div class="managed-frame-circle-tools">
+                            <button type="button" data-managed-frame-circle-smaller aria-label="Riduci cerchio"><i class="fas fa-minus"></i></button>
+                            <button type="button" data-managed-frame-circle-reset>Centra</button>
+                            <button type="button" data-managed-frame-circle-larger aria-label="Ingrandisci cerchio"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </aside>
+                </div>
+                <footer><span>Trascina il cerchio. Afferra il punto sul bordo per ridimensionarlo.</span><div><button type="button" data-managed-frame-circle-close>Annulla</button><button type="button" class="managed-frame-circle-apply" data-managed-frame-circle-apply><i class="fas fa-check"></i> Applica</button></div></footer>
+            </section>
+        </div>`;
+    }
+
+    function readManagedFrameCircle(root, slot) {
+        if (root.querySelector(`[data-managed-frame-circle-enabled="${slot}"]`)?.value !== "1") return null;
+        return window.CriptaImageAdjust?.normalizeFrameCircle?.({
+            x: root.querySelector(`[data-managed-frame-circle="${slot}:x"]`)?.value,
+            y: root.querySelector(`[data-managed-frame-circle="${slot}:y"]`)?.value,
+            radius: root.querySelector(`[data-managed-frame-circle="${slot}:radius"]`)?.value
+        }) || null;
+    }
+
+    function managedFrameCirclesEqual(left, right) {
+        const a = window.CriptaImageAdjust?.normalizeFrameCircle?.(left);
+        const b = window.CriptaImageAdjust?.normalizeFrameCircle?.(right);
+        if (!a || !b) return a === b;
+        return ["x", "y", "radius"].every((key) => Math.abs(a[key] - b[key]) < .000001);
+    }
+
+    function setupManagedFrameCircleEditor(root) {
+        const dialog = root.querySelector("[data-managed-frame-circle-dialog]");
+        if (!dialog) return;
+        document.body.appendChild(dialog);
+        const stage = dialog.querySelector("[data-managed-frame-circle-stage]");
+        const source = dialog.querySelector("[data-managed-frame-circle-source]");
+        const overlay = dialog.querySelector("[data-managed-frame-circle-overlay]");
+        const preview = dialog.querySelector("[data-managed-frame-circle-preview]");
+        const radius = dialog.querySelector("[data-managed-frame-circle-radius]");
+        const output = dialog.querySelector("[data-managed-frame-circle-output]");
+        const title = dialog.querySelector("[data-managed-frame-circle-title]");
+        let state = null;
+        let pointer = null;
+        let previousFocus = null;
+
+        const constrain = (circle) => {
+            if (!source.naturalWidth || !source.naturalHeight) return circle;
+            const minDimension = Math.min(source.naturalWidth, source.naturalHeight);
+            let next = window.CriptaImageAdjust.normalizeFrameCircle(circle) || { x: .5, y: .5, radius: .42 };
+            const horizontal = next.radius * minDimension / source.naturalWidth;
+            const vertical = next.radius * minDimension / source.naturalHeight;
+            next.x = Math.max(horizontal, Math.min(1 - horizontal, next.x));
+            next.y = Math.max(vertical, Math.min(1 - vertical, next.y));
+            return next;
+        };
+
+        const constrainRadius = (circle) => {
+            if (!source.naturalWidth || !source.naturalHeight) return circle;
+            const minDimension = Math.min(source.naturalWidth, source.naturalHeight);
+            let next = window.CriptaImageAdjust.normalizeFrameCircle(circle) || { x: .5, y: .5, radius: .42 };
+            const maxRadius = Math.min(
+                next.x * source.naturalWidth,
+                (1 - next.x) * source.naturalWidth,
+                next.y * source.naturalHeight,
+                (1 - next.y) * source.naturalHeight
+            ) / minDimension;
+            next.radius = Math.max(.03, Math.min(next.radius, maxRadius, .5));
+            return next;
+        };
+
+        const imageRect = () => {
+            const stageRect = stage.getBoundingClientRect();
+            const sourceRect = source.getBoundingClientRect();
+            if (!sourceRect.width || !sourceRect.height || !source.naturalWidth || !source.naturalHeight) return null;
+            const stageStyle = getComputedStyle(stage);
+            const originLeft = stageRect.left + (parseFloat(stageStyle.borderLeftWidth) || 0);
+            const originTop = stageRect.top + (parseFloat(stageStyle.borderTopWidth) || 0);
+            const scale = Math.min(sourceRect.width / source.naturalWidth, sourceRect.height / source.naturalHeight);
+            const width = source.naturalWidth * scale;
+            const height = source.naturalHeight * scale;
+            return { left: sourceRect.left - originLeft + (sourceRect.width - width) / 2, top: sourceRect.top - originTop + (sourceRect.height - height) / 2, width, height, scale };
+        };
+
+        const paint = () => {
+            if (!state) return;
+            state.circle = constrain(state.circle);
+            const rect = imageRect();
+            if (!rect) return;
+            const naturalMin = Math.min(source.naturalWidth, source.naturalHeight);
+            const radiusPixels = state.circle.radius * naturalMin * rect.scale;
+            const centerX = rect.left + state.circle.x * rect.width;
+            const centerY = rect.top + state.circle.y * rect.height;
+            overlay.style.width = `${radiusPixels * 2}px`;
+            overlay.style.height = `${radiusPixels * 2}px`;
+            overlay.style.left = `${centerX - radiusPixels}px`;
+            overlay.style.top = `${centerY - radiusPixels}px`;
+            radius.value = String(state.circle.radius);
+            output.textContent = `Centro ${Math.round(state.circle.x * 100)}%, ${Math.round(state.circle.y * 100)}% - Raggio ${Math.round(state.circle.radius * 100)}%`;
+            preview.src = source.src;
+            window.CriptaImageAdjust.setFrameCircleDataset(preview, state.circle);
+            requestAnimationFrame(() => window.CriptaImageAdjust.applyFrameCircleLayout(preview));
+        };
+
+        const pointToCircle = (event) => {
+            const stageRect = stage.getBoundingClientRect();
+            const stageStyle = getComputedStyle(stage);
+            const originLeft = stageRect.left + (parseFloat(stageStyle.borderLeftWidth) || 0);
+            const originTop = stageRect.top + (parseFloat(stageStyle.borderTopWidth) || 0);
+            const rect = imageRect();
+            if (!rect) return null;
+            return {
+                x: (event.clientX - originLeft - rect.left) / rect.width,
+                y: (event.clientY - originTop - rect.top) / rect.height,
+                rect,
+                originLeft,
+                originTop
+            };
+        };
+
+        const beginPointer = (event, mode) => {
+            if (!state || event.button > 0) return;
+            event.preventDefault();
+            event.stopPropagation();
+            pointer = { id: event.pointerId, mode };
+            stage.setPointerCapture?.(event.pointerId);
+            if (mode === "drag") {
+                const point = pointToCircle(event);
+                if (point) state.circle = constrain({ ...state.circle, x: point.x, y: point.y });
+                paint();
+            }
+        };
+
+        overlay.addEventListener("pointerdown", (event) => beginPointer(event, event.target.closest("i") ? "resize" : "drag"));
+        stage.addEventListener("pointerdown", (event) => {
+            if (event.target.closest("[data-managed-frame-circle-overlay]")) return;
+            beginPointer(event, "drag");
+        });
+        stage.addEventListener("pointermove", (event) => {
+            if (!pointer || pointer.id !== event.pointerId || !state) return;
+            event.preventDefault();
+            const point = pointToCircle(event);
+            if (!point) return;
+            if (pointer.mode === "drag") {
+                state.circle = constrain({ ...state.circle, x: point.x, y: point.y });
+            } else {
+                const centerX = point.rect.left + state.circle.x * point.rect.width;
+                const centerY = point.rect.top + state.circle.y * point.rect.height;
+                const localX = event.clientX - point.originLeft;
+                const localY = event.clientY - point.originTop;
+                const naturalMin = Math.min(source.naturalWidth, source.naturalHeight);
+                state.circle = constrainRadius({ ...state.circle, radius: Math.hypot(localX - centerX, localY - centerY) / (naturalMin * point.rect.scale) });
+            }
+            paint();
+        });
+        const endPointer = (event) => {
+            if (!pointer || pointer.id !== event.pointerId) return;
+            stage.releasePointerCapture?.(event.pointerId);
+            pointer = null;
+        };
+        stage.addEventListener("pointerup", endPointer);
+        stage.addEventListener("pointercancel", endPointer);
+
+        radius.addEventListener("input", (event) => {
+            event.stopPropagation();
+            if (!state) return;
+            state.circle = constrainRadius({ ...state.circle, radius: Number(radius.value) });
+            paint();
+        });
+        overlay.addEventListener("keydown", (event) => {
+            if (!state) return;
+            const rect = imageRect();
+            if (!rect) return;
+            const pixels = event.shiftKey ? 10 : 1;
+            const stepX = pixels / rect.width;
+            const stepY = pixels / rect.height;
+            const movement = { ArrowLeft: [-stepX, 0], ArrowRight: [stepX, 0], ArrowUp: [0, -stepY], ArrowDown: [0, stepY] }[event.key];
+            if (!movement) return;
+            event.preventDefault();
+            state.circle = constrain({ ...state.circle, x: state.circle.x + movement[0], y: state.circle.y + movement[1] });
+            paint();
+        });
+        dialog.querySelector("[data-managed-frame-circle-smaller]")?.addEventListener("click", () => {
+            if (!state) return;
+            state.circle = constrainRadius({ ...state.circle, radius: state.circle.radius - .025 });
+            paint();
+        });
+        dialog.querySelector("[data-managed-frame-circle-larger]")?.addEventListener("click", () => {
+            if (!state) return;
+            state.circle = constrainRadius({ ...state.circle, radius: state.circle.radius + .025 });
+            paint();
+        });
+        dialog.querySelector("[data-managed-frame-circle-reset]")?.addEventListener("click", () => {
+            if (!state) return;
+            state.circle = constrain({ x: .5, y: .5, radius: .42 });
+            paint();
+        });
+
+        const close = () => {
+            dialog.hidden = true;
+            document.body.classList.remove("managed-frame-circle-open");
+            state = null;
+            pointer = null;
+            previousFocus?.focus?.();
+        };
+        dialog.querySelectorAll("[data-managed-frame-circle-close]").forEach((button) => button.addEventListener("click", close));
+        dialog.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                close();
+            }
+        });
+        dialog.querySelector("[data-managed-frame-circle-apply]")?.addEventListener("click", () => {
+            if (!state) return;
+            const circle = constrain(state.circle);
+            root.querySelector(`[data-managed-frame-circle-enabled="${state.slot}"]`).value = "1";
+            ["x", "y", "radius"].forEach((key) => {
+                root.querySelector(`[data-managed-frame-circle="${state.slot}:${key}"]`).value = String(circle[key]);
+            });
+            const image = root.querySelector(`[data-managed-list-adjust-image="${state.slot}"]`);
+            if (image) {
+                window.CriptaImageAdjust.setFrameCircleDataset(image, circle);
+                window.CriptaImageAdjust.applyFrameCircleLayout(image);
+            }
+            const button = root.querySelector(`[data-managed-frame-circle-open="${state.slot}"]`);
+            if (button) {
+                button.classList.add("is-ready");
+                button.querySelector("span").textContent = "Modifica cerchio";
+            }
+            const status = root.querySelector(`[data-managed-frame-circle-state="${state.slot}"]`);
+            if (status) {
+                status.classList.add("is-ready");
+                status.textContent = "Condiviso";
+            }
+            root.dataset.managedDirty = "true";
+            close();
+        });
+
+        root.querySelectorAll("[data-managed-frame-circle-open]").forEach((button) => button.addEventListener("click", async () => {
+            const slot = String(button.dataset.managedFrameCircleOpen || "");
+            const image = root.querySelector(`[data-managed-list-adjust-image="${slot}"]`);
+            const src = String(image?.currentSrc || image?.src || "").trim();
+            if (!slot || !src) return;
+            previousFocus = button;
+            source.src = src;
+            preview.src = src;
+            try { await source.decode(); } catch (_) { /* load event below handles cached failures */ }
+            if (!source.naturalWidth) return;
+            state = { slot, circle: readManagedFrameCircle(root, slot) || { x: .5, y: .5, radius: .42 } };
+            title.textContent = `Regola ${slot === "token" ? "Token" : slot === "idle" ? "Idle" : "Hover"}`;
+            dialog.hidden = false;
+            document.body.classList.add("managed-frame-circle-open");
+            requestAnimationFrame(() => {
+                paint();
+                overlay.focus({ preventScroll: true });
+            });
+        }));
+        dialog._managedFrameCircleResizeHandler = () => {
+            if (!dialog.hidden && state) paint();
+        };
+        window.addEventListener("resize", dialog._managedFrameCircleResizeHandler);
+        if (typeof ResizeObserver === "function") {
+            dialog._managedFrameCircleResizeObserver = new ResizeObserver(() => {
+                if (!dialog.hidden && state) paint();
+            });
+            dialog._managedFrameCircleResizeObserver.observe(stage);
+        }
     }
     async function enqueueManagedItemUpdate(button) {
         const form = button.closest("[data-managed-item-form]");
@@ -1949,11 +2398,18 @@
                 }
                 for (const slot of ["avatar", "token"]) {
                     const file = root.querySelector(`[data-managed-file="${slot}"]`)?.files?.[0];
-                    if (!file) continue;
                     const current = next.media?.[slot] || null;
+                    if (!file && slot !== "token") continue;
+                    if (!file && !current?.path) continue;
                     const nextRevision = Number(current?.revision || 0) + 1;
-                    const path = await uploadSiteSlot(file, slot, next, token, nextRevision);
-                    next.media[slot] = { path, source: "site", revision: nextRevision };
+                    const path = file ? await uploadSiteSlot(file, slot, next, token, nextRevision) : current.path;
+                    next.media[slot] = {
+                        ...(file ? {} : current),
+                        path,
+                        source: file ? "site" : (current.source || "site"),
+                        revision: file ? nextRevision : Number(current.revision || 1),
+                        ...(slot === "token" ? { presentation: collectManagedMediaPresentation(root, slot, current?.presentation) } : {})
+                    };
                 }
                 for (const slot of ["idle", "hover"]) {
                     if (root.querySelector(`[data-managed-remove="${slot}"]`)?.checked) {
@@ -1968,11 +2424,7 @@
                         path,
                         source: "site",
                         revision: Number(current?.revision || 0) + (file ? 1 : 0),
-                        presentation: {
-                            x: readAdjust(root, slot, "x", 50),
-                            y: readAdjust(root, slot, "y", 50),
-                            scale: readAdjust(root, slot, "scale", 1)
-                        }
+                        presentation: collectManagedMediaPresentation(root, slot, current?.presentation)
                     };
                 }
                 next.media.variants = await collectManagedVariantEdits(root, next, token);
@@ -2005,6 +2457,14 @@
         const visibilityControl = root.querySelector("[data-managed-visibility]");
         if (visibilityControl && visibilityControl.value !== String(actor.visibility?.state || "dm")) return true;
         if (["avatar", "token"].some((slot) => root.querySelector(`[data-managed-file="${slot}"]`)?.files?.length)) return true;
+        const token = actor.media?.token;
+        if (token?.path) {
+            const presentation = token.presentation || {};
+            if (readAdjust(root, "token", "x", 50) !== Number(presentation.x ?? 50)
+                || readAdjust(root, "token", "y", 50) !== Number(presentation.y ?? 50)
+                || readAdjust(root, "token", "scale", 1) !== Number(presentation.scale ?? 1)) return true;
+            if (!managedFrameCirclesEqual(readManagedFrameCircle(root, "token"), presentation.frameCircle)) return true;
+        }
         for (const slot of ["idle", "hover"]) {
             if (root.querySelector(`[data-managed-remove="${slot}"]`)?.checked) return true;
             if (root.querySelector(`[data-managed-file="${slot}"]`)?.files?.length) return true;
@@ -2014,6 +2474,7 @@
                 if (readAdjust(root, slot, "x", 50) !== Number(presentation.x ?? 50)
                     || readAdjust(root, slot, "y", 50) !== Number(presentation.y ?? 50)
                     || readAdjust(root, slot, "scale", 1) !== Number(presentation.scale ?? 1)) return true;
+                if (!managedFrameCirclesEqual(readManagedFrameCircle(root, slot), presentation.frameCircle)) return true;
             }
         }
         for (const variant of Array.isArray(actor.media?.variants) ? actor.media.variants : []) {
@@ -2204,6 +2665,19 @@
         return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Conversione WebP fallita")), "image/webp", .9));
     }
 
+
+    function collectManagedMediaPresentation(root, slot, current = {}) {
+        const presentation = {
+            ...(current && typeof current === "object" ? current : {}),
+            x: readAdjust(root, slot, "x", 50),
+            y: readAdjust(root, slot, "y", 50),
+            scale: readAdjust(root, slot, "scale", 1)
+        };
+        const circle = readManagedFrameCircle(root, slot);
+        if (circle) presentation.frameCircle = circle;
+        else delete presentation.frameCircle;
+        return presentation;
+    }
     function readAdjust(root, slot, key, fallback) {
         const value = Number(root.querySelector(`[data-managed-adjust="${slot}:${key}"]`)?.value);
         return Number.isFinite(value) ? value : fallback;
@@ -2223,9 +2697,10 @@
 
     function buildActorBackLink(actor) {
         const ownerCharacterId = String(actor?.ownerCharacterId || "").trim();
+        const relationshipType = getManagedActorRelationshipType(actor);
         const campaignId = window.CriptaApp?.campaigns?.currentId?.() || "";
-        const target = new URL(ownerCharacterId ? "./character.html" : "../npcs.html", window.location.href);
-        if (ownerCharacterId) {
+        const target = new URL(relationshipType === "player" ? "../giocatori.html" : (relationshipType === "companion" && ownerCharacterId ? "./character.html" : "../npcs.html"), window.location.href);
+        if (relationshipType === "companion" && ownerCharacterId) {
             target.searchParams.set("id", ownerCharacterId);
             target.searchParams.set("type", "player");
         }

@@ -37,6 +37,7 @@ export default {
       const managedActorProfileRoute = matchManagedActorProfileRoute(url.pathname);
       const managedActorProfileResolveRoute = matchManagedActorProfileResolveRoute(url.pathname);
       const managedActorRuntimeRoute = matchManagedActorRuntimeRoute(url.pathname);
+      const managedActorRelationshipRoute = matchManagedActorRelationshipRoute(url.pathname);
       const managedActorCommandRoute = matchManagedActorCommandRoute(url.pathname);
       const managedActorCommandBatchRoute = matchManagedActorCommandBatchRoute(url.pathname);
       if (managedActorCommandRoute && request.method === "POST") {
@@ -60,6 +61,9 @@ export default {
       if (managedActorRuntimeRoute && request.method === "POST") {
         return handleManagedActorRuntimePost(request, managedActorRuntimeRoute, queryCampaignId, env, corsHeaders);
       }
+      if (managedActorRelationshipRoute && request.method === "POST") {
+        return handleManagedActorRelationshipPost(request, managedActorRelationshipRoute, queryCampaignId, env, corsHeaders);
+      }
       if (managedActorRoute && request.method === "POST") {
         return handleManagedActorPost(request, managedActorRoute, queryCampaignId, env, corsHeaders);
       }
@@ -68,6 +72,9 @@ export default {
       }
       if (url.pathname === "/api/managed-actors" && request.method === "GET") {
         return handleManagedActorIndexGet(request, queryCampaignId, env, corsHeaders);
+      }
+      if (url.pathname === "/api/campaign/access" && request.method === "GET") {
+        return handleCampaignAccessGet(request, queryCampaignId, env, corsHeaders);
       }
 
       if (url.pathname === "/api/asset-cleanup/dry-run" && request.method === "GET") {
@@ -1421,7 +1428,7 @@ function json(data, status = 200, corsHeaders = {}) {
 }
 
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
-const WORKER_CODE_VERSION = "2026-07-13-managed-actors-v12-profile-media-sync";
+const WORKER_CODE_VERSION = "2026-07-13-managed-actors-v16-campaign-privacy";
 const SYNC_BOOTSTRAP_COLLECTIONS = [
   "characters",
   "quests",
@@ -2271,6 +2278,14 @@ function matchManagedActorRuntimeRoute(pathname) {
   return worldId && actorId ? { worldId, actorId } : null;
 }
 
+function matchManagedActorRelationshipRoute(pathname) {
+  const match = String(pathname || "").match(/^\/api\/managed-actors\/([A-Za-z0-9_-]{1,96})\/([A-Za-z0-9_-]{1,96})\/relationship$/);
+  if (!match) return null;
+  const worldId = sanitizeManagedActorId(match[1]);
+  const actorId = sanitizeManagedActorId(match[2]);
+  return worldId && actorId ? { worldId, actorId } : null;
+}
+
 function matchManagedActorCommandRoute(pathname) {
   const match = String(pathname || "").match(/^\/api\/managed-actors\/([A-Za-z0-9_-]{1,96})\/([A-Za-z0-9_-]{1,96})\/commands$/);
   if (!match) return null;
@@ -2294,6 +2309,15 @@ function managedActorVisibilityState(value) {
   const state = String(value?.state || value || "dm").trim().toLowerCase();
   return ["public", "players", "owners", "dm"].includes(state) ? state : "dm";
 }
+function normalizeManagedActorRelationshipType(value, actorType = "", ownerCharacterId = "") {
+  const requested = String(value || "").trim().toLowerCase();
+  if (["player", "companion"].includes(requested)) return requested;
+  const type = String(actorType || "").trim().toLowerCase();
+  if (ownerCharacterId && ["character", "player"].includes(type)) return "player";
+  if (ownerCharacterId && type === "npc") return "companion";
+  return "";
+}
+
 
 function getOptionalAuthenticatedUser(request, env) {
   const auth = String(request.headers.get("Authorization") || "");
@@ -2316,7 +2340,7 @@ async function authorizeManagedActorWrite(request, env, campaignId, corsHeaders,
   if (isFoundrySyncSecretAuthorized(request, env)) return { source: "foundry", user: null, isEditor: true, isOwner: false };
   const user = await requireUser(request, env, corsHeaders);
   if (user instanceof Response) return user;
-  const isEditor = await isAuthenticatedCampaignEditor(user, env, campaignId);
+  const isEditor = await isAuthenticatedCampaignContentEditor(user, env, campaignId);
   const isOwner = isManagedActorOwner(actor, user, env);
   if (!isEditor && !isOwner) {
     return json({ ok: false, error: "Forbidden: managed actor editing requires campaign editor or actor owner permissions" }, 403, corsHeaders);
@@ -2332,9 +2356,11 @@ function managedActorIndexEntry(document, previousEntry = null) {
     foundryActorId: document.foundryActorId || document.actorId,
     name: document.name,
     actorType: document.actorType,
+    relationshipType: normalizeManagedActorRelationshipType(document.relationshipType, document.actorType, document.ownerCharacterId),
     ownerCharacterId: document.ownerCharacterId || "",
     ownerAccountIds: Array.isArray(document.ownerAccountIds) ? document.ownerAccountIds : [],
     visibility: document.visibility,
+    relationshipRevision: Math.max(0, Math.floor(Number(document.relationshipRevision) || 0)),
     media: {
       avatar: document.media?.avatar || null,
       token: document.media?.token || null,
@@ -2371,9 +2397,23 @@ function isManagedActorOwner(entry, user, env) {
 async function getManagedActorReader(request, env, campaignId) {
   if (isFoundrySyncSecretAuthorized(request, env)) return { user: null, isEditor: true };
   const user = await getOptionalAuthenticatedUser(request, env);
-  const isEditor = Boolean(user && await isAuthenticatedCampaignEditor(user, env, campaignId));
+  const isEditor = Boolean(user && await isAuthenticatedCampaignContentEditor(user, env, campaignId));
   return { user, isEditor };
 }
+async function handleCampaignAccessGet(request, campaignId, env, corsHeaders = {}) {
+  const user = await getOptionalAuthenticatedUser(request, env);
+  const isEditor = Boolean(user && await isAuthenticatedCampaignContentEditor(user, env, campaignId));
+  return json({
+    ok: true,
+    campaignId,
+    authenticated: Boolean(user),
+    permissions: { isEditor, canManageCampaign: isEditor },
+  }, 200, {
+    ...corsHeaders,
+    "Cache-Control": user ? "private, no-store" : "public, max-age=60, must-revalidate",
+  });
+}
+
 function managedActorProfileVisibilityState(value) {
   const state = String(value?.state || value || "dm").trim().toLowerCase();
   return state === "dm" ? "dm" : "public";
@@ -2391,17 +2431,18 @@ function managedActorProfileIndexMetadata(profile) {
   return {
     visibility: { state: managedActorProfileVisibilityState(profile.visibility) },
     legacyCharacterId: sanitizeAssetId(profile.legacyCharacterId || ""),
+    category: String(profile.category || "").trim().slice(0, 120),
     role: String(profile.role || "").trim().slice(0, 240),
     quote: String(profile.quote || "").trim().slice(0, 1_000),
     status: String(profile.status || "").trim().slice(0, 80),
-    hasContent: Boolean(profile.role || profile.quote || blocks.length),
+    hasContent: Boolean(profile.category || profile.role || profile.quote || blocks.length),
     updatedAt: profile.updatedAt || null,
   };
 }
 
-function canReadManagedActorProfileIndex(profile, user, isEditor) {
+function canReadManagedActorProfileIndex(profile, user, isEditor, entry = null, env = null) {
   if (!profile) return false;
-  return canReadManagedActorProfile(profile, user, isEditor);
+  return canReadManagedActorProfile(profile, user, isEditor, entry, env);
 }
 
 async function hydrateManagedActorProfileIndex(doc, campaignId, env) {
@@ -2473,11 +2514,7 @@ function normalizeManagedActorProfileMediaSlot(value) {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
   const path = normalizeManagedActorProfileMediaPath(input.path || input.src);
   if (!path) return null;
-  const presentation = input.presentation && typeof input.presentation === "object" ? {
-    x: Math.max(0, Math.min(100, Number(input.presentation.x) || 50)),
-    y: Math.max(0, Math.min(100, Number(input.presentation.y) || 50)),
-    scale: Math.max(.5, Math.min(3, Number(input.presentation.scale) || 1)),
-  } : undefined;
+  const presentation = normalizeManagedActorPresentation(input.presentation);
   return { path, ...(presentation ? { presentation } : {}) };
 }
 
@@ -2582,6 +2619,7 @@ function managedActorProfileFromLegacy(character, actor, campaignId, route) {
     worldId: route.worldId,
     actorId: route.actorId,
     legacyCharacterId: sanitizeAssetId(source.id || source.name || ""),
+    category: String(source.category || source.group || source.faction || "").trim().slice(0, 120),
     name: String(source.name || actor?.name || "NPC").trim().slice(0, 180),
     role: String(source.role || source.subtitle || "").trim().slice(0, 240),
     quote: String(source.quote || "").trim().slice(0, 1_000),
@@ -2607,6 +2645,7 @@ function emptyManagedActorProfile(actor, campaignId, route) {
     worldId: route.worldId,
     actorId: route.actorId,
     legacyCharacterId: "",
+    category: "",
     name: String(actor?.name || "NPC").trim().slice(0, 180),
     role: "",
     quote: "",
@@ -2636,6 +2675,7 @@ function normalizeManagedActorProfileDocument(input, existing, actor, campaignId
     worldId: route.worldId,
     actorId: route.actorId,
     legacyCharacterId: sanitizeAssetId(source.legacyCharacterId || previous.legacyCharacterId || ""),
+    category: String(source.category ?? previous.category ?? "").trim().slice(0, 120),
     name: String(source.name || previous.name || actor?.name || "NPC").trim().slice(0, 180),
     role: String(source.role ?? previous.role ?? "").trim().slice(0, 240),
     quote: String(source.quote ?? previous.quote ?? "").trim().slice(0, 1_000),
@@ -2653,17 +2693,31 @@ function normalizeManagedActorProfileDocument(input, existing, actor, campaignId
   };
 }
 
-function canReadManagedActorProfile(profile, user, isEditor) {
-  if (isEditor) return true;
+function canReadManagedActorProfile(profile, user, isEditor, actor = null, env = null) {
+  if (isEditor || isManagedActorOwner(actor, user, env)) return true;
   return managedActorProfileVisibilityState(profile?.visibility) === "public";
 }
 
-function filterManagedActorProfileForReader(profile, user, isEditor) {
-  if (isEditor) return profile;
+function filterManagedActorProfileForReader(profile, user, isEditor, actor = null, env = null) {
+  if (isEditor || isManagedActorOwner(actor, user, env)) return profile;
   const blocks = (Array.isArray(profile?.blocks) ? profile.blocks : [])
     .filter((block) => managedActorProfileBlockVisibility(block?.visibility) === "public");
   return { ...profile, blocks };
 }
+function preserveManagedProfileVisibilityForOwner(next, existing = null) {
+  const profileState = existing
+    ? managedActorProfileVisibilityState(existing.visibility)
+    : "dm";
+  const previousBlocks = new Map((Array.isArray(existing?.blocks) ? existing.blocks : [])
+    .map((block) => [String(block?.id || ""), managedActorProfileBlockVisibility(block?.visibility, block?.hidden === true)]));
+  const blocks = (Array.isArray(next?.blocks) ? next.blocks : []).map((block) => {
+    const previousState = previousBlocks.get(String(block?.id || ""));
+    const state = previousState || profileState;
+    return { ...block, hidden: state === "dm", visibility: { state } };
+  });
+  return { ...next, legacyCharacterId: existing?.legacyCharacterId || "", category: existing?.category || "", visibility: { state: profileState }, blocks };
+}
+
 
 function findLegacyCharacterForManagedActor(data, actor) {
   if (!Array.isArray(data) || !actor) return null;
@@ -2680,24 +2734,21 @@ function findLegacyCharacterForManagedActor(data, actor) {
 async function handleManagedActorProfileGet(request, route, campaignId, env, corsHeaders = {}) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   const reader = await getManagedActorReader(request, env, campaignId);
-  const storedRaw = await env.SIGILLO_KV.get(managedActorProfileKey(campaignId, route.worldId, route.actorId));
+  const [storedRaw, actorRaw] = await Promise.all([
+    env.SIGILLO_KV.get(managedActorProfileKey(campaignId, route.worldId, route.actorId)),
+    env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId)),
+  ]);
+  const actor = safeJsonParse(actorRaw);
+  if (!actor) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
   let profile = safeJsonParse(storedRaw);
   let source = "profile";
 
   if (profile && Number(profile.mediaSyncVersion || 0) < 1) {
-    const actor = safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId)));
-    if (actor) {
-      profile = managedActorProfileWithCurrentMedia(profile, actor);
-      await env.SIGILLO_KV.put(managedActorProfileKey(campaignId, route.worldId, route.actorId), JSON.stringify(profile));
-    }
+    profile = managedActorProfileWithCurrentMedia(profile, actor);
+    await env.SIGILLO_KV.put(managedActorProfileKey(campaignId, route.worldId, route.actorId), JSON.stringify(profile));
   }
   if (!profile) {
-    const [actorRaw, charactersDocument] = await Promise.all([
-      env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId)),
-      readDataCollectionDocument("characters", campaignId, env),
-    ]);
-    const actor = safeJsonParse(actorRaw);
-    if (!actor) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+    const charactersDocument = await readDataCollectionDocument("characters", campaignId, env);
     const legacy = findLegacyCharacterForManagedActor(charactersDocument?.data, actor);
     profile = legacy
       ? managedActorProfileFromLegacy(legacy, actor, campaignId, route)
@@ -2705,16 +2756,17 @@ async function handleManagedActorProfileGet(request, route, campaignId, env, cor
     source = legacy ? "legacy" : "empty";
   }
 
-  if (!canReadManagedActorProfile(profile, reader.user, reader.isEditor)) {
+  const isOwner = isManagedActorOwner(actor, reader.user, env);
+  if (!canReadManagedActorProfile(profile, reader.user, reader.isEditor, actor, env)) {
     return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
   }
-  const data = filterManagedActorProfileForReader(profile, reader.user, reader.isEditor);
+  const data = filterManagedActorProfileForReader(profile, reader.user, reader.isEditor, actor, env);
   return json({
     ok: true,
     campaignId,
     source,
     data,
-    permissions: { canEdit: reader.isEditor === true, isEditor: reader.isEditor === true },
+    permissions: { canEdit: reader.isEditor === true || isOwner, isEditor: reader.isEditor === true, isOwner },
   }, 200, {
     ...corsHeaders,
     "Cache-Control": reader.user || reader.isEditor ? "private, no-store" : "public, max-age=120, must-revalidate",
@@ -2725,9 +2777,6 @@ async function handleManagedActorProfilePost(request, route, campaignId, env, co
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   const user = await requireUser(request, env, corsHeaders);
   if (user instanceof Response) return user;
-  if (!(await isAuthenticatedCampaignEditor(user, env, campaignId))) {
-    return json({ ok: false, error: "Forbidden: NPC profile editing requires campaign editor permissions" }, 403, corsHeaders);
-  }
 
   let body;
   try {
@@ -2745,6 +2794,11 @@ async function handleManagedActorProfilePost(request, route, campaignId, env, co
   const existing = safeJsonParse(existingRaw);
   const actor = safeJsonParse(actorRaw);
   if (!actor) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+  const isEditor = await isAuthenticatedCampaignContentEditor(user, env, campaignId);
+  const isOwner = isManagedActorOwner(actor, user, env);
+  if (!isEditor && !isOwner) {
+    return json({ ok: false, error: "Forbidden: profile editing requires campaign editor or actor owner permissions" }, 403, corsHeaders);
+  }
   const expectedRevision = Math.max(0, Math.floor(Number(body?.expectedRevision) || 0));
   const currentRevision = Math.max(0, Math.floor(Number(existing?.revision) || 0));
   if (expectedRevision !== currentRevision) {
@@ -2752,7 +2806,8 @@ async function handleManagedActorProfilePost(request, route, campaignId, env, co
   }
 
   const accountId = getAuthenticatedAccountId(user, env) || "campaign-editor";
-  const next = normalizeManagedActorProfileDocument(body?.data || body, existing, actor, campaignId, route, accountId);
+  let next = normalizeManagedActorProfileDocument(body?.data || body, existing, actor, campaignId, route, accountId);
+  if (isOwner && !isEditor) next = preserveManagedProfileVisibilityForOwner(next, existing);
   await env.SIGILLO_KV.put(profileKey, JSON.stringify(next));
   await updateManagedActorProfileIndex(env, campaignId, actor, next);
 
@@ -2792,7 +2847,7 @@ async function handleManagedActorProfileResolveGet(request, route, campaignId, e
   if (!link) return json({ ok: false, error: "Managed actor profile link not found" }, 404, corsHeaders);
   const actorRaw = await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, link.worldId, link.actorId));
   const actor = safeJsonParse(actorRaw);
-  const canReadProfile = canReadManagedActorProfile(link, reader.user, reader.isEditor);
+  const canReadProfile = canReadManagedActorProfile(link, reader.user, reader.isEditor, actor, env);
   const canReadStats = Boolean(actor && canReadManagedActor(actor, reader.user, reader.isEditor, env));
   const permissions = { canReadProfile, canReadStats, isEditor: reader.isEditor === true };
   if (!canReadProfile && !canReadStats) {
@@ -3070,6 +3125,51 @@ function readManagedActorCommandQueue(raw, campaignId, worldId) {
 async function writeManagedActorCommandQueue(env, queue) {
   await env.SIGILLO_KV.put(managedActorCommandQueueKey(queue.campaignId, queue.worldId), JSON.stringify(queue), { expirationTtl: 60 * 24 * 60 * 60 });
 }
+async function enqueueManagedActorRelationshipCommand(env, campaignId, actor, relationship, createdBy) {
+  const queueKey = managedActorCommandQueueKey(campaignId, actor.worldId);
+  const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(queueKey), campaignId, actor.worldId);
+  const now = new Date().toISOString();
+  const pendingIndex = queue.commands.findIndex((command) =>
+    command.status === "pending"
+    && command.kind === "relationship.update"
+    && command.actorId === actor.actorId
+  );
+  const document = {
+    relationshipType: relationship.relationshipType || "",
+    ownerCharacterId: relationship.ownerCharacterId || "",
+    ownerAccountIds: Array.isArray(relationship.ownerAccountIds) ? relationship.ownerAccountIds : [],
+    relationshipRevision: Number(relationship.relationshipRevision || 0),
+  };
+  if (pendingIndex >= 0) {
+    queue.commands[pendingIndex] = {
+      ...queue.commands[pendingIndex],
+      document,
+      baseRevision: Number(actor.revision || 0),
+      updatedAt: now,
+    };
+  } else {
+    queue.commands.push({
+      id: crypto.randomUUID(),
+      kind: "relationship.update",
+      campaignId,
+      worldId: actor.worldId,
+      actorId: actor.actorId,
+      foundryActorId: String(actor.foundryActorId || actor.actorId).slice(0, 96),
+      baseRevision: Number(actor.revision || 0),
+      target: {},
+      patches: [],
+      document,
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
+      createdBy,
+    });
+  }
+  queue.version += 1;
+  queue.updatedAt = now;
+  await writeManagedActorCommandQueue(env, queue);
+  return queue;
+}
 
 function publicManagedActorCommand(command) {
   return {
@@ -3237,6 +3337,31 @@ async function handleManagedActorCommandAck(request, route, fallbackCampaignId, 
   return json({ ok: true, campaignId, worldId: route.worldId, acknowledged: changed, queueVersion: queue.version }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
 }
 
+function normalizeManagedActorPresentation(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const result = {};
+  const finiteOr = (candidate, fallback) => Number.isFinite(Number(candidate)) ? Number(candidate) : fallback;
+  if (["x", "y", "scale"].some((key) => Object.prototype.hasOwnProperty.call(value, key))) {
+    result.x = Math.max(0, Math.min(100, finiteOr(value.x, 50)));
+    result.y = Math.max(0, Math.min(100, finiteOr(value.y, 50)));
+    result.scale = Math.max(.5, Math.min(3, finiteOr(value.scale, 1)));
+  }
+  const circle = value.frameCircle;
+  if (circle && typeof circle === "object" && !Array.isArray(circle)) {
+    const x = Number(circle.x);
+    const y = Number(circle.y);
+    const radius = Number(circle.radius);
+    if ([x, y, radius].every(Number.isFinite)) {
+      result.frameCircle = {
+        x: Math.max(0, Math.min(1, x)),
+        y: Math.max(0, Math.min(1, y)),
+        radius: Math.max(.03, Math.min(.5, radius)),
+      };
+    }
+  }
+  return Object.keys(result).length ? result : undefined;
+}
+
 function normalizeManagedActorMediaSlot(slot) {
   if (!slot || typeof slot !== "object" || Array.isArray(slot)) return null;
   const path = String(slot.path || slot.src || "").trim();
@@ -3246,7 +3371,25 @@ function normalizeManagedActorMediaSlot(slot) {
     revision: Math.max(1, Math.floor(Number(slot.revision) || 1)),
     hash: String(slot.hash || "").slice(0, 160),
     source: String(slot.source || "foundry").slice(0, 24),
-    presentation: slot.presentation && typeof slot.presentation === "object" ? slot.presentation : undefined,
+    presentation: normalizeManagedActorPresentation(slot.presentation),
+  };
+}
+
+function preserveManagedActorFrameCircleForSameMedia(slot, previousSlot) {
+  if (!slot || !previousSlot || slot.path !== previousSlot.path) return slot;
+  if (Number(slot.revision || 1) !== Number(previousSlot.revision || 1)) return slot;
+  const nextHash = String(slot.hash || "");
+  const previousHash = String(previousSlot.hash || "");
+  if (nextHash && previousHash && nextHash !== previousHash) return slot;
+  const previousCircle = normalizeManagedActorPresentation(previousSlot.presentation)?.frameCircle;
+  const nextPresentation = normalizeManagedActorPresentation(slot.presentation);
+  if (!previousCircle || nextPresentation?.frameCircle) return slot;
+  return {
+    ...slot,
+    presentation: {
+      ...(nextPresentation || {}),
+      frameCircle: previousCircle,
+    },
   };
 }
 
@@ -3286,10 +3429,10 @@ function normalizeManagedActorMedia(media, existingMedia = {}, source = "foundry
   const hasHover = Object.prototype.hasOwnProperty.call(submitted, "hover");
   return {
     avatar: source === "foundry"
-      ? (normalizeManagedActorMediaSlot(submitted.avatar) || existingMedia.avatar || null)
+      ? (preserveManagedActorFrameCircleForSameMedia(normalizeManagedActorMediaSlot(submitted.avatar), existingMedia.avatar) || existingMedia.avatar || null)
       : (hasAvatar ? (normalizeManagedActorMediaSlot(submitted.avatar) || existingMedia.avatar || null) : (existingMedia.avatar || null)),
     token: source === "foundry"
-      ? (normalizeManagedActorMediaSlot(submitted.token) || existingMedia.token || null)
+      ? (preserveManagedActorFrameCircleForSameMedia(normalizeManagedActorMediaSlot(submitted.token), existingMedia.token) || existingMedia.token || null)
       : (hasToken ? (normalizeManagedActorMediaSlot(submitted.token) || existingMedia.token || null) : (existingMedia.token || null)),
     idle: source === "site" ? (hasIdle ? normalizeManagedActorMediaSlot(submitted.idle) : (existingMedia.idle || null)) : (existingMedia.idle || null),
     hover: source === "site" ? (hasHover ? normalizeManagedActorMediaSlot(submitted.hover) : (existingMedia.hover || null)) : (existingMedia.hover || null),
@@ -3392,6 +3535,12 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
       .map(sanitizeAccountId)
       .filter(Boolean)
   )).slice(0, 16);
+  const actorType = String(source === "foundry" ? (input.actorType || input.type || existing?.actorType || "npc") : (existing?.actorType || "npc")).trim().slice(0, 48);
+  const relationshipIsCanonical = Boolean(existing && Number(existing.relationshipRevision || 0) > 0);
+  const relationshipOwnerCharacterId = sanitizeAssetId(relationshipIsCanonical
+    ? (existing?.ownerCharacterId || "")
+    : (source === "foundry" ? (input.ownerCharacterId || existing?.ownerCharacterId || "") : (existing?.ownerCharacterId || "")));
+  const relationshipAccounts = relationshipIsCanonical ? (existing?.ownerAccountIds || []) : (source === "foundry" ? ownerAccountIds : (existing?.ownerAccountIds || ownerAccountIds));
   const requestedVisibility = input.visibility && typeof input.visibility === "object" ? input.visibility : {};
   const existingVisibility = existing?.visibility && typeof existing.visibility === "object" ? existing.visibility : null;
   const visibility = source === "site" || !existingVisibility
@@ -3409,9 +3558,13 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
     actorUuid: String(source === "foundry" ? (input.actorUuid || `Actor.${route.actorId}`) : (existing?.actorUuid || `Actor.${route.actorId}`)).slice(0, 180),
     foundryActorId: String(source === "foundry" ? (input.foundryActorId || input.actorId || route.actorId) : (existing?.foundryActorId || route.actorId)).trim().slice(0, 96),
     name: String(source === "foundry" ? (input.name || existing?.name || "Actor") : (existing?.name || "Actor")).trim().slice(0, 180),
-    actorType: String(source === "foundry" ? (input.actorType || input.type || existing?.actorType || "npc") : (existing?.actorType || "npc")).trim().slice(0, 48),
-    ownerCharacterId: sanitizeAssetId(source === "foundry" ? (input.ownerCharacterId || existing?.ownerCharacterId || "") : (existing?.ownerCharacterId || "")),
-    ownerAccountIds: source === "foundry" ? ownerAccountIds : (existing?.ownerAccountIds || ownerAccountIds),
+    actorType,
+    relationshipType: normalizeManagedActorRelationshipType(relationshipIsCanonical ? existing?.relationshipType : (source === "foundry" ? (input.relationshipType || existing?.relationshipType || "") : (existing?.relationshipType || "")), actorType, relationshipOwnerCharacterId),
+    ownerCharacterId: relationshipOwnerCharacterId,
+    ownerAccountIds: relationshipAccounts,
+    relationshipRevision: Math.max(0, Math.floor(Number(existing?.relationshipRevision) || 0)),
+    relationshipUpdatedAt: existing?.relationshipUpdatedAt || null,
+    relationshipUpdatedBy: existing?.relationshipUpdatedBy || "",
     visibility,
     media: normalizeManagedActorMedia(input.media, existing?.media || {}, source, {
       mode: variantMode,
@@ -3546,6 +3699,135 @@ async function handleManagedActorRuntimePost(request, route, fallbackCampaignId,
     "Cache-Control": "private, no-store",
   });
 }
+async function handleManagedActorRelationshipPost(request, route, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  let body;
+  try {
+    body = await request.json();
+  } catch (_) {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
+  const actorKey = managedActorDocumentKey(campaignId, route.worldId, route.actorId);
+  const indexKey = managedActorIndexKey(campaignId);
+  const [actorRaw, indexRaw] = await Promise.all([
+    env.SIGILLO_KV.get(actorKey),
+    env.SIGILLO_KV.get(indexKey),
+  ]);
+  const actor = safeJsonParse(actorRaw);
+  if (!actor) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+  const authorization = await authorizeManagedActorWrite(request, env, campaignId, corsHeaders, actor);
+  if (authorization instanceof Response) return authorization;
+  if (authorization.source === "site" && !authorization.isEditor) {
+    return json({ ok: false, error: "Forbidden: companion relationships require campaign editor permissions" }, 403, corsHeaders);
+  }
+  if (String(actor.actorType || "").trim().toLowerCase() !== "npc") {
+    return json({ ok: false, error: "Only NPC actors can be linked as companions" }, 400, corsHeaders);
+  }
+
+  const currentRelationshipRevision = Math.max(0, Math.floor(Number(actor.relationshipRevision) || 0));
+  const hasExpectedRelationshipRevision = body?.expectedRelationshipRevision !== undefined && body?.expectedRelationshipRevision !== null;
+  const expectedRelationshipRevision = Number(body?.expectedRelationshipRevision);
+  if (authorization.source === "site" && !Number.isFinite(expectedRelationshipRevision)) {
+    return json({ ok: false, error: "Missing expected relationship revision" }, 400, corsHeaders);
+  }
+  if (hasExpectedRelationshipRevision && (!Number.isFinite(expectedRelationshipRevision) || Math.floor(expectedRelationshipRevision) !== currentRelationshipRevision)) {
+    return json({
+      ok: false,
+      error: "Managed actor relationship conflict",
+      code: "RELATIONSHIP_VERSION_CONFLICT",
+      currentRelationshipRevision,
+    }, 409, corsHeaders);
+  }
+
+  const requestedOwnerCharacterId = sanitizeAssetId(body?.ownerCharacterId || "");
+  const requestedRelationshipType = requestedOwnerCharacterId
+    ? normalizeManagedActorRelationshipType(body?.relationshipType || "companion", actor.actorType, requestedOwnerCharacterId)
+    : "";
+  if (requestedOwnerCharacterId && requestedRelationshipType !== "companion") {
+    return json({ ok: false, error: "Invalid companion relationship" }, 400, corsHeaders);
+  }
+
+  const indexDoc = safeJsonParse(indexRaw) || { version: 0, campaignId, data: [] };
+  const currentEntries = Array.isArray(indexDoc.data) ? indexDoc.data : [];
+  let ownerAccountIds = [];
+  if (requestedOwnerCharacterId) {
+    const playerEntry = currentEntries.find((entry) => {
+      if (sanitizeManagedActorId(entry?.worldId) !== route.worldId) return false;
+      if (sanitizeAssetId(entry?.ownerCharacterId || "") !== requestedOwnerCharacterId) return false;
+      const type = String(entry?.actorType || "").trim().toLowerCase();
+      const relationship = normalizeManagedActorRelationshipType(entry?.relationshipType, type, entry?.ownerCharacterId);
+      return relationship === "player" || ["character", "player"].includes(type);
+    });
+    if (!playerEntry) {
+      return json({ ok: false, error: "Target player character is not managed in this world" }, 400, corsHeaders);
+    }
+    ownerAccountIds = Array.from(new Set((Array.isArray(playerEntry.ownerAccountIds) ? playerEntry.ownerAccountIds : [])
+      .map(sanitizeAccountId)
+      .filter(Boolean))).slice(0, 16);
+  }
+
+  const unchanged = normalizeManagedActorRelationshipType(actor.relationshipType, actor.actorType, actor.ownerCharacterId) === requestedRelationshipType
+    && sanitizeAssetId(actor.ownerCharacterId || "") === requestedOwnerCharacterId
+    && JSON.stringify((actor.ownerAccountIds || []).map(sanitizeAccountId).filter(Boolean).sort()) === JSON.stringify([...ownerAccountIds].sort());
+  if (unchanged) {
+    return json({
+      ok: true,
+      saved: false,
+      queued: false,
+      campaignId,
+      data: managedActorIndexEntry(actor, currentEntries.find((entry) => entry?.id === actor.id) || null),
+    }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
+  }
+
+  const now = new Date().toISOString();
+  const updatedBy = authorization.source === "foundry"
+    ? "foundry"
+    : (getAuthenticatedAccountId(authorization.user, env) || "campaign-editor");
+  const next = {
+    ...actor,
+    relationshipType: requestedRelationshipType,
+    ownerCharacterId: requestedOwnerCharacterId,
+    ownerAccountIds,
+    relationshipRevision: currentRelationshipRevision + 1,
+    relationshipUpdatedAt: now,
+    relationshipUpdatedBy: updatedBy,
+    revision: Number(actor.revision || 0),
+    updatedAt: now,
+    updatedBy: authorization.source,
+  };
+  const previousIndexEntry = currentEntries.find((entry) => entry?.id === next.id) || null;
+  const nextIndexEntry = managedActorIndexEntry(next, previousIndexEntry);
+  const nextEntries = [...currentEntries.filter((entry) => entry?.id !== next.id), nextIndexEntry]
+    .sort((left, right) => String(left.name || "").localeCompare(String(right.name || "")));
+
+  await Promise.all([
+    env.SIGILLO_KV.put(actorKey, JSON.stringify(next)),
+    env.SIGILLO_KV.put(indexKey, JSON.stringify({
+      ...indexDoc,
+      version: Number(indexDoc.version || 0) + 1,
+      campaignId,
+      updatedAt: now,
+      data: nextEntries,
+    })),
+  ]);
+  let queued = false;
+  if (authorization.source === "site") {
+    await enqueueManagedActorRelationshipCommand(env, campaignId, next, next, updatedBy);
+    queued = true;
+  }
+  return json({
+    ok: true,
+    saved: true,
+    queued,
+    campaignId,
+    worldId: route.worldId,
+    actorId: route.actorId,
+    relationshipRevision: next.relationshipRevision,
+    revision: next.revision,
+    data: nextIndexEntry,
+  }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
+}
 async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders = {}) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   const reader = await getManagedActorReader(request, env, campaignId);
@@ -3558,7 +3840,7 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
     .filter(Boolean)));
   const data = entries.flatMap((entry) => {
     const canReadStats = canReadManagedActor(entry, reader.user, reader.isEditor, env);
-    const canReadProfile = canReadManagedActorProfileIndex(entry.profile, reader.user, reader.isEditor);
+    const canReadProfile = canReadManagedActorProfileIndex(entry.profile, reader.user, reader.isEditor, entry, env);
     if (!canReadStats && !canReadProfile) return [];
     return [{
       ...entry,
@@ -4640,7 +4922,9 @@ async function handleMediaUpload(request, env, corsHeaders = {}) {
     user = await requireUser(request, env, corsHeaders);
     if (user instanceof Response) return user;
   }
-  const isCampaignEditor = foundrySyncAuthorized || await isAuthenticatedCampaignEditor(user, env, campaignId);
+  const isCampaignEditor = foundrySyncAuthorized || (isManagedActorFolder
+    ? await isAuthenticatedCampaignContentEditor(user, env, campaignId)
+    : await isAuthenticatedCampaignEditor(user, env, campaignId));
   if (!isCampaignEditor && !(await canAuthenticatedUserUploadMedia(user, env, campaignId, folder, filename))) {
     return json({ ok: false, error: "Forbidden: media upload requires campaign editor permissions" }, 403, corsHeaders);
   }
@@ -5282,6 +5566,30 @@ function isAuthenticatedAdmin(user, env) {
   return isNotesAdmin(getAuthenticatedAccountId(user, env), env)
     || isNotesAdmin(getAuthenticatedDiscordId(user), env);
 }
+
+async function isAuthenticatedCampaignContentEditor(user, env, campaignId) {
+  const cleanCampaignId = sanitizeCampaignId(campaignId);
+  const accountId = getAuthenticatedAccountId(user, env);
+  const discordId = getAuthenticatedDiscordId(user);
+  if (isExplicitCampaignEditor(cleanCampaignId, accountId, discordId, env)) return true;
+  if (!env.SIGILLO_KV) return false;
+
+  const raw = await getCampaignKv(
+    env.SIGILLO_KV,
+    sessionCurrentKey(cleanCampaignId),
+    cleanCampaignId === DEFAULT_CAMPAIGN_ID ? "session/current" : ""
+  );
+  const session = safeJsonParse(raw);
+  if (!session || typeof session !== "object") return false;
+
+  const dmAccountId = sanitizeAccountId(session.dmAccountId || "");
+  const dmDiscordId = String(session.dmDiscordId || "").trim();
+  return Boolean(
+    (dmAccountId && accountId === dmAccountId)
+    || (dmDiscordId && discordId === dmDiscordId)
+  );
+}
+
 
 async function isAuthenticatedCampaignEditor(user, env, campaignId) {
   if (isAuthenticatedAdmin(user, env)) return true;

@@ -136,14 +136,143 @@
         });
     }
 
+    function normalizeFrameCircle(value) {
+        const raw = value?.frameCircle || value;
+        if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+        const x = Number(raw.x);
+        const y = Number(raw.y);
+        const radius = Number(raw.radius);
+        if (![x, y, radius].every(Number.isFinite)) return null;
+        return {
+            x: clampNumber(x, .5, 0, 1),
+            y: clampNumber(y, .5, 0, 1),
+            radius: clampNumber(radius, .42, .03, .5)
+        };
+    }
+
+    function readFrameCircleDataset(image) {
+        if (!image || image.dataset.frameCircle !== "1") return null;
+        return normalizeFrameCircle({
+            x: image.dataset.frameCircleX,
+            y: image.dataset.frameCircleY,
+            radius: image.dataset.frameCircleRadius
+        });
+    }
+
+    function setFrameCircleDataset(image, value, options = {}) {
+        if (!image) return null;
+        const circle = normalizeFrameCircle(value);
+        if (!circle) {
+            delete image.dataset.frameCircle;
+            delete image.dataset.frameCircleX;
+            delete image.dataset.frameCircleY;
+            delete image.dataset.frameCircleRadius;
+            delete image.dataset.frameCircleTarget;
+            delete image.dataset.frameCircleScale;
+            return null;
+        }
+        image.dataset.frameCircle = "1";
+        image.dataset.frameCircleX = String(circle.x);
+        image.dataset.frameCircleY = String(circle.y);
+        image.dataset.frameCircleRadius = String(circle.radius);
+        if (options.target) image.dataset.frameCircleTarget = String(options.target);
+        else delete image.dataset.frameCircleTarget;
+        const requestedScale = Number(options.scale);
+        if (Number.isFinite(requestedScale)) {
+            image.dataset.frameCircleScale = String(clampNumber(requestedScale, 1, .1, 2));
+        } else {
+            delete image.dataset.frameCircleScale;
+        }
+        return circle;
+    }
+
+    function getFrameCircleGeometry(image) {
+        const circle = readFrameCircleDataset(image);
+        if (!circle || !image?.naturalWidth || !image?.naturalHeight) return null;
+        const host = image.closest?.("[data-frame-circle-host]") || image.parentElement;
+        const hostRect = host?.getBoundingClientRect?.();
+        if (!hostRect?.width || !hostRect?.height) return null;
+        let targetRect = hostRect;
+        const targetSelector = String(image.dataset.frameCircleTarget || "").trim();
+        if (targetSelector) {
+            try {
+                const target = host.querySelector(targetSelector);
+                const candidate = target?.getBoundingClientRect?.();
+                if (candidate?.width && candidate?.height) targetRect = candidate;
+            } catch (_) {
+                // Ignore invalid selectors from old data.
+            }
+        }
+        const hostStyle = getComputedStyle(host);
+        const hostOriginX = hostRect.left + (parseFloat(hostStyle.borderLeftWidth) || 0);
+        const hostOriginY = hostRect.top + (parseFloat(hostStyle.borderTopWidth) || 0);
+        const naturalWidth = image.naturalWidth;
+        const naturalHeight = image.naturalHeight;
+        const naturalMin = Math.min(naturalWidth, naturalHeight);
+        const requestedScale = Number(image.dataset.frameCircleScale);
+        const frameScale = Number.isFinite(requestedScale) ? clampNumber(requestedScale, 1, .1, 2) : 1;
+        const diameter = Math.min(targetRect.width, targetRect.height) * frameScale;
+        const sourceRadius = circle.radius * naturalMin;
+        if (!sourceRadius || !diameter) return null;
+        const scale = diameter / (sourceRadius * 2);
+        const centerX = targetRect.left - hostOriginX + targetRect.width / 2;
+        const centerY = targetRect.top - hostOriginY + targetRect.height / 2;
+        return {
+            host,
+            circle,
+            width: naturalWidth * scale,
+            height: naturalHeight * scale,
+            left: centerX - circle.x * naturalWidth * scale,
+            top: centerY - circle.y * naturalHeight * scale
+        };
+    }
+
+    function applyFrameCircleLayout(image) {
+        const geometry = getFrameCircleGeometry(image);
+        if (!geometry) return;
+        image.style.position = "absolute";
+        image.style.inset = "auto";
+        image.style.left = `${geometry.left}px`;
+        image.style.top = `${geometry.top}px`;
+        image.style.width = `${geometry.width}px`;
+        image.style.height = `${geometry.height}px`;
+        image.style.maxWidth = "none";
+        image.style.maxHeight = "none";
+        image.style.objectFit = "fill";
+        image.style.objectPosition = "initial";
+        image.style.transform = "none";
+        image.style.transformOrigin = `${geometry.circle.x * 100}% ${geometry.circle.y * 100}%`;
+    }
+
+    function initFrameCircleImages(root = document) {
+        const images = root.querySelectorAll?.('[data-frame-circle="1"]') || [];
+        images.forEach((image) => {
+            if (image.dataset.frameCircleBound !== "1") {
+                image.dataset.frameCircleBound = "1";
+                image.addEventListener("load", () => applyFrameCircleLayout(image));
+            }
+            applyFrameCircleLayout(image);
+        });
+        if (!resizeBindings.has("frame-circle-images")) {
+            resizeBindings.add("frame-circle-images");
+            window.addEventListener("resize", () => {
+                document.querySelectorAll('[data-frame-circle="1"]').forEach(applyFrameCircleLayout);
+            });
+        }
+    }
+
     window.CriptaImageAdjust = {
         applyContainedImageLayout,
+        applyFrameCircleLayout,
         buildNpcImageStyle,
         buildPercentCssVars,
         initContainedImages,
+        initFrameCircleImages,
         isDefaultPercentAdjust,
+        normalizeFrameCircle,
         normalizePercentAdjust,
         normalizePixelAdjust,
-        setDatasetAdjust
+        setDatasetAdjust,
+        setFrameCircleDataset
     };
 })();
