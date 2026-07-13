@@ -142,14 +142,21 @@ function parseYamlLite(yamlText) {
                         ? window.WikiSpoiler.filterVisible(npcs)
                         : npcs.filter(npc => !npc.hidden));
 
-                const recencyData = await loadNpcRecencyData(base_path);
-                const sortedNpcs = sortNpcsByRecency(visibleNpcs, recencyData);
-                renderManagedActorsSection().catch((error) => {
+                const managedState = await renderManagedActorsSection().catch((error) => {
                     console.warn('Actor Foundry non caricati:', error);
+                    return { managedLegacyCharacterIds: [], visibleActorCount: 0 };
                 });
+                const managedLegacyIds = new Set((managedState?.managedLegacyCharacterIds || [])
+                    .map((id) => String(id || '').trim().toLowerCase())
+                    .filter(Boolean));
+                const legacyNpcs = visibleNpcs.filter((npc) => !managedLegacyIds.has(String(npc?.id || '').trim().toLowerCase()));
+                const recencyData = await loadNpcRecencyData(base_path);
+                const sortedNpcs = sortNpcsByRecency(legacyNpcs, recencyData);
 
                 if (sortedNpcs.length === 0) {
-                    npcListContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Nessun NPC disponibile.</p>';
+                    npcListContainer.innerHTML = managedState?.visibleActorCount > 0
+                        ? ''
+                        : '<p style="color: var(--text-muted); text-align: center;">Nessun NPC disponibile.</p>';
                     return;
                 }
 
@@ -164,17 +171,20 @@ function parseYamlLite(yamlText) {
         async function renderManagedActorsSection() {
             const section = document.querySelector('[data-managed-actors-section]');
             const grid = document.querySelector('[data-managed-actors-grid]');
-            if (!section || !grid || typeof window.CriptaApp?.api?.get !== 'function') return;
+            if (!section || !grid || typeof window.CriptaApp?.api?.get !== 'function') return { managedLegacyCharacterIds: [], visibleActorCount: 0 };
             const token = String(window.CriptaDiscordAuth?.getToken?.() || '').trim();
             const payload = await window.CriptaApp.api.get('api/managed-actors', {
                 cache: false,
                 ...(token ? { token } : {})
             });
+            const managedLegacyCharacterIds = Array.isArray(payload?.managedLegacyCharacterIds)
+                ? payload.managedLegacyCharacterIds
+                : [];
             const actors = (Array.isArray(payload?.data) ? payload.data : [])
                 .filter((actor) => String(actor?.actorType || '').toLowerCase() === 'npc');
             if (!actors.length) {
                 section.hidden = true;
-                return;
+                return { managedLegacyCharacterIds, visibleActorCount: 0 };
             }
             grid.innerHTML = actors.map((actor) => {
                 const media = actor.media || {};
@@ -186,15 +196,24 @@ function parseYamlLite(yamlText) {
                 target.searchParams.set('actor', actor.actorId || '');
                 const campaignId = getCurrentCampaignId();
                 if (campaignId && campaignId !== 'cripta-di-sangue') target.searchParams.set('campaign', campaignId);
+                const permissions = actor.permissions || {};
+                const canReadStats = permissions.canReadStats !== false;
+                const canReadProfile = permissions.canReadProfile === true;
+                if (!canReadStats && canReadProfile) target.searchParams.set('profile', '1');
+                const role = actor.profile?.role || 'NPC';
+                const accessLabel = canReadStats && canReadProfile
+                    ? 'Dossier e statistiche'
+                    : canReadProfile ? 'Dossier' : 'Statistiche';
                 return `<a class="managed-actor-card" href="${target.pathname}${target.search}">
                     <span class="managed-actor-card__image">
                         ${idlePath ? `<img src="${managedEscapeHtml(resolveImageUrl(idlePath))}" alt="">` : ''}
                         ${hoverPath ? `<img src="${managedEscapeHtml(resolveImageUrl(hoverPath))}" alt="">` : ''}
                     </span>
-                    <span><h3>${managedEscapeHtml(actor.name || 'Actor')}</h3><p>${managedEscapeHtml(actor.actorType || 'npc')}</p><span class="managed-actor-badge">Foundry · ${managedEscapeHtml(actor.visibility?.state || 'dm')}</span></span>
+                    <span><h3>${managedEscapeHtml(actor.name || 'Actor')}</h3><p>${managedEscapeHtml(role)}</p><span class="managed-actor-badge">${managedEscapeHtml(accessLabel)}</span></span>
                 </a>`;
             }).join('');
             section.hidden = false;
+            return { managedLegacyCharacterIds, visibleActorCount: actors.length };
         }
 
         function managedEscapeHtml(value) {

@@ -2429,6 +2429,13 @@ window.CriptaApp.onPageReady("character", async function () {
             displayError(`Personaggio con ID '${charId}' non trovato.`);
             return;
         }
+        const canBypassManagedActorRedirect = currentUserIsDm
+            && (params.get('legacy') === '1' || params.get('edit') === '1');
+        if (charType !== 'player' && !createMode && !canBypassManagedActorRedirect) {
+            const redirected = await redirectToManagedActorProfile(character.id || charId);
+            if (redirected) return;
+        }
+
 
         setupCharacterEditLink(character.id || charId, charType);
         // If using static data, we might need to convert markdownText to HTML on the fly
@@ -2483,6 +2490,35 @@ window.CriptaApp.onPageReady("character", async function () {
     } catch (error) {
         console.error("Errore nel caricamento del personaggio:", error);
         displayError("Impossibile caricare i dati del personaggio.");
+    }
+
+    async function redirectToManagedActorProfile(characterId) {
+        const legacyId = slugify(characterId || '');
+        if (!legacyId) return false;
+        try {
+            const token = readAuthToken();
+            const payload = await window.CriptaApp.api.get(`api/managed-actor-profiles/resolve/${encodeURIComponent(legacyId)}`, {
+                cache: false,
+                ...(token ? { token } : {})
+            });
+            if (payload?.hidden === true) {
+                displayError('Questo NPC non \u00e8 disponibile.');
+                return true;
+            }
+            const worldId = String(payload?.data?.worldId || '');
+            const actorId = String(payload?.data?.actorId || '');
+            if (!worldId || !actorId) return false;
+            const target = new URL('./managed-actor.html', window.location.href);
+            target.searchParams.set('world', worldId);
+            target.searchParams.set('actor', actorId);
+            if (payload?.permissions?.canReadStats === false && payload?.permissions?.canReadProfile === true) target.searchParams.set('profile', '1');
+            const campaignId = window.CriptaApp?.campaigns?.currentId?.();
+            if (campaignId && campaignId !== 'cripta-di-sangue') target.searchParams.set('campaign', campaignId);
+            window.location.replace(target.toString());
+            return true;
+        } catch (_) {
+            return false;
+        }
     }
 
     function setupCharacterEditLink(id, type) {

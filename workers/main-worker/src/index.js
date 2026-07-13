@@ -34,6 +34,8 @@ export default {
       }
 
       const managedActorRoute = matchManagedActorRoute(url.pathname);
+      const managedActorProfileRoute = matchManagedActorProfileRoute(url.pathname);
+      const managedActorProfileResolveRoute = matchManagedActorProfileResolveRoute(url.pathname);
       const managedActorRuntimeRoute = matchManagedActorRuntimeRoute(url.pathname);
       const managedActorCommandRoute = matchManagedActorCommandRoute(url.pathname);
       const managedActorCommandBatchRoute = matchManagedActorCommandBatchRoute(url.pathname);
@@ -45,6 +47,15 @@ export default {
       }
       if (managedActorCommandBatchRoute?.action === "list" && request.method === "GET") {
         return handleManagedActorCommandList(request, managedActorCommandBatchRoute, queryCampaignId, env, corsHeaders);
+      }
+      if (managedActorProfileResolveRoute && request.method === "GET") {
+        return handleManagedActorProfileResolveGet(request, managedActorProfileResolveRoute, queryCampaignId, env, corsHeaders);
+      }
+      if (managedActorProfileRoute && request.method === "GET") {
+        return handleManagedActorProfileGet(request, managedActorProfileRoute, queryCampaignId, env, corsHeaders);
+      }
+      if (managedActorProfileRoute && request.method === "POST") {
+        return handleManagedActorProfilePost(request, managedActorProfileRoute, queryCampaignId, env, corsHeaders);
       }
       if (managedActorRuntimeRoute && request.method === "POST") {
         return handleManagedActorRuntimePost(request, managedActorRuntimeRoute, queryCampaignId, env, corsHeaders);
@@ -1410,7 +1421,7 @@ function json(data, status = 200, corsHeaders = {}) {
 }
 
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
-const WORKER_CODE_VERSION = "2026-07-12-managed-actors-v9-owner-editor";
+const WORKER_CODE_VERSION = "2026-07-13-managed-actors-v12-profile-media-sync";
 const SYNC_BOOTSTRAP_COLLECTIONS = [
   "characters",
   "quests",
@@ -1516,6 +1527,14 @@ function managedActorRuntimeKey(campaignId, worldId, actorId) {
 
 function managedActorDocumentKey(campaignId, worldId, actorId) {
   return campaignKey(campaignId, `managed-actor:${sanitizeManagedActorId(worldId)}:${sanitizeManagedActorId(actorId)}`);
+}
+
+function managedActorProfileKey(campaignId, worldId, actorId) {
+  return campaignKey(campaignId, `managed-actor-profile:${sanitizeManagedActorId(worldId)}:${sanitizeManagedActorId(actorId)}`);
+}
+
+function managedActorProfileLinkKey(campaignId, legacyCharacterId) {
+  return campaignKey(campaignId, `managed-actor-profile-link:${sanitizeAssetId(legacyCharacterId)}`);
 }
 
 function managedActorCommandQueueKey(campaignId, worldId) {
@@ -2229,6 +2248,21 @@ function matchManagedActorRoute(pathname) {
   return worldId && actorId ? { worldId, actorId } : null;
 }
 
+function matchManagedActorProfileRoute(pathname) {
+  const match = String(pathname || "").match(/^\/api\/managed-actors\/([A-Za-z0-9_-]{1,96})\/([A-Za-z0-9_-]{1,96})\/profile$/);
+  if (!match) return null;
+  const worldId = sanitizeManagedActorId(match[1]);
+  const actorId = sanitizeManagedActorId(match[2]);
+  return worldId && actorId ? { worldId, actorId } : null;
+}
+
+function matchManagedActorProfileResolveRoute(pathname) {
+  const match = String(pathname || "").match(/^\/api\/managed-actor-profiles\/resolve\/([A-Za-z0-9_-]{1,128})$/);
+  if (!match) return null;
+  const legacyCharacterId = sanitizeAssetId(match[1]);
+  return legacyCharacterId ? { legacyCharacterId } : null;
+}
+
 function matchManagedActorRuntimeRoute(pathname) {
   const match = String(pathname || "").match(/^\/api\/managed-actors\/([A-Za-z0-9_-]{1,96})\/([A-Za-z0-9_-]{1,96})\/runtime$/);
   if (!match) return null;
@@ -2290,7 +2324,7 @@ async function authorizeManagedActorWrite(request, env, campaignId, corsHeaders,
   return { source: "site", user, isEditor, isOwner };
 }
 
-function managedActorIndexEntry(document) {
+function managedActorIndexEntry(document, previousEntry = null) {
   return {
     id: document.id,
     worldId: document.worldId,
@@ -2307,6 +2341,7 @@ function managedActorIndexEntry(document) {
       idle: document.media?.idle || null,
       hover: document.media?.hover || null,
     },
+    profile: previousEntry?.profile || null,
     revision: document.revision,
     updatedAt: document.updatedAt,
   };
@@ -2338,6 +2373,445 @@ async function getManagedActorReader(request, env, campaignId) {
   const user = await getOptionalAuthenticatedUser(request, env);
   const isEditor = Boolean(user && await isAuthenticatedCampaignEditor(user, env, campaignId));
   return { user, isEditor };
+}
+function managedActorProfileVisibilityState(value) {
+  const state = String(value?.state || value || "dm").trim().toLowerCase();
+  return state === "dm" ? "dm" : "public";
+}
+
+function managedActorProfileBlockVisibility(value, hidden = false) {
+  if (hidden === true) return "dm";
+  const state = String(value?.state || value || "public").trim().toLowerCase();
+  return state === "dm" ? "dm" : "public";
+}
+
+function managedActorProfileIndexMetadata(profile) {
+  if (!profile || typeof profile !== "object") return null;
+  const blocks = Array.isArray(profile.blocks) ? profile.blocks : [];
+  return {
+    visibility: { state: managedActorProfileVisibilityState(profile.visibility) },
+    legacyCharacterId: sanitizeAssetId(profile.legacyCharacterId || ""),
+    role: String(profile.role || "").trim().slice(0, 240),
+    quote: String(profile.quote || "").trim().slice(0, 1_000),
+    status: String(profile.status || "").trim().slice(0, 80),
+    hasContent: Boolean(profile.role || profile.quote || blocks.length),
+    updatedAt: profile.updatedAt || null,
+  };
+}
+
+function canReadManagedActorProfileIndex(profile, user, isEditor) {
+  if (!profile) return false;
+  return canReadManagedActorProfile(profile, user, isEditor);
+}
+
+async function hydrateManagedActorProfileIndex(doc, campaignId, env) {
+  if (Number(doc?.profileAccessVersion || 0) >= 1) return doc;
+  const entries = Array.isArray(doc?.data) ? doc.data : [];
+  const profileDocuments = await Promise.all(entries.map(async (entry) => {
+    const raw = await env.SIGILLO_KV.get(managedActorProfileKey(campaignId, entry.worldId, entry.actorId));
+    return safeJsonParse(raw);
+  }));
+  let changed = false;
+  const data = entries.map((entry, index) => {
+    const profile = managedActorProfileIndexMetadata(profileDocuments[index]);
+    if (!profile) return entry;
+    const nextEntry = { ...entry, profile };
+    if (managedActorIndexEntryComparable(entry) !== managedActorIndexEntryComparable(nextEntry)) changed = true;
+    return nextEntry;
+  });
+  const next = {
+    ...doc,
+    profileAccessVersion: 1,
+    version: Number(doc?.version || 0) + 1,
+    updatedAt: changed ? new Date().toISOString() : (doc?.updatedAt || null),
+    data,
+  };
+  await env.SIGILLO_KV.put(managedActorIndexKey(campaignId), JSON.stringify(next));
+  return next;
+}
+
+async function updateManagedActorProfileIndex(env, campaignId, actor, profile) {
+  const indexKey = managedActorIndexKey(campaignId);
+  const indexDoc = safeJsonParse(await env.SIGILLO_KV.get(indexKey)) || { version: 0, campaignId, data: [] };
+  const entries = Array.isArray(indexDoc.data) ? indexDoc.data : [];
+  const actorId = `${actor.worldId}:${actor.actorId}`;
+  const previousEntry = entries.find((entry) => entry?.id === actorId) || null;
+  const nextEntry = {
+    ...managedActorIndexEntry(actor, previousEntry),
+    profile: managedActorProfileIndexMetadata(profile),
+  };
+  if (managedActorIndexEntryComparable(previousEntry) === managedActorIndexEntryComparable(nextEntry)) return false;
+  const data = [...entries.filter((entry) => entry?.id !== actorId), nextEntry]
+    .sort((left, right) => String(left.name || "").localeCompare(String(right.name || "")));
+  await env.SIGILLO_KV.put(indexKey, JSON.stringify({
+    ...indexDoc,
+    version: Number(indexDoc.version || 0) + 1,
+    campaignId,
+    updatedAt: new Date().toISOString(),
+    data,
+  }));
+  return true;
+}
+
+function normalizeManagedActorProfileText(value, maxLength = 50_000) {
+  return String(value || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .slice(0, maxLength);
+}
+
+function normalizeManagedActorProfileMediaPath(value) {
+  const clean = String(value || "").trim().replace(/^\/+/, "").slice(0, 1_000);
+  if (!clean || clean.includes("..")) return "";
+  if (/^https:\/\/sigillo-api\.khuzoe\.workers\.dev\/media\//i.test(clean)) return clean;
+  if (/^(media|icons|systems|modules|worlds)\/[A-Za-z0-9_./%+@'() -]+\.(png|jpe?g|webp|gif|svg)$/i.test(clean)) return clean;
+  return "";
+}
+
+function normalizeManagedActorProfileMediaSlot(value) {
+  const input = typeof value === "string" ? { path: value } : value;
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const path = normalizeManagedActorProfileMediaPath(input.path || input.src);
+  if (!path) return null;
+  const presentation = input.presentation && typeof input.presentation === "object" ? {
+    x: Math.max(0, Math.min(100, Number(input.presentation.x) || 50)),
+    y: Math.max(0, Math.min(100, Number(input.presentation.y) || 50)),
+    scale: Math.max(.5, Math.min(3, Number(input.presentation.scale) || 1)),
+  } : undefined;
+  return { path, ...(presentation ? { presentation } : {}) };
+}
+
+function normalizeManagedActorProfileMedia(value, fallback = {}) {
+  const input = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const previous = fallback && typeof fallback === "object" ? fallback : {};
+  return {
+    avatar: normalizeManagedActorProfileMediaSlot(input.avatar) || normalizeManagedActorProfileMediaSlot(previous.avatar),
+    idle: normalizeManagedActorProfileMediaSlot(input.idle) || normalizeManagedActorProfileMediaSlot(previous.idle),
+    hover: normalizeManagedActorProfileMediaSlot(input.hover) || normalizeManagedActorProfileMediaSlot(previous.hover),
+  };
+}
+
+function managedActorProfileMediaFromActor(actor) {
+  return normalizeManagedActorProfileMedia({
+    avatar: actor?.media?.avatar,
+    idle: actor?.media?.idle,
+    hover: actor?.media?.hover,
+  });
+}
+
+function managedActorProfileMediaComparable(value) {
+  return JSON.stringify(normalizeManagedActorProfileMedia(value));
+}
+
+function managedActorProfileWithCurrentMedia(profile, actor) {
+  return {
+    ...profile,
+    media: managedActorProfileMediaFromActor(actor),
+    mediaSyncVersion: 1,
+    mediaUpdatedAt: actor?.updatedAt || profile?.mediaUpdatedAt || null,
+  };
+}
+
+async function syncStoredManagedActorProfileMedia(env, campaignId, route, actor) {
+  const key = managedActorProfileKey(campaignId, route.worldId, route.actorId);
+  const profile = safeJsonParse(await env.SIGILLO_KV.get(key));
+  if (!profile) return false;
+  const next = managedActorProfileWithCurrentMedia(profile, actor);
+  if (Number(profile.mediaSyncVersion || 0) >= 1
+    && managedActorProfileMediaComparable(profile.media) === managedActorProfileMediaComparable(next.media)
+    && String(profile.mediaUpdatedAt || "") === String(next.mediaUpdatedAt || "")) return false;
+  await env.SIGILLO_KV.put(key, JSON.stringify(next));
+  return true;
+}
+
+function normalizeManagedActorProfileBlock(block, index = 0) {
+  const input = block && typeof block === "object" && !Array.isArray(block) ? block : {};
+  const allowedTypes = new Set(["lore", "image_box", "banner_box", "custom_box", "secret_dossier"]);
+  const requestedType = String(input.type || (input.image ? "image_box" : "lore")).trim().toLowerCase();
+  const type = allowedTypes.has(requestedType) ? requestedType : "lore";
+  const fallbackId = `blocco-${index + 1}`;
+  const id = sanitizeAssetId(input.id || input.title || fallbackId) || fallbackId;
+  const image = normalizeManagedActorProfileMediaPath(input.image);
+  const banner = normalizeManagedActorProfileMediaPath(input.banner);
+  const text = normalizeManagedActorProfileText(input.markdownText ?? input.text ?? input.content ?? "");
+  const tags = Array.isArray(input.tags)
+    ? input.tags.map((tag) => String(tag || "").trim().slice(0, 40)).filter(Boolean).slice(0, 12)
+    : [];
+  return {
+    id,
+    type,
+    title: String(input.title || "Informazioni").trim().slice(0, 180),
+    icon: String(input.icon || (type === "image_box" ? "fa-book-open" : "fa-scroll")).trim().replace(/[^A-Za-z0-9_-]+/g, "").slice(0, 64),
+    text,
+    visibility: managedActorProfileBlockVisibility(input.visibility, input.hidden === true),
+    ...(image ? { image } : {}),
+    ...(banner ? { banner } : {}),
+    ...(input.image_caption ? { imageCaption: String(input.image_caption).trim().slice(0, 500) } : {}),
+    ...(input.borderColor ? { borderColor: String(input.borderColor).trim().slice(0, 32) } : {}),
+    ...(tags.length ? { tags } : {}),
+  };
+}
+
+function normalizeManagedActorProfileSummary(value) {
+  const input = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  return {
+    race: String(input.race || "").trim().slice(0, 120),
+    birthYear: String(input.birthYear || input.birth_year || "").trim().slice(0, 80),
+    age: String(input.age || "").trim().slice(0, 80),
+    height: String(input.height || "").trim().slice(0, 80),
+    weight: String(input.weight || "").trim().slice(0, 80),
+  };
+}
+
+function managedActorProfileFromLegacy(character, actor, campaignId, route) {
+  const source = character && typeof character === "object" ? character : {};
+  const legacyBlocks = Array.isArray(source.content_blocks)
+    ? source.content_blocks
+    : (Array.isArray(source.blocks) ? source.blocks : []);
+  const legacyImages = source.images && typeof source.images === "object" ? source.images : {};
+  const actorMedia = actor?.media || {};
+  const media = normalizeManagedActorProfileMedia({
+    avatar: legacyImages.avatar || legacyImages.portrait || actorMedia.avatar,
+    idle: legacyImages.idle || actorMedia.idle,
+    hover: legacyImages.hover || actorMedia.hover,
+  });
+  return {
+    schemaVersion: 1,
+    id: `${route.worldId}:${route.actorId}:profile`,
+    campaignId,
+    worldId: route.worldId,
+    actorId: route.actorId,
+    legacyCharacterId: sanitizeAssetId(source.id || source.name || ""),
+    name: String(source.name || actor?.name || "NPC").trim().slice(0, 180),
+    role: String(source.role || source.subtitle || "").trim().slice(0, 240),
+    quote: String(source.quote || "").trim().slice(0, 1_000),
+    status: String(source.status || "").trim().slice(0, 80),
+    visibility: { state: source.hidden === true ? "dm" : "public" },
+    summary: normalizeManagedActorProfileSummary(source.summary),
+    media,
+    mediaSyncVersion: 1,
+    mediaUpdatedAt: actor?.updatedAt || null,
+    blocks: legacyBlocks.slice(0, 64).map(normalizeManagedActorProfileBlock),
+    revision: 0,
+    createdAt: null,
+    updatedAt: source.updatedAt || null,
+    updatedBy: "legacy",
+  };
+}
+
+function emptyManagedActorProfile(actor, campaignId, route) {
+  return {
+    schemaVersion: 1,
+    id: `${route.worldId}:${route.actorId}:profile`,
+    campaignId,
+    worldId: route.worldId,
+    actorId: route.actorId,
+    legacyCharacterId: "",
+    name: String(actor?.name || "NPC").trim().slice(0, 180),
+    role: "",
+    quote: "",
+    status: "",
+    visibility: { state: "dm" },
+    summary: normalizeManagedActorProfileSummary({}),
+    media: managedActorProfileMediaFromActor(actor),
+    mediaSyncVersion: 1,
+    mediaUpdatedAt: actor?.updatedAt || null,
+    blocks: [],
+    revision: 0,
+    createdAt: null,
+    updatedAt: null,
+    updatedBy: "site",
+  };
+}
+
+function normalizeManagedActorProfileDocument(input, existing, actor, campaignId, route, updatedBy) {
+  const now = new Date().toISOString();
+  const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+  const previous = existing && typeof existing === "object" ? existing : {};
+  const blocks = Array.isArray(source.blocks) ? source.blocks.slice(0, 64).map(normalizeManagedActorProfileBlock) : (previous.blocks || []);
+  return {
+    schemaVersion: 1,
+    id: `${route.worldId}:${route.actorId}:profile`,
+    campaignId,
+    worldId: route.worldId,
+    actorId: route.actorId,
+    legacyCharacterId: sanitizeAssetId(source.legacyCharacterId || previous.legacyCharacterId || ""),
+    name: String(source.name || previous.name || actor?.name || "NPC").trim().slice(0, 180),
+    role: String(source.role ?? previous.role ?? "").trim().slice(0, 240),
+    quote: String(source.quote ?? previous.quote ?? "").trim().slice(0, 1_000),
+    status: String(source.status ?? previous.status ?? "").trim().slice(0, 80),
+    visibility: { state: managedActorProfileVisibilityState(source.visibility || previous.visibility) },
+    summary: normalizeManagedActorProfileSummary(source.summary || previous.summary),
+    media: managedActorProfileMediaFromActor(actor),
+    mediaSyncVersion: 1,
+    mediaUpdatedAt: actor?.updatedAt || previous.mediaUpdatedAt || null,
+    blocks,
+    revision: Number(previous.revision || 0) + 1,
+    createdAt: previous.createdAt || now,
+    updatedAt: now,
+    updatedBy: String(updatedBy || "site").slice(0, 120),
+  };
+}
+
+function canReadManagedActorProfile(profile, user, isEditor) {
+  if (isEditor) return true;
+  return managedActorProfileVisibilityState(profile?.visibility) === "public";
+}
+
+function filterManagedActorProfileForReader(profile, user, isEditor) {
+  if (isEditor) return profile;
+  const blocks = (Array.isArray(profile?.blocks) ? profile.blocks : [])
+    .filter((block) => managedActorProfileBlockVisibility(block?.visibility) === "public");
+  return { ...profile, blocks };
+}
+
+function findLegacyCharacterForManagedActor(data, actor) {
+  if (!Array.isArray(data) || !actor) return null;
+  const explicitId = sanitizeAssetId(actor?.site?.profileId || actor?.site?.legacyCharacterId || "");
+  if (explicitId) {
+    const explicit = data.find((entry) => sanitizeAssetId(entry?.id || entry?.name || "") === explicitId);
+    if (explicit) return explicit;
+  }
+  const actorName = sanitizeManagedActorId(actor.name || "");
+  if (!actorName) return null;
+  return data.find((entry) => sanitizeManagedActorId(entry?.name || "") === actorName) || null;
+}
+
+async function handleManagedActorProfileGet(request, route, campaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  const reader = await getManagedActorReader(request, env, campaignId);
+  const storedRaw = await env.SIGILLO_KV.get(managedActorProfileKey(campaignId, route.worldId, route.actorId));
+  let profile = safeJsonParse(storedRaw);
+  let source = "profile";
+
+  if (profile && Number(profile.mediaSyncVersion || 0) < 1) {
+    const actor = safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId)));
+    if (actor) {
+      profile = managedActorProfileWithCurrentMedia(profile, actor);
+      await env.SIGILLO_KV.put(managedActorProfileKey(campaignId, route.worldId, route.actorId), JSON.stringify(profile));
+    }
+  }
+  if (!profile) {
+    const [actorRaw, charactersDocument] = await Promise.all([
+      env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId)),
+      readDataCollectionDocument("characters", campaignId, env),
+    ]);
+    const actor = safeJsonParse(actorRaw);
+    if (!actor) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+    const legacy = findLegacyCharacterForManagedActor(charactersDocument?.data, actor);
+    profile = legacy
+      ? managedActorProfileFromLegacy(legacy, actor, campaignId, route)
+      : emptyManagedActorProfile(actor, campaignId, route);
+    source = legacy ? "legacy" : "empty";
+  }
+
+  if (!canReadManagedActorProfile(profile, reader.user, reader.isEditor)) {
+    return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
+  }
+  const data = filterManagedActorProfileForReader(profile, reader.user, reader.isEditor);
+  return json({
+    ok: true,
+    campaignId,
+    source,
+    data,
+    permissions: { canEdit: reader.isEditor === true, isEditor: reader.isEditor === true },
+  }, 200, {
+    ...corsHeaders,
+    "Cache-Control": reader.user || reader.isEditor ? "private, no-store" : "public, max-age=120, must-revalidate",
+  });
+}
+
+async function handleManagedActorProfilePost(request, route, campaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  const user = await requireUser(request, env, corsHeaders);
+  if (user instanceof Response) return user;
+  if (!(await isAuthenticatedCampaignEditor(user, env, campaignId))) {
+    return json({ ok: false, error: "Forbidden: NPC profile editing requires campaign editor permissions" }, 403, corsHeaders);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  if (JSON.stringify(body || {}).length > 300_000) return json({ ok: false, error: "Profile document is too large" }, 413, corsHeaders);
+
+  const profileKey = managedActorProfileKey(campaignId, route.worldId, route.actorId);
+  const [existingRaw, actorRaw] = await Promise.all([
+    env.SIGILLO_KV.get(profileKey),
+    env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId)),
+  ]);
+  const existing = safeJsonParse(existingRaw);
+  const actor = safeJsonParse(actorRaw);
+  if (!actor) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+  const expectedRevision = Math.max(0, Math.floor(Number(body?.expectedRevision) || 0));
+  const currentRevision = Math.max(0, Math.floor(Number(existing?.revision) || 0));
+  if (expectedRevision !== currentRevision) {
+    return json({ ok: false, error: "Profile revision conflict", expectedRevision, currentRevision }, 409, corsHeaders);
+  }
+
+  const accountId = getAuthenticatedAccountId(user, env) || "campaign-editor";
+  const next = normalizeManagedActorProfileDocument(body?.data || body, existing, actor, campaignId, route, accountId);
+  await env.SIGILLO_KV.put(profileKey, JSON.stringify(next));
+  await updateManagedActorProfileIndex(env, campaignId, actor, next);
+
+  const previousLegacyId = sanitizeAssetId(existing?.legacyCharacterId || "");
+  const nextLegacyId = sanitizeAssetId(next.legacyCharacterId || "");
+  if (previousLegacyId && previousLegacyId !== nextLegacyId) {
+    await env.SIGILLO_KV.delete(managedActorProfileLinkKey(campaignId, previousLegacyId));
+  }
+  const linkChanged = Boolean(nextLegacyId) && (
+    !existing
+    || previousLegacyId !== nextLegacyId
+    || managedActorProfileVisibilityState(existing.visibility) !== managedActorProfileVisibilityState(next.visibility)
+  );
+  if (linkChanged) {
+    await env.SIGILLO_KV.put(managedActorProfileLinkKey(campaignId, nextLegacyId), JSON.stringify({
+      campaignId,
+      legacyCharacterId: nextLegacyId,
+      worldId: route.worldId,
+      actorId: route.actorId,
+      name: next.name,
+      visibility: next.visibility,
+      updatedAt: next.updatedAt,
+    }));
+  }
+
+  return json({ ok: true, saved: true, campaignId, revision: next.revision, data: next }, 200, {
+    ...corsHeaders,
+    "Cache-Control": "private, no-store",
+  });
+}
+
+async function handleManagedActorProfileResolveGet(request, route, campaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  const reader = await getManagedActorReader(request, env, campaignId);
+  const raw = await env.SIGILLO_KV.get(managedActorProfileLinkKey(campaignId, route.legacyCharacterId));
+  const link = safeJsonParse(raw);
+  if (!link) return json({ ok: false, error: "Managed actor profile link not found" }, 404, corsHeaders);
+  const actorRaw = await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, link.worldId, link.actorId));
+  const actor = safeJsonParse(actorRaw);
+  const canReadProfile = canReadManagedActorProfile(link, reader.user, reader.isEditor);
+  const canReadStats = Boolean(actor && canReadManagedActor(actor, reader.user, reader.isEditor, env));
+  const permissions = { canReadProfile, canReadStats, isEditor: reader.isEditor === true };
+  if (!canReadProfile && !canReadStats) {
+    return json({ ok: true, campaignId, hidden: true, data: { legacyCharacterId: route.legacyCharacterId }, permissions }, 200, {
+      ...corsHeaders,
+      "Cache-Control": reader.user || reader.isEditor ? "private, no-store" : "public, max-age=120, must-revalidate",
+    });
+  }
+  const data = {
+    campaignId,
+    legacyCharacterId: route.legacyCharacterId,
+    worldId: link.worldId,
+    actorId: link.actorId,
+    name: canReadProfile ? link.name : (actor?.name || link.name),
+  };
+  return json({ ok: true, campaignId, data, permissions }, 200, {
+    ...corsHeaders,
+    "Cache-Control": reader.user || reader.isEditor ? "private, no-store" : "public, max-age=120, must-revalidate",
+  });
 }
 
 const MANAGED_ACTOR_ITEM_PATCH_PATHS = new Set([
@@ -2823,6 +3297,24 @@ function normalizeManagedActorMedia(media, existingMedia = {}, source = "foundry
   };
 }
 
+async function preserveExistingMediaWhenFoundryObjectIsMissing(next, existing, source, env, campaignId, route) {
+  if (source !== "foundry" || !env.MEDIA_BUCKET) return [];
+  const actorPrefix = `campaigns/${campaignId}/managed-actors/${route.worldId}/${route.actorId}/`;
+  const ignored = [];
+  for (const slot of ["avatar", "token"]) {
+    const candidate = next?.media?.[slot] || null;
+    const previous = existing?.media?.[slot] || null;
+    if (!candidate?.path || candidate.path === previous?.path) continue;
+    const key = extractMediaKeyFromValue(candidate.path);
+    if (!key || !key.startsWith(actorPrefix)) continue;
+    const object = await env.MEDIA_BUCKET.head(key);
+    if (object) continue;
+    next.media[slot] = previous;
+    ignored.push({ slot, path: candidate.path, reason: "missing-r2-object" });
+  }
+  return ignored;
+}
+
 function managedRuntimeNumber(value) {
   if (value === null || value === undefined || value === "") return null;
   const number = Number(value);
@@ -2963,6 +3455,7 @@ async function handleManagedActorPost(request, route, fallbackCampaignId, env, c
     }
   }
   const next = normalizeManagedActorDocument(body, existing, campaignId, route, authorization.source);
+  const ignoredMissingMedia = await preserveExistingMediaWhenFoundryObjectIsMissing(next, existing, authorization.source, env, campaignId, route);
   if (authorization.source === "site" && authorization.isOwner && !authorization.isEditor && existing?.visibility) {
     next.visibility = existing.visibility;
   }
@@ -2975,22 +3468,27 @@ async function handleManagedActorPost(request, route, fallbackCampaignId, env, c
   const indexKey = managedActorIndexKey(campaignId);
   const indexDoc = safeJsonParse(await env.SIGILLO_KV.get(indexKey)) || { version: 0, data: [] };
   const currentEntries = Array.isArray(indexDoc.data) ? indexDoc.data : [];
-  const nextIndexEntry = managedActorIndexEntry(unchanged ? existing : next);
-  const previousIndexEntry = currentEntries.find((entry) => entry?.id === nextIndexEntry.id) || null;
+  const storedDocument = unchanged ? existing : next;
+  const previousIndexEntry = currentEntries.find((entry) => entry?.id === storedDocument.id) || null;
+  const nextIndexEntry = managedActorIndexEntry(storedDocument, previousIndexEntry);
   const indexChanged = managedActorIndexEntryComparable(previousIndexEntry) !== managedActorIndexEntryComparable(nextIndexEntry);
-
+  const profileMediaChanged = Boolean(existing) && !unchanged
+    && managedActorProfileMediaComparable(existing.media) !== managedActorProfileMediaComparable(next.media);
   if (!unchanged) await env.SIGILLO_KV.put(key, JSON.stringify(next));
   if (indexChanged) {
     const data = [...currentEntries.filter((entry) => entry?.id !== nextIndexEntry.id), nextIndexEntry]
       .sort((left, right) => String(left.name || "").localeCompare(String(right.name || "")));
     await env.SIGILLO_KV.put(indexKey, JSON.stringify({
+      ...indexDoc,
       version: Number(indexDoc.version || 0) + 1,
       campaignId,
       updatedAt: new Date().toISOString(),
       data,
     }));
   }
-
+  const profileMediaSynced = profileMediaChanged
+    ? await syncStoredManagedActorProfileMedia(env, campaignId, route, next)
+    : false;
   const deletedMedia = [];
   if (!unchanged && existing && env.MEDIA_BUCKET) {
     const previousKeys = collectMediaKeysFromValue(existing);
@@ -3008,6 +3506,8 @@ async function handleManagedActorPost(request, route, fallbackCampaignId, env, c
     ok: true,
     saved: !unchanged,
     indexChanged,
+    profileMediaSynced,
+    ignoredMissingMedia,
     campaignId,
     worldId: route.worldId,
     actorId: route.actorId,
@@ -3050,9 +3550,27 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   const reader = await getManagedActorReader(request, env, campaignId);
   const raw = await env.SIGILLO_KV.get(managedActorIndexKey(campaignId));
-  const doc = safeJsonParse(raw) || { version: 0, data: [] };
-  const data = (Array.isArray(doc.data) ? doc.data : []).filter((entry) => canReadManagedActor(entry, reader.user, reader.isEditor, env));
-  return json({ ok: true, campaignId, version: Number(doc.version || 0), updatedAt: doc.updatedAt || null, data }, 200, {
+  const storedDoc = safeJsonParse(raw) || { version: 0, campaignId, data: [] };
+  const doc = await hydrateManagedActorProfileIndex(storedDoc, campaignId, env);
+  const entries = Array.isArray(doc.data) ? doc.data : [];
+  const managedLegacyCharacterIds = Array.from(new Set(entries
+    .map((entry) => sanitizeAssetId(entry?.profile?.legacyCharacterId || ""))
+    .filter(Boolean)));
+  const data = entries.flatMap((entry) => {
+    const canReadStats = canReadManagedActor(entry, reader.user, reader.isEditor, env);
+    const canReadProfile = canReadManagedActorProfileIndex(entry.profile, reader.user, reader.isEditor);
+    if (!canReadStats && !canReadProfile) return [];
+    return [{
+      ...entry,
+      profile: canReadProfile ? entry.profile : null,
+      permissions: {
+        canReadStats,
+        canReadProfile,
+        isEditor: reader.isEditor === true,
+      },
+    }];
+  });
+  return json({ ok: true, campaignId, version: Number(doc.version || 0), updatedAt: doc.updatedAt || null, managedLegacyCharacterIds, data }, 200, {
     ...corsHeaders,
     "Cache-Control": reader.user || reader.isEditor ? "private, no-store" : "public, max-age=60, must-revalidate",
   });

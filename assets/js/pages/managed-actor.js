@@ -2,7 +2,13 @@
     let currentDocument = null;
     let currentCanEdit = false;
     let managedEditMode = false;
+    let currentProfile = null;
+    let currentProfilePermissions = { canEdit: false, isEditor: false };
+    let managedProfileDirty = false;
+    let managedProfileSource = "empty";
     const managedPreviewUrls = new Map();
+    const managedProfileFiles = new Map();
+    const managedProfilePreviewUrls = new Map();
 
     window.CriptaApp.onPageReady("managed-actor", async () => {
         const root = document.querySelector("[data-managed-actor-root]");
@@ -14,6 +20,22 @@
             root.innerHTML = '<div class="managed-load-state"><i class="fas fa-triangle-exclamation"></i><strong>Identità Actor mancante</strong><span>Apri la scheda dal collegamento presente nella wiki.</span></div>';
             return;
         }
+        if (params.get("profile") === "1") {
+            try {
+                const token = getToken();
+                const profilePayload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(worldId)}/${encodeURIComponent(actorId)}/profile`, {
+                    cache: false,
+                    ...(token ? { token } : {})
+                });
+                currentProfile = normalizeManagedProfile(profilePayload.data, { worldId, actorId });
+                currentProfilePermissions = profilePayload.permissions || { canEdit: false, isEditor: false };
+                managedProfileSource = profilePayload.source || "profile";
+                renderManagedProfileOnly(root, currentProfile);
+                return;
+            } catch (error) {
+                console.warn("Vista dossier non disponibile, provo la scheda completa.", error);
+            }
+        }
         try {
             const token = getToken();
             const payload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(worldId)}/${encodeURIComponent(actorId)}`, {
@@ -23,10 +45,25 @@
             currentDocument = payload.data;
             currentCanEdit = currentDocument?.permissions ? currentDocument.permissions.canEdit === true : Boolean(token);
             managedEditMode = false;
+            await loadManagedActorProfile(currentDocument, token);
             renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode);
         } catch (error) {
             console.error("Managed Actor non disponibile", error);
             root.innerHTML = `<div class="managed-load-state"><i class="fas fa-lock"></i><strong>Scheda non disponibile</strong><span>${escapeHtml(error.message || "Non è stato possibile caricare questo Actor.")}</span></div>`;
+            try {
+                const token = getToken();
+                const profilePayload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(worldId)}/${encodeURIComponent(actorId)}/profile`, {
+                    cache: false,
+                    ...(token ? { token } : {})
+                });
+                currentProfile = normalizeManagedProfile(profilePayload.data, { worldId, actorId });
+                currentProfilePermissions = profilePayload.permissions || { canEdit: false, isEditor: false };
+                managedProfileSource = profilePayload.source || "profile";
+                renderManagedProfileOnly(root, currentProfile);
+                return;
+            } catch (profileError) {
+                console.warn("Dossier NPC non disponibile", profileError);
+            }
         }
     });
 
@@ -70,6 +107,8 @@
                 </div>
                 <div class="managed-actor-title">
                     <h1>${editMode ? renderManagedActorControl("name", "text", actor.name || "Actor", { className: "managed-actor-name-input" }) : escapeHtml(actor.name || "Actor")}</h1>
+                    ${currentProfile?.role ? `<p class="managed-profile-role">${escapeHtml(currentProfile.role)}</p>` : ""}
+                    ${currentProfile?.quote ? `<blockquote class="managed-profile-quote">${escapeHtml(currentProfile.quote)}</blockquote>` : ""}
                     ${renderManagedHeroVitals(attributes, details, actor.runtime || {}, actor.actorType)}
                     ${hasSiteAnimation ? renderManagedMediaDock(media, tokenPath, actor.name || "Actor") : ""}
                     <div class="managed-actor-chips">
@@ -82,6 +121,7 @@
             </section>
             ${renderManagedCommandBar({ abilities, skills, traits, variants, effects, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor })}
             <div class="managed-actor-panels">
+                ${renderManagedProfileSection(currentProfile, editMode, Boolean(canEdit && currentProfilePermissions.canEdit))}
                 ${renderCoreStats(attributes, details, actor.runtime || {}, actor.actorType, traits, definition.spellSlots || {}, editMode)}
                 ${renderAbilities(abilities, editMode)}
                 ${renderSkills(skills, editMode)}
@@ -96,7 +136,7 @@
             ${renderManagedImageLightbox()}
         `;
 
-        root.querySelector("[data-managed-save]")?.addEventListener("click", () => saveManagedActorPresentation(root));
+        root.querySelector("[data-managed-save]")?.addEventListener("click", () => saveManagedActorPage(root));
         root.querySelectorAll("[data-managed-edit-toggle]").forEach((button) => button.addEventListener("click", () => toggleManagedEditMode(root, button.dataset.managedEditToggle === "edit")));
         root.querySelectorAll("[data-managed-item-save]").forEach((button) => button.addEventListener("click", () => enqueueManagedItemUpdate(button)));
         root.querySelectorAll("[data-managed-item-delete]").forEach((button) => button.addEventListener("click", () => enqueueManagedItemDelete(button)));
@@ -111,8 +151,427 @@
         setupManagedCollectionControls(root);
         setupManagedGuidedMechanics(root);
         setupManagedImageLightbox(root);
+        setupManagedAvatarFallback(root, actor.media);
         if (editMode) root.addEventListener("input", () => { root.dataset.managedDirty = "true"; });
+        setupManagedProfileEditor(root, editMode);
         if (editMode) root.addEventListener("change", () => { root.dataset.managedDirty = "true"; });
+    }
+
+    async function loadManagedActorProfile(actor, token = "") {
+        managedProfileDirty = false;
+        managedProfileFiles.clear();
+        clearManagedProfilePreviews();
+        try {
+            const payload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(actor.worldId)}/${encodeURIComponent(actor.actorId)}/profile`, {
+                cache: false,
+                ...(token ? { token } : {})
+            });
+            currentProfile = normalizeManagedProfile(payload.data, actor);
+            currentProfilePermissions = payload.permissions || { canEdit: false, isEditor: false };
+            managedProfileSource = payload.source || "profile";
+            return currentProfile;
+        } catch (error) {
+            console.warn("Dossier non accessibile per questa sessione.", error);
+            currentProfile = null;
+            currentProfilePermissions = { canEdit: false, isEditor: false };
+            managedProfileSource = "unavailable";
+            return null;
+        }
+    }
+
+    function normalizeManagedProfile(value, actor = {}) {
+        const input = value && typeof value === "object" ? value : {};
+        const blocks = Array.isArray(input.blocks) ? input.blocks : [];
+        const mediaInput = input.media && typeof input.media === "object" ? input.media : {};
+        const actorMedia = actor?.media || {};
+        const normalizeSlot = (slot) => {
+            const source = typeof slot === "string" ? { path: slot } : (slot && typeof slot === "object" ? slot : null);
+            return source?.path ? { path: String(source.path), ...(source.presentation ? { presentation: source.presentation } : {}) } : null;
+        };
+        return {
+            schemaVersion: 1,
+            id: String(input.id || `${actor.worldId || "world"}:${actor.actorId || "actor"}:profile`),
+            campaignId: input.campaignId || window.CriptaApp?.campaigns?.currentId?.() || "cripta-di-sangue",
+            worldId: input.worldId || actor.worldId || "",
+            actorId: input.actorId || actor.actorId || "",
+            legacyCharacterId: sanitizeId(input.legacyCharacterId || ""),
+            name: String(input.name || actor.name || "NPC"),
+            role: String(input.role || ""),
+            quote: String(input.quote || ""),
+            status: String(input.status || ""),
+            visibility: { state: normalizeManagedProfileVisibility(input.visibility?.state || input.visibility || "dm") },
+            summary: {
+                race: String(input.summary?.race || ""),
+                birthYear: String(input.summary?.birthYear || input.summary?.birth_year || ""),
+                age: String(input.summary?.age || ""),
+                height: String(input.summary?.height || ""),
+                weight: String(input.summary?.weight || "")
+            },
+            media: {
+                avatar: normalizeSlot(mediaInput.avatar) || normalizeSlot(actorMedia.avatar),
+                idle: normalizeSlot(mediaInput.idle) || normalizeSlot(actorMedia.idle),
+                hover: normalizeSlot(mediaInput.hover) || normalizeSlot(actorMedia.hover)
+            },
+            blocks: blocks.map((block, index) => normalizeManagedProfileBlockClient(block, index)),
+            revision: Math.max(0, Number(input.revision || 0)),
+            createdAt: input.createdAt || null,
+            updatedAt: input.updatedAt || null,
+            updatedBy: input.updatedBy || "site"
+        };
+    }
+
+    function managedProfileFromLegacyClient(character, actor) {
+        const legacyBlocks = Array.isArray(character.content_blocks) ? character.content_blocks : (Array.isArray(character.blocks) ? character.blocks : []);
+        const images = character.images || {};
+        return normalizeManagedProfile({
+            legacyCharacterId: character.id || sanitizeId(character.name || ""),
+            name: character.name || actor.name,
+            role: character.role || character.subtitle || "",
+            quote: character.quote || "",
+            status: character.status || "",
+            visibility: { state: character.hidden === true ? "dm" : "public" },
+            summary: character.summary || {},
+            media: { avatar: images.avatar || images.portrait || actor.media?.avatar, idle: images.idle || actor.media?.idle, hover: images.hover || actor.media?.hover },
+            blocks: legacyBlocks,
+            revision: 0,
+            updatedAt: character.updatedAt || null,
+            updatedBy: "legacy"
+        }, actor);
+    }
+
+    function normalizeManagedProfileBlockClient(value, index = 0) {
+        const block = value && typeof value === "object" ? value : {};
+        const allowedTypes = ["lore", "image_box", "banner_box", "custom_box", "secret_dossier"];
+        const type = allowedTypes.includes(block.type) ? block.type : (block.image ? "image_box" : "lore");
+        let text = String(block.markdownText ?? block.text ?? block.content ?? "");
+        if (!text && block.markdownHtml) {
+            const scratch = document.createElement("div");
+            scratch.innerHTML = String(block.markdownHtml);
+            text = scratch.innerText || "";
+        }
+        return {
+            id: sanitizeId(block.id || block.title || `blocco-${index + 1}`) || `blocco-${index + 1}`,
+            type,
+            title: String(block.title || "Informazioni"),
+            icon: String(block.icon || (type === "image_box" ? "fa-book-open" : "fa-scroll")),
+            text,
+            visibility: normalizeManagedProfileVisibility(block.hidden === true ? "dm" : (block.visibility?.state || block.visibility || "public")),
+            image: String(block.image || ""),
+            banner: String(block.banner || ""),
+            imageCaption: String(block.imageCaption || block.image_caption || ""),
+            borderColor: String(block.borderColor || ""),
+            tags: Array.isArray(block.tags) ? block.tags.slice() : []
+        };
+    }
+
+    function normalizeManagedProfileVisibility(value) {
+        return String(value || "dm").toLowerCase() === "dm" ? "dm" : "public";
+    }
+
+    function renderManagedAccessEditor(profile) {
+        const statsState = String(currentDocument?.visibility?.state || "dm");
+        const canManageStats = currentDocument?.permissions?.canManageVisibility === true
+            || (currentDocument?.permissions?.canManageVisibility === undefined && currentDocument?.permissions?.isEditor === true);
+        return `<div class="managed-profile-access-editor">
+            <label><span><i class="fas fa-book-open"></i><b>Informazioni</b><small>Dossier, ruolo e contenuti narrativi</small></span><select data-managed-profile-field="visibility" aria-label="Visibilita informazioni"><option value="public" ${profile.visibility?.state !== "dm" ? "selected" : ""}>Tutti, anche senza login</option><option value="dm" ${profile.visibility?.state === "dm" ? "selected" : ""}>Solo DM</option></select></label>
+            ${canManageStats ? `<label><span><i class="fas fa-shield-halved"></i><b>Statistiche</b><small>Statblock, attacchi, incantesimi e inventario</small></span><select data-managed-visibility aria-label="Visibilita statistiche"><option value="dm" ${statsState === "dm" ? "selected" : ""}>Solo DM</option><option value="owners" ${statsState === "owners" ? "selected" : ""}>Proprietari</option><option value="players" ${statsState === "players" ? "selected" : ""}>Giocatori con login</option><option value="public" ${statsState === "public" ? "selected" : ""}>Tutti, anche senza login</option></select></label>` : ""}
+        </div>`;
+    }
+
+    function renderManagedProfileOnly(root, profile) {
+        const media = profile.media || {};
+        const avatarPath = media.avatar?.path || media.idle?.path || "";
+        const hasAnimation = Boolean(media.idle?.path || media.hover?.path);
+        root.classList.add("is-viewing", "is-profile-only");
+        document.title = `${profile.name || "NPC"} - Cripta di Sangue`;
+        root.innerHTML = `<nav class="managed-actor-breadcrumb" aria-label="Navigazione scheda"><a href="../npcs.html"><i class="fas fa-arrow-left"></i> Torna agli NPC</a></nav>
+            <section class="managed-actor-hero managed-actor-hero--profile-only"><div class="managed-actor-art"><div class="managed-actor-aura" aria-hidden="true"></div><div class="managed-actor-avatar">${renderManagedAvatarArtwork(media, avatarPath, profile.name)}</div></div><div class="managed-actor-title"><h1>${escapeHtml(profile.name)}</h1>${profile.role ? `<p class="managed-profile-role">${escapeHtml(profile.role)}</p>` : ""}${profile.quote ? `<blockquote class="managed-profile-quote">${escapeHtml(profile.quote)}</blockquote>` : ""}${hasAnimation ? renderManagedSiteAnimation(media, profile.name) : ""}</div></section>
+            <div class="managed-actor-panels">${renderManagedProfileSection(profile, false, false)}</div>${renderManagedImageLightbox()}`;
+        setupManagedImageLightbox(root);
+        setupManagedAvatarFallback(root, media);
+    }
+
+    function renderManagedProfileSummaryInput(key, label, value) {
+        return `<label><span>${escapeHtml(label)}</span><input type="text" data-managed-profile-summary="${escapeAttr(key)}" value="${escapeAttr(value || "")}"></label>`;
+    }
+
+    function renderManagedProfileViewBlock(block) {
+        const type = block.type || "lore";
+        const imagePath = type === "banner_box" ? (block.banner || block.image) : block.image;
+        const image = imagePath ? `<button type="button" class="managed-profile-block-image" data-managed-image-open="${escapeAttr(resolveMedia(imagePath))}" data-managed-image-title="${escapeAttr(block.title)}"><img src="${escapeAttr(resolveMedia(imagePath))}" alt="${escapeAttr(block.title)}" loading="lazy" decoding="async"><span><i class="fas fa-expand"></i></span></button>` : "";
+        const html = window.CriptaMarkdown?.render?.(block.text || "", { showInlineSecrets: currentProfilePermissions.isEditor === true }) || `<p>${escapeHtml(block.text || "")}</p>`;
+        const hiddenBadge = block.visibility === "dm" && currentProfilePermissions.isEditor ? `<span class="managed-profile-hidden"><i class="fas fa-eye-slash"></i> Solo DM</span>` : "";
+        return `<article class="managed-profile-block managed-profile-block--${escapeAttr(type)}">${type === "banner_box" ? image : ""}<div class="managed-profile-block-body">${hiddenBadge}<h3><i class="fas ${escapeAttr(block.icon || "fa-scroll")}"></i>${escapeHtml(block.title)}</h3>${type !== "banner_box" ? image : ""}<div class="managed-profile-markdown">${html}</div></div></article>`;
+    }
+
+    function renderManagedProfileSection(profile, editMode = false, canEdit = false) {
+        if (!profile) return "";
+        const blocks = Array.isArray(profile.blocks) ? profile.blocks : [];
+        const summaryEntries = [["Razza", profile.summary?.race], ["Anno di nascita", profile.summary?.birthYear], ["Eta", profile.summary?.age], ["Altezza", profile.summary?.height], ["Peso", profile.summary?.weight]].filter(([, value]) => String(value || "").trim());
+        const legacyLink = profile.legacyCharacterId ? `./character.html?id=${encodeURIComponent(profile.legacyCharacterId)}&type=npc&legacy=1` : "";
+        if (editMode && canEdit) {
+            return `<section id="managed-profile" class="managed-panel managed-panel--wide managed-profile-panel is-editing-profile" data-managed-profile>
+                <header class="managed-profile-header"><div><span class="managed-panel-kicker">Dossier narrativo</span><h2><i class="fas fa-book-open"></i> Storia e informazioni</h2></div>${legacyLink ? `<a class="managed-profile-legacy-link" href="${escapeAttr(legacyLink)}"><i class="fas fa-clock-rotate-left"></i> Versione precedente</a>` : ""}</header>
+                ${renderManagedAccessEditor(profile)}
+                <div class="managed-profile-meta-editor">
+                    <label><span>Ruolo o soprannome</span><input type="text" data-managed-profile-field="role" value="${escapeAttr(profile.role)}" placeholder="Es. La Giullare"></label>
+                    <label><span>Stato</span><input type="text" data-managed-profile-field="status" value="${escapeAttr(profile.status)}" placeholder="Es. Vivo, disperso"></label>
+                    <label><span>ID wiki collegato</span><input type="text" data-managed-profile-field="legacyCharacterId" value="${escapeAttr(profile.legacyCharacterId)}" placeholder="zara"></label>
+                    <label class="managed-profile-field-wide"><span>Citazione</span><textarea rows="2" data-managed-profile-field="quote" placeholder="Una frase rappresentativa">${escapeHtml(profile.quote)}</textarea></label>
+                </div>
+                <div class="managed-profile-summary-editor">${renderManagedProfileSummaryInput("race", "Razza", profile.summary?.race)}${renderManagedProfileSummaryInput("birthYear", "Anno di nascita", profile.summary?.birthYear)}${renderManagedProfileSummaryInput("age", "Eta", profile.summary?.age)}${renderManagedProfileSummaryInput("height", "Altezza", profile.summary?.height)}${renderManagedProfileSummaryInput("weight", "Peso", profile.summary?.weight)}</div>
+                <div class="managed-profile-editor-toolbar"><div><strong>Blocchi del dossier</strong><span>Trascina per riordinare o usa le frecce.</span></div><div><button type="button" data-managed-profile-add="lore"><i class="fas fa-align-left"></i> Testo</button><button type="button" data-managed-profile-add="image_box"><i class="fas fa-image"></i> Immagine</button><button type="button" data-managed-profile-add="custom_box"><i class="fas fa-message"></i> Riquadro</button><button type="button" data-managed-profile-add="banner_box"><i class="fas fa-panorama"></i> Banner</button></div></div>
+                <div class="managed-profile-block-editor" data-managed-profile-blocks>${blocks.map(renderManagedProfileEditorBlock).join("") || `<div class="managed-profile-empty"><i class="fas fa-feather-pointed"></i><strong>Nessun blocco</strong><span>Aggiungi il primo capitolo del dossier.</span></div>`}</div>
+            </section>`;
+        }
+        const content = blocks.length ? `<div class="managed-profile-block-grid">${blocks.map(renderManagedProfileViewBlock).join("")}</div>` : `<div class="managed-profile-empty"><i class="fas fa-book"></i><strong>Dossier ancora vuoto</strong><span>Le informazioni narrative verranno aggiunte qui.</span></div>`;
+        return `<section id="managed-profile" class="managed-panel managed-panel--wide managed-profile-panel" data-managed-profile>
+            <header class="managed-profile-header"><div><span class="managed-panel-kicker">Dossier</span><h2><i class="fas fa-book-open"></i> Storia e informazioni</h2></div>${canEdit && legacyLink ? `<a class="managed-profile-legacy-link" href="${escapeAttr(legacyLink)}"><i class="fas fa-clock-rotate-left"></i> Versione precedente</a>` : ""}</header>
+            ${summaryEntries.length ? `<dl class="managed-profile-summary">${summaryEntries.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>` : ""}${content}
+        </section>`;
+    }
+
+    function renderManagedProfileEditorBlock(block, index) {
+        const needsImage = ["image_box", "banner_box", "secret_dossier"].includes(block.type);
+        const imageValue = block.type === "banner_box" ? (block.banner || block.image || "") : (block.image || "");
+        const preview = getManagedProfilePreview(block) || (imageValue ? resolveMedia(imageValue) : "");
+        return `<article class="managed-profile-edit-block" data-managed-profile-block data-managed-profile-block-id="${escapeAttr(block.id)}">
+            <div class="managed-profile-edit-block-head"><button type="button" class="managed-profile-drag" draggable="true" data-managed-profile-drag="${escapeAttr(block.id)}" aria-label="Trascina ${escapeAttr(block.title)}"><i class="fas fa-grip-vertical"></i></button><strong>${escapeHtml(block.title || `Blocco ${index + 1}`)}</strong><div><button type="button" data-managed-profile-move="up" aria-label="Sposta su"><i class="fas fa-arrow-up"></i></button><button type="button" data-managed-profile-move="down" aria-label="Sposta giu"><i class="fas fa-arrow-down"></i></button><button type="button" class="is-danger" data-managed-profile-delete aria-label="Elimina blocco"><i class="fas fa-trash"></i></button></div></div>
+            <input type="hidden" data-managed-profile-block-field="id" value="${escapeAttr(block.id)}">
+            <div class="managed-profile-block-fields">
+                <label><span>Tipo</span><select data-managed-profile-block-field="type"><option value="lore" ${block.type === "lore" ? "selected" : ""}>Testo</option><option value="image_box" ${block.type === "image_box" ? "selected" : ""}>Immagine e testo</option><option value="custom_box" ${block.type === "custom_box" ? "selected" : ""}>Riquadro</option><option value="banner_box" ${block.type === "banner_box" ? "selected" : ""}>Banner</option><option value="secret_dossier" ${block.type === "secret_dossier" ? "selected" : ""}>Dossier segreto</option></select></label>
+                <label><span>Visibilita</span><select data-managed-profile-block-field="visibility"><option value="public" ${block.visibility !== "dm" ? "selected" : ""}>Tutti</option><option value="dm" ${block.visibility === "dm" ? "selected" : ""}>Solo DM</option></select></label>
+                <label class="managed-profile-field-grow"><span>Titolo</span><input type="text" data-managed-profile-block-field="title" value="${escapeAttr(block.title)}"></label>
+                <label><span>Icona</span><input type="text" data-managed-profile-block-field="icon" value="${escapeAttr(block.icon)}" placeholder="fa-scroll"></label>
+            </div>
+            ${needsImage ? `<div class="managed-profile-image-editor"><div class="managed-profile-image-drop" data-managed-profile-image-drop="${escapeAttr(block.id)}">${preview ? `<img data-managed-profile-image-preview src="${escapeAttr(preview)}" alt="">` : `<i class="fas fa-image"></i><span>Trascina immagine</span>`}</div><div><label><span>Percorso immagine</span><input type="text" data-managed-profile-block-field="image" value="${escapeAttr(imageValue)}"></label><label class="managed-profile-file-button"><i class="fas fa-cloud-arrow-up"></i><span>Scegli immagine</span><input type="file" accept="image/*" data-managed-profile-image-file="${escapeAttr(block.id)}"></label></div></div>` : ""}
+            <div class="managed-profile-text-editor"><label><span>Testo</span><textarea rows="8" data-managed-profile-block-field="text">${escapeHtml(block.text)}</textarea></label><div><span>Anteprima</span><div class="managed-profile-markdown managed-profile-live-preview" data-managed-profile-preview>${window.CriptaMarkdown?.render?.(block.text || "", { showInlineSecrets: true }) || escapeHtml(block.text)}</div></div></div>
+        </article>`;
+    }
+
+    function getManagedProfilePreview(block) {
+        const file = managedProfileFiles.get(block.id);
+        if (!file) return "";
+        if (!managedProfilePreviewUrls.has(block.id)) managedProfilePreviewUrls.set(block.id, URL.createObjectURL(file));
+        return managedProfilePreviewUrls.get(block.id);
+    }
+
+    function clearManagedProfilePreviews() {
+        managedProfilePreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+        managedProfilePreviewUrls.clear();
+    }
+
+    function setupManagedProfileEditor(root, editMode) {
+        const section = root.querySelector("[data-managed-profile]");
+        if (!section || !editMode || !currentProfilePermissions.canEdit) return;
+        const markDirty = () => { managedProfileDirty = true; root.dataset.managedDirty = "true"; };
+        section.querySelectorAll("input:not([data-managed-visibility]), textarea, select:not([data-managed-visibility])").forEach((control) => control.addEventListener("input", markDirty));
+        section.querySelectorAll("select:not([data-managed-visibility])").forEach((control) => control.addEventListener("change", markDirty));
+        section.querySelectorAll('[data-managed-profile-block-field="text"]').forEach((textarea) => textarea.addEventListener("input", () => {
+            const preview = textarea.closest("[data-managed-profile-block]")?.querySelector("[data-managed-profile-preview]");
+            if (preview) preview.innerHTML = window.CriptaMarkdown?.render?.(textarea.value, { showInlineSecrets: true }) || escapeHtml(textarea.value);
+        }));
+        section.querySelectorAll('[data-managed-profile-block-field="type"]').forEach((select) => select.addEventListener("change", () => {
+            currentProfile = collectManagedProfileFromRoot(root);
+            rerenderManagedProfileSection(root);
+        }));
+        section.querySelectorAll("[data-managed-profile-add]").forEach((button) => button.addEventListener("click", () => {
+            currentProfile = collectManagedProfileFromRoot(root);
+            const type = button.dataset.managedProfileAdd || "lore";
+            const id = uniqueManagedProfileBlockId(type === "image_box" ? "immagine" : "informazioni");
+            currentProfile.blocks.push(normalizeManagedProfileBlockClient({ id, type, title: type === "image_box" ? "Nuova immagine" : "Nuove informazioni", visibility: "public", text: "" }, currentProfile.blocks.length));
+            markDirty();
+            rerenderManagedProfileSection(root);
+        }));
+        section.querySelectorAll("[data-managed-profile-delete]").forEach((button) => button.addEventListener("click", () => {
+            if (!window.confirm("Eliminare questo blocco dal dossier?")) return;
+            const id = button.closest("[data-managed-profile-block]")?.dataset.managedProfileBlockId;
+            currentProfile = collectManagedProfileFromRoot(root);
+            currentProfile.blocks = currentProfile.blocks.filter((block) => block.id !== id);
+            managedProfileFiles.delete(id);
+            const previewUrl = managedProfilePreviewUrls.get(id);
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            managedProfilePreviewUrls.delete(id);
+            markDirty();
+            rerenderManagedProfileSection(root);
+        }));
+        section.querySelectorAll("[data-managed-profile-move]").forEach((button) => button.addEventListener("click", () => {
+            const id = button.closest("[data-managed-profile-block]")?.dataset.managedProfileBlockId;
+            moveManagedProfileBlock(root, id, button.dataset.managedProfileMove === "up" ? -1 : 1);
+        }));
+        section.querySelectorAll("[data-managed-profile-image-file]").forEach((input) => input.addEventListener("change", () => {
+            const file = input.files?.[0];
+            if (file) assignManagedProfileFile(root, input.dataset.managedProfileImageFile, file);
+        }));
+        section.querySelectorAll("[data-managed-profile-image-drop]").forEach((drop) => {
+            drop.addEventListener("dragover", (event) => { event.preventDefault(); drop.classList.add("is-dragover"); });
+            drop.addEventListener("dragleave", () => drop.classList.remove("is-dragover"));
+            drop.addEventListener("drop", (event) => {
+                event.preventDefault();
+                drop.classList.remove("is-dragover");
+                const file = Array.from(event.dataTransfer?.files || []).find((entry) => entry.type.startsWith("image/"));
+                if (file) assignManagedProfileFile(root, drop.dataset.managedProfileImageDrop, file);
+            });
+        });
+        let draggedId = "";
+        section.querySelectorAll("[data-managed-profile-drag]").forEach((handle) => handle.addEventListener("dragstart", (event) => {
+            draggedId = handle.dataset.managedProfileDrag || "";
+            event.dataTransfer.effectAllowed = "move";
+        }));
+        section.querySelectorAll("[data-managed-profile-block]").forEach((blockNode) => {
+            blockNode.addEventListener("dragover", (event) => { if (draggedId) event.preventDefault(); });
+            blockNode.addEventListener("drop", (event) => {
+                event.preventDefault();
+                const targetId = blockNode.dataset.managedProfileBlockId || "";
+                if (!draggedId || !targetId || draggedId === targetId) return;
+                currentProfile = collectManagedProfileFromRoot(root);
+                const from = currentProfile.blocks.findIndex((block) => block.id === draggedId);
+                const to = currentProfile.blocks.findIndex((block) => block.id === targetId);
+                if (from < 0 || to < 0) return;
+                const [moved] = currentProfile.blocks.splice(from, 1);
+                currentProfile.blocks.splice(to, 0, moved);
+                markDirty();
+                rerenderManagedProfileSection(root);
+            });
+        });
+    }
+
+    function assignManagedProfileFile(root, id, file) {
+        if (!id || !file) return;
+        const previousUrl = managedProfilePreviewUrls.get(id);
+        if (previousUrl) URL.revokeObjectURL(previousUrl);
+        managedProfilePreviewUrls.delete(id);
+        managedProfileFiles.set(id, file);
+        managedProfileDirty = true;
+        root.dataset.managedDirty = "true";
+        rerenderManagedProfileSection(root);
+    }
+
+    function moveManagedProfileBlock(root, id, direction) {
+        currentProfile = collectManagedProfileFromRoot(root);
+        const index = currentProfile.blocks.findIndex((block) => block.id === id);
+        const target = index + direction;
+        if (index < 0 || target < 0 || target >= currentProfile.blocks.length) return;
+        [currentProfile.blocks[index], currentProfile.blocks[target]] = [currentProfile.blocks[target], currentProfile.blocks[index]];
+        managedProfileDirty = true;
+        root.dataset.managedDirty = "true";
+        rerenderManagedProfileSection(root);
+    }
+
+    function uniqueManagedProfileBlockId(base) {
+        const used = new Set((currentProfile?.blocks || []).map((block) => block.id));
+        const root = sanitizeId(base || "blocco") || "blocco";
+        let candidate = root;
+        let suffix = 2;
+        while (used.has(candidate)) candidate = `${root}-${suffix++}`;
+        return candidate;
+    }
+
+    function collectManagedProfileFromRoot(root) {
+        const section = root.querySelector("[data-managed-profile]");
+        if (!section || !currentProfile) return structuredClone(currentProfile || {});
+        const next = structuredClone(currentProfile);
+        const field = (name) => section.querySelector(`[data-managed-profile-field="${CSS.escape(name)}"]`)?.value ?? "";
+        next.role = field("role");
+        next.status = field("status");
+        next.quote = field("quote");
+        next.legacyCharacterId = sanitizeId(field("legacyCharacterId"));
+        next.visibility = { state: normalizeManagedProfileVisibility(field("visibility")) };
+        next.summary = {};
+        section.querySelectorAll("[data-managed-profile-summary]").forEach((input) => { next.summary[input.dataset.managedProfileSummary] = input.value; });
+        const previousBlocks = new Map((currentProfile.blocks || []).map((block) => [block.id, block]));
+        next.blocks = Array.from(section.querySelectorAll("[data-managed-profile-block]")).map((node, index) => {
+            const value = (name) => node.querySelector(`[data-managed-profile-block-field="${CSS.escape(name)}"]`)?.value ?? "";
+            const type = value("type") || "lore";
+            const imageValue = value("image");
+            return normalizeManagedProfileBlockClient({ ...(previousBlocks.get(value("id")) || {}), id: value("id") || `blocco-${index + 1}`, type, title: value("title") || "Informazioni", icon: value("icon") || "fa-scroll", visibility: value("visibility") || "public", text: value("text"), ...(type === "banner_box" ? { banner: imageValue } : { image: imageValue }) }, index);
+        });
+        if (currentDocument?.media) next.media = { avatar: currentDocument.media.avatar || next.media?.avatar || null, idle: currentDocument.media.idle || next.media?.idle || null, hover: currentDocument.media.hover || next.media?.hover || null };
+        return next;
+    }
+
+    function rerenderManagedProfileSection(root) {
+        const previous = root.querySelector("[data-managed-profile]");
+        if (!previous) return;
+        const template = document.createElement("template");
+        template.innerHTML = renderManagedProfileSection(currentProfile, managedEditMode, Boolean(currentCanEdit && currentProfilePermissions.canEdit)).trim();
+        const replacement = template.content.firstElementChild;
+        if (!replacement) return;
+        previous.replaceWith(replacement);
+        setupManagedProfileEditor(root, managedEditMode);
+        setupManagedImageLightbox(root);
+    }
+
+    async function saveManagedActorPage(root) {
+        const status = root.querySelector("[data-managed-status]");
+        const button = root.querySelector("[data-managed-save]");
+        const token = getToken();
+        if (!token) return;
+        const actorHasChanges = collectManagedActorPatches(root).length > 0 || hasManagedPresentationChanges(root, currentDocument);
+        let profileSaved = false;
+        if (managedProfileDirty || managedProfileSource === "legacy") {
+            button.disabled = true;
+            if (status) status.textContent = "Salvataggio dossier...";
+            try {
+                await saveManagedActorProfile(root, token);
+                profileSaved = true;
+            } catch (error) {
+                console.error("Salvataggio dossier fallito", error);
+                if (status) status.textContent = error.message || "Salvataggio dossier fallito";
+                button.disabled = false;
+                return;
+            }
+            button.disabled = false;
+        }
+        if (actorHasChanges) {
+            await saveManagedActorPresentation(root);
+            return;
+        }
+        if (status) status.textContent = profileSaved ? `Dossier salvato - revisione ${currentProfile.revision}` : "Nessuna modifica da salvare.";
+        if (profileSaved) {
+            root.dataset.managedDirty = "false";
+            rerenderManagedProfileSection(root);
+        }
+    }
+
+    async function saveManagedActorProfile(root, token) {
+        const next = collectManagedProfileFromRoot(root);
+        const nextRevision = Number(currentProfile?.revision || 0) + 1;
+        for (const block of next.blocks) {
+            const file = managedProfileFiles.get(block.id);
+            if (!file) continue;
+            const path = await uploadManagedProfileImage(file, block.id, nextRevision, token);
+            if (block.type === "banner_box") block.banner = path;
+            else block.image = path;
+        }
+        const payload = await window.CriptaApp.api.post(`api/managed-actors/${encodeURIComponent(next.worldId)}/${encodeURIComponent(next.actorId)}/profile`, {
+            expectedRevision: Number(currentProfile?.revision || 0),
+            data: next
+        }, { token });
+        currentProfile = normalizeManagedProfile(payload.data, currentDocument || next);
+        currentProfilePermissions = { ...currentProfilePermissions, canEdit: true, isEditor: true };
+        managedProfileSource = "profile";
+        managedProfileDirty = false;
+        managedProfileFiles.clear();
+        clearManagedProfilePreviews();
+    }
+
+    async function uploadManagedProfileImage(file, blockId, revision, token) {
+        const blob = await fileToWebp(file, 1800);
+        const folder = `managed-actors/${sanitizeId(currentProfile.worldId)}/${sanitizeId(currentProfile.actorId)}/lore`;
+        const filename = `${sanitizeId(blockId)}-r${Math.max(1, Math.floor(Number(revision) || 1))}.webp`;
+        const form = new FormData();
+        form.set("campaignId", window.CriptaApp.campaigns.currentId());
+        form.set("folder", folder);
+        form.set("filename", filename);
+        form.set("file", new File([blob], filename, { type: "image/webp" }));
+        const url = new URL(window.CriptaApp.urls.api("media/upload"));
+        url.searchParams.set("folder", folder);
+        url.searchParams.set("campaign", window.CriptaApp.campaigns.currentId());
+        const response = await fetch(url.toString(), { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || "Upload immagine dossier fallito");
+        return payload.path || `media/${payload.key}`;
     }
     function renderManagedAvatarArtwork(media, avatarPath, actorName) {
         if (!avatarPath) return renderImage("", actorName);
@@ -123,6 +582,29 @@
                 </span>
                 <span class="managed-image-zoom-hint" aria-hidden="true"><i class="fas fa-expand"></i></span>
             </button>`;
+    }
+
+    function setupManagedAvatarFallback(root, media) {
+        const image = root.querySelector(".managed-avatar-button [data-managed-avatar-layer]");
+        const trigger = root.querySelector(".managed-avatar-button");
+        if (!image || !trigger) return;
+        const originalPath = String(media?.avatar?.path || "");
+        const fallbackPaths = [media?.idle?.path, media?.hover?.path, media?.token?.path]
+            .map((path) => String(path || "").trim())
+            .filter((path, index, paths) => path && path !== originalPath && paths.indexOf(path) === index);
+        if (!fallbackPaths.length) return;
+        let cursor = 0;
+        const useNextFallback = () => {
+            const path = fallbackPaths[cursor++];
+            if (!path) return;
+            const url = resolveMedia(path);
+            image.dataset.managedAvatarFallback = path;
+            image.src = url;
+            trigger.dataset.managedImageOpen = url;
+            trigger.dataset.managedImageTitle = "Immagine alternativa";
+        };
+        image.addEventListener("error", useNextFallback);
+        if (image.complete && image.naturalWidth === 0) queueMicrotask(useNextFallback);
     }
 
     function renderManagedMediaDock(media, tokenPath, actorName) {
@@ -446,6 +928,7 @@
     function renderManagedCommandBar({ abilities, skills, traits, variants, effects, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor }) {
         const links = [
             ["managed-stats", "fa-gauge-high", "Panoramica", true],
+            ["managed-profile", "fa-book-open", "Dossier", Boolean(currentProfile?.blocks?.length || currentProfile?.role || currentProfile?.quote || editMode)],
             ["managed-abilities", "fa-dumbbell", "Caratteristiche", Object.keys(abilities || {}).length > 0],
             ["managed-skills", "fa-list-check", "Abilità", Object.keys(skills || {}).length > 0],
             ["managed-traits", "fa-shield-halved", "Difese", Object.keys(traits || {}).length > 0],
@@ -469,9 +952,13 @@
         return `<div class="managed-command-bar"><nav class="managed-section-nav" aria-label="Sezioni della scheda"><div>${links.map(([id, icon, label]) => `<a href="#${id}"><i class="fas ${icon}" aria-hidden="true"></i><span>${escapeHtml(label)}</span></a>`).join("")}</div></nav><div class="managed-command-actions"><div class="managed-sync-indicator ${syncState.className}"><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span></div>${actions}</div></div>`;
     }
 
-    function toggleManagedEditMode(root, shouldEdit) {
+    async function toggleManagedEditMode(root, shouldEdit) {
         if (!currentCanEdit || managedEditMode === shouldEdit) return;
         if (!shouldEdit && root.dataset.managedDirty === "true" && !window.confirm("Uscire dalla modalità modifica? Le modifiche non ancora inviate andranno perse.")) return;
+        if (!shouldEdit && managedProfileDirty) {
+            await loadManagedActorProfile(currentDocument, getToken());
+            managedProfileDirty = false;
+        }
         const previousScroll = window.scrollY;
         managedEditMode = shouldEdit;
         renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode);
@@ -1105,13 +1592,6 @@
         return keys.reduce((value, key) => value?.[key], definition);
     }
     function renderAdmin(actor) {
-        const state = String(actor.visibility?.state || "dm");
-        const canManageVisibility = actor.permissions?.canManageVisibility === true
-            || (actor.permissions?.canManageVisibility === undefined && actor.permissions?.canEdit === true);
-        const visibilityControl = canManageVisibility ? `<div class="managed-visibility-control">
-                <div><i class="fas fa-eye"></i><span><strong>Visibilità</strong><small>Decidi chi può consultare questa scheda.</small></span></div>
-                <select data-managed-visibility aria-label="Visibilità scheda"><option value="dm" ${state === "dm" ? "selected" : ""}>Solo DM</option><option value="owners" ${state === "owners" ? "selected" : ""}>Proprietari</option><option value="players" ${state === "players" ? "selected" : ""}>Giocatori</option><option value="public" ${state === "public" ? "selected" : ""}>Pubblico</option></select>
-            </div>` : "";
         return `<section id="managed-appearance" class="managed-panel managed-panel--admin" data-managed-admin>
             <header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Sito e Foundry</span><h2><i class="fas fa-sliders"></i> Aspetto condiviso</h2></div></header>
             <div class="managed-media-strip" aria-label="Immagini del personaggio">
@@ -1120,7 +1600,6 @@
                 ${renderSiteSlotEditor("idle", actor.media?.idle)}
                 ${renderSiteSlotEditor("hover", actor.media?.hover)}
             </div>
-            ${visibilityControl}
         </section>`;
     }
     function renderBaseMediaEditor(slot, descriptor) {
