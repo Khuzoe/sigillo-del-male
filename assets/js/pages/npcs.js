@@ -142,36 +142,32 @@ function parseYamlLite(yamlText) {
                         ? window.WikiSpoiler.filterVisible(npcs)
                         : npcs.filter(npc => !npc.hidden));
 
-                const managedState = await renderManagedActorsSection().catch((error) => {
+                const managedState = await loadManagedNpcEntries(visibleNpcs).catch((error) => {
                     console.warn('Actor Foundry non caricati:', error);
-                    return { managedLegacyCharacterIds: [], visibleActorCount: 0 };
+                    return { managedLegacyCharacterIds: [], npcs: [] };
                 });
                 const managedLegacyIds = new Set((managedState?.managedLegacyCharacterIds || [])
                     .map((id) => String(id || '').trim().toLowerCase())
                     .filter(Boolean));
                 const legacyNpcs = visibleNpcs.filter((npc) => !managedLegacyIds.has(String(npc?.id || '').trim().toLowerCase()));
+                const unifiedNpcs = [...legacyNpcs, ...(managedState?.npcs || [])];
                 const recencyData = await loadNpcRecencyData(base_path);
-                const sortedNpcs = sortNpcsByRecency(legacyNpcs, recencyData);
+                const sortedNpcs = sortNpcsByRecency(unifiedNpcs, recencyData);
 
                 if (sortedNpcs.length === 0) {
-                    npcListContainer.innerHTML = managedState?.visibleActorCount > 0
-                        ? ''
-                        : '<p style="color: var(--text-muted); text-align: center;">Nessun NPC disponibile.</p>';
+                    npcListContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Nessun NPC disponibile.</p>';
                     return;
                 }
 
                 renderNpcGroups(npcListContainer, sortedNpcs, base_path);
-
             } catch (error) {
                 console.error("Errore nel caricamento degli NPC:", error);
                 npcListContainer.innerHTML = '<p style="color: var(--red);">Impossibile caricare la lista degli NPC.</p>';
             }
         });
 
-        async function renderManagedActorsSection() {
-            const section = document.querySelector('[data-managed-actors-section]');
-            const grid = document.querySelector('[data-managed-actors-grid]');
-            if (!section || !grid || typeof window.CriptaApp?.api?.get !== 'function') return { managedLegacyCharacterIds: [], visibleActorCount: 0 };
+        async function loadManagedNpcEntries(visibleLegacyNpcs = []) {
+            if (typeof window.CriptaApp?.api?.get !== 'function') return { managedLegacyCharacterIds: [], npcs: [] };
             const token = String(window.CriptaDiscordAuth?.getToken?.() || '').trim();
             const payload = await window.CriptaApp.api.get('api/managed-actors', {
                 cache: false,
@@ -180,44 +176,75 @@ function parseYamlLite(yamlText) {
             const managedLegacyCharacterIds = Array.isArray(payload?.managedLegacyCharacterIds)
                 ? payload.managedLegacyCharacterIds
                 : [];
+            const legacyById = new Map((Array.isArray(visibleLegacyNpcs) ? visibleLegacyNpcs : [])
+                .map((npc) => [String(npc?.id || '').trim().toLowerCase(), npc])
+                .filter(([id]) => id));
             const actors = (Array.isArray(payload?.data) ? payload.data : [])
                 .filter((actor) => String(actor?.actorType || '').toLowerCase() === 'npc');
-            if (!actors.length) {
-                section.hidden = true;
-                return { managedLegacyCharacterIds, visibleActorCount: 0 };
-            }
-            grid.innerHTML = actors.map((actor) => {
-                const media = actor.media || {};
-                const tokenPath = media.token?.path || media.avatar?.path || '';
-                const idlePath = media.idle?.path || tokenPath;
-                const hoverPath = media.hover?.path || tokenPath;
-                const target = new URL('./characters/managed-actor.html', window.location.href);
-                target.searchParams.set('world', actor.worldId || '');
-                target.searchParams.set('actor', actor.actorId || '');
-                const campaignId = getCurrentCampaignId();
-                if (campaignId && campaignId !== 'cripta-di-sangue') target.searchParams.set('campaign', campaignId);
-                const permissions = actor.permissions || {};
-                const canReadStats = permissions.canReadStats !== false;
-                const canReadProfile = permissions.canReadProfile === true;
-                if (!canReadStats && canReadProfile) target.searchParams.set('profile', '1');
-                const role = actor.profile?.role || 'NPC';
-                const accessLabel = canReadStats && canReadProfile
-                    ? 'Dossier e statistiche'
-                    : canReadProfile ? 'Dossier' : 'Statistiche';
-                return `<a class="managed-actor-card" href="${target.pathname}${target.search}">
-                    <span class="managed-actor-card__image">
-                        ${idlePath ? `<img src="${managedEscapeHtml(resolveImageUrl(idlePath))}" alt="">` : ''}
-                        ${hoverPath ? `<img src="${managedEscapeHtml(resolveImageUrl(hoverPath))}" alt="">` : ''}
-                    </span>
-                    <span><h3>${managedEscapeHtml(actor.name || 'Actor')}</h3><p>${managedEscapeHtml(role)}</p><span class="managed-actor-badge">${managedEscapeHtml(accessLabel)}</span></span>
-                </a>`;
-            }).join('');
-            section.hidden = false;
-            return { managedLegacyCharacterIds, visibleActorCount: actors.length };
+            return {
+                managedLegacyCharacterIds,
+                npcs: actors.map((actor) => {
+                    const legacyId = String(actor?.profile?.legacyCharacterId || '').trim().toLowerCase();
+                    return managedActorToNpcListEntry(actor, legacyById.get(legacyId) || null);
+                })
+            };
         }
 
-        function managedEscapeHtml(value) {
-            return String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+        function managedActorToNpcListEntry(actor, legacyNpc = null) {
+            const profile = actor?.profile || {};
+            const media = actor?.media || {};
+            const legacyImages = legacyNpc?.images || {};
+            const avatarPath = media.avatar?.path || legacyImages.avatar || '';
+            const tokenPath = media.token?.path || legacyImages.token || avatarPath;
+            const idlePath = media.idle?.path || tokenPath || avatarPath || legacyImages.idle || '';
+            const hoverPath = media.hover?.path || tokenPath || idlePath || legacyImages.hover || '';
+            const legacyId = String(profile.legacyCharacterId || legacyNpc?.id || '').trim();
+            const statsVisibility = String(actor?.visibility?.state || 'dm').toLowerCase();
+            const profileVisibility = String(profile?.visibility?.state || 'dm').toLowerCase();
+            const hiddenFromPlayers = statsVisibility === 'dm' && profileVisibility === 'dm';
+            return {
+                ...(legacyNpc || {}),
+                id: legacyId || `managed-${actor.worldId || 'world'}-${actor.actorId || 'actor'}`,
+                name: actor.name || legacyNpc?.name || 'NPC',
+                role: profile.role || legacyNpc?.role || 'NPC',
+                quote: profile.quote || legacyNpc?.quote || '',
+                status: normalizeManagedNpcStatus(profile.status, legacyNpc?.status),
+                hidden: hiddenFromPlayers,
+                category: legacyNpc?.category || 'Altri NPC',
+                categoryPriority: legacyNpc?.categoryPriority ?? null,
+                images: {
+                    ...legacyImages,
+                    avatar: avatarPath,
+                    token: tokenPath,
+                    idle: idlePath,
+                    hover: hoverPath,
+                    idleFallback: tokenPath || avatarPath || legacyImages.idleFallback || '',
+                    hoverFallback: idlePath || tokenPath || avatarPath || legacyImages.hoverFallback || '',
+                    avatarFallback: tokenPath || idlePath || legacyImages.avatarFallback || ''
+                },
+                updatedAt: actor.updatedAt || legacyNpc?.updatedAt || '',
+                managedActorUrl: buildManagedActorDetailUrl(actor)
+            };
+        }
+
+        function normalizeManagedNpcStatus(value, fallback) {
+            const status = String(value || '').trim().toLowerCase();
+            if (status.includes('mort') || status === 'dead') return 'morto';
+            if (status.includes('viv') || status === 'alive') return 'vivo';
+            if (status.includes('ignot') || status.includes('sconosciut') || status === 'unknown') return 'ignoto';
+            const legacyStatus = String(fallback || '').trim().toLowerCase();
+            return ['vivo', 'morto', 'ignoto'].includes(legacyStatus) ? legacyStatus : 'ignoto';
+        }
+
+        function buildManagedActorDetailUrl(actor) {
+            const target = new URL('./characters/managed-actor.html', window.location.href);
+            target.searchParams.set('world', actor?.worldId || '');
+            target.searchParams.set('actor', actor?.actorId || '');
+            const campaignId = getCurrentCampaignId();
+            if (campaignId && campaignId !== 'cripta-di-sangue') target.searchParams.set('campaign', campaignId);
+            const permissions = actor?.permissions || {};
+            if (permissions.canReadStats === false && permissions.canReadProfile === true) target.searchParams.set('profile', '1');
+            return `${target.pathname}${target.search}`;
         }
         function resolveImageUrl(path, base_path = '../assets/') {
             return window.CriptaApp.utils.resolveImageUrl(path);
@@ -492,7 +519,7 @@ function parseYamlLite(yamlText) {
             const statusInfo = statusMap[npc.status] || { text: 'N/A', class: '' };
 
             const card = document.createElement('a');
-            card.href = buildNpcDetailUrl({ id: npc.id, type: 'npc' });
+            card.href = npc.managedActorUrl || buildNpcDetailUrl({ id: npc.id, type: 'npc' });
             card.className = 'npc-card';
             const hiddenFromPlayers = npc.hidden === true || npc.status === 'hidden';
             if (hiddenFromPlayers) card.classList.add('npc-card--dm-hidden');
