@@ -2367,6 +2367,7 @@ window.CriptaApp.onPageReady("character", async function () {
             saveVersionedCollection,
             loadCharactersDocumentForSave,
             getCharactersApiUrl,
+            getCurrentCampaignId,
             copyInlineCharacterMediaFolder,
             rewriteInlineCharacterMediaFolderPaths,
             pickInlineImageFile,

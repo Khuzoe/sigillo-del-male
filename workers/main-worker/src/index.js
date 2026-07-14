@@ -52,6 +52,9 @@ export default {
       const managedActorRelationshipRoute = matchManagedActorRelationshipRoute(url.pathname);
       const managedActorCommandRoute = matchManagedActorCommandRoute(url.pathname);
       const managedActorCommandBatchRoute = matchManagedActorCommandBatchRoute(url.pathname);
+      if (url.pathname === "/api/managed-actor-create-requests" && request.method === "POST") {
+        return handleManagedActorCreateRequestEnqueue(request, queryCampaignId, env, corsHeaders);
+      }
       if (managedActorCommandRoute && request.method === "POST") {
         return handleManagedActorCommandEnqueue(request, managedActorCommandRoute, queryCampaignId, env, corsHeaders);
       }
@@ -1570,6 +1573,10 @@ function managedActorLegacyMigrationBackupKey(campaignId, worldId, actorId, lega
 function managedActorCommandQueueKey(campaignId, worldId) {
   return campaignKey(campaignId, `managed-actor-commands:${sanitizeManagedActorId(worldId)}`);
 }
+function managedActorCreateRequestQueueKey(campaignId) {
+  return campaignKey(campaignId, "managed-actor-create-requests");
+}
+
 
 function inventoryKey(campaignId = DEFAULT_CAMPAIGN_ID) {
   return campaignKey(campaignId, "inventory/latest");
@@ -3292,8 +3299,6 @@ async function handleManagedActorLegacyAdopt(request, route, fallbackCampaignId,
   const hoverSource = legacyImages.hover || "";
   const requiredMedia = [
     ...(avatarSource ? [{ slot: "avatar", source: avatarSource }] : []),
-    ...(explicitIdleSource ? [{ slot: "idle", source: explicitIdleSource }] : []),
-    ...(hoverSource ? [{ slot: "hover", source: hoverSource }] : []),
   ];
   const mediaPreflight = await preflightManagedActorLegacyMedia(env, campaignId, requiredMedia);
   if (!mediaPreflight.ok) {
@@ -3335,17 +3340,27 @@ async function handleManagedActorLegacyAdopt(request, route, fallbackCampaignId,
     const copied = await copyManagedActorLegacyMedia(env, {
       campaignId, route, migrationId, slot: "idle", source: explicitIdleSource,
       destinationKey: `${actorPrefix}/site/idle.webp`,
+      required: false,
     });
-    copies.push(copied);
-    nextMedia.idle = managedActorLegacyMediaSlot(copied, actor.media?.idle, managedActorLegacyPresentation(explicitIdleSource, actor.media?.idle));
+    if (copied.ok) {
+      copies.push(copied);
+      nextMedia.idle = managedActorLegacyMediaSlot(copied, actor.media?.idle, managedActorLegacyPresentation(explicitIdleSource, actor.media?.idle));
+    } else {
+      warnings.push(copied);
+    }
   }
   if (hoverSource) {
     const copied = await copyManagedActorLegacyMedia(env, {
       campaignId, route, migrationId, slot: "hover", source: hoverSource,
       destinationKey: `${actorPrefix}/site/hover.webp`,
+      required: false,
     });
-    copies.push(copied);
-    nextMedia.hover = managedActorLegacyMediaSlot(copied, actor.media?.hover, managedActorLegacyPresentation(hoverSource, actor.media?.hover));
+    if (copied.ok) {
+      copies.push(copied);
+      nextMedia.hover = managedActorLegacyMediaSlot(copied, actor.media?.hover, managedActorLegacyPresentation(hoverSource, actor.media?.hover));
+    } else {
+      warnings.push(copied);
+    }
   }
 
   const nextActor = {
@@ -3847,6 +3862,45 @@ function readManagedActorCommandQueue(raw, campaignId, worldId) {
 async function writeManagedActorCommandQueue(env, queue) {
   await env.SIGILLO_KV.put(managedActorCommandQueueKey(queue.campaignId, queue.worldId), JSON.stringify(queue), { expirationTtl: 60 * 24 * 60 * 60 });
 }
+
+
+function readManagedActorCreateRequestQueue(raw, campaignId) {
+  const parsed = typeof raw === "string" ? safeJsonParse(raw) : raw;
+  return {
+    schemaVersion: 1,
+    campaignId,
+    version: Number(parsed?.version || 0),
+    updatedAt: parsed?.updatedAt || null,
+    requests: Array.isArray(parsed?.requests) ? parsed.requests.slice(0, 128) : [],
+  };
+}
+
+async function writeManagedActorCreateRequestQueue(env, queue) {
+  await env.SIGILLO_KV.put(managedActorCreateRequestQueueKey(queue.campaignId), JSON.stringify(queue), { expirationTtl: 60 * 24 * 60 * 60 });
+}
+
+function publicManagedActorCreateRequest(request) {
+  return {
+    id: request.id,
+    kind: "actor.create",
+    legacyCharacterId: request.legacyCharacterId,
+    document: request.document,
+    status: request.status,
+    error: request.error || "",
+    current: request.current && typeof request.current === "object" ? request.current : undefined,
+    createdAt: request.createdAt,
+    updatedAt: request.updatedAt,
+  };
+}
+
+function managedActorCreateMediaSource(value) {
+  const clean = String(value || "").trim().replace(/\\/g, "/").slice(0, 1_000);
+  if (!clean || clean.includes("..")) return "";
+  if (/^media\/[A-Za-z0-9_./%+@-]+$/i.test(clean)) return clean;
+  if (/^https:\/\/sigillo-api\.khuzoe\.workers\.dev\/media\//i.test(clean)) return clean;
+  return "";
+}
+
 async function enqueueManagedActorRelationshipCommand(env, campaignId, actor, relationship, createdBy) {
   const queueKey = managedActorCommandQueueKey(campaignId, actor.worldId);
   const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(queueKey), campaignId, actor.worldId);
@@ -3923,6 +3977,9 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
   const actorRaw = await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId));
   const actor = safeJsonParse(actorRaw);
   if (!actor) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+
+
+
   const authorization = await authorizeManagedActorWrite(request, env, campaignId, corsHeaders, actor);
   if (authorization instanceof Response) return authorization;
   if (authorization.source !== "site") return json({ ok: false, error: "Managed actor commands must originate from the site" }, 400, corsHeaders);
@@ -4014,12 +4071,107 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
   return json({ ok: true, queued: true, campaignId, worldId: route.worldId, actorId: route.actorId, queueVersion: queue.version, command: publicManagedActorCommand(command) }, 202, { ...corsHeaders, "Cache-Control": "private, no-store" });
 }
 
+
+async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  let body;
+  try {
+    body = await request.json();
+  } catch (_) {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  if (JSON.stringify(body || {}).length > 64 * 1024) return json({ ok: false, error: "Managed actor create request too large" }, 413, corsHeaders);
+
+  const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
+  const user = await requireUser(request, env, corsHeaders);
+  if (user instanceof Response) return user;
+  if (!await isAuthenticatedCampaignContentEditor(user, env, campaignId)) {
+    return json({ ok: false, error: "Only a campaign editor can create Foundry actors" }, 403, corsHeaders);
+  }
+
+  const legacyCharacterId = sanitizeAssetId(body?.legacyCharacterId || body?.characterId || "");
+  if (!legacyCharacterId) return json({ ok: false, error: "Missing legacyCharacterId" }, 400, corsHeaders);
+  const charactersDocument = await readDataCollectionDocument("characters", campaignId, env);
+  const legacy = Array.isArray(charactersDocument?.data)
+    ? charactersDocument.data.find((entry) => sanitizeAssetId(entry?.id || entry?.name || "") === legacyCharacterId)
+    : null;
+  if (!legacy) return json({ ok: false, error: "NPC profile not found" }, 404, corsHeaders);
+  if (String(legacy.type || "npc").trim().toLowerCase() !== "npc") {
+    return json({ ok: false, error: "Only NPC profiles can create a Foundry NPC" }, 400, corsHeaders);
+  }
+
+  const linked = safeJsonParse(await env.SIGILLO_KV.get(managedActorProfileLinkKey(campaignId, legacyCharacterId)));
+  if (linked?.worldId && linked?.actorId) {
+    return json({ ok: true, alreadyLinked: true, campaignId, legacyCharacterId, actor: linked }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
+  }
+
+  const queue = readManagedActorCreateRequestQueue(
+    await env.SIGILLO_KV.get(managedActorCreateRequestQueueKey(campaignId)),
+    campaignId,
+  );
+  const now = new Date().toISOString();
+  const images = legacy.images && typeof legacy.images === "object" ? legacy.images : {};
+  const avatar = managedActorCreateMediaSource(images.avatar || images.portrait || "");
+  const token = managedActorCreateMediaSource(images.token || images.portrait || images.avatar || "");
+  const document = {
+    name: String(legacy.name || "Nuovo NPC").trim().slice(0, 180) || "Nuovo NPC",
+    actorType: "npc",
+    folderName: "Cripta Wiki Bestiario",
+    media: { avatar, token: token || avatar },
+  };
+
+  const existingIndex = queue.requests.findIndex((entry) => entry.legacyCharacterId === legacyCharacterId);
+  let createRequest;
+  if (existingIndex >= 0) {
+    const previous = queue.requests[existingIndex];
+    createRequest = {
+      ...previous,
+      document,
+      status: "pending",
+      error: "",
+      current: undefined,
+      updatedAt: now,
+    };
+    queue.requests[existingIndex] = createRequest;
+  } else {
+    if (queue.requests.length >= 128) return json({ ok: false, error: "Managed actor create queue is full" }, 429, corsHeaders);
+    createRequest = {
+      id: crypto.randomUUID(),
+      kind: "actor.create",
+      campaignId,
+      legacyCharacterId,
+      document,
+      status: "pending",
+      createdAt: now,
+      updatedAt: now,
+      createdBy: getAuthenticatedAccountId(user, env) || "editor",
+    };
+    queue.requests.push(createRequest);
+  }
+  queue.version += 1;
+  queue.updatedAt = now;
+  await writeManagedActorCreateRequestQueue(env, queue);
+  return json({
+    ok: true,
+    queued: true,
+    campaignId,
+    queueVersion: queue.version,
+    request: publicManagedActorCreateRequest(createRequest),
+  }, 202, { ...corsHeaders, "Cache-Control": "private, no-store" });
+}
+
 async function handleManagedActorCommandList(request, route, campaignId, env, corsHeaders = {}) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   if (!isFoundrySyncSecretAuthorized(request, env)) return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
-  const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId)), campaignId, route.worldId);
+  const [commandRaw, createRaw] = await Promise.all([
+    env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId)),
+    env.SIGILLO_KV.get(managedActorCreateRequestQueueKey(campaignId)),
+  ]);
+  const queue = readManagedActorCommandQueue(commandRaw, campaignId, route.worldId);
+  const createQueue = readManagedActorCreateRequestQueue(createRaw, campaignId);
   const commands = queue.commands.filter((command) => command.status === "pending").map(publicManagedActorCommand);
-  return json({ ok: true, campaignId, worldId: route.worldId, version: queue.version, commands }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
+  const createRequests = createQueue.requests.filter((entry) => entry.status === "pending").map(publicManagedActorCreateRequest);
+  return json({ ok: true, campaignId, worldId: route.worldId, version: queue.version, createVersion: createQueue.version, commands, createRequests }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
 }
 
 async function handleManagedActorCommandAck(request, route, fallbackCampaignId, env, corsHeaders = {}) {
@@ -4032,9 +4184,16 @@ async function handleManagedActorCommandAck(request, route, fallbackCampaignId, 
     return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
   }
   const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
-  const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId)), campaignId, route.worldId);
+  const [commandRaw, createRaw] = await Promise.all([
+    env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId)),
+    env.SIGILLO_KV.get(managedActorCreateRequestQueueKey(campaignId)),
+  ]);
+  const queue = readManagedActorCommandQueue(commandRaw, campaignId, route.worldId);
+  const createQueue = readManagedActorCreateRequestQueue(createRaw, campaignId);
   const results = new Map((Array.isArray(body?.results) ? body.results : []).slice(0, 256).map((result) => [String(result?.id || ""), result]));
-  if (!results.size) return json({ ok: false, error: "Missing command results" }, 400, corsHeaders);
+  const createResults = new Map((Array.isArray(body?.createResults) ? body.createResults : []).slice(0, 128).map((result) => [String(result?.id || ""), result]));
+  if (!results.size && !createResults.size) return json({ ok: false, error: "Missing command results" }, 400, corsHeaders);
+
   const now = new Date().toISOString();
   let changed = false;
   queue.commands = queue.commands.flatMap((command) => {
@@ -4051,12 +4210,42 @@ async function handleManagedActorCommandAck(request, route, fallbackCampaignId, 
     }
     return [command];
   });
+
+  let createChanged = false;
+  createQueue.requests = createQueue.requests.flatMap((entry) => {
+    const result = createResults.get(entry.id);
+    if (!result) return [entry];
+    const status = String(result.status || "").toLowerCase();
+    if (status === "applied") {
+      createChanged = true;
+      return [];
+    }
+    if (["conflict", "failed"].includes(status)) {
+      createChanged = true;
+      return [{ ...entry, status, error: String(result.error || result.message || status).slice(0, 800), current: result.current && typeof result.current === "object" ? result.current : undefined, updatedAt: now }];
+    }
+    return [entry];
+  });
+
   if (changed) {
     queue.version += 1;
     queue.updatedAt = now;
     await writeManagedActorCommandQueue(env, queue);
   }
-  return json({ ok: true, campaignId, worldId: route.worldId, acknowledged: changed, queueVersion: queue.version }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
+  if (createChanged) {
+    createQueue.version += 1;
+    createQueue.updatedAt = now;
+    await writeManagedActorCreateRequestQueue(env, createQueue);
+  }
+  return json({
+    ok: true,
+    campaignId,
+    worldId: route.worldId,
+    acknowledged: changed,
+    createAcknowledged: createChanged,
+    queueVersion: queue.version,
+    createQueueVersion: createQueue.version,
+  }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
 }
 
 function normalizeManagedActorPresentation(value) {

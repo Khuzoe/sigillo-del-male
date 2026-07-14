@@ -1161,6 +1161,24 @@
         return Math.round(value * 100) / 100;
     }
 
+    async function enqueueManagedActorCreation(legacyCharacterId, token) {
+        const campaignId = runtime.getCurrentCampaignId?.() || 'cripta-di-sangue';
+        const body = { campaignId, legacyCharacterId };
+        if (typeof window.CriptaApp?.api?.post === 'function') {
+            return window.CriptaApp.api.post('api/managed-actor-create-requests', body, { token });
+        }
+        const target = new URL(window.CriptaApp?.urls?.api?.('api/managed-actor-create-requests') || 'https://sigillo-api.khuzoe.workers.dev/api/managed-actor-create-requests');
+        target.searchParams.set('campaign', campaignId);
+        const response = await fetch(target, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            body: JSON.stringify(body)
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || ('HTTP ' + response.status));
+        return payload;
+    }
+
     async function saveInlineCharacterEdits() {
         if (inlineCharacterSaveInFlight) return;
         const token = runtime.readAuthToken?.() || '';
@@ -1174,6 +1192,9 @@
         toolbar?.setAttribute('data-saving', 'true');
 
         try {
+            // Also covers the few legacy-only NPCs that still need their first Foundry Actor.
+            // The Worker makes this a no-op for NPCs that are already linked.
+            const shouldEnsureFoundryActor = runtime.charType !== 'player';
             const updatedCharacter = serializeInlineEditedCharacter(runtime.currentCharacter);
             const originalId = slugify(runtime.currentCharacter._originalId || runtime.charId || updatedCharacter.id || updatedCharacter.name || 'npc');
             const nextId = slugify(updatedCharacter.id || updatedCharacter.name || 'npc');
@@ -1189,6 +1210,17 @@
                 buildData: buildNextData
             });
             window.CriptaApp?.api?.clearCache?.();
+
+            let managedCreateError = null;
+            let managedCreateResult = null;
+            if (shouldEnsureFoundryActor) {
+                try {
+                    managedCreateResult = await enqueueManagedActorCreation(nextId, token);
+                } catch (error) {
+                    managedCreateError = error;
+                    console.error('Creazione automatica Actor Foundry non accodata:', error);
+                }
+            }
 
             const normalized = runtime.normalizeCharactersCollection?.([updatedCharacter])?.[0] || updatedCharacter;
             setCurrentCharacter(normalized);
@@ -1206,9 +1238,15 @@
             inlineEditBlocks = [];
             runtime.editLinkEl?.classList.remove('is-editing');
             renderPage();
+
+            if (managedCreateError) {
+                alert('NPC salvato sul sito, ma la creazione in Foundry non e stata accodata: ' + (managedCreateError?.message || managedCreateError));
+            } else if (managedCreateResult?.queued) {
+                alert('NPC salvato. Foundry lo creera automaticamente con le statistiche base appena il client GM sara online.');
+            }
         } catch (error) {
             console.error('Salvataggio inline NPC fallito:', error);
-            alert(`Salvataggio fallito: ${error?.message || error}`);
+            alert('Salvataggio fallito: ' + (error?.message || error));
         } finally {
             inlineCharacterSaveInFlight = false;
             toolbar?.removeAttribute('data-saving');
