@@ -1,73 +1,85 @@
 <!DOCTYPE html>
 <html lang="it">
-
 <head>
-    <title>Cripta di Sangue - NPCs</title>
+    <title>NPC | Cripta di Sangue</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-
-    <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260713-frame-circle6">
+    <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260714-roster-modern4">
     <link rel="stylesheet" href="../assets/css/pages/managed-actors.css?v=20260713-frame-circle2" data-page-style>
-
-    <!-- STATIC DATA LOADING (CORS Bypass) -->
-
-
+    <link rel="stylesheet" href="../assets/css/pages/roster-modern.css?v=20260714-roster-modern4" data-page-style>
+    <link rel="stylesheet" href="../assets/css/pages/npc-categories.css?v=20260714-npc-categories2" data-page-style>
 </head>
-
-<body class="page-npcs">
-
-    <!-- NAVIGAZIONE LATERALE (Vuota - Gestita da layout.js) -->
-    <nav class="sidebar" id="sidebar-container">
-        <!-- Il contenuto verrà caricato qui automaticamente -->
-    </nav>
-
-    <!-- CONTENUTO PRINCIPALE -->
+<body class="page-npcs roster-page">
+    <nav class="sidebar" id="sidebar-container"></nav>
     <main class="main-content">
-        <header class="hero-mini">
-            <div class="hero-title">
-                <h1>NPCs</h1>
-                <div class="subtitle">Le anime che popolano la cripta, ognuna con una storia da raccontare.</div>
-            </div>
-            <div class="hero-actions">
-                <a class="button-gold-outline" href="./characters/character.html?type=npc&new=1&edit=1" data-npc-create-link data-requires-dm hidden>
-                    Nuovo NPC
-                </a>
-            </div>
-        </header>
+        <div class="roster-page-inner">
+            <header class="roster-hero roster-hero--npcs">
+                <div class="roster-hero-copy">
+                    <div class="roster-hero-eyebrow"><span></span>Volti della campagna</div>
+                    <h1 id="npc-page-title">NPC</h1>
 
-        <div class="container">
-
-            <div class="npc-list">
-                <div class="npc-card npc-card--loading" aria-hidden="true">
-                    <div class="npc-avatar-container"></div>
-                    <div class="npc-info">
-                        <div class="npc-name">Caricamento NPC...</div>
-                        <p class="npc-desc">Le anime della cripta stanno emergendo dall'oscurita.</p>
+                    <div class="roster-hero-meta">
+                        <span class="roster-count-pill"><i class="fas fa-masks-theater" aria-hidden="true"></i><b id="npc-count">0 NPC</b></span>
+                        <span><i class="fas fa-book-open" aria-hidden="true"></i>Dossier condivisi</span>
                     </div>
                 </div>
-            </div>
+                <div class="roster-hero-sigil" aria-hidden="true">
+                    <span class="roster-hero-orbit"></span>
+                    <span class="roster-hero-emblem"><i class="fas fa-masks-theater"></i></span>
+                </div>
+            </header>
 
+            <section class="roster-shell" aria-labelledby="npc-page-title">
+                <div class="roster-tools" aria-label="Cerca e filtra gli NPC">
+                    <label class="roster-search">
+                        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                        <input id="npc-search" type="search" placeholder="Cerca nome, ruolo o categoria..." autocomplete="off">
+                        <span aria-hidden="true">Cerca</span>
+                    </label>
+                    <div class="roster-filter-group" id="npc-status-filters" aria-label="Filtra gli NPC per stato">
+                        <button class="roster-filter is-active" type="button" data-roster-filter="all" aria-pressed="true"><i class="fas fa-layer-group"></i>Tutti</button>
+                        <button class="roster-filter" type="button" data-roster-filter="vivo" aria-pressed="false"><i class="fas fa-heart-pulse"></i>Vivi</button>
+                        <button class="roster-filter" type="button" data-roster-filter="ignoto" aria-pressed="false"><i class="fas fa-circle-question"></i>Ignoti</button>
+                        <button class="roster-filter" type="button" data-roster-filter="morto" aria-pressed="false"><i class="fas fa-skull"></i>Morti</button>
+                    </div>
+                    <button class="roster-secondary-action" type="button" data-npc-category-manager hidden>
+                        <i class="fas fa-folder-tree" aria-hidden="true"></i><span>Categorie</span>
+                    </button>
+                    <a class="roster-primary-action" href="./characters/character.html?type=npc&new=1&edit=1" data-npc-create-link data-requires-dm hidden>
+                        <i class="fas fa-plus" aria-hidden="true"></i><span>Nuovo NPC</span>
+                    </a>
+                </div>
 
-            <div style="text-align: center; margin-top: 4rem; opacity: 0.4;">
-                <i class="fas fa-dungeon" style="font-size: 2rem; margin-bottom: 1rem; color: var(--gold);"></i>
-                <p>La lista delle anime si allunga...</p>
-            </div>
-
+                <div class="npc-list" data-roster-list="npcs">
+                    <div class="npc-card npc-card--loading" aria-hidden="true">
+                        <div class="npc-avatar-container"></div>
+                        <div class="npc-info">
+                            <div class="npc-name">Caricamento NPC...</div>
+                            <p class="npc-desc">Le anime della campagna stanno emergendo dall’oscurità.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="roster-empty-state" id="npc-filter-empty" hidden>
+                    <i class="fas fa-magnifying-glass"></i>
+                    <strong>Nessun NPC trovato</strong>
+                    <span>Prova a cambiare ricerca o filtro.</span>
+                </div>
+            </section>
         </div>
     </main>
 
-    <!-- IMPORTANTE: Lo script che carica la sidebar -->
     <script src="../assets/js/spoiler-policy.js"></script>
     <script src="../assets/js/layout.js"></script>
     <script src="../assets/js/shared/markdown.js"></script>
     <script src="../assets/js/shared/media-service.js"></script>
     <script src="../assets/js/shared/image-adjust.js?v=20260713-frame-circle6"></script>
     <script src="../assets/js/shared/character-normalize.js"></script>
-
-    <script src="../assets/js/pages/npcs.js?v=20260713-frame-circle5"></script>
+    <script src="../assets/js/shared/npc-categories.js?v=20260714-npc-categories2"></script>
+    <script src="../assets/js/pages/npc-category-manager.js?v=20260714-npc-categories2"></script>
+    <script src="../assets/js/pages/npcs.js?v=20260714-npc-categories2"></script>
+</body>
+</html>

@@ -2,52 +2,68 @@
 <html lang="it">
 <head>
     <title>I Giocatori | Cripta di Sangue</title>
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-
-    <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260713-frame-circle2">
-
+    <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260714-roster-modern4">
+    <link rel="stylesheet" href="../assets/css/pages/roster-modern.css?v=20260714-roster-modern4" data-page-style>
 </head>
-<body>
-
-    <!-- NAVIGAZIONE LATERALE -->
-    <nav class="sidebar" id="sidebar-container">
-    </nav>
-
-    <!-- CONTENUTO PRINCIPALE -->
+<body class="page-players roster-page">
+    <nav class="sidebar" id="sidebar-container"></nav>
     <main class="main-content">
-        
-        <header class="hero-mini">
-            <div class="hero-title">
-                <h1>I Protagonisti</h1>
-                <div class="subtitle">Coloro che sfidano il Destino</div>
-            </div>
-        </header>
+        <div class="roster-page-inner">
+            <header class="roster-hero roster-hero--players">
+                <div class="roster-hero-copy">
+                    <div class="roster-hero-eyebrow"><span></span>La compagnia</div>
+                    <h1 id="players-page-title">Protagonisti</h1>
 
-        <div class="container">
+                    <div class="roster-hero-meta">
+                        <span class="roster-count-pill"><i class="fas fa-shield-halved" aria-hidden="true"></i><b id="players-count">0 personaggi</b></span>
+                        <span><i class="fas fa-arrows-rotate" aria-hidden="true"></i>Sito e Foundry</span>
+                    </div>
+                </div>
+                <div class="roster-hero-sigil" aria-hidden="true">
+                    <span class="roster-hero-orbit"></span>
+                    <span class="roster-hero-emblem"><i class="fas fa-dice-d20"></i></span>
+                </div>
+            </header>
 
-            <div class="npc-list" id="player-list-container">
-                <!-- I giocatori verranno caricati qui dinamicamente -->
-            </div>
-            
-            <div style="text-align: center; margin-top: 4rem; opacity: 0.4;">
-                <i class="fas fa-users" style="font-size: 2rem; margin-bottom: 1rem; color: var(--gold);"></i>
-                <p>Il gruppo avanza nell'oscurità...</p>
-            </div>
+            <section class="roster-shell" aria-labelledby="players-page-title">
+                <div class="roster-tools roster-tools--players" aria-label="Cerca e filtra i giocatori">
+                    <label class="roster-search">
+                        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                        <input id="players-search" type="search" placeholder="Cerca personaggio, ruolo o oggetto..." autocomplete="off">
+                        <span aria-hidden="true">Cerca</span>
+                    </label>
+                    <div class="roster-filter-group" id="players-state-filters" aria-label="Filtra i personaggi">
+                        <button class="roster-filter is-active" type="button" data-roster-filter="all" aria-pressed="true"><i class="fas fa-layer-group"></i>Tutti</button>
+                        <button class="roster-filter" type="button" data-roster-filter="active" aria-pressed="false"><i class="fas fa-fire-flame-curved"></i>Attivi</button>
+                        <button class="roster-filter" type="button" data-roster-filter="inactive" aria-pressed="false"><i class="fas fa-clock-rotate-left"></i>Inattivi</button>
+                    </div>
+                </div>
 
+                <section class="roster-collection roster-collection--players">
+                    <header class="roster-collection-header">
+                        <span><i class="fas fa-shield-halved" aria-hidden="true"></i>Compagnia</span>
+                        <small id="players-section-count">0 personaggi</small>
+                    </header>
+                    <div class="npc-list roster-player-list" id="player-list-container" data-roster-list="players"></div>
+                </section>
+                <div class="roster-empty-state" id="players-filter-empty" hidden>
+                    <i class="fas fa-magnifying-glass"></i>
+                    <strong>Nessun personaggio trovato</strong>
+                    <span>Prova a cambiare ricerca o filtro.</span>
+                </div>
+            </section>
         </div>
     </main>
 
     <script src="../assets/js/spoiler-policy.js"></script>
     <script src="../assets/js/layout.js"></script>
     <script src="../assets/js/shared/image-adjust.js?v=20260713-frame-circle6"></script>
-
-    <script src="../assets/js/pages/giocatori.js?v=20260713-frame-circle2"></script>
-
+    <script src="../assets/js/pages/giocatori.js?v=20260714-roster-modern4"></script>
 </body>
 </html>

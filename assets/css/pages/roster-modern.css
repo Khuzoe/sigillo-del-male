@@ -1,0 +1,672 @@
+/* Modern NPC and player roster */
+.roster-page {
+    --roster-gold: #dfc36f;
+    --roster-gold-bright: #f4dea0;
+    --roster-ink: #f3ead5;
+    --roster-muted: rgba(225, 213, 188, .62);
+    --roster-accent: #b58bd4;
+    --roster-accent-rgb: 181, 139, 212;
+}
+
+body.roster-page .main-content {
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at 78% -8%, rgba(var(--roster-accent-rgb), .12), transparent 31rem),
+        radial-gradient(circle at 8% 32%, rgba(91, 31, 68, .17), transparent 36rem),
+        linear-gradient(180deg, #0d0c10, #121015 42%, #09090c);
+}
+
+body.page-players {
+    --roster-accent: #86aedc;
+    --roster-accent-rgb: 134, 174, 220;
+}
+
+
+.roster-page-inner {
+    width: min(100%, 1500px);
+    margin: 0 auto;
+    padding: clamp(1rem, 2.6vw, 2.65rem);
+}
+
+.roster-hero {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(230px, .42fr);
+    align-items: center;
+    min-height: 340px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+    border: 1px solid rgba(223, 195, 111, .2);
+    border-radius: 28px;
+    background:
+        linear-gradient(100deg, rgba(9, 8, 11, .98) 0 43%, rgba(33, 24, 33, .94) 74%, rgba(12, 11, 15, .98)),
+        radial-gradient(circle at 80% 45%, rgba(var(--roster-accent-rgb), .13), transparent 28rem);
+    box-shadow: 0 34px 85px rgba(0, 0, 0, .46), inset 0 1px rgba(255, 255, 255, .025);
+    isolation: isolate;
+}
+
+.roster-hero::before,
+.roster-hero::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+}
+
+.roster-hero::before {
+    inset: 0;
+    z-index: -1;
+    background:
+        linear-gradient(90deg, transparent 56%, rgba(223, 195, 111, .035)),
+        repeating-linear-gradient(125deg, transparent 0 32px, rgba(255, 255, 255, .012) 33px, transparent 34px 68px);
+    mask-image: linear-gradient(90deg, transparent 20%, #000);
+}
+
+.roster-hero::after {
+    right: -5rem;
+    bottom: -7rem;
+    width: 30rem;
+    height: 30rem;
+    border: 1px solid rgba(223, 195, 111, .06);
+    border-radius: 50%;
+    box-shadow: 0 0 0 3rem rgba(223, 195, 111, .018), 0 0 0 7rem rgba(var(--roster-accent-rgb), .012);
+}
+
+.roster-hero-copy {
+    z-index: 2;
+    max-width: 830px;
+    padding: clamp(2rem, 5vw, 4.4rem);
+}
+
+.roster-hero-eyebrow {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    color: rgba(218, 198, 153, .58);
+    font: 750 .64rem var(--font-ui);
+    letter-spacing: .16em;
+    text-transform: uppercase;
+}
+
+.roster-hero-eyebrow span {
+    width: 38px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--roster-gold), rgba(var(--roster-accent-rgb), .72));
+}
+
+.roster-hero h1 {
+    max-width: 13ch;
+    margin: .45rem 0 .65rem;
+    color: var(--roster-ink);
+    font: 400 clamp(3.4rem, 6vw, 6.2rem)/.92 var(--font-heading);
+    letter-spacing: -.045em;
+    text-wrap: balance;
+}
+
+.roster-hero-copy > p {
+    max-width: 60ch;
+    margin: 0;
+    color: var(--roster-muted);
+    font-size: clamp(.98rem, 1.4vw, 1.16rem);
+    line-height: 1.55;
+}
+
+.roster-hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .48rem;
+    margin-top: 1.25rem;
+}
+
+.roster-hero-meta > span {
+    display: inline-flex;
+    align-items: center;
+    gap: .42rem;
+    min-height: 33px;
+    padding: .32rem .65rem;
+    border: 1px solid rgba(255, 255, 255, .065);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .025);
+    color: rgba(225, 213, 188, .62);
+    font: 700 .6rem var(--font-ui);
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+
+.roster-hero-meta i { color: var(--roster-gold); }
+.roster-hero-meta b { color: var(--roster-gold-bright); }
+.roster-hero-meta .roster-count-pill {
+    border-color: rgba(223, 195, 111, .18);
+    background: rgba(223, 195, 111, .055);
+}
+
+.roster-hero-sigil {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    width: min(25vw, 285px);
+    aspect-ratio: 1;
+    place-items: center;
+    justify-self: center;
+    border: 1px solid rgba(223, 195, 111, .13);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(var(--roster-accent-rgb), .13), rgba(223, 195, 111, .035) 42%, transparent 70%);
+    box-shadow: inset 0 0 70px rgba(223, 195, 111, .035), 0 0 80px rgba(var(--roster-accent-rgb), .06);
+}
+
+.roster-hero-sigil::before,
+.roster-hero-sigil::after,
+.roster-hero-orbit {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+}
+
+.roster-hero-sigil::before { inset: 10%; border: 1px dashed rgba(223, 195, 111, .19); }
+.roster-hero-sigil::after { inset: 22%; border: 1px solid rgba(var(--roster-accent-rgb), .22); }
+.roster-hero-orbit { inset: -8%; border: 1px solid rgba(223, 195, 111, .07); animation: roster-orbit 24s linear infinite; }
+.roster-hero-orbit::before,
+.roster-hero-orbit::after {
+    content: '';
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--roster-gold);
+    box-shadow: 0 0 18px rgba(223, 195, 111, .6);
+}
+.roster-hero-orbit::before { top: 13%; left: 13%; }
+.roster-hero-orbit::after { right: 6%; bottom: 28%; background: var(--roster-accent); }
+
+.roster-hero-emblem {
+    display: grid;
+    width: 102px;
+    height: 102px;
+    place-items: center;
+    border: 1px solid rgba(223, 195, 111, .22);
+    border-radius: 30px;
+    background: linear-gradient(145deg, rgba(223, 195, 111, .11), rgba(var(--roster-accent-rgb), .16));
+    color: var(--roster-gold-bright);
+    font-size: 2.55rem;
+    transform: rotate(45deg);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .42), inset 0 1px rgba(255, 255, 255, .07);
+}
+.roster-hero-emblem i { transform: rotate(-45deg); filter: drop-shadow(0 7px 15px rgba(223, 195, 111, .34)); }
+@keyframes roster-orbit { to { transform: rotate(360deg); } }
+
+.roster-shell { display: grid; gap: 1rem; }
+.roster-tools {
+    position: sticky;
+    top: .7rem;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto auto;
+    align-items: center;
+    gap: .55rem;
+    padding: .62rem;
+    border: 1px solid rgba(223, 195, 111, .2);
+    border-radius: 18px;
+    background: linear-gradient(100deg, rgba(15, 13, 17, .95), rgba(27, 21, 29, .95));
+    box-shadow: 0 16px 42px rgba(0, 0, 0, .4), inset 0 1px rgba(255, 255, 255, .03);
+    backdrop-filter: blur(18px);
+}
+.roster-tools--players { grid-template-columns: minmax(260px, 1fr) auto; }
+.roster-search {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    min-height: 48px;
+    gap: .62rem;
+    padding: 0 .76rem;
+    border: 1px solid rgba(223, 195, 111, .13);
+    border-radius: 13px;
+    background: rgba(5, 5, 8, .7);
+    transition: border-color .18s, box-shadow .18s;
+}
+.roster-search:focus-within { border-color: rgba(223, 195, 111, .5); box-shadow: 0 0 0 3px rgba(223, 195, 111, .065); }
+.roster-search i { color: rgba(223, 195, 111, .62); }
+.roster-search input {
+    width: 100%;
+    min-height: 42px;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--roster-ink);
+    box-shadow: none;
+    font-size: .82rem;
+}
+.roster-search > span {
+    flex: 0 0 auto;
+    padding: .22rem .42rem;
+    border: 1px solid rgba(255, 255, 255, .055);
+    border-radius: 7px;
+    color: rgba(225, 213, 188, .37);
+    font: 650 .52rem var(--font-ui);
+    text-transform: uppercase;
+}
+.roster-filter-group { display: flex; align-items: center; gap: .25rem; }
+.roster-filter {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .32rem;
+    min-height: 38px;
+    padding: 0 .62rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: rgba(225, 213, 188, .52);
+    font: 700 .56rem var(--font-ui);
+    cursor: pointer;
+    transition: color .15s, border-color .15s, background .15s, transform .15s;
+}
+.roster-filter:hover { transform: translateY(-1px); border-color: rgba(223, 195, 111, .17); color: var(--roster-ink); background: rgba(223, 195, 111, .035); }
+.roster-filter.is-active { border-color: rgba(223, 195, 111, .3); background: rgba(223, 195, 111, .1); color: var(--roster-gold-bright); }
+.roster-primary-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .46rem;
+    min-height: 48px;
+    padding: 0 1rem;
+    border: 1px solid rgba(223, 195, 111, .52);
+    border-radius: 13px;
+    background: linear-gradient(135deg, rgba(223, 195, 111, .18), rgba(110, 42, 77, .25));
+    color: var(--roster-ink);
+    font: 750 .66rem var(--font-ui);
+    box-shadow: 0 9px 24px rgba(0, 0, 0, .24);
+    transition: transform .18s, border-color .18s, background .18s;
+}
+.roster-primary-action:hover { transform: translateY(-1px); border-color: rgba(244, 222, 160, .78); background: linear-gradient(135deg, rgba(223, 195, 111, .26), rgba(110, 42, 77, .32)); }
+.roster-primary-action[hidden] { display: none; }
+/* Collections and cards */
+.roster-page .npc-list { display: grid; gap: 1rem; }
+.roster-page .npc-category-group,
+.roster-collection {
+    display: grid;
+    gap: .85rem;
+    padding: 1rem;
+    border: 1px solid rgba(223, 195, 111, .1);
+    border-radius: 20px;
+    background: linear-gradient(145deg, rgba(25, 22, 28, .42), rgba(8, 8, 11, .58));
+    box-shadow: inset 0 1px rgba(255, 255, 255, .018);
+}
+.roster-page .npc-category-header,
+.roster-collection-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 44px;
+    padding: 0 .2rem .7rem;
+    border-bottom: 1px solid rgba(223, 195, 111, .13);
+}
+.roster-page .npc-category-title,
+.roster-collection-header > span {
+    display: inline-flex;
+    align-items: center;
+    gap: .52rem;
+    margin: 0;
+    color: var(--roster-gold-bright);
+    font: 700 1rem var(--font-heading);
+    letter-spacing: .055em;
+    text-transform: uppercase;
+}
+.roster-collection-header > span i { color: var(--roster-accent); }
+.roster-page .npc-category-count,
+.roster-collection-header small {
+    min-width: 2.2rem;
+    padding: .25rem .56rem;
+    border: 1px solid rgba(223, 195, 111, .15);
+    border-radius: 999px;
+    background: rgba(223, 195, 111, .04);
+    color: rgba(225, 213, 188, .47);
+    font: 750 .56rem var(--font-ui);
+    text-align: center;
+    text-transform: uppercase;
+}
+.roster-page .npc-category-list,
+.roster-page .roster-player-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .85rem;
+    align-items: stretch;
+}
+.roster-page .npc-card {
+    --card-accent: var(--roster-accent);
+    position: relative;
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr) 34px;
+    align-items: center;
+    gap: .82rem;
+    min-width: 0;
+    min-height: 192px;
+    padding: .82rem;
+    overflow: visible;
+    border: 1px solid rgba(var(--roster-accent-rgb), .2);
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at 0 0, rgba(var(--roster-accent-rgb), .09), transparent 15rem),
+        linear-gradient(145deg, rgba(25, 22, 28, .91), rgba(10, 10, 14, .97));
+    color: var(--roster-ink);
+    box-shadow: inset 0 1px rgba(255, 255, 255, .025), 0 18px 44px rgba(0, 0, 0, .19);
+    backdrop-filter: none;
+    transition: transform .25s, border-color .25s, box-shadow .25s, background .25s;
+}
+.roster-page .npc-card::before {
+    content: '';
+    position: absolute;
+    inset: 15% auto 15% 0;
+    width: 3px;
+    border-radius: 0 4px 4px 0;
+    background: linear-gradient(180deg, transparent, var(--card-accent) 25% 75%, transparent);
+    opacity: .72;
+}
+.roster-page .npc-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(var(--roster-accent-rgb), .48);
+    box-shadow: 0 25px 58px rgba(0, 0, 0, .34), inset 0 1px rgba(255, 255, 255, .035);
+}
+.roster-page .npc-card--dm-hidden {
+    --card-accent: #dc6b66;
+    border-color: rgba(220, 107, 102, .32);
+    background: radial-gradient(circle at 0 0, rgba(220, 107, 102, .1), transparent 16rem), linear-gradient(145deg, rgba(29, 20, 25, .95), rgba(11, 9, 12, .98));
+}
+.roster-page .npc-avatar-container {
+    position: relative;
+    display: grid;
+    width: 142px;
+    height: 142px;
+    margin: 0;
+    place-items: center;
+    flex-shrink: 0;
+    border: 1px solid rgba(var(--roster-accent-rgb), .48);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 38%, rgba(var(--roster-accent-rgb), .16), transparent 56%), rgba(3, 3, 6, .66);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, .38), 0 0 0 5px rgba(var(--roster-accent-rgb), .025), inset 0 1px rgba(255, 255, 255, .04);
+    transition: border-color .28s, box-shadow .28s, transform .28s;
+}
+.roster-page .npc-avatar-container::before {
+    content: '';
+    position: absolute;
+    inset: -7px;
+    border: 1px solid rgba(223, 195, 111, .095);
+    border-radius: 50%;
+    pointer-events: none;
+}
+.roster-page .npc-avatar-container::after {
+    content: '';
+    position: absolute;
+    right: 2px;
+    bottom: 13px;
+    z-index: 11;
+    width: 11px;
+    height: 11px;
+    border: 2px solid #111016;
+    border-radius: 50%;
+    background: var(--card-accent);
+    box-shadow: 0 0 14px rgba(var(--roster-accent-rgb), .62);
+    pointer-events: none;
+}
+.roster-page .npc-card:hover .npc-avatar-container {
+    z-index: 10;
+    transform: translateY(-2px);
+    border-color: rgba(244, 222, 160, .72);
+    box-shadow: 0 19px 42px rgba(0, 0, 0, .48), 0 0 0 5px rgba(var(--roster-accent-rgb), .045);
+}
+.roster-page .npc-img-pop {
+    transition: transform .54s cubic-bezier(.16, 1, .3, 1), opacity .46s ease, filter .32s ease;
+}
+.roster-page .npc-img-pop[data-frame-circle='1'] {
+    transform: scale(1) !important;
+    transition: opacity .56s cubic-bezier(.22, .61, .36, 1), transform .62s cubic-bezier(.16, 1, .3, 1), filter .4s ease;
+    will-change: opacity, transform;
+}
+.roster-page .npc-avatar-container[data-frame-circle-host='true'] .img-hover[data-frame-circle='1'] { transform: scale(.85) !important; }
+.roster-page .npc-card:hover:not(.npc-card--no-avatar-swap) .npc-avatar-container[data-frame-circle-host='true'] .img-hover[data-frame-circle='1'] { transform: scale(1) !important; }
+.roster-page .npc-card--no-avatar-swap:hover .npc-img-pop[data-frame-circle='1'] { transform: scale(1) !important; }
+.roster-page .npc-info { min-width: 0; align-self: center; }
+.roster-page .npc-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: .36rem;
+    margin: 0 0 .48rem;
+    padding: 0 0 .58rem;
+    border-bottom: 1px solid rgba(223, 195, 111, .085);
+}
+.roster-page .npc-name {
+    margin: 0;
+    overflow-wrap: anywhere;
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--roster-ink);
+    filter: none;
+    font: 700 clamp(1.08rem, 1.5vw, 1.42rem)/1.08 var(--font-heading);
+    letter-spacing: -.015em;
+    text-transform: none;
+    text-wrap: balance;
+}
+.roster-page .npc-role {
+    display: inline-flex;
+    width: fit-content;
+    max-width: 100%;
+    padding: .2rem .42rem;
+    overflow: hidden;
+    border: 1px solid rgba(var(--roster-accent-rgb), .15);
+    border-radius: 999px;
+    background: rgba(var(--roster-accent-rgb), .045);
+    color: color-mix(in srgb, var(--roster-accent) 72%, #fff 20%);
+    font: 750 .51rem var(--font-ui);
+    letter-spacing: .06em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+.roster-page .npc-desc {
+    display: -webkit-box;
+    margin: 0;
+    overflow: hidden;
+    color: rgba(225, 213, 188, .57);
+    font-size: .84rem;
+    line-height: 1.42;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+.roster-page .arrow-icon {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    justify-self: end;
+    border: 1px solid rgba(255, 255, 255, .055);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, .018);
+    color: color-mix(in srgb, var(--roster-accent) 70%, #fff 15%);
+    font-size: .65rem;
+    transition: transform .2s, border-color .2s, background .2s;
+}
+.roster-page .npc-card:hover .arrow-icon {
+    transform: translateX(2px);
+    border-color: rgba(var(--roster-accent-rgb), .3);
+    background: rgba(var(--roster-accent-rgb), .07);
+    color: var(--roster-gold-bright);
+}
+.roster-page .npc-status-badge {
+    top: .68rem;
+    right: .68rem;
+    z-index: 12;
+    padding: .22rem .45rem;
+    border-radius: 999px;
+    font-size: .5rem;
+    box-shadow: 0 7px 18px rgba(0, 0, 0, .36);
+}
+.roster-page .npc-status-badge::before { width: 6px; height: 6px; }
+.roster-page .npc-player-visibility-badge {
+    top: .68rem;
+    left: .68rem;
+    z-index: 12;
+    padding: .23rem .44rem;
+    font-size: .5rem;
+}
+.roster-page .npc-card[hidden], .roster-page .npc-category-group[hidden], .roster-collection[hidden] { display: none; }
+.roster-page .npc-card--loading { min-height: 192px; opacity: .55; }
+.roster-page .npc-card--loading .npc-avatar-container { margin: 0; }
+.roster-empty-state {
+    min-height: 190px;
+    display: grid;
+    place-items: center;
+    gap: .28rem;
+    padding: 1.5rem;
+    border: 1px dashed rgba(223, 195, 111, .15);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, .015);
+    color: rgba(225, 213, 188, .46);
+    text-align: center;
+}
+.roster-empty-state[hidden] { display: none; }
+.roster-empty-state i { margin-bottom: .25rem; color: var(--roster-gold); font-size: 1.35rem; }
+.roster-empty-state strong { color: var(--roster-ink); font: 700 1.05rem var(--font-heading); }
+.roster-empty-state span { font-size: .76rem; }
+/* Player-specific density */
+.roster-page .player-card {
+    min-height: 238px;
+    grid-template-columns: 150px minmax(0, 1fr) 34px;
+}
+.roster-page .player-card-meta {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .28rem;
+}
+.roster-page .player-card-meta .npc-role { order: -2; }
+.roster-page .player-status-badge,
+.roster-page .player-sync-stamp {
+    display: inline-flex;
+    align-items: center;
+    gap: .26rem;
+    min-height: 22px;
+    padding: .18rem .4rem;
+    border-radius: 999px;
+    font: 700 .49rem var(--font-ui);
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+.roster-page .player-sync-stamp {
+    border: 1px solid rgba(255, 255, 255, .045);
+    background: rgba(255, 255, 255, .018);
+    color: rgba(225, 213, 188, .38);
+}
+.roster-page .player-live-panel {
+    margin-top: .64rem;
+    padding: .58rem;
+    border-color: rgba(var(--roster-accent-rgb), .11);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(var(--roster-accent-rgb), .05), rgba(0, 0, 0, .13)), rgba(0, 0, 0, .14);
+}
+.roster-page .player-live-stats,
+.roster-page .player-live-lists { gap: .3rem; }
+.roster-page .player-live-lists { margin-top: .38rem; }
+.roster-page .player-live-stats span,
+.roster-page .player-live-items {
+    min-height: 24px;
+    padding: .18rem .36rem;
+    border-color: rgba(255, 255, 255, .06);
+    background: rgba(0, 0, 0, .18);
+    color: rgba(238, 230, 212, .72);
+    font-size: .56rem;
+}
+.roster-page .player-live-stats span i,
+.roster-page .player-live-items strong { color: var(--roster-accent); }
+.roster-page .player-live-items em:nth-of-type(n+3) { display: none; }
+.roster-page .player-live-panel--empty { min-height: 32px; font-size: .62rem; }
+.roster-page .player-companion-badges { right: -.2rem; bottom: -.2rem; }
+.roster-page .player-companion-badge {
+    width: 3.55rem;
+    height: 3.55rem;
+    border-width: 1px;
+    box-shadow: 0 0 0 3px rgba(0, 0, 0, .55), 0 10px 22px rgba(0, 0, 0, .55);
+}
+.roster-page .player-card--inactive {
+    --card-accent: #9398a3;
+    border-color: rgba(155, 160, 170, .2);
+    background: linear-gradient(145deg, rgba(22, 22, 25, .92), rgba(9, 9, 11, .98));
+    opacity: .78;
+}
+.roster-page .player-card--inactive:hover {
+    transform: translateY(-2px);
+    border-color: rgba(155, 160, 170, .3);
+    box-shadow: 0 18px 42px rgba(0, 0, 0, .26);
+}
+.roster-page .player-card--inactive .npc-name {
+    background: none;
+    -webkit-text-fill-color: rgba(205, 205, 205, .95);
+    color: rgba(205, 205, 205, .95);
+}
+.roster-page .player-card--inactive:hover .npc-avatar-container { transform: none; }
+
+@media (max-width: 1220px) {
+    .roster-hero { grid-template-columns: minmax(0, 1fr) 230px; }
+    .roster-hero-sigil { width: 220px; }
+    .roster-tools { grid-template-columns: minmax(220px, 1fr) auto; }
+    .roster-tools .roster-primary-action { grid-column: 1 / -1; justify-self: end; }
+    .roster-page .npc-category-list,
+    .roster-page .roster-player-list { grid-template-columns: 1fr; }
+    .roster-page .npc-card { min-height: 198px; }
+}
+
+@media (max-width: 840px) {
+    .roster-page-inner { padding: .8rem; }
+    .roster-hero { grid-template-columns: minmax(0, 1fr); min-height: 330px; border-radius: 22px; }
+    .roster-hero-copy { padding: 2rem 1.4rem; }
+    .roster-hero h1 { max-width: 11ch; font-size: clamp(3rem, 12vw, 4.8rem); }
+    .roster-hero-sigil { position: absolute; right: -50px; width: 240px; opacity: .28; }
+    .roster-tools,
+    .roster-tools--players { position: static; grid-template-columns: 1fr; }
+    .roster-filter-group { min-width: 0; overflow-x: auto; padding: .05rem 0; scrollbar-width: none; }
+    .roster-filter-group::-webkit-scrollbar { display: none; }
+    .roster-tools .roster-primary-action { grid-column: auto; width: 100%; justify-self: stretch; }
+    .roster-page .npc-category-group,
+    .roster-collection { padding: .75rem; }
+}
+
+@media (max-width: 600px) {
+    .roster-page-inner { padding: .55rem; }
+    .roster-hero { min-height: 300px; }
+    .roster-hero-copy { padding: 1.6rem 1rem; }
+    .roster-hero-copy > p { font-size: .88rem; }
+    .roster-search > span { display: none; }
+    .roster-page .npc-card,
+    .roster-page .player-card {
+        grid-template-columns: 96px minmax(0, 1fr) 30px;
+        gap: .58rem;
+        min-height: 142px;
+        padding: .65rem;
+        border-radius: 16px;
+    }
+    .roster-page .npc-avatar-container { width: 90px; height: 90px; }
+    .roster-page .npc-avatar-container::before { inset: -4px; }
+    .roster-page .npc-name { font-size: 1rem; }
+    .roster-page .npc-role { max-width: 15rem; }
+    .roster-page .npc-desc { font-size: .72rem; -webkit-line-clamp: 2; }
+    .roster-page .arrow-icon { width: 30px; height: 30px; }
+    .roster-page .npc-status-badge,
+    .roster-page .npc-player-visibility-badge { top: .42rem; padding: .18rem .35rem; font-size: .44rem; }
+    .roster-page .npc-status-badge { right: .42rem; }
+    .roster-page .npc-player-visibility-badge { left: .42rem; }
+    .roster-page .player-live-panel { padding: .4rem; }
+    .roster-page .player-live-stats span:nth-child(n+3),
+    .roster-page .player-live-lists { display: none; }
+    .roster-page .player-companion-badge { width: 2.65rem; height: 2.65rem; }
+    .roster-page .player-sync-stamp { display: none; }
+    .roster-page .npc-category-header,
+    .roster-collection-header { align-items: flex-start; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .roster-hero-orbit { animation: none; }
+    .roster-page .npc-card,
+    .roster-page .npc-img-pop,
+    .roster-filter,
+    .roster-primary-action { transition: none; }
+}

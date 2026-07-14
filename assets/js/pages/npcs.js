@@ -136,6 +136,10 @@ function parseYamlLite(yamlText) {
                 npcs = normalizeCharactersCollection(npcs);
 
                 const currentUserIsDm = await resolveNpcListUserIsDm(base_path);
+                window.CriptaNpcCategoryManager?.init?.({
+                    isEditor: currentUserIsDm,
+                    onSaved: () => window.location.reload()
+                });
                 const visibleNpcs = currentUserIsDm
                     ? npcs
                     : (window.WikiSpoiler
@@ -144,13 +148,14 @@ function parseYamlLite(yamlText) {
 
                 const managedState = await loadManagedNpcEntries(visibleNpcs).catch((error) => {
                     console.warn('Actor Foundry non caricati:', error);
-                    return { managedLegacyCharacterIds: [], npcs: [] };
+                    return { managedLegacyCharacterIds: [], npcCategories: [], npcs: [] };
                 });
                 const managedLegacyIds = new Set((managedState?.managedLegacyCharacterIds || [])
                     .map((id) => String(id || '').trim().toLowerCase())
                     .filter(Boolean));
                 const legacyNpcs = visibleNpcs.filter((npc) => !managedLegacyIds.has(String(npc?.id || '').trim().toLowerCase()));
-                const unifiedNpcs = [...legacyNpcs, ...(managedState?.npcs || [])];
+                const categoryRegistry = { categories: managedState?.npcCategories || [] };
+                const unifiedNpcs = [...legacyNpcs, ...(managedState?.npcs || [])].map((npc) => applyNpcCategoryMetadata(npc, categoryRegistry));
                 const recencyData = await loadNpcRecencyData(base_path);
                 const sortedNpcs = sortNpcsByRecency(unifiedNpcs, recencyData);
 
@@ -160,6 +165,7 @@ function parseYamlLite(yamlText) {
                 }
 
                 renderNpcGroups(npcListContainer, sortedNpcs, base_path);
+                initNpcRosterControls(npcListContainer);
             } catch (error) {
                 console.error("Errore nel caricamento degli NPC:", error);
                 npcListContainer.innerHTML = '<p style="color: var(--red);">Impossibile caricare la lista degli NPC.</p>';
@@ -167,7 +173,7 @@ function parseYamlLite(yamlText) {
         });
 
         async function loadManagedNpcEntries(visibleLegacyNpcs = []) {
-            if (typeof window.CriptaApp?.api?.get !== 'function') return { managedLegacyCharacterIds: [], npcs: [] };
+            if (typeof window.CriptaApp?.api?.get !== 'function') return { managedLegacyCharacterIds: [], npcCategories: [], npcs: [] };
             const token = String(window.CriptaDiscordAuth?.getToken?.() || '').trim();
             const payload = await window.CriptaApp.api.get('api/managed-actors', {
                 cache: false,
@@ -183,6 +189,7 @@ function parseYamlLite(yamlText) {
                 .filter((actor) => String(actor?.actorType || '').toLowerCase() === 'npc');
             return {
                 managedLegacyCharacterIds,
+                npcCategories: Array.isArray(payload?.npcCategories) ? payload.npcCategories : [],
                 npcs: actors.map((actor) => {
                     const legacyId = String(actor?.profile?.legacyCharacterId || '').trim().toLowerCase();
                     return managedActorToNpcListEntry(actor, legacyById.get(legacyId) || null);
@@ -210,8 +217,11 @@ function parseYamlLite(yamlText) {
                 quote: profile.quote || legacyNpc?.quote || '',
                 status: normalizeManagedNpcStatus(profile.status, legacyNpc?.status),
                 hidden: hiddenFromPlayers,
+                categoryId: profile.categoryId || legacyNpc?.categoryId || '',
                 category: profile.category || legacyNpc?.category || 'Altri NPC',
-                categoryPriority: legacyNpc?.categoryPriority ?? null,
+                categoryPriority: profile.categoryOrder ?? legacyNpc?.categoryPriority ?? null,
+                categoryColor: profile.categoryColor || legacyNpc?.categoryColor || '',
+                categoryIcon: profile.categoryIcon || legacyNpc?.categoryIcon || '',
                 images: {
                     ...legacyImages,
                     avatar: avatarPath,
@@ -414,19 +424,38 @@ function parseYamlLite(yamlText) {
             });
         }
 
+        function applyNpcCategoryMetadata(npc, registry) {
+            const resolved = window.CriptaNpcCategories?.resolve?.(registry, npc?.categoryId, npc?.category);
+            if (!resolved) return npc;
+            return {
+                ...npc,
+                categoryId: resolved.id,
+                category: resolved.name,
+                categoryPriority: resolved.order,
+                categoryColor: resolved.color,
+                categoryIcon: resolved.icon
+            };
+        }
+
         function renderNpcGroups(container, npcs, base_path) {
             container.innerHTML = '';
             const groups = groupNpcsByCategory(npcs);
             groups.forEach((group) => {
                 const section = document.createElement('section');
                 section.className = 'npc-category-group';
-                section.dataset.npcCategory = group.category || '';
+                section.dataset.npcCategory = group.id || group.category || '';
+                if (group.color) section.style.setProperty('--npc-category-accent', group.color);
 
                 const header = document.createElement('header');
                 header.className = 'npc-category-header';
                 const title = document.createElement('h2');
                 title.className = 'npc-category-title';
-                title.textContent = group.category || 'Senza categoria';
+                if (group.icon) {
+                    const icon = document.createElement('i');
+                    icon.className = `fas ${group.icon}`;
+                    title.appendChild(icon);
+                }
+                title.appendChild(document.createTextNode(group.category || 'Senza categoria'));
                 const count = document.createElement('span');
                 count.className = 'npc-category-count';
                 count.textContent = String(group.items.length);
@@ -448,11 +477,14 @@ function parseYamlLite(yamlText) {
             const groups = new Map();
             (Array.isArray(npcs) ? npcs : []).forEach((npc) => {
                 const category = String(npc?.category || '').trim();
-                const key = category.toLocaleLowerCase('it') || '__uncategorized__';
+                const id = window.CriptaNpcCategories?.normalizeId?.(npc?.categoryId || category) || category.toLocaleLowerCase('it');
+                const key = id || '__uncategorized__';
                 if (!groups.has(key)) {
-                    groups.set(key, { category, priority: null, items: [] });
+                    groups.set(key, { id, category, color: npc?.categoryColor || '', icon: npc?.categoryIcon || '', priority: null, items: [] });
                 }
                 const group = groups.get(key);
+                if (!group.color && npc?.categoryColor) group.color = npc.categoryColor;
+                if (!group.icon && npc?.categoryIcon) group.icon = npc.categoryIcon;
                 const priority = normalizeCategoryPriority(npc?.categoryPriority);
                 if (priority !== null && (group.priority === null || priority < group.priority)) {
                     group.priority = priority;
@@ -534,6 +566,59 @@ function parseYamlLite(yamlText) {
             return null;
         }
 
+        function normalizeRosterSearch(value) {
+            return String(value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLocaleLowerCase('it')
+                .trim();
+        }
+
+        function initNpcRosterControls(container) {
+            const search = document.getElementById('npc-search');
+            const filters = document.getElementById('npc-status-filters');
+            const count = document.getElementById('npc-count');
+            const empty = document.getElementById('npc-filter-empty');
+            const state = { query: '', status: 'all' };
+
+            const apply = () => {
+                const query = normalizeRosterSearch(state.query);
+                const cards = Array.from(container.querySelectorAll('[data-roster-card="npc"]'));
+                let visibleTotal = 0;
+                cards.forEach((card) => {
+                    const matchesQuery = !query || String(card.dataset.rosterSearch || '').includes(query);
+                    const matchesStatus = state.status === 'all' || card.dataset.rosterStatus === state.status;
+                    card.hidden = !(matchesQuery && matchesStatus);
+                    if (!card.hidden) visibleTotal += 1;
+                });
+                container.querySelectorAll('.npc-category-group').forEach((section) => {
+                    const visibleCards = Array.from(section.querySelectorAll('[data-roster-card="npc"]')).filter((card) => !card.hidden);
+                    section.hidden = visibleCards.length === 0;
+                    const sectionCount = section.querySelector('.npc-category-count');
+                    if (sectionCount) sectionCount.textContent = String(visibleCards.length);
+                });
+                if (count) count.textContent = `${visibleTotal} NPC`;
+                if (empty) empty.hidden = visibleTotal !== 0;
+            };
+
+            search?.addEventListener('input', (event) => {
+                state.query = event.target.value;
+                apply();
+            });
+            filters?.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-roster-filter]');
+                if (!button) return;
+                state.status = button.dataset.rosterFilter || 'all';
+                filters.querySelectorAll('[data-roster-filter]').forEach((entry) => {
+                    const active = entry === button;
+                    entry.classList.toggle('is-active', active);
+                    entry.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+                apply();
+            });
+            apply();
+        }
+
         function createNpcCard(npc, base_path) {
             const statusMap = {
                 vivo: { text: 'VIVO', class: 'status-vivo' },
@@ -545,6 +630,9 @@ function parseYamlLite(yamlText) {
             const card = document.createElement('a');
             card.href = npc.managedActorUrl || buildNpcDetailUrl({ id: npc.id, type: 'npc' });
             card.className = 'npc-card';
+            card.dataset.rosterCard = 'npc';
+            card.dataset.rosterStatus = ['vivo', 'morto'].includes(String(npc.status || '').toLowerCase()) ? String(npc.status).toLowerCase() : 'ignoto';
+            card.dataset.rosterSearch = normalizeRosterSearch([npc.name, npc.role, npc.quote, npc.category, npc.status].filter(Boolean).join(' '));
             const hiddenFromPlayers = npc.hidden === true || npc.status === 'hidden';
             if (hiddenFromPlayers) card.classList.add('npc-card--dm-hidden');
             const avatarImage = npc.images.idle || npc.images.token || npc.images.avatar || '';

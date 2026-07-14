@@ -12,6 +12,14 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         return window.CriptaApp.utils.normalizeKey(value);
     }
 
+    function normalizeRosterSearch(value) {
+        return String(value || "")
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .toLocaleLowerCase("it")
+            .trim();
+    }
+
     const HIDDEN_INVENTORY_ITEM_NAMES = new Set(["unarmedstrike"]);
 
     function isHiddenInventoryItem(item) {
@@ -484,8 +492,16 @@ window.CriptaApp.onPageReady("giocatori", async function() {
             ? `&campaign=${encodeURIComponent(campaignId)}`
             : "";
 
+        const rosterSearch = normalizeRosterSearch([
+            player.name,
+            player.role,
+            player.description,
+            ...(Array.isArray(actor?.equippedItems) ? actor.equippedItems.map((item) => item?.name) : []),
+            ...(Array.isArray(actor?.attunementItems) ? actor.attunementItems.map((item) => item?.name) : [])
+        ].filter(Boolean).join(" "));
+
         return `
-            <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player${campaignQuery}" class="${cardClassWithSwap}">
+            <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player${campaignQuery}" class="${cardClassWithSwap}" data-roster-card="player" data-roster-state="${isInactive ? "inactive" : "active"}" data-roster-search="${escapeHtml(rosterSearch)}">
                 <div class="npc-avatar-container">
                     <img src="${escapeHtml(resolveImageUrl(listImage))}" ${listFallback ? `data-fallback-src="${escapeHtml(listFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-main" loading="lazy" decoding="async" style="${buildImageStyle("avatar", listAdjust, listHoverAdjust)}" onerror="${buildFallbackImageErrorHandler(listFallbackPath, player.name)}">
                     <img src="${escapeHtml(resolveImageUrl(listHoverImage))}" ${hoverFallback ? `data-fallback-src="${escapeHtml(hoverFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-hover" loading="lazy" decoding="async" style="${buildImageStyle("hover", listHoverAdjust, listAdjust)}" onerror="${buildFallbackImageErrorHandler(hoverFallbackPath, player.name, true)}">
@@ -506,6 +522,48 @@ window.CriptaApp.onPageReady("giocatori", async function() {
                 <i class="fas fa-chevron-right arrow-icon"></i>
             </a>
         `;
+    }
+
+    function initPlayerRosterControls(root) {
+        const search = document.getElementById("players-search");
+        const filters = document.getElementById("players-state-filters");
+        const countTargets = [document.getElementById("players-count"), document.getElementById("players-section-count")].filter(Boolean);
+        const collection = root.closest(".roster-collection");
+        const empty = document.getElementById("players-filter-empty");
+        const state = { query: "", status: "all" };
+
+        const apply = () => {
+            const query = normalizeRosterSearch(state.query);
+            const cards = Array.from(root.querySelectorAll('[data-roster-card="player"]'));
+            let visibleTotal = 0;
+            cards.forEach((card) => {
+                const matchesQuery = !query || String(card.dataset.rosterSearch || "").includes(query);
+                const matchesStatus = state.status === "all" || card.dataset.rosterState === state.status;
+                card.hidden = !(matchesQuery && matchesStatus);
+                if (!card.hidden) visibleTotal += 1;
+            });
+            const label = `${visibleTotal} ${visibleTotal === 1 ? "personaggio" : "personaggi"}`;
+            countTargets.forEach((target) => { target.textContent = label; });
+            if (collection) collection.hidden = visibleTotal === 0;
+            if (empty) empty.hidden = visibleTotal !== 0;
+        };
+
+        search?.addEventListener("input", (event) => {
+            state.query = event.target.value;
+            apply();
+        });
+        filters?.addEventListener("click", (event) => {
+            const button = event.target.closest("[data-roster-filter]");
+            if (!button) return;
+            state.status = button.dataset.rosterFilter || "all";
+            filters.querySelectorAll("[data-roster-filter]").forEach((entry) => {
+                const active = entry === button;
+                entry.classList.toggle("is-active", active);
+                entry.setAttribute("aria-pressed", active ? "true" : "false");
+            });
+            apply();
+        });
+        apply();
     }
 
     try {
@@ -535,6 +593,7 @@ window.CriptaApp.onPageReady("giocatori", async function() {
             .map((player) => renderPlayerCard(player, findPlayerActor(inventorySnapshot, player), inventorySnapshot))
             .join("");
         applyManagedPlayerFrameCircles(container, visiblePlayers);
+        initPlayerRosterControls(container);
     } catch (error) {
         console.error("Errore nel caricamento dei dati dei giocatori:", error);
         container.innerHTML = '<p style="color: var(--status-dead);">Impossibile caricare i dati dei giocatori. Controlla la console per maggiori dettagli.</p>';

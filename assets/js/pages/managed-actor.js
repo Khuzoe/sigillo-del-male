@@ -5,6 +5,7 @@
     let currentProfile = null;
     let currentProfilePermissions = { canEdit: false, isEditor: false };
     let campaignItemCatalog = [];
+    let npcCategoryRegistry = { revision: 0, categories: [] };
     let managedProfileDirty = false;
     let managedProfileSource = "empty";
     const managedPreviewUrls = new Map();
@@ -211,6 +212,17 @@
         }
         return campaignItemCatalog;
     }
+    async function loadNpcCategoryRegistry(token = "", force = false) {
+        if (!window.CriptaNpcCategories?.load) return npcCategoryRegistry;
+        try {
+            npcCategoryRegistry = await window.CriptaNpcCategories.load({ token, force });
+        } catch (error) {
+            console.warn("Registro categorie NPC non disponibile.", error);
+            npcCategoryRegistry = { revision: 0, categories: [] };
+        }
+        return npcCategoryRegistry;
+    }
+
     async function loadManagedActorProfile(actor, token = "") {
         managedProfileDirty = false;
         managedProfileFiles.clear();
@@ -222,6 +234,14 @@
             });
             currentProfile = normalizeManagedProfile(payload.data, actor);
             currentProfilePermissions = payload.permissions || { canEdit: false, isEditor: false };
+            if (currentProfilePermissions.isEditor === true) {
+                try {
+                    await loadNpcCategoryRegistry(token);
+                } catch (categoryError) {
+                    console.warn("Categorie NPC non disponibili; il dossier resta utilizzabile.", categoryError);
+                    npcCategoryRegistry = { revision: 0, categories: [] };
+                }
+            }
             managedProfileSource = payload.source || "profile";
             return currentProfile;
         } catch (error) {
@@ -249,6 +269,7 @@
             worldId: input.worldId || actor.worldId || "",
             actorId: input.actorId || actor.actorId || "",
             legacyCharacterId: sanitizeId(input.legacyCharacterId || ""),
+            categoryId: window.CriptaNpcCategories?.normalizeId?.(input.categoryId || input.category || "") || "",
             category: String(input.category || ""),
             name: String(input.name || actor.name || "NPC"),
             role: String(input.role || ""),
@@ -361,6 +382,25 @@
         return `<article class="managed-profile-block managed-profile-block--${escapeAttr(type)}">${type === "banner_box" ? image : ""}<div class="managed-profile-block-body">${hiddenBadge}<h3><i class="fas ${escapeAttr(block.icon || "fa-scroll")}"></i>${escapeHtml(block.title)}</h3>${type !== "banner_box" ? image : ""}<div class="managed-profile-markdown">${html}</div></div></article>`;
     }
 
+    function renderManagedNpcCategoryField(profile) {
+        const normalizeId = window.CriptaNpcCategories?.normalizeId || sanitizeId;
+        const requestedId = normalizeId(profile.categoryId || profile.category || "");
+        const resolved = window.CriptaNpcCategories?.resolve?.(npcCategoryRegistry, requestedId, profile.category);
+        const selectedId = resolved?.id || requestedId;
+        const categories = (Array.isArray(npcCategoryRegistry?.categories) ? npcCategoryRegistry.categories : [])
+            .filter((category) => (!category.archived && !category.mergedInto) || category.id === selectedId)
+            .sort((left, right) => left.order - right.order || left.name.localeCompare(right.name, "it"));
+        const hasSelected = categories.some((category) => category.id === selectedId);
+        const fallbackOption = selectedId && !hasSelected
+            ? `<option value="${escapeAttr(selectedId)}" selected>${escapeHtml(profile.category || selectedId)}</option>`
+            : "";
+        return `<div class="managed-profile-category-picker">
+            <label><span>Categoria nella lista NPC</span><select data-managed-profile-field="categoryId"><option value="">Senza categoria</option>${fallbackOption}${categories.map((category) => `<option value="${escapeAttr(category.id)}" ${category.id === selectedId ? "selected" : ""}>${escapeHtml(category.name)}${category.archived ? " (archiviata)" : ""}</option>`).join("")}</select></label>
+            <button type="button" data-managed-category-create><i class="fas fa-plus"></i><span>Nuova</span></button>
+            <a href="../npcs.html?manageCategories=1"><i class="fas fa-folder-tree"></i><span>Gestisci</span></a>
+        </div>`;
+    }
+
     function renderManagedProfileSection(profile, editMode = false, canEdit = false) {
         if (!profile) return "";
         const blocks = Array.isArray(profile.blocks) ? profile.blocks : [];
@@ -374,7 +414,7 @@
                 <div class="managed-profile-meta-editor">
                     <label><span>Ruolo o soprannome</span><input type="text" data-managed-profile-field="role" value="${escapeAttr(profile.role)}" placeholder="Es. La Giullare"></label>
                     <label><span>Stato</span><input type="text" data-managed-profile-field="status" value="${escapeAttr(profile.status)}" placeholder="Es. Vivo, disperso"></label>
-                    ${canManageProfileLink ? '<label><span>Categoria nella lista NPC</span><input type="text" data-managed-profile-field="category" value="' + escapeAttr(profile.category) + '" placeholder="Es. Circo di Zara"></label>' : ""}
+                    ${canManageProfileLink ? renderManagedNpcCategoryField(profile) : ""}
                     ${canManageProfileLink ? '<label><span>ID wiki collegato</span><input type="text" data-managed-profile-field="legacyCharacterId" value="' + escapeAttr(profile.legacyCharacterId) + '" placeholder="zara"></label>' : ""}
                     <label class="managed-profile-field-wide"><span>Citazione</span><textarea rows="2" data-managed-profile-field="quote" placeholder="Una frase rappresentativa">${escapeHtml(profile.quote)}</textarea></label>
                 </div>
@@ -420,12 +460,44 @@
         managedProfilePreviewUrls.clear();
     }
 
+    async function createManagedNpcCategory(root, markDirty) {
+        const name = String(window.prompt("Nome della nuova categoria NPC:", "") || "").trim();
+        if (!name) return;
+        const id = window.CriptaNpcCategories?.normalizeId?.(name) || sanitizeId(name);
+        if (!id) return;
+        let category = (npcCategoryRegistry.categories || []).find((entry) => entry.id === id);
+        if (category?.archived) {
+            window.alert("Questa categoria e archiviata. Riattivala dal gestore categorie.");
+            return;
+        }
+        if (!category) {
+            const maxOrder = Math.max(0, ...(npcCategoryRegistry.categories || []).map((entry) => Number(entry.order) || 0));
+            const nextCategories = [...(npcCategoryRegistry.categories || []), { id, name, order: maxOrder + 10, color: "#b99a45", icon: "fa-folder-open", archived: false, mergedInto: "" }];
+            try {
+                npcCategoryRegistry = await window.CriptaNpcCategories.save(nextCategories, npcCategoryRegistry.revision, { token: getToken() });
+                category = npcCategoryRegistry.categories.find((entry) => entry.id === id);
+            } catch (error) {
+                await loadNpcCategoryRegistry(getToken(), true);
+                window.alert(error.message || "Creazione categoria fallita.");
+                return;
+            }
+        }
+        const select = root.querySelector('[data-managed-profile-field="categoryId"]');
+        if (!select || !category) return;
+        if (!Array.from(select.options).some((option) => option.value === category.id)) select.add(new Option(category.name, category.id));
+        select.value = category.id;
+        markDirty();
+    }
+
     function setupManagedProfileEditor(root, editMode) {
         const section = root.querySelector("[data-managed-profile]");
         if (!section || !editMode || !currentProfilePermissions.canEdit) return;
         const markDirty = () => { managedProfileDirty = true; root.dataset.managedDirty = "true"; };
         section.querySelectorAll("input:not([data-managed-visibility]), textarea, select:not([data-managed-visibility])").forEach((control) => control.addEventListener("input", markDirty));
         section.querySelectorAll("select:not([data-managed-visibility])").forEach((control) => control.addEventListener("change", markDirty));
+        section.querySelector("[data-managed-category-create]")?.addEventListener("click", () => {
+            createManagedNpcCategory(root, markDirty);
+        });
         section.querySelectorAll('[data-managed-profile-block-field="text"]').forEach((textarea) => textarea.addEventListener("input", () => {
             const preview = textarea.closest("[data-managed-profile-block]")?.querySelector("[data-managed-profile-preview]");
             if (preview) preview.innerHTML = window.CriptaMarkdown?.render?.(textarea.value, { showInlineSecrets: true }) || escapeHtml(textarea.value);
@@ -533,7 +605,9 @@
         const field = (name, fallback = "") => section.querySelector(`[data-managed-profile-field="${CSS.escape(name)}"]`)?.value ?? fallback;
         next.role = field("role");
         next.status = field("status");
-        next.category = field("category", currentProfile.category || "").trim();
+        next.categoryId = window.CriptaNpcCategories?.normalizeId?.(field("categoryId", currentProfile.categoryId || "")) || "";
+        const selectedCategory = window.CriptaNpcCategories?.resolve?.(npcCategoryRegistry, next.categoryId, currentProfile.category);
+        next.category = next.categoryId ? String(selectedCategory?.name || currentProfile.category || "").trim() : "";
         next.quote = field("quote");
         next.legacyCharacterId = sanitizeId(field("legacyCharacterId", currentProfile.legacyCharacterId || ""));
         next.visibility = { state: normalizeManagedProfileVisibility(field("visibility", currentProfile.visibility?.state || "dm")) };
