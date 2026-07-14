@@ -1,4 +1,5 @@
 import { discordBotPreferencesKey, handleDiscordBotDmNotifications, normalizeDiscordBotPreferences } from "./discord-bot/notifications.js";
+import { handleCampaignItemFoundrySync, normalizeCampaignItemsForSiteSave } from "./campaign-items.js";
 
 export default {
   async scheduled(event, env, ctx) {
@@ -31,6 +32,10 @@ export default {
 
       if (url.pathname === "/api/foundry/asset-snapshot" && request.method === "POST") {
         return handleFoundryAssetSnapshot(request, queryCampaignId, env, corsHeaders);
+      }
+
+      if (url.pathname === "/api/campaign-items/foundry-sync" && request.method === "POST") {
+        return handleCampaignItemFoundrySync(request, queryCampaignId, env, corsHeaders);
       }
 
       const managedActorRoute = matchManagedActorRoute(url.pathname);
@@ -1428,7 +1433,7 @@ function json(data, status = 200, corsHeaders = {}) {
 }
 
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
-const WORKER_CODE_VERSION = "2026-07-13-managed-actors-v16-campaign-privacy";
+const WORKER_CODE_VERSION = "2026-07-14-campaign-items-v1";
 const SYNC_BOOTSTRAP_COLLECTIONS = [
   "characters",
   "quests",
@@ -2971,7 +2976,8 @@ function normalizeManagedMediaReference(value) {
   if (typeof value !== "string") return { valid: false, value: "" };
   const clean = String(value || "").trim().slice(0, 1_000);
   if (!clean) return { valid: true, value: "" };
-  if (/^media\/campaigns\/[a-z0-9_-]+\/managed-actors\//.test(clean)) return { valid: true, value: clean };
+  if (/^media\/campaigns\/[a-z0-9_-]+\/(managed-actors|items)\//.test(clean)) return { valid: true, value: clean };
+  if (/^media\/items\/[A-Za-z0-9_./%+@-]+\.(png|jpe?g|webp|gif)$/i.test(clean) && !clean.includes("..")) return { valid: true, value: clean };
   if (/^https:\/\/sigillo-api\.khuzoe\.workers\.dev\/media\//i.test(clean)) return { valid: true, value: clean };
   if (/^(icons|systems|modules|worlds)\/[A-Za-z0-9_./%+@-]+\.(png|jpe?g|webp|gif|svg)$/i.test(clean) && !clean.includes("..")) return { valid: true, value: clean };
   return { valid: false, value: "" };
@@ -3086,8 +3092,9 @@ function normalizeManagedCreateDocument(input, kind) {
     if (!name || !["weapon", "equipment", "consumable", "tool", "loot", "container", "feat", "spell", "background", "class", "subclass"].includes(type)) return null;
     const img = input.img ? normalizeManagedMediaReference(input.img) : { valid: true, value: "" };
     const system = normalizeManagedCommandObject(input.system || {}, 96 * 1024);
-    if (!img.valid || !system.valid) return null;
-    return { name, type, img: img.value, system: system.value, transferId: String(input.transferId || "").trim().slice(0, 180) };
+    const effects = normalizeManagedCommandObject(Array.isArray(input.effects) ? input.effects : [], 64 * 1024);
+    if (!img.valid || !system.valid || !effects.valid) return null;
+    return { name, type, img: img.value, system: system.value, effects: effects.value, campaignItemId: sanitizeAssetId(input.campaignItemId || ""), transferId: String(input.transferId || "").trim().slice(0, 180) };
   }
   if (kind === "effect.create") {
     const name = String(input.name || "").trim().slice(0, 180);
@@ -4206,6 +4213,9 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
   if (collection === "transformations") {
     nextData = normalizeTransformationRecords(existingData, nextData);
   }
+  if (collection === "items") {
+    nextData = normalizeCampaignItemsForSiteSave(existingData, nextData);
+  }
 
   const now = new Date().toISOString();
   const doc = {
@@ -4917,7 +4927,7 @@ async function handleMediaUpload(request, env, corsHeaders = {}) {
   }
 
   const isManagedActorFolder = folder.startsWith("managed-actors/");
-  const foundrySyncAuthorized = isManagedActorFolder && isFoundrySyncSecretAuthorized(request, env);
+  const foundrySyncAuthorized = (isManagedActorFolder || folder === "items") && isFoundrySyncSecretAuthorized(request, env);
   if (!foundrySyncAuthorized) {
     user = await requireUser(request, env, corsHeaders);
     if (user instanceof Response) return user;

@@ -6672,6 +6672,86 @@ body.page-oggetti .hero-mini {
     cursor: pointer;
 }
 
+.item-inline-editor-foundry {
+    overflow: hidden;
+    border-color: rgba(84, 170, 255, 0.22);
+    background:
+        radial-gradient(circle at 100% 0, rgba(52, 125, 201, 0.12), transparent 38%),
+        rgba(4, 9, 16, 0.42);
+}
+
+.item-inline-editor-foundry > summary {
+    display: flex;
+    gap: 0.8rem;
+    align-items: center;
+    justify-content: space-between;
+    list-style: none;
+}
+
+.item-inline-editor-foundry > summary::-webkit-details-marker {
+    display: none;
+}
+
+.item-foundry-intro {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    padding: 0.8rem 0.9rem;
+    border: 1px solid rgba(84, 170, 255, 0.18);
+    border-radius: 8px;
+    background: rgba(35, 93, 151, 0.08);
+    color: rgba(220, 232, 244, 0.72);
+    font-family: var(--font-ui);
+    font-size: 0.78rem;
+    line-height: 1.55;
+}
+
+.item-foundry-intro i {
+    margin-top: 0.18rem;
+    color: #69b4ff;
+}
+
+.item-sync-badge {
+    display: inline-flex;
+    gap: 0.38rem;
+    align-items: center;
+    padding: 0.32rem 0.58rem;
+    border: 1px solid rgba(168, 184, 199, 0.2);
+    border-radius: 999px;
+    color: rgba(205, 218, 230, 0.68);
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.item-sync-badge--linked {
+    border-color: rgba(84, 202, 151, 0.28);
+    background: rgba(34, 129, 89, 0.1);
+    color: #8be2b8;
+}
+
+.item-sync-badge--pending {
+    border-color: rgba(237, 184, 70, 0.34);
+    background: rgba(181, 121, 23, 0.12);
+    color: #f0ca75;
+}
+
+.item-foundry-json textarea {
+    min-height: 12rem;
+    border-color: rgba(84, 170, 255, 0.18);
+    background: rgba(1, 5, 10, 0.76);
+    color: #c9dded;
+    font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+    font-size: 0.72rem;
+    line-height: 1.55;
+    tab-size: 2;
+}
+
+.item-inline-editor-field input[readonly] {
+    border-style: dashed;
+    color: rgba(232, 219, 188, 0.48);
+    cursor: not-allowed;
+}
 @media (max-width: 820px) {
     .item-inline-editor-header,
     .item-inline-editor-layout {
@@ -6817,6 +6897,19 @@ body.page-oggetti .hero-mini {
     color: rgba(255, 190, 176, 0.92);
 }
 
+.item-card-kicker .item-card-sync-badge {
+    padding: 0.18rem 0.42rem;
+    border: 1px solid rgba(82, 190, 142, 0.28);
+    border-radius: 999px;
+    background: rgba(25, 106, 74, 0.16);
+    color: #8be2b8;
+}
+
+.item-card-kicker .item-card-sync-badge--pending {
+    border-color: rgba(225, 173, 67, 0.34);
+    background: rgba(132, 85, 16, 0.18);
+    color: #ecc66f;
+}
 .item-card h3 {
     margin: 0;
     color: var(--ink-ivory);

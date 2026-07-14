@@ -4,6 +4,7 @@
     let managedEditMode = false;
     let currentProfile = null;
     let currentProfilePermissions = { canEdit: false, isEditor: false };
+    let campaignItemCatalog = [];
     let managedProfileDirty = false;
     let managedProfileSource = "empty";
     const managedPreviewUrls = new Map();
@@ -45,7 +46,10 @@
             currentDocument = payload.data;
             currentCanEdit = currentDocument?.permissions ? currentDocument.permissions.canEdit === true : Boolean(token);
             managedEditMode = false;
-            await loadManagedActorProfile(currentDocument, token);
+            await Promise.all([
+                loadManagedActorProfile(currentDocument, token),
+                currentCanEdit ? loadCampaignItemCatalog(token) : Promise.resolve([])
+            ]);
             renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode);
         } catch (error) {
             console.error("Managed Actor non disponibile", error);
@@ -166,6 +170,7 @@
         root.querySelectorAll("[data-managed-item-save]").forEach((button) => button.addEventListener("click", () => enqueueManagedItemUpdate(button)));
         root.querySelectorAll("[data-managed-item-delete]").forEach((button) => button.addEventListener("click", () => enqueueManagedItemDelete(button)));
         root.querySelectorAll("[data-managed-item-create]").forEach((button) => button.addEventListener("click", () => enqueueManagedItemCreate(button)));
+        root.querySelectorAll("[data-managed-catalog-add]").forEach((button) => button.addEventListener("click", () => enqueueManagedCatalogItem(button)));
         root.querySelectorAll("[data-managed-effect-save]").forEach((button) => button.addEventListener("click", () => enqueueManagedEffectUpdate(button)));
         root.querySelectorAll("[data-managed-effect-delete]").forEach((button) => button.addEventListener("click", () => enqueueManagedEffectDelete(button)));
         root.querySelector("[data-managed-effect-create]")?.addEventListener("click", (event) => enqueueManagedEffectCreate(event.currentTarget));
@@ -193,6 +198,19 @@
         }
     }
 
+    async function loadCampaignItemCatalog(token = "") {
+        try {
+            const payload = await window.CriptaApp.api.get("api/data/items", { cache: false, ...(token ? { token } : {}) });
+            const includeHidden = currentDocument?.permissions?.isEditor === true;
+            campaignItemCatalog = (Array.isArray(payload?.data) ? payload.data : [])
+                .filter((item) => item && typeof item === "object" && (item.id || item.name) && (includeHidden || item.hidden !== true))
+                .sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "it"));
+        } catch (error) {
+            campaignItemCatalog = [];
+            console.warn("Catalogo oggetti di campagna non disponibile.", error);
+        }
+        return campaignItemCatalog;
+    }
     async function loadManagedActorProfile(actor, token = "") {
         managedProfileDirty = false;
         managedProfileFiles.clear();
@@ -1654,7 +1672,21 @@
             : title === "Inventario"
                 ? [["equipment", "Equipaggiamento"], ["weapon", "Arma"], ["consumable", "Consumabile"], ["tool", "Strumento"], ["loot", "Bottino"], ["container", "Contenitore"]]
                 : [["feat", "Capacità"], ["weapon", "Attacco/arma"]];
-        return `<details class="managed-create-editor" data-managed-item-create-form><summary><span><i class="fas fa-plus"></i> Nuovo elemento</span><i class="fas fa-chevron-down"></i></summary><div class="managed-create-form"><div class="managed-item-fields"><label><span>Nome</span><input type="text" value="Nuovo elemento" data-managed-item-create-field="name"></label><label><span>Tipo</span><select data-managed-item-create-field="type">${options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label><label><span>Livello</span><input type="number" min="0" max="20" step="1" value="0" data-managed-item-create-field="level"></label><label class="managed-file-field"><span>Icona</span><input type="file" accept="image/*" data-managed-item-create-field="icon"></label></div><label class="managed-item-description"><span>Descrizione</span><textarea rows="4" data-managed-item-create-field="description"></textarea></label><label class="managed-json-field"><span>Dati system iniziali</span><textarea rows="5" spellcheck="false" data-managed-item-create-field="system">{}</textarea></label><div class="managed-item-actions"><span data-managed-item-create-result></span><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-create><i class="fas fa-plus"></i> Crea in Foundry</button></div></div></details>`;
+        const linkedIds = new Set((Array.isArray(currentDocument?.definition?.items) ? currentDocument.definition.items : []).map((entry) => String(entry.campaignItemId || "")).filter(Boolean));
+        const catalogPicker = title === "Inventario" && campaignItemCatalog.length ? `
+            <section class="managed-catalog-picker">
+                <div class="managed-catalog-picker-heading">
+                    <span class="managed-catalog-picker-icon"><i class="fas fa-vault"></i></span>
+                    <div><strong>Aggiungi dal catalogo della campagna</strong><small>La copia resterà collegata all'oggetto canonico, mantenendo quantità e utilizzi propri.</small></div>
+                </div>
+                <div class="managed-catalog-picker-controls">
+                    <label><span>Oggetto</span><select data-managed-catalog-select><option value="">Scegli un oggetto...</option>${campaignItemCatalog.map((item) => { const id = String(item.id || ""); const owned = linkedIds.has(id); const meta = [item.type, item.rarity].filter(Boolean).join(" · "); return `<option value="${escapeAttr(id)}" ${owned ? "disabled" : ""}>${escapeHtml(item.name || id)}${meta ? ` — ${escapeHtml(meta)}` : ""}${owned ? " (già presente)" : ""}</option>`; }).join("")}</select></label>
+                    <button type="button" class="button-gold-outline managed-primary-action" data-managed-catalog-add><i class="fas fa-plus"></i> Aggiungi</button>
+                </div>
+                <span class="managed-catalog-picker-result" data-managed-catalog-result></span>
+            </section>` : "";
+        const customCreator = `<details class="managed-create-editor" data-managed-item-create-form><summary><span><i class="fas fa-plus"></i> Crea elemento personalizzato</span><i class="fas fa-chevron-down"></i></summary><div class="managed-create-form"><div class="managed-item-fields"><label><span>Nome</span><input type="text" value="Nuovo elemento" data-managed-item-create-field="name"></label><label><span>Tipo</span><select data-managed-item-create-field="type">${options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label><label><span>Livello</span><input type="number" min="0" max="20" step="1" value="0" data-managed-item-create-field="level"></label><label class="managed-file-field"><span>Icona</span><input type="file" accept="image/*" data-managed-item-create-field="icon"></label></div><label class="managed-item-description"><span>Descrizione</span><textarea rows="4" data-managed-item-create-field="description"></textarea></label><label class="managed-json-field"><span>Dati system iniziali</span><textarea rows="5" spellcheck="false" data-managed-item-create-field="system">{}</textarea></label><div class="managed-item-actions"><span data-managed-item-create-result></span><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-create><i class="fas fa-plus"></i> Crea in Foundry</button></div></div></details>`;
+        return `${catalogPicker}${customCreator}`;
     }
 
     function getManagedItemDesiredValue(entry, command, path) {
@@ -2139,6 +2171,70 @@
         }
     }
 
+    async function enqueueManagedCatalogItem(button) {
+        const picker = button.closest(".managed-catalog-picker");
+        const select = picker?.querySelector("[data-managed-catalog-select]");
+        const result = picker?.querySelector("[data-managed-catalog-result]");
+        const campaignItemId = String(select?.value || "");
+        const catalogItem = campaignItemCatalog.find((item) => String(item.id || "") === campaignItemId);
+        const token = getToken();
+        if (!picker || !select || !result || !token || !catalogItem) {
+            if (result) result.textContent = "Scegli un oggetto dal catalogo.";
+            return;
+        }
+        button.disabled = true;
+        try {
+            const canonical = catalogItem.foundry?.document && typeof catalogItem.foundry.document === "object"
+                ? structuredCloneManaged(catalogItem.foundry.document)
+                : buildManagedCatalogFallback(catalogItem);
+            const transferId = `item-${crypto.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`}`;
+            const response = await postManagedActorCommand({
+                kind: "item.create",
+                target: { transferId },
+                document: {
+                    campaignItemId,
+                    name: canonical.name || catalogItem.name || "Oggetto di campagna",
+                    type: canonical.type || "equipment",
+                    img: canonical.img || catalogItem.image || "",
+                    system: canonical.system || {},
+                    effects: Array.isArray(canonical.effects) ? canonical.effects : [],
+                    transferId
+                }
+            }, token);
+            rememberManagedCommand(response.command, () => false);
+            select.disabled = true;
+            result.textContent = `${catalogItem.name || "Oggetto"} sarà aggiunto da Foundry.`;
+        } catch (error) {
+            console.error("Aggiunta oggetto dal catalogo fallita", error);
+            result.textContent = error.message || "Aggiunta non accodata.";
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function buildManagedCatalogFallback(item) {
+        const type = String(item?.foundryType || "equipment");
+        const description = [item?.summary ? `<p>${escapeHtml(item.summary)}</p>` : "", ...(Array.isArray(item?.properties) ? item.properties : []).map((property) => `${property?.name ? `<h3>${escapeHtml(property.name)}</h3>` : ""}${property?.description ? `<p>${escapeHtml(property.description)}</p>` : ""}`)].join("");
+        return {
+            name: String(item?.name || "Oggetto di campagna"),
+            type,
+            img: String(item?.image || ""),
+            system: {
+                description: { value: description, unidentified: String(item?.unidentifiedDescription || ""), chat: "" },
+                quantity: 1,
+                rarity: String(item?.rarity || ""),
+                identified: item?.unidentified !== true,
+                attunement: item?.attunement === true ? "required" : "",
+                attuned: false
+            },
+            effects: []
+        };
+    }
+
+    function structuredCloneManaged(value) {
+        if (typeof structuredClone === "function") return structuredClone(value);
+        return JSON.parse(JSON.stringify(value));
+    }
     async function enqueueManagedItemCreate(button) {
         const form = button.closest("[data-managed-item-create-form]");
         const result = form?.querySelector("[data-managed-item-create-result]");

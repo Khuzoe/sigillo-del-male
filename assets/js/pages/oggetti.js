@@ -59,7 +59,7 @@ async function loadItemsData() {
 }
 
 const ITEM_TYPES = window.CriptaItemNormalize.ITEM_TYPES;
-const ITEM_RARITIES = window.CriptaItemNormalize.ITEM_RARITIES;
+const ITEM_RARITIES = window.CriptaItemNormalize.ITEM_RARITIES.filter(entry => String(entry?.value || "").toLowerCase() !== "epico");
 
 function resolveImageUrl(path) {
     const value = String(path || "").trim();
@@ -239,38 +239,37 @@ function updateItemsView(items, state, grid, count) {
 
 function renderItemsGrid(items, { canEdit = false, editingItemId = "", itemDraft = null } = {}) {
     const sorted = [...items].sort(compareItems);
-    const regularItems = sorted.filter(item => getItemCategory(item) !== "Materiali");
-    const materialItems = sorted.filter(item => getItemCategory(item) === "Materiali");
-    const regularHtml = regularItems
-        .map(item => renderItemCard(item, {
-            canEdit,
-            isEditing: getItemId(item) === editingItemId,
-            draft: getItemId(item) === editingItemId ? itemDraft : null
-        }))
-        .join("");
-    const materialsHtml = materialItems
-        .map(item => renderItemCard(item, {
-            canEdit,
-            isEditing: getItemId(item) === editingItemId,
-            draft: getItemId(item) === editingItemId ? itemDraft : null
-        }))
-        .join("");
-    if (!materialItems.length) return regularHtml;
-    if (!regularItems.length) return `
-        <section class="items-grid-section items-grid-section--materials">
-            ${renderItemsSectionHeader("Materiali", materialItems.length, "fa-cubes-stacked")}
-            <div class="items-grid-section-cards">${materialsHtml}</div>
-        </section>
-    `;
-    return `
-        ${regularHtml}
-        <section class="items-grid-section items-grid-section--materials">
-            ${renderItemsSectionHeader("Materiali", materialItems.length, "fa-cubes-stacked")}
-            <div class="items-grid-section-cards">${materialsHtml}</div>
-        </section>
-    `;
-}
+    const sections = [
+        {
+            key: "objects",
+            title: "Oggetti",
+            icon: "fa-wand-sparkles",
+            items: sorted.filter(item => getItemCategory(item) !== "Materiali")
+        },
+        {
+            key: "materials",
+            title: "Materiali",
+            icon: "fa-cubes-stacked",
+            items: sorted.filter(item => getItemCategory(item) === "Materiali")
+        }
+    ];
 
+    return sections
+        .filter(section => section.items.length)
+        .map(section => `
+            <section class="items-grid-section items-grid-section--${section.key}">
+                ${renderItemsSectionHeader(section.title, section.items.length, section.icon)}
+                <div class="items-grid-section-cards">
+                    ${section.items.map(item => renderItemCard(item, {
+                        canEdit,
+                        isEditing: getItemId(item) === editingItemId,
+                        draft: getItemId(item) === editingItemId ? itemDraft : null
+                    })).join("")}
+                </div>
+            </section>
+        `)
+        .join("");
+}
 function renderItemsSectionHeader(title, count, icon) {
     return `
         <header class="items-grid-section-header">
@@ -305,7 +304,7 @@ function filterItems(items, state) {
     return items.filter(item => {
         const visibleProperties = getVisibleItemProperties(item, { includeHidden: state.canEditItems, includeUnidentified: state.canEditItems });
         const materialTags = getVisibleMaterialTags(item);
-        if (state.rarity !== "all" && (item.rarity || "Sconosciuta") !== state.rarity) return false;
+        if (state.rarity !== "all" && normalizeItemRarityLabel(item.rarity) !== state.rarity) return false;
         if (state.type !== "all" && getItemCategory(item) !== state.type) return false;
         if (state.attunement === "yes" && item.attunement !== true) return false;
         if (state.attunement === "no" && item.attunement === true) return false;
@@ -335,73 +334,6 @@ function filterItems(items, state) {
     });
 }
 
-function renderLegacyItemCard(item, { canEdit = false, isEditing = false, draft = null } = {}) {
-    const isMaterial = getItemCategory(item) === "Materiali";
-    const type = getItemTypeMeta(getItemCategory(item));
-    const rarity = getItemRarityMeta(item.rarity);
-    const properties = getVisibleItemProperties(item, { includeHidden: canEdit, includeUnidentified: canEdit });
-    const materialTags = isMaterial ? getVisibleMaterialTags(item) : [];
-    const positiveProperties = isMaterial ? [] : properties.filter(property => property.negative !== true);
-    const negativeProperties = isMaterial ? [] : properties.filter(property => property.negative === true);
-    const hidden = isHiddenItem(item);
-    const itemId = getItemId(item);
-    return `
-        <details class="item-card item-card--${slugify(rarity.label)} ${isMaterial ? "item-card--material" : ""} ${hidden ? "item-card--dm-hidden" : ""} ${isEditing ? "item-card--editing" : ""}" id="${escapeHtml(itemId)}" ${isEditing ? "open" : ""}>
-            <summary class="item-card-summary">
-                ${renderItemMedia(item, type, rarity)}
-                <div class="item-card-text">
-                    <div class="item-card-kicker">
-                        <span><i class="fas ${escapeHtml(type.icon)}" aria-hidden="true"></i>${escapeHtml(formatItemTypeLabel(item))}</span>
-                        <span><i class="fas ${escapeHtml(rarity.icon)}" aria-hidden="true"></i>${escapeHtml(rarity.label)}</span>
-                        ${!isMaterial && item.attunement ? '<span><i class="fas fa-link" aria-hidden="true"></i>Sintonia</span>' : ""}
-                        ${item.unidentified === true ? '<span><i class="fas fa-eye-slash" aria-hidden="true"></i>Non identificato</span>' : ""}
-                        ${hidden ? '<span class="item-card-dm-badge"><i class="fas fa-user-shield" aria-hidden="true"></i>Solo DM</span>' : ""}
-                    </div>
-                <h3>${escapeHtml(item.name || "Oggetto senza nome")}</h3>
-                ${item.owner ? `<p class="item-owner">Provenienza: ${escapeHtml(item.owner)}</p>` : ""}
-                ${item.summary ? `<p class="item-summary">${escapeHtml(item.summary)}</p>` : ""}
-                </div>
-                <div class="item-card-summary-actions">
-                    ${canEdit ? `
-                        <button class="item-card-edit-link" type="button" data-item-edit="${escapeHtml(itemId)}" title="Modifica questo oggetto">
-                            <i class="fas fa-pen" aria-hidden="true"></i>
-                            <span>Modifica</span>
-                        </button>
-                    ` : ""}
-                    <span class="item-card-toggle-icon" aria-hidden="true">
-                        <i class="fas fa-chevron-down"></i>
-                    </span>
-                </div>
-            </summary>
-            <div class="item-card-content">
-                ${item.unidentified === true ? `
-                    <p class="item-notes item-notes--unidentified">Le proprietà di questo oggetto non sono ancora identificate.</p>
-                ` : ""}
-                ${isMaterial ? renderMaterialMeta(item) : ""}
-                ${isMaterial && materialTags.length ? `
-                    <ul class="item-material-tags">
-                        ${materialTags.map(tag => `<li>${renderMaterialTag(tag)}</li>`).join("")}
-                    </ul>
-                ` : ""}
-                ${positiveProperties.length ? `
-                    <ul class="item-properties">
-                        ${positiveProperties.map(property => `<li>${renderItemProperty(property)}</li>`).join("")}
-                    </ul>
-                ` : ""}
-                ${negativeProperties.length ? `
-                    <section class="item-properties-block item-properties-block--negative" aria-label="Effetti negativi">
-                        <h4>Effetti negativi</h4>
-                        <ul class="item-properties item-properties--negative">
-                            ${negativeProperties.map(property => `<li>${renderItemProperty(property)}</li>`).join("")}
-                        </ul>
-                    </section>
-                ` : ""}
-                ${item.notes ? `<p class="item-notes">${escapeHtml(item.notes)}</p>` : ""}
-            </div>
-        </details>
-    `;
-}
-
 function renderItemCard(item, { canEdit = false, isEditing = false, draft = null } = {}) {
     const isMaterial = getItemCategory(item) === "Materiali";
     const type = getItemTypeMeta(getItemCategory(item));
@@ -412,8 +344,19 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
     const negativeProperties = isMaterial ? [] : properties.filter(property => property.negative === true);
     const hidden = isHiddenItem(item);
     const itemId = getItemId(item);
+    const detailCount = isMaterial ? materialTags.length : properties.length;
+    const quickFacts = [
+        item.owner ? `<span><i class="fas fa-user-shield" aria-hidden="true"></i>${escapeHtml(item.owner)}</span>` : "",
+        item.valueGold !== undefined && item.valueGold !== "" ? `<span><i class="fas fa-coins" aria-hidden="true"></i>${escapeHtml(formatGoldValue(item.valueGold))}</span>` : "",
+        item.weight !== undefined && item.weight !== "" ? `<span><i class="fas fa-weight-hanging" aria-hidden="true"></i>${escapeHtml(formatWeightValue(item.weight))}</span>` : "",
+        detailCount ? `<span><i class="fas fa-sparkles" aria-hidden="true"></i>${detailCount} proprietà</span>` : ""
+    ].filter(Boolean).join("");
     const content = isEditing ? renderItemInlineEditor(draft || item) : `
-        ${item.unidentified === true ? '<p class="item-notes item-notes--unidentified">Le proprieta di questo oggetto non sono ancora identificate.</p>' : ""}
+        <div class="item-card-content-heading">
+            <span><i class="fas fa-wand-sparkles" aria-hidden="true"></i>Proprietà e dettagli</span>
+            <small>${detailCount ? `${detailCount} elementi registrati` : "Scheda essenziale"}</small>
+        </div>
+        ${item.unidentified === true ? '<p class="item-notes item-notes--unidentified">Le proprietà di questo oggetto non sono ancora identificate.</p>' : ""}
         ${isMaterial ? renderMaterialMeta(item) : ""}
         ${isMaterial && materialTags.length ? `
             <ul class="item-material-tags">
@@ -433,13 +376,16 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
                 </ul>
             </section>
         ` : ""}
-        ${item.notes ? `<p class="item-notes">${escapeHtml(item.notes)}</p>` : ""}
+        ${item.notes ? `<p class="item-notes"><i class="fas fa-bookmark" aria-hidden="true"></i>${escapeHtml(item.notes)}</p>` : ""}
     `;
 
     return `
         <details class="item-card item-card--${slugify(rarity.label)} ${isMaterial ? "item-card--material" : ""} ${hidden ? "item-card--dm-hidden" : ""} ${isEditing ? "item-card--editing" : ""}" id="${escapeHtml(itemId)}" ${isEditing ? "open" : ""}>
             <summary class="item-card-summary">
-                ${renderItemMedia(item, type, rarity)}
+                <div class="item-card-visual">
+                    ${renderItemMedia(item, type, rarity)}
+                    <span class="item-card-rarity-dot" title="${escapeHtml(rarity.label)}"></span>
+                </div>
                 <div class="item-card-text">
                     <div class="item-card-kicker">
                         <span><i class="fas ${escapeHtml(type.icon)}" aria-hidden="true"></i>${escapeHtml(formatItemTypeLabel(item))}</span>
@@ -447,10 +393,11 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
                         ${!isMaterial && item.attunement ? '<span><i class="fas fa-link" aria-hidden="true"></i>Sintonia</span>' : ""}
                         ${item.unidentified === true ? '<span><i class="fas fa-eye-slash" aria-hidden="true"></i>Non identificato</span>' : ""}
                         ${hidden ? '<span class="item-card-dm-badge"><i class="fas fa-user-shield" aria-hidden="true"></i>Solo DM</span>' : ""}
+                        ${item?.sync?.pendingFoundry ? '<span class="item-card-sync-badge item-card-sync-badge--pending"><i class="fas fa-clock" aria-hidden="true"></i>Attesa Foundry</span>' : item?.sync?.managed ? '<span class="item-card-sync-badge"><i class="fas fa-circle-check" aria-hidden="true"></i>Sincronizzato</span>' : ""}
                     </div>
                     <h3>${escapeHtml(item.name || "Oggetto senza nome")}</h3>
-                    ${item.owner ? `<p class="item-owner">Provenienza: ${escapeHtml(item.owner)}</p>` : ""}
-                    ${item.summary ? `<p class="item-summary">${escapeHtml(item.summary)}</p>` : ""}
+                    ${item.summary ? `<p class="item-summary">${escapeHtml(item.summary)}</p>` : '<p class="item-summary item-summary--empty">Nessuna descrizione breve.</p>'}
+                    ${quickFacts ? `<div class="item-card-quickfacts">${quickFacts}</div>` : ""}
                 </div>
                 <div class="item-card-summary-actions">
                     ${canEdit ? `
@@ -470,25 +417,27 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
         </details>
     `;
 }
-
 function renderItemInlineEditor(item) {
     const imagePath = String(item.image || "").trim();
     const imageAdjust = normalizeItemImageAdjust(item.imageAdjust);
     const preview = imagePath
         ? `<img src="${escapeHtml(resolveImageUrl(imagePath))}" alt="" loading="lazy" decoding="async" ${renderItemAdjustedImageAttributes(imageAdjust)}>`
-        : '<span>Nessuna immagine</span>';
+        : '<span class="item-inline-editor-preview-empty"><i class="fas fa-image"></i>Nessuna immagine</span>';
     const fileName = getFileNameFromPath(imagePath);
     return `
         <div class="item-inline-editor" data-item-inline-editor>
             <header class="item-inline-editor-header">
-                <div>
-                    <span>Editor oggetto</span>
+                <div class="item-inline-editor-heading">
+                    <span>Modifica oggetto</span>
                     <strong>${escapeHtml(item.name || "Oggetto senza nome")}</strong>
+                    ${renderItemSyncBadge(item)}
                 </div>
                 <div class="item-inline-editor-actions">
-                    <button class="item-card-edit-link item-card-edit-link--visible" type="button" data-item-edit-action="cancel">Annulla</button>
+                    <button class="item-card-edit-link item-card-edit-link--visible" type="button" data-item-edit-action="cancel">
+                        <i class="fas fa-xmark" aria-hidden="true"></i><span>Annulla</span>
+                    </button>
                     <button class="item-card-edit-link item-card-edit-link--visible item-card-edit-link--primary" type="button" data-item-edit-action="save">
-                        <span>Salva</span>
+                        <i class="fas fa-floppy-disk" aria-hidden="true"></i><span>Salva modifiche</span>
                     </button>
                 </div>
             </header>
@@ -496,49 +445,58 @@ function renderItemInlineEditor(item) {
                 <aside class="item-inline-editor-media">
                     <button class="item-inline-editor-preview" type="button" data-item-image-dropzone>
                         <span data-item-image-preview>${preview}</span>
+                        <span class="item-inline-editor-preview-action"><i class="fas fa-cloud-arrow-up"></i><b>Sostituisci immagine</b><small>Click oppure trascina qui</small></span>
                     </button>
+                    <small class="item-inline-editor-file-name" data-item-image-file-name>${escapeHtml(fileName || "Nessun file selezionato")}</small>
                     <input type="hidden" data-item-field="image" value="${escapeHtml(imagePath)}">
-                    <small class="item-inline-editor-file-name" data-item-image-file-name>${escapeHtml(fileName || "Trascina o scegli un file webp")}</small>
                     <div class="item-inline-image-adjust" aria-label="Regola immagine oggetto">
+                        <div class="item-inline-image-adjust-title"><i class="fas fa-crop-simple"></i><span>Inquadratura</span></div>
                         ${renderItemImageAdjustControl("x", "X", imageAdjust.x, 0, 100, 1)}
                         ${renderItemImageAdjustControl("y", "Y", imageAdjust.y, 0, 100, 1)}
                         ${renderItemImageAdjustControl("size", "Zoom", imageAdjust.size, 0.75, 2.5, 0.01)}
                     </div>
                     <div class="item-inline-editor-checks">
-                        ${renderItemEditCheck("Sintonia", "attunement", item.attunement === true)}
+                        ${renderItemEditCheck("Richiede sintonia", "attunement", item.attunement === true)}
                         ${renderItemEditCheck("Non identificato", "unidentified", item.unidentified === true)}
-                        ${renderItemEditCheck("Nascosto", "hidden", item.hidden === true)}
+                        ${renderItemEditCheck("Visibile solo al DM", "hidden", item.hidden === true)}
                     </div>
                 </aside>
                 <div class="item-inline-editor-main">
                     <section class="item-inline-editor-section">
-                        <h4>Identita</h4>
+                        <div class="item-inline-editor-section-title">
+                            <i class="fas fa-fingerprint" aria-hidden="true"></i>
+                            <span><small>Catalogo</small><h4>Identità</h4></span>
+                        </div>
                         <div class="item-inline-editor-grid">
-                            ${renderItemEditInput("ID", "id", getItemId(item))}
-                            ${renderItemEditInput("Nome", "name", item.name || "")}
+                            ${renderItemEditInput("Nome", "name", item.name || "", "item-inline-editor-field--wide")}
                             ${renderItemEditSelect("Tipo", "type", item.type || "", getItemTypeOptions(item.type))}
                             ${renderItemEditInput("Sottotipo", "subtype", item.subtype || "")}
-                            ${renderItemEditSelect("Rarita", "rarity", item.rarity || "Sconosciuta", getItemRarityOptions(item.rarity))}
-                            ${renderItemEditInput("Proprietario", "owner", item.owner || "")}
-                            ${renderItemEditInput("Stato", "status", item.status || "")}
-                            ${renderItemEditInput("Valore oro", "valueGold", item.valueGold ?? "")}
+                            ${renderItemEditSelect("Rarità", "rarity", normalizeItemRarityLabel(item.rarity), getItemRarityOptions(item.rarity))}
+                            ${renderItemEditInput("Provenienza / portatore", "owner", item.owner || "")}
+                            ${renderItemEditInput("Valore in monete d'oro", "valueGold", item.valueGold ?? "")}
                             ${renderItemEditInput("Peso", "weight", item.weight ?? "")}
                         </div>
                     </section>
                     <section class="item-inline-editor-section">
-                        <h4>Testi</h4>
+                        <div class="item-inline-editor-section-title">
+                            <i class="fas fa-feather-pointed" aria-hidden="true"></i>
+                            <span><small>Presentazione</small><h4>Descrizione</h4></span>
+                        </div>
                         <div class="item-inline-editor-grid">
                             ${renderItemEditArea("Sommario", "summary", item.summary || "", "item-inline-editor-field--wide", 4)}
-                            ${renderItemEditArea("Note", "notes", item.notes || "", "item-inline-editor-field--wide", 4)}
+                            ${renderItemEditArea("Note della campagna", "notes", item.notes || "", "item-inline-editor-field--wide", 4)}
                             ${renderItemEditInput("Nome non identificato", "unidentifiedName", item.unidentifiedName || "", "item-inline-editor-field--wide")}
                             ${renderItemEditArea("Descrizione non identificata", "unidentifiedDescription", item.unidentifiedDescription || "", "item-inline-editor-field--wide", 4)}
                         </div>
                     </section>
                     <section class="item-inline-editor-section">
                         <div class="item-inline-editor-section-head">
-                            <h4>Proprieta</h4>
+                            <div class="item-inline-editor-section-title">
+                                <i class="fas fa-wand-sparkles" aria-hidden="true"></i>
+                                <span><small>Effetti leggibili</small><h4>Proprietà</h4></span>
+                            </div>
                             <button class="item-card-edit-link item-card-edit-link--visible" type="button" data-item-edit-action="add-property">
-                                <span>Aggiungi</span>
+                                <i class="fas fa-plus" aria-hidden="true"></i><span>Aggiungi proprietà</span>
                             </button>
                         </div>
                         <div class="item-inline-editor-list" data-item-properties-list>
@@ -547,20 +505,35 @@ function renderItemInlineEditor(item) {
                     </section>
                     <section class="item-inline-editor-section">
                         <div class="item-inline-editor-section-head">
-                            <h4>Tag materiali</h4>
+                            <div class="item-inline-editor-section-title">
+                                <i class="fas fa-cubes-stacked" aria-hidden="true"></i>
+                                <span><small>Classificazione</small><h4>Tag e materiali</h4></span>
+                            </div>
                             <button class="item-card-edit-link item-card-edit-link--visible" type="button" data-item-edit-action="add-material-tag">
-                                <span>Aggiungi</span>
+                                <i class="fas fa-plus" aria-hidden="true"></i><span>Aggiungi tag</span>
                             </button>
                         </div>
                         <div class="item-inline-editor-list" data-item-material-tags-list>
                             ${renderItemMaterialTagEditors(item.materialTags || item.tags)}
                         </div>
                     </section>
-                    <details class="item-inline-editor-section item-inline-editor-advanced">
-                        <summary>Dati avanzati</summary>
+                    <details class="item-inline-editor-section item-inline-editor-advanced item-inline-editor-foundry">
+                        <summary>
+                            <span><i class="fas fa-gears" aria-hidden="true"></i><b>Opzioni avanzate Foundry</b><small>Identità tecnica, meccaniche ed effetti</small></span>
+                            <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                        </summary>
+                        <div class="item-foundry-intro">
+                            <i class="fas fa-wand-magic-sparkles"></i>
+                            <span>Questi dati descrivono il documento condiviso. Aprili soltanto quando serve intervenire sulla struttura Foundry.</span>
+                        </div>
                         <div class="item-inline-editor-grid">
-                            ${renderItemEditJson("Foundry names JSON", "foundryNames", item.foundryNames || [], "item-inline-editor-field--wide")}
-                            ${renderItemEditJson("Alias JSON", "aliases", item.aliases || [], "item-inline-editor-field--wide")}
+                            ${renderItemEditInput("ID stabile", "id", getItemId(item), "", item?.sync?.managed === true)}
+                            ${renderItemEditInput("Stato tecnico", "status", item.status || "")}
+                            ${renderItemEditSelect("Tipo documento", "foundryType", getItemFoundryType(item), getFoundryTypeOptions(getItemFoundryType(item)))}
+                            ${renderItemEditJsonObject("Dati meccanici", "foundrySystem", getItemFoundrySystem(item), "item-inline-editor-field--wide item-foundry-json", 12)}
+                            ${renderItemEditJsonObject("Effetti attivi", "foundryEffects", getItemFoundryEffects(item), "item-inline-editor-field--wide item-foundry-json", 8)}
+                            ${renderItemEditJson("Nomi riconosciuti in Foundry", "foundryNames", item.foundryNames || [], "item-inline-editor-field--wide")}
+                            ${renderItemEditJson("Alias", "aliases", item.aliases || [], "item-inline-editor-field--wide")}
                         </div>
                     </details>
                 </div>
@@ -569,7 +542,6 @@ function renderItemInlineEditor(item) {
         </div>
     `;
 }
-
 function renderItemImageAdjustControl(key, label, value, min, max, step) {
     return `
         <label class="item-inline-image-adjust-control">
@@ -579,11 +551,11 @@ function renderItemImageAdjustControl(key, label, value, min, max, step) {
     `;
 }
 
-function renderItemEditInput(label, field, value, extraClass = "") {
+function renderItemEditInput(label, field, value, extraClass = "", readOnly = false) {
     return `
         <label class="item-inline-editor-field ${extraClass}">
             <span>${escapeHtml(label)}</span>
-            <input data-item-field="${escapeHtml(field)}" value="${escapeHtml(value)}">
+            <input data-item-field="${escapeHtml(field)}" value="${escapeHtml(value)}" ${readOnly ? "readonly aria-readonly=\"true\"" : ""}>
         </label>
     `;
 }
@@ -606,6 +578,68 @@ function renderItemEditJson(label, field, value, extraClass = "") {
     `;
 }
 
+function renderItemEditJsonObject(label, field, value, extraClass = "", rows = 8) {
+    return `
+        <label class="item-inline-editor-field ${extraClass}">
+            <span>${escapeHtml(label)}</span>
+            <textarea data-item-foundry-json="${escapeHtml(field)}" rows="${escapeHtml(rows)}" spellcheck="false">${escapeHtml(JSON.stringify(value ?? {}, null, 2))}</textarea>
+        </label>
+    `;
+}
+
+function renderItemSyncBadge(item) {
+    if (item?.sync?.pendingFoundry) return '<span class="item-sync-badge item-sync-badge--pending"><i class="fas fa-clock"></i> In attesa di Foundry</span>';
+    if (item?.sync?.managed) return '<span class="item-sync-badge item-sync-badge--linked"><i class="fas fa-link"></i> Collegato</span>';
+    return '<span class="item-sync-badge"><i class="fas fa-plus"></i> Verrà collegato al salvataggio</span>';
+}
+
+function getItemFoundryType(item) {
+    return String(item?.foundry?.document?.type || item?.foundryType || mapSiteTypeToFoundry(item?.type));
+}
+
+function getFoundryTypeOptions(current = "") {
+    return [...new Set(["equipment", "weapon", "consumable", "tool", "loot", "container", String(current || "")].filter(Boolean))];
+}
+
+function mapSiteTypeToFoundry(value) {
+    const type = String(value || "").toLowerCase();
+    if (type.includes("arma")) return "weapon";
+    if (type.includes("pozione") || type.includes("pergamena") || type.includes("consum")) return "consumable";
+    if (type.includes("strument")) return "tool";
+    if (type.includes("bottino")) return "loot";
+    if (type.includes("conten")) return "container";
+    return "equipment";
+}
+
+function getItemFoundrySystem(item) {
+    const existing = item?.foundry?.document?.system;
+    if (existing && typeof existing === "object" && !Array.isArray(existing)) return existing;
+    return buildInitialFoundrySystem(item);
+}
+
+function getItemFoundryEffects(item) {
+    return Array.isArray(item?.foundry?.document?.effects) ? item.foundry.document.effects : [];
+}
+
+function buildInitialFoundrySystem(item) {
+    const description = [
+        item?.summary ? `<p>${escapeHtml(item.summary)}</p>` : "",
+        ...normalizeItemProperties(item?.properties).map(property => `${property.name ? `<h3>${escapeHtml(property.name)}${property.charges ? ` (${escapeHtml(property.charges)})` : ""}</h3>` : ""}${property.description ? `<p>${escapeHtml(property.description)}</p>` : ""}`)
+    ].filter(Boolean).join("");
+    return {
+        description: { value: description, unidentified: String(item?.unidentifiedDescription || ""), chat: "" },
+        quantity: 1,
+        rarity: mapSiteRarityToFoundry(item?.rarity),
+        identified: item?.unidentified !== true,
+        attunement: item?.attunement === true ? "required" : "",
+        attuned: false
+    };
+}
+
+function mapSiteRarityToFoundry(value) {
+    const key = normalizeSearch(value).replace(/\s+/g, "");
+    return ({ comune: "common", noncomune: "uncommon", raro: "rare", moltoraro: "veryRare", epico: "veryRare", leggendario: "legendary", artefatto: "artifact" })[key] || "";
+}
 function renderItemEditSelect(label, field, selectedValue, options) {
     return `
         <label class="item-inline-editor-field">
@@ -721,9 +755,15 @@ function getItemTypeOptions(currentValue = "") {
 }
 
 function getItemRarityOptions(currentValue = "") {
-    const values = [...ITEM_RARITIES.map(entry => entry.value), String(currentValue || "").trim()]
+    const values = [...ITEM_RARITIES.map(entry => entry.value), normalizeItemRarityLabel(currentValue)]
         .filter(Boolean);
     return [...new Set(values)];
+}
+
+function normalizeItemRarityLabel(value) {
+    const label = String(value || "").trim();
+    if (!label) return "Sconosciuta";
+    return label.toLowerCase() === "epico" ? "Molto raro" : label;
 }
 
 function bindItemInlineEditor(grid, state, count) {
@@ -950,6 +990,13 @@ async function saveInlineItemEdit(form, state, grid, count) {
         const payload = await response.json().catch(() => null);
         if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
 
+        draft.sync = {
+            ...(draft.sync || {}),
+            managed: true,
+            pendingFoundry: true,
+            source: "site",
+            siteRevision: Number(draft.sync?.siteRevision || 0) + 1
+        };
         state.items = nextData;
         state.loadedVersion = payload?.version ?? loaded.version ?? state.loadedVersion;
         state.editingItemId = "";
@@ -987,6 +1034,24 @@ function collectItemDraft(form, original) {
     draft.properties = collectItemPropertyRows(form);
     draft.materialTags = collectItemMaterialTagRows(form);
     draft.imageAdjust = readItemImageAdjust(form);
+    const foundrySystem = parseItemFoundryJson(form, "foundrySystem", "Dati meccanici", {});
+    const foundryEffects = parseItemFoundryJson(form, "foundryEffects", "Effetti attivi", []);
+    if (!foundrySystem || typeof foundrySystem !== "object" || Array.isArray(foundrySystem)) throw new Error("Dati meccanici: serve un oggetto JSON.");
+    if (!Array.isArray(foundryEffects)) throw new Error("Effetti attivi: serve un array JSON.");
+    foundrySystem.rarity = mapSiteRarityToFoundry(draft.rarity);
+    foundrySystem.identified = draft.unidentified !== true;
+    foundrySystem.attunement = draft.attunement === true ? "required" : "";
+    draft.foundryType = String(draft.foundryType || mapSiteTypeToFoundry(draft.type));
+    draft.foundry = {
+        ...(draft.foundry || {}),
+        document: {
+            name: String(draft.name || original?.name || "Oggetto di campagna"),
+            type: draft.foundryType,
+            img: String(draft.image || original?.foundry?.document?.img || ""),
+            system: foundrySystem,
+            effects: foundryEffects
+        }
+    };
     delete draft.tags;
     draft.id = getItemId(draft);
     if (!draft.name) draft.name = draft.id || "Oggetto senza nome";
@@ -994,6 +1059,14 @@ function collectItemDraft(form, original) {
     return draft;
 }
 
+function parseItemFoundryJson(form, fieldName, label, fallback) {
+    const field = form.querySelector(`[data-item-foundry-json="${fieldName}"]`);
+    if (!field) return structuredCloneSafe(fallback);
+    const text = String(field.value || "").trim();
+    if (!text) return structuredCloneSafe(fallback);
+    try { return JSON.parse(text); }
+    catch (_) { throw new Error(`${label}: JSON non valido.`); }
+}
 function collectItemPropertyRows(form) {
     return Array.from(form.querySelectorAll("[data-item-property-row]"))
         .map((row) => ({
@@ -1292,7 +1365,7 @@ function getItemTypeMeta(type) {
 }
 
 function getItemRarityMeta(rarity) {
-    return window.CriptaItemNormalize.getItemRarityMeta(rarity);
+    return window.CriptaItemNormalize.getItemRarityMeta(normalizeItemRarityLabel(rarity));
 }
 
 function getItemRarityFrameClass(rarity) {

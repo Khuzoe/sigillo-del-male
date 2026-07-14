@@ -1282,11 +1282,52 @@ body.page-managed-actor .main-content::after { bottom: 20rem; left: -17rem; box-
 .managed-danger-action { border-color: rgba(210,80,70,.35) !important; color: #efa398 !important; }
 .managed-danger-action:hover { border-color: rgba(235,100,88,.7) !important; background: rgba(170,45,40,.15) !important; }
 
+.managed-catalog-picker {
+    display: grid;
+    gap: .8rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid rgba(92, 181, 255, .2);
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 100% 0, rgba(55, 137, 210, .13), transparent 42%),
+        linear-gradient(145deg, rgba(17, 39, 58, .34), rgba(0, 0, 0, .18));
+}
+.managed-catalog-picker-heading {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    gap: .75rem;
+    align-items: center;
+}
+.managed-catalog-picker-icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border: 1px solid rgba(92, 181, 255, .22);
+    border-radius: 12px;
+    color: #74bdff;
+    background: rgba(52, 124, 185, .1);
+}
+.managed-catalog-picker-heading > div { display: grid; gap: .2rem; }
+.managed-catalog-picker-heading strong { color: #e8f3ff; font: 750 .82rem var(--font-ui); }
+.managed-catalog-picker-heading small { color: rgba(209, 225, 238, .58); font: 500 .68rem/1.45 var(--font-ui); }
+.managed-catalog-picker-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .65rem;
+    align-items: end;
+}
+.managed-catalog-picker-controls label { display: grid; gap: .3rem; }
+.managed-catalog-picker-controls label > span { color: rgba(179, 207, 230, .65); font: 750 .56rem var(--font-ui); letter-spacing: .055em; text-transform: uppercase; }
+.managed-catalog-picker-controls select { width: 100%; min-height: 42px; }
+.managed-catalog-picker-result { min-height: 1rem; color: #8bd5ad; font: 650 .65rem var(--font-ui); }
 @media (max-width: 1000px) {
     .managed-spell-slot-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .managed-effects-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 700px) {
+    .managed-catalog-picker-controls { grid-template-columns: 1fr; }
     .managed-spell-slot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .managed-effect-json-grid,
     .managed-mechanics-grid { grid-template-columns: 1fr; }

@@ -11,49 +11,56 @@
         href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260621-items-editor-wide1">
+    <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260714-campaign-items1">
+    <link rel="stylesheet" href="../assets/css/pages/items-modern.css?v=20260714-items-modern2" data-page-style>
 </head>
 
 <body class="page-oggetti">
     <nav class="sidebar" id="sidebar-container"></nav>
-
     <main class="main-content">
-        <header class="hero-mini">
-            <div class="hero-title">
-                <h1>Oggetti</h1>
-                <div class="subtitle">Reliquie, strumenti e oggetti magici registrati nella cripta</div>
-            </div>
-        </header>
-
-        <div class="container">
-            <section class="items-shell" aria-labelledby="items-title">
-                <div class="items-heading">
-                    <h2 id="items-title">Archivio degli Oggetti</h2>
-                    <div class="items-heading-actions">
-                        <button id="items-create-button" class="item-card-edit-link item-card-edit-link--visible item-card-edit-link--primary" type="button" data-requires-dm hidden>
-                            Nuovo oggetto
-                        </button>
-                        <span id="items-count" class="items-count">0 voci</span>
+        <div class="items-page">
+            <header class="items-hero">
+                <div class="items-hero-copy">
+                    <div class="items-hero-eyebrow"><span></span>Archivio arcano condiviso</div>
+                    <h1 id="items-title">Oggetti &amp; Materiali</h1>
+                    <p>Un unico catalogo per scoprire, curare e sincronizzare oggetti e materiali della campagna.</p>
+                    <div class="items-hero-meta">
+                        <span class="items-count-pill"><i class="fas fa-gem" aria-hidden="true"></i><b id="items-count">0 voci</b></span>
+                        <span><i class="fas fa-arrows-rotate" aria-hidden="true"></i>Sito e Foundry</span>
                     </div>
                 </div>
+                <div class="items-hero-sigil" aria-hidden="true">
+                    <span class="items-hero-orbit"></span>
+                    <span class="items-hero-gem"><i class="fas fa-gem"></i></span>
+                </div>
+            </header>
 
-                <div class="items-tools" aria-label="Filtri oggetti">
-                    <label class="items-search">
-                        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
-                        <input id="items-search" type="search" placeholder="Cerca oggetto, proprietà, provenienza..."
-                            autocomplete="off">
-                    </label>
-                    <div class="items-filter-row">
-                        <span>Rarità</span>
-                        <div id="items-rarity-filters" class="items-filter-group" aria-label="Filtro rarità"></div>
+            <section class="items-shell" aria-labelledby="items-title">
+                <div class="items-tools" aria-label="Cerca e filtra gli oggetti">
+                    <div class="items-tools-primary">
+                        <label class="items-search">
+                            <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                            <input id="items-search" type="search" placeholder="Cerca nome, proprietà o provenienza..."
+                                autocomplete="off">
+                            <span class="items-search-shortcut" aria-hidden="true">Cerca</span>
+                        </label>
+                        <button id="items-create-button" class="items-create-button" type="button" data-requires-dm hidden>
+                            <i class="fas fa-plus" aria-hidden="true"></i><span>Nuovo oggetto</span>
+                        </button>
                     </div>
-                    <div class="items-filter-row">
-                        <span>Tipo</span>
-                        <div id="items-type-filters" class="items-filter-group" aria-label="Filtro tipo"></div>
-                    </div>
-                    <div class="items-filter-row">
-                        <span>Sintonia</span>
-                        <div id="items-attunement-filters" class="items-filter-group" aria-label="Filtro sintonia"></div>
+                    <div class="items-filter-strip">
+                        <div class="items-filter-row">
+                            <span><i class="fas fa-gem" aria-hidden="true"></i>Rarità</span>
+                            <div id="items-rarity-filters" class="items-filter-group" aria-label="Filtro rarità"></div>
+                        </div>
+                        <div class="items-filter-row">
+                            <span><i class="fas fa-shapes" aria-hidden="true"></i>Tipo</span>
+                            <div id="items-type-filters" class="items-filter-group" aria-label="Filtro tipo"></div>
+                        </div>
+                        <div class="items-filter-row">
+                            <span><i class="fas fa-link" aria-hidden="true"></i>Sintonia</span>
+                            <div id="items-attunement-filters" class="items-filter-group" aria-label="Filtro sintonia"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -69,7 +76,7 @@
     <script src="../assets/js/shared/media-service.js"></script>
     <script src="../assets/js/shared/image-adjust.js"></script>
     <script src="../assets/js/shared/item-normalize.js"></script>
-    <script src="../assets/js/pages/oggetti.js?v=20260621-item-flags1"></script>
+    <script src="../assets/js/pages/oggetti.js?v=20260714-items-modern2"></script>
 </body>
 
 </html>
