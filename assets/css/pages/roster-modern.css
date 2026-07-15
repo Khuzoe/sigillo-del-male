@@ -417,6 +417,34 @@ body.page-players {
 .roster-page .npc-img-pop {
     transition: transform .54s cubic-bezier(.16, 1, .3, 1), opacity .46s ease, filter .32s ease;
 }
+.roster-page .npc-card:not(.npc-card--main-ready) .img-main {
+    opacity: 0;
+}
+.roster-page .npc-card:not(.npc-card--main-ready):not(.npc-card--main-unavailable) .npc-avatar-container {
+    animation: roster-avatar-await 1.15s ease-in-out infinite alternate;
+}
+.roster-page .npc-card.npc-card--main-ready:not(.npc-card--hover-ready):hover:not(.npc-card--no-avatar-swap) .img-main {
+    opacity: 1;
+}
+.roster-page .npc-card:not(.npc-card--hover-ready):hover:not(.npc-card--no-avatar-swap) .img-hover {
+    opacity: 0;
+}
+.roster-page .npc-card--main-unavailable .npc-avatar-container {
+    animation: none;
+}
+@keyframes roster-avatar-await {
+    from {
+        border-color: rgba(var(--roster-accent-rgb), .3);
+        box-shadow: 0 12px 30px rgba(0, 0, 0, .34), 0 0 0 4px rgba(var(--roster-accent-rgb), .015);
+    }
+    to {
+        border-color: rgba(var(--roster-accent-rgb), .58);
+        box-shadow: 0 15px 38px rgba(0, 0, 0, .42), 0 0 0 6px rgba(var(--roster-accent-rgb), .05);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .roster-page .npc-card:not(.npc-card--main-ready) .npc-avatar-container { animation: none; }
+}
 .roster-page .npc-img-pop[data-frame-circle='1'] {
     transform: scale(1) !important;
     transition: opacity .56s cubic-bezier(.22, .61, .36, 1), transform .62s cubic-bezier(.16, 1, .3, 1), filter .4s ease;

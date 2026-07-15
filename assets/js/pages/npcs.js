@@ -165,6 +165,7 @@ function parseYamlLite(yamlText) {
                 }
 
                 renderNpcGroups(npcListContainer, sortedNpcs, base_path);
+                window.CriptaRosterMedia?.init(npcListContainer);
                 initNpcRosterControls(npcListContainer);
             } catch (error) {
                 console.error("Errore nel caricamento degli NPC:", error);
@@ -203,8 +204,10 @@ function parseYamlLite(yamlText) {
             const legacyImages = legacyNpc?.images || {};
             const avatarPath = media.avatar?.path || legacyImages.avatar || '';
             const tokenPath = media.token?.path || legacyImages.token || avatarPath;
-            const idlePath = media.idle?.path || tokenPath || avatarPath || legacyImages.idle || '';
-            const hoverPath = media.hover?.path || tokenPath || idlePath || legacyImages.hover || '';
+            const dedicatedIdlePath = media.idle?.path || legacyImages.idle || '';
+            const dedicatedHoverPath = media.hover?.path || legacyImages.hover || '';
+            const idlePath = dedicatedIdlePath || tokenPath || avatarPath || '';
+            const hoverPath = dedicatedHoverPath || tokenPath || idlePath || avatarPath || '';
             const legacyId = String(profile.legacyCharacterId || legacyNpc?.id || '').trim();
             const statsVisibility = String(actor?.visibility?.state || 'dm').toLowerCase();
             const profileVisibility = String(profile?.visibility?.state || 'dm').toLowerCase();
@@ -229,11 +232,13 @@ function parseYamlLite(yamlText) {
                     idle: idlePath,
                     hover: hoverPath,
                     idleAdjust: managedPresentationToNpcAdjust(media.idle || media.token || media.avatar, legacyImages.idleAdjust || legacyImages.avatarAdjust),
+                    hasDedicatedIdle: Boolean(dedicatedIdlePath),
+                    hasDedicatedHover: Boolean(dedicatedHoverPath),
                     hoverAdjust: managedPresentationToNpcAdjust(media.hover || media.idle || media.token || media.avatar, legacyImages.hoverAdjust),
                     idleFallback: tokenPath || avatarPath || legacyImages.idleFallback || '',
                     idleFrameCircle: managedPresentationToFrameCircle(media.idle || media.token || media.avatar, legacyImages.idleFrameCircle || legacyImages.tokenFrameCircle),
                     hoverFrameCircle: managedPresentationToFrameCircle(media.hover || media.idle || media.token || media.avatar, legacyImages.hoverFrameCircle),
-                    hoverFallback: idlePath || tokenPath || avatarPath || legacyImages.hoverFallback || '',
+                    hoverFallback: tokenPath || idlePath || avatarPath || legacyImages.hoverFallback || '',
                     avatarFallback: tokenPath || idlePath || legacyImages.avatarFallback || ''
                 },
                 updatedAt: actor.updatedAt || legacyNpc?.updatedAt || '',
@@ -635,10 +640,14 @@ function parseYamlLite(yamlText) {
             card.dataset.rosterSearch = normalizeRosterSearch([npc.name, npc.role, npc.quote, npc.category, npc.status].filter(Boolean).join(' '));
             const hiddenFromPlayers = npc.hidden === true || npc.status === 'hidden';
             if (hiddenFromPlayers) card.classList.add('npc-card--dm-hidden');
+            const hasDedicatedIdle = npc.images.hasDedicatedIdle ?? Boolean(npc.images.idle);
+            const hasDedicatedHover = npc.images.hasDedicatedHover ?? Boolean(npc.images.hover);
             const avatarImage = npc.images.idle || npc.images.token || npc.images.avatar || '';
             const hoverImage = npc.images.hover || npc.images.token || avatarImage;
+            // Le immagini dedicate hanno la priorit?; token resta il fallback
+            // soltanto quando idle/hover ? assente o il file non ? disponibile.
             const avatarFallback = npc.images.idleFallback || npc.images.token || npc.images.avatarFallback || '';
-            const hoverFallback = npc.images.hoverFallback || avatarFallback;
+            const hoverFallback = npc.images.hoverFallback || npc.images.token || avatarFallback;
             if (normalizeImageIdentity(avatarImage) === normalizeImageIdentity(hoverImage)) {
                 card.classList.add('npc-card--no-avatar-swap');
             }
@@ -647,8 +656,8 @@ function parseYamlLite(yamlText) {
                 <span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>
                 ${hiddenFromPlayers ? '<span class="npc-player-visibility-badge"><i class="fas fa-user-shield" aria-hidden="true"></i>Solo M</span>' : ''}
                 <div class="npc-avatar-container">
-                    <img src="${resolveNpcImageUrl(npc, avatarImage, base_path)}" data-fallback-src="${resolveNpcImageUrl(npc, avatarFallback, base_path)}" alt="${npc.name}" class="npc-img-pop img-main" loading="lazy" decoding="async" style="${buildImageStyle('avatar', npc.images.idleAdjust || npc.images.avatarAdjust, npc.images.hoverAdjust)}" onerror="this.src=this.dataset.fallbackSrc || ''; this.onerror=null;">
-                    <img src="${resolveNpcImageUrl(npc, hoverImage, base_path)}" data-fallback-src="${resolveNpcImageUrl(npc, hoverFallback, base_path)}" alt="${npc.name} Reveal" class="npc-img-pop img-hover" loading="lazy" decoding="async" style="${buildImageStyle('hover', npc.images.hoverAdjust, npc.images.idleAdjust || npc.images.avatarAdjust)}" onerror="this.src=this.dataset.fallbackSrc || ''; this.onerror=null;">
+                    <img src="${resolveNpcImageUrl(npc, avatarImage, base_path)}" data-original-src="${resolveNpcImageUrl(npc, avatarImage, base_path)}" data-fallback-src="${resolveNpcImageUrl(npc, avatarFallback, base_path)}" data-media-dedicated="${hasDedicatedIdle ? 'true' : 'false'}" alt="${npc.name}" class="npc-img-pop img-main" loading="eager" decoding="async" fetchpriority="auto" style="${buildImageStyle('avatar', npc.images.idleAdjust || npc.images.avatarAdjust, npc.images.hoverAdjust)}">
+                    <img src="${resolveNpcImageUrl(npc, hoverImage, base_path)}" data-original-src="${resolveNpcImageUrl(npc, hoverImage, base_path)}" data-fallback-src="${resolveNpcImageUrl(npc, hoverFallback, base_path)}" data-media-dedicated="${hasDedicatedHover ? 'true' : 'false'}" alt="${npc.name} Reveal" class="npc-img-pop img-hover" loading="lazy" decoding="async" fetchpriority="low" style="${buildImageStyle('hover', npc.images.hoverAdjust, npc.images.idleAdjust || npc.images.avatarAdjust)}">
                 </div>
                 <div class="npc-info">
                     <div class="npc-header">

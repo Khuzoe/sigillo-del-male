@@ -208,6 +208,10 @@ function mergeSkillTreeStateRecords(records) {
                 levels: {
                     ...(merged.levels && typeof merged.levels === 'object' ? merged.levels : {}),
                     ...(entry.levels && typeof entry.levels === 'object' ? entry.levels : {})
+                },
+                externalProgress: {
+                    ...(merged.externalProgress && typeof merged.externalProgress === 'object' ? merged.externalProgress : {}),
+                    ...(entry.externalProgress && typeof entry.externalProgress === 'object' ? entry.externalProgress : {})
                 }
             };
         }, {});
@@ -407,11 +411,12 @@ function isSkillTreeGroupSatisfied(treeData, groupNode, unlocked) {
     return countUnlockedSkillTreeGroupChildren(groupNode, unlocked) >= min;
 }
 
-function canUnlockSkillTreeGroupChild(treeData, node, unlocked) {
+function canUnlockSkillTreeGroupChild(treeData, node, unlocked, externalProgress = {}) {
     const groupNode = getSkillTreeNodeGroup(treeData, node?.id);
     if (!groupNode) return true;
     const groupRequirements = getNodePrerequisites(groupNode, treeData);
     if (!canUnlockSkillNode(groupRequirements, getSkillTreeRequirementMode(groupNode), unlocked, treeData)) return false;
+    if (!isSkillTreeExternalRequirementSatisfied(groupNode, externalProgress)) return false;
     const children = getSkillTreeGroupChildren(groupNode);
     const { max } = getSkillTreeGroupChoiceLimits(groupNode, children.length);
     if (!Number.isFinite(max)) return true;
@@ -566,6 +571,32 @@ function getSkillTreeRequirementMode(node) {
     return ['any', 'one'].includes(String(node?.requiresMode || node?.requireMode || node?.requirementMode || '').toLowerCase())
         ? 'any'
         : 'all';
+}
+
+function getSkillTreeExternalRequirement(node) {
+    const raw = node?.externalRequirement
+        || (Array.isArray(node?.externalRequirements) ? node.externalRequirements[0] : null)
+        || null;
+    if (!raw) return null;
+    if (typeof raw === 'string') {
+        const label = raw.trim();
+        return label ? { label, target: 1 } : null;
+    }
+    if (typeof raw !== 'object' || raw.enabled === false) return null;
+    const label = String(raw.label || raw.title || raw.name || 'Requisito esterno').trim() || 'Requisito esterno';
+    const target = Math.max(1, Math.min(999, Math.round(Number(raw.target ?? raw.required ?? raw.max ?? 1) || 1)));
+    return { label, target };
+}
+
+function getSkillTreeExternalProgress(progressMap, nodeId, target = 1) {
+    const value = Math.round(Number(progressMap?.[String(nodeId)] || 0) || 0);
+    return Math.max(0, Math.min(Math.max(1, Number(target) || 1), value));
+}
+
+function isSkillTreeExternalRequirementSatisfied(node, progressMap) {
+    const requirement = getSkillTreeExternalRequirement(node);
+    if (!requirement) return true;
+    return getSkillTreeExternalProgress(progressMap, node?.id, requirement.target) >= requirement.target;
 }
 
 function hasExplicitNodePrerequisites(node) {
@@ -1264,6 +1295,10 @@ function normalizeSkillTreeDefinitionForSave(treeData) {
                         })
                         : node?.levels
                 };
+                const externalRequirement = getSkillTreeExternalRequirement(normalizedNode);
+                if (externalRequirement) normalizedNode.externalRequirement = externalRequirement;
+                else delete normalizedNode.externalRequirement;
+                delete normalizedNode.externalRequirements;
                 if (isSkillTreeGroupNode(normalizedNode)) {
                     const children = getSkillTreeGroupChildren(normalizedNode);
                     const limits = getSkillTreeGroupChoiceLimits(normalizedNode, children.length);
@@ -1346,33 +1381,61 @@ function deriveSkillTreeNodes(treeData, stateRecord) {
     const stateUnlocked = Array.isArray(stateRecord?.unlocked) ? stateRecord.unlocked : Array.isArray(stateRecord?.unlockedNodeIds) ? stateRecord.unlockedNodeIds : null;
     const unlocked = new Set((stateUnlocked || Array.from(baseUnlocked)).map(String));
     const stateLevels = stateRecord?.levels && typeof stateRecord.levels === 'object' ? stateRecord.levels : {};
+    const stateExternalProgress = stateRecord?.externalProgress && typeof stateRecord.externalProgress === 'object'
+        ? stateRecord.externalProgress
+        : {};
 
     return (treeData.nodes || []).map((node) => {
         const nodeId = String(node.id);
         const requirements = getNodePrerequisites(node, treeData);
         const requirementMode = getSkillTreeRequirementMode(node);
+        const externalRequirement = getSkillTreeExternalRequirement(node);
+        const recordedExternalProgress = getSkillTreeExternalProgress(stateExternalProgress, nodeId, externalRequirement?.target || 1);
+        const externalSatisfied = isSkillTreeExternalRequirementSatisfied(node, stateExternalProgress);
         let state = 'locked';
         const isGroup = isSkillTreeGroupNode(node);
         if (isGroup) {
-            if (isSkillTreeGroupSatisfied(treeData, node, unlocked)) {
+            const groupSatisfied = isSkillTreeGroupSatisfied(treeData, node, unlocked);
+            if (groupSatisfied) {
                 state = 'unlocked';
-            } else if (canUnlockSkillNode(requirements, requirementMode, unlocked, treeData)) {
+            } else if (externalSatisfied && canUnlockSkillNode(requirements, requirementMode, unlocked, treeData)) {
                 state = 'unlockable';
             }
-            return { ...node, id: nodeId, requires: requirements, requiresMode: requirementMode, state, level: 1, maxLevel: 1 };
+            return {
+                ...node,
+                id: nodeId,
+                requires: requirements,
+                requiresMode: requirementMode,
+                externalRequirement,
+                externalProgress: groupSatisfied && externalRequirement ? externalRequirement.target : recordedExternalProgress,
+                externalSatisfied: groupSatisfied || externalSatisfied,
+                state,
+                level: 1,
+                maxLevel: 1
+            };
         }
 
         if (unlocked.has(nodeId)) {
             state = 'unlocked';
         } else if (
             !isSkillNodeBlockedByExclusiveChoice(treeData, nodeId, unlocked)
-            && canUnlockSkillTreeGroupChild(treeData, node, unlocked)
+            && canUnlockSkillTreeGroupChild(treeData, node, unlocked, stateExternalProgress)
             && canUnlockSkillNode(requirements, requirementMode, unlocked, treeData)
+            && externalSatisfied
         ) {
             state = 'unlockable';
         }
         const level = unlocked.has(nodeId) ? stateLevels[nodeId] : 1;
-        return applySkillNodeLevel({ ...node, id: nodeId, requires: requirements, requiresMode: requirementMode, state }, level);
+        return applySkillNodeLevel({
+            ...node,
+            id: nodeId,
+            requires: requirements,
+            requiresMode: requirementMode,
+            externalRequirement,
+            externalProgress: unlocked.has(nodeId) && externalRequirement ? externalRequirement.target : recordedExternalProgress,
+            externalSatisfied: unlocked.has(nodeId) || externalSatisfied,
+            state
+        }, level);
     });
 }
 
@@ -1388,7 +1451,10 @@ function deriveSkillTreeEditorNodes(treeData, stateRecord) {
             requiresMode: getSkillTreeRequirementMode(node),
             state: runtimeNode.state || node.state || 'locked',
             level: runtimeNode.level || 1,
-            maxLevel: getSkillNodeLevels(node).length
+            maxLevel: getSkillNodeLevels(node).length,
+            externalRequirement: runtimeNode.externalRequirement || getSkillTreeExternalRequirement(node),
+            externalProgress: runtimeNode.externalProgress || 0,
+            externalSatisfied: runtimeNode.externalSatisfied === true
         };
     });
 }
@@ -1431,7 +1497,7 @@ function canDisableUnlockedSkillNode(treeData, nodeId, unlockedIds) {
     return Array.from(currentUnlocked).every((unlockedId) => unlockedId === id || pruned.has(unlockedId));
 }
 
-async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap = {}, treeData = null) {
+async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap = {}, treeData = null, externalProgressMap = {}) {
     const accountId = getCurrentAccountId();
     const subject = getSkillTreeStateSubject(character, treeKey, treeData);
     const stateId = subject.id;
@@ -1459,6 +1525,9 @@ async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, leve
         levels: Object.fromEntries(Object.entries(levelMap || {})
             .map(([key, value]) => [String(key), Math.max(1, Math.round(Number(value) || 1))])
             .filter(([key, value]) => key && value > 1)),
+        externalProgress: Object.fromEntries(Object.entries(externalProgressMap || {})
+            .map(([key, value]) => [String(key), Math.max(0, Math.round(Number(value) || 0))])
+            .filter(([key]) => key)),
         updatedAt: new Date().toISOString()
     };
     const nextStates = [...kept, nextRecord];
@@ -1475,7 +1544,8 @@ async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, leve
         characterId: subject.characterId,
         treeKey,
         shared: subject.shared,
-        unlocked: nextRecord.unlocked
+        unlocked: nextRecord.unlocked,
+        externalProgress: nextRecord.externalProgress
     }, '*');
     return result;
 }
@@ -1581,6 +1651,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     let currentNodes = applySkillTreeGroupLayouts(deriveSkillTreeNodes(workingTree, stateRecord), workingTree);
     let unlockedIds = new Set(currentNodes.filter((node) => !isSkillTreeGroupNode(node) && node.state === 'unlocked').map((node) => String(node.id)));
     let nodeLevels = { ...(stateRecord?.levels && typeof stateRecord.levels === 'object' ? stateRecord.levels : {}) };
+    let nodeExternalProgress = { ...(stateRecord?.externalProgress && typeof stateRecord.externalProgress === 'object' ? stateRecord.externalProgress : {}) };
     let selectedNodeId = currentNodes[0]?.id || '';
     let lockedInfoNodeId = '';
     let editMode = false;
@@ -1703,6 +1774,41 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 ? `<div class="player-skill-info-requirements is-any"><span class="player-skill-requirement-label">Requisito alternativo</span><span class="player-skill-requirement-mode">Sblocca uno qualsiasi</span><span class="player-skill-info-requirement-list">${requirementPills}</span></div>`
                 : `<div class="player-skill-info-requirements is-all"><span class="player-skill-requirement-label">Requisiti</span><span class="player-skill-requirement-mode">Sblocca tutti</span><span class="player-skill-info-requirement-list">${requirementPills}</span></div>`
             : '';
+        const externalRequirement = getSkillTreeExternalRequirement(node);
+        const externalProgress = externalRequirement
+            ? Math.max(0, Math.min(externalRequirement.target, Math.round(Number(node.externalProgress || 0) || 0)))
+            : 0;
+        const externalComplete = Boolean(externalRequirement && (node.externalSatisfied || externalProgress >= externalRequirement.target));
+        const canEditExternalProgress = Boolean(
+            externalRequirement
+            && !editable
+            && isInfoLocked
+            && canEditUnlocks
+            && node.state !== 'unlocked'
+        );
+        const externalRequirementHtml = externalRequirement ? `
+            <div class="player-skill-external-requirement ${externalComplete ? 'is-complete' : ''}">
+                <div class="player-skill-external-requirement-head">
+                    <span><i class="fas fa-list-check" aria-hidden="true"></i> Requisito esterno</span>
+                    <strong>${escapeHtml(externalProgress)} / ${escapeHtml(externalRequirement.target)}</strong>
+                </div>
+                <p>${escapeHtml(externalRequirement.label)}</p>
+                <div class="player-skill-external-progress" style="--skill-external-progress: ${Math.round((externalProgress / externalRequirement.target) * 100)}%">
+                    <span aria-hidden="true"></span>
+                </div>
+                ${canEditExternalProgress ? `
+                    <div class="player-skill-external-controls" aria-label="Aggiorna progresso requisito esterno">
+                        <button type="button" data-skill-external-action="decrement" data-skill-node-id="${escapeHtml(node.id)}" ${externalProgress <= 0 ? 'disabled' : ''} aria-label="Diminuisci progresso">
+                            <i class="fas fa-minus" aria-hidden="true"></i>
+                        </button>
+                        <input type="number" min="0" max="${escapeHtml(externalRequirement.target)}" step="1" value="${escapeHtml(externalProgress)}" data-skill-external-progress data-skill-node-id="${escapeHtml(node.id)}" aria-label="Progresso requisito esterno">
+                        <button type="button" data-skill-external-action="increment" data-skill-node-id="${escapeHtml(node.id)}" ${externalComplete ? 'disabled' : ''} aria-label="Aumenta progresso">
+                            <i class="fas fa-plus" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        ` : '';
         const descriptionHtml = editable
             ? (normalizeSkillLevelStoredHtml(node.desc || '') || '<p>Nessun dettaglio disponibile.</p>')
             : isGroupNode
@@ -1757,6 +1863,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     ${richTextToolbar}
                     ${groupDetails}
                     ${requirementsLabel}
+                    ${externalRequirementHtml}
                     <div class="player-skill-info-desc ${editable ? 'is-editable' : ''}" ${editable ? 'contenteditable="true" data-skill-preview-field="desc" spellcheck="true"' : ''}>${descriptionHtml}</div>
                 `;
     };
@@ -1775,7 +1882,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     };
 
     const recalculateNodes = () => {
-        const stateSnapshot = { unlocked: Array.from(unlockedIds), levels: nodeLevels };
+        const stateSnapshot = { unlocked: Array.from(unlockedIds), levels: nodeLevels, externalProgress: nodeExternalProgress };
         currentNodes = editMode && canEditTree
             ? deriveSkillTreeEditorNodes(workingTree, stateSnapshot)
             : deriveSkillTreeNodes(workingTree, stateSnapshot);
@@ -1785,7 +1892,33 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     const persistUnlocks = async () => {
         const activeLevels = Object.fromEntries(Object.entries(nodeLevels).filter(([nodeId]) => unlockedIds.has(String(nodeId))));
         nodeLevels = activeLevels;
-        await saveCharacterSkillTreeState(character, treeKey, Array.from(unlockedIds).filter((nodeId) => !isSkillTreeGroupNode(getSkillTreeNodeById(workingTree, nodeId))), activeLevels, workingTree);
+        const activeExternalProgress = Object.fromEntries(Object.entries(nodeExternalProgress)
+            .filter(([nodeId]) => getSkillTreeExternalRequirement(getSkillTreeNodeById(workingTree, nodeId))));
+        nodeExternalProgress = activeExternalProgress;
+        await saveCharacterSkillTreeState(
+            character,
+            treeKey,
+            Array.from(unlockedIds).filter((nodeId) => !isSkillTreeGroupNode(getSkillTreeNodeById(workingTree, nodeId))),
+            activeLevels,
+            workingTree,
+            activeExternalProgress
+        );
+    };
+
+    const updateNodeExternalProgress = async (nodeId, value) => {
+        const id = String(nodeId || '');
+        if (!id || !canEditUnlocks) return;
+        const node = currentNodes.find((entry) => String(entry.id) === id);
+        const requirement = getSkillTreeExternalRequirement(node);
+        if (!node || !requirement || node.state === 'unlocked') return;
+        const nextValue = Math.max(0, Math.min(requirement.target, Math.round(Number(value) || 0)));
+        const currentValue = getSkillTreeExternalProgress(nodeExternalProgress, id, requirement.target);
+        if (nextValue === currentValue) return;
+        nodeExternalProgress[id] = nextValue;
+        await persistUnlocks();
+        selectedNodeId = id;
+        lockedInfoNodeId = id;
+        renderTree();
     };
 
     const applyNodeProgressAction = async (action, nodeId) => {
@@ -2187,14 +2320,44 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             nodeElement.style.top = `${Number(node.y) || 50}%`;
             const icon = resolveSkillAssetPath(node.icon);
             if (icon) nodeElement.style.backgroundImage = `url('${icon}')`;
-            nodeElement.setAttribute('aria-label', node.title || 'Abilita');
+            const maxLevel = Math.max(1, Math.round(Number(node.maxLevel || 1) || 1));
+            const currentLevel = node.state === 'unlocked'
+                ? Math.max(1, Math.min(maxLevel, Math.round(Number(node.level || 1) || 1)))
+                : 0;
+            const nodeAriaLabel = [node.title || 'Abilita'];
+            if (maxLevel > 1) nodeAriaLabel.push(`livello ${currentLevel} di ${maxLevel}`);
+            nodeElement.setAttribute('aria-label', nodeAriaLabel.join(', '));
             nodeElement.dataset.nodeId = String(node.id);
-            if (Number(node.maxLevel || 1) > 1 && Number(node.level || 1) > 1) {
-                const levelBadge = document.createElement('span');
-                levelBadge.className = 'player-skill-node-level-badge';
-                levelBadge.textContent = String(node.level || 1);
-                levelBadge.setAttribute('aria-hidden', 'true');
-                nodeElement.appendChild(levelBadge);
+            if (maxLevel > 1) {
+                const levelRing = document.createElement('span');
+                levelRing.className = 'player-skill-node-level-ring';
+                levelRing.setAttribute('aria-hidden', 'true');
+                levelRing.style.setProperty('--skill-level-count', String(maxLevel));
+                const levelArcDegrees = Math.min(180, Math.max(22, (maxLevel - 1) * 22));
+                const levelArcStart = 90 + (levelArcDegrees / 2);
+                const levelDotSize = Math.max(2.8, Math.min(10.5, 72 / maxLevel));
+                for (let index = 0; index < maxLevel; index += 1) {
+                    const angleDegrees = maxLevel === 1
+                        ? 90
+                        : levelArcStart - ((levelArcDegrees / (maxLevel - 1)) * index);
+                    const angle = angleDegrees * (Math.PI / 180);
+                    const dot = document.createElement('span');
+                    dot.className = `player-skill-node-level-dot${index < currentLevel ? ' is-filled' : ''}`;
+                    dot.style.left = `${50 + (Math.cos(angle) * 38)}%`;
+                    dot.style.top = `${50 + (Math.sin(angle) * 38)}%`;
+                    dot.style.width = `${levelDotSize}%`;
+                    levelRing.appendChild(dot);
+                }
+                nodeElement.appendChild(levelRing);
+            }
+            const externalRequirement = getSkillTreeExternalRequirement(node);
+            if (externalRequirement) {
+                const externalBadge = document.createElement('span');
+                externalBadge.className = `player-skill-node-external-badge${node.externalSatisfied ? ' is-complete' : ''}`;
+                externalBadge.title = `${externalRequirement.label}: ${node.externalProgress || 0}/${externalRequirement.target}`;
+                externalBadge.setAttribute('aria-hidden', 'true');
+                externalBadge.innerHTML = `<i class="fas fa-list-check"></i><b>${escapeHtml(node.externalProgress || 0)}/${escapeHtml(externalRequirement.target)}</b>`;
+                nodeElement.appendChild(externalBadge);
             }
             if (canEditTree) {
                 const linkAnchor = document.createElement('span');
@@ -2430,6 +2593,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         }));
         const requirementIds = new Set(getNodePrerequisites(node, workingTree).map(String));
         const explicitRequirements = hasExplicitNodePrerequisites(node);
+        const externalRequirement = getSkillTreeExternalRequirement(node);
         const otherNodes = (workingTree.nodes || []).filter((entry) => String(entry.id) !== nodeId);
         const modeLabel = getSkillTreeRequirementMode(node) === 'any'
             ? 'basta uno dei requisiti selezionati'
@@ -2469,6 +2633,23 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                         <small>Cosa parte da questo nodo</small>
                     </div>
                 </div>
+                <section class="player-skill-external-editor ${externalRequirement ? 'is-enabled' : ''}">
+                    <label class="player-skill-external-editor-toggle">
+                        <input type="checkbox" data-node-external-field="enabled" ${externalRequirement ? 'checked' : ''}>
+                        <span>
+                            <strong>Requisito esterno</strong>
+                            <small>Il giocatore avanza il contatore prima di poter sbloccare il nodo.</small>
+                        </span>
+                    </label>
+                    <div class="player-skill-external-editor-fields">
+                        <label>Obiettivo
+                            <input type="text" data-node-external-field="label" value="${escapeHtml(externalRequirement?.label || '')}" placeholder="Es. Completa tre prove" ${externalRequirement ? '' : 'disabled'}>
+                        </label>
+                        <label>Progresso richiesto
+                            <input type="number" min="1" max="999" step="1" data-node-external-field="target" value="${escapeHtml(externalRequirement?.target || 1)}" ${externalRequirement ? '' : 'disabled'}>
+                        </label>
+                    </div>
+                </section>
                 <div class="player-skill-relations-grid">
                     <section>
                         <h5>Prerequisiti del nodo</h5>
@@ -2747,6 +2928,24 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             renderTree();
             return;
         }
+        const externalField = target.dataset.nodeExternalField;
+        if (externalField === 'enabled') {
+            const node = readEditorNode();
+            if (!node) return;
+            if (target.checked) {
+                node.externalRequirement = getSkillTreeExternalRequirement(node) || {
+                    label: 'Requisito esterno',
+                    target: 1
+                };
+            } else {
+                delete node.externalRequirement;
+                delete node.externalRequirements;
+                delete nodeExternalProgress[String(node.id)];
+            }
+            renderTree();
+            renderEditor();
+            return;
+        }
         const groupChildId = target.dataset.nodeGroupChildId;
         if (groupChildId) {
             const node = readEditorNode();
@@ -2808,6 +3007,22 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
         const isFormControl = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+        const externalField = target.dataset.nodeExternalField;
+        if (externalField && externalField !== 'enabled') {
+            const node = readEditorNode();
+            if (!node) return;
+            const requirement = getSkillTreeExternalRequirement(node) || { label: 'Requisito esterno', target: 1 };
+            if (externalField === 'label') {
+                node.externalRequirement = { ...requirement, label: target.value };
+            } else if (externalField === 'target') {
+                node.externalRequirement = {
+                    ...requirement,
+                    target: Math.max(1, Math.min(999, Math.round(Number(target.value) || 1)))
+                };
+            }
+            renderTree();
+            return;
+        }
         const levelIndex = target.dataset.nodeLevelIndex;
         const levelField = target.dataset.nodeLevelField;
         if (levelIndex !== undefined && levelField) {
@@ -2884,6 +3099,14 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 if (!nextId) return;
                 node.id = nextId;
                 selectedNodeId = nextId;
+                if (Object.prototype.hasOwnProperty.call(nodeLevels, oldId)) {
+                    nodeLevels[nextId] = nodeLevels[oldId];
+                    delete nodeLevels[oldId];
+                }
+                if (Object.prototype.hasOwnProperty.call(nodeExternalProgress, oldId)) {
+                    nodeExternalProgress[nextId] = nodeExternalProgress[oldId];
+                    delete nodeExternalProgress[oldId];
+                }
                 workingTree.nodes.forEach((entry) => {
                     if (Array.isArray(entry.connections)) {
                         setSkillTreeConnections(entry, getSkillTreeConnections(entry).map((connection) => ({
@@ -2941,7 +3164,35 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         }
     });
 
+    infoPanel.addEventListener('change', async (event) => {
+        const input = event.target.closest?.('[data-skill-external-progress]');
+        if (!input) return;
+        try {
+            await updateNodeExternalProgress(input.dataset.skillNodeId, input.value);
+        } catch (error) {
+            console.error('Salvataggio requisito esterno fallito:', error);
+            alert('Impossibile salvare il progresso del requisito esterno.');
+        }
+    });
+
     infoPanel.addEventListener('click', async (event) => {
+        const externalAction = event.target.closest('[data-skill-external-action]');
+        if (externalAction) {
+            event.preventDefault();
+            const id = externalAction.dataset.skillNodeId;
+            const node = currentNodes.find((entry) => String(entry.id) === String(id));
+            const requirement = getSkillTreeExternalRequirement(node);
+            if (!node || !requirement) return;
+            const currentValue = getSkillTreeExternalProgress(nodeExternalProgress, id, requirement.target);
+            const delta = externalAction.dataset.skillExternalAction === 'increment' ? 1 : -1;
+            try {
+                await updateNodeExternalProgress(id, currentValue + delta);
+            } catch (error) {
+                console.error('Salvataggio requisito esterno fallito:', error);
+                alert('Impossibile salvare il progresso del requisito esterno.');
+            }
+            return;
+        }
         const iconPreview = event.target.closest('[data-skill-node-icon-preview]');
         if (iconPreview) {
             event.preventDefault();
@@ -3149,6 +3400,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             });
             unlockedIds.delete(id);
             delete nodeLevels[id];
+            delete nodeExternalProgress[id];
             unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
             if (selectedConnection?.source === id || selectedConnection?.target === id) selectedConnection = null;
             selectedNodeId = workingTree.nodes[0]?.id || '';

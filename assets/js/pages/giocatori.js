@@ -105,12 +105,18 @@ window.CriptaApp.onPageReady("giocatori", async function() {
     async function resolvePlayerCardImageAvailability(players) {
         const list = Array.isArray(players) ? players : [];
         await Promise.all(list.map(async (player) => {
+            const managedMedia = player?._managedActor?.media || null;
+            if (managedMedia) {
+                const idlePath = String(managedMedia.idle?.path || "").trim();
+                const hoverPath = String(managedMedia.hover?.path || "").trim();
+                player._hasDedicatedCardImages = Boolean(idlePath && hoverPath && idlePath !== hoverPath);
+                return;
+            }
+
             const images = getPlayerImages(player);
-            const cardUrl = resolveImageUrl(images.idle);
-            const hoverUrl = resolveImageUrl(images.cardHover);
             const [hasCard, hasHover] = await Promise.all([
-                imageExists(cardUrl),
-                imageExists(hoverUrl)
+                imageExists(resolvePlayerImageUrl(player, images.idle)),
+                imageExists(resolvePlayerImageUrl(player, images.cardHover))
             ]);
             player._hasDedicatedCardImages = Boolean(hasCard && hasHover);
         }));
@@ -138,6 +144,15 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         if (value.startsWith("/media/")) return window.CriptaApp.urls.api(value.slice(1));
         if (value.startsWith("assets/")) return `../${value}`;
         return `${basePath}${value}`;
+    }
+
+    function resolvePlayerImageUrl(player, path) {
+        const resolved = resolveImageUrl(path);
+        if (!resolved) return "";
+        const version = player?._managedActor?.updatedAt || player?.updatedAt || "";
+        return version && typeof window.CriptaApp?.utils?.appendAssetVersion === "function"
+            ? window.CriptaApp.utils.appendAssetVersion(resolved, version)
+            : resolved;
     }
 
     function resolvePublicImageUrl(path) {
@@ -477,13 +492,15 @@ window.CriptaApp.onPageReady("giocatori", async function() {
             ? images.cardHover
             : listImage;
         const listFallbackPath = hasPlayerCardAnimation
-            ? (images.idleFallback || images.tokenFallback || images.token)
+            ? (images.token || images.tokenFallback || images.idleFallback)
             : (images.tokenFallback || images.token);
         const hoverFallbackPath = hasPlayerCardAnimation
-            ? (images.cardHoverFallback || listFallbackPath)
+            ? (images.token || images.tokenFallback || images.cardHoverFallback || listFallbackPath)
             : listFallbackPath;
-        const listFallback = resolveImageUrl(listFallbackPath);
-        const hoverFallback = resolveImageUrl(hoverFallbackPath);
+        const listUrl = resolvePlayerImageUrl(player, listImage);
+        const hoverUrl = resolvePlayerImageUrl(player, listHoverImage);
+        const listFallback = resolvePlayerImageUrl(player, listFallbackPath);
+        const hoverFallback = resolvePlayerImageUrl(player, hoverFallbackPath);
         const listAdjust = images.idleAdjust || images.cardAdjust || images.listAdjust || images.tokenAdjust || images.avatarAdjust;
         const listHoverAdjust = images.cardHoverAdjust || images.listHoverAdjust || images.hoverAdjust || images.tokenHoverAdjust || listAdjust;
         const shouldSwapAvatar = listHoverImage && listHoverImage !== listImage;
@@ -503,8 +520,8 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         return `
             <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player${campaignQuery}" class="${cardClassWithSwap}" data-roster-card="player" data-roster-state="${isInactive ? "inactive" : "active"}" data-roster-search="${escapeHtml(rosterSearch)}">
                 <div class="npc-avatar-container">
-                    <img src="${escapeHtml(resolveImageUrl(listImage))}" ${listFallback ? `data-fallback-src="${escapeHtml(listFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-main" loading="lazy" decoding="async" style="${buildImageStyle("avatar", listAdjust, listHoverAdjust)}" onerror="${buildFallbackImageErrorHandler(listFallbackPath, player.name)}">
-                    <img src="${escapeHtml(resolveImageUrl(listHoverImage))}" ${hoverFallback ? `data-fallback-src="${escapeHtml(hoverFallback)}"` : ""} alt="${escapeHtml(player.name)} Token" class="npc-img-pop img-hover" loading="lazy" decoding="async" style="${buildImageStyle("hover", listHoverAdjust, listAdjust)}" onerror="${buildFallbackImageErrorHandler(hoverFallbackPath, player.name, true)}">
+                    <img src="${escapeHtml(listUrl)}" data-original-src="${escapeHtml(listUrl)}" ${listFallback ? `data-fallback-src="${escapeHtml(listFallback)}"` : ""} data-media-dedicated="${hasPlayerCardAnimation ? "true" : "false"}" alt="${escapeHtml(player.name)}" class="npc-img-pop img-main" loading="eager" decoding="async" fetchpriority="auto" style="${buildImageStyle("avatar", listAdjust, listHoverAdjust)}">
+                    <img src="${escapeHtml(hoverUrl)}" data-original-src="${escapeHtml(hoverUrl)}" ${hoverFallback ? `data-fallback-src="${escapeHtml(hoverFallback)}"` : ""} data-media-dedicated="${hasPlayerCardAnimation ? "true" : "false"}" alt="${escapeHtml(player.name)}" class="npc-img-pop img-hover" loading="lazy" decoding="async" fetchpriority="low" style="${buildImageStyle("hover", listHoverAdjust, listAdjust)}">
                     ${renderCompanionBadge(companions)}
                 </div>
                 <div class="npc-info">
@@ -594,6 +611,7 @@ window.CriptaApp.onPageReady("giocatori", async function() {
             .join("");
         applyManagedPlayerFrameCircles(container, visiblePlayers);
         initPlayerRosterControls(container);
+        window.CriptaRosterMedia?.init(container);
     } catch (error) {
         console.error("Errore nel caricamento dei dati dei giocatori:", error);
         container.innerHTML = '<p style="color: var(--status-dead);">Impossibile caricare i dati dei giocatori. Controlla la console per maggiori dettagli.</p>';
