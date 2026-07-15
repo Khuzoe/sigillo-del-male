@@ -283,5 +283,150 @@
             "reward": "Randra +1 punto abilità (Albero Zara)",
             "skillPoint": true
         }
+,
+        {
+            "id": 28,
+            "date": "04/07/2026",
+            "dateIso": "2026-07-04",
+            "title": "Il patto di Zara",
+            "status": "published",
+            "visibility": "public",
+            "summary": "<p>Dopo un confronto acceso tra Ga'Run e Ran'Dra per lo scherzo di pessimo gusto della sera precedente, il gruppo si mette in cammino verso il Teatro di Zara, nella zona settentrionale del terzo livello.</p><p>Lungo il percorso incontrate Bastone, un lich di enorme potere, che vi consegna dodici monete di pezza e tre costumi: uno da pompiere, uno da infermiera e uno da orso di peluche.</p><p>Trovate poi una bambola con le sembianze di Ran'Dra, perennemente avvolta da una tenue luce magica.</p><p>Appena entrati nel teatro, l'aria diventa quasi irrespirabile. Un pupazzo tenta di vendervi delle bombole d'ossigeno, ma, smascherata la truffa, gli sottraete ossigeno e monete e disattivate il macchinario che stava aspirando l'aria dalla zona.</p><p>Proseguendo lungo il corridoio, un'esplosione coinvolge il Dorror Espiro e un mendicante di pezza. Salvate dalle fiamme uno strano individuo che chiedeva aiuto e lo accompagnate al mercato, nel cuore del teatro.</p><p>Nello studio di Zara, la giullare propone a Ran'Dra un patto dai termini volutamente ambigui. Al termine della discussione Ran'Dra accetta, le stringe la mano e il suo corpo assume permanentemente una nuova forma.</p>",
+            "events": [
+                {
+                    "id": "session-28-verso-il-teatro",
+                    "type": "event",
+                    "title": "Verso il Teatro",
+                    "text": "Dopo un confronto acceso tra Ga'Run e Ran'Dra per lo scherzo di pessimo gusto della sera precedente, il gruppo si mette in cammino verso il Teatro di Zara, nella zona settentrionale del terzo livello."
+                },
+                {
+                    "id": "session-28-bastone",
+                    "type": "encounter",
+                    "title": "Bastone e le monete di pezza",
+                    "text": "Lungo il percorso incontrate Bastone, un lich di enorme potere, che vi consegna dodici monete di pezza e tre costumi: uno da pompiere, uno da infermiera e uno da orso di peluche."
+                },
+                {
+                    "id": "session-28-bambola-randra",
+                    "type": "discovery",
+                    "title": "La bambola di Ran'Dra",
+                    "text": "Trovate una bambola con le sembianze di Ran'Dra, perennemente avvolta da una tenue luce magica."
+                },
+                {
+                    "id": "session-28-respiro-rubato",
+                    "type": "encounter",
+                    "title": "Il respiro rubato",
+                    "text": "Appena entrati nel teatro, l'aria diventa quasi irrespirabile. Un pupazzo tenta di vendervi delle bombole d'ossigeno, ma, smascherata la truffa, gli sottraete ossigeno e monete e disattivate il macchinario che stava aspirando l'aria dalla zona."
+                },
+                {
+                    "id": "session-28-esplosione",
+                    "type": "event",
+                    "title": "L'esplosione nel corridoio",
+                    "text": "Un'esplosione coinvolge il Dorror Espiro e un mendicante di pezza. Salvate dalle fiamme uno strano individuo che chiedeva aiuto e lo accompagnate al mercato, nel cuore del teatro."
+                },
+                {
+                    "id": "session-28-patto",
+                    "type": "consequence",
+                    "title": "Una stretta di mano",
+                    "text": "Nello studio di Zara, la giullare propone a Ran'Dra un patto dai termini volutamente ambigui. Al termine della discussione Ran'Dra accetta, le stringe la mano e il suo corpo assume permanentemente una nuova forma."
+                }
+            ],
+            "xp": {
+                "total": "0",
+                "each": "0"
+            },
+            "loot": [
+                "12 monete di pezza",
+                "Costume da pompiere",
+                "Costume da infermiera",
+                "Costume da orso di peluche",
+                "Bambola luminosa di Ran'Dra"
+            ],
+            "consequences": [
+                "Ran'Dra assume permanentemente una nuova forma dopo il patto con Zara."
+            ],
+            "links": {
+                "players": [
+                    { "id": "garun", "type": "player", "name": "Ga'Run" },
+                    { "id": "randra", "type": "player", "name": "Ran'Dra" }
+                ],
+                "npcs": [
+                    { "id": "bastone", "type": "npc", "name": "Bastone" },
+                    { "id": "zara", "type": "npc", "name": "Zara Klaren" }
+                ],
+                "missions": [],
+                "items": [],
+                "locations": []
+            }
+        },
+        {
+            "id": 29,
+            "date": "11/07/2026",
+            "dateIso": "2026-07-11",
+            "title": "Le monete del Teatro",
+            "status": "published",
+            "visibility": "public",
+            "summary": "<p>Sconvolto dalla trasformazione di Ran'Dra, Ga'Run assume involontariamente la forma di un orso d'oscurità e tenta di trascinarla fuori dal teatro. Fuori controllo, costringe il gruppo a intervenire con la forza per fermarlo.</p><p>Ritrovata la calma, tornate da Zara. La giullare vi spiega che, per accedere al teatro e prendere il tè con lei, serviranno otto monete di pezza a testa.</p><p>Iniziate così a esplorare l'area e a conoscere i suoi abitanti, aiutandone alcuni o accettando le loro sfide per guadagnare altre monete.</p><p>Durante l'esplorazione trovate e raccogliete altre bambole insolite.</p><p>Giungete infine nella Sala degli Ospiti, dove scoprite letti estremamente comodi e una vasca termale. Zara appare per darvi il benvenuto e vi concede di riposare lì ogni volta che lo desiderate.</p><p>Nella stanza adiacente vi attende una figura oscura, apparentemente una sarta. Tra i suoi scaffali scorgete numerosi oggetti magici: per averli, dovrete decidere quanto siete disposti a spendere delle monete di Zara.</p>",
+            "events": [
+                {
+                    "id": "session-29-orso-incubo",
+                    "type": "consequence",
+                    "title": "L'orso dell'incubo",
+                    "text": "Sconvolto dalla trasformazione di Ran'Dra, Ga'Run assume involontariamente la forma di un orso d'oscurità e tenta di trascinarla fuori dal teatro. Fuori controllo, costringe il gruppo a intervenire con la forza per fermarlo."
+                },
+                {
+                    "id": "session-29-prezzo-te",
+                    "type": "decision",
+                    "title": "Il prezzo del tè",
+                    "text": "Ritrovata la calma, tornate da Zara. La giullare vi spiega che, per accedere al teatro e prendere il tè con lei, serviranno otto monete di pezza a testa."
+                },
+                {
+                    "id": "session-29-giochi-favori",
+                    "type": "event",
+                    "title": "Giochi e favori",
+                    "text": "Iniziate a esplorare l'area e a conoscere i suoi abitanti, aiutandone alcuni o accettando le loro sfide per guadagnare altre monete."
+                },
+                {
+                    "id": "session-29-bambole",
+                    "type": "discovery",
+                    "title": "Altre bambole",
+                    "text": "Durante l'esplorazione trovate e raccogliete altre bambole insolite."
+                },
+                {
+                    "id": "session-29-sala-ospiti",
+                    "type": "discovery",
+                    "title": "La Sala degli Ospiti",
+                    "text": "Scoprite letti estremamente comodi e una vasca termale. Zara vi dà il benvenuto e vi concede di riposare qui ogni volta che lo desiderate."
+                },
+                {
+                    "id": "session-29-sarta",
+                    "type": "encounter",
+                    "title": "La sarta nell'ombra",
+                    "text": "Nella stanza adiacente vi attende una figura oscura, apparentemente una sarta. Tra i suoi scaffali scorgete numerosi oggetti magici: per averli, dovrete decidere quanto siete disposti a spendere delle monete di Zara."
+                }
+            ],
+            "xp": {
+                "total": "2900",
+                "each": "725"
+            },
+            "loot": [
+                "Altre bambole del Teatro"
+            ],
+            "consequences": [
+                "Il gruppo può riposare nella Sala degli Ospiti del Teatro.",
+                "Per prendere il tè con Zara servono 8 monete di pezza a testa."
+            ],
+            "links": {
+                "players": [
+                    { "id": "garun", "type": "player", "name": "Ga'Run" },
+                    { "id": "randra", "type": "player", "name": "Ran'Dra" }
+                ],
+                "npcs": [
+                    { "id": "zara", "type": "npc", "name": "Zara Klaren" }
+                ],
+                "missions": [],
+                "items": [],
+                "locations": []
+            }
+        }
     ]
 }

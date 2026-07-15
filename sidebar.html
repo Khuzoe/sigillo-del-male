@@ -1,24 +1,70 @@
-<!-- QUESTO FILE CONTIENE SOLO LA BARRA LATERALE -->
-<!-- I link sono scritti come se fossimo nella HOME. Lo script li correggera automaticamente se sei in altre pagine. -->
-
-<div class="logo">
-    <a href="index.html">
-        <img src="assets/img/logo.webp" alt="Sigillo del Male" class="logo-img" onerror="this.style.display='none'; this.parentNode.innerHTML='<h2 style=\'color:#8a1c1c; font-family:Cinzel\'>Sigillo del Male</h2>'">
+<div class="sidebar-mobile-bar">
+    <a class="sidebar-mobile-brand" href="index.html" aria-label="Vai alla home della campagna">
+        <img src="assets/img/logo.webp" alt="" aria-hidden="true">
     </a>
+    <div class="sidebar-mobile-context">
+        <span>Campagna</span>
+        <strong data-sidebar-mobile-campaign>Cripta di Sangue</strong>
+    </div>
+    <button type="button" class="sidebar-mobile-toggle" data-sidebar-open aria-label="Apri navigazione" aria-expanded="false">
+        <i class="fas fa-bars" aria-hidden="true"></i>
+    </button>
 </div>
 
-<ul class="nav-links">
-    <!-- Nota: href parte dalla root -->
-    <li><a href="pages/npcs.html" data-page="npcs"><i class="fas fa-skull"></i> NPC</a></li>
-    <li><a href="pages/giocatori.html" data-page="giocatori"><i class="fas fa-dice-d20"></i> Giocatori</a></li>
-    <li><a href="pages/missioni.html" data-page="missioni"><i class="fas fa-scroll"></i> Missioni</a></li>
-    <li><a href="pages/sessioni.html" data-page="sessioni"><i class="fas fa-scroll"></i> Sessioni</a></li>
-    <li><a href="pages/bestiario.html" data-page="bestiario"><i class="fas fa-book-dead"></i> Bestiario</a></li>
-    <li><a href="pages/oggetti.html" data-page="oggetti"><i class="fas fa-wand-sparkles"></i> Oggetti</a></li>
-    <li><a href="pages/crafting.html" data-page="crafting"><i class="fas fa-hammer"></i> Crafting</a></li>
-    <li><a href="pages/appunti.html" data-page="appunti"><i class="fas fa-note-sticky"></i> Appunti</a></li>
-    <li><a href="pages/calendario.html" data-page="calendario"><i class="fas fa-calendar-days"></i> Calendario</a></li>
-    <li><a href="pages/mappa.html" data-page="mappa"><i class="fas fa-map-location-dot"></i> Luoghi</a></li>
-    <li><a href="pages/famiglia-von-t.html" data-page="famiglia-von-t"><i class="fas fa-tree"></i> Von T</a></li>
-    <li><a href="pages/cerca.html" data-page="cerca"><i class="fas fa-search"></i> Cerca</a></li>
-</ul>
+<button type="button" class="sidebar-backdrop" data-sidebar-dismiss aria-label="Chiudi navigazione" tabindex="-1"></button>
+
+<div class="sidebar-panel" data-sidebar-panel aria-label="Navigazione principale" aria-hidden="false">
+    <header class="sidebar-header">
+        <div class="logo">
+            <a href="index.html" aria-label="Vai alla home della campagna">
+                <img src="assets/img/logo.webp" alt="Sigillo del Male" class="logo-img">
+            </a>
+        </div>
+        <button type="button" class="sidebar-mobile-close" data-sidebar-dismiss aria-label="Chiudi navigazione">
+            <i class="fas fa-xmark" aria-hidden="true"></i>
+        </button>
+        <div class="sidebar-campaign-slot" data-sidebar-campaign-slot></div>
+    </header>
+
+    <div class="sidebar-nav-scroll">
+        <section class="sidebar-nav-section" data-sidebar-nav-section>
+            <h2 class="sidebar-nav-heading">Campagna</h2>
+            <ul class="nav-links">
+                <li><a href="pages/npcs.html" data-page="npcs" title="NPC"><span class="nav-icon"><i class="fas fa-masks-theater" aria-hidden="true"></i></span><span class="nav-label">NPC</span></a></li>
+                <li><a href="pages/giocatori.html" data-page="giocatori" title="Giocatori"><span class="nav-icon"><i class="fas fa-dice-d20" aria-hidden="true"></i></span><span class="nav-label">Giocatori</span></a></li>
+                <li><a href="pages/missioni.html" data-page="missioni" title="Missioni"><span class="nav-icon"><i class="fas fa-compass" aria-hidden="true"></i></span><span class="nav-label">Missioni</span></a></li>
+                <li><a href="pages/sessioni.html" data-page="sessioni" title="Sessioni"><span class="nav-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span><span class="nav-label">Sessioni</span></a></li>
+            </ul>
+        </section>
+
+        <section class="sidebar-nav-section" data-sidebar-nav-section>
+            <h2 class="sidebar-nav-heading">Compendi</h2>
+            <ul class="nav-links">
+                <li><a href="pages/bestiario.html" data-page="bestiario" title="Bestiario"><span class="nav-icon"><i class="fas fa-dragon" aria-hidden="true"></i></span><span class="nav-label">Bestiario</span></a></li>
+                <li><a href="pages/oggetti.html" data-page="oggetti" title="Oggetti"><span class="nav-icon"><i class="fas fa-wand-sparkles" aria-hidden="true"></i></span><span class="nav-label">Oggetti</span></a></li>
+                <li><a href="pages/crafting.html" data-page="crafting" title="Crafting"><span class="nav-icon"><i class="fas fa-hammer" aria-hidden="true"></i></span><span class="nav-label">Crafting</span></a></li>
+            </ul>
+        </section>
+
+        <section class="sidebar-nav-section" data-sidebar-nav-section>
+            <h2 class="sidebar-nav-heading">Archivio</h2>
+            <ul class="nav-links">
+                <li><a href="pages/appunti.html" data-page="appunti" title="Appunti"><span class="nav-icon"><i class="fas fa-note-sticky" aria-hidden="true"></i></span><span class="nav-label">Appunti</span></a></li>
+                <li><a href="pages/calendario.html" data-page="calendario" title="Calendario"><span class="nav-icon"><i class="fas fa-calendar-days" aria-hidden="true"></i></span><span class="nav-label">Calendario</span></a></li>
+                <li><a href="pages/mappa.html" data-page="mappa" title="Luoghi"><span class="nav-icon"><i class="fas fa-map-location-dot" aria-hidden="true"></i></span><span class="nav-label">Luoghi</span></a></li>
+                <li><a href="pages/famiglia-von-t.html" data-page="famiglia-von-t" title="Von T"><span class="nav-icon"><i class="fas fa-tree" aria-hidden="true"></i></span><span class="nav-label">Von T</span></a></li>
+            </ul>
+        </section>
+    </div>
+
+    <footer class="sidebar-footer">
+        <a href="pages/cerca.html" class="sidebar-search" data-page="cerca" data-command-palette-open title="Cerca nella wiki">
+            <span class="nav-icon"><i class="fas fa-magnifying-glass" aria-hidden="true"></i></span>
+            <span class="nav-label">Cerca</span>
+            <kbd>Ctrl K</kbd>
+        </a>
+        <button type="button" class="sidebar-collapse" data-sidebar-collapse aria-label="Comprimi navigazione" aria-expanded="true" title="Comprimi navigazione">
+            <i class="fas fa-angles-left" aria-hidden="true"></i>
+        </button>
+    </footer>
+</div>

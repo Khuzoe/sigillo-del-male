@@ -44,6 +44,27 @@ export default {
         return handleNpcCategoriesPost(request, queryCampaignId, env, corsHeaders);
       }
 
+      if (url.pathname === "/api/missions" && request.method === "GET") {
+        return handleMissionsGet(request, queryCampaignId, env, corsHeaders);
+      }
+      if (url.pathname === "/api/missions/bootstrap" && request.method === "POST") {
+        return handleMissionsBootstrap(request, queryCampaignId, env, corsHeaders);
+      }
+      if (url.pathname === "/api/missions/upsert" && request.method === "POST") {
+        return handleMissionUpsert(request, queryCampaignId, env, corsHeaders);
+      }
+      if (url.pathname === "/api/missions/progress" && request.method === "POST") {
+        return handleMissionProgress(request, queryCampaignId, env, corsHeaders);
+      }
+      if (url.pathname === "/api/session-journal" && request.method === "GET") {
+        return handleSessionJournalGet(request, queryCampaignId, env, corsHeaders);
+      }
+      if (url.pathname === "/api/session-journal/bootstrap" && request.method === "POST") {
+        return handleSessionJournalBootstrap(request, queryCampaignId, env, corsHeaders);
+      }
+      if (url.pathname === "/api/session-journal/upsert" && request.method === "POST") {
+        return handleSessionJournalUpsert(request, queryCampaignId, env, corsHeaders);
+      }
       const managedActorRoute = matchManagedActorRoute(url.pathname);
       const managedActorLegacyAdoptRoute = matchManagedActorLegacyAdoptRoute(url.pathname);
       const managedActorProfileRoute = matchManagedActorProfileRoute(url.pathname);
@@ -1946,6 +1967,761 @@ function getRomeDateTimeParts() {
     date: `${map.year}-${map.month}-${map.day}`,
     minutes: hour * 60 + minute,
   };
+}
+
+const MISSION_TYPES = new Set(["main", "side", "personal", "faction"]);
+const MISSION_STATUSES = new Set(["draft", "available", "active", "completed", "failed", "archived"]);
+const MISSION_VISIBILITIES = new Set(["public", "players", "assigned", "dm"]);
+const MISSION_OBJECTIVE_STATUSES = new Set(["pending", "active", "completed", "failed", "hidden", "archived"]);
+
+function missionText(value, maxLength = 4000) {
+  return String(value ?? "").trim().slice(0, maxLength);
+}
+
+function missionId(value, fallback = "") {
+  const clean = String(value || fallback)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9:_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
+  return clean || `mission-${crypto.randomUUID().slice(0, 12)}`;
+}
+
+function normalizeMissionEntityRef(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const id = missionId(value.id || value.actorId || value.characterId || value.slug || "", "entity");
+  const type = ["npc", "player", "companion", "faction", "location"].includes(String(value.type || "").toLowerCase())
+    ? String(value.type).toLowerCase()
+    : "npc";
+  const accountIds = [...new Set([
+    value.accountId,
+    ...(Array.isArray(value.accountIds) ? value.accountIds : []),
+  ].map(sanitizeAccountId).filter(Boolean))].slice(0, 16);
+  return {
+    id,
+    type,
+    name: missionText(value.name || value.label || id, 120),
+    accountIds,
+    worldId: missionText(value.worldId, 96),
+    actorId: missionText(value.actorId, 96),
+  };
+}
+
+function normalizeMissionEntityRefs(value, max = 32) {
+  const refs = Array.isArray(value) ? value : value ? [value] : [];
+  const normalized = refs.map(normalizeMissionEntityRef).filter(Boolean).slice(0, max);
+  return normalized.filter((entry, index) => normalized.findIndex((candidate) => candidate.id === entry.id && candidate.type === entry.type) === index);
+}
+
+function normalizeMissionObjective(value, index = 0, depth = 0, counter = { count: 0 }) {
+  if (!value || typeof value !== "object" || Array.isArray(value) || depth > 6 || counter.count >= 320) return null;
+  counter.count += 1;
+  const statusValue = String(value.status || "pending").toLowerCase();
+  const visibilityValue = String(value.visibility || (statusValue === "hidden" ? "dm" : "public")).toLowerCase();
+  const target = Math.max(1, Math.min(999999, Number(value.progress?.target ?? value.target ?? 1) || 1));
+  const current = Math.max(0, Math.min(target, Number(value.progress?.current ?? value.current ?? (statusValue === "completed" ? target : 0)) || 0));
+  const childrenInput = value.subObjectives || value.children || value.subquests || [];
+  const objective = {
+    id: missionId(value.id || `objective-${depth + 1}-${index + 1}`, `objective-${depth + 1}-${index + 1}`),
+    title: missionText(value.title || value.name || "Obiettivo senza titolo", 240),
+    description: missionText(value.description, 6000),
+    status: MISSION_OBJECTIVE_STATUSES.has(statusValue) ? statusValue : "pending",
+    visibility: MISSION_VISIBILITIES.has(visibilityValue) ? visibilityValue : "public",
+    required: value.required !== false && value.optional !== true,
+    progress: { current, target },
+    assigneeRefs: normalizeMissionEntityRefs(value.assigneeRefs || value.assignees || [], 16),
+    reward: missionText(value.reward || value.rewards, 1000),
+    subObjectives: [],
+  };
+  objective.subObjectives = (Array.isArray(childrenInput) ? childrenInput : [])
+    .map((child, childIndex) => normalizeMissionObjective(child, childIndex, depth + 1, counter))
+    .filter(Boolean);
+  return objective;
+}
+
+function normalizeMissionRecord(value, options = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const typeValue = String(value.type || "side").toLowerCase();
+  const statusValue = String(value.status || "draft").toLowerCase();
+  const visibilityValue = String(value.visibility || "dm").toLowerCase();
+  const objectiveCounter = { count: 0 };
+  const objectivesInput = Array.isArray(value.objectives) ? value.objectives : [];
+  const normalized = {
+    id: missionId(value.id || options.fallbackId || value.title || ""),
+    revision: Math.max(1, Number(value.revision || options.revision || 1) || 1),
+    type: MISSION_TYPES.has(typeValue) ? typeValue : "side",
+    status: MISSION_STATUSES.has(statusValue) ? statusValue : "draft",
+    visibility: MISSION_VISIBILITIES.has(visibilityValue) ? visibilityValue : "dm",
+    title: missionText(value.title || "Missione senza titolo", 240),
+    summary: missionText(value.summary, 1200),
+    description: missionText(value.description, 12000),
+    dmNotes: missionText(value.dmNotes, 12000),
+    giverRefs: normalizeMissionEntityRefs(value.giverRefs || value.giverRef || [], 12),
+    assigneeRefs: normalizeMissionEntityRefs(value.assigneeRefs || value.assignees || [], 32),
+    links: normalizeMissionEntityRefs(value.links || [], 32),
+    tags: normalizeStringList(Array.isArray(value.tags) ? value.tags : []).slice(0, 24),
+    rewards: missionText(value.rewards || value.reward, 4000),
+    objectives: objectivesInput
+      .map((objective, index) => normalizeMissionObjective(objective, index, 0, objectiveCounter))
+      .filter(Boolean),
+    createdAt: missionText(value.createdAt || options.now || new Date().toISOString(), 64),
+    createdBy: missionText(value.createdBy || options.updatedBy, 120),
+    updatedAt: missionText(value.updatedAt || options.now || new Date().toISOString(), 64),
+    updatedBy: missionText(value.updatedBy || options.updatedBy, 120),
+    legacySource: value.legacySource && typeof value.legacySource === "object" ? {
+      collection: missionText(value.legacySource.collection, 40),
+      id: missionText(value.legacySource.id, 120),
+      copiedAt: missionText(value.legacySource.copiedAt, 64),
+    } : null,
+  };
+  return normalized;
+}
+
+function missionReaderCanSeeRefList(refs, accountId) {
+  if (!accountId) return false;
+  return normalizeMissionEntityRefs(refs).some((ref) => ref.accountIds.includes(accountId) || sanitizeAccountId(ref.id) === accountId);
+}
+
+function missionVisibilityAllows(visibility, user, isEditor, accountId, assigneeRefs = []) {
+  if (isEditor) return true;
+  const normalized = MISSION_VISIBILITIES.has(String(visibility || "").toLowerCase())
+    ? String(visibility).toLowerCase()
+    : "dm";
+  if (normalized === "public") return true;
+  if (normalized === "players") return Boolean(user);
+  if (normalized === "assigned") return Boolean(user && missionReaderCanSeeRefList(assigneeRefs, accountId));
+  return false;
+}
+
+function publicMissionEntityRef(ref) {
+  return {
+    id: ref.id,
+    type: ref.type,
+    name: ref.name,
+    worldId: ref.worldId,
+    actorId: ref.actorId,
+  };
+}
+
+function projectMissionObjectiveForReader(objective, reader, missionAssignees) {
+  if (!objective || objective.status === "hidden" || objective.status === "archived") {
+    return reader.isEditor ? objective : null;
+  }
+  const assignees = objective.assigneeRefs?.length ? objective.assigneeRefs : missionAssignees;
+  if (!missionVisibilityAllows(objective.visibility, reader.user, reader.isEditor, reader.accountId, assignees)) return null;
+  const projected = {
+    ...objective,
+    assigneeRefs: (objective.assigneeRefs || []).map(publicMissionEntityRef),
+    subObjectives: (objective.subObjectives || [])
+      .map((child) => projectMissionObjectiveForReader(child, reader, missionAssignees))
+      .filter(Boolean),
+  };
+  return projected;
+}
+
+function projectMissionForReader(mission, reader) {
+  if (!reader.isEditor && ["draft", "archived"].includes(mission.status)) return null;
+  if (!missionVisibilityAllows(mission.visibility, reader.user, reader.isEditor, reader.accountId, mission.assigneeRefs)) return null;
+  if (reader.isEditor) return mission;
+  const projected = {
+    ...mission,
+    dmNotes: "",
+    giverRefs: (mission.giverRefs || []).map(publicMissionEntityRef),
+    assigneeRefs: (mission.assigneeRefs || []).map(publicMissionEntityRef),
+    links: (mission.links || []).map(publicMissionEntityRef),
+    objectives: (mission.objectives || [])
+      .map((objective) => projectMissionObjectiveForReader(objective, reader, mission.assigneeRefs || []))
+      .filter(Boolean),
+  };
+  delete projected.legacySource;
+  return projected;
+}
+
+async function isMissionEditor(user, env, campaignId) {
+  if (!user) return false;
+  if (isAuthenticatedAdmin(user, env)) return true;
+  const accountId = getAuthenticatedAccountId(user, env);
+  const discordId = getAuthenticatedDiscordId(user);
+  if (isExplicitDataAdmin(accountId, discordId, env)) return true;
+  return isAuthenticatedCampaignContentEditor(user, env, campaignId);
+}
+async function getMissionReader(request, campaignId, env) {
+  const user = await getOptionalAuthenticatedUser(request, env);
+  const isEditor = Boolean(user && await isMissionEditor(user, env, campaignId));
+  return {
+    user,
+    isEditor,
+    accountId: user ? getAuthenticatedAccountId(user, env) : "",
+  };
+}
+
+async function readMissionDocument(campaignId, env) {
+  const raw = await env.SIGILLO_KV.get(dataCollectionKey("missions", campaignId));
+  if (!raw) return null;
+  const document = safeJsonParse(raw);
+  return document && Array.isArray(document.data) ? document : { invalid: true };
+}
+
+async function requireMissionEditor(request, campaignId, env, corsHeaders) {
+  const user = await requireUser(request, env, corsHeaders);
+  if (user instanceof Response) return user;
+  if (!await isMissionEditor(user, env, campaignId)) {
+    return json({ ok: false, error: "Forbidden: mission editing requires campaign editor permissions" }, 403, corsHeaders);
+  }
+  return user;
+}
+
+async function handleMissionsGet(request, campaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  const cleanCampaignId = sanitizeCampaignId(campaignId);
+  const reader = await getMissionReader(request, cleanCampaignId, env);
+  const document = await readMissionDocument(cleanCampaignId, env);
+  if (document?.invalid) return json({ ok: false, error: "Stored missions document is invalid" }, 500, corsHeaders);
+  if (!document) {
+    return json({
+      ok: true,
+      campaignId: cleanCampaignId,
+      schemaVersion: 2,
+      source: "missing",
+      version: 0,
+      data: null,
+      permissions: { canEdit: reader.isEditor },
+    }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+  }
+  const normalized = document.data
+    .map((mission, index) => normalizeMissionRecord(mission, { fallbackId: `mission-${index + 1}` }))
+    .filter(Boolean);
+  const visible = normalized.map((mission) => projectMissionForReader(mission, reader)).filter(Boolean);
+  return json({
+    ok: true,
+    campaignId: cleanCampaignId,
+    schemaVersion: 2,
+    source: "kv",
+    version: Number(document.version || 1),
+    updatedAt: document.updatedAt || null,
+    updatedBy: document.updatedBy || null,
+    data: visible,
+    permissions: { canEdit: reader.isEditor },
+  }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+}
+
+async function handleMissionsBootstrap(request, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  let body;
+  try { body = await request.json(); } catch (_) {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
+  const user = await requireMissionEditor(request, campaignId, env, corsHeaders);
+  if (user instanceof Response) return user;
+  const existing = await readMissionDocument(campaignId, env);
+  if (existing?.invalid) return json({ ok: false, error: "Stored missions document is invalid" }, 500, corsHeaders);
+  if (existing) {
+    return json({ ok: true, created: false, campaignId, version: Number(existing.version || 1), data: existing.data }, 200, corsHeaders);
+  }
+  const input = Array.isArray(body?.data) ? body.data : null;
+  if (!input) return json({ ok: false, error: "Expected { data: [...] }" }, 400, corsHeaders);
+  if (input.length > 240) return json({ ok: false, error: "Too many missions" }, 413, corsHeaders);
+  const now = new Date().toISOString();
+  const updatedBy = missionText(user.global_name || user.username || user.sub, 120);
+  const data = input.map((mission, index) => normalizeMissionRecord(mission, {
+    fallbackId: `mission-${index + 1}`,
+    revision: 1,
+    now,
+    updatedBy,
+  })).filter(Boolean);
+  const document = {
+    schemaVersion: 2,
+    version: 1,
+    collection: "missions",
+    campaignId,
+    updatedAt: now,
+    updatedBy,
+    migratedFrom: {
+      collection: "quests",
+      version: Math.max(0, Number(body?.sourceVersion || 0) || 0),
+      copiedAt: now,
+      recordCount: data.length,
+    },
+    data,
+  };
+  const serialized = JSON.stringify(document);
+  if (serialized.length > 1024 * 1024) return json({ ok: false, error: "Payload too large" }, 413, corsHeaders);
+  await env.SIGILLO_KV.put(dataCollectionKey("missions", campaignId), serialized);
+  return json({ ok: true, created: true, campaignId, version: 1, updatedAt: now, data }, 201, corsHeaders);
+}
+
+async function handleMissionUpsert(request, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  let body;
+  try { body = await request.json(); } catch (_) {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
+  const user = await requireMissionEditor(request, campaignId, env, corsHeaders);
+  if (user instanceof Response) return user;
+  const document = await readMissionDocument(campaignId, env);
+  if (document?.invalid) return json({ ok: false, error: "Stored missions document is invalid" }, 500, corsHeaders);
+  if (!document) return json({ ok: false, code: "MIGRATION_REQUIRED", error: "Create the missions register before saving" }, 409, corsHeaders);
+  const incoming = body?.mission;
+  if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) {
+    return json({ ok: false, error: "Expected { mission: {...} }" }, 400, corsHeaders);
+  }
+  const id = missionId(incoming.id || incoming.title || "");
+  const index = document.data.findIndex((mission) => missionId(mission?.id || "") === id);
+  const existing = index >= 0 ? document.data[index] : null;
+  const currentRevision = Math.max(0, Number(existing?.revision || 0) || 0);
+  const expectedRevision = Math.max(0, Number(body?.expectedRevision || 0) || 0);
+  if (currentRevision !== expectedRevision) {
+    return json({ ok: false, code: "REVISION_CONFLICT", error: "Mission changed online. Reload before saving.", id, currentRevision, expectedRevision }, 409, corsHeaders);
+  }
+  const now = new Date().toISOString();
+  const updatedBy = missionText(user.global_name || user.username || user.sub, 120);
+  const normalized = normalizeMissionRecord({ ...incoming, id }, {
+    fallbackId: id,
+    revision: currentRevision + 1,
+    now,
+    updatedBy,
+  });
+  normalized.revision = currentRevision + 1;
+  normalized.createdAt = existing?.createdAt || normalized.createdAt || now;
+  normalized.createdBy = existing?.createdBy || normalized.createdBy || updatedBy;
+  normalized.updatedAt = now;
+  normalized.updatedBy = updatedBy;
+  const data = [...document.data];
+  if (index >= 0) data[index] = normalized;
+  else data.push(normalized);
+  const next = {
+    ...document,
+    schemaVersion: 2,
+    version: Math.max(0, Number(document.version || 0) || 0) + 1,
+    collection: "missions",
+    campaignId,
+    updatedAt: now,
+    updatedBy,
+    data,
+  };
+  const serialized = JSON.stringify(next);
+  if (serialized.length > 1024 * 1024) return json({ ok: false, error: "Payload too large" }, 413, corsHeaders);
+  await env.SIGILLO_KV.put(dataCollectionKey("missions", campaignId), serialized);
+  return json({ ok: true, campaignId, version: next.version, updatedAt: now, mission: normalized }, 200, corsHeaders);
+}
+
+function updateMissionObjective(objectives, objectiveId, patch) {
+  let found = false;
+  const updated = (Array.isArray(objectives) ? objectives : []).map((objective) => {
+    if (found || !objective || typeof objective !== "object") return objective;
+    if (missionId(objective.id || "") === objectiveId) {
+      found = true;
+      const target = Math.max(1, Math.min(999999, Number(patch?.progress?.target ?? objective.progress?.target ?? 1) || 1));
+      const current = Math.max(0, Math.min(target, Number(patch?.progress?.current ?? objective.progress?.current ?? 0) || 0));
+      const statusValue = String(patch?.status || objective.status || "pending").toLowerCase();
+      return {
+        ...objective,
+        status: MISSION_OBJECTIVE_STATUSES.has(statusValue) ? statusValue : objective.status,
+        progress: { current, target },
+      };
+    }
+    const childResult = updateMissionObjective(objective.subObjectives, objectiveId, patch);
+    if (childResult.found) {
+      found = true;
+      return { ...objective, subObjectives: childResult.objectives };
+    }
+    return objective;
+  });
+  return { found, objectives: updated };
+}
+
+async function handleMissionProgress(request, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  let body;
+  try { body = await request.json(); } catch (_) {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
+  const user = await requireMissionEditor(request, campaignId, env, corsHeaders);
+  if (user instanceof Response) return user;
+  const document = await readMissionDocument(campaignId, env);
+  if (!document || document.invalid) return json({ ok: false, code: "MIGRATION_REQUIRED", error: "Missions register is unavailable" }, 409, corsHeaders);
+  const id = missionId(body?.missionId || "");
+  const objectiveId = missionId(body?.objectiveId || "");
+  const index = document.data.findIndex((mission) => missionId(mission?.id || "") === id);
+  if (index < 0) return json({ ok: false, error: "Mission not found" }, 404, corsHeaders);
+  const mission = normalizeMissionRecord(document.data[index], { fallbackId: id });
+  const expectedRevision = Math.max(0, Number(body?.expectedRevision || 0) || 0);
+  if (mission.revision !== expectedRevision) {
+    return json({ ok: false, code: "REVISION_CONFLICT", error: "Mission changed online. Reload before saving.", id, currentRevision: mission.revision, expectedRevision }, 409, corsHeaders);
+  }
+  const result = updateMissionObjective(mission.objectives, objectiveId, body?.patch || {});
+  if (!result.found) return json({ ok: false, error: "Objective not found" }, 404, corsHeaders);
+  const now = new Date().toISOString();
+  const updatedBy = missionText(user.global_name || user.username || user.sub, 120);
+  const normalized = normalizeMissionRecord({
+    ...mission,
+    objectives: result.objectives,
+    revision: mission.revision + 1,
+    updatedAt: now,
+    updatedBy,
+  });
+  normalized.revision = mission.revision + 1;
+  normalized.updatedAt = now;
+  normalized.updatedBy = updatedBy;
+  const data = [...document.data];
+  data[index] = normalized;
+  const next = {
+    ...document,
+    schemaVersion: 2,
+    version: Math.max(0, Number(document.version || 0) || 0) + 1,
+    updatedAt: now,
+    updatedBy,
+    data,
+  };
+  await env.SIGILLO_KV.put(dataCollectionKey("missions", campaignId), JSON.stringify(next));
+  return json({ ok: true, campaignId, version: next.version, updatedAt: now, mission: normalized }, 200, corsHeaders);
+}
+
+const SESSION_JOURNAL_STATUSES = new Set(["draft", "published", "archived"]);
+const SESSION_JOURNAL_VISIBILITIES = new Set(["public", "players", "dm"]);
+const SESSION_JOURNAL_EVENT_TYPES = new Set(["event", "encounter", "discovery", "decision", "consequence"]);
+const SESSION_JOURNAL_REF_TYPES = new Set(["npc", "player", "companion", "mission", "item", "location"]);
+
+function sessionJournalId(value, fallback = "") {
+  const clean = String(value || fallback)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9:_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
+  return clean || "session-" + crypto.randomUUID().slice(0, 12);
+}
+
+function normalizeSessionJournalDate(value, legacyValue = "") {
+  const direct = missionText(value, 32);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(direct)) return direct;
+  const legacy = missionText(legacyValue || value, 32);
+  const match = legacy.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return "";
+  return match[3] + "-" + match[2].padStart(2, "0") + "-" + match[1].padStart(2, "0");
+}
+
+function sessionJournalDateLabel(date, fallback = "") {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return missionText(fallback, 32);
+  const parts = date.split("-");
+  return parts[2] + "/" + parts[1] + "/" + parts[0];
+}
+
+function normalizeSessionJournalRef(value, fallbackType = "npc") {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const typeValue = String(value.type || fallbackType).trim().toLowerCase();
+  const type = SESSION_JOURNAL_REF_TYPES.has(typeValue) ? typeValue : fallbackType;
+  const id = sessionJournalId(value.id || value.actorId || value.slug || value.name || "", type);
+  return {
+    id,
+    type,
+    name: missionText(value.name || value.label || value.title || id, 160),
+    worldId: missionText(value.worldId, 96),
+    actorId: missionText(value.actorId, 96),
+  };
+}
+
+function normalizeSessionJournalRefs(value, fallbackType = "npc", max = 64) {
+  const rows = Array.isArray(value) ? value : [];
+  const refs = rows.map((entry) => normalizeSessionJournalRef(entry, fallbackType)).filter(Boolean).slice(0, max);
+  return refs.filter((entry, index) => refs.findIndex((candidate) => candidate.id === entry.id && candidate.type === entry.type) === index);
+}
+
+function normalizeSessionJournalEvent(value, index = 0, seed = "session") {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const typeValue = String(value.type || "event").toLowerCase();
+  const visibilityValue = String(value.visibility || "public").toLowerCase();
+  return {
+    id: sessionJournalId(value.id || seed + "-event-" + (index + 1), "event-" + (index + 1)),
+    type: SESSION_JOURNAL_EVENT_TYPES.has(typeValue) ? typeValue : "event",
+    visibility: visibilityValue === "dm" ? "dm" : "public",
+    title: missionText(value.title || value.name || "Momento " + (index + 1), 240),
+    text: missionText(value.text || value.description, 10000),
+  };
+}
+
+function normalizeSessionJournalBonus(value) {
+  return (Array.isArray(value) ? value : []).slice(0, 24).map((entry) => ({
+    name: missionText(entry?.name, 120),
+    amount: Math.max(0, Math.min(999999999, Number(entry?.amount || 0) || 0)),
+  })).filter((entry) => entry.name);
+}
+
+function normalizeSessionJournalLines(value, max = 80, maxLength = 1000) {
+  return (Array.isArray(value) ? value : []).slice(0, max)
+    .map((entry) => missionText(entry, maxLength))
+    .filter(Boolean);
+}
+
+function normalizeSessionPartyChanges(value) {
+  return (Array.isArray(value) ? value : []).slice(0, 32).map((entry) => ({
+    type: String(entry?.type || "").toLowerCase() === "out" ? "out" : "in",
+    name: missionText(entry?.name, 120),
+  })).filter((entry) => entry.name);
+}
+
+function normalizeSessionJournalRecord(value, options = {}) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const number = Math.max(0, Math.min(9999, Number(value.number ?? value.sessionNumber ?? value.legacySource?.id ?? value.id ?? options.index + 1) || 0));
+  const id = sessionJournalId(value.id && !Number.isFinite(Number(value.id)) ? value.id : "session-" + number, "session-" + number);
+  const statusValue = String(value.status || "draft").toLowerCase();
+  const visibilityValue = String(value.visibility || "dm").toLowerCase();
+  const date = normalizeSessionJournalDate(value.date || value.dateIso, value.dateLabel || value.date);
+  const events = (Array.isArray(value.events) ? value.events : [])
+    .slice(0, 60)
+    .map((entry, index) => normalizeSessionJournalEvent(entry, index, id))
+    .filter(Boolean);
+  const links = value.links && typeof value.links === "object" && !Array.isArray(value.links) ? value.links : {};
+  const xp = value.xp && typeof value.xp === "object" ? value.xp : {};
+  const now = options.now || new Date().toISOString();
+  return {
+    id,
+    number,
+    revision: Math.max(1, Number(value.revision || options.revision || 1) || 1),
+    status: SESSION_JOURNAL_STATUSES.has(statusValue) ? statusValue : "draft",
+    visibility: SESSION_JOURNAL_VISIBILITIES.has(visibilityValue) ? visibilityValue : "dm",
+    title: missionText(value.title || "Sessione " + number, 240),
+    date,
+    dateLabel: sessionJournalDateLabel(date, value.dateLabel || value.date),
+    teaser: missionText(value.teaser, 1200),
+    summary: missionText(value.summary, 40000),
+    events,
+    participants: normalizeSessionJournalRefs(value.participants, "npc", 64),
+    links: {
+      missions: normalizeSessionJournalRefs(links.missions, "mission", 32),
+      items: normalizeSessionJournalRefs(links.items, "item", 64),
+      locations: normalizeSessionJournalRefs(links.locations, "location", 32),
+    },
+    xp: {
+      total: Math.max(0, Math.min(999999999, Number(xp.total || 0) || 0)),
+      each: Math.max(0, Math.min(999999999, Number(xp.each || 0) || 0)),
+      bonus: normalizeSessionJournalBonus(xp.bonus),
+    },
+    loot: normalizeSessionJournalLines(value.loot, 80, 1200),
+    consequences: normalizeSessionJournalLines(value.consequences, 80, 1600),
+    partyChanges: normalizeSessionPartyChanges(value.partyChanges),
+    levelUp: missionText(value.levelUp || value.levelup, 40),
+    skillPoint: value.skillPoint === true,
+    dmNotes: missionText(value.dmNotes, 20000),
+    createdAt: missionText(value.createdAt || now, 64),
+    createdBy: missionText(value.createdBy || options.updatedBy, 120),
+    updatedAt: missionText(value.updatedAt || now, 64),
+    updatedBy: missionText(value.updatedBy || options.updatedBy, 120),
+    legacySource: value.legacySource && typeof value.legacySource === "object" ? {
+      collection: missionText(value.legacySource.collection || "sessions", 48),
+      id: missionText(value.legacySource.id || number, 120),
+      copiedAt: missionText(value.legacySource.copiedAt, 64),
+    } : null,
+  };
+}
+
+function publicSessionJournalRef(ref) {
+  return {
+    id: ref.id,
+    type: ref.type,
+    name: ref.name,
+    worldId: ref.worldId,
+    actorId: ref.actorId,
+  };
+}
+
+function projectSessionJournalForReader(session, reader) {
+  if (!reader.isEditor) {
+    if (session.status !== "published") return null;
+    if (session.visibility === "dm") return null;
+    if (session.visibility === "players" && !reader.user) return null;
+  }
+  if (reader.isEditor) return session;
+  const projected = {
+    ...session,
+    dmNotes: "",
+    participants: (session.participants || []).map(publicSessionJournalRef),
+    links: {
+      missions: (session.links?.missions || []).map(publicSessionJournalRef),
+      items: (session.links?.items || []).map(publicSessionJournalRef),
+      locations: (session.links?.locations || []).map(publicSessionJournalRef),
+    },
+    events: (session.events || []).filter((event) => event.visibility !== "dm"),
+  };
+  delete projected.legacySource;
+  return projected;
+}
+
+async function getSessionJournalReader(request, campaignId, env) {
+  const user = await getOptionalAuthenticatedUser(request, env);
+  const isEditor = Boolean(user && await isMissionEditor(user, env, campaignId));
+  return {
+    user,
+    isEditor,
+    accountId: user ? getAuthenticatedAccountId(user, env) : "",
+  };
+}
+
+async function readSessionJournalDocument(campaignId, env) {
+  const raw = await env.SIGILLO_KV.get(dataCollectionKey("session-journal", campaignId));
+  if (!raw) return null;
+  const document = safeJsonParse(raw);
+  return document && Array.isArray(document.data) ? document : { invalid: true };
+}
+
+async function requireSessionJournalEditor(request, campaignId, env, corsHeaders) {
+  const user = await requireUser(request, env, corsHeaders);
+  if (user instanceof Response) return user;
+  if (!await isMissionEditor(user, env, campaignId)) {
+    return json({ ok: false, error: "Forbidden: session journal editing requires campaign editor permissions" }, 403, corsHeaders);
+  }
+  return user;
+}
+
+async function handleSessionJournalGet(request, campaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  const cleanCampaignId = sanitizeCampaignId(campaignId);
+  const reader = await getSessionJournalReader(request, cleanCampaignId, env);
+  const document = await readSessionJournalDocument(cleanCampaignId, env);
+  if (document?.invalid) return json({ ok: false, error: "Stored session journal document is invalid" }, 500, corsHeaders);
+  if (!document) {
+    return json({
+      ok: true,
+      campaignId: cleanCampaignId,
+      schemaVersion: 2,
+      source: "missing",
+      version: 0,
+      data: null,
+      permissions: { canEdit: reader.isEditor },
+    }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+  }
+  const normalized = document.data
+    .map((session, index) => normalizeSessionJournalRecord(session, { index }))
+    .filter(Boolean);
+  const visible = normalized.map((session) => projectSessionJournalForReader(session, reader)).filter(Boolean);
+  return json({
+    ok: true,
+    campaignId: cleanCampaignId,
+    schemaVersion: 2,
+    source: "kv",
+    version: Math.max(1, Number(document.version || 1) || 1),
+    updatedAt: document.updatedAt || null,
+    updatedBy: document.updatedBy || null,
+    data: visible,
+    permissions: { canEdit: reader.isEditor },
+  }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+}
+
+async function handleSessionJournalBootstrap(request, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  let body;
+  try { body = await request.json(); } catch (_) {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
+  const user = await requireSessionJournalEditor(request, campaignId, env, corsHeaders);
+  if (user instanceof Response) return user;
+  const existing = await readSessionJournalDocument(campaignId, env);
+  if (existing?.invalid) return json({ ok: false, error: "Stored session journal document is invalid" }, 500, corsHeaders);
+  if (existing) {
+    return json({ ok: true, created: false, campaignId, version: Number(existing.version || 1), data: existing.data }, 200, corsHeaders);
+  }
+  const input = Array.isArray(body?.data) ? body.data : null;
+  if (!input) return json({ ok: false, error: "Expected { data: [...] }" }, 400, corsHeaders);
+  if (input.length > 600) return json({ ok: false, error: "Too many session records" }, 413, corsHeaders);
+  const now = new Date().toISOString();
+  const updatedBy = missionText(user.global_name || user.username || user.sub, 120);
+  const data = input.map((session, index) => normalizeSessionJournalRecord(session, {
+    index,
+    revision: 1,
+    now,
+    updatedBy,
+  })).filter(Boolean);
+  const document = {
+    schemaVersion: 2,
+    version: 1,
+    collection: "session-journal",
+    campaignId,
+    updatedAt: now,
+    updatedBy,
+    migratedFrom: {
+      collection: "sessions",
+      version: Math.max(0, Number(body?.sourceVersion || 0) || 0),
+      copiedAt: now,
+      recordCount: data.length,
+    },
+    data,
+  };
+  const serialized = JSON.stringify(document);
+  if (serialized.length > 1024 * 1024) return json({ ok: false, error: "Payload too large" }, 413, corsHeaders);
+  await env.SIGILLO_KV.put(dataCollectionKey("session-journal", campaignId), serialized);
+  return json({ ok: true, created: true, campaignId, version: 1, updatedAt: now, data }, 201, corsHeaders);
+}
+
+async function handleSessionJournalUpsert(request, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  let body;
+  try { body = await request.json(); } catch (_) {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
+  const user = await requireSessionJournalEditor(request, campaignId, env, corsHeaders);
+  if (user instanceof Response) return user;
+  const document = await readSessionJournalDocument(campaignId, env);
+  if (document?.invalid) return json({ ok: false, error: "Stored session journal document is invalid" }, 500, corsHeaders);
+  if (!document) return json({ ok: false, code: "MIGRATION_REQUIRED", error: "Create the session journal before saving" }, 409, corsHeaders);
+  const incoming = body?.session;
+  if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) {
+    return json({ ok: false, error: "Expected { session: {...} }" }, 400, corsHeaders);
+  }
+  const id = sessionJournalId(incoming.id || "session-" + Number(incoming.number || 0));
+  const index = document.data.findIndex((session) => sessionJournalId(session?.id || "session-" + Number(session?.number || 0)) === id);
+  const expectedRevision = Math.max(0, Number(body?.expectedRevision || 0) || 0);
+  const current = index >= 0 ? normalizeSessionJournalRecord(document.data[index], { index }) : null;
+  if (current && current.revision !== expectedRevision) {
+    return json({
+      ok: false,
+      code: "REVISION_CONFLICT",
+      error: "Session changed online. Reload before saving.",
+      id,
+      currentRevision: current.revision,
+      expectedRevision,
+    }, 409, corsHeaders);
+  }
+  if (!current && expectedRevision !== 0) {
+    return json({ ok: false, code: "REVISION_CONFLICT", error: "Session does not exist at the expected revision.", id, currentRevision: 0, expectedRevision }, 409, corsHeaders);
+  }
+  const now = new Date().toISOString();
+  const updatedBy = missionText(user.global_name || user.username || user.sub, 120);
+  const nextRevision = current ? current.revision + 1 : 1;
+  const normalized = normalizeSessionJournalRecord({
+    ...incoming,
+    id,
+    revision: nextRevision,
+    createdAt: current?.createdAt || incoming.createdAt || now,
+    createdBy: current?.createdBy || incoming.createdBy || updatedBy,
+    updatedAt: now,
+    updatedBy,
+  }, { index: index >= 0 ? index : document.data.length, revision: nextRevision, now, updatedBy });
+  normalized.revision = nextRevision;
+  normalized.updatedAt = now;
+  normalized.updatedBy = updatedBy;
+  const data = [...document.data];
+  if (index >= 0) data[index] = normalized;
+  else data.push(normalized);
+  const next = {
+    ...document,
+    schemaVersion: 2,
+    version: Math.max(0, Number(document.version || 0) || 0) + 1,
+    updatedAt: now,
+    updatedBy,
+    data,
+  };
+  const serialized = JSON.stringify(next);
+  if (serialized.length > 1024 * 1024) return json({ ok: false, error: "Payload too large" }, 413, corsHeaders);
+  await env.SIGILLO_KV.put(dataCollectionKey("session-journal", campaignId), serialized);
+  return json({ ok: true, campaignId, version: next.version, updatedAt: now, session: normalized }, 200, corsHeaders);
 }
 
 async function handleDataCollectionGet(collection, campaignId, env, corsHeaders = {}) {

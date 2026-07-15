@@ -1,4 +1,7 @@
-const SIDEBAR_CACHE_KEY = "wiki_sidebar_html_v2";
+const SIDEBAR_CACHE_KEY = "wiki_sidebar_html_v3";
+const SIDEBAR_ASSET_VERSION = "20260715-sidebar-shell1";
+const SIDEBAR_COLLAPSED_KEY = "wiki_sidebar_collapsed_v1";
+const SIDEBAR_MOBILE_QUERY = "(max-width: 900px)";
 const DISCORD_WORKER_URL = "https://sigillo-api.khuzoe.workers.dev";
 const DISCORD_TOKEN_KEY = "discord_jwt";
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
@@ -22,6 +25,7 @@ const loadedSpaScripts = new Set();
 const pageScopes = new Map();
 const initialInlineHeadStyles = new WeakSet();
 const spaScrollPositions = new Map();
+const navigationLeaveGuards = new Map();
 let discordAuthCache = null;
 let discordAuthPromise = null;
 const dmIdentityCache = new Map();
@@ -38,6 +42,9 @@ let currentCampaignId = DEFAULT_CAMPAIGN_ID;
 let currentCampaignConfig = null;
 let campaignConfigPromise = null;
 let currentSpaUrl = window.location.href;
+let activeSidebarSectionOverride = { url: "", section: "" };
+let sidebarLastFocus = null;
+let sidebarNavigationBound = false;
 
 document.addEventListener("DOMContentLoaded", async function () {
     const scriptTag = document.querySelector('script[src*="layout.js"]');
@@ -45,13 +52,15 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     if (scriptTag) {
         const src = scriptTag.getAttribute("src") || "";
-        basePath = src.replace("assets/js/layout.js", "");
+        const cleanSrc = src.split(/[?#]/)[0];
+        basePath = cleanSrc.replace("assets/js/layout.js", "");
     }
 
     window.CriptaBasePath = basePath;
     currentCampaignId = resolveCurrentCampaignId();
     document.documentElement.dataset.campaign = currentCampaignId;
     document.body.classList.toggle("is-embed", isEmbeddedRuntime);
+    restoreSidebarPreference();
     consumeEmbeddedTokenFromQuery();
     await consumeDeviceCodeFromQuery();
     await applyCurrentCampaignConfig(basePath);
@@ -61,6 +70,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     ensureFavicon(basePath);
     if (!isEmbeddedRuntime) {
         ensureTopAuthBar();
+        initCommandPalette();
+        initSidebarNavigation();
     }
     bindPrefetchForLinks(document);
     setDmOnlyVisibility(false);
@@ -123,12 +134,66 @@ function initSpaNavigation() {
 
     window.addEventListener("popstate", () => {
         saveSpaScrollPosition(currentSpaUrl);
-        navigateSpa(window.location.href, { push: false });
+        navigateSpa(window.location.href, { push: false, historyTraversal: true });
     });
 
-    window.addEventListener("beforeunload", () => {
+    window.addEventListener("beforeunload", (event) => {
         saveSpaScrollPosition(currentSpaUrl);
+        if (!getNavigationLeaveBlockers().length) return;
+        event.preventDefault();
+        event.returnValue = "";
     });
+}
+
+function addNavigationLeaveGuard(id, guard) {
+    const key = String(id || "").trim();
+    if (!key || typeof guard !== "function") return () => {};
+    navigationLeaveGuards.set(key, guard);
+    return () => {
+        if (navigationLeaveGuards.get(key) === guard) navigationLeaveGuards.delete(key);
+    };
+}
+
+function removeNavigationLeaveGuard(id) {
+    navigationLeaveGuards.delete(String(id || "").trim());
+}
+
+function getNavigationLeaveBlockers() {
+    const blockers = [];
+    navigationLeaveGuards.forEach((guard, id) => {
+        try {
+            const result = guard();
+            if (!result || result.active === false) return;
+            if (result === true) {
+                blockers.push({ id });
+                return;
+            }
+            if (typeof result === "string") {
+                blockers.push({ id, message: result });
+                return;
+            }
+            blockers.push({ id, ...result });
+        } catch (error) {
+            console.warn("Controllo modifiche non salvate fallito:", error);
+        }
+    });
+    return blockers;
+}
+
+function confirmNavigationLeave() {
+    const blockers = getNavigationLeaveBlockers();
+    if (!blockers.length) return true;
+    const message = blockers.find((entry) => entry.message)?.message
+        || "Hai modifiche non salvate. Se lasci questa pagina andranno perse. Continuare senza salvare?";
+    if (!window.confirm(message)) return false;
+    blockers.forEach((entry) => {
+        try {
+            entry.discard?.();
+        } catch (error) {
+            console.warn("Pulizia modifiche non salvate fallita:", error);
+        }
+    });
+    return true;
 }
 
 function shouldHandleSpaClick(event, link) {
@@ -168,7 +233,7 @@ function buildSpaTargetUrl(href) {
 }
 
 async function navigateSpa(targetUrl, options = {}) {
-    const { push = true } = options;
+    const { push = true, historyTraversal = false } = options;
     const target = new URL(targetUrl, window.location.href);
     const current = new URL(currentSpaUrl, window.location.href);
     const targetScroll = getSpaScrollPosition(target.toString());
@@ -178,6 +243,11 @@ async function navigateSpa(targetUrl, options = {}) {
             if (push) history.pushState({}, "", target.toString());
             scrollToCurrentHash();
         }
+        return;
+    }
+
+    if (!confirmNavigationLeave()) {
+        if (historyTraversal) history.pushState({}, "", currentSpaUrl);
         return;
     }
 
@@ -298,6 +368,7 @@ function syncBodyState(nextDocument) {
     const nextClassName = nextDocument.body?.className || "";
     document.body.className = nextClassName;
     document.body.classList.toggle("is-embed", isEmbeddedRuntime);
+    restoreSidebarPreference();
     document.body.classList.add("page-ready");
     document.body.style.cssText = nextDocument.body?.style?.cssText || "";
 }
@@ -591,7 +662,7 @@ function loadSidebar(basePath) {
 }
 
 function fetchSidebar(basePath, previousHtml) {
-    const sidebarUrl = basePath + "sidebar.html";
+    const sidebarUrl = basePath + "sidebar.html?v=" + SIDEBAR_ASSET_VERSION;
 
     fetch(sidebarUrl)
         .then(response => {
@@ -635,12 +706,14 @@ function initSidebar(html, basePath) {
     const container = document.getElementById("sidebar-container");
     if (!container) return;
 
+    container.setAttribute("aria-label", "Navigazione principale");
     container.innerHTML = html;
     fixPaths(container, basePath);
     applyCampaignSidebarConfig(container, basePath);
     initCampaignSwitcher(container);
     setActiveLink();
     bindPrefetchForLinks(container);
+    initSidebarNavigation(container);
     initPageAccessControls(basePath);
 }
 
@@ -655,44 +728,65 @@ function applyCampaignSidebarConfig(container, basePath) {
         item.hidden = hiddenPages.has(page);
     });
 
+    container.querySelectorAll("[data-sidebar-nav-section]").forEach((section) => {
+        section.hidden = !Array.from(section.querySelectorAll("li")).some((item) => !item.hidden);
+    });
+
     const logoPath = String(campaign.logo || "").trim();
-    const logoImg = container.querySelector(".logo-img");
-    if (logoImg && logoPath) {
-        logoImg.dataset.originalSrc = logoPath;
-        logoImg.setAttribute("src", new URL(`${basePath || ""}${logoPath}`, window.location.href).toString());
+    if (logoPath) {
+        const logoUrl = new URL((basePath || "") + logoPath, window.location.href).toString();
+        container.querySelectorAll(".logo-img, .sidebar-mobile-brand img").forEach((logoImg) => {
+            logoImg.dataset.originalSrc = logoPath;
+            logoImg.setAttribute("src", logoUrl);
+        });
     }
+
+    const campaignName = String(campaign.name || campaign.siteTitle || "Campagna").trim();
+    container.querySelectorAll("[data-sidebar-mobile-campaign]").forEach((node) => {
+        node.textContent = campaignName;
+    });
 }
 
 async function initCampaignSwitcher(container) {
     const campaigns = await loadEnabledCampaigns();
-    if (!container || campaigns.length <= 1) {
-        container?.querySelector?.(".campaign-switcher")?.remove();
-        return;
-    }
+    if (!container) return;
 
     const currentId = getCampaignId();
-    const currentCampaign = campaigns.find((campaign) => campaign.id === currentId) || campaigns[0];
-    const switcher = document.createElement("div");
-    switcher.className = "campaign-switcher";
-    switcher.innerHTML = `
-        <label class="campaign-switcher__label" for="campaign-switcher-select">
-            <i class="fas fa-layer-group" aria-hidden="true"></i>
-            Campagna
-        </label>
-        <div class="campaign-switcher__control">
-            <select id="campaign-switcher-select" class="campaign-switcher__select" aria-label="Cambia campagna">
-                ${campaigns.map((campaign) => `
-                    <option value="${escapeHtml(campaign.id)}"${campaign.id === currentCampaign.id ? " selected" : ""}>
-                        ${escapeHtml(campaign.name)}
-                    </option>
-                `).join("")}
-            </select>
-            <i class="fas fa-chevron-down" aria-hidden="true"></i>
-        </div>
-    `;
+    const currentCampaign = campaigns.find((campaign) => campaign.id === currentId)
+        || currentCampaignConfig
+        || campaigns[0]
+        || { id: currentId, name: currentId };
+    const campaignName = String(currentCampaign.name || currentCampaign.siteTitle || currentId || "Campagna").trim();
+
+    container.querySelectorAll("[data-sidebar-mobile-campaign]").forEach((node) => {
+        node.textContent = campaignName;
+    });
 
     container.querySelector(".campaign-switcher")?.remove();
-    container.appendChild(switcher);
+    if (campaigns.length <= 1) return;
+
+    const switcher = document.createElement("div");
+    switcher.className = "campaign-switcher";
+    switcher.innerHTML = [
+        '<label class="campaign-switcher__label" for="campaign-switcher-select">',
+        '<i class="fas fa-layer-group" aria-hidden="true"></i>',
+        '<span>Campagna attiva</span>',
+        '</label>',
+        '<div class="campaign-switcher__control">',
+        '<span class="campaign-switcher__compact-icon" aria-hidden="true"><i class="fas fa-layer-group"></i></span>',
+        '<select id="campaign-switcher-select" class="campaign-switcher__select" aria-label="Cambia campagna" title="Cambia campagna">',
+        campaigns.map((campaign) => (
+            '<option value="' + escapeHtml(campaign.id) + '"' + (campaign.id === currentCampaign.id ? ' selected' : '') + '>'
+            + escapeHtml(campaign.name)
+            + '</option>'
+        )).join(""),
+        '</select>',
+        '<i class="fas fa-chevron-down campaign-switcher__chevron" aria-hidden="true"></i>',
+        '</div>'
+    ].join("");
+
+    const slot = container.querySelector("[data-sidebar-campaign-slot]") || container;
+    slot.appendChild(switcher);
 
     const select = switcher.querySelector("select");
     select?.addEventListener("change", () => {
@@ -701,7 +795,6 @@ async function initCampaignSwitcher(container) {
         navigateToCampaign(campaignId);
     });
 }
-
 async function loadEnabledCampaigns() {
     if (campaignConfigPromise) return campaignConfigPromise;
 
@@ -860,31 +953,227 @@ function isUnresolvedRelativePath(value) {
         && !/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(value);
 }
 
+function getSidebarSectionForLocation(url = window.location.href) {
+    const target = new URL(url, window.location.href);
+    const locationKey = target.pathname + target.search;
+    if (activeSidebarSectionOverride.url === locationKey) {
+        return activeSidebarSectionOverride.section;
+    }
+
+    const page = target.pathname.split("/").pop() || "index.html";
+    const directSections = {
+        "npcs.html": "npcs",
+        "giocatori.html": "giocatori",
+        "missioni.html": "missioni",
+        "sessioni.html": "sessioni",
+        "bestiario.html": "bestiario",
+        "oggetti.html": "oggetti",
+        "crafting.html": "crafting",
+        "appunti.html": "appunti",
+        "calendario.html": "calendario",
+        "mappa.html": "mappa",
+        "famiglia-von-t.html": "famiglia-von-t",
+        "cerca.html": "cerca"
+    };
+    if (directSections[page]) return directSections[page];
+
+    if (page === "managed-actor.html") {
+        return target.searchParams.has("character") ? "giocatori" : "npcs";
+    }
+    if (page === "character.html") {
+        return String(target.searchParams.get("type") || "").toLowerCase() === "player"
+            ? "giocatori"
+            : "npcs";
+    }
+    if (page === "creature.html") return "bestiario";
+    if (page === "location.html") return "mappa";
+    return "";
+}
+
+function setActiveNavigationSection(section) {
+    activeSidebarSectionOverride = {
+        url: window.location.pathname + window.location.search,
+        section: String(section || "").trim()
+    };
+    setActiveLink();
+}
+
 function setActiveLink() {
-    const path = window.location.pathname;
-    const page = path.split("/").pop() || "index.html";
-
-    document.querySelectorAll(".nav-links a").forEach(a => a.classList.remove("active"));
-
+    const section = getSidebarSectionForLocation();
+    const allLinks = Array.from(document.querySelectorAll(".sidebar [data-page]"));
     let targetLink = null;
-    const allLinks = document.querySelectorAll(".nav-links a");
 
-    allLinks.forEach(link => {
-        const href = link.getAttribute("href");
-        if (href && href.endsWith(page)) {
+    allLinks.forEach((link) => {
+        const active = Boolean(section && link.dataset.page === section);
+        link.classList.toggle("active", active);
+        if (active) {
+            link.setAttribute("aria-current", "page");
             targetLink = link;
+        } else {
+            link.removeAttribute("aria-current");
         }
     });
 
-    if (!targetLink && (page === "index.html" || page === "")) {
-        targetLink = document.querySelector('.nav-links a[href*="index.html"]');
-    }
+    document.querySelectorAll("[data-sidebar-nav-section]").forEach((group) => {
+        group.classList.toggle("has-active", Boolean(group.querySelector("a.active")));
+    });
+    return targetLink;
+}
 
-    if (targetLink) {
-        targetLink.classList.add("active");
+function isMobileSidebar() {
+    return window.matchMedia(SIDEBAR_MOBILE_QUERY).matches;
+}
+
+function readSidebarCollapsed() {
+    try {
+        return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+    } catch (_) {
+        return false;
     }
 }
 
+function restoreSidebarPreference() {
+    document.body.classList.toggle("sidebar-collapsed", readSidebarCollapsed());
+}
+
+function setSidebarCollapsed(collapsed, persist = false) {
+    const nextCollapsed = Boolean(collapsed);
+    document.body.classList.toggle("sidebar-collapsed", nextCollapsed);
+    if (persist) {
+        try {
+            window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, nextCollapsed ? "1" : "0");
+        } catch (_) {
+            // Ignore storage restrictions.
+        }
+    }
+
+    document.querySelectorAll("[data-sidebar-collapse]").forEach((button) => {
+        button.setAttribute("aria-expanded", String(!nextCollapsed));
+        button.setAttribute("aria-label", nextCollapsed ? "Espandi navigazione" : "Comprimi navigazione");
+        button.setAttribute("title", nextCollapsed ? "Espandi navigazione" : "Comprimi navigazione");
+        const icon = button.querySelector("i");
+        icon?.classList.toggle("fa-angles-left", !nextCollapsed);
+        icon?.classList.toggle("fa-angles-right", nextCollapsed);
+    });
+}
+
+function openMobileSidebar(trigger = null) {
+    if (!isMobileSidebar()) return;
+    sidebarLastFocus = trigger instanceof HTMLElement ? trigger : document.activeElement;
+    document.body.classList.add("sidebar-mobile-open");
+    const panel = document.querySelector("[data-sidebar-panel]");
+    if (panel) {
+        panel.setAttribute("aria-hidden", "false");
+        panel.removeAttribute("inert");
+    }
+    document.querySelectorAll("[data-sidebar-open]").forEach((button) => {
+        button.setAttribute("aria-expanded", "true");
+    });
+    window.requestAnimationFrame(() => {
+        document.querySelector("[data-sidebar-dismiss].sidebar-mobile-close")?.focus();
+    });
+}
+
+function closeMobileSidebar(options = {}) {
+    const { restoreFocus = true } = options;
+    const wasOpen = document.body.classList.contains("sidebar-mobile-open");
+    document.body.classList.remove("sidebar-mobile-open");
+    const panel = document.querySelector("[data-sidebar-panel]");
+    if (panel) {
+        const hidden = isMobileSidebar();
+        panel.setAttribute("aria-hidden", String(hidden));
+        panel.toggleAttribute("inert", hidden);
+    }
+    document.querySelectorAll("[data-sidebar-open]").forEach((button) => {
+        button.setAttribute("aria-expanded", "false");
+    });
+    if (wasOpen && restoreFocus && sidebarLastFocus instanceof HTMLElement && sidebarLastFocus.isConnected) {
+        sidebarLastFocus.focus();
+    }
+    sidebarLastFocus = null;
+}
+
+function syncSidebarNavigationUi() {
+    setSidebarCollapsed(readSidebarCollapsed());
+    const mobile = isMobileSidebar();
+    const open = mobile && document.body.classList.contains("sidebar-mobile-open");
+    const panel = document.querySelector("[data-sidebar-panel]");
+    if (panel) {
+        const hidden = mobile && !open;
+        panel.setAttribute("aria-hidden", String(hidden));
+        panel.toggleAttribute("inert", hidden);
+    }
+    document.querySelectorAll("[data-sidebar-open]").forEach((button) => {
+        button.setAttribute("aria-expanded", String(open));
+    });
+}
+
+function trapSidebarFocus(event) {
+    if (event.key !== "Tab" || !document.body.classList.contains("sidebar-mobile-open")) return;
+    const panel = document.querySelector("[data-sidebar-panel]");
+    if (!panel) return;
+    const focusable = Array.from(panel.querySelectorAll('a[href], button:not([disabled]), select:not([disabled])'))
+        .filter((node) => !node.hidden && node.getClientRects().length > 0);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+    }
+}
+
+function initSidebarNavigation(container = document.getElementById("sidebar-container")) {
+    if (container) syncSidebarNavigationUi();
+    if (sidebarNavigationBound) return;
+    sidebarNavigationBound = true;
+
+    document.addEventListener("click", (event) => {
+        const openButton = event.target.closest("[data-sidebar-open]");
+        if (openButton) {
+            event.preventDefault();
+            openMobileSidebar(openButton);
+            return;
+        }
+
+        if (event.target.closest("[data-sidebar-dismiss]")) {
+            event.preventDefault();
+            closeMobileSidebar();
+            return;
+        }
+
+        const collapseButton = event.target.closest("[data-sidebar-collapse]");
+        if (collapseButton) {
+            event.preventDefault();
+            setSidebarCollapsed(!document.body.classList.contains("sidebar-collapsed"), true);
+            return;
+        }
+
+        if (isMobileSidebar() && event.target.closest(".sidebar-panel a[href]")) {
+            closeMobileSidebar({ restoreFocus: false });
+        }
+    });
+
+    document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && document.body.classList.contains("sidebar-mobile-open")) {
+            event.preventDefault();
+            closeMobileSidebar();
+            return;
+        }
+        trapSidebarFocus(event);
+    });
+
+    const media = window.matchMedia(SIDEBAR_MOBILE_QUERY);
+    const handleModeChange = () => {
+        closeMobileSidebar({ restoreFocus: false });
+        syncSidebarNavigationUi();
+    };
+    if (typeof media.addEventListener === "function") media.addEventListener("change", handleModeChange);
+    else media.addListener?.(handleModeChange);
+}
 function bindPrefetchForLinks(scope) {
     if (isEmbeddedRuntime) return;
     const links = scope.querySelectorAll ? scope.querySelectorAll("a[href]") : [];
@@ -2300,6 +2589,15 @@ window.CriptaApp = {
         isDefault: isDefaultCampaign,
         applyToUrl: applyCampaignToUrl,
         dataUrl: resolveDataUrl
+    },
+    navigation: {
+        setActiveSection: setActiveNavigationSection,
+        refresh: setActiveLink,
+        open: openMobileSidebar,
+        close: closeMobileSidebar,
+        setCollapsed: setSidebarCollapsed,
+        addLeaveGuard: addNavigationLeaveGuard,
+        removeLeaveGuard: removeNavigationLeaveGuard
     },
     fetchJson: fetchJsonWithCache,
     getBasePath,

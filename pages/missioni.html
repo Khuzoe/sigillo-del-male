@@ -1,60 +1,123 @@
 <!DOCTYPE html>
 <html lang="it">
-
 <head>
     <title>Missioni | Cripta di Sangue</title>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-
-    <link rel="stylesheet" href="../assets/css/abyssal.css">
-    <link rel="stylesheet" href="../assets/css/pages/missioni.css" data-page-style>
+    <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
+    <link rel="stylesheet" href="../assets/css/pages/missioni.css?v=20260715-missions-v2-2" data-page-style>
 </head>
-
-<body>
-
+<body class="missions-page">
     <nav class="sidebar" id="sidebar-container"></nav>
 
-    <main class="main-content">
+    <main class="main-content missions-main">
+        <div class="missions-shell">
+            <header class="missions-hero" aria-labelledby="missions-title">
+                <div class="missions-hero__copy">
+                    <span class="missions-kicker">Diario della campagna</span>
+                    <h1 id="missions-title">Missioni</h1>
+                </div>
+                <div class="missions-summary" id="missions-summary" aria-label="Riepilogo missioni"></div>
+            </header>
 
-        <header class="hero-mini">
-            <div class="hero-title">
-                <h1>Registro delle Imprese</h1>
-                <div class="subtitle">Obiettivi e Patti</div>
+            <section class="missions-toolbar" aria-label="Filtri missioni">
+                <label class="missions-search">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    <span class="sr-only">Cerca nelle missioni</span>
+                    <input id="missions-search" type="search" placeholder="Cerca titolo, obiettivo o personaggio..." autocomplete="off">
+                </label>
+                <div class="missions-filter-group" id="missions-type-filters" aria-label="Tipo missione"></div>
+                <label class="missions-select-wrap">
+                    <span class="sr-only">Filtra per stato</span>
+                    <select id="missions-status-filter">
+                        <option value="">Tutti gli stati</option>
+                        <option value="available">Disponibili</option>
+                        <option value="active">In corso</option>
+                        <option value="completed">Completate</option>
+                        <option value="failed">Fallite</option>
+                        <option value="draft">Bozze</option>
+                        <option value="archived">Archiviate</option>
+                    </select>
+                    <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                </label>
+                <button class="missions-new" id="missions-new" type="button" hidden>
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                    <span>Nuova missione</span>
+                </button>
+            </section>
+
+            <div class="missions-state" id="missions-state" role="status">
+                <span class="missions-state__spinner" aria-hidden="true"></span>
+                <span>Sto aprendo il diario...</span>
             </div>
-        </header>
 
-        <div class="container">
+            <div id="missions-content" hidden>
+                <section class="missions-section missions-section--main" id="missions-main-section" hidden>
+                    <div class="missions-section__heading">
+                        <div>
+                            <span class="missions-section__eyebrow">Il filo della storia</span>
+                            <h2>Trama principale</h2>
+                        </div>
+                        <span class="missions-section__count" id="missions-main-count"></span>
+                    </div>
+                    <div class="missions-main-grid" id="missions-main-grid"></div>
+                </section>
 
-            <!-- SEZIONE PRINCIPALE -->
-            <div class="quest-category-title">
-                <i class="fas fa-crown"></i> Trama Principale
+                <section class="missions-section" id="missions-active-section" hidden>
+                    <div class="missions-section__heading">
+                        <div>
+                            <span class="missions-section__eyebrow">In primo piano</span>
+                            <h2>Missioni attive</h2>
+                        </div>
+                        <span class="missions-section__count" id="missions-active-count"></span>
+                    </div>
+                    <div class="missions-grid" id="missions-active-grid"></div>
+                </section>
+
+                <section class="missions-section missions-section--available" id="missions-available-section" hidden>
+                    <div class="missions-section__heading">
+                        <div>
+                            <span class="missions-section__eyebrow">Nuove possibilità</span>
+                            <h2>Da intraprendere</h2>
+                        </div>
+                        <span class="missions-section__count" id="missions-available-count"></span>
+                    </div>
+                    <div class="missions-grid" id="missions-available-grid"></div>
+                </section>
+
+                <details class="missions-archive" id="missions-archive" hidden>
+                    <summary>
+                        <span class="missions-archive__icon"><i class="fa-solid fa-box-archive" aria-hidden="true"></i></span>
+                        <span>
+                            <strong>Archivio</strong>
+                            <small>Missioni concluse, fallite e messe da parte</small>
+                        </span>
+                        <span class="missions-archive__count" id="missions-archive-count"></span>
+                        <i class="fa-solid fa-chevron-down missions-archive__chevron" aria-hidden="true"></i>
+                    </summary>
+                    <div class="missions-grid missions-grid--archive" id="missions-archive-grid"></div>
+                </details>
+
+                <div class="missions-empty" id="missions-empty" hidden>
+                    <span class="missions-empty__sigil"><i class="fa-solid fa-compass" aria-hidden="true"></i></span>
+                    <h2>Nessuna missione trovata</h2>
+                    <p>Prova a cambiare i filtri oppure inizia una nuova pagina del diario.</p>
+                </div>
             </div>
-            <div id="main-quests-container"></div>
-
-            <!-- SEZIONE SECONDARIE -->
-            <div class="quest-category-title">
-                <i class="fas fa-scroll"></i> Incarichi Secondari
-            </div>
-            <div id="secondary-quests-container"></div>
-
         </div>
     </main>
 
+    <div id="mission-editor-root"></div>
+    <div class="missions-toasts" id="missions-toasts" aria-live="polite" aria-atomic="true"></div>
+
     <script src="../assets/js/spoiler-policy.js"></script>
-    <script src="../assets/js/layout.js"></script>
+    <script src="../assets/js/layout.js?v=20260715-unsaved-guard1"></script>
     <script src="../assets/js/shared/media-service.js"></script>
-    <script src="../assets/js/shared/image-adjust.js"></script>
-    <script src="../assets/js/shared/character-normalize.js?v=20260618-quests-inline"></script>
-
-    <script src="../assets/js/pages/missioni.js?v=20260618-quests-inline"></script>
-
+    <script src="../assets/js/shared/mission-service.js?v=20260715-missions-v2-2"></script>
+    <script src="../assets/js/pages/missioni.js?v=20260715-missions-v2-2"></script>
 </body>
-
 </html>

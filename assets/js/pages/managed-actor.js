@@ -32,6 +32,7 @@
                 currentProfile = normalizeManagedProfile(profilePayload.data, { worldId, actorId });
                 currentProfilePermissions = profilePayload.permissions || { canEdit: false, isEditor: false };
                 managedProfileSource = profilePayload.source || "profile";
+                syncManagedActorNavigation(null);
                 renderManagedProfileOnly(root, currentProfile);
                 return;
             } catch (error) {
@@ -45,6 +46,7 @@
                 ...(token ? { token } : {})
             });
             currentDocument = payload.data;
+            syncManagedActorNavigation(currentDocument);
             currentCanEdit = currentDocument?.permissions ? currentDocument.permissions.canEdit === true : Boolean(token);
             managedEditMode = false;
             await Promise.all([
@@ -64,6 +66,7 @@
                 currentProfile = normalizeManagedProfile(profilePayload.data, { worldId, actorId });
                 currentProfilePermissions = profilePayload.permissions || { canEdit: false, isEditor: false };
                 managedProfileSource = profilePayload.source || "profile";
+                syncManagedActorNavigation(null);
                 renderManagedProfileOnly(root, currentProfile);
                 return;
             } catch (profileError) {
@@ -79,6 +82,17 @@
         if (actor?.ownerCharacterId && (actorType === "character" || actorType === "player")) return "player";
         if (actor?.ownerCharacterId && actorType === "npc") return "companion";
         return "";
+    }
+
+    function syncManagedActorNavigation(actor, fallback = "") {
+        const defaultSection = fallback || (new URLSearchParams(window.location.search).has("character") ? "giocatori" : "npcs");
+        const relationshipType = getManagedActorRelationshipType(actor);
+        const actorType = String(actor?.actorType || "").trim().toLowerCase();
+        const playerContext = relationshipType === "player"
+            || relationshipType === "companion"
+            || actorType === "character"
+            || actorType === "player";
+        window.CriptaApp?.navigation?.setActiveSection(playerContext ? "giocatori" : defaultSection);
     }
 
     function isPrimaryManagedPlayer(actor) {

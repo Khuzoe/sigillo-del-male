@@ -50,7 +50,7 @@
         if (skillTreeModulePromise) return skillTreeModulePromise;
         skillTreeModulePromise = new Promise((resolve, reject) => {
             const script = document.createElement("script");
-            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20260715-external-arcs2", window.location.href).toString();
+            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20260715-unsaved-guard1", window.location.href).toString();
             script.defer = true;
             script.dataset.managedSkillTreeScript = "true";
             script.addEventListener("load", () => window.CriptaCharacterSkillTree ? resolve(window.CriptaCharacterSkillTree) : reject(new Error("Modulo alberi non inizializzato.")), { once: true });

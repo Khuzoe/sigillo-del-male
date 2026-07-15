@@ -1724,6 +1724,12 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         ...treeData,
         nodes: (treeData.nodes || []).map((node) => ({ ...node, id: String(node.id) }))
     };
+    const snapshotTreeDefinition = () => JSON.stringify(workingTree);
+    let savedTreeSnapshot = snapshotTreeDefinition();
+    const hasUnsavedTreeChanges = () => snapshotTreeDefinition() !== savedTreeSnapshot;
+    const markTreeDefinitionSaved = () => {
+        savedTreeSnapshot = snapshotTreeDefinition();
+    };
     let currentNodes = applySkillTreeGroupLayouts(deriveSkillTreeNodes(workingTree, stateRecord), workingTree);
     let unlockedIds = new Set(currentNodes.filter((node) => !isSkillTreeGroupNode(node) && node.state === 'unlocked').map((node) => String(node.id)));
     let nodeLevels = { ...(stateRecord?.levels && typeof stateRecord.levels === 'object' ? stateRecord.levels : {}) };
@@ -1771,6 +1777,21 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     const snapGuideX = card.querySelector('[data-skill-snap-x]');
     const snapGuideY = card.querySelector('[data-skill-snap-y]');
     if (!treeContainer || !linesLayer || !infoPanel) return card;
+
+    const leaveGuardId = [
+        'skill-tree',
+        window.CriptaApp?.campaigns?.currentId?.() || 'campaign',
+        character?.id || character?.foundryActorId || 'character',
+        treeKey || 'tree'
+    ].join(':');
+    window.CriptaApp?.navigation?.addLeaveGuard?.(leaveGuardId, () => {
+        if (!card.isConnected || !hasUnsavedTreeChanges()) return false;
+        return {
+            active: true,
+            message: 'Hai modifiche non salvate nell\'albero abilita. Se lasci questa pagina andranno perse. Continuare senza salvare?',
+            discard: markTreeDefinitionSaved
+        };
+    });
 
     const setDefaultInfo = () => {
         infoPanel.innerHTML = `
@@ -2741,6 +2762,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         nextTrees[treeKey] = normalizeSkillTreeDefinitionForSave(workingTree);
         await saveSkillTreesData(nextTrees);
         workingTree = structuredClone(nextTrees[treeKey]);
+        markTreeDefinitionSaved();
         if (archiveStateChanged) {
             window.location.reload();
             return;
@@ -3795,6 +3817,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         editToggle?.setAttribute('disabled', 'disabled');
         try {
             await deleteSkillTreeData(treeKey, workingTree, allSkillTrees);
+            markTreeDefinitionSaved();
             window.location.reload();
         } catch (error) {
             console.error('Eliminazione albero abilita fallita:', error);

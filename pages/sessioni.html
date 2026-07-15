@@ -1,62 +1,105 @@
 <!DOCTYPE html>
 <html lang="it">
-
 <head>
-    <title>Diario delle Sessioni | Cripta di Sangue</title>
-
+    <title>Sessioni | Cripta di Sangue</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-
-    <link rel="stylesheet" href="../assets/css/abyssal.css">
-    <link rel="stylesheet" href="../assets/css/pages/sessioni.css?v=20260623-session-rewards1" data-page-style>
+    <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
+    <link rel="stylesheet" href="../assets/css/pages/sessioni.css?v=20260715-sessions-v2-1" data-page-style>
 </head>
+<body class="sessions-page">
+    <nav class="sidebar" id="sidebar-container"></nav>
 
-<body class="page-sessioni">
+    <main class="main-content sessions-main">
+        <div class="sessions-shell">
+            <header class="sessions-hero" aria-labelledby="sessions-title">
+                <div class="sessions-hero__copy">
+                    <span class="sessions-kicker">Cronache della campagna</span>
+                    <h1 id="sessions-title">Sessioni</h1>
+                </div>
+                <div class="sessions-summary" id="sessions-summary" aria-label="Riepilogo sessioni"></div>
+            </header>
 
-    <!-- NAVIGAZIONE LATERALE -->
-    <nav class="sidebar" id="sidebar-container">
-    </nav>
+            <section class="sessions-planning" aria-label="Prossima sessione">
+                <div id="next-session-container"></div>
+            </section>
 
-    <!-- CONTENUTO PRINCIPALE -->
-    <main class="main-content">
+            <section class="sessions-toolbar" aria-label="Filtri sessioni">
+                <label class="sessions-search">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    <span class="sr-only">Cerca nelle sessioni</span>
+                    <input id="sessions-search" type="search" placeholder="Cerca eventi, personaggi, ricompense..." autocomplete="off">
+                </label>
+                <label class="sessions-select-wrap">
+                    <span class="sr-only">Filtra per anno</span>
+                    <select id="sessions-year-filter">
+                        <option value="">Tutti gli anni</option>
+                    </select>
+                    <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                </label>
+                <label class="sessions-select-wrap sessions-select-wrap--editor" id="sessions-status-wrap" hidden>
+                    <span class="sr-only">Filtra per stato</span>
+                    <select id="sessions-status-filter">
+                        <option value="">Tutti gli stati</option>
+                        <option value="published">Pubblicate</option>
+                        <option value="draft">Bozze</option>
+                        <option value="archived">Archiviate</option>
+                    </select>
+                    <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+                </label>
+                <button class="sessions-new" id="sessions-new" type="button" hidden>
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                    <span>Nuova sessione</span>
+                </button>
+            </section>
 
-        <header class="hero-mini">
-            <div class="hero-title">
-                <h1>Diario delle Sessioni</h1>
-                <div class="subtitle">La Cripta di Sangue</div>
+            <div class="sessions-state" id="sessions-state" role="status">
+                <span class="sessions-state__spinner" aria-hidden="true"></span>
+                <span>Sto aprendo le cronache...</span>
             </div>
-        </header>
 
-        <div class="container">
+            <div class="sessions-content" id="sessions-content" hidden>
+                <section class="sessions-spotlight" id="sessions-spotlight-section" hidden>
+                    <div class="sessions-section-heading">
+                        <div>
+                            <span class="sessions-section-heading__eyebrow">L'ultimo capitolo</span>
+                            <h2>Sessione più recente</h2>
+                        </div>
+                    </div>
+                    <div id="sessions-spotlight"></div>
+                </section>
 
-            <!-- BOX PROSSIMA SESSIONE (Dinamico) -->
-            <div id="next-session-container"></div>
+                <section class="sessions-journal" id="sessions-journal-section" hidden>
+                    <div class="sessions-section-heading">
+                        <div>
+                            <span class="sessions-section-heading__eyebrow">Il viaggio fin qui</span>
+                            <h2>Archivio delle sessioni</h2>
+                        </div>
+                        <span class="sessions-section-heading__count" id="sessions-count"></span>
+                    </div>
+                    <div class="sessions-grid" id="sessions-grid"></div>
+                </section>
 
-            <!-- MENU DI NAVIGAZIONE RAPIDA -->
-            <div class="session-nav" id="session-nav-container">
-                <h3 class="session-nav-title">Indice Rapido</h3>
-                <!-- I link verranno inseriti qui dinamicamente -->
+                <div class="sessions-empty" id="sessions-empty" hidden>
+                    <span class="sessions-empty__sigil"><i class="fa-solid fa-book-open" aria-hidden="true"></i></span>
+                    <h2>Nessuna sessione trovata</h2>
+                    <p>Prova a cambiare i filtri oppure aggiungi un nuovo capitolo al diario.</p>
+                </div>
             </div>
-
-            <div class="timeline" id="timeline-container">
-                <!-- Le sessioni verranno inserite qui dinamicamente -->
-            </div>
-
         </div>
     </main>
 
-    <script src="../assets/js/layout.js"></script>
+    <div id="session-editor-root"></div>
+    <div class="sessions-toasts" id="sessions-toasts" aria-live="polite" aria-atomic="true"></div>
 
+    <script src="../assets/js/spoiler-policy.js"></script>
+    <script src="../assets/js/layout.js?v=20260715-unsaved-guard1"></script>
     <script src="../assets/js/shared/next-session.js?v=20260623-discord-proxy1"></script>
-
-    <script src="../assets/js/pages/sessioni.js?v=20260623-session-rewards1"></script>
-
+    <script src="../assets/js/shared/session-service.js?v=20260715-sessions-v2-1"></script>
+    <script src="../assets/js/pages/sessioni.js?v=20260715-sessions-v2-1"></script>
 </body>
-
 </html>

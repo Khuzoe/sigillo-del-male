@@ -1,783 +1,455 @@
-/* MAPPA IMMAGINI (Cache) */
-        const characterImages = {};
-        const characterImageMeta = {};
-        const questState = {
-            groups: [],
-            source: 'static',
-            version: 0,
-            canEdit: false,
-            saving: false,
-            editing: null
-        };
-
-        const QUEST_STATUS_OPTIONS = [
-            ['active', 'Attiva'],
-            ['in_progress', 'In corso'],
-            ['completed', 'Completata'],
-            ['failed', 'Fallita'],
-            ['hidden', 'Nascosta']
-        ];
-
-        function escapeHtml(value) {
-            if (typeof window.CriptaApp?.utils?.escapeHtml === 'function') {
-                return window.CriptaApp.utils.escapeHtml(value);
-            }
-            return String(value ?? '').replace(/[&<>"']/g, char => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            })[char]);
+(() => {
+  "use strict";
+  const M = window.CriptaMissions;
+  if (!M) {
+    console.error("Missioni: servizio non disponibile.");
+    return;
+  }
+  const S = { data: null, search: "", type: "", status: "", expanded: /* @__PURE__ */ new Set(), pending: /* @__PURE__ */ new Set(), editor: null, queue: Promise.resolve(), draftTimer: 0 };
+  const R = {};
+  const esc = (v) => window.CriptaApp?.utils?.escapeHtml?.(v) ?? String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[c]);
+  const block = (v) => esc(v).replace(/\n/g, "<br>");
+  const image = (path, fallback = "assets/img/ui/tab_icon.webp") => window.CriptaApp?.utils?.resolveImageUrl?.(path, { fallback }) || path || fallback;
+  function cache() {
+    ["summary", "search", "type-filters", "status-filter", "new", "state", "content", "main-section", "main-grid", "main-count", "active-section", "active-grid", "active-count", "available-section", "available-grid", "available-count", "archive", "archive-grid", "archive-count", "empty", "toasts"].forEach((k) => R[k] = document.getElementById(`missions-${k}`));
+    R.editor = document.getElementById("mission-editor-root");
+  }
+  function toast(message, tone = "info", delay = 4e3) {
+    if (!R.toasts) return;
+    const n = document.createElement("div");
+    n.className = `missions-toast missions-toast--${tone}`;
+    n.innerHTML = `<i class="fa-solid ${tone === "error" ? "fa-circle-exclamation" : tone === "success" ? "fa-circle-check" : "fa-circle-info"}"></i><span>${esc(message)}</span>`;
+    R.toasts.append(n);
+    requestAnimationFrame(() => n.classList.add("is-visible"));
+    setTimeout(() => {
+      n.classList.remove("is-visible");
+      setTimeout(() => n.remove(), 250);
+    }, delay);
+  }
+  function showLoading() {
+    R.state.hidden = false;
+    R.content.hidden = true;
+    R.state.classList.remove("is-error");
+    R.state.innerHTML = '<span class="missions-state__spinner"></span><span>Sto aprendo il diario...</span>';
+  }
+  function showError(e) {
+    R.state.hidden = false;
+    R.content.hidden = true;
+    R.state.classList.add("is-error");
+    R.state.innerHTML = `<span class="missions-state__error"><i class="fa-solid fa-triangle-exclamation"></i></span><span><strong>Il diario non si \xE8 aperto.</strong><small>${esc(e?.message || e)}</small></span><button data-action="reload"><i class="fa-solid fa-rotate-right"></i> Riprova</button>`;
+  }
+  function renderFilters() {
+    R["type-filters"].innerHTML = [["", "Tutte"], ...M.TYPE_OPTIONS].map(([v, l]) => `<button class="missions-filter ${S.type === v ? "is-active" : ""}" data-action="type" data-value="${esc(v)}" aria-pressed="${S.type === v}">${esc(l)}</button>`).join("");
+  }
+  function walkText(m) {
+    const p = [m.title, m.summary, m.description, m.rewards, ...m.tags || []];
+    [...m.giverRefs || [], ...m.assigneeRefs || []].forEach((r) => p.push(r.name));
+    M.walkObjectives(m.objectives, (o) => p.push(o.title, o.description, o.reward));
+    return p.join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  }
+  function filtered() {
+    const q = S.search.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return (S.data?.missions || []).filter((m) => (!S.type || m.type === S.type) && (!S.status || m.status === S.status) && (!q || walkText(m).includes(q)));
+  }
+  function entityFor(m) {
+    return M.findEntity(m.giverRefs?.[0] || m.assigneeRefs?.[0], S.data);
+  }
+  function entityImage(e) {
+    const x = e?.media || {};
+    return image(x.idle || x.avatar || x.token || x.hover || "");
+  }
+  function statusIcon(s) {
+    return s === "completed" ? "fa-check" : s === "failed" ? "fa-xmark" : s === "active" ? "fa-arrow-right" : s === "hidden" ? "fa-eye-slash" : s === "archived" ? "fa-box-archive" : "fa-circle";
+  }
+  function objectiveCount(m) {
+    let n = 0;
+    M.walkObjectives(m.objectives, (o) => {
+      if (!["hidden", "archived"].includes(o.status)) n++;
+    });
+    return n;
+  }
+  function renderAvatar(ref) {
+    const e = M.findEntity(ref, S.data);
+    return `<span class="mission-person" title="${esc(ref.name || e?.name)}"><img src="${esc(entityImage(e))}" alt=""><span>${esc(ref.name || e?.name)}</span></span>`;
+  }
+  function renderObjective(o, m, depth = 0) {
+    const key = `${m.id}:${o.id}`, done = o.status === "completed", target = Math.max(1, +o.progress?.target || 1), current = done ? target : Math.max(0, +o.progress?.current || 0), children = (o.subObjectives || []).filter((x) => S.data.canEdit || !["hidden", "archived"].includes(x.status));
+    return `<li class="mission-objective mission-objective--${esc(o.status)}" style="--objective-depth:${Math.min(depth, 5)}"><div class="mission-objective__row"><button class="mission-objective__check" data-action="objective" data-mission="${esc(m.id)}" data-objective="${esc(o.id)}" ${S.data.canEdit && !["hidden", "archived"].includes(o.status) ? "" : "disabled"} aria-pressed="${done}"><i class="fa-solid ${S.pending.has(key) ? "fa-spinner fa-spin" : statusIcon(o.status)}"></i></button><div class="mission-objective__body"><div class="mission-objective__titleline"><span class="mission-objective__title">${esc(o.title)}</span>${o.required === false ? '<span class="mission-objective__optional">Opzionale</span>' : ""}${target > 1 ? `<span class="mission-objective__counter">${current}/${target}</span>` : ""}${o.status === "hidden" && S.data.canEdit ? '<span class="mission-objective__private">DM</span>' : ""}</div>${o.description ? `<p>${block(o.description)}</p>` : ""}${o.reward ? `<div class="mission-objective__reward"><i class="fa-solid fa-gift"></i>${esc(o.reward)}</div>` : ""}</div></div>${children.length ? `<ul class="mission-objectives mission-objectives--nested">${children.map((x) => renderObjective(x, m, depth + 1)).join("")}</ul>` : ""}</li>`;
+  }
+  function nextObjectives(m, limit = 2) {
+    const a = [];
+    M.walkObjectives(m.objectives, (o) => {
+      if (a.length < limit && ["pending", "active"].includes(o.status) && !(o.subObjectives || []).length) a.push(o);
+    });
+    return a;
+  }
+  function card(m, featured = false) {
+    const open = S.expanded.has(m.id), p = M.progress(m), e = entityFor(m), giver = m.giverRefs?.[0], next = nextObjectives(m, featured ? 3 : 2), objectives = (m.objectives || []).filter((o) => S.data.canEdit || !["hidden", "archived"].includes(o.status));
+    return `<article class="mission-card ${!e ? "mission-card--no-entity " : ""}${featured ? "mission-card--featured " : ""}mission-card--${esc(m.status)} ${open ? "is-expanded" : ""}" data-mission-id="${esc(m.id)}"><div class="mission-card__glow"></div><div class="mission-card__media"><img src="${esc(entityImage(e))}" alt="${esc(e?.name || giver?.name || m.title)}" loading="lazy"><span class="mission-card__media-shade"></span><span class="mission-card__type"><i class="fa-solid ${m.type === "main" ? "fa-crown" : m.type === "personal" ? "fa-user" : m.type === "faction" ? "fa-shield-halved" : "fa-scroll"}"></i>${esc(M.TYPE_LABELS[m.type] || m.type)}</span></div><div class="mission-card__content"><header class="mission-card__header"><div class="mission-card__heading"><span class="mission-card__giver">${giver ? `Affidata da ${esc(giver.name)}` : "Diario della compagnia"}</span><h3>${esc(m.title)}</h3></div><span class="mission-status mission-status--${esc(m.status)}"><i class="fa-solid ${statusIcon(m.status)}"></i>${esc(M.STATUS_LABELS[m.status] || m.status)}</span></header>${m.summary ? `<p class="mission-card__summary">${block(m.summary)}</p>` : ""}${next.length && !open ? `<div class="mission-next"><span>Prossimo passo</span>${next.map((o) => `<strong><i class="fa-solid fa-location-arrow"></i>${esc(o.title)}</strong>`).join("")}</div>` : ""}<div class="mission-card__progress"><div class="mission-card__progress-copy"><span>Avanzamento</span><strong>${p.count ? `${p.completed}/${p.count}` : "\u2014"}</strong></div><div class="mission-card__progress-track"><span style="width:${p.percent}%"></span></div><span class="mission-card__percent">${p.percent}%</span></div>${m.assigneeRefs?.length ? `<div class="mission-card__party"><span>Assegnata a</span><div>${m.assigneeRefs.slice(0, 5).map(renderAvatar).join("")}</div></div>` : ""}<div class="mission-card__details" ${open ? "" : "hidden"}>${m.description ? `<div class="mission-card__description">${block(m.description)}</div>` : ""}${objectives.length ? `<div class="mission-card__objectives-head"><span>Obiettivi</span><strong>${objectiveCount(m)}</strong></div><ul class="mission-objectives">${objectives.map((o) => renderObjective(o, m)).join("")}</ul>` : '<p class="mission-card__no-objectives">Nessun obiettivo visibile.</p>'}${m.rewards ? `<div class="mission-reward"><span class="mission-reward__icon"><i class="fa-solid fa-gem"></i></span><div><small>Ricompensa</small><strong>${block(m.rewards)}</strong></div></div>` : ""}${S.data.canEdit && m.dmNotes ? `<div class="mission-dm-notes"><i class="fa-solid fa-lock"></i><div><small>Note DM</small><p>${block(m.dmNotes)}</p></div></div>` : ""}</div><footer class="mission-card__footer"><button class="mission-card__expand" data-action="toggle" data-mission="${esc(m.id)}" aria-expanded="${open}"><span>${open ? "Riduci" : "Apri missione"}</span><i class="fa-solid fa-chevron-down"></i></button>${S.data.canEdit ? `<button class="mission-card__edit" data-action="edit" data-mission="${esc(m.id)}"><i class="fa-solid fa-pen"></i><span>Modifica</span></button>` : ""}</footer></div></article>`;
+  }
+  function section(section2, grid, count, list, featured = false) {
+    section2.hidden = !list.length;
+    count.textContent = list.length || "";
+    grid.innerHTML = list.map((m) => card(m, featured)).join("");
+  }
+  function render() {
+    if (!S.data) return;
+    renderFilters();
+    const all = S.data.missions || [];
+    R.summary.innerHTML = `<div class="missions-summary__item missions-summary__item--active"><span>${all.filter((m) => m.status === "active").length}</span><small>In corso</small></div><div class="missions-summary__item"><span>${all.filter((m) => m.status === "available").length}</span><small>Disponibili</small></div><div class="missions-summary__item"><span>${all.filter((m) => m.status === "completed").length}</span><small>Completate</small></div>`;
+    R.new.hidden = !S.data.canEdit;
+    R["status-filter"].value = S.status;
+    const a = filtered(), arch = /* @__PURE__ */ new Set(["completed", "failed", "archived"]), main = a.filter((m) => m.type === "main" && !arch.has(m.status)), active = a.filter((m) => m.type !== "main" && m.status === "active"), available = a.filter((m) => m.type !== "main" && ["available", "draft"].includes(m.status)), old = a.filter((m) => arch.has(m.status));
+    section(R["main-section"], R["main-grid"], R["main-count"], main, true);
+    section(R["active-section"], R["active-grid"], R["active-count"], active);
+    section(R["available-section"], R["available-grid"], R["available-count"], available);
+    R.archive.hidden = !old.length;
+    R["archive-count"].textContent = old.length || "";
+    R["archive-grid"].innerHTML = old.map((m) => card(m)).join("");
+    R.empty.hidden = !!(main.length + active.length + available.length + old.length);
+    R.state.hidden = true;
+    R.content.hidden = false;
+  }
+  const findMission = (id) => S.data?.missions?.find((m) => m.id === id);
+  function findObjective(list, id) {
+    for (const o of list || []) {
+      if (o.id === id) return o;
+      const c = findObjective(o.subObjectives, id);
+      if (c) return c;
+    }
+    return null;
+  }
+  function findLocation(list, id, parent = null) {
+    for (let i = 0; i < (list || []).length; i++) {
+      const o = list[i];
+      if (o.id === id) return { objective: o, list, index: i, parent };
+      const c = findLocation(o.subObjectives, id, o);
+      if (c) return c;
+    }
+    return null;
+  }
+  async function ensureBootstrap() {
+    if (!S.data?.needsBootstrap) return;
+    S.data = await M.bootstrap(S.data);
+    window.CriptaApp?.api?.clearCache?.("api/missions");
+    toast("Registro v2 creato come copia sicura dei dati esistenti.", "success", 5200);
+  }
+  function toggleObjective(mid, oid) {
+    const key = `${mid}:${oid}`;
+    if (S.pending.has(key)) return;
+    S.pending.add(key);
+    render();
+    S.queue = S.queue.then(async () => {
+      try {
+        await ensureBootstrap();
+        const m = findMission(mid), o = findObjective(m?.objectives, oid);
+        if (!m || !o) throw Error("Obiettivo non disponibile.");
+        const target = Math.max(1, +o.progress?.target || 1), done = o.status === "completed", patch = done ? { status: "pending", progress: { current: 0, target } } : { status: "completed", progress: { current: target, target } }, result = await M.patchProgress(mid, oid, patch, m.revision), i = S.data.missions.findIndex((x) => x.id === mid);
+        if (i >= 0 && result.mission) S.data.missions[i] = result.mission;
+        S.data.version = +result.version || S.data.version;
+      } catch (e) {
+        console.error(e);
+        toast(e.message || "Aggiornamento fallito.", "error", 6e3);
+      } finally {
+        S.pending.delete(key);
+        render();
+      }
+    });
+  }
+  const storageKey = (id) => `cripta:missions:v2:draft:${M.campaignId()}:${id}`;
+  const snapshot = (v) => JSON.stringify(v || null);
+  const dirty = () => !!S.editor && snapshot(S.editor.draft) !== S.editor.baseline;
+  function saveDraft() {
+    if (!dirty()) return;
+    try {
+      localStorage.setItem(storageKey(S.editor.draft.id), JSON.stringify({ savedAt: (/* @__PURE__ */ new Date()).toISOString(), draft: S.editor.draft }));
+    } catch (_) {
+    }
+  }
+  function scheduleDraft() {
+    clearTimeout(S.draftTimer);
+    if (!dirty()) {
+      clearDraft(S.editor?.draft?.id);
+      return;
+    }
+    S.draftTimer = setTimeout(saveDraft, 250);
+  }
+  function clearDraft(id) {
+    try {
+      localStorage.removeItem(storageKey(id));
+    } catch (_) {
+    }
+  }
+  function localDraft(id) {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey(id)) || "null");
+    } catch (_) {
+      return null;
+    }
+  }
+  const refKey = (r) => r ? `${r.type}:${r.id}` : "";
+  function refFromKey(key) {
+    const [type, ...parts] = String(key || "").split(":"), id = parts.join(":"), e = S.data.entities.find((x) => x.type === type && x.id === id);
+    return e ? M.entityRef(e) : null;
+  }
+  function entityOptions(selected = "", type = "") {
+    return (S.data.entities || []).filter((e) => !type || e.type === type || type === "npc" && e.type === "companion").map((e) => `<option value="${esc(`${e.type}:${e.id}`)}" ${`${e.type}:${e.id}` === selected ? "selected" : ""}>${esc(e.name)}${e.role ? ` \u2014 ${esc(e.role)}` : ""}</option>`).join("");
+  }
+  function assigneePicker(refs = []) {
+    const selected = new Set(refs.map(refKey)), entities = (S.data.entities || []).filter((e) => ["player", "companion"].includes(e.type));
+    return `<div class="mission-entity-picker"><label class="mission-editor-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" data-entity-filter placeholder="Cerca personaggio..."></label><div class="mission-entity-picker__options">${entities.map((e) => {
+      const k = `${e.type}:${e.id}`;
+      return `<label class="mission-entity-option" data-entity-name="${esc(`${e.name} ${e.role}`.toLowerCase())}"><input type="checkbox" name="mission-assignee" value="${esc(k)}" ${selected.has(k) ? "checked" : ""}><span class="mission-entity-option__portrait"><img src="${esc(entityImage(e))}" alt=""></span><span><strong>${esc(e.name)}</strong><small>${esc(e.role || e.type)}</small></span><i class="fa-solid fa-check"></i></label>`;
+    }).join("") || "<p>Nessun personaggio disponibile.</p>"}</div></div>`;
+  }
+  function objectiveEditor(o, depth = 0) {
+    const loc = findLocation(S.editor.draft.objectives, o.id), arch = o.status === "archived";
+    return `<article class="mission-objective-editor ${arch ? "is-archived" : ""}" data-objective-editor="${esc(o.id)}" style="--editor-depth:${Math.min(depth, 5)}"><div class="mission-objective-editor__rail"><span>${depth + 1}</span></div><div class="mission-objective-editor__content"><header class="mission-objective-editor__header"><span class="mission-objective-editor__handle"><i class="fa-solid fa-grip-lines"></i></span><input class="mission-objective-editor__title" data-objective-field="title" value="${esc(o.title)}"><div class="mission-objective-editor__actions"><button data-editor-action="up" data-objective="${esc(o.id)}" ${loc?.index === 0 ? "disabled" : ""} title="Sposta su"><i class="fa-solid fa-arrow-up"></i></button><button data-editor-action="down" data-objective="${esc(o.id)}" ${loc && loc.index === loc.list.length - 1 ? "disabled" : ""} title="Sposta gi\xF9"><i class="fa-solid fa-arrow-down"></i></button><button data-editor-action="child" data-objective="${esc(o.id)}" title="Aggiungi sotto-obiettivo"><i class="fa-solid fa-turn-down"></i></button><button class="${arch ? "is-restore" : "is-danger"}" data-editor-action="${arch ? "restore" : "archive-objective"}" data-objective="${esc(o.id)}"><i class="fa-solid ${arch ? "fa-rotate-left" : "fa-box-archive"}"></i></button></div></header><div class="mission-objective-editor__grid"><label><span>Stato</span><select data-objective-field="status">${M.OBJECTIVE_STATUS_OPTIONS.map(([v, l]) => `<option value="${v}" ${o.status === v ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label><label><span>Visibilit\xE0</span><select data-objective-field="visibility">${M.VISIBILITY_OPTIONS.map(([v, l]) => `<option value="${v}" ${o.visibility === v ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label><label class="mission-objective-editor__number"><span>Progresso</span><span><input type="number" min="0" data-objective-field="current" value="${+o.progress?.current || 0}"><b>/</b><input type="number" min="1" data-objective-field="target" value="${Math.max(1, +o.progress?.target || 1)}"></span></label><label><span>Assegnatario</span><select data-objective-field="assignee"><option value="">Tutta la compagnia</option>${entityOptions(refKey(o.assigneeRefs?.[0]))}</select></label></div><label class="mission-editor-field"><span>Dettagli</span><textarea rows="2" data-objective-field="description">${esc(o.description || "")}</textarea></label><div class="mission-objective-editor__bottom"><label class="mission-editor-check"><input type="checkbox" data-objective-field="required" ${o.required !== false ? "checked" : ""}><span><i class="fa-solid fa-check"></i></span> Necessario</label><label class="mission-editor-field mission-editor-field--reward"><span>Ricompensa specifica</span><input data-objective-field="reward" value="${esc(o.reward || "")}"></label></div></div>${o.subObjectives?.length ? `<div class="mission-objective-editor__children">${o.subObjectives.map((x) => objectiveEditor(x, depth + 1)).join("")}</div>` : ""}</article>`;
+  }
+  function identityPanel(m) {
+    return `<section class="mission-editor-panel mission-editor-panel--identity"><div class="mission-editor-panel__title"><span><i class="fa-solid fa-compass"></i></span><div><small>Identit\xE0</small><h3>Il cuore della missione</h3></div></div><div class="mission-editor-grid mission-editor-grid--identity"><label class="mission-editor-field mission-editor-field--title"><span>Titolo</span><input name="mission-title" value="${esc(m.title)}" placeholder="Titolo della missione"></label><label class="mission-editor-field"><span>Tipo</span><select name="mission-type">${M.TYPE_OPTIONS.map(([v, l]) => `<option value="${v}" ${m.type === v ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label><label class="mission-editor-field"><span>Stato</span><select name="mission-status">${M.MISSION_STATUS_OPTIONS.map(([v, l]) => `<option value="${v}" ${m.status === v ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label><label class="mission-editor-field"><span>Visibilit\xE0</span><select name="mission-visibility">${M.VISIBILITY_OPTIONS.map(([v, l]) => `<option value="${v}" ${m.visibility === v ? "selected" : ""}>${esc(l)}</option>`).join("")}</select></label><label class="mission-editor-field mission-editor-field--summary"><span>Riassunto breve</span><textarea name="mission-summary" rows="2" placeholder="Una frase chiara per orientarsi">${esc(m.summary || "")}</textarea></label><label class="mission-editor-field mission-editor-field--description"><span>Descrizione</span><textarea name="mission-description" rows="5" placeholder="Contesto, indizi e dettagli visibili">${esc(m.description || "")}</textarea></label></div></section>`;
+  }
+  function relationsPanel(m) {
+    return `<section class="mission-editor-panel"><div class="mission-editor-panel__title"><span><i class="fa-solid fa-people-arrows"></i></span><div><small>Legami</small><h3>Chi affida e chi partecipa</h3></div></div><div class="mission-editor-relations"><label class="mission-editor-field"><span>Committente</span><select name="mission-giver"><option value="">Nessun committente</option>${entityOptions(refKey(m.giverRefs?.[0]), "npc")}</select></label><div class="mission-editor-field"><span>Assegnatari</span>${assigneePicker(m.assigneeRefs)}</div></div></section>`;
+  }
+  function objectivesPanel(m) {
+    return `<section class="mission-editor-panel mission-editor-panel--objectives"><div class="mission-editor-panel__title mission-editor-panel__title--actions"><span><i class="fa-solid fa-list-check"></i></span><div><small>Percorso</small><h3>Obiettivi e sotto-obiettivi</h3></div><button data-editor-action="add"><i class="fa-solid fa-plus"></i> Aggiungi obiettivo</button></div><div class="mission-objective-editor-list">${m.objectives?.length ? m.objectives.map((o) => objectiveEditor(o)).join("") : '<div class="mission-editor-empty"><i class="fa-solid fa-route"></i><strong>Il percorso \xE8 ancora vuoto</strong><span>Aggiungi il primo obiettivo per dare forma alla missione.</span><button data-editor-action="add"><i class="fa-solid fa-plus"></i> Primo obiettivo</button></div>'}</div></section>`;
+  }
+  function notesPanel(m) {
+    return `<section class="mission-editor-panel mission-editor-panel--private"><div class="mission-editor-panel__title"><span><i class="fa-solid fa-gem"></i></span><div><small>Esito</small><h3>Ricompense e appunti riservati</h3></div></div><div class="mission-editor-grid mission-editor-grid--notes"><label class="mission-editor-field"><span>Ricompensa generale</span><textarea name="mission-rewards" rows="3">${esc(m.rewards || "")}</textarea></label><label class="mission-editor-field"><span>Note solo DM</span><textarea name="mission-dm-notes" rows="3">${esc(m.dmNotes || "")}</textarea></label></div></section>`;
+  }
+  function renderEditor() {
+    if (!S.editor) {
+      R.editor.innerHTML = "";
+      document.body.classList.remove("mission-editor-open");
+      return;
+    }
+    const m = S.editor.draft;
+    R.editor.innerHTML = `<div class="mission-editor-backdrop"><section class="mission-editor" role="dialog" aria-modal="true" aria-labelledby="mission-editor-title"><header class="mission-editor__header"><div><span>${m.revision ? "Modifica missione" : "Nuova missione"}</span><h2 id="mission-editor-title">${esc(m.title)}</h2></div><div class="mission-editor__header-actions"><span class="mission-editor__saved" data-save-state>${dirty() ? '<i class="fa-solid fa-circle"></i> Modifiche non salvate' : '<i class="fa-solid fa-check"></i> Tutto salvato'}</span><button data-editor-action="close" aria-label="Chiudi"><i class="fa-solid fa-xmark"></i></button></div></header><div class="mission-editor__body">${identityPanel(m)}${relationsPanel(m)}${objectivesPanel(m)}${notesPanel(m)}</div><footer class="mission-editor__footer"><button class="mission-editor__archive" data-editor-action="archive"><i class="fa-solid fa-box-archive"></i>${m.status === "archived" ? "Ripristina come bozza" : "Archivia"}</button><div><button class="mission-editor__cancel" data-editor-action="close">Annulla</button><button class="mission-editor__save" data-editor-action="save"><i class="fa-solid fa-floppy-disk"></i> Salva missione</button></div></footer></section></div>`;
+    document.body.classList.add("mission-editor-open");
+  }
+  function collect() {
+    if (!S.editor) return;
+    const root = R.editor, m = S.editor.draft, val = (s) => root.querySelector(s)?.value ?? "";
+    m.title = val('[name="mission-title"]').trim() || "Missione senza titolo";
+    m.type = val('[name="mission-type"]') || "side";
+    m.status = val('[name="mission-status"]') || "draft";
+    m.visibility = val('[name="mission-visibility"]') || "dm";
+    m.summary = val('[name="mission-summary"]');
+    m.description = val('[name="mission-description"]');
+    m.rewards = val('[name="mission-rewards"]');
+    m.dmNotes = val('[name="mission-dm-notes"]');
+    const giver = refFromKey(val('[name="mission-giver"]'));
+    m.giverRefs = giver ? [giver] : [];
+    m.assigneeRefs = [...root.querySelectorAll('[name="mission-assignee"]:checked')].map((x2) => refFromKey(x2.value)).filter(Boolean);
+    root.querySelectorAll("[data-objective-editor]").forEach((card2) => {
+      const o = findObjective(m.objectives, card2.dataset.objectiveEditor);
+      if (!o) return;
+      const f = (n) => card2.querySelector(`:scope > .mission-objective-editor__content [data-objective-field="${n}"]`);
+      o.title = f("title")?.value.trim() || "Obiettivo senza titolo";
+      o.status = f("status")?.value || "pending";
+      o.visibility = f("visibility")?.value || "public";
+      const target = Math.max(1, +f("target")?.value || 1);
+      o.progress = { current: Math.max(0, Math.min(target, +f("current")?.value || 0)), target };
+      o.description = f("description")?.value || "";
+      o.required = !!f("required")?.checked;
+      o.reward = f("reward")?.value || "";
+      const a = refFromKey(f("assignee")?.value);
+      o.assigneeRefs = a ? [a] : [];
+    });
+    const h = root.querySelector("#mission-editor-title");
+    if (h) h.textContent = m.title;
+    const x = root.querySelector("[data-save-state]");
+    if (x) x.innerHTML = dirty() ? '<i class="fa-solid fa-circle"></i> Modifiche non salvate' : '<i class="fa-solid fa-check"></i> Tutto salvato';
+  }
+  function openEditor(mission) {
+    const draft = M.clone(mission), local = localDraft(draft.id);
+    if (local?.draft && snapshot(local.draft) !== snapshot(draft)) {
+      if (confirm(`\xC8 disponibile una bozza locale del ${new Date(local.savedAt).toLocaleString("it-IT")}. Vuoi ripristinarla?`)) Object.assign(draft, local.draft);
+      else clearDraft(draft.id);
+    }
+    S.editor = { draft, baseline: snapshot(mission), saving: false };
+    renderEditor();
+    setTimeout(() => R.editor.querySelector('[name="mission-title"]')?.focus(), 30);
+  }
+  function closeEditor(force = false) {
+    if (!S.editor) return;
+    collect();
+    if (!force && dirty() && !confirm("Hai modifiche non salvate. Vuoi chiudere e conservarle soltanto come bozza locale?")) return;
+    if (dirty()) saveDraft();
+    else clearDraft(S.editor.draft.id);
+    S.editor = null;
+    renderEditor();
+  }
+  function rerenderEditor() {
+    const b = R.editor.querySelector(".mission-editor__body"), y = b?.scrollTop || 0;
+    renderEditor();
+    const n = R.editor.querySelector(".mission-editor__body");
+    if (n) n.scrollTop = y;
+  }
+  function mutate(action, id) {
+    collect();
+    const m = S.editor.draft;
+    if (action === "add") m.objectives.push(M.createObjective(m.id));
+    else {
+      const l = findLocation(m.objectives, id);
+      if (!l) return;
+      if (action === "child") l.objective.subObjectives.push(M.createObjective(l.objective.id));
+      if (action === "up" && l.index > 0) [l.list[l.index - 1], l.list[l.index]] = [l.list[l.index], l.list[l.index - 1]];
+      if (action === "down" && l.index < l.list.length - 1) [l.list[l.index + 1], l.list[l.index]] = [l.list[l.index], l.list[l.index + 1]];
+      if (action === "archive-objective") l.objective.status = "archived";
+      if (action === "restore") l.objective.status = "pending";
+    }
+    scheduleDraft();
+    rerenderEditor();
+  }
+  async function saveEditor() {
+    if (!S.editor || S.editor.saving) return;
+    collect();
+    const editor = S.editor;
+    editor.saving = true;
+    R.editor.querySelector(".mission-editor__save")?.setAttribute("disabled", "");
+    try {
+      await ensureBootstrap();
+      const current = findMission(editor.draft.id), expected = +(current?.revision ?? editor.draft.revision ?? 0), result = await M.upsert(editor.draft, expected);
+      if (!result.mission) throw Error("Risposta di salvataggio incompleta.");
+      const i = S.data.missions.findIndex((x) => x.id === result.mission.id);
+      if (i >= 0) S.data.missions[i] = result.mission;
+      else S.data.missions.push(result.mission);
+      S.data.version = +result.version || S.data.version;
+      clearDraft(editor.draft.id);
+      S.editor = null;
+      renderEditor();
+      render();
+      window.CriptaApp?.api?.clearCache?.("api/missions");
+      toast("Missione salvata.", "success");
+    } catch (e) {
+      editor.saving = false;
+      R.editor.querySelector(".mission-editor__save")?.removeAttribute("disabled");
+      saveDraft();
+      console.error(e);
+      toast(e.message || "Salvataggio fallito. La bozza \xE8 al sicuro.", "error", 7e3);
+    }
+  }
+  function editorAction(button) {
+    const a = button.dataset.editorAction, id = button.dataset.objective || "";
+    if (a === "close") return closeEditor();
+    if (a === "save") return saveEditor();
+    if (a === "archive") {
+      collect();
+      S.editor.draft.status = S.editor.draft.status === "archived" ? "draft" : "archived";
+      scheduleDraft();
+      return rerenderEditor();
+    }
+    return mutate(a, id);
+  }
+  function bind(scope) {
+    scope.listen(document, "click", (e) => {
+      const eb = e.target.closest("[data-editor-action]");
+      if (eb && R.editor.contains(eb)) {
+        e.preventDefault();
+        editorAction(eb);
+        return;
+      }
+      if (e.target.classList.contains("mission-editor-backdrop")) {
+        closeEditor();
+        return;
+      }
+      const b = e.target.closest("[data-action]");
+      if (!b) return;
+      e.preventDefault();
+      const a = b.dataset.action;
+      if (a === "reload") init(true);
+      if (a === "type") {
+        S.type = b.dataset.value || "";
+        render();
+      }
+      if (a === "toggle") {
+        const id = b.dataset.mission;
+        if (S.expanded.has(id)) S.expanded.delete(id);
+        else S.expanded.add(id);
+        render();
+      }
+      if (a === "edit") {
+        const m = findMission(b.dataset.mission);
+        if (m) openEditor(m);
+      }
+      if (a === "objective") toggleObjective(b.dataset.mission, b.dataset.objective);
+    });
+    scope.listen(R.search, "input", (e) => {
+      S.search = e.target.value || "";
+      render();
+    });
+    scope.listen(R["status-filter"], "change", (e) => {
+      S.status = e.target.value || "";
+      render();
+    });
+    scope.listen(R.new, "click", () => openEditor(M.createMission((S.data.missions || []).map((m) => m.id))));
+    scope.listen(R.editor, "input", (e) => {
+      if (!S.editor) return;
+      if (e.target.matches("[data-entity-filter]")) {
+        const q = e.target.value.trim().toLowerCase();
+        R.editor.querySelectorAll("[data-entity-name]").forEach((x) => x.hidden = !!(q && !x.dataset.entityName.includes(q)));
+        return;
+      }
+      collect();
+      scheduleDraft();
+    });
+    scope.listen(R.editor, "change", () => {
+      if (S.editor) {
+        collect();
+        scheduleDraft();
+      }
+    });
+    scope.listen(document, "keydown", (e) => {
+      if (e.key === "Escape" && S.editor) {
+        e.preventDefault();
+        closeEditor();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s" && S.editor) {
+        e.preventDefault();
+        saveEditor();
+      }
+    });
+    window.CriptaApp?.navigation?.addLeaveGuard?.("missions-editor", () => {
+      if (!S.editor) return null;
+      collect();
+      if (!dirty()) return null;
+      return { active: true, message: "Hai modifiche non salvate nella missione. La bozza locale verr\xE0 conservata: continuare?", discard: saveDraft };
+    });
+  }
+  async function init(force = false) {
+    cache();
+    if (!R.content) return;
+    showLoading();
+    try {
+      S.data = await M.load({ force });
+      S.expanded.clear();
+      S.data.missions.filter((m) => m.type === "main" && ["active", "available"].includes(m.status)).forEach((m) => S.expanded.add(m.id));
+      render();
+      if (S.data.needsBootstrap && S.data.canEdit && S.data.bootstrapAvailable) {
+        try {
+          S.data = await M.bootstrap(S.data);
+          render();
+          toast("Nuovo registro creato come copia: i dati legacy sono rimasti intatti.", "success", 5600);
+        } catch (e) {
+          console.info("Bootstrap missioni rimandato; resta attivo il fallback legacy.", e);
         }
-
-        function cloneQuestData(data) {
-            try {
-                return structuredClone(data);
-            } catch (_) {
-                return JSON.parse(JSON.stringify(data || null));
-            }
-        }
-
-        function siteUrl(path) {
-            const cleanPath = String(path || '').replace(/^\/+/, '');
-            if (cleanPath.startsWith('assets/data/') && typeof window.CriptaApp?.urls?.data === 'function') {
-                return window.CriptaApp.urls.data(cleanPath.replace(/^assets\/data\//, ''));
-            }
-            if (typeof window.CriptaApp?.urls?.site === 'function') {
-                return window.CriptaApp.urls.site(cleanPath);
-            }
-            return new URL(`../${cleanPath}`, window.location.href).toString();
-        }
-
-        function getSyncedNpcImagePath(npcId, variant = 'hover') {
-            return window.CriptaCharacterNormalize.getSyncedNpcImagePath(npcId, variant);
-        }
-
-        function getSyncedPlayerImagePath(player, variant = 'avatar') {
-            return window.CriptaCharacterNormalize.getSyncedPlayerImagePath(player, variant);
-        }
-
-        function slugifyQuestValue(value, fallback = 'missione') {
-            if (typeof window.CriptaApp?.utils?.slugify === 'function') {
-                return window.CriptaApp.utils.slugify(value, fallback);
-            }
-            const slug = String(value || '')
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '');
-            return slug || fallback;
-        }
-
-        function createUniqueQuestGroupId(seed, excludingIndex = -1) {
-            const base = `${slugifyQuestValue(seed, 'missione')}_quests`;
-            const used = new Set(
-                questState.groups
-                    .map((group, index) => (index === excludingIndex ? '' : String(group?.id || '').trim()))
-                    .filter(Boolean)
-            );
-            if (!used.has(base)) return base;
-            let counter = 2;
-            let candidate = `${base}-${counter}`;
-            while (used.has(candidate)) {
-                counter += 1;
-                candidate = `${base}-${counter}`;
-            }
-            return candidate;
-        }
-
-        // Funzione helper per parsare YAML (molto semplificata, solo per estrarre immagini)
-        function extractImagesFromYaml(yamlText) {
-            const avatarMatch = yamlText.match(/avatar:\s*["']?([^"'\n]+)["']?/);
-            return avatarMatch ? avatarMatch[1] : null;
-        }
-        function isHiddenFromYaml(yamlText) {
-            // Match only top-level "hidden: true" (no indentation),
-            // so nested fields like content_blocks[].hidden don't hide the whole NPC.
-            return /^hidden:\s*true\b/im.test(yamlText || '');
-        }
-
-        async function fetchCampaignJson(pathname, fallback) {
-            try {
-                if (typeof window.CriptaApp?.data?.json === 'function') {
-                    return await window.CriptaApp.data.json(pathname);
-                }
-                return await window.CriptaApp.fetchJson(siteUrl(`assets/data/${pathname}`), { clone: true });
-            } catch (error) {
-                console.warn(`Impossibile caricare ${pathname}:`, error);
-                return fallback;
-            }
-        }
-
-        async function loadQuestsDocument(options = {}) {
-            try {
-                if (typeof window.CriptaApp?.api?.get === 'function') {
-                    const payload = await window.CriptaApp.api.get('api/data/quests', {
-                        query: options.force ? { _: Date.now() } : undefined
-                    });
-                    if (Array.isArray(payload?.data)) {
-                        return {
-                            data: payload.data,
-                            source: payload.source || 'kv',
-                            version: Number(payload.version || 0)
-                        };
-                    }
-                }
-            } catch (error) {
-                console.warn('KV quests non disponibile, uso JSON statico.', error);
-            }
-
-            const payload = await fetchCampaignJson('quests.json', []);
-            const data = Array.isArray(payload) ? payload : payload?.data || [];
-            return { data, source: 'static', version: 0 };
-        }
-
-        async function resolveCanEditQuests() {
-            try {
-                if (typeof window.CriptaDiscordAuth?.isCurrentUserDm !== 'function') return false;
-                return await window.CriptaDiscordAuth.isCurrentUserDm(window.CriptaBasePath || '');
-            } catch (_) {
-                return false;
-            }
-        }
-
-        function readQuestAuthToken() {
-            return String(window.CriptaDiscordAuth?.getToken?.() || window.CriptaApp?.auth?.getToken?.() || '').trim();
-        }
-
-        async function saveQuestsToKv() {
-            if (questState.saving) return;
-            const token = readQuestAuthToken();
-            if (!token) throw new Error('Login richiesto per salvare le missioni.');
-
-            questState.saving = true;
-            updateQuestStatus('Salvataggio...');
-            try {
-                const body = {
-                    data: questState.groups,
-                    campaignId: window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue',
-                    expectedVersion: questState.source === 'kv' ? questState.version : 0
-                };
-                const result = await window.CriptaApp.api.post('api/data/quests', body, { token });
-                questState.source = 'kv';
-                questState.version = Number(result?.version || questState.version || 0);
-                window.CriptaApp?.api?.clearCache?.('api/data/quests');
-                updateQuestStatus('Missioni salvate.');
-            } finally {
-                questState.saving = false;
-            }
-        }
-
-        async function loadLegacyNpcAssets() {
-            const respIndex = await fetch(siteUrl('assets/data/characters/index.yaml'));
-            if (!respIndex.ok) return;
-            const text = await respIndex.text();
-            const lines = text.split('\n');
-            const entries = [];
-            let currentId = null;
-
-            for (const line of lines) {
-                const idMatch = line.match(/- id:\s*["']?([^"']+)["']?/);
-                if (idMatch) currentId = idMatch[1];
-                const fileMatch = line.match(/file:\s*["']?([^"']+)["']?/);
-                if (currentId && fileMatch) {
-                    entries.push({ id: currentId, file: fileMatch[1] });
-                    currentId = null;
-                }
-            }
-
-            await Promise.all(entries.map(async (entry) => {
-                try {
-                    const response = await fetch(siteUrl(`assets/data/${entry.file}`));
-                    if (!response.ok) return;
-                    const text = await response.text();
-                    if (window.WikiSpoiler && !window.WikiSpoiler.allowSpoilers() && isHiddenFromYaml(text)) return;
-                    const img = extractImagesFromYaml(text);
-                    characterImages[entry.id] = getSyncedNpcImagePath(entry.id, 'hover');
-                    characterImageMeta[entry.id] = { type: 'npc', fallback: getSyncedNpcImagePath(entry.id, 'token'), legacyFallback: img || '' };
-                } catch (_) {
-                    console.warn("Failed to load generic NPC", entry.id);
-                }
-            }));
-        }
-
-        // Carica dati giocatori e NPC per le immagini
-        async function loadCharacterAssets() {
-            try {
-                Object.keys(characterImages).forEach(key => delete characterImages[key]);
-                Object.keys(characterImageMeta).forEach(key => delete characterImageMeta[key]);
-
-                const playersPayload = await fetchCampaignJson('players.json', []);
-                const players = Array.isArray(playersPayload) ? playersPayload : playersPayload?.data || [];
-                players.forEach((player) => {
-                    const id = String(player?.id || '').trim();
-                    if (!id) return;
-                    characterImages[id] = getSyncedPlayerImagePath({ ...player, type: 'player' }, 'avatar');
-                    characterImageMeta[id] = {
-                        type: 'player',
-                        fallback: getSyncedPlayerImagePath({ ...player, type: 'player' }, 'token'),
-                        legacyFallback: player?.images?.avatar || player?.avatar || ''
-                    };
-                });
-
-                const charactersPayload = await fetchCampaignJson('characters.json', null);
-                const characters = Array.isArray(charactersPayload) ? charactersPayload : charactersPayload?.data || [];
-                if (characters.length) {
-                    characters
-                        .filter((character) => !window.WikiSpoiler || window.WikiSpoiler.isVisible(character))
-                        .forEach((character) => {
-                            const id = String(character?.id || '').trim();
-                            if (!id) return;
-                            const images = character.images || {};
-                            characterImages[id] = getSyncedNpcImagePath(id, 'hover');
-                            characterImageMeta[id] = {
-                                type: 'npc',
-                                fallback: getSyncedNpcImagePath(id, 'token'),
-                                legacyFallback: images.hover || images.avatar || character.avatar || ''
-                            };
-                        });
-                } else {
-                    await loadLegacyNpcAssets();
-                }
-
-            } catch (e) {
-                console.warn("Errore caricamento assets personaggi:", e);
-            }
-        }
-
-        function resolveImagePath(path) {
-            return window.CriptaApp.utils.resolveImageUrl(path);
-        }
-
-        function buildImageFallbackHandler(fallbackPath, legacyFallbackPath = '') {
-            const fallbackUrl = resolveImagePath(fallbackPath);
-            const legacyFallbackUrl = resolveImagePath(legacyFallbackPath);
-            const escaped = fallbackUrl.replace(/'/g, "\\'");
-            const escapedLegacy = legacyFallbackUrl.replace(/'/g, "\\'");
-            if (!escaped && !escapedLegacy) return '';
-            return ` data-fallback-src="${escaped}" data-legacy-fallback-src="${escapedLegacy}" onerror="if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else if(this.dataset.legacyFallbackSrc){this.src=this.dataset.legacyFallbackSrc;this.dataset.legacyFallbackSrc='';}else{this.style.display='none';}"`;
-        }
-
-        async function loadNpcRecencyMap() {
-            try {
-                const payload = await fetchCampaignJson('npc-recency.json', { items: [] });
-                const map = {};
-                (payload.items || []).forEach(item => {
-                    if (item && item.id) map[item.id] = item;
-                });
-                return map;
-            } catch (error) {
-                console.warn("Impossibile caricare npc-recency.json:", error);
-                return {};
-            }
-        }
-
-        function sortQuestGroups(groups, recencyMap) {
-            const list = Array.isArray(groups) ? [...groups] : [];
-            const parseOrderSlot = (value) => {
-                if (value === null || value === undefined || value === '') return null;
-                const slot = Number(value);
-                return Number.isInteger(slot) && slot > 0 ? slot : null;
-            };
-            const mainGroups = list.filter((group) => group.id === 'main_quest');
-            const secondaryGroups = list.filter((group) => group.id !== 'main_quest');
-
-            const recencySort = (aMeta, bMeta) => {
-                if (aMeta.lastMentionSessionId !== bMeta.lastMentionSessionId) {
-                    return bMeta.lastMentionSessionId - aMeta.lastMentionSessionId;
-                }
-                if (aMeta.mentions !== bMeta.mentions) {
-                    return bMeta.mentions - aMeta.mentions;
-                }
-                return String(aMeta.group.title || aMeta.group.id || '').localeCompare(
-                    String(bMeta.group.title || bMeta.group.id || ''),
-                    'it'
-                );
-            };
-
-            const metas = secondaryGroups.map((group) => {
-                const recency = group.npc_id ? (recencyMap[group.npc_id] || {}) : {};
-                return {
-                    group,
-                    slot: parseOrderSlot(recency.order_slot),
-                    lastMentionSessionId: Number.isFinite(Number(recency.lastMentionSessionId)) ? Number(recency.lastMentionSessionId) : -1,
-                    mentions: Number.isFinite(Number(recency.mentions)) ? Number(recency.mentions) : 0,
-                };
-            });
-
-            const unpinned = metas.filter((meta) => meta.slot === null).sort(recencySort);
-            const pinned = metas.filter((meta) => meta.slot !== null).sort((a, b) => {
-                if (a.slot !== b.slot) return a.slot - b.slot;
-                return recencySort(a, b);
-            });
-
-            const orderedSecondary = unpinned.map((meta) => meta.group);
-            pinned.forEach((meta) => {
-                const insertIndex = Math.max(0, Math.min(meta.slot - 1, orderedSecondary.length));
-                orderedSecondary.splice(insertIndex, 0, meta.group);
-            });
-
-            return [...mainGroups, ...orderedSecondary];
-        }
-
-        // Script per l'apertura/chiusura a fisarmonica (Accordion)
-        function toggleQuest(header) {
-            const card = header.parentElement;
-            const body = card.querySelector('.quest-body');
-            const isExpanded = card.classList.contains('expanded');
-
-            if (isExpanded) {
-                // Chiudi
-                body.style.maxHeight = body.scrollHeight + 'px'; // Imposta altezza fissa prima di chiudere per transizione fluida
-                requestAnimationFrame(() => {
-                    body.style.maxHeight = '0px';
-                    card.classList.remove('expanded');
-                });
-            } else {
-                // Apri
-                card.classList.add('expanded');
-                body.style.maxHeight = body.scrollHeight + 'px';
-
-                // Rimuovi max-height alla fine della transizione per permettere resize dinamico
-                setTimeout(() => {
-                    if (card.classList.contains('expanded')) {
-                        body.style.maxHeight = 'none';
-                    }
-                }, 500);
-            }
-        }
-
-        // Renderizza una subquest (o un obiettivo semplice)
-        function createObjectiveHtml(quest, groupIndex, path = []) {
-            if (window.WikiSpoiler && !window.WikiSpoiler.isVisible(quest)) return '';
-            if (!window.WikiSpoiler && quest.status === 'hidden') return '';
-
-            const isDone = quest.status === 'completed';
-            const hasSubquests = quest.subquests && quest.subquests.length > 0;
-            const pathValue = path.join('.');
-
-            // Icona specifica personaggio
-            let charIconHtml = '';
-            if (quest.character_specific && characterImages[quest.character_specific]) {
-                const imgPath = resolveImagePath(characterImages[quest.character_specific]);
-                const fallback = characterImageMeta[quest.character_specific]?.fallback || '';
-                const legacyFallback = characterImageMeta[quest.character_specific]?.legacyFallback || '';
-                charIconHtml = `<img src="${escapeHtml(imgPath)}" class="quest-char-icon-small" title="Esclusiva per ${escapeHtml(quest.character_specific)}" alt="${escapeHtml(quest.character_specific)}" loading="lazy" decoding="async"${buildImageFallbackHandler(fallback, legacyFallback)}>`;
-            }
-
-            let html = `
-                <li class="objective-item ${isDone ? 'done' : ''} ${hasSubquests ? 'has-subquests' : ''}" data-quest-path="${escapeHtml(pathValue)}">
-                    ${hasSubquests ? '' : `<button type="button" class="custom-checkbox" data-quest-action="toggle-objective" data-quest-group-index="${groupIndex}" data-quest-path="${escapeHtml(pathValue)}" ${questState.canEdit ? '' : 'disabled'} title="${questState.canEdit ? 'Cambia stato obiettivo' : ''}"></button>`}
-                    <div class="objective-content">
-                        <span class="objective-text">
-                            ${charIconHtml}
-                            ${escapeHtml(quest.title || 'Obiettivo')}
-                        </span>
-            `;
-
-            if (quest.rewards) {
-                html += `<div class="objective-reward"><i class="fas fa-gift"></i> ${escapeHtml(quest.rewards)}</div>`;
-            }
-
-            if (hasSubquests) {
-                html += '<ul class="subquest-list">';
-                quest.subquests.forEach((sub, subIndex) => {
-                    html += createObjectiveHtml(sub, groupIndex, [...path, subIndex]);
-                });
-                html += '</ul>';
-            }
-
-            html += `
-                    </div>
-                </li>
-            `;
-            return html;
-        }
-
-        // Funzione per generare l'HTML di una singola card (Gruppo di Quest)
-        function createQuestGroupCard(group, groupIndex) {
-            if (window.WikiSpoiler && !window.WikiSpoiler.isVisible(group)) return null;
-            const groupQuests = Array.isArray(group.quests) ? group.quests : [];
-            // Filtra quest nascoste per il conteggio
-            const visibleQuests = groupQuests.filter(q =>
-                window.WikiSpoiler ? window.WikiSpoiler.isVisible(q) : q.status !== 'hidden'
-            );
-            if (visibleQuests.length === 0 && groupQuests.length > 0) return null;
-
-            const total = visibleQuests.length;
-            const completed = visibleQuests.filter(q => q.status === 'completed').length;
-            const progress = total > 0 ? (completed / total) * 100 : 0;
-
-            let groupStatus = 'active';
-            if (total > 0 && completed === total) groupStatus = 'completed';
-
-            const objectivesHtml = groupQuests
-                .map((q, objectiveIndex) => (
-                    (window.WikiSpoiler ? window.WikiSpoiler.isVisible(q) : q.status !== 'hidden')
-                        ? createObjectiveHtml(q, groupIndex, [objectiveIndex])
-                        : ''
-                ))
-                .join('');
-
-            const statusMap = {
-                active: { text: 'In Corso', class: 'status-active' },
-                completed: { text: 'Completata', class: 'status-completed' },
-                failed: { text: 'Fallita', class: 'status-failed' }
-            };
-            const statusInfo = statusMap[groupStatus] || { text: 'Ignoto', class: '' };
-
-            // NPC Avatar Logic
-            let npcAvatarHtml = '';
-            if (group.npc_id && characterImages[group.npc_id]) {
-                const fallback = characterImageMeta[group.npc_id]?.fallback || '';
-                const legacyFallback = characterImageMeta[group.npc_id]?.legacyFallback || '';
-                npcAvatarHtml = `
-                    <div class="quest-npc-avatar">
-                        <img src="${escapeHtml(resolveImagePath(characterImages[group.npc_id]))}" alt="${escapeHtml(group.title)}" loading="lazy" decoding="async"${buildImageFallbackHandler(fallback, legacyFallback)}>
-                    </div>
-                `;
-            }
-
-            const card = document.createElement('div');
-            card.className = `quest-card ${groupStatus} expanded`;
-            card.dataset.questGroupIndex = String(groupIndex);
-            card.innerHTML = `
-                <div class="quest-header" data-quest-action="toggle-card">
-                    ${npcAvatarHtml}
-                    <div class="quest-title-group">
-                        <h3 class="text-gold-gradient">${escapeHtml(group.title || 'Missione')}</h3>
-                        ${group.npc_id ? `<span class="quest-type">Incarichi di ${escapeHtml(group.title || '')}</span>` : ''}
-                    </div>
-                    <div class="mini-progress"><div class="mini-bar" style="width: ${progress}%;"></div></div>
-                    <span class="quest-status ${statusInfo.class}">${statusInfo.text}</span>
-                    ${questState.canEdit ? `<button type="button" class="quest-edit-btn" data-quest-action="edit-group" data-quest-group-index="${groupIndex}" title="Modifica missione"><i class="fas fa-pen"></i></button>` : ''}
-                    <i class="fas fa-chevron-down expand-icon"></i>
-                </div>
-                <div class="quest-body" style="display: block;"> 
-                    <div class="quest-content">
-                        ${group.description ? `<p class="quest-desc">${escapeHtml(group.description)}</p>` : ''}
-                        <ul class="objective-list">${objectivesHtml}</ul>
-                    </div>
-                </div>
-            `;
-            return card;
-        }
-
-        function renderQuestAdminToolbar(root) {
-            if (!questState.canEdit || root.querySelector('[data-quest-admin-toolbar]')) return;
-            const toolbar = document.createElement('div');
-            toolbar.className = 'quest-admin-toolbar';
-            toolbar.dataset.questAdminToolbar = 'true';
-            toolbar.innerHTML = `
-                <div>
-                    <strong>Gestione missioni</strong>
-                    <span data-quest-status>${questState.source === 'kv' ? 'Dati online KV.' : 'Dati statici: il primo salvataggio creerà la versione KV.'}</span>
-                </div>
-            `;
-            toolbar.firstElementChild?.insertAdjacentHTML('afterend', `
-                <div class="quest-admin-toolbar__actions">
-                    <button type="button" class="quest-admin-btn" data-quest-action="create-group">
-                        <i class="fas fa-plus"></i>
-                        Nuova missione
-                    </button>
-                </div>
-            `);
-            root.prepend(toolbar);
-        }
-
-        function updateQuestStatus(message, isError = false) {
-            const status = document.querySelector('[data-quest-status]');
-            if (!status) return;
-            status.textContent = message || '';
-            status.classList.toggle('is-error', Boolean(isError));
-        }
-
-        function renderQuests() {
-            const mainContainer = document.getElementById('main-quests-container');
-            const secondaryContainer = document.getElementById('secondary-quests-container');
-            if (!mainContainer || !secondaryContainer) return;
-            mainContainer.innerHTML = '';
-            secondaryContainer.innerHTML = '';
-
-            questState.groups.forEach((group, groupIndex) => {
-                const card = createQuestGroupCard(group, groupIndex);
-                if (!card) return;
-
-                if (group.id === 'main_quest') {
-                    mainContainer.appendChild(card);
-                } else {
-                    secondaryContainer.appendChild(card);
-                }
-            });
-        }
-
-        function getQuestObjectiveByPath(group, pathValue) {
-            const indexes = String(pathValue || '')
-                .split('.')
-                .filter(part => part !== '')
-                .map(part => Number(part));
-            let current = null;
-            let list = group?.quests || [];
-            for (const index of indexes) {
-                if (!Number.isInteger(index) || !Array.isArray(list) || !list[index]) return null;
-                current = list[index];
-                list = current.subquests || [];
-            }
-            return current;
-        }
-
-        function normalizeQuestStatus(value) {
-            const clean = String(value || '').trim();
-            return QUEST_STATUS_OPTIONS.some(([status]) => status === clean) ? clean : 'active';
-        }
-
-        async function toggleQuestObjective(groupIndex, pathValue) {
-            if (!questState.canEdit) return;
-            const group = questState.groups[groupIndex];
-            const objective = getQuestObjectiveByPath(group, pathValue);
-            if (!objective) return;
-            const previousStatus = objective.status;
-            objective.status = objective.status === 'completed' ? 'active' : 'completed';
-            try {
-                await saveQuestsToKv();
-                renderQuests();
-            } catch (error) {
-                objective.status = previousStatus;
-                console.error('Salvataggio missione fallito:', error);
-                updateQuestStatus(error?.message || 'Salvataggio fallito.', true);
-                alert(`Salvataggio fallito: ${error?.message || error}`);
-            }
-        }
-
-        function ensureQuestEditorModal() {
-            let modal = document.getElementById('quest-editor-modal');
-            if (modal) return modal;
-            modal = document.createElement('div');
-            modal.id = 'quest-editor-modal';
-            modal.className = 'quest-editor-modal';
-            modal.hidden = true;
-            document.body.appendChild(modal);
-            return modal;
-        }
-
-        function closeQuestEditor() {
-            const modal = ensureQuestEditorModal();
-            modal.hidden = true;
-            questState.editing = null;
-        }
-
-        function createEmptyQuestGroup() {
-            return {
-                id: createUniqueQuestGroupId('nuova-missione'),
-                title: 'Nuova missione',
-                npc_id: null,
-                description: '',
-                quests: [
-                    { title: 'Nuovo obiettivo', status: 'active' }
-                ]
-            };
-        }
-
-        function openNewQuestEditor() {
-            const draft = createEmptyQuestGroup();
-            questState.editing = {
-                mode: 'create',
-                groupIndex: -1,
-                original: null,
-                draft
-            };
-            renderQuestEditor();
-        }
-
-        function openQuestEditor(groupIndex) {
-            const group = questState.groups[groupIndex];
-            if (!group) return;
-            questState.editing = {
-                mode: 'edit',
-                groupIndex,
-                original: cloneQuestData(group),
-                draft: cloneQuestData(group)
-            };
-            renderQuestEditor();
-        }
-
-        function renderQuestEditor() {
-            const modal = ensureQuestEditorModal();
-            const editing = questState.editing;
-            const draft = editing?.draft;
-            if (!draft) return;
-            modal.hidden = false;
-            modal.innerHTML = `
-                <div class="quest-editor-panel" role="dialog" aria-modal="true" aria-label="${editing.mode === 'create' ? 'Nuova missione' : 'Modifica missione'}">
-                    <div class="quest-editor-head">
-                        <div>
-                            <p>${editing.mode === 'create' ? 'Nuova missione' : 'Missione'}</p>
-                            <h3>${escapeHtml(draft.title || 'Missione')}</h3>
-                        </div>
-                        <button type="button" class="quest-editor-close" data-quest-action="close-editor" title="Chiudi"><i class="fas fa-xmark"></i></button>
-                    </div>
-                    <div class="quest-editor-grid">
-                        <label>
-                            <span>Titolo</span>
-                            <input type="text" data-quest-editor-field="title" value="${escapeHtml(draft.title || '')}">
-                        </label>
-                        <label>
-                            <span>Legame NPC/Giocatore</span>
-                            <input type="text" data-quest-editor-field="npc_id" value="${escapeHtml(draft.npc_id || '')}" placeholder="id opzionale">
-                        </label>
-                        <label class="quest-editor-field--full">
-                            <span>Descrizione</span>
-                            <textarea data-quest-editor-field="description" rows="3">${escapeHtml(draft.description || '')}</textarea>
-                        </label>
-                    </div>
-                    <div class="quest-editor-objectives">
-                        <div class="quest-editor-objectives__head">
-                            <strong>Obiettivi</strong>
-                            <button type="button" data-quest-action="add-objective"><i class="fas fa-plus"></i> Aggiungi</button>
-                        </div>
-                        ${renderQuestEditorObjectiveRows(draft.quests || [])}
-                    </div>
-                    <div class="quest-editor-actions">
-                        <button type="button" class="quest-editor-btn quest-editor-btn--ghost" data-quest-action="close-editor">Annulla</button>
-                        <button type="button" class="quest-editor-btn quest-editor-btn--primary" data-quest-action="save-editor">Salva missione</button>
-                    </div>
-                </div>
-            `;
-        }
-
-        function renderQuestEditorObjectiveRows(quests, prefix = [], depth = 0) {
-            return (Array.isArray(quests) ? quests : []).map((quest, index) => {
-                const path = [...prefix, index];
-                const pathValue = path.join('.');
-                const status = normalizeQuestStatus(quest.status);
-                const children = renderQuestEditorObjectiveRows(quest.subquests || [], path, depth + 1);
-                return `
-                    <div class="quest-editor-objective" data-quest-editor-objective data-quest-path="${escapeHtml(pathValue)}" style="--quest-depth:${depth}">
-                        <input type="text" data-quest-editor-objective-field="title" value="${escapeHtml(quest.title || '')}" placeholder="Titolo obiettivo">
-                        <select data-quest-editor-objective-field="status">
-                            ${QUEST_STATUS_OPTIONS.map(([value, label]) => `<option value="${value}"${value === status ? ' selected' : ''}>${label}</option>`).join('')}
-                        </select>
-                        <input type="text" data-quest-editor-objective-field="character_specific" value="${escapeHtml(quest.character_specific || '')}" placeholder="Personaggio">
-                        <input type="text" data-quest-editor-objective-field="rewards" value="${escapeHtml(quest.rewards || '')}" placeholder="Ricompensa">
-                    </div>
-                    ${children}
-                `;
-            }).join('');
-        }
-
-        function collectQuestEditorDraft() {
-            const editing = questState.editing;
-            const modal = document.getElementById('quest-editor-modal');
-            if (!editing?.draft || !modal) return null;
-            const draft = editing.draft;
-            draft.title = modal.querySelector('[data-quest-editor-field="title"]')?.value.trim() || 'Missione';
-            draft.npc_id = modal.querySelector('[data-quest-editor-field="npc_id"]')?.value.trim() || null;
-            if (editing.mode === 'create' || !String(draft.id || '').trim()) {
-                draft.id = createUniqueQuestGroupId(draft.npc_id || draft.title, editing.groupIndex);
-            }
-            const description = modal.querySelector('[data-quest-editor-field="description"]')?.value.trim() || '';
-            if (description) draft.description = description;
-            else delete draft.description;
-
-            modal.querySelectorAll('[data-quest-editor-objective]').forEach((row) => {
-                const objective = getQuestObjectiveByPath(draft, row.dataset.questPath || '');
-                if (!objective) return;
-                objective.title = row.querySelector('[data-quest-editor-objective-field="title"]')?.value.trim() || 'Obiettivo';
-                objective.status = normalizeQuestStatus(row.querySelector('[data-quest-editor-objective-field="status"]')?.value);
-                const characterSpecific = row.querySelector('[data-quest-editor-objective-field="character_specific"]')?.value.trim() || '';
-                const rewards = row.querySelector('[data-quest-editor-objective-field="rewards"]')?.value.trim() || '';
-                if (characterSpecific) objective.character_specific = characterSpecific;
-                else delete objective.character_specific;
-                if (rewards) objective.rewards = rewards;
-                else delete objective.rewards;
-            });
-            return draft;
-        }
-
-        function addQuestEditorObjective() {
-            const draft = collectQuestEditorDraft();
-            if (!draft) return;
-            if (!Array.isArray(draft.quests)) draft.quests = [];
-            draft.quests.push({ title: 'Nuovo obiettivo', status: 'active' });
-            questState.editing.draft = draft;
-            renderQuestEditor();
-        }
-
-        async function saveQuestEditor() {
-            const editing = questState.editing;
-            const draft = collectQuestEditorDraft();
-            if (!editing || !draft) return;
-            const previousGroups = cloneQuestData(questState.groups);
-            if (editing.mode === 'create') {
-                questState.groups.push(draft);
-            } else {
-                questState.groups[editing.groupIndex] = draft;
-            }
-            try {
-                await saveQuestsToKv();
-                closeQuestEditor();
-                renderQuests();
-            } catch (error) {
-                questState.groups = previousGroups;
-                console.error('Salvataggio missione fallito:', error);
-                updateQuestStatus(error?.message || 'Salvataggio fallito.', true);
-                alert(`Salvataggio fallito: ${error?.message || error}`);
-            }
-        }
-
-        function handleQuestClick(event) {
-            const button = event.target.closest('[data-quest-action]');
-            if (!button) return;
-            event.preventDefault();
-            event.stopPropagation();
-            const action = button.dataset.questAction;
-            if (action === 'toggle-objective') {
-                toggleQuestObjective(Number(button.dataset.questGroupIndex), button.dataset.questPath || '');
-            } else if (action === 'create-group') {
-                openNewQuestEditor();
-            } else if (action === 'edit-group') {
-                openQuestEditor(Number(button.dataset.questGroupIndex));
-            } else if (action === 'close-editor') {
-                closeQuestEditor();
-            } else if (action === 'add-objective') {
-                addQuestEditorObjective();
-            } else if (action === 'save-editor') {
-                saveQuestEditor();
-            } else if (action === 'toggle-card') {
-                toggleQuest(button);
-            }
-        }
-
-        // Caricamento e renderizzazione delle missioni
-        window.CriptaApp.onPageReady("missioni", async function () {
-            try {
-                // 1. Preload images
-                await loadCharacterAssets();
-                questState.canEdit = await resolveCanEditQuests();
-
-                // 2. Load Quests
-                const questsDocument = await loadQuestsDocument();
-                const recencyMap = await loadNpcRecencyMap();
-                questState.groups = sortQuestGroups(questsDocument.data || [], recencyMap);
-                questState.source = questsDocument.source || 'static';
-                questState.version = Number(questsDocument.version || 0);
-
-                const root = document.querySelector('.container');
-                if (root) {
-                    renderQuestAdminToolbar(root);
-                    root.addEventListener('click', handleQuestClick);
-                }
-                ensureQuestEditorModal().addEventListener('click', (event) => {
-                    if (event.target?.id === 'quest-editor-modal') closeQuestEditor();
-                    else handleQuestClick(event);
-                });
-                renderQuests();
-
-            } catch (error) {
-                console.error("Errore nel caricamento delle missioni:", error);
-                const container = window.document.getElementById('main-quests-container');
-                container.innerHTML = '<p style="color: var(--red);">Impossibile caricare il registro delle imprese.</p>';
-            }
-        });
+      }
+    } catch (e) {
+      console.error(e);
+      showError(e);
+    }
+  }
+  window.CriptaApp.onPageReady("missioni", () => {
+    const scope = window.CriptaApp.createPageScope("missioni");
+    S.editor = null;
+    S.pending.clear();
+    S.search = "";
+    S.type = "";
+    S.status = "";
+    cache();
+    bind(scope);
+    init();
+  });
+})();
