@@ -27,7 +27,9 @@
     24,
     25,
     26,
-    27
+    27,
+    28,
+    29
   ],
   "items": [
     {
@@ -36,6 +38,13 @@
       "order_slot": 1,
       "lastMentionSessionId": 20,
       "mentions": 2
+    },
+    {
+      "id": "zara",
+      "name": "Zara Klaren",
+      "order_slot": null,
+      "lastMentionSessionId": 29,
+      "mentions": 20
     },
     {
       "id": "karla",
@@ -50,13 +59,6 @@
       "order_slot": null,
       "lastMentionSessionId": 27,
       "mentions": 5
-    },
-    {
-      "id": "zara",
-      "name": "Zara Klaren",
-      "order_slot": null,
-      "lastMentionSessionId": 26,
-      "mentions": 13
     },
     {
       "id": "tokka",
