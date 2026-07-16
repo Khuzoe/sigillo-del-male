@@ -6041,9 +6041,17 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
     return json({ ok: false, error: "Forbidden: data editing requires campaign editor permissions" }, 403, corsHeaders);
   }
 
-  const data = Array.isArray(body) ? body : body?.data;
+  const skillTreePatch = collection === "skill-trees"
+    && body?.tree
+    && typeof body.tree === "object"
+    && !Array.isArray(body.tree);
+  const data = skillTreePatch
+    ? [body.tree]
+    : Array.isArray(body)
+      ? body
+      : body?.data;
   if (!Array.isArray(data)) {
-    return json({ ok: false, error: "Expected an array or { data: [...] }" }, 400, corsHeaders);
+    return json({ ok: false, error: "Expected an array, { data: [...] }, or { tree: {...} } for skill trees" }, 400, corsHeaders);
   }
 
   const serializedData = JSON.stringify(data);
@@ -6080,6 +6088,18 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
       : ["ability-overrides", "item-overrides", "media-overrides"].includes(collection) && !isCampaignEditor
         ? await mergeUserOwnedOverrides(existingData, data, authenticatedAccountId, env, campaignId, collection)
         : data;
+
+  if (skillTreePatch) {
+    const treeId = String(body.tree.id || "").trim().slice(0, 180);
+    if (!treeId) {
+      return json({ ok: false, error: "Skill tree id is required" }, 400, corsHeaders);
+    }
+    const nextTree = { ...body.tree, id: treeId };
+    const existingIndex = existingData.findIndex((entry) => String(entry?.id || "") === treeId);
+    nextData = existingIndex >= 0
+      ? existingData.map((entry, index) => index === existingIndex ? nextTree : entry)
+      : [...existingData, nextTree];
+  }
 
   const removedTransformationMedia = collection === "transformations"
     ? getRemovedTransformationMediaKeys(existingData, nextData)

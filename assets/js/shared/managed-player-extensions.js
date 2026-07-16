@@ -42,7 +42,7 @@
         if (!document.querySelector("link[data-managed-skill-tree-style]")) {
             const style = document.createElement("link");
             style.rel = "stylesheet";
-            style.href = new URL("../../assets/css/pages/character-skill-tree.css?v=20260716-skill-route1", window.location.href).toString();
+            style.href = new URL("../../assets/css/pages/character-skill-tree.css?v=20260716-skill-editor2", window.location.href).toString();
             style.dataset.managedSkillTreeStyle = "true";
             document.head.appendChild(style);
         }
@@ -50,7 +50,7 @@
         if (skillTreeModulePromise) return skillTreeModulePromise;
         skillTreeModulePromise = new Promise((resolve, reject) => {
             const script = document.createElement("script");
-            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20260716-skill-route1", window.location.href).toString();
+            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20260716-skill-editor2", window.location.href).toString();
             script.defer = true;
             script.dataset.managedSkillTreeScript = "true";
             script.addEventListener("load", () => window.CriptaCharacterSkillTree ? resolve(window.CriptaCharacterSkillTree) : reject(new Error("Modulo alberi non inizializzato.")), { once: true });
@@ -623,6 +623,22 @@
         return result;
     }
 
+    async function saveTree(treeId, tree, nextTrees) {
+        const body = { tree: { ...tree, id: treeId } };
+        if (Number.isFinite(Number(skillsVersion))) body.expectedVersion = Number(skillsVersion);
+        try {
+            const result = await window.CriptaApp.api.post("api/data/skill-trees", body, { token: token() });
+            skillsVersion = Number(result?.version || skillsVersion || 0);
+            skills = nextTrees;
+            return result;
+        } catch (error) {
+            const status = Number(error?.response?.status || error?.status || 0);
+            const message = String(error?.payload?.error || error?.message || "");
+            if (status === 400 && /expected an array/i.test(message)) return saveTrees(nextTrees);
+            throw error;
+        }
+    }
+
     function resolveSkillAssetPath(path) {
         const value = String(path || "").trim();
         if (!value || /^(data:|blob:)/i.test(value)) return value;
@@ -720,6 +736,7 @@
             resizeImageFileToWebpBlobShared: boundedWebp,
             loadSkillTreeStates: async () => states,
             saveSkillTreesData: saveTrees,
+            saveSkillTreeData: saveTree,
             setSkillTreeStates(nextStates, version) {
                 states = Array.isArray(nextStates) ? nextStates : [];
                 if (Number.isFinite(Number(version))) statesVersion = Number(version);

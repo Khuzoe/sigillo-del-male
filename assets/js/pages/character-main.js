@@ -116,7 +116,7 @@ function renderMarkdown(md, options = {}) {
     return window.CriptaMarkdown.render(md, getCharacterMarkdownOptions(options));
 }
 
-const CHARACTER_MODULE_VERSION = '20260716-skill-route1';
+const CHARACTER_MODULE_VERSION = '20260716-skill-editor2';
 
 function versionedCharacterModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);
@@ -1357,6 +1357,24 @@ async function saveSkillTreesData(trees) {
     return result;
 }
 
+async function saveSingleSkillTreeData(treeId, tree, trees) {
+    const token = readSharedAuthToken();
+    if (!token) throw new Error('Login richiesto per salvare l albero abilita.');
+    const body = { tree: { ...tree, id: treeId } };
+    if (Number.isFinite(Number(skillsVersion))) body.expectedVersion = Number(skillsVersion);
+    try {
+        const result = await window.CriptaApp.api.post('api/data/skill-trees', body, { token });
+        skillsVersion = Number(result?.version || skillsVersion || 0);
+        skillsMemoryCache = trees;
+        return result;
+    } catch (error) {
+        const status = Number(error?.response?.status || error?.status || 0);
+        const message = String(error?.payload?.error || error?.message || '');
+        if (status === 400 && /expected an array/i.test(message)) return saveSkillTreesData(trees);
+        throw error;
+    }
+}
+
 async function loadSkillTreeStates() {
     if (skillTreeStatesMemoryCache) return skillTreeStatesMemoryCache;
     if (skillTreeStatesRequestPromise) return skillTreeStatesRequestPromise;
@@ -2225,6 +2243,7 @@ window.CriptaApp.onPageReady("character", async function () {
             resizeImageFileToWebpBlobShared,
             loadSkillTreeStates,
             saveSkillTreesData,
+            saveSkillTreeData: saveSingleSkillTreeData,
             setSkillTreeStates(states, version) {
                 skillTreeStatesMemoryCache = Array.isArray(states) ? states : [];
                 if (Number.isFinite(Number(version))) skillTreeStatesVersion = Number(version);

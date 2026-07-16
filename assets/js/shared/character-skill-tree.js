@@ -162,6 +162,17 @@
         return result;
     }
 
+    async function saveSingleSkillTreeData(treeKey, tree, trees) {
+        const result = typeof skillTreeRuntime.saveSkillTreeData === 'function'
+            ? await skillTreeRuntime.saveSkillTreeData(treeKey, tree, trees)
+            : await saveSkillTreesData(trees);
+        skillsMemoryCache = trees;
+        if (typeof skillTreeRuntime.setSkillsCache === 'function') {
+            skillTreeRuntime.setSkillsCache(trees, result?.version);
+        }
+        return result;
+    }
+
     async function loadSkillTreeStates() {
         if (typeof skillTreeRuntime.loadSkillTreeStates !== 'function') return skillTreeStatesMemoryCache || [];
         const states = await skillTreeRuntime.loadSkillTreeStates();
@@ -819,7 +830,7 @@ function replaceSkillLevelBlockWithParagraph(entry) {
 }
 
 function normalizeSkillLevelStoredHtml(value) {
-    const raw = String(value || '').trim();
+    const raw = String(value || '').replace(/\u200b/g, '').trim();
     if (!raw) return '';
     if (typeof document === 'undefined') return skillLevelEditorTextToHtml(skillLevelHtmlToEditorText(raw));
 
@@ -852,8 +863,283 @@ function normalizeSkillLevelStoredHtml(value) {
     return template.innerHTML.trim();
 }
 
+const skillRichTextSelectionByEditor = new WeakMap();
+
+function isSkillRichTextRangeInsideEditor(editor, range) {
+    if (!(editor instanceof HTMLElement) || !range) return false;
+    const container = range.commonAncestorContainer?.nodeType === Node.ELEMENT_NODE
+        ? range.commonAncestorContainer
+        : range.commonAncestorContainer?.parentElement;
+    return Boolean(container && (container === editor || editor.contains(container)));
+}
+
+function rememberSkillRichTextSelection(editor) {
+    if (!(editor instanceof HTMLElement)) return null;
+    const selection = window.getSelection?.();
+    if (!selection?.rangeCount) return skillRichTextSelectionByEditor.get(editor) || null;
+    const range = selection.getRangeAt(0);
+    if (!isSkillRichTextRangeInsideEditor(editor, range)) return skillRichTextSelectionByEditor.get(editor) || null;
+    const clone = range.cloneRange();
+    skillRichTextSelectionByEditor.set(editor, clone);
+    return clone;
+}
+
+function restoreSkillRichTextSelection(editor) {
+    if (!(editor instanceof HTMLElement)) return null;
+    let range = skillRichTextSelectionByEditor.get(editor) || null;
+    if (!isSkillRichTextRangeInsideEditor(editor, range)) {
+        range = document.createRange();
+        range.selectNodeContents(editor);
+        range.collapse(false);
+    }
+    const selection = window.getSelection?.();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    editor.focus({ preventScroll: true });
+    return range;
+}
+
+function getSkillRichTextAncestor(node, selector, editor) {
+    let element = node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+    while (element && element !== editor) {
+        if (element.matches?.(selector)) return element;
+        element = element.parentElement;
+    }
+    return null;
+}
+
+function placeSkillRichTextCaretAtEnd(element) {
+    if (!element) return;
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    const selection = window.getSelection?.();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+}
+
+function unwrapSkillRichTextElement(element) {
+    if (!element?.parentNode) return;
+    const parent = element.parentNode;
+    const marker = document.createTextNode('');
+    parent.insertBefore(marker, element);
+    while (element.firstChild) parent.insertBefore(element.firstChild, element);
+    element.remove();
+    const range = document.createRange();
+    range.setStartBefore(marker);
+    range.collapse(true);
+    const selection = window.getSelection?.();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    marker.remove();
+}
+
+function applySkillInlineRichTextCommand(editor, selector, tagName) {
+    const range = restoreSkillRichTextSelection(editor);
+    if (!range) return;
+    const active = getSkillRichTextAncestor(range.commonAncestorContainer, selector, editor);
+    if (active) {
+        unwrapSkillRichTextElement(active);
+        rememberSkillRichTextSelection(editor);
+        return;
+    }
+
+    const wrapper = document.createElement(tagName);
+    if (range.collapsed) {
+        wrapper.appendChild(document.createTextNode('\u200b'));
+        range.insertNode(wrapper);
+        placeSkillRichTextCaretAtEnd(wrapper);
+    } else {
+        try {
+            range.surroundContents(wrapper);
+        } catch (_) {
+            wrapper.appendChild(range.extractContents());
+            range.insertNode(wrapper);
+        }
+        placeSkillRichTextCaretAtEnd(wrapper);
+    }
+    rememberSkillRichTextSelection(editor);
+}
+
+function applySkillListRichTextCommand(editor, listTagName) {
+    const range = restoreSkillRichTextSelection(editor);
+    if (!range) return;
+    const existingList = getSkillRichTextAncestor(range.commonAncestorContainer, 'ul, ol', editor);
+    if (existingList) {
+        const fragment = document.createDocumentFragment();
+        Array.from(existingList.children).forEach((entry) => {
+            const paragraph = document.createElement('p');
+            while (entry.firstChild) paragraph.appendChild(entry.firstChild);
+            if (!paragraph.textContent.trim()) paragraph.appendChild(document.createElement('br'));
+            fragment.appendChild(paragraph);
+        });
+        const lastParagraph = fragment.lastElementChild;
+        existingList.replaceWith(fragment);
+        placeSkillRichTextCaretAtEnd(lastParagraph || editor);
+        rememberSkillRichTextSelection(editor);
+        return;
+    }
+
+    const intersectingBlocks = Array.from(editor.children).filter((entry) => {
+        try {
+            return range.intersectsNode(entry);
+        } catch (_) {
+            return false;
+        }
+    });
+    const list = document.createElement(listTagName);
+    if (intersectingBlocks.length) {
+        editor.insertBefore(list, intersectingBlocks[0]);
+        intersectingBlocks.forEach((block) => {
+            const item = document.createElement('li');
+            while (block.firstChild) item.appendChild(block.firstChild);
+            if (!item.textContent.trim()) item.appendChild(document.createElement('br'));
+            list.appendChild(item);
+            block.remove();
+        });
+    } else {
+        const item = document.createElement('li');
+        if (range.collapsed) item.appendChild(document.createElement('br'));
+        else item.appendChild(range.extractContents());
+        list.appendChild(item);
+        range.insertNode(list);
+    }
+    placeSkillRichTextCaretAtEnd(list.lastElementChild || list);
+    rememberSkillRichTextSelection(editor);
+}
+
+function updateSkillRichTextToolbarState(editor) {
+    if (!(editor instanceof HTMLElement)) return;
+    const toolbar = editor.parentElement?.querySelector?.('.player-skill-rich-toolbar');
+    if (!toolbar) return;
+    const selection = window.getSelection?.();
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : skillRichTextSelectionByEditor.get(editor);
+    const container = isSkillRichTextRangeInsideEditor(editor, range) ? range.commonAncestorContainer : null;
+    const commandSelectors = {
+        bold: 'strong, b',
+        italic: 'em, i',
+        underline: 'u',
+        insertUnorderedList: 'ul',
+        insertOrderedList: 'ol'
+    };
+    toolbar.querySelectorAll('[data-skill-rich-command], [data-skill-level-rich-command]').forEach((button) => {
+        const command = button.dataset.skillRichCommand || button.dataset.skillLevelRichCommand || '';
+        const active = Boolean(container && commandSelectors[command]
+            && getSkillRichTextAncestor(container, commandSelectors[command], editor));
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        button.classList.toggle('is-active', active);
+    });
+}
+
+function applySkillRichTextCommand(editor, command) {
+    if (!(editor instanceof HTMLElement)) return;
+    if (command === 'bold') applySkillInlineRichTextCommand(editor, 'strong, b', 'strong');
+    else if (command === 'italic') applySkillInlineRichTextCommand(editor, 'em, i', 'em');
+    else if (command === 'underline') applySkillInlineRichTextCommand(editor, 'u', 'u');
+    else if (command === 'insertUnorderedList') applySkillListRichTextCommand(editor, 'ul');
+    else if (command === 'insertOrderedList') applySkillListRichTextCommand(editor, 'ol');
+    updateSkillRichTextToolbarState(editor);
+    editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'formatChange' }));
+}
+
+function insertSanitizedSkillRichTextFromClipboard(editor, event) {
+    if (!(editor instanceof HTMLElement) || !event?.clipboardData) return false;
+    const containsImage = Array.from(event.clipboardData.files || [])
+        .some((entry) => /^image\//i.test(entry.type || ''));
+    if (containsImage) return false;
+    const clipboardHtml = event.clipboardData.getData('text/html');
+    const clipboardText = event.clipboardData.getData('text/plain');
+    if (!clipboardHtml && !clipboardText) return false;
+    event.preventDefault();
+    const safeHtml = normalizeSkillLevelStoredHtml(clipboardHtml || clipboardText) || '<p><br></p>';
+    const template = document.createElement('template');
+    template.innerHTML = safeHtml;
+    const range = restoreSkillRichTextSelection(editor);
+    if (!range) return true;
+    range.deleteContents();
+    const fragment = template.content.cloneNode(true);
+    const insertedNodes = Array.from(fragment.childNodes);
+    range.insertNode(fragment);
+    const lastNode = insertedNodes[insertedNodes.length - 1];
+    if (lastNode?.parentNode) {
+        const nextRange = document.createRange();
+        nextRange.setStartAfter(lastNode);
+        nextRange.collapse(true);
+        const selection = window.getSelection?.();
+        selection?.removeAllRanges();
+        selection?.addRange(nextRange);
+    }
+    rememberSkillRichTextSelection(editor);
+    editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' }));
+    return true;
+}
+
+function isSkillTreeVersionConflict(error) {
+    return Number(error?.response?.status || error?.status || 0) === 409
+        || String(error?.payload?.code || error?.code || '').toUpperCase() === 'VERSION_CONFLICT';
+}
+
+function openSkillTreeChoiceDialog({ title, message, details = [], actions = [] }) {
+    return new Promise((resolve) => {
+        const dialog = document.createElement('dialog');
+        dialog.className = 'player-skill-choice-dialog';
+        const detailItems = details.filter(Boolean).map((entry) => '<li>' + escapeHtml(entry) + '</li>').join('');
+        const actionButtons = actions.map((action) => (
+            '<button type="button" class="player-skill-action-button '
+            + (action.className || '') + '" data-skill-dialog-value="' + escapeHtml(action.value) + '">'
+            + (action.icon ? '<i class="fas ' + escapeHtml(action.icon) + '" aria-hidden="true"></i>' : '')
+            + escapeHtml(action.label) + '</button>'
+        )).join('');
+        dialog.innerHTML = '<div class="player-skill-choice-dialog-card">'
+            + '<header><span>Editor albero</span><h3>' + escapeHtml(title) + '</h3></header>'
+            + '<p>' + escapeHtml(message) + '</p>'
+            + (detailItems ? '<ul>' + detailItems + '</ul>' : '')
+            + '<div class="player-skill-choice-dialog-actions">' + actionButtons
+            + '<button type="button" class="player-skill-action-button" data-skill-dialog-cancel>Annulla</button>'
+            + '</div></div>';
+        const finish = (value) => {
+            if (dialog.open) dialog.close();
+            dialog.remove();
+            resolve(value);
+        };
+        dialog.addEventListener('cancel', (event) => {
+            event.preventDefault();
+            finish(null);
+        }, { once: true });
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog || event.target.closest('[data-skill-dialog-cancel]')) {
+                finish(null);
+                return;
+            }
+            const action = event.target.closest('[data-skill-dialog-value]');
+            if (action) finish(action.dataset.skillDialogValue || null);
+        });
+        document.body.appendChild(dialog);
+        if (typeof dialog.showModal === 'function') dialog.showModal();
+        else {
+            const fallbackAction = actions[0]?.value || null;
+            finish(window.confirm(message) ? fallbackAction : null);
+        }
+    });
+}
+
+function syncSkillNodeBaseLevel(node) {
+    if (!node || isSkillTreeGroupNode(node)) return [];
+    if (!Array.isArray(node.levels)) node.levels = [];
+    const previous = node.levels[0] && typeof node.levels[0] === 'object' ? node.levels[0] : {};
+    node.levels[0] = {
+        ...previous,
+        label: previous.label || 'Livello 1',
+        title: node.title || '',
+        flavor: node.flavor || '',
+        desc: normalizeSkillLevelStoredHtml(node.desc || ''),
+        icon: node.icon || ''
+    };
+    return node.levels;
+}
+
 function skillLevelHtmlToEditorText(value) {
-    const raw = String(value || '').trim();
+    const raw = String(value || '').replace(/\u200b/g, '').trim();
     if (!raw) return '';
     if (!/<[a-z][\s\S]*>/i.test(raw)) return raw;
 
@@ -1514,8 +1800,8 @@ function renderSkillLevelChangeNotesEditor(level, levelIndex) {
             + '</div>';
     }).join('');
 
-    return '<details class="player-skill-level-change-editor"' + (changes.length ? ' open' : '') + '>'
-        + '<summary><span>Riepilogo modifiche</span><small>Opzionale · se vuoto viene calcolato automaticamente</small><strong>' + changes.length + '</strong></summary>'
+    return '<details class="player-skill-level-change-editor">'
+        + '<summary><span>Riepilogo manuale</span><small>Opzionale · sostituisce il confronto automatico nella scheda</small><strong>' + changes.length + '</strong></summary>'
         + '<div class="player-skill-level-change-edit-list">'
         + (rows || '<p class="player-skill-editor-help">Nessuna modifica manuale: il confronto resta automatico.</p>')
         + '</div>'
@@ -1546,6 +1832,7 @@ function normalizeSkillTreeDefinitionForSave(treeData) {
                         })
                         : node?.levels
                 };
+                if (!isSkillTreeGroupNode(normalizedNode)) syncSkillNodeBaseLevel(normalizedNode);
                 const externalRequirements = getSkillTreeExternalRequirements(normalizedNode);
                 if (externalRequirements.length) normalizedNode.externalRequirements = externalRequirements;
                 else delete normalizedNode.externalRequirements;
@@ -1906,6 +2193,9 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         ...treeData,
         nodes: (treeData.nodes || []).map((node) => ({ ...node, id: String(node.id) }))
     };
+    workingTree.nodes.forEach((node) => {
+        if (!isSkillTreeGroupNode(node)) syncSkillNodeBaseLevel(node);
+    });
     const snapshotTreeDefinition = () => JSON.stringify(workingTree);
     let savedTreeSnapshot = snapshotTreeDefinition();
     const hasUnsavedTreeChanges = () => snapshotTreeDefinition() !== savedTreeSnapshot;
@@ -1920,6 +2210,8 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     let lockedInfoNodeId = '';
     const expandedExternalRequirementNodeIds = new Set();
     const previewLevelByNodeId = new Map();
+    const editorLevelByNodeId = new Map();
+    const skillLevelDiffTimers = new Map();
     let editMode = false;
     let snapToGrid = false;
     let snapToNodes = true;
@@ -2059,7 +2351,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         }
 
         const isGroupNode = isSkillTreeGroupNode(node);
-        const editable = editMode && canEditTree;
+        const editable = false;
         const isInfoLocked = !editable && lockedInfoNodeId && String(node.id) === String(lockedInfoNodeId);
         const nodeId = String(node.id || '');
         const definitionNode = workingTree.nodes.find((entry) => String(entry.id) === nodeId) || node;
@@ -3109,25 +3401,55 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     };
 
     const ensureEditableNodeLevels = (node) => {
-        if (!node) return [];
-        if (!Array.isArray(node.levels) || !node.levels.length) {
-            node.levels = [{
-                label: 'Livello 1',
-                title: node.title || '',
-                flavor: node.flavor || '',
-                desc: node.desc || '',
-                icon: node.icon || ''
-            }];
+        if (!node || isSkillTreeGroupNode(node)) return [];
+        return syncSkillNodeBaseLevel(node);
+    };
+
+    const scheduleSkillLevelDiffPreview = (row, node, index) => {
+        const key = String(node?.id || '') + ':' + String(index);
+        window.clearTimeout(skillLevelDiffTimers.get(key));
+        skillLevelDiffTimers.set(key, window.setTimeout(() => {
+            skillLevelDiffTimers.delete(key);
+            if (!row?.isConnected) return;
+            refreshSkillLevelDiffPreview(row, node, index);
+        }, 200));
+    };
+
+    const updateEditorDirtyState = () => {
+        if (!editorPanel) return;
+        const dirty = hasUnsavedTreeChanges();
+        editorPanel.classList.toggle('has-unsaved-changes', dirty);
+        const status = editorPanel.querySelector('[data-skill-dirty-status]');
+        if (status) {
+            status.classList.toggle('is-dirty', dirty);
+            status.innerHTML = dirty
+                ? '<i class="fas fa-circle" aria-hidden="true"></i><span>Modifiche non salvate</span>'
+                : '<i class="fas fa-check" aria-hidden="true"></i><span>Tutto salvato</span>';
         }
-        return node.levels;
+        const saveButton = editorPanel.querySelector('[data-skill-action="save-tree"]');
+        const discardButton = editorPanel.querySelector('[data-skill-action="discard-tree"]');
+        if (saveButton) saveButton.disabled = !dirty;
+        if (discardButton) discardButton.disabled = !dirty;
+    };
+
+    const restoreSavedTreeDefinition = () => {
+        workingTree = JSON.parse(savedTreeSnapshot);
+        selectedNodeId = workingTree.nodes.some((node) => String(node.id) === String(selectedNodeId))
+            ? selectedNodeId
+            : (workingTree.nodes[0]?.id || '');
+        selectedConnection = null;
+        recalculateNodes();
+        renderTree();
+        renderEditor();
     };
 
     const saveTreeDefinition = async () => {
         const archiveStateChanged = isArchivedSkillTree(treeData) !== isArchivedSkillTree(workingTree);
         const nextTrees = { ...(skillsMemoryCache || allSkillTrees || {}) };
-        nextTrees[treeKey] = normalizeSkillTreeDefinitionForSave(workingTree);
-        await saveSkillTreesData(nextTrees);
-        workingTree = structuredClone(nextTrees[treeKey]);
+        const normalizedTree = normalizeSkillTreeDefinitionForSave(workingTree);
+        nextTrees[treeKey] = normalizedTree;
+        await saveSingleSkillTreeData(treeKey, normalizedTree, nextTrees);
+        workingTree = structuredClone(normalizedTree);
         markTreeDefinitionSaved();
         if (archiveStateChanged) {
             window.location.reload();
@@ -3373,49 +3695,107 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 </div>
             </details>
         ` : '';
-        const allNodeLevels = Array.isArray(node?.levels) ? node.levels : [];
-        const upgradeLevels = allNodeLevels.slice(1);
-        const upgradeLevelsHtml = isGroupNode ? '' : `
-            <details class="player-skill-editor-section player-skill-level-editor" ${upgradeLevels.length ? 'open' : ''}>
-                <summary>Livelli nodo</summary>
-                <div class="player-skill-level-list">
-                    ${upgradeLevels.length ? upgradeLevels.map((level, offset) => {
-                        const index = offset + 1;
-                        const currentDescription = getEffectiveSkillLevelDescription(node, index);
-                        const currentEditorHtml = normalizeSkillLevelStoredHtml(currentDescription) || '<p><br></p>';
-                        const previousDescription = getNodeLevelComparisonDescription(node, index);
-                        return `
-                            <div class="player-skill-level-row" data-skill-level-row="${index}">
-                                <label class="player-skill-level-meta">Etichetta
-                                    <input type="text" data-node-level-index="${index}" data-node-level-field="label" value="${escapeHtml(level.label || `Livello ${index + 1}`)}">
-                                </label>
-                                <label class="player-skill-level-meta">Titolo
-                                    <input type="text" data-node-level-index="${index}" data-node-level-field="title" value="${escapeHtml(level.title || '')}" placeholder="vuoto = titolo base">
-                                </label>
-                                <button type="button" class="player-skill-action-button is-danger is-compact" data-skill-action="delete-node-level" data-node-level-index="${index}">
-                                    <i class="fas fa-trash"></i> Livello
-                                </button>
-                                <div class="player-skill-level-text">
-                                    <span>Testo livello</span>
-                                    <div class="player-skill-rich-toolbar player-skill-level-rich-toolbar" role="toolbar" aria-label="Formato testo livello">
-                                        <button type="button" data-skill-level-rich-command="bold" title="Grassetto"><i class="fas fa-bold" aria-hidden="true"></i></button>
-                                        <button type="button" data-skill-level-rich-command="italic" title="Corsivo"><i class="fas fa-italic" aria-hidden="true"></i></button>
-                                        <button type="button" data-skill-level-rich-command="underline" title="Sottolineato"><i class="fas fa-underline" aria-hidden="true"></i></button>
-                                        <button type="button" data-skill-level-rich-command="insertUnorderedList" title="Elenco puntato"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
-                                        <button type="button" data-skill-level-rich-command="insertOrderedList" title="Elenco numerato"><i class="fas fa-list-ol" aria-hidden="true"></i></button>
-                                    </div>
-                                    <div class="player-skill-level-rich-editor" contenteditable="true" data-node-level-index="${index}" data-node-level-field="desc" spellcheck="true">${currentEditorHtml}</div>
-                                </div>
-                                ${renderSkillLevelDiffHtml(previousDescription, currentDescription, index)}
-                                ${renderSkillLevelChangeNotesEditor(level, index)}
-                            </div>
-                        `;
-                    }).join('') : '<p class="player-skill-editor-help">Nessun potenziamento. Il livello 1 usa il testo del nodo base.</p>'}
-                </div>
-                <button type="button" class="player-skill-action-button is-compact" data-skill-action="add-node-level"><i class="fas fa-plus"></i> Aggiungi livello</button>
-            </details>
+        const allNodeLevels = ensureEditableNodeLevels(node);
+        const maxEditorLevelIndex = Math.max(0, allNodeLevels.length - 1);
+        const requestedEditorLevelIndex = Number(editorLevelByNodeId.get(String(node?.id || '')) || 0);
+        const selectedEditorLevelIndex = Math.max(0, Math.min(maxEditorLevelIndex, requestedEditorLevelIndex));
+        editorLevelByNodeId.set(String(node?.id || ''), selectedEditorLevelIndex);
+        const selectedEditorLevel = allNodeLevels[selectedEditorLevelIndex] || allNodeLevels[0] || {};
+        const richToolbarHtml = (label) => `
+            <div class="player-skill-rich-toolbar player-skill-level-rich-toolbar" role="toolbar" aria-label="${escapeHtml(label)}">
+                <button type="button" data-skill-level-rich-command="bold" title="Grassetto" aria-label="Grassetto" aria-pressed="false"><i class="fas fa-bold" aria-hidden="true"></i></button>
+                <button type="button" data-skill-level-rich-command="italic" title="Corsivo" aria-label="Corsivo" aria-pressed="false"><i class="fas fa-italic" aria-hidden="true"></i></button>
+                <button type="button" data-skill-level-rich-command="underline" title="Sottolineato" aria-label="Sottolineato" aria-pressed="false"><i class="fas fa-underline" aria-hidden="true"></i></button>
+                <button type="button" data-skill-level-rich-command="insertUnorderedList" title="Elenco puntato" aria-label="Elenco puntato" aria-pressed="false"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
+                <button type="button" data-skill-level-rich-command="insertOrderedList" title="Elenco numerato" aria-label="Elenco numerato" aria-pressed="false"><i class="fas fa-list-ol" aria-hidden="true"></i></button>
+            </div>
         `;
-        editorPanel.innerHTML = `
+        const levelTabsHtml = allNodeLevels.map((level, index) => `
+            <button type="button" class="player-skill-level-editor-tab ${index === selectedEditorLevelIndex ? 'is-active' : ''}"
+                data-skill-level-editor-tab="${index}" aria-selected="${index === selectedEditorLevelIndex ? 'true' : 'false'}" role="tab">
+                <span>${index === 0 ? 'Base' : escapeHtml(level.label || `Livello ${index + 1}`)}</span>
+                ${index === 0 ? '<small>Livello 1</small>' : ''}
+            </button>
+        `).join('');
+        const selectedLevelDescription = selectedEditorLevelIndex === 0
+            ? normalizeSkillLevelStoredHtml(node?.desc || '') || '<p><br></p>'
+            : normalizeSkillLevelStoredHtml(getEffectiveSkillLevelDescription(node, selectedEditorLevelIndex)) || '<p><br></p>';
+        const selectedLevelContentHtml = selectedEditorLevelIndex === 0 ? `
+            <div class="player-skill-level-row is-base" data-skill-level-row="0" role="tabpanel">
+                <div class="player-skill-level-heading">
+                    <span>Identita del nodo</span>
+                    <strong>Livello base</strong>
+                </div>
+                <label class="player-skill-level-meta">Titolo
+                    <input type="text" maxlength="120" data-node-base-field="title" value="${escapeHtml(node?.title || '')}">
+                </label>
+                <label class="player-skill-level-meta">Sottotitolo
+                    <input type="text" maxlength="200" data-node-base-field="flavor" value="${escapeHtml(node?.flavor || '')}" placeholder="Opzionale">
+                </label>
+                <div class="player-skill-level-text">
+                    <span>Descrizione base</span>
+                    ${richToolbarHtml('Formato descrizione base')}
+                    <div class="player-skill-level-rich-editor" contenteditable="true" data-node-base-field="desc"
+                        role="textbox" aria-multiline="true" aria-label="Descrizione base del nodo" spellcheck="true">${selectedLevelDescription}</div>
+                </div>
+            </div>
+        ` : (() => {
+            const previousDescription = getNodeLevelComparisonDescription(node, selectedEditorLevelIndex);
+            return `
+                <div class="player-skill-level-row" data-skill-level-row="${selectedEditorLevelIndex}" role="tabpanel">
+                    <div class="player-skill-level-heading">
+                        <span>Potenziamento</span>
+                        <strong>Livello ${selectedEditorLevelIndex + 1}</strong>
+                    <button type="button" class="player-skill-action-button is-danger is-compact player-skill-level-delete"
+                        data-skill-action="delete-node-level" data-node-level-index="${selectedEditorLevelIndex}">
+                        <i class="fas fa-trash" aria-hidden="true"></i> Elimina livello
+                    </button>
+                    </div>
+                    <label class="player-skill-level-meta">Etichetta
+                        <input type="text" maxlength="80" data-node-level-index="${selectedEditorLevelIndex}" data-node-level-field="label"
+                            value="${escapeHtml(selectedEditorLevel.label || `Livello ${selectedEditorLevelIndex + 1}`)}">
+                    </label>
+                    <label class="player-skill-level-meta">Titolo
+                        <input type="text" maxlength="120" data-node-level-index="${selectedEditorLevelIndex}" data-node-level-field="title"
+                            value="${escapeHtml(selectedEditorLevel.title || '')}" placeholder="Vuoto = titolo base">
+                    </label>
+                    <label class="player-skill-level-meta">Sottotitolo
+                        <input type="text" maxlength="200" data-node-level-index="${selectedEditorLevelIndex}" data-node-level-field="flavor"
+                            value="${escapeHtml(selectedEditorLevel.flavor || '')}" placeholder="Opzionale">
+                    </label>
+
+                    <div class="player-skill-level-text">
+                        <span>Testo livello</span>
+                        ${richToolbarHtml(`Formato testo livello ${selectedEditorLevelIndex + 1}`)}
+                        <div class="player-skill-level-rich-editor" contenteditable="true"
+                            data-node-level-index="${selectedEditorLevelIndex}" data-node-level-field="desc"
+                            role="textbox" aria-multiline="true" aria-label="Descrizione livello ${selectedEditorLevelIndex + 1}"
+                            spellcheck="true">${selectedLevelDescription}</div>
+                    </div>
+                    <details class="player-skill-level-diff-editor">
+                        <summary><span>Confronto automatico</span><small>Rispetto al livello precedente</small></summary>
+                        ${renderSkillLevelDiffHtml(previousDescription, selectedLevelDescription, selectedEditorLevelIndex)}
+                    </details>
+                    ${renderSkillLevelChangeNotesEditor(selectedEditorLevel, selectedEditorLevelIndex)}
+                </div>
+            `;
+        })();
+        const upgradeLevelsHtml = isGroupNode ? '' : `
+            <details class="player-skill-editor-section player-skill-level-editor" open>
+                <summary>Testi e livelli</summary>
+                <div class="player-skill-level-editor-head">
+                    <div class="player-skill-level-editor-tabs" role="tablist" aria-label="Livelli del nodo">
+                        ${levelTabsHtml}
+                    </div>
+                    <button type="button" class="player-skill-action-button is-compact" data-skill-action="add-node-level">
+                        <i class="fas fa-plus" aria-hidden="true"></i> Livello
+                    </button>
+                </div>
+                <div class="player-skill-level-list">
+                    ${selectedLevelContentHtml}
+                </div>
+            </details>
+        `;        editorPanel.innerHTML = `
             <details class="player-skill-editor-section" open>
                 <summary>Albero</summary>
                 <div class="player-skill-editor-grid">
@@ -3507,17 +3887,25 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             ${buildNodeRelationshipPanel(node)}
             ${upgradeLevelsHtml}
             <div class="player-skill-editor-actions">
-                <button type="button" class="player-skill-action-button" data-skill-action="add-node"><i class="fas fa-plus"></i> Nodo</button>
-                <button type="button" class="player-skill-action-button" data-skill-action="add-group-node"><i class="fas fa-circle-nodes"></i> Gruppo</button>
-                <button type="button" class="player-skill-action-button is-danger" data-skill-action="delete-node"><i class="fas fa-trash"></i> Elimina</button>
-                <button type="button" class="player-skill-action-button is-primary" data-skill-action="save-tree"><i class="fas fa-save"></i> Salva</button>
+                <div class="player-skill-editor-dirty-status" data-skill-dirty-status role="status" aria-live="polite">
+                    <i class="fas fa-check" aria-hidden="true"></i><span>Tutto salvato</span>
+                </div>
+                <div class="player-skill-editor-action-group">
+                    <button type="button" class="player-skill-action-button" data-skill-action="add-node"><i class="fas fa-plus"></i> Nodo</button>
+                    <button type="button" class="player-skill-action-button" data-skill-action="add-group-node"><i class="fas fa-circle-nodes"></i> Gruppo</button>
+                    <button type="button" class="player-skill-action-button is-danger" data-skill-action="delete-node"><i class="fas fa-trash"></i> Elimina</button>
+                    <button type="button" class="player-skill-action-button" data-skill-action="discard-tree"><i class="fas fa-rotate-left"></i> Ripristina</button>
+                    <button type="button" class="player-skill-action-button is-primary" data-skill-action="save-tree"><i class="fas fa-save"></i> Salva albero</button>
+                </div>
             </div>
         `;
+        updateEditorDirtyState();
     };
 
     editorPanel?.addEventListener('change', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
+        queueMicrotask(updateEditorDirtyState);
         if (target.matches('[data-skill-node-select]')) {
             selectedNodeId = target.value;
             selectedConnection = null;
@@ -3589,6 +3977,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     editorPanel?.addEventListener('input', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
+        queueMicrotask(updateEditorDirtyState);
         const isFormControl = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
         const externalField = target.dataset.nodeExternalField;
         const externalId = String(target.dataset.nodeExternalId || '');
@@ -3657,6 +4046,20 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             return;
         }
 
+        const baseField = target.dataset.nodeBaseField;
+        if (baseField) {
+            const node = readEditorNode();
+            if (!node || isSkillTreeGroupNode(node)) return;
+            if (baseField === 'desc') {
+                node.desc = normalizeSkillLevelStoredHtml(normalizeSkillTreeEditableHtml(target));
+                scheduleSkillLevelDiffPreview(target.closest('.player-skill-level-row'), node, 0);
+            } else if (isFormControl && (baseField === 'title' || baseField === 'flavor')) {
+                node[baseField] = String(target.value || '').replace(/[\r\n]+/g, ' ').trimStart();
+            }
+            syncSkillNodeBaseLevel(node);
+            return;
+        }
+
         const levelIndex = target.dataset.nodeLevelIndex;
         const levelField = target.dataset.nodeLevelField;
         if (levelIndex !== undefined && levelField) {
@@ -3669,7 +4072,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     ? normalizeSkillTreeEditableHtml(target)
                     : skillLevelEditorTextToHtml(target.value);
                 levels[index][levelField] = normalizeSkillLevelStoredHtml(editorHtml);
-                refreshSkillLevelDiffPreview(target.closest('.player-skill-level-row'), node, index);
+                scheduleSkillLevelDiffPreview(target.closest('.player-skill-level-row'), node, index);
             } else if (isFormControl) {
                 levels[index][levelField] = target.value;
             }
@@ -3736,9 +4139,20 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             if (nodeField === 'id') {
                 const oldId = String(node.id);
                 const nextId = String(target.value || oldId).trim();
-                if (!nextId) return;
+                const duplicateId = workingTree.nodes.some((entry) => entry !== node && String(entry.id) === nextId);
+                if (!nextId || duplicateId) {
+                    target.setCustomValidity(duplicateId ? 'Esiste gia un nodo con questo ID.' : 'L ID del nodo e obbligatorio.');
+                    target.classList.add('is-invalid');
+                    return;
+                }
+                target.setCustomValidity('');
+                target.classList.remove('is-invalid');
                 node.id = nextId;
                 selectedNodeId = nextId;
+                if (editorLevelByNodeId.has(oldId)) {
+                    editorLevelByNodeId.set(nextId, editorLevelByNodeId.get(oldId));
+                    editorLevelByNodeId.delete(oldId);
+                }
                 if (Object.prototype.hasOwnProperty.call(nodeLevels, oldId)) {
                     nodeLevels[nextId] = nodeLevels[oldId];
                     delete nodeLevels[oldId];
@@ -3789,20 +4203,6 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         }
     });
 
-    infoPanel.addEventListener('input', (event) => {
-        const target = event.target;
-        if (!editMode || !canEditTree || !(target instanceof HTMLElement)) return;
-        const field = target.dataset.skillPreviewField;
-        if (!field) return;
-        const node = readEditorNode();
-        if (!node) return;
-        if (field === 'desc') {
-            node.desc = normalizeSkillLevelStoredHtml(normalizeSkillTreeEditableHtml(target));
-        } else if (field === 'title' || field === 'flavor') {
-            const value = target.innerText.trim();
-            node[field] = value;
-        }
-    });
 
     infoPanel.addEventListener('change', async (event) => {
         const input = event.target.closest?.('[data-skill-external-progress]');
@@ -3871,15 +4271,6 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             return;
         }
 
-        const button = event.target.closest('[data-skill-rich-command]');
-        if (!editMode || !canEditTree || !button) return;
-        event.preventDefault();
-        const node = readEditorNode();
-        const descEditor = infoPanel.querySelector('[data-skill-preview-field="desc"]');
-        if (!node || !(descEditor instanceof HTMLElement)) return;
-        descEditor.focus();
-        document.execCommand(button.dataset.skillRichCommand, false, null);
-        node.desc = normalizeSkillLevelStoredHtml(normalizeSkillTreeEditableHtml(descEditor));
     });
 
     infoPanel.addEventListener('keydown', (event) => {
@@ -3890,18 +4281,6 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         openSkillTreeImagePreview(iconPreview.dataset.imageSrc, iconPreview.querySelector('img')?.alt || '');
     });
 
-    infoPanel.addEventListener('mousedown', (event) => {
-        if (event.target.closest('[data-skill-rich-command]')) {
-            event.preventDefault();
-        }
-    });
-
-    infoPanel.addEventListener('blur', (event) => {
-        if (!editMode || !canEditTree || !(event.target instanceof HTMLElement)) return;
-        if (!event.target.dataset.skillPreviewField) return;
-        renderTree();
-        renderEditor();
-    }, true);
 
     editorPanel?.addEventListener('mousedown', (event) => {
         if (event.target.closest('[data-skill-level-rich-command]')) {
@@ -3910,20 +4289,26 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     });
 
     editorPanel?.addEventListener('click', async (event) => {
+        const levelTab = event.target.closest('[data-skill-level-editor-tab]');
+        if (levelTab) {
+            const node = readEditorNode();
+            if (!node) return;
+            editorLevelByNodeId.set(
+                String(node.id || ''),
+                Math.max(0, Math.round(Number(levelTab.dataset.skillLevelEditorTab) || 0))
+            );
+            renderEditor();
+            return;
+        }
+
         const richButton = event.target.closest('[data-skill-level-rich-command]');
         if (richButton) {
             event.preventDefault();
             const row = richButton.closest('[data-skill-level-row]');
-            const descEditor = row?.querySelector('[data-node-level-field="desc"]');
+            const descEditor = row?.querySelector('[data-node-base-field="desc"], [data-node-level-field="desc"]');
             if (!(descEditor instanceof HTMLElement)) return;
-            descEditor.focus();
-            document.execCommand(richButton.dataset.skillLevelRichCommand, false, null);
-            const node = readEditorNode();
-            const levels = ensureEditableNodeLevels(node);
-            const index = Math.max(1, Math.round(Number(descEditor.dataset.nodeLevelIndex) || 1));
-            if (!levels[index]) levels[index] = { label: `Livello ${index + 1}`, title: '', flavor: '', desc: '', icon: '' };
-            levels[index].desc = normalizeSkillLevelStoredHtml(normalizeSkillTreeEditableHtml(descEditor));
-            refreshSkillLevelDiffPreview(row, node, index);
+            applySkillRichTextCommand(descEditor, richButton.dataset.skillLevelRichCommand);
+            queueMicrotask(updateEditorDirtyState);
             return;
         }
         const button = event.target.closest('[data-skill-action]');
@@ -4086,39 +4471,77 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             const previousLevel = levels[previousIndex] || null;
             const previousDescription = getEffectiveSkillLevelDescription(node, previousIndex);
             levels.push({
-                label: `Livello ${levels.length + 1}`,
+                label: 'Livello ' + (levels.length + 1),
                 title: previousLevel?.title || node.title || '',
                 flavor: previousLevel?.flavor || '',
                 desc: normalizeSkillLevelStoredHtml(previousDescription || node.desc || '<p>Descrizione potenziamento.</p>'),
                 icon: ''
             });
+            editorLevelByNodeId.set(String(node.id || ''), levels.length - 1);
             renderTree();
             renderEditor();
+            return;
         }
         if (action === 'delete-node-level') {
             const node = readEditorNode();
             const index = Math.max(1, Math.round(Number(button.dataset.nodeLevelIndex) || 1));
             if (!node || !Array.isArray(node.levels) || !node.levels[index]) return;
             const removedLevel = index + 1;
+            const removedDefinition = node.levels[index];
             const externalRequirements = getSkillTreeExternalRequirements(node);
+            const affectedRequirements = externalRequirements.filter((requirement) => requirement.level === removedLevel);
+            const manualChanges = normalizeSkillLevelChangeNotes(removedDefinition).length;
+            const details = [
+                affectedRequirements.length
+                    ? affectedRequirements.length + ' requisiti esterni collegati a questo livello.'
+                    : '',
+                manualChanges ? manualChanges + ' voci nel riepilogo manuale verranno eliminate.' : '',
+                'Il testo e le impostazioni di questo livello verranno rimossi.'
+            ];
+            const actions = affectedRequirements.length
+                ? [
+                    { value: 'move', label: 'Sposta requisiti e elimina', icon: 'fa-arrow-right' },
+                    { value: 'remove', label: 'Rimuovi requisiti e elimina', icon: 'fa-trash', className: 'is-danger' }
+                ]
+                : [
+                    { value: 'delete', label: 'Elimina livello', icon: 'fa-trash', className: 'is-danger' }
+                ];
+            const decision = await openSkillTreeChoiceDialog({
+                title: 'Eliminare ' + (removedDefinition.label || ('Livello ' + removedLevel)) + '?',
+                message: affectedRequirements.length
+                    ? 'Scegli come gestire i requisiti collegati prima di continuare.'
+                    : 'Questa modifica resta annullabile con Ripristina finche non salvi l albero.',
+                details,
+                actions
+            });
+            if (!decision) return;
+
             node.levels.splice(index, 1);
             const nextMaxLevel = Math.max(1, getSkillNodeLevels(node).length);
-            node.externalRequirements = externalRequirements.map((requirement) => ({
-                ...requirement,
-                level: requirement.level > removedLevel
-                    ? requirement.level - 1
-                    : requirement.level === removedLevel
-                        ? Math.min(removedLevel, nextMaxLevel)
-                        : requirement.level
-            }));
+            node.externalRequirements = decision === 'remove'
+                ? externalRequirements
+                    .filter((requirement) => requirement.level !== removedLevel)
+                    .map((requirement) => ({
+                        ...requirement,
+                        level: requirement.level > removedLevel ? requirement.level - 1 : requirement.level
+                    }))
+                : externalRequirements.map((requirement) => ({
+                    ...requirement,
+                    level: requirement.level > removedLevel
+                        ? requirement.level - 1
+                        : requirement.level === removedLevel
+                            ? Math.min(removedLevel, nextMaxLevel)
+                            : requirement.level
+                }));
             delete node.externalRequirement;
             Object.keys(nodeLevels).forEach((nodeId) => {
                 if (nodeId === String(node.id)) nodeLevels[nodeId] = Math.min(Number(nodeLevels[nodeId]) || 1, nextMaxLevel);
             });
+            editorLevelByNodeId.set(String(node.id || ''), Math.max(0, Math.min(index - 1, nextMaxLevel - 1)));
             renderTree();
             renderEditor();
-        }
-        if (action === 'delete-node') {
+            return;
+        }        if (action === 'delete-node') {
             const node = readEditorNode();
             if (!node || !confirm(`Eliminare il nodo "${node.title || node.id}"?`)) return;
             const id = String(node.id);
@@ -4144,16 +4567,45 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             renderTree();
             renderEditor();
         }
+        if (action === 'discard-tree') {
+            if (!hasUnsavedTreeChanges()) return;
+            const decision = await openSkillTreeChoiceDialog({
+                title: 'Ripristinare l albero?',
+                message: 'Le modifiche non ancora salvate verranno eliminate.',
+                details: ['I dati gia salvati online non verranno modificati.'],
+                actions: [{ value: 'discard', label: 'Ripristina versione salvata', icon: 'fa-rotate-left', className: 'is-danger' }]
+            });
+            if (decision === 'discard') restoreSavedTreeDefinition();
+            return;
+        }
         if (action === 'save-tree') {
             button.disabled = true;
             try {
                 await saveTreeDefinition();
             } catch (error) {
                 console.error('Salvataggio definizione albero fallito:', error);
-                alert('Impossibile salvare la definizione dell albero.');
+                if (isSkillTreeVersionConflict(error)) {
+                    const decision = await openSkillTreeChoiceDialog({
+                        title: 'Albero aggiornato altrove',
+                        message: 'La versione online e cambiata dopo l apertura di questo editor.',
+                        details: [
+                            'Continua a modificare per conservare il lavoro locale senza sovrascrivere nulla.',
+                            'Ricarica la versione online solo se vuoi abbandonare queste modifiche.'
+                        ],
+                        actions: [{ value: 'reload', label: 'Ricarica versione online', icon: 'fa-cloud-arrow-down', className: 'is-danger' }]
+                    });
+                    if (decision === 'reload') {
+                        markTreeDefinitionSaved();
+                        window.location.reload();
+                    }
+                } else {
+                    alert('Impossibile salvare l albero: ' + (error?.message || 'errore sconosciuto') + '.');
+                }
             } finally {
                 button.disabled = false;
+                updateEditorDirtyState();
             }
+            return;
         }
         if (action === 'pick-node-icon') {
             editorPanel.querySelector('[data-skill-node-icon-file]')?.click();
@@ -4217,6 +4669,52 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             alert(`Upload immagine albero fallito: ${error?.message || error}`);
         } finally {
             dropZone.removeAttribute('aria-busy');
+        }
+    });
+
+    editorPanel?.addEventListener('focusin', (event) => {
+        const editor = event.target.closest?.('[data-node-base-field="desc"], [data-node-level-field="desc"]');
+        if (!(editor instanceof HTMLElement)) return;
+        rememberSkillRichTextSelection(editor);
+        updateSkillRichTextToolbarState(editor);
+    });
+
+    editorPanel?.addEventListener('mouseup', (event) => {
+        const editor = event.target.closest?.('[data-node-base-field="desc"], [data-node-level-field="desc"]');
+        if (!(editor instanceof HTMLElement)) return;
+        rememberSkillRichTextSelection(editor);
+        updateSkillRichTextToolbarState(editor);
+    });
+
+    editorPanel?.addEventListener('keyup', (event) => {
+        const editor = event.target.closest?.('[data-node-base-field="desc"], [data-node-level-field="desc"]');
+        if (!(editor instanceof HTMLElement)) return;
+        rememberSkillRichTextSelection(editor);
+        updateSkillRichTextToolbarState(editor);
+    });
+
+    editorPanel?.addEventListener('keydown', (event) => {
+        const editor = event.target.closest?.('[data-node-base-field="desc"], [data-node-level-field="desc"]');
+        if (!(editor instanceof HTMLElement) || !(event.ctrlKey || event.metaKey) || event.altKey) return;
+        const command = event.key.toLowerCase() === 'b'
+            ? 'bold'
+            : event.key.toLowerCase() === 'i'
+                ? 'italic'
+                : event.key.toLowerCase() === 'u'
+                    ? 'underline'
+                    : '';
+        if (!command) return;
+        event.preventDefault();
+        rememberSkillRichTextSelection(editor);
+        applySkillRichTextCommand(editor, command);
+    });
+
+    editorPanel?.addEventListener('paste', (event) => {
+        const editor = event.target.closest?.('[data-node-base-field="desc"], [data-node-level-field="desc"]');
+        if (!(editor instanceof HTMLElement)) return;
+        rememberSkillRichTextSelection(editor);
+        if (insertSanitizedSkillRichTextFromClipboard(editor, event)) {
+            event.stopImmediatePropagation();
         }
     });
 
