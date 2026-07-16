@@ -1,4 +1,4 @@
-import { discordBotPreferencesKey, handleDiscordBotDmNotifications, normalizeDiscordBotPreferences } from "./discord-bot/notifications.js";
+import { discordBotPreferencesKey, handleDiscordBotDmNotifications, normalizeDiscordBotPreferences, sendDiscordBotChannelCard } from "./discord-bot/notifications.js";
 import { handleCampaignItemFoundrySync, normalizeCampaignItemsForSiteSave } from "./campaign-items.js";
 
 export default {
@@ -36,6 +36,9 @@ export default {
 
       if (url.pathname === "/api/campaign-items/foundry-sync" && request.method === "POST") {
         return handleCampaignItemFoundrySync(request, queryCampaignId, env, corsHeaders);
+      }
+      if (url.pathname === "/api/discord/share-card" && request.method === "POST") {
+        return handleDiscordShareCard(request, queryCampaignId, env, corsHeaders);
       }
       if (url.pathname === "/api/npc-categories" && request.method === "GET") {
         return handleNpcCategoriesGet(request, queryCampaignId, env, corsHeaders);
@@ -1467,7 +1470,7 @@ function json(data, status = 200, corsHeaders = {}) {
 }
 
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
-const WORKER_CODE_VERSION = "2026-07-14-campaign-items-v1";
+const WORKER_CODE_VERSION = "2026-07-15-discord-share-v1";
 const SYNC_BOOTSTRAP_COLLECTIONS = [
   "characters",
   "quests",
@@ -1713,6 +1716,179 @@ async function handleSessionDiscordCard(request, fallbackCampaignId, env, corsHe
   return json({ ok: true, sent: true }, 200, corsHeaders);
 }
 
+async function handleDiscordShareCard(request, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  if (!env.JWT_SECRET) return json({ ok: false, error: "Missing env.JWT_SECRET" }, 500, corsHeaders);
+
+  const user = await requireUser(request, env, corsHeaders);
+  if (user instanceof Response) return user;
+
+  let form;
+  try {
+    form = await request.formData();
+  } catch {
+    return json({ ok: false, error: "Invalid multipart form data" }, 400, corsHeaders);
+  }
+
+  const campaignId = sanitizeCampaignId(form.get("campaignId") || form.get("campaign") || fallbackCampaignId);
+  const canPublish = isAuthenticatedAdmin(user, env)
+    || await isAuthenticatedCampaignContentEditor(user, env, campaignId);
+  if (!canPublish) {
+    return json({ ok: false, error: "Forbidden: user must be the campaign DM or content editor" }, 403, corsHeaders);
+  }
+
+  const kind = String(form.get("kind") || "").trim().toLowerCase();
+  if (!["npc", "item"].includes(kind)) return json({ ok: false, error: "Invalid share kind" }, 400, corsHeaders);
+  const source = String(form.get("source") || (kind === "npc" ? "characters" : "items")).trim().toLowerCase();
+  const entityId = sanitizeAssetId(form.get("entityId") || "");
+  const worldId = sanitizeManagedActorId(form.get("worldId") || "");
+  const actorId = sanitizeManagedActorId(form.get("actorId") || "");
+  if (!entityId) return json({ ok: false, error: "Missing entity id" }, 400, corsHeaders);
+  if (kind === "item" && source !== "items") return json({ ok: false, error: "Invalid item source" }, 400, corsHeaders);
+  if (kind === "npc" && !["characters", "managed"].includes(source)) return json({ ok: false, error: "Invalid NPC source" }, 400, corsHeaders);
+  if (source === "managed" && (!worldId || !actorId)) return json({ ok: false, error: "Missing managed actor identity" }, 400, corsHeaders);
+
+  const exists = await discordShareEntityExists(env, campaignId, { kind, source, entityId, worldId, actorId });
+  if (exists === false) return json({ ok: false, error: "Shared entity not found" }, 404, corsHeaders);
+
+  const file = form.get("file");
+  if (!isBlobLikeFile(file)) return json({ ok: false, error: "Missing file" }, 400, corsHeaders);
+  const fileType = String(file.type || "").trim().toLowerCase();
+  if (fileType && fileType !== "image/png") return json({ ok: false, error: "Only PNG cards are supported" }, 415, corsHeaders);
+  if (Number(file.size || 0) > 8 * 1024 * 1024) return json({ ok: false, error: "File too large: max 8 MB" }, 413, corsHeaders);
+
+  const channelId = getDiscordShareChannelId(env, campaignId, kind);
+  if (!channelId) return json({ ok: true, sent: false, missingChannel: true }, 200, corsHeaders);
+  if (!String(env.DISCORD_BOT_TOKEN || "").trim()) {
+    return json({ ok: false, error: "Discord bot is not configured" }, 503, corsHeaders);
+  }
+
+  const publicUrl = buildDiscordSharePublicUrl(env, campaignId, { kind, source, entityId, worldId, actorId });
+  const label = kind === "npc" ? "NPC" : "Oggetto";
+  const result = await sendDiscordBotChannelCard(env, channelId, {
+    content: "**" + label + " condiviso dalla wiki**\n" + publicUrl,
+    file,
+    filename: sanitizeDiscordFilename(file.name || (kind + "-" + entityId + ".png")),
+    description: label + " della campagna " + campaignId,
+  });
+  if (!result.ok) {
+    console.error("Discord share card failed", { campaignId, kind, status: result.status, error: result.error });
+    return json({ ok: false, error: "Discord: " + String(result.error || "invio fallito").slice(0, 180) }, 502, corsHeaders);
+  }
+
+  const messageId = sanitizeDiscordShareChannelId(result.data?.id || "");
+  const guildId = sanitizeDiscordShareChannelId(result.data?.guild_id || "");
+  const discordUrl = messageId
+    ? "https://discord.com/channels/" + (guildId || "@me") + "/" + channelId + "/" + messageId
+    : "";
+  return json({ ok: true, sent: true, messageId, discordUrl }, 200, corsHeaders);
+}
+
+async function discordShareEntityExists(env, campaignId, identity) {
+  if (identity.source === "managed") {
+    const raw = await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, identity.worldId, identity.actorId));
+    const actor = safeJsonParse(raw);
+    return Boolean(actor && String(actor.actorType || "npc").trim().toLowerCase() === "npc");
+  }
+
+  const collection = identity.kind === "item" ? "items" : "characters";
+  const document = await readDataCollectionDocument(collection, campaignId, env);
+  if (Array.isArray(document?.data)) return discordShareCollectionHasEntity(document.data, identity);
+
+  const staticData = await loadDiscordShareStaticCollection(env, campaignId, collection);
+  if (Array.isArray(staticData)) return discordShareCollectionHasEntity(staticData, identity);
+
+  // A temporary static-catalog failure must not block an already authorized DM.
+  return null;
+}
+
+function discordShareCollectionHasEntity(data, identity) {
+  return data.some((entry) => {
+    if (!entry || typeof entry !== "object") return false;
+    if (identity.kind === "npc" && String(entry.type || "npc").trim().toLowerCase() !== "npc") return false;
+    return sanitizeAssetId(entry.id || entry.actorId || entry.name || "") === identity.entityId;
+  });
+}
+
+async function loadDiscordShareStaticCollection(env, campaignId, collection) {
+  const base = String(env.FE_URL || "https://khuzoe.github.io/sigillo-del-male/").trim();
+  const root = base.endsWith("/") ? base : base + "/";
+  const cleanCampaignId = sanitizeCampaignId(campaignId);
+  const relative = cleanCampaignId === DEFAULT_CAMPAIGN_ID
+    ? "assets/data/" + collection + ".json"
+    : "campaigns/" + cleanCampaignId + "/data/" + collection + ".json";
+  try {
+    const response = await fetch(new URL(relative, root).toString(), { cf: { cacheEverything: true, cacheTtl: 120 } });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    return Array.isArray(payload) ? payload : (Array.isArray(payload?.data) ? payload.data : null);
+  } catch {
+    return null;
+  }
+}
+
+function getDiscordShareChannelId(env, campaignId, kind) {
+  const cleanCampaignId = sanitizeCampaignId(campaignId);
+  const campaignSuffix = cleanCampaignId.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+  const kindSuffix = kind.toUpperCase();
+  const direct = sanitizeDiscordShareChannelId(
+    env["DISCORD_SHARE_CHANNEL_" + campaignSuffix + "_" + kindSuffix]
+      || env["DISCORD_SHARE_CHANNEL_" + campaignSuffix]
+      || ""
+  );
+  if (direct) return direct;
+
+  const raw = String(env.DISCORD_SHARE_CHANNELS || "").trim();
+  if (!raw) return "";
+  try {
+    const map = JSON.parse(raw);
+    if (map && typeof map === "object" && !Array.isArray(map)) {
+      const campaign = map[cleanCampaignId];
+      const candidate = campaign && typeof campaign === "object"
+        ? campaign[kind] || campaign.default || campaign.channel
+        : campaign;
+      const nested = sanitizeDiscordShareChannelId(candidate || map[cleanCampaignId + "." + kind] || "");
+      if (nested) return nested;
+    }
+  } catch {
+    // Also accept campaign.kind=channel;campaign=channel.
+  }
+
+  for (const entry of raw.split(/[\r\n;]+/).map((value) => value.trim()).filter(Boolean)) {
+    const separator = entry.includes("=") ? entry.indexOf("=") : entry.indexOf("|");
+    if (separator <= 0) continue;
+    const key = String(entry.slice(0, separator)).trim().toLowerCase();
+    if (key !== cleanCampaignId + "." + kind && key !== cleanCampaignId) continue;
+    const channelId = sanitizeDiscordShareChannelId(entry.slice(separator + 1));
+    if (channelId) return channelId;
+  }
+  return "";
+}
+
+function sanitizeDiscordShareChannelId(value) {
+  const id = String(value || "").trim();
+  return /^\d{5,32}$/.test(id) ? id : "";
+}
+
+function buildDiscordSharePublicUrl(env, campaignId, identity) {
+  const base = String(env.FE_URL || "https://khuzoe.github.io/sigillo-del-male/").trim();
+  const root = base.endsWith("/") ? base : base + "/";
+  let target;
+  if (identity.kind === "item") {
+    target = new URL("pages/oggetti.html", root);
+    target.hash = identity.entityId;
+  } else if (identity.source === "managed") {
+    target = new URL("pages/characters/managed-actor.html", root);
+    target.searchParams.set("world", identity.worldId);
+    target.searchParams.set("actor", identity.actorId);
+  } else {
+    target = new URL("pages/characters/character.html", root);
+    target.searchParams.set("id", identity.entityId);
+    target.searchParams.set("type", "npc");
+  }
+  applyCampaignToFrontendUrl(target, campaignId);
+  return target.toString();
+}
 function scrubSessionData(session) {
   if (!session || typeof session !== "object") return session;
   const copy = { ...session };

@@ -394,6 +394,55 @@ async function sendDiscordDm(env, discordId, content) {
   });
 }
 
+export async function sendDiscordBotChannelCard(env, channelId, options = {}) {
+  const token = String(env?.DISCORD_BOT_TOKEN || "").trim();
+  const cleanChannelId = sanitizeDiscordId(channelId);
+  const file = options.file;
+  if (!token || !cleanChannelId) {
+    return { ok: false, status: 0, data: null, permanent: true, error: "missing bot token or channel" };
+  }
+  if (!file || typeof file.arrayBuffer !== "function") {
+    return { ok: false, status: 0, data: null, permanent: true, error: "missing attachment" };
+  }
+
+  const filename = sanitizeDiscordUploadFilename(options.filename || file.name || "card.png");
+  const form = new FormData();
+  form.append("payload_json", JSON.stringify({
+    content: String(options.content || "").trim().slice(0, 1900),
+    allowed_mentions: { parse: [] },
+    attachments: [{ id: 0, filename, description: String(options.description || "Card della campagna").trim().slice(0, 100) }],
+  }));
+  form.append("files[0]", file, filename);
+
+  try {
+    const response = await fetch(`${DISCORD_API_BASE}/channels/${cleanChannelId}/messages`, {
+      method: "POST",
+      headers: { Authorization: `Bot ${token}` },
+      body: form,
+    });
+    const raw = await response.text();
+    const data = safeJsonParse(raw) || null;
+    return {
+      ok: response.ok,
+      status: response.status,
+      data,
+      permanent: [400, 403, 404].includes(response.status),
+      error: response.ok ? "" : (data?.message || raw || `Discord HTTP ${response.status}`),
+    };
+  } catch (error) {
+    return { ok: false, status: 0, data: null, permanent: false, error: error?.message || String(error) };
+  }
+}
+
+function sanitizeDiscordUploadFilename(value) {
+  const clean = String(value || "card.png")
+    .trim()
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
+  return clean || "card.png";
+}
 async function discordApiJson(token, path, init = {}) {
   try {
     const response = await fetch(`${DISCORD_API_BASE}${path}`, {

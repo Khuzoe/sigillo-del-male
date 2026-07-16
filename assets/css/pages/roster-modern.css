@@ -698,3 +698,5 @@ body.page-players {
     .roster-filter,
     .roster-primary-action { transition: none; }
 }
+/* DM actions on roster cards */
+.roster-page .npc-card-actions{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.48rem;justify-self:end}.roster-page .npc-discord-share{display:grid;width:34px;height:34px;place-items:center;border:1px solid rgba(114,137,218,.2);border-radius:11px;background:rgba(88,101,242,.055);color:rgba(178,186,255,.7);font-size:.68rem;cursor:pointer;transition:transform .18s,border-color .18s,background .18s,color .18s}.roster-page .npc-discord-share:hover,.roster-page .npc-discord-share:focus-visible{outline:0;transform:translateY(-1px);border-color:rgba(159,168,255,.55);background:rgba(88,101,242,.15);color:#d9dcff}.roster-page .npc-card-actions .arrow-icon{justify-self:auto}@media(max-width:680px){.roster-page .npc-card-actions{gap:.3rem}.roster-page .npc-discord-share{width:30px;height:30px;border-radius:9px;font-size:.6rem}}

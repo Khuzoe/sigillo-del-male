@@ -234,6 +234,7 @@ function updateItemsView(items, state, grid, count) {
     });
     bindItemExpansion(grid);
     bindItemInlineEditor(grid, state, count);
+    bindItemDiscordSharing(grid, state);
     initItemAdjustedImages(grid);
 }
 
@@ -400,6 +401,12 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
                     ${quickFacts ? `<div class="item-card-quickfacts">${quickFacts}</div>` : ""}
                 </div>
                 <div class="item-card-summary-actions">
+                    ${canEdit && !isEditing ? `
+                        <button class="item-card-edit-link item-card-discord-link" type="button" data-item-discord-share="${escapeHtml(itemId)}" title="Condividi su Discord">
+                            <i class="fab fa-discord" aria-hidden="true"></i>
+                            <span>Condividi</span>
+                        </button>
+                    ` : ""}
                     ${canEdit ? `
                         <button class="item-card-edit-link" type="button" data-item-edit="${escapeHtml(itemId)}" title="Modifica questo oggetto">
                             <i class="fas fa-pen" aria-hidden="true"></i>
@@ -416,6 +423,79 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
             </div>
         </details>
     `;
+}
+function bindItemDiscordSharing(grid, state) {
+    grid.querySelectorAll("[data-item-discord-share]").forEach(button => {
+        button.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+            const itemId = String(button.dataset.itemDiscordShare || "").trim();
+            const item = state.items.find(entry => getItemId(entry) === itemId);
+            if (!item || !state.canEditItems || !window.CriptaDiscordShare) return;
+            const unidentified = item.unidentified === true;
+            const publicSections = buildDiscordItemSections(item, { unidentified });
+            const publicName = unidentified
+                ? String(item.unidentifiedName || "Oggetto non identificato").trim()
+                : String(item.name || "Oggetto senza nome").trim();
+            const publicDescription = unidentified
+                ? String(item.unidentifiedDescription || "Le proprietà di questo oggetto non sono ancora state identificate.").trim()
+                : String(item.summary || publicSections.find(section => section.description)?.description || "").trim();
+            const link = new URL(window.location.href);
+            link.hash = itemId;
+            window.CriptaDiscordShare.open({
+                kind: "item",
+                source: "items",
+                campaignId: getItemsCampaignId(),
+                entityId: itemId,
+                name: publicName,
+                subtitle: unidentified ? "Oggetto non identificato" : formatItemTypeLabel(item),
+                description: publicDescription,
+                imageUrl: item.image ? resolveImageUrl(item.image) : "",
+                badges: unidentified ? ["Non identificato"] : [getItemRarityMeta(item.rarity).label, item.attunement ? "Richiede sintonia" : ""],
+                facts: unidentified ? [] : [
+                    item.owner ? `Provenienza: ${item.owner}` : "",
+                    item.valueGold !== undefined && item.valueGold !== "" ? `Valore: ${formatGoldValue(item.valueGold)}` : "",
+                    item.weight !== undefined && item.weight !== "" ? `Peso: ${formatWeightValue(item.weight)}` : ""
+                ],
+                sections: publicSections,
+                hidden: isHiddenItem(item),
+                unidentified,
+                pageUrl: link.toString()
+            });
+        });
+    });
+}
+function buildDiscordItemSections(item, { unidentified = false } = {}) {
+    if (unidentified) return [];
+    const isMaterial = getItemCategory(item) === "Materiali";
+    const properties = isMaterial ? [] : getVisibleItemProperties(item, { includeHidden: false, includeUnidentified: false });
+    const materialTags = isMaterial ? getVisibleMaterialTags(item) : [];
+    return [
+        ...properties.map(property => ({
+            title: property.name || "Proprietà",
+            meta: formatDiscordPropertyCharges(property.charges),
+            description: property.description || "",
+            tone: property.negative === true ? "negative" : "default"
+        })),
+        ...materialTags.map(tag => ({
+            title: tag.name || "Materiale",
+            description: tag.description || "",
+            tone: "material"
+        })),
+        item.notes ? {
+            title: "Note della campagna",
+            description: String(item.notes).trim(),
+            tone: "note"
+        } : null
+    ].filter(section => section && (section.title || section.meta || section.description));
+}
+
+function formatDiscordPropertyCharges(value) {
+    const charges = String(value || "").trim();
+    if (!charges) return "";
+    const amount = Number(charges);
+    if (!Number.isFinite(amount)) return charges;
+    return `${charges} ${amount === 1 ? "carica" : "cariche"}`;
 }
 function renderItemInlineEditor(item) {
     const imagePath = String(item.image || "").trim();

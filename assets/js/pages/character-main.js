@@ -116,7 +116,7 @@ function renderMarkdown(md, options = {}) {
     return window.CriptaMarkdown.render(md, getCharacterMarkdownOptions(options));
 }
 
-const CHARACTER_MODULE_VERSION = '20260715-unsaved-guard1';
+const CHARACTER_MODULE_VERSION = '20260716-skill-changes1';
 
 function versionedCharacterModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);

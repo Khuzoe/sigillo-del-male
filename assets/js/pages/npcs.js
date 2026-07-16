@@ -164,7 +164,7 @@ function parseYamlLite(yamlText) {
                     return;
                 }
 
-                renderNpcGroups(npcListContainer, sortedNpcs, base_path);
+                renderNpcGroups(npcListContainer, sortedNpcs, base_path, currentUserIsDm);
                 window.CriptaRosterMedia?.init(npcListContainer);
                 initNpcRosterControls(npcListContainer);
             } catch (error) {
@@ -242,6 +242,9 @@ function parseYamlLite(yamlText) {
                     avatarFallback: tokenPath || idlePath || legacyImages.avatarFallback || ''
                 },
                 updatedAt: actor.updatedAt || legacyNpc?.updatedAt || '',
+                managedActorWorldId: String(actor?.worldId || '').trim(),
+                managedActorId: String(actor?.actorId || '').trim(),
+                discordShareSource: 'managed',
                 managedActorUrl: buildManagedActorDetailUrl(actor)
             };
         }
@@ -442,7 +445,7 @@ function parseYamlLite(yamlText) {
             };
         }
 
-        function renderNpcGroups(container, npcs, base_path) {
+        function renderNpcGroups(container, npcs, base_path, canShare = false) {
             container.innerHTML = '';
             const groups = groupNpcsByCategory(npcs);
             groups.forEach((group) => {
@@ -470,7 +473,7 @@ function parseYamlLite(yamlText) {
                 const cards = document.createElement('div');
                 cards.className = 'npc-category-list';
                 group.items.forEach((npc) => {
-                    cards.appendChild(createNpcCard(npc, base_path));
+                    cards.appendChild(createNpcCard(npc, base_path, canShare));
                 });
                 section.appendChild(cards);
                 container.appendChild(section);
@@ -624,7 +627,7 @@ function parseYamlLite(yamlText) {
             apply();
         }
 
-        function createNpcCard(npc, base_path) {
+        function createNpcCard(npc, base_path, canShare = false) {
             const statusMap = {
                 vivo: { text: 'VIVO', class: 'status-vivo' },
                 morto: { text: 'MORTO', class: 'status-morto' },
@@ -666,8 +669,23 @@ function parseYamlLite(yamlText) {
                     </div>
                     <p class="npc-desc">${npc.quote}</p>
                 </div>
-                <i class="fas fa-chevron-right arrow-icon"></i>
+                <span class="npc-card-actions">
+                    ${canShare ? '<span class="npc-discord-share" role="button" tabindex="0" title="Condividi su Discord" aria-label="Condividi ' + escapeNpcAttribute(npc.name) + ' su Discord"><i class="fab fa-discord" aria-hidden="true"></i></span>' : ''}
+                    <i class="fas fa-chevron-right arrow-icon"></i>
+                </span>
             `;
+            if (canShare) {
+                const shareButton = card.querySelector('.npc-discord-share');
+                const openShare = (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    shareNpcOnDiscord(npc, card.href, base_path);
+                };
+                shareButton?.addEventListener('click', openShare);
+                shareButton?.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') openShare(event);
+                });
+            }
             const frameHost = card.querySelector(".npc-avatar-container");
             const mainImage = card.querySelector(".img-main");
             const hoverImageElement = card.querySelector(".img-hover");
@@ -681,6 +699,43 @@ function parseYamlLite(yamlText) {
 
         }
 
+        function shareNpcOnDiscord(npc, detailUrl, base_path) {
+            if (!window.CriptaDiscordShare) return;
+            const description = getNpcShareDescription(npc);
+            const image = npc?.images?.avatar || npc?.images?.idle || npc?.images?.token || '';
+            window.CriptaDiscordShare.open({
+                kind: 'npc',
+                source: npc.discordShareSource || 'characters',
+                campaignId: getCurrentCampaignId(),
+                entityId: npc.managedActorId || npc.id,
+                worldId: npc.managedActorWorldId || '',
+                actorId: npc.managedActorId || '',
+                name: npc.name || 'NPC',
+                subtitle: npc.role || npc.category || 'NPC',
+                description,
+                imageUrl: image ? resolveNpcImageUrl(npc, image, base_path) : '',
+                badges: [npc.category || '', normalizeManagedNpcStatus(npc.status, 'ignoto')],
+                facts: [],
+                hidden: npc.hidden === true || npc.status === 'hidden',
+                pageUrl: detailUrl
+            });
+        }
+
+        function getNpcShareDescription(npc) {
+            const quote = String(npc?.quote || '').trim();
+            if (quote) return quote;
+            const blocks = Array.isArray(npc?.content_blocks) ? npc.content_blocks : (Array.isArray(npc?.blocks) ? npc.blocks : []);
+            const publicBlock = blocks.find((block) => block && block.hidden !== true && String(block.markdownText || block.text || '').trim());
+            return String(publicBlock?.markdownText || publicBlock?.text || '').replace(/[#*_>`~]/g, '').trim();
+        }
+
+        function escapeNpcAttribute(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
         function normalizeImageIdentity(path) {
             return String(path || '')
                 .trim()

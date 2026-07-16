@@ -1,10 +1,22 @@
 {
-  "itemCount": 4,
+  "itemCount": 3,
   "sessionIds": [
-    26,
-    27
+    27,
+    28,
+    29
   ],
   "items": [
+    {
+      "id": "zara",
+      "name": "Zara Klaren",
+      "role": "La Giullare",
+      "avatar": "media/creatures/transp/zara_transp.webp",
+      "hover": "media/campaigns/cripta-di-sangue/characters/zara/hover.webp",
+      "token": "media/campaigns/cripta-di-sangue/characters/zara/token.webp",
+      "hoverFallback": "media/campaigns/cripta-di-sangue/characters/zara/token.webp",
+      "url": "pages/characters/character.html?id=zara",
+      "score": 36
+    },
     {
       "id": "ginevra",
       "name": "Ginevra Von T",
@@ -14,7 +26,7 @@
       "token": "media/campaigns/cripta-di-sangue/characters/ginevra/token.webp",
       "hoverFallback": "media/campaigns/cripta-di-sangue/characters/ginevra/token.webp",
       "url": "pages/characters/character.html?id=ginevra",
-      "score": 8
+      "score": 4
     },
     {
       "id": "karla",
@@ -25,28 +37,6 @@
       "token": "media/campaigns/cripta-di-sangue/characters/karla/token.webp",
       "hoverFallback": "media/campaigns/cripta-di-sangue/characters/karla/token.webp",
       "url": "pages/characters/character.html?id=karla",
-      "score": 4
-    },
-    {
-      "id": "tokka",
-      "name": "Tokka Von T",
-      "role": "Il Cuore Corrotto",
-      "avatar": "media/creatures/transp/tokka_transp.webp",
-      "hover": "media/campaigns/cripta-di-sangue/characters/tokka/hover.webp",
-      "token": "media/campaigns/cripta-di-sangue/characters/tokka/token.webp",
-      "hoverFallback": "media/campaigns/cripta-di-sangue/characters/tokka/token.webp",
-      "url": "pages/characters/character.html?id=tokka",
-      "score": 4
-    },
-    {
-      "id": "zara",
-      "name": "Zara Klaren",
-      "role": "La Giullare",
-      "avatar": "media/creatures/transp/zara_transp.webp",
-      "hover": "media/campaigns/cripta-di-sangue/characters/zara/hover.webp",
-      "token": "media/campaigns/cripta-di-sangue/characters/zara/token.webp",
-      "hoverFallback": "media/campaigns/cripta-di-sangue/characters/zara/token.webp",
-      "url": "pages/characters/character.html?id=zara",
       "score": 2
     }
   ]
