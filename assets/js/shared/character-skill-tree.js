@@ -8,6 +8,26 @@
     let skillTreeStatesVersion = null;
     let skillTreeAuthState = null;
     let skillTreeCurrentUserIsDm = false;
+    const SKILL_TREE_ROUTE_FOCUS_STORAGE_KEY = 'sigillo-skill-tree-route-focus';
+    let skillTreeRouteFocusEnabled = (() => {
+        try {
+            return window.localStorage.getItem(SKILL_TREE_ROUTE_FOCUS_STORAGE_KEY) !== 'false';
+        } catch (_) {
+            return true;
+        }
+    })();
+
+    function setSkillTreeRouteFocusEnabled(enabled) {
+        skillTreeRouteFocusEnabled = Boolean(enabled);
+        try {
+            window.localStorage.setItem(SKILL_TREE_ROUTE_FOCUS_STORAGE_KEY, skillTreeRouteFocusEnabled ? 'true' : 'false');
+        } catch (_) {
+            // La preferenza resta valida per la sessione corrente.
+        }
+        document.dispatchEvent(new CustomEvent('skill-tree-route-focus-preference-change', {
+            detail: { enabled: skillTreeRouteFocusEnabled }
+        }));
+    }
 
     function applySkillTreeRuntime(context = {}) {
         skillTreeRuntime = context || {};
@@ -1396,7 +1416,7 @@ function renderManualSkillLevelComparison(changeNotes, levelIndex) {
 
     return '<section class="player-skill-level-comparison is-manual" aria-label="Confronto curato manualmente">'
         + '<header class="player-skill-level-comparison-head">'
-        + '<span>Cosa cambia <small>Curato</small></span>'
+        + '<span>Cosa cambia</span>'
         + '<strong>Livello ' + levelIndex + ' <i class="fas fa-arrow-right" aria-hidden="true"></i> Livello ' + (levelIndex + 1) + '</strong>'
         + '</header><div class="player-skill-level-change-list">' + rows + '</div></section>';
 }
@@ -1919,7 +1939,12 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     card.innerHTML = `
                 <div class="player-skill-tree-card-head">
                     <h3><i class="fas ${isSharedTree ? 'fa-users' : 'fa-crown'}"></i> Albero Abilita <small data-skill-tree-label>${escapeHtml(treeLabel)}</small>${isSharedTree ? '<span class="player-skill-tree-shared-badge">Condiviso</span>' : ''}${isArchivedTree ? '<span class="player-skill-tree-archived-badge">Archiviato</span>' : ''}</h3>
-                    ${canEditTree ? '<div class="player-skill-tree-card-actions"><button type="button" class="player-skill-edit-toggle player-skill-delete-tree" data-skill-delete-tree title="Elimina albero" aria-label="Elimina albero"><i class="fas fa-trash"></i></button><button type="button" class="player-skill-edit-toggle" data-skill-edit-toggle title="Modifica albero" aria-label="Modifica albero"><i class="fas fa-pen"></i></button></div>' : ''}
+                    <div class="player-skill-tree-card-actions">
+                        <button type="button" class="player-skill-route-toggle${skillTreeRouteFocusEnabled ? ' is-active' : ''}" data-skill-route-toggle aria-pressed="${skillTreeRouteFocusEnabled ? 'true' : 'false'}" title="${skillTreeRouteFocusEnabled ? 'Percorsi evidenziati' : 'Percorsi non evidenziati'}">
+                            <i class="fas fa-route" aria-hidden="true"></i><span>Percorsi</span>
+                        </button>
+                        ${canEditTree ? '<button type="button" class="player-skill-edit-toggle player-skill-delete-tree" data-skill-delete-tree title="Elimina albero" aria-label="Elimina albero"><i class="fas fa-trash"></i></button><button type="button" class="player-skill-edit-toggle" data-skill-edit-toggle title="Modifica albero" aria-label="Modifica albero"><i class="fas fa-pen"></i></button>' : ''}
+                    </div>
                 </div>
                 <div class="player-skill-tree-layout">
                     <div class="player-skill-tree-column">
@@ -1938,6 +1963,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     const linesLayer = card.querySelector('[data-skill-tree-lines]');
     const infoPanel = card.querySelector('[data-skill-info]');
     const editorPanel = card.querySelector('[data-skill-editor]');
+    const routeFocusToggle = card.querySelector('[data-skill-route-toggle]');
     const editToggle = card.querySelector('[data-skill-edit-toggle]');
     const deleteButton = card.querySelector('[data-skill-delete-tree]');
     const treeTitleLabel = card.querySelector('[data-skill-tree-label]');
@@ -2463,6 +2489,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     const getSkillTreeRouteConnectionKey = (sourceId, targetId) => `${String(sourceId)}::${String(targetId)}`;
 
     const getSkillTreeRouteFocus = () => {
+        if (!skillTreeRouteFocusEnabled) return null;
         const focusNodeId = String(editMode ? selectedNodeId : lockedInfoNodeId || '').trim();
         if (!focusNodeId) return null;
         const nodeIds = new Set(currentNodes.map((node) => String(node.id)));
@@ -2716,12 +2743,13 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         return { x, y };
     };
 
-    const getSkillTreeRouteNodeClass = (nodeId, routeFocus) => {
+    const getSkillTreeRouteNodeClass = (node, routeFocus) => {
         if (!routeFocus) return '';
-        const cleanNodeId = String(nodeId);
+        const cleanNodeId = String(node?.id || '');
         if (cleanNodeId === routeFocus.focusNodeId) return ' is-route-focus';
         if (routeFocus.routeNodeIds.has(cleanNodeId)) return ' is-route-node';
         if (routeFocus.nextNodeIds.has(cleanNodeId)) return ' is-route-next';
+        if (node?.state === 'unlocked') return ' is-route-unlocked';
         return ' is-route-muted';
     };
     const renderGroupNodes = () => {
@@ -2732,7 +2760,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             const stateClass = groupNode.state === 'unlocked' || groupNode.state === 'unlockable' ? groupNode.state : 'locked';
             const isSelectedNode = editMode ? String(groupNode.id) === String(selectedNodeId) : String(groupNode.id) === String(lockedInfoNodeId);
             const diameter = Math.max(18, Math.min(92, getSkillTreeNodeVisualRadius(groupNode) * 2));
-            groupElement.className = `player-skill-group-node is-${stateClass}${isSelectedNode ? ' is-selected' : ''}${getSkillTreeRouteNodeClass(groupNode.id, routeFocus)}`;
+            groupElement.className = `player-skill-group-node is-${stateClass}${isSelectedNode ? ' is-selected' : ''}${getSkillTreeRouteNodeClass(groupNode, routeFocus)}`;
             groupElement.style.left = `${Number(groupNode.x) || 50}%`;
             groupElement.style.top = `${Number(groupNode.y) || 50}%`;
             groupElement.style.width = `${diameter}%`;
@@ -2798,7 +2826,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             nodeElement.type = 'button';
             const stateClass = node.state === 'unlocked' || node.state === 'unlockable' ? node.state : 'locked';
             const isSelectedNode = editMode ? String(node.id) === String(selectedNodeId) : String(node.id) === String(lockedInfoNodeId);
-            nodeElement.className = `player-skill-node is-${stateClass}${node.keyNode ? ' is-key' : ''}${isSelectedNode ? ' is-selected' : ''}${getSkillTreeRouteNodeClass(node.id, routeFocus)}`;
+            nodeElement.className = `player-skill-node is-${stateClass}${node.keyNode ? ' is-key' : ''}${isSelectedNode ? ' is-selected' : ''}${getSkillTreeRouteNodeClass(node, routeFocus)}`;
             const nodeX = Number(node.x) || 50;
             const nodeY = Number(node.y) || 50;
             nodeElement.style.left = `${nodeX}%`;
@@ -4243,6 +4271,20 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             deleteButton.disabled = false;
             editToggle?.removeAttribute('disabled');
         }
+    });
+
+    const syncRouteFocusToggle = () => {
+        if (!routeFocusToggle) return;
+        routeFocusToggle.classList.toggle('is-active', skillTreeRouteFocusEnabled);
+        routeFocusToggle.setAttribute('aria-pressed', skillTreeRouteFocusEnabled ? 'true' : 'false');
+        routeFocusToggle.title = skillTreeRouteFocusEnabled ? 'Percorsi evidenziati' : 'Percorsi non evidenziati';
+    };
+    routeFocusToggle?.addEventListener('click', () => {
+        setSkillTreeRouteFocusEnabled(!skillTreeRouteFocusEnabled);
+    });
+    document.addEventListener('skill-tree-route-focus-preference-change', () => {
+        syncRouteFocusToggle();
+        renderTree();
     });
 
     editToggle?.addEventListener('click', () => {

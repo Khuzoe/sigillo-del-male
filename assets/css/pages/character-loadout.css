@@ -2450,6 +2450,47 @@ body.has-skill-tree-focus {
     height: 2.25rem;
 }
 
+.player-skill-route-toggle {
+    height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+    padding: 0 0.72rem;
+    border: 1px solid rgba(187, 112, 235, 0.34);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.3);
+    color: rgba(226, 205, 239, 0.72);
+    cursor: pointer;
+    font-family: var(--font-ui);
+    font-size: 0.66rem;
+    font-weight: 850;
+    letter-spacing: 0.045em;
+    text-transform: uppercase;
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.player-skill-route-toggle:hover,
+.player-skill-route-toggle:focus-visible {
+    transform: translateY(-1px);
+    border-color: rgba(211, 154, 242, 0.78);
+    color: #ead7f5;
+    outline: none;
+}
+
+.player-skill-route-toggle.is-active {
+    border-color: rgba(202, 135, 239, 0.82);
+    background: linear-gradient(135deg, rgba(127, 57, 165, 0.72), rgba(74, 31, 99, 0.72));
+    color: #f5e8fc;
+    box-shadow: 0 0 0 3px rgba(187, 112, 235, 0.09), 0 8px 20px rgba(0, 0, 0, 0.24);
+}
+
+.player-skill-route-toggle span {
+    min-width: 0;
+    color: inherit;
+    font-size: inherit;
+    text-align: inherit;
+}
+
 .player-skill-tree-nav-controls span {
     min-width: 3.25rem;
     color: var(--text-muted);
@@ -3108,6 +3149,11 @@ body.has-skill-tree-focus {
 .player-skill-tree-wrapper.has-route-focus :is(.player-skill-node, .player-skill-group-node).is-route-node {
     opacity: 0.9;
     filter: grayscale(0.48) brightness(0.78);
+}
+
+.player-skill-tree-wrapper.has-route-focus :is(.player-skill-node, .player-skill-group-node).is-route-unlocked {
+    opacity: 1;
+    filter: none;
 }
 
 .player-skill-tree-wrapper.has-route-focus :is(.player-skill-node, .player-skill-group-node).is-route-next {
@@ -4073,20 +4119,6 @@ body.has-skill-tree-focus {
     color: rgba(212, 175, 55, 0.76);
 }
 
-.player-skill-level-comparison.is-manual .player-skill-level-comparison-head > span {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.38rem;
-}
-
-.player-skill-level-comparison-head small {
-    padding: 0.12rem 0.34rem;
-    border: 1px solid rgba(202, 148, 235, 0.3);
-    border-radius: 999px;
-    color: #ddbbf0;
-    font-size: 0.52rem;
-    letter-spacing: 0.06em;
-}
 
 .player-skill-level-change-row.is-manual.is-value {
     grid-template-columns: minmax(0, 1fr) auto;
