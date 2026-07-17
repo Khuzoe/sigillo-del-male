@@ -3384,6 +3384,23 @@ function isManagedActorOwner(entry, user, env) {
   return Boolean(accountId && owners.includes(accountId));
 }
 
+function canEditPublicManagedNpcStats(entry, user) {
+  const actorType = String(entry?.actorType || "").trim().toLowerCase();
+  return Boolean(user && actorType === "npc" && managedActorVisibilityState(entry?.visibility) === "public");
+}
+
+async function authorizeManagedActorStatsWrite(request, env, campaignId, corsHeaders, actor) {
+  const user = await requireUser(request, env, corsHeaders);
+  if (user instanceof Response) return user;
+  const isEditor = await isAuthenticatedCampaignContentEditor(user, env, campaignId);
+  const isOwner = isManagedActorOwner(actor, user, env);
+  const canEditPublicStats = canEditPublicManagedNpcStats(actor, user);
+  if (!isEditor && !isOwner && !canEditPublicStats) {
+    return json({ ok: false, error: "Forbidden: managed actor statistics are not editable" }, 403, corsHeaders);
+  }
+  return { source: "site", user, isEditor, isOwner, canEditPublicStats };
+}
+
 async function getManagedActorReader(request, env, campaignId) {
   if (isFoundrySyncSecretAuthorized(request, env)) return { user: null, isEditor: true };
   const user = await getOptionalAuthenticatedUser(request, env);
@@ -4932,7 +4949,7 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
 
 
 
-  const authorization = await authorizeManagedActorWrite(request, env, campaignId, corsHeaders, actor);
+  const authorization = await authorizeManagedActorStatsWrite(request, env, campaignId, corsHeaders, actor);
   if (authorization instanceof Response) return authorization;
   if (authorization.source !== "site") return json({ ok: false, error: "Managed actor commands must originate from the site" }, 400, corsHeaders);
   const expectedRevision = Number(body?.expectedRevision);
@@ -5752,6 +5769,7 @@ async function handleManagedActorGet(request, route, campaignId, env, corsHeader
   if (!canReadManagedActor(document, reader.user, reader.isEditor, env)) return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
   const isOwner = isManagedActorOwner(document, reader.user, env);
   const canEdit = Boolean(reader.isEditor || isOwner);
+  const canEditStats = Boolean(canEdit || canEditPublicManagedNpcStats(document, reader.user));
   const baselineRuntimeAt = Date.parse(document.runtimeUpdatedAt || document.updatedAt || "") || 0;
   const overlayRuntimeAt = Date.parse(runtimeRecord?.updatedAt || "") || 0;
   const runtimeData = overlayRuntimeAt > baselineRuntimeAt
@@ -5761,10 +5779,10 @@ async function handleManagedActorGet(request, route, campaignId, env, corsHeader
       runtimeUpdatedAt: runtimeRecord.updatedAt,
     }
     : document;
-  const commandRaw = canEdit
+  const commandRaw = canEditStats
     ? await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId))
     : null;
-  const commandQueue = canEdit ? readManagedActorCommandQueue(commandRaw, campaignId, route.worldId) : null;
+  const commandQueue = canEditStats ? readManagedActorCommandQueue(commandRaw, campaignId, route.worldId) : null;
   const commands = commandQueue
     ? commandQueue.commands.filter((command) => command.actorId === route.actorId && ["pending", "conflict", "failed"].includes(command.status)).slice(0, 64).map(publicManagedActorCommand)
     : [];
@@ -5772,6 +5790,7 @@ async function handleManagedActorGet(request, route, campaignId, env, corsHeader
     ...runtimeData,
     permissions: {
       canEdit,
+      canEditStats,
       isEditor: reader.isEditor,
       isOwner,
       canManageVisibility: reader.isEditor,

@@ -1,6 +1,7 @@
 (() => {
     let currentDocument = null;
     let currentCanEdit = false;
+    let currentCanManageActor = false;
     let managedEditMode = false;
     let currentProfile = null;
     let currentProfilePermissions = { canEdit: false, isEditor: false };
@@ -47,13 +48,15 @@
             });
             currentDocument = payload.data;
             syncManagedActorNavigation(currentDocument);
-            currentCanEdit = currentDocument?.permissions ? currentDocument.permissions.canEdit === true : Boolean(token);
+            const permissions = currentDocument?.permissions || {};
+            currentCanManageActor = permissions.canEdit === true;
+            currentCanEdit = permissions.canEditStats === true || currentCanManageActor;
             managedEditMode = false;
             await Promise.all([
                 loadManagedActorProfile(currentDocument, token),
                 currentCanEdit ? loadCampaignItemCatalog(token) : Promise.resolve([])
             ]);
-            renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode);
+            renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
         } catch (error) {
             console.error("Managed Actor non disponibile", error);
             root.innerHTML = `<div class="managed-load-state"><i class="fas fa-lock"></i><strong>Scheda non disponibile</strong><span>${escapeHtml(error.message || "Non è stato possibile caricare questo Actor.")}</span></div>`;
@@ -99,7 +102,7 @@
         return getManagedActorRelationshipType(actor) === "player";
     }
 
-    function renderManagedActor(root, actor, canEdit, editing = false) {
+    function renderManagedActor(root, actor, canEdit, editing = false, canManageActor = false) {
         const editMode = Boolean(canEdit && editing);
         const primaryPlayer = isPrimaryManagedPlayer(actor);
         clearManagedImagePreviews();
@@ -160,10 +163,10 @@
                     </div>
                 </div>
             </section>
-            ${renderManagedCommandBar({ abilities, skills, traits, variants, effects, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor })}
+            ${renderManagedCommandBar({ abilities, skills, traits, variants, effects, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor })}
             <div class="managed-actor-panels">
                 ${renderManagedProfileSection(currentProfile, editMode, Boolean(canEdit && currentProfilePermissions.canEdit))}
-                ${editMode ? renderAdmin(actor) : ""}
+                ${editMode && canManageActor ? renderAdmin(actor) : ""}
                 ${renderCoreStats(attributes, details, actor.runtime || {}, actor.actorType, traits, definition.spellSlots || {}, editMode)}
                 ${renderAbilities(abilities, editMode)}
                 ${primaryPlayer ? `<div class="managed-player-extensions managed-player-extensions--companions" data-managed-player-companions></div>` : ""}
@@ -173,10 +176,10 @@
                 ${renderEntries("Attacchi e capacità", attackEntries, editMode, "managed-capabilities")}
                 ${renderEntries("Incantesimi", spellEntries, editMode, "managed-spells")}
                 ${renderEntries("Inventario", inventoryEntries, editMode, "managed-inventory")}
-                ${variants.length || editMode ? renderManagedVariantsEditor(variants, editMode) : ""}
+                ${variants.length || (editMode && canManageActor) ? renderManagedVariantsEditor(variants, editMode && canManageActor) : ""}
                 ${effects.length || editMode ? renderManagedEffects(effects, editMode) : ""}
             </div>
-            ${editMode ? renderManagedFrameCircleDialog() : ""}
+            ${editMode && canManageActor ? renderManagedFrameCircleDialog() : ""}
             ${renderManagedImageLightbox()}
         `;
 
@@ -657,7 +660,7 @@
         if (!token) return;
         const actorHasChanges = collectManagedActorPatches(root).length > 0 || hasManagedPresentationChanges(root, currentDocument);
         let profileSaved = false;
-        if (managedProfileDirty || managedProfileSource === "legacy") {
+        if (currentProfilePermissions.canEdit === true && (managedProfileDirty || managedProfileSource === "legacy")) {
             button.disabled = true;
             if (status) status.textContent = "Salvataggio dossier...";
             try {
@@ -1113,11 +1116,11 @@
         ];
         return `<div class="managed-hero-vitals">${entries.map((entry) => `<div class="managed-hero-vital is-${entry.tone}"><i class="fas ${entry.icon}"></i><span><small>${escapeHtml(entry.label)}</small><strong>${escapeHtml(entry.value)}</strong></span></div>`).join("")}</div>`;
     }
-    function renderManagedCommandBar({ abilities, skills, traits, variants, effects, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor }) {
+    function renderManagedCommandBar({ abilities, skills, traits, variants, effects, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor }) {
         const primaryPlayer = getManagedActorRelationshipType(actor) === "player";
         const links = [
             ["managed-profile", "fa-book-open", "Dossier", Boolean(currentProfile?.blocks?.length || currentProfile?.role || currentProfile?.quote || editMode)],
-            ["managed-appearance", "fa-images", "Media", editMode],
+            ["managed-appearance", "fa-images", "Media", editMode && canManageActor],
             ["managed-stats", "fa-gauge-high", "Panoramica", true],
             ["managed-abilities", "fa-dumbbell", "Caratteristiche", Object.keys(abilities || {}).length > 0],
             ["managed-companions", "fa-paw", "Companion", primaryPlayer],
@@ -1129,7 +1132,7 @@
             ["managed-inventory", "fa-backpack", "Inventario", inventoryEntries.length > 0 || editMode],
 
 
-            ["managed-variants", "fa-layer-group", "Varianti", variants.length > 0 || editMode],
+            ["managed-variants", "fa-layer-group", "Varianti", variants.length > 0 || (editMode && canManageActor)],
             ["managed-effects", "fa-wand-magic-sparkles", "Effetti", effects.length > 0 || editMode]
         ].filter(([, , , visible]) => visible);
         const commands = Array.isArray(actor?.sync?.commands) ? actor.sync.commands : [];
@@ -1154,7 +1157,7 @@
         }
         const previousScroll = window.scrollY;
         managedEditMode = shouldEdit;
-        renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode);
+        renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
         window.requestAnimationFrame(() => window.scrollTo({ top: Math.min(previousScroll, Math.max(0, document.documentElement.scrollHeight - window.innerHeight)), behavior: "instant" }));
     }
     function renderCoreStats(attributes, details, runtime, actorType, traits, spellSlotDefinitions = {}, canEdit = false) {
@@ -1606,7 +1609,7 @@
             ["system.materials", "Materiali"], ["system.recharge", "Ricarica"], ["system.activities", "Attività D&D5e"]
         ].map(([path, label]) => renderManagedItemJsonControl(entry, command, path, label)).filter(Boolean).join("");
         const guidedMechanics = renderManagedHumanMechanicsEditor(entry, command);
-        return `<details class="managed-item-editor"><summary><span><i class="fas fa-pen"></i> Modifica elemento</span><i class="fas fa-chevron-down managed-editor-chevron" aria-hidden="true"></i></summary><div class="managed-item-form" data-managed-item-form="${escapeAttr(key)}" data-managed-item-id="${escapeAttr(entry.itemId || "")}" data-managed-transfer-id="${escapeAttr(entry.transferId || "")}"><div class="managed-item-fields">${fields}</div><div class="managed-item-icon-editor"><div>${entry.media?.icon?.path ? `<img src="${escapeAttr(resolveMedia(entry.media.icon.path))}" alt="">` : `<i class="fas fa-image"></i>`}</div><label class="managed-file-field"><span>Icona elemento</span><input type="file" accept="image/*" data-managed-item-icon></label></div><label class="managed-item-description"><span>Descrizione</span><div class="managed-richtext-editor" contenteditable="true" spellcheck="true" data-managed-item-path="system.description.value" data-managed-item-type="richtext" data-managed-description-dirty="false">${buildManagedDescriptionEditorHtml(description ?? "")}</div><small>Incantesimi, riferimenti e tiri restano collegati a Foundry.</small></label>${guidedMechanics}<details class="managed-mechanics-editor managed-mechanics-advanced"><summary><span><i class="fas fa-code"></i> Avanzato e automazioni</span><i class="fas fa-chevron-down"></i></summary><p>Qui rimangono i dati completi di D&D5e, MidiQOL e degli altri moduli. Usali solo per campi non presenti nell’editor guidato.</p><div class="managed-mechanics-grid">${mechanicalFields}</div></details><div class="managed-item-actions"><span data-managed-item-result></span><button type="button" class="button-gold-outline managed-danger-action" data-managed-item-delete><i class="fas fa-trash"></i> Elimina</button><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-save><i class="fas fa-cloud-arrow-up"></i> Invia a Foundry</button></div></div></details>`;
+        return `<details class="managed-item-editor"><summary><span><i class="fas fa-pen"></i> Modifica elemento</span><i class="fas fa-chevron-down managed-editor-chevron" aria-hidden="true"></i></summary><div class="managed-item-form" data-managed-item-form="${escapeAttr(key)}" data-managed-item-id="${escapeAttr(entry.itemId || "")}" data-managed-transfer-id="${escapeAttr(entry.transferId || "")}"><div class="managed-item-fields">${fields}</div><div class="managed-item-icon-editor" ${currentCanManageActor ? "" : "hidden"}><div>${entry.media?.icon?.path ? `<img src="${escapeAttr(resolveMedia(entry.media.icon.path))}" alt="">` : `<i class="fas fa-image"></i>`}</div><label class="managed-file-field"><span>Icona elemento</span><input type="file" accept="image/*" data-managed-item-icon></label></div><label class="managed-item-description"><span>Descrizione</span><div class="managed-richtext-editor" contenteditable="true" spellcheck="true" data-managed-item-path="system.description.value" data-managed-item-type="richtext" data-managed-description-dirty="false">${buildManagedDescriptionEditorHtml(description ?? "")}</div><small>Incantesimi, riferimenti e tiri restano collegati a Foundry.</small></label>${guidedMechanics}<details class="managed-mechanics-editor managed-mechanics-advanced"><summary><span><i class="fas fa-code"></i> Avanzato e automazioni</span><i class="fas fa-chevron-down"></i></summary><p>Qui rimangono i dati completi di D&D5e, MidiQOL e degli altri moduli. Usali solo per campi non presenti nell’editor guidato.</p><div class="managed-mechanics-grid">${mechanicalFields}</div></details><div class="managed-item-actions"><span data-managed-item-result></span><button type="button" class="button-gold-outline managed-danger-action" data-managed-item-delete><i class="fas fa-trash"></i> Elimina</button><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-save><i class="fas fa-cloud-arrow-up"></i> Invia a Foundry</button></div></div></details>`;
     }
 
     function renderManagedHumanMechanicsEditor(entry, command) {
@@ -1773,7 +1776,7 @@
                 </div>
                 <span class="managed-catalog-picker-result" data-managed-catalog-result></span>
             </section>` : "";
-        const customCreator = `<details class="managed-create-editor" data-managed-item-create-form><summary><span><i class="fas fa-plus"></i> Crea elemento personalizzato</span><i class="fas fa-chevron-down"></i></summary><div class="managed-create-form"><div class="managed-item-fields"><label><span>Nome</span><input type="text" value="Nuovo elemento" data-managed-item-create-field="name"></label><label><span>Tipo</span><select data-managed-item-create-field="type">${options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label><label><span>Livello</span><input type="number" min="0" max="20" step="1" value="0" data-managed-item-create-field="level"></label><label class="managed-file-field"><span>Icona</span><input type="file" accept="image/*" data-managed-item-create-field="icon"></label></div><label class="managed-item-description"><span>Descrizione</span><textarea rows="4" data-managed-item-create-field="description"></textarea></label><label class="managed-json-field"><span>Dati system iniziali</span><textarea rows="5" spellcheck="false" data-managed-item-create-field="system">{}</textarea></label><div class="managed-item-actions"><span data-managed-item-create-result></span><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-create><i class="fas fa-plus"></i> Crea in Foundry</button></div></div></details>`;
+        const customCreator = `<details class="managed-create-editor" data-managed-item-create-form><summary><span><i class="fas fa-plus"></i> Crea elemento personalizzato</span><i class="fas fa-chevron-down"></i></summary><div class="managed-create-form"><div class="managed-item-fields"><label><span>Nome</span><input type="text" value="Nuovo elemento" data-managed-item-create-field="name"></label><label><span>Tipo</span><select data-managed-item-create-field="type">${options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label><label><span>Livello</span><input type="number" min="0" max="20" step="1" value="0" data-managed-item-create-field="level"></label><label class="managed-file-field" ${currentCanManageActor ? "" : "hidden"}><span>Icona</span><input type="file" accept="image/*" data-managed-item-create-field="icon"></label></div><label class="managed-item-description"><span>Descrizione</span><textarea rows="4" data-managed-item-create-field="description"></textarea></label><label class="managed-json-field"><span>Dati system iniziali</span><textarea rows="5" spellcheck="false" data-managed-item-create-field="system">{}</textarea></label><div class="managed-item-actions"><span data-managed-item-create-result></span><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-create><i class="fas fa-plus"></i> Crea in Foundry</button></div></div></details>`;
         return `${catalogPicker}${customCreator}`;
     }
 
@@ -2565,7 +2568,7 @@
             const latest = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(currentDocument.worldId)}/${encodeURIComponent(currentDocument.actorId)}`, { token, cache: false });
             if (Number(latest?.data?.revision || 0) !== Number(currentDocument.revision || 0)) {
                 currentDocument = latest.data;
-                renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode);
+                renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
                 const refreshedStatus = root.querySelector("[data-managed-status]");
                 if (refreshedStatus) refreshedStatus.textContent = "La scheda era cambiata: ho caricato la versione più recente. Ripeti la modifica.";
                 return;
@@ -2624,7 +2627,7 @@
             window.CriptaApp.api.clearCache?.();
             const payload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(next.worldId)}/${encodeURIComponent(next.actorId)}`, { token, cache: false });
             currentDocument = payload.data;
-            renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode);
+            renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
             const savedStatus = root.querySelector("[data-managed-status]");
             if (savedStatus) savedStatus.textContent = actorPatches.length
                 ? formatManagedPendingFields(actorPatches)
