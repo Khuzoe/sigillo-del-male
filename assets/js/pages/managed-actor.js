@@ -291,6 +291,7 @@
             name: String(input.name || actor.name || "NPC"),
             role: String(input.role || ""),
             quote: String(input.quote || ""),
+            lifeState: normalizeManagedNpcLifeState(input.lifeState, input.status),
             status: String(input.status || ""),
             visibility: { state: normalizeManagedProfileVisibility(input.visibility?.state || input.visibility || "dm") },
             summary: {
@@ -321,6 +322,7 @@
             name: character.name || actor.name,
             role: character.role || character.subtitle || "",
             quote: character.quote || "",
+            lifeState: normalizeManagedNpcLifeState(character.lifeState, character.status),
             status: character.status || "",
             category: character.category || character.group || character.faction || "",
             visibility: { state: character.hidden === true ? "dm" : "public" },
@@ -362,6 +364,13 @@
         return String(value || "dm").toLowerCase() === "dm" ? "dm" : "public";
     }
 
+    function normalizeManagedNpcLifeState(value, fallback = "") {
+        const state = String(value || fallback || "").trim().toLowerCase();
+        if (["alive", "vivo", "viva"].includes(state) || state.includes("viv")) return "alive";
+        if (["dead", "morto", "morta"].includes(state) || state.includes("mort")) return "dead";
+        return "unknown";
+    }
+
     function renderManagedAccessEditor(profile) {
         if (currentProfilePermissions.isEditor !== true) return "";
         const statsState = String(currentDocument?.visibility?.state || "dm");
@@ -394,7 +403,7 @@
         const type = block.type || "lore";
         const imagePath = type === "banner_box" ? (block.banner || block.image) : block.image;
         const image = imagePath ? `<button type="button" class="managed-profile-block-image" data-managed-image-open="${escapeAttr(resolveMedia(imagePath))}" data-managed-image-title="${escapeAttr(block.title)}"><img src="${escapeAttr(resolveMedia(imagePath))}" alt="${escapeAttr(block.title)}" loading="lazy" decoding="async"><span><i class="fas fa-expand"></i></span></button>` : "";
-        const html = window.CriptaMarkdown?.render?.(block.text || "", { showInlineSecrets: currentProfilePermissions.isEditor === true }) || `<p>${escapeHtml(block.text || "")}</p>`;
+        const html = window.CriptaMarkdown?.render?.(block.text || "", { context: type, preserveLineBreaks: true, showInlineSecrets: currentProfilePermissions.isEditor === true }) || `<p>${escapeHtml(block.text || "").replace(/\n/g, "<br>")}</p>`;
         const hiddenBadge = block.visibility === "dm" && currentProfilePermissions.isEditor ? `<span class="managed-profile-hidden"><i class="fas fa-eye-slash"></i> Solo DM</span>` : "";
         return `<article class="managed-profile-block managed-profile-block--${escapeAttr(type)}">${type === "banner_box" ? image : ""}<div class="managed-profile-block-body">${hiddenBadge}<h3><i class="fas ${escapeAttr(block.icon || "fa-scroll")}"></i>${escapeHtml(block.title)}</h3>${type !== "banner_box" ? image : ""}<div class="managed-profile-markdown">${html}</div></div></article>`;
     }
@@ -430,7 +439,8 @@
                 ${renderManagedAccessEditor(profile)}
                 <div class="managed-profile-meta-editor">
                     <label><span>Ruolo o soprannome</span><input type="text" data-managed-profile-field="role" value="${escapeAttr(profile.role)}" placeholder="Es. La Giullare"></label>
-                    <label><span>Stato</span><input type="text" data-managed-profile-field="status" value="${escapeAttr(profile.status)}" placeholder="Es. Vivo, disperso"></label>
+                    <label><span>Stato</span><select data-managed-profile-field="lifeState"><option value="alive" ${profile.lifeState === "alive" ? "selected" : ""}>Vivo</option><option value="dead" ${profile.lifeState === "dead" ? "selected" : ""}>Morto</option><option value="unknown" ${profile.lifeState === "unknown" ? "selected" : ""}>Ignoto</option></select></label>
+                    <label><span>Nota sullo stato</span><input type="text" data-managed-profile-field="status" value="${escapeAttr(profile.status)}" placeholder="Facoltativa, es. disperso"></label>
                     ${canManageProfileLink ? renderManagedNpcCategoryField(profile) : ""}
                     ${canManageProfileLink ? '<label><span>ID wiki collegato</span><input type="text" data-managed-profile-field="legacyCharacterId" value="' + escapeAttr(profile.legacyCharacterId) + '" placeholder="zara"></label>' : ""}
                     <label class="managed-profile-field-wide"><span>Citazione</span><textarea rows="2" data-managed-profile-field="quote" placeholder="Una frase rappresentativa">${escapeHtml(profile.quote)}</textarea></label>
@@ -451,6 +461,8 @@
         const needsImage = ["image_box", "banner_box", "secret_dossier"].includes(block.type);
         const imageValue = block.type === "banner_box" ? (block.banner || block.image || "") : (block.image || "");
         const preview = getManagedProfilePreview(block) || (imageValue ? resolveMedia(imageValue) : "");
+        const richTextHtml = window.CriptaRichTextEditor?.markdownToHtml?.(block.text || "", { context: block.type, showInlineSecrets: true }) || window.CriptaMarkdown?.render?.(block.text || "", { context: block.type, preserveLineBreaks: true, showInlineSecrets: true }) || `<p>${escapeHtml(block.text || "").replace(/\n/g, "<br>")}</p>`;
+        const richTextToolbar = window.CriptaRichTextEditor?.toolbarHtml?.() || "";
         return `<article class="managed-profile-edit-block" data-managed-profile-block data-managed-profile-block-id="${escapeAttr(block.id)}">
             <div class="managed-profile-edit-block-head"><button type="button" class="managed-profile-drag" draggable="true" data-managed-profile-drag="${escapeAttr(block.id)}" aria-label="Trascina ${escapeAttr(block.title)}"><i class="fas fa-grip-vertical"></i></button><strong>${escapeHtml(block.title || `Blocco ${index + 1}`)}</strong><div><button type="button" data-managed-profile-move="up" aria-label="Sposta su"><i class="fas fa-arrow-up"></i></button><button type="button" data-managed-profile-move="down" aria-label="Sposta giu"><i class="fas fa-arrow-down"></i></button><button type="button" class="is-danger" data-managed-profile-delete aria-label="Elimina blocco"><i class="fas fa-trash"></i></button></div></div>
             <input type="hidden" data-managed-profile-block-field="id" value="${escapeAttr(block.id)}">
@@ -461,7 +473,7 @@
                 <label><span>Icona</span><input type="text" data-managed-profile-block-field="icon" value="${escapeAttr(block.icon)}" placeholder="fa-scroll"></label>
             </div>
             ${needsImage ? `<div class="managed-profile-image-editor"><div class="managed-profile-image-drop" data-managed-profile-image-drop="${escapeAttr(block.id)}">${preview ? `<img data-managed-profile-image-preview src="${escapeAttr(preview)}" alt="">` : `<i class="fas fa-image"></i><span>Trascina immagine</span>`}</div><div><label><span>Percorso immagine</span><input type="text" data-managed-profile-block-field="image" value="${escapeAttr(imageValue)}"></label><label class="managed-profile-file-button"><i class="fas fa-cloud-arrow-up"></i><span>Scegli immagine</span><input type="file" accept="image/*" data-managed-profile-image-file="${escapeAttr(block.id)}"></label></div></div>` : ""}
-            <div class="managed-profile-text-editor"><label><span>Testo</span><textarea rows="8" data-managed-profile-block-field="text">${escapeHtml(block.text)}</textarea></label><div><span>Anteprima</span><div class="managed-profile-markdown managed-profile-live-preview" data-managed-profile-preview>${window.CriptaMarkdown?.render?.(block.text || "", { showInlineSecrets: true }) || escapeHtml(block.text)}</div></div></div>
+            <div class="managed-profile-text-editor"><span>Testo del blocco</span><div class="managed-profile-rich-text" data-managed-profile-rich-text>${richTextToolbar}<textarea hidden data-rich-text-source data-managed-profile-block-field="text">${escapeHtml(block.text)}</textarea><div class="managed-profile-markdown managed-profile-rich-text-editor" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" data-rich-text-editor>${richTextHtml || "<p><br></p>"}</div><div class="managed-rich-text-hint"><span><i class="fas fa-turn-down"></i> Invio crea un nuovo paragrafo; Maiusc + Invio va a capo.</span><span>Incolla testo senza trascinarti dietro stili estranei.</span></div></div></div>
         </article>`;
     }
 
@@ -510,15 +522,19 @@
         const section = root.querySelector("[data-managed-profile]");
         if (!section || !editMode || !currentProfilePermissions.canEdit) return;
         const markDirty = () => { managedProfileDirty = true; root.dataset.managedDirty = "true"; };
+        const actorNameControl = root.querySelector('[data-managed-actor-path="name"]');
+        if (actorNameControl && actorNameControl.dataset.managedProfileNameBound !== "true") {
+            actorNameControl.dataset.managedProfileNameBound = "true";
+            actorNameControl.addEventListener("input", markDirty);
+        }
         section.querySelectorAll("input:not([data-managed-visibility]), textarea, select:not([data-managed-visibility])").forEach((control) => control.addEventListener("input", markDirty));
         section.querySelectorAll("select:not([data-managed-visibility])").forEach((control) => control.addEventListener("change", markDirty));
         section.querySelector("[data-managed-category-create]")?.addEventListener("click", () => {
             createManagedNpcCategory(root, markDirty);
         });
-        section.querySelectorAll('[data-managed-profile-block-field="text"]').forEach((textarea) => textarea.addEventListener("input", () => {
-            const preview = textarea.closest("[data-managed-profile-block]")?.querySelector("[data-managed-profile-preview]");
-            if (preview) preview.innerHTML = window.CriptaMarkdown?.render?.(textarea.value, { showInlineSecrets: true }) || escapeHtml(textarea.value);
-        }));
+        section.querySelectorAll("[data-managed-profile-rich-text]").forEach((shell) => {
+            window.CriptaRichTextEditor?.mount?.(shell, { onChange: markDirty });
+        });
         section.querySelectorAll('[data-managed-profile-block-field="type"]').forEach((select) => select.addEventListener("change", () => {
             currentProfile = collectManagedProfileFromRoot(root);
             rerenderManagedProfileSection(root);
@@ -621,7 +637,10 @@
         const next = structuredClone(currentProfile);
         const field = (name, fallback = "") => section.querySelector(`[data-managed-profile-field="${CSS.escape(name)}"]`)?.value ?? fallback;
         next.role = field("role");
-        next.status = field("status");
+        next.lifeState = normalizeManagedNpcLifeState(field("lifeState", currentProfile.lifeState || "unknown"));
+        const actorName = String(root.querySelector('[data-managed-actor-path="name"]')?.value || "").trim();
+        if (actorName) next.name = actorName;
+        next.status = field("status", currentProfile.status || "");
         next.categoryId = window.CriptaNpcCategories?.normalizeId?.(field("categoryId", currentProfile.categoryId || "")) || "";
         const selectedCategory = window.CriptaNpcCategories?.resolve?.(npcCategoryRegistry, next.categoryId, currentProfile.category);
         next.category = next.categoryId ? String(selectedCategory?.name || currentProfile.category || "").trim() : "";

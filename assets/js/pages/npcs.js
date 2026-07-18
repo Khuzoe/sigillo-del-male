@@ -164,9 +164,24 @@ function parseYamlLite(yamlText) {
                     return;
                 }
 
-                renderNpcGroups(npcListContainer, sortedNpcs, base_path, currentUserIsDm);
-                window.CriptaRosterMedia?.init(npcListContainer);
-                initNpcRosterControls(npcListContainer);
+                let refreshRosterFilters = () => {};
+                const rosterState = {
+                    npcs: sortedNpcs,
+                    categoryRegistry,
+                    basePath: base_path,
+                    canEdit: currentUserIsDm,
+                    render: null
+                };
+                const renderRoster = () => {
+                    renderNpcGroups(npcListContainer, rosterState.npcs, rosterState.basePath, currentUserIsDm);
+                    window.CriptaRosterMedia?.init(npcListContainer);
+                    initNpcCategoryDragAndDrop(npcListContainer, rosterState);
+                    refreshRosterFilters();
+                };
+                rosterState.render = renderRoster;
+                renderRoster();
+                refreshRosterFilters = initNpcRosterControls(npcListContainer) || (() => {});
+                refreshRosterFilters();
             } catch (error) {
                 console.error("Errore nel caricamento degli NPC:", error);
                 npcListContainer.innerHTML = '<p style="color: var(--red);">Impossibile caricare la lista degli NPC.</p>';
@@ -218,10 +233,16 @@ function parseYamlLite(yamlText) {
                 name: actor.name || legacyNpc?.name || 'NPC',
                 role: profile.role || legacyNpc?.role || 'NPC',
                 quote: profile.quote || legacyNpc?.quote || '',
-                status: normalizeManagedNpcStatus(profile.status, legacyNpc?.status),
+                lifeState: normalizeManagedNpcLifeState(profile.lifeState, profile.status || legacyNpc?.status),
+                status: normalizeManagedNpcStatus(profile.lifeState, profile.status || legacyNpc?.status),
+                statusNote: String(profile.status || legacyNpc?.statusNote || ''),
                 hidden: hiddenFromPlayers,
-                categoryId: profile.categoryId || legacyNpc?.categoryId || '',
-                category: profile.category || legacyNpc?.category || 'Altri NPC',
+                categoryId: Object.prototype.hasOwnProperty.call(profile, 'categoryId')
+                    ? profile.categoryId
+                    : (legacyNpc?.categoryId || ''),
+                category: Object.prototype.hasOwnProperty.call(profile, 'category')
+                    ? profile.category
+                    : (legacyNpc?.category || 'Altri NPC'),
                 categoryPriority: profile.categoryOrder ?? legacyNpc?.categoryPriority ?? null,
                 categoryColor: profile.categoryColor || legacyNpc?.categoryColor || '',
                 categoryIcon: profile.categoryIcon || legacyNpc?.categoryIcon || '',
@@ -243,6 +264,8 @@ function parseYamlLite(yamlText) {
                 },
                 updatedAt: actor.updatedAt || legacyNpc?.updatedAt || '',
                 managedActorWorldId: String(actor?.worldId || '').trim(),
+                managedProfileRevision: Math.max(0, Number(profile.revision || 0)),
+                managedProfileCanEdit: actor?.permissions?.isEditor === true,
                 managedActorId: String(actor?.actorId || '').trim(),
                 discordShareSource: 'managed',
                 managedActorUrl: buildManagedActorDetailUrl(actor)
@@ -268,13 +291,22 @@ function parseYamlLite(yamlText) {
 
 
 
+        function normalizeManagedNpcLifeState(value, fallback = '') {
+            const state = String(value || '').trim().toLowerCase();
+            if (state === 'alive' || state.includes('viv')) return 'alive';
+            if (state === 'dead' || state.includes('mort')) return 'dead';
+            if (state === 'unknown' || state.includes('ignot') || state.includes('sconosciut')) return 'unknown';
+            const legacy = String(fallback || '').trim().toLowerCase();
+            if (legacy === 'alive' || legacy.includes('viv')) return 'alive';
+            if (legacy === 'dead' || legacy.includes('mort')) return 'dead';
+            return 'unknown';
+        }
+
         function normalizeManagedNpcStatus(value, fallback) {
-            const status = String(value || '').trim().toLowerCase();
-            if (status.includes('mort') || status === 'dead') return 'morto';
-            if (status.includes('viv') || status === 'alive') return 'vivo';
-            if (status.includes('ignot') || status.includes('sconosciut') || status === 'unknown') return 'ignoto';
-            const legacyStatus = String(fallback || '').trim().toLowerCase();
-            return ['vivo', 'morto', 'ignoto'].includes(legacyStatus) ? legacyStatus : 'ignoto';
+            const state = normalizeManagedNpcLifeState(value, fallback);
+            if (state === 'alive') return 'vivo';
+            if (state === 'dead') return 'morto';
+            return 'ignoto';
         }
 
         function buildManagedActorDetailUrl(actor) {
@@ -625,6 +657,7 @@ function parseYamlLite(yamlText) {
                 apply();
             });
             apply();
+            return apply;
         }
 
         function createNpcCard(npc, base_path, canShare = false) {
@@ -634,13 +667,18 @@ function parseYamlLite(yamlText) {
                 ignoto: { text: 'IGNOTO', class: 'status-sconosciuto' }
             };
             const statusInfo = statusMap[npc.status] || { text: 'N/A', class: '' };
+            const canMoveCategory = canShare && Boolean(npc.managedActorWorldId && npc.managedActorId);
 
             const card = document.createElement('a');
             card.href = npc.managedActorUrl || buildNpcDetailUrl({ id: npc.id, type: 'npc' });
             card.className = 'npc-card';
+            card.draggable = false;
             card.dataset.rosterCard = 'npc';
             card.dataset.rosterStatus = ['vivo', 'morto'].includes(String(npc.status || '').toLowerCase()) ? String(npc.status).toLowerCase() : 'ignoto';
-            card.dataset.rosterSearch = normalizeRosterSearch([npc.name, npc.role, npc.quote, npc.category, npc.status].filter(Boolean).join(' '));
+            card.dataset.rosterSearch = normalizeRosterSearch([npc.name, npc.role, npc.quote, npc.category, npc.status, npc.statusNote].filter(Boolean).join(' '));
+            card.dataset.managedActorWorld = String(npc.managedActorWorldId || '');
+            card.dataset.managedActorId = String(npc.managedActorId || '');
+            card.dataset.npcCategoryId = String(npc.categoryId || '');
             const hiddenFromPlayers = npc.hidden === true || npc.status === 'hidden';
             if (hiddenFromPlayers) card.classList.add('npc-card--dm-hidden');
             const hasDedicatedIdle = npc.images.hasDedicatedIdle ?? Boolean(npc.images.idle);
@@ -670,6 +708,7 @@ function parseYamlLite(yamlText) {
                     <p class="npc-desc">${npc.quote}</p>
                 </div>
                 <span class="npc-card-actions">
+                    ${canMoveCategory ? '<span class="npc-category-drag-handle" role="button" tabindex="0" draggable="false" title="Trascina in una categoria diversa" aria-label="Sposta ' + escapeNpcAttribute(npc.name) + ' in una categoria diversa"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>' : ''}
                     ${canShare ? '<span class="npc-discord-share" role="button" tabindex="0" title="Condividi su Discord" aria-label="Condividi ' + escapeNpcAttribute(npc.name) + ' su Discord"><i class="fab fa-discord" aria-hidden="true"></i></span>' : ''}
                     <i class="fas fa-chevron-right arrow-icon"></i>
                 </span>
@@ -697,6 +736,261 @@ function parseYamlLite(yamlText) {
             if (idleCircle || hoverCircle) requestAnimationFrame(() => window.CriptaImageAdjust?.initFrameCircleImages?.(card));
             return card;
 
+        }
+
+        function initNpcCategoryDragAndDrop(container, state = {}) {
+            if (!container || state.canEdit !== true) return;
+            container._npcCategoryDragCleanup?.();
+            const listenerController = new AbortController();
+            container._npcCategoryDragCleanup = () => listenerController.abort();
+            const movable = (Array.isArray(state.npcs) ? state.npcs : []).filter((npc) => npc?.managedActorWorldId && npc?.managedActorId);
+            if (!movable.length) return;
+
+            const npcByKey = new Map(movable.map((npc) => [managedNpcRosterKey(npc.managedActorWorldId, npc.managedActorId), npc]));
+            const categories = (Array.isArray(state.categoryRegistry?.categories) ? state.categoryRegistry.categories : [])
+                .filter((category) => !category.archived && !category.mergedInto)
+                .sort((left, right) => Number(left.order || 0) - Number(right.order || 0) || String(left.name || '').localeCompare(String(right.name || ''), 'it'));
+            const dock = document.createElement('div');
+            dock.className = 'npc-category-drop-dock';
+            dock.hidden = true;
+            dock.setAttribute('aria-label', 'Categorie di destinazione');
+            const targets = [{ id: '', name: 'Senza categoria', icon: 'fa-box-archive' }, ...categories];
+            dock.innerHTML = `<span class="npc-category-drop-dock-label"><i class="fas fa-folder-tree"></i> Sposta in</span><div>${targets.map((category) => `<button type="button" data-npc-category-drop-id="${escapeNpcAttribute(category.id)}"><i class="fas ${escapeNpcAttribute(category.icon || 'fa-folder-open')}"></i><span>${escapeNpcAttribute(category.name)}</span></button>`).join('')}</div>`;
+            container.prepend(dock);
+
+            let draggedNpc = null;
+            let saving = false;
+            const clearTargets = () => {
+                stopDragAutoScroll();
+                container.classList.remove('is-category-dragging');
+                container.querySelectorAll('.is-category-drop-target').forEach((target) => target.classList.remove('is-category-drop-target'));
+                container.querySelectorAll('.npc-card.is-category-drag-source').forEach((card) => card.classList.remove('is-category-drag-source'));
+                dock.hidden = true;
+            };
+            const finishDrag = () => {
+                draggedNpc = null;
+                clearTargets();
+            };
+            const moveTo = async (categoryId, card = null) => {
+                if (!draggedNpc || saving) return;
+                const npc = draggedNpc;
+                const targetId = window.CriptaNpcCategories?.normalizeId?.(categoryId || '') || '';
+                const currentId = window.CriptaNpcCategories?.normalizeId?.(npc.categoryId || npc.category || '') || '';
+                finishDrag();
+                if (targetId === currentId) {
+                    showNpcRosterFeedback(`${npc.name} \u00e8 gi\u00e0 in ${npc.category || 'Senza categoria'}.`, 'info');
+                    return;
+                }
+                const targetCategory = targetId
+                    ? window.CriptaNpcCategories?.resolve?.(state.categoryRegistry, targetId, '')
+                    : null;
+                if (targetId && !targetCategory) {
+                    showNpcRosterFeedback('Categoria non disponibile.', 'error');
+                    return;
+                }
+                saving = true;
+                card?.classList.add('is-category-saving');
+                try {
+                    const profile = await saveManagedNpcProfilePatch(npc, {
+                        categoryId: targetId,
+                        category: targetCategory?.name || ''
+                    });
+                    npc.categoryId = String(profile.categoryId || targetId);
+                    npc.category = String(profile.category || targetCategory?.name || '');
+                    npc.categoryPriority = targetCategory?.order ?? null;
+                    npc.categoryColor = targetCategory?.color || '';
+                    npc.categoryIcon = targetCategory?.icon || '';
+                    npc.managedProfileRevision = Math.max(0, Number(profile.revision || npc.managedProfileRevision || 0));
+                    state.render?.();
+                    showNpcRosterFeedback(`${npc.name} spostato in ${targetCategory?.name || 'Senza categoria'}.`, 'success');
+                } catch (error) {
+                    card?.classList.remove('is-category-saving');
+                    showNpcRosterFeedback(error?.message || 'Spostamento non riuscito.', 'error');
+                } finally {
+                    saving = false;
+                }
+            };
+
+            const pointerDropTargetAt = (clientX, clientY) => {
+                const node = document.elementFromPoint(clientX, clientY);
+                const target = node?.closest?.('[data-npc-category-drop-id], .npc-category-group') || null;
+                return target && container.contains(target) ? target : null;
+            };
+            const pointerTargetCategoryId = (target) => {
+                if (!target) return null;
+                if (target.matches('[data-npc-category-drop-id]')) return target.dataset.npcCategoryDropId || '';
+                return target.dataset.npcCategory || '';
+            };
+            const highlightPointerTarget = (target) => {
+                container.querySelectorAll('.is-category-drop-target').forEach((entry) => entry.classList.remove('is-category-drop-target'));
+                target?.classList.add('is-category-drop-target');
+            };
+            let pointerSession = null;
+            let dragAutoScrollFrame = 0;
+            let dragAutoScrollVelocity = 0;
+            const stopDragAutoScroll = () => {
+                dragAutoScrollVelocity = 0;
+                if (dragAutoScrollFrame) cancelAnimationFrame(dragAutoScrollFrame);
+                dragAutoScrollFrame = 0;
+            };
+            const runDragAutoScroll = () => {
+                if (!pointerSession?.active || !dragAutoScrollVelocity) {
+                    dragAutoScrollFrame = 0;
+                    return;
+                }
+                const scrollingElement = document.scrollingElement || document.documentElement;
+                const previousTop = scrollingElement.scrollTop;
+                scrollingElement.scrollTop += dragAutoScrollVelocity;
+                if (scrollingElement.scrollTop === previousTop) {
+                    stopDragAutoScroll();
+                    return;
+                }
+                highlightPointerTarget(pointerDropTargetAt(pointerSession.clientX, pointerSession.clientY));
+                dragAutoScrollFrame = requestAnimationFrame(runDragAutoScroll);
+            };
+            const updateDragAutoScroll = (clientX, clientY) => {
+                if (!pointerSession?.active) return;
+                pointerSession.clientX = clientX;
+                pointerSession.clientY = clientY;
+                const directTarget = pointerDropTargetAt(clientX, clientY);
+                if (directTarget?.matches?.('[data-npc-category-drop-id]')) {
+                    stopDragAutoScroll();
+                    return;
+                }
+                const viewportHeight = Math.max(1, window.innerHeight);
+                const edgeSize = Math.min(120, Math.max(80, viewportHeight * .15));
+                let nextVelocity = 0;
+                if (clientY < edgeSize) {
+                    const strength = Math.min(1, Math.max(0, (edgeSize - clientY) / edgeSize));
+                    nextVelocity = -Math.round(4 + (20 * strength));
+                } else if (clientY > viewportHeight - edgeSize) {
+                    const strength = Math.min(1, Math.max(0, (clientY - (viewportHeight - edgeSize)) / edgeSize));
+                    nextVelocity = Math.round(4 + (20 * strength));
+                }
+                dragAutoScrollVelocity = nextVelocity;
+                if (!nextVelocity) {
+                    stopDragAutoScroll();
+                    return;
+                }
+                if (!dragAutoScrollFrame) dragAutoScrollFrame = requestAnimationFrame(runDragAutoScroll);
+            };
+            listenerController.signal.addEventListener('abort', stopDragAutoScroll, { once: true });
+            const updatePointerSession = (event) => {
+                const session = pointerSession;
+                if (!session || session.pointerId !== event.pointerId) return;
+                if (!session.active) {
+                    const distance = Math.hypot(event.clientX - session.startX, event.clientY - session.startY);
+                    if (distance < 6) return;
+                    session.active = true;
+                    draggedNpc = session.npc;
+                    session.card.classList.add('is-category-drag-source');
+                    container.classList.add('is-category-dragging');
+                    dock.hidden = false;
+                }
+                event.preventDefault();
+                event.stopPropagation();
+                updateDragAutoScroll(event.clientX, event.clientY);
+                highlightPointerTarget(pointerDropTargetAt(event.clientX, event.clientY));
+            };
+            const completePointerSession = (event, cancelled = false) => {
+                const session = pointerSession;
+                if (!session || session.pointerId !== event.pointerId) return;
+                const wasActive = session.active;
+                const target = wasActive && !cancelled ? pointerDropTargetAt(event.clientX, event.clientY) : null;
+                pointerSession = null;
+                if (session.handle?.hasPointerCapture?.(event.pointerId)) {
+                    session.handle.releasePointerCapture(event.pointerId);
+                }
+                if (cancelled) {
+                    finishDrag();
+                    return;
+                }
+                if (!wasActive) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const categoryId = pointerTargetCategoryId(target);
+                if (categoryId === null) {
+                    finishDrag();
+                    return;
+                }
+                moveTo(categoryId, session.card);
+            };
+            document.addEventListener('pointermove', updatePointerSession, {
+                capture: true,
+                signal: listenerController.signal
+            });
+            document.addEventListener('pointerup', (event) => completePointerSession(event), {
+                capture: true,
+                signal: listenerController.signal
+            });
+            document.addEventListener('pointercancel', (event) => completePointerSession(event, true), {
+                capture: true,
+                signal: listenerController.signal
+            });
+            container.querySelectorAll('.npc-category-drag-handle').forEach((handle) => {
+                handle.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                });
+                handle.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    showNpcRosterFeedback('Trascina la maniglia verso una categoria.', 'info');
+                });
+                handle.addEventListener('pointerdown', (event) => {
+                    if (event.button !== 0 || saving) return;
+                    const card = handle.closest('[data-roster-card="npc"]');
+                    const key = managedNpcRosterKey(card?.dataset.managedActorWorld, card?.dataset.managedActorId);
+                    const npc = npcByKey.get(key) || null;
+                    if (!npc || !card) return;
+                    pointerSession = {
+                        pointerId: event.pointerId,
+                        startX: event.clientX,
+                        startY: event.clientY,
+                        active: false,
+                        npc,
+                        handle,
+                        card
+                    };
+                    handle.setPointerCapture?.(event.pointerId);
+                    event.preventDefault();
+                    event.stopPropagation();
+                });
+            });
+
+        }
+
+        function managedNpcRosterKey(worldId, actorId) {
+            return `${String(worldId || '').trim().toLowerCase()}:${String(actorId || '').trim().toLowerCase()}`;
+        }
+
+        async function saveManagedNpcProfilePatch(npc, data) {
+            const token = String(window.CriptaDiscordAuth?.getToken?.() || '').trim();
+            if (!token) throw new Error('Accedi per modificare la categoria.');
+            if (!npc?.managedActorWorldId || !npc?.managedActorId) throw new Error('Questo NPC non usa ancora il flusso gestito.');
+            const payload = await window.CriptaApp.api.post(`api/managed-actors/${encodeURIComponent(npc.managedActorWorldId)}/${encodeURIComponent(npc.managedActorId)}/profile`, {
+                expectedRevision: Math.max(0, Number(npc.managedProfileRevision || 0)),
+                data
+            }, { token });
+            return payload?.data || {};
+        }
+
+        function showNpcRosterFeedback(message, kind = 'info') {
+            let feedback = document.querySelector('[data-npc-roster-feedback]');
+            if (!feedback) {
+                feedback = document.createElement('div');
+                feedback.dataset.npcRosterFeedback = 'true';
+                feedback.className = 'npc-roster-feedback';
+                feedback.setAttribute('role', 'status');
+                feedback.setAttribute('aria-live', 'polite');
+                document.body.appendChild(feedback);
+            }
+            window.clearTimeout(feedback._npcFeedbackTimer);
+            feedback.className = `npc-roster-feedback is-${kind}`;
+            feedback.innerHTML = `<i class="fas ${kind === 'success' ? 'fa-circle-check' : kind === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-info'}"></i><span>${escapeNpcAttribute(message)}</span>`;
+            feedback.classList.add('is-visible');
+            feedback._npcFeedbackTimer = window.setTimeout(() => feedback.classList.remove('is-visible'), 3200);
         }
 
         function shareNpcOnDiscord(npc, detailUrl, base_path) {

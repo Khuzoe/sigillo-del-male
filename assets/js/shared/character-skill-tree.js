@@ -29,6 +29,27 @@
         }));
     }
 
+    const SKILL_TREE_SIMPLE_EDITOR_STORAGE_KEY = 'sigillo-skill-tree-simple-editor';
+    let skillTreeSimpleEditorEnabled = (() => {
+        try {
+            return window.localStorage.getItem(SKILL_TREE_SIMPLE_EDITOR_STORAGE_KEY) === 'true';
+        } catch (_) {
+            return false;
+        }
+    })();
+
+    function setSkillTreeSimpleEditorEnabled(enabled) {
+        skillTreeSimpleEditorEnabled = Boolean(enabled);
+        try {
+            window.localStorage.setItem(SKILL_TREE_SIMPLE_EDITOR_STORAGE_KEY, skillTreeSimpleEditorEnabled ? 'true' : 'false');
+        } catch (_) {
+            // La preferenza resta valida per la sessione corrente.
+        }
+        document.dispatchEvent(new CustomEvent('skill-tree-simple-editor-preference-change', {
+            detail: { enabled: skillTreeSimpleEditorEnabled }
+        }));
+    }
+
     function applySkillTreeRuntime(context = {}) {
         skillTreeRuntime = context || {};
         PLAYER_SKILL_TREE_KEYS = skillTreeRuntime.PLAYER_SKILL_TREE_KEYS || {};
@@ -623,6 +644,138 @@ function getSkillTreeExternalRequirementPresets(treeData) {
         presets.push({ id, label, target });
         return presets;
     }, []);
+}
+
+function getSkillTreeRequirementProfiles(treeData) {
+    const source = Array.isArray(treeData?.requirementProfiles)
+        ? treeData.requirementProfiles
+        : Array.isArray(treeData?.externalRequirementProfiles)
+            ? treeData.externalRequirementProfiles
+            : [];
+    const usedIds = new Set();
+    return source.reduce((profiles, raw, index) => {
+        if (!raw || typeof raw !== 'object') return profiles;
+        const fallbackId = 'profile-' + (index + 1);
+        let id = String(raw.id || raw.key || fallbackId).trim() || fallbackId;
+        if (usedIds.has(id)) id = id + '-' + (index + 1);
+        usedIds.add(id);
+        const label = String(raw.label || raw.name || raw.title || ('Profilo ' + (index + 1))).trim() || ('Profilo ' + (index + 1));
+        const requirements = (Array.isArray(raw.requirements) ? raw.requirements : [])
+            .map((requirement, requirementIndex) => {
+                if (!requirement || typeof requirement !== 'object') return null;
+                const requirementLabel = String(requirement.label || requirement.name || ('Requisito ' + (requirementIndex + 1))).trim();
+                if (!requirementLabel) return null;
+                return {
+                    id: String(requirement.id || ('profile-requirement-' + (requirementIndex + 1))).trim(),
+                    label: requirementLabel,
+                    target: Math.max(1, Math.min(999999, Math.round(Number(requirement.target ?? requirement.required ?? 1) || 1))),
+                    level: Math.max(1, Math.round(Number(requirement.level ?? requirement.unlockLevel ?? 1) || 1)),
+                    ...(requirement.presetId ? { presetId: String(requirement.presetId) } : {})
+                };
+            })
+            .filter(Boolean);
+        profiles.push({ id, label, requirements });
+        return profiles;
+    }, []);
+}
+
+function getSkillTreeNodeEditorStatus(node) {
+    const explicit = String(node?.editorStatus || node?.workflowStatus || '').toLowerCase();
+    if (['draft', 'review', 'ready'].includes(explicit)) return explicit;
+    return /^nuova abilita$/i.test(String(node?.title || '').trim()) ? 'draft' : 'ready';
+}
+
+function getSkillTreeNodeProgressionMode(node) {
+    const explicit = String(node?.progressionMode || node?.levelMode || '').toLowerCase();
+    if (['single', 'tiered'].includes(explicit)) return explicit;
+    return getSkillNodeLevels(node).length > 1 ? 'tiered' : 'single';
+}
+
+function getSkillTreeRequirementGroupKey(requirement) {
+    return String(requirement?.label || 'requisito')
+        .toLocaleLowerCase('it')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\p{L}\p{N}]+/gu, '-')
+        .replace(/^-+|-+$/g, '') || 'requisito';
+}
+
+function getSkillTreePlayerFacingDefinition(treeData) {
+    if (!treeData || typeof treeData !== 'object' || !Array.isArray(treeData.nodes)) return treeData;
+    const nodes = treeData.nodes.filter((node) => String(node?.editorStatus || '').toLowerCase() !== 'draft');
+    const visibleIds = new Set(nodes.map((node) => String(node.id)));
+    return {
+        ...treeData,
+        nodes: nodes.map((node) => {
+            const nextNode = {
+                ...node,
+                connections: getSkillTreeConnections(node).filter((connection) => visibleIds.has(String(connection.target)))
+            };
+            if (Array.isArray(node.requires)) nextNode.requires = node.requires.map(String).filter((id) => visibleIds.has(id));
+            if (Array.isArray(node.requirements)) nextNode.requirements = node.requirements.map(String).filter((id) => visibleIds.has(id));
+            if (isSkillTreeGroupNode(node)) {
+                nextNode.children = getSkillTreeGroupChildren(node).filter((id) => visibleIds.has(String(id)));
+            }
+            return nextNode;
+        })
+    };
+}
+
+function validateSkillTreeDefinition(treeData) {
+    const nodes = Array.isArray(treeData?.nodes) ? treeData.nodes : [];
+    const nodeIds = new Set(nodes.map((node) => String(node.id)));
+    const titleCounts = nodes.reduce((counts, node) => {
+        const key = String(node?.title || '').trim().toLocaleLowerCase('it');
+        if (key) counts.set(key, (counts.get(key) || 0) + 1);
+        return counts;
+    }, new Map());
+
+    return nodes.map((node, nodeIndex) => {
+        const issues = [];
+        const title = String(node?.title || '').trim();
+        const levels = getSkillNodeLevels(node);
+        const requirements = getSkillTreeExternalRequirements(node);
+        const incoming = getIncomingSkillTreeConnections(treeData, node.id);
+        if (!title || /^nuova abilita$/i.test(title)) {
+            issues.push({ code: 'placeholder-title', severity: 'warning', label: 'Titolo provvisorio' });
+        }
+        if (title && (titleCounts.get(title.toLocaleLowerCase('it')) || 0) > 1) {
+            issues.push({ code: 'duplicate-title', severity: 'warning', label: 'Titolo duplicato' });
+        }
+        if (getSkillTreeNodeProgressionMode(node) === 'tiered') {
+            for (let level = 2; level <= levels.length; level += 1) {
+                if (!requirements.some((requirement) => requirement.level === level)) {
+                    issues.push({ code: 'missing-level-requirement-' + level, severity: 'warning', label: 'Nessun requisito per il livello ' + level });
+                }
+            }
+        }
+        const requirementKeys = new Set();
+        requirements.forEach((requirement) => {
+            const key = getSkillTreeRequirementGroupKey(requirement) + ':' + requirement.level;
+            if (requirementKeys.has(key)) {
+                issues.push({ code: 'duplicate-external-' + key, severity: 'warning', label: 'Requisito duplicato al livello ' + requirement.level });
+            }
+            requirementKeys.add(key);
+        });
+        if (hasExplicitNodePrerequisites(node) && !getExplicitNodePrerequisites(node).length && incoming.length) {
+            issues.push({ code: 'empty-explicit-prerequisites', severity: 'warning', label: 'Prerequisiti manuali vuoti nonostante link entranti' });
+        }
+        getSkillTreeConnections(node).forEach((connection) => {
+            if (!nodeIds.has(String(connection.target))) {
+                issues.push({ code: 'missing-target-' + connection.target, severity: 'error', label: 'Collegamento verso un nodo inesistente' });
+            }
+        });
+        if (nodeIndex > 0 && !incoming.length) {
+            issues.push({ code: 'possible-orphan', severity: 'info', label: 'Nessun collegamento entrante' });
+        }
+        return {
+            nodeId: String(node.id),
+            title: title || String(node.id),
+            editorStatus: getSkillTreeNodeEditorStatus(node),
+            progressionMode: getSkillTreeNodeProgressionMode(node),
+            issues
+        };
+    });
 }
 
 function getSkillTreeExternalRequirements(node) {
@@ -1890,6 +2043,7 @@ function normalizeSkillTreeDefinitionForSave(treeData) {
     return {
         ...treeData,
         externalRequirementPresets: getSkillTreeExternalRequirementPresets(treeData),
+        requirementProfiles: getSkillTreeRequirementProfiles(treeData),
         nodes: Array.isArray(treeData.nodes)
             ? treeData.nodes.map((node) => {
                 const normalizedNode = {
@@ -2257,7 +2411,10 @@ function getSkillTreeGroupStatusLabel(groupNode, unlocked) {
 }
 function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry = null) {
     const treeEntry = forcedTreeEntry || resolvePlayerSkillTreeEntry(characterOrId, allSkillTrees);
-    const treeData = treeEntry?.tree || null;
+    const sourceTreeData = treeEntry?.tree || null;
+    const treeData = skillTreeCurrentUserIsDm
+        ? sourceTreeData
+        : getSkillTreePlayerFacingDefinition(sourceTreeData);
     if (!treeData || !Array.isArray(treeData.nodes) || treeData.nodes.length === 0) {
         return null;
     }
@@ -2342,6 +2499,9 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     let editMode = false;
     let snapToGrid = false;
     let snapToNodes = true;
+    let workbenchFilter = 'incomplete';
+    let workbenchQuery = '';
+    const workbenchSelection = new Set();
     let snapGridStep = 5;
     let editorTab = 'content';
     const externalPresetLevelByNodeId = new Map();
@@ -2364,6 +2524,9 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                         <button type="button" class="player-skill-route-toggle${skillTreeRouteFocusEnabled ? ' is-active' : ''}" data-skill-route-toggle aria-pressed="${skillTreeRouteFocusEnabled ? 'true' : 'false'}" title="${skillTreeRouteFocusEnabled ? 'Percorsi evidenziati' : 'Percorsi non evidenziati'}">
                             <i class="fas fa-route" aria-hidden="true"></i><span>Percorsi</span>
                         </button>
+                        ${canEditTree ? `<button type="button" class="player-skill-route-toggle player-skill-simple-toggle${skillTreeSimpleEditorEnabled ? ' is-active' : ''}" data-skill-simple-toggle aria-pressed="${skillTreeSimpleEditorEnabled ? 'true' : 'false'}" title="${skillTreeSimpleEditorEnabled ? 'Editor semplice attivo' : 'Usa editor semplice'}">
+                            <i class="fas fa-feather-pointed" aria-hidden="true"></i><span>Semplice</span>
+                        </button>` : ''}
                         ${canEditTree ? '<button type="button" class="player-skill-edit-toggle player-skill-delete-tree" data-skill-delete-tree title="Elimina albero" aria-label="Elimina albero"><i class="fas fa-trash"></i></button><button type="button" class="player-skill-edit-toggle" data-skill-edit-toggle title="Modifica albero" aria-label="Modifica albero"><i class="fas fa-pen"></i></button>' : ''}
                     </div>
                 </div>
@@ -2385,6 +2548,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     const infoPanel = card.querySelector('[data-skill-info]');
     const editorPanel = card.querySelector('[data-skill-editor]');
     const routeFocusToggle = card.querySelector('[data-skill-route-toggle]');
+    const simpleEditorToggle = card.querySelector('[data-skill-simple-toggle]');
     const editToggle = card.querySelector('[data-skill-edit-toggle]');
     const deleteButton = card.querySelector('[data-skill-delete-tree]');
     const treeTitleLabel = card.querySelector('[data-skill-tree-label]');
@@ -3240,6 +3404,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         treeContainer.querySelectorAll('.player-skill-node, .player-skill-group-node').forEach((node) => node.remove());
         const routeFocus = getSkillTreeRouteFocus();
         treeContainer.classList.toggle('has-route-focus', Boolean(routeFocus));
+        const validationByNodeId = editMode ? new Map(validateSkillTreeDefinition(workingTree).map((entry) => [entry.nodeId, entry])) : new Map();
         renderGroupNodes();
 
         currentNodes.filter((node) => !isSkillTreeGroupNode(node)).forEach((node) => {
@@ -3247,7 +3412,11 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             nodeElement.type = 'button';
             const stateClass = node.state === 'unlocked' || node.state === 'unlockable' ? node.state : 'locked';
             const isSelectedNode = editMode ? String(node.id) === String(selectedNodeId) : String(node.id) === String(lockedInfoNodeId);
-            nodeElement.className = `player-skill-node is-${stateClass}${node.keyNode ? ' is-key' : ''}${isSelectedNode ? ' is-selected' : ''}${getSkillTreeRouteNodeClass(node, routeFocus)}`;
+            const validation = validationByNodeId.get(String(node.id));
+            const workflowStatus = getSkillTreeNodeEditorStatus(node);
+            const hasValidationIssue = validation?.issues?.some((issue) => issue.severity !== 'info');
+            nodeElement.className = `player-skill-node is-${stateClass}${node.keyNode ? ' is-key' : ''}${isSelectedNode ? ' is-selected' : ''}${editMode ? ` is-editor-${workflowStatus}` : ''}${hasValidationIssue ? ' has-editor-warning' : ''}${getSkillTreeRouteNodeClass(node, routeFocus)}`;
+            nodeElement.dataset.editorStatus = workflowStatus;
             const nodeX = Number(node.x) || 50;
             const nodeY = Number(node.y) || 50;
             nodeElement.style.left = `${nodeX}%`;
@@ -3677,6 +3846,42 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         `;
     };
 
+    const makeExternalRequirementId = (requirements, seed = 'external') => {
+        let id = String(seed || 'external').replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '') || 'external';
+        if (!requirements.some((requirement) => requirement.id === id)) return id;
+        let suffix = 2;
+        while (requirements.some((requirement) => requirement.id === id + '-' + suffix)) suffix += 1;
+        return id + '-' + suffix;
+    };
+
+    const applyRequirementProfileToNode = (node, profile) => {
+        if (!node || !profile) return 0;
+        const requirements = getSkillTreeExternalRequirements(node);
+        const maxLevel = isSkillTreeGroupNode(node) ? 1 : Math.max(1, getSkillNodeLevels(node).length);
+        let added = 0;
+        (profile.requirements || []).forEach((template) => {
+            const level = Math.max(1, Math.min(maxLevel, Number(template.level) || 1));
+            const groupKey = getSkillTreeRequirementGroupKey(template);
+            if (requirements.some((requirement) => (
+                getSkillTreeRequirementGroupKey(requirement) === groupKey && requirement.level === level
+            ))) return;
+            requirements.push({
+                id: makeExternalRequirementId(requirements, template.id || profile.id + '-l' + level),
+                label: template.label,
+                target: template.target,
+                level,
+                ...(template.presetId ? { presetId: template.presetId } : {})
+            });
+            added += 1;
+        });
+        if (added) {
+            node.externalRequirements = requirements;
+            delete node.externalRequirement;
+        }
+        return added;
+    };
+
+
     const buildNodeRelationshipPanel = (node) => {
         if (!node) return '';
         const nodeId = String(node.id || '');
@@ -3722,6 +3927,52 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     <i class="fas fa-trash" aria-hidden="true"></i>
                 </button>
             </div>
+        `).join('');
+        const externalGroups = Array.from(externalRequirements.reduce((groups, requirement) => {
+            const key = getSkillTreeRequirementGroupKey(requirement);
+            if (!groups.has(key)) groups.set(key, { key, label: requirement.label, requirements: [] });
+            groups.get(key).requirements.push(requirement);
+            return groups;
+        }, new Map()).values());
+        const externalRequirementMatrix = externalGroups.length ? `
+            <div class="player-skill-requirement-matrix" style="--skill-level-count: ${maxExternalLevel}">
+                <div class="player-skill-requirement-matrix-head">
+                    <strong>Requisito</strong>
+                    ${Array.from({ length: maxExternalLevel }, (_, index) => `<span>${index === 0 ? 'Sblocco' : `Livello ${index + 1}`}</span>`).join('')}
+                </div>
+                ${externalGroups.map((group) => `
+                    <div class="player-skill-requirement-matrix-row">
+                        <label><input type="text" data-node-external-group-field="label" data-external-group-key="${escapeHtml(group.key)}"
+                            value="${escapeHtml(group.label)}" aria-label="Nome requisito"></label>
+                        ${Array.from({ length: maxExternalLevel }, (_, levelIndex) => {
+                            const level = levelIndex + 1;
+                            const entries = group.requirements.filter((requirement) => requirement.level === level);
+                            return `
+                                <div class="player-skill-requirement-matrix-cell ${entries.length > 1 ? 'has-duplicates' : ''}">
+                                    ${entries.map((requirement) => `
+                                        <div class="player-skill-requirement-value">
+                                            <input type="number" min="1" max="999999" step="1" data-node-external-field="target"
+                                                data-node-external-id="${escapeHtml(requirement.id)}" value="${escapeHtml(requirement.target)}"
+                                                aria-label="Valore richiesto">
+                                            <button type="button" data-skill-action="delete-external-requirement" data-external-id="${escapeHtml(requirement.id)}" aria-label="Rimuovi requisito">
+                                                <i class="fas fa-xmark" aria-hidden="true"></i>
+                                            </button>
+                                        </div>
+                                    `).join('')}
+                                    <button type="button" class="player-skill-requirement-cell-add" data-skill-action="add-external-matrix-cell"
+                                        data-external-group-key="${escapeHtml(group.key)}" data-external-group-label="${escapeHtml(group.label)}"
+                                        data-external-level="${level}" aria-label="Aggiungi valore"><i class="fas fa-plus" aria-hidden="true"></i></button>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `).join('')}
+            </div>
+        ` : '<p class="player-skill-external-editor-empty">Nessun requisito esterno.</p>';
+        const requirementProfileButtons = getSkillTreeRequirementProfiles(workingTree).map((profile) => `
+            <button type="button" class="player-skill-profile-chip" data-skill-action="apply-requirement-profile" data-profile-id="${escapeHtml(profile.id)}">
+                <i class="fas fa-layer-group" aria-hidden="true"></i><span>${escapeHtml(profile.label)}</span><small>${profile.requirements.length}</small>
+            </button>
         `).join('');
         const otherNodes = (workingTree.nodes || []).filter((entry) => String(entry.id) !== nodeId);
         const availableRequirementNodes = otherNodes.filter((entry) => !requirementIds.has(String(entry.id)));
@@ -3829,8 +4080,11 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                             <div class="player-skill-preset-chip-list">${presetButtons}</div>
                         </div>
                     ` : ''}
+                    ${requirementProfileButtons ? `
+                        <div class="player-skill-profile-activator"><strong>Profili rapidi</strong><div>${requirementProfileButtons}</div></div>
+                    ` : ''}
                     <div class="player-skill-external-editor-list">
-                        ${externalEditorRows || '<p class="player-skill-external-editor-empty">Nessun requisito esterno.</p>'}
+                        ${externalRequirementMatrix}
                     </div>
                 </section>
             </section>
@@ -3875,6 +4129,220 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             </details>
         `;
     };
+    const applyWorkbenchVisibility = () => {
+        if (!editorPanel) return;
+        const query = String(workbenchQuery || '').trim().toLocaleLowerCase('it');
+        editorPanel.querySelectorAll('[data-workbench-node]').forEach((row) => {
+            const matchesQuery = !query || String(row.dataset.workbenchSearch || '').includes(query);
+            const filters = String(row.dataset.workbenchFilters || '').split(/\s+/);
+            const matchesFilter = workbenchFilter === 'all' || filters.includes(workbenchFilter);
+            row.hidden = !(matchesQuery && matchesFilter);
+        });
+    };
+
+
+    const buildSkillTreeWorkbench = () => {
+        const report = validateSkillTreeDefinition(workingTree);
+        const actionable = report.filter((entry) => entry.issues.some((issue) => issue.severity !== 'info'));
+        const profiles = getSkillTreeRequirementProfiles(workingTree);
+        const rows = report.map((entry, index) => {
+            const node = workingTree.nodes.find((candidate) => String(candidate.id) === entry.nodeId);
+            const levels = getSkillNodeLevels(node);
+            const requirements = getSkillTreeExternalRequirements(node);
+            const status = getSkillTreeNodeEditorStatus(node);
+            const mode = getSkillTreeNodeProgressionMode(node);
+            const search = [entry.title, status, mode, ...entry.issues.map((issue) => issue.label)].join(' ').toLocaleLowerCase('it');
+            const filters = [
+                entry.issues.some((issue) => issue.severity !== 'info') ? 'incomplete' : 'complete',
+                status,
+                mode,
+                requirements.length ? 'requirements' : 'missing-requirements'
+            ].join(' ');
+            return `
+                <article class="player-skill-workbench-row" data-workbench-node="${escapeHtml(entry.nodeId)}"
+                    data-workbench-search="${escapeHtml(search)}" data-workbench-filters="${escapeHtml(filters)}">
+                    <label class="player-skill-workbench-select">
+                        <input type="checkbox" data-workbench-select-node="${escapeHtml(entry.nodeId)}" ${workbenchSelection.has(entry.nodeId) ? 'checked' : ''}>
+                        <span>${index + 1}</span>
+                    </label>
+                    <div class="player-skill-workbench-name">
+                        <strong>${escapeHtml(entry.title)}</strong>
+                        <small>${levels.length} ${levels.length === 1 ? 'livello' : 'livelli'} &middot; ${requirements.length} requisiti</small>
+                    </div>
+                    <select data-workbench-node-field="editorStatus" data-workbench-node-id="${escapeHtml(entry.nodeId)}" aria-label="Stato editoriale">
+                        <option value="draft" ${status === 'draft' ? 'selected' : ''}>Bozza</option>
+                        <option value="review" ${status === 'review' ? 'selected' : ''}>Da rivedere</option>
+                        <option value="ready" ${status === 'ready' ? 'selected' : ''}>Pronto</option>
+                    </select>
+                    <select data-workbench-node-field="progressionMode" data-workbench-node-id="${escapeHtml(entry.nodeId)}" aria-label="Progressione">
+                        <option value="single" ${mode === 'single' ? 'selected' : ''}>Singolo</option>
+                        <option value="tiered" ${mode === 'tiered' ? 'selected' : ''}>A livelli</option>
+                    </select>
+                    <div class="player-skill-workbench-levels" aria-label="Livelli">
+                        ${levels.map((level, levelIndex) => {
+                            const count = requirements.filter((requirement) => requirement.level === levelIndex + 1).length;
+                            return `<span class="${count || levelIndex === 0 ? 'is-configured' : ''}" title="${count} requisiti">L${levelIndex + 1}<small>${count || '0'}</small></span>`;
+                        }).join('')}
+                    </div>
+                    <div class="player-skill-workbench-issues">
+                        ${entry.issues.length
+                            ? entry.issues.map((issue) => `<span class="is-${issue.severity}" title="${escapeHtml(issue.label)}">${escapeHtml(issue.label)}</span>`).join('')
+                            : '<span class="is-ok"><i class="fas fa-check"></i> Completo</span>'}
+                    </div>
+                    <button type="button" class="player-skill-workbench-open" data-skill-action="open-workbench-node"
+                        data-node-id="${escapeHtml(entry.nodeId)}" aria-label="Apri nodo"><i class="fas fa-arrow-right"></i></button>
+                </article>
+            `;
+        }).join('');
+        return `
+            <section class="player-skill-workbench">
+                <header>
+                    <div>
+                        <small>Vista di progetto</small>
+                        <strong>${workingTree.nodes.length} nodi &middot; ${actionable.length} da controllare</strong>
+                    </div>
+                    <button type="button" class="player-skill-action-button is-compact" data-skill-action="next-incomplete" ${actionable.length ? '' : 'disabled'}>
+                        <i class="fas fa-forward-step"></i> Prossimo incompleto
+                    </button>
+                </header>
+                <div class="player-skill-workbench-toolbar">
+                    <label class="player-skill-workbench-search"><i class="fas fa-search"></i>
+                        <input type="search" data-workbench-query value="${escapeHtml(workbenchQuery)}" placeholder="Cerca nodo o problema">
+                    </label>
+                    <select data-workbench-filter>
+                        <option value="all" ${workbenchFilter === 'all' ? 'selected' : ''}>Tutti</option>
+                        <option value="incomplete" ${workbenchFilter === 'incomplete' ? 'selected' : ''}>Da completare</option>
+                        <option value="draft" ${workbenchFilter === 'draft' ? 'selected' : ''}>Bozze</option>
+                        <option value="review" ${workbenchFilter === 'review' ? 'selected' : ''}>Da rivedere</option>
+                        <option value="tiered" ${workbenchFilter === 'tiered' ? 'selected' : ''}>A livelli</option>
+                        <option value="missing-requirements" ${workbenchFilter === 'missing-requirements' ? 'selected' : ''}>Senza requisiti</option>
+                    </select>
+                    <button type="button" class="player-skill-action-button is-compact" data-skill-action="toggle-workbench-selection">Seleziona visibili</button>
+                </div>
+                <div class="player-skill-workbench-batch">
+                    <strong>Azioni di gruppo</strong>
+                    <select data-workbench-batch-status>
+                        <option value="">Stato...</option><option value="draft">Bozza</option><option value="review">Da rivedere</option><option value="ready">Pronto</option>
+                    </select>
+                    <button type="button" data-skill-action="apply-batch-status">Applica</button>
+                    <select data-workbench-batch-profile ${profiles.length ? '' : 'disabled'}>
+                        <option value="">Profilo requisiti...</option>
+                        ${profiles.map((profile) => `<option value="${escapeHtml(profile.id)}">${escapeHtml(profile.label)}</option>`).join('')}
+                    </select>
+                    <button type="button" data-skill-action="apply-batch-profile" ${profiles.length ? '' : 'disabled'}>Applica</button>
+                    <button type="button" data-skill-action="copy-active-structure"><i class="fas fa-copy"></i> Copia struttura dal nodo attivo</button>
+                </div>
+                <div class="player-skill-workbench-list">
+                    <div class="player-skill-workbench-columns"><span></span><span>Nodo</span><span>Stato</span><span>Progressione</span><span>Livelli</span><span>Controlli</span><span></span></div>
+                    ${rows}
+                </div>
+            </section>
+        `;
+    };
+
+
+    const buildSimpleEditorToolbar = () => `
+        <div class="player-skill-rich-toolbar player-skill-level-rich-toolbar" role="toolbar" aria-label="Formato descrizione">
+            <button type="button" data-skill-level-rich-command="bold" title="Grassetto" aria-label="Grassetto" aria-pressed="false"><i class="fas fa-bold" aria-hidden="true"></i></button>
+            <button type="button" data-skill-level-rich-command="italic" title="Corsivo" aria-label="Corsivo" aria-pressed="false"><i class="fas fa-italic" aria-hidden="true"></i></button>
+            <button type="button" data-skill-level-rich-command="underline" title="Sottolineato" aria-label="Sottolineato" aria-pressed="false"><i class="fas fa-underline" aria-hidden="true"></i></button>
+            <button type="button" data-skill-level-rich-command="insertUnorderedList" title="Elenco puntato" aria-label="Elenco puntato" aria-pressed="false"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
+            <button type="button" data-skill-level-rich-command="insertOrderedList" title="Elenco numerato" aria-label="Elenco numerato" aria-pressed="false"><i class="fas fa-list-ol" aria-hidden="true"></i></button>
+        </div>
+    `;
+
+    const updateSimpleEditorPreview = (node) => {
+        if (!editorPanel || !node) return;
+        const title = String(node.title || 'Abilita');
+        const flavor = getSkillNodeSharedFlavor(node);
+        const description = normalizeSkillLevelStoredHtml(node.desc || '');
+        const titleElement = editorPanel.querySelector('[data-skill-simple-preview-title]');
+        const flavorElement = editorPanel.querySelector('[data-skill-simple-preview-flavor]');
+        const descriptionElement = editorPanel.querySelector('[data-skill-simple-preview-desc]');
+        if (titleElement) titleElement.textContent = title;
+        if (flavorElement) {
+            flavorElement.textContent = flavor;
+            flavorElement.hidden = !flavor;
+        }
+        if (descriptionElement) {
+            descriptionElement.innerHTML = description || '<p>Nessun dettaglio disponibile.</p>';
+        }
+    };
+
+    const renderSimpleEditor = (node, previousEditorViewState) => {
+        const selectedDescription = normalizeSkillLevelStoredHtml(node?.desc || '') || '<p><br></p>';
+        const selectedFlavor = getSkillNodeSharedFlavor(node);
+        const selectedIcon = !isSkillTreeGroupNode(node) && node?.icon
+            ? resolveSkillAssetPath(node.icon)
+            : '';
+        const editorContextKey = ['simple', String(node?.id || '')].join('|');
+
+        infoPanel.hidden = true;
+        card.classList.add('has-editor-workspace', 'is-simple-skill-editor');
+        editorPanel.innerHTML = `
+            <header class="player-skill-workspace-head player-skill-simple-head">
+                <div class="player-skill-workspace-title player-skill-simple-current">
+                    <small>Nodo selezionato</small>
+                    <strong>${escapeHtml(node?.title || node?.id || 'Nodo')}</strong>
+                </div>
+                <span class="player-skill-simple-mode-badge"><i class="fas fa-feather-pointed" aria-hidden="true"></i> Editor semplice</span>
+            </header>
+            <div class="player-skill-workspace-scroll player-skill-simple-scroll">
+                <div class="player-skill-simple-shell">
+                    <section class="player-skill-simple-form" aria-label="Contenuto del nodo">
+                        <label class="player-skill-simple-field">
+                            <span>Titolo</span>
+                            <input type="text" maxlength="120" data-node-base-field="title" value="${escapeHtml(node?.title || '')}" placeholder="Titolo del nodo">
+                        </label>
+                        ${!isSkillTreeGroupNode(node) ? `<div class="player-skill-simple-field">
+                            <span>Icona nodo</span>
+                            <div class="player-skill-node-icon-upload player-skill-simple-icon-upload ${node?.icon ? 'has-icon' : ''}" data-skill-node-icon-drop tabindex="0">
+                                <div class="player-skill-node-icon-preview">
+                                    ${node?.icon ? `<img src="${escapeHtml(resolveSkillAssetPath(node.icon))}" alt="">` : '<i class="fas fa-image" aria-hidden="true"></i>'}
+                                </div>
+                                <div class="player-skill-simple-icon-copy"><strong>${node?.icon ? 'Icona attuale' : 'Nessuna icona'}</strong><span>Trascina qui oppure scegli un file.</span></div>
+                                <button type="button" class="player-skill-action-button is-compact" data-skill-action="pick-node-icon"><i class="fas fa-upload"></i> ${node?.icon ? 'Cambia' : 'Scegli'}</button>
+                                <input type="file" accept="image/*" data-skill-node-icon-file hidden>
+                            </div>
+                        </div>` : ''}
+
+                        <label class="player-skill-simple-field">
+                            <span>Sottotitolo</span>
+                            <textarea maxlength="1000" rows="3" data-node-base-field="flavor" placeholder="Sottotitolo, motto o spiegazione breve">${escapeHtml(selectedFlavor)}</textarea>
+                        </label>
+                        <div class="player-skill-simple-field player-skill-simple-description" data-skill-level-row="0">
+                            <span>Descrizione</span>
+                            ${buildSimpleEditorToolbar()}
+                            <div class="player-skill-level-rich-editor" contenteditable="true" data-node-base-field="desc"
+                                role="textbox" aria-multiline="true" aria-label="Descrizione del nodo" spellcheck="true">${selectedDescription}</div>
+                        </div>
+                    </section>
+                    <aside class="player-skill-simple-preview" aria-label="Anteprima finale">
+                        <div class="player-skill-simple-preview-label"><i class="fas fa-eye" aria-hidden="true"></i> Come apparira nella scheda</div>
+                        <article class="player-skill-simple-preview-card">
+                            ${selectedIcon ? `<img src="${escapeHtml(selectedIcon)}" alt="" class="player-skill-simple-preview-icon">` : ''}
+                            <h4 data-skill-simple-preview-title>${escapeHtml(node?.title || 'Abilita')}</h4>
+                            <p data-skill-simple-preview-flavor ${selectedFlavor ? '' : 'hidden'}>${escapeHtml(selectedFlavor)}</p>
+                            <div class="player-skill-simple-preview-desc" data-skill-simple-preview-desc>
+                                ${normalizeSkillLevelStoredHtml(node?.desc || '') || '<p>Nessun dettaglio disponibile.</p>'}
+                            </div>
+                        </article>
+                    </aside>
+                </div>
+            </div>
+            <footer class="player-skill-editor-actions player-skill-simple-actions">
+                <div class="player-skill-editor-dirty-status" data-skill-dirty-status role="status" aria-live="polite">
+                    <i class="fas fa-check" aria-hidden="true"></i><span>Tutto salvato</span>
+                </div>
+                <div class="player-skill-editor-action-group">
+                    <button type="button" class="player-skill-action-button" data-skill-action="discard-tree"><i class="fas fa-rotate-left"></i> Ripristina</button>
+                    <button type="button" class="player-skill-action-button is-primary" data-skill-action="save-tree"><i class="fas fa-save"></i> Salva</button>
+                </div>
+            </footer>
+        `;
+        updateEditorDirtyState();
+        restoreEditorViewState(previousEditorViewState, editorContextKey);
+    };
     const renderEditor = () => {
         if (!editorPanel || !canEditTree) return;
         const previousEditorViewState = captureEditorViewState();
@@ -3883,7 +4351,12 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         editorPanel.hidden = !editMode;
         infoPanel.hidden = editMode;
         card.classList.toggle('has-editor-workspace', editMode);
+        card.classList.toggle('is-simple-skill-editor', editMode && skillTreeSimpleEditorEnabled);
         if (!editMode) return;
+        if (skillTreeSimpleEditorEnabled) {
+            renderSimpleEditor(node, previousEditorViewState);
+            return;
+        }
         const bgPath = workingTree.bgImage || '';
         const bgOpacityValue = Number.isFinite(Number(workingTree.bgOpacity))
             ? Math.max(0, Math.min(1, Number(workingTree.bgOpacity)))
@@ -3957,8 +4430,8 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const levelTabsHtml = allNodeLevels.map((level, index) => `
             <button type="button" class="player-skill-level-editor-tab ${index === selectedEditorLevelIndex ? 'is-active' : ''}"
                 data-skill-level-editor-tab="${index}" aria-selected="${index === selectedEditorLevelIndex ? 'true' : 'false'}" role="tab">
+                <strong>L${index + 1}</strong>
                 <span>${index === 0 ? 'Base' : escapeHtml(level.label || `Livello ${index + 1}`)}</span>
-                ${index === 0 ? '<small>Livello 1</small>' : ''}
             </button>
         `).join('');
         const selectedLevelDescription = selectedEditorLevelIndex === 0
@@ -4047,10 +4520,19 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 </button>
             </div>
         `).join('');
-        const selectedNodeIndex = Math.max(0, workingTree.nodes.findIndex((entry) => String(entry.id) === String(node?.id)));
+        const requirementProfiles = getSkillTreeRequirementProfiles(workingTree);
+        const profileRowsHtml = requirementProfiles.map((profile) => `
+            <div class="player-skill-tree-profile-row">
+                <div><strong>${escapeHtml(profile.label)}</strong><small>${profile.requirements.length} tappe</small></div>
+                <button type="button" class="player-skill-external-editor-remove" data-skill-action="delete-requirement-profile"
+                    data-profile-id="${escapeHtml(profile.id)}" aria-label="Rimuovi ${escapeHtml(profile.label)}"><i class="fas fa-trash"></i></button>
+            </div>
+        `).join('');
+
         const selectedNodeLabel = node?.title || node?.id || 'Nodo';
         const editorTabs = [
             { id: 'content', label: 'Contenuto', icon: 'fa-pen-ruler' },
+            { id: 'workbench', label: 'Lavorazione', icon: 'fa-list-check' },
             { id: 'unlock', label: 'Sblocco', icon: 'fa-diagram-project' },
             { id: 'appearance', label: 'Aspetto', icon: 'fa-palette' },
             { id: 'tree', label: 'Albero', icon: 'fa-tree' }
@@ -4060,23 +4542,24 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         card.classList.add('has-editor-workspace');
         editorPanel.innerHTML = `
             <header class="player-skill-workspace-head">
-                <div class="player-skill-workspace-selection">
-                    <button type="button" class="player-skill-node-step" data-skill-action="previous-node" aria-label="Nodo precedente" ${workingTree.nodes.length < 2 ? 'disabled' : ''}>
-                        <i class="fas fa-chevron-left" aria-hidden="true"></i>
-                    </button>
-                    <label>
-                        <span>Nodo ${selectedNodeIndex + 1} / ${workingTree.nodes.length}</span>
-                        <select data-skill-node-select aria-label="Nodo selezionato">
-                            ${workingTree.nodes.map((entry) => `<option value="${escapeHtml(entry.id)}" ${String(entry.id) === String(node?.id) ? 'selected' : ''}>${escapeHtml(entry.title || entry.id)}</option>`).join('')}
-                        </select>
-                    </label>
-                    <button type="button" class="player-skill-node-step" data-skill-action="next-node" aria-label="Nodo successivo" ${workingTree.nodes.length < 2 ? 'disabled' : ''}>
-                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
-                    </button>
-                </div>
                 <div class="player-skill-workspace-title">
                     <small>Modifica nodo</small>
                     <strong>${escapeHtml(selectedNodeLabel)}</strong>
+                </div>
+                <div class="player-skill-workflow-controls">
+                    <label>Stato
+                        <select data-node-field="editorStatus">
+                            <option value="draft" ${getSkillTreeNodeEditorStatus(node) === 'draft' ? 'selected' : ''}>Bozza</option>
+                            <option value="review" ${getSkillTreeNodeEditorStatus(node) === 'review' ? 'selected' : ''}>Da rivedere</option>
+                            <option value="ready" ${getSkillTreeNodeEditorStatus(node) === 'ready' ? 'selected' : ''}>Pronto</option>
+                        </select>
+                    </label>
+                    <label>Progressione
+                        <select data-node-field="progressionMode">
+                            <option value="single" ${getSkillTreeNodeProgressionMode(node) === 'single' ? 'selected' : ''}>Singolo</option>
+                            <option value="tiered" ${getSkillTreeNodeProgressionMode(node) === 'tiered' ? 'selected' : ''}>A livelli</option>
+                        </select>
+                    </label>
                 </div>
             </header>
             <nav class="player-skill-workspace-tabs" role="tablist" aria-label="Sezioni editor">
@@ -4087,6 +4570,9 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 `).join('')}
             </nav>
             <div class="player-skill-workspace-scroll">
+                <section class="player-skill-workspace-panel ${editorTab === 'workbench' ? 'is-active' : ''}" data-skill-editor-panel="workbench">
+                    ${buildSkillTreeWorkbench()}
+                </section>
                 <section class="player-skill-workspace-panel ${editorTab === 'content' ? 'is-active' : ''}" data-skill-editor-panel="content">
                     ${upgradeLevelsHtml}
                     <div class="player-skill-node-identity">
@@ -4191,6 +4677,18 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                             ${presetRowsHtml || '<p class="player-skill-external-editor-empty">Nessun requisito predefinito.</p>'}
                         </div>
                     </section>
+                    <section class="player-skill-editor-section player-skill-tree-profiles">
+                        <div class="player-skill-section-heading">
+                            <span><i class="fas fa-layer-group" aria-hidden="true"></i></span>
+                            <div><strong>Profili requisiti</strong><small>Sequenze complete riutilizzabili sui nodi</small></div>
+                            <button type="button" class="player-skill-action-button is-compact" data-skill-action="create-requirement-profile">
+                                <i class="fas fa-plus"></i> Dal nodo attivo
+                            </button>
+                        </div>
+                        <div class="player-skill-tree-profile-list">
+                            ${profileRowsHtml || '<p class="player-skill-external-editor-empty">Nessun profilo. Configura un nodo e salvalo come profilo.</p>'}
+                        </div>
+                    </section>
                 </section>
             </div>
             <footer class="player-skill-editor-actions">
@@ -4208,19 +4706,35 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         `;
         updateEditorDirtyState();
         restoreEditorViewState(previousEditorViewState, editorContextKey);
+        applyWorkbenchVisibility();
     };
 
     editorPanel?.addEventListener('change', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
-        queueMicrotask(updateEditorDirtyState);
-        if (target.matches('[data-skill-node-select]')) {
-            selectedNodeId = target.value;
-            selectedConnection = null;
-            renderEditor();
-            renderTree();
+        if (target.matches('[data-workbench-filter]')) {
+            workbenchFilter = target.value || 'all';
+            applyWorkbenchVisibility();
             return;
         }
+        if (target.matches('[data-workbench-select-node]')) {
+            const id = String(target.dataset.workbenchSelectNode || '');
+            if (target.checked) workbenchSelection.add(id);
+            else workbenchSelection.delete(id);
+            return;
+        }
+        const workbenchNodeField = target.dataset.workbenchNodeField;
+        const workbenchNodeId = String(target.dataset.workbenchNodeId || '');
+        if (workbenchNodeField && workbenchNodeId) {
+            const workbenchNode = workingTree.nodes.find((entry) => String(entry.id) === workbenchNodeId);
+            if (!workbenchNode) return;
+            if (workbenchNodeField === 'editorStatus') workbenchNode.editorStatus = ['draft', 'review'].includes(target.value) ? target.value : 'ready';
+            if (workbenchNodeField === 'progressionMode') workbenchNode.progressionMode = target.value === 'tiered' ? 'tiered' : 'single';
+            renderTree();
+            renderEditor();
+            return;
+        }
+        queueMicrotask(updateEditorDirtyState);
         if (target.matches('[data-external-preset-level]')) {
             const node = readEditorNode();
             if (!node) return;
@@ -4306,6 +4820,26 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     editorPanel?.addEventListener('input', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
+        if (target.matches('[data-workbench-query]')) {
+            workbenchQuery = target.value;
+            applyWorkbenchVisibility();
+            return;
+        }
+        const externalGroupField = target.dataset.nodeExternalGroupField;
+        const externalGroupKey = String(target.dataset.externalGroupKey || '');
+        if (externalGroupField === 'label' && externalGroupKey) {
+            const node = readEditorNode();
+            if (!node) return;
+            node.externalRequirements = getSkillTreeExternalRequirements(node).map((requirement) => (
+                getSkillTreeRequirementGroupKey(requirement) === externalGroupKey
+                    ? { ...requirement, label: target.value }
+                    : requirement
+            ));
+            delete node.externalRequirement;
+            queueMicrotask(updateEditorDirtyState);
+            renderTree();
+            return;
+        }
         queueMicrotask(updateEditorDirtyState);
         const isFormControl = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement;
         const treePresetField = target.dataset.treePresetField;
@@ -4394,7 +4928,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const baseField = target.dataset.nodeBaseField;
         if (baseField) {
             const node = readEditorNode();
-            if (!node || isSkillTreeGroupNode(node)) return;
+            if (!node) return;
             if (baseField === 'desc') {
                 node.desc = normalizeSkillLevelStoredHtml(normalizeSkillTreeEditableHtml(target));
                 scheduleSkillLevelDiffPreview(target.closest('.player-skill-level-row'), node, 0);
@@ -4406,8 +4940,9 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     .replace(/\n{3,}/g, '\n\n')
                     .trimStart();
             }
-            syncSkillNodeBaseLevel(node);
+            if (!isSkillTreeGroupNode(node)) syncSkillNodeBaseLevel(node);
             if (baseField === 'title' || baseField === 'flavor') renderTree();
+            if (skillTreeSimpleEditorEnabled) updateSimpleEditorPreview(node);
             return;
         }
 
@@ -4672,13 +5207,142 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const button = event.target.closest('[data-skill-action]');
         if (!button) return;
         const action = button.dataset.skillAction;
-        if (action === 'previous-node' || action === 'next-node') {
-            const currentIndex = Math.max(0, workingTree.nodes.findIndex((entry) => String(entry.id) === String(selectedNodeId)));
-            const direction = action === 'previous-node' ? -1 : 1;
-            const nextIndex = (currentIndex + direction + workingTree.nodes.length) % workingTree.nodes.length;
-            selectedNodeId = workingTree.nodes[nextIndex]?.id || selectedNodeId;
+        if (action === 'open-workbench-node') {
+            selectedNodeId = String(button.dataset.nodeId || selectedNodeId);
             selectedConnection = null;
+            editorTab = 'content';
             renderTree();
+            renderEditor();
+            return;
+        }
+        if (action === 'next-incomplete') {
+            const report = validateSkillTreeDefinition(workingTree)
+                .filter((entry) => entry.issues.some((issue) => issue.severity !== 'info'));
+            if (!report.length) return;
+            const currentIndex = report.findIndex((entry) => entry.nodeId === String(selectedNodeId));
+            const next = report[(currentIndex + 1 + report.length) % report.length];
+            selectedNodeId = next.nodeId;
+            selectedConnection = null;
+            editorTab = 'content';
+            renderTree();
+            renderEditor();
+            return;
+        }
+        if (action === 'toggle-workbench-selection') {
+            const visibleRows = Array.from(editorPanel.querySelectorAll('[data-workbench-node]')).filter((row) => !row.hidden);
+            const selectAll = visibleRows.some((row) => !workbenchSelection.has(String(row.dataset.workbenchNode || '')));
+            visibleRows.forEach((row) => {
+                const id = String(row.dataset.workbenchNode || '');
+                if (selectAll) workbenchSelection.add(id);
+                else workbenchSelection.delete(id);
+            });
+            renderEditor();
+            return;
+        }
+        if (action === 'apply-batch-status') {
+            const status = editorPanel.querySelector('[data-workbench-batch-status]')?.value;
+            if (!status || !workbenchSelection.size) return;
+            workingTree.nodes.forEach((entry) => {
+                if (workbenchSelection.has(String(entry.id))) entry.editorStatus = status;
+            });
+            renderTree();
+            renderEditor();
+            return;
+        }
+        if (action === 'apply-batch-profile') {
+            const profileId = editorPanel.querySelector('[data-workbench-batch-profile]')?.value;
+            const profile = getSkillTreeRequirementProfiles(workingTree).find((entry) => entry.id === profileId);
+            if (!profile || !workbenchSelection.size) return;
+            workingTree.nodes.forEach((entry) => {
+                if (workbenchSelection.has(String(entry.id))) applyRequirementProfileToNode(entry, profile);
+            });
+            renderTree();
+            renderEditor();
+            return;
+        }
+        if (action === 'copy-active-structure') {
+            const source = readEditorNode();
+            const targets = workingTree.nodes.filter((entry) => workbenchSelection.has(String(entry.id)) && entry !== source && !isSkillTreeGroupNode(entry));
+            if (!source || !targets.length || isSkillTreeGroupNode(source)) return;
+            const decision = await openSkillTreeChoiceDialog({
+                title: 'Copiare la struttura del nodo?',
+                message: 'Aggiungeremo soltanto livelli e requisiti mancanti. Testi e configurazioni gi? presenti non verranno sovrascritti.',
+                details: [source.title || source.id, targets.length + ' nodi selezionati'],
+                actions: [{ value: 'copy', label: 'Copia struttura', icon: 'fa-copy' }]
+            });
+            if (decision !== 'copy') return;
+            const sourceLevels = getSkillNodeLevels(source);
+            const sourceTemplate = {
+                id: 'copy-' + String(source.id),
+                label: source.title || 'Struttura copiata',
+                requirements: getSkillTreeExternalRequirements(source)
+            };
+            targets.forEach((target) => {
+                const levels = ensureEditableNodeLevels(target);
+                while (levels.length < sourceLevels.length) {
+                    const sourceLevel = sourceLevels[levels.length] || {};
+                    levels.push({
+                        label: sourceLevel.label || ('Livello ' + (levels.length + 1)),
+                        title: '',
+                        flavor: '',
+                        desc: '',
+                        icon: ''
+                    });
+                }
+                if (sourceLevels.length > 1) target.progressionMode = 'tiered';
+                applyRequirementProfileToNode(target, sourceTemplate);
+            });
+            renderTree();
+            renderEditor();
+            return;
+        }
+        if (action === 'add-external-matrix-cell') {
+            const node = readEditorNode();
+            if (!node) return;
+            const requirements = getSkillTreeExternalRequirements(node);
+            const level = Math.max(1, Math.min(getSkillNodeLevels(node).length, Number(button.dataset.externalLevel) || 1));
+            const label = String(button.dataset.externalGroupLabel || 'Requisito esterno');
+            node.externalRequirements = [...requirements, {
+                id: makeExternalRequirementId(requirements, getSkillTreeRequirementGroupKey({ label }) + '-l' + level),
+                label,
+                target: 1,
+                level
+            }];
+            delete node.externalRequirement;
+            renderTree();
+            renderEditor();
+            return;
+        }
+        if (action === 'apply-requirement-profile') {
+            const node = readEditorNode();
+            const profile = getSkillTreeRequirementProfiles(workingTree)
+                .find((entry) => entry.id === String(button.dataset.profileId || ''));
+            if (!node || !profile) return;
+            applyRequirementProfileToNode(node, profile);
+            renderTree();
+            renderEditor();
+            return;
+        }
+        if (action === 'create-requirement-profile') {
+            const node = readEditorNode();
+            const requirements = getSkillTreeExternalRequirements(node);
+            if (!node || !requirements.length) return;
+            const requestedName = window.prompt('Nome del profilo requisiti', node.title || 'Nuovo profilo');
+            if (requestedName === null) return;
+            const profiles = getSkillTreeRequirementProfiles(workingTree);
+            let id = 'profile-' + slugify(requestedName || node.title || 'requisiti');
+            id = makeExternalRequirementId(profiles, id);
+            workingTree.requirementProfiles = [...profiles, {
+                id,
+                label: requestedName.trim() || node.title || 'Nuovo profilo',
+                requirements: requirements.map((requirement) => ({ ...requirement }))
+            }];
+            renderEditor();
+            return;
+        }
+        if (action === 'delete-requirement-profile') {
+            const profileId = String(button.dataset.profileId || '');
+            workingTree.requirementProfiles = getSkillTreeRequirementProfiles(workingTree).filter((profile) => profile.id !== profileId);
             renderEditor();
             return;
         }
@@ -4838,6 +5502,8 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 title: 'Nuova abilita',
                 flavor: '',
                 desc: '<p>Descrizione.</p>',
+                editorStatus: 'draft',
+                progressionMode: 'single',
                 icon: '',
                 connections: []
             });
@@ -4855,6 +5521,8 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 y: position.y,
                 title: 'Nuovo gruppo',
                 flavor: '',
+                editorStatus: 'draft',
+                progressionMode: 'single',
                 desc: '<p>Gruppo di scelte.</p>',
                 children: [],
                 minChoices: 1,
@@ -5224,6 +5892,20 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         syncRouteFocusToggle();
         renderTree();
     });
+    const syncSimpleEditorToggle = () => {
+        if (!simpleEditorToggle) return;
+        simpleEditorToggle.classList.toggle('is-active', skillTreeSimpleEditorEnabled);
+        simpleEditorToggle.setAttribute('aria-pressed', skillTreeSimpleEditorEnabled ? 'true' : 'false');
+        simpleEditorToggle.title = skillTreeSimpleEditorEnabled ? 'Editor semplice attivo' : 'Usa editor semplice';
+    };
+    simpleEditorToggle?.addEventListener('click', () => {
+        setSkillTreeSimpleEditorEnabled(!skillTreeSimpleEditorEnabled);
+    });
+    document.addEventListener('skill-tree-simple-editor-preference-change', () => {
+        syncSimpleEditorToggle();
+        if (editMode) renderEditor();
+    });
+    syncSimpleEditorToggle();
 
     editToggle?.addEventListener('click', () => {
         editMode = !editMode;
@@ -5235,6 +5917,10 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             : '<i class="fas fa-pen"></i>';
         editToggle.title = editMode ? 'Fine modifica' : 'Modifica albero';
         editToggle.setAttribute('aria-label', editToggle.title);
+        card.dispatchEvent(new CustomEvent('skill-tree-edit-mode-change', {
+            bubbles: true,
+            detail: { editing: editMode }
+        }));
         renderEditor();
         renderTree();
     });
@@ -5337,6 +6023,8 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
                 desc: '<p>Prima abilita dell albero.</p>',
                 icon: '',
                 connections: [],
+                editorStatus: 'draft',
+                progressionMode: 'single',
                 state: 'unlocked'
             }]
         };
@@ -5391,6 +6079,8 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
     };
 
     let focusMode = false;
+    let routeFocusBeforeEditing = null;
+    let focusBeforeEditing = null;
     let focusPlaceholder = null;
     let focusBackdrop = null;
     const setFocusMode = (nextFocusMode) => {
@@ -5432,6 +6122,24 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
     cards.forEach(({ card }) => {
         card.addEventListener('skill-tree-metadata-change', () => {
             if (!card.hidden) renderActiveTree();
+        });
+        card.addEventListener('skill-tree-edit-mode-change', (event) => {
+            const editing = Boolean(event.detail?.editing);
+            if (editing) {
+                routeFocusBeforeEditing = skillTreeRouteFocusEnabled;
+                focusBeforeEditing = focusMode;
+                if (!focusMode) setFocusMode(true);
+                if (skillTreeRouteFocusEnabled) card.querySelector('[data-skill-route-toggle]')?.click();
+            } else if (routeFocusBeforeEditing !== null) {
+                if (skillTreeRouteFocusEnabled !== routeFocusBeforeEditing) {
+                    card.querySelector('[data-skill-route-toggle]')?.click();
+                }
+                routeFocusBeforeEditing = null;
+                if (focusBeforeEditing === false && focusMode) {
+                    setFocusMode(false);
+                }
+                focusBeforeEditing = null;
+            }
         });
     });
 

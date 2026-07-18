@@ -78,7 +78,8 @@
             wikiLinks.forEach((link, index) => {
                 const label = escapeHtml(link.label || link.target);
                 const href = escapeAttr(buildWikiSearchUrl(link.target || link.label));
-                restored = restored.replace(`\u0000WIKI${index}\u0000`, `<a class="wiki-term-link" href="${href}">${label}</a>`);
+                const target = escapeAttr(link.target || link.label);
+                restored = restored.replace(`\u0000WIKI${index}\u0000`, `<a class="wiki-term-link" href="${href}" data-wiki-target="${target}">${label}</a>`);
             });
             return restored;
         }
@@ -157,13 +158,24 @@
                 continue;
             }
 
+            if (/^\d+[.)]\s+/.test(lines[i])) {
+                const items = [];
+                while (i < lines.length && /^\d+[.)]\s+/.test(lines[i])) {
+                    items.push(lines[i].replace(/^\d+[.)]\s+/, ""));
+                    i++;
+                }
+                out.push(`<ol class="doc-list">${items.map(item => `<li>${renderInline(item, options)}</li>`).join("")}</ol>`);
+                continue;
+            }
             const paragraph = [];
             while (i < lines.length && !/^\s*$/.test(lines[i])) {
                 paragraph.push(lines[i]);
                 i++;
             }
             const paraClass = context === "image_box" ? " class=\"doc-paragraph\"" : "";
-            out.push(`<p${paraClass}>${renderInline(paragraph.join(" "), options)}</p>`);
+            const paragraphText = paragraph.join(options.preserveLineBreaks === true ? "\n" : " ");
+            const paragraphHtml = renderInline(paragraphText, options);
+            out.push(`<p${paraClass}>${options.preserveLineBreaks === true ? paragraphHtml.replace(/\n/g, "<br>") : paragraphHtml}</p>`);
         }
 
         return out.join("\n");

@@ -4077,3 +4077,908 @@ body.has-skill-tree-focus {
         display: inline;
     }
 }
+/* Skill tree project workbench and spacious focus editor */
+.player-skill-tree-stack.is-focus-mode .player-skill-tree-card.has-editor-workspace .player-skill-tree-layout {
+    grid-template-columns: minmax(500px, 0.9fr) minmax(600px, 1.1fr);
+    align-items: stretch;
+    gap: 1.15rem;
+}
+
+.player-skill-tree-stack.is-focus-mode .player-skill-tree-card.has-editor-workspace .player-skill-tree-editor {
+    height: min(82vh, 820px);
+    min-height: 630px;
+    align-self: start;
+}
+
+.player-skill-tree-stack.is-focus-mode .player-skill-tree-card.has-editor-workspace .player-skill-tree-wrapper {
+    width: min(100%, 720px);
+}
+
+.player-skill-workspace-head {
+    grid-template-columns: minmax(220px, 1fr) auto auto;
+    gap: 1rem;
+}
+
+.player-skill-workflow-controls {
+    display: flex;
+    align-items: end;
+    gap: 0.48rem;
+}
+
+.player-skill-workflow-controls label {
+    display: grid;
+    gap: 0.2rem;
+    color: var(--text-muted);
+    font-family: var(--font-ui);
+    font-size: 0.58rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.player-skill-workflow-controls select {
+    min-width: 7.2rem;
+    height: 2rem;
+    border: 1px solid rgba(212, 175, 55, 0.18);
+    border-radius: 9px;
+    background: rgba(0, 0, 0, 0.34);
+    color: var(--ink-ivory);
+    padding: 0 0.5rem;
+    font-size: 0.68rem;
+}
+
+.player-skill-workspace-scroll {
+    padding: 1rem;
+    scrollbar-gutter: auto;
+}
+
+.player-skill-tree-stack.is-focus-mode .player-skill-workspace-scroll {
+    padding: 1.15rem 1.2rem 1.3rem;
+}
+
+.player-skill-workspace-panel,
+.player-skill-workspace-panel .player-skill-editor-section {
+    gap: 0.9rem;
+}
+
+.player-skill-workspace-panel .player-skill-editor-section {
+    padding: 0.9rem;
+}
+
+.player-skill-workspace-tabs {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.player-skill-level-editor-tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(5.4rem, 1fr));
+    overflow: visible;
+    padding: 0;
+}
+
+.player-skill-level-editor-tab {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+    padding: 0.48rem 0.62rem;
+}
+
+.player-skill-level-editor-tab strong {
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    background: rgba(187, 112, 235, 0.12);
+    color: #e5c4f6;
+    font: 900 0.65rem/1 var(--font-ui);
+}
+
+.player-skill-level-editor-tab span {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 0.68rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-skill-level-editor-tab.is-active strong {
+    background: linear-gradient(145deg, rgba(212, 175, 55, 0.92), rgba(160, 94, 203, 0.86));
+    color: #100d12;
+}
+
+.player-skill-profile-activator {
+    display: grid;
+    gap: 0.45rem;
+    margin: 0.65rem 0;
+    padding: 0.65rem;
+    border: 1px solid rgba(187, 112, 235, 0.18);
+    border-radius: 11px;
+    background: rgba(89, 43, 117, 0.08);
+}
+
+.player-skill-profile-activator > strong {
+    color: var(--text-muted);
+    font: 900 0.6rem/1 var(--font-ui);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.player-skill-profile-activator > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.38rem;
+}
+
+.player-skill-profile-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2rem;
+    border: 1px solid rgba(187, 112, 235, 0.24);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.26);
+    color: #ead8f4;
+    padding: 0.35rem 0.58rem;
+    font: 800 0.65rem/1 var(--font-ui);
+    cursor: pointer;
+}
+
+.player-skill-profile-chip small {
+    display: grid;
+    place-items: center;
+    min-width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 50%;
+    background: rgba(212, 175, 55, 0.14);
+    color: var(--gold);
+}
+
+.player-skill-requirement-matrix {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+    overflow-x: auto;
+}
+
+.player-skill-requirement-matrix-head,
+.player-skill-requirement-matrix-row {
+    display: grid;
+    grid-template-columns: minmax(150px, 1.15fr) repeat(var(--skill-level-count), minmax(84px, 0.85fr));
+    gap: 0.35rem;
+    align-items: stretch;
+    min-width: calc(150px + (var(--skill-level-count) * 84px));
+}
+
+.player-skill-requirement-matrix-head {
+    color: var(--text-muted);
+    font: 900 0.58rem/1.2 var(--font-ui);
+    letter-spacing: 0.06em;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+.player-skill-requirement-matrix-head strong {
+    text-align: left;
+}
+
+.player-skill-requirement-matrix-row > label,
+.player-skill-requirement-matrix-cell {
+    min-width: 0;
+    border: 1px solid rgba(212, 175, 55, 0.13);
+    border-radius: 9px;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.35rem;
+}
+
+.player-skill-requirement-matrix-row > label {
+    display: flex;
+    align-items: center;
+}
+
+.player-skill-requirement-matrix input {
+    width: 100%;
+    min-width: 0;
+    height: 2rem;
+    border: 0;
+    background: transparent;
+    color: var(--ink-ivory);
+    font-family: var(--font-ui);
+}
+
+.player-skill-requirement-matrix-cell {
+    display: grid;
+    gap: 0.28rem;
+    align-content: center;
+}
+
+.player-skill-requirement-matrix-cell.has-duplicates {
+    border-color: rgba(255, 168, 75, 0.55);
+    box-shadow: inset 0 0 0 1px rgba(255, 137, 58, 0.12);
+}
+
+.player-skill-requirement-value {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 1.5rem;
+    gap: 0.2rem;
+    align-items: center;
+    border-radius: 7px;
+    background: rgba(187, 112, 235, 0.08);
+}
+
+.player-skill-requirement-value button,
+.player-skill-requirement-cell-add {
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.player-skill-requirement-cell-add {
+    width: 100%;
+    min-height: 1.25rem;
+    border: 1px dashed rgba(212, 175, 55, 0.18);
+    color: rgba(212, 175, 55, 0.65);
+}
+
+.player-skill-tree-profile-list {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.player-skill-tree-profile-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2rem;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid rgba(187, 112, 235, 0.18);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.player-skill-tree-profile-row > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.player-skill-tree-profile-row strong {
+    color: var(--ink-ivory);
+    font-family: var(--font-ui);
+    font-size: 0.74rem;
+}
+
+.player-skill-tree-profile-row small {
+    color: var(--text-muted);
+    font-size: 0.65rem;
+}
+
+.player-skill-workbench {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.player-skill-workbench > header,
+.player-skill-workbench-toolbar,
+.player-skill-workbench-batch {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.player-skill-workbench > header {
+    justify-content: space-between;
+    padding: 0.15rem 0 0.3rem;
+}
+
+.player-skill-workbench > header > div {
+    display: grid;
+    gap: 0.18rem;
+}
+
+.player-skill-workbench > header small {
+    color: var(--gold);
+    font: 900 0.58rem/1 var(--font-ui);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.player-skill-workbench > header strong {
+    color: var(--ink-ivory);
+    font: 900 1rem/1.2 var(--font-ui);
+}
+
+.player-skill-workbench-toolbar,
+.player-skill-workbench-batch {
+    flex-wrap: wrap;
+    padding: 0.65rem;
+    border: 1px solid rgba(212, 175, 55, 0.14);
+    border-radius: 11px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.player-skill-workbench-search {
+    display: grid;
+    grid-template-columns: auto minmax(130px, 1fr);
+    gap: 0.45rem;
+    align-items: center;
+    flex: 1 1 180px;
+}
+
+.player-skill-workbench-toolbar input,
+.player-skill-workbench-toolbar select,
+.player-skill-workbench-batch select,
+.player-skill-workbench-batch button {
+    min-height: 2.1rem;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.32);
+    color: var(--ink-ivory);
+    padding: 0.35rem 0.55rem;
+    font: 700 0.66rem/1 var(--font-ui);
+}
+
+.player-skill-workbench-batch > strong {
+    color: var(--text-muted);
+    font: 900 0.58rem/1 var(--font-ui);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.player-skill-workbench-list {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.player-skill-workbench-columns,
+.player-skill-workbench-row {
+    display: grid;
+    grid-template-columns: 2rem minmax(140px, 1fr) 88px 96px minmax(112px, auto) 2rem;
+    gap: 0.45rem;
+    align-items: center;
+}
+
+.player-skill-workbench-columns {
+    color: var(--text-muted);
+    font: 900 0.55rem/1 var(--font-ui);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.player-skill-workbench-columns span:nth-child(6) {
+    grid-column: 6;
+}
+
+.player-skill-workbench-columns span:nth-child(7) {
+    display: none;
+}
+
+.player-skill-workbench-row {
+    padding: 0.55rem;
+    border: 1px solid rgba(255, 255, 255, 0.055);
+    border-radius: 11px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.player-skill-workbench-row[hidden] {
+    display: none;
+}
+
+.player-skill-workbench-select {
+    display: grid;
+    place-items: center;
+    gap: 0.12rem;
+    color: var(--text-muted);
+    font: 700 0.55rem/1 var(--font-ui);
+}
+
+.player-skill-workbench-name {
+    display: grid;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.player-skill-workbench-name strong {
+    overflow: hidden;
+    color: var(--ink-ivory);
+    font: 850 0.72rem/1.2 var(--font-ui);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-skill-workbench-name small {
+    color: var(--text-muted);
+    font-size: 0.61rem;
+}
+
+.player-skill-workbench-row > select {
+    min-width: 0;
+    height: 2rem;
+    border: 1px solid rgba(212, 175, 55, 0.14);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.28);
+    color: var(--ink-ivory);
+    font: 700 0.62rem/1 var(--font-ui);
+}
+
+.player-skill-workbench-levels {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.player-skill-workbench-levels > span {
+    display: grid;
+    place-items: center;
+    min-width: 2.05rem;
+    height: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font: 800 0.58rem/1 var(--font-ui);
+}
+
+.player-skill-workbench-levels small {
+    font-size: 0.48rem;
+    opacity: 0.7;
+}
+
+.player-skill-workbench-levels > span.is-configured {
+    border-color: rgba(212, 175, 55, 0.28);
+    color: var(--gold);
+}
+
+.player-skill-workbench-issues {
+    grid-column: 2 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.28rem;
+}
+
+.player-skill-workbench-issues span {
+    border-radius: 999px;
+    padding: 0.25rem 0.42rem;
+    background: rgba(255, 168, 75, 0.1);
+    color: #efbd83;
+    font: 750 0.56rem/1 var(--font-ui);
+}
+
+.player-skill-workbench-issues .is-error {
+    background: rgba(220, 72, 72, 0.13);
+    color: #ff9f9f;
+}
+
+.player-skill-workbench-issues .is-info,
+.player-skill-workbench-issues .is-ok {
+    background: rgba(88, 190, 131, 0.1);
+    color: #9ed8b6;
+}
+
+.player-skill-workbench-open {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid rgba(187, 112, 235, 0.22);
+    border-radius: 8px;
+    background: rgba(187, 112, 235, 0.08);
+    color: #d8b1ed;
+    cursor: pointer;
+}
+
+.is-editing-skill-tree .player-skill-node.is-editor-draft::after {
+    border-style: dashed;
+    border-color: rgba(187, 112, 235, 0.78);
+}
+
+.is-editing-skill-tree .player-skill-node.is-editor-review::after {
+    border-color: rgba(255, 168, 75, 0.82);
+}
+
+.is-editing-skill-tree .player-skill-node.has-editor-warning {
+    box-shadow: 0 0 0 3px rgba(255, 145, 63, 0.22), 0 0 20px rgba(255, 118, 48, 0.18);
+}
+
+@media (max-width: 1180px) {
+    .player-skill-workspace-head {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .player-skill-workflow-controls {
+        grid-column: 1 / -1;
+    }
+
+    .player-skill-tree-stack.is-focus-mode .player-skill-tree-card.has-editor-workspace .player-skill-tree-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 720px) {
+    .player-skill-workflow-controls,
+    .player-skill-workbench > header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .player-skill-level-editor-head {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .player-skill-workbench-columns {
+        display: none;
+    }
+
+    .player-skill-workbench-row {
+        grid-template-columns: 2rem minmax(0, 1fr) 2rem;
+    }
+
+    .player-skill-workbench-row > select,
+    .player-skill-workbench-levels,
+    .player-skill-workbench-issues {
+        grid-column: 2 / -1;
+    }
+}
+
+.player-skill-workbench-columns {
+    display: none;
+}
+
+.player-skill-workbench-open {
+    grid-column: 6;
+    grid-row: 1;
+}
+
+.player-skill-workbench-issues {
+    grid-row: 2;
+}
+.player-skill-tree-card.has-editor-workspace .player-skill-workspace-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.player-skill-tree-card.has-editor-workspace .player-skill-workspace-title {
+    display: none;
+}
+/* Simplified skill node editor */
+.player-skill-simple-toggle {
+    border-color: rgba(212, 175, 55, 0.28);
+    color: rgba(240, 224, 174, 0.76);
+}
+
+.player-skill-simple-toggle:hover,
+.player-skill-simple-toggle:focus-visible {
+    border-color: rgba(230, 195, 82, 0.72);
+    color: #fff1bd;
+}
+
+.player-skill-simple-toggle.is-active {
+    border-color: rgba(230, 195, 82, 0.82);
+    background: linear-gradient(135deg, rgba(133, 95, 24, 0.78), rgba(83, 50, 20, 0.74));
+    color: #fff4c9;
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.09), 0 8px 20px rgba(0, 0, 0, 0.24);
+}
+
+.player-skill-tree-card.is-simple-skill-editor .player-skill-tree-editor {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.player-skill-simple-head {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+}
+
+.player-skill-simple-mode-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.25rem;
+    padding: 0 0.72rem;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 999px;
+    background: rgba(212, 175, 55, 0.07);
+    color: #e7cf83;
+    font: 850 0.62rem/1 var(--font-ui);
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+}
+
+.player-skill-simple-scroll {
+    padding: 1rem;
+}
+
+.player-skill-simple-shell {
+    display: grid;
+    gap: 1rem;
+    align-items: start;
+}
+
+.player-skill-tree-stack.is-focus-mode .player-skill-simple-shell {
+    grid-template-columns: minmax(0, 1.08fr) minmax(240px, 0.92fr);
+}
+
+.player-skill-simple-form,
+.player-skill-simple-preview-card {
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 15px;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(129, 66, 164, 0.1), transparent 42%),
+        rgba(0, 0, 0, 0.24);
+}
+
+.player-skill-simple-form {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem;
+}
+
+.player-skill-simple-field {
+    display: grid;
+    gap: 0.42rem;
+    margin: 0;
+    color: rgba(212, 175, 55, 0.78);
+    font: 900 0.64rem/1.2 var(--font-ui);
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+}
+
+.player-skill-simple-field input,
+.player-skill-simple-field textarea,
+.player-skill-simple-field .player-skill-level-rich-editor {
+    width: 100%;
+    border: 1px solid rgba(212, 175, 55, 0.22);
+    border-radius: 11px;
+    background: rgba(5, 6, 9, 0.72);
+    color: var(--ink-ivory);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+.player-skill-simple-field input {
+    min-height: 2.8rem;
+    padding: 0.65rem 0.78rem;
+    font: 800 0.92rem/1.25 var(--font-ui);
+}
+
+.player-skill-simple-field textarea {
+    min-height: 6rem;
+    padding: 0.72rem 0.78rem;
+    resize: vertical;
+    font: 400 1rem/1.5 var(--font-body);
+}
+
+.player-skill-simple-field input:focus,
+.player-skill-simple-field textarea:focus,
+.player-skill-simple-field .player-skill-level-rich-editor:focus {
+    border-color: rgba(203, 139, 239, 0.7);
+    box-shadow: 0 0 0 3px rgba(139, 75, 181, 0.13);
+    outline: none;
+}
+
+.player-skill-simple-description {
+    gap: 0.5rem;
+}
+
+.player-skill-simple-description .player-skill-rich-toolbar {
+    margin: 0;
+}
+
+.player-skill-simple-description .player-skill-level-rich-editor {
+    min-height: 17rem;
+    padding: 0.9rem;
+    color: var(--text-main);
+    font: 400 1.04rem/1.58 var(--font-body);
+}
+
+.player-skill-simple-preview {
+    position: sticky;
+    top: 0;
+    display: grid;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.player-skill-simple-preview-label {
+    display: flex;
+    align-items: center;
+    gap: 0.42rem;
+    padding: 0 0.2rem;
+    color: rgba(212, 175, 55, 0.68);
+    font: 900 0.62rem/1 var(--font-ui);
+    letter-spacing: 0.075em;
+    text-transform: uppercase;
+}
+
+.player-skill-simple-preview-card {
+    position: relative;
+    min-height: 22rem;
+    padding: 1.15rem;
+    overflow: hidden;
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.2);
+}
+
+.player-skill-simple-preview-card::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 2px;
+    background: linear-gradient(180deg, #d4af37, #b974e0 55%, transparent);
+    opacity: 0.72;
+}
+
+.player-skill-simple-preview-icon {
+    display: block;
+    width: 4.5rem;
+    height: 4.5rem;
+    margin: 0 0 0.85rem;
+    border: 1px solid rgba(212, 175, 55, 0.34);
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 0 0 4px rgba(212, 175, 55, 0.06);
+}
+
+.player-skill-simple-preview-card h4 {
+    margin: 0;
+    color: var(--ink-ivory);
+    font: 800 clamp(1.35rem, 2vw, 1.85rem)/1.08 var(--font-title);
+    letter-spacing: 0.015em;
+}
+
+.player-skill-simple-preview-card > p {
+    margin: 0.55rem 0 0;
+    color: #cfa9e4;
+    font: 650 1rem/1.4 var(--font-body);
+    white-space: pre-line;
+}
+
+.player-skill-simple-preview-desc {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(212, 175, 55, 0.14);
+    color: var(--text-main);
+    font: 400 1.02rem/1.62 var(--font-body);
+    overflow-wrap: anywhere;
+}
+
+.player-skill-simple-preview-desc > :first-child {
+    margin-top: 0;
+}
+
+.player-skill-simple-preview-desc > :last-child {
+    margin-bottom: 0;
+}
+
+.player-skill-tree-card.is-simple-skill-editor .player-skill-editor-action-group {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 22rem;
+    margin-left: auto;
+}
+
+.player-skill-tree-card.is-simple-skill-editor .player-skill-editor-action-group .player-skill-action-button {
+    min-height: 2.35rem;
+}
+
+@media (max-width: 1180px) {
+    .player-skill-tree-stack.is-focus-mode .player-skill-simple-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .player-skill-simple-preview {
+        position: static;
+    }
+}
+
+@media (max-width: 620px) {
+    .player-skill-simple-head {
+        grid-template-columns: 1fr !important;
+    }
+
+    .player-skill-simple-mode-badge {
+        justify-self: start;
+    }
+
+    .player-skill-simple-form,
+    .player-skill-simple-preview-card {
+        padding: 0.78rem;
+    }
+
+    .player-skill-simple-description .player-skill-level-rich-editor {
+        min-height: 13rem;
+    }
+}
+.player-skill-simple-field textarea {
+    min-height: 4.8rem;
+}
+
+.player-skill-simple-description .player-skill-level-rich-editor {
+    min-height: 11rem;
+}
+
+.player-skill-simple-preview-card {
+    max-height: 26rem;
+    overflow: auto;
+    scrollbar-gutter: stable;
+}
+.player-skill-simple-field textarea {
+    height: 4.8rem;
+}
+
+.player-skill-simple-description .player-skill-level-rich-editor {
+    height: 9.6rem;
+    min-height: 9.6rem;
+    overflow: auto;
+}
+.player-skill-simple-scroll {
+    padding: 0.75rem;
+}
+
+.player-skill-simple-description .player-skill-level-rich-editor {
+    height: 8.6rem;
+    min-height: 8.6rem;
+}
+.player-skill-simple-icon-upload {
+    grid-template-columns: 3.1rem minmax(0, 1fr) auto;
+    gap: 0.65rem;
+    min-height: 4rem;
+    padding: 0.48rem 0.55rem;
+    border-style: solid;
+    background: linear-gradient(145deg, rgba(212, 175, 55, 0.055), rgba(0, 0, 0, 0.3));
+}
+
+.player-skill-simple-icon-upload .player-skill-node-icon-preview {
+    width: 3rem;
+    height: 3rem;
+}
+
+.player-skill-simple-icon-copy {
+    min-width: 0;
+}
+
+.player-skill-simple-icon-copy strong {
+    color: var(--ink-ivory);
+    font-size: 0.7rem;
+    letter-spacing: 0.045em;
+}
+
+.player-skill-simple-icon-copy span {
+    margin: 0.16rem 0 0;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    line-height: 1.25;
+    text-transform: none;
+}
+
+.player-skill-simple-icon-upload .player-skill-action-button {
+    justify-self: end;
+    min-width: 5.2rem;
+}
+
+@media (max-width: 620px) {
+    .player-skill-simple-icon-upload {
+        grid-template-columns: 3rem minmax(0, 1fr);
+    }
+
+    .player-skill-simple-icon-upload .player-skill-action-button {
+        grid-column: 2;
+        justify-self: start;
+    }
+}
+/* Node selection happens directly on the illustrated tree. */
+.player-skill-tree-card.has-editor-workspace .player-skill-workspace-title {
+    display: grid;
+    max-width: min(100%, 24rem);
+    text-align: left;
+}
+
+.player-skill-tree-card.has-editor-workspace .player-skill-workspace-title strong {
+    max-width: 100%;
+}
+
+.player-skill-tree-card.is-simple-skill-editor .player-skill-simple-current {
+    align-self: center;
+}

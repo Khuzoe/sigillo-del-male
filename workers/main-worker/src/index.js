@@ -3689,6 +3689,13 @@ function managedActorProfileVisibilityState(value) {
   return state === "dm" ? "dm" : "public";
 }
 
+function normalizeManagedNpcLifeState(value, fallback = "") {
+  const state = String(value || fallback || "").trim().toLowerCase();
+  if (["alive", "vivo", "viva"].includes(state) || state.includes("viv")) return "alive";
+  if (["dead", "morto", "morta"].includes(state) || state.includes("mort")) return "dead";
+  return "unknown";
+}
+
 function managedActorProfileBlockVisibility(value, hidden = false) {
   if (hidden === true) return "dm";
   const state = String(value?.state || value || "public").trim().toLowerCase();
@@ -3705,6 +3712,7 @@ function managedActorProfileIndexMetadata(profile) {
     category: String(profile.category || "").trim().slice(0, 120),
     role: String(profile.role || "").trim().slice(0, 240),
     quote: String(profile.quote || "").trim().slice(0, 1_000),
+    lifeState: normalizeManagedNpcLifeState(profile.lifeState, profile.status),
     status: String(profile.status || "").trim().slice(0, 80),
     hasContent: Boolean(profile.categoryId || profile.category || profile.role || profile.quote || blocks.length),
     revision: Math.max(0, Math.floor(Number(profile.revision) || 0)),
@@ -3816,6 +3824,7 @@ function managedActorProfileWithCurrentMedia(profile, actor) {
   return {
     ...profile,
     media: managedActorProfileMediaFromActor(actor),
+    name: String(actor?.name || profile?.name || "NPC").trim().slice(0, 180),
     mediaSyncVersion: 1,
     mediaUpdatedAt: actor?.updatedAt || profile?.mediaUpdatedAt || null,
   };
@@ -3828,6 +3837,7 @@ async function syncStoredManagedActorProfileMedia(env, campaignId, route, actor)
   const next = managedActorProfileWithCurrentMedia(profile, actor);
   if (Number(profile.mediaSyncVersion || 0) >= 1
     && managedActorProfileMediaComparable(profile.media) === managedActorProfileMediaComparable(next.media)
+    && String(profile.name || "") === String(next.name || "")
     && String(profile.mediaUpdatedAt || "") === String(next.mediaUpdatedAt || "")) return false;
   await env.SIGILLO_KV.put(key, JSON.stringify(next));
   return true;
@@ -3904,6 +3914,7 @@ function managedActorProfileFromLegacy(character, actor, campaignId, route) {
     name: String(source.name || actor?.name || "NPC").trim().slice(0, 180),
     role: String(source.role || source.subtitle || "").trim().slice(0, 240),
     quote: String(source.quote || "").trim().slice(0, 1_000),
+    lifeState: normalizeManagedNpcLifeState(source.lifeState, source.status),
     status: String(source.status || "").trim().slice(0, 80),
     visibility: { state: source.hidden === true ? "dm" : "public" },
     summary: normalizeManagedActorProfileSummary(source.summary),
@@ -3931,6 +3942,7 @@ function emptyManagedActorProfile(actor, campaignId, route) {
     name: String(actor?.name || "NPC").trim().slice(0, 180),
     role: "",
     quote: "",
+    lifeState: "unknown",
     status: "",
     visibility: { state: "dm" },
     summary: normalizeManagedActorProfileSummary({}),
@@ -3962,6 +3974,7 @@ function normalizeManagedActorProfileDocument(input, existing, actor, campaignId
     name: String(source.name || previous.name || actor?.name || "NPC").trim().slice(0, 180),
     role: String(source.role ?? previous.role ?? "").trim().slice(0, 240),
     quote: String(source.quote ?? previous.quote ?? "").trim().slice(0, 1_000),
+    lifeState: normalizeManagedNpcLifeState(source.lifeState ?? previous.lifeState, source.status ?? previous.status),
     status: String(source.status ?? previous.status ?? "").trim().slice(0, 80),
     visibility: { state: managedActorProfileVisibilityState(source.visibility || previous.visibility) },
     summary: normalizeManagedActorProfileSummary(source.summary || previous.summary),
@@ -4436,7 +4449,8 @@ async function handleManagedActorProfileGet(request, route, campaignId, env, cor
   let profile = safeJsonParse(storedRaw);
   let source = "profile";
 
-  if (profile && Number(profile.mediaSyncVersion || 0) < 1) {
+  if (profile && (Number(profile.mediaSyncVersion || 0) < 1
+    || String(profile.name || "") !== String(actor.name || ""))) {
     profile = managedActorProfileWithCurrentMedia(profile, actor);
     await env.SIGILLO_KV.put(managedActorProfileKey(campaignId, route.worldId, route.actorId), JSON.stringify(profile));
   }
@@ -4484,11 +4498,18 @@ async function handleManagedActorProfilePost(request, route, campaignId, env, co
     env.SIGILLO_KV.get(profileKey),
     env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId)),
   ]);
-  const existing = safeJsonParse(existingRaw);
+  let existing = safeJsonParse(existingRaw);
   const actor = safeJsonParse(actorRaw);
   if (!actor) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
   const authorization = await authorizeManagedActorWrite(request, env, campaignId, corsHeaders, actor);
   if (authorization instanceof Response) return authorization;
+  if (!existing) {
+    const charactersDocument = await readDataCollectionDocument("characters", campaignId, env);
+    const legacy = findLegacyCharacterForManagedActor(charactersDocument?.data, actor);
+    existing = legacy
+      ? managedActorProfileFromLegacy(legacy, actor, campaignId, route)
+      : emptyManagedActorProfile(actor, campaignId, route);
+  }
   const { isEditor, isOwner } = authorization;
   const expectedRevision = Math.max(0, Math.floor(Number(body?.expectedRevision) || 0));
   const currentRevision = Math.max(0, Math.floor(Number(existing?.revision) || 0));
@@ -5518,6 +5539,8 @@ async function handleManagedActorPost(request, route, fallbackCampaignId, env, c
   const profileMediaChanged = Boolean(existing) && !unchanged
     && managedActorProfileMediaComparable(existing.media) !== managedActorProfileMediaComparable(next.media);
   if (!unchanged) await env.SIGILLO_KV.put(key, JSON.stringify(next));
+  const profileNameChanged = Boolean(existing) && !unchanged
+    && String(existing.name || "") !== String(next.name || "");
   if (indexChanged) {
     const data = [...currentEntries.filter((entry) => entry?.id !== nextIndexEntry.id), nextIndexEntry]
       .sort((left, right) => String(left.name || "").localeCompare(String(right.name || "")));
@@ -5529,7 +5552,7 @@ async function handleManagedActorPost(request, route, fallbackCampaignId, env, c
       data,
     }));
   }
-  const profileMediaSynced = profileMediaChanged
+  const profileMediaSynced = profileMediaChanged || profileNameChanged
     ? await syncStoredManagedActorProfileMedia(env, campaignId, route, next)
     : false;
   const deletedMedia = [];
