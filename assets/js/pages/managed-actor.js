@@ -201,6 +201,7 @@
         setupManagedMediaDropZones(root);
         setupManagedDamageMagicControls(root);
         setupManagedCollectionControls(root);
+        setupManagedSectionNavigation(root);
         setupManagedGuidedMechanics(root);
         setupManagedImageLightbox(root);
         setupManagedAvatarFallback(root, actor.media);
@@ -1397,6 +1398,9 @@
     function formatManagedActorConflict(command) {
         const patches = Array.isArray(command?.patches) ? command.patches : [];
         const current = command?.current && typeof command.current === "object" ? command.current : {};
+        const alreadySatisfied = patches.length > 0 && patches.every((patch) => Object.prototype.hasOwnProperty.call(current, patch.path)
+            && sameManagedFormValue(current[patch.path], patch.value));
+        if (alreadySatisfied) return "Valore gi\u00e0 presente in Foundry. Salva per chiudere l'avviso";
         const conflict = patches.find((patch) => Object.prototype.hasOwnProperty.call(current, patch.path)
             && !sameManagedFormValue(current[patch.path], patch.value)
             && !sameManagedFormValue(current[patch.path], patch.baseValue));
@@ -1494,7 +1498,7 @@
         const filterButtons = groupFilterButtons || preparationFilterButton ? `<div class="managed-filter-chips" role="group" aria-label="Filtra ${escapeAttr(title)}">${groupFilterButtons}${preparationFilterButton}</div>` : "";
         const tools = entries.length > 5 ? `<div class="managed-collection-tools"><label class="managed-collection-search"><i class="fas fa-magnifying-glass"></i><input type="search" placeholder="Cerca ${escapeAttr(title.toLowerCase())}" aria-label="Cerca ${escapeAttr(title.toLowerCase())}" data-managed-entry-search></label>${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : filterButtons ? `<div class="managed-collection-tools">${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : "";
         const lead = collectionKind === "spells" ? "Cerca e filtra il grimorio; apri soltanto ciò che vuoi leggere o modificare." : collectionKind === "capabilities" ? "Azioni, reazioni e capacità sono ordinate secondo il loro utilizzo in Foundry." : "Equipaggiamento e risorse collegate all’Actor originale.";
-        return `<section${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Dati Foundry</span><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-count-badge">${entries.length}</span></header>${entries.length ? `<p class="managed-panel-lead">${escapeHtml(lead)}</p>${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</section>`;
+        return `<details${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><summary class="managed-panel-heading managed-collection-summary"><div><span class="managed-panel-eyebrow">Dati Foundry</span><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-collection-summary-meta"><span class="managed-count-badge">${entries.length}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-collection-body">${entries.length ? `<p class="managed-panel-lead">${escapeHtml(lead)}</p>${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</div></details>`;
     }
     function renderManagedEntryCard(entry, canEdit, groupKey) {
         const icon = entry.media?.icon?.path;
@@ -1592,6 +1596,24 @@
             });
         });
     }
+    function setupManagedSectionNavigation(root) {
+        const openSection = (id, scroll = false) => {
+            const cleanId = String(id || "").replace(/^#/, "");
+            if (!cleanId) return null;
+            const target = root.querySelector(`#${CSS.escape(cleanId)}`);
+            if (target instanceof HTMLDetailsElement) target.open = true;
+            if (scroll && target) requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "start" }));
+            return target;
+        };
+        root.querySelectorAll('.managed-section-nav a[href^="#"]').forEach((link) => link.addEventListener("click", () => {
+            openSection(link.getAttribute("href"));
+        }));
+        if (window.location.hash) {
+            try { openSection(decodeURIComponent(window.location.hash), true); }
+            catch (_) { openSection(window.location.hash, true); }
+        }
+    }
+
     function findManagedItemCommand(entry) {
         const commands = Array.isArray(currentDocument?.sync?.commands) ? currentDocument.sync.commands : [];
         return commands.find((command) => String(command.kind || "").startsWith("item.")
@@ -2501,9 +2523,16 @@
         return payload.path || `media/${payload.key}`;
     }
     function sameManagedFormValue(left, right) {
+        const normalizeScalar = (value) => {
+            if (typeof value !== "string") return value;
+            const clean = value.trim();
+            if (!clean || !/^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(clean)) return value;
+            const number = Number(clean);
+            return Number.isFinite(number) ? number : value;
+        };
         const comparable = (value) => Array.isArray(value) && value.every((entry) => ["string", "number"].includes(typeof entry))
-            ? [...value].map(String).sort((a, b) => a.localeCompare(b))
-            : value;
+            ? [...value].map(normalizeScalar).map(String).sort((a, b) => a.localeCompare(b))
+            : normalizeScalar(value);
         return JSON.stringify(comparable(left)) === JSON.stringify(comparable(right));
     }
 
