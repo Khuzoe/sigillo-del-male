@@ -1,5 +1,6 @@
 import { discordBotPreferencesKey, handleDiscordBotDmNotifications, normalizeDiscordBotPreferences, sendDiscordBotChannelCard } from "./discord-bot/notifications.js";
 import { handleCampaignItemFoundrySync, normalizeCampaignItemsForSiteSave } from "./campaign-items.js";
+export { FoundrySyncHub } from "./foundry-sync-hub.js";
 
 export default {
   async scheduled(event, env, ctx) {
@@ -77,10 +78,10 @@ export default {
       const managedActorCommandRoute = matchManagedActorCommandRoute(url.pathname);
       const managedActorCommandBatchRoute = matchManagedActorCommandBatchRoute(url.pathname);
       if (url.pathname === "/api/managed-actor-create-requests" && request.method === "POST") {
-        return handleManagedActorCreateRequestEnqueue(request, queryCampaignId, env, corsHeaders);
+        return handleManagedActorCreateRequestEnqueue(request, queryCampaignId, env, corsHeaders, ctx);
       }
       if (managedActorCommandRoute && request.method === "POST") {
-        return handleManagedActorCommandEnqueue(request, managedActorCommandRoute, queryCampaignId, env, corsHeaders);
+        return handleManagedActorCommandEnqueue(request, managedActorCommandRoute, queryCampaignId, env, corsHeaders, ctx);
       }
       if (managedActorCommandBatchRoute?.action === "ack" && request.method === "POST") {
         return handleManagedActorCommandAck(request, managedActorCommandBatchRoute, queryCampaignId, env, corsHeaders);
@@ -95,19 +96,19 @@ export default {
         return handleManagedActorProfileGet(request, managedActorProfileRoute, queryCampaignId, env, corsHeaders);
       }
       if (managedActorProfileRoute && request.method === "POST") {
-        return handleManagedActorProfilePost(request, managedActorProfileRoute, queryCampaignId, env, corsHeaders);
+        return handleManagedActorProfilePost(request, managedActorProfileRoute, queryCampaignId, env, corsHeaders, ctx);
       }
       if (managedActorRuntimeRoute && request.method === "POST") {
         return handleManagedActorRuntimePost(request, managedActorRuntimeRoute, queryCampaignId, env, corsHeaders);
       }
       if (managedActorRelationshipRoute && request.method === "POST") {
-        return handleManagedActorRelationshipPost(request, managedActorRelationshipRoute, queryCampaignId, env, corsHeaders);
+        return handleManagedActorRelationshipPost(request, managedActorRelationshipRoute, queryCampaignId, env, corsHeaders, ctx);
       }
       if (managedActorLegacyAdoptRoute && request.method === "POST") {
         return handleManagedActorLegacyAdopt(request, managedActorLegacyAdoptRoute, queryCampaignId, env, corsHeaders);
       }
       if (managedActorRoute && request.method === "POST") {
-        return handleManagedActorPost(request, managedActorRoute, queryCampaignId, env, corsHeaders);
+        return handleManagedActorPost(request, managedActorRoute, queryCampaignId, env, corsHeaders, ctx);
       }
       if (managedActorRoute && request.method === "GET") {
         return handleManagedActorGet(request, managedActorRoute, queryCampaignId, env, corsHeaders);
@@ -501,6 +502,18 @@ export default {
         return handleVersionGet(env, corsHeaders);
       }
 
+      if (url.pathname === "/api/foundry/live-ticket" && request.method === "POST") {
+        return handleFoundryLiveTicket(request, queryCampaignId, env, corsHeaders);
+      }
+
+      if (url.pathname === "/api/foundry/live/status" && request.method === "GET") {
+        return handleFoundryLiveStatus(request, queryCampaignId, env, corsHeaders);
+      }
+
+      if (url.pathname === "/api/foundry/live" && request.method === "GET") {
+        return handleFoundryLiveConnect(request, queryCampaignId, env, corsHeaders);
+      }
+
       if (url.pathname === "/api/media/check" && (request.method === "GET" || request.method === "POST")) {
         return handleMediaCheck(request, env, corsHeaders);
       }
@@ -541,7 +554,7 @@ export default {
         }
 
         if (request.method === "POST") {
-          return handleDataCollectionPost(request, collection, queryCampaignId, env, corsHeaders);
+          return handleDataCollectionPost(request, collection, queryCampaignId, env, corsHeaders, ctx);
         }
       }
 
@@ -3326,6 +3339,151 @@ function isFoundrySyncSecretAuthorized(request, env) {
   return Boolean(provided && provided === expected);
 }
 
+async function authorizeFoundryLive(request, env, campaignId, corsHeaders = {}) {
+  if (isFoundrySyncSecretAuthorized(request, env)) {
+    return { source: "foundry-secret", accountId: "foundry" };
+  }
+  const user = await requireUser(request, env, corsHeaders);
+  if (user instanceof Response) return user;
+  if (!await isAuthenticatedCampaignContentEditor(user, env, campaignId)) {
+    return json({ ok: false, error: "Forbidden: live sync requires campaign editor permissions" }, 403, corsHeaders);
+  }
+  return {
+    source: "campaign-editor",
+    accountId: getAuthenticatedAccountId(user, env) || "campaign-editor",
+  };
+}
+
+async function handleFoundryLiveTicket(request, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.JWT_SECRET) return json({ ok: false, error: "Missing env.JWT_SECRET" }, 500, corsHeaders);
+  if (!env.FOUNDRY_SYNC_HUB) return json({ ok: false, error: "Missing env.FOUNDRY_SYNC_HUB" }, 503, corsHeaders);
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
+  const worldId = sanitizeManagedActorId(body?.worldId || "");
+  const clientId = sanitizeManagedActorId(body?.clientId || "") || crypto.randomUUID();
+  if (!worldId) return json({ ok: false, error: "Missing worldId" }, 400, corsHeaders);
+  const authorization = await authorizeFoundryLive(request, env, campaignId, corsHeaders);
+  if (authorization instanceof Response) return authorization;
+
+  const now = Math.floor(Date.now() / 1000);
+  const expiresIn = 90;
+  const ticket = await makeJWT(String(env.JWT_SECRET), {
+    purpose: "foundry-live",
+    campaignId,
+    worldId,
+    clientId,
+    accountId: authorization.accountId,
+    source: authorization.source,
+    jti: crypto.randomUUID(),
+    iat: now,
+    exp: now + expiresIn,
+  });
+  return json({
+    ok: true,
+    campaignId,
+    worldId,
+    clientId,
+    ticket,
+    expiresIn,
+    socketUrl: new URL("/api/foundry/live", request.url).toString().replace(/^http/i, "ws"),
+  }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
+}
+
+async function handleFoundryLiveConnect(request, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.JWT_SECRET) return json({ ok: false, error: "Missing env.JWT_SECRET" }, 500, corsHeaders);
+  if (!env.FOUNDRY_SYNC_HUB) return json({ ok: false, error: "Missing env.FOUNDRY_SYNC_HUB" }, 503, corsHeaders);
+  if (String(request.headers.get("Upgrade") || "").toLowerCase() !== "websocket") {
+    return json({ ok: false, error: "Expected WebSocket upgrade" }, 426, corsHeaders);
+  }
+  const url = new URL(request.url);
+  const ticket = String(url.searchParams.get("ticket") || "").trim();
+  const claims = ticket ? await verifyJWT(String(env.JWT_SECRET), ticket) : null;
+  if (!claims || claims.purpose !== "foundry-live") {
+    return json({ ok: false, error: "Invalid or expired live sync ticket" }, 401, corsHeaders);
+  }
+  const campaignId = sanitizeCampaignId(claims.campaignId);
+  const requestedCampaignId = sanitizeCampaignId(url.searchParams.get("campaign") || fallbackCampaignId);
+  const worldId = sanitizeManagedActorId(claims.worldId);
+  const clientId = sanitizeManagedActorId(claims.clientId) || crypto.randomUUID();
+  if (!campaignId || !worldId || requestedCampaignId !== campaignId) {
+    return json({ ok: false, error: "Live sync ticket scope mismatch" }, 403, corsHeaders);
+  }
+
+  const id = env.FOUNDRY_SYNC_HUB.idFromName(campaignId);
+  const stub = env.FOUNDRY_SYNC_HUB.get(id);
+  return stub.fetch("https://foundry-sync-hub/connect", {
+    method: "GET",
+    headers: {
+      Upgrade: "websocket",
+      "X-Sigillo-Campaign": campaignId,
+      "X-Sigillo-World": worldId,
+      "X-Sigillo-Client": clientId,
+    },
+  });
+}
+
+async function handleFoundryLiveStatus(request, fallbackCampaignId, env, corsHeaders = {}) {
+  if (!env.FOUNDRY_SYNC_HUB) return json({ ok: false, error: "Missing env.FOUNDRY_SYNC_HUB" }, 503, corsHeaders);
+  const url = new URL(request.url);
+  const campaignId = sanitizeCampaignId(url.searchParams.get("campaign") || fallbackCampaignId);
+  const authorization = await authorizeFoundryLive(request, env, campaignId, corsHeaders);
+  if (authorization instanceof Response) return authorization;
+  const id = env.FOUNDRY_SYNC_HUB.idFromName(campaignId);
+  const response = await env.FOUNDRY_SYNC_HUB.get(id).fetch("https://foundry-sync-hub/status");
+  const payload = await response.json().catch(() => ({ ok: false, error: "Invalid live sync status" }));
+  return json({ ...payload, campaignId }, response.status, { ...corsHeaders, "Cache-Control": "private, no-store" });
+}
+
+function scheduleFoundryLiveInvalidation(ctx, env, input = {}) {
+  if (!env?.FOUNDRY_SYNC_HUB) return false;
+  const campaignId = sanitizeCampaignId(input.campaignId);
+  const collections = Array.from(new Set((Array.isArray(input.collections) ? input.collections : [])
+    .map((value) => String(value || "").trim().toLowerCase())
+    .filter(Boolean)));
+  if (!campaignId || !collections.length) return false;
+  const event = {
+    type: "invalidate",
+    schemaVersion: 1,
+    eventId: crypto.randomUUID(),
+    campaignId,
+    worldId: sanitizeManagedActorId(input.worldId || ""),
+    worldIds: Array.from(new Set((Array.isArray(input.worldIds) ? input.worldIds : [])
+      .map(sanitizeManagedActorId)
+      .filter(Boolean))),
+    collections,
+    actorIds: Array.from(new Set((Array.isArray(input.actorIds) ? input.actorIds : [])
+      .map(sanitizeManagedActorId)
+      .filter(Boolean))),
+    reason: String(input.reason || "site-update").trim().slice(0, 96),
+    revision: Math.max(0, Math.floor(Number(input.revision) || 0)),
+    emittedAt: new Date().toISOString(),
+  };
+  const id = env.FOUNDRY_SYNC_HUB.idFromName(campaignId);
+  const task = env.FOUNDRY_SYNC_HUB.get(id).fetch("https://foundry-sync-hub/publish", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(event),
+  }).then(async (response) => {
+    if (response.ok) return true;
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Live sync publish HTTP ${response.status}${detail ? `: ${detail.slice(0, 240)}` : ""}`);
+  }).catch((error) => {
+    console.warn("sigillo-api | Notifica live Foundry rimandata al fallback.", {
+      campaignId,
+      collections,
+      error: String(error?.message || error),
+    });
+    return false;
+  });
+  if (ctx?.waitUntil) ctx.waitUntil(task);
+  return true;
+}
+
 async function authorizeManagedActorWrite(request, env, campaignId, corsHeaders, actor = null) {
   if (isFoundrySyncSecretAuthorized(request, env)) return { source: "foundry", user: null, isEditor: true, isOwner: false };
   const user = await requireUser(request, env, corsHeaders);
@@ -4482,7 +4640,7 @@ async function handleManagedActorProfileGet(request, route, campaignId, env, cor
   });
 }
 
-async function handleManagedActorProfilePost(request, route, campaignId, env, corsHeaders = {}) {
+async function handleManagedActorProfilePost(request, route, campaignId, env, corsHeaders = {}, ctx = null) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
 
   let body;
@@ -4558,6 +4716,16 @@ async function handleManagedActorProfilePost(request, route, campaignId, env, co
     }));
   }
 
+  if (authorization.source === "site") {
+    scheduleFoundryLiveInvalidation(ctx, env, {
+      campaignId,
+      worldId: route.worldId,
+      collections: ["managed-actors"],
+      actorIds: [route.actorId],
+      reason: "managed-actor-profile",
+      revision: next.revision,
+    });
+  }
   return json({ ok: true, saved: true, campaignId, revision: next.revision, data: next }, 200, {
     ...corsHeaders,
     "Cache-Control": "private, no-store",
@@ -4954,7 +5122,7 @@ function publicManagedActorCommand(command) {
   };
 }
 
-async function handleManagedActorCommandEnqueue(request, route, fallbackCampaignId, env, corsHeaders = {}) {
+async function handleManagedActorCommandEnqueue(request, route, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   let body;
   try {
@@ -5058,11 +5226,19 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
   }  queue.version += 1;
   queue.updatedAt = now;
   await writeManagedActorCommandQueue(env, queue);
+  scheduleFoundryLiveInvalidation(ctx, env, {
+    campaignId,
+    worldId: route.worldId,
+    collections: ["managed-actors"],
+    actorIds: [route.actorId],
+    reason: `managed-actor-command:${kind}`,
+    revision: queue.version,
+  });
   return json({ ok: true, queued: true, campaignId, worldId: route.worldId, actorId: route.actorId, queueVersion: queue.version, command: publicManagedActorCommand(command) }, 202, { ...corsHeaders, "Cache-Control": "private, no-store" });
 }
 
 
-async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignId, env, corsHeaders = {}) {
+async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   let body;
   try {
@@ -5141,6 +5317,12 @@ async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignI
   queue.version += 1;
   queue.updatedAt = now;
   await writeManagedActorCreateRequestQueue(env, queue);
+  scheduleFoundryLiveInvalidation(ctx, env, {
+    campaignId,
+    collections: ["managed-actors"],
+    reason: "managed-actor-create",
+    revision: queue.version,
+  });
   return json({
     ok: true,
     queued: true,
@@ -5496,7 +5678,7 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
   };
 }
 
-async function handleManagedActorPost(request, route, fallbackCampaignId, env, corsHeaders = {}) {
+async function handleManagedActorPost(request, route, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   let body;
   try {
@@ -5568,6 +5750,16 @@ async function handleManagedActorPost(request, route, fallbackCampaignId, env, c
   }
 
   const stored = unchanged ? existing : next;
+  if (authorization.source === "site") {
+    scheduleFoundryLiveInvalidation(ctx, env, {
+      campaignId,
+      worldId: route.worldId,
+      collections: ["managed-actors"],
+      actorIds: [route.actorId],
+      reason: "managed-actor-document",
+      revision: stored?.revision || 0,
+    });
+  }
   return json({
     ok: true,
     saved: !unchanged,
@@ -5612,7 +5804,7 @@ async function handleManagedActorRuntimePost(request, route, fallbackCampaignId,
     "Cache-Control": "private, no-store",
   });
 }
-async function handleManagedActorRelationshipPost(request, route, fallbackCampaignId, env, corsHeaders = {}) {
+async function handleManagedActorRelationshipPost(request, route, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   let body;
   try {
@@ -5728,6 +5920,16 @@ async function handleManagedActorRelationshipPost(request, route, fallbackCampai
   if (authorization.source === "site") {
     await enqueueManagedActorRelationshipCommand(env, campaignId, next, next, updatedBy);
     queued = true;
+  }
+  if (authorization.source === "site") {
+    scheduleFoundryLiveInvalidation(ctx, env, {
+      campaignId,
+      worldId: route.worldId,
+      collections: ["managed-actors"],
+      actorIds: [route.actorId],
+      reason: "managed-actor-relationship",
+      revision: next.relationshipRevision,
+    });
   }
   return json({
     ok: true,
@@ -6061,7 +6263,7 @@ function sanitizeAssetHash(value) {
   return /^[a-z0-9:_-]{4,128}$/.test(hash) ? hash : "";
 }
 
-async function handleDataCollectionPost(request, collection, fallbackCampaignId, env, corsHeaders = {}) {
+async function handleDataCollectionPost(request, collection, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
   if (!env.SIGILLO_KV) {
     return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   }
@@ -6165,6 +6367,32 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
   };
 
   await env.SIGILLO_KV.put(key, JSON.stringify(doc));
+  if (collection === "items") {
+    const pendingItems = nextData.filter((record) => record?.sync?.pendingFoundry === true);
+    if (pendingItems.length) {
+      scheduleFoundryLiveInvalidation(ctx, env, {
+        campaignId,
+        worldIds: pendingItems.map((record) => record?.foundry?.worldId).filter(Boolean),
+        collections: ["campaign-items"],
+        reason: "campaign-items-site-save",
+        revision: doc.version,
+      });
+    }
+  } else if ([
+    "transformations",
+    "skill-trees",
+    "skill-tree-states",
+    "ability-overrides",
+    "item-overrides",
+    "media-overrides",
+  ].includes(collection)) {
+    scheduleFoundryLiveInvalidation(ctx, env, {
+      campaignId,
+      collections: ["light-sync"],
+      reason: `data:${collection}`,
+      revision: doc.version,
+    });
+  }
 
   const deletedMedia = [];
   const failedMediaDeletes = [];

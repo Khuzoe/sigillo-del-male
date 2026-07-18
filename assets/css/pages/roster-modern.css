@@ -850,3 +850,178 @@ body.sidebar-collapsed .roster-page .npc-category-drop-dock {
     .roster-page .npc-category-drop-dock button,
     .npc-roster-feedback { transition: none; }
 }
+
+/* Unified NPC and bestiary archive */
+.roster-tools--archive {
+    grid-template-columns: minmax(260px, 1fr) auto auto auto;
+}
+
+.roster-scope-switch {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .34rem;
+    padding: .3rem;
+    border: 1px solid rgba(223, 195, 111, .12);
+    border-radius: 14px;
+    background:
+        linear-gradient(90deg, rgba(223, 195, 111, .035), transparent 32% 68%, rgba(174, 100, 205, .035)),
+        rgba(4, 4, 7, .62);
+    box-shadow: inset 0 1px rgba(255, 255, 255, .025);
+}
+
+.roster-scope-option {
+    --scope-color: var(--roster-gold-bright);
+    display: grid;
+    grid-template-columns: auto auto minmax(1.7rem, auto);
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    gap: .48rem;
+    padding: 0 .8rem;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    background: transparent;
+    color: rgba(225, 213, 188, .48);
+    font: 760 .63rem var(--font-ui);
+    letter-spacing: .025em;
+    cursor: pointer;
+    transition: transform .18s ease, color .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.roster-scope-option[data-roster-scope='bestiary'] { --scope-color: #d19ae9; }
+.roster-scope-option[data-roster-scope='all'] { --scope-color: #c7b8dd; }
+
+.roster-scope-option i {
+    color: color-mix(in srgb, var(--scope-color) 72%, transparent);
+    font-size: .78rem;
+}
+
+.roster-scope-option b {
+    min-width: 1.7rem;
+    padding: .16rem .38rem;
+    border: 1px solid rgba(255, 255, 255, .055);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .025);
+    color: rgba(225, 213, 188, .38);
+    font-size: .5rem;
+    text-align: center;
+}
+
+.roster-scope-option:hover {
+    transform: translateY(-1px);
+    color: var(--roster-ink);
+    background: rgba(255, 255, 255, .025);
+}
+
+.roster-scope-option.is-active {
+    border-color: color-mix(in srgb, var(--scope-color) 30%, transparent);
+    background:
+        radial-gradient(circle at 50% 130%, color-mix(in srgb, var(--scope-color) 17%, transparent), transparent 67%),
+        rgba(255, 255, 255, .035);
+    color: color-mix(in srgb, var(--scope-color) 82%, #fff 18%);
+    box-shadow: inset 0 1px rgba(255, 255, 255, .035), 0 8px 22px rgba(0, 0, 0, .17);
+}
+
+.roster-scope-option.is-active i { color: var(--scope-color); }
+.roster-scope-option.is-active b {
+    border-color: color-mix(in srgb, var(--scope-color) 22%, transparent);
+    background: color-mix(in srgb, var(--scope-color) 8%, transparent);
+    color: color-mix(in srgb, var(--scope-color) 78%, #fff 12%);
+}
+
+.roster-context-filters[hidden] { display: none !important; }
+
+.roster-page .npc-card--bestiary {
+    --card-accent: #c07bdf;
+    border-color: rgba(192, 123, 223, .24);
+    background:
+        radial-gradient(circle at 0 0, rgba(192, 123, 223, .13), transparent 15rem),
+        radial-gradient(circle at 100% 100%, rgba(78, 50, 99, .1), transparent 18rem),
+        linear-gradient(145deg, rgba(27, 21, 31, .94), rgba(9, 8, 13, .98));
+}
+
+.roster-page .npc-card--bestiary:hover {
+    border-color: rgba(209, 154, 233, .5);
+    box-shadow: 0 25px 58px rgba(0, 0, 0, .36), 0 0 34px rgba(158, 88, 190, .065);
+}
+
+.roster-page .npc-card--bestiary .npc-role {
+    border-color: rgba(192, 123, 223, .2);
+    background: rgba(192, 123, 223, .06);
+    color: #d9abea;
+}
+
+.roster-page .npc-card--undiscovered {
+    --card-accent: #8f82b5;
+    border-style: dashed;
+    background:
+        radial-gradient(circle at 0 0, rgba(130, 112, 173, .14), transparent 15rem),
+        linear-gradient(145deg, rgba(23, 21, 31, .95), rgba(8, 8, 13, .99));
+}
+
+.roster-page .npc-card--undiscovered .npc-img-pop {
+    filter: saturate(.58) brightness(.72) contrast(1.08);
+}
+
+.status-creature,
+.status-creature-major,
+.status-creature-unique,
+.status-creature-special,
+.status-creature-mystery {
+    color: #d2a0e8;
+    border: 1px solid rgba(198, 133, 226, .38);
+}
+
+.status-creature::before,
+.status-creature-major::before,
+.status-creature-unique::before,
+.status-creature-special::before,
+.status-creature-mystery::before {
+    background: currentColor;
+    box-shadow: 0 0 7px currentColor;
+}
+
+.status-creature-major { color: #e0b768; border-color: rgba(224, 183, 104, .4); }
+.status-creature-unique { color: #f0d58c; border-color: rgba(240, 213, 140, .46); }
+.status-creature-special { color: #df8fc2; border-color: rgba(223, 143, 194, .42); }
+.status-creature-mystery { color: #aaa0d0; border-color: rgba(170, 160, 208, .4); }
+
+.roster-page .npc-player-visibility-badge--mystery {
+    border-color: rgba(157, 139, 202, .42);
+    background: rgba(50, 40, 76, .62);
+    color: #c9bce6;
+}
+
+@media (max-width: 1220px) {
+    .roster-tools--archive { grid-template-columns: minmax(220px, 1fr) auto; }
+}
+
+@media (max-width: 840px) {
+    .roster-tools--archive { grid-template-columns: 1fr; }
+    .roster-scope-option { min-height: 44px; padding: 0 .55rem; }
+}
+
+@media (max-width: 520px) {
+    .roster-scope-switch {
+        gap: .22rem;
+        padding: .24rem;
+    }
+
+    .roster-scope-option {
+        gap: .34rem;
+        min-width: 0;
+        padding: 0 .34rem;
+    }
+
+    .roster-page .npc-card--bestiary .npc-status-badge {
+        right: .55rem;
+        max-width: calc(100% - 1.1rem);
+        padding-inline: .3rem;
+        font-size: .41rem;
+    }
+}
+
+@media (max-width: 370px) {
+    .roster-scope-option { grid-template-columns: auto auto; }
+    .roster-scope-option span { display: none; }

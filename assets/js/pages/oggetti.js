@@ -341,8 +341,8 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
     const rarity = getItemRarityMeta(item.rarity);
     const properties = getVisibleItemProperties(item, { includeHidden: canEdit, includeUnidentified: canEdit });
     const materialTags = isMaterial ? getVisibleMaterialTags(item) : [];
-    const positiveProperties = isMaterial ? [] : properties.filter(property => property.negative !== true);
-    const negativeProperties = isMaterial ? [] : properties.filter(property => property.negative === true);
+    const positiveProperties = isMaterial ? [] : properties.filter(property => !isNegativeItemProperty(property));
+    const negativeProperties = isMaterial ? [] : properties.filter(isNegativeItemProperty);
     const hidden = isHiddenItem(item);
     const itemId = getItemId(item);
     const detailCount = isMaterial ? materialTags.length : properties.length;
@@ -365,13 +365,16 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
             </ul>
         ` : ""}
         ${positiveProperties.length ? `
-            <ul class="item-properties">
-                ${positiveProperties.map(property => `<li>${renderItemProperty(property)}</li>`).join("")}
-            </ul>
+            <section class="item-properties-block item-properties-block--arcane" aria-label="Propriet\u00e0 geniali">
+                <h4><i class="fas fa-sparkles" aria-hidden="true"></i>Propriet\u00e0 geniali</h4>
+                <ul class="item-properties item-properties--arcane">
+                    ${positiveProperties.map(property => `<li>${renderItemProperty(property)}</li>`).join("")}
+                </ul>
+            </section>
         ` : ""}
         ${negativeProperties.length ? `
-            <section class="item-properties-block item-properties-block--negative" aria-label="Effetti negativi">
-                <h4>Effetti negativi</h4>
+            <section class="item-properties-block item-properties-block--negative" aria-label="Maledizioni ed effetti negativi">
+                <h4><i class="fas fa-skull" aria-hidden="true"></i>Maledizioni ed effetti negativi</h4>
                 <ul class="item-properties item-properties--negative">
                     ${negativeProperties.map(property => `<li>${renderItemProperty(property)}</li>`).join("")}
                 </ul>
@@ -475,7 +478,7 @@ function buildDiscordItemSections(item, { unidentified = false } = {}) {
             title: property.name || "Proprietà",
             meta: formatDiscordPropertyCharges(property.charges),
             description: property.description || "",
-            tone: property.negative === true ? "negative" : "default"
+            tone: isNegativeItemProperty(property) ? "negative" : "arcane"
         })),
         ...materialTags.map(tag => ({
             title: tag.name || "Materiale",
@@ -1279,6 +1282,16 @@ function normalizeItemProperties(properties) {
         })
         .filter(Boolean);
 }
+function isNegativeItemProperty(property) {
+    if (property?.negative === true) return true;
+    const name = String(property?.name || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+    return ["maledizion", "effetto negativo", "malus", "penalita", "svantaggio"]
+        .some(marker => name.includes(marker));
+}
+
 
 function getVisibleItemProperties(item, { includeHidden = false, includeUnidentified = false } = {}) {
     if (item?.unidentified === true && !includeUnidentified) return [];

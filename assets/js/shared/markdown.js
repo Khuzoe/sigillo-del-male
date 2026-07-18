@@ -110,7 +110,15 @@
         let i = 0;
 
         while (i < lines.length) {
-            if (/^\s*$/.test(lines[i])) { i++; continue; }
+            if (/^\s*$/.test(lines[i])) {
+                const start = i;
+                while (i < lines.length && /^\s*$/.test(lines[i])) i++;
+                if (options.preserveBlankLines === true) {
+                    const explicitBlankLines = Math.max(0, (i - start) - 1);
+                    for (let index = 0; index < explicitBlankLines; index++) out.push('<p class="doc-blank-line"><br></p>');
+                }
+                continue;
+            }
 
             if (context === "image_box" && i === 0) {
                 const subtitleMatch = lines[i].trim().match(/^\*(.+)\*$/);

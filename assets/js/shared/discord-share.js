@@ -210,7 +210,7 @@
             title: text(section?.title),
             meta: text(section?.meta),
             description: text(section?.description),
-            tone: ["negative", "material", "note"].includes(section?.tone) ? section.tone : "default"
+            tone: ["arcane", "negative", "material", "note"].includes(section?.tone) ? section.tone : "default"
         })).filter(section => section.title || section.meta || section.description);
     }
     function imageUrl(value) { try { return new URL(String(value || ""), window.location.href).toString(); } catch (_) { return ""; } }
@@ -223,26 +223,34 @@
         catch (error) { if (!image) throw error; return drawCard(entity, null); }
     }
 
-    function drawCard(entity, image) {
+    async function drawCard(entity, image) {
         const theme = THEMES[entity.campaignId] || THEMES["cripta-di-sangue"];
         const layout = measureCardLayout(entity, theme);
-        const renderScale = layout.height > 1500 ? 1.25 : (layout.height > 950 ? 1.5 : SCALE);
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.round(WIDTH * renderScale);
-        canvas.height = Math.round(layout.height * renderScale);
-        const ctx = canvas.getContext("2d");
-        ctx.scale(renderScale, renderScale);
-        const bg = ctx.createLinearGradient(0, 0, WIDTH, layout.height);
-        bg.addColorStop(0, "#08080b"); bg.addColorStop(.55, "#151117"); bg.addColorStop(1, theme.soft);
-        ctx.fillStyle = bg; ctx.fillRect(0, 0, WIDTH, layout.height);
-        const glow = ctx.createRadialGradient(1020, 70, 10, 1020, 70, Math.max(500, layout.height * .72));
-        glow.addColorStop(0, `${theme.glow}aa`); glow.addColorStop(1, "#00000000");
-        ctx.fillStyle = glow; ctx.fillRect(0, 0, WIDTH, layout.height);
-        strokeRound(ctx, 22, 22, WIDTH - 44, layout.height - 44, 30, "rgba(225,195,111,.32)", 2);
-        strokeRound(ctx, 35, 35, WIDTH - 70, layout.height - 70, 24, `${theme.accent}55`, 1);
-        drawMedia(ctx, entity, image, theme, layout);
-        drawText(ctx, entity, theme, layout);
-        return toBlob(canvas);
+        const scales = [SCALE, 1.8, 1.6, 1.4, 1.25];
+        const maxBytes = Math.floor(7.9 * 1024 * 1024);
+        let fallbackBlob = null;
+        for (const renderScale of scales) {
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.round(WIDTH * renderScale);
+            canvas.height = Math.round(layout.height * renderScale);
+            const ctx = canvas.getContext("2d");
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "high";
+            ctx.scale(renderScale, renderScale);
+            const bg = ctx.createLinearGradient(0, 0, WIDTH, layout.height);
+            bg.addColorStop(0, "#08080b"); bg.addColorStop(.55, "#151117"); bg.addColorStop(1, theme.soft);
+            ctx.fillStyle = bg; ctx.fillRect(0, 0, WIDTH, layout.height);
+            const glow = ctx.createRadialGradient(1020, 70, 10, 1020, 70, Math.max(500, layout.height * .72));
+            glow.addColorStop(0, `${theme.glow}aa`); glow.addColorStop(1, "#00000000");
+            ctx.fillStyle = glow; ctx.fillRect(0, 0, WIDTH, layout.height);
+            strokeRound(ctx, 22, 22, WIDTH - 44, layout.height - 44, 30, "rgba(225,195,111,.32)", 2);
+            strokeRound(ctx, 35, 35, WIDTH - 70, layout.height - 70, 24, `${theme.accent}55`, 1);
+            drawMedia(ctx, entity, image, theme, layout);
+            drawText(ctx, entity, theme, layout);
+            fallbackBlob = await toBlob(canvas);
+            if (fallbackBlob.size <= maxBytes) return fallbackBlob;
+        }
+        return fallbackBlob;
     }
 
     function measureCardLayout(entity, theme) {
@@ -345,8 +353,7 @@
         if (image) {
             const pad = entity.kind === "npc" ? 16 : 34;
             const availableHeight = h - pad * 2;
-            const imageHeight = entity.kind === "item" ? Math.min(availableHeight, 430) : availableHeight;
-            contain(ctx, image, x + pad, y + pad, w - pad * 2, imageHeight);
+            contain(ctx, image, x + pad, y + pad, w - pad * 2, availableHeight);
         } else {
             ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.fillStyle = "rgba(225,195,111,.18)"; ctx.font = "72px Georgia";
@@ -408,6 +415,7 @@
 
     function sectionColor(tone, theme) {
         if (tone === "negative") return "#e69a8e";
+        if (tone === "arcane") return "#c88ae3";
         if (tone === "material") return "#91c7aa";
         if (tone === "note") return "#dfc36f";
         return theme.accent;

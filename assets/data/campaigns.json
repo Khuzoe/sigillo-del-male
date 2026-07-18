@@ -22,6 +22,7 @@
       "mediaPath": "campaigns/mago-folle/media",
       "theme": "mago-folle",
       "logo": "assets/img/logo.webp",
+      "legacyCharacters": false,
       "hiddenPages": [
         "famiglia-von-t",
         "mappa"

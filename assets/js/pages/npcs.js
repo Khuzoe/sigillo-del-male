@@ -146,41 +146,65 @@ function parseYamlLite(yamlText) {
                         ? window.WikiSpoiler.filterVisible(npcs)
                         : npcs.filter(npc => !npc.hidden));
 
-                const managedState = await loadManagedNpcEntries(visibleNpcs).catch((error) => {
-                    console.warn('Actor Foundry non caricati:', error);
-                    return { managedLegacyCharacterIds: [], npcCategories: [], npcs: [] };
-                });
+                const [managedState, bestiaryState, recencyData] = await Promise.all([
+                    loadManagedNpcEntries(visibleNpcs).catch((error) => {
+                        console.warn('Actor Foundry non caricati:', error);
+                        return { managedLegacyCharacterIds: [], npcCategories: [], npcs: [] };
+                    }),
+                    loadBestiaryCollection(base_path).catch((error) => {
+                        console.warn('Bestiario non caricato nella lista unificata:', error);
+                        return { data: [], updatedAt: '' };
+                    }),
+                    loadNpcRecencyData(base_path)
+                ]);
                 const managedLegacyIds = new Set((managedState?.managedLegacyCharacterIds || [])
                     .map((id) => String(id || '').trim().toLowerCase())
                     .filter(Boolean));
                 const legacyNpcs = visibleNpcs.filter((npc) => !managedLegacyIds.has(String(npc?.id || '').trim().toLowerCase()));
                 const categoryRegistry = { categories: managedState?.npcCategories || [] };
-                const unifiedNpcs = [...legacyNpcs, ...(managedState?.npcs || [])].map((npc) => applyNpcCategoryMetadata(npc, categoryRegistry));
-                const recencyData = await loadNpcRecencyData(base_path);
+                const unifiedNpcs = [...legacyNpcs, ...(managedState?.npcs || [])]
+                    .map((npc) => ({ ...applyNpcCategoryMetadata(npc, categoryRegistry), rosterKind: 'npc' }));
                 const sortedNpcs = sortNpcsByRecency(unifiedNpcs, recencyData);
+                const bestiaryEntries = buildBestiaryRosterEntries(bestiaryState?.data, {
+                    userIsDm: currentUserIsDm,
+                    updatedAt: bestiaryState?.updatedAt,
+                    npcs: sortedNpcs
+                });
+                const rosterEntries = [...sortedNpcs, ...bestiaryEntries];
 
-                if (sortedNpcs.length === 0) {
-                    npcListContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Nessun NPC disponibile.</p>';
+                if (rosterEntries.length === 0) {
+                    npcListContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Nessun NPC o creatura disponibile.</p>';
                     return;
                 }
 
                 let refreshRosterFilters = () => {};
                 const rosterState = {
-                    npcs: sortedNpcs,
+                    npcs: rosterEntries,
+                    scope: getInitialRosterScope(),
                     categoryRegistry,
                     basePath: base_path,
                     canEdit: currentUserIsDm,
                     render: null
                 };
                 const renderRoster = () => {
-                    renderNpcGroups(npcListContainer, rosterState.npcs, rosterState.basePath, currentUserIsDm);
+                    const visibleEntries = getRosterEntriesForScope(rosterState.npcs, rosterState.scope);
+                    renderNpcGroups(npcListContainer, visibleEntries, rosterState.basePath, currentUserIsDm);
                     window.CriptaRosterMedia?.init(npcListContainer);
-                    initNpcCategoryDragAndDrop(npcListContainer, rosterState);
+                    initNpcCategoryDragAndDrop(npcListContainer, { ...rosterState, npcs: visibleEntries });
+                    syncNpcRosterScopeActions(rosterState.scope, currentUserIsDm);
                     refreshRosterFilters();
                 };
                 rosterState.render = renderRoster;
                 renderRoster();
-                refreshRosterFilters = initNpcRosterControls(npcListContainer) || (() => {});
+                refreshRosterFilters = initNpcRosterControls(npcListContainer, {
+                    entries: rosterState.npcs,
+                    canEdit: currentUserIsDm,
+                    getScope: () => rosterState.scope,
+                    onScopeChange: (scope) => {
+                        rosterState.scope = scope;
+                        renderRoster();
+                    }
+                }) || (() => {});
                 refreshRosterFilters();
             } catch (error) {
                 console.error("Errore nel caricamento degli NPC:", error);
@@ -211,6 +235,188 @@ function parseYamlLite(yamlText) {
                     return managedActorToNpcListEntry(actor, legacyById.get(legacyId) || null);
                 })
             };
+        }
+
+        async function loadBestiaryCollection(base_path) {
+            try {
+                if (typeof window.CriptaApp?.api?.get === 'function') {
+                    const payload = await window.CriptaApp.api.get('api/data/bestiary');
+                    if (Array.isArray(payload?.data)) {
+                        return { data: payload.data, updatedAt: payload.updatedAt || '' };
+                    }
+                }
+            } catch (error) {
+                console.warn('KV bestiary non disponibile nella lista unificata, provo il JSON statico.', error);
+            }
+
+            const payload = typeof window.CriptaApp?.data?.json === 'function'
+                ? await window.CriptaApp.data.json('bestiary.json')
+                : await window.CriptaApp.fetchJson(
+                    window.CriptaApp?.urls?.data?.('bestiary.json') || base_path + 'data/bestiary.json',
+                    { clone: true }
+                );
+            const data = Array.isArray(payload) ? payload : payload?.data;
+            return { data: Array.isArray(data) ? data : [], updatedAt: payload?.updatedAt || '' };
+        }
+
+        function buildBestiaryRosterEntries(creatures, options = {}) {
+            const userIsDm = options.userIsDm === true;
+            const updatedAt = String(options.updatedAt || '');
+            const npcs = Array.isArray(options.npcs) ? options.npcs : [];
+            const npcById = new Map();
+            const npcByName = new Map();
+            npcs.forEach((npc) => {
+                const id = normalizeRosterIdentity(npc?.id);
+                const name = normalizeRosterIdentity(npc?.name);
+                if (id && !npcById.has(id)) npcById.set(id, npc);
+                if (name) {
+                    const matches = npcByName.get(name) || [];
+                    matches.push(npc);
+                    npcByName.set(name, matches);
+                }
+            });
+
+            return (Array.isArray(creatures) ? creatures : [])
+                .filter((creature) => userIsDm || !isBestiaryHiddenFromPlayers(creature))
+                .map((creature) => {
+                    const discovered = creature?.discovered !== false;
+                    const hidden = isBestiaryHiddenFromPlayers(creature);
+                    const sourceCharacterId = normalizeRosterIdentity(creature?.sourceCharacterId);
+                    const nameKey = normalizeRosterIdentity(creature?.name);
+                    const nameMatches = npcByName.get(nameKey) || [];
+                    const matchedNpc = (sourceCharacterId && npcById.get(sourceCharacterId))
+                        || (nameMatches.length === 1 ? nameMatches[0] : null);
+                    const displayName = userIsDm || discovered
+                        ? (creature?.name || 'Creatura')
+                        : (creature?.mysteryName || 'Creatura misteriosa');
+                    const details = creature?.details && typeof creature.details === 'object' ? creature.details : {};
+                    const role = userIsDm || discovered
+                        ? [normalizeBestiaryCreatureType(details.dndType), details.size].filter(Boolean).join(' \u00b7 ') || 'Creatura'
+                        : 'Identit\u00e0 sconosciuta';
+                    const quote = userIsDm || discovered
+                        ? String(details.description || '').trim()
+                        : String(creature?.mysteryDescription || 'La natura di questa creatura non \u00e8 ancora stata scoperta.').trim();
+                    const tokenImage = String(creature?.tokenImage || '').trim();
+                    const avatarImage = String(creature?.image || '').trim();
+                    const listImage = tokenImage || avatarImage;
+                    const imageAdjust = tokenImage ? null : bestiaryImageAdjustToRoster(creature?.imageAdjust);
+                    const routeId = getBestiaryRouteId(creature);
+
+                    return {
+                        id: 'bestiary-' + (routeId || normalizeRosterIdentity(displayName) || 'creature'),
+                        name: displayName,
+                        canonicalName: String(creature?.name || displayName),
+                        role,
+                        quote,
+                        status: 'ignoto',
+                        hidden,
+                        category: String(creature?.category || 'Altre creature'),
+                        categoryId: '',
+                        rank: String(creature?.rank || ''),
+                        rosterKind: 'bestiary',
+                        bestiaryStatus: hidden ? 'hidden' : (discovered ? 'discovered' : 'undiscovered'),
+                        sourceCharacterId: String(creature?.sourceCharacterId || ''),
+                        duplicateOfNpc: Boolean(matchedNpc),
+                        detailUrl: matchedNpc?.managedActorUrl || buildBestiaryDetailUrl(creature),
+                        searchTerms: userIsDm
+                            ? [creature?.name, creature?.foundryName, details.dndType, details.size].flat().filter(Boolean).join(' ')
+                            : [displayName, role].filter(Boolean).join(' '),
+                        images: {
+                            avatar: avatarImage || listImage,
+                            token: tokenImage || listImage,
+                            idle: listImage,
+                            hover: listImage,
+                            idleAdjust: imageAdjust,
+                            hoverAdjust: imageAdjust,
+                            idleFallback: avatarImage,
+                            hoverFallback: avatarImage,
+                            avatarFallback: tokenImage,
+                            hasDedicatedIdle: false,
+                            hasDedicatedHover: false
+                        },
+                        updatedAt
+                    };
+                });
+        }
+
+        function normalizeRosterIdentity(value) {
+            return String(value || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLocaleLowerCase('it')
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '');
+        }
+
+        function normalizeBestiaryCreatureType(value) {
+            const type = String(value || '').trim();
+            return {
+                'Bestia mostruosa': 'Mostruosit\u00e0',
+                'Umanoide corrotto': 'Umanoide',
+                'Vegetale': 'Pianta',
+                'Vegetale non morto': 'Non morto'
+            }[type] || type;
+        }
+
+        function bestiaryImageAdjustToRoster(adjust) {
+            if (!adjust || typeof adjust !== 'object') return null;
+            const numberOr = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+            return {
+                x: (Math.min(100, Math.max(0, numberOr(adjust.x, 50))) - 50) * 2,
+                y: (Math.min(100, Math.max(0, numberOr(adjust.y, 50))) - 50) * 2,
+                size: Math.min(3, Math.max(.5, numberOr(adjust.size, 1)))
+            };
+        }
+
+        function isBestiaryHiddenFromPlayers(creature) {
+            return creature?.hidden === true || creature?.status === 'hidden';
+        }
+
+        function getBestiaryRouteId(creature) {
+            const id = normalizeRosterIdentity(creature?.id);
+            const name = normalizeRosterIdentity(creature?.name);
+            if (/^nuovo-mostro(?:-|$)/.test(id) && name && name !== 'nuovo-mostro') return name;
+            return id || name;
+        }
+
+        function buildBestiaryDetailUrl(creature) {
+            const url = new URL('./bestiary/creature.html', window.location.href);
+            url.searchParams.set('id', getBestiaryRouteId(creature));
+            const campaignId = getCurrentCampaignId();
+            if (campaignId && campaignId !== 'cripta-di-sangue') url.searchParams.set('campaign', campaignId);
+            return url.pathname + url.search;
+        }
+
+        function getInitialRosterScope() {
+            const requested = String(new URLSearchParams(window.location.search).get('view') || '').toLowerCase();
+            return ['npc', 'bestiary', 'all'].includes(requested) ? requested : 'npc';
+        }
+
+        function getRosterEntriesForScope(entries, scope) {
+            const list = Array.isArray(entries) ? entries : [];
+            if (scope === 'bestiary') return list.filter((entry) => entry?.rosterKind === 'bestiary');
+            if (scope === 'all') return list.filter((entry) => entry?.rosterKind !== 'bestiary' || entry?.duplicateOfNpc !== true);
+            return list.filter((entry) => entry?.rosterKind !== 'bestiary');
+        }
+
+        function syncNpcRosterScopeActions(scope, canEdit) {
+            const categoryButton = document.querySelector('[data-npc-category-manager]');
+            if (categoryButton) categoryButton.hidden = canEdit !== true || scope === 'bestiary';
+            const createLink = document.querySelector('[data-npc-create-link]');
+            if (!createLink) return;
+            createLink.hidden = canEdit !== true;
+            const label = createLink.querySelector('span');
+            if (scope === 'bestiary') {
+                const url = new URL('./bestiary/creature.html', window.location.href);
+                url.searchParams.set('new', '1');
+                const campaignId = getCurrentCampaignId();
+                if (campaignId && campaignId !== 'cripta-di-sangue') url.searchParams.set('campaign', campaignId);
+                createLink.href = url.pathname + url.search;
+                if (label) label.textContent = 'Nuova creatura';
+            } else {
+                createLink.href = buildNpcDetailUrl({ type: 'npc', new: '1', edit: '1' });
+                if (label) label.textContent = 'Nuovo NPC';
+            }
         }
 
         function managedActorToNpcListEntry(actor, legacyNpc = null) {
@@ -614,20 +820,83 @@ function parseYamlLite(yamlText) {
                 .trim();
         }
 
-        function initNpcRosterControls(container) {
+        function initNpcRosterControls(container, options = {}) {
             const search = document.getElementById('npc-search');
-            const filters = document.getElementById('npc-status-filters');
+            const scopeFilters = document.getElementById('npc-scope-filters');
+            const npcFilters = document.getElementById('npc-status-filters');
+            const bestiaryFilters = document.getElementById('bestiary-status-filters');
             const count = document.getElementById('npc-count');
             const empty = document.getElementById('npc-filter-empty');
-            const state = { query: '', status: 'all' };
+            const emptyTitle = empty?.querySelector('[data-roster-empty-title]');
+            const entries = Array.isArray(options.entries) ? options.entries : [];
+            const state = {
+                query: '',
+                npcStatus: 'all',
+                bestiaryStatus: 'all',
+                scope: typeof options.getScope === 'function' ? options.getScope() : 'npc'
+            };
+
+            const scopeCounts = {
+                npc: getRosterEntriesForScope(entries, 'npc').length,
+                bestiary: getRosterEntriesForScope(entries, 'bestiary').length,
+                all: getRosterEntriesForScope(entries, 'all').length
+            };
+            Object.entries(scopeCounts).forEach(([scope, total]) => {
+                const target = document.querySelector('[data-roster-scope-count="' + scope + '"]');
+                if (target) target.textContent = String(total);
+            });
+            const dmBestiaryFilter = bestiaryFilters?.querySelector('[data-bestiary-dm-filter]');
+            if (dmBestiaryFilter) dmBestiaryFilter.hidden = options.canEdit !== true;
+
+            const currentScope = () => {
+                const requested = typeof options.getScope === 'function' ? options.getScope() : state.scope;
+                return ['npc', 'bestiary', 'all'].includes(requested) ? requested : 'npc';
+            };
+
+            const syncScopeUi = () => {
+                const scope = currentScope();
+                state.scope = scope;
+                document.body.dataset.rosterScope = scope;
+                scopeFilters?.querySelectorAll('[data-roster-scope]').forEach((button) => {
+                    const active = button.dataset.rosterScope === scope;
+                    button.classList.toggle('is-active', active);
+                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+                if (npcFilters) npcFilters.hidden = scope !== 'npc';
+                if (bestiaryFilters) bestiaryFilters.hidden = scope !== 'bestiary';
+                const countIcon = document.querySelector('.roster-count-pill i');
+                const heroIcon = document.querySelector('.roster-hero-emblem i');
+                const iconClass = scope === 'bestiary' ? 'fas fa-dragon' : (scope === 'all' ? 'fas fa-layer-group' : 'fas fa-masks-theater');
+                if (countIcon) countIcon.className = iconClass;
+                if (heroIcon) heroIcon.className = iconClass;
+                if (emptyTitle) {
+                    emptyTitle.textContent = scope === 'bestiary'
+                        ? 'Nessuna creatura trovata'
+                        : (scope === 'all' ? 'Nessun risultato trovato' : 'Nessun NPC trovato');
+                }
+                syncNpcRosterScopeActions(scope, options.canEdit === true);
+            };
+
+            const updateScopeUrl = (scope) => {
+                const url = new URL(window.location.href);
+                if (scope === 'npc') url.searchParams.delete('view');
+                else url.searchParams.set('view', scope);
+                window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+            };
 
             const apply = () => {
+                syncScopeUi();
+                const scope = currentScope();
                 const query = normalizeRosterSearch(state.query);
                 const cards = Array.from(container.querySelectorAll('[data-roster-card="npc"]'));
                 let visibleTotal = 0;
                 cards.forEach((card) => {
                     const matchesQuery = !query || String(card.dataset.rosterSearch || '').includes(query);
-                    const matchesStatus = state.status === 'all' || card.dataset.rosterStatus === state.status;
+                    const matchesStatus = scope === 'npc'
+                        ? (state.npcStatus === 'all' || card.dataset.rosterStatus === state.npcStatus)
+                        : (scope === 'bestiary'
+                            ? (state.bestiaryStatus === 'all' || card.dataset.bestiaryStatus === state.bestiaryStatus)
+                            : true);
                     card.hidden = !(matchesQuery && matchesStatus);
                     if (!card.hidden) visibleTotal += 1;
                 });
@@ -637,7 +906,13 @@ function parseYamlLite(yamlText) {
                     const sectionCount = section.querySelector('.npc-category-count');
                     if (sectionCount) sectionCount.textContent = String(visibleCards.length);
                 });
-                if (count) count.textContent = `${visibleTotal} NPC`;
+                if (count) {
+                    count.textContent = scope === 'bestiary'
+                        ? visibleTotal + (visibleTotal === 1 ? ' creatura' : ' creature')
+                        : (scope === 'all'
+                            ? visibleTotal + (visibleTotal === 1 ? ' voce' : ' voci')
+                            : visibleTotal + ' NPC');
+                }
                 if (empty) empty.hidden = visibleTotal !== 0;
             };
 
@@ -645,11 +920,34 @@ function parseYamlLite(yamlText) {
                 state.query = event.target.value;
                 apply();
             });
-            filters?.addEventListener('click', (event) => {
+            scopeFilters?.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-roster-scope]');
+                if (!button) return;
+                const scope = ['npc', 'bestiary', 'all'].includes(button.dataset.rosterScope)
+                    ? button.dataset.rosterScope
+                    : 'npc';
+                if (scope === currentScope()) return;
+                state.scope = scope;
+                updateScopeUrl(scope);
+                options.onScopeChange?.(scope);
+                apply();
+            });
+            npcFilters?.addEventListener('click', (event) => {
                 const button = event.target.closest('[data-roster-filter]');
                 if (!button) return;
-                state.status = button.dataset.rosterFilter || 'all';
-                filters.querySelectorAll('[data-roster-filter]').forEach((entry) => {
+                state.npcStatus = button.dataset.rosterFilter || 'all';
+                npcFilters.querySelectorAll('[data-roster-filter]').forEach((entry) => {
+                    const active = entry === button;
+                    entry.classList.toggle('is-active', active);
+                    entry.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+                apply();
+            });
+            bestiaryFilters?.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-bestiary-filter]');
+                if (!button || button.hidden) return;
+                state.bestiaryStatus = button.dataset.bestiaryFilter || 'all';
+                bestiaryFilters.querySelectorAll('[data-bestiary-filter]').forEach((entry) => {
                     const active = entry === button;
                     entry.classList.toggle('is-active', active);
                     entry.setAttribute('aria-pressed', active ? 'true' : 'false');
@@ -661,21 +959,36 @@ function parseYamlLite(yamlText) {
         }
 
         function createNpcCard(npc, base_path, canShare = false) {
+            const isBestiary = npc?.rosterKind === 'bestiary';
             const statusMap = {
                 vivo: { text: 'VIVO', class: 'status-vivo' },
                 morto: { text: 'MORTO', class: 'status-morto' },
-                ignoto: { text: 'IGNOTO', class: 'status-sconosciuto' }
+                ignoto: { text: 'IGNOTO', class: 'status-ignoto' }
             };
-            const statusInfo = statusMap[npc.status] || { text: 'N/A', class: '' };
+            const rankMap = {
+                mini_boss: { text: 'MAGGIORE', class: 'status-creature-major' },
+                unique_monster: { text: 'UNICA', class: 'status-creature-unique' },
+                special: { text: 'SPECIALE', class: 'status-creature-special' }
+            };
+            const statusInfo = isBestiary
+                ? (npc.bestiaryStatus === 'undiscovered'
+                    ? { text: 'MISTERO', class: 'status-creature-mystery' }
+                    : (rankMap[npc.rank] || { text: 'CREATURA', class: 'status-creature' }))
+                : (statusMap[npc.status] || { text: 'N/A', class: '' });
             const canMoveCategory = canShare && Boolean(npc.managedActorWorldId && npc.managedActorId);
+            const canShareCard = canShare && !isBestiary;
 
             const card = document.createElement('a');
-            card.href = npc.managedActorUrl || buildNpcDetailUrl({ id: npc.id, type: 'npc' });
+            card.href = npc.detailUrl || npc.managedActorUrl || buildNpcDetailUrl({ id: npc.id, type: 'npc' });
             card.className = 'npc-card';
+            if (isBestiary) card.classList.add('npc-card--bestiary');
+            if (npc.bestiaryStatus === 'undiscovered') card.classList.add('npc-card--undiscovered');
             card.draggable = false;
             card.dataset.rosterCard = 'npc';
+            card.dataset.rosterKind = isBestiary ? 'bestiary' : 'npc';
             card.dataset.rosterStatus = ['vivo', 'morto'].includes(String(npc.status || '').toLowerCase()) ? String(npc.status).toLowerCase() : 'ignoto';
-            card.dataset.rosterSearch = normalizeRosterSearch([npc.name, npc.role, npc.quote, npc.category, npc.status, npc.statusNote].filter(Boolean).join(' '));
+            card.dataset.bestiaryStatus = String(npc.bestiaryStatus || '');
+            card.dataset.rosterSearch = normalizeRosterSearch([npc.name, npc.role, npc.quote, npc.category, npc.status, npc.statusNote, npc.searchTerms].filter(Boolean).join(' '));
             card.dataset.managedActorWorld = String(npc.managedActorWorldId || '');
             card.dataset.managedActorId = String(npc.managedActorId || '');
             card.dataset.npcCategoryId = String(npc.categoryId || '');
@@ -692,28 +1005,33 @@ function parseYamlLite(yamlText) {
             if (normalizeImageIdentity(avatarImage) === normalizeImageIdentity(hoverImage)) {
                 card.classList.add('npc-card--no-avatar-swap');
             }
+            const visibilityBadge = hiddenFromPlayers
+                ? '<span class="npc-player-visibility-badge"><i class="fas fa-user-shield" aria-hidden="true"></i>Solo DM</span>'
+                : (isBestiary && npc.bestiaryStatus === 'undiscovered'
+                    ? '<span class="npc-player-visibility-badge npc-player-visibility-badge--mystery"><i class="fas fa-eye-slash" aria-hidden="true"></i>Non scoperta</span>'
+                    : '');
 
             card.innerHTML = `
                 <span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>
-                ${hiddenFromPlayers ? '<span class="npc-player-visibility-badge"><i class="fas fa-user-shield" aria-hidden="true"></i>Solo M</span>' : ''}
+                ${visibilityBadge}
                 <div class="npc-avatar-container">
                     <img src="${resolveNpcImageUrl(npc, avatarImage, base_path)}" data-original-src="${resolveNpcImageUrl(npc, avatarImage, base_path)}" data-fallback-src="${resolveNpcImageUrl(npc, avatarFallback, base_path)}" data-media-dedicated="${hasDedicatedIdle ? 'true' : 'false'}" alt="${npc.name}" class="npc-img-pop img-main" loading="eager" decoding="async" fetchpriority="auto" style="${buildImageStyle('avatar', npc.images.idleAdjust || npc.images.avatarAdjust, npc.images.hoverAdjust)}">
                     <img src="${resolveNpcImageUrl(npc, hoverImage, base_path)}" data-original-src="${resolveNpcImageUrl(npc, hoverImage, base_path)}" data-fallback-src="${resolveNpcImageUrl(npc, hoverFallback, base_path)}" data-media-dedicated="${hasDedicatedHover ? 'true' : 'false'}" alt="${npc.name} Reveal" class="npc-img-pop img-hover" loading="lazy" decoding="async" fetchpriority="low" style="${buildImageStyle('hover', npc.images.hoverAdjust, npc.images.idleAdjust || npc.images.avatarAdjust)}">
                 </div>
                 <div class="npc-info">
                     <div class="npc-header">
-                        <h3 class="npc-name">${npc.name}</h3>
-                        <span class="npc-role">${npc.role}</span>
+                        <h3 class="npc-name">${escapeNpcAttribute(npc.name)}</h3>
+                        <span class="npc-role">${escapeNpcAttribute(npc.role || (isBestiary ? 'Creatura' : 'NPC'))}</span>
                     </div>
-                    <p class="npc-desc">${npc.quote}</p>
+                    <p class="npc-desc">${escapeNpcAttribute(npc.quote || '')}</p>
                 </div>
                 <span class="npc-card-actions">
                     ${canMoveCategory ? '<span class="npc-category-drag-handle" role="button" tabindex="0" draggable="false" title="Trascina in una categoria diversa" aria-label="Sposta ' + escapeNpcAttribute(npc.name) + ' in una categoria diversa"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>' : ''}
-                    ${canShare ? '<span class="npc-discord-share" role="button" tabindex="0" title="Condividi su Discord" aria-label="Condividi ' + escapeNpcAttribute(npc.name) + ' su Discord"><i class="fab fa-discord" aria-hidden="true"></i></span>' : ''}
+                    ${canShareCard ? '<span class="npc-discord-share" role="button" tabindex="0" title="Condividi su Discord" aria-label="Condividi ' + escapeNpcAttribute(npc.name) + ' su Discord"><i class="fab fa-discord" aria-hidden="true"></i></span>' : ''}
                     <i class="fas fa-chevron-right arrow-icon"></i>
                 </span>
             `;
-            if (canShare) {
+            if (canShareCard) {
                 const shareButton = card.querySelector('.npc-discord-share');
                 const openShare = (event) => {
                     event.preventDefault();

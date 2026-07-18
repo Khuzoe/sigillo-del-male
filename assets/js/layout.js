@@ -385,6 +385,13 @@ async function applyCurrentCampaignConfig(basePath = getBasePath()) {
     loadCampaignTheme(currentCampaignConfig, basePath);
 }
 
+async function waitForCurrentCampaignConfig() {
+    const campaignId = sanitizeCampaignId(getCampaignId());
+    if (currentCampaignConfig && sanitizeCampaignId(currentCampaignConfig.id) === campaignId) return currentCampaignConfig;
+    await applyCurrentCampaignConfig(getBasePath());
+    return currentCampaignConfig;
+}
+
 async function loadCampaignConfig(campaignId = getCampaignId()) {
     const campaigns = await loadEnabledCampaigns();
     const id = sanitizeCampaignId(campaignId);
@@ -811,6 +818,7 @@ async function loadEnabledCampaigns() {
                 dataPath: String(campaign.dataPath || "").trim(),
                 theme: String(campaign.theme || campaign.id || "").trim(),
                 logo: String(campaign.logo || "").trim(),
+                legacyCharacters: campaign.legacyCharacters !== false,
                 hiddenPages: Array.isArray(campaign.hiddenPages) ? campaign.hiddenPages : []
             }))
             .filter((campaign) => campaign.id && campaign.name);
@@ -2587,6 +2595,9 @@ window.CriptaApp = {
         defaultId: DEFAULT_CAMPAIGN_ID,
         currentId: getCampaignId,
         isDefault: isDefaultCampaign,
+        ready() {
+            return waitForCurrentCampaignConfig();
+        },
         applyToUrl: applyCampaignToUrl,
         dataUrl: resolveDataUrl
     },

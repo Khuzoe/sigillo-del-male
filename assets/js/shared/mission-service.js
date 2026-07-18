@@ -86,13 +86,15 @@
       type,
       source,
       name: String(raw?.name || raw?.title || id),
-      role: String(raw?.role || raw?.profile?.subtitle || raw?.profile?.category || ""),
+      role: String(raw?.role || raw?.profile?.role || raw?.profile?.subtitle || raw?.profile?.category || ""),
       accountIds: [...new Set([
         raw?.accountId,
         ...Array.isArray(raw?.ownerAccountIds) ? raw.ownerAccountIds : []
       ].map((value) => String(value || "").trim().toLowerCase()).filter(Boolean))],
       worldId: String(raw?.worldId || ""),
       actorId: String(raw?.actorId || raw?.foundryActorId || ""),
+      foundryActorId: String(raw?.foundryActorId || ""),
+      legacyCharacterId: String(raw?.profile?.legacyCharacterId || raw?.legacyCharacterId || "").trim().toLowerCase(),
       ownerCharacterId: String(raw?.ownerCharacterId || "").trim().toLowerCase(),
       media: {
         avatar: normalizeMediaValue(media.avatar || images.avatar || images.portrait),
@@ -115,6 +117,8 @@
       role: primary.role || secondary.role,
       accountIds: [.../* @__PURE__ */ new Set([...existing.accountIds || [], ...incoming.accountIds || []])],
       ownerCharacterId: primary.ownerCharacterId || secondary.ownerCharacterId,
+      legacyCharacterId: primary.legacyCharacterId || secondary.legacyCharacterId,
+      foundryActorId: primary.foundryActorId || secondary.foundryActorId,
       media: {
         avatar: primary.media?.avatar || secondary.media?.avatar || "",
         token: primary.media?.token || secondary.media?.token || "",
@@ -124,25 +128,35 @@
     };
   }
   async function loadEntityDirectory() {
+    const campaignConfig = await window.CriptaApp?.campaigns?.ready?.();
     const token = authToken();
+    const legacyCharactersPromise = campaignConfig?.legacyCharacters === false
+      ? Promise.resolve([])
+      : fetchCampaignJson("characters.json", []);
     const [playersPayload, charactersPayload, managedPayload] = await Promise.all([
       fetchCampaignJson("players.json", []),
-      fetchCampaignJson("characters.json", []),
+      legacyCharactersPromise,
       window.CriptaApp.api.get("api/managed-actors", { token: token || void 0, cache: false }).catch(() => ({ data: [] }))
     ]);
     const map = /* @__PURE__ */ new Map();
     const add = (raw, fallbackType, source) => {
       const entity = normalizeEntity(raw, fallbackType, source);
       if (!entity) return;
-      if (entity.type === "player" && entity.ownerCharacterId) {
-        const playerKey = `player:${entity.ownerCharacterId}`;
-        const linked = { ...entity, id: entity.ownerCharacterId, type: "player" };
-        map.set(playerKey, mergeEntity(map.get(playerKey), linked));
-        map.set(`character:${entity.ownerCharacterId}`, map.get(playerKey));
-        return;
-      }
-      map.set(`${entity.type}:${entity.id}`, mergeEntity(map.get(`${entity.type}:${entity.id}`), entity));
-      if (entity.type === "player") map.set(`character:${entity.id}`, map.get(`${entity.type}:${entity.id}`));
+      const canonical = entity.type === "player" && entity.ownerCharacterId
+        ? { ...entity, id: entity.ownerCharacterId, type: "player" }
+        : entity;
+      const keys = new Set([
+        `${canonical.type}:${canonical.id}`,
+        canonical.type === "player" ? `character:${canonical.id}` : "",
+        canonical.legacyCharacterId ? `${canonical.type}:${canonical.legacyCharacterId}` : "",
+        canonical.actorId ? `${canonical.type}:${canonical.actorId.toLowerCase()}` : "",
+        canonical.foundryActorId ? `${canonical.type}:${canonical.foundryActorId.toLowerCase()}` : ""
+      ].filter(Boolean));
+      let merged = canonical;
+      keys.forEach((key) => {
+        if (map.has(key)) merged = mergeEntity(map.get(key), merged);
+      });
+      keys.forEach((key) => map.set(key, merged));
     };
     arrayFromPayload(playersPayload).forEach((entry) => add(entry, "player", "legacy"));
     arrayFromPayload(charactersPayload).forEach((entry) => add(entry, "npc", "legacy"));
@@ -151,6 +165,10 @@
     [...new Set(map.values())].forEach((entity) => {
       const displayKey = `${entity.type}:${slug(entity.name, entity.id)}`;
       displayEntities.set(displayKey, mergeEntity(displayEntities.get(displayKey), entity));
+    });
+    map.forEach((entity, key) => {
+      const displayKey = `${entity.type}:${slug(entity.name, entity.id)}`;
+      map.set(key, displayEntities.get(displayKey) || entity);
     });
     const entities = [...displayEntities.values()].sort((a, b) => a.name.localeCompare(b.name, "it"));
     return { entities, map };

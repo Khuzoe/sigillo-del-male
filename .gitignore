@@ -9,6 +9,7 @@ workers/main-worker/*
 workers/main-worker/src/*
 !workers/main-worker/src/index.js
 !workers/main-worker/src/campaign-items.js
+!workers/main-worker/src/foundry-sync-hub.js
 !workers/main-worker/src/discord-bot/
 !workers/main-worker/src/discord-bot/**
 !workers/main-worker/wrangler.jsonc

@@ -20,6 +20,22 @@
       "bucket_name": "khuzoe-wiki"
     }
   ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "FOUNDRY_SYNC_HUB",
+        "class_name": "FoundrySyncHub"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "foundry-sync-hub-v1",
+      "new_sqlite_classes": [
+        "FoundrySyncHub"
+      ]
+    }
+  ],
   "vars": {
     "DISCORD_CLIENT_ID": "1475822167890595841",
     "DISCORD_REDIRECT_URI": "https://sigillo-api.khuzoe.workers.dev/auth/discord/callback",

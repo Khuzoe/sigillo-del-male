@@ -56,7 +56,7 @@
   }
   function entityImage(e) {
     const x = e?.media || {};
-    return image(x.idle || x.avatar || x.token || x.hover || "");
+    return image(x.idle || x.token || x.avatar || x.hover || "");
   }
   function statusIcon(s) {
     return s === "completed" ? "fa-check" : s === "failed" ? "fa-xmark" : s === "active" ? "fa-arrow-right" : s === "hidden" ? "fa-eye-slash" : s === "archived" ? "fa-box-archive" : "fa-circle";

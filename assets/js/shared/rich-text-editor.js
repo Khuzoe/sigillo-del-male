@@ -34,8 +34,8 @@
     }
 
     function blockNodeToMarkdown(node) {
-        if (node.nodeType === Node.TEXT_NODE) return inlineNodeToMarkdown(node).trim();
-        if (node.nodeType !== Node.ELEMENT_NODE) return "";
+        if (node.nodeType === Node.TEXT_NODE) return inlineNodeToMarkdown(node).trim() || null;
+        if (node.nodeType !== Node.ELEMENT_NODE) return null;
         const tag = node.tagName.toLowerCase();
         if (tag === "ul" || tag === "ol") {
             return Array.from(node.children)
@@ -54,11 +54,19 @@
         return inlineNodeToMarkdown(node).trim();
     }
 
+    function joinMarkdownBlocks(blocks) {
+        return blocks.reduce((markdown, block, index) => {
+            if (index === 0) return block;
+            const previous = blocks[index - 1];
+            return `${markdown}${previous === "" ? "\n" : "\n\n"}${block}`;
+        }, "");
+    }
+
     function editorToMarkdown(editor) {
-        return normalizeMarkdown(Array.from(editor?.childNodes || [])
+        const blocks = Array.from(editor?.childNodes || [])
             .map(blockNodeToMarkdown)
-            .filter((value) => value !== "")
-            .join("\n\n"));
+            .filter((value) => value !== null);
+        return normalizeMarkdown(joinMarkdownBlocks(blocks));
     }
 
     function markdownToHtml(markdown, options = {}) {

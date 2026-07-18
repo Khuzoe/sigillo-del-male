@@ -867,6 +867,7 @@ body.managed-image-lightbox-open { overflow: hidden; }
 .managed-profile-markdown { color: rgba(232, 224, 209, .78); font: 1rem/1.6 var(--font-body); }
 .managed-profile-markdown > :first-child { margin-top: 0; }
 .managed-profile-markdown > :last-child { margin-bottom: 0; }
+.managed-profile-markdown > .doc-blank-line { min-height: 1.6em; margin: 0; }
 .managed-profile-markdown a { color: var(--ma-gold-bright); }
 .managed-profile-hidden {
     display: inline-flex;
@@ -2212,4 +2213,37 @@ body.managed-image-lightbox-open { overflow: hidden; }
     margin: 2px 0;
     padding: .42rem .55rem;
     border-radius: 6px;
+}
+
+/* Token always anchored to the main portrait */
+.managed-actor-art > .managed-actor-token {
+    right: 1.2rem;
+    bottom: 1.05rem;
+    z-index: 12;
+    padding: .52rem .52rem .38rem;
+    border-color: rgba(223, 195, 111, .3);
+    border-radius: 21px;
+    background: linear-gradient(145deg, rgba(24, 20, 27, .9), rgba(7, 7, 10, .94));
+    box-shadow: 0 18px 38px rgba(0, 0, 0, .52), inset 0 1px rgba(255, 255, 255, .035);
+    backdrop-filter: blur(12px);
+}
+
+.managed-actor-art > .managed-actor-token .managed-token-button img {
+    width: 142px;
+    height: 142px;
+}
+
+@media (max-width: 860px) {
+    .managed-actor-art > .managed-actor-token .managed-token-button img {
+        width: 116px;
+        height: 116px;
+    }
+}
+
+@media (max-width: 560px) {
+    .managed-actor-art > .managed-actor-token { right: .7rem; bottom: .7rem; }
+    .managed-actor-art > .managed-actor-token .managed-token-button img {
+        width: 94px;
+        height: 94px;
+    }
 }

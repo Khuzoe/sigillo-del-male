@@ -147,14 +147,14 @@
                 <div class="managed-actor-art">
                     <div class="managed-actor-aura" aria-hidden="true"></div>
                     <div class="managed-actor-avatar">${renderManagedAvatarArtwork(media, avatarPath, actor.name || "Actor")}</div>
-                    ${hasSiteAnimation ? "" : renderManagedTokenArtwork(tokenPath, actor.name || "Actor")}
+                    ${renderManagedTokenArtwork(tokenPath, actor.name || "Actor")}
                 </div>
                 <div class="managed-actor-title">
                     <h1>${editMode ? renderManagedActorControl("name", "text", actor.name || "Actor", { className: "managed-actor-name-input" }) : escapeHtml(actor.name || "Actor")}</h1>
                     ${currentProfile?.role ? `<p class="managed-profile-role">${escapeHtml(currentProfile.role)}</p>` : ""}
                     ${currentProfile?.quote ? `<blockquote class="managed-profile-quote">${escapeHtml(currentProfile.quote)}</blockquote>` : ""}
                     ${renderManagedHeroVitals(attributes, details, actor.runtime || {}, actor.actorType)}
-                    ${hasSiteAnimation ? renderManagedMediaDock(media, tokenPath, actor.name || "Actor") : ""}
+                    ${hasSiteAnimation ? renderManagedMediaDock(media, actor.name || "Actor") : ""}
                     <div class="managed-actor-chips">
                         ${actorDetailsLabel ? `<span class="managed-chip"><i class="fas fa-dna"></i> ${escapeHtml(actorDetailsLabel)}</span>` : ""}
                         <span class="managed-chip"><i class="fas fa-eye"></i> ${escapeHtml(formatVisibility(actor.visibility))}</span>
@@ -403,7 +403,7 @@
         const type = block.type || "lore";
         const imagePath = type === "banner_box" ? (block.banner || block.image) : block.image;
         const image = imagePath ? `<button type="button" class="managed-profile-block-image" data-managed-image-open="${escapeAttr(resolveMedia(imagePath))}" data-managed-image-title="${escapeAttr(block.title)}"><img src="${escapeAttr(resolveMedia(imagePath))}" alt="${escapeAttr(block.title)}" loading="lazy" decoding="async"><span><i class="fas fa-expand"></i></span></button>` : "";
-        const html = window.CriptaMarkdown?.render?.(block.text || "", { context: type, preserveLineBreaks: true, showInlineSecrets: currentProfilePermissions.isEditor === true }) || `<p>${escapeHtml(block.text || "").replace(/\n/g, "<br>")}</p>`;
+        const html = window.CriptaMarkdown?.render?.(block.text || "", { context: type, preserveLineBreaks: true, preserveBlankLines: true, showInlineSecrets: currentProfilePermissions.isEditor === true }) || `<p>${escapeHtml(block.text || "").replace(/\n/g, "<br>")}</p>`;
         const hiddenBadge = block.visibility === "dm" && currentProfilePermissions.isEditor ? `<span class="managed-profile-hidden"><i class="fas fa-eye-slash"></i> Solo DM</span>` : "";
         return `<article class="managed-profile-block managed-profile-block--${escapeAttr(type)}">${type === "banner_box" ? image : ""}<div class="managed-profile-block-body">${hiddenBadge}<h3><i class="fas ${escapeAttr(block.icon || "fa-scroll")}"></i>${escapeHtml(block.title)}</h3>${type !== "banner_box" ? image : ""}<div class="managed-profile-markdown">${html}</div></div></article>`;
     }
@@ -461,7 +461,7 @@
         const needsImage = ["image_box", "banner_box", "secret_dossier"].includes(block.type);
         const imageValue = block.type === "banner_box" ? (block.banner || block.image || "") : (block.image || "");
         const preview = getManagedProfilePreview(block) || (imageValue ? resolveMedia(imageValue) : "");
-        const richTextHtml = window.CriptaRichTextEditor?.markdownToHtml?.(block.text || "", { context: block.type, showInlineSecrets: true }) || window.CriptaMarkdown?.render?.(block.text || "", { context: block.type, preserveLineBreaks: true, showInlineSecrets: true }) || `<p>${escapeHtml(block.text || "").replace(/\n/g, "<br>")}</p>`;
+        const richTextHtml = window.CriptaRichTextEditor?.markdownToHtml?.(block.text || "", { context: block.type, preserveBlankLines: true, showInlineSecrets: true }) || window.CriptaMarkdown?.render?.(block.text || "", { context: block.type, preserveLineBreaks: true, preserveBlankLines: true, showInlineSecrets: true }) || `<p>${escapeHtml(block.text || "").replace(/\n/g, "<br>")}</p>`;
         const richTextToolbar = window.CriptaRichTextEditor?.toolbarHtml?.() || "";
         return `<article class="managed-profile-edit-block" data-managed-profile-block data-managed-profile-block-id="${escapeAttr(block.id)}">
             <div class="managed-profile-edit-block-head"><button type="button" class="managed-profile-drag" draggable="true" data-managed-profile-drag="${escapeAttr(block.id)}" aria-label="Trascina ${escapeAttr(block.title)}"><i class="fas fa-grip-vertical"></i></button><strong>${escapeHtml(block.title || `Blocco ${index + 1}`)}</strong><div><button type="button" data-managed-profile-move="up" aria-label="Sposta su"><i class="fas fa-arrow-up"></i></button><button type="button" data-managed-profile-move="down" aria-label="Sposta giu"><i class="fas fa-arrow-down"></i></button><button type="button" class="is-danger" data-managed-profile-delete aria-label="Elimina blocco"><i class="fas fa-trash"></i></button></div></div>
@@ -777,10 +777,9 @@
         if (image.complete && image.naturalWidth === 0) queueMicrotask(useNextFallback);
     }
 
-    function renderManagedMediaDock(media, tokenPath, actorName) {
+    function renderManagedMediaDock(media, actorName) {
         const animation = renderManagedSiteAnimation(media, actorName);
-        const token = renderManagedTokenArtwork(tokenPath, actorName);
-        return animation ? `<div class="managed-actor-media-dock" aria-label="Immagini secondarie">${animation}${token}</div>` : token;
+        return animation ? `<div class="managed-actor-media-dock" aria-label="Ritratto animato">${animation}</div>` : "";
     }
     function renderManagedSiteAnimation(media, actorName) {
         const idleDescriptor = media?.idle?.path ? media.idle : null;
