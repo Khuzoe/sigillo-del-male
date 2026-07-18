@@ -3842,6 +3842,47 @@ async function handleNpcCategoriesPost(request, campaignId, env, corsHeaders = {
   });
 }
 
+function managedActorMerchantForProfile(actor) {
+  const merchant = actor?.definition?.merchant;
+  if (!merchant?.enabled) return null;
+  const inventory = (Array.isArray(merchant.inventory) ? merchant.inventory : []).slice(0, 200).map((entry, index) => {
+    const definition = entry?.definition && typeof entry.definition === "object" ? entry.definition : {};
+    const price = entry?.price && typeof entry.price === "object" ? entry.price : {};
+    const stock = entry?.stock === null || entry?.stock === undefined || entry?.stock === ""
+      ? null
+      : Math.max(0, Math.floor(Number(entry.stock) || 0));
+    return {
+      id: String(entry?.id || `item-${index + 1}`).slice(0, 120),
+      name: String(entry?.name || "Oggetto").slice(0, 160),
+      type: String(entry?.type || "item").slice(0, 80),
+      description: String(entry?.description || "").slice(0, 6_000),
+      price: {
+        value: Math.max(0, Number(price.value) || 0),
+        denomination: ["cp", "sp", "ep", "gp", "pp"].includes(String(price.denomination || "").toLowerCase())
+          ? String(price.denomination).toLowerCase()
+          : "gp",
+      },
+      stock,
+      definition: {
+        rarity: definition.rarity,
+        weight: definition.weight,
+        attuned: definition.attuned,
+        attunement: definition.attunement,
+        level: definition.level,
+        activation: definition.activation,
+        range: definition.range,
+        requirements: definition.requirements,
+        uses: definition.uses,
+      },
+    };
+  });
+  return {
+    enabled: true,
+    subtitle: String(merchant.subtitle || "").slice(0, 240),
+    inventory,
+  };
+}
+
 function managedActorProfileVisibilityState(value) {
   const state = String(value?.state || value || "dm").trim().toLowerCase();
   return state === "dm" ? "dm" : "public";
@@ -4627,7 +4668,9 @@ async function handleManagedActorProfileGet(request, route, campaignId, env, cor
   if (!canReadManagedActorProfile(profile, reader.user, reader.isEditor, actor, env)) {
     return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
   }
-  const data = filterManagedActorProfileForReader(profile, reader.user, reader.isEditor, actor, env);
+  const filteredProfile = filterManagedActorProfileForReader(profile, reader.user, reader.isEditor, actor, env);
+  const merchant = managedActorMerchantForProfile(actor);
+  const data = merchant ? { ...filteredProfile, merchant } : filteredProfile;
   return json({
     ok: true,
     campaignId,
@@ -5993,12 +6036,14 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
 async function handleManagedActorGet(request, route, campaignId, env, corsHeaders = {}) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   const reader = await getManagedActorReader(request, env, campaignId);
-  const [documentRaw, runtimeRaw] = await Promise.all([
+  const [documentRaw, runtimeRaw, profileRaw] = await Promise.all([
     env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId)),
     env.SIGILLO_KV.get(managedActorRuntimeKey(campaignId, route.worldId, route.actorId)),
+    env.SIGILLO_KV.get(managedActorProfileKey(campaignId, route.worldId, route.actorId)),
   ]);
   const document = safeJsonParse(documentRaw);
   const runtimeRecord = safeJsonParse(runtimeRaw);
+  const profile = safeJsonParse(profileRaw);
   if (!document) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
   if (!canReadManagedActor(document, reader.user, reader.isEditor, env)) return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
   const isOwner = isManagedActorOwner(document, reader.user, env);
@@ -6013,6 +6058,10 @@ async function handleManagedActorGet(request, route, campaignId, env, corsHeader
       runtimeUpdatedAt: runtimeRecord.updatedAt,
     }
     : document;
+  const canReadProfile = canReadManagedActorProfile(profile, reader.user, reader.isEditor, document, env);
+  const readableData = canReadProfile || !runtimeData?.definition?.merchant
+    ? runtimeData
+    : { ...runtimeData, definition: { ...(runtimeData.definition || {}), merchant: undefined } };
   const commandRaw = canEditStats
     ? await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId))
     : null;
@@ -6021,7 +6070,7 @@ async function handleManagedActorGet(request, route, campaignId, env, corsHeader
     ? commandQueue.commands.filter((command) => command.actorId === route.actorId && ["pending", "conflict", "failed"].includes(command.status)).slice(0, 64).map(publicManagedActorCommand)
     : [];
   const data = {
-    ...runtimeData,
+    ...readableData,
     permissions: {
       canEdit,
       canEditStats,

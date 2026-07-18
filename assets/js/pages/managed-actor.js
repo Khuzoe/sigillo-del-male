@@ -273,6 +273,24 @@
         }
     }
 
+    function normalizeManagedMerchantClient(value) {
+        const merchant = value && typeof value === "object" ? value : null;
+        if (!merchant?.enabled) return null;
+        return {
+            enabled: true,
+            subtitle: String(merchant.subtitle || "").slice(0, 240),
+            inventory: (Array.isArray(merchant.inventory) ? merchant.inventory : []).slice(0, 200).map((entry, index) => ({
+                id: String(entry?.id || `item-${index + 1}`),
+                name: String(entry?.name || "Oggetto"),
+                type: String(entry?.type || "item"),
+                description: String(entry?.description || ""),
+                price: entry?.price && typeof entry.price === "object" ? entry.price : { value: 0, denomination: "gp" },
+                stock: entry?.stock,
+                definition: entry?.definition && typeof entry.definition === "object" ? entry.definition : {}
+            }))
+        };
+    }
+
     function normalizeManagedProfile(value, actor = {}) {
         const input = value && typeof value === "object" ? value : {};
         const blocks = Array.isArray(input.blocks) ? input.blocks : [];
@@ -309,6 +327,7 @@
                 idle: normalizeSlot(mediaInput.idle) || normalizeSlot(actorMedia.idle),
                 hover: normalizeSlot(mediaInput.hover) || normalizeSlot(actorMedia.hover)
             },
+            merchant: normalizeManagedMerchantClient(input.merchant),
             blocks: blocks.map((block, index) => normalizeManagedProfileBlockClient(block, index)),
             revision: Math.max(0, Number(input.revision || 0)),
             createdAt: input.createdAt || null,
@@ -380,7 +399,7 @@
         const canManageStats = currentDocument?.permissions?.canManageVisibility === true
             || (currentDocument?.permissions?.canManageVisibility === undefined && currentDocument?.permissions?.isEditor === true);
         return `<div class="managed-profile-access-editor">
-            <label><span><i class="fas fa-book-open"></i><b>Informazioni</b><small>Dossier, ruolo e contenuti narrativi</small></span><select data-managed-profile-field="visibility" aria-label="Visibilita informazioni"><option value="public" ${profile.visibility?.state !== "dm" ? "selected" : ""}>Tutti, anche senza login</option><option value="dm" ${profile.visibility?.state === "dm" ? "selected" : ""}>Solo DM</option></select></label>
+            <label><span><i class="fas fa-book-open"></i><b>Informazioni</b><small>Dossier, ruolo, contenuti narrativi e negozio</small></span><select data-managed-profile-field="visibility" aria-label="Visibilita informazioni"><option value="public" ${profile.visibility?.state !== "dm" ? "selected" : ""}>Tutti, anche senza login</option><option value="dm" ${profile.visibility?.state === "dm" ? "selected" : ""}>Solo DM</option></select></label>
             ${canManageStats ? `<label><span><i class="fas fa-shield-halved"></i><b>Statistiche</b><small>Statblock, attacchi, incantesimi e inventario</small></span><select data-managed-visibility aria-label="Visibilita statistiche"><option value="dm" ${statsState === "dm" ? "selected" : ""}>Solo DM</option><option value="owners" ${statsState === "owners" ? "selected" : ""}>Proprietari</option><option value="players" ${statsState === "players" ? "selected" : ""}>Giocatori con login</option><option value="public" ${statsState === "public" ? "selected" : ""}>Tutti, anche senza login</option></select></label>` : ""}
         </div>`;
     }
@@ -393,7 +412,7 @@
         document.title = `${profile.name || "NPC"} - Cripta di Sangue`;
         root.innerHTML = `<nav class="managed-actor-breadcrumb" aria-label="Navigazione scheda"><a href="../npcs.html"><i class="fas fa-arrow-left"></i> Torna agli NPC</a></nav>
             <section class="managed-actor-hero managed-actor-hero--profile-only"><div class="managed-actor-art"><div class="managed-actor-aura" aria-hidden="true"></div><div class="managed-actor-avatar">${renderManagedAvatarArtwork(media, avatarPath, profile.name)}</div></div><div class="managed-actor-title"><h1>${escapeHtml(profile.name)}</h1>${profile.role ? `<p class="managed-profile-role">${escapeHtml(profile.role)}</p>` : ""}${profile.quote ? `<blockquote class="managed-profile-quote">${escapeHtml(profile.quote)}</blockquote>` : ""}${hasAnimation ? renderManagedSiteAnimation(media, profile.name) : ""}</div></section>
-            <div class="managed-actor-panels">${renderManagedProfileSection(profile, false, false)}</div>${renderManagedImageLightbox()}`;
+            <div class="managed-actor-panels">${renderManagedProfileSection(profile, false, false)}${profile.merchant?.enabled ? renderManagedMerchantShop(profile.merchant) : ""}</div>${renderManagedImageLightbox()}`;
         setupManagedImageLightbox(root);
         setupManagedAvatarFallback(root, media);
     }
