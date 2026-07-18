@@ -133,6 +133,7 @@
         const skills = definition.skills || {};
         const traits = definition.traits || {};
         const effects = Array.isArray(definition.effects) ? definition.effects : [];
+        const merchant = definition.merchant?.enabled ? definition.merchant : null;
         const variants = Array.isArray(media.variants) ? media.variants : [];
         const attackEntries = entries.filter((entry) => ["weapon", "feat"].includes(entry.type));
         const spellEntries = entries.filter((entry) => entry.type === "spell");
@@ -163,9 +164,10 @@
                     </div>
                 </div>
             </section>
-            ${renderManagedCommandBar({ abilities, skills, traits, variants, effects, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor })}
+            ${renderManagedCommandBar({ abilities, skills, traits, variants, effects, merchant, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor })}
             <div class="managed-actor-panels">
                 ${renderManagedProfileSection(currentProfile, editMode, Boolean(canEdit && currentProfilePermissions.canEdit))}
+                ${merchant ? renderManagedMerchantShop(merchant) : ""}
                 ${editMode && canManageActor ? renderAdmin(actor) : ""}
                 ${renderCoreStats(attributes, details, actor.runtime || {}, actor.actorType, traits, definition.spellSlots || {}, editMode)}
                 ${renderAbilities(abilities, editMode)}
@@ -1135,10 +1137,11 @@
         ];
         return `<div class="managed-hero-vitals">${entries.map((entry) => `<div class="managed-hero-vital is-${entry.tone}"><i class="fas ${entry.icon}"></i><span><small>${escapeHtml(entry.label)}</small><strong>${escapeHtml(entry.value)}</strong></span></div>`).join("")}</div>`;
     }
-    function renderManagedCommandBar({ abilities, skills, traits, variants, effects, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor }) {
+    function renderManagedCommandBar({ abilities, skills, traits, variants, effects, merchant, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor }) {
         const primaryPlayer = getManagedActorRelationshipType(actor) === "player";
         const links = [
             ["managed-profile", "fa-book-open", "Dossier", Boolean(currentProfile?.blocks?.length || currentProfile?.role || currentProfile?.quote || editMode)],
+            ["managed-shop", "fa-store", "Negozio", Boolean(merchant?.enabled)],
             ["managed-appearance", "fa-images", "Media", editMode && canManageActor],
             ["managed-stats", "fa-gauge-high", "Panoramica", true],
             ["managed-abilities", "fa-dumbbell", "Caratteristiche", Object.keys(abilities || {}).length > 0],
@@ -1480,6 +1483,76 @@
         const add = canEdit ? `<fieldset class="managed-variant-add"><legend><i class="fas fa-plus"></i> Nuova variante</legend><p>Carica un WebP o un'altra immagine: verrà convertita e collegata automaticamente anche a Foundry.</p><div><label><span>Nome</span><input type="text" value="Nuova variante" data-managed-variant-add-name></label><label><span>Dimensione token</span><input type="number" min="0.5" max="12" step="0.25" value="1" data-managed-variant-add-size></label><label class="managed-file-field"><span>Immagine</span><input type="file" accept="image/*" data-managed-variant-add-file></label></div></fieldset>` : "";
         return `<section id="managed-variants" class="managed-panel managed-panel--wide managed-panel--variants"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Raccolta condivisa</span><h2><i class="fas fa-layer-group"></i> Varianti token</h2></div><span class="managed-count-badge">${variants.length}</span></header><div class="managed-variants">${cards}${empty}</div>${add}</section>`;
     }
+    function renderManagedMerchantShop(merchant = {}) {
+        const inventory = Array.isArray(merchant.inventory) ? merchant.inventory : [];
+        const subtitle = String(merchant.subtitle || "").trim();
+        const cards = inventory.map((entry, index) => renderManagedMerchantCard(entry, index)).join("");
+        const empty = `<div class="managed-empty-state managed-merchant-empty"><i class="fas fa-shop-lock"></i><strong>Banco vuoto</strong><span>Il mercante non ha articoli disponibili.</span></div>`;
+        return `<section id="managed-shop" class="managed-panel managed-panel--wide managed-panel--merchant">
+            <header class="managed-panel-heading managed-merchant-heading">
+                <div><span class="managed-panel-eyebrow">Emporio</span><h2><i class="fas fa-store"></i> Negozio</h2>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""}</div>
+                <span class="managed-count-badge">${inventory.length}</span>
+            </header>
+            <div class="managed-merchant-grid">${cards || empty}</div>
+        </section>`;
+    }
+
+    function renderManagedMerchantCard(entry = {}, index = 0) {
+        const description = stripManagedDuplicateHeading(htmlToText(entry.description || ""), entry.name);
+        const preview = truncatePreview(description, 360);
+        const meta = formatEntryMeta(entry);
+        const stock = formatManagedMerchantStock(entry.stock);
+        const facts = getManagedMerchantFacts(entry);
+        const details = description || facts.length ? `<details class="managed-merchant-details"><summary><span><i class="fas fa-scroll"></i> Scheda articolo</span><i class="fas fa-chevron-down"></i></summary><div>${description ? `<p>${formatManagedPreview(description)}</p>` : ""}${facts.length ? `<dl>${facts.map((fact) => `<div><dt>${escapeHtml(fact.label)}</dt><dd>${escapeHtml(fact.value)}</dd></div>`).join("")}</dl>` : ""}</div></details>` : "";
+        const order = String(index + 1).padStart(2, "0");
+        return `<article class="managed-merchant-item ${stock.className}">
+            <div class="managed-merchant-item-copy">
+                <header><div class="managed-merchant-title"><span class="managed-merchant-order">${order}</span><div><h3>${escapeHtml(entry.name || "Oggetto")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div></div><strong class="managed-merchant-price">${escapeHtml(formatManagedMerchantPrice(entry.price))}</strong></header>
+                <span class="managed-merchant-stock"><i class="fas ${stock.icon}"></i> ${escapeHtml(stock.label)}</span>
+                ${preview ? `<p class="managed-merchant-preview">${formatManagedPreview(preview)}</p>` : ""}
+                ${details}
+            </div>
+        </article>`;
+    }
+
+    function formatManagedMerchantPrice(price = {}) {
+        const value = Math.max(0, Number(price?.value ?? 0) || 0);
+        const labels = { cp: "mr", sp: "ma", ep: "me", gp: "mo", pp: "mp" };
+        const amount = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 }).format(value);
+        return `${amount} ${labels[String(price?.denomination || "gp").toLowerCase()] || String(price?.denomination || "mo")}`;
+    }
+
+    function formatManagedMerchantStock(value) {
+        if (value === null || value === undefined || value === "") return { label: "Disponibilit\u00e0 illimitata", icon: "fa-infinity", className: "has-stock" };
+        const stock = Math.max(0, Math.floor(Number(value) || 0));
+        if (!stock) return { label: "Esaurito", icon: "fa-ban", className: "is-sold-out" };
+        return { label: stock === 1 ? "Ultimo disponibile" : `${stock} disponibili`, icon: "fa-box-open", className: "has-stock" };
+    }
+
+    function getManagedMerchantFacts(entry = {}) {
+        const definition = entry.definition || {};
+        const rarityLabels = { common: "Comune", uncommon: "Non comune", rare: "Raro", veryRare: "Molto raro", legendary: "Leggendario", artifact: "Artefatto" };
+        const facts = [];
+        const add = (label, value) => {
+            if (value === undefined || value === null || value === "" || value === false) return;
+            facts.push({ label, value: String(value) });
+        };
+        add("Rarit\u00e0", rarityLabels[String(definition.rarity || "")] || definition.rarity);
+        const weight = definition.weight && typeof definition.weight === "object" ? definition.weight.value : definition.weight;
+        const weightUnits = definition.weight && typeof definition.weight === "object" ? definition.weight.units : "";
+        add("Peso", weight !== undefined && weight !== null && weight !== "" ? `${weight}${weightUnits ? ` ${weightUnits}` : ""}` : "");
+        add("Sintonia", definition.attunement || definition.attuned ? "Richiesta" : "");
+        add("Livello", definition.level);
+        const activation = definition.activation || {};
+        add("Attivazione", activation.type ? [activation.cost, activation.type].filter((value) => value !== undefined && value !== "").join(" ") : "");
+        const range = definition.range || {};
+        add("Gittata", range.value !== undefined ? `${range.value}${range.units ? ` ${range.units}` : ""}` : "");
+        add("Requisiti", definition.requirements);
+        const uses = definition.uses || {};
+        add("Utilizzi", uses.max ? `${uses.max}${uses.per ? ` / ${uses.per}` : ""}` : "");
+        return facts;
+    }
+
     function renderEntries(title, entries, canEdit = false, sectionId = "") {
         if (!entries.length && !canEdit) return "";
         const panelIcon = title === "Incantesimi" ? "fa-wand-sparkles" : title === "Inventario" ? "fa-backpack" : "fa-burst";

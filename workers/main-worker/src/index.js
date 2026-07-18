@@ -5476,10 +5476,15 @@ function preserveManagedActorFrameCircleForSameMedia(slot, previousSlot) {
   };
 }
 
-function normalizeManagedActorFoundryBaseMediaSlot(submittedSlot, existingSlot) {
+function normalizeManagedActorFoundryBaseMediaSlot(submittedSlot, existingSlot, allowFoundryWrite = false) {
   const incoming = normalizeManagedActorMediaSlot(submittedSlot);
-  if (existingSlot?.source === "site" && incoming?.path !== existingSlot.path) {
-    return existingSlot;
+  if (existingSlot?.source === "site") {
+    // Foundry echoes media received from the site during the next document sync.
+    // The same path is an acknowledgement, not a new Foundry-owned image.
+    if (!incoming || incoming.path === existingSlot.path) return existingSlot;
+    // A different path may replace site media only when the module reports an
+    // explicit avatar/token edit. Unrelated Actor syncs cannot reclaim media.
+    if (!allowFoundryWrite) return existingSlot;
   }
   return preserveManagedActorFrameCircleForSameMedia(incoming, existingSlot)
     || existingSlot
@@ -5488,6 +5493,9 @@ function normalizeManagedActorFoundryBaseMediaSlot(submittedSlot, existingSlot) 
 
 function normalizeManagedActorMedia(media, existingMedia = {}, source = "foundry", variantOptions = {}) {
   const submitted = media && typeof media === "object" && !Array.isArray(media) ? media : {};
+  const mediaWriteTargets = new Set((Array.isArray(variantOptions.mediaWriteTargets) ? variantOptions.mediaWriteTargets : [])
+    .map((target) => String(target || "").trim().toLowerCase())
+    .filter((target) => target === "avatar" || target === "token"));
   const variants = Array.isArray(submitted.variants)
     ? submitted.variants.slice(0, 128).map((variant) => {
       if (!variant || typeof variant !== "object") return null;
@@ -5522,10 +5530,10 @@ function normalizeManagedActorMedia(media, existingMedia = {}, source = "foundry
   const hasHover = Object.prototype.hasOwnProperty.call(submitted, "hover");
   return {
     avatar: source === "foundry"
-      ? normalizeManagedActorFoundryBaseMediaSlot(submitted.avatar, existingMedia.avatar)
+      ? normalizeManagedActorFoundryBaseMediaSlot(submitted.avatar, existingMedia.avatar, mediaWriteTargets.has("avatar"))
       : (hasAvatar ? (normalizeManagedActorMediaSlot(submitted.avatar) || existingMedia.avatar || null) : (existingMedia.avatar || null)),
     token: source === "foundry"
-      ? normalizeManagedActorFoundryBaseMediaSlot(submitted.token, existingMedia.token)
+      ? normalizeManagedActorFoundryBaseMediaSlot(submitted.token, existingMedia.token, mediaWriteTargets.has("token"))
       : (hasToken ? (normalizeManagedActorMediaSlot(submitted.token) || existingMedia.token || null) : (existingMedia.token || null)),
     idle: source === "site" ? (hasIdle ? normalizeManagedActorMediaSlot(submitted.idle) : (existingMedia.idle || null)) : (existingMedia.idle || null),
     hover: source === "site" ? (hasHover ? normalizeManagedActorMediaSlot(submitted.hover) : (existingMedia.hover || null)) : (existingMedia.hover || null),
@@ -5663,6 +5671,7 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
       mode: variantMode,
       upsertIds: input.variantUpsertIds,
       removedIds: input.removedVariantIds,
+      mediaWriteTargets: input.mediaWriteTargets,
     }),
     definition: source === "foundry" && input.definition && typeof input.definition === "object" ? input.definition : (existing?.definition || {}),
     runtime: source === "foundry" && input.runtime && typeof input.runtime === "object" ? input.runtime : (existing?.runtime || {}),
