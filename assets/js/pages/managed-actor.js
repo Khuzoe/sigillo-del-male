@@ -283,7 +283,7 @@
                 id: String(entry?.id || `item-${index + 1}`),
                 name: String(entry?.name || "Oggetto"),
                 type: String(entry?.type || "item"),
-                description: String(entry?.description || ""),
+                description: normalizeManagedMerchantDescription(entry?.description),
                 price: entry?.price && typeof entry.price === "object" ? entry.price : { value: 0, denomination: "gp" },
                 stock: entry?.stock,
                 definition: entry?.definition && typeof entry.definition === "object" ? entry.definition : {}
@@ -1517,7 +1517,7 @@
     }
 
     function renderManagedMerchantCard(entry = {}, index = 0) {
-        const description = stripManagedDuplicateHeading(htmlToText(entry.description || ""), entry.name);
+        const description = stripManagedDuplicateHeading(htmlToText(normalizeManagedMerchantDescription(entry.description)), entry.name);
         const preview = truncatePreview(description, 360);
         const meta = formatEntryMeta(entry);
         const stock = formatManagedMerchantStock(entry.stock);
@@ -3213,6 +3213,19 @@
         let html = clone.innerHTML.trim();
         for (const [placeholder, raw] of replacements) html = html.replace(placeholder, () => raw);
         return html;
+    }
+
+    function normalizeManagedMerchantDescription(value) {
+        if (typeof value === "string" || typeof value === "number") {
+            const text = String(value).trim();
+            return /^\[object\s+Object\]$/i.test(text) ? "" : text;
+        }
+        if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+        for (const candidate of [value.value, value.chat, value.unidentified, value.description, value.text, value.html]) {
+            const text = normalizeManagedMerchantDescription(candidate);
+            if (text) return text;
+        }
+        return "";
     }
 
     function formatManagedPreview(value) {

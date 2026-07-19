@@ -2482,6 +2482,7 @@ body.managed-image-lightbox-open { overflow: hidden; }
     line-height: 1.35;
 }
 .managed-merchant-item:has(.managed-merchant-details[open]) { grid-column: 1 / -1; }
+.managed-merchant-item:has(.managed-merchant-details[open]) .managed-merchant-preview { display: none; }
 .managed-merchant-empty { grid-column: 1 / -1; }
 
 @media (max-width: 900px) {

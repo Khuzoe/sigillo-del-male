@@ -3842,6 +3842,19 @@ async function handleNpcCategoriesPost(request, campaignId, env, corsHeaders = {
   });
 }
 
+function normalizeManagedMerchantDescription(value) {
+  if (typeof value === "string" || typeof value === "number") {
+    const text = String(value).trim();
+    return /^\[object\s+Object\]$/i.test(text) ? "" : text;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  for (const candidate of [value.value, value.chat, value.unidentified, value.description, value.text, value.html]) {
+    const text = normalizeManagedMerchantDescription(candidate);
+    if (text) return text;
+  }
+  return "";
+}
+
 function managedActorMerchantForProfile(actor) {
   const merchant = actor?.definition?.merchant;
   if (!merchant?.enabled) return null;
@@ -3855,7 +3868,7 @@ function managedActorMerchantForProfile(actor) {
       id: String(entry?.id || `item-${index + 1}`).slice(0, 120),
       name: String(entry?.name || "Oggetto").slice(0, 160),
       type: String(entry?.type || "item").slice(0, 80),
-      description: String(entry?.description || "").slice(0, 6_000),
+      description: normalizeManagedMerchantDescription(entry?.description).slice(0, 6_000),
       price: {
         value: Math.max(0, Number(price.value) || 0),
         denomination: ["cp", "sp", "ep", "gp", "pp"].includes(String(price.denomination || "").toLowerCase())
