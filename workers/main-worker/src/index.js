@@ -1,5 +1,7 @@
 import { discordBotPreferencesKey, handleDiscordBotDmNotifications, normalizeDiscordBotPreferences, sendDiscordBotChannelCard } from "./discord-bot/notifications.js";
 import { handleCampaignItemFoundrySync, normalizeCampaignItemsForSiteSave } from "./campaign-items.js";
+import { handleCalendarGet, handleLegacyCalendarGet, handleCalendarEventUpsert, handleCalendarEventArchive, handleCalendarClockPost, handleCalendarConfigPost } from "./calendar-v2.js";
+import { handleEconomyGet, handleEconomyPost } from "./economy-v1.js";
 export { FoundrySyncHub } from "./foundry-sync-hub.js";
 
 export default {
@@ -46,6 +48,27 @@ export default {
       }
       if (url.pathname === "/api/npc-categories" && request.method === "POST") {
         return handleNpcCategoriesPost(request, queryCampaignId, env, corsHeaders);
+      }
+      if (url.pathname === "/api/calendar" && request.method === "GET") {
+        return handleCalendarGet(request, queryCampaignId, env, corsHeaders, calendarServices());
+      }
+      if (url.pathname === "/api/calendar/events/upsert" && request.method === "POST") {
+        return handleCalendarEventUpsert(request, queryCampaignId, env, corsHeaders, calendarServices());
+      }
+      if (url.pathname === "/api/calendar/events/archive" && request.method === "POST") {
+        return handleCalendarEventArchive(request, queryCampaignId, env, corsHeaders, calendarServices());
+      }
+      if (url.pathname === "/api/calendar/clock" && request.method === "POST") {
+        return handleCalendarClockPost(request, queryCampaignId, env, corsHeaders, calendarServices());
+      }
+      if (url.pathname === "/api/calendar/config" && request.method === "POST") {
+        return handleCalendarConfigPost(request, queryCampaignId, env, corsHeaders, calendarServices());
+      }
+      if (url.pathname === "/api/economy" && request.method === "GET") {
+        return handleEconomyGet(request, queryCampaignId, env, corsHeaders, economyServices());
+      }
+      if (url.pathname === "/api/economy" && request.method === "POST") {
+        return handleEconomyPost(request, queryCampaignId, env, corsHeaders, economyServices(), ctx);
       }
 
       if (url.pathname === "/api/missions" && request.method === "GET") {
@@ -550,6 +573,9 @@ export default {
         }
 
         if (request.method === "GET") {
+          if (collection === "calendar") {
+            return handleLegacyCalendarGet(request, queryCampaignId, env, corsHeaders, calendarServices());
+          }
           return handleDataCollectionGet(collection, queryCampaignId, env, corsHeaders);
         }
 
@@ -1483,7 +1509,7 @@ function json(data, status = 200, corsHeaders = {}) {
 }
 
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
-const WORKER_CODE_VERSION = "2026-07-15-discord-share-v1";
+const WORKER_CODE_VERSION = "2026-07-19-economy-v1-1";
 const SYNC_BOOTSTRAP_COLLECTIONS = [
   "characters",
   "quests",
@@ -1492,7 +1518,6 @@ const SYNC_BOOTSTRAP_COLLECTIONS = [
   "monster-abilities",
   "locations",
   "maps",
-  "calendar",
   "crafting",
   "skill-trees",
   "skill-tree-states",
@@ -3328,6 +3353,26 @@ function getOptionalAuthenticatedUser(request, env) {
   return verifyJWT(String(env.JWT_SECRET), auth.slice(7).trim());
 }
 
+function calendarServices() {
+  return {
+    getOptionalAuthenticatedUser,
+    requireUser,
+    isAuthenticatedCampaignContentEditor,
+    getAuthenticatedAccountId,
+  };
+}
+
+function economyServices() {
+  return {
+    getOptionalAuthenticatedUser,
+    requireUser,
+    isAuthenticatedCampaignContentEditor,
+    getAuthenticatedAccountId,
+    isFoundrySyncSecretAuthorized,
+    scheduleFoundryLiveInvalidation,
+  };
+}
+
 function isFoundrySyncSecretAuthorized(request, env) {
   const expected = String(env.INVENTORY_SYNC_SECRET || "").trim();
   if (!expected) return false;
@@ -3861,6 +3906,14 @@ function managedActorMerchantForProfile(actor) {
   const inventory = (Array.isArray(merchant.inventory) ? merchant.inventory : []).slice(0, 200).map((entry, index) => {
     const definition = entry?.definition && typeof entry.definition === "object" ? entry.definition : {};
     const price = entry?.price && typeof entry.price === "object" ? entry.price : {};
+    const priceCurrencyId = String(price.denomination || "gp").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").slice(0, 40) || "gp";
+    const costComponents = (Array.isArray(entry?.cost?.components) ? entry.cost.components : [{ currencyId: priceCurrencyId, amount: price.value }])
+      .slice(0, 12)
+      .map((component) => ({
+        currencyId: String(component?.currencyId || priceCurrencyId).trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").slice(0, 40) || priceCurrencyId,
+        amount: Math.max(0, Number(component?.amount) || 0),
+      }))
+      .filter((component) => component.amount > 0);
     const stock = entry?.stock === null || entry?.stock === undefined || entry?.stock === ""
       ? null
       : Math.max(0, Math.floor(Number(entry.stock) || 0));
@@ -3871,10 +3924,9 @@ function managedActorMerchantForProfile(actor) {
       description: normalizeManagedMerchantDescription(entry?.description).slice(0, 6_000),
       price: {
         value: Math.max(0, Number(price.value) || 0),
-        denomination: ["cp", "sp", "ep", "gp", "pp"].includes(String(price.denomination || "").toLowerCase())
-          ? String(price.denomination).toLowerCase()
-          : "gp",
+        denomination: priceCurrencyId,
       },
+      cost: { components: costComponents },
       stock,
       definition: {
         rarity: definition.rarity,
@@ -4893,7 +4945,9 @@ function isManagedActorUpdatePatchPath(path) {
     || /^system\.abilities\.(str|dex|con|int|wis|cha)\.(value|proficient)$/.test(path)
     || /^system\.skills\.[a-z0-9_-]{2,16}\.value$/.test(path)
     || /^system\.traits\.(dr|di|dv|ci|languages)\.(value|bypasses|custom)$/.test(path)
-    || /^system\.spells\.(spell[0-9]|pact)\.(value|spent|max|override)$/.test(path);
+    || /^system\.spells\.(spell[0-9]|pact)\.(value|spent|max|override)$/.test(path)
+    || /^system\.currency\.[a-z0-9_-]{1,40}$/.test(path)
+    || /^flags\.khuzoe-merchant\.wallet\.[a-z0-9_-]{1,40}$/.test(path);
 }
 
 function sanitizeManagedCommandObject(value, depth = 0) {
@@ -4996,6 +5050,11 @@ function normalizeManagedActorUpdateCommandValue(path, value) {
   if (path === "system.attributes.ac.flat" || path === "system.attributes.prof") {
     const number = Number(value);
     return { valid: Number.isFinite(number), value: Math.max(0, Math.min(99, number)) };
+  }
+  if (/^system\.currency\.[a-z0-9_-]{1,40}$/.test(path)
+    || /^flags\.khuzoe-merchant\.wallet\.[a-z0-9_-]{1,40}$/.test(path)) {
+    const number = Number(value);
+    return { valid: Number.isFinite(number), value: Math.max(0, Math.min(999_999_999_999, number)) };
   }
   if (/^system\.attributes\.hp\.(value|temp|max|tempmax)$/.test(path)
     || /^system\.attributes\.movement\.(walk|fly|swim|climb|burrow)$/.test(path)
@@ -7506,6 +7565,7 @@ function sanitizeMediaFolder(value) {
   if (/^companions(\/[a-z0-9_-]+)?$/.test(folder)) return folder;
   if (/^skill-trees(\/[a-z0-9_-]+)?$/.test(folder)) return folder;
   const allowed = new Set([
+    "economy/currencies",
     "items",
     "bestiary",
     "players",
@@ -7544,7 +7604,7 @@ function sanitizeMediaKey(value) {
   if (key.startsWith("campaigns/")) {
     const [, rawCampaignId, folder, ...rest] = key.split("/");
     const campaignId = sanitizeCampaignId(rawCampaignId);
-    const policyFolder = folder === "managed-actors" ? [folder, ...rest.slice(0, -1)].join("/") : folder;
+    const policyFolder = ["managed-actors", "economy"].includes(folder) ? [folder, ...rest.slice(0, -1)].join("/") : folder;
     if (!campaignId || campaignId !== rawCampaignId || !sanitizeMediaFolder(policyFolder) || rest.length < 1) return "";
     const filename = sanitizeWebpFilename(rest[rest.length - 1]);
     if (!filename || filename !== rest[rest.length - 1].toLowerCase()) return "";
@@ -7563,7 +7623,7 @@ function sanitizeMediaKey(value) {
     return ["campaigns", campaignId, folder, ...subfolders, filename].join("/");
   }
   const [folder, ...rest] = key.split("/");
-  const policyFolder = folder === "managed-actors" ? [folder, ...rest.slice(0, -1)].join("/") : folder;
+  const policyFolder = ["managed-actors", "economy"].includes(folder) ? [folder, ...rest.slice(0, -1)].join("/") : folder;
   if (!sanitizeMediaFolder(policyFolder) || rest.length < 1) return "";
   const filename = sanitizeWebpFilename(rest[rest.length - 1]);
   if (!filename || filename !== rest[rest.length - 1].toLowerCase()) return "";

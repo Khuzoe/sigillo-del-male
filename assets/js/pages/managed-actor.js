@@ -7,6 +7,7 @@
     let currentProfilePermissions = { canEdit: false, isEditor: false };
     let campaignItemCatalog = [];
     let npcCategoryRegistry = { revision: 0, categories: [] };
+    let managedEconomyRegistry = null;
     let managedProfileDirty = false;
     let managedProfileSource = "empty";
     const managedPreviewUrls = new Map();
@@ -23,6 +24,7 @@
             root.innerHTML = '<div class="managed-load-state"><i class="fas fa-triangle-exclamation"></i><strong>Identità Actor mancante</strong><span>Apri la scheda dal collegamento presente nella wiki.</span></div>';
             return;
         }
+        await loadManagedEconomyRegistry();
         if (params.get("profile") === "1") {
             try {
                 const token = getToken();
@@ -77,6 +79,16 @@
             }
         }
     });
+
+    async function loadManagedEconomyRegistry() {
+        try {
+            const payload = await window.CriptaEconomyService?.load?.();
+            managedEconomyRegistry = payload?.registry || null;
+        } catch (error) {
+            managedEconomyRegistry = null;
+            console.warn("Registro valute non disponibile; uso le sigle legacy.", error);
+        }
+    }
 
     function getManagedActorRelationshipType(actor) {
         const requested = String(actor?.relationshipType || "").trim().toLowerCase();
@@ -133,6 +145,7 @@
         const skills = definition.skills || {};
         const traits = definition.traits || {};
         const effects = Array.isArray(definition.effects) ? definition.effects : [];
+        const currency = definition.currency && typeof definition.currency === "object" ? definition.currency : {};
         const merchant = definition.merchant?.enabled ? definition.merchant : null;
         const variants = Array.isArray(media.variants) ? media.variants : [];
         const attackEntries = entries.filter((entry) => ["weapon", "feat"].includes(entry.type));
@@ -170,6 +183,7 @@
                 ${merchant ? renderManagedMerchantShop(merchant) : ""}
                 ${editMode && canManageActor ? renderAdmin(actor) : ""}
                 ${renderCoreStats(attributes, details, actor.runtime || {}, actor.actorType, traits, definition.spellSlots || {}, editMode)}
+                ${renderManagedCurrency(currency, editMode)}
                 ${renderAbilities(abilities, editMode)}
                 ${primaryPlayer ? `<div class="managed-player-extensions managed-player-extensions--companions" data-managed-player-companions></div>` : ""}
                 ${primaryPlayer ? `<div class="managed-player-extensions managed-player-extensions--skill-trees" data-managed-player-skill-trees></div>` : ""}
@@ -285,6 +299,7 @@
                 type: String(entry?.type || "item"),
                 description: normalizeManagedMerchantDescription(entry?.description),
                 price: entry?.price && typeof entry.price === "object" ? entry.price : { value: 0, denomination: "gp" },
+                cost: entry?.cost && typeof entry.cost === "object" ? entry.cost : null,
                 stock: entry?.stock,
                 definition: entry?.definition && typeof entry.definition === "object" ? entry.definition : {}
             }))
@@ -1257,6 +1272,38 @@
         if (!slots.length) return "";
         return `<div class="managed-spell-editor"><div class="managed-rule-editor-heading"><i class="fas fa-wand-sparkles"></i><div><strong>Slot incantesimo</strong><span>Gli slot usati vengono sincronizzati con Foundry.</span></div></div><div class="managed-spell-slot-grid">${slots.join("")}</div></div>`;
     }
+
+    function renderManagedCurrency(wallet = {}, canEdit = false) {
+        const fallback = [
+            { id: "pp", name: "Platino", symbol: "MP", precision: 0, color: "#d9dbe5", active: true, storage: { path: "system.currency.pp" } },
+            { id: "gp", name: "Oro", symbol: "MO", precision: 0, color: "#d8a94d", active: true, storage: { path: "system.currency.gp" } },
+            { id: "ep", name: "Electrum", symbol: "ME", precision: 0, color: "#8fc4bd", active: true, storage: { path: "system.currency.ep" } },
+            { id: "sp", name: "Argento", symbol: "MA", precision: 0, color: "#aeb7c4", active: true, storage: { path: "system.currency.sp" } },
+            { id: "cp", name: "Rame", symbol: "MR", precision: 0, color: "#b87345", active: true, storage: { path: "system.currency.cp" } }
+        ];
+        const configured = window.CriptaEconomyService && managedEconomyRegistry
+            ? window.CriptaEconomyService.currencies(managedEconomyRegistry, true)
+            : fallback;
+        const currencies = configured.filter((entry) => entry.active !== false || Number(wallet[entry.id] || 0) > 0);
+        const visible = canEdit ? currencies.filter((entry) => entry.active !== false) : currencies.filter((entry) => Number(wallet[entry.id] || 0) > 0);
+        const rows = visible.map((entry) => {
+            const amount = Math.max(0, Number(wallet[entry.id] || 0));
+            const precision = Math.max(0, Math.min(4, Number(entry.precision || 0)));
+            const step = precision ? 1 / (10 ** precision) : 1;
+            const path = entry.storage?.path || `flags.khuzoe-merchant.wallet.${entry.id}`;
+            const color = /^#[0-9a-f]{6}$/i.test(String(entry.color || "")) ? entry.color : "#d8a94d";
+            return `<label class="managed-wallet-currency" style="--managed-currency:${escapeAttr(color)}">
+                <span class="managed-wallet-currency__coin"><i class="fas fa-coins"></i></span>
+                <span><strong>${escapeHtml(entry.name || entry.id)}</strong><small>${escapeHtml(entry.symbol || entry.id)}</small></span>
+                ${canEdit ? renderManagedActorControl(path, "number", amount, { min: 0, max: 999999999, step }) : `<b>${escapeHtml(new Intl.NumberFormat("it-IT", { maximumFractionDigits: precision }).format(amount))}</b>`}
+            </label>`;
+        }).join("");
+        if (!rows && !canEdit) return "";
+        return `<section id="managed-wallet" class="managed-panel managed-panel--wide managed-panel--wallet">
+            <header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Economia del personaggio</span><h2><i class="fas fa-wallet"></i> Portamonete</h2></div></header>
+            <div class="managed-wallet-grid">${rows || '<p class="managed-empty-copy">Nessuna valuta attiva.</p>'}</div>
+        </section>`;
+    }
     function renderAbilities(abilities, canEdit = false) {
         const entries = Object.entries(abilities).filter(([, value]) => value && typeof value === "object");
         if (!entries.length) return "";
@@ -1526,7 +1573,7 @@
         const order = String(index + 1).padStart(2, "0");
         return `<article class="managed-merchant-item ${stock.className}">
             <div class="managed-merchant-item-copy">
-                <header><div class="managed-merchant-title"><span class="managed-merchant-order">${order}</span><div><h3>${escapeHtml(entry.name || "Oggetto")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div></div><strong class="managed-merchant-price">${escapeHtml(formatManagedMerchantPrice(entry.price))}</strong></header>
+                <header><div class="managed-merchant-title"><span class="managed-merchant-order">${order}</span><div><h3>${escapeHtml(entry.name || "Oggetto")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div></div><strong class="managed-merchant-price">${escapeHtml(formatManagedMerchantPrice(entry))}</strong></header>
                 <span class="managed-merchant-stock"><i class="fas ${stock.icon}"></i> ${escapeHtml(stock.label)}</span>
                 ${preview ? `<p class="managed-merchant-preview">${formatManagedPreview(preview)}</p>` : ""}
                 ${details}
@@ -1534,11 +1581,15 @@
         </article>`;
     }
 
-    function formatManagedMerchantPrice(price = {}) {
-        const value = Math.max(0, Number(price?.value ?? 0) || 0);
+    function formatManagedMerchantPrice(entry = {}) {
+        if (window.CriptaEconomyService && managedEconomyRegistry) {
+            return window.CriptaEconomyService.formatCost(entry, managedEconomyRegistry);
+        }
+        const price = entry?.price || {};
+        const value = Math.max(0, Number(price.value ?? 0) || 0);
         const labels = { cp: "mr", sp: "ma", ep: "me", gp: "mo", pp: "mp" };
         const amount = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 }).format(value);
-        return `${amount} ${labels[String(price?.denomination || "gp").toLowerCase()] || String(price?.denomination || "mo")}`;
+        return `${amount} ${labels[String(price.denomination || "gp").toLowerCase()] || String(price.denomination || "mo")}`;
     }
 
     function formatManagedMerchantStock(value) {
@@ -2884,6 +2935,10 @@
     }
 
     function readManagedActorBaseValue(path) {
+        const customCurrency = String(path || "").match(/^flags\.khuzoe-merchant\.wallet\.([a-z0-9_-]+)$/);
+        if (customCurrency) return currentDocument?.definition?.currency?.[customCurrency[1]];
+        const nativeCurrency = String(path || "").match(/^system\.currency\.([a-z0-9_-]+)$/);
+        if (nativeCurrency) return currentDocument?.definition?.currency?.[nativeCurrency[1]];
         if (path === "name") return currentDocument?.name;
         if (path === "system.attributes.hp.value") return currentDocument?.runtime?.hp?.value;
         if (path === "system.attributes.hp.temp") return currentDocument?.runtime?.hp?.temp;

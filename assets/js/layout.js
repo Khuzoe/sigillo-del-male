@@ -976,6 +976,7 @@ function getSidebarSectionForLocation(url = window.location.href) {
         "sessioni.html": "sessioni",
         "bestiario.html": "bestiario",
         "oggetti.html": "oggetti",
+        "economia.html": "economia",
         "crafting.html": "crafting",
         "appunti.html": "appunti",
         "calendario.html": "calendario",

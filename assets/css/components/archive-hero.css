@@ -1,0 +1,255 @@
+/* Shared campaign archive cover used by the primary collection pages. */
+.archive-hero {
+    --archive-gold: #dfc36f;
+    --archive-gold-bright: #f4dea0;
+    --archive-ink: #f3ead5;
+    --archive-muted: rgba(225, 213, 188, .62);
+    --archive-accent: #b58bd4;
+    --archive-accent-rgb: 181, 139, 212;
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(230px, .42fr);
+    align-items: center;
+    min-height: 340px;
+    margin: 0 0 1rem;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid rgba(223, 195, 111, .2);
+    border-radius: 28px;
+    background:
+        linear-gradient(100deg, rgba(9, 8, 11, .98) 0 43%, rgba(33, 24, 33, .94) 74%, rgba(12, 11, 15, .98)),
+        radial-gradient(circle at 80% 45%, rgba(var(--archive-accent-rgb), .13), transparent 28rem);
+    box-shadow: 0 34px 85px rgba(0, 0, 0, .46), inset 0 1px rgba(255, 255, 255, .025);
+    isolation: isolate;
+}
+
+.archive-hero::before,
+.archive-hero::after {
+    content: "";
+    position: absolute;
+    pointer-events: none;
+}
+
+.archive-hero::before {
+    inset: 0;
+    z-index: -1;
+    background:
+        linear-gradient(90deg, transparent 56%, rgba(223, 195, 111, .035)),
+        repeating-linear-gradient(125deg, transparent 0 32px, rgba(255, 255, 255, .012) 33px, transparent 34px 68px);
+    mask-image: linear-gradient(90deg, transparent 20%, #000);
+}
+
+.archive-hero::after {
+    left: auto;
+    right: -5rem;
+    bottom: -7rem;
+    width: 30rem;
+    height: 30rem;
+    border: 1px solid rgba(223, 195, 111, .06);
+    border-radius: 50%;
+    background: transparent;
+    box-shadow: 0 0 0 3rem rgba(223, 195, 111, .018), 0 0 0 7rem rgba(var(--archive-accent-rgb), .012);
+}
+
+.archive-hero--players {
+    --archive-accent: #86aedc;
+    --archive-accent-rgb: 134, 174, 220;
+}
+
+.archive-hero--missions {
+    --archive-accent: #74c89c;
+    --archive-accent-rgb: 116, 200, 156;
+}
+
+.archive-hero--sessions {
+    --archive-accent: #c083dc;
+    --archive-accent-rgb: 192, 131, 220;
+}
+
+.archive-hero--calendar {
+    --archive-accent: #c28bdf;
+    --archive-accent-rgb: 194, 139, 223;
+}
+
+.archive-hero__copy {
+    z-index: 2;
+    max-width: 830px;
+    padding: clamp(2rem, 5vw, 4.4rem);
+}
+
+.archive-hero__eyebrow {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+    margin: 0 0 .35rem;
+    line-height: 1;
+    color: rgba(218, 198, 153, .58);
+    font: 750 .64rem var(--font-ui);
+    letter-spacing: .16em;
+    text-transform: uppercase;
+}
+
+.archive-hero__eyebrow > span {
+    width: 38px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--archive-gold), rgba(var(--archive-accent-rgb), .72));
+}
+
+.archive-hero h1 {
+    max-width: 13ch;
+    margin: .45rem 0 .65rem;
+    color: var(--archive-ink);
+    font: 400 clamp(3.4rem, 6vw, 6.2rem)/.92 var(--font-heading);
+    letter-spacing: -.045em;
+    text-transform: none;
+    text-shadow: none;
+    text-wrap: balance;
+}
+
+.archive-hero__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .48rem;
+    margin-top: 1.25rem;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.archive-hero__meta > * {
+    display: inline-flex;
+    align-items: center;
+    gap: .42rem;
+    min-width: 0;
+    min-height: 33px;
+    padding: .32rem .65rem;
+    border: 1px solid rgba(255, 255, 255, .065);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .025);
+    color: var(--archive-muted);
+    font: 700 .6rem var(--font-ui);
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+
+.archive-hero__meta i { color: var(--archive-gold); }
+.archive-hero__meta b,
+.archive-hero__meta strong,
+.archive-hero__meta .missions-summary__item > span { color: var(--archive-gold-bright); }
+.archive-hero__meta .missions-summary__item--active > span { color: #79d9aa; }
+.archive-hero__meta small {
+    margin: 0;
+    color: var(--archive-muted);
+    font: inherit;
+    letter-spacing: inherit;
+}
+.archive-hero__meta .missions-summary__item + .missions-summary__item { border-left: 1px solid rgba(255, 255, 255, .065); }
+.archive-hero__meta .missions-summary__item > span { font: 800 .78rem var(--font-ui); }
+.archive-hero__meta .sessions-summary__item > span {
+    display: inline-flex;
+    align-items: baseline;
+    gap: .35rem;
+}
+.archive-hero__meta .sessions-summary__item strong { font: 800 .78rem var(--font-ui); }
+
+.archive-hero__sigil {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    width: min(25vw, 285px);
+    aspect-ratio: 1;
+    place-items: center;
+    justify-self: center;
+    border: 1px solid rgba(223, 195, 111, .13);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(var(--archive-accent-rgb), .13), rgba(223, 195, 111, .035) 42%, transparent 70%);
+    box-shadow: inset 0 0 70px rgba(223, 195, 111, .035), 0 0 80px rgba(var(--archive-accent-rgb), .06);
+}
+
+.archive-hero__sigil::before,
+.archive-hero__sigil::after,
+.archive-hero__orbit {
+    content: "";
+    position: absolute;
+    border-radius: 50%;
+}
+
+.archive-hero__sigil::before { inset: 10%; border: 1px dashed rgba(223, 195, 111, .19); }
+.archive-hero__sigil::after { inset: 22%; border: 1px solid rgba(var(--archive-accent-rgb), .22); }
+.archive-hero__orbit { inset: -8%; border: 1px solid rgba(223, 195, 111, .07); animation: archive-hero-orbit 24s linear infinite; }
+.archive-hero__orbit::before,
+.archive-hero__orbit::after {
+    content: "";
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--archive-gold);
+    box-shadow: 0 0 18px rgba(223, 195, 111, .6);
+}
+.archive-hero__orbit::before { top: 13%; left: 13%; }
+.archive-hero__orbit::after { right: 6%; bottom: 28%; background: var(--archive-accent); }
+
+.archive-hero__emblem {
+    display: grid;
+    width: 102px;
+    height: 102px;
+    place-items: center;
+    border: 1px solid rgba(223, 195, 111, .22);
+    border-radius: 30px;
+    background: linear-gradient(145deg, rgba(223, 195, 111, .11), rgba(var(--archive-accent-rgb), .16));
+    color: var(--archive-gold-bright);
+    font-size: 2.55rem;
+    transform: rotate(45deg);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .42), inset 0 1px rgba(255, 255, 255, .07);
+}
+.archive-hero__emblem i { transform: rotate(-45deg); filter: drop-shadow(0 7px 15px rgba(223, 195, 111, .34)); }
+
+@keyframes archive-hero-orbit { to { transform: rotate(360deg); } }
+
+@media (max-width: 1120px) {
+    .archive-hero { grid-template-columns: minmax(0, 1fr) 230px; }
+    .archive-hero__sigil { width: 220px; }
+}
+
+@media (max-width: 840px) {
+    .archive-hero {
+        grid-template-columns: minmax(0, 1fr);
+        min-height: 330px;
+        border-radius: 22px;
+    }
+    .archive-hero__copy { padding: 2rem 1.4rem; }
+    .archive-hero h1 { max-width: 11ch; font-size: clamp(3rem, 12vw, 4.8rem); }
+    .archive-hero__sigil {
+        position: absolute;
+        right: -50px;
+        width: 240px;
+        opacity: .28;
+    }
+}
+
+@media (max-width: 600px) {
+    .archive-hero { min-height: 300px; }
+    .archive-hero__copy { padding: 1.6rem 1rem; }
+    .archive-hero__meta > * { min-height: 30px; padding: .28rem .52rem; font-size: .54rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .archive-hero__orbit { animation: none; }
+}
+
+/* The ornament belongs to the shared component, so legacy page rules cannot alter it. */
+.archive-hero .archive-hero__eyebrow::before {
+    content: "";
+    flex: 0 0 38px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--archive-gold), rgba(var(--archive-accent-rgb), .72));
+    box-shadow: 12px 0 18px rgba(var(--archive-accent-rgb), .14);
+}
+
+.archive-hero .archive-hero__eyebrow > span {
+    display: none;
+}
+

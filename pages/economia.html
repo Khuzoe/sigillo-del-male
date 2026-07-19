@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <title>Calendario | Sigillo del Male</title>
+    <title>Economia | Sigillo del Male</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -9,28 +9,23 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
-    <link rel="stylesheet" href="../assets/css/pages/calendar.css?v=20260719-calendar-v2-3" data-page-style>
     <link rel="stylesheet" href="../assets/css/components/archive-hero.css?v=20260719-archive-hero2">
+    <link rel="stylesheet" href="../assets/css/pages/economy.css?v=20260719-economy2" data-page-style>
 </head>
-<body class="calendar-page">
+<body class="economy-page">
     <nav class="sidebar" id="sidebar-container"></nav>
-    <main class="main-content calendar-main">
-        <div class="calendar-shell">
-            <section id="calendar-root" aria-live="polite">
-                <div class="calendar-loading">
-                    <span class="calendar-loading__sigil"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i></span>
-                    <strong>Sto aprendo il calendario?</strong>
-                </div>
+    <main class="main-content economy-main">
+        <div class="economy-shell">
+            <section id="economy-root" aria-live="polite">
+                <div class="economy-loading"><i class="fa-solid fa-coins"></i><strong>Sto aprendo il registro delle valute…</strong></div>
             </section>
         </div>
     </main>
-    <div id="calendar-modal-root"></div>
-    <div class="calendar-toasts" id="calendar-toasts" aria-live="polite" aria-atomic="true"></div>
-
+    <div class="economy-toasts" id="economy-toasts" aria-live="polite" aria-atomic="true"></div>
     <script src="../assets/js/spoiler-policy.js"></script>
     <script src="../assets/js/layout.js?v=20260718-managed-media1"></script>
-    <script src="../assets/js/shared/calendar-engine.js?v=20260719-calendar-v2-1"></script>
-    <script src="../assets/js/shared/calendar-service.js?v=20260719-calendar-v2-1"></script>
-    <script src="../assets/js/pages/calendar.js?v=20260719-calendar-v2-3"></script>
+    <script src="../assets/js/shared/media-service.js?v=20260719-economy2"></script>
+    <script src="../assets/js/shared/economy-service.js?v=20260719-economy1"></script>
+    <script src="../assets/js/pages/economy.js?v=20260720-economy3"></script>
 </body>
 </html>

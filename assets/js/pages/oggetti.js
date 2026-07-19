@@ -1,6 +1,7 @@
 const ITEMS_DATA_API_URL = () => window.CriptaApp?.urls?.api?.("api/data/items") || "https://sigillo-api.khuzoe.workers.dev/api/data/items";
 const ITEMS_DISCORD_TOKEN_KEY = "discord_jwt";
 let currentMaterialTagSuggestions = [];
+let currentEconomyRegistry = null;
 const ITEM_IMAGE_ADJUST_DATASET_KEYS = { x: "itemAdjustX", y: "itemAdjustY", size: "itemAdjustSize" };
 const ITEM_IMAGE_ADJUST_CSS_VARS = { x: "--item-img-x", y: "--item-img-y", size: "--item-img-scale" };
 const ITEM_IMAGE_ADJUST_FRAME_SELECTORS = ["[data-item-image-preview]", ".item-card-media"];
@@ -16,10 +17,12 @@ window.CriptaApp.onPageReady("oggetti", async () => {
     if (!grid) return;
 
     try {
-        const [rawItems, canSeeHidden] = await Promise.all([
+        const [rawItems, canSeeHidden, economyPayload] = await Promise.all([
             loadItemsData(),
-            canCurrentUserSeeHiddenItems()
+            canCurrentUserSeeHiddenItems(),
+            window.CriptaEconomyService?.load?.().catch(() => null)
         ]);
+        currentEconomyRegistry = economyPayload?.registry || null;
         const items = filterVisibleItems(rawItems, { includeHidden: canSeeHidden });
         const state = {
             query: "",
@@ -319,7 +322,7 @@ function filterItems(items, state) {
             item.owner,
             item.summary,
             item.notes,
-            item.valueGold,
+            formatItemCost(item),
             item.weight,
             ...visibleProperties.flatMap(property => [
                 property.name,
@@ -348,7 +351,7 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
     const detailCount = isMaterial ? materialTags.length : properties.length;
     const quickFacts = [
         item.owner ? `<span><i class="fas fa-user-shield" aria-hidden="true"></i>${escapeHtml(item.owner)}</span>` : "",
-        item.valueGold !== undefined && item.valueGold !== "" ? `<span><i class="fas fa-coins" aria-hidden="true"></i>${escapeHtml(formatGoldValue(item.valueGold))}</span>` : "",
+        itemHasCost(item) ? `<span><i class="fas fa-coins" aria-hidden="true"></i>${escapeHtml(formatItemCost(item))}</span>` : "",
         item.weight !== undefined && item.weight !== "" ? `<span><i class="fas fa-weight-hanging" aria-hidden="true"></i>${escapeHtml(formatWeightValue(item.weight))}</span>` : "",
         detailCount ? `<span><i class="fas fa-sparkles" aria-hidden="true"></i>${detailCount} proprietà</span>` : ""
     ].filter(Boolean).join("");
@@ -457,7 +460,7 @@ function bindItemDiscordSharing(grid, state) {
                 badges: unidentified ? ["Non identificato"] : [getItemRarityMeta(item.rarity).label, item.attunement ? "Richiede sintonia" : ""],
                 facts: unidentified ? [] : [
                     item.owner ? `Provenienza: ${item.owner}` : "",
-                    item.valueGold !== undefined && item.valueGold !== "" ? `Valore: ${formatGoldValue(item.valueGold)}` : "",
+                    itemHasCost(item) ? `Valore: ${formatItemCost(item)}` : "",
                     item.weight !== undefined && item.weight !== "" ? `Peso: ${formatWeightValue(item.weight)}` : ""
                 ],
                 sections: publicSections,
@@ -556,7 +559,7 @@ function renderItemInlineEditor(item) {
                             ${renderItemEditInput("Sottotipo", "subtype", item.subtype || "")}
                             ${renderItemEditSelect("Rarità", "rarity", normalizeItemRarityLabel(item.rarity), getItemRarityOptions(item.rarity))}
                             ${renderItemEditInput("Provenienza / portatore", "owner", item.owner || "")}
-                            ${renderItemEditInput("Valore in monete d'oro", "valueGold", item.valueGold ?? "")}
+                            ${renderItemCostEditor(item)}
                             ${renderItemEditInput("Peso", "weight", item.weight ?? "")}
                         </div>
                     </section>
@@ -1103,6 +1106,16 @@ function collectItemDraft(form, original) {
         if (!key) return;
         const value = field.type === "checkbox" ? field.checked : field.value;
         setItemDraftField(draft, key, value);
+    const costAmount = Math.max(0, Number(form.querySelector("[data-item-cost-amount]")?.value) || 0);
+    const costCurrencyId = String(form.querySelector("[data-item-cost-currency]")?.value || "gp").trim().toLowerCase();
+    if (costAmount > 0) {
+        draft.cost = { components: [{ currencyId: costCurrencyId, amount: costAmount }] };
+        if (costCurrencyId === "gp") draft.valueGold = costAmount;
+        else delete draft.valueGold;
+    } else {
+        delete draft.cost;
+        delete draft.valueGold;
+    }
     });
     form.querySelectorAll("[data-item-json-field]").forEach(field => {
         const key = field.dataset.itemJsonField;
@@ -1120,6 +1133,18 @@ function collectItemDraft(form, original) {
     const foundrySystem = parseItemFoundryJson(form, "foundrySystem", "Dati meccanici", {});
     const foundryEffects = parseItemFoundryJson(form, "foundryEffects", "Effetti attivi", []);
     if (!foundrySystem || typeof foundrySystem !== "object" || Array.isArray(foundrySystem)) throw new Error("Dati meccanici: serve un oggetto JSON.");
+    const foundryFlags = structuredCloneSafe(original?.foundry?.document?.flags || {});
+    foundryFlags["khuzoe-merchant"] = {
+        ...(foundryFlags["khuzoe-merchant"] || {}),
+        cost: draft.cost || null
+    };
+    if (draft.cost?.components?.length) {
+        const price = draft.cost.components[0];
+        const currency = window.CriptaEconomyService?.currencyMap?.(currentEconomyRegistry)?.get(price.currencyId);
+        if (currency?.storage?.kind === "system" || String(currency?.storage?.path || "").startsWith("system.currency.")) {
+            foundrySystem.price = { value: price.amount, denomination: price.currencyId };
+        }
+    }
     if (!Array.isArray(foundryEffects)) throw new Error("Effetti attivi: serve un array JSON.");
     foundrySystem.rarity = mapSiteRarityToFoundry(draft.rarity);
     foundrySystem.identified = draft.unidentified !== true;
@@ -1132,7 +1157,8 @@ function collectItemDraft(form, original) {
             type: draft.foundryType,
             img: String(draft.image || original?.foundry?.document?.img || ""),
             system: foundrySystem,
-            effects: foundryEffects
+            effects: foundryEffects,
+            flags: foundryFlags
         }
     };
     delete draft.tags;
@@ -1324,7 +1350,7 @@ function collectMaterialTagSuggestions(items) {
 
 function renderMaterialMeta(item) {
     const rows = [
-        item.valueGold !== undefined && item.valueGold !== "" ? { icon: "fa-coins", label: "Valore", value: formatGoldValue(item.valueGold) } : null,
+        itemHasCost(item) ? { icon: "fa-coins", label: "Valore", value: formatItemCost(item) } : null,
         item.weight !== undefined && item.weight !== "" ? { icon: "fa-weight-hanging", label: "Peso", value: formatWeightValue(item.weight) } : null
     ].filter(Boolean);
     if (!rows.length) return "";
@@ -1354,6 +1380,59 @@ function formatGoldValue(value) {
     return /^-?\d+(?:[.,]\d+)?$/.test(text) ? `${text.replace(".", ",")} mo` : text;
 }
 
+
+function getItemCostComponents(item) {
+    const explicit = Array.isArray(item?.cost?.components) ? item.cost.components : [];
+    const normalized = explicit.map(component => ({
+        currencyId: String(component?.currencyId || "").trim().toLowerCase(),
+        amount: Math.max(0, Number(component?.amount) || 0)
+    })).filter(component => component.currencyId && component.amount > 0);
+    if (normalized.length) return normalized;
+
+    const foundryPrice = item?.foundry?.document?.system?.price;
+    const amount = Number(foundryPrice?.value ?? item?.valueGold ?? 0);
+    if (!(amount > 0)) return [];
+    return [{
+        currencyId: String(foundryPrice?.denomination || "gp").trim().toLowerCase() || "gp",
+        amount
+    }];
+}
+
+function itemHasCost(item) {
+    return getItemCostComponents(item).length > 0;
+}
+
+function formatItemCost(item) {
+    const components = getItemCostComponents(item);
+    if (!components.length) return "";
+    return window.CriptaEconomyService?.formatCost?.({ components }, currentEconomyRegistry)
+        || components.map(component => `${component.amount} ${component.currencyId}`).join(" + ");
+}
+
+function renderItemCostEditor(item) {
+    const configuredCurrencies = window.CriptaEconomyService?.currencies?.(currentEconomyRegistry) || [];
+    const currencies = configuredCurrencies.length ? configuredCurrencies
+        : [{ id: "gp", name: "Monete d'oro", symbol: "mo", precision: 2 }];
+    const [cost = { currencyId: "gp", amount: "" }] = getItemCostComponents(item);
+    const selectedId = currencies.some(currency => currency.id === cost.currencyId)
+        ? cost.currencyId
+        : currencies[0]?.id || "gp";
+    return `
+        <fieldset class="item-inline-editor-field item-inline-editor-field--wide item-cost-editor">
+            <legend>Valore</legend>
+            <label>
+                <span>Quantit&agrave;</span>
+                <input type="number" min="0" step="any" inputmode="decimal" data-item-cost-amount value="${escapeHtml(cost.amount ?? "")}">
+            </label>
+            <label>
+                <span>Valuta</span>
+                <select data-item-cost-currency>
+                    ${currencies.map(currency => `<option value="${escapeHtml(currency.id)}" ${currency.id === selectedId ? "selected" : ""}>${escapeHtml(currency.name)}${currency.symbol ? ` &middot; ${escapeHtml(currency.symbol)}` : ""}</option>`).join("")}
+                </select>
+            </label>
+        </fieldset>
+    `;
+}
 function formatWeightValue(value) {
     return window.CriptaItemNormalize.formatWeightValue(value);
 }

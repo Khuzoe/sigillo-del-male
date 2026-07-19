@@ -100,6 +100,12 @@ export async function handleCampaignItemFoundrySync(request, fallbackCampaignId,
     if (previousNameFollowedFoundry || previousSync.pendingFoundry) next.name = document.document.name;
     const previousImageFollowedFoundry = !previous || !previous?.image || String(previous.image || "") === String(previousDocument?.img || "");
     if ((previousImageFollowedFoundry || previousSync.pendingFoundry) && isPublicItemImage(document.document.img)) next.image = toPublicMediaPath(document.document.img);
+    const previousPresentationCost = campaignItemPresentationCost(previous);
+    const previousFoundryCost = campaignItemCostFromDocument(previousDocument);
+    const previousCostFollowedFoundry = !previous || stableStringify(previousPresentationCost) === stableStringify(previousFoundryCost);
+    if (previousCostFollowedFoundry || previousSync.pendingFoundry) {
+      applyCampaignItemCost(next, campaignItemCostFromDocument(document.document));
+    }
     next.foundryType = document.document.type;
     next.foundry = {
       worldId,
@@ -155,10 +161,11 @@ function normalizeFoundrySnapshot(input, worldId, campaignId) {
   if (!name || !type) return null;
   const system = normalizeJsonObject(source.system || {}, 320 * 1024);
   const effects = normalizeJsonArray(source.effects || [], 96 * 1024);
-  if (!system.valid || !effects.valid) return null;
+  const flags = normalizeJsonObject(source.flags || {}, 96 * 1024);
+  if (!system.valid || !effects.valid || !flags.valid) return null;
   const img = normalizeItemImage(source.img, campaignId);
   if (img === null) return null;
-  const document = { name, type, img, system: system.value, effects: effects.value };
+  const document = { name, type, img, system: system.value, effects: effects.value, flags: flags.value };
   return {
     worldId,
     itemId: String(input.itemId || "").trim().slice(0, 96),
@@ -208,6 +215,8 @@ function normalizeSyncState(value) {
 function buildNewCampaignItem(id, snapshot) {
   const system = snapshot.document.system || {};
   const image = isPublicItemImage(snapshot.document.img) ? toPublicMediaPath(snapshot.document.img) : "";
+  const cost = campaignItemCostFromDocument(snapshot.document);
+  const legacyGold = cost?.components?.length === 1 && cost.components[0].currencyId === "gp" ? cost.components[0].amount : null;
   return {
     id,
     name: snapshot.document.name,
@@ -219,7 +228,57 @@ function buildNewCampaignItem(id, snapshot) {
     status: system.identified === false ? "unidentified" : "identified",
     summary: "",
     properties: [],
+    ...(cost ? { cost } : {}),
+    ...(legacyGold !== null ? { valueGold: legacyGold } : {}),
   };
+}
+
+function campaignItemPresentationCost(item) {
+  const components = normalizeCostComponents(item?.cost?.components);
+  if (components.length) return { components };
+  const legacyGold = Number(item?.valueGold);
+  return legacyGold > 0 ? { components: [{ currencyId: "gp", amount: legacyGold }] } : null;
+}
+
+function campaignItemCostFromDocument(document) {
+  const flagCost = document?.flags?.["khuzoe-merchant"]?.cost;
+  const flagComponents = normalizeCostComponents(flagCost?.components);
+  if (flagComponents.length) return { components: flagComponents };
+  const system = document && typeof document === "object" && !Array.isArray(document) ? document.system : null;
+  const price = system && typeof system === "object" && !Array.isArray(system) ? system.price : null;
+  if (price && typeof price === "object" && !Array.isArray(price)) {
+    if (Number(price.value) > 0) {
+      const currencyId = normalizeCurrencyId(price.denomination || "gp");
+      return currencyId ? { components: [{ currencyId, amount: Number(price.value) }] } : null;
+    }
+    const components = normalizeCostComponents(Object.entries(price).map(([currencyId, amount]) => ({ currencyId, amount })));
+    return components.length ? { components } : null;
+  }
+  return Number(price) > 0 ? { components: [{ currencyId: "gp", amount: Number(price) }] } : null;
+}
+
+function normalizeCostComponents(value) {
+  return (Array.isArray(value) ? value : []).map((entry) => ({
+    currencyId: normalizeCurrencyId(entry?.currencyId),
+    amount: Number(entry?.amount),
+  })).filter((entry) => entry.currencyId && Number.isFinite(entry.amount) && entry.amount > 0)
+    .sort((left, right) => left.currencyId.localeCompare(right.currencyId));
+}
+
+function normalizeCurrencyId(value) {
+  const id = String(value || "").trim().toLowerCase();
+  return /^[a-z0-9][a-z0-9_-]{0,47}$/.test(id) ? id : "";
+}
+
+function applyCampaignItemCost(item, cost) {
+  if (!cost?.components?.length) {
+    delete item.cost;
+    delete item.valueGold;
+    return;
+  }
+  item.cost = cost;
+  if (cost.components.length === 1 && cost.components[0].currencyId === "gp") item.valueGold = cost.components[0].amount;
+  else delete item.valueGold;
 }
 
 function siteTypeForFoundryType(type) {

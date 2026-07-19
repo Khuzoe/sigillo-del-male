@@ -17,6 +17,27 @@ function removeIfExists(targetPath) {
   if (fs.existsSync(targetPath)) fs.rmSync(targetPath, { recursive: true, force: true });
 }
 
+function listFiles(directory) {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const target = path.join(directory, entry.name);
+    return entry.isDirectory() ? listFiles(target) : [target];
+  });
+}
+
+function validateJavaScript() {
+  const errors = [];
+  for (const filePath of listFiles(MODULE_DIR).filter((file) => file.endsWith(".js"))) {
+    const result = spawnSync(process.execPath, ["--check", filePath], { encoding: "utf8" });
+    if (result.status === 0) continue;
+    const detail = result.error?.message || result.stderr || result.stdout || "Errore di sintassi";
+    errors.push(`${path.relative(ROOT, filePath)}\n${detail}`);
+  }
+  if (errors.length) {
+    throw new Error(`Pacchetto non creato: JavaScript non valido.\n\n${errors.join("\n\n")}`);
+  }
+  console.log("Controllo sintassi modulo superato.");
+}
+
 function copyModule() {
   removeIfExists(STAGE_DIR);
   fs.mkdirSync(STAGE_DIR, { recursive: true });
@@ -60,6 +81,7 @@ function main() {
   if (!manifest.id || !manifest.version) {
     throw new Error("module/module.json deve contenere id e version.");
   }
+  validateJavaScript();
   fs.mkdirSync(DIST_DIR, { recursive: true });
   copyModule();
   writeManifest(manifest);

@@ -10,18 +10,23 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
     <link rel="stylesheet" href="../assets/css/pages/sessioni.css?v=20260715-sessions-v2-1" data-page-style>
+    <link rel="stylesheet" href="../assets/css/components/archive-hero.css?v=20260719-archive-hero2">
 </head>
 <body class="sessions-page">
     <nav class="sidebar" id="sidebar-container"></nav>
 
     <main class="main-content sessions-main">
         <div class="sessions-shell">
-            <header class="sessions-hero" aria-labelledby="sessions-title">
-                <div class="sessions-hero__copy">
-                    <span class="sessions-kicker">Cronache della campagna</span>
+            <header class="sessions-hero archive-hero archive-hero--sessions" aria-labelledby="sessions-title">
+                <div class="sessions-hero__copy archive-hero__copy">
+                    <div class="sessions-kicker archive-hero__eyebrow"><span></span>Cronache della campagna</div>
                     <h1 id="sessions-title">Sessioni</h1>
+                    <div class="sessions-summary archive-hero__meta" id="sessions-summary" aria-label="Riepilogo sessioni"></div>
                 </div>
-                <div class="sessions-summary" id="sessions-summary" aria-label="Riepilogo sessioni"></div>
+                <div class="archive-hero__sigil" aria-hidden="true">
+                    <span class="archive-hero__orbit"></span>
+                    <span class="archive-hero__emblem"><i class="fa-solid fa-book-open"></i></span>
+                </div>
             </header>
 
             <section class="sessions-planning" aria-label="Prossima sessione">

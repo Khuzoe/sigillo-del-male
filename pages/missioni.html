@@ -10,18 +10,23 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
     <link rel="stylesheet" href="../assets/css/pages/missioni.css?v=20260715-missions-v2-2" data-page-style>
+    <link rel="stylesheet" href="../assets/css/components/archive-hero.css?v=20260719-archive-hero2">
 </head>
 <body class="missions-page">
     <nav class="sidebar" id="sidebar-container"></nav>
 
     <main class="main-content missions-main">
         <div class="missions-shell">
-            <header class="missions-hero" aria-labelledby="missions-title">
-                <div class="missions-hero__copy">
-                    <span class="missions-kicker">Diario della campagna</span>
+            <header class="missions-hero archive-hero archive-hero--missions" aria-labelledby="missions-title">
+                <div class="missions-hero__copy archive-hero__copy">
+                    <div class="missions-kicker archive-hero__eyebrow"><span></span>Diario della campagna</div>
                     <h1 id="missions-title">Missioni</h1>
+                    <div class="missions-summary archive-hero__meta" id="missions-summary" aria-label="Riepilogo missioni"></div>
                 </div>
-                <div class="missions-summary" id="missions-summary" aria-label="Riepilogo missioni"></div>
+                <div class="archive-hero__sigil" aria-hidden="true">
+                    <span class="archive-hero__orbit"></span>
+                    <span class="archive-hero__emblem"><i class="fa-solid fa-compass"></i></span>
+                </div>
             </header>
 
             <section class="missions-toolbar" aria-label="Filtri missioni">
