@@ -2,7 +2,7 @@
   "id": "cripta-wiki-sync",
   "title": "Cripta Wiki Sync",
   "description": "Sincronizzazione bidirezionale tra wiki e Foundry per Actor gestiti, Tokenizer e catalogo oggetti di campagna.",
-  "version": "0.8.10",
+  "version": "0.8.11",
   "authors": [
     {
       "name": "Delia + Codex"

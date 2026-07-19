@@ -1573,7 +1573,7 @@
         const order = String(index + 1).padStart(2, "0");
         return `<article class="managed-merchant-item ${stock.className}">
             <div class="managed-merchant-item-copy">
-                <header><div class="managed-merchant-title"><span class="managed-merchant-order">${order}</span><div><h3>${escapeHtml(entry.name || "Oggetto")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div></div><strong class="managed-merchant-price">${escapeHtml(formatManagedMerchantPrice(entry))}</strong></header>
+                <header><div class="managed-merchant-title"><span class="managed-merchant-order">${order}</span><div><h3>${escapeHtml(entry.name || "Oggetto")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div></div><strong class="managed-merchant-price" aria-label="${escapeAttr(formatManagedMerchantPrice(entry))}">${renderManagedMerchantPrice(entry)}</strong></header>
                 <span class="managed-merchant-stock"><i class="fas ${stock.icon}"></i> ${escapeHtml(stock.label)}</span>
                 ${preview ? `<p class="managed-merchant-preview">${formatManagedPreview(preview)}</p>` : ""}
                 ${details}
@@ -1590,6 +1590,17 @@
         const labels = { cp: "mr", sp: "ma", ep: "me", gp: "mo", pp: "mp" };
         const amount = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 }).format(value);
         return `${amount} ${labels[String(price.denomination || "gp").toLowerCase()] || String(price.denomination || "mo")}`;
+    }
+
+    function renderManagedMerchantPrice(entry = {}) {
+        const components = window.CriptaEconomyService?.costComponents?.(entry, managedEconomyRegistry) || [];
+        if (!components.length) return `<span class="managed-merchant-price-component"><span class="managed-merchant-price-amount">${escapeHtml(formatManagedMerchantPrice(entry))}</span></span>`;
+        return components.map((component) => {
+            const icon = component.icon
+                ? `<img class="managed-merchant-currency-icon" src="${escapeAttr(resolveMedia(component.icon))}" alt="" aria-hidden="true" loading="eager" decoding="async">`
+                : `<span class="managed-merchant-currency-label">${escapeHtml(component.label)}</span>`;
+            return `<span class="managed-merchant-price-component" title="${escapeAttr(component.currency?.name || component.label || component.currencyId)}"><span class="managed-merchant-price-amount">${escapeHtml(component.formattedAmount)}</span>${icon}</span>`;
+        }).join('<span class="managed-merchant-price-plus" aria-hidden="true">+</span>');
     }
 
     function formatManagedMerchantStock(value) {

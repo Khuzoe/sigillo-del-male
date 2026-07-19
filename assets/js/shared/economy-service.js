@@ -45,7 +45,7 @@
         return new Map(currencies(registry, includeInactive).map((currency) => [currency.id, currency]));
     }
 
-    function formatCost(value, registry) {
+    function costComponents(value, registry) {
         const map = currencyMap(registry);
         const components = Array.isArray(value?.cost?.components)
             ? value.cost.components
@@ -53,11 +53,26 @@
                 ? value.components
                 : [{ currencyId: value?.price?.denomination || value?.denomination || "gp", amount: value?.price?.value ?? value?.value ?? 0 }];
         return components.filter((entry) => Number(entry?.amount) > 0).map((entry) => {
-            const currency = map.get(String(entry.currencyId || "").toLowerCase());
-            const amount = new Intl.NumberFormat("it-IT", { maximumFractionDigits: Math.max(0, Number(currency?.precision ?? 4)) }).format(Number(entry.amount) || 0);
-            return `${amount} ${currency?.symbol || currency?.name || entry.currencyId || ""}`.trim();
-        }).join(" + ") || "0";
+            const currencyId = String(entry.currencyId || "").trim().toLowerCase();
+            const currency = map.get(currencyId) || null;
+            const amount = Number(entry.amount) || 0;
+            const precision = Math.max(0, Math.min(8, Number(currency?.precision ?? 4)));
+            return {
+                currencyId,
+                currency,
+                amount,
+                formattedAmount: new Intl.NumberFormat("it-IT", { maximumFractionDigits: precision }).format(amount),
+                label: String(currency?.symbol || currency?.name || entry.currencyId || "").trim(),
+                icon: String(currency?.icon || "").trim()
+            };
+        });
     }
 
-    window.CriptaEconomyService = { load, save, currencies, currencyMap, formatCost };
+    function formatCost(value, registry) {
+        return costComponents(value, registry)
+            .map((entry) => `${entry.formattedAmount} ${entry.label}`.trim())
+            .join(" + ") || "0";
+    }
+
+    window.CriptaEconomyService = { load, save, currencies, currencyMap, costComponents, formatCost };
 })();

@@ -3,11 +3,16 @@
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const vm = require("node:vm");
 
 async function main() {
     const source = fs.readFileSync(path.join(__dirname, "../workers/main-worker/src/economy-v1.js"), "utf8");
     const workerIndexSource = fs.readFileSync(path.join(__dirname, "../workers/main-worker/src/index.js"), "utf8");
     const economyPageSource = fs.readFileSync(path.join(__dirname, "../assets/js/pages/economy.js"), "utf8");
+    const economyServiceSource = fs.readFileSync(path.join(__dirname, "../assets/js/shared/economy-service.js"), "utf8");
+    const managedActorPageSource = fs.readFileSync(path.join(__dirname, "../assets/js/pages/managed-actor.js"), "utf8");
+    const managedActorStyleSource = fs.readFileSync(path.join(__dirname, "../assets/css/pages/managed-actor-modern.css"), "utf8");
+    const managedActorSyncSource = fs.readFileSync(path.join(__dirname, "../module/scripts/services/managed-actor-sync.js"), "utf8");
     const api = await import("data:text/javascript;base64," + Buffer.from(source).toString("base64"));
     const store = new Map();
     const invalidations = [];
@@ -85,9 +90,22 @@ async function main() {
     assert.equal(dmJson.version, 1);
     assert.equal(dmJson.registry.groups.flatMap(group => group.currencies).find(currency => currency.id === "pezza")?.active, true);
     assert.equal(dmJson.registry.groups.flatMap(group => group.currencies).find(currency => currency.id === "pezza")?.icon, "media/campaigns/test-campaign/economy/currencies/pezza.webp");
+    const economySandbox = { window: {}, structuredClone };
+    vm.runInNewContext(economyServiceSource, economySandbox);
+    const visualCost = economySandbox.window.CriptaEconomyService.costComponents({
+        cost: { components: [{ currencyId: "pezza", amount: 3 }] }
+    }, dmJson.registry);
+    assert.equal(visualCost[0].formattedAmount, "3");
+    assert.equal(visualCost[0].label, "pezza");
+    assert.equal(visualCost[0].icon, "media/campaigns/test-campaign/economy/currencies/pezza.webp");
     assert.match(workerIndexSource, /"economy\/currencies"/, "la cartella R2 delle icone valuta e consentita");
     assert.match(workerIndexSource, /\["managed-actors", "economy"\]\.includes\(folder\)/, "la sottocartella delle icone e leggibile dal percorso media pubblico");
     assert.match(economyPageSource, /for \(const group of Array\.isArray\(S\.draft\?\.groups\)/, "l'upload aggiorna la valuta originale nel registro");
+    assert.match(economyServiceSource, /costComponents/, "il servizio espone i componenti con metadati visuali");
+    assert.match(managedActorPageSource, /managed-merchant-currency-icon/, "il negozio mostra l'icona della valuta");
+    assert.match(managedActorStyleSource, /\.managed-merchant-currency-icon/, "l'icona del prezzo ha uno stile dedicato");
+    assert.match(managedActorSyncSource, /cost:\s*normalizeManagedMerchantCost\(entry, price\)/, "Foundry conserva il costo personalizzato del mercante");
+    assert.match(managedActorSyncSource, /MANAGED_MERCHANT_SCHEMA_VERSION\s*=\s*5/, "i mercanti esistenti vengono risincronizzati");
     assert.deepEqual(invalidations[0].collections, ["economy"]);
 
     const withoutCustom = structuredClone(dmJson.registry);
