@@ -1349,12 +1349,16 @@ async function loadItemsDocumentForSave() {
     const response = await fetch(withItemsCampaign(ITEMS_DATA_API_URL(), { cacheBust: true }));
     const payload = await response.json().catch(() => null);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = Array.isArray(payload) ? payload : payload?.data;
+    let data = Array.isArray(payload) ? payload : payload?.data;
+    if (!Array.isArray(data) && payload?.source === "static" && payload?.data == null) {
+        const staticPayload = await window.CriptaApp?.data?.json?.("items.json", { cache: false });
+        data = Array.isArray(staticPayload) ? staticPayload : staticPayload?.data;
+    }
     if (!Array.isArray(data)) throw new Error("Formato items non valido.");
     return {
         data,
         source: payload?.source || "kv",
-        version: Number(payload?.version || 0)
+        version: payload?.source === "kv" ? Number(payload?.version || 0) : 0
     };
 }
 
