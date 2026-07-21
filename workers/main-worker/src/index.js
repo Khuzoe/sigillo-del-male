@@ -49,6 +49,12 @@ export default {
       if (url.pathname === "/api/npc-categories" && request.method === "POST") {
         return handleNpcCategoriesPost(request, queryCampaignId, env, corsHeaders);
       }
+      if (url.pathname === "/api/item-categories" && request.method === "GET") {
+        return handleItemCategoriesGet(request, queryCampaignId, env, corsHeaders);
+      }
+      if (url.pathname === "/api/item-categories" && request.method === "POST") {
+        return handleItemCategoriesPost(request, queryCampaignId, env, corsHeaders);
+      }
       if (url.pathname === "/api/calendar" && request.method === "GET") {
         return handleCalendarGet(request, queryCampaignId, env, corsHeaders, calendarServices());
       }
@@ -1626,6 +1632,10 @@ function managedActorProfileKey(campaignId, worldId, actorId) {
 
 function npcCategoryRegistryKey(campaignId = DEFAULT_CAMPAIGN_ID) {
   return campaignKey(campaignId, "npc-categories");
+}
+
+function itemCategoryRegistryKey(campaignId = DEFAULT_CAMPAIGN_ID) {
+  return campaignKey(campaignId, "item-categories");
 }
 
 function managedActorProfileLinkKey(campaignId, legacyCharacterId) {
@@ -3885,6 +3895,116 @@ async function handleNpcCategoriesPost(request, campaignId, env, corsHeaders = {
   }, campaignId);
   await env.SIGILLO_KV.put(npcCategoryRegistryKey(campaignId), JSON.stringify(next));
   const data = await buildNpcCategoryRegistryView(env, campaignId, next);
+  return json({ ok: true, saved: true, campaignId, revision: next.revision, data }, 200, {
+    ...corsHeaders,
+    "Cache-Control": "private, no-store",
+  });
+}
+
+
+async function readItemCategoryRegistry(env, campaignId) {
+  const raw = await env.SIGILLO_KV.get(itemCategoryRegistryKey(campaignId));
+  return normalizeNpcCategoryRegistryDocument(safeJsonParse(raw), campaignId);
+}
+
+async function collectItemCategoryUsage(env, campaignId) {
+  const document = await readDataCollectionDocument("items", campaignId, env);
+  const usage = new Map();
+  for (const item of Array.isArray(document?.data) ? document.data : []) {
+    const name = String(item?.category || item?.type || "Senza categoria").trim();
+    addNpcCategoryUsage(usage, item?.categoryId, name);
+  }
+  return usage;
+}
+
+async function buildItemCategoryRegistryView(env, campaignId, storedRegistry = null) {
+  const registry = storedRegistry || await readItemCategoryRegistry(env, campaignId);
+  const usage = await collectItemCategoryUsage(env, campaignId);
+  const storedIds = new Set(registry.categories.map((category) => category.id));
+  const categories = registry.categories.map((category) => ({
+    ...category,
+    inferred: false,
+    usageCount: usage.get(category.id)?.usageCount || 0,
+  }));
+  usage.forEach((entry) => {
+    if (storedIds.has(entry.id)) return;
+    categories.push({
+      id: entry.id,
+      name: entry.name,
+      order: entry.order ?? (1000 + (categories.length * 10)),
+      color: "#b99a45",
+      icon: "fa-folder-open",
+      archived: false,
+      mergedInto: "",
+      inferred: true,
+      usageCount: entry.usageCount,
+    });
+  });
+  categories.sort((left, right) => left.order - right.order || left.name.localeCompare(right.name, "it"));
+  return { ...registry, categories };
+}
+
+async function handleItemCategoriesGet(_request, campaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  const data = await buildItemCategoryRegistryView(env, campaignId);
+  return json({ ok: true, campaignId, revision: data.revision, data }, 200, {
+    ...corsHeaders,
+    "Cache-Control": "public, max-age=30, must-revalidate",
+  });
+}
+
+async function handleItemCategoriesPost(request, campaignId, env, corsHeaders = {}) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  const authorization = await authorizeNpcCategoryManagement(request, env, campaignId, corsHeaders);
+  if (authorization instanceof Response) return authorization;
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  if (JSON.stringify(body || {}).length > 120_000) {
+    return json({ ok: false, error: "Item category document is too large" }, 413, corsHeaders);
+  }
+
+  const existing = await readItemCategoryRegistry(env, campaignId);
+  const expectedRevision = Math.max(0, Math.floor(Number(body?.expectedRevision) || 0));
+  if (expectedRevision !== existing.revision) {
+    return json({ ok: false, error: "Item category revision conflict", expectedRevision, currentRevision: existing.revision }, 409, corsHeaders);
+  }
+
+  const seen = new Set();
+  const categories = (Array.isArray(body?.categories) ? body.categories : [])
+    .slice(0, 160)
+    .map(normalizeNpcCategoryRecord)
+    .filter((category) => {
+      if (!category || seen.has(category.id)) return false;
+      seen.add(category.id);
+      return true;
+    });
+  const aliasError = validateNpcCategoryAliases(categories);
+  if (aliasError) return json({ ok: false, error: aliasError }, 400, corsHeaders);
+
+  const usage = await collectItemCategoryUsage(env, campaignId);
+  const nextIds = new Set(categories.map((category) => category.id));
+  const unsafeRemoval = existing.categories.find((category) => !nextIds.has(category.id) && (usage.get(category.id)?.usageCount || 0) > 0);
+  if (unsafeRemoval) {
+    return json({ ok: false, error: "La categoria " + unsafeRemoval.name + " e ancora assegnata: archiviarla o unirla prima di rimuoverla." }, 409, corsHeaders);
+  }
+
+  const now = new Date().toISOString();
+  const next = normalizeNpcCategoryRegistryDocument({
+    schemaVersion: 1,
+    campaignId,
+    revision: existing.revision + 1,
+    updatedAt: now,
+    updatedBy: authorization.source === "foundry"
+      ? "foundry"
+      : (getAuthenticatedAccountId(authorization.user, env) || "campaign-editor"),
+    categories,
+  }, campaignId);
+  await env.SIGILLO_KV.put(itemCategoryRegistryKey(campaignId), JSON.stringify(next));
+  const data = await buildItemCategoryRegistryView(env, campaignId, next);
   return json({ ok: true, saved: true, campaignId, revision: next.revision, data }, 200, {
     ...corsHeaders,
     "Cache-Control": "private, no-store",

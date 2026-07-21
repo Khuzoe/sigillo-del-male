@@ -2,6 +2,7 @@ const ITEMS_DATA_API_URL = () => window.CriptaApp?.urls?.api?.("api/data/items")
 const ITEMS_DISCORD_TOKEN_KEY = "discord_jwt";
 let currentMaterialTagSuggestions = [];
 let currentEconomyRegistry = null;
+let currentItemCategoryRegistry = { categories: [] };
 const ITEM_IMAGE_ADJUST_DATASET_KEYS = { x: "itemAdjustX", y: "itemAdjustY", size: "itemAdjustSize" };
 const ITEM_IMAGE_ADJUST_CSS_VARS = { x: "--item-img-x", y: "--item-img-y", size: "--item-img-scale" };
 const ITEM_IMAGE_ADJUST_FRAME_SELECTORS = ["[data-item-image-preview]", ".item-card-media"];
@@ -13,31 +14,46 @@ window.CriptaApp.onPageReady("oggetti", async () => {
     const rarityFilters = document.getElementById("items-rarity-filters");
     const typeFilters = document.getElementById("items-type-filters");
     const attunementFilters = document.getElementById("items-attunement-filters");
+    const categoryFilters = document.getElementById("items-category-filters");
     const createButton = document.getElementById("items-create-button");
     if (!grid) return;
 
     try {
-        const [rawItems, canSeeHidden, economyPayload] = await Promise.all([
+        const [rawItems, canSeeHidden, economyPayload, categoryRegistry] = await Promise.all([
             loadItemsData(),
             canCurrentUserSeeHiddenItems(),
-            window.CriptaEconomyService?.load?.().catch(() => null)
+            window.CriptaEconomyService?.load?.().catch(() => null),
+            window.CriptaItemCategories?.load?.().catch(() => ({ categories: [] }))
         ]);
         currentEconomyRegistry = economyPayload?.registry || null;
         const items = filterVisibleItems(rawItems, { includeHidden: canSeeHidden });
+        currentItemCategoryRegistry = withInferredItemCategories(categoryRegistry, items);
         const state = {
             query: "",
             rarity: "all",
             type: "all",
             attunement: "all",
             canEditItems: canSeeHidden,
+            category: "all",
             items,
             editingItemId: "",
             itemDraft: null,
-            loadedVersion: null
+            loadedVersion: null,
+            categoryRegistry: currentItemCategoryRegistry
         };
 
-        initItemFilters(items, state, { grid, count, search, rarityFilters, typeFilters, attunementFilters });
-        initCreateItemButton(createButton, state, { grid, count, search, rarityFilters, typeFilters, attunementFilters });
+        const controls = { grid, count, search, rarityFilters, typeFilters, categoryFilters, attunementFilters };
+        initItemFilters(items, state, controls);
+        initCreateItemButton(createButton, state, controls);
+        window.CriptaItemCategoryManager?.init?.({
+            isEditor: canSeeHidden,
+            onSaved: (registry) => {
+                state.categoryRegistry = withInferredItemCategories(registry, state.items);
+                currentItemCategoryRegistry = state.categoryRegistry;
+                renderItemCategoryFilters(categoryFilters, state);
+                updateItemsView(state.items, state, grid, count);
+            }
+        });
         updateItemsView(state.items, state, grid, count);
         initItemImageModal();
         openLinkedItem(grid);
@@ -124,6 +140,8 @@ function initItemFilters(items, state, elements) {
         ...types.map(type => ({ value: type, label: type, icon: getItemTypeMeta(type).icon }))
     ], state.type);
 
+    renderItemCategoryFilters(elements.categoryFilters, state);
+
     renderItemFilter(elements.attunementFilters, "items-attunement", [
         { value: "all", label: "Tutti", icon: "fa-layer-group" },
         { value: "yes", label: "Sintonia", icon: "fa-link" },
@@ -143,12 +161,45 @@ function initItemFilters(items, state, elements) {
         state.type = value;
         updateItemsView(state.items, state, elements.grid, elements.count);
     });
+    bindFilterGroup(elements.categoryFilters, "itemsCategory", value => {
+        state.category = value;
+        updateItemsView(state.items, state, elements.grid, elements.count);
+    });
     bindFilterGroup(elements.attunementFilters, "itemsAttunement", value => {
         state.attunement = value;
         updateItemsView(state.items, state, elements.grid, elements.count);
     });
 }
-
+function withInferredItemCategories(registry, items) {
+    const normalized = registry && typeof registry === "object" ? { ...registry } : { categories: [] };
+    const categories = (Array.isArray(normalized.categories) ? normalized.categories : []).map(category => ({ ...category }));
+    const ids = new Set(categories.map(category => String(category?.id || "")));
+    for (const item of Array.isArray(items) ? items : []) {
+        const name = String(item?.category || getItemCategory(item) || "Senza categoria").trim();
+        const id = window.CriptaItemCategories?.normalizeId?.(item?.categoryId || name) || slugify(item?.categoryId || name);
+        if (!id || !name || ids.has(id)) continue;
+        ids.add(id);
+        categories.push({ id, name, order: 1000 + categories.length * 10, color: "#b99a45", icon: "fa-folder-open", inferred: true, usageCount: 0 });
+    }
+    normalized.categories = categories;
+    return normalized;
+}
+function renderItemCategoryFilters(container, state) {
+    const byId = new Map();
+    for (const category of Array.isArray(state.categoryRegistry?.categories) ? state.categoryRegistry.categories : []) {
+        if (!category?.archived && !category?.mergedInto && category?.id && category?.name) byId.set(category.id, category);
+    }
+    for (const item of state.items || []) {
+        const category = getItemCatalogCategory(item, state.categoryRegistry);
+        if (!byId.has(category.id)) byId.set(category.id, category);
+    }
+    const categories = [...byId.values()].sort((left, right) => Number(left.order || 9999) - Number(right.order || 9999)
+        || String(left.name).localeCompare(String(right.name), "it"));
+    renderItemFilter(container, "items-category", [
+        { value: "all", label: "Tutte", icon: "fa-layer-group" },
+        ...categories.map(category => ({ value: category.id, label: category.name, icon: category.icon || "fa-folder-open" }))
+    ], state.category);
+}
 function renderItemFilter(container, dataName, filters, activeValue) {
     if (!container) return;
     container.innerHTML = filters.map(filter => `
@@ -185,10 +236,12 @@ function initCreateItemButton(button, state, elements) {
         state.query = "";
         state.rarity = "all";
         state.type = "all";
+        state.category = "all";
         state.attunement = "all";
         if (elements.search) elements.search.value = "";
         setFilterGroupActive(elements.rarityFilters, "itemsRarity", "all");
         setFilterGroupActive(elements.typeFilters, "itemsType", "all");
+        setFilterGroupActive(elements.categoryFilters, "itemsCategory", "all");
         setFilterGroupActive(elements.attunementFilters, "itemsAttunement", "all");
         updateItemsView(state.items, state, elements.grid, elements.count);
         const card = elements.grid.querySelector(`#${CSS.escape(draft.id)}`);
@@ -233,47 +286,64 @@ function updateItemsView(items, state, grid, count) {
     grid.innerHTML = renderItemsGrid(filtered, {
         canEdit: state.canEditItems,
         editingItemId: state.editingItemId,
-        itemDraft: state.itemDraft
+        itemDraft: state.itemDraft,
+        categoryRegistry: state.categoryRegistry
     });
     bindItemExpansion(grid);
     bindItemInlineEditor(grid, state, count);
     bindItemDiscordSharing(grid, state);
+    bindItemCategoryDrag(grid, state, count);
     initItemAdjustedImages(grid);
 }
 
-function renderItemsGrid(items, { canEdit = false, editingItemId = "", itemDraft = null } = {}) {
-    const sorted = [...items].sort(compareItems);
-    const sections = [
-        {
-            key: "objects",
-            title: "Oggetti",
-            icon: "fa-wand-sparkles",
-            items: sorted.filter(item => getItemCategory(item) !== "Materiali")
-        },
-        {
-            key: "materials",
-            title: "Materiali",
-            icon: "fa-cubes-stacked",
-            items: sorted.filter(item => getItemCategory(item) === "Materiali")
-        }
-    ];
-
-    return sections
-        .filter(section => section.items.length)
-        .map(section => `
-            <section class="items-grid-section items-grid-section--${section.key}">
-                ${renderItemsSectionHeader(section.title, section.items.length, section.icon)}
-                <div class="items-grid-section-cards">
-                    ${section.items.map(item => renderItemCard(item, {
-                        canEdit,
-                        isEditing: getItemId(item) === editingItemId,
-                        draft: getItemId(item) === editingItemId ? itemDraft : null
-                    })).join("")}
-                </div>
-            </section>
-        `)
-        .join("");
+function renderItemsGrid(items, { canEdit = false, editingItemId = "", itemDraft = null, categoryRegistry = null } = {}) {
+    const groups = new Map();
+    for (const item of [...items].sort(compareItems)) {
+        const category = getItemCatalogCategory(item, categoryRegistry);
+        if (!groups.has(category.id)) groups.set(category.id, { ...category, items: [] });
+        groups.get(category.id).items.push(item);
+    }
+    const sections = [...groups.values()].sort((left, right) => Number(left.order || 9999) - Number(right.order || 9999)
+        || String(left.name).localeCompare(String(right.name), "it"));
+    const sectionMarkup = sections.map(section => `
+        <section class="items-grid-section items-grid-section--category" data-item-category-id="${escapeHtml(section.id)}"
+            style="--item-category-accent:${escapeHtml(section.color || "#b99a45")}">
+            ${renderItemsSectionHeader(section.name, section.items.length, section.icon || "fa-folder-open")}
+            <div class="items-grid-section-cards">
+                ${section.items.map(item => renderItemCard(item, {
+                    canEdit,
+                    isEditing: getItemId(item) === editingItemId,
+                    draft: getItemId(item) === editingItemId ? itemDraft : null
+                })).join("")}
+            </div>
+        </section>
+    `).join("");
+    return sectionMarkup + renderItemCategoryDropDock(categoryRegistry, canEdit);
 }
+
+function renderItemCategoryDropDock(registry, canEdit) {
+    if (!canEdit) return "";
+    const categories = (Array.isArray(registry?.categories) ? registry.categories : [])
+        .filter(category => category?.id && category?.name && !category.archived && !category.mergedInto)
+        .sort((left, right) => Number(left.order || 9999) - Number(right.order || 9999)
+            || String(left.name).localeCompare(String(right.name), "it"));
+    if (!categories.length) return "";
+    return `
+        <aside class="item-category-drop-dock" aria-label="Sposta oggetto in una categoria">
+            <span class="item-category-drop-dock__label"><i class="fas fa-folder-tree" aria-hidden="true"></i>Sposta in</span>
+            <div class="item-category-drop-dock__targets">
+                ${categories.map(category => `
+                    <button type="button" data-item-category-drop-id="${escapeHtml(category.id)}"
+                        style="--item-category-accent:${escapeHtml(category.color || "#b99a45")}">
+                        <i class="fas ${escapeHtml(category.icon || "fa-folder-open")}" aria-hidden="true"></i>
+                        <span>${escapeHtml(category.name)}</span>
+                    </button>
+                `).join("")}
+            </div>
+        </aside>
+    `;
+}
+
 function renderItemsSectionHeader(title, count, icon) {
     return `
         <header class="items-grid-section-header">
@@ -310,12 +380,14 @@ function filterItems(items, state) {
         const materialTags = getVisibleMaterialTags(item);
         if (state.rarity !== "all" && normalizeItemRarityLabel(item.rarity) !== state.rarity) return false;
         if (state.type !== "all" && getItemCategory(item) !== state.type) return false;
+        if (state.category !== "all" && getItemCatalogCategory(item, state.categoryRegistry).id !== state.category) return false;
         if (state.attunement === "yes" && item.attunement !== true) return false;
         if (state.attunement === "no" && item.attunement === true) return false;
         if (!query) return true;
         return normalizeSearch([
             item.name,
             getItemCategory(item),
+            getItemCatalogCategory(item, state.categoryRegistry).name,
             item.type,
             item.subtype,
             item.rarity,
@@ -407,6 +479,7 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
                     ${quickFacts ? `<div class="item-card-quickfacts">${quickFacts}</div>` : ""}
                 </div>
                 <div class="item-card-summary-actions">
+                    ${canEdit && !isEditing ? `<span class="item-card-category-drag" role="button" tabindex="0" draggable="true" data-item-category-drag="${escapeHtml(itemId)}" title="Sposta in una categoria diversa" aria-label="Sposta elemento in una categoria diversa"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>` : ""}
                     ${canEdit && !isEditing ? `
                         <button class="item-card-edit-link item-card-discord-link" type="button" data-item-discord-share="${escapeHtml(itemId)}" title="Condividi su Discord">
                             <i class="fab fa-discord" aria-hidden="true"></i>
@@ -429,6 +502,98 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
             </div>
         </details>
     `;
+}
+function bindItemCategoryDrag(grid, state, count) {
+    if (!state.canEditItems) return;
+    let draggedItemId = "";
+    const handleAutoScroll = (event) => {
+        if (!draggedItemId) return;
+        const edge = Math.min(120, Math.max(72, Math.round(window.innerHeight * 0.12)));
+        const speed = 18;
+        if (event.clientY < edge) window.scrollBy(0, -speed);
+        else if (event.clientY > window.innerHeight - edge) window.scrollBy(0, speed);
+    };
+    const clear = () => {
+        draggedItemId = "";
+        grid.classList.remove("is-item-category-dragging");
+        grid.querySelectorAll(".is-item-category-drop-target").forEach(target => target.classList.remove("is-item-category-drop-target"));
+        document.removeEventListener("dragover", handleAutoScroll);
+    };
+
+    grid.querySelectorAll("[data-item-category-drag]").forEach(handle => {
+        handle.addEventListener("click", event => {
+            event.preventDefault();
+            event.stopPropagation();
+        });
+        handle.addEventListener("dragstart", event => {
+            draggedItemId = String(handle.dataset.itemCategoryDrag || "");
+            if (!draggedItemId) return;
+            event.stopPropagation();
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", draggedItemId);
+            grid.classList.add("is-item-category-dragging");
+            document.addEventListener("dragover", handleAutoScroll);
+        });
+        handle.addEventListener("dragend", clear);
+    });
+
+    grid.querySelectorAll("[data-item-category-id], [data-item-category-drop-id]").forEach(target => {
+        const categoryId = () => String(target.dataset.itemCategoryId || target.dataset.itemCategoryDropId || "");
+        target.addEventListener("dragover", event => {
+            if (!draggedItemId || !categoryId()) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            grid.querySelectorAll(".is-item-category-drop-target").forEach(entry => entry.classList.remove("is-item-category-drop-target"));
+            target.classList.add("is-item-category-drop-target");
+        });
+        target.addEventListener("dragleave", event => {
+            if (!target.contains(event.relatedTarget)) target.classList.remove("is-item-category-drop-target");
+        });
+        target.addEventListener("drop", async event => {
+            if (!draggedItemId || !categoryId()) return;
+            event.preventDefault();
+            const itemId = draggedItemId;
+            const nextCategoryId = categoryId();
+            clear();
+            await moveItemToCategory(itemId, nextCategoryId, state, grid, count);
+        });
+    });
+}
+
+async function moveItemToCategory(itemId, categoryId, state, grid, count) {
+    const token = readItemsAuthToken();
+    if (!token) return;
+    const category = window.CriptaItemCategories?.resolve?.(state.categoryRegistry, categoryId, "");
+    const localItem = state.items.find(item => getItemId(item) === itemId);
+    if (!category || !localItem || getItemCatalogCategory(localItem, state.categoryRegistry).id === category.id) return;
+    try {
+        const loaded = await loadItemsDocumentForSave();
+        const nextData = Array.isArray(loaded.data) ? loaded.data.map(item => {
+            if (getItemId(item) !== itemId) return item;
+            return { ...item, categoryId: category.id, category: category.name };
+        }) : [];
+        const response = await fetch(withItemsCampaign(ITEMS_DATA_API_URL(), { force: true }), {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+                data: nextData,
+                expectedVersion: loaded.source === "kv" ? (loaded.version ?? 0) : 0,
+                campaignId: getItemsCampaignId()
+            })
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+        state.items = state.items.map(item => getItemId(item) === itemId ? {
+            ...item,
+            categoryId: category.id,
+            category: category.name,
+            sync: { ...(item.sync || {}), managed: true, pendingFoundry: true, source: "site", siteRevision: Number(item.sync?.siteRevision || 0) + 1 }
+        } : item);
+        updateItemsView(state.items, state, grid, count);
+    } catch (error) {
+        console.error("Spostamento categoria oggetto fallito:", error);
+        window.alert(`Spostamento non riuscito: ${error?.message || error}`);
+    }
 }
 function bindItemDiscordSharing(grid, state) {
     grid.querySelectorAll("[data-item-discord-share]").forEach(button => {
@@ -556,6 +721,7 @@ function renderItemInlineEditor(item) {
                         <div class="item-inline-editor-grid">
                             ${renderItemEditInput("Nome", "name", item.name || "", "item-inline-editor-field--wide")}
                             ${renderItemEditSelect("Tipo", "type", item.type || "", getItemTypeOptions(item.type))}
+                            ${renderItemEditSelect("Categoria", "categoryId", getItemCatalogCategory(item).id, getItemCategoryOptions(item))}
                             ${renderItemEditInput("Sottotipo", "subtype", item.subtype || "")}
                             ${renderItemEditSelect("Rarità", "rarity", normalizeItemRarityLabel(item.rarity), getItemRarityOptions(item.rarity))}
                             ${renderItemEditInput("Provenienza / portatore", "owner", item.owner || "")}
@@ -1121,6 +1287,9 @@ function collectItemDraft(form, original) {
         const value = field.type === "checkbox" ? field.checked : field.value;
         setItemDraftField(draft, key, value);
     });
+    const selectedCategory = getItemCatalogCategory(draft, currentItemCategoryRegistry);
+    draft.categoryId = selectedCategory.id;
+    draft.category = selectedCategory.name;
     const costAmount = Math.max(0, Number(form.querySelector("[data-item-cost-amount]")?.value) || 0);
     const costCurrencyId = String(form.querySelector("[data-item-cost-currency]")?.value || "gp").trim().toLowerCase();
     if (costAmount > 0) {
@@ -1638,6 +1807,27 @@ function formatItemTypeLabel(item) {
     return `${type} (${subtype})`;
 }
 
+function getItemCatalogCategory(item, registry = currentItemCategoryRegistry) {
+    const fallbackName = String(item?.category || getItemCategory(item) || "Senza categoria").trim();
+    const fallbackId = window.CriptaItemCategories?.normalizeId?.(item?.categoryId || fallbackName) || slugify(fallbackName);
+    const resolved = window.CriptaItemCategories?.resolve?.(registry, item?.categoryId || fallbackId, fallbackName);
+    return resolved || {
+        id: fallbackId || "senza-categoria",
+        name: fallbackName || "Senza categoria",
+        order: 9999,
+        color: "#b99a45",
+        icon: "fa-folder-open"
+    };
+}
+
+function getItemCategoryOptions(item) {
+    const current = getItemCatalogCategory(item);
+    const categories = (Array.isArray(currentItemCategoryRegistry?.categories) ? currentItemCategoryRegistry.categories : [])
+        .filter(category => !category.archived && !category.mergedInto)
+        .map(category => ({ value: category.id, label: category.name }));
+    if (!categories.some(category => category.value === current.id)) categories.push({ value: current.id, label: current.name });
+    return categories.sort((left, right) => left.label.localeCompare(right.label, "it"));
+}
 function getItemCategory(item) {
     return window.CriptaItemNormalize.getItemCategory(item);
 }

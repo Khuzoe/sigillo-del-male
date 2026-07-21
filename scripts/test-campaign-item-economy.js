@@ -24,12 +24,13 @@ async function main() {
         </div>
         <aside class="cripta-catalog-notes"><h4>Note della campagna</h4><p>Creata da Zara.</p></aside>
     </div>`;
-    const snapshot = (amount, summary = "Un ago sottile e luminoso.") => ({
+    const snapshot = (amount, summary = "Un ago sottile e luminoso.", folderPath = "Oggetti della campagna / Reliquie di Zara") => ({
         campaignItemId: "zara-needle",
         appliedSiteRevision: 0,
         document: {
             itemId: "ITEM1",
             uuid: "Item.ITEM1",
+            folderPath,
             document: {
                 name: "Ago di Zara",
                 type: "equipment",
@@ -44,7 +45,7 @@ async function main() {
                     unidentified: { name: "Ago misterioso", description: "<p>Un ago dalla provenienza ignota.</p>" }
                 },
                 effects: [],
-                flags: { "khuzoe-merchant": { cost: { components: [{ currencyId: "pezza", amount }] } } }
+                flags: { "khuzoe-merchant": { cost: { components: [{ currencyId: "pezza", amount }] } }, "cripta-wiki-sync": { categoryId: "reliquie-zara", categoryName: "Reliquie di Zara" } }
             }
         }
     });
@@ -70,6 +71,8 @@ async function main() {
     assert.equal(item.rarity, "Raro");
     assert.equal(item.attunement, true);
     assert.equal(item.weight, 0.5);
+    assert.equal(item.categoryId, "reliquie-zara");
+    assert.equal(item.category, "Reliquie di Zara");
 
     const updated = await api.handleCampaignItemFoundrySync(request(snapshot(3, "La luce ora pulsa lentamente.")), campaign, env, {});
     assert.equal(updated.status, 200);
@@ -89,6 +92,14 @@ async function main() {
     assert.equal(item.cost.components[0].amount, 77, "un prezzo curato separatamente sul sito non viene sovrascritto");
     assert.equal(item.summary, "Testo curato sul sito", "il testo curato separatamente sul sito non viene sovrascritto");
     assert.equal(item.properties[0].name, "Versione editoriale");
+
+    const moved = await api.handleCampaignItemFoundrySync(request(snapshot(4, "Testo successivo di Foundry", "Cripta Wiki Items / Pozioni")), campaign, env, {});
+    assert.equal(moved.status, 200);
+    document = JSON.parse(store.get(key));
+    item = document.data.find((entry) => entry.id === "zara-needle");
+    assert.equal(item.categoryId, "pozioni", "spostare una scheda nella sottocartella Foundry aggiorna la categoria del sito");
+    assert.equal(item.category, "Pozioni");
+    assert.equal(item.summary, "Testo curato sul sito", "lo spostamento di cartella non sovrascrive il testo curato");
 
     console.log("Campaign items: round-trip descrizioni, prezzi personalizzati e protezione dati superati.");
 }

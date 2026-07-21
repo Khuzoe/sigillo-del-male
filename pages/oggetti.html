@@ -12,7 +12,8 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
-    <link rel="stylesheet" href="../assets/css/pages/items-modern.css?v=20260719-economy1" data-page-style>
+    <link rel="stylesheet" href="../assets/css/pages/items-modern.css?v=20260721-item-categories2" data-page-style>
+    <link rel="stylesheet" href="../assets/css/pages/npc-categories.css?v=20260721-item-categories2">
     <link rel="stylesheet" href="../assets/css/components/discord-share.css?v=20260715-discord-share3">
 </head>
 
@@ -48,6 +49,9 @@
                         <button id="items-create-button" class="items-create-button" type="button" data-requires-dm hidden>
                             <i class="fas fa-plus" aria-hidden="true"></i><span>Nuovo oggetto</span>
                         </button>
+                        <button class="items-create-button items-create-button--secondary" type="button" data-item-category-manager hidden>
+                            <i class="fas fa-folder-tree" aria-hidden="true"></i><span>Categorie</span>
+                        </button>
                     </div>
                     <div class="items-filter-strip">
                         <div class="items-filter-row">
@@ -57,6 +61,10 @@
                         <div class="items-filter-row">
                             <span><i class="fas fa-shapes" aria-hidden="true"></i>Tipo</span>
                             <div id="items-type-filters" class="items-filter-group" aria-label="Filtro tipo"></div>
+                        </div>
+                        <div class="items-filter-row">
+                            <span><i class="fas fa-folder-tree" aria-hidden="true"></i>Categoria</span>
+                            <div id="items-category-filters" class="items-filter-group" aria-label="Filtro categoria"></div>
                         </div>
                         <div class="items-filter-row">
                             <span><i class="fas fa-link" aria-hidden="true"></i>Sintonia</span>
@@ -79,7 +87,9 @@
     <script src="../assets/js/shared/item-normalize.js"></script>
     <script src="../assets/js/shared/economy-service.js?v=20260719-economy1"></script>
     <script src="../assets/js/shared/discord-share.js?v=20260718-discord-image1"></script>
-    <script src="../assets/js/pages/oggetti.js?v=20260721-empty-catalog1"></script>
+    <script src="../assets/js/shared/item-categories.js?v=20260721-item-categories2"></script>
+    <script src="../assets/js/pages/item-category-manager.js?v=20260721-item-categories2"></script>
+    <script src="../assets/js/pages/oggetti.js?v=20260721-item-categories2"></script>
 </body>
 
 </html>

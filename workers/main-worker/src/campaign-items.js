@@ -112,6 +112,7 @@ export async function handleCampaignItemFoundrySync(request, fallbackCampaignId,
     applyCampaignItemMetadataFromFoundry(next, previous, previousDocument, document.document, {
       preserveSiteChanges: previousSync.pendingFoundry,
     });
+    applyCampaignItemCategoryFromFoundry(next, previous, previous?.foundry, document, { preserveSiteChanges: previousSync.pendingFoundry });
     next.foundryType = document.document.type;
     next.foundry = {
       worldId,
@@ -172,13 +173,14 @@ function normalizeFoundrySnapshot(input, worldId, campaignId) {
   const img = normalizeItemImage(source.img, campaignId);
   if (img === null) return null;
   const document = { name, type, img, system: system.value, effects: effects.value, flags: flags.value };
+  const folderPath = String(input.folderPath || "").trim().slice(0, 300);
   return {
     worldId,
     itemId: String(input.itemId || "").trim().slice(0, 96),
     uuid: String(input.uuid || "").trim().slice(0, 180),
-    folderPath: String(input.folderPath || "").trim().slice(0, 300),
+    folderPath,
     document,
-    hash: stableHash(document),
+    hash: stableHash({ document, folderPath }),
   };
 }
 
@@ -218,7 +220,42 @@ function normalizeSyncState(value) {
   };
 }
 
+
+function campaignItemCategoryFromFolderPath(value) {
+  const parts = String(value || "").split("/").map((part) => part.trim()).filter(Boolean);
+  const name = parts.length ? parts[parts.length - 1].slice(0, 120) : "";
+  const id = sanitizeId(name).slice(0, 80);
+  if (!id || id === "cripta-wiki-items") return null;
+  return { id, name };
+}
+
+
+function campaignItemCategoryFromSnapshot(snapshot) {
+  const folder = campaignItemCategoryFromFolderPath(snapshot?.folderPath);
+  const metadata = snapshot?.document?.flags?.["cripta-wiki-sync"] || {};
+  const name = String(metadata.categoryName || "").trim().slice(0, 120);
+  const id = sanitizeId(metadata.categoryId || name).slice(0, 80);
+  const flagged = id && name ? { id, name } : null;
+  if (!flagged) return folder;
+  if (!folder || sanitizeId(flagged.name) === folder.id) return flagged;
+  return folder;
+}
+function applyCampaignItemCategoryFromFoundry(next, previous, previousSnapshot, currentSnapshot, { preserveSiteChanges = false } = {}) {
+  if (preserveSiteChanges) return;
+  const incoming = campaignItemCategoryFromSnapshot(currentSnapshot);
+  if (!incoming) return;
+  const prior = campaignItemCategoryFromSnapshot(previousSnapshot);
+  const previousCategoryId = sanitizeId(previous?.categoryId || previous?.category || "").slice(0, 80);
+  const followedFoundry = !previous
+    || !previousCategoryId
+    || (prior && previousCategoryId === prior.id);
+  if (!followedFoundry) return;
+  next.categoryId = incoming.id;
+  next.category = incoming.name;
+}
+
 function buildNewCampaignItem(id, snapshot) {
+  const category = campaignItemCategoryFromSnapshot(snapshot);
   const system = snapshot.document.system || {};
   const image = isPublicItemImage(snapshot.document.img) ? toPublicMediaPath(snapshot.document.img) : "";
   const cost = campaignItemCostFromDocument(snapshot.document);
@@ -229,6 +266,7 @@ function buildNewCampaignItem(id, snapshot) {
     name: snapshot.document.name,
     type: siteTypeForFoundryType(snapshot.document.type),
     foundryType: snapshot.document.type,
+    ...(category ? { categoryId: category.id, category: category.name } : {}),
     ...(image ? { image } : {}),
     ...(system.rarity ? { rarity: siteRarity(system.rarity) } : {}),
     ...(system.attunement === "required" || system.attunement === 1 || system.attunement === true ? { attunement: true } : {}),
