@@ -2681,3 +2681,70 @@ body.managed-image-lightbox-open { overflow: hidden; }
     margin-top: .12rem;
     color: rgba(188, 137, 219, .72);
 }
+/* Merchant readability */
+.managed-merchant-grid { gap: .9rem; }
+.managed-merchant-item-copy { padding: 1.15rem 1.2rem 1.15rem 1.3rem; }
+.managed-merchant-item.has-catalog-image .managed-merchant-item-copy { padding-left: .9rem; }
+.managed-merchant-item-copy h3 { font-size: 1.28rem; line-height: 1.18; }
+.managed-merchant-title > div > span {
+    margin-top: .38rem;
+    color: rgba(225, 213, 188, .62);
+    font-size: .64rem;
+}
+.managed-merchant-stock { font-size: .64rem; }
+.managed-merchant-catalog-link { font-size: .63rem; }
+.managed-merchant-preview {
+    margin-top: .9rem;
+    padding: .75rem .85rem;
+    border-left: 2px solid rgba(226, 185, 94, .32);
+    border-radius: 0 10px 10px 0;
+    background: rgba(226, 185, 94, .035);
+    color: rgba(241, 232, 211, .86);
+    font-size: 1rem;
+    line-height: 1.65;
+}
+.managed-merchant-details { margin-top: .85rem; }
+.managed-merchant-details > summary {
+    min-height: 36px;
+    padding: 0 .75rem;
+    color: rgba(235, 222, 194, .78);
+    font-size: .69rem;
+}
+.managed-merchant-details > div {
+    gap: 1rem;
+    margin-top: .85rem;
+    padding: 1rem;
+    border-radius: 0 0 12px 12px;
+    background: rgba(0, 0, 0, .12);
+}
+.managed-merchant-details p {
+    color: rgba(241, 232, 211, .88);
+    font-size: 1rem;
+    line-height: 1.7;
+}
+.managed-merchant-details dt { color: rgba(226, 185, 94, .74); font-size: .58rem; }
+.managed-merchant-details dd {
+    color: rgba(248, 240, 221, .92);
+    font-size: .88rem;
+    line-height: 1.45;
+}
+.managed-merchant-catalog-properties { gap: .7rem; margin-top: .8rem; }
+.managed-merchant-catalog-properties > section { padding: .85rem .95rem; }
+.managed-merchant-catalog-properties h4 { margin-bottom: .48rem; font-size: 1rem; }
+.managed-merchant-catalog-properties p {
+    color: rgba(239, 229, 208, .86);
+    font-size: .94rem;
+    line-height: 1.65;
+}
+.managed-merchant-catalog-notes {
+    padding: .75rem .85rem;
+    color: rgba(226, 207, 237, .86);
+    font-size: .88rem;
+    line-height: 1.55;
+}
+@media (max-width: 560px) {
+    .managed-merchant-item-copy { padding: 1rem .95rem; }
+    .managed-merchant-item.has-catalog-image .managed-merchant-item-copy { padding-left: .72rem; }
+    .managed-merchant-item-copy h3 { font-size: 1.14rem; }
+    .managed-merchant-preview { font-size: .95rem; }
+}

@@ -1582,10 +1582,14 @@
         const imageUrl = imagePath ? resolveMedia(imagePath) : "";
         const image = imageUrl ? `<button type="button" class="managed-merchant-item-media" data-managed-image-open="${escapeAttr(imageUrl)}" data-managed-image-title="${escapeAttr(displayEntry.name || "Oggetto")}" aria-label="Ingrandisci immagine di ${escapeAttr(displayEntry.name || "Oggetto")}"><img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(displayEntry.name || "Oggetto")}" loading="lazy" decoding="async"><span aria-hidden="true"><i class="fas fa-expand"></i></span></button>` : "";
         const facts = getManagedMerchantFacts(displayEntry);
+        const normalizedDescription = String(description || "").replace(/s+/g, " ").trim().toLocaleLowerCase("it");
+        const descriptionRepeatedByProperty = normalizedDescription && presentation.properties.some((property) =>
+            String(property.description || "").replace(/s+/g, " ").trim().toLocaleLowerCase("it") === normalizedDescription
+        );
         const properties = renderManagedMerchantCatalogProperties(presentation.properties);
         const notes = presentation.notes ? `<aside class="managed-merchant-catalog-notes"><i class="fas fa-note-sticky"></i><span>${formatManagedPreview(presentation.notes)}</span></aside>` : "";
         const detailBody = [
-            description ? `<p>${formatManagedPreview(description)}</p>` : "",
+            description && !descriptionRepeatedByProperty ? `<p>${formatManagedPreview(description)}</p>` : "",
             properties,
             facts.length ? `<dl>${facts.map((fact) => `<div><dt>${escapeHtml(fact.label)}</dt><dd>${escapeHtml(fact.value)}</dd></div>`).join("")}</dl>` : "",
             notes
@@ -1727,7 +1731,7 @@
         const activation = definition.activation || {};
         add("Attivazione", activation.type ? [activation.cost, activation.type].filter((value) => value !== undefined && value !== "").join(" ") : "");
         const range = definition.range || {};
-        add("Gittata", range.value !== undefined ? `${range.value}${range.units ? ` ${range.units}` : ""}` : "");
+        add("Gittata", range.value !== undefined && range.value !== null && range.value !== "" ? `${range.value}${range.units ? ` ${range.units}` : ""}` : "");
         add("Requisiti", definition.requirements);
         const uses = definition.uses || {};
         add("Utilizzi", uses.max ? `${uses.max}${uses.per ? ` / ${uses.per}` : ""}` : "");
