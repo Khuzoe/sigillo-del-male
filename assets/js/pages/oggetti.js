@@ -1246,29 +1246,24 @@ function itemNarrativeFingerprint(item) {
 }
 
 function buildFoundryItemDescription(item) {
-    const parts = [];
     const summary = renderPlainTextParagraphs(item?.summary);
-    if (summary) parts.push(summary);
-
     const properties = normalizeItemProperties(item?.properties).filter(property => property.hidden !== true);
-    if (properties.length) {
-        if (parts.length) parts.push("<hr />");
-        for (const property of properties) {
-            if (property.name) {
-                const charges = property.charges ? " (" + escapeHtml(property.charges) + ")" : "";
-                parts.push("<h3>" + escapeHtml(property.name) + charges + "</h3>");
-            }
-            const description = renderPlainTextParagraphs(property.description);
-            if (description) parts.push(description);
-        }
-    }
-
-    const notes = renderPlainTextParagraphs(item?.notes, { emphasis: true });
-    if (notes) {
-        if (parts.length) parts.push("<hr />");
-        parts.push(notes);
-    }
-    return parts.join("");
+    const propertyCards = properties.map(property => {
+        const heading = property.name
+            ? "<h3><span>" + escapeHtml(property.name) + "</span>"
+                + (property.charges ? '<small class="cripta-catalog-property-charges">' + escapeHtml(property.charges) + "</small>" : "")
+                + "</h3>"
+            : "";
+        const description = renderPlainTextParagraphs(property.description);
+        return '<section class="cripta-catalog-property">' + heading + description + "</section>";
+    }).filter(Boolean).join("");
+    const notes = renderPlainTextParagraphs(item?.notes);
+    const parts = [
+        summary ? '<section class="cripta-catalog-summary">' + summary + "</section>" : "",
+        propertyCards ? '<div class="cripta-catalog-properties">' + propertyCards + "</div>" : "",
+        notes ? '<aside class="cripta-catalog-notes"><h4>Note della campagna</h4>' + notes + "</aside>" : ""
+    ].filter(Boolean);
+    return parts.length ? '<div class="cripta-catalog-description">' + parts.join("") + "</div>" : "";
 }
 
 function renderPlainTextParagraphs(value, { emphasis = false } = {}) {

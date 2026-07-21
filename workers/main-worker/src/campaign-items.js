@@ -106,6 +106,12 @@ export async function handleCampaignItemFoundrySync(request, fallbackCampaignId,
     if (previousCostFollowedFoundry || previousSync.pendingFoundry) {
       applyCampaignItemCost(next, campaignItemCostFromDocument(document.document));
     }
+    if (!previousSync.pendingFoundry && campaignItemNarrativeFollowsFoundry(previous, previousDocument)) {
+      applyCampaignItemNarrative(next, campaignItemPresentationFromDocument(document.document));
+    }
+    applyCampaignItemMetadataFromFoundry(next, previous, previousDocument, document.document, {
+      preserveSiteChanges: previousSync.pendingFoundry,
+    });
     next.foundryType = document.document.type;
     next.foundry = {
       worldId,
@@ -216,6 +222,7 @@ function buildNewCampaignItem(id, snapshot) {
   const system = snapshot.document.system || {};
   const image = isPublicItemImage(snapshot.document.img) ? toPublicMediaPath(snapshot.document.img) : "";
   const cost = campaignItemCostFromDocument(snapshot.document);
+  const presentation = campaignItemPresentationFromDocument(snapshot.document);
   const legacyGold = cost?.components?.length === 1 && cost.components[0].currencyId === "gp" ? cost.components[0].amount : null;
   return {
     id,
@@ -225,14 +232,218 @@ function buildNewCampaignItem(id, snapshot) {
     ...(image ? { image } : {}),
     ...(system.rarity ? { rarity: siteRarity(system.rarity) } : {}),
     ...(system.attunement === "required" || system.attunement === 1 || system.attunement === true ? { attunement: true } : {}),
-    status: system.identified === false ? "unidentified" : "identified",
-    summary: "",
-    properties: [],
+    status: "active",
+    unidentified: system.identified === false,
+    ...presentation,
+    ...campaignItemWeightFromSystem(system),
     ...(cost ? { cost } : {}),
     ...(legacyGold !== null ? { valueGold: legacyGold } : {}),
   };
 }
 
+function campaignItemPresentationFromDocument(document) {
+  const system = document?.system && typeof document.system === "object" && !Array.isArray(document.system)
+    ? document.system
+    : {};
+  const description = system.description;
+  const html = typeof description === "string" ? description : String(description?.value || "");
+  const unidentified = system.unidentified && typeof system.unidentified === "object" && !Array.isArray(system.unidentified)
+    ? system.unidentified
+    : {};
+  const unidentifiedDescription = String(
+    unidentified.description
+    || (description && typeof description === "object" ? description.unidentified : "")
+    || ""
+  );
+  const unidentifiedName = String(unidentified.name || system.unidentifiedName || "").trim();
+  const narrative = parseFoundryItemDescription(html);
+  return {
+    summary: narrative.summary,
+    properties: narrative.properties,
+    ...(narrative.notes ? { notes: narrative.notes } : {}),
+    ...(unidentifiedName ? { unidentifiedName } : {}),
+    ...(unidentifiedDescription ? { unidentifiedDescription: foundryHtmlToText(unidentifiedDescription) } : {}),
+  };
+}
+
+function parseFoundryItemDescription(value) {
+  let html = String(value || "").trim();
+  if (!html) return { summary: "", properties: [], notes: "" };
+
+  const structuredSummary = firstClassBlock(html, "cripta-catalog-summary");
+  const structuredProperties = allClassBlocks(html, "cripta-catalog-property").map((block) => {
+    const heading = firstHeading(block);
+    const chargesBlock = firstClassBlock(block, "cripta-catalog-property-charges");
+    return {
+      name: foundryHtmlToText(removeClassBlock(heading.html, "cripta-catalog-property-charges")),
+      charges: foundryHtmlToText(chargesBlock),
+      description: foundryHtmlToText(block.replace(heading.full, "")),
+    };
+  }).filter((property) => property.name || property.description);
+  const structuredNotes = firstClassBlock(html, "cripta-catalog-notes");
+  if (structuredSummary || structuredProperties.length || structuredNotes) {
+    return {
+      summary: foundryHtmlToText(structuredSummary),
+      properties: structuredProperties,
+      notes: foundryHtmlToText(structuredNotes.replace(firstHeading(structuredNotes).full, "")),
+    };
+  }
+
+  let notes = "";
+  const trailingNotes = html.match(/<hr\b[^>]*>\s*<p\b[^>]*>\s*<em\b[^>]*>([\s\S]*?)<\/em>\s*<\/p>\s*$/i);
+  if (trailingNotes) {
+    notes = foundryHtmlToText(trailingNotes[1]);
+    html = html.slice(0, trailingNotes.index).trim();
+  }
+
+  const headings = [];
+  const headingPattern = /<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi;
+  let match;
+  while ((match = headingPattern.exec(html))) {
+    headings.push({ index: match.index, end: headingPattern.lastIndex, html: match[2] });
+  }
+  if (!headings.length) return { summary: foundryHtmlToText(html), properties: [], notes };
+
+  const summary = foundryHtmlToText(html.slice(0, headings[0].index));
+  const properties = headings.map((heading, index) => {
+    const parsedTitle = splitPropertyTitle(foundryHtmlToText(heading.html));
+    const end = headings[index + 1]?.index ?? html.length;
+    return {
+      name: parsedTitle.name,
+      charges: parsedTitle.charges,
+      description: foundryHtmlToText(html.slice(heading.end, end)),
+    };
+  }).filter((property) => property.name || property.description);
+  return { summary, properties, notes };
+}
+function splitPropertyTitle(value) {
+  const title = String(value || "").trim();
+  const match = title.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+  return match
+    ? { name: match[1].trim(), charges: match[2].trim() }
+    : { name: title, charges: "" };
+}
+
+function firstHeading(value) {
+  const match = String(value || "").match(/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/i);
+  return match ? { full: match[0], html: match[1] } : { full: "", html: "" };
+}
+
+function firstClassBlock(value, className) {
+  return allClassBlocks(value, className)[0] || "";
+}
+
+function allClassBlocks(value, className) {
+  const escaped = className.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+  const pattern = new RegExp("<(section|div|aside|span|small|b|strong)\\b[^>]*class=[\"'][^\"']*\\b" + escaped + "\\b[^\"']*[\"'][^>]*>([\\s\\S]*?)<\\/\\1>", "gi");
+  return Array.from(String(value || "").matchAll(pattern), (match) => match[2]);
+}
+
+function removeClassBlock(value, className) {
+  const escaped = className.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+  const pattern = new RegExp("<(span|small|b|strong)\\b[^>]*class=[\"'][^\"']*\\b" + escaped + "\\b[^\"']*[\"'][^>]*>[\\s\\S]*?<\\/\\1>", "gi");
+  return String(value || "").replace(pattern, "");
+}
+
+function foundryHtmlToText(value) {
+  return decodeHtmlEntities(String(value || "")
+    .replace(/@(?:UUID|Compendium)\[([^\]]+)](?:\{([^}]+)})?/gi, (_match, target, label) => label || target.split(".").pop() || "Riferimento Foundry")
+    .replace(/@(item|spell|feat|condition|variantrule)\[([^\]|]+)(?:\|[^\]]+)?](?:\{([^}]+)})?/gi, (_match, _kind, label, explicit) => explicit || label)
+    .replace(/&Reference\[[^\]]*?=([^\]]+)]/gi, "$1")
+    .replace(/\[\[\/([^\]]+)]]/g, (_match, command) => formatFoundryInlineCommand(command))
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<li\b[^>]*>/gi, "\n- ")
+    .replace(/<hr\b[^>]*>/gi, "\n\n")
+    .replace(/<\/(?:p|div|section|aside|li|ul|ol|table|tr|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, " "))
+    .replace(/[\t\f\v ]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, 24_000);
+}
+
+function formatFoundryInlineCommand(value) {
+  const command = String(value || "").trim();
+  const dc = command.match(/\bdc=(\d+)/i)?.[1];
+  if (/^save\b/i.test(command)) return dc ? "Tiro salvezza CD " + dc : "Tiro salvezza";
+  if (/^(damage|heal)\b/i.test(command)) return command.replace(/^damage\b/i, "Danno").replace(/^heal\b/i, "Cura");
+  return command;
+}
+
+function decodeHtmlEntities(value) {
+  const named = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+  return String(value || "")
+    .replace(/&#(\d+);/g, (_match, code) => String.fromCodePoint(Math.min(0x10ffff, Number(code) || 0)))
+    .replace(/&#x([0-9a-f]+);/gi, (_match, code) => String.fromCodePoint(Math.min(0x10ffff, parseInt(code, 16) || 0)))
+    .replace(/&([a-z]+);/gi, (match, name) => Object.prototype.hasOwnProperty.call(named, name.toLowerCase()) ? named[name.toLowerCase()] : match);
+}
+function campaignItemNarrativeFollowsFoundry(item, previousDocument) {
+  if (!item) return true;
+  const current = campaignItemNarrativeFingerprint(item);
+  if (!current.summary && !current.notes && !current.properties.length && !current.unidentifiedName && !current.unidentifiedDescription) return true;
+  if (!previousDocument) return false;
+  return stableStringify(current) === stableStringify(campaignItemNarrativeFingerprint(campaignItemPresentationFromDocument(previousDocument)));
+}
+
+function campaignItemNarrativeFingerprint(item) {
+  return {
+    summary: normalizeNarrativeText(item?.summary),
+    notes: normalizeNarrativeText(item?.notes),
+    unidentifiedName: normalizeNarrativeText(item?.unidentifiedName),
+    unidentifiedDescription: normalizeNarrativeText(item?.unidentifiedDescription),
+    properties: (Array.isArray(item?.properties) ? item.properties : []).filter((property) => property?.hidden !== true).map((property) => ({
+      name: normalizeNarrativeText(property?.name),
+      charges: normalizeNarrativeText(property?.charges),
+      description: normalizeNarrativeText(property?.description),
+    })).filter((property) => property.name || property.description),
+  };
+}
+
+function normalizeNarrativeText(value) {
+  return String(value || "").replace(/\r\n?/g, "\n").replace(/[\t ]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function applyCampaignItemNarrative(item, presentation) {
+  item.summary = String(presentation?.summary || "");
+  item.properties = Array.isArray(presentation?.properties) ? presentation.properties : [];
+  if (presentation?.notes) item.notes = String(presentation.notes);
+  else delete item.notes;
+  if (presentation?.unidentifiedName) item.unidentifiedName = String(presentation.unidentifiedName);
+  else delete item.unidentifiedName;
+  if (presentation?.unidentifiedDescription) item.unidentifiedDescription = String(presentation.unidentifiedDescription);
+  else delete item.unidentifiedDescription;
+}
+function campaignItemMetadataFromDocument(document) {
+  const system = document?.system && typeof document.system === "object" && !Array.isArray(document.system) ? document.system : {};
+  return {
+    type: siteTypeForFoundryType(document?.type),
+    rarity: system.rarity ? siteRarity(system.rarity) : "",
+    attunement: system.attunement === "required" || system.attunement === 1 || system.attunement === true,
+    unidentified: system.identified === false,
+    weight: campaignItemWeightFromSystem(system).weight ?? "",
+  };
+}
+
+function campaignItemWeightFromSystem(system) {
+  const weight = system?.weight && typeof system.weight === "object" && !Array.isArray(system.weight)
+    ? system.weight.value
+    : system?.weight;
+  return weight === undefined || weight === null || weight === "" ? {} : { weight };
+}
+
+function applyCampaignItemMetadataFromFoundry(next, previous, previousDocument, currentDocument, { preserveSiteChanges = false } = {}) {
+  if (preserveSiteChanges) return;
+  const incoming = campaignItemMetadataFromDocument(currentDocument);
+  const prior = previousDocument ? campaignItemMetadataFromDocument(previousDocument) : {};
+  for (const field of ["type", "rarity", "attunement", "unidentified", "weight"]) {
+    const currentValue = previous?.[field];
+    const followedFoundry = !previous || currentValue === undefined || currentValue === "" || stableStringify(currentValue) === stableStringify(prior[field]);
+    if (!followedFoundry) continue;
+    if (incoming[field] === "" || incoming[field] === undefined) delete next[field];
+    else next[field] = incoming[field];
+  }
+}
 function campaignItemPresentationCost(item) {
   const components = normalizeCostComponents(item?.cost?.components);
   if (components.length) return { components };

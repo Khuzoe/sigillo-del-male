@@ -35,6 +35,7 @@
                 currentProfile = normalizeManagedProfile(profilePayload.data, { worldId, actorId });
                 currentProfilePermissions = profilePayload.permissions || { canEdit: false, isEditor: false };
                 managedProfileSource = profilePayload.source || "profile";
+                if (currentProfile?.merchant?.enabled) await loadCampaignItemCatalog(token);
                 syncManagedActorNavigation(null);
                 renderManagedProfileOnly(root, currentProfile);
                 return;
@@ -56,7 +57,7 @@
             managedEditMode = false;
             await Promise.all([
                 loadManagedActorProfile(currentDocument, token),
-                currentCanEdit ? loadCampaignItemCatalog(token) : Promise.resolve([])
+                currentCanEdit || currentDocument?.definition?.merchant?.enabled ? loadCampaignItemCatalog(token) : Promise.resolve([])
             ]);
             renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
         } catch (error) {
@@ -71,6 +72,7 @@
                 currentProfile = normalizeManagedProfile(profilePayload.data, { worldId, actorId });
                 currentProfilePermissions = profilePayload.permissions || { canEdit: false, isEditor: false };
                 managedProfileSource = profilePayload.source || "profile";
+                if (currentProfile?.merchant?.enabled) await loadCampaignItemCatalog(token);
                 syncManagedActorNavigation(null);
                 renderManagedProfileOnly(root, currentProfile);
                 return;
@@ -1568,18 +1570,28 @@
     }
 
     function renderManagedMerchantCard(entry = {}, index = 0) {
-        const description = stripManagedDuplicateHeading(htmlToText(normalizeManagedMerchantDescription(entry.description)), entry.name);
+        const presentation = getManagedMerchantCatalogPresentation(entry);
+        const displayEntry = presentation.entry;
+        const description = presentation.description;
         const preview = truncatePreview(description, 360);
-        const meta = formatEntryMeta(entry);
+        const meta = formatEntryMeta(displayEntry);
         const stock = formatManagedMerchantStock(entry.stock);
         const campaignItemId = sanitizeId(entry.campaignItemId || "");
         const catalogLink = campaignItemId ? `<a class="managed-merchant-catalog-link" href="${escapeAttr(buildManagedMerchantCatalogLink(campaignItemId))}"><i class="fas fa-book-open"></i> Scheda oggetto</a>` : "";
-        const facts = getManagedMerchantFacts(entry);
-        const details = description || facts.length ? `<details class="managed-merchant-details"><summary><span><i class="fas fa-scroll"></i> Scheda articolo</span><i class="fas fa-chevron-down"></i></summary><div>${description ? `<p>${formatManagedPreview(description)}</p>` : ""}${facts.length ? `<dl>${facts.map((fact) => `<div><dt>${escapeHtml(fact.label)}</dt><dd>${escapeHtml(fact.value)}</dd></div>`).join("")}</dl>` : ""}</div></details>` : "";
+        const facts = getManagedMerchantFacts(displayEntry);
+        const properties = renderManagedMerchantCatalogProperties(presentation.properties);
+        const notes = presentation.notes ? `<aside class="managed-merchant-catalog-notes"><i class="fas fa-note-sticky"></i><span>${formatManagedPreview(presentation.notes)}</span></aside>` : "";
+        const detailBody = [
+            description ? `<p>${formatManagedPreview(description)}</p>` : "",
+            properties,
+            facts.length ? `<dl>${facts.map((fact) => `<div><dt>${escapeHtml(fact.label)}</dt><dd>${escapeHtml(fact.value)}</dd></div>`).join("")}</dl>` : "",
+            notes
+        ].filter(Boolean).join("");
+        const details = detailBody ? `<details class="managed-merchant-details"><summary><span><i class="fas fa-scroll"></i> Scheda articolo</span><i class="fas fa-chevron-down"></i></summary><div>${detailBody}</div></details>` : "";
         const order = String(index + 1).padStart(2, "0");
-        return `<article class="managed-merchant-item ${stock.className}">
+        return `<article class="managed-merchant-item ${stock.className} ${presentation.catalog ? "is-catalog-linked" : ""}">
             <div class="managed-merchant-item-copy">
-                <header><div class="managed-merchant-title"><span class="managed-merchant-order">${order}</span><div><h3>${escapeHtml(entry.name || "Oggetto")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div></div><strong class="managed-merchant-price" aria-label="${escapeAttr(formatManagedMerchantPrice(entry))}">${renderManagedMerchantPrice(entry)}</strong></header>
+                <header><div class="managed-merchant-title"><span class="managed-merchant-order">${order}</span><div><h3>${escapeHtml(displayEntry.name || "Oggetto")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div></div><strong class="managed-merchant-price" aria-label="${escapeAttr(formatManagedMerchantPrice(entry))}">${renderManagedMerchantPrice(entry)}</strong></header>
                 <div class="managed-merchant-item-bar"><span class="managed-merchant-stock"><i class="fas ${stock.icon}"></i> ${escapeHtml(stock.label)}</span>${catalogLink}</div>
                 ${preview ? `<p class="managed-merchant-preview">${formatManagedPreview(preview)}</p>` : ""}
                 ${details}
@@ -1587,6 +1599,68 @@
         </article>`;
     }
 
+    function getManagedMerchantCatalogPresentation(entry = {}) {
+        const campaignItemId = sanitizeId(entry.campaignItemId || "");
+        const catalog = campaignItemId
+            ? campaignItemCatalog.find((item) => sanitizeId(item?.id || item?.name) === campaignItemId) || null
+            : null;
+        if (!catalog) {
+            const description = stripManagedDuplicateHeading(htmlToText(normalizeManagedMerchantDescription(entry.description)), entry.name);
+            return { catalog: null, entry, description, properties: [], notes: "" };
+        }
+
+        const canonicalDocument = catalog?.foundry?.document && typeof catalog.foundry.document === "object"
+            ? catalog.foundry.document
+            : {};
+        const canonicalSystem = canonicalDocument.system && typeof canonicalDocument.system === "object"
+            ? canonicalDocument.system
+            : {};
+        const rarityKey = normalizeManagedCatalogRarity(catalog.rarity);
+        const definition = {
+            ...(entry.definition || {}),
+            ...canonicalSystem,
+            ...(canonicalSystem.rarity || !rarityKey ? {} : { rarity: rarityKey })
+        };
+        const displayEntry = {
+            ...entry,
+            name: String(catalog.name || entry.name || "Oggetto"),
+            type: String(canonicalDocument.type || entry.type || "item"),
+            definition
+        };
+        const properties = (Array.isArray(catalog.properties) ? catalog.properties : [])
+            .filter((property) => property && property.hidden !== true)
+            .map((property) => ({
+                name: String(property.name || "").trim(),
+                charges: String(property.charges || "").trim(),
+                description: String(property.description || "").trim(),
+                negative: property.negative === true
+            }))
+            .filter((property) => property.name || property.description);
+        const fallbackDescription = stripManagedDuplicateHeading(htmlToText(normalizeManagedMerchantDescription(entry.description)), entry.name);
+        const summary = String(catalog.summary || "").trim();
+        const description = summary || properties.find((property) => property.description)?.description || fallbackDescription;
+        return {
+            catalog,
+            entry: displayEntry,
+            description,
+            properties,
+            notes: String(catalog.notes || "").trim()
+        };
+    }
+
+    function normalizeManagedCatalogRarity(value) {
+        const key = String(value || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+        return ({ comune: "common", noncomune: "uncommon", raro: "rare", epico: "veryRare", moltoraro: "veryRare", leggendario: "legendary", artefatto: "artifact" })[key] || "";
+    }
+
+    function renderManagedMerchantCatalogProperties(properties = []) {
+        if (!properties.length) return "";
+        return `<div class="managed-merchant-catalog-properties">${properties.map((property) => `
+            <section class="${property.negative ? "is-negative" : ""}">
+                ${property.name ? `<h4>${escapeHtml(property.name)}${property.charges ? `<small>${escapeHtml(property.charges)}</small>` : ""}</h4>` : ""}
+                ${property.description ? `<p>${formatManagedPreview(property.description)}</p>` : ""}
+            </section>`).join("")}</div>`;
+    }
     function buildManagedMerchantCatalogLink(campaignItemId) {
         const target = new URL("../oggetti.html", window.location.href);
         const campaignId = window.CriptaApp?.campaigns?.currentId?.() || "";

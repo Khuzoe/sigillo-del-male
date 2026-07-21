@@ -56,10 +56,12 @@ const system = {
 
 context.synchronizeFoundrySystemFromSite(draft, original, system);
 assert.match(system.description.value, /Prima riga<br \/>seconda riga/);
-assert.match(system.description.value, /<h3>Effetto \(3\)<\/h3>/);
+assert.match(system.description.value, /class="cripta-catalog-description"/);
+assert.match(system.description.value, /<h3><span>Effetto<\/span>/);
+assert.match(system.description.value, /class="cripta-catalog-property-charges">3<\/small>/);
 assert.match(system.description.value, /Paragrafo uno\.<\/p><p>Paragrafo due\./);
 assert.doesNotMatch(system.description.value, /Segreto|Non deve apparire/);
-assert.match(system.description.value, /<em>Nota del DM<\/em>/);
+assert.match(system.description.value, /class="cripta-catalog-notes"[\s\S]*Nota del DM/);
 assert.equal(system.description.chat, "chat preservata");
 assert.equal(system.unidentified.description, "Aspetto ancora misterioso.");
 assert.equal(system.rarity, "veryRare");
