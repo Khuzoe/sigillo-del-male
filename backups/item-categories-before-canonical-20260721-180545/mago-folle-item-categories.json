@@ -1,0 +1,13 @@
+{
+  "ok": true,
+  "campaignId": "mago-folle",
+  "revision": 0,
+  "data": {
+    "schemaVersion": 1,
+    "campaignId": "mago-folle",
+    "revision": 0,
+    "updatedAt": null,
+    "updatedBy": "",
+    "categories": []
+  }
+}

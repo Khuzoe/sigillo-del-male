@@ -53,7 +53,7 @@ export default {
         return handleItemCategoriesGet(request, queryCampaignId, env, corsHeaders);
       }
       if (url.pathname === "/api/item-categories" && request.method === "POST") {
-        return handleItemCategoriesPost(request, queryCampaignId, env, corsHeaders);
+        return handleItemCategoriesPost(request, queryCampaignId, env, corsHeaders, ctx);
       }
       if (url.pathname === "/api/calendar" && request.method === "GET") {
         return handleCalendarGet(request, queryCampaignId, env, corsHeaders, calendarServices());
@@ -3953,7 +3953,7 @@ async function handleItemCategoriesGet(_request, campaignId, env, corsHeaders = 
   });
 }
 
-async function handleItemCategoriesPost(request, campaignId, env, corsHeaders = {}) {
+async function handleItemCategoriesPost(request, campaignId, env, corsHeaders = {}, ctx = null) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   const authorization = await authorizeNpcCategoryManagement(request, env, campaignId, corsHeaders);
   if (authorization instanceof Response) return authorization;
@@ -4005,6 +4005,14 @@ async function handleItemCategoriesPost(request, campaignId, env, corsHeaders = 
   }, campaignId);
   await env.SIGILLO_KV.put(itemCategoryRegistryKey(campaignId), JSON.stringify(next));
   const data = await buildItemCategoryRegistryView(env, campaignId, next);
+  if (authorization.source !== "foundry") {
+    scheduleFoundryLiveInvalidation(ctx, env, {
+      campaignId,
+      collections: ["campaign-items"],
+      reason: "item-categories-site-save",
+      revision: next.revision,
+    });
+  }
   return json({ ok: true, saved: true, campaignId, revision: next.revision, data }, 200, {
     ...corsHeaders,
     "Cache-Control": "private, no-store",

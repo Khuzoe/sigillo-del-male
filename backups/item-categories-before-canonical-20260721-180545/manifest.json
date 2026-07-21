@@ -1,0 +1,27 @@
+{
+  "createdAt": "2026-07-21T18:05:45.358Z",
+  "apiBase": "https://sigillo-api.khuzoe.workers.dev",
+  "campaigns": [
+    {
+      "campaignId": "cripta-di-sangue",
+      "itemVersion": 158,
+      "itemCount": 58,
+      "categoryRevision": 0,
+      "categoryCount": 8
+    },
+    {
+      "campaignId": "mago-folle",
+      "itemVersion": 0,
+      "itemCount": 0,
+      "categoryRevision": 0,
+      "categoryCount": 0
+    },
+    {
+      "campaignId": "oltre-il-velo",
+      "itemVersion": 56,
+      "itemCount": 40,
+      "categoryRevision": 0,
+      "categoryCount": 5
+    }
+  ]
+}

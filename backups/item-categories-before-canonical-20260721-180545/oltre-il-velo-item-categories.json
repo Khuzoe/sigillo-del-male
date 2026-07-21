@@ -1,0 +1,69 @@
+{
+  "ok": true,
+  "campaignId": "oltre-il-velo",
+  "revision": 0,
+  "data": {
+    "schemaVersion": 1,
+    "campaignId": "oltre-il-velo",
+    "revision": 0,
+    "updatedAt": null,
+    "updatedBy": "",
+    "categories": [
+      {
+        "id": "arma",
+        "name": "Arma",
+        "order": 0,
+        "color": "#b99a45",
+        "icon": "fa-folder-open",
+        "archived": false,
+        "mergedInto": "",
+        "inferred": true,
+        "usageCount": 1
+      },
+      {
+        "id": "armature-e-oggetti",
+        "name": "Armature e oggetti",
+        "order": 0,
+        "color": "#b99a45",
+        "icon": "fa-folder-open",
+        "archived": false,
+        "mergedInto": "",
+        "inferred": true,
+        "usageCount": 20
+      },
+      {
+        "id": "armi",
+        "name": "Armi",
+        "order": 0,
+        "color": "#b99a45",
+        "icon": "fa-folder-open",
+        "archived": false,
+        "mergedInto": "",
+        "inferred": true,
+        "usageCount": 4
+      },
+      {
+        "id": "bottino",
+        "name": "Bottino",
+        "order": 0,
+        "color": "#b99a45",
+        "icon": "fa-folder-open",
+        "archived": false,
+        "mergedInto": "",
+        "inferred": true,
+        "usageCount": 10
+      },
+      {
+        "id": "oggetto-meraviglioso",
+        "name": "Oggetto meraviglioso",
+        "order": 0,
+        "color": "#b99a45",
+        "icon": "fa-folder-open",
+        "archived": false,
+        "mergedInto": "",
+        "inferred": true,
+        "usageCount": 5
+      }
+    ]
+  }
+}

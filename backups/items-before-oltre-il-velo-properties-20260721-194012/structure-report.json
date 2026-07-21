@@ -1,0 +1,113 @@
+{
+  "campaignId": "oltre-il-velo",
+  "expectedVersion": 16,
+  "updated": [
+    {
+      "id": "ceppi-del-sangue-cauterizzato",
+      "name": "Ceppi del Sangue Cauterizzato",
+      "summary": "Massicci e brutali, questi bracciali sono forgiati in un ferro meteoritico poroso che sembra perennemente surriscaldato, foderati all'interno con spessa e coriacea pelle di troll che stranamente non brucia. Su di essi sono incisi glifi alchemici che trasudano una debole condensa acida. Indossarli dona una sensazione di invincibilità selvaggia, accompagnata dall'acre odore di carne bruciata che si sprigiona ogni volta che il battito cardiaco accelera.",
+      "properties": [
+        {
+          "name": "Ferocia del Cacciatore",
+          "charges": ""
+        },
+        {
+          "name": "Fendente Cauterizzante",
+          "charges": ""
+        },
+        {
+          "name": "Morsa della Fornace",
+          "charges": "3 cariche · recupera 1d3 all'alba"
+        },
+        {
+          "name": "Vigore della Preda Assimilata",
+          "charges": "1 uso · recupera all'alba"
+        }
+      ]
+    },
+    {
+      "id": "bendaggi-del-fato-infranto",
+      "name": "Bendaggi del Fato Infranto",
+      "summary": "Queste lunghe e logore strisce di lino grigiastro sembrano essere state strappate dalle vesti di un innocente condannato al patibolo. Al tatto sono ruvide e perennemente fredde. Quando vengono avvolte attorno a piedi o calzari, i nodi si stringono da soli, sigillando un patto silente con l'entropia: chi le indossa cammina su un sentiero dove la realtà si piega e la sfortuna scivola via, per abbattersi inesorabilmente su chiunque cerchi di seguirne i passi.",
+      "properties": [
+        {
+          "name": "Passo Entropico",
+          "charges": ""
+        },
+        {
+          "name": "Orme della Rovina",
+          "charges": ""
+        },
+        {
+          "name": "Furto di Sincronia",
+          "charges": "4 cariche · recupera 1d4 a mezzanotte"
+        }
+      ]
+    },
+    {
+      "id": "calzari-dell-eclissi-venatoria",
+      "name": "Calzari dell'Eclissi Venatoria",
+      "summary": "Questi stivali affusolati, alti fino al ginocchio, sembrano tagliati direttamente dalla stoffa della notte senza stelle. Sono realizzati con un cuoio morbido e innaturalmente leggero, capace di assorbire non solo la luce, ma anche il suono circostante. Indossarli dona una sensazione di predazione assoluta: l'istinto si acuisce e le ombre circostanti sembrano allungarsi per accogliere i tuoi passi, invitandoti a far scattare la trappola.",
+      "properties": [
+        {
+          "name": "Passi dell'Eclissi",
+          "charges": ""
+        },
+        {
+          "name": "Balzo del Vuoto Famelico",
+          "charges": ""
+        },
+        {
+          "name": "Esecuzione Soffocata",
+          "charges": ""
+        }
+      ]
+    },
+    {
+      "id": "carapace-del-deperimento",
+      "name": "Carapace del Deperimento",
+      "summary": "A prima vista, quest'armatura sembra un reperto da scartare: le piastre metalliche sono gravemente corrose, bucherellate dalla ruggine e tenute insieme da uno spesso strato di funghi pallidi e licheni dall'aspetto spugnoso. Tuttavia, al tatto, la superficie malata si rivela dura come l'acciaio temperato. Indossarla significa accettare un patto con l'entropia: la corazza si nutre del sudore e del sangue di chi la porta, offrendo in cambio una protezione nata dalla rovina stessa.",
+      "properties": [
+        {
+          "name": "Protezione Corrosa",
+          "charges": ""
+        },
+        {
+          "name": "Simbiosi Necrotica",
+          "charges": ""
+        },
+        {
+          "name": "Contagio da Impatto",
+          "charges": "4 cariche · recupera 1d4 all'alba"
+        }
+      ]
+    },
+    {
+      "id": "danza-sincopata",
+      "name": "Danza Sincopata",
+      "summary": "La lama di quest'arma è forgiata in un metallo scuro che sembra assorbire la luce, con venature cremisi che pulsano debolmente quando viene impugnata. Ha un bilanciamento innaturale, come se guidasse la mano di chi la brandisce verso i punti vitali.",
+      "properties": [
+        {
+          "name": "Lama +2",
+          "charges": ""
+        },
+        {
+          "name": "Fendente Dissonante",
+          "charges": ""
+        },
+        {
+          "name": "Furto di Ritmo",
+          "charges": "5 cariche · recupera 1d4+1 all'alba"
+        },
+        {
+          "name": "Recisione del Filo",
+          "charges": ""
+        }
+      ]
+    }
+  ],
+  "excluded": [
+    "anello-d-argento-dei-nocthar",
+    "nuovo-oggetto-mrulujin"
+  ]
+}

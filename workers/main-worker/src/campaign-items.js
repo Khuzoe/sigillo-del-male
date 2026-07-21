@@ -230,26 +230,27 @@ function campaignItemCategoryFromFolderPath(value) {
 }
 
 
-function campaignItemCategoryFromSnapshot(snapshot) {
+export function campaignItemCategoryFromSnapshot(snapshot) {
   const folder = campaignItemCategoryFromFolderPath(snapshot?.folderPath);
   const metadata = snapshot?.document?.flags?.["cripta-wiki-sync"] || {};
   const name = String(metadata.categoryName || "").trim().slice(0, 120);
   const id = sanitizeId(metadata.categoryId || name).slice(0, 80);
   const flagged = id && name ? { id, name } : null;
+  const identityVersion = Math.max(0, Math.floor(Number(metadata.categoryIdentityVersion || 0)));
+  // Dalla versione 2 i flag vengono derivati dalla cartella al momento dello
+  // snapshot e sono quindi canonici. I vecchi moduli scrivevano invece flag Item
+  // che potevano essere rimasti indietro: per loro conserviamo il fallback path.
+  if (identityVersion >= 2) return flagged || folder;
   if (!flagged) return folder;
   if (!folder || sanitizeId(flagged.name) === folder.id) return flagged;
   return folder;
 }
-function applyCampaignItemCategoryFromFoundry(next, previous, previousSnapshot, currentSnapshot, { preserveSiteChanges = false } = {}) {
+export function applyCampaignItemCategoryFromFoundry(next, previous, previousSnapshot, currentSnapshot, { preserveSiteChanges = false } = {}) {
   if (preserveSiteChanges) return;
   const incoming = campaignItemCategoryFromSnapshot(currentSnapshot);
   if (!incoming) return;
-  const prior = campaignItemCategoryFromSnapshot(previousSnapshot);
-  const previousCategoryId = sanitizeId(previous?.categoryId || previous?.category || "").slice(0, 80);
-  const followedFoundry = !previous
-    || !previousCategoryId
-    || (prior && previousCategoryId === prior.id);
-  if (!followedFoundry) return;
+  // Senza modifiche sito pendenti la richiesta rappresenta l'ultima azione
+  // esplicita in Foundry (spostamento o rinomina della cartella).
   next.categoryId = incoming.id;
   next.category = incoming.name;
 }

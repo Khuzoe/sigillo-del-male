@@ -1,0 +1,5 @@
+﻿campaign=oltre-il-velo
+version=16
+updatedAt=2026-07-21T17:36:47.472Z
+items=7
+excluded=anello-d-argento-dei-nocthar,nuovo-oggetto-mrulujin
