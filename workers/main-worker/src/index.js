@@ -1509,7 +1509,7 @@ function json(data, status = 200, corsHeaders = {}) {
 }
 
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
-const WORKER_CODE_VERSION = "2026-07-20-managed-actor-safety1";
+const WORKER_CODE_VERSION = "2026-07-21-npc-status-none1";
 const SYNC_BOOTSTRAP_COLLECTIONS = [
   "characters",
   "quests",
@@ -3961,6 +3961,7 @@ function managedActorProfileVisibilityState(value) {
 
 function normalizeManagedNpcLifeState(value, fallback = "") {
   const state = String(value || fallback || "").trim().toLowerCase();
+  if (["none", "nessuno", "nessuna"].includes(state)) return "none";
   if (["alive", "vivo", "viva"].includes(state) || state.includes("viv")) return "alive";
   if (["dead", "morto", "morta"].includes(state) || state.includes("mort")) return "dead";
   return "unknown";

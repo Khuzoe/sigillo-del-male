@@ -107,7 +107,9 @@
             || relationshipType === "companion"
             || actorType === "character"
             || actorType === "player";
-        window.CriptaApp?.navigation?.setActiveSection(playerContext ? "giocatori" : defaultSection);
+        const section = playerContext ? "giocatori" : defaultSection;
+        document.documentElement.dataset.campaignSection = section;
+        window.CriptaApp?.navigation?.setActiveSection(section);
     }
 
     function isPrimaryManagedPlayer(actor) {
@@ -404,6 +406,7 @@
 
     function normalizeManagedNpcLifeState(value, fallback = "") {
         const state = String(value || fallback || "").trim().toLowerCase();
+        if (["none", "nessuno", "nessuna"].includes(state)) return "none";
         if (["alive", "vivo", "viva"].includes(state) || state.includes("viv")) return "alive";
         if (["dead", "morto", "morta"].includes(state) || state.includes("mort")) return "dead";
         return "unknown";
@@ -477,7 +480,7 @@
                 ${renderManagedAccessEditor(profile)}
                 <div class="managed-profile-meta-editor">
                     <label><span>Ruolo o soprannome</span><input type="text" data-managed-profile-field="role" value="${escapeAttr(profile.role)}" placeholder="Es. La Giullare"></label>
-                    <label><span>Stato</span><select data-managed-profile-field="lifeState"><option value="alive" ${profile.lifeState === "alive" ? "selected" : ""}>Vivo</option><option value="dead" ${profile.lifeState === "dead" ? "selected" : ""}>Morto</option><option value="unknown" ${profile.lifeState === "unknown" ? "selected" : ""}>Ignoto</option></select></label>
+                    <label><span>Stato</span><select data-managed-profile-field="lifeState"><option value="none" ${profile.lifeState === "none" ? "selected" : ""}>Nessuno</option><option value="alive" ${profile.lifeState === "alive" ? "selected" : ""}>Vivo</option><option value="dead" ${profile.lifeState === "dead" ? "selected" : ""}>Morto</option><option value="unknown" ${profile.lifeState === "unknown" ? "selected" : ""}>Ignoto</option></select></label>
                     <label><span>Nota sullo stato</span><input type="text" data-managed-profile-field="status" value="${escapeAttr(profile.status)}" placeholder="Facoltativa, es. disperso"></label>
                     ${canManageProfileLink ? renderManagedNpcCategoryField(profile) : ""}
                     ${canManageProfileLink ? '<label><span>ID wiki collegato</span><input type="text" data-managed-profile-field="legacyCharacterId" value="' + escapeAttr(profile.legacyCharacterId) + '" placeholder="zara"></label>' : ""}

@@ -499,10 +499,12 @@ function parseYamlLite(yamlText) {
 
         function normalizeManagedNpcLifeState(value, fallback = '') {
             const state = String(value || '').trim().toLowerCase();
+            if (state === 'none' || state === 'nessuno' || state === 'nessuna') return 'none';
             if (state === 'alive' || state.includes('viv')) return 'alive';
             if (state === 'dead' || state.includes('mort')) return 'dead';
             if (state === 'unknown' || state.includes('ignot') || state.includes('sconosciut')) return 'unknown';
             const legacy = String(fallback || '').trim().toLowerCase();
+            if (legacy === 'none' || legacy === 'nessuno' || legacy === 'nessuna') return 'none';
             if (legacy === 'alive' || legacy.includes('viv')) return 'alive';
             if (legacy === 'dead' || legacy.includes('mort')) return 'dead';
             return 'unknown';
@@ -510,6 +512,7 @@ function parseYamlLite(yamlText) {
 
         function normalizeManagedNpcStatus(value, fallback) {
             const state = normalizeManagedNpcLifeState(value, fallback);
+            if (state === 'none') return '';
             if (state === 'alive') return 'vivo';
             if (state === 'dead') return 'morto';
             return 'ignoto';
@@ -974,7 +977,7 @@ function parseYamlLite(yamlText) {
                 ? (npc.bestiaryStatus === 'undiscovered'
                     ? { text: 'MISTERO', class: 'status-creature-mystery' }
                     : (rankMap[npc.rank] || { text: 'CREATURA', class: 'status-creature' }))
-                : (statusMap[npc.status] || { text: 'N/A', class: '' });
+                : (statusMap[npc.status] || null);
             const canMoveCategory = canShare && Boolean(npc.managedActorWorldId && npc.managedActorId);
             const canShareCard = canShare && !isBestiary;
 
@@ -986,7 +989,7 @@ function parseYamlLite(yamlText) {
             card.draggable = false;
             card.dataset.rosterCard = 'npc';
             card.dataset.rosterKind = isBestiary ? 'bestiary' : 'npc';
-            card.dataset.rosterStatus = ['vivo', 'morto'].includes(String(npc.status || '').toLowerCase()) ? String(npc.status).toLowerCase() : 'ignoto';
+            card.dataset.rosterStatus = ['vivo', 'morto', 'ignoto'].includes(String(npc.status || '').toLowerCase()) ? String(npc.status).toLowerCase() : 'none';
             card.dataset.bestiaryStatus = String(npc.bestiaryStatus || '');
             card.dataset.rosterSearch = normalizeRosterSearch([npc.name, npc.role, npc.quote, npc.category, npc.status, npc.statusNote, npc.searchTerms].filter(Boolean).join(' '));
             card.dataset.managedActorWorld = String(npc.managedActorWorldId || '');
@@ -1012,7 +1015,7 @@ function parseYamlLite(yamlText) {
                     : '');
 
             card.innerHTML = `
-                <span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>
+                ${statusInfo ? `<span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>` : ""}
                 ${visibilityBadge}
                 <div class="npc-avatar-container">
                     <img src="${resolveNpcImageUrl(npc, avatarImage, base_path)}" data-original-src="${resolveNpcImageUrl(npc, avatarImage, base_path)}" data-fallback-src="${resolveNpcImageUrl(npc, avatarFallback, base_path)}" data-media-dedicated="${hasDedicatedIdle ? 'true' : 'false'}" alt="${npc.name}" class="npc-img-pop img-main" loading="eager" decoding="async" fetchpriority="auto" style="${buildImageStyle('avatar', npc.images.idleAdjust || npc.images.avatarAdjust, npc.images.hoverAdjust)}">
@@ -1326,7 +1329,7 @@ function parseYamlLite(yamlText) {
                 subtitle: npc.role || npc.category || 'NPC',
                 description,
                 imageUrl: image ? resolveNpcImageUrl(npc, image, base_path) : '',
-                badges: [npc.category || '', normalizeManagedNpcStatus(npc.status, 'ignoto')],
+                badges: [npc.category || '', normalizeManagedNpcStatus(npc.lifeState, npc.status)].filter(Boolean),
                 facts: [],
                 hidden: npc.hidden === true || npc.status === 'hidden',
                 pageUrl: detailUrl

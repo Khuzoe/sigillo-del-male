@@ -854,13 +854,18 @@ function navigateToCampaign(campaignId) {
 }
 
 function buildCampaignNavigationTarget(campaignId) {
-    if (getCurrentPageId() === "creature") {
+    const pageId = getCurrentPageId();
+    if (pageId === "creature") {
         return new URL(`${getBasePath()}pages/bestiario.html`, window.location.href);
     }
 
-    if (getCurrentPageId() !== "character") {
-        return new URL(window.location.href);
+    if (pageId === "managed-actor") {
+        const section = document.documentElement.dataset.campaignSection || getSidebarSectionForLocation();
+        const listPage = section === "giocatori" ? "giocatori.html" : "npcs.html";
+        return new URL(`${getBasePath()}pages/${listPage}`, window.location.href);
     }
+
+    if (pageId !== "character") return new URL(window.location.href);
 
     const params = new URLSearchParams(window.location.search);
     const type = String(params.get("type") || "").toLowerCase();
