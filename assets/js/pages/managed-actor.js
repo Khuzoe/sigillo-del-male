@@ -295,6 +295,7 @@
             subtitle: String(merchant.subtitle || "").slice(0, 240),
             inventory: (Array.isArray(merchant.inventory) ? merchant.inventory : []).slice(0, 200).map((entry, index) => ({
                 id: String(entry?.id || `item-${index + 1}`),
+                campaignItemId: sanitizeId(entry?.campaignItemId || ""),
                 name: String(entry?.name || "Oggetto"),
                 type: String(entry?.type || "item"),
                 description: normalizeManagedMerchantDescription(entry?.description),
@@ -1568,17 +1569,27 @@
         const preview = truncatePreview(description, 360);
         const meta = formatEntryMeta(entry);
         const stock = formatManagedMerchantStock(entry.stock);
+        const campaignItemId = sanitizeId(entry.campaignItemId || "");
+        const catalogLink = campaignItemId ? `<a class="managed-merchant-catalog-link" href="${escapeAttr(buildManagedMerchantCatalogLink(campaignItemId))}"><i class="fas fa-book-open"></i> Scheda oggetto</a>` : "";
         const facts = getManagedMerchantFacts(entry);
         const details = description || facts.length ? `<details class="managed-merchant-details"><summary><span><i class="fas fa-scroll"></i> Scheda articolo</span><i class="fas fa-chevron-down"></i></summary><div>${description ? `<p>${formatManagedPreview(description)}</p>` : ""}${facts.length ? `<dl>${facts.map((fact) => `<div><dt>${escapeHtml(fact.label)}</dt><dd>${escapeHtml(fact.value)}</dd></div>`).join("")}</dl>` : ""}</div></details>` : "";
         const order = String(index + 1).padStart(2, "0");
         return `<article class="managed-merchant-item ${stock.className}">
             <div class="managed-merchant-item-copy">
                 <header><div class="managed-merchant-title"><span class="managed-merchant-order">${order}</span><div><h3>${escapeHtml(entry.name || "Oggetto")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div></div><strong class="managed-merchant-price" aria-label="${escapeAttr(formatManagedMerchantPrice(entry))}">${renderManagedMerchantPrice(entry)}</strong></header>
-                <span class="managed-merchant-stock"><i class="fas ${stock.icon}"></i> ${escapeHtml(stock.label)}</span>
+                <div class="managed-merchant-item-bar"><span class="managed-merchant-stock"><i class="fas ${stock.icon}"></i> ${escapeHtml(stock.label)}</span>${catalogLink}</div>
                 ${preview ? `<p class="managed-merchant-preview">${formatManagedPreview(preview)}</p>` : ""}
                 ${details}
             </div>
         </article>`;
+    }
+
+    function buildManagedMerchantCatalogLink(campaignItemId) {
+        const target = new URL("../oggetti.html", window.location.href);
+        const campaignId = window.CriptaApp?.campaigns?.currentId?.() || "";
+        if (campaignId && campaignId !== "cripta-di-sangue") target.searchParams.set("campaign", campaignId);
+        target.hash = campaignItemId;
+        return `${target.pathname}${target.search}${target.hash}`;
     }
 
     function formatManagedMerchantPrice(entry = {}) {
@@ -2919,7 +2930,11 @@
                 const maximum = Math.max(0, Number(control.dataset.managedSpellMax) || 0);
                 value = control.dataset.managedSpellMode === "remaining" ? Math.max(0, maximum - used) : used;
             }
-            else if (type === "number" || type === "select-number") value = Number(control.value);
+            else if (type === "number" || type === "select-number") {
+                const raw = String(control.value ?? "").trim();
+                value = raw === "" ? null : Number(raw);
+                if (value !== null && !Number.isFinite(value)) value = original ?? null;
+            }
             else if (type === "list") value = String(control.value || "").split(",").map((entry) => entry.trim()).filter(Boolean);
             else value = control.value;
             const originalComparable = path === "system.details.cr" ? normalizeManagedChallengeRating(original) : original;

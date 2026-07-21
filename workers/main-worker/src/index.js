@@ -1509,7 +1509,7 @@ function json(data, status = 200, corsHeaders = {}) {
 }
 
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
-const WORKER_CODE_VERSION = "2026-07-19-economy-v1-1";
+const WORKER_CODE_VERSION = "2026-07-20-managed-actor-safety1";
 const SYNC_BOOTSTRAP_COLLECTIONS = [
   "characters",
   "quests",
@@ -1614,6 +1614,10 @@ function managedActorRuntimeKey(campaignId, worldId, actorId) {
 
 function managedActorDocumentKey(campaignId, worldId, actorId) {
   return campaignKey(campaignId, `managed-actor:${sanitizeManagedActorId(worldId)}:${sanitizeManagedActorId(actorId)}`);
+}
+
+function managedActorMediaCleanupKey(campaignId, worldId, actorId) {
+  return campaignKey(campaignId, `managed-actor-media-cleanup:${sanitizeManagedActorId(worldId)}:${sanitizeManagedActorId(actorId)}`);
 }
 
 function managedActorProfileKey(campaignId, worldId, actorId) {
@@ -3914,11 +3918,13 @@ function managedActorMerchantForProfile(actor) {
         amount: Math.max(0, Number(component?.amount) || 0),
       }))
       .filter((component) => component.amount > 0);
+    const campaignItemId = sanitizeManagedActorId(entry?.campaignItemId || "");
     const stock = entry?.stock === null || entry?.stock === undefined || entry?.stock === ""
       ? null
       : Math.max(0, Math.floor(Number(entry.stock) || 0));
     return {
       id: String(entry?.id || `item-${index + 1}`).slice(0, 120),
+      ...(campaignItemId ? { campaignItemId } : {}),
       name: String(entry?.name || "Oggetto").slice(0, 160),
       type: String(entry?.type || "item").slice(0, 80),
       description: normalizeManagedMerchantDescription(entry?.description).slice(0, 6_000),
@@ -5656,14 +5662,17 @@ function normalizeManagedActorMedia(media, existingMedia = {}, source = "foundry
   };
 }
 
-async function preserveExistingMediaWhenFoundryObjectIsMissing(next, existing, source, env, campaignId, route) {
+async function preserveExistingMediaWhenFoundryObjectIsMissing(next, existing, source, env, campaignId, route, mediaWriteTargets = []) {
   if (source !== "foundry" || !env.MEDIA_BUCKET) return [];
   const actorPrefix = `campaigns/${campaignId}/managed-actors/${route.worldId}/${route.actorId}/`;
+  const explicitTargets = new Set((Array.isArray(mediaWriteTargets) ? mediaWriteTargets : [])
+    .map((slot) => String(slot || "").trim().toLowerCase())
+    .filter((slot) => slot === "avatar" || slot === "token"));
   const ignored = [];
   for (const slot of ["avatar", "token"]) {
     const candidate = next?.media?.[slot] || null;
     const previous = existing?.media?.[slot] || null;
-    if (!candidate?.path || candidate.path === previous?.path) continue;
+    if (!candidate?.path || (candidate.path === previous?.path && !explicitTargets.has(slot))) continue;
     const key = extractMediaKeyFromValue(candidate.path);
     if (!key || !key.startsWith(actorPrefix)) continue;
     const object = await env.MEDIA_BUCKET.head(key);
@@ -5740,6 +5749,8 @@ function mergeManagedActorRuntime(base = {}, overlay = {}) {
 }
 function normalizeManagedActorDocument(input, existing, campaignId, route, source) {
   const now = new Date().toISOString();
+  const writeScopes = new Set((Array.isArray(input.writeScopes) ? input.writeScopes : []).map((scope) => String(scope || "").trim().toLowerCase()).filter((scope) => ["content", "media"].includes(scope)));
+  const foundryWritesContent = source === "foundry" && (!existing || writeScopes.size === 0 || writeScopes.has("content"));
   const requestedVariantMode = String(input.variantSyncMode || "").toLowerCase();
   const variantMode = !existing
     ? "replace"
@@ -5751,12 +5762,12 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
       .map(sanitizeAccountId)
       .filter(Boolean)
   )).slice(0, 16);
-  const actorType = String(source === "foundry" ? (input.actorType || input.type || existing?.actorType || "npc") : (existing?.actorType || "npc")).trim().slice(0, 48);
+  const actorType = String(foundryWritesContent ? (input.actorType || input.type || existing?.actorType || "npc") : (existing?.actorType || "npc")).trim().slice(0, 48);
   const relationshipIsCanonical = Boolean(existing && Number(existing.relationshipRevision || 0) > 0);
   const relationshipOwnerCharacterId = sanitizeAssetId(relationshipIsCanonical
     ? (existing?.ownerCharacterId || "")
-    : (source === "foundry" ? (input.ownerCharacterId || existing?.ownerCharacterId || "") : (existing?.ownerCharacterId || "")));
-  const relationshipAccounts = relationshipIsCanonical ? (existing?.ownerAccountIds || []) : (source === "foundry" ? ownerAccountIds : (existing?.ownerAccountIds || ownerAccountIds));
+    : (foundryWritesContent ? (input.ownerCharacterId || existing?.ownerCharacterId || "") : (existing?.ownerCharacterId || "")));
+  const relationshipAccounts = relationshipIsCanonical ? (existing?.ownerAccountIds || []) : (foundryWritesContent ? ownerAccountIds : (existing?.ownerAccountIds || ownerAccountIds));
   const requestedVisibility = input.visibility && typeof input.visibility === "object" ? input.visibility : {};
   const existingVisibility = existing?.visibility && typeof existing.visibility === "object" ? existing.visibility : null;
   const visibility = source === "site" || !existingVisibility
@@ -5771,11 +5782,11 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
     campaignId,
     worldId: route.worldId,
     actorId: route.actorId,
-    actorUuid: String(source === "foundry" ? (input.actorUuid || `Actor.${route.actorId}`) : (existing?.actorUuid || `Actor.${route.actorId}`)).slice(0, 180),
-    foundryActorId: String(source === "foundry" ? (input.foundryActorId || input.actorId || route.actorId) : (existing?.foundryActorId || route.actorId)).trim().slice(0, 96),
-    name: String(source === "foundry" ? (input.name || existing?.name || "Actor") : (existing?.name || "Actor")).trim().slice(0, 180),
+    actorUuid: String(foundryWritesContent ? (input.actorUuid || `Actor.${route.actorId}`) : (existing?.actorUuid || `Actor.${route.actorId}`)).slice(0, 180),
+    foundryActorId: String(foundryWritesContent ? (input.foundryActorId || input.actorId || route.actorId) : (existing?.foundryActorId || route.actorId)).trim().slice(0, 96),
+    name: String(foundryWritesContent ? (input.name || existing?.name || "Actor") : (existing?.name || "Actor")).trim().slice(0, 180),
     actorType,
-    relationshipType: normalizeManagedActorRelationshipType(relationshipIsCanonical ? existing?.relationshipType : (source === "foundry" ? (input.relationshipType || existing?.relationshipType || "") : (existing?.relationshipType || "")), actorType, relationshipOwnerCharacterId),
+    relationshipType: normalizeManagedActorRelationshipType(relationshipIsCanonical ? existing?.relationshipType : (foundryWritesContent ? (input.relationshipType || existing?.relationshipType || "") : (existing?.relationshipType || "")), actorType, relationshipOwnerCharacterId),
     ownerCharacterId: relationshipOwnerCharacterId,
     ownerAccountIds: relationshipAccounts,
     relationshipRevision: Math.max(0, Math.floor(Number(existing?.relationshipRevision) || 0)),
@@ -5788,18 +5799,83 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
       removedIds: input.removedVariantIds,
       mediaWriteTargets: input.mediaWriteTargets,
     }),
-    definition: source === "foundry" && input.definition && typeof input.definition === "object" ? input.definition : (existing?.definition || {}),
-    runtime: source === "foundry" && input.runtime && typeof input.runtime === "object" ? input.runtime : (existing?.runtime || {}),
-    runtimeUpdatedAt: source === "foundry" ? now : (existing?.runtimeUpdatedAt || existing?.updatedAt || now),
-    system: source === "foundry" && input.system && typeof input.system === "object" ? input.system : (existing?.system || {}),
+    definition: foundryWritesContent && input.definition && typeof input.definition === "object" ? input.definition : (existing?.definition || {}),
+    runtime: foundryWritesContent && input.runtime && typeof input.runtime === "object" ? input.runtime : (existing?.runtime || {}),
+    runtimeUpdatedAt: foundryWritesContent ? now : (existing?.runtimeUpdatedAt || existing?.updatedAt || now),
+    system: foundryWritesContent && input.system && typeof input.system === "object" ? input.system : (existing?.system || {}),
     site: source === "site" && input.site && typeof input.site === "object" ? input.site : (existing?.site || {}),
-    contentHash: String(source === "foundry" ? (input.contentHash || "") : (existing?.contentHash || "")).slice(0, 160),
+    contentHash: String(foundryWritesContent ? (input.contentHash || "") : (existing?.contentHash || "")).slice(0, 160),
     mediaHash: String(source === "foundry" ? (input.mediaHash || "") : (existing?.mediaHash || "")).slice(0, 160),
     revision: Number(existing?.revision || 0) + 1,
     createdAt: existing?.createdAt || now,
     updatedAt: now,
     updatedBy: source,
   };
+}
+
+const MANAGED_ACTOR_MEDIA_DELETE_GRACE_MS = 14 * 24 * 60 * 60 * 1000;
+
+async function reconcileManagedActorMediaCleanup(env, campaignId, route, existing, next) {
+  if (!env.MEDIA_BUCKET || !env.SIGILLO_KV) return { scheduled: [], deleted: [] };
+  const cleanupKey = managedActorMediaCleanupKey(campaignId, route.worldId, route.actorId);
+  const queueRaw = safeJsonParse(await env.SIGILLO_KV.get(cleanupKey));
+  const now = Date.now();
+  const nextKeys = collectMediaKeysFromValue(next);
+  const previousKeys = collectMediaKeysFromValue(existing);
+  const actorPrefix = `campaigns/${campaignId}/managed-actors/${route.worldId}/${route.actorId}/`;
+  const byKey = new Map();
+
+  for (const entry of Array.isArray(queueRaw?.entries) ? queueRaw.entries : []) {
+    const key = sanitizeMediaKey(entry?.key || "");
+    if (!key || !key.startsWith(actorPrefix) || nextKeys.has(key)) continue;
+    byKey.set(key, {
+      key,
+      deleteAfter: Math.max(now, Number(entry.deleteAfter || 0) || now),
+      attempts: Math.max(0, Number(entry.attempts || 0) || 0),
+      lastError: String(entry.lastError || "").slice(0, 300)
+    });
+  }
+
+  const scheduled = [];
+  for (const key of previousKeys) {
+    if (!key.startsWith(actorPrefix) || nextKeys.has(key) || byKey.has(key)) continue;
+    byKey.set(key, { key, deleteAfter: now + MANAGED_ACTOR_MEDIA_DELETE_GRACE_MS, attempts: 0, lastError: "" });
+    scheduled.push(key);
+  }
+
+  const deleted = [];
+  for (const [key, entry] of Array.from(byKey.entries())) {
+    if (entry.deleteAfter > now || nextKeys.has(key)) continue;
+    try {
+      await env.MEDIA_BUCKET.delete(key);
+      byKey.delete(key);
+      deleted.push(key);
+    } catch (error) {
+      byKey.set(key, {
+        ...entry,
+        deleteAfter: now + (24 * 60 * 60 * 1000),
+        attempts: entry.attempts + 1,
+        lastError: String(error?.message || error).slice(0, 300)
+      });
+    }
+  }
+
+  const entries = Array.from(byKey.values())
+    .sort((left, right) => Number(left.deleteAfter || 0) - Number(right.deleteAfter || 0))
+    .slice(0, 256);
+  if (entries.length) {
+    await env.SIGILLO_KV.put(cleanupKey, JSON.stringify({
+      version: Number(queueRaw?.version || 0) + 1,
+      campaignId,
+      worldId: route.worldId,
+      actorId: route.actorId,
+      updatedAt: new Date(now).toISOString(),
+      entries
+    }));
+  } else if (queueRaw) {
+    await env.SIGILLO_KV.delete(cleanupKey);
+  }
+  return { scheduled, deleted };
 }
 
 async function handleManagedActorPost(request, route, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
@@ -5818,14 +5894,30 @@ async function handleManagedActorPost(request, route, fallbackCampaignId, env, c
   const authorization = await authorizeManagedActorWrite(request, env, campaignId, corsHeaders, existing);
   if (authorization instanceof Response) return authorization;
   if (authorization.source === "site" && !existing) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
-  if (authorization.source === "site") {
-    const expectedRevision = Number(body?.expectedRevision);
-    if (existing && Number.isFinite(expectedRevision) && expectedRevision !== Number(existing.revision || 0)) {
-      return json({ ok: false, error: "Managed actor revision conflict", code: "VERSION_CONFLICT", currentRevision: existing.revision || 0 }, 409, corsHeaders);
-    }
+  const expectedRevision = Number(body?.expectedRevision);
+  const hasExpectedRevision = body?.expectedRevision !== undefined && body?.expectedRevision !== null && body?.expectedRevision !== "";
+  if (existing && hasExpectedRevision && Number.isFinite(expectedRevision) && expectedRevision !== Number(existing.revision || 0)) {
+    return json({ ok: false, error: "Managed actor revision conflict", code: "VERSION_CONFLICT", currentRevision: existing.revision || 0 }, 409, corsHeaders);
   }
   const next = normalizeManagedActorDocument(body, existing, campaignId, route, authorization.source);
-  const ignoredMissingMedia = await preserveExistingMediaWhenFoundryObjectIsMissing(next, existing, authorization.source, env, campaignId, route);
+  const ignoredMissingMedia = await preserveExistingMediaWhenFoundryObjectIsMissing(
+    next,
+    existing,
+    authorization.source,
+    env,
+    campaignId,
+    route,
+    body?.mediaWriteTargets
+  );
+  if (ignoredMissingMedia.length) {
+    return json({
+      ok: false,
+      error: "Managed actor media object is missing from R2",
+      code: "MEDIA_OBJECT_MISSING",
+      currentRevision: Number(existing?.revision || 0),
+      media: ignoredMissingMedia,
+    }, 409, corsHeaders);
+  }
   if (authorization.source === "site" && authorization.isOwner && !authorization.isEditor && existing?.visibility) {
     next.visibility = existing.visibility;
   }
@@ -5861,17 +5953,10 @@ async function handleManagedActorPost(request, route, fallbackCampaignId, env, c
   const profileMediaSynced = profileMediaChanged || profileNameChanged
     ? await syncStoredManagedActorProfileMedia(env, campaignId, route, next)
     : false;
-  const deletedMedia = [];
-  if (!unchanged && existing && env.MEDIA_BUCKET) {
-    const previousKeys = collectMediaKeysFromValue(existing);
-    const nextKeys = collectMediaKeysFromValue(next);
-    const actorPrefix = `campaigns/${campaignId}/managed-actors/${route.worldId}/${route.actorId}/`;
-    for (const mediaKey of previousKeys) {
-      if (!mediaKey.startsWith(actorPrefix) || nextKeys.has(mediaKey)) continue;
-      await env.MEDIA_BUCKET.delete(mediaKey);
-      deletedMedia.push(mediaKey);
-    }
-  }
+  const mediaCleanup = !unchanged && existing
+    ? await reconcileManagedActorMediaCleanup(env, campaignId, route, existing, next)
+    : { scheduled: [], deleted: [] };
+  const deletedMedia = mediaCleanup.deleted;
 
   const stored = unchanged ? existing : next;
   if (authorization.source === "site") {
@@ -5896,6 +5981,7 @@ async function handleManagedActorPost(request, route, fallbackCampaignId, env, c
     revision: stored?.revision || 0,
     updatedAt: stored?.updatedAt || null,
     deletedMedia,
+    scheduledMediaCleanup: mediaCleanup.scheduled,
   }, 200, corsHeaders);
 }
 

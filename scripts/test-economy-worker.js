@@ -105,7 +105,11 @@ async function main() {
     assert.match(managedActorPageSource, /managed-merchant-currency-icon/, "il negozio mostra l'icona della valuta");
     assert.match(managedActorStyleSource, /\.managed-merchant-currency-icon/, "l'icona del prezzo ha uno stile dedicato");
     assert.match(managedActorSyncSource, /cost:\s*normalizeManagedMerchantCost\(entry, price\)/, "Foundry conserva il costo personalizzato del mercante");
-    assert.match(managedActorSyncSource, /MANAGED_MERCHANT_SCHEMA_VERSION\s*=\s*5/, "i mercanti esistenti vengono risincronizzati");
+    assert.match(managedActorSyncSource, /MANAGED_MERCHANT_SCHEMA_VERSION\s*=\s*6/, "i mercanti esistenti vengono risincronizzati");
+    assert.match(managedActorSyncSource, /function getManagedMerchantCampaignItemId/, "il modulo ricava il collegamento canonico senza alterare lo snapshot del mercante");
+    assert.match(managedActorSyncSource, /snapshotFlags\.campaignItemId[\s\S]*snapshotFlags\.wikiItemId[\s\S]*liveId/, "l'identita canonica proviene solo da flag o UUID espliciti");
+    assert.match(workerIndexSource, /campaignItemId \? \{ campaignItemId \} : \{\}/, "il Worker conserva il collegamento canonico opzionale");
+    assert.match(managedActorPageSource, /managed-merchant-catalog-link/, "il negozio espone la scheda canonica senza duplicare immagini");
     assert.deepEqual(invalidations[0].collections, ["economy"]);
 
     const withoutCustom = structuredClone(dmJson.registry);

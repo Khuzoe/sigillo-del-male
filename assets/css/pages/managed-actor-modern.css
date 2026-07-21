@@ -2432,16 +2432,45 @@ body.managed-image-lightbox-open { overflow: hidden; }
     color: rgba(240, 213, 127, .52);
     font-size: .62rem;
 }
+.managed-merchant-item-bar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: .55rem .8rem;
+    margin: .62rem 0 0 30px;
+}
 .managed-merchant-stock {
     display: inline-flex;
     align-items: center;
     justify-self: start;
     gap: .35rem;
-    margin: .62rem 0 0 30px;
+    margin: 0;
     color: rgba(159, 214, 176, .76);
     font: 700 .57rem var(--font-ui);
     letter-spacing: .035em;
     text-transform: uppercase;
+}
+.managed-merchant-catalog-link {
+    display: inline-flex;
+    align-items: center;
+    gap: .34rem;
+    min-height: 28px;
+    padding: 0 .55rem;
+    border: 1px solid rgba(194, 135, 222, .18);
+    border-radius: 999px;
+    background: rgba(194, 135, 222, .045);
+    color: rgba(213, 171, 235, .72);
+    font: 700 .56rem var(--font-ui);
+    letter-spacing: .035em;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: border-color .18s ease, background .18s ease, color .18s ease;
+}
+.managed-merchant-catalog-link:hover,
+.managed-merchant-catalog-link:focus-visible {
+    border-color: rgba(213, 171, 235, .42);
+    background: rgba(194, 135, 222, .1);
+    color: #ead4f5;
 }
 .managed-merchant-item.is-sold-out { border-color: rgba(220, 107, 102, .15); }
 .managed-merchant-item.is-sold-out::before { background: linear-gradient(180deg, rgba(238, 141, 132, .7), rgba(138, 40, 52, .2)); }
@@ -2522,7 +2551,7 @@ body.managed-image-lightbox-open { overflow: hidden; }
     .managed-merchant-item-copy { padding: .85rem; }
     .managed-merchant-item-copy > header { display: grid; gap: .55rem; }
     .managed-merchant-price { justify-self: start; margin-left: 30px; min-width: 0; }
-    .managed-merchant-stock,
+    .managed-merchant-item-bar,
     .managed-merchant-preview,
     .managed-merchant-details { margin-left: 30px; }
     .managed-merchant-details dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }

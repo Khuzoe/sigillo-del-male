@@ -853,6 +853,20 @@ function normalizeItemRarityLabel(value) {
 }
 
 function bindItemInlineEditor(grid, state, count) {
+    grid.querySelectorAll('[data-item-field="foundryType"]').forEach(field => {
+        field.addEventListener("change", () => {
+            field.dataset.itemFoundryTypeEdited = "true";
+        });
+    });
+    grid.querySelectorAll('[data-item-field="type"]').forEach(field => {
+        field.addEventListener("change", () => {
+            const form = field.closest("[data-item-inline-editor]");
+            const foundryType = form?.querySelector('[data-item-field="foundryType"]');
+            if (foundryType && foundryType.dataset.itemFoundryTypeEdited !== "true") {
+                foundryType.value = mapSiteTypeToFoundry(field.value);
+            }
+        });
+    });
     grid.querySelectorAll("[data-item-edit]").forEach(button => {
         button.addEventListener("click", event => {
             event.preventDefault();
@@ -1106,6 +1120,7 @@ function collectItemDraft(form, original) {
         if (!key) return;
         const value = field.type === "checkbox" ? field.checked : field.value;
         setItemDraftField(draft, key, value);
+    });
     const costAmount = Math.max(0, Number(form.querySelector("[data-item-cost-amount]")?.value) || 0);
     const costCurrencyId = String(form.querySelector("[data-item-cost-currency]")?.value || "gp").trim().toLowerCase();
     if (costAmount > 0) {
@@ -1116,7 +1131,6 @@ function collectItemDraft(form, original) {
         delete draft.cost;
         delete draft.valueGold;
     }
-    });
     form.querySelectorAll("[data-item-json-field]").forEach(field => {
         const key = field.dataset.itemJsonField;
         if (!key) return;
@@ -1146,10 +1160,15 @@ function collectItemDraft(form, original) {
         }
     }
     if (!Array.isArray(foundryEffects)) throw new Error("Effetti attivi: serve un array JSON.");
-    foundrySystem.rarity = mapSiteRarityToFoundry(draft.rarity);
-    foundrySystem.identified = draft.unidentified !== true;
-    foundrySystem.attunement = draft.attunement === true ? "required" : "";
-    draft.foundryType = String(draft.foundryType || mapSiteTypeToFoundry(draft.type));
+    synchronizeFoundrySystemFromSite(draft, original, foundrySystem);
+    const foundryTypeField = form.querySelector('[data-item-field="foundryType"]');
+    const explicitlyEditedFoundryType = foundryTypeField?.dataset.itemFoundryTypeEdited === "true";
+    const existingFoundryType = getItemFoundryType(original || {});
+    const existingTypeFollowedSite = !original?.foundry?.document
+        || existingFoundryType === mapSiteTypeToFoundry(original?.type);
+    draft.foundryType = String(explicitlyEditedFoundryType || !existingTypeFollowedSite
+        ? (foundryTypeField?.value || draft.foundryType || existingFoundryType)
+        : mapSiteTypeToFoundry(draft.type));
     draft.foundry = {
         ...(draft.foundry || {}),
         document: {
@@ -1168,6 +1187,98 @@ function collectItemDraft(form, original) {
     return draft;
 }
 
+function synchronizeFoundrySystemFromSite(draft, original, foundrySystem) {
+    const system = foundrySystem && typeof foundrySystem === "object" && !Array.isArray(foundrySystem)
+        ? foundrySystem
+        : {};
+    const description = system.description && typeof system.description === "object" && !Array.isArray(system.description)
+        ? system.description
+        : {};
+    const currentDescription = String(description.value || "").trim();
+    const narrativeChanged = itemNarrativeFingerprint(draft) !== itemNarrativeFingerprint(original);
+    if (narrativeChanged || !currentDescription) {
+        system.description = {
+            ...description,
+            value: buildFoundryItemDescription(draft)
+        };
+    }
+
+    const unidentified = system.unidentified && typeof system.unidentified === "object" && !Array.isArray(system.unidentified)
+        ? system.unidentified
+        : {};
+    system.unidentified = {
+        ...unidentified,
+        description: String(draft?.unidentifiedDescription || "")
+    };
+    if (Object.prototype.hasOwnProperty.call(description, "unidentified")) {
+        system.description.unidentified = String(draft?.unidentifiedDescription || "");
+    }
+
+    system.rarity = mapSiteRarityToFoundry(draft?.rarity);
+    system.identified = draft?.unidentified !== true;
+    system.attunement = draft?.attunement === true ? "required" : "";
+
+    const rawWeight = String(draft?.weight ?? "").trim();
+    const originalWeight = String(original?.weight ?? "").trim();
+    if (rawWeight !== originalWeight || (rawWeight !== "" && Number.isFinite(Number(rawWeight)))) {
+        const currentWeight = system.weight && typeof system.weight === "object" && !Array.isArray(system.weight)
+            ? system.weight
+            : {};
+        const weightValue = rawWeight !== "" && Number.isFinite(Number(rawWeight))
+            ? Math.max(0, Number(rawWeight))
+            : 0;
+        system.weight = { ...currentWeight, value: weightValue };
+    }
+    return system;
+}
+
+function itemNarrativeFingerprint(item) {
+    return JSON.stringify({
+        summary: String(item?.summary || "").trim(),
+        notes: String(item?.notes || "").trim(),
+        properties: normalizeItemProperties(item?.properties).map(property => ({
+            name: property.name,
+            charges: property.charges,
+            description: property.description,
+            hidden: property.hidden === true
+        }))
+    });
+}
+
+function buildFoundryItemDescription(item) {
+    const parts = [];
+    const summary = renderPlainTextParagraphs(item?.summary);
+    if (summary) parts.push(summary);
+
+    const properties = normalizeItemProperties(item?.properties).filter(property => property.hidden !== true);
+    if (properties.length) {
+        if (parts.length) parts.push("<hr />");
+        for (const property of properties) {
+            if (property.name) {
+                const charges = property.charges ? " (" + escapeHtml(property.charges) + ")" : "";
+                parts.push("<h3>" + escapeHtml(property.name) + charges + "</h3>");
+            }
+            const description = renderPlainTextParagraphs(property.description);
+            if (description) parts.push(description);
+        }
+    }
+
+    const notes = renderPlainTextParagraphs(item?.notes, { emphasis: true });
+    if (notes) {
+        if (parts.length) parts.push("<hr />");
+        parts.push(notes);
+    }
+    return parts.join("");
+}
+
+function renderPlainTextParagraphs(value, { emphasis = false } = {}) {
+    const text = String(value || "").replace(/\r\n?/g, "\n").trim();
+    if (!text) return "";
+    return text.split(/\n{2,}/).map(block => {
+        const content = escapeHtml(block).replace(/\n/g, "<br />");
+        return "<p>" + (emphasis ? "<em>" + content + "</em>" : content) + "</p>";
+    }).join("");
+}
 function parseItemFoundryJson(form, fieldName, label, fallback) {
     const field = form.querySelector(`[data-item-foundry-json="${fieldName}"]`);
     if (!field) return structuredCloneSafe(fallback);
