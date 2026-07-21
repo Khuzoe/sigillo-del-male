@@ -2357,6 +2357,60 @@ body.managed-image-lightbox-open { overflow: hidden; }
     min-width: 0;
     padding: 1rem 1.05rem 1rem 1.2rem;
 }
+.managed-merchant-item.has-catalog-image {
+    display: grid;
+    grid-template-columns: 118px minmax(0, 1fr);
+    align-items: start;
+}
+.managed-merchant-item-media {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: calc(100% - .9rem);
+    aspect-ratio: 1;
+    margin: .85rem 0 .85rem .9rem;
+    overflow: hidden;
+    border: 1px solid rgba(226, 185, 94, .18);
+    border-radius: 12px;
+    background:
+        radial-gradient(circle at 50% 35%, rgba(226, 185, 94, .1), transparent 70%),
+        rgba(3, 3, 6, .5);
+    box-shadow: inset 0 1px rgba(255, 255, 255, .035);
+    cursor: zoom-in;
+}
+.managed-merchant-item-media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: .45rem;
+    object-fit: contain;
+    transition: transform .2s ease;
+}
+.managed-merchant-item-media > span {
+    position: absolute;
+    right: .4rem;
+    bottom: .4rem;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid rgba(226, 185, 94, .28);
+    border-radius: 50%;
+    background: rgba(8, 8, 12, .82);
+    color: #f0d57f;
+    font-size: .62rem;
+    opacity: 0;
+    transform: translateY(3px);
+    transition: opacity .18s ease, transform .18s ease;
+}
+.managed-merchant-item-media:hover img,
+.managed-merchant-item-media:focus-visible img { transform: scale(1.04); }
+.managed-merchant-item-media:hover > span,
+.managed-merchant-item-media:focus-visible > span {
+    opacity: 1;
+    transform: translateY(0);
+}
+.managed-merchant-item.has-catalog-image .managed-merchant-item-copy { padding-left: .8rem; }
 .managed-merchant-item-copy > header {
     display: flex;
     align-items: start;
@@ -2548,6 +2602,12 @@ body.managed-image-lightbox-open { overflow: hidden; }
     .managed-merchant-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
+    .managed-merchant-item.has-catalog-image { grid-template-columns: 82px minmax(0, 1fr); }
+    .managed-merchant-item-media {
+        width: calc(100% - .7rem);
+        margin: .7rem 0 .7rem .7rem;
+    }
+    .managed-merchant-item.has-catalog-image .managed-merchant-item-copy { padding-left: .65rem; }
     .managed-merchant-item-copy { padding: .85rem; }
     .managed-merchant-item-copy > header { display: grid; gap: .55rem; }
     .managed-merchant-price { justify-self: start; margin-left: 30px; min-width: 0; }

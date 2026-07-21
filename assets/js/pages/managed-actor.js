@@ -1578,6 +1578,9 @@
         const stock = formatManagedMerchantStock(entry.stock);
         const campaignItemId = sanitizeId(entry.campaignItemId || "");
         const catalogLink = campaignItemId ? `<a class="managed-merchant-catalog-link" href="${escapeAttr(buildManagedMerchantCatalogLink(campaignItemId))}"><i class="fas fa-book-open"></i> Scheda oggetto</a>` : "";
+        const imagePath = String(presentation.image || "").trim();
+        const imageUrl = imagePath ? resolveMedia(imagePath) : "";
+        const image = imageUrl ? `<button type="button" class="managed-merchant-item-media" data-managed-image-open="${escapeAttr(imageUrl)}" data-managed-image-title="${escapeAttr(displayEntry.name || "Oggetto")}" aria-label="Ingrandisci immagine di ${escapeAttr(displayEntry.name || "Oggetto")}"><img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(displayEntry.name || "Oggetto")}" loading="lazy" decoding="async"><span aria-hidden="true"><i class="fas fa-expand"></i></span></button>` : "";
         const facts = getManagedMerchantFacts(displayEntry);
         const properties = renderManagedMerchantCatalogProperties(presentation.properties);
         const notes = presentation.notes ? `<aside class="managed-merchant-catalog-notes"><i class="fas fa-note-sticky"></i><span>${formatManagedPreview(presentation.notes)}</span></aside>` : "";
@@ -1589,7 +1592,8 @@
         ].filter(Boolean).join("");
         const details = detailBody ? `<details class="managed-merchant-details"><summary><span><i class="fas fa-scroll"></i> Scheda articolo</span><i class="fas fa-chevron-down"></i></summary><div>${detailBody}</div></details>` : "";
         const order = String(index + 1).padStart(2, "0");
-        return `<article class="managed-merchant-item ${stock.className} ${presentation.catalog ? "is-catalog-linked" : ""}">
+        return `<article class="managed-merchant-item ${stock.className} ${presentation.catalog ? "is-catalog-linked" : ""} ${image ? "has-catalog-image" : ""}">
+            ${image}
             <div class="managed-merchant-item-copy">
                 <header><div class="managed-merchant-title"><span class="managed-merchant-order">${order}</span><div><h3>${escapeHtml(displayEntry.name || "Oggetto")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div></div><strong class="managed-merchant-price" aria-label="${escapeAttr(formatManagedMerchantPrice(entry))}">${renderManagedMerchantPrice(entry)}</strong></header>
                 <div class="managed-merchant-item-bar"><span class="managed-merchant-stock"><i class="fas ${stock.icon}"></i> ${escapeHtml(stock.label)}</span>${catalogLink}</div>
@@ -1606,7 +1610,7 @@
             : null;
         if (!catalog) {
             const description = stripManagedDuplicateHeading(htmlToText(normalizeManagedMerchantDescription(entry.description)), entry.name);
-            return { catalog: null, entry, description, properties: [], notes: "" };
+            return { catalog: null, entry, description, properties: [], notes: "", image: "" };
         }
 
         const canonicalDocument = catalog?.foundry?.document && typeof catalog.foundry.document === "object"
@@ -1644,8 +1648,16 @@
             entry: displayEntry,
             description,
             properties,
-            notes: String(catalog.notes || "").trim()
+            notes: String(catalog.notes || "").trim(),
+            image: getManagedMerchantCatalogImage(catalog, canonicalDocument)
         };
+    }
+
+    function getManagedMerchantCatalogImage(catalog = {}, canonicalDocument = {}) {
+        const catalogImage = String(catalog.image || "").trim();
+        if (catalogImage) return catalogImage;
+        const foundryImage = String(canonicalDocument.img || "").trim();
+        return /^(?:https?:|data:image\/|blob:|\/?media\/|assets\/)/i.test(foundryImage) ? foundryImage : "";
     }
 
     function normalizeManagedCatalogRarity(value) {
