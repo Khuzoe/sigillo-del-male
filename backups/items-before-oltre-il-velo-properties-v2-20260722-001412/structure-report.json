@@ -1,0 +1,528 @@
+{
+  "campaignId": "oltre-il-velo",
+  "expectedVersion": 156,
+  "count": 21,
+  "updated": [
+    {
+      "id": "fascia-dell-astore-implacabile",
+      "name": "Fascia dell'Astore Implacabile",
+      "summary": "Questa spessa cintura è realizzata con un cuoio flessibile ed eccezionalmente resistente, ricavato dalle zampe squamose di un predatore volatile sconosciuto. La grande fibbia centrale è un bassorilievo d'argento a forma di rapace ad ali spiegate. Intorno alla vita, l'oggetto sembra impercettibilmente stringersi e allentarsi da solo, quasi come se respirasse. Indossarla affina i sensi, infondendo in chi la porta la pazienza spietata e la visione assoluta di un signore dei cieli.",
+      "properties": [
+        {
+          "name": "Vista dell'Astore",
+          "charges": "",
+          "descriptionLength": 264
+        },
+        {
+          "name": "Compagno di Volo",
+          "charges": "",
+          "descriptionLength": 653
+        },
+        {
+          "name": "Picchiata Dilaniante",
+          "charges": "3 cariche · recupera tutte all'alba",
+          "descriptionLength": 545
+        },
+        {
+          "name": "Trazione dell'Artiglio",
+          "charges": "Bonus di Competenza usi · recupera tutti all'alba",
+          "descriptionLength": 634
+        }
+      ]
+    },
+    {
+      "id": "fioritura-del-falso-patto",
+      "name": "Fioritura del Falso Patto",
+      "summary": "Questo arco asimmetrico sembra intagliato da un unico ramo di salice piangente, ma il legno è oscuro, spugnoso e malato, screziato da funghi bioluminescenti color zolfo. La corda è intrecciata con viticci spinosi che sembrano stringersi morbidamente attorno alle dita dell'arciere, sussurrando nella sua mente promesse di vittorie silenziose. Quando una freccia viene incoccata, il legno dell'arco avvizzisce e si rigenera in una frazione di secondo, impregnando il dardo di spore invisibili e tossiche.",
+      "properties": [
+        {
+          "name": "Arco del Falso Patto +2",
+          "charges": "",
+          "descriptionLength": 309
+        },
+        {
+          "name": "Dardo dell'Innocenza Infranta",
+          "charges": "",
+          "descriptionLength": 618
+        },
+        {
+          "name": "Cancrena Paranoica",
+          "charges": "",
+          "descriptionLength": 624
+        }
+      ]
+    },
+    {
+      "id": "gambali-dell-ordito-crudele",
+      "name": "Gambali dell'Ordito Crudele",
+      "summary": "Alla vista, questi eleganti pantaloni scuri sembrano cuciti con una seta opaca che assorbe la luce, ma a un esame più attento si nota che i fili si muovono e si riallineano da soli quando nessuno li osserva. Tessuti dai sussurri delle streghe notturne e dalla seta dei ragni fasici, i gambali non si limitano a vestire le gambe di chi li porta, ma estendono impercettibili filamenti magici nell'ambiente circostante, pronti ad allacciarsi alle ombre e alla carne.",
+      "properties": [
+        {
+          "name": "Passo dell'Ordito",
+          "charges": "",
+          "descriptionLength": 384
+        },
+        {
+          "name": "Scia del Calvario",
+          "charges": "4 cariche · recupera 1d4 al tramonto",
+          "descriptionLength": 643
+        },
+        {
+          "name": "Morsa del Sarto",
+          "charges": "",
+          "descriptionLength": 510
+        }
+      ]
+    },
+    {
+      "id": "incensiere-dell-eterno-calvario",
+      "name": "Incensiere dell'Eterno Calvario",
+      "summary": "Questo pesante incensiere, appeso a una spessa catena di ferro uncinata, è forgiato in una lega scura che sembra divorare la luce. Al suo interno non brucia alcuna fiamma, ma un vortice denso e luminescente di nebbia spettrale in costante agitazione. Avvicinando l'orecchio al metallo gelido, si può udire il coro straziante e cacofonico di migliaia di menti spezzate. Brandire questo strumento significa ergersi a carceriere e carnefice di chi è già passato oltre.",
+      "properties": [
+        {
+          "name": "Luce dell'Eterno Calvario",
+          "charges": "",
+          "descriptionLength": 334
+        },
+        {
+          "name": "Carcere di Spiriti",
+          "charges": "10 cariche · recupera 1d6+4 a mezzanotte",
+          "descriptionLength": 453
+        },
+        {
+          "name": "Sfiato del Pandemonio",
+          "charges": "1–3 cariche",
+          "descriptionLength": 488
+        },
+        {
+          "name": "Manto di Anime Spezzate",
+          "charges": "2 cariche",
+          "descriptionLength": 504
+        },
+        {
+          "name": "Frattura dell'Io",
+          "charges": "5 cariche",
+          "descriptionLength": 657
+        }
+      ]
+    },
+    {
+      "id": "legame-dell-ecatombe",
+      "name": "Legame dell'Ecatombe",
+      "summary": "A prima vista, questo oggetto sembra una rozza imbracatura di cinghie di cuoio annerito e piastre di metallo arrugginito. Tuttavia, nel momento in cui ti sintonizzi, l'oggetto si anima: le cinghie si fondono dolorosamente con la tua pelle, il metallo si trasforma in spesse placche di osso asimmetrico e l'intera corazza inizia a pulsare al ritmo del tuo battito cardiaco. L'imbracatura non è un semplice equipaggiamento, ma un organismo simbiotico grottesco, affamato di evoluzione e pronto ad assimilare la forza dei tuoi nemici.",
+      "properties": [
+        {
+          "name": "Protezione Simbiotica",
+          "charges": "",
+          "descriptionLength": 79
+        },
+        {
+          "name": "Mutazione Reattiva",
+          "charges": "1 uso · recupera con riposo breve o lungo",
+          "descriptionLength": 553
+        },
+        {
+          "name": "Morsa dell'Aberrazione",
+          "charges": "",
+          "descriptionLength": 532
+        }
+      ]
+    },
+    {
+      "id": "maglio-del-ritorno-coatto",
+      "name": "Maglio del Ritorno Coatto",
+      "summary": "La testa di questo colossale maglio è ricavata da un blocco squadrato di piombo nero e ferro meteoritico, incisa con scanalature che ricordano le sbarre di una prigione o una lapide profanata. È innaturalmente pesante a riposo, ma quando lo si solleva con l'intento di uccidere, l'arma fende l'aria con una macabra leggerezza, guidata non dai muscoli di chi la brandisce, ma dalla gravità del vuoto e dalla fame delle anime incatenate al suo interno.",
+      "properties": [
+        {
+          "name": "Maglio +2",
+          "charges": "",
+          "descriptionLength": 98
+        },
+        {
+          "name": "Zavorra Spirituale",
+          "charges": "",
+          "descriptionLength": 501
+        },
+        {
+          "name": "Rianimazione Brutale",
+          "charges": "4 cariche · recupera 1d4 al tramonto",
+          "descriptionLength": 890
+        }
+      ]
+    },
+    {
+      "id": "rancore-ferale",
+      "name": "Rancore Ferale",
+      "summary": "Questi pesanti bracciali di cuoio indurito celano un meccanismo brutale: stringendo i pugni, tre lame ricurve di ferro meteoritico scattano in avanti dalle nocche. Il metallo è costantemente freddo e sembra esalare un impercettibile fumo violaceo. Indossarli riempie la mente di un ronzio sordo, un richiamo viscerale alla violenza che si acquieta solo quando si versa del sangue.",
+      "properties": [
+        {
+          "name": "Artigli Ferali +2",
+          "charges": "",
+          "descriptionLength": 239
+        },
+        {
+          "name": "Fattura del Predatore",
+          "charges": "",
+          "descriptionLength": 574
+        },
+        {
+          "name": "Frenesia Autolesionista",
+          "charges": "",
+          "descriptionLength": 542
+        }
+      ]
+    },
+    {
+      "id": "reliquiario-dell-epitaffio-rubato",
+      "name": "Reliquiario dell'Epitaffio Rubato",
+      "summary": "Questo pendente è costituito da una minuscola e intricata gabbia di platino annerito, al cui interno è incastonata una pietra di luna grezza e lattiginosa. L'oggetto è gelido al tatto e, se accostato all'orecchio, emette il suono impercettibile di innumerevoli respiri soffocati. Quando una vita si spegne nelle vicinanze, la pietra pulsa di una luce malata, bramosa di scippare la preda al suo legittimo aldilà.",
+      "properties": [
+        {
+          "name": "Difesa dall'Oltretomba",
+          "charges": "",
+          "descriptionLength": 118
+        },
+        {
+          "name": "Gabbia del Traghettatore",
+          "charges": "massimo 3 anime",
+          "descriptionLength": 608
+        },
+        {
+          "name": "Consumazione Blasfema",
+          "charges": "1 anima",
+          "descriptionLength": 492
+        }
+      ]
+    },
+    {
+      "id": "salmo-dell-esecutore",
+      "name": "Salmo dell'Esecutore",
+      "summary": "Questa lama è un capolavoro di geometria letale: dritta, perfettamente simmetrica e forgiata in una lega di palladio che non riflette la luce. Lungo il filo scorrono antiche rune incise a bulino, che si accendono di un bagliore color brace quando viene pronunciato un incantesimo. L'elsa funge anche da piccolo incensiere, emanando un perenne e flebile profumo di mirra e sangue rappreso, ideale per scandire i ritmi dei sacrifici rituali.",
+      "properties": [
+        {
+          "name": "Lama Rituale +2",
+          "charges": "",
+          "descriptionLength": 179
+        },
+        {
+          "name": "Devozione all'Anatema",
+          "charges": "",
+          "descriptionLength": 416
+        },
+        {
+          "name": "Consacrazione della Ferita",
+          "charges": "3 cariche · recupera tutte all'alba",
+          "descriptionLength": 424
+        }
+      ]
+    },
+    {
+      "id": "serto-del-miasma-tirannico",
+      "name": "Serto del Miasma Tirannico",
+      "summary": "Questa lugubre corona sembra intrecciata con radici pietrificate estratte dalla melma di una palude mortale, incrostate di funghi tossici e antiche monete d'oro ossidate e annerite dal tempo. Al tocco, il materiale è viscido e innaturalmente caldo, ed emana un perenne, dolciastro odore di fiori marci e acqua stagnante. Indossarla fa scivolare nella mente sussurri di un'autorità malevola, rivendicando il dominio su tutto ciò che appassisce e decade.",
+      "properties": [
+        {
+          "name": "Aura di Ristagno",
+          "charges": "",
+          "descriptionLength": 605
+        },
+        {
+          "name": "Editto della Putrefazione",
+          "charges": "4 cariche · recupera 1d4 all'alba",
+          "descriptionLength": 828
+        },
+        {
+          "name": "Sovranità Intoccabile",
+          "charges": "",
+          "descriptionLength": 691
+        }
+      ]
+    },
+    {
+      "id": "sindone-del-predatore-d-essenze",
+      "name": "Sindone del Predatore d'Essenze",
+      "summary": "Questo mantello grigio cenere, diafano e sfilacciato ai bordi, sembra galleggiare attorno al portatore come se si trovasse perennemente sott'acqua. Non è tessuto con materiali mondani, ma con la nebbia condensata del Piano dei Reami Astratti e filato con gli ultimi respiri di prede da tempo dimenticate. Indossarlo raffredda il respiro, ovatta i suoni ambientali e altera i sensi: il mondo materiale sbiadisce, lasciando emergere i bagliori pulsanti e disperati delle anime circostanti.",
+      "properties": [
+        {
+          "name": "Passo del Predatore",
+          "charges": "",
+          "descriptionLength": 259
+        },
+        {
+          "name": "Sguardo Oltre il Velo",
+          "charges": "Bonus di Competenza usi · recupera tutti al tramonto",
+          "descriptionLength": 701
+        },
+        {
+          "name": "Transizione Fantasmatica",
+          "charges": "3 cariche · recupera tutte al tramonto",
+          "descriptionLength": 550
+        },
+        {
+          "name": "Estirpazione del Soffio",
+          "charges": "",
+          "descriptionLength": 881
+        }
+      ]
+    },
+    {
+      "id": "smembratrice-d-aure",
+      "name": "Smembratrice d'Aure",
+      "summary": "Forgiata dalle ossa annerite di un antico demone del vuoto e fusa con ferro meteoritico arrugginito, quest'arma mostruosa ha l'aspetto di una colossale e brutale mannaia da macellaio. La sua lama, spessa e irregolare, è perennemente circondata da un alone di distorsione visiva che sembra far appassire la luce ed estinguere i suoni. Quando viene fatta fendere l'aria, non emette il tipico sibilo dell'acciaio, ma un flebile rantolo collettivo.",
+      "properties": [
+        {
+          "name": "Ascia +3",
+          "charges": "",
+          "descriptionLength": 98
+        },
+        {
+          "name": "Piaga Atrofizzante",
+          "charges": "",
+          "descriptionLength": 311
+        },
+        {
+          "name": "Recisione dell'Essenza",
+          "charges": "",
+          "descriptionLength": 376
+        },
+        {
+          "name": "Squarcio nella Trama",
+          "charges": "4 cariche · recupera 1d4 al tramonto",
+          "descriptionLength": 505
+        }
+      ]
+    },
+    {
+      "id": "spire-del-vile-anatema",
+      "name": "Spire del Vile Anatema",
+      "summary": "Questi pesanti bracciali sono forgiati in ferro stigeo opaco, scolpiti per assomigliare a volti urlanti fusi tra loro. Dai bracciali pendono anelli spezzati di una catena che non tocca mai terra: le ultime maglie si dissolvono in un fumo verdastro e spettrale. Quando chi li indossa prova rancore o ostilità, il metallo si stringe dolorosamente attorno ai polsi e le catene fantasma iniziano a contorcersi, ansiose di trovare un’anima a cui ancorarsi.",
+      "properties": [
+        {
+          "name": "Focus dell'Anatema",
+          "charges": "",
+          "descriptionLength": 149
+        },
+        {
+          "name": "Catena dell'Anatema",
+          "charges": "4 cariche · recupera 1d4 al tramonto",
+          "descriptionLength": 630
+        },
+        {
+          "name": "Risonanza del Tormento",
+          "charges": "",
+          "descriptionLength": 457
+        }
+      ]
+    },
+    {
+      "id": "vertebre-del-vassallo-d-osso",
+      "name": "Vertebre del Vassallo d'Osso",
+      "summary": "Questo macabro impianto si presenta come una colonna vertebrale espiantata, grigiastra e costellata di spuntoni ossei innaturalmente lunghi. Per sintonizzarsi, la si deve premere contro la propria schiena nuda: le costole atrofizzate si animano all'istante, perforando la carne e agganciandosi crudelmente alla spina dorsale dell'ospite per fondersi con il suo sistema nervoso. Al suo interno, spiriti minori soggiogati sussurrano promesse di lealtà cieca e dolorosa, ansiosi di estendere il loro servaggio a chiunque osi avvicinarsi.",
+      "properties": [
+        {
+          "name": "Protezione Ossea",
+          "charges": "",
+          "descriptionLength": 233
+        },
+        {
+          "name": "Appendici Sepolcrali",
+          "charges": "",
+          "descriptionLength": 437
+        },
+        {
+          "name": "Dominio sul Burattino",
+          "charges": "4 cariche · recupera 1d4 al tramonto",
+          "descriptionLength": 836
+        },
+        {
+          "name": "Riflesso del Martire",
+          "charges": "",
+          "descriptionLength": 634
+        }
+      ]
+    },
+    {
+      "id": "zanna-dell-apostata",
+      "name": "Zanna dell'Apostata",
+      "summary": "La lama di questo pugnale è ricavata da un singolo frammento di vetro vulcanico nerissimo, curvata in modo innaturale come l'artiglio di un rapace. L'impugnatura, rivestita in una pelle pallida e fredda al tocco, sembra riadattarsi continuamente per calzare alla perfezione la mano di chi la stringe, accogliendola in una falsa e confortante promessa di lealtà.",
+      "properties": [
+        {
+          "name": "Pugnale +2",
+          "charges": "",
+          "descriptionLength": 98
+        },
+        {
+          "name": "Seme della Paranoia",
+          "charges": "Bonus di Competenza usi · recupera tutti all'alba",
+          "descriptionLength": 566
+        },
+        {
+          "name": "Opportunismo Vile",
+          "charges": "",
+          "descriptionLength": 392
+        }
+      ]
+    },
+    {
+      "id": "grembiule-del-vuoto-ignifugo",
+      "name": "Grembiule del Vuoto Ignifugo",
+      "summary": "Questo grembiule di cuoio pesante è nero come l'abisso tra le galassie. Non sembra essere stato conciato da pelle animale, ma tessuto dalla sostanza stessa dell'ombra. È costellato di tasche che sembrano non avere fondo; se guardi dentro una di esse, non vedi il fondo, ma piccole nebulose lontane. È perennemente sporco di fuliggine stellare argentata che non può essere pulita.",
+      "properties": [
+        {
+          "name": "Isolamento Cosmico",
+          "charges": "",
+          "descriptionLength": 219
+        },
+        {
+          "name": "Tasche dell'Orizzonte degli Eventi",
+          "charges": "",
+          "descriptionLength": 509
+        },
+        {
+          "name": "Stabilità Gravitazionale",
+          "charges": "",
+          "descriptionLength": 224
+        },
+        {
+          "name": "Set: Regalia del Forgiatore di Stelle",
+          "charges": "",
+          "descriptionLength": 1230
+        }
+      ]
+    },
+    {
+      "id": "lanterna-dell-alveare-d-ambra",
+      "name": "Lanterna dell'Alveare d'Ambra",
+      "summary": "Questa lanterna in ottone ossidato ha pannelli realizzati con lastre di ambra grezza e spessa. Al suo interno non brucia alcuna fiamma, ma vortica un perpetuo e luminoso sciame di minuscole api dorate, le cui ali producono un ronzio basso e rilassante.",
+      "properties": [
+        {
+          "name": "Faro di Polline",
+          "charges": "",
+          "descriptionLength": 182
+        },
+        {
+          "name": "Furia Dorata",
+          "charges": "3 cariche · recupera 1d3 all'alba",
+          "descriptionLength": 552
+        },
+        {
+          "name": "Bonus Set (2 Pezzi): Legame dell'Operaia",
+          "charges": "",
+          "descriptionLength": 693
+        },
+        {
+          "name": "Bonus Set (3 Pezzi): L'Avatar del Nido",
+          "charges": "",
+          "descriptionLength": 1187
+        }
+      ]
+    },
+    {
+      "id": "manto-della-bruma-silente",
+      "name": "Manto della Bruma Silente",
+      "summary": "Questo mantello è tessuto con fili di seta grigia e ombre solidificate. I bordi sono sempre sfrangiati e sembrano dissolversi in fumo quando ti muovi rapidamente. Non produce alcun fruscio, nemmeno nel vento più forte.",
+      "properties": [
+        {
+          "name": "Passo Evanescente",
+          "charges": "",
+          "descriptionLength": 188
+        },
+        {
+          "name": "Caduta di Piume",
+          "charges": "",
+          "descriptionLength": 182
+        },
+        {
+          "name": "Furtività dell'Ombra",
+          "charges": "",
+          "descriptionLength": 105
+        },
+        {
+          "name": "Set: Regalia del Fantasma d'Argento",
+          "charges": "",
+          "descriptionLength": 992
+        }
+      ]
+    },
+    {
+      "id": "spallacci-della-carica-sismica",
+      "name": "Spallacci della Carica Sismica",
+      "summary": "Due massicce protezioni per le spalle fatte di placche di scaglie di drago di terra e bronzo. Quando corri, il terreno sotto i tuoi piedi trema leggermente. Sono pensati per chi risolve i problemi prendendoli a testate.",
+      "properties": [
+        {
+          "name": "Locomotiva Umana",
+          "charges": "",
+          "descriptionLength": 46
+        },
+        {
+          "name": "Impatto Devastante",
+          "charges": "",
+          "descriptionLength": 330
+        },
+        {
+          "name": "Inamovibile",
+          "charges": "",
+          "descriptionLength": 151
+        },
+        {
+          "name": "Set: Regalia del Juggernaut Primordiale",
+          "charges": "",
+          "descriptionLength": 903
+        }
+      ]
+    },
+    {
+      "id": "maschera-del-volto-di-nessuno",
+      "name": "Maschera del Volto di Nessuno",
+      "summary": "Una maschera di porcellana bianca, priva di bocca e con le orbite vuote che sembrano assorbire la luce. Quando la indossi, i lineamenti della maschera cambiano impercettibilmente per riflettere le paure o i desideri di chi ti guarda, rendendoti difficile da memorizzare.",
+      "properties": [
+        {
+          "name": "Identità Liquida",
+          "charges": "",
+          "descriptionLength": 215
+        },
+        {
+          "name": "Difesa a Specchio",
+          "charges": "3 cariche · recupera 1d3 all'alba",
+          "descriptionLength": 295
+        },
+        {
+          "name": "Set: Regalia del Fantasma d'Argento",
+          "charges": "",
+          "descriptionLength": 993
+        }
+      ]
+    },
+    {
+      "id": "zanna-del-vuoto-nichilista",
+      "name": "Zanna del Vuoto Nichilista",
+      "summary": "Questa lama sembra essere stata forgiata da un frammento di nulla solidificato, un buco nella trama della realtà a forma di spada. Quando viene estratta, i suoni nell'area si smorzano e i colori diventano grigi. Le ferite che infligge non sanguinano, ma svaniscono semplicemente nel nulla, lasciando vuoti freddi nella carne del nemico.",
+      "properties": [
+        {
+          "name": "Spadone +3",
+          "charges": "",
+          "descriptionLength": 125
+        },
+        {
+          "name": "Entropia Pura",
+          "charges": "",
+          "descriptionLength": 237
+        },
+        {
+          "name": "Anatema Arcano",
+          "charges": "",
+          "descriptionLength": 602
+        },
+        {
+          "name": "Devoratore di Essenza",
+          "charges": "",
+          "descriptionLength": 252
+        }
+      ]
+    }
+  ],
+  "excluded": [
+    "anello-d-argento-dei-nocthar",
+    "nuovo-oggetto-mrulujin"
+  ]
+}

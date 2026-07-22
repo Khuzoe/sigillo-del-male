@@ -47,6 +47,17 @@ body.page-oggetti .item-properties-block h4 {
 body.page-oggetti .item-properties-block h4 i { font-size: .66rem; }
 body.page-oggetti .item-properties-block .item-properties { margin-top: 0; }
 
+body.page-oggetti .item-properties-block--normal {
+    border-color: rgba(223, 195, 111, .14);
+    background: rgba(223, 195, 111, .025);
+}
+body.page-oggetti .item-properties-block--normal h4 { color: rgba(232, 219, 188, .74); }
+body.page-oggetti .item-properties--normal li {
+    border-color: rgba(223, 195, 111, .09);
+    background: rgba(223, 195, 111, .018);
+}
+body.page-oggetti .item-properties--normal li::before { background: var(--items-gold); }
+body.page-oggetti .item-properties--normal strong { color: var(--items-gold-bright); }
 body.page-oggetti .item-properties-block--arcane {
     border-color: rgba(174, 104, 211, .22);
     background:
@@ -127,3 +138,19 @@ body.page-oggetti .item-category-drop-dock__targets button{display:inline-flex;a
 body.page-oggetti .item-category-drop-dock__targets button i{color:var(--item-category-accent,#b99a45)}
 body.page-oggetti .item-category-drop-dock__targets button.is-item-category-drop-target{transform:translateY(-2px);border-color:color-mix(in srgb,var(--item-category-accent,#b99a45) 80%,#fff 5%);background:color-mix(in srgb,var(--item-category-accent,#b99a45) 18%,rgba(14,13,17,.9));box-shadow:0 0 0 2px color-mix(in srgb,var(--item-category-accent,#b99a45) 18%,transparent)}
 @media(max-width:760px){body.page-oggetti .item-category-drop-dock{align-items:flex-start;flex-direction:column}.item-category-drop-dock__targets{width:100%}}
+
+/* Archivio oggetti: stato reversibile, distinto dalla cancellazione fisica. */
+body.page-oggetti .item-card--archived{--item-rarity:#9b7b83;filter:saturate(.62);opacity:.86;border-style:dashed;background:radial-gradient(circle at 0 0,rgba(199,96,103,.08),transparent 15rem),linear-gradient(145deg,rgba(23,20,24,.88),rgba(8,8,11,.96))}
+body.page-oggetti .item-card--archived:hover,body.page-oggetti .item-card--archived[open]{filter:saturate(.78);opacity:1}
+body.page-oggetti .item-card-kicker .item-card-archive-badge{border-color:rgba(219,112,116,.34);background:rgba(151,52,58,.13);color:#efaaaa}
+body.page-oggetti .item-card-archive-link{border-color:rgba(219,112,116,.26);color:#e9a3a6}
+body.page-oggetti .item-card-archive-link:hover{border-color:rgba(232,125,129,.56);background:rgba(151,52,58,.13);color:#ffd0d2}
+body.page-oggetti .item-card-archive-link.is-restore{border-color:rgba(91,197,139,.3);color:#8ed7ae}
+body.page-oggetti .item-card-archive-link.is-restore:hover{border-color:rgba(91,197,139,.58);background:rgba(47,135,87,.14);color:#c4f5d9}
+
+/* I comandi per-item restano raccolti dietro un unico interruttore DM. */
+body.page-oggetti .items-config-controls-button.is-active{border-color:rgba(223,195,111,.55);background:linear-gradient(135deg,rgba(223,195,111,.15),rgba(110,42,77,.2));color:var(--items-gold-bright);box-shadow:inset 0 0 0 1px rgba(223,195,111,.07)}
+body.page-oggetti .items-grid.is-configuration-visible .item-card-summary-actions>.item-card-edit-link{display:inline-flex!important}
+body.page-oggetti .items-grid:not(.is-configuration-visible) .item-card-summary-actions>.item-card-edit-link,
+body.page-oggetti .items-grid:not(.is-configuration-visible) .item-card-summary-actions>.item-card-category-drag{display:none!important}
+body.page-oggetti .items-grid:not(.is-configuration-visible) .item-card-summary-actions{min-width:34px!important}

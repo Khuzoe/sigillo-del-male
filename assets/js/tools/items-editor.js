@@ -828,7 +828,7 @@
         }
 
         els.propertyList.innerHTML = properties.map((property, index) => `
-            <div class="items-property-row ${property.negative === true ? 'items-property-row--negative' : ''}" data-property-index="${index}">
+            <div class="items-property-row ${property.negative === true ? 'items-property-row--negative' : property.genial === true ? 'items-property-row--genial' : ''}" data-property-index="${index}">
                 <div class="items-property-row-top">
                     <input class="items-editor-input" data-property-field="name" placeholder="Nome" value="${escapeHtml(property.name || '')}">
                     <input class="items-editor-input" data-property-field="charges" placeholder="Cariche" value="${escapeHtml(property.charges || '')}">
@@ -836,6 +836,10 @@
                         <i class="fas fa-trash" aria-hidden="true"></i>
                     </button>
                 </div>
+                <label class="items-editor-check">
+                    <input type="checkbox" data-property-field="genial" ${property.genial === true ? 'checked' : ''}>
+                    Proprietà geniale
+                </label>
                 <label class="items-editor-check">
                     <input type="checkbox" data-property-field="negative" ${property.negative === true ? 'checked' : ''}>
                     Effetto negativo
@@ -1087,11 +1091,11 @@
             if (!Number.isInteger(index)) return;
             item.properties = normalizeProperties(item.properties, { keepEmpty: true });
             if (!item.properties[index]) item.properties[index] = {};
-            item.properties[index][propertyField] = (propertyField === 'negative' || propertyField === 'hidden')
+            item.properties[index][propertyField] = (propertyField === 'genial' || propertyField === 'negative' || propertyField === 'hidden')
                 ? target.checked === true
                 : String(target.value || '').trim();
             updatePreview();
-            if (propertyField === 'negative' || propertyField === 'hidden') renderPropertiesEditor(item);
+            if (propertyField === 'genial' || propertyField === 'negative' || propertyField === 'hidden') renderPropertiesEditor(item);
             updateOutput();
             setStatus('Modifiche non salvate esportate nel JSON.');
             return;
@@ -1563,6 +1567,7 @@
                     description: String(property.description || '').trim()
                 };
                 if (property.negative === true) normalized.negative = true;
+                else if (property.genial === true) normalized.genial = true;
                 if (property.hidden === true) normalized.hidden = true;
                 if (normalized.name || normalized.charges || normalized.description) return normalized;
                 return keepEmpty ? normalized : null;

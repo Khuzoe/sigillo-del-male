@@ -242,7 +242,7 @@
             const payload = await window.CriptaApp.api.get("api/data/items", { cache: false, ...(token ? { token } : {}) });
             const includeHidden = currentDocument?.permissions?.isEditor === true;
             campaignItemCatalog = (Array.isArray(payload?.data) ? payload.data : [])
-                .filter((item) => item && typeof item === "object" && (item.id || item.name) && (includeHidden || item.hidden !== true))
+                .filter((item) => item && typeof item === "object" && (item.id || item.name) && item.archived !== true && String(item.status || "").toLowerCase() !== "archived" && (includeHidden || item.hidden !== true))
                 .sort((left, right) => String(left.name || "").localeCompare(String(right.name || ""), "it"));
         } catch (error) {
             campaignItemCatalog = [];
@@ -1641,6 +1641,7 @@
                 name: String(property.name || "").trim(),
                 charges: String(property.charges || "").trim(),
                 description: String(property.description || "").trim(),
+                genial: property.genial === true && property.negative !== true,
                 negative: property.negative === true
             }))
             .filter((property) => property.name || property.description);
@@ -1672,7 +1673,7 @@
     function renderManagedMerchantCatalogProperties(properties = []) {
         if (!properties.length) return "";
         return `<div class="managed-merchant-catalog-properties">${properties.map((property) => `
-            <section class="${property.negative ? "is-negative" : ""}">
+            <section class="${property.negative ? "is-negative" : property.genial ? "is-genial" : ""}">
                 ${property.name ? `<h4>${escapeHtml(property.name)}${property.charges ? `<small>${escapeHtml(property.charges)}</small>` : ""}</h4>` : ""}
                 ${property.description ? `<p>${formatManagedPreview(property.description)}</p>` : ""}
             </section>`).join("")}</div>`;
@@ -1760,13 +1761,14 @@
     }
     function renderManagedEntryCard(entry, canEdit, groupKey) {
         const icon = entry.media?.icon?.path;
-        const description = truncatePreview(stripManagedDuplicateHeading(htmlToText(entry.definition?.description || ""), entry.name), 900);
+        const description = stripManagedDuplicateHeading(htmlToText(entry.definition?.description || ""), entry.name);
+        const searchDescription = truncatePreview(description, 900);
         const meta = formatEntryMeta(entry);
         const command = findManagedItemCommand(entry);
         const preparation = getManagedSpellPreparation(entry, command);
         const editor = canEdit ? renderManagedItemEditor(entry, command) : "";
         const status = command ? renderManagedItemSyncStatus(command) : "";
-        const searchText = normalizeManagedSearch([entry.name, meta, preparation?.label, description].filter(Boolean).join(" "));
+        const searchText = normalizeManagedSearch([entry.name, meta, preparation?.label, searchDescription].filter(Boolean).join(" "));
         const level = Number(entry.definition?.level ?? 0) || 0;
         const disclosure = description ? `<details class="managed-entry-disclosure"><summary><span><i class="fas fa-book-open"></i> Descrizione</span><i class="fas fa-chevron-down"></i></summary><div>${formatManagedPreview(description)}</div></details>` : "";
         const preparationAttribute = preparation ? ` data-managed-spell-preparation="${escapeAttr(preparation.key)}"` : "";

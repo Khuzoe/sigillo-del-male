@@ -21,6 +21,8 @@ async function main() {
         <section class="cripta-catalog-summary"><p>${summary}</p></section>
         <div class="cripta-catalog-properties">
             <section class="cripta-catalog-property"><h3><span>Luce di Pezza</span><small class="cripta-catalog-property-charges">3</small></h3><p>Emette luce intensa.</p></section>
+            <section class="cripta-catalog-property cripta-catalog-property--genial"><h3><span>Intuizione</span></h3><p>Una proprietà geniale.</p></section>
+            <section class="cripta-catalog-property cripta-catalog-property--negative"><h3><span>Contraccolpo</span></h3><p>Un effetto negativo.</p></section>
         </div>
         <aside class="cripta-catalog-notes"><h4>Note della campagna</h4><p>Creata da Zara.</p></aside>
     </div>`;
@@ -64,7 +66,11 @@ async function main() {
     assert.equal(item.valueGold, undefined, "una valuta personalizzata non viene convertita implicitamente in oro");
     assert.equal(item.foundry.document.flags["khuzoe-merchant"].cost.components[0].amount, 2);
     assert.equal(item.summary, "Un ago sottile e luminoso.");
-    assert.deepEqual(item.properties, [{ name: "Luce di Pezza", charges: "3", description: "Emette luce intensa." }]);
+    assert.deepEqual(item.properties, [
+        { name: "Luce di Pezza", charges: "3", description: "Emette luce intensa." },
+        { name: "Intuizione", charges: "", description: "Una proprietà geniale.", genial: true },
+        { name: "Contraccolpo", charges: "", description: "Un effetto negativo.", negative: true }
+    ]);
     assert.equal(item.notes, "Creata da Zara.");
     assert.equal(item.unidentifiedName, "Ago misterioso");
     assert.equal(item.unidentifiedDescription, "Un ago dalla provenienza ignota.");
@@ -101,7 +107,45 @@ async function main() {
     assert.equal(item.category, "Pozioni");
     assert.equal(item.summary, "Testo curato sul sito", "lo spostamento di cartella non sovrascrive il testo curato");
 
-    console.log("Campaign items: round-trip descrizioni, prezzi personalizzati e protezione dati superati.");
+    const siteArchivedData = document.data.map((entry) => entry.id === "zara-needle" ? { ...entry, archived: true, archivedAt: "2026-07-22T12:00:00.000Z" } : entry);
+    document.data = api.normalizeCampaignItemsForSiteSave(document.data, siteArchivedData);
+    document.version += 1;
+    await env.SIGILLO_KV.put(key, JSON.stringify(document));
+    item = document.data.find((entry) => entry.id === "zara-needle");
+    assert.equal(item.sync.pendingFoundry, true, "archiviare dal sito crea una modifica Foundry pendente");
+
+    const archivedEntry = snapshot(4, "Testo successivo di Foundry", "Cripta Wiki Items / _ARCHIVIATI");
+    archivedEntry.appliedSiteRevision = item.sync.siteRevision;
+    archivedEntry.document.document.flags["cripta-wiki-sync"] = {
+        categoryId: "pozioni",
+        categoryName: "Pozioni",
+        categoryIdentityVersion: 2,
+        archived: true,
+        archiveIdentityVersion: 1
+    };
+    const archived = await api.handleCampaignItemFoundrySync(request(archivedEntry), campaign, env, {});
+    assert.equal(archived.status, 200);
+    document = JSON.parse(store.get(key));
+    item = document.data.find((entry) => entry.id === "zara-needle");
+    assert.equal(item.archived, true);
+    assert.equal(item.sync.pendingFoundry, false, "Foundry conferma lo spostamento in _ARCHIVIATI");
+    assert.equal(item.category, "Pozioni", "archiviare non perde la categoria originale");
+
+    const restoredEntry = snapshot(4, "Testo successivo di Foundry", "Cripta Wiki Items / Pozioni");
+    restoredEntry.document.document.flags["cripta-wiki-sync"] = {
+        categoryId: "pozioni",
+        categoryName: "Pozioni",
+        categoryIdentityVersion: 2,
+        archived: false,
+        archiveIdentityVersion: 1
+    };
+    const restored = await api.handleCampaignItemFoundrySync(request(restoredEntry), campaign, env, {});
+    assert.equal(restored.status, 200);
+    document = JSON.parse(store.get(key));
+    item = document.data.find((entry) => entry.id === "zara-needle");
+    assert.equal(item.archived, undefined, "spostare fuori dall'archivio ripristina il catalogo");
+
+    console.log("Campaign items: round-trip descrizioni, prezzi personalizzati, archivio e protezione dati superati.");
 }
 
 main().catch((error) => {

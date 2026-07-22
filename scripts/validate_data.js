@@ -597,6 +597,12 @@ function validateMagicItems() {
         if (!property.name && !property.description) {
           pushWarning(`${propContext}: proprieta senza nome e descrizione`);
         }
+        if ("genial" in property && typeof property.genial !== "boolean") {
+          pushError(`${propContext}.genial deve essere booleano`);
+        }
+        if ("negative" in property && typeof property.negative !== "boolean") {
+          pushError(`${propContext}.negative deve essere booleano`);
+        }
       });
     }
   });

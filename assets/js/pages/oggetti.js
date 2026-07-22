@@ -14,8 +14,11 @@ window.CriptaApp.onPageReady("oggetti", async () => {
     const rarityFilters = document.getElementById("items-rarity-filters");
     const typeFilters = document.getElementById("items-type-filters");
     const attunementFilters = document.getElementById("items-attunement-filters");
+    const lifecycleFilters = document.getElementById("items-lifecycle-filters");
+    const lifecycleRow = document.getElementById("items-lifecycle-row");
     const categoryFilters = document.getElementById("items-category-filters");
     const createButton = document.getElementById("items-create-button");
+    const configControlsButton = document.getElementById("items-config-controls-button");
     if (!grid) return;
 
     try {
@@ -26,13 +29,15 @@ window.CriptaApp.onPageReady("oggetti", async () => {
             window.CriptaItemCategories?.load?.().catch(() => ({ categories: [] }))
         ]);
         currentEconomyRegistry = economyPayload?.registry || null;
-        const items = filterVisibleItems(rawItems, { includeHidden: canSeeHidden });
+        const items = filterVisibleItems(rawItems, { includeHidden: canSeeHidden, includeArchived: canSeeHidden });
         currentItemCategoryRegistry = withInferredItemCategories(categoryRegistry, items);
         const state = {
             query: "",
             rarity: "all",
             type: "all",
             attunement: "all",
+            lifecycle: "active",
+            showConfigurationControls: false,
             canEditItems: canSeeHidden,
             category: "all",
             items,
@@ -42,9 +47,10 @@ window.CriptaApp.onPageReady("oggetti", async () => {
             categoryRegistry: currentItemCategoryRegistry
         };
 
-        const controls = { grid, count, search, rarityFilters, typeFilters, categoryFilters, attunementFilters };
+        const controls = { grid, count, search, rarityFilters, typeFilters, categoryFilters, attunementFilters, lifecycleFilters, lifecycleRow };
         initItemFilters(items, state, controls);
         initCreateItemButton(createButton, state, controls);
+        initConfigurationControlsButton(configControlsButton, state, controls);
         window.CriptaItemCategoryManager?.init?.({
             isEditor: canSeeHidden,
             onSaved: (registry) => {
@@ -90,8 +96,8 @@ function resolveImageUrl(path) {
     return `../assets/${value}`;
 }
 
-function filterVisibleItems(items, { includeHidden = false } = {}) {
-    return window.CriptaItemNormalize.filterVisibleItems(items, { includeHidden });
+function filterVisibleItems(items, { includeHidden = false, includeArchived = false } = {}) {
+    return window.CriptaItemNormalize.filterVisibleItems(items, { includeHidden, includeArchived });
 }
 
 async function canCurrentUserSeeHiddenItems() {
@@ -128,6 +134,10 @@ function isHiddenItem(item) {
     return window.CriptaItemNormalize.isHiddenItem(item);
 }
 
+function isArchivedItem(item) {
+    return window.CriptaItemNormalize.isArchivedItem?.(item) === true;
+}
+
 function initItemFilters(items, state, elements) {
     renderItemFilter(elements.rarityFilters, "items-rarity", [
         { value: "all", label: "Tutte", icon: "fa-layer-group" },
@@ -147,6 +157,14 @@ function initItemFilters(items, state, elements) {
         { value: "yes", label: "Sintonia", icon: "fa-link" },
         { value: "no", label: "Senza sintonia", icon: "fa-link-slash" }
     ], state.attunement);
+    if (state.canEditItems) {
+        if (elements.lifecycleRow) elements.lifecycleRow.hidden = false;
+        renderItemFilter(elements.lifecycleFilters, "items-lifecycle", [
+            { value: "active", label: "Attivi", icon: "fa-box-open" },
+            { value: "archived", label: "Archiviati", icon: "fa-box-archive" },
+            { value: "all", label: "Tutti", icon: "fa-layer-group" }
+        ], state.lifecycle);
+    }
 
     elements.search?.addEventListener("input", event => {
         state.query = event.target.value.trim();
@@ -167,6 +185,10 @@ function initItemFilters(items, state, elements) {
     });
     bindFilterGroup(elements.attunementFilters, "itemsAttunement", value => {
         state.attunement = value;
+        updateItemsView(state.items, state, elements.grid, elements.count);
+    });
+    bindFilterGroup(elements.lifecycleFilters, "itemsLifecycle", value => {
+        state.lifecycle = value;
         updateItemsView(state.items, state, elements.grid, elements.count);
     });
 }
@@ -238,11 +260,13 @@ function initCreateItemButton(button, state, elements) {
         state.type = "all";
         state.category = "all";
         state.attunement = "all";
+        state.lifecycle = "active";
         if (elements.search) elements.search.value = "";
         setFilterGroupActive(elements.rarityFilters, "itemsRarity", "all");
         setFilterGroupActive(elements.typeFilters, "itemsType", "all");
         setFilterGroupActive(elements.categoryFilters, "itemsCategory", "all");
         setFilterGroupActive(elements.attunementFilters, "itemsAttunement", "all");
+        setFilterGroupActive(elements.lifecycleFilters, "itemsLifecycle", "active");
         updateItemsView(state.items, state, elements.grid, elements.count);
         const card = elements.grid.querySelector(`#${CSS.escape(draft.id)}`);
         if (card) {
@@ -250,6 +274,34 @@ function initCreateItemButton(button, state, elements) {
             card.scrollIntoView({ block: "center" });
         }
     });
+}
+
+function initConfigurationControlsButton(button, state, elements) {
+    if (!button || !state.canEditItems) return;
+    const storageKey = `cripta-items-config-controls:${getItemsCampaignId()}`;
+    try {
+        state.showConfigurationControls = window.localStorage.getItem(storageKey) === "1";
+    } catch (_) {
+        state.showConfigurationControls = false;
+    }
+    const apply = () => {
+        elements.grid?.classList.toggle("is-configuration-visible", state.showConfigurationControls);
+        button.setAttribute("aria-pressed", state.showConfigurationControls ? "true" : "false");
+        button.classList.toggle("is-active", state.showConfigurationControls);
+        const label = button.querySelector("span");
+        if (label) label.textContent = state.showConfigurationControls
+            ? "Nascondi bottoni configurazione"
+            : "Mostra bottoni configurazione";
+    };
+    button.hidden = false;
+    button.addEventListener("click", () => {
+        state.showConfigurationControls = !state.showConfigurationControls;
+        try {
+            window.localStorage.setItem(storageKey, state.showConfigurationControls ? "1" : "0");
+        } catch (_) {}
+        apply();
+    });
+    apply();
 }
 
 function setFilterGroupActive(container, datasetKey, value) {
@@ -274,6 +326,7 @@ function createEmptyItemDraft() {
 }
 
 function updateItemsView(items, state, grid, count) {
+    grid.classList.toggle("is-configuration-visible", state.showConfigurationControls === true);
     const filtered = filterItems(items, state);
     currentMaterialTagSuggestions = collectMaterialTagSuggestions(items);
     if (count) count.textContent = `${filtered.length} ${filtered.length === 1 ? "voce" : "voci"}`;
@@ -292,6 +345,7 @@ function updateItemsView(items, state, grid, count) {
     bindItemExpansion(grid);
     bindItemInlineEditor(grid, state, count);
     bindItemDiscordSharing(grid, state);
+    bindItemArchiveActions(grid, state, count);
     bindItemCategoryDrag(grid, state, count);
     initItemAdjustedImages(grid);
 }
@@ -376,6 +430,9 @@ function openLinkedItem(grid) {
 function filterItems(items, state) {
     const query = normalizeSearch(state.query);
     return items.filter(item => {
+        const archived = isArchivedItem(item);
+        if (state.lifecycle === "active" && archived) return false;
+        if (state.lifecycle === "archived" && !archived) return false;
         const visibleProperties = getVisibleItemProperties(item, { includeHidden: state.canEditItems, includeUnidentified: state.canEditItems });
         const materialTags = getVisibleMaterialTags(item);
         if (state.rarity !== "all" && normalizeItemRarityLabel(item.rarity) !== state.rarity) return false;
@@ -400,7 +457,8 @@ function filterItems(items, state) {
                 property.name,
                 property.charges,
                 property.description,
-                property.negative ? "negativo malus" : ""
+                property.negative ? "negativo malus" : "",
+                property.genial ? "geniale" : ""
             ]),
             ...materialTags.flatMap(tag => [
                 tag.name,
@@ -416,9 +474,11 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
     const rarity = getItemRarityMeta(item.rarity);
     const properties = getVisibleItemProperties(item, { includeHidden: canEdit, includeUnidentified: canEdit });
     const materialTags = isMaterial ? getVisibleMaterialTags(item) : [];
-    const positiveProperties = isMaterial ? [] : properties.filter(property => !isNegativeItemProperty(property));
+    const normalProperties = isMaterial ? [] : properties.filter(property => !isNegativeItemProperty(property) && !isGenialItemProperty(property));
+    const genialProperties = isMaterial ? [] : properties.filter(property => !isNegativeItemProperty(property) && isGenialItemProperty(property));
     const negativeProperties = isMaterial ? [] : properties.filter(isNegativeItemProperty);
     const hidden = isHiddenItem(item);
+    const archived = isArchivedItem(item);
     const itemId = getItemId(item);
     const detailCount = isMaterial ? materialTags.length : properties.length;
     const quickFacts = [
@@ -439,11 +499,19 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
                 ${materialTags.map(tag => `<li>${renderMaterialTag(tag)}</li>`).join("")}
             </ul>
         ` : ""}
-        ${positiveProperties.length ? `
+        ${normalProperties.length ? `
+            <section class="item-properties-block item-properties-block--normal" aria-label="Propriet\u00e0">
+                <h4><i class="fas fa-list-check" aria-hidden="true"></i>Propriet\u00e0</h4>
+                <ul class="item-properties item-properties--normal">
+                    ${normalProperties.map(property => `<li>${renderItemProperty(property)}</li>`).join("")}
+                </ul>
+            </section>
+        ` : ""}
+        ${genialProperties.length ? `
             <section class="item-properties-block item-properties-block--arcane" aria-label="Propriet\u00e0 geniali">
                 <h4><i class="fas fa-sparkles" aria-hidden="true"></i>Propriet\u00e0 geniali</h4>
                 <ul class="item-properties item-properties--arcane">
-                    ${positiveProperties.map(property => `<li>${renderItemProperty(property)}</li>`).join("")}
+                    ${genialProperties.map(property => `<li>${renderItemProperty(property)}</li>`).join("")}
                 </ul>
             </section>
         ` : ""}
@@ -459,7 +527,7 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
     `;
 
     return `
-        <details class="item-card item-card--${slugify(rarity.label)} ${isMaterial ? "item-card--material" : ""} ${hidden ? "item-card--dm-hidden" : ""} ${isEditing ? "item-card--editing" : ""}" id="${escapeHtml(itemId)}" ${isEditing ? "open" : ""}>
+        <details class="item-card item-card--${slugify(rarity.label)} ${isMaterial ? "item-card--material" : ""} ${hidden ? "item-card--dm-hidden" : ""} ${archived ? "item-card--archived" : ""} ${isEditing ? "item-card--editing" : ""}" id="${escapeHtml(itemId)}" ${isEditing ? "open" : ""}>
             <summary class="item-card-summary">
                 <div class="item-card-visual">
                     ${renderItemMedia(item, type, rarity)}
@@ -472,6 +540,7 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
                         ${!isMaterial && item.attunement ? '<span><i class="fas fa-link" aria-hidden="true"></i>Sintonia</span>' : ""}
                         ${item.unidentified === true ? '<span><i class="fas fa-eye-slash" aria-hidden="true"></i>Non identificato</span>' : ""}
                         ${hidden ? '<span class="item-card-dm-badge"><i class="fas fa-user-shield" aria-hidden="true"></i>Solo DM</span>' : ""}
+                        ${archived ? '<span class="item-card-archive-badge"><i class="fas fa-box-archive" aria-hidden="true"></i>Archiviato</span>' : ""}
                         ${item?.sync?.pendingFoundry ? '<span class="item-card-sync-badge item-card-sync-badge--pending"><i class="fas fa-clock" aria-hidden="true"></i>Attesa Foundry</span>' : item?.sync?.managed ? '<span class="item-card-sync-badge"><i class="fas fa-circle-check" aria-hidden="true"></i>Sincronizzato</span>' : ""}
                     </div>
                     <h3>${escapeHtml(item.name || "Oggetto senza nome")}</h3>
@@ -479,11 +548,19 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
                     ${quickFacts ? `<div class="item-card-quickfacts">${quickFacts}</div>` : ""}
                 </div>
                 <div class="item-card-summary-actions">
-                    ${canEdit && !isEditing ? `<span class="item-card-category-drag" role="button" tabindex="0" draggable="true" data-item-category-drag="${escapeHtml(itemId)}" title="Sposta in una categoria diversa" aria-label="Sposta elemento in una categoria diversa"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>` : ""}
-                    ${canEdit && !isEditing ? `
+                    ${canEdit && !isEditing && !archived ? `<span class="item-card-category-drag" role="button" tabindex="0" draggable="true" data-item-category-drag="${escapeHtml(itemId)}" title="Sposta in una categoria diversa" aria-label="Sposta elemento in una categoria diversa"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>` : ""}
+                    ${canEdit && !isEditing && !archived ? `
                         <button class="item-card-edit-link item-card-discord-link" type="button" data-item-discord-share="${escapeHtml(itemId)}" title="Condividi su Discord">
                             <i class="fab fa-discord" aria-hidden="true"></i>
                             <span>Condividi</span>
+                        </button>
+                    ` : ""}
+                    ${canEdit && !isEditing ? `
+                        <button class="item-card-edit-link item-card-archive-link ${archived ? "is-restore" : ""}" type="button"
+                            data-item-archive-action="${archived ? "restore" : "archive"}" data-item-archive-id="${escapeHtml(itemId)}"
+                            title="${archived ? "Ripristina nel catalogo" : "Archivia senza cancellare dati"}">
+                            <i class="fas ${archived ? "fa-rotate-left" : "fa-box-archive"}" aria-hidden="true"></i>
+                            <span>${archived ? "Ripristina" : "Archivia"}</span>
                         </button>
                     ` : ""}
                     ${canEdit ? `
@@ -503,6 +580,73 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
         </details>
     `;
 }
+function bindItemArchiveActions(grid, state, count) {
+    if (!state.canEditItems) return;
+    grid.querySelectorAll("[data-item-archive-action]").forEach(button => {
+        button.addEventListener("click", async event => {
+            event.preventDefault();
+            event.stopPropagation();
+            const itemId = String(button.dataset.itemArchiveId || "").trim();
+            const archive = button.dataset.itemArchiveAction === "archive";
+            const item = state.items.find(entry => getItemId(entry) === itemId);
+            const token = readItemsAuthToken();
+            if (!item || !token) return;
+            if (archive && !window.confirm(`Archiviare “${item.name || "questo oggetto"}”?\n\nSparirà dal catalogo pubblico e Foundry lo sposterà in _ARCHIVIATI. Nessuna scheda o immagine verrà cancellata.`)) return;
+            button.disabled = true;
+            try {
+                const loaded = await loadItemsDocumentForSave();
+                const archivedAt = new Date().toISOString();
+                const nextData = loaded.data.map(entry => {
+                    if (getItemId(entry) !== itemId) return entry;
+                    const next = { ...entry };
+                    if (archive) {
+                        next.archived = true;
+                        next.archivedAt = archivedAt;
+                    } else {
+                        delete next.archived;
+                        delete next.archivedAt;
+                    }
+                    return next;
+                });
+                const response = await fetch(withItemsCampaign(ITEMS_DATA_API_URL(), { force: true }), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({
+                        data: nextData,
+                        expectedVersion: loaded.source === "kv" ? (loaded.version ?? 0) : 0,
+                        campaignId: getItemsCampaignId()
+                    })
+                });
+                const payload = await response.json().catch(() => null);
+                if (!response.ok || payload?.ok === false) throw new Error(payload?.error || `HTTP ${response.status}`);
+                state.items = nextData.map(entry => getItemId(entry) !== itemId ? entry : {
+                    ...entry,
+                    sync: {
+                        ...(entry.sync || {}),
+                        managed: true,
+                        pendingFoundry: true,
+                        source: "site",
+                        siteRevision: Number(entry.sync?.siteRevision || 0) + 1
+                    }
+                });
+                state.loadedVersion = payload?.version ?? loaded.version ?? state.loadedVersion;
+                state.lifecycle = archive ? "archived" : "active";
+                setFilterGroupActive(document.getElementById("items-lifecycle-filters"), "itemsLifecycle", state.lifecycle);
+                updateItemsView(state.items, state, grid, count);
+                const card = grid.querySelector(`#${CSS.escape(itemId)}`);
+                if (card) {
+                    card.open = true;
+                    card.scrollIntoView({ block: "center" });
+                }
+            } catch (error) {
+                console.error("Archiviazione oggetto fallita:", error);
+                window.alert(`Operazione non riuscita: ${error?.message || error}`);
+                button.disabled = false;
+            }
+        });
+    });
+}
+
 function bindItemCategoryDrag(grid, state, count) {
     if (!state.canEditItems) return;
     let draggedItemId = "";
@@ -646,7 +790,7 @@ function buildDiscordItemSections(item, { unidentified = false } = {}) {
             title: property.name || "Proprietà",
             meta: formatDiscordPropertyCharges(property.charges),
             description: property.description || "",
-            tone: isNegativeItemProperty(property) ? "negative" : "arcane"
+            tone: isNegativeItemProperty(property) ? "negative" : isGenialItemProperty(property) ? "arcane" : "default"
         })),
         ...materialTags.map(tag => ({
             title: tag.name || "Materiale",
@@ -874,10 +1018,7 @@ function getItemFoundryEffects(item) {
 }
 
 function buildInitialFoundrySystem(item) {
-    const description = [
-        item?.summary ? `<p>${escapeHtml(item.summary)}</p>` : "",
-        ...normalizeItemProperties(item?.properties).map(property => `${property.name ? `<h3>${escapeHtml(property.name)}${property.charges ? ` (${escapeHtml(property.charges)})` : ""}</h3>` : ""}${property.description ? `<p>${escapeHtml(property.description)}</p>` : ""}`)
-    ].filter(Boolean).join("");
+    const description = buildFoundryItemDescription(item);
     return {
         description: { value: description, unidentified: String(item?.unidentifiedDescription || ""), chat: "" },
         quantity: 1,
@@ -927,6 +1068,7 @@ function renderItemPropertyEditor(property = {}) {
                 ${renderInlineRowArea("Descrizione", "description", property.description || "", "item-inline-editor-field--wide", 5)}
             </div>
             <div class="item-inline-editor-row-actions">
+                ${renderInlineRowCheck("Geniale", "genial", property.genial === true)}
                 ${renderInlineRowCheck("Negativa", "negative", property.negative === true)}
                 ${renderInlineRowCheck("Nascosta", "hidden", property.hidden === true)}
                 <button class="item-card-edit-link item-card-edit-link--visible" type="button" data-item-edit-action="remove-row">
@@ -1409,6 +1551,8 @@ function itemNarrativeFingerprint(item) {
             name: property.name,
             charges: property.charges,
             description: property.description,
+            genial: property.genial === true,
+            negative: property.negative === true,
             hidden: property.hidden === true
         }))
     });
@@ -1418,13 +1562,16 @@ function buildFoundryItemDescription(item) {
     const summary = renderPlainTextParagraphs(item?.summary);
     const properties = normalizeItemProperties(item?.properties).filter(property => property.hidden !== true);
     const propertyCards = properties.map(property => {
+        const toneClass = isNegativeItemProperty(property)
+            ? "cripta-catalog-property--negative"
+            : isGenialItemProperty(property) ? "cripta-catalog-property--genial" : "cripta-catalog-property--normal";
         const heading = property.name
             ? "<h3><span>" + escapeHtml(property.name) + "</span>"
                 + (property.charges ? '<small class="cripta-catalog-property-charges">' + escapeHtml(property.charges) + "</small>" : "")
                 + "</h3>"
             : "";
         const description = renderPlainTextParagraphs(property.description);
-        return '<section class="cripta-catalog-property">' + heading + description + "</section>";
+        return '<section class="cripta-catalog-property ' + toneClass + '">' + heading + description + "</section>";
     }).filter(Boolean).join("");
     const notes = renderPlainTextParagraphs(item?.notes);
     const parts = [
@@ -1457,11 +1604,13 @@ function collectItemPropertyRows(form) {
             name: readInlineRowValue(row, "name"),
             charges: readInlineRowValue(row, "charges"),
             description: readInlineRowValue(row, "description"),
+            genial: readInlineRowChecked(row, "genial"),
             negative: readInlineRowChecked(row, "negative"),
             hidden: readInlineRowChecked(row, "hidden")
         }))
         .map((property) => {
             if (!property.name && !property.charges && !property.description) return null;
+            if (property.genial !== true || property.negative === true) delete property.genial;
             if (property.negative !== true) delete property.negative;
             if (property.hidden !== true) delete property.hidden;
             return property;
@@ -1581,11 +1730,15 @@ function normalizeItemProperties(properties) {
             const charges = String(property.charges || "").trim();
             const description = String(property.description || "").trim();
             const negative = property.negative === true;
+            const genial = property.genial === true && !negative;
             const hidden = property.hidden === true;
             if (!name && !charges && !description) return null;
-            return { name, charges, description, negative, hidden };
+            return { name, charges, description, genial, negative, hidden };
         })
         .filter(Boolean);
+}
+function isGenialItemProperty(property) {
+    return property?.genial === true && !isNegativeItemProperty(property);
 }
 function isNegativeItemProperty(property) {
     if (property?.negative === true) return true;

@@ -71,7 +71,11 @@ export async function handleCampaignItemFoundrySync(request, fallbackCampaignId,
     const id = campaignItemId(entry);
     const document = normalizeFoundrySnapshot(entry?.document, worldId, campaignId);
     if (!id || !document) {
-      results.push({ campaignItemId: id || "", status: "invalid" });
+      results.push({
+        campaignItemId: id || "",
+        status: "invalid",
+        reason: !id ? "missing-id" : "snapshot-invalid",
+      });
       continue;
     }
     const index = data.findIndex((item) => campaignItemId(item) === id
@@ -113,6 +117,16 @@ export async function handleCampaignItemFoundrySync(request, fallbackCampaignId,
       preserveSiteChanges: previousSync.pendingFoundry,
     });
     applyCampaignItemCategoryFromFoundry(next, previous, previous?.foundry, document, { preserveSiteChanges: previousSync.pendingFoundry });
+    const archiveState = campaignItemArchiveFromSnapshot(document);
+    if (archiveState.known) {
+      if (archiveState.archived) {
+        next.archived = true;
+        next.archivedAt = previous?.archivedAt || now;
+      } else {
+        delete next.archived;
+        delete next.archivedAt;
+      }
+    }
     next.foundryType = document.document.type;
     next.foundry = {
       worldId,
@@ -159,7 +173,7 @@ export async function handleCampaignItemFoundrySync(request, fallbackCampaignId,
   return json({ ok: true, campaignId, worldId, saved: changed, version, updatedAt, results }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
 }
 
-function normalizeFoundrySnapshot(input, worldId, campaignId) {
+export function normalizeFoundrySnapshot(input, worldId, campaignId) {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
   const source = input.document;
   if (!source || typeof source !== "object" || Array.isArray(source)) return null;
@@ -171,8 +185,9 @@ function normalizeFoundrySnapshot(input, worldId, campaignId) {
   const flags = normalizeJsonObject(source.flags || {}, 96 * 1024);
   if (!system.valid || !effects.valid || !flags.valid) return null;
   const img = normalizeItemImage(source.img, campaignId);
-  if (img === null) return null;
-  const document = { name, type, img, system: system.value, effects: effects.value, flags: flags.value };
+  // Un percorso immagine locale insolito non deve mai impedire il salvataggio
+  // dell'intero oggetto. I valori non sicuri vengono omessi, non rifiutati.
+  const document = { name, type, img: img === null ? "" : img, system: system.value, effects: effects.value, flags: flags.value };
   const folderPath = String(input.folderPath || "").trim().slice(0, 300);
   return {
     worldId,
@@ -245,6 +260,18 @@ export function campaignItemCategoryFromSnapshot(snapshot) {
   if (!folder || sanitizeId(flagged.name) === folder.id) return flagged;
   return folder;
 }
+export function campaignItemArchiveFromSnapshot(snapshot) {
+  const metadata = snapshot?.document?.flags?.["cripta-wiki-sync"] || {};
+  const folderName = String(snapshot?.folderPath || "").split("/").map((part) => part.trim()).filter(Boolean).pop() || "";
+  const archivedFolder = sanitizeId(folderName) === "archiviati";
+  const version = Math.max(0, Math.floor(Number(metadata.archiveIdentityVersion || 0)));
+  const hasFlag = Object.prototype.hasOwnProperty.call(metadata, "archived");
+  return {
+    known: archivedFolder || version >= 1 || hasFlag,
+    archived: archivedFolder || metadata.archived === true,
+  };
+}
+
 export function applyCampaignItemCategoryFromFoundry(next, previous, previousSnapshot, currentSnapshot, { preserveSiteChanges = false } = {}) {
   if (preserveSiteChanges) return;
   const incoming = campaignItemCategoryFromSnapshot(currentSnapshot);
@@ -261,6 +288,7 @@ function buildNewCampaignItem(id, snapshot) {
   const image = isPublicItemImage(snapshot.document.img) ? toPublicMediaPath(snapshot.document.img) : "";
   const cost = campaignItemCostFromDocument(snapshot.document);
   const presentation = campaignItemPresentationFromDocument(snapshot.document);
+  const archiveState = campaignItemArchiveFromSnapshot(snapshot);
   const legacyGold = cost?.components?.length === 1 && cost.components[0].currencyId === "gp" ? cost.components[0].amount : null;
   return {
     id,
@@ -272,6 +300,7 @@ function buildNewCampaignItem(id, snapshot) {
     ...(system.rarity ? { rarity: siteRarity(system.rarity) } : {}),
     ...(system.attunement === "required" || system.attunement === 1 || system.attunement === true ? { attunement: true } : {}),
     status: "active",
+    ...(archiveState.archived ? { archived: true, archivedAt: new Date().toISOString() } : {}),
     unidentified: system.identified === false,
     ...presentation,
     ...campaignItemWeightFromSystem(system),
@@ -310,13 +339,17 @@ function parseFoundryItemDescription(value) {
   if (!html) return { summary: "", properties: [], notes: "" };
 
   const structuredSummary = firstClassBlock(html, "cripta-catalog-summary");
-  const structuredProperties = allClassBlocks(html, "cripta-catalog-property").map((block) => {
-    const heading = firstHeading(block);
-    const chargesBlock = firstClassBlock(block, "cripta-catalog-property-charges");
+  const structuredProperties = allClassBlockRecords(html, "cripta-catalog-property").map((block) => {
+    const heading = firstHeading(block.html);
+    const chargesBlock = firstClassBlock(block.html, "cripta-catalog-property-charges");
+    const negative = /\bcripta-catalog-property--negative\b/i.test(block.open);
+    const genial = !negative && /\bcripta-catalog-property--genial\b/i.test(block.open);
     return {
       name: foundryHtmlToText(removeClassBlock(heading.html, "cripta-catalog-property-charges")),
       charges: foundryHtmlToText(chargesBlock),
-      description: foundryHtmlToText(block.replace(heading.full, "")),
+      description: foundryHtmlToText(block.html.replace(heading.full, "")),
+      ...(genial ? { genial: true } : {}),
+      ...(negative ? { negative: true } : {}),
     };
   }).filter((property) => property.name || property.description);
   const structuredNotes = firstClassBlock(html, "cripta-catalog-notes");
@@ -372,10 +405,14 @@ function firstClassBlock(value, className) {
   return allClassBlocks(value, className)[0] || "";
 }
 
-function allClassBlocks(value, className) {
+function allClassBlockRecords(value, className) {
   const escaped = className.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
-  const pattern = new RegExp("<(section|div|aside|span|small|b|strong)\\b[^>]*class=[\"'][^\"']*\\b" + escaped + "\\b[^\"']*[\"'][^>]*>([\\s\\S]*?)<\\/\\1>", "gi");
-  return Array.from(String(value || "").matchAll(pattern), (match) => match[2]);
+  const pattern = new RegExp("(<(section|div|aside|span|small|b|strong)\\b[^>]*class=[\"'][^\"']*\\b" + escaped + "\\b[^\"']*[\"'][^>]*>)([\\s\\S]*?)<\\/\\2>", "gi");
+  return Array.from(String(value || "").matchAll(pattern), (match) => ({ open: match[1], html: match[3] }));
+}
+
+function allClassBlocks(value, className) {
+  return allClassBlockRecords(value, className).map((block) => block.html);
 }
 
 function removeClassBlock(value, className) {
@@ -435,6 +472,8 @@ function campaignItemNarrativeFingerprint(item) {
       name: normalizeNarrativeText(property?.name),
       charges: normalizeNarrativeText(property?.charges),
       description: normalizeNarrativeText(property?.description),
+      genial: property?.genial === true && property?.negative !== true,
+      negative: property?.negative === true,
     })).filter((property) => property.name || property.description),
   };
 }
@@ -539,13 +578,19 @@ function siteRarity(value) {
   return ({ common: "Comune", uncommon: "Non comune", rare: "Raro", veryRare: "Molto raro", legendary: "Leggendario", artifact: "Artefatto" })[String(value || "")] || String(value || "");
 }
 
-function normalizeItemImage(value, campaignId) {
+export function normalizeItemImage(value, campaignId) {
   const clean = String(value || "").trim().slice(0, 1_000);
   if (!clean) return "";
-  if (clean.includes("..")) return null;
-  if (/^media\/campaigns\/[a-z0-9_-]+\/items\/[A-Za-z0-9_./%+@-]+\.(png|jpe?g|webp|gif)$/i.test(clean)) return clean;
-  if (new RegExp(`^https://sigillo-api\\.khuzoe\\.workers\\.dev/media/campaigns/${campaignId}/items/`, "i").test(clean)) return clean;
-  if (/^(icons|systems|modules|worlds)\/[A-Za-z0-9_./%+@-]+\.(png|jpe?g|webp|gif|svg)$/i.test(clean)) return clean;
+  if (/[\u0000-\u001f<>"]/u.test(clean)) return null;
+  if (/(?:^|[\\/])\.\.(?:[\\/]|$)/u.test(clean)) return null;
+
+  // URL pubblici HTTPS, compresi i media R2 con query di revisione.
+  if (/^https:\/\/[^\s]+$/iu.test(clean)) return clean;
+
+  // Percorsi relativi alla Data directory di Foundry. Sono ammessi spazi,
+  // apostrofi e cartelle di moduli personalizzati; schemi e path assoluti no.
+  if (/^[a-z][a-z0-9+.-]*:/iu.test(clean) || /^[\\/]/u.test(clean)) return null;
+  if (/\.(?:png|jpe?g|webp|gif|svg)(?:\?[^#\s]*)?(?:#[^\s]*)?$/iu.test(clean)) return clean;
   return null;
 }
 

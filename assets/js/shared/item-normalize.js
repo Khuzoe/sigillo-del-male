@@ -47,11 +47,18 @@
         return item?.hidden === true || item?.status === "hidden";
     }
 
-    function filterVisibleItems(items, { includeHidden = false } = {}) {
+    function isArchivedItem(item) {
+        return item?.archived === true || String(item?.status || "").trim().toLowerCase() === "archived";
+    }
+
+    function filterVisibleItems(items, { includeHidden = false, includeArchived = false } = {}) {
         const list = Array.isArray(items) ? items : [];
-        if (includeHidden) return list;
-        if (window.WikiSpoiler) return window.WikiSpoiler.filterVisible(list);
-        return list.filter(item => !isHiddenItem(item));
+        const visible = includeHidden
+            ? list
+            : window.WikiSpoiler
+                ? window.WikiSpoiler.filterVisible(list)
+                : list.filter(item => !isHiddenItem(item));
+        return includeArchived ? visible : visible.filter(item => !isArchivedItem(item));
     }
 
     function getItemCategory(item) {
@@ -137,6 +144,7 @@
         getItemRarityMeta,
         getItemTypeMeta,
         getVisibleMaterialTags,
+        isArchivedItem,
         isHiddenItem,
         isMaterialItem,
         normalizeMaterialTags,

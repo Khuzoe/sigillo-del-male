@@ -2640,6 +2640,11 @@ body.managed-image-lightbox-open { overflow: hidden; }
     border-color: rgba(211, 91, 94, .22);
     background: rgba(156, 48, 53, .055);
 }
+.managed-merchant-catalog-properties > section.is-genial {
+    border-color: rgba(181, 112, 218, .24);
+    background: rgba(119, 61, 148, .075);
+}
+.managed-merchant-catalog-properties > section.is-genial h4 { color: #ddb2ef; }
 .managed-merchant-catalog-properties h4 {
     display: flex;
     align-items: baseline;

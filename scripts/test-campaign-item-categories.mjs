@@ -1,7 +1,18 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { categoryFolderName, resolveRecordCategory } from "../module/scripts/services/campaign-item-sync.js";
-import { applyCampaignItemCategoryFromFoundry, campaignItemCategoryFromSnapshot } from "../workers/main-worker/src/campaign-items.js";
+import {
+  categoryFolderName,
+  isAcceptedCampaignItemSnapshotResult,
+  recordHasFoundryIntent,
+  resolveRecordCategory,
+} from "../module/scripts/services/campaign-item-sync.js";
+import {
+  applyCampaignItemCategoryFromFoundry,
+  campaignItemArchiveFromSnapshot,
+  campaignItemCategoryFromSnapshot,
+  normalizeFoundrySnapshot,
+  normalizeItemImage,
+} from "../workers/main-worker/src/campaign-items.js";
 
 const registry = {
   revision: 7,
@@ -62,6 +73,23 @@ assert.deepEqual(
   "il nuovo modello usa l'identita stabile anche durante una rinomina",
 );
 
+assert.deepEqual(
+  campaignItemArchiveFromSnapshot({
+    folderPath: "Cripta Wiki Items / _ARCHIVIATI",
+    document: { flags: { "cripta-wiki-sync": { archived: true, archiveIdentityVersion: 1 } } },
+  }),
+  { known: true, archived: true },
+  "la cartella riservata archivia l'oggetto senza cancellarlo",
+);
+assert.deepEqual(
+  campaignItemArchiveFromSnapshot({
+    folderPath: "Cripta Wiki Items / Armi",
+    document: { flags: { "cripta-wiki-sync": { archived: false, archiveIdentityVersion: 1 } } },
+  }),
+  { known: true, archived: false },
+  "uscire dall'archivio ripristina l'oggetto",
+);
+
 const next = { categoryId: "arma", category: "Armi" };
 applyCampaignItemCategoryFromFoundry(next, next, null, snapshot({ id: "armatura", name: "Armature", version: 2 }));
 assert.deepEqual(next, { categoryId: "armatura", category: "Armature" }, "uno spostamento Foundry aggiorna il sito");
@@ -73,10 +101,50 @@ assert.deepEqual(pending, { categoryId: "arma", category: "Armi" }, "una modific
 const moduleSource = fs.readFileSync(new URL("../module/scripts/services/campaign-item-sync.js", import.meta.url), "utf8");
 const folderOnlyBranch = moduleSource.match(/else if \(folderChanged \|\| categoryIdentityChanged\) \{([\s\S]*?)localChanges \+= 1;/)?.[1] || "";
 assert.ok(folderOnlyBranch, "la migrazione cartelle deve avere un ramo limitato alla categoria");
+assert.match(moduleSource, /ARCHIVE_FOLDER_NAME\s*=\s*"_ARCHIVIATI"/, "Foundry usa una cartella archivio riservata");
+assert.match(moduleSource, /getOrCreateItemFolder\(record, categoryRegistry\)/, "il reconcile sceglie tra categoria e archivio");
 assert.doesNotMatch(
   folderOnlyBranch,
   /buildWorldItemUpdate|\bsystem\b|\beffects\b|\bimg\b/,
   "spostare una categoria non deve riscrivere contenuti o immagini dell'oggetto",
 );
+
+assert.equal(
+  recordHasFoundryIntent({ foundryNames: ["Scudo di Ginevra"] }),
+  true,
+  "un alias Foundry esplicito rende sincronizzabile un record legacy del sito",
+);
+assert.equal(
+  recordHasFoundryIntent({ name: "Oggetto soltanto narrativo" }),
+  false,
+  "un record legacy senza collegamenti non viene creato automaticamente in Foundry",
+);
+assert.equal(isAcceptedCampaignItemSnapshotResult({ campaignItemId: "scudo", status: "saved" }), true);
+assert.equal(isAcceptedCampaignItemSnapshotResult({ campaignItemId: "scudo", status: "unchanged" }), true);
+assert.equal(isAcceptedCampaignItemSnapshotResult({ campaignItemId: "scudo", status: "invalid" }), false);
+assert.equal(isAcceptedCampaignItemSnapshotResult({ campaignItemId: "scudo", status: "conflict" }), false);
+
+const localImage = "worlds/oltre-il-velo/Oggetti/Lino del fiume Oceanus.webp";
+assert.equal(
+  normalizeItemImage(localImage, "oltre-il-velo"),
+  localImage,
+  "un'immagine Foundry con spazi non blocca l'import dell'oggetto",
+);
+assert.equal(normalizeItemImage("javascript:alert(1)", "oltre-il-velo"), null);
+const safeSnapshot = normalizeFoundrySnapshot({
+  itemId: "oceanus",
+  uuid: "Item.oceanus",
+  folderPath: "Cripta Wiki Items / Materiali",
+  document: {
+    name: "Lino del fiume Oceanus",
+    type: "loot",
+    img: "javascript:alert(1)",
+    system: {},
+    effects: [],
+    flags: {},
+  },
+}, "oltre-il-velo", "oltre-il-velo");
+assert.ok(safeSnapshot, "un'immagine non sicura non deve scartare tutto lo snapshot");
+assert.equal(safeSnapshot.document.img, "", "solo il percorso immagine non sicuro viene omesso");
 
 console.log("Categorie oggetti: identita stabile, rinomina, merge e conflitti verificati.");

@@ -13,6 +13,11 @@ const context = {
     clearTimeout,
     window: {
         CriptaApp: { onPageReady() {}, utils: { escapeHtml(value) { return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); } } },
+        localStorage: {
+            values: new Map(),
+            getItem(key) { return this.values.get(key) ?? null; },
+            setItem(key, value) { this.values.set(key, String(value)); }
+        },
         CriptaItemNormalize: {
             ITEM_TYPES: [],
             ITEM_RARITIES: [],
@@ -25,6 +30,42 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(source, context, { filename: "oggetti.js" });
+
+function createClassList() {
+    const values = new Set();
+    return {
+        contains(value) { return values.has(value); },
+        toggle(value, force) {
+            const active = force === undefined ? !values.has(value) : Boolean(force);
+            if (active) values.add(value);
+            else values.delete(value);
+            return active;
+        }
+    };
+}
+
+let configClick = null;
+const configLabel = { textContent: "" };
+const configButton = {
+    hidden: true,
+    attributes: new Map(),
+    classList: createClassList(),
+    setAttribute(name, value) { this.attributes.set(name, String(value)); },
+    querySelector(selector) { return selector === "span" ? configLabel : null; },
+    addEventListener(type, listener) { if (type === "click") configClick = listener; }
+};
+const configGrid = { classList: createClassList() };
+const configState = { canEditItems: true, showConfigurationControls: false };
+context.initConfigurationControlsButton(configButton, configState, { grid: configGrid });
+assert.equal(configButton.hidden, false);
+assert.equal(configButton.attributes.get("aria-pressed"), "false");
+assert.equal(configLabel.textContent, "Mostra bottoni configurazione");
+assert.equal(configGrid.classList.contains("is-configuration-visible"), false);
+configClick();
+assert.equal(configState.showConfigurationControls, true);
+assert.equal(configButton.attributes.get("aria-pressed"), "true");
+assert.equal(configLabel.textContent, "Nascondi bottoni configurazione");
+assert.equal(configGrid.classList.contains("is-configuration-visible"), true);
 
 const original = {
     type: "Oggetto meraviglioso",
@@ -45,6 +86,8 @@ const draft = {
     unidentifiedDescription: "Aspetto ancora misterioso.",
     properties: [
         { name: "Effetto", charges: "3", description: "Paragrafo uno.\n\nParagrafo due." },
+        { name: "Idea geniale", description: "Una proprietà eccezionale.", genial: true },
+        { name: "Maledizione", description: "Un effetto negativo.", negative: true },
         { name: "Segreto", description: "Non deve apparire.", hidden: true }
     ]
 };
@@ -59,6 +102,9 @@ assert.match(system.description.value, /Prima riga<br \/>seconda riga/);
 assert.match(system.description.value, /class="cripta-catalog-description"/);
 assert.match(system.description.value, /<h3><span>Effetto<\/span>/);
 assert.match(system.description.value, /class="cripta-catalog-property-charges">3<\/small>/);
+assert.match(system.description.value, /class="cripta-catalog-property cripta-catalog-property--normal"/);
+assert.match(system.description.value, /class="cripta-catalog-property cripta-catalog-property--genial"[\s\S]*Idea geniale/);
+assert.match(system.description.value, /class="cripta-catalog-property cripta-catalog-property--negative"[\s\S]*Maledizione/);
 assert.match(system.description.value, /Paragrafo uno\.<\/p><p>Paragrafo due\./);
 assert.doesNotMatch(system.description.value, /Segreto|Non deve apparire/);
 assert.match(system.description.value, /class="cripta-catalog-notes"[\s\S]*Nota del DM/);
