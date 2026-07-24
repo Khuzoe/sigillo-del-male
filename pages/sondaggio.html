@@ -1,38 +1,47 @@
 <!DOCTYPE html>
 <html lang="it">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sondaggio Sessione | Cripta di Sangue</title>
+    <title>Sondaggio Sessione | Cripta di Sangue</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
-    <link rel="stylesheet" href="../assets/css/pages/sondaggio.css" data-page-style>
+    <link rel="stylesheet" href="../assets/css/pages/sondaggio.css?v=20260723-poll-modern1" data-page-style>
+    <link rel="stylesheet" href="../assets/css/components/next-session.css?v=20260723-poll-modern1" data-page-style>
 </head>
-
 <body class="poll-page">
     <div class="poll-page-shell">
         <header class="poll-page-topbar">
             <a href="../index.html" class="poll-page-home-link" aria-label="Torna alla home" title="Torna alla home">
                 <i class="fas fa-house" aria-hidden="true"></i>
             </a>
+            <span class="poll-page-brand"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i>Sigillo</span>
         </header>
 
         <main class="poll-page-main">
-            <section class="poll-page-panel">
+            <header class="poll-page-hero" aria-labelledby="poll-page-title">
+                <div class="poll-page-hero__copy">
+                    <span class="poll-page-hero__eyebrow"><span aria-hidden="true"></span>Pianificazione</span>
+                    <h1 id="poll-page-title">Sondaggio</h1>
+                    <p id="poll-page-campaign">Disponibilità della compagnia</p>
+                </div>
+                <div class="poll-page-hero__sigil" aria-hidden="true">
+                    <span class="poll-page-hero__orbit"></span>
+                    <span class="poll-page-hero__emblem"><i class="fa-regular fa-calendar-check"></i></span>
+                </div>
+            </header>
+
+            <section class="poll-page-panel" aria-label="Disponibilità prossima sessione">
                 <div id="next-session-container"></div>
             </section>
         </main>
     </div>
 
     <script src="../assets/js/layout.js?v=20260721-campaign-switch1"></script>
-    <script src="../assets/js/shared/next-session.js?v=20260623-discord-proxy1"></script>
-    <script src="../assets/js/pages/sondaggio.js"></script>
+    <script src="../assets/js/shared/next-session.js?v=20260723-poll-modern1"></script>
+    <script src="../assets/js/pages/sondaggio.js?v=20260723-poll-modern1"></script>
 </body>
-
 </html>

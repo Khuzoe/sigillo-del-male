@@ -1893,12 +1893,21 @@
     function buildPollMarkup(config, options, votes, statusMessage, canConfigureSession, editorState) {
         const totals = computeTotals(votes, options);
         const voteCount = votes.length;
+        const title = config.pollTitle || `Sessione ${config.number}`;
         const subtitle = config.pollSubtitle || config.campaignName || 'Prossima Sessione';
+        const hasEditableVote = votes.some((vote) => vote.canEdit);
+        const showStandaloneLink = !document.body.classList.contains('poll-page');
+        const pollHint = hasEditableVote
+            ? 'Clicca sulle tue caselle per passare da disponibile a forse, no e di nuovo vuoto.'
+            : 'Accedi con il tuo account per compilare le disponibilità associate al tuo personaggio.';
         const rowsMarkup = votes.length > 0
             ? votes.map((vote, rowIndex) => `
                 <tr class="${vote.canEdit ? 'availability-row-is-own' : 'availability-row-is-readonly'}">
                     <th scope="row" class="availability-name-cell${vote.canEdit ? ' is-own' : ''}">
-                        <span class="availability-name-text">${escapeHtml(vote.name)}</span>
+                        <span class="availability-name-wrap">
+                            <span class="availability-name-text">${escapeHtml(vote.name)}</span>
+                            ${vote.canEdit ? '<small class="availability-own-badge">Tu</small>' : ''}
+                        </span>
                     </th>
                     ${options.map(option => `
                         <td class="availability-vote-cell ${getColumnStateClass(option.id, totals, voteCount)}">
@@ -1921,7 +1930,7 @@
                                     data-option-id="${escapeHtml(option.id)}"
                                     data-action="cycle"
                                     ${vote.canEdit ? '' : 'disabled'}
-                                    aria-label="Cambia voto di ${escapeHtml(vote.name)} per ${escapeHtml(option.label)}">
+                                    aria-label="${vote.canEdit ? 'Cambia' : 'Voto di'} ${escapeHtml(vote.name)} per ${escapeHtml(option.label)}">
                                     ${buildVoteChoiceContent(vote.selections[option.id], vote.playerId)}
                                 </button>
                             </div>
@@ -1938,59 +1947,92 @@
             `;
 
         return `
-            <div class="next-session-card next-session-card-poll">
-                <div class="next-session-card-controls">
-                    ${canConfigureSession ? `
-                        <button type="button" class="next-session-send-poll-trigger" data-poll-action="send-link" aria-label="Invia link sondaggio su Discord" title="Invia link sondaggio su Discord">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
-                        <button type="button" class="next-session-edit-trigger" data-editor-action="${EDITOR_MODES.editCurrent}" aria-label="Modifica sondaggio corrente">
-                            <i class="fas fa-pen"></i>
-                        </button>
-                        <button type="button" class="next-session-add-trigger" data-editor-action="${EDITOR_MODES.createNext}" aria-label="Crea nuova sessione">
-                            <i class="fas fa-plus"></i>
-                        </button>
-                    ` : ''}
-                    ${config.isScheduled ? `
-                        <button type="button" class="next-session-view-trigger" data-view-mode="${VIEW_MODES.scheduled}" aria-label="Mostra sessione fissata">
-                            <i class="fas fa-calendar-check"></i>
-                        </button>
-                    ` : ''}
+            <article class="next-session-card next-session-card-poll">
+                <header class="next-session-poll-header">
+                    <div class="next-session-poll-heading">
+                        <span class="next-label next-label-poll">
+                            <i class="fa-regular fa-calendar" aria-hidden="true"></i>
+                            ${escapeHtml(subtitle)}
+                        </span>
+                        <h2 class="next-title text-gold-gradient">${escapeHtml(title)}</h2>
+                        <div class="next-session-poll-meta" aria-label="Riepilogo sondaggio">
+                            <span><i class="fa-solid fa-users" aria-hidden="true"></i>${voteCount} partecipanti</span>
+                            <span><i class="fa-regular fa-clock" aria-hidden="true"></i>${options.length} slot</span>
+                        </div>
+                    </div>
+                    <div class="next-session-card-controls" aria-label="Azioni sondaggio">
+                        ${showStandaloneLink ? `
+                            <a class="next-session-open-poll" href="${escapeHtml(getSessionPollUrl(config))}" aria-label="Apri il sondaggio a pagina intera" title="Apri a pagina intera">
+                                <i class="fa-solid fa-up-right-from-square"></i>
+                            </a>
+                        ` : ''}
+                        ${canConfigureSession ? `
+                            <button type="button" class="next-session-send-poll-trigger" data-poll-action="send-link" aria-label="Invia link sondaggio su Discord" title="Invia link sondaggio su Discord">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                            <button type="button" class="next-session-edit-trigger" data-editor-action="${EDITOR_MODES.editCurrent}" aria-label="Modifica sondaggio corrente" title="Modifica sondaggio">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <button type="button" class="next-session-add-trigger" data-editor-action="${EDITOR_MODES.createNext}" aria-label="Crea nuova sessione" title="Nuovo sondaggio">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        ` : ''}
+                        ${config.isScheduled ? `
+                            <button type="button" class="next-session-view-trigger" data-view-mode="${VIEW_MODES.scheduled}" aria-label="Mostra sessione fissata" title="Mostra sessione fissata">
+                                <i class="fas fa-calendar-check"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </header>
+                ${statusMessage ? `<div class="availability-feedback" role="status">${escapeHtml(statusMessage)}</div>` : ''}
+                <div class="next-session-poll-guide">
+                    <div class="availability-legend" aria-label="Legenda risposte">
+                        <span class="is-yes"><i class="fa-solid fa-check" aria-hidden="true"></i>Disponibile</span>
+                        <span class="is-maybe"><i class="fa-solid fa-minus" aria-hidden="true"></i>Forse</span>
+                        <span class="is-no"><i class="fa-solid fa-xmark" aria-hidden="true"></i>No</span>
+                    </div>
+                    <p>${escapeHtml(pollHint)}</p>
                 </div>
-                <span class="next-label next-label-poll">${escapeHtml(subtitle)}</span>
-                ${statusMessage ? `<div class="availability-feedback">${escapeHtml(statusMessage)}</div>` : ''}
-                <div class="availability-table-wrap">
-                    <table class="availability-table">
-                        <thead>
-                            <tr>
-                                <th class="availability-corner-cell">Nome</th>
-                                ${options.map(option => {
+                <div class="next-session-poll-table-shell">
+                    <div class="availability-table-wrap">
+                        <table class="availability-table">
+                            <thead>
+                                <tr>
+                                    <th class="availability-corner-cell">Compagnia</th>
+                                    ${options.map(option => {
             const labelParts = formatAvailabilityLabel(option);
+            const optionTotals = totals[option.id] || { yes: 0, maybe: 0, no: 0 };
             return `
-                                    <th class="availability-option-cell ${getColumnStateClass(option.id, totals, voteCount)}" scope="col">
-                                        <button
-                                            type="button"
-                                            class="availability-option-trigger${canConfigureSession ? ' is-confirmable' : ''}"
-                                            ${canConfigureSession ? `data-confirm-option-id="${escapeHtml(option.id)}"` : 'disabled'}
-                                            aria-label="Conferma la prossima sessione su ${escapeHtml(labelParts.day)} ${labelParts.month ? escapeHtml(labelParts.month) : ''} ${escapeHtml(option.time || '')}">
-                                            <span class="availability-option-label">${escapeHtml(labelParts.day)}</span>
-                                            ${labelParts.month ? `<span class="availability-option-month">${escapeHtml(labelParts.month)}</span>` : ''}
-                                            ${option.time ? `<span class="availability-option-time">${escapeHtml(option.time)}</span>` : ''}
-                                        </button>
-                                    </th>
-                                `;
+                                        <th class="availability-option-cell ${getColumnStateClass(option.id, totals, voteCount)}" scope="col">
+                                            <button
+                                                type="button"
+                                                class="availability-option-trigger${canConfigureSession ? ' is-confirmable' : ''}"
+                                                ${canConfigureSession ? `data-confirm-option-id="${escapeHtml(option.id)}"` : 'disabled'}
+                                                aria-label="Conferma la prossima sessione su ${escapeHtml(labelParts.day)} ${labelParts.month ? escapeHtml(labelParts.month) : ''} ${escapeHtml(option.time || '')}">
+                                                <span class="availability-option-label">${escapeHtml(labelParts.day)}</span>
+                                                ${labelParts.month ? `<span class="availability-option-month">${escapeHtml(labelParts.month)}</span>` : ''}
+                                                ${option.time ? `<span class="availability-option-time">${escapeHtml(option.time)}</span>` : ''}
+                                                <span class="availability-option-totals" aria-label="${optionTotals.yes} disponibili, ${optionTotals.maybe} forse, ${optionTotals.no} non disponibili">
+                                                    <span class="availability-total availability-total-yes"><i class="fa-solid fa-check" aria-hidden="true"></i><b data-total-kind="yes">${optionTotals.yes}</b></span>
+                                                    <span class="availability-total availability-total-maybe"><i class="fa-solid fa-minus" aria-hidden="true"></i><b data-total-kind="maybe">${optionTotals.maybe}</b></span>
+                                                    <span class="availability-total availability-total-no"><i class="fa-solid fa-xmark" aria-hidden="true"></i><b data-total-kind="no">${optionTotals.no}</b></span>
+                                                </span>
+                                                ${canConfigureSession ? '<span class="availability-option-confirm-hint"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i>Fissa</span>' : ''}
+                                            </button>
+                                        </th>
+                                    `;
         }).join('')}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${rowsMarkup}
-                        </tbody>
-                    </table>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rowsMarkup}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            </article>
         `;
     }
-
     async function renderAvailabilityPoll(container, config) {
         const effectiveConfig = sanitizeNextSessionConfig(config);
         setCurrentVoteIconSets(effectiveConfig);
@@ -2109,15 +2151,15 @@
         }
 
         function updateStatusMessage() {
-            const title = container.querySelector('.next-title');
+            const header = container.querySelector('.next-session-poll-header');
             let feedback = container.querySelector('.availability-feedback');
             if (!statusMessage) {
                 if (feedback) feedback.remove();
                 return;
             }
 
-            if (!feedback && title) {
-                title.insertAdjacentHTML('afterend', '<div class="availability-feedback"></div>');
+            if (!feedback && header) {
+                header.insertAdjacentHTML('afterend', '<div class="availability-feedback" role="status"></div>');
                 feedback = container.querySelector('.availability-feedback');
             }
             if (feedback) {
@@ -2136,7 +2178,13 @@
             const voteCount = votes.length;
 
             options.forEach((option, optionIndex) => {
-                setColumnStateClass(table.querySelectorAll('.availability-option-cell')[optionIndex], option.id, totals, voteCount);
+                const headerCell = table.querySelectorAll('.availability-option-cell')[optionIndex];
+                setColumnStateClass(headerCell, option.id, totals, voteCount);
+                const optionTotals = totals[option.id] || { yes: 0, maybe: 0, no: 0 };
+                ['yes', 'maybe', 'no'].forEach((kind) => {
+                    const count = headerCell?.querySelector(`[data-total-kind="${kind}"]`);
+                    if (count) count.textContent = String(optionTotals[kind] || 0);
+                });
             });
 
             const rows = Array.from(table.tBodies[0]?.rows || []);

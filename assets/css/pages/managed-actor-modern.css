@@ -2753,3 +2753,481 @@ body.managed-image-lightbox-open { overflow: hidden; }
     .managed-merchant-item-copy h3 { font-size: 1.14rem; }
     .managed-merchant-preview { font-size: .95rem; }
 }
+
+/* Inventory workspace v2 */
+.page-managed-actor .managed-collection--inventory .managed-entry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .9rem;
+}
+.page-managed-actor .managed-collection--inventory .managed-entry-group > header {
+    margin-bottom: .72rem;
+}
+.page-managed-actor .managed-filter-chips--inventory {
+    flex-wrap: wrap;
+    align-items: center;
+    overflow: visible;
+    row-gap: .35rem;
+}
+.page-managed-actor .managed-filter-chips--inventory .managed-filter-label {
+    flex: 0 0 auto;
+    margin: 0 .1rem 0 .35rem;
+    color: rgba(225, 213, 188, .48);
+    font: 750 .52rem var(--font-ui);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+.page-managed-actor .managed-filter-chips--inventory .managed-filter-label:first-child { margin-left: 0; }
+.page-managed-actor .managed-filter-chips--inventory button {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+}
+.page-managed-actor .managed-filter-chips--inventory button b {
+    display: grid;
+    min-width: 1.2rem;
+    height: 1.2rem;
+    padding: 0 .24rem;
+    place-items: center;
+    border: 1px solid rgba(223, 195, 111, .1);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, .24);
+    color: rgba(225, 213, 188, .62);
+    font-size: .5rem;
+}
+.page-managed-actor .managed-entry--inventory {
+    position: relative;
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: .95rem;
+    min-height: 164px;
+    padding: 1rem;
+    overflow: hidden;
+    border-color: rgba(223, 195, 111, .1);
+    background:
+        radial-gradient(circle at 0 0, rgba(223, 195, 111, .055), transparent 38%),
+        linear-gradient(145deg, rgba(23, 21, 25, .92), rgba(9, 9, 13, .94));
+    transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.page-managed-actor .managed-entry--inventory::after {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 2px;
+    background: linear-gradient(180deg, transparent, rgba(223, 195, 111, .45), transparent);
+    content: "";
+    opacity: .45;
+}
+.page-managed-actor .managed-entry--inventory:hover {
+    border-color: rgba(223, 195, 111, .22);
+    box-shadow: 0 18px 34px rgba(0, 0, 0, .18);
+    transform: translateY(-1px);
+}
+.page-managed-actor .managed-entry--inventory.is-attuned {
+    border-color: rgba(112, 207, 168, .24);
+    box-shadow: inset 0 0 32px rgba(75, 177, 140, .035);
+}
+.page-managed-actor .managed-entry--inventory.needs-attunement {
+    border-color: rgba(176, 132, 220, .2);
+}
+.page-managed-actor .managed-entry-media {
+    position: relative;
+    display: grid;
+    width: 88px;
+    height: 88px;
+    padding: .35rem;
+    overflow: hidden;
+    place-items: center;
+    border: 1px solid rgba(223, 195, 111, .16);
+    border-radius: 18px;
+    background: linear-gradient(145deg, rgba(223, 195, 111, .07), rgba(0, 0, 0, .38));
+    color: var(--ma-gold);
+    cursor: zoom-in;
+}
+.page-managed-actor .managed-entry-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 13px;
+}
+.page-managed-actor .managed-entry-media > span {
+    position: absolute;
+    right: .32rem;
+    bottom: .32rem;
+    display: grid;
+    width: 1.45rem;
+    height: 1.45rem;
+    place-items: center;
+    border: 1px solid rgba(223, 195, 111, .2);
+    border-radius: 999px;
+    background: rgba(5, 5, 8, .82);
+    color: rgba(245, 222, 151, .82);
+    font-size: .58rem;
+    opacity: 0;
+    transform: scale(.86);
+    transition: opacity .18s ease, transform .18s ease;
+}
+.page-managed-actor .managed-entry-media:hover > span,
+.page-managed-actor .managed-entry-media:focus-visible > span { opacity: 1; transform: scale(1); }
+.page-managed-actor .managed-entry-media--fallback { cursor: default; font-size: 1.8rem; }
+.page-managed-actor .managed-entry--inventory .managed-entry-title {
+    display: block;
+    min-width: 0;
+}
+.page-managed-actor .managed-entry--inventory .managed-entry-title h3 {
+    margin: 0 0 .48rem;
+    color: #f0e5cd;
+    font-size: clamp(1.05rem, 1.25vw, 1.22rem);
+    line-height: 1.16;
+    overflow-wrap: anywhere;
+}
+.page-managed-actor .managed-inventory-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .32rem;
+    min-width: 0;
+}
+.page-managed-actor .managed-inventory-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    max-width: 100%;
+    min-height: 24px;
+    padding: .2rem .46rem;
+    border: 1px solid rgba(223, 195, 111, .1);
+    border-radius: 999px;
+    background: rgba(223, 195, 111, .045);
+    color: rgba(225, 213, 188, .66);
+    font: 750 .52rem/1.15 var(--font-ui);
+    letter-spacing: .045em;
+    text-transform: uppercase;
+    white-space: normal;
+}
+.page-managed-actor .managed-inventory-badge i { flex: 0 0 auto; color: rgba(223, 195, 111, .68); }
+.page-managed-actor .managed-inventory-badge.is-attuned {
+    border-color: rgba(89, 215, 165, .27);
+    background: rgba(48, 168, 122, .11);
+    color: #a7e8cd;
+}
+.page-managed-actor .managed-inventory-badge.is-attuned i { color: #69d6aa; }
+.page-managed-actor .managed-inventory-badge.needs-attunement {
+    border-color: rgba(191, 138, 235, .28);
+    background: rgba(139, 75, 191, .11);
+    color: #d8afea;
+}
+.page-managed-actor .managed-inventory-badge.is-equipped {
+    border-color: rgba(223, 195, 111, .25);
+    background: rgba(223, 195, 111, .1);
+    color: #efd98e;
+}
+.page-managed-actor .managed-inventory-badge.is-genial {
+    border-color: rgba(181, 116, 234, .32);
+    background: rgba(128, 65, 184, .13);
+    color: #d9aff1;
+}
+.page-managed-actor .managed-inventory-badge.is-negative {
+    border-color: rgba(235, 91, 91, .32);
+    background: rgba(185, 53, 53, .13);
+    color: #f0a0a0;
+}
+.page-managed-actor .managed-inventory-badge.is-catalog { color: #c7b2e6; }
+.page-managed-actor .managed-inventory-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .38rem .7rem;
+    margin: .7rem 0 0;
+}
+.page-managed-actor .managed-inventory-facts > div {
+    display: flex;
+    align-items: baseline;
+    gap: .32rem;
+    min-width: 0;
+}
+.page-managed-actor .managed-inventory-facts dt,
+.page-managed-actor .managed-inventory-facts dd { margin: 0; }
+.page-managed-actor .managed-inventory-facts dt {
+    display: inline-flex;
+    align-items: center;
+    gap: .26rem;
+    color: rgba(225, 213, 188, .42);
+    font: 700 .56rem var(--font-ui);
+    text-transform: uppercase;
+}
+.page-managed-actor .managed-inventory-facts dd {
+    color: rgba(241, 232, 213, .77);
+    font: 650 .68rem var(--font-ui);
+    overflow-wrap: anywhere;
+}
+.page-managed-actor .managed-inventory-facts a {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    color: #d1b7eb;
+    text-decoration: none;
+}
+.page-managed-actor .managed-inventory-facts a:hover { color: #ead7fa; }
+.page-managed-actor .managed-inventory-facts a i { font-size: .5rem; }
+.page-managed-actor .managed-entry-disclosure--inventory { margin-top: .75rem; }
+.page-managed-actor .managed-entry-disclosure--inventory > summary {
+    min-height: 34px;
+    border-color: rgba(223, 195, 111, .11);
+    background: rgba(223, 195, 111, .035);
+}
+.page-managed-actor .managed-entry-disclosure--inventory > div {
+    margin-top: .65rem;
+    padding: .9rem 1rem;
+    border: 1px solid rgba(223, 195, 111, .08);
+    border-left: 2px solid rgba(223, 195, 111, .25);
+    border-radius: 0 12px 12px 0;
+    background: rgba(0, 0, 0, .17);
+    font-size: .94rem;
+    line-height: 1.65;
+    white-space: normal;
+}
+.page-managed-actor .managed-inventory-description { white-space: pre-line; }
+.page-managed-actor .managed-inventory-properties {
+    display: grid;
+    gap: .6rem;
+    margin-top: .7rem;
+}
+.page-managed-actor .managed-inventory-properties:first-child { margin-top: 0; }
+.page-managed-actor .managed-inventory-properties section {
+    padding: .7rem .78rem;
+    border: 1px solid rgba(223, 195, 111, .09);
+    border-radius: 10px;
+    background: rgba(223, 195, 111, .025);
+}
+.page-managed-actor .managed-inventory-properties section.is-negative {
+    border-color: rgba(222, 82, 82, .25);
+    background: rgba(160, 42, 42, .08);
+}
+.page-managed-actor .managed-inventory-properties section.is-genial {
+    border-color: rgba(173, 99, 225, .24);
+    background: rgba(126, 54, 180, .08);
+}
+.page-managed-actor .managed-inventory-properties h4 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .6rem;
+    margin: 0 0 .32rem;
+    color: #eadab7;
+    font: 750 .72rem var(--font-ui);
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+.page-managed-actor .managed-inventory-properties h4 small {
+    color: rgba(225, 213, 188, .48);
+    font-size: .58rem;
+}
+.page-managed-actor .managed-inventory-properties p { margin: 0; white-space: pre-line; }
+.page-managed-actor .managed-inventory-notes {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: .55rem;
+    margin-top: .7rem;
+    padding: .7rem;
+    border-radius: 10px;
+    background: rgba(107, 73, 142, .08);
+    color: rgba(225, 213, 188, .72);
+}
+.page-managed-actor .managed-inventory-container {
+    margin-top: .68rem;
+    border: 1px solid rgba(223, 195, 111, .09);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, .13);
+}
+.page-managed-actor .managed-inventory-container > summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: .5rem;
+    min-height: 34px;
+    padding: 0 .65rem;
+    color: rgba(225, 213, 188, .67);
+    font: 700 .62rem var(--font-ui);
+    cursor: pointer;
+    list-style: none;
+}
+.page-managed-actor .managed-inventory-container > summary::-webkit-details-marker { display: none; }
+.page-managed-actor .managed-inventory-container > summary span { display: inline-flex; align-items: center; gap: .4rem; }
+.page-managed-actor .managed-inventory-container > summary > i { font-size: .5rem; transition: transform .18s ease; }
+.page-managed-actor .managed-inventory-container[open] > summary > i { transform: rotate(180deg); }
+.page-managed-actor .managed-inventory-container ul { display: grid; gap: .2rem; margin: 0; padding: 0 .65rem .65rem; list-style: none; }
+.page-managed-actor .managed-inventory-container li { display: flex; justify-content: space-between; gap: .5rem; padding: .42rem .5rem; border-radius: 7px; background: rgba(255, 255, 255, .025); color: rgba(225, 213, 188, .7); font-size: .74rem; }
+.page-managed-actor .managed-inventory-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(240px, .48fr);
+    gap: .75rem;
+    margin-bottom: .9rem;
+    padding: .78rem;
+    border: 1px solid rgba(223, 195, 111, .1);
+    border-radius: 14px;
+    background: linear-gradient(120deg, rgba(223, 195, 111, .045), rgba(0, 0, 0, .15));
+}
+.page-managed-actor .managed-inventory-overview-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+    gap: .45rem;
+}
+.page-managed-actor .managed-inventory-overview-stats > div {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    align-items: center;
+    gap: .45rem;
+    min-width: 0;
+    padding: .45rem;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, .18);
+}
+.page-managed-actor .managed-inventory-overview-stats > div > i {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border-radius: 8px;
+    background: rgba(223, 195, 111, .07);
+    color: rgba(223, 195, 111, .7);
+    font-size: .7rem;
+}
+.page-managed-actor .managed-inventory-overview-stats span { display: grid; min-width: 0; color: rgba(225, 213, 188, .48); font: 650 .55rem var(--font-ui); }
+.page-managed-actor .managed-inventory-overview-stats strong { color: #e7d7b5; font-size: .88rem; }
+.page-managed-actor .managed-inventory-overview-stats .is-attuned > i { background: rgba(48, 168, 122, .12); color: #69d6aa; }
+.page-managed-actor .managed-inventory-overview-stats .needs-attunement > i { background: rgba(139, 75, 191, .13); color: #c99aeb; }
+.page-managed-actor .managed-inventory-weight {
+    display: grid;
+    align-content: center;
+    gap: .52rem;
+    padding: .62rem .72rem;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, .2);
+}
+.page-managed-actor .managed-inventory-weight > div { display: flex; align-items: center; justify-content: space-between; gap: .6rem; color: rgba(225, 213, 188, .58); font: 700 .62rem var(--font-ui); }
+.page-managed-actor .managed-inventory-weight > div span { display: inline-flex; align-items: center; gap: .38rem; }
+.page-managed-actor .managed-inventory-weight strong { color: #e7d7b5; }
+.page-managed-actor .managed-inventory-weight-track { display: block; height: 7px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, .055); }
+.page-managed-actor .managed-inventory-weight-track i { display: block; width: var(--managed-inventory-weight, 0%); height: 100%; border-radius: inherit; background: linear-gradient(90deg, #9f8745, #e0c46b); box-shadow: 0 0 12px rgba(224, 196, 107, .22); }
+.page-managed-actor .managed-inventory-weight.is-encumbered .managed-inventory-weight-track i { background: linear-gradient(90deg, #be643f, #e69a62); }
+.page-managed-actor .managed-entry--inventory:has(.managed-entry-disclosure[open]),
+.page-managed-actor.is-editing .managed-entry--inventory:has(.managed-item-editor[open]) { grid-column: 1 / -1; }
+@media (max-width: 1080px) {
+    .page-managed-actor .managed-collection--inventory .managed-entry-grid { grid-template-columns: 1fr; }
+    .page-managed-actor .managed-inventory-overview { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+    .page-managed-actor .managed-entry--inventory { grid-template-columns: 68px minmax(0, 1fr); gap: .7rem; padding: .75rem; }
+    .page-managed-actor .managed-entry-media { width: 68px; height: 68px; border-radius: 15px; }
+    .page-managed-actor .managed-entry--inventory .managed-entry-title h3 { font-size: 1rem; }
+    .page-managed-actor .managed-inventory-badge { min-height: 22px; font-size: .48rem; }
+    .page-managed-actor .managed-entry-disclosure--inventory > div { margin-left: -5.05rem; padding: .75rem; }
+    .page-managed-actor .managed-inventory-overview-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .page-managed-actor .managed-entry--inventory,
+    .page-managed-actor .managed-entry-media > span { transition: none; }
+}
+/* Identity traits */
+.page-managed-actor .managed-identity-traits {
+    display: grid;
+    gap: .75rem;
+    margin-bottom: .85rem;
+}
+.page-managed-actor .managed-identity-trait {
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr);
+    gap: .85rem;
+    padding: .85rem;
+    border: 1px solid rgba(173, 125, 218, .18);
+    border-radius: 14px;
+    background:
+        radial-gradient(circle at 0 0, rgba(154, 95, 206, .09), transparent 38%),
+        rgba(8, 8, 12, .28);
+}
+.page-managed-actor .managed-identity-trait-media {
+    position: relative;
+    display: grid;
+    width: 78px;
+    height: 78px;
+    padding: .3rem;
+    overflow: hidden;
+    place-items: center;
+    border: 1px solid rgba(181, 132, 224, .22);
+    border-radius: 17px;
+    background: rgba(121, 68, 168, .09);
+    color: #c99bea;
+    cursor: zoom-in;
+}
+.page-managed-actor .managed-identity-trait-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 12px;
+}
+.page-managed-actor .managed-identity-trait-media > span {
+    position: absolute;
+    right: .28rem;
+    bottom: .28rem;
+    display: grid;
+    width: 1.35rem;
+    height: 1.35rem;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(6, 6, 9, .82);
+    color: #d7b8ee;
+    font-size: .54rem;
+    opacity: 0;
+    transition: opacity .18s ease;
+}
+.page-managed-actor .managed-identity-trait-media:hover > span,
+.page-managed-actor .managed-identity-trait-media:focus-visible > span { opacity: 1; }
+.page-managed-actor .managed-identity-trait-media--fallback { cursor: default; font-size: 1.5rem; }
+.page-managed-actor .managed-identity-trait-copy { min-width: 0; }
+.page-managed-actor .managed-identity-trait-kind {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    color: #c99bea;
+    font: 750 .55rem var(--font-ui);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+.page-managed-actor .managed-identity-trait h3 {
+    margin: .18rem 0 0;
+    color: #f0e4cb;
+    font-size: 1.18rem;
+    line-height: 1.15;
+}
+.page-managed-actor .managed-identity-trait-details { margin-top: .52rem; }
+.page-managed-actor .managed-identity-trait-details > summary {
+    display: inline-flex;
+    align-items: center;
+    gap: .42rem;
+    min-height: 31px;
+    padding: 0 .58rem;
+    border: 1px solid rgba(181, 132, 224, .15);
+    border-radius: 9px;
+    background: rgba(121, 68, 168, .06);
+    color: rgba(220, 195, 237, .72);
+    font: 700 .6rem var(--font-ui);
+    cursor: pointer;
+    list-style: none;
+}
+.page-managed-actor .managed-identity-trait-details > summary::-webkit-details-marker { display: none; }
+.page-managed-actor .managed-identity-trait-details > summary span { display: inline-flex; align-items: center; gap: .35rem; }
+.page-managed-actor .managed-identity-trait-details > summary > i { font-size: .5rem; transition: transform .18s ease; }
+.page-managed-actor .managed-identity-trait-details[open] > summary > i { transform: rotate(180deg); }
+.page-managed-actor .managed-identity-trait-details > div {
+    margin-top: .55rem;
+    padding: .75rem .85rem;
+    border-left: 2px solid rgba(181, 132, 224, .24);
+    border-radius: 0 10px 10px 0;
+    background: rgba(0, 0, 0, .15);
+    color: rgba(225, 213, 188, .74);
+    font-size: .9rem;
+    line-height: 1.58;
+    white-space: pre-line;
+}
+.page-managed-actor .managed-identity-trait .managed-item-sync { margin-top: .45rem; }
+.page-managed-actor .managed-identity-trait .managed-item-editor { margin-top: .65rem; }
+@media (max-width: 560px) {
+    .page-managed-actor .managed-identity-trait { grid-template-columns: 62px minmax(0, 1fr); gap: .65rem; padding: .7rem; }
+    .page-managed-actor .managed-identity-trait-media { width: 62px; height: 62px; border-radius: 14px; }
+    .page-managed-actor .managed-identity-trait-details > div { margin-left: -4.7rem; }
+}

@@ -104,9 +104,16 @@ window.CriptaApp.onPageReady("index", () => {
         return value ? ` onerror="this.onerror=null;this.src='${value}'"` : '';
     }
 
+    function updateHeroMetric(id, value) {
+        const element = document.getElementById(id);
+        if (element) element.textContent = String(Number.isFinite(Number(value)) ? Number(value) : 0);
+    }
+
     Promise.all([
         fetchJson(window.CriptaApp?.urls?.data?.('sessions.json') || 'assets/data/sessions.json', 'Errore caricamento sessions.json').catch((error) => {
-            console.info('Archivio sessioni non disponibile per questa campagna:', error);
+            if (!/HTTP 404/i.test(String(error?.message || error))) {
+                console.warn('Archivio sessioni non disponibile per questa campagna:', error);
+            }
             return { sessions: [] };
         }),
         fetchJson(window.CriptaApp?.urls?.data?.('players.json') || 'assets/data/players.json', 'Errore caricamento players.json').catch((error) => {
@@ -123,6 +130,7 @@ window.CriptaApp.onPageReady("index", () => {
 
             updateHomeCampaignLabel(nextSessionConfig);
             const sessions = Array.isArray(sessionsData?.sessions) ? sessionsData.sessions : [];
+            updateHeroMetric('home-session-count', sessions.length);
             const lastSession = sessions[sessions.length - 1];
             const latestEventsContainer = document.getElementById('latest-events-section');
             setupLatestSession(lastSession, latestEventsContainer);
@@ -141,8 +149,9 @@ window.CriptaApp.onPageReady("index", () => {
         const sessionCard = container.querySelector('.session-card');
         if (session && sessionCard) {
             const summaryElement = document.createElement('div');
-            summaryElement.innerHTML = session.summary;
+            summaryElement.innerHTML = String(session.summary || '').replace(/<\/(p|li|div|h[1-6])>/gi, '$& ');
             let summaryText = summaryElement.textContent || summaryElement.innerText || "";
+            summaryText = summaryText.replace(/\s+/g, ' ').trim();
             if (summaryText.length > 250) {
                 summaryText = summaryText.substring(0, 250) + '...';
             }
@@ -180,19 +189,25 @@ window.CriptaApp.onPageReady("index", () => {
     async function setupRecentNpcs() {
         const container = document.getElementById('recent-npcs-row');
         if (!container) return;
+        const panel = container.closest('.home-npcs-panel');
+        if (panel) panel.hidden = false;
 
         try {
             const data = await fetchJson(window.CriptaApp?.urls?.data?.('home-recent-npcs.json') || 'assets/data/home-recent-npcs.json', 'Lista NPC recenti non trovata');
             const items = Array.isArray(data.items) ? data.items : [];
             if (items.length === 0) {
                 container.innerHTML = '';
+                if (panel) panel.hidden = true;
                 return;
             }
 
             container.innerHTML = items.slice(0, 4).map(npc => renderRecentNpcCard(npc)).join('');
         } catch (error) {
-            console.warn('Impossibile caricare NPC recenti:', error);
+            if (!/HTTP 404/i.test(String(error?.message || error))) {
+                console.warn('Impossibile caricare NPC recenti:', error);
+            }
             container.innerHTML = '';
+            if (panel) panel.hidden = true;
         }
     }
 
@@ -204,6 +219,7 @@ window.CriptaApp.onPageReady("index", () => {
             ? players.filter((player) => !player.hidden && player.isActive !== false).slice(0, 4)
             : [];
 
+        updateHeroMetric('home-player-count', items.length);
         if (items.length === 0) {
             container.innerHTML = '';
             return;
@@ -217,11 +233,13 @@ window.CriptaApp.onPageReady("index", () => {
         const avatarPath = imageCandidates[0] || resolveImageUrl('', 'assets/img/logo.webp');
         const playerUrl = buildSiteUrl(`pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player`);
         return `
-            <a href="${escapeHtml(playerUrl)}" class="home-char-card mini">
-                <div class="home-char-avatar"><img src="${escapeHtml(avatarPath)}" alt="${escapeHtml(player.name)}" loading="lazy" decoding="async"${buildImageFallbackAttributes(imageCandidates)}></div>
+            <a href="${escapeHtml(playerUrl)}" class="home-char-card home-char-card--player mini">
+                <div class="home-char-avatar"><img src="${escapeHtml(avatarPath)}" alt="${escapeHtml(player.name)}" loading="eager" fetchpriority="high" decoding="async"${buildImageFallbackAttributes(imageCandidates)}></div>
                 <div class="home-char-info">
-                    <h4 class="name">${escapeHtml(player.name)}</h4><span class="role">${escapeHtml(player.role || 'Protagonista')}</span>
+                    <h4 class="name">${escapeHtml(player.name)}</h4>
+                    <span class="role">${escapeHtml(player.role || 'Protagonista')}</span>
                 </div>
+                <span class="home-char-card__arrow" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
             </a>
         `;
     }
@@ -229,13 +247,16 @@ window.CriptaApp.onPageReady("index", () => {
     function renderRecentNpcCard(npc) {
         const avatarPath = resolveImageUrl(getSyncedNpcImagePath(npc, 'hover'));
         const fallbackPath = resolveImageUrl(npc.hoverFallback || npc.token || npc.avatar);
-        const url = npc.url || `pages/characters/character.html?id=${npc.id}`;
+        const rawUrl = npc.url || `pages/characters/character.html?id=${encodeURIComponent(npc.id || '')}`;
+        const url = buildSiteUrl(rawUrl);
         return `
-            <a href="${url}" class="home-char-card mini">
-                <div class="home-char-avatar"><img src="${avatarPath}" alt="${npc.name}" loading="lazy" decoding="async"${buildImageFallbackHandler(fallbackPath)}></div>
+            <a href="${escapeHtml(url)}" class="home-char-card home-char-card--npc mini">
+                <div class="home-char-avatar"><img src="${escapeHtml(avatarPath)}" alt="${escapeHtml(npc.name || 'NPC')}" loading="eager" decoding="async"${buildImageFallbackHandler(fallbackPath)}></div>
                 <div class="home-char-info">
-                    <h4 class="name">${npc.name}</h4><span class="role">${npc.role}</span>
+                    <h4 class="name">${escapeHtml(npc.name || 'NPC')}</h4>
+                    <span class="role">${escapeHtml(npc.role || 'NPC')}</span>
                 </div>
+                <span class="home-char-card__arrow" aria-hidden="true"><i class="fa-solid fa-chevron-right"></i></span>
             </a>
         `;
     }

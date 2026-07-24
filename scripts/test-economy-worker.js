@@ -110,6 +110,14 @@ async function main() {
     assert.match(managedActorSyncSource, /snapshotFlags\.campaignItemId[\s\S]*snapshotFlags\.wikiItemId[\s\S]*liveId/, "l'identita canonica proviene solo da flag o UUID espliciti");
     assert.match(workerIndexSource, /campaignItemId \? \{ campaignItemId \} : \{\}/, "il Worker conserva il collegamento canonico opzionale");
     assert.match(managedActorPageSource, /managed-merchant-catalog-link/, "il negozio espone la scheda canonica senza duplicare immagini");
+    assert.match(managedActorPageSource, /data-managed-inventory-attuned/, "l'inventario distingue chiaramente la sintonia");
+    assert.match(managedActorPageSource, /function renderManagedInventoryOverview/, "l'inventario espone riepilogo e ingombro");
+    assert.match(managedActorPageSource, /function getManagedInventoryTypeMeta/, "l'inventario raggruppa gli oggetti per tipologia");
+    assert.match(managedActorPageSource, /managed-inventory-properties/, "le proprieta del catalogo restano leggibili nella scheda");
+    assert.match(managedActorStyleSource, /\.managed-entry--inventory/, "le schede inventario hanno uno stile dedicato");
+    assert.match(managedActorPageSource, /identityEntries = entries\.filter/, "la razza viene separata dagli oggetti posseduti");
+    assert.match(managedActorPageSource, /function renderManagedIdentityTraitItem/, "la razza viene mostrata nei tratti");
+    assert.match(managedActorStyleSource, /\.managed-identity-trait/, "il tratto razziale ha uno stile dedicato");
     assert.deepEqual(invalidations[0].collections, ["economy"]);
 
     const withoutCustom = structuredClone(dmJson.registry);

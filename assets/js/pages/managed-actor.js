@@ -154,7 +154,8 @@
         const variants = Array.isArray(media.variants) ? media.variants : [];
         const attackEntries = entries.filter((entry) => ["weapon", "feat"].includes(entry.type));
         const spellEntries = entries.filter((entry) => entry.type === "spell");
-        const inventoryEntries = entries.filter((entry) => !["weapon", "feat", "spell", "class", "subclass"].includes(entry.type));
+        const identityEntries = entries.filter((entry) => String(entry.type || "").toLowerCase() === "race");
+        const inventoryEntries = entries.filter((entry) => ["weapon", "equipment", "consumable", "loot", "tool", "container", "backpack", "item"].includes(String(entry.type || "").toLowerCase()));
 
         root.innerHTML = `
             <nav class="managed-actor-breadcrumb" aria-label="Navigazione scheda">
@@ -181,7 +182,7 @@
                     </div>
                 </div>
             </section>
-            ${renderManagedCommandBar({ abilities, skills, traits, variants, effects, merchant, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor })}
+            ${renderManagedCommandBar({ abilities, skills, traits, identityEntries, variants, effects, merchant, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor })}
             <div class="managed-actor-panels">
                 ${renderManagedProfileSection(currentProfile, editMode, Boolean(canEdit && currentProfilePermissions.canEdit))}
                 ${merchant ? renderManagedMerchantShop(merchant) : ""}
@@ -192,7 +193,7 @@
                 ${primaryPlayer ? `<div class="managed-player-extensions managed-player-extensions--companions" data-managed-player-companions></div>` : ""}
                 ${primaryPlayer ? `<div class="managed-player-extensions managed-player-extensions--skill-trees" data-managed-player-skill-trees></div>` : ""}
                 ${renderSkills(skills, editMode)}
-                ${renderTraits(traits, editMode)}
+                ${renderTraits(traits, editMode, identityEntries)}
                 ${renderEntries("Attacchi e capacità", attackEntries, editMode, "managed-capabilities")}
                 ${renderEntries("Incantesimi", spellEntries, editMode, "managed-spells")}
                 ${renderEntries("Inventario", inventoryEntries, editMode, "managed-inventory")}
@@ -1177,7 +1178,7 @@
         ];
         return `<div class="managed-hero-vitals">${entries.map((entry) => `<div class="managed-hero-vital is-${entry.tone}"><i class="fas ${entry.icon}"></i><span><small>${escapeHtml(entry.label)}</small><strong>${escapeHtml(entry.value)}</strong></span></div>`).join("")}</div>`;
     }
-    function renderManagedCommandBar({ abilities, skills, traits, variants, effects, merchant, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor }) {
+    function renderManagedCommandBar({ abilities, skills, traits, identityEntries, variants, effects, merchant, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor }) {
         const primaryPlayer = getManagedActorRelationshipType(actor) === "player";
         const links = [
             ["managed-profile", "fa-book-open", "Dossier", Boolean(currentProfile?.blocks?.length || currentProfile?.role || currentProfile?.quote || editMode)],
@@ -1188,7 +1189,7 @@
             ["managed-companions", "fa-paw", "Companion", primaryPlayer],
             ["managed-player-skill-trees", "fa-diagram-project", "Alberi", primaryPlayer],
             ["managed-skills", "fa-list-check", "Abilità", Object.keys(skills || {}).length > 0],
-            ["managed-traits", "fa-shield-halved", "Difese", Object.keys(traits || {}).length > 0],
+            ["managed-traits", "fa-fingerprint", "Tratti", Object.keys(traits || {}).length > 0 || identityEntries.length > 0],
             ["managed-capabilities", "fa-burst", "Combattimento", attackEntries.length > 0 || editMode],
             ["managed-spells", "fa-wand-sparkles", "Incantesimi", spellEntries.length > 0 || editMode],
             ["managed-inventory", "fa-backpack", "Inventario", inventoryEntries.length > 0 || editMode],
@@ -1325,7 +1326,7 @@
         return `<section id="managed-skills" class="managed-panel managed-panel--wide managed-panel--skills"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Addestramento e padronanza</span><h2><i class="fas fa-list-check"></i> Abilità</h2></div><span class="managed-count-badge">${entries.length}</span></header><div class="managed-skill-grid">${entries.map(([key, value]) => `<label class="managed-skill"><span class="managed-skill-name">${escapeHtml(labels[key] || key)}<small>${escapeHtml(abilityLabels[value.ability] || String(value.ability || "").toUpperCase())}</small></span>${canEdit ? renderManagedProficiencyControl(`system.skills.${key}.value`, value.value ?? value.proficient ?? 0) : `<strong>${formatSigned(value.total ?? value.mod ?? 0)}</strong>`}</label>`).join("")}</div></section>`;
     }
 
-    function renderTraits(traits, canEdit = false) {
+    function renderTraits(traits, canEdit = false, identityEntries = []) {
         const rows = [
             ["Resistenze", "dr", formatTrait(traits.dr)],
             ["Immunità", "di", formatTrait(traits.di)],
@@ -1334,15 +1335,31 @@
             ["Linguaggi", "languages", formatTrait(traits.languages)]
         ];
         const visibleRows = canEdit ? rows : rows.filter(([, , value]) => value);
-        if (!visibleRows.length && !canEdit) return "";
+        const identityCards = identityEntries.map((entry) => renderManagedIdentityTraitItem(entry, canEdit)).join("");
+        if (!visibleRows.length && !identityCards && !canEdit) return "";
+        const identitySection = identityCards ? `<div class="managed-identity-traits">${identityCards}</div>` : "";
         if (canEdit) {
             const editors = `${renderManagedDamageTraitsEditor(traits)}${renderManagedTraitEditor("Immunità condizioni", "ci", traits.ci)}${renderManagedTraitEditor("Linguaggi", "languages", traits.languages)}`;
-            return `<section id="managed-traits" class="managed-panel managed-panel--wide managed-panel--traits"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Difese e identità</span><h2><i class="fas fa-fingerprint"></i> Tratti</h2></div></header><div class="managed-trait-editor-grid">${editors}</div></section>`;
+            return `<section id="managed-traits" class="managed-panel managed-panel--wide managed-panel--traits"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Difese e identità</span><h2><i class="fas fa-fingerprint"></i> Tratti</h2></div></header>${identitySection}<div class="managed-trait-editor-grid">${editors}</div></section>`;
         }
         const readonlyRows = visibleRows.map(([label, , value]) => [label, value]);
-        return `<section id="managed-traits" class="managed-panel managed-panel--wide managed-panel--traits"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Difese e identità</span><h2><i class="fas fa-fingerprint"></i> Tratti</h2></div></header><div class="managed-trait-list">${readonlyRows.map(([label, value]) => `<div class="managed-trait"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(value)}</span></div>`).join("")}</div></section>`;
+        const traitsList = readonlyRows.length ? `<div class="managed-trait-list">${readonlyRows.map(([label, value]) => `<div class="managed-trait"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(value)}</span></div>`).join("")}</div>` : "";
+        return `<section id="managed-traits" class="managed-panel managed-panel--wide managed-panel--traits"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Difese e identità</span><h2><i class="fas fa-fingerprint"></i> Tratti</h2></div></header>${identitySection}${traitsList}</section>`;
     }
 
+    function renderManagedIdentityTraitItem(entry = {}, canEdit = false) {
+        const icon = String(entry?.media?.icon?.path || entry?.definition?.img || "").trim();
+        const imageUrl = icon ? resolveMedia(icon) : "";
+        const description = stripManagedDuplicateHeading(htmlToText(entry?.definition?.description || ""), entry?.name);
+        const command = findManagedItemCommand(entry);
+        const status = command ? renderManagedItemSyncStatus(command) : "";
+        const editor = canEdit ? renderManagedItemEditor(entry, command) : "";
+        const media = imageUrl
+            ? `<button type="button" class="managed-identity-trait-media" data-managed-image-open="${escapeAttr(imageUrl)}" data-managed-image-title="${escapeAttr(entry?.name || "Razza")}" aria-label="Ingrandisci ${escapeAttr(entry?.name || "razza")}"><img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(entry?.name || "Razza")}" loading="lazy" decoding="async"><span aria-hidden="true"><i class="fas fa-expand"></i></span></button>`
+            : `<div class="managed-identity-trait-media managed-identity-trait-media--fallback" aria-hidden="true"><i class="fas fa-dna"></i></div>`;
+        const disclosure = description ? `<details class="managed-identity-trait-details"><summary><span><i class="fas fa-book-open"></i> Tratti razziali</span><i class="fas fa-chevron-down"></i></summary><div>${formatManagedPreview(description)}</div></details>` : "";
+        return `<article class="managed-identity-trait" data-managed-item-card="${escapeAttr(entry?.transferId || entry?.itemId || "")}">${media}<div class="managed-identity-trait-copy"><span class="managed-identity-trait-kind"><i class="fas fa-dna"></i> Razza</span><h3>${escapeHtml(entry?.name || "Razza")}</h3>${status}${disclosure}${editor}</div></article>`;
+    }
     function renderManagedDamageTraitsEditor(traits) {
         const options = [
             ["acid", "Acido"], ["bludgeoning", "Contundente"], ["cold", "Freddo"], ["fire", "Fuoco"],
@@ -1741,25 +1758,30 @@
 
     function renderEntries(title, entries, canEdit = false, sectionId = "") {
         if (!entries.length && !canEdit) return "";
-        const panelIcon = title === "Incantesimi" ? "fa-wand-sparkles" : title === "Inventario" ? "fa-backpack" : "fa-burst";
+        const panelIcon = title === "Incantesimi" ? "fa-wand-sparkles" : title === "Inventario" ? "fa-boxes-stacked" : "fa-burst";
         const collectionKind = title === "Incantesimi" ? "spells" : title === "Inventario" ? "inventory" : "capabilities";
         const preparedEntries = entries.map((entry) => ({ entry, group: getManagedEntryGroup(entry, collectionKind) }));
         const groups = Array.from(new Set(preparedEntries.map(({ group }) => group.key))).map((key) => ({
             ...preparedEntries.find(({ group }) => group.key === key).group,
             entries: preparedEntries.filter(({ group }) => group.key === key).map(({ entry }) => entry)
         })).sort((left, right) => left.order - right.order);
-        const cardsFor = (groupEntries, groupKey) => groupEntries.map((entry) => renderManagedEntryCard(entry, canEdit, groupKey)).join("");
+        if (collectionKind === "inventory") groups.forEach((group) => group.entries.sort(compareManagedInventoryEntries));
+        const cardsFor = (groupEntries, groupKey) => groupEntries.map((entry) => renderManagedEntryCard(entry, canEdit, groupKey, collectionKind, entries)).join("");
         const groupedContent = groups.length ? groups.map((group) => `<section class="managed-entry-group" data-managed-entry-group="${escapeAttr(group.key)}"><header><span>${escapeHtml(group.label)}</span><b>${group.entries.length}</b></header><div class="managed-entry-grid">${cardsFor(group.entries, group.key)}</div></section>`).join("") : "";
         const empty = !entries.length ? `<div class="managed-empty-state"><i class="fas ${panelIcon}"></i><strong>Nessun elemento</strong><span>Puoi aggiungerne uno entrando in modifica.</span></div>` : "";
         const hasUnprepared = collectionKind === "spells" && entries.some((entry) => getManagedSpellPreparation(entry, findManagedItemCommand(entry))?.key === "unprepared");
-        const groupFilterButtons = groups.length > 1 ? `<button type="button" class="is-active" data-managed-entry-filter="all">Tutti</button>${groups.map((group) => `<button type="button" data-managed-entry-filter="${escapeAttr(group.key)}">${escapeHtml(group.shortLabel || group.label)}</button>`).join("")}` : "";
+        const groupFilterButtons = groups.length > 1 ? `<span class="managed-filter-label">Tipo</span><button type="button" class="is-active" data-managed-entry-filter="all" aria-pressed="true">Tutti</button>${groups.map((group) => `<button type="button" data-managed-entry-filter="${escapeAttr(group.key)}" aria-pressed="false">${escapeHtml(group.shortLabel || group.label)}</button>`).join("")}` : "";
         const preparationFilterButton = hasUnprepared ? `<button type="button" data-managed-prepared-only aria-pressed="false"><i class="fas fa-circle-check"></i> Solo preparati</button>` : "";
-        const filterButtons = groupFilterButtons || preparationFilterButton ? `<div class="managed-filter-chips" role="group" aria-label="Filtra ${escapeAttr(title)}">${groupFilterButtons}${preparationFilterButton}</div>` : "";
+        const inventoryFilterButtons = collectionKind === "inventory" && entries.length ? renderManagedInventoryFilterButtons(entries) : "";
+        const filterButtons = groupFilterButtons || preparationFilterButton || inventoryFilterButtons ? `<div class="managed-filter-chips${collectionKind === "inventory" ? " managed-filter-chips--inventory" : ""}" role="group" aria-label="Filtra ${escapeAttr(title)}">${groupFilterButtons}${inventoryFilterButtons}${preparationFilterButton}</div>` : "";
         const tools = entries.length > 5 ? `<div class="managed-collection-tools"><label class="managed-collection-search"><i class="fas fa-magnifying-glass"></i><input type="search" placeholder="Cerca ${escapeAttr(title.toLowerCase())}" aria-label="Cerca ${escapeAttr(title.toLowerCase())}" data-managed-entry-search></label>${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : filterButtons ? `<div class="managed-collection-tools">${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : "";
-        const lead = collectionKind === "spells" ? "Cerca e filtra il grimorio; apri soltanto ciò che vuoi leggere o modificare." : collectionKind === "capabilities" ? "Azioni, reazioni e capacità sono ordinate secondo il loro utilizzo in Foundry." : "Equipaggiamento e risorse collegate all’Actor originale.";
-        return `<details${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><summary class="managed-panel-heading managed-collection-summary"><div><span class="managed-panel-eyebrow">Dati Foundry</span><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-collection-summary-meta"><span class="managed-count-badge">${entries.length}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-collection-body">${entries.length ? `<p class="managed-panel-lead">${escapeHtml(lead)}</p>${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</div></details>`;
+        const lead = collectionKind === "spells" ? "Cerca e filtra il grimorio; apri soltanto ciò che vuoi leggere o modificare." : collectionKind === "capabilities" ? "Azioni, reazioni e capacità sono ordinate secondo il loro utilizzo in Foundry." : "";
+        const overview = collectionKind === "inventory" && entries.length ? renderManagedInventoryOverview(entries) : "";
+        return `<details${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><summary class="managed-panel-heading managed-collection-summary"><div><span class="managed-panel-eyebrow">Dati Foundry</span><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-collection-summary-meta"><span class="managed-count-badge">${entries.length}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-collection-body">${entries.length ? `${overview}${lead ? `<p class="managed-panel-lead">${escapeHtml(lead)}</p>` : ""}${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</div></details>`;
     }
-    function renderManagedEntryCard(entry, canEdit, groupKey) {
+
+    function renderManagedEntryCard(entry, canEdit, groupKey, collectionKind = "capabilities", collectionEntries = []) {
+        if (collectionKind === "inventory") return renderManagedInventoryEntryCard(entry, canEdit, groupKey, collectionEntries);
         const icon = entry.media?.icon?.path;
         const description = stripManagedDuplicateHeading(htmlToText(entry.definition?.description || ""), entry.name);
         const searchDescription = truncatePreview(description, 900);
@@ -1775,7 +1797,311 @@
         const preparationBadge = preparation ? `<span class="managed-spell-preparation is-${escapeAttr(preparation.key)}"><i class="fas ${escapeAttr(preparation.icon)}"></i>${escapeHtml(preparation.label)}</span>` : "";
         return `<article class="managed-entry ${preparation ? `managed-entry--spell-${escapeAttr(preparation.key)}` : ""}" data-managed-item-card="${escapeAttr(entry.transferId || entry.itemId || "")}" data-managed-entry-search-value="${escapeAttr(searchText)}" data-managed-entry-level="${level}" data-managed-entry-group-key="${escapeAttr(groupKey)}"${preparationAttribute}>${icon ? `<img src="${escapeAttr(resolveMedia(icon))}" alt="">` : '<div class="managed-entry-icon"><i class="fas fa-dice-d20"></i></div>'}<div class="managed-entry-copy"><div class="managed-entry-title"><h3>${escapeHtml(entry.name || "Elemento")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div>${preparationBadge}${status}${disclosure}${editor}</div></article>`;
     }
+    function renderManagedInventoryEntryCard(entry, canEdit, groupKey, collectionEntries = []) {
+        const icon = String(entry?.media?.icon?.path || entry?.definition?.img || "").trim();
+        const state = getManagedInventoryState(entry);
+        const typeMeta = getManagedInventoryTypeMeta(entry);
+        const catalogItem = getManagedInventoryCatalogItem(entry);
+        const catalogProperties = (Array.isArray(catalogItem?.properties) ? catalogItem.properties : [])
+            .filter((property) => property && property.hidden !== true)
+            .map((property) => ({
+                name: String(property.name || "").trim(),
+                charges: String(property.charges || "").trim(),
+                description: String(property.description || "").trim(),
+                negative: property.negative === true,
+                genial: property.genial === true && property.negative !== true
+            }))
+            .filter((property) => property.name || property.description);
+        const description = getManagedInventoryDescription(entry, catalogItem, catalogProperties);
+        const hasNegative = catalogProperties.some((property) => property.negative)
+            || /cripta-catalog-property--negative/i.test(String(entry?.definition?.description || ""));
+        const hasGenial = catalogProperties.some((property) => property.genial)
+            || /cripta-catalog-property--genial/i.test(String(entry?.definition?.description || ""));
+        const parent = findManagedInventoryContainer(entry, collectionEntries);
+        const children = getManagedInventoryChildren(entry, collectionEntries);
+        const command = findManagedItemCommand(entry);
+        const editor = canEdit ? renderManagedItemEditor(entry, command) : "";
+        const status = command ? renderManagedItemSyncStatus(command) : "";
+        const badges = renderManagedInventoryBadges(entry, state, typeMeta, catalogItem, { hasNegative, hasGenial });
+        const facts = renderManagedInventoryFacts(state, parent, catalogItem);
+        const details = renderManagedInventoryDetails(entry, description, catalogProperties, catalogItem);
+        const contents = renderManagedInventoryContents(children);
+        const searchText = normalizeManagedSearch([
+            entry?.name,
+            typeMeta.label,
+            typeMeta.groupLabel,
+            formatManagedInventoryRarity(entry?.definition?.rarity),
+            description,
+            ...catalogProperties.flatMap((property) => [property.name, property.description]),
+            parent?.name,
+            state.attuned ? "in sintonia" : "",
+            state.attunementRequired && !state.attuned ? "richiede sintonia" : "",
+            catalogItem ? "catalogo" : ""
+        ].filter(Boolean).join(" "));
+        const imageUrl = icon ? resolveMedia(icon) : "";
+        const media = imageUrl
+            ? `<button type="button" class="managed-entry-media" data-managed-image-open="${escapeAttr(imageUrl)}" data-managed-image-title="${escapeAttr(entry?.name || "Oggetto")}" aria-label="Ingrandisci ${escapeAttr(entry?.name || "oggetto")}"><img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(entry?.name || "Oggetto")}" loading="lazy" decoding="async"><span aria-hidden="true"><i class="fas fa-expand"></i></span></button>`
+            : `<div class="managed-entry-media managed-entry-media--fallback" aria-hidden="true"><i class="fas ${escapeAttr(typeMeta.icon)}"></i></div>`;
+        const classes = [
+            "managed-entry",
+            "managed-entry--inventory",
+            state.equipped ? "is-equipped" : "",
+            state.attuned ? "is-attuned" : "",
+            state.attunementRequired && !state.attuned ? "needs-attunement" : "",
+            hasNegative ? "has-negative-property" : "",
+            hasGenial ? "has-genial-property" : "",
+            children.length ? "is-container" : ""
+        ].filter(Boolean).join(" ");
+        return `<article class="${classes}" data-managed-item-card="${escapeAttr(entry?.transferId || entry?.itemId || "")}" data-managed-entry-search-value="${escapeAttr(searchText)}" data-managed-entry-group-key="${escapeAttr(groupKey)}" data-managed-inventory-equipped="${state.equipped}" data-managed-inventory-attuned="${state.attuned}" data-managed-inventory-requires-attunement="${state.attunementRequired && !state.attuned}" data-managed-inventory-catalog="${Boolean(catalogItem)}">
+            ${media}
+            <div class="managed-entry-copy">
+                <div class="managed-entry-title"><h3>${escapeHtml(entry?.name || "Oggetto")}</h3>${badges}</div>
+                ${facts}${status}${contents}${details}${editor}
+            </div>
+        </article>`;
+    }
 
+    function managedInventoryBoolean(value) {
+        return value === true || value === 1 || String(value || "").trim().toLowerCase() === "true";
+    }
+
+    function getManagedInventoryState(entry = {}) {
+        const definition = entry?.definition && typeof entry.definition === "object" ? entry.definition : {};
+        const runtime = entry?.state && typeof entry.state === "object" ? entry.state : {};
+        const quantity = Math.max(0, Number(runtime.quantity ?? definition.quantity ?? 1) || 0);
+        const equipped = managedInventoryBoolean(runtime.equipped ?? definition.equipped);
+        const attuned = managedInventoryBoolean(runtime.attuned ?? definition.attuned);
+        const attunementValue = String(definition.attunement ?? "").trim().toLowerCase();
+        const attunementRequired = attuned || managedInventoryBoolean(definition.attunementRequired)
+            || Boolean(attunementValue && !["0", "false", "none", "optional"].includes(attunementValue));
+        const uses = runtime.uses && typeof runtime.uses === "object" ? runtime.uses : (definition.uses && typeof definition.uses === "object" ? definition.uses : {});
+        const usesMax = Number(uses.max);
+        const usesSpent = Number(uses.spent);
+        const usesValue = Number(uses.value);
+        const usesRemaining = Number.isFinite(usesSpent) && Number.isFinite(usesMax)
+            ? Math.max(0, usesMax - usesSpent)
+            : (Number.isFinite(usesValue) ? Math.max(0, usesValue) : null);
+        const weightSource = definition.weight && typeof definition.weight === "object" ? definition.weight : { value: definition.weight };
+        const weight = Number(weightSource.value);
+        return {
+            quantity,
+            equipped,
+            attuned,
+            attunementRequired,
+            identified: definition.identified !== false,
+            usesMax: Number.isFinite(usesMax) && usesMax > 0 ? usesMax : null,
+            usesRemaining,
+            usesPer: String(uses.per || "").trim(),
+            weight: Number.isFinite(weight) && weight > 0 ? weight : null,
+            weightUnits: String(weightSource.units || "lb").trim() || "lb"
+        };
+    }
+
+    function getManagedInventoryTypeMeta(entry = {}) {
+        const type = String(entry?.type || "loot").trim().toLowerCase();
+        const definition = entry?.definition && typeof entry.definition === "object" ? entry.definition : {};
+        const rawSubtype = typeof definition.type === "object" ? definition.type?.value : definition.type;
+        const subtype = String(rawSubtype || definition.weaponType || definition.armorType || "").trim().toLowerCase();
+        const subtypeLabels = {
+            simplem: "Arma semplice da mischia", simpler: "Arma semplice a distanza",
+            martialm: "Arma marziale da mischia", martialr: "Arma marziale a distanza",
+            natural: "Arma naturale", improvised: "Arma improvvisata",
+            light: "Armatura leggera", medium: "Armatura media", heavy: "Armatura pesante", shield: "Scudo",
+            clothing: "Vestiario", trinket: "Monile", wondrous: "Oggetto meraviglioso"
+        };
+        if (type === "weapon") return { label: subtypeLabels[subtype] || "Arma", icon: "fa-swords", groupKey: "weapons", groupLabel: "Armi", order: 1 };
+        if (type === "equipment" && ["light", "medium", "heavy", "natural", "shield"].includes(subtype)) return { label: subtypeLabels[subtype] || "Armatura", icon: subtype === "shield" ? "fa-shield" : "fa-vest", groupKey: "armor", groupLabel: "Armature e scudi", order: 2 };
+        if (type === "consumable") return { label: subtypeLabels[subtype] || "Consumabile", icon: "fa-flask-round-potion", groupKey: "consumables", groupLabel: "Consumabili", order: 4 };
+        if (type === "container" || definition.capacity) return { label: "Contenitore", icon: "fa-box-open", groupKey: "containers", groupLabel: "Contenitori", order: 5 };
+        if (type === "tool") return { label: subtypeLabels[subtype] || "Strumento", icon: "fa-screwdriver-wrench", groupKey: "tools", groupLabel: "Strumenti", order: 6 };
+        if (["loot", "resource", "currency"].includes(type)) return { label: type === "resource" ? "Risorsa" : "Bene", icon: "fa-gem", groupKey: "loot", groupLabel: "Beni e risorse", order: 7 };
+        if (type === "equipment") return { label: subtypeLabels[subtype] || "Equipaggiamento", icon: "fa-backpack", groupKey: "equipment", groupLabel: "Equipaggiamento", order: 3 };
+        return { label: subtypeLabels[subtype] || type.replace(/[_-]+/g, " ") || "Oggetto", icon: "fa-box", groupKey: "other", groupLabel: "Altro", order: 8 };
+    }
+
+    function compareManagedInventoryEntries(left, right) {
+        const leftState = getManagedInventoryState(left);
+        const rightState = getManagedInventoryState(right);
+        if (leftState.attuned !== rightState.attuned) return leftState.attuned ? -1 : 1;
+        if (leftState.equipped !== rightState.equipped) return leftState.equipped ? -1 : 1;
+        return String(left?.name || "").localeCompare(String(right?.name || ""), "it", { sensitivity: "base" });
+    }
+    function getManagedInventoryCatalogItem(entry = {}) {
+        const campaignItemId = sanitizeId(entry?.campaignItemId || entry?.definition?.campaignItemId || "");
+        if (!campaignItemId) return null;
+        return campaignItemCatalog.find((item) => sanitizeId(item?.id || item?.name) === campaignItemId) || null;
+    }
+
+    function getManagedInventoryDescription(entry = {}, catalogItem = null, catalogProperties = []) {
+        const raw = normalizeManagedMerchantDescription(entry?.definition?.description ?? entry?.description);
+        const fallback = stripManagedDuplicateHeading(htmlToText(raw), entry?.name);
+        if (!catalogItem) return fallback;
+        if (!catalogProperties.length) return String(catalogItem.summary || "").trim() || fallback;
+        const normalize = (value) => normalizeManagedSearch(value).replace(/\s+/g, " ").trim();
+        const duplicatesProperty = (value) => {
+            const normalizedValue = normalize(value);
+            if (!normalizedValue) return false;
+            return catalogProperties.some((property) => {
+                const propertyDescription = normalize(property.description);
+                return propertyDescription.length >= 20 && (normalizedValue.includes(propertyDescription) || propertyDescription.includes(normalizedValue));
+            });
+        };
+        const summary = String(catalogItem.summary || "").trim();
+        if (summary && !duplicatesProperty(summary)) return summary;
+        return fallback && !duplicatesProperty(fallback) ? fallback : "";
+    }
+
+    function renderManagedInventoryBadges(entry, state, typeMeta, catalogItem, flags = {}) {
+        const badges = [{ className: "is-type", icon: typeMeta.icon, label: typeMeta.label }];
+        const rarity = formatManagedInventoryRarity(entry?.definition?.rarity || catalogItem?.rarity);
+        if (rarity) badges.push({ className: "is-rarity", icon: "fa-sparkles", label: rarity });
+        if (state.equipped) badges.push({ className: "is-equipped", icon: "fa-shield-check", label: "Equipaggiato" });
+        if (state.attuned) badges.push({ className: "is-attuned", icon: "fa-link", label: "In sintonia" });
+        else if (state.attunementRequired) badges.push({ className: "needs-attunement", icon: "fa-link-slash", label: "Richiede sintonia" });
+        if (!state.identified) badges.push({ className: "is-unidentified", icon: "fa-question", label: "Non identificato" });
+        if (flags.hasGenial) badges.push({ className: "is-genial", icon: "fa-wand-magic-sparkles", label: "Proprietà geniale" });
+        if (flags.hasNegative) badges.push({ className: "is-negative", icon: "fa-triangle-exclamation", label: "Effetto negativo" });
+        if (catalogItem) badges.push({ className: "is-catalog", icon: "fa-book-bookmark", label: "Catalogo" });
+        return `<div class="managed-inventory-badges">${badges.map((badge) => `<span class="managed-inventory-badge ${badge.className}"><i class="fas ${escapeAttr(badge.icon)}"></i>${escapeHtml(badge.label)}</span>`).join("")}</div>`;
+    }
+
+    function renderManagedInventoryFacts(state, parent, catalogItem) {
+        const facts = [];
+        if (state.quantity !== 1) facts.push({ icon: "fa-layer-group", label: "Quantità", value: formatManagedInventoryNumber(state.quantity) });
+        if (state.usesMax !== null) {
+            const available = state.usesRemaining === null ? state.usesMax : state.usesRemaining;
+            const resetLabels = { day: "giorno", sr: "riposo breve", lr: "riposo lungo", charges: "cariche" };
+            facts.push({ icon: "fa-battery-three-quarters", label: "Cariche", value: `${formatManagedInventoryNumber(available)} / ${formatManagedInventoryNumber(state.usesMax)}${state.usesPer ? ` · ${resetLabels[state.usesPer] || state.usesPer}` : ""}` });
+        }
+        if (state.weight !== null) {
+            const totalWeight = state.weight * Math.max(1, state.quantity);
+            const value = state.quantity > 1
+                ? `${formatManagedInventoryWeight(totalWeight, state.weightUnits)} totali`
+                : formatManagedInventoryWeight(state.weight, state.weightUnits);
+            facts.push({ icon: "fa-weight-hanging", label: "Peso", value });
+        }
+        if (parent) facts.push({ icon: "fa-box-open", label: "Dentro", value: String(parent.name || "Contenitore") });
+        const campaignItemId = sanitizeId(catalogItem?.id || "");
+        if (campaignItemId) facts.push({ icon: "fa-book-open", label: "Catalogo", value: String(catalogItem?.name || "Scheda oggetto"), href: buildManagedMerchantCatalogLink(campaignItemId) });
+        if (!facts.length) return "";
+        return `<dl class="managed-inventory-facts">${facts.map((fact) => `<div><dt><i class="fas ${escapeAttr(fact.icon)}"></i>${escapeHtml(fact.label)}</dt><dd>${fact.href ? `<a href="${escapeAttr(fact.href)}">${escapeHtml(fact.value)}<i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></a>` : escapeHtml(fact.value)}</dd></div>`).join("")}</dl>`;
+    }
+
+    function renderManagedInventoryDetails(entry, description, catalogProperties, catalogItem) {
+        const sections = [];
+        if (description) sections.push(`<div class="managed-inventory-description">${formatManagedPreview(description)}</div>`);
+        if (catalogProperties.length) {
+            sections.push(`<div class="managed-inventory-properties">${catalogProperties.map((property) => `<section class="${property.negative ? "is-negative" : property.genial ? "is-genial" : ""}">${property.name ? `<h4>${escapeHtml(property.name)}${property.charges ? `<small>${escapeHtml(property.charges)}</small>` : ""}</h4>` : ""}${property.description ? `<p>${formatManagedPreview(property.description)}</p>` : ""}</section>`).join("")}</div>`);
+        }
+        const notes = String(catalogItem?.notes || "").trim();
+        if (notes) sections.push(`<aside class="managed-inventory-notes"><i class="fas fa-note-sticky"></i><span>${formatManagedPreview(notes)}</span></aside>`);
+        if (!sections.length) return "";
+        return `<details class="managed-entry-disclosure managed-entry-disclosure--inventory"><summary><span><i class="fas fa-scroll"></i> Scheda oggetto</span><i class="fas fa-chevron-down"></i></summary><div>${sections.join("")}</div></details>`;
+    }
+
+    function getManagedInventoryParentId(entry = {}) {
+        const definition = entry?.definition && typeof entry.definition === "object" ? entry.definition : {};
+        const container = definition.container && typeof definition.container === "object" ? definition.container : {};
+        const candidates = [
+            entry.containerId, entry.parentItemId, entry.parentId,
+            definition.containerId, definition.parentItemId, definition.parentId,
+            container.id, container.itemId, container.uuid,
+            entry?.state?.containerId, entry?.state?.parentItemId
+        ];
+        return String(candidates.find((value) => value !== undefined && value !== null && String(value).trim()) || "").trim().split(".").pop();
+    }
+
+    function getManagedInventoryIdentity(entry = {}) {
+        return [entry.itemId, entry.transferId, entry.id, entry?._id, entry?.definition?._id]
+            .map((value) => String(value || "").trim())
+            .filter(Boolean);
+    }
+
+    function findManagedInventoryContainer(entry, collectionEntries = []) {
+        const parentId = getManagedInventoryParentId(entry);
+        if (!parentId) return null;
+        return collectionEntries.find((candidate) => getManagedInventoryIdentity(candidate).includes(parentId)) || null;
+    }
+
+    function getManagedInventoryChildren(entry, collectionEntries = []) {
+        const identities = new Set(getManagedInventoryIdentity(entry));
+        if (!identities.size) return [];
+        return collectionEntries.filter((candidate) => {
+            const parentId = getManagedInventoryParentId(candidate);
+            return parentId && identities.has(parentId);
+        }).sort(compareManagedInventoryEntries);
+    }
+
+    function renderManagedInventoryContents(children = []) {
+        if (!children.length) return "";
+        return `<details class="managed-inventory-container"><summary><span><i class="fas fa-box-open"></i> Contenuto</span><b>${children.length}</b><i class="fas fa-chevron-down"></i></summary><ul>${children.map((child) => { const state = getManagedInventoryState(child); return `<li><span>${escapeHtml(child?.name || "Oggetto")}</span>${state.quantity !== 1 ? `<b>×${escapeHtml(formatManagedInventoryNumber(state.quantity))}</b>` : ""}</li>`; }).join("")}</ul></details>`;
+    }
+    function renderManagedInventoryOverview(entries = []) {
+        const states = entries.map(getManagedInventoryState);
+        const totalUnits = states.reduce((sum, state) => sum + state.quantity, 0);
+        const equipped = states.filter((state) => state.equipped).length;
+        const attuned = states.filter((state) => state.attuned).length;
+        const needsAttunement = states.filter((state) => state.attunementRequired && !state.attuned).length;
+        const catalogLinked = entries.filter((entry) => getManagedInventoryCatalogItem(entry)).length;
+        const stats = [
+            { icon: "fa-boxes-stacked", value: entries.length, label: entries.length === 1 ? "scheda" : "schede" },
+            ...(totalUnits !== entries.length ? [{ icon: "fa-layer-group", value: formatManagedInventoryNumber(totalUnits), label: "unità" }] : []),
+            { icon: "fa-shield-check", value: equipped, label: "equipaggiati" },
+            { icon: "fa-link", value: attuned, label: "in sintonia", className: attuned ? "is-attuned" : "" },
+            ...(needsAttunement ? [{ icon: "fa-link-slash", value: needsAttunement, label: "da sintonizzare", className: "needs-attunement" }] : []),
+            ...(catalogLinked ? [{ icon: "fa-book-bookmark", value: catalogLinked, label: "nel catalogo", className: "is-catalog" }] : [])
+        ];
+        const weight = currentDocument?.runtime?.weight && typeof currentDocument.runtime.weight === "object"
+            ? currentDocument.runtime.weight
+            : (currentDocument?.runtime?.attributes?.encumbrance || null);
+        const value = Number(weight?.value);
+        const max = Number(weight?.max);
+        const rawPct = Number(weight?.pct);
+        const percentage = Number.isFinite(rawPct) ? Math.max(0, rawPct) : (Number.isFinite(value) && Number.isFinite(max) && max > 0 ? (value / max) * 100 : null);
+        const weightMarkup = Number.isFinite(value) && Number.isFinite(max) && max > 0
+            ? `<div class="managed-inventory-weight${weight?.encumbered ? " is-encumbered" : ""}"><div><span><i class="fas fa-weight-hanging"></i> Ingombro</span><strong>${escapeHtml(formatManagedInventoryNumber(value))} / ${escapeHtml(formatManagedInventoryNumber(max))}</strong></div><span class="managed-inventory-weight-track" role="progressbar" aria-label="Ingombro" aria-valuemin="0" aria-valuemax="${escapeAttr(max)}" aria-valuenow="${escapeAttr(value)}"><i style="--managed-inventory-weight:${Math.min(100, Math.max(0, percentage || 0))}%"></i></span></div>`
+            : "";
+        return `<section class="managed-inventory-overview" aria-label="Riepilogo inventario"><div class="managed-inventory-overview-stats">${stats.map((stat) => `<div class="${stat.className || ""}"><i class="fas ${escapeAttr(stat.icon)}"></i><span><strong>${escapeHtml(stat.value)}</strong>${escapeHtml(stat.label)}</span></div>`).join("")}</div>${weightMarkup}</section>`;
+    }
+
+    function renderManagedInventoryFilterButtons(entries = []) {
+        const states = entries.map(getManagedInventoryState);
+        const filters = [
+            { key: "all", label: "Tutti", icon: "fa-grid-2", count: entries.length },
+            { key: "equipped", label: "Equipaggiati", icon: "fa-shield-check", count: states.filter((state) => state.equipped).length },
+            { key: "attuned", label: "In sintonia", icon: "fa-link", count: states.filter((state) => state.attuned).length },
+            { key: "requires-attunement", label: "Da sintonizzare", icon: "fa-link-slash", count: states.filter((state) => state.attunementRequired && !state.attuned).length },
+            { key: "catalog", label: "Catalogo", icon: "fa-book-bookmark", count: entries.filter((entry) => getManagedInventoryCatalogItem(entry)).length }
+        ].filter((filter) => filter.key === "all" || filter.count > 0);
+        if (filters.length <= 1) return "";
+        return `<span class="managed-filter-label">Stato</span>${filters.map((filter, index) => `<button type="button" class="${index === 0 ? "is-active" : ""}" data-managed-inventory-filter="${escapeAttr(filter.key)}" aria-pressed="${index === 0}"><i class="fas ${escapeAttr(filter.icon)}"></i>${escapeHtml(filter.label)}<b>${filter.count}</b></button>`).join("")}`;
+    }
+
+    function formatManagedInventoryRarity(value) {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        const key = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s_-]+/g, "");
+        const labels = {
+            common: "Comune", comune: "Comune",
+            uncommon: "Non comune", noncomune: "Non comune",
+            rare: "Raro", raro: "Raro",
+            veryrare: "Molto raro", epico: "Molto raro", moltoraro: "Molto raro",
+            legendary: "Leggendario", leggendario: "Leggendario",
+            artifact: "Artefatto", artefatto: "Artefatto"
+        };
+        return labels[key] || raw.replace(/[_-]+/g, " ");
+    }
+
+    function formatManagedInventoryNumber(value) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return String(value ?? "");
+        return new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 }).format(number);
+    }
+
+    function formatManagedInventoryWeight(value, units = "lb") {
+        const label = ({ lb: "lb", lbs: "lb", kg: "kg", g: "g" })[String(units || "lb").toLowerCase()] || String(units || "lb");
+        return `${formatManagedInventoryNumber(value)} ${label}`;
+    }
     function getManagedSpellPreparation(entry, command) {
         if (entry?.type !== "spell") return null;
         const mode = String(getManagedItemDesiredValue(entry, command, "system.preparation.mode") || "").trim().toLowerCase();
@@ -1809,7 +2135,11 @@
             if (["legendary", "lair"].includes(activation)) return { key: activation, label: activation === "legendary" ? "Azioni leggendarie" : "Azioni di tana", shortLabel: activation === "legendary" ? "Leggendarie" : "Tana", order: 4 };
             return { key: "passive", label: "Tratti e capacità passive", shortLabel: "Passive", order: 5 };
         }
-        return { key: "inventory", label: "Oggetti", shortLabel: "Oggetti", order: 1 };
+        if (kind === "inventory") {
+            const meta = getManagedInventoryTypeMeta(entry);
+            return { key: meta.groupKey, label: meta.groupLabel, shortLabel: meta.groupLabel, order: meta.order };
+        }
+        return { key: "other", label: "Elementi", shortLabel: "Elementi", order: 99 };
     }
 
     function normalizeManagedSearch(value) {
@@ -1820,11 +2150,13 @@
         root.querySelectorAll("[data-managed-collection]").forEach((collection) => {
             const search = collection.querySelector("[data-managed-entry-search]");
             const buttons = Array.from(collection.querySelectorAll("[data-managed-entry-filter]"));
+            const inventoryButtons = Array.from(collection.querySelectorAll("[data-managed-inventory-filter]"));
             const preparedOnlyButton = collection.querySelector("[data-managed-prepared-only]");
             const cards = Array.from(collection.querySelectorAll("[data-managed-entry-search-value]"));
             const groups = Array.from(collection.querySelectorAll("[data-managed-entry-group]"));
             const counter = collection.querySelector("[data-managed-visible-count]");
             let activeFilter = "all";
+            let activeInventoryFilter = "all";
             let preparedOnly = false;
             const apply = () => {
                 const query = normalizeManagedSearch(search?.value || "").trim();
@@ -1834,7 +2166,12 @@
                     const matchesFilter = activeFilter === "all" || card.dataset.managedEntryGroupKey === activeFilter;
                     const preparation = String(card.dataset.managedSpellPreparation || "");
                     const matchesPreparation = !preparedOnly || Boolean(preparation && preparation !== "unprepared");
-                    card.hidden = !(matchesText && matchesFilter && matchesPreparation);
+                    const matchesInventory = activeInventoryFilter === "all"
+                        || (activeInventoryFilter === "equipped" && card.dataset.managedInventoryEquipped === "true")
+                        || (activeInventoryFilter === "attuned" && card.dataset.managedInventoryAttuned === "true")
+                        || (activeInventoryFilter === "requires-attunement" && card.dataset.managedInventoryRequiresAttunement === "true")
+                        || (activeInventoryFilter === "catalog" && card.dataset.managedInventoryCatalog === "true");
+                    card.hidden = !(matchesText && matchesFilter && matchesPreparation && matchesInventory);
                     if (!card.hidden) visible += 1;
                 });
                 groups.forEach((group) => { group.hidden = !Array.from(group.querySelectorAll("[data-managed-entry-search-value]")).some((card) => !card.hidden); });
@@ -1844,7 +2181,20 @@
             search?.addEventListener("input", apply);
             buttons.forEach((button) => button.addEventListener("click", () => {
                 activeFilter = String(button.dataset.managedEntryFilter || "all");
-                buttons.forEach((candidate) => candidate.classList.toggle("is-active", candidate === button));
+                buttons.forEach((candidate) => {
+                    const active = candidate === button;
+                    candidate.classList.toggle("is-active", active);
+                    candidate.setAttribute("aria-pressed", String(active));
+                });
+                apply();
+            }));
+            inventoryButtons.forEach((button) => button.addEventListener("click", () => {
+                activeInventoryFilter = String(button.dataset.managedInventoryFilter || "all");
+                inventoryButtons.forEach((candidate) => {
+                    const active = candidate === button;
+                    candidate.classList.toggle("is-active", active);
+                    candidate.setAttribute("aria-pressed", String(active));
+                });
                 apply();
             }));
             preparedOnlyButton?.addEventListener("click", () => {

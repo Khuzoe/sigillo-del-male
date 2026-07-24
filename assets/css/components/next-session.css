@@ -1,0 +1,526 @@
+/* Shared modern presentation for the next-session card and availability poll. */
+#next-session-container {
+  min-width: 0;
+}
+
+.next-session-card.next-session-card-poll {
+  --poll-accent: #e1c379;
+  --poll-accent-rgb: 225, 195, 121;
+  --poll-panel: rgba(19, 16, 22, 0.96);
+  --poll-panel-soft: rgba(29, 24, 32, 0.76);
+  --poll-line: rgba(var(--poll-accent-rgb), 0.16);
+  display: block;
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(var(--poll-accent-rgb), 0.28);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 88% -8%, rgba(var(--poll-accent-rgb), 0.14), transparent 29rem),
+    linear-gradient(145deg, var(--poll-panel), rgba(9, 8, 11, 0.98));
+  box-shadow:
+    0 24px 54px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  text-align: left;
+}
+
+.next-session-card.next-session-card-poll::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(var(--poll-accent-rgb), 0.58), transparent 16%) top left / 34% 1px no-repeat,
+    radial-gradient(circle at 1.8rem 1.8rem, rgba(var(--poll-accent-rgb), 0.12), transparent 8rem);
+  opacity: 0.72;
+}
+
+.next-session-poll-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 1.25rem 2rem;
+  padding: 1.55rem 1.7rem 1.35rem;
+  border-bottom: 1px solid var(--poll-line);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent);
+}
+
+.next-session-poll-heading {
+  min-width: 0;
+}
+
+.next-session-card-poll .next-label-poll {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0 0 0.5rem;
+  color: rgba(var(--poll-accent-rgb), 0.72);
+  font: 700 0.66rem/1 var(--font-ui);
+  letter-spacing: 0.2em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.next-session-card-poll .next-label-poll i {
+  color: var(--poll-accent);
+  font-size: 0.76rem;
+}
+
+.next-session-card-poll .next-title {
+  margin: 0;
+  background: none;
+  color: #f1ebe2;
+  -webkit-text-fill-color: currentColor;
+  filter: none;
+  font: 600 clamp(1.75rem, 3vw, 2.7rem)/1 var(--font-heading);
+  letter-spacing: -0.025em;
+  text-align: left;
+  text-shadow: 0 5px 18px rgba(0, 0, 0, 0.35);
+  text-transform: none;
+}
+
+.next-session-poll-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+}
+
+.next-session-poll-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+  padding: 0.34rem 0.58rem;
+  border: 1px solid rgba(var(--poll-accent-rgb), 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  color: #aaa1ad;
+  font: 650 0.64rem/1 var(--font-ui);
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+}
+
+.next-session-poll-meta i {
+  color: rgba(var(--poll-accent-rgb), 0.84);
+}
+
+.next-session-card-poll .next-session-card-controls {
+  position: static;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.next-session-card-poll .next-session-open-poll,
+.next-session-card-poll .next-session-edit-trigger,
+.next-session-card-poll .next-session-add-trigger,
+.next-session-card-poll .next-session-export-trigger,
+.next-session-card-poll .next-session-send-poll-trigger,
+.next-session-card-poll .next-session-view-trigger {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  border-color: rgba(var(--poll-accent-rgb), 0.22);
+  background: rgba(7, 6, 9, 0.34);
+  color: var(--poll-accent);
+}
+
+.next-session-card-poll .next-session-open-poll {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.next-session-card-poll .next-session-open-poll:hover,
+.next-session-card-poll .next-session-edit-trigger:hover,
+.next-session-card-poll .next-session-add-trigger:hover,
+.next-session-card-poll .next-session-export-trigger:hover,
+.next-session-card-poll .next-session-send-poll-trigger:hover,
+.next-session-card-poll .next-session-view-trigger:hover {
+  border-color: rgba(var(--poll-accent-rgb), 0.54);
+  background: rgba(var(--poll-accent-rgb), 0.12);
+}
+
+.next-session-card-poll .availability-feedback {
+  min-height: 0;
+  margin: 0;
+  padding: 0.72rem 1.7rem;
+  border-bottom: 1px solid rgba(var(--poll-accent-rgb), 0.12);
+  background: rgba(var(--poll-accent-rgb), 0.07);
+  color: #d9c994;
+  font: 600 0.76rem/1.35 var(--font-ui);
+  text-align: left;
+}
+
+.next-session-poll-guide {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem 1.5rem;
+  padding: 0.78rem 1.7rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+  background: rgba(255, 255, 255, 0.012);
+}
+
+.next-session-poll-guide p {
+  margin: 0;
+  color: #958d99;
+  font: 500 0.7rem/1.4 var(--font-ui);
+  text-align: right;
+}
+
+.availability-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.availability-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  padding: 0.32rem 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  color: #b7afb9;
+  font: 650 0.61rem/1 var(--font-ui);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.availability-legend .is-yes i { color: #72d99a; }
+.availability-legend .is-maybe i { color: #e3b657; }
+.availability-legend .is-no i { color: #df7777; }
+
+.next-session-poll-table-shell {
+  min-width: 0;
+  padding: 0.9rem;
+}
+
+.next-session-card-poll .availability-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid rgba(var(--poll-accent-rgb), 0.14);
+  border-radius: 15px;
+  background: rgba(7, 7, 10, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.025);
+  scrollbar-color: rgba(var(--poll-accent-rgb), 0.42) rgba(255, 255, 255, 0.025);
+  scrollbar-width: thin;
+}
+
+.next-session-card-poll .availability-table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+
+.next-session-card-poll .availability-table-wrap::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.next-session-card-poll .availability-table-wrap::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(var(--poll-accent-rgb), 0.42);
+  background-clip: padding-box;
+}
+
+.next-session-card-poll .availability-table {
+  width: max-content;
+  min-width: 100%;
+  border-spacing: 0;
+  background: transparent;
+}
+
+.next-session-card-poll .availability-table th,
+.next-session-card-poll .availability-table td {
+  padding: 0.38rem;
+  border-right: 1px solid rgba(255, 255, 255, 0.045);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.045);
+}
+
+.next-session-card-poll .availability-table tr:last-child > * {
+  border-bottom: 0;
+}
+
+.next-session-card-poll .availability-table tr > *:last-child {
+  border-right: 0;
+}
+
+.next-session-card-poll .availability-corner-cell,
+.next-session-card-poll .availability-name-cell {
+  width: 124px;
+  min-width: 124px;
+  max-width: 124px;
+}
+
+.next-session-card-poll .availability-corner-cell {
+  padding: 0.8rem;
+  color: rgba(var(--poll-accent-rgb), 0.9);
+  font: 650 0.72rem/1 var(--font-heading);
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.next-session-card-poll .availability-option-cell,
+.next-session-card-poll .availability-vote-cell {
+  width: 88px;
+  min-width: 88px;
+  max-width: 88px;
+}
+
+.next-session-card-poll .availability-option-cell {
+  padding: 0.58rem 0.38rem 0.5rem;
+  vertical-align: top;
+}
+
+.next-session-card-poll .availability-option-trigger {
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.next-session-card-poll .availability-option-label {
+  max-width: 100%;
+  color: #eee3cc;
+  font-size: 0.66rem;
+  letter-spacing: 0.025em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.next-session-card-poll .availability-option-month {
+  color: #a9a0ab;
+  font-size: 0.58rem;
+}
+
+.next-session-card-poll .availability-option-time {
+  margin-top: 0.26rem;
+  color: rgba(var(--poll-accent-rgb), 0.9);
+  font-size: 0.57rem;
+}
+
+.next-session-card-poll .availability-option-totals {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 0.18rem;
+  margin-top: 0.42rem;
+}
+
+.next-session-card-poll .availability-total {
+  min-width: 0;
+  gap: 0.15rem;
+  padding: 0.15rem 0.23rem;
+  font-size: 0.49rem;
+}
+
+.next-session-card-poll .availability-total b {
+  font: inherit;
+}
+
+.availability-option-confirm-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.38rem;
+  color: rgba(var(--poll-accent-rgb), 0.68);
+  font: 650 0.48rem/1 var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.next-session-card-poll .availability-name-cell {
+  padding: 0.65rem 0.7rem;
+  background: linear-gradient(180deg, rgba(24, 20, 27, 0.985), rgba(14, 14, 19, 0.98));
+}
+
+.next-session-card-poll .availability-name-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.34rem;
+}
+
+.next-session-card-poll .availability-name-text {
+  color: #eee9e2;
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.availability-own-badge {
+  display: inline-flex;
+  padding: 0.2rem 0.38rem;
+  border: 1px solid rgba(var(--poll-accent-rgb), 0.24);
+  border-radius: 999px;
+  background: rgba(var(--poll-accent-rgb), 0.09);
+  color: rgba(var(--poll-accent-rgb), 0.9);
+  font: 700 0.48rem/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.next-session-card-poll .availability-vote-cell {
+  height: 88px;
+  min-height: 88px;
+  padding: 0.3rem;
+}
+
+.next-session-card-poll .availability-choice-slot,
+.next-session-card-poll .availability-choice-single {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.next-session-card-poll .availability-choice-single {
+  border-radius: 11px;
+}
+
+.next-session-card-poll .availability-choice-icon {
+  border-radius: 10px;
+}
+
+.next-session-card-poll .availability-clear-vote {
+  top: 0.22rem;
+  right: 0.22rem;
+  width: 17px;
+  height: 17px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(8, 8, 10, 0.64);
+}
+
+.next-session-card-poll .availability-row-is-own .availability-vote-cell {
+  box-shadow: inset 0 0 0 1px rgba(var(--poll-accent-rgb), 0.08);
+}
+
+.next-session-area .next-session-poll-header,
+.sessions-planning .next-session-poll-header {
+  padding: 1.15rem 1.3rem 1rem;
+}
+
+.next-session-area .next-session-card-poll .next-title,
+.sessions-planning .next-session-card-poll .next-title {
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+}
+
+.next-session-area .next-session-poll-guide,
+.sessions-planning .next-session-poll-guide {
+  padding-inline: 1.3rem;
+}
+
+.next-session-area .next-session-poll-table-shell,
+.sessions-planning .next-session-poll-table-shell {
+  padding: 0.72rem;
+}
+
+.next-session-area .next-session-card-poll .availability-option-cell,
+.next-session-area .next-session-card-poll .availability-vote-cell,
+.sessions-planning .next-session-card-poll .availability-option-cell,
+.sessions-planning .next-session-card-poll .availability-vote-cell {
+  width: 82px;
+  min-width: 82px;
+  max-width: 82px;
+}
+
+.next-session-area .next-session-card-poll .availability-vote-cell,
+.sessions-planning .next-session-card-poll .availability-vote-cell {
+  height: 82px;
+  min-height: 82px;
+}
+
+html[data-campaign='mago-folle'] .next-session-card-poll {
+  --poll-accent: #8be7ff;
+  --poll-accent-rgb: 139, 231, 255;
+}
+
+html[data-campaign='oltre-il-velo'] .next-session-card-poll {
+  --poll-accent: #f3c96a;
+  --poll-accent-rgb: 243, 201, 106;
+}
+
+@media (max-width: 900px) {
+  .next-session-poll-header {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 1.2rem 1.15rem 1rem;
+  }
+
+  .next-session-card-poll .next-session-card-controls {
+    justify-content: flex-start;
+  }
+
+  .next-session-poll-guide {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 0.75rem 1.15rem;
+  }
+
+  .next-session-poll-guide p {
+    text-align: left;
+  }
+
+  .next-session-poll-table-shell {
+    padding: 0.62rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .next-session-card.next-session-card-poll {
+    border-radius: 16px;
+  }
+
+  .next-session-card-poll .next-title {
+    font-size: 1.55rem;
+  }
+
+  .next-session-card-poll .availability-corner-cell,
+  .next-session-card-poll .availability-name-cell {
+    width: 104px;
+    min-width: 104px;
+    max-width: 104px;
+  }
+
+  .next-session-card-poll .availability-option-cell,
+  .next-session-card-poll .availability-vote-cell,
+  .next-session-area .next-session-card-poll .availability-option-cell,
+  .next-session-area .next-session-card-poll .availability-vote-cell,
+  .sessions-planning .next-session-card-poll .availability-option-cell,
+  .sessions-planning .next-session-card-poll .availability-vote-cell {
+    width: 76px;
+    min-width: 76px;
+    max-width: 76px;
+  }
+
+  .next-session-card-poll .availability-vote-cell,
+  .next-session-area .next-session-card-poll .availability-vote-cell,
+  .sessions-planning .next-session-card-poll .availability-vote-cell {
+    height: 76px;
+    min-height: 76px;
+  }
+
+  .next-session-card-poll .availability-option-totals,
+  .availability-option-confirm-hint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .next-session-card-poll *,
+  .next-session-card-poll *::before,
+  .next-session-card-poll *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

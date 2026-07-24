@@ -1,4 +1,69 @@
 (function () {
+    const ITEM_FAMILIES = [
+        { value: "weapon", label: "Arma", icon: "fa-khanda", foundryType: "weapon" },
+        { value: "armor", label: "Armatura", icon: "fa-shield-halved", foundryType: "equipment" },
+        { value: "consumable", label: "Consumabile", icon: "fa-flask-vial", foundryType: "consumable" },
+        { value: "equipment", label: "Equipaggiamento", icon: "fa-hat-wizard", foundryType: "equipment" },
+        { value: "tool", label: "Strumento", icon: "fa-hammer", foundryType: "tool" },
+        { value: "material", label: "Materiale", icon: "fa-cubes-stacked", foundryType: "loot" },
+        { value: "loot", label: "Bottino", icon: "fa-gem", foundryType: "loot" },
+        { value: "container", label: "Contenitore", icon: "fa-box-open", foundryType: "container" }
+    ];
+
+    const ITEM_SUBTYPES = {
+        weapon: [
+            { value: "simpleM", label: "Semplice da mischia" },
+            { value: "simpleR", label: "Semplice a distanza" },
+            { value: "martialM", label: "Marziale da mischia" },
+            { value: "martialR", label: "Marziale a distanza" },
+            { value: "natural", label: "Naturale" },
+            { value: "improv", label: "Improvvisata" },
+            { value: "siege", label: "D'assedio" }
+        ],
+        armor: [
+            { value: "light", label: "Leggera" },
+            { value: "medium", label: "Media" },
+            { value: "heavy", label: "Pesante" },
+            { value: "natural", label: "Naturale" },
+            { value: "shield", label: "Scudo" }
+        ],
+        consumable: [
+            { value: "ammo", label: "Munizione" },
+            { value: "potion", label: "Pozione" },
+            { value: "poison", label: "Veleno" },
+            { value: "food", label: "Cibo" },
+            { value: "scroll", label: "Pergamena" },
+            { value: "wand", label: "Bacchetta consumabile" },
+            { value: "rod", label: "Verga consumabile" },
+            { value: "trinket", label: "Monile consumabile" }
+        ],
+        equipment: [
+            { value: "clothing", label: "Abbigliamento" },
+            { value: "ring", label: "Anello" },
+            { value: "rod", label: "Verga" },
+            { value: "trinket", label: "Monile" },
+            { value: "vehicle", label: "Veicolo" },
+            { value: "wand", label: "Bacchetta" },
+            { value: "wondrous", label: "Oggetto meraviglioso" }
+        ],
+        tool: [
+            { value: "art", label: "Strumento da artigiano" },
+            { value: "game", label: "Set da gioco" },
+            { value: "music", label: "Strumento musicale" }
+        ],
+        material: [{ value: "material", label: "Materiale" }],
+        loot: [
+            { value: "art", label: "Oggetto d'arte" },
+            { value: "gear", label: "Equipaggiamento comune" },
+            { value: "gem", label: "Gemma" },
+            { value: "junk", label: "Cianfrusaglia" },
+            { value: "material", label: "Materiale" },
+            { value: "resource", label: "Risorsa" },
+            { value: "treasure", label: "Tesoro" }
+        ],
+        container: []
+    };
+
     const ITEM_TYPES = [
         { value: "Arma", icon: "fa-khanda" },
         { value: "Armatura", icon: "fa-shield-halved" },
@@ -8,8 +73,12 @@
         { value: "Oggetto meraviglioso", icon: "fa-hat-wizard" },
         { value: "Pergamena", icon: "fa-scroll" },
         { value: "Pozione", icon: "fa-flask-vial" },
+        { value: "Consumabile", icon: "fa-flask-vial" },
+        { value: "Equipaggiamento", icon: "fa-shirt" },
+        { value: "Strumento", icon: "fa-hammer" },
         { value: "Materiali", icon: "fa-cubes-stacked" },
         { value: "Bottino", icon: "fa-gem" },
+        { value: "Contenitore", icon: "fa-box-open" },
         { value: "Scudo", icon: "fa-shield" },
         { value: "Verga", icon: "fa-wand-magic-sparkles" }
     ];
@@ -61,6 +130,138 @@
         return includeArchived ? visible : visible.filter(item => !isArchivedItem(item));
     }
 
+    const LEGACY_CLASSIFICATIONS = {
+        arma: { family: "weapon", subtype: "" },
+        armatura: { family: "armor", subtype: "" },
+        anello: { family: "equipment", subtype: "ring" },
+        bacchetta: { family: "equipment", subtype: "wand" },
+        bastone: { family: "equipment", subtype: "wondrous" },
+        "oggetto meraviglioso": { family: "equipment", subtype: "wondrous" },
+        pergamena: { family: "consumable", subtype: "scroll" },
+        pozione: { family: "consumable", subtype: "potion" },
+        consumabile: { family: "consumable", subtype: "" },
+        materiali: { family: "material", subtype: "material" },
+        materiale: { family: "material", subtype: "material" },
+        bottino: { family: "loot", subtype: "" },
+        scudo: { family: "armor", subtype: "shield" },
+        verga: { family: "equipment", subtype: "rod" },
+        strumento: { family: "tool", subtype: "" },
+        contenitore: { family: "container", subtype: "" },
+        equipaggiamento: { family: "equipment", subtype: "" }
+    };
+
+    function cleanClassificationValue(value, maxLength = 80) {
+        return String(value || "").trim().slice(0, maxLength);
+    }
+
+    function getItemFamilyMeta(family) {
+        const value = cleanClassificationValue(family).toLowerCase();
+        return ITEM_FAMILIES.find(entry => entry.value === value)
+            || ITEM_FAMILIES.find(entry => entry.value === "equipment");
+    }
+
+    function getItemSubtypeOptions(family) {
+        return Array.isArray(ITEM_SUBTYPES[cleanClassificationValue(family).toLowerCase()])
+            ? ITEM_SUBTYPES[cleanClassificationValue(family).toLowerCase()].map(entry => ({ ...entry }))
+            : [];
+    }
+
+    function familyForFoundryDocument(document) {
+        const type = cleanClassificationValue(document?.type).toLowerCase();
+        const mechanicalType = cleanClassificationValue(document?.system?.type?.value);
+        if (type === "weapon") return "weapon";
+        if (type === "consumable") return "consumable";
+        if (type === "tool") return "tool";
+        if (type === "container") return "container";
+        if (type === "loot") return mechanicalType === "material" ? "material" : "loot";
+        if (type === "equipment") {
+            return getItemSubtypeOptions("armor").some(entry => entry.value === mechanicalType)
+                ? "armor"
+                : "equipment";
+        }
+        return "";
+    }
+
+    function legacyClassification(item) {
+        const type = normalizeSearch(item?.type).trim();
+        return LEGACY_CLASSIFICATIONS[type] || null;
+    }
+
+    function normalizeItemClassification(item) {
+        const source = item?.classification && typeof item.classification === "object" && !Array.isArray(item.classification)
+            ? item.classification
+            : {};
+        const document = item?.foundry?.document && typeof item.foundry.document === "object"
+            ? item.foundry.document
+            : { type: item?.foundryType || "", system: item?.foundrySystem || {} };
+        const legacy = legacyClassification(item);
+        const systemType = cleanClassificationValue(document?.system?.type?.value);
+        const systemFamily = familyForFoundryDocument(document);
+        const explicitFamily = cleanClassificationValue(source.family).toLowerCase();
+        const recognizedExplicitFamily = ITEM_FAMILIES.some(entry => entry.value === explicitFamily) ? explicitFamily : "";
+        const systemTypeIdentifiesArmor = getItemSubtypeOptions("armor").some(entry => entry.value === systemType);
+        const family = recognizedExplicitFamily
+            || (systemTypeIdentifiesArmor ? "armor" : "")
+            || legacy?.family
+            || systemFamily
+            || "equipment";
+        const legacySubtype = cleanClassificationValue(legacy?.subtype);
+        const oldSubtype = cleanClassificationValue(item?.subtype);
+        const knownOldSubtype = getItemSubtypeOptions(family).find(entry =>
+            entry.value.toLowerCase() === oldSubtype.toLowerCase()
+            || normalizeSearch(entry.label) === normalizeSearch(oldSubtype));
+        const systemSubtypeFitsFamily = systemType && (
+            getItemSubtypeOptions(family).some(entry => entry.value === systemType)
+            || systemFamily === family
+        );
+        const subtype = cleanClassificationValue(source.subtype)
+            || (systemSubtypeFitsFamily ? systemType : "")
+            || legacySubtype
+            || knownOldSubtype?.value
+            || oldSubtype;
+        const baseItem = cleanClassificationValue(source.baseItem || document?.system?.type?.baseItem || item?.baseItem, 120);
+        return {
+            version: 1,
+            family,
+            ...(subtype ? { subtype } : {}),
+            ...(baseItem ? { baseItem } : {})
+        };
+    }
+
+    function legacyTypeForClassification(classification) {
+        const family = cleanClassificationValue(classification?.family).toLowerCase();
+        const subtype = cleanClassificationValue(classification?.subtype);
+        if (family === "armor") return subtype === "shield" ? "Scudo" : "Armatura";
+        if (family === "weapon") return "Arma";
+        if (family === "consumable") return ({ potion: "Pozione", scroll: "Pergamena" })[subtype] || "Consumabile";
+        if (family === "equipment") return ({ ring: "Anello", wand: "Bacchetta", rod: "Verga", wondrous: "Oggetto meraviglioso" })[subtype] || "Equipaggiamento";
+        if (family === "tool") return "Strumento";
+        if (family === "material") return "Materiali";
+        if (family === "loot") return "Bottino";
+        if (family === "container") return "Contenitore";
+        return "Oggetto meraviglioso";
+    }
+
+    function foundryTypeForClassification(classification) {
+        return getItemFamilyMeta(classification?.family).foundryType;
+    }
+
+    function getItemClassificationMeta(item) {
+        const classification = normalizeItemClassification(item);
+        const family = getItemFamilyMeta(classification.family);
+        const subtype = getItemSubtypeOptions(classification.family).find(entry => entry.value === classification.subtype);
+        const subtypeLabel = subtype?.label || cleanClassificationValue(classification.subtype);
+        const label = subtypeLabel && normalizeSearch(subtypeLabel) !== normalizeSearch(family.label)
+            ? `${family.label} · ${subtypeLabel}`
+            : family.label;
+        return {
+            ...classification,
+            familyLabel: family.label,
+            icon: family.icon,
+            subtypeLabel,
+            label
+        };
+    }
     function getItemCategory(item) {
         const type = String(item?.type || "").trim();
         const subtype = String(item?.subtype || "").trim();
@@ -134,8 +335,13 @@
     }
 
     window.CriptaItemNormalize = {
+        ITEM_FAMILIES,
         ITEM_RARITIES,
+        ITEM_SUBTYPES,
         ITEM_TYPES,
+        foundryTypeForClassification,
+        getItemClassificationMeta,
+        getItemFamilyMeta,
         filterVisibleItems,
         formatWeightValue,
         getItemCategory,
@@ -143,6 +349,9 @@
         getItemRarityFrameClass,
         getItemRarityMeta,
         getItemTypeMeta,
+        getItemSubtypeOptions,
+        legacyTypeForClassification,
+        normalizeItemClassification,
         getVisibleMaterialTags,
         isArchivedItem,
         isHiddenItem,

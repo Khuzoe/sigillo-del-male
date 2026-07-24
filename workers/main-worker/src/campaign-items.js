@@ -1,6 +1,102 @@
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
 const MAX_BATCH_ITEMS = 64;
 const MAX_BODY_BYTES = 1024 * 1024;
+const CAMPAIGN_ITEM_FAMILIES = new Set(["weapon", "armor", "consumable", "equipment", "tool", "material", "loot", "container"]);
+const ARMOR_SUBTYPES = new Set(["light", "medium", "heavy", "natural", "shield"]);
+const LEGACY_ITEM_CLASSIFICATIONS = {
+  arma: { family: "weapon", subtype: "" },
+  armatura: { family: "armor", subtype: "" },
+  anello: { family: "equipment", subtype: "ring" },
+  bacchetta: { family: "equipment", subtype: "wand" },
+  bastone: { family: "equipment", subtype: "wondrous" },
+  "oggetto meraviglioso": { family: "equipment", subtype: "wondrous" },
+  pergamena: { family: "consumable", subtype: "scroll" },
+  pozione: { family: "consumable", subtype: "potion" },
+  consumabile: { family: "consumable", subtype: "" },
+  materiali: { family: "material", subtype: "material" },
+  materiale: { family: "material", subtype: "material" },
+  bottino: { family: "loot", subtype: "" },
+  scudo: { family: "armor", subtype: "shield" },
+  verga: { family: "equipment", subtype: "rod" },
+  strumento: { family: "tool", subtype: "" },
+  contenitore: { family: "container", subtype: "" },
+  equipaggiamento: { family: "equipment", subtype: "" },
+};
+
+function cleanClassificationValue(value, maxLength = 120) {
+  return String(value || "").trim().slice(0, maxLength);
+}
+
+function normalizeLegacyClassificationKey(value) {
+  return String(value || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function familyFromFoundryDocument(document) {
+  const documentType = cleanClassificationValue(document?.type, 48).toLowerCase();
+  const subtype = cleanClassificationValue(document?.system?.type?.value, 80);
+  if (documentType === "weapon") return "weapon";
+  if (documentType === "consumable") return "consumable";
+  if (documentType === "tool") return "tool";
+  if (documentType === "container") return "container";
+  if (documentType === "loot") return subtype === "material" ? "material" : "loot";
+  if (documentType === "equipment") return ARMOR_SUBTYPES.has(subtype) ? "armor" : "equipment";
+  return "equipment";
+}
+
+export function campaignItemRequiresAttunementFromDocument(document) {
+  const value = document?.system?.attunement;
+  return value === "required" || value === 1 || value === true;
+}
+
+function campaignItemPendingAttunementConfirmed(siteItem, document) {
+  return (siteItem?.attunement === true) === campaignItemRequiresAttunementFromDocument(document);
+}
+export function campaignItemClassificationFromDocument(document) {
+  const family = familyFromFoundryDocument(document);
+  const subtype = cleanClassificationValue(document?.system?.type?.value, 80);
+  const baseItem = cleanClassificationValue(document?.system?.type?.baseItem, 120);
+  return {
+    version: 1,
+    family,
+    ...(subtype ? { subtype } : {}),
+    ...(baseItem ? { baseItem } : {}),
+  };
+}
+
+export function normalizeCampaignItemClassification(value, { item = null, document = null } = {}) {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const explicitFamily = cleanClassificationValue(source.family, 32).toLowerCase();
+  const foundry = document ? campaignItemClassificationFromDocument(document) : null;
+  const legacy = LEGACY_ITEM_CLASSIFICATIONS[normalizeLegacyClassificationKey(item?.type)] || null;
+  const family = CAMPAIGN_ITEM_FAMILIES.has(explicitFamily)
+    ? explicitFamily
+    : foundry?.family || legacy?.family || "equipment";
+  const subtype = cleanClassificationValue(source.subtype, 80)
+    || cleanClassificationValue(foundry?.subtype, 80)
+    || cleanClassificationValue(legacy?.subtype, 80)
+    || cleanClassificationValue(item?.subtype, 80);
+  const baseItem = cleanClassificationValue(source.baseItem || foundry?.baseItem || item?.baseItem, 120);
+  return {
+    version: 1,
+    family,
+    ...(subtype ? { subtype } : {}),
+    ...(baseItem ? { baseItem } : {}),
+  };
+}
+
+export function legacySiteTypeForClassification(classification) {
+  const family = cleanClassificationValue(classification?.family, 32).toLowerCase();
+  const subtype = cleanClassificationValue(classification?.subtype, 80);
+  if (family === "armor") return subtype === "shield" ? "Scudo" : "Armatura";
+  if (family === "weapon") return "Arma";
+  if (family === "consumable") return ({ potion: "Pozione", scroll: "Pergamena" })[subtype] || "Consumabile";
+  if (family === "equipment") return ({ ring: "Anello", wand: "Bacchetta", rod: "Verga", wondrous: "Oggetto meraviglioso" })[subtype] || "Equipaggiamento";
+  if (family === "tool") return "Strumento";
+  if (family === "material") return "Materiali";
+  if (family === "loot") return "Bottino";
+  if (family === "container") return "Contenitore";
+  return "Oggetto meraviglioso";
+}
 
 export function normalizeCampaignItemsForSiteSave(existingData, requestedData) {
   const existing = Array.isArray(existingData) ? existingData : [];
@@ -19,6 +115,16 @@ export function normalizeCampaignItemsForSiteSave(existingData, requestedData) {
     if (!id) return null;
 
     const next = { ...input, id };
+    if (Object.prototype.hasOwnProperty.call(input, "classification")) {
+      next.classification = normalizeCampaignItemClassification(input.classification, {
+        item: input,
+        document: input?.foundry?.document || previous?.foundry?.document || null,
+      });
+    } else if (previous?.classification) {
+      next.classification = previous.classification;
+    } else {
+      delete next.classification;
+    }
     const previousSync = normalizeSyncState(previous?.sync);
     const foundry = normalizeSiteFoundryState(input?.foundry, previous?.foundry);
     if (foundry) next.foundry = foundry;
@@ -85,6 +191,15 @@ export async function handleCampaignItemFoundrySync(request, fallbackCampaignId,
     const appliedSiteRevision = Math.max(0, Math.floor(Number(entry?.appliedSiteRevision || 0)));
     if (previousSync.pendingFoundry && appliedSiteRevision !== Number(previousSync.siteRevision || 0)) {
       results.push({ campaignItemId: id, status: "conflict", siteRevision: Number(previousSync.siteRevision || 0) });
+      continue;
+    }
+    if (previousSync.pendingFoundry && !campaignItemPendingAttunementConfirmed(previous, document.document)) {
+      results.push({
+        campaignItemId: id,
+        status: "conflict",
+        reason: "attunement-not-applied",
+        siteRevision: Number(previousSync.siteRevision || 0),
+      });
       continue;
     }
 
@@ -290,15 +405,17 @@ function buildNewCampaignItem(id, snapshot) {
   const presentation = campaignItemPresentationFromDocument(snapshot.document);
   const archiveState = campaignItemArchiveFromSnapshot(snapshot);
   const legacyGold = cost?.components?.length === 1 && cost.components[0].currencyId === "gp" ? cost.components[0].amount : null;
+  const classification = campaignItemClassificationFromDocument(snapshot.document);
   return {
     id,
     name: snapshot.document.name,
-    type: siteTypeForFoundryType(snapshot.document.type),
+    type: legacySiteTypeForClassification(classification),
+    classification,
     foundryType: snapshot.document.type,
     ...(category ? { categoryId: category.id, category: category.name } : {}),
     ...(image ? { image } : {}),
     ...(system.rarity ? { rarity: siteRarity(system.rarity) } : {}),
-    ...(system.attunement === "required" || system.attunement === 1 || system.attunement === true ? { attunement: true } : {}),
+    ...(campaignItemRequiresAttunementFromDocument(snapshot.document) ? { attunement: true } : {}),
     status: "active",
     ...(archiveState.archived ? { archived: true, archivedAt: new Date().toISOString() } : {}),
     unidentified: system.identified === false,
@@ -492,12 +609,14 @@ function applyCampaignItemNarrative(item, presentation) {
   if (presentation?.unidentifiedDescription) item.unidentifiedDescription = String(presentation.unidentifiedDescription);
   else delete item.unidentifiedDescription;
 }
-function campaignItemMetadataFromDocument(document) {
+function campaignItemMetadataFromDocument(document, siteItem = null) {
   const system = document?.system && typeof document.system === "object" && !Array.isArray(document.system) ? document.system : {};
+  const classification = normalizeCampaignItemClassification(null, { item: siteItem, document });
   return {
-    type: siteTypeForFoundryType(document?.type),
+    type: legacySiteTypeForClassification(classification),
+    classification,
     rarity: system.rarity ? siteRarity(system.rarity) : "",
-    attunement: system.attunement === "required" || system.attunement === 1 || system.attunement === true,
+    attunement: campaignItemRequiresAttunementFromDocument(document),
     unidentified: system.identified === false,
     weight: campaignItemWeightFromSystem(system).weight ?? "",
   };
@@ -512,9 +631,9 @@ function campaignItemWeightFromSystem(system) {
 
 function applyCampaignItemMetadataFromFoundry(next, previous, previousDocument, currentDocument, { preserveSiteChanges = false } = {}) {
   if (preserveSiteChanges) return;
-  const incoming = campaignItemMetadataFromDocument(currentDocument);
-  const prior = previousDocument ? campaignItemMetadataFromDocument(previousDocument) : {};
-  for (const field of ["type", "rarity", "attunement", "unidentified", "weight"]) {
+  const incoming = campaignItemMetadataFromDocument(currentDocument, previous);
+  const prior = previousDocument ? campaignItemMetadataFromDocument(previousDocument, previous) : {};
+  for (const field of ["type", "classification", "rarity", "attunement", "unidentified", "weight"]) {
     const currentValue = previous?.[field];
     const followedFoundry = !previous || currentValue === undefined || currentValue === "" || stableStringify(currentValue) === stableStringify(prior[field]);
     if (!followedFoundry) continue;

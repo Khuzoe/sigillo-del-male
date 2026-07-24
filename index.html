@@ -6,86 +6,88 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
     <link rel="stylesheet" href="assets/css/abyssal.css?v=20260715-sidebar-visual2">
-    <link rel="stylesheet" href="assets/css/pages/home.css" data-page-style>
+    <link rel="stylesheet" href="assets/css/components/archive-hero.css?v=20260719-archive-hero2" data-page-style>
+    <link rel="stylesheet" href="assets/css/pages/home.css?v=20260723-home-modern1" data-page-style>
+    <link rel="stylesheet" href="assets/css/components/next-session.css?v=20260723-poll-modern1" data-page-style>
 </head>
 
 <body class="page-home">
+    <nav class="sidebar" id="sidebar-container"></nav>
 
-
-    <!-- NAVIGAZIONE LATERALE (Vuota - Gestita da layout.js) -->
-    <nav class="sidebar" id="sidebar-container">
-        <!-- Il contenuto verrà caricato qui automaticamente -->
-    </nav>
-
-    <!-- CONTENUTO PRINCIPALE -->
     <main class="main-content dashboard-wrapper">
-
         <div class="dashboard-container">
-
-            <!-- HEADER (Top) -->
-            <header class="dashboard-header">
-                <h1>Cripta di Sangue</h1>
-                <p>"Coloro che varcano la soglia lasciano ogni speranza, tranne quella della vendetta."</p>
+            <header class="dashboard-header archive-hero archive-hero--home" aria-labelledby="home-campaign-title">
+                <div class="archive-hero__copy home-hero__copy">
+                    <div class="archive-hero__eyebrow"><span></span>Archivio della campagna</div>
+                    <h1 id="home-campaign-title">Cripta di Sangue</h1>
+                    <blockquote class="home-hero__quote">
+                        Coloro che varcano la soglia lasciano ogni speranza, tranne quella della vendetta.
+                    </blockquote>
+                    <div class="archive-hero__meta home-hero__meta" aria-label="Riepilogo della campagna">
+                        <span><i class="fa-solid fa-users"></i><strong id="home-player-count">—</strong> protagonisti</span>
+                        <span><i class="fa-solid fa-book-open"></i><strong id="home-session-count">—</strong> sessioni</span>
+                    </div>
+                </div>
+                <div class="archive-hero__sigil" aria-hidden="true">
+                    <span class="archive-hero__orbit"></span>
+                    <span class="archive-hero__emblem"><i class="fa-solid fa-dice-d20"></i></span>
+                </div>
             </header>
 
-            <!-- MAIN GRID -->
             <div class="dashboard-grid">
-
-                <!-- ROW 1: NEXT SESSION (Full Width) -->
-                <div class="dash-card next-session-area">
+                <section class="dash-card next-session-area" aria-label="Prossima sessione">
                     <div id="next-session-container"></div>
-                </div>
+                </section>
 
-                <!-- ROW 2 - COL 1: CHARACTERS -->
-                <div class="dash-chars-container">
+                <section class="home-panel home-protagonists-panel" aria-labelledby="home-protagonists-title">
                     <div class="dash-section-title">
-                        <h2>I Protagonisti</h2>
-                        <a href="pages/giocatori.html" class="read-more-mini">Vedi tutti &rarr;</a>
+                        <div>
+                            <span class="dash-section-eyebrow">Compagnia</span>
+                            <h2 id="home-protagonists-title">Protagonisti</h2>
+                        </div>
+                        <a href="pages/giocatori.html" class="read-more-mini" aria-label="Apri tutti i protagonisti">
+                            <span>Vedi tutti</span><i class="fa-solid fa-arrow-right"></i>
+                        </a>
                     </div>
+                    <div class="dash-chars-row home-players-grid" id="home-players-row"></div>
+                </section>
 
-                    <div class="dash-chars-row" id="home-players-row">
-                        <!-- Protagonisti caricati dinamicamente -->
+                <aside class="home-panel dash-events-area" id="latest-events-section" aria-labelledby="home-events-title">
+                    <div class="dash-section-title dash-section-title--compact">
+                        <div>
+                            <span class="dash-section-eyebrow">Cronache</span>
+                            <h2 id="home-events-title">Ultima sessione</h2>
+                        </div>
                     </div>
+                    <div class="session-card compact"></div>
+                </aside>
 
-                    <div class="dash-section-title" style="margin-top: 1.25rem;">
-                        <h2>NPC Recenti</h2>
-                        <a href="pages/npcs.html" class="read-more-mini">Vedi tutti &rarr;</a>
+                <section class="home-panel home-npcs-panel" aria-labelledby="home-npcs-title">
+                    <div class="dash-section-title">
+                        <div>
+                            <span class="dash-section-eyebrow">Volti della campagna</span>
+                            <h2 id="home-npcs-title">NPC recenti</h2>
+                        </div>
+                        <a href="pages/npcs.html" class="read-more-mini" aria-label="Apri tutti gli NPC">
+                            <span>Vedi tutti</span><i class="fa-solid fa-arrow-right"></i>
+                        </a>
                     </div>
-
-                    <div class="dash-chars-row" id="recent-npcs-row">
-                        <!-- NPC recenti caricati dinamicamente -->
-                    </div>
-                </div>
-
-                <!-- ROW 2 - COL 2: LATEST EVENT -->
-                <div class="dash-events-area" id="latest-events-section">
-                    <h2 class="dash-section-title-small">Ultimi Eventi</h2>
-                    <div class="session-card compact">
-                        <!-- Contenuto caricato dinamicamente -->
-                    </div>
-                </div>
-
+                    <div class="dash-chars-row home-npcs-grid" id="recent-npcs-row"></div>
+                </section>
             </div>
-
         </div>
     </main>
 
-    <!-- IMPORTANTE: Lo script che carica la sidebar -->
     <script src="assets/js/layout.js?v=20260721-campaign-switch1"></script>
-
     <script src="assets/js/shared/media-service.js"></script>
-    <script src="assets/js/shared/next-session.js"></script>
-
-    <script src="assets/js/pages/index.js"></script>
-
+    <script src="assets/js/shared/next-session.js?v=20260723-poll-modern1"></script>
+    <script src="assets/js/pages/index.js?v=20260723-home-modern1"></script>
 </body>
 
 </html>

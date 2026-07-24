@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
+const normalizerSource = fs.readFileSync(path.join(__dirname, "../assets/js/shared/item-normalize.js"), "utf8");
 const source = fs.readFileSync(path.join(__dirname, "../assets/js/pages/oggetti.js"), "utf8");
 const context = {
     console,
@@ -29,6 +30,7 @@ const context = {
     }
 };
 vm.createContext(context);
+vm.runInContext(normalizerSource, context, { filename: "item-normalize.js" });
 vm.runInContext(source, context, { filename: "oggetti.js" });
 
 function createClassList() {
@@ -67,6 +69,34 @@ assert.equal(configButton.attributes.get("aria-pressed"), "true");
 assert.equal(configLabel.textContent, "Nascondi bottoni configurazione");
 assert.equal(configGrid.classList.contains("is-configuration-visible"), true);
 
+const importedArmor = {
+    type: "Armatura",
+    foundry: { document: { type: "equipment", system: { type: { value: "medium", baseItem: "halfplate" } } } }
+};
+assert.deepEqual(
+    JSON.parse(JSON.stringify(context.window.CriptaItemNormalize.normalizeItemClassification(importedArmor))),
+    { version: 1, family: "armor", subtype: "medium", baseItem: "halfplate" },
+    "la classificazione viene derivata senza modificare il documento Foundry"
+);
+assert.equal(context.formatItemTypeLabel(importedArmor), "Armatura · Media");
+assert.equal(context.formatItemTypeLabel({ type: "Materiali", classification: { version: 1, family: "material", subtype: "material" } }), "Materiale");
+const armorFiltered = context.filterItems([importedArmor, { type: "Arma" }], {
+    query: "", rarity: "all", type: "armor", category: "all", attunement: "all", lifecycle: "active", canEditItems: false, categoryRegistry: { categories: [] }
+});
+assert.equal(armorFiltered.length, 1, "il filtro Tipo usa la famiglia meccanica" );
+const armorEditorMarkup = context.renderItemClassificationEditor(importedArmor);
+assert.match(armorEditorMarkup, /Classificazione meccanica/);
+assert.match(armorEditorMarkup, /data-item-classification="family"/);
+assert.match(armorEditorMarkup, /value="medium" selected/);
+const categorySelectMarkup = context.renderItemEditSelect("Categoria", "categoryId", "armature", [{ value: "armature", label: "Armature" }]);
+assert.match(categorySelectMarkup, /value="armature" selected>Armature<\/option>/);
+assert.doesNotMatch(categorySelectMarkup, /\[object Object\]/);
+const armorSystem = { type: { value: "medium", baseItem: "halfplate" }, armor: { value: 15 } };
+const heavyArmor = { ...importedArmor, classification: { version: 1, family: "armor", subtype: "heavy", baseItem: "plate" } };
+context.synchronizeFoundrySystemFromSite(heavyArmor, importedArmor, armorSystem);
+assert.deepEqual(JSON.parse(JSON.stringify(armorSystem.type)), { value: "heavy", baseItem: "plate" });
+assert.deepEqual(JSON.parse(JSON.stringify(armorSystem.armor)), { value: 15 }, "la classificazione non cancella le altre meccaniche");
+assert.equal(context.window.CriptaItemNormalize.foundryTypeForClassification(heavyArmor.classification), "equipment");
 const original = {
     type: "Oggetto meraviglioso",
     rarity: "Comune",

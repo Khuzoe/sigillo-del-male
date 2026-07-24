@@ -83,7 +83,13 @@ async function loadItemsData() {
     return Array.isArray(data) ? data : data?.data || [];
 }
 
+const ITEM_FAMILIES = window.CriptaItemNormalize.ITEM_FAMILIES;
 const ITEM_TYPES = window.CriptaItemNormalize.ITEM_TYPES;
+const foundryTypeForClassification = window.CriptaItemNormalize.foundryTypeForClassification;
+const getItemClassificationMeta = window.CriptaItemNormalize.getItemClassificationMeta;
+const getItemSubtypeOptions = window.CriptaItemNormalize.getItemSubtypeOptions;
+const legacyTypeForClassification = window.CriptaItemNormalize.legacyTypeForClassification;
+const normalizeItemClassification = window.CriptaItemNormalize.normalizeItemClassification;
 const ITEM_RARITIES = window.CriptaItemNormalize.ITEM_RARITIES.filter(entry => String(entry?.value || "").toLowerCase() !== "epico");
 
 function resolveImageUrl(path) {
@@ -144,10 +150,13 @@ function initItemFilters(items, state, elements) {
         ...ITEM_RARITIES.map(item => ({ ...item, label: item.value }))
     ], state.rarity);
 
-    const types = uniqueSorted(items.map(item => getItemCategory(item)).filter(Boolean));
+    const families = uniqueSorted(items.map(item => normalizeItemClassification(item).family).filter(Boolean));
     renderItemFilter(elements.typeFilters, "items-type", [
         { value: "all", label: "Tutti", icon: "fa-box-open" },
-        ...types.map(type => ({ value: type, label: type, icon: getItemTypeMeta(type).icon }))
+        ...families.map(family => {
+            const meta = ITEM_FAMILIES.find(entry => entry.value === family);
+            return { value: family, label: meta?.label || family, icon: meta?.icon || "fa-box-open" };
+        })
     ], state.type);
 
     renderItemCategoryFilters(elements.categoryFilters, state);
@@ -318,6 +327,7 @@ function createEmptyItemDraft() {
         id: `nuovo-oggetto-${suffix}`,
         name: "Nuovo oggetto",
         type: "Oggetto meraviglioso",
+        classification: { version: 1, family: "equipment", subtype: "wondrous" },
         rarity: "Sconosciuta",
         summary: "",
         notes: "",
@@ -436,7 +446,7 @@ function filterItems(items, state) {
         const visibleProperties = getVisibleItemProperties(item, { includeHidden: state.canEditItems, includeUnidentified: state.canEditItems });
         const materialTags = getVisibleMaterialTags(item);
         if (state.rarity !== "all" && normalizeItemRarityLabel(item.rarity) !== state.rarity) return false;
-        if (state.type !== "all" && getItemCategory(item) !== state.type) return false;
+        if (state.type !== "all" && normalizeItemClassification(item).family !== state.type) return false;
         if (state.category !== "all" && getItemCatalogCategory(item, state.categoryRegistry).id !== state.category) return false;
         if (state.attunement === "yes" && item.attunement !== true) return false;
         if (state.attunement === "no" && item.attunement === true) return false;
@@ -447,6 +457,9 @@ function filterItems(items, state) {
             getItemCatalogCategory(item, state.categoryRegistry).name,
             item.type,
             item.subtype,
+            getItemClassificationMeta(item).familyLabel,
+            getItemClassificationMeta(item).subtypeLabel,
+            normalizeItemClassification(item).baseItem,
             item.rarity,
             item.owner,
             item.summary,
@@ -469,8 +482,9 @@ function filterItems(items, state) {
 }
 
 function renderItemCard(item, { canEdit = false, isEditing = false, draft = null } = {}) {
-    const isMaterial = getItemCategory(item) === "Materiali";
-    const type = getItemTypeMeta(getItemCategory(item));
+    const classification = getItemClassificationMeta(item);
+    const isMaterial = classification.family === "material";
+    const type = classification;
     const rarity = getItemRarityMeta(item.rarity);
     const properties = getVisibleItemProperties(item, { includeHidden: canEdit, includeUnidentified: canEdit });
     const materialTags = isMaterial ? getVisibleMaterialTags(item) : [];
@@ -864,9 +878,8 @@ function renderItemInlineEditor(item) {
                         </div>
                         <div class="item-inline-editor-grid">
                             ${renderItemEditInput("Nome", "name", item.name || "", "item-inline-editor-field--wide")}
-                            ${renderItemEditSelect("Tipo", "type", item.type || "", getItemTypeOptions(item.type))}
+                            ${renderItemClassificationEditor(item)}
                             ${renderItemEditSelect("Categoria", "categoryId", getItemCatalogCategory(item).id, getItemCategoryOptions(item))}
-                            ${renderItemEditInput("Sottotipo", "subtype", item.subtype || "")}
                             ${renderItemEditSelect("Rarità", "rarity", normalizeItemRarityLabel(item.rarity), getItemRarityOptions(item.rarity))}
                             ${renderItemEditInput("Provenienza / portatore", "owner", item.owner || "")}
                             ${renderItemCostEditor(item)}
@@ -947,6 +960,49 @@ function renderItemImageAdjustControl(key, label, value, min, max, step) {
     `;
 }
 
+function renderItemClassificationEditor(item) {
+    const classification = normalizeItemClassification(item);
+    const familyOptions = ITEM_FAMILIES.map(entry => ({ value: entry.value, label: entry.label }));
+    const subtypeOptions = getClassificationSubtypeOptions(classification.family, classification.subtype);
+    return `
+        <div class="item-classification-editor item-inline-editor-field--wide" data-item-classification-editor>
+            <div class="item-classification-editor__heading">
+                <span><i class="fas fa-sitemap" aria-hidden="true"></i><b>Classificazione meccanica</b></span>
+                <small>Definisce come l'oggetto viene interpretato anche in Foundry.</small>
+            </div>
+            <div class="item-classification-editor__grid">
+                ${renderItemClassificationSelect("Famiglia", "family", classification.family, familyOptions)}
+                ${renderItemClassificationSelect("Sottotipo", "subtype", classification.subtype || "", subtypeOptions, true)}
+                <label class="item-inline-editor-field">
+                    <span>Oggetto base <small>(opzionale)</small></span>
+                    <input data-item-classification="baseItem" value="${escapeHtml(classification.baseItem || "")}" placeholder="Es. longsword, halfplate, shield">
+                </label>
+            </div>
+        </div>
+    `;
+}
+
+function renderItemClassificationSelect(label, field, selectedValue, options, allowEmpty = false) {
+    const values = Array.isArray(options) ? options : [];
+    return `
+        <label class="item-inline-editor-field">
+            <span>${escapeHtml(label)}</span>
+            <select data-item-classification="${escapeHtml(field)}">
+                ${allowEmpty ? `<option value="" ${selectedValue ? "" : "selected"}>Non specificato</option>` : ""}
+                ${values.map(option => `<option value="${escapeHtml(option.value)}" ${option.value === selectedValue ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}
+            </select>
+        </label>
+    `;
+}
+
+function getClassificationSubtypeOptions(family, currentValue = "") {
+    const options = getItemSubtypeOptions(family);
+    const current = String(currentValue || "").trim();
+    if (current && !options.some(entry => entry.value === current)) {
+        options.push({ value: current, label: `Personalizzato: ${current}` });
+    }
+    return options;
+}
 function renderItemEditInput(label, field, value, extraClass = "", readOnly = false) {
     return `
         <label class="item-inline-editor-field ${extraClass}">
@@ -990,7 +1046,7 @@ function renderItemSyncBadge(item) {
 }
 
 function getItemFoundryType(item) {
-    return String(item?.foundry?.document?.type || item?.foundryType || mapSiteTypeToFoundry(item?.type));
+    return String(item?.foundry?.document?.type || item?.foundryType || foundryTypeForClassification(normalizeItemClassification(item || {})) || mapSiteTypeToFoundry(item?.type));
 }
 
 function getFoundryTypeOptions(current = "") {
@@ -1038,7 +1094,11 @@ function renderItemEditSelect(label, field, selectedValue, options) {
         <label class="item-inline-editor-field">
             <span>${escapeHtml(label)}</span>
             <select data-item-field="${escapeHtml(field)}">
-                ${options.map(value => `<option value="${escapeHtml(value)}" ${value === selectedValue ? "selected" : ""}>${escapeHtml(value)}</option>`).join("")}
+                ${(Array.isArray(options) ? options : []).map(option => {
+                    const value = option && typeof option === "object" ? String(option.value || "") : String(option || "");
+                    const optionLabel = option && typeof option === "object" ? String(option.label || value) : value;
+                    return `<option value="${escapeHtml(value)}" ${value === selectedValue ? "selected" : ""}>${escapeHtml(optionLabel)}</option>`;
+                }).join("")}
             </select>
         </label>
     `;
@@ -1166,12 +1226,19 @@ function bindItemInlineEditor(grid, state, count) {
             field.dataset.itemFoundryTypeEdited = "true";
         });
     });
-    grid.querySelectorAll('[data-item-field="type"]').forEach(field => {
-        field.addEventListener("change", () => {
-            const form = field.closest("[data-item-inline-editor]");
+    grid.querySelectorAll("[data-item-classification-editor]").forEach(editor => {
+        const familyField = editor.querySelector('[data-item-classification="family"]');
+        const subtypeField = editor.querySelector('[data-item-classification="subtype"]');
+        familyField?.addEventListener("change", () => {
+            const options = getClassificationSubtypeOptions(familyField.value);
+            subtypeField.innerHTML = [
+                '<option value="" selected>Non specificato</option>',
+                ...options.map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
+            ].join("");
+            const form = editor.closest("[data-item-inline-editor]");
             const foundryType = form?.querySelector('[data-item-field="foundryType"]');
             if (foundryType && foundryType.dataset.itemFoundryTypeEdited !== "true") {
-                foundryType.value = mapSiteTypeToFoundry(field.value);
+                foundryType.value = foundryTypeForClassification({ family: familyField.value });
             }
         });
     });
@@ -1429,6 +1496,16 @@ function collectItemDraft(form, original) {
         const value = field.type === "checkbox" ? field.checked : field.value;
         setItemDraftField(draft, key, value);
     });
+    const originalClassification = normalizeItemClassification(original || {});
+    const classification = collectItemClassification(form, originalClassification);
+    const classificationChanged = itemClassificationFingerprint(classification) !== itemClassificationFingerprint(originalClassification);
+    draft.classification = classification;
+    if (classificationChanged || !String(draft.type || "").trim()) {
+        draft.type = legacyTypeForClassification(classification);
+        const classificationMeta = getItemClassificationMeta({ classification });
+        if (classificationMeta.subtypeLabel) draft.subtype = classificationMeta.subtypeLabel;
+        else delete draft.subtype;
+    }
     const selectedCategory = getItemCatalogCategory(draft, currentItemCategoryRegistry);
     draft.categoryId = selectedCategory.id;
     draft.category = selectedCategory.name;
@@ -1476,10 +1553,10 @@ function collectItemDraft(form, original) {
     const explicitlyEditedFoundryType = foundryTypeField?.dataset.itemFoundryTypeEdited === "true";
     const existingFoundryType = getItemFoundryType(original || {});
     const existingTypeFollowedSite = !original?.foundry?.document
-        || existingFoundryType === mapSiteTypeToFoundry(original?.type);
+        || existingFoundryType === foundryTypeForClassification(originalClassification);
     draft.foundryType = String(explicitlyEditedFoundryType || !existingTypeFollowedSite
         ? (foundryTypeField?.value || draft.foundryType || existingFoundryType)
-        : mapSiteTypeToFoundry(draft.type));
+        : foundryTypeForClassification(classification));
     draft.foundry = {
         ...(draft.foundry || {}),
         document: {
@@ -1498,6 +1575,27 @@ function collectItemDraft(form, original) {
     return draft;
 }
 
+function collectItemClassification(form, fallback = {}) {
+    const read = (field) => String(form.querySelector(`[data-item-classification="${field}"]`)?.value || "").trim();
+    const family = read("family") || fallback.family || "equipment";
+    const subtype = read("subtype");
+    const baseItem = read("baseItem");
+    return {
+        version: 1,
+        family,
+        ...(subtype ? { subtype } : {}),
+        ...(baseItem ? { baseItem } : {})
+    };
+}
+
+function itemClassificationFingerprint(value) {
+    const classification = value?.family ? value : normalizeItemClassification(value || {});
+    return JSON.stringify({
+        family: String(classification.family || ""),
+        subtype: String(classification.subtype || ""),
+        baseItem: String(classification.baseItem || "")
+    });
+}
 function synchronizeFoundrySystemFromSite(draft, original, foundrySystem) {
     const system = foundrySystem && typeof foundrySystem === "object" && !Array.isArray(foundrySystem)
         ? foundrySystem
@@ -1528,6 +1626,20 @@ function synchronizeFoundrySystemFromSite(draft, original, foundrySystem) {
     system.rarity = mapSiteRarityToFoundry(draft?.rarity);
     system.identified = draft?.unidentified !== true;
     system.attunement = draft?.attunement === true ? "required" : "";
+
+    const classification = normalizeItemClassification(draft || {});
+    const originalClassification = normalizeItemClassification(original || {});
+    const classificationChanged = itemClassificationFingerprint(classification) !== itemClassificationFingerprint(originalClassification);
+    const currentMechanicalType = system.type && typeof system.type === "object" && !Array.isArray(system.type)
+        ? system.type
+        : {};
+    if (classificationChanged || !String(currentMechanicalType.value || "").trim()) {
+        system.type = {
+            ...currentMechanicalType,
+            value: String(classification.subtype || ""),
+            baseItem: String(classification.baseItem || "")
+        };
+    }
 
     const rawWeight = String(draft?.weight ?? "").trim();
     const originalWeight = String(original?.weight ?? "").trim();
@@ -1954,10 +2066,8 @@ function applyItemAdjustedImageLayout(image) {
 }
 
 function formatItemTypeLabel(item) {
-    const type = getItemTypeMeta(getItemCategory(item)).label;
-    const subtype = String(item?.subtype || "").trim();
-    if (!subtype || normalizeSearch(subtype) === normalizeSearch(type)) return type;
-    return `${type} (${subtype})`;
+    const classification = getItemClassificationMeta(item);
+    return classification.label || getItemTypeMeta(getItemCategory(item)).label;
 }
 
 function getItemCatalogCategory(item, registry = currentItemCategoryRegistry) {

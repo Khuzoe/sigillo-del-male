@@ -7,6 +7,14 @@ async function renderPollPage() {
             ? await window.CriptaNextSession.loadConfig({ fallbackPath: window.CriptaApp?.urls?.data?.("next-session.json") || "../assets/data/next-session.json" })
             : await window.CriptaApp.fetchJson(window.CriptaApp?.urls?.data?.("next-session.json") || "../assets/data/next-session.json", { clone: true });
 
+        const campaignLabel = document.getElementById("poll-page-campaign");
+        if (campaignLabel) {
+            campaignLabel.textContent = nextSessionConfig?.campaignName || "Disponibilità della compagnia";
+        }
+        if (nextSessionConfig?.campaignName) {
+            document.title = `Sondaggio Sessione | ${nextSessionConfig.campaignName}`;
+        }
+
         container.dataset.nextSessionView = "poll";
         window.CriptaNextSession?.render(nextSessionConfig, container);
     } catch (error) {

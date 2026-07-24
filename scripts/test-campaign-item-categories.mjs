@@ -3,12 +3,15 @@ import fs from "node:fs";
 import {
   categoryFolderName,
   isAcceptedCampaignItemSnapshotResult,
+  isCampaignItemAttunementRequired,
   recordHasFoundryIntent,
   resolveRecordCategory,
+  shouldRepairLegacyCampaignItemAttunement,
 } from "../module/scripts/services/campaign-item-sync.js";
 import {
   applyCampaignItemCategoryFromFoundry,
   campaignItemArchiveFromSnapshot,
+  campaignItemClassificationFromDocument,
   campaignItemCategoryFromSnapshot,
   normalizeFoundrySnapshot,
   normalizeItemImage,
@@ -123,7 +126,48 @@ assert.equal(isAcceptedCampaignItemSnapshotResult({ campaignItemId: "scudo", sta
 assert.equal(isAcceptedCampaignItemSnapshotResult({ campaignItemId: "scudo", status: "unchanged" }), true);
 assert.equal(isAcceptedCampaignItemSnapshotResult({ campaignItemId: "scudo", status: "invalid" }), false);
 assert.equal(isAcceptedCampaignItemSnapshotResult({ campaignItemId: "scudo", status: "conflict" }), false);
+assert.equal(isCampaignItemAttunementRequired("required"), true);
+assert.equal(isCampaignItemAttunementRequired(""), false);
+assert.equal(
+  shouldRepairLegacyCampaignItemAttunement({
+    attunement: true,
+    sync: { pendingFoundry: false, siteRevision: 0 },
+    foundry: { document: { system: { attunement: "" } } },
+  }, { system: { attunement: "" } }),
+  true,
+  "un requisito legacy del sito viene proiettato una sola volta su Foundry",
+);
+assert.equal(
+  shouldRepairLegacyCampaignItemAttunement({
+    attunement: true,
+    sync: { pendingFoundry: false, siteRevision: 1 },
+    foundry: { document: { system: { attunement: "" } } },
+  }, { system: { attunement: "" } }),
+  false,
+  "le revisioni del flusso nuovo non usano la riparazione legacy",
+);
 
+assert.deepEqual(
+  campaignItemClassificationFromDocument({
+    type: "equipment",
+    system: { type: { value: "medium", baseItem: "halfplate" } },
+  }),
+  { version: 1, family: "armor", subtype: "medium", baseItem: "halfplate" },
+  "Foundry esporta categoria di armatura e oggetto base in campi strutturati",
+);
+assert.deepEqual(
+  campaignItemClassificationFromDocument({
+    type: "weapon",
+    system: { type: { value: "martialR", baseItem: "longbow" } },
+  }),
+  { version: 1, family: "weapon", subtype: "martialR", baseItem: "longbow" },
+  "Foundry esporta anche il tipo meccanico delle armi",
+);
+assert.match(
+  moduleSource,
+  /system\.type\s*=\s*\{[\s\S]*?value:\s*String\(classification\.subtype/,
+  "il modulo proietta la classificazione del sito nel sistema dnd5e",
+);
 const localImage = "worlds/oltre-il-velo/Oggetti/Lino del fiume Oceanus.webp";
 assert.equal(
   normalizeItemImage(localImage, "oltre-il-velo"),

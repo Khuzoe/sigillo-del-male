@@ -154,3 +154,13 @@ body.page-oggetti .items-grid.is-configuration-visible .item-card-summary-action
 body.page-oggetti .items-grid:not(.is-configuration-visible) .item-card-summary-actions>.item-card-edit-link,
 body.page-oggetti .items-grid:not(.is-configuration-visible) .item-card-summary-actions>.item-card-category-drag{display:none!important}
 body.page-oggetti .items-grid:not(.is-configuration-visible) .item-card-summary-actions{min-width:34px!important}
+
+/* Classificazione meccanica degli oggetti. */
+body.page-oggetti .item-classification-editor{display:grid;grid-column:1/-1;gap:.62rem;padding:.72rem;border:1px solid rgba(181,139,212,.16);border-radius:14px;background:linear-gradient(135deg,rgba(100,60,122,.09),rgba(4,4,7,.26))}
+body.page-oggetti .item-classification-editor__heading{display:flex;align-items:center;justify-content:space-between;gap:.8rem}
+body.page-oggetti .item-classification-editor__heading>span{display:inline-flex;align-items:center;gap:.45rem;color:rgba(234,218,244,.86);font:750 .66rem var(--font-ui);letter-spacing:.045em;text-transform:uppercase}
+body.page-oggetti .item-classification-editor__heading i{color:#c49adc}
+body.page-oggetti .item-classification-editor__heading small{color:rgba(225,213,188,.42);font:.56rem/1.35 var(--font-ui);text-align:right}
+body.page-oggetti .item-classification-editor__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.62rem}
+body.page-oggetti .item-classification-editor .item-inline-editor-field>span small{color:rgba(225,213,188,.35);font-size:.48rem;text-transform:none}
+@media(max-width:760px){body.page-oggetti .item-classification-editor__heading{align-items:flex-start;flex-direction:column}body.page-oggetti .item-classification-editor__heading small{text-align:left}body.page-oggetti .item-classification-editor__grid{grid-template-columns:1fr}}
