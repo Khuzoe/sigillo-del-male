@@ -4,6 +4,16 @@
     <title>Editor Bestiario | Cripta di Sangue</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (() => {
+            const source = new URL(window.location.href);
+            const target = new URL('../pages/npcs.html', source);
+            ['campaign', 'campaignId', 'embed'].forEach((key) => {
+                if (source.searchParams.has(key)) target.searchParams.set(key, source.searchParams.get(key));
+            });
+            window.location.replace(target.toString());
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
@@ -879,9 +889,5 @@
             </section>
         </div>
     </div>
-
-    <script src="../assets/js/layout.js?v=20260721-campaign-switch1"></script>
-    <script src="../assets/js/shared/media-service.js"></script>
-    <script src="../assets/js/tools/bestiary-editor.js"></script>
 </body>
 </html>

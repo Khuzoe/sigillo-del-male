@@ -1,0 +1,49 @@
+{
+  "id": "khuzoe-transformations",
+  "title": "Khuzoe Transformations",
+  "description": "Forme meccaniche reversibili per i token, senza modificare gli Actor originali.",
+  "version": "0.1.1",
+  "url": "https://github.com/Khuzoe/sigillo-del-male",
+  "manifest": "https://khuzoe.github.io/sigillo-del-male/dist/khuzoe-transformations-module.json",
+  "download": "https://khuzoe.github.io/sigillo-del-male/dist/khuzoe-transformations.zip",
+  "authors": [
+    {
+      "name": "Khuzoe"
+    }
+  ],
+  "compatibility": {
+    "minimum": "12",
+    "verified": "12",
+    "maximum": "12"
+  },
+  "esmodules": [
+    "scripts/main.js"
+  ],
+  "styles": [
+    "styles/khuzoe-transformations.css"
+  ],
+  "languages": [
+    {
+      "lang": "it",
+      "name": "Italiano",
+      "path": "lang/it.json"
+    },
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "socket": true,
+  "relationships": {
+    "recommends": [
+      {
+        "id": "khuzoe-tokenizer",
+        "type": "module",
+        "reason": "Aggiunge la gestione avanzata delle immagini e delle varianti token."
+      }
+    ]
+  },
+  "license": "LICENSE",
+  "readme": "README.md"
+}

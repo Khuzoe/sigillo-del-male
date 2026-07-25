@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
     <link rel="stylesheet" href="../assets/css/pages/managed-actors.css?v=20260713-frame-circle2" data-page-style>
-    <link rel="stylesheet" href="../assets/css/pages/roster-modern.css?v=20260718-creature-archive2" data-page-style>
+    <link rel="stylesheet" href="../assets/css/pages/roster-modern.css?v=20260725-managed-npcs1" data-page-style>
     <link rel="stylesheet" href="../assets/css/pages/npc-categories.css?v=20260714-npc-categories2" data-page-style>
     <link rel="stylesheet" href="../assets/css/components/discord-share.css?v=20260715-discord-share3">
     <link rel="stylesheet" href="../assets/css/components/archive-hero.css?v=20260719-archive-hero2">
@@ -36,24 +36,7 @@
             </header>
 
             <section class="roster-shell" aria-labelledby="npc-page-title">
-                <div class="roster-tools roster-tools--archive" aria-label="Cerca e filtra NPC e creature">
-                    <div class="roster-scope-switch" id="npc-scope-filters" aria-label="Seleziona archivio">
-                        <button class="roster-scope-option is-active" type="button" data-roster-scope="npc" aria-pressed="true">
-                            <i class="fas fa-masks-theater" aria-hidden="true"></i>
-                            <span>NPC</span>
-                            <b data-roster-scope-count="npc">0</b>
-                        </button>
-                        <button class="roster-scope-option" type="button" data-roster-scope="bestiary" aria-pressed="false">
-                            <i class="fas fa-dragon" aria-hidden="true"></i>
-                            <span>Bestiario</span>
-                            <b data-roster-scope-count="bestiary">0</b>
-                        </button>
-                        <button class="roster-scope-option" type="button" data-roster-scope="all" aria-pressed="false">
-                            <i class="fas fa-layer-group" aria-hidden="true"></i>
-                            <span>Tutti</span>
-                            <b data-roster-scope-count="all">0</b>
-                        </button>
-                    </div>
+                <div class="roster-tools roster-tools--archive" aria-label="Cerca e filtra NPC">
                     <label class="roster-search">
                         <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
                         <input id="npc-search" type="search" placeholder="Cerca nome, ruolo, tipo o categoria..." autocomplete="off">
@@ -65,18 +48,22 @@
                         <button class="roster-filter" type="button" data-roster-filter="ignoto" aria-pressed="false"><i class="fas fa-circle-question"></i>Ignoti</button>
                         <button class="roster-filter" type="button" data-roster-filter="morto" aria-pressed="false"><i class="fas fa-skull"></i>Morti</button>
                     </div>
-                    <div class="roster-filter-group roster-context-filters" id="bestiary-status-filters" data-roster-context="bestiary" aria-label="Filtra il Bestiario per scoperta" hidden>
-                        <button class="roster-filter is-active" type="button" data-bestiary-filter="all" aria-pressed="true"><i class="fas fa-layer-group"></i>Tutte</button>
-                        <button class="roster-filter" type="button" data-bestiary-filter="discovered" aria-pressed="false"><i class="fas fa-eye"></i>Scoperte</button>
-                        <button class="roster-filter" type="button" data-bestiary-filter="undiscovered" aria-pressed="false"><i class="fas fa-eye-slash"></i>Misteriose</button>
-                        <button class="roster-filter" type="button" data-bestiary-filter="hidden" data-bestiary-dm-filter aria-pressed="false" hidden><i class="fas fa-user-shield"></i>Nascoste</button>
-                    </div>
                     <button class="roster-secondary-action" type="button" data-npc-category-manager hidden>
                         <i class="fas fa-folder-tree" aria-hidden="true"></i><span>Categorie</span>
                     </button>
-                    <a class="roster-primary-action" href="./characters/character.html?type=npc&new=1&edit=1" data-npc-create-link data-requires-dm hidden>
+                    <button class="roster-primary-action" type="button" data-npc-create-link data-requires-dm hidden>
                         <i class="fas fa-plus" aria-hidden="true"></i><span>Nuovo NPC</span>
-                    </a>
+                    </button>
+                </div>
+
+                <div class="roster-type-tools" id="npc-type-filters" aria-label="Filtra per tipo e archivio">
+                    <div class="roster-filter-group">
+                        <button class="roster-filter is-active" type="button" data-roster-type="all" aria-pressed="true"><i class="fas fa-layer-group"></i>Tutti</button>
+                        <button class="roster-filter" type="button" data-roster-type="person" aria-pressed="false"><i class="fas fa-user"></i>Personaggi</button>
+                        <button class="roster-filter" type="button" data-roster-type="creature" aria-pressed="false"><i class="fas fa-dragon"></i>Creature</button>
+                        <button class="roster-filter" type="button" data-roster-type="merchant" aria-pressed="false"><i class="fas fa-store"></i>Mercanti</button>
+                    </div>
+                    <button class="roster-archive-filter" type="button" data-roster-archive-toggle aria-pressed="false" hidden><i class="fas fa-box-archive"></i><span>Archivio</span><b data-roster-archive-count>0</b></button>
                 </div>
 
                 <div class="npc-list" data-roster-list="npcs">
@@ -107,6 +94,6 @@
     <script src="../assets/js/shared/npc-categories.js?v=20260714-npc-categories2"></script>
     <script src="../assets/js/pages/npc-category-manager.js?v=20260714-npc-categories2"></script>
     <script src="../assets/js/shared/discord-share.js?v=20260718-discord-image1"></script>
-    <script src="../assets/js/pages/npcs.js?v=20260721-npc-status1"></script>
+    <script src="../assets/js/pages/npcs.js?v=20260725-managed-npcs1"></script>
 </body>
 </html>

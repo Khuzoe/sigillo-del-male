@@ -11,7 +11,6 @@ const EMBED_SCRIPT_WARMUP_PATHS = [
     "assets/js/pages/giocatori.js",
     "assets/js/pages/missioni.js",
     "assets/js/pages/sessioni.js",
-    "assets/js/pages/bestiario.js",
     "assets/js/pages/oggetti.js",
     "assets/js/pages/appunti.js",
     "assets/js/pages/calendar.js",
@@ -856,7 +855,7 @@ function navigateToCampaign(campaignId) {
 function buildCampaignNavigationTarget(campaignId) {
     const pageId = getCurrentPageId();
     if (pageId === "creature") {
-        return new URL(`${getBasePath()}pages/bestiario.html`, window.location.href);
+        return new URL(`${getBasePath()}pages/npcs.html`, window.location.href);
     }
 
     if (pageId === "managed-actor") {
@@ -979,7 +978,6 @@ function getSidebarSectionForLocation(url = window.location.href) {
         "giocatori.html": "giocatori",
         "missioni.html": "missioni",
         "sessioni.html": "sessioni",
-        "bestiario.html": "bestiario",
         "oggetti.html": "oggetti",
         "economia.html": "economia",
         "crafting.html": "crafting",
@@ -999,7 +997,7 @@ function getSidebarSectionForLocation(url = window.location.href) {
             ? "giocatori"
             : "npcs";
     }
-    if (page === "creature.html") return "bestiario";
+    if (page === "creature.html") return "npcs";
     if (page === "location.html") return "mappa";
     return "";
 }

@@ -727,10 +727,9 @@
     }
 
     async function loadLinkableEntities() {
-        const [searchIndex, items, creatures, players] = await Promise.all([
+        const [searchIndex, items, players] = await Promise.all([
             dataService.fetchJson(dataUrl("search-index.json")).catch(() => ({ items: [] })),
             loadDataCollection("items", dataUrl("items.json")),
-            loadDataCollection("bestiary", dataUrl("bestiary.json")),
             dataService.fetchJson(dataUrl("players.json")).catch(() => [])
         ]);
 
@@ -777,23 +776,7 @@
             }))
             .sort(compareEntityLabels);
 
-        state.entities.creature = (Array.isArray(creatures) ? creatures : [])
-            .filter((creature) => !window.WikiSpoiler || window.WikiSpoiler.isVisible(creature))
-            .map((creature) => {
-                const discovered = creature.discovered !== false;
-                const label = discovered ? creature.name : (creature.mysteryName || "Creatura Misteriosa");
-                return {
-                    key: `creature:${slugify(creature.name || label)}`,
-                    type: "creature",
-                    id: slugify(creature.name || label),
-                    label,
-                    meta: [creature.category || "Bestiario", creature.details?.dndType].filter(Boolean).join(" | "),
-                    url: "bestiario.html",
-                    image: creature.image || "",
-                    icon: "fa-book-dead"
-                };
-            })
-            .sort(compareEntityLabels);
+        state.entities.creature = [];
     }
 
     async function loadDataCollection(collection, fallbackUrl) {

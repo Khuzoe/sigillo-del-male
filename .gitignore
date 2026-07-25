@@ -1,5 +1,6 @@
 assets/data/foundry.json
 module/
+foundry-modules/
 workers/
 !workers/
 workers/*
@@ -18,4 +19,3 @@ workers/main-worker/src/*
 workers/*/node_modules/
 workers/*/.wrangler/
 workers/*/.dev.vars
-module.zip

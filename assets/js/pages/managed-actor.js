@@ -335,6 +335,11 @@
             quote: String(input.quote || ""),
             lifeState: normalizeManagedNpcLifeState(input.lifeState, input.status),
             status: String(input.status || ""),
+            kind: String(input.kind || "person").toLowerCase() === "creature" ? "creature" : "person",
+            tags: Array.isArray(input.tags) ? Array.from(new Set(input.tags.map((tag) => sanitizeId(tag)).filter(Boolean))).slice(0, 24) : [],
+            lifecycle: String(input.lifecycle?.state || "active").toLowerCase() === "archived"
+                ? { state: "archived", archivedAt: input.lifecycle?.archivedAt || null, archivedBy: input.lifecycle?.archivedBy || "" }
+                : { state: "active", archivedAt: null, archivedBy: "" },
             visibility: { state: normalizeManagedProfileVisibility(input.visibility?.state || input.visibility || "dm") },
             summary: {
                 race: String(input.summary?.race || ""),
@@ -485,6 +490,9 @@
                     <label><span>Ruolo o soprannome</span><input type="text" data-managed-profile-field="role" value="${escapeAttr(profile.role)}" placeholder="Es. La Giullare"></label>
                     <label><span>Stato</span><select data-managed-profile-field="lifeState"><option value="none" ${profile.lifeState === "none" ? "selected" : ""}>Nessuno</option><option value="alive" ${profile.lifeState === "alive" ? "selected" : ""}>Vivo</option><option value="dead" ${profile.lifeState === "dead" ? "selected" : ""}>Morto</option><option value="unknown" ${profile.lifeState === "unknown" ? "selected" : ""}>Ignoto</option></select></label>
                     <label><span>Nota sullo stato</span><input type="text" data-managed-profile-field="status" value="${escapeAttr(profile.status)}" placeholder="Facoltativa, es. disperso"></label>
+                    ${canManageProfileLink ? `<label><span>Tipo di scheda</span><select data-managed-profile-field="kind"><option value="person" ${profile.kind !== "creature" ? "selected" : ""}>Personaggio</option><option value="creature" ${profile.kind === "creature" ? "selected" : ""}>Creatura / Mostro</option></select></label>` : ""}
+                    ${canManageProfileLink ? `<label><span>Capacita e tag</span><input type="text" data-managed-profile-field="tags" value="${escapeAttr((profile.tags || []).join(", "))}" placeholder="mercante, boss, missioni"></label>` : ""}
+                    ${canManageProfileLink ? `<label class="managed-profile-lifecycle"><span>Archiviazione sicura</span><select data-managed-profile-field="lifecycle"><option value="active" ${profile.lifecycle?.state !== "archived" ? "selected" : ""}>Attivo</option><option value="archived" ${profile.lifecycle?.state === "archived" ? "selected" : ""}>Archiviato (dati conservati)</option></select></label>` : ""}
                     ${canManageProfileLink ? renderManagedNpcCategoryField(profile) : ""}
                     ${canManageProfileLink ? '<label><span>ID wiki collegato</span><input type="text" data-managed-profile-field="legacyCharacterId" value="' + escapeAttr(profile.legacyCharacterId) + '" placeholder="zara"></label>' : ""}
                     <label class="managed-profile-field-wide"><span>Citazione</span><textarea rows="2" data-managed-profile-field="quote" placeholder="Una frase rappresentativa">${escapeHtml(profile.quote)}</textarea></label>
@@ -685,6 +693,10 @@
         const actorName = String(root.querySelector('[data-managed-actor-path="name"]')?.value || "").trim();
         if (actorName) next.name = actorName;
         next.status = field("status", currentProfile.status || "");
+        next.kind = field("kind", currentProfile.kind || "person") === "creature" ? "creature" : "person";
+        next.tags = Array.from(new Set(field("tags", (currentProfile.tags || []).join(","))
+            .split(",").map((tag) => sanitizeId(tag)).filter(Boolean))).slice(0, 24);
+        next.lifecycle = { ...currentProfile.lifecycle, state: field("lifecycle", currentProfile.lifecycle?.state || "active") === "archived" ? "archived" : "active" };
         next.categoryId = window.CriptaNpcCategories?.normalizeId?.(field("categoryId", currentProfile.categoryId || "")) || "";
         const selectedCategory = window.CriptaNpcCategories?.resolve?.(npcCategoryRegistry, next.categoryId, currentProfile.category);
         next.category = next.categoryId ? String(selectedCategory?.name || currentProfile.category || "").trim() : "";
@@ -1188,29 +1200,30 @@
             ["managed-abilities", "fa-dumbbell", "Caratteristiche", Object.keys(abilities || {}).length > 0],
             ["managed-companions", "fa-paw", "Companion", primaryPlayer],
             ["managed-player-skill-trees", "fa-diagram-project", "Alberi", primaryPlayer],
-            ["managed-skills", "fa-list-check", "Abilità", Object.keys(skills || {}).length > 0],
+            ["managed-skills", "fa-list-check", "Abilita", Object.keys(skills || {}).length > 0],
             ["managed-traits", "fa-fingerprint", "Tratti", Object.keys(traits || {}).length > 0 || identityEntries.length > 0],
             ["managed-capabilities", "fa-burst", "Combattimento", attackEntries.length > 0 || editMode],
             ["managed-spells", "fa-wand-sparkles", "Incantesimi", spellEntries.length > 0 || editMode],
             ["managed-inventory", "fa-backpack", "Inventario", inventoryEntries.length > 0 || editMode],
-
-
             ["managed-variants", "fa-layer-group", "Varianti", variants.length > 0 || (editMode && canManageActor)],
             ["managed-effects", "fa-wand-magic-sparkles", "Effetti", effects.length > 0 || editMode]
         ].filter(([, , , visible]) => visible);
         const commands = Array.isArray(actor?.sync?.commands) ? actor.sync.commands : [];
         const conflicts = commands.filter((command) => command.status === "conflict" || command.status === "failed").length;
         const pending = commands.filter((command) => command.status === "pending").length;
-        const syncState = conflicts ? { icon: "fa-triangle-exclamation", title: `${conflicts} conflitti`, detail: "Richiedono attenzione", className: "is-conflict" }
-            : pending ? { icon: "fa-cloud-arrow-up", title: `${pending} in attesa`, detail: "Foundry li riceverà a breve", className: "is-pending" }
+        const syncState = conflicts ? { icon: "fa-triangle-exclamation", title: `${conflicts} problemi`, detail: "Apri per vedere quali", className: "is-conflict" }
+            : pending ? { icon: "fa-cloud-arrow-up", title: `${pending} in attesa`, detail: "Apri per vedere quali", className: "is-pending" }
                 : { icon: "fa-circle-check", title: "Sincronizzato", detail: `Revisione ${Number(actor?.revision || 0)}`, className: "is-synced" };
+        const commandLabel = (command) => ({ "actor.update": "Statistiche e identita", "item.update": "Modifica oggetto", "item.create": "Nuovo oggetto", "item.delete": "Rimozione oggetto", "effect.update": "Modifica effetto", "effect.create": "Nuovo effetto", "effect.delete": "Rimozione effetto" }[command.kind] || command.kind || "Modifica");
+        const syncIndicator = commands.length
+            ? `<details class="managed-sync-indicator managed-sync-details ${syncState.className}"><summary><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span><i class="fas fa-chevron-down"></i></summary><div>${commands.map((command) => `<article class="is-${escapeAttr(command.status || "pending")}"><i class="fas ${command.status === "pending" ? "fa-clock" : "fa-triangle-exclamation"}"></i><span><strong>${escapeHtml(commandLabel(command))}</strong><small>${escapeHtml(command.error || (command.status === "pending" ? "In attesa del client Foundry" : "Richiede una nuova conferma"))}</small></span></article>`).join("")}</div></details>`
+            : `<div class="managed-sync-indicator ${syncState.className}"><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span></div>`;
         const actions = canEdit ? (editMode
             ? `<span class="managed-save-status" data-managed-status></span><button type="button" class="managed-command-secondary" data-managed-edit-toggle="view"><i class="fas fa-xmark"></i><span>Chiudi</span></button><button type="button" class="managed-command-primary" data-managed-save><i class="fas fa-cloud-arrow-up"></i><span>Salva scheda</span></button>`
             : `<button type="button" class="managed-command-primary" data-managed-edit-toggle="edit"><i class="fas fa-pen-to-square"></i><span>Modifica</span></button>`)
             : "";
-        return `<div class="managed-command-bar"><nav class="managed-section-nav" aria-label="Sezioni della scheda"><div>${links.map(([id, icon, label]) => `<a href="#${id}"><i class="fas ${icon}" aria-hidden="true"></i><span>${escapeHtml(label)}</span></a>`).join("")}</div></nav><div class="managed-command-actions"><div class="managed-sync-indicator ${syncState.className}"><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span></div>${actions}</div></div>`;
+        return `<div class="managed-command-bar"><nav class="managed-section-nav" aria-label="Sezioni della scheda"><div>${links.map(([id, icon, label]) => `<a href="#${id}"><i class="fas ${icon}" aria-hidden="true"></i><span>${escapeHtml(label)}</span></a>`).join("")}</div></nav><div class="managed-command-actions">${syncIndicator}${actions}</div></div>`;
     }
-
     async function toggleManagedEditMode(root, shouldEdit) {
         if (!currentCanEdit || managedEditMode === shouldEdit) return;
         if (!shouldEdit && root.dataset.managedDirty === "true" && !window.confirm("Uscire dalla modalità modifica? Le modifiche non ancora inviate andranno perse.")) return;
@@ -2207,23 +2220,56 @@
         });
     }
     function setupManagedSectionNavigation(root) {
+        const links = Array.from(root.querySelectorAll('.managed-section-nav a[href^="#"]'));
+        const sections = links.map((link) => ({ link, id: String(link.getAttribute("href") || "").slice(1) }))
+            .map((entry) => ({ ...entry, target: root.querySelector(`#${CSS.escape(entry.id)}`) }))
+            .filter((entry) => entry.target);
+        const activate = (id) => links.forEach((link) => {
+            const active = link.getAttribute("href") === `#${id}`;
+            link.classList.toggle("is-active", active);
+            if (active) {
+                link.setAttribute("aria-current", "location");
+                const track = link.parentElement;
+                if (track) {
+                    const centeredLeft = link.offsetLeft - ((track.clientWidth - link.offsetWidth) / 2);
+                    track.scrollTo({ left: Math.max(0, centeredLeft), behavior: "smooth" });
+                }
+            } else link.removeAttribute("aria-current");
+        });
         const openSection = (id, scroll = false) => {
             const cleanId = String(id || "").replace(/^#/, "");
-            if (!cleanId) return null;
-            const target = root.querySelector(`#${CSS.escape(cleanId)}`);
-            if (target instanceof HTMLDetailsElement) target.open = true;
-            if (scroll && target) requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "start" }));
-            return target;
+            const entry = sections.find((candidate) => candidate.id === cleanId);
+            if (!entry) return null;
+            if (entry.target instanceof HTMLDetailsElement) entry.target.open = true;
+            activate(cleanId);
+            if (scroll) requestAnimationFrame(() => {
+                const commandBar = root.querySelector(".managed-command-bar");
+                const offset = Number(commandBar?.getBoundingClientRect().height || 0) + 24;
+                const top = entry.target.getBoundingClientRect().top + window.scrollY - offset;
+                window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+            });
+            return entry.target;
         };
-        root.querySelectorAll('.managed-section-nav a[href^="#"]').forEach((link) => link.addEventListener("click", () => {
-            openSection(link.getAttribute("href"));
+        links.forEach((link) => link.addEventListener("click", (event) => {
+            event.preventDefault();
+            const hash = String(link.getAttribute("href") || "");
+            const target = openSection(hash, true);
+            if (target && window.location.hash !== hash) window.history.replaceState(null, "", hash);
         }));
+        if ("IntersectionObserver" in window && sections.length) {
+            const visible = new Map();
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => visible.set(entry.target.id, entry.intersectionRatio));
+                const best = [...visible.entries()].sort((left, right) => right[1] - left[1]).find(([, ratio]) => ratio > 0);
+                if (best) activate(best[0]);
+            }, { rootMargin: "-18% 0px -66% 0px", threshold: [0, .05, .2, .5] });
+            sections.forEach((entry) => observer.observe(entry.target));
+        }
         if (window.location.hash) {
             try { openSection(decodeURIComponent(window.location.hash), true); }
             catch (_) { openSection(window.location.hash, true); }
-        }
+        } else if (sections[0]) activate(sections[0].id);
     }
-
     function findManagedItemCommand(entry) {
         const commands = Array.isArray(currentDocument?.sync?.commands) ? currentDocument.sync.commands : [];
         return commands.find((command) => String(command.kind || "").startsWith("item.")

@@ -6,6 +6,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+    <script>
+        (() => {
+            const source = new URL(window.location.href);
+            const target = new URL('./npcs.html', source);
+            ['campaign', 'campaignId', 'embed'].forEach((key) => {
+                if (source.searchParams.has(key)) target.searchParams.set(key, source.searchParams.get(key));
+            });
+            window.location.replace(target.toString());
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600&display=swap"
@@ -85,10 +95,6 @@
         </article>
     </div>
 
-    <script src="../assets/js/spoiler-policy.js"></script>
-    <script src="../assets/js/layout.js?v=20260721-campaign-switch1"></script>
-    <script src="../assets/js/shared/image-adjust.js"></script>
-    <script src="../assets/js/pages/bestiario.js?v=20260621-route-placeholder1"></script>
 </body>
 
 </html>
