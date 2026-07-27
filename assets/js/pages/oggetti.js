@@ -17,6 +17,10 @@ window.CriptaApp.onPageReady("oggetti", async () => {
     const lifecycleFilters = document.getElementById("items-lifecycle-filters");
     const lifecycleRow = document.getElementById("items-lifecycle-row");
     const categoryFilters = document.getElementById("items-category-filters");
+    const filterToggle = document.getElementById("items-filter-toggle");
+    const filterPanel = document.getElementById("items-filter-panel");
+    const activeFilterCount = document.getElementById("items-active-filter-count");
+    const filterReset = document.getElementById("items-filter-reset");
     const createButton = document.getElementById("items-create-button");
     const configControlsButton = document.getElementById("items-config-controls-button");
     if (!grid) return;
@@ -47,7 +51,7 @@ window.CriptaApp.onPageReady("oggetti", async () => {
             categoryRegistry: currentItemCategoryRegistry
         };
 
-        const controls = { grid, count, search, rarityFilters, typeFilters, categoryFilters, attunementFilters, lifecycleFilters, lifecycleRow };
+        const controls = { grid, count, search, rarityFilters, typeFilters, categoryFilters, attunementFilters, lifecycleFilters, lifecycleRow, filterToggle, filterPanel, activeFilterCount, filterReset };
         initItemFilters(items, state, controls);
         initCreateItemButton(createButton, state, controls);
         initConfigurationControlsButton(configControlsButton, state, controls);
@@ -58,6 +62,7 @@ window.CriptaApp.onPageReady("oggetti", async () => {
                 currentItemCategoryRegistry = state.categoryRegistry;
                 renderItemCategoryFilters(categoryFilters, state);
                 updateItemsView(state.items, state, grid, count);
+                updateItemFilterPanelState(state, controls);
             }
         });
         updateItemsView(state.items, state, grid, count);
@@ -183,23 +188,89 @@ function initItemFilters(items, state, elements) {
     bindFilterGroup(elements.rarityFilters, "itemsRarity", value => {
         state.rarity = value;
         updateItemsView(state.items, state, elements.grid, elements.count);
+        updateItemFilterPanelState(state, elements);
     });
     bindFilterGroup(elements.typeFilters, "itemsType", value => {
         state.type = value;
         updateItemsView(state.items, state, elements.grid, elements.count);
+        updateItemFilterPanelState(state, elements);
     });
     bindFilterGroup(elements.categoryFilters, "itemsCategory", value => {
         state.category = value;
         updateItemsView(state.items, state, elements.grid, elements.count);
+        updateItemFilterPanelState(state, elements);
     });
     bindFilterGroup(elements.attunementFilters, "itemsAttunement", value => {
         state.attunement = value;
         updateItemsView(state.items, state, elements.grid, elements.count);
+        updateItemFilterPanelState(state, elements);
     });
     bindFilterGroup(elements.lifecycleFilters, "itemsLifecycle", value => {
         state.lifecycle = value;
         updateItemsView(state.items, state, elements.grid, elements.count);
+        updateItemFilterPanelState(state, elements);
     });
+
+    initItemFilterPanel(state, elements);
+    updateItemFilterPanelState(state, elements);
+}
+
+function initItemFilterPanel(state, elements) {
+    if (!elements.filterToggle || !elements.filterPanel) return;
+
+    const setOpen = (open) => {
+        elements.filterPanel.hidden = !open;
+        elements.filterToggle.setAttribute("aria-expanded", open ? "true" : "false");
+        elements.filterToggle.classList.toggle("is-open", open);
+    };
+
+    elements.filterToggle.addEventListener("click", () => {
+        setOpen(elements.filterPanel.hidden);
+    });
+
+    elements.filterReset?.addEventListener("click", () => {
+        state.rarity = "all";
+        state.type = "all";
+        state.category = "all";
+        state.attunement = "all";
+        state.lifecycle = "active";
+        setFilterGroupActive(elements.rarityFilters, "itemsRarity", state.rarity);
+        setFilterGroupActive(elements.typeFilters, "itemsType", state.type);
+        setFilterGroupActive(elements.categoryFilters, "itemsCategory", state.category);
+        setFilterGroupActive(elements.attunementFilters, "itemsAttunement", state.attunement);
+        setFilterGroupActive(elements.lifecycleFilters, "itemsLifecycle", state.lifecycle);
+        updateItemsView(state.items, state, elements.grid, elements.count);
+        updateItemFilterPanelState(state, elements);
+    });
+
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !elements.filterPanel.hidden) {
+            setOpen(false);
+            elements.filterToggle.focus();
+        }
+    });
+}
+
+function updateItemFilterPanelState(state, elements = {}) {
+    const count = [
+        state.rarity !== "all",
+        state.type !== "all",
+        state.category !== "all",
+        state.attunement !== "all",
+        state.canEditItems && state.lifecycle !== "active"
+    ].filter(Boolean).length;
+    const badge = elements.activeFilterCount || document.getElementById("items-active-filter-count");
+    const reset = elements.filterReset || document.getElementById("items-filter-reset");
+    const toggle = elements.filterToggle || document.getElementById("items-filter-toggle");
+    if (badge) {
+        badge.textContent = String(count);
+        badge.hidden = count === 0;
+    }
+    if (reset) reset.hidden = count === 0;
+    if (toggle) {
+        toggle.classList.toggle("has-active-filters", count > 0);
+        toggle.title = count ? `${count} ${count === 1 ? "filtro attivo" : "filtri attivi"}` : "Apri i filtri";
+    }
 }
 function withInferredItemCategories(registry, items) {
     const normalized = registry && typeof registry === "object" ? { ...registry } : { categories: [] };
@@ -277,6 +348,7 @@ function initCreateItemButton(button, state, elements) {
         setFilterGroupActive(elements.attunementFilters, "itemsAttunement", "all");
         setFilterGroupActive(elements.lifecycleFilters, "itemsLifecycle", "active");
         updateItemsView(state.items, state, elements.grid, elements.count);
+        updateItemFilterPanelState(state, elements);
         const card = elements.grid.querySelector(`#${CSS.escape(draft.id)}`);
         if (card) {
             card.open = true;
@@ -647,6 +719,7 @@ function bindItemArchiveActions(grid, state, count) {
                 state.lifecycle = archive ? "archived" : "active";
                 setFilterGroupActive(document.getElementById("items-lifecycle-filters"), "itemsLifecycle", state.lifecycle);
                 updateItemsView(state.items, state, grid, count);
+                updateItemFilterPanelState(state);
                 const card = grid.querySelector(`#${CSS.escape(itemId)}`);
                 if (card) {
                     card.open = true;

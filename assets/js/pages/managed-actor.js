@@ -1793,6 +1793,26 @@
         return `<details${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><summary class="managed-panel-heading managed-collection-summary"><div><span class="managed-panel-eyebrow">Dati Foundry</span><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-collection-summary-meta"><span class="managed-count-badge">${entries.length}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-collection-body">${entries.length ? `${overview}${lead ? `<p class="managed-panel-lead">${escapeHtml(lead)}</p>` : ""}${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</div></details>`;
     }
 
+    function renderManagedEffectiveRolls(entry) {
+        const activities = Array.isArray(entry?.definition?.effectiveRolls?.activities)
+            ? entry.definition.effectiveRolls.activities
+            : [];
+        const useful = activities.filter((activity) => (Array.isArray(activity?.damage) && activity.damage.length) || Number(activity?.save?.dc) > 0);
+        if (!useful.length) return "";
+        const showNames = useful.length > 1;
+        const rows = useful.map((activity) => {
+            const damage = (Array.isArray(activity.damage) ? activity.damage : []).map((part) => {
+                const formula = String(part?.formula || "").trim();
+                const types = (Array.isArray(part?.types) ? part.types : []).map(formatManagedTraitValue).filter(Boolean).join("/");
+                return formula ? `<span class="managed-effective-damage"><i class="fas fa-burst"></i><strong>${escapeHtml(formula)}</strong>${types ? `<small>${escapeHtml(types)}</small>` : ""}</span>` : "";
+            }).filter(Boolean).join("");
+            const dc = Number(activity?.save?.dc || 0);
+            const abilities = (Array.isArray(activity?.save?.abilities) ? activity.save.abilities : []).map((ability) => String(ability || "").toUpperCase()).filter(Boolean).join("/");
+            const save = dc > 0 ? `<span class="managed-effective-save"><i class="fas fa-shield-halved"></i><strong>CD ${dc}</strong>${abilities ? `<small>${escapeHtml(abilities)}</small>` : ""}</span>` : "";
+            return `<div class="managed-effective-roll-row">${showNames ? `<b>${escapeHtml(activity?.name || "Attività")}</b>` : ""}<div>${damage}${save}</div></div>`;
+        }).join("");
+        return `<div class="managed-effective-rolls" aria-label="Danni e CD effettivi da Foundry">${rows}</div>`;
+    }
     function renderManagedEntryCard(entry, canEdit, groupKey, collectionKind = "capabilities", collectionEntries = []) {
         if (collectionKind === "inventory") return renderManagedInventoryEntryCard(entry, canEdit, groupKey, collectionEntries);
         const icon = entry.media?.icon?.path;
@@ -1805,10 +1825,11 @@
         const status = command ? renderManagedItemSyncStatus(command) : "";
         const searchText = normalizeManagedSearch([entry.name, meta, preparation?.label, searchDescription].filter(Boolean).join(" "));
         const level = Number(entry.definition?.level ?? 0) || 0;
+        const effectiveRolls = collectionKind === "capabilities" ? renderManagedEffectiveRolls(entry) : "";
         const disclosure = description ? `<details class="managed-entry-disclosure"><summary><span><i class="fas fa-book-open"></i> Descrizione</span><i class="fas fa-chevron-down"></i></summary><div>${formatManagedPreview(description)}</div></details>` : "";
         const preparationAttribute = preparation ? ` data-managed-spell-preparation="${escapeAttr(preparation.key)}"` : "";
         const preparationBadge = preparation ? `<span class="managed-spell-preparation is-${escapeAttr(preparation.key)}"><i class="fas ${escapeAttr(preparation.icon)}"></i>${escapeHtml(preparation.label)}</span>` : "";
-        return `<article class="managed-entry ${preparation ? `managed-entry--spell-${escapeAttr(preparation.key)}` : ""}" data-managed-item-card="${escapeAttr(entry.transferId || entry.itemId || "")}" data-managed-entry-search-value="${escapeAttr(searchText)}" data-managed-entry-level="${level}" data-managed-entry-group-key="${escapeAttr(groupKey)}"${preparationAttribute}>${icon ? `<img src="${escapeAttr(resolveMedia(icon))}" alt="">` : '<div class="managed-entry-icon"><i class="fas fa-dice-d20"></i></div>'}<div class="managed-entry-copy"><div class="managed-entry-title"><h3>${escapeHtml(entry.name || "Elemento")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div>${preparationBadge}${status}${disclosure}${editor}</div></article>`;
+        return `<article class="managed-entry ${preparation ? `managed-entry--spell-${escapeAttr(preparation.key)}` : ""}" data-managed-item-card="${escapeAttr(entry.transferId || entry.itemId || "")}" data-managed-entry-search-value="${escapeAttr(searchText)}" data-managed-entry-level="${level}" data-managed-entry-group-key="${escapeAttr(groupKey)}"${preparationAttribute}>${icon ? `<img src="${escapeAttr(resolveMedia(icon))}" alt="">` : '<div class="managed-entry-icon"><i class="fas fa-dice-d20"></i></div>'}<div class="managed-entry-copy"><div class="managed-entry-title"><h3>${escapeHtml(entry.name || "Elemento")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div>${preparationBadge}${status}${effectiveRolls}${disclosure}${editor}</div></article>`;
     }
     function renderManagedInventoryEntryCard(entry, canEdit, groupKey, collectionEntries = []) {
         const icon = String(entry?.media?.icon?.path || entry?.definition?.img || "").trim();

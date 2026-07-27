@@ -12,7 +12,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
-    <link rel="stylesheet" href="../assets/css/pages/items-modern.css?v=20260723-item-classification1" data-page-style>
+    <link rel="stylesheet" href="../assets/css/pages/items-modern.css?v=20260727-compact-filters1" data-page-style>
     <link rel="stylesheet" href="../assets/css/pages/npc-categories.css?v=20260721-item-categories2">
     <link rel="stylesheet" href="../assets/css/components/discord-share.css?v=20260715-discord-share3">
 </head>
@@ -46,18 +46,34 @@
                                 autocomplete="off">
                             <span class="items-search-shortcut" aria-hidden="true">Cerca</span>
                         </label>
-                        <button id="items-create-button" class="items-create-button" type="button" data-requires-dm hidden>
-                            <i class="fas fa-plus" aria-hidden="true"></i><span>Nuovo oggetto</span>
-                        </button>
-                        <button class="items-create-button items-create-button--secondary" type="button" data-item-category-manager hidden>
-                            <i class="fas fa-folder-tree" aria-hidden="true"></i><span>Categorie</span>
-                        </button>
-                        <button id="items-config-controls-button" class="items-create-button items-create-button--secondary items-config-controls-button"
-                            type="button" hidden aria-pressed="false">
-                            <i class="fas fa-sliders" aria-hidden="true"></i><span>Mostra bottoni configurazione</span>
-                        </button>
+                        <div class="items-tools-actions">
+                            <button id="items-filter-toggle" class="items-toolbar-button items-filter-toggle" type="button"
+                                aria-expanded="false" aria-controls="items-filter-panel">
+                                <i class="fas fa-filter" aria-hidden="true"></i>
+                                <span>Filtri</span>
+                                <b id="items-active-filter-count" class="items-active-filter-count" hidden>0</b>
+                                <i class="fas fa-chevron-down items-filter-toggle-chevron" aria-hidden="true"></i>
+                            </button>
+                            <button id="items-create-button" class="items-create-button" type="button" data-requires-dm hidden>
+                                <i class="fas fa-plus" aria-hidden="true"></i><span>Nuovo oggetto</span>
+                            </button>
+                            <button class="items-create-button items-create-button--secondary" type="button" data-item-category-manager hidden>
+                                <i class="fas fa-folder-tree" aria-hidden="true"></i><span>Categorie</span>
+                            </button>
+                            <button id="items-config-controls-button" class="items-create-button items-create-button--secondary items-config-controls-button"
+                                type="button" hidden aria-pressed="false">
+                                <i class="fas fa-sliders" aria-hidden="true"></i><span>Mostra bottoni configurazione</span>
+                            </button>
+                        </div>
                     </div>
-                    <div class="items-filter-strip">
+                    <div id="items-filter-panel" class="items-filter-panel" hidden>
+                        <div class="items-filter-panel-heading">
+                            <span><i class="fas fa-sliders" aria-hidden="true"></i>Affina la raccolta</span>
+                            <button id="items-filter-reset" class="items-filter-reset" type="button" hidden>
+                                <i class="fas fa-rotate-left" aria-hidden="true"></i><span>Azzera filtri</span>
+                            </button>
+                        </div>
+                        <div class="items-filter-strip">
                         <div class="items-filter-row">
                             <span><i class="fas fa-gem" aria-hidden="true"></i>Rarità</span>
                             <div id="items-rarity-filters" class="items-filter-group" aria-label="Filtro rarità"></div>
@@ -78,6 +94,7 @@
                             <span><i class="fas fa-box-archive" aria-hidden="true"></i>Archivio</span>
                             <div id="items-lifecycle-filters" class="items-filter-group" aria-label="Filtro archivio"></div>
                         </div>
+                        </div>
                     </div>
                 </div>
 
@@ -97,7 +114,7 @@
     <script src="../assets/js/shared/discord-share.js?v=20260718-discord-image1"></script>
     <script src="../assets/js/shared/item-categories.js?v=20260721-item-categories2"></script>
     <script src="../assets/js/pages/item-category-manager.js?v=20260721-item-categories2"></script>
-    <script src="../assets/js/pages/oggetti.js?v=20260723-item-classification1"></script>
+    <script src="../assets/js/pages/oggetti.js?v=20260727-compact-filters1"></script>
 </body>
 
 </html>

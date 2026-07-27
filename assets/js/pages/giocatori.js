@@ -327,7 +327,10 @@ window.CriptaApp.onPageReady("giocatori", async function() {
     }
 
     function resolveCompanionImageUrl(companion) {
-        const tokenPath = companion?.token?.img || "";
+        const managedToken = typeof companion?.media?.token === "string"
+            ? companion.media.token
+            : companion?.media?.token?.path || "";
+        const tokenPath = companion?.token?.img || managedToken || "";
         const avatarVariant = getAvatarVariantPath(tokenPath);
         const ownerCharacterId = slugify(companion?.ownerCharacterId || companion?.characterId || "");
         const syncedEntityId = ownerCharacterId ? getCompanionReadableEntityId(ownerCharacterId, companion) : "";
@@ -339,14 +342,14 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         const legacySyncedToken = syncedEntityId && legacyCompanionFolder ? `media/${legacyCompanionFolder}/${syncedEntityId}-token.webp` : "";
         const legacySyncedAvatar = syncedEntityId && legacyCompanionFolder ? `media/${legacyCompanionFolder}/${syncedEntityId}-avatar.webp` : "";
         return Array.from(new Set([
-            resolvePublicImageUrl(syncedToken),
-            resolvePublicImageUrl(syncedAvatar),
-            resolvePublicImageUrl(legacySyncedToken),
-            resolvePublicImageUrl(legacySyncedAvatar),
             resolvePublicImageUrl(tokenPath),
+            resolvePublicImageUrl(managedToken),
+            resolvePublicImageUrl(syncedToken),
+            resolvePublicImageUrl(legacySyncedToken),
+            resolvePublicImageUrl(syncedAvatar),
+            resolvePublicImageUrl(legacySyncedAvatar),
             resolvePublicImageUrl(companion?.img),
-            resolvePublicImageUrl(avatarVariant),
-            resolvePublicImageUrl(tokenPath)
+            resolvePublicImageUrl(avatarVariant)
         ].filter(Boolean)));
     }
 
