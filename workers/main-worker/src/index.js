@@ -3556,6 +3556,7 @@ async function authorizeManagedActorWrite(request, env, campaignId, corsHeaders,
 }
 
 function managedActorIndexEntry(document, previousEntry = null) {
+  const tokenState = normalizeManagedActorRuntimePolicy(document?.actorType, document?.definition, document, document?.runtimePolicy);
   return {
     id: document.id,
     worldId: document.worldId,
@@ -3563,6 +3564,9 @@ function managedActorIndexEntry(document, previousEntry = null) {
     foundryActorId: document.foundryActorId || document.actorId,
     name: document.name,
     actorType: document.actorType,
+    entityKind: tokenState.entityKind,
+    runtimePolicy: tokenState.runtimePolicy,
+    actorLink: tokenState.actorLink,
     relationshipType: normalizeManagedActorRelationshipType(document.relationshipType, document.actorType, document.ownerCharacterId),
     ownerCharacterId: document.ownerCharacterId || "",
     ownerAccountIds: Array.isArray(document.ownerAccountIds) ? document.ownerAccountIds : [],
@@ -4101,6 +4105,15 @@ function normalizeManagedNpcKind(value, fallback = "person") {
   return ["creature", "monster", "mostro", "bestia"].includes(kind) ? "creature" : "person";
 }
 
+function managedActorAutomaticProfileKind(actor) {
+  if (String(actor?.entityKind || "").trim().toLowerCase() === "creature") return "creature";
+  return normalizeManagedActorRuntimePolicy(actor?.actorType, actor?.definition, actor, actor?.runtimePolicy).entityKind;
+}
+
+function normalizeManagedNpcKindSource(value) {
+  return String(value || "").trim().toLowerCase() === "manual" ? "manual" : "automatic";
+}
+
 function normalizeManagedNpcTags(value) {
   const source = Array.isArray(value) ? value : String(value || "").split(",");
   return Array.from(new Set(source
@@ -4127,9 +4140,11 @@ function managedActorProfileBlockVisibility(value, hidden = false) {
   return state === "dm" ? "dm" : "public";
 }
 
-function managedActorProfileIndexMetadata(profile) {
+function managedActorProfileIndexMetadata(profile, actor = null) {
   if (!profile || typeof profile !== "object") return null;
   const blocks = Array.isArray(profile.blocks) ? profile.blocks : [];
+  const kindSource = normalizeManagedNpcKindSource(profile.kindSource);
+  const kind = kindSource === "manual" ? normalizeManagedNpcKind(profile.kind) : managedActorAutomaticProfileKind(actor);
   return {
     visibility: { state: managedActorProfileVisibilityState(profile.visibility) },
     legacyCharacterId: sanitizeAssetId(profile.legacyCharacterId || ""),
@@ -4139,7 +4154,8 @@ function managedActorProfileIndexMetadata(profile) {
     quote: String(profile.quote || "").trim().slice(0, 1_000),
     lifeState: normalizeManagedNpcLifeState(profile.lifeState, profile.status),
     status: String(profile.status || "").trim().slice(0, 80),
-    kind: normalizeManagedNpcKind(profile.kind),
+    kind,
+    kindSource,
     tags: normalizeManagedNpcTags(profile.tags),
     lifecycle: normalizeManagedNpcLifecycle(profile.lifecycle, profile.lifecycle, profile.updatedBy, profile.updatedAt || undefined),
     hasContent: Boolean(profile.categoryId || profile.category || profile.role || profile.quote || blocks.length),
@@ -4162,7 +4178,7 @@ async function hydrateManagedActorProfileIndex(doc, campaignId, env) {
   }));
   let changed = false;
   const data = entries.map((entry, index) => {
-    const profile = managedActorProfileIndexMetadata(profileDocuments[index]);
+    const profile = managedActorProfileIndexMetadata(profileDocuments[index], entry);
     if (!profile) return entry;
     const nextEntry = { ...entry, profile };
     if (managedActorIndexEntryComparable(entry) !== managedActorIndexEntryComparable(nextEntry)) changed = true;
@@ -4187,7 +4203,7 @@ async function updateManagedActorProfileIndex(env, campaignId, actor, profile) {
   const previousEntry = entries.find((entry) => entry?.id === actorId) || null;
   const nextEntry = {
     ...managedActorIndexEntry(actor, previousEntry),
-    profile: managedActorProfileIndexMetadata(profile),
+    profile: managedActorProfileIndexMetadata(profile, actor),
   };
   if (managedActorIndexEntryComparable(previousEntry) === managedActorIndexEntryComparable(nextEntry)) return false;
   const data = [...entries.filter((entry) => entry?.id !== actorId), nextEntry]
@@ -4255,6 +4271,17 @@ function managedActorProfileWithCurrentMedia(profile, actor) {
     name: String(actor?.name || profile?.name || "NPC").trim().slice(0, 180),
     mediaSyncVersion: 1,
     mediaUpdatedAt: actor?.updatedAt || profile?.mediaUpdatedAt || null,
+  };
+}
+
+function managedActorProfileWithClassification(profile, actor) {
+  const automaticKind = managedActorAutomaticProfileKind(actor);
+  const kindSource = normalizeManagedNpcKindSource(profile?.kindSource);
+  return {
+    ...profile,
+    automaticKind,
+    kindSource,
+    kind: kindSource === "manual" ? normalizeManagedNpcKind(profile?.kind) : automaticKind,
   };
 }
 
@@ -4344,7 +4371,8 @@ function managedActorProfileFromLegacy(character, actor, campaignId, route) {
     quote: String(source.quote || "").trim().slice(0, 1_000),
     lifeState: normalizeManagedNpcLifeState(source.lifeState, source.status),
     status: String(source.status || "").trim().slice(0, 80),
-    kind: normalizeManagedNpcKind(source.kind),
+    kind: String(source.kind || "").trim() ? normalizeManagedNpcKind(source.kind) : managedActorAutomaticProfileKind(actor),
+    kindSource: String(source.kind || "").trim() ? "manual" : "automatic",
     tags: normalizeManagedNpcTags(source.tags),
     lifecycle: normalizeManagedNpcLifecycle(source.lifecycle, null, "legacy", source.updatedAt || undefined),
     visibility: { state: source.hidden === true ? "dm" : "public" },
@@ -4375,7 +4403,8 @@ function emptyManagedActorProfile(actor, campaignId, route) {
     quote: "",
     lifeState: "unknown",
     status: "",
-    kind: "person",
+    kind: managedActorAutomaticProfileKind(actor),
+    kindSource: "automatic",
     tags: [],
     lifecycle: { state: "active", archivedAt: null, archivedBy: "" },
     visibility: { state: "dm" },
@@ -4396,6 +4425,8 @@ function normalizeManagedActorProfileDocument(input, existing, actor, campaignId
   const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
   const previous = existing && typeof existing === "object" ? existing : {};
   const blocks = Array.isArray(source.blocks) ? source.blocks.slice(0, 64).map(normalizeManagedActorProfileBlock) : (previous.blocks || []);
+  const kindSource = normalizeManagedNpcKindSource(source.kindSource ?? previous.kindSource);
+  const kind = kindSource === "manual" ? normalizeManagedNpcKind(source.kind ?? previous.kind) : managedActorAutomaticProfileKind(actor);
   return {
     schemaVersion: 1,
     id: `${route.worldId}:${route.actorId}:profile`,
@@ -4410,7 +4441,8 @@ function normalizeManagedActorProfileDocument(input, existing, actor, campaignId
     quote: String(source.quote ?? previous.quote ?? "").trim().slice(0, 1_000),
     lifeState: normalizeManagedNpcLifeState(source.lifeState ?? previous.lifeState, source.status ?? previous.status),
     status: String(source.status ?? previous.status ?? "").trim().slice(0, 80),
-    kind: normalizeManagedNpcKind(source.kind ?? previous.kind),
+    kind,
+    kindSource,
     tags: normalizeManagedNpcTags(source.tags !== undefined ? source.tags : previous.tags),
     lifecycle: normalizeManagedNpcLifecycle(source.lifecycle, previous.lifecycle, updatedBy, now),
     visibility: { state: managedActorProfileVisibilityState(source.visibility || previous.visibility) },
@@ -4901,6 +4933,7 @@ async function handleManagedActorProfileGet(request, route, campaignId, env, cor
       : emptyManagedActorProfile(actor, campaignId, route);
     source = legacy ? "legacy" : "empty";
   }
+  profile = managedActorProfileWithClassification(profile, actor);
   const categoryRegistry = await readNpcCategoryRegistry(env, campaignId);
   profile = enrichManagedActorProfileCategory(profile, categoryRegistry);
 
@@ -5123,6 +5156,11 @@ function isManagedActorUpdatePatchPath(path) {
     || /^system\.spells\.(spell[0-9]|pact)\.(value|spent|max|override)$/.test(path)
     || /^system\.currency\.[a-z0-9_-]{1,40}$/.test(path)
     || /^flags\.khuzoe-merchant\.wallet\.[a-z0-9_-]{1,40}$/.test(path);
+}
+
+function isManagedActorInstanceRuntimePatch(path) {
+  return /^system\.attributes\.hp\.(value|temp)$/.test(String(path || ""))
+    || /^system\.spells\.(spell[0-9]|pact)\.(value|spent)$/.test(String(path || ""));
 }
 
 function sanitizeManagedCommandObject(value, depth = 0) {
@@ -5410,6 +5448,7 @@ function normalizeManagedActorCreateRequestProfile(input, document) {
     lifeState: normalizeManagedNpcLifeState(source.lifeState, source.status),
     status: String(source.status || "").trim().slice(0, 80),
     kind: normalizeManagedNpcKind(source.kind),
+    kindSource: "manual",
     tags: normalizeManagedNpcTags(source.tags),
     lifecycle: { state: "active", archivedAt: null, archivedBy: "" },
     visibility: { state: managedActorProfileVisibilityState(source.visibility) },
@@ -5524,9 +5563,12 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
     document.clientId ||= `effect-${crypto.randomUUID()}`;
     target = { transferId: "", itemId: "", effectId: "", clientId: document.clientId };
   }
-  const patches = isUpdate
+  let patches = isUpdate
     ? (Array.isArray(body?.patches) ? body.patches : []).slice(0, 64).map((patch) => normalizeManagedActorCommandPatch(patch, kind)).filter(Boolean)
     : [];
+  if (kind === "actor.update" && !managedActorHasSharedRuntime(actor)) {
+    patches = patches.filter((patch) => !isManagedActorInstanceRuntimePatch(patch.path));
+  }
   if ((isUpdate && !patches.length) || ((isItemKind || isEffectKind) && !target) || (isCreate && !document) || (!isUpdate && !isCreate && !isDelete)) {
     return json({ ok: false, error: "Managed actor command has no valid target or payload" }, 400, corsHeaders);
   }
@@ -5981,6 +6023,33 @@ function mergeManagedActorRuntime(base = {}, overlay = {}) {
     spellSlots: { ...(base.spellSlots || {}), ...(overlay.spellSlots || {}) },
   };
 }
+function normalizeManagedActorRuntimePolicy(actorType, definition = {}, existing = null, requestedPolicy = "") {
+  const type = String(actorType || "").trim().toLowerCase();
+  const directActorLink = definition?.prototypeToken?.actorLink;
+  const previousActorLink = existing?.definition?.prototypeToken?.actorLink;
+  const actorLink = typeof directActorLink === "boolean"
+    ? directActorLink
+    : (typeof previousActorLink === "boolean" ? previousActorLink : null);
+  const explicitPolicy = ["shared", "per-instance"].includes(String(requestedPolicy || "").trim().toLowerCase())
+    ? String(requestedPolicy).trim().toLowerCase()
+    : "";
+  const perInstance = type === "npc"
+    && (explicitPolicy ? explicitPolicy === "per-instance" : actorLink === false);
+  return {
+    actorLink,
+    runtimePolicy: perInstance ? "per-instance" : "shared",
+    entityKind: perInstance ? "creature" : "person",
+  };
+}
+
+function managedActorHasSharedRuntime(actor) {
+  if (!actor || typeof actor !== "object") return true;
+  const explicitPolicy = String(actor.runtimePolicy || "").trim().toLowerCase();
+  if (explicitPolicy === "per-instance") return false;
+  if (explicitPolicy === "shared") return true;
+  const type = String(actor.actorType || "").trim().toLowerCase();
+  return !(type === "npc" && actor?.definition?.prototypeToken?.actorLink === false);
+}
 function normalizeManagedActorDocument(input, existing, campaignId, route, source) {
   const now = new Date().toISOString();
   const writeScopes = new Set((Array.isArray(input.writeScopes) ? input.writeScopes : []).map((scope) => String(scope || "").trim().toLowerCase()).filter((scope) => ["content", "media"].includes(scope)));
@@ -6010,6 +6079,14 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
       published: requestedVisibility.published === true || managedActorVisibilityState(requestedVisibility) === "public",
     }
     : existingVisibility;
+  const definition = foundryWritesContent && input.definition && typeof input.definition === "object"
+    ? input.definition
+    : (existing?.definition || {});
+  const requestedRuntimePolicy = foundryWritesContent ? input.runtimePolicy : existing?.runtimePolicy;
+  const tokenState = normalizeManagedActorRuntimePolicy(actorType, definition, existing, requestedRuntimePolicy);
+  const submittedRuntime = foundryWritesContent && input.runtime && typeof input.runtime === "object"
+    ? input.runtime
+    : (existing?.runtime || {});
   return {
     schemaVersion: Math.max(1, Math.floor(Number(input.schemaVersion) || 1)),
     id: `${route.worldId}:${route.actorId}`,
@@ -6020,6 +6097,8 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
     foundryActorId: String(foundryWritesContent ? (input.foundryActorId || input.actorId || route.actorId) : (existing?.foundryActorId || route.actorId)).trim().slice(0, 96),
     name: String(foundryWritesContent ? (input.name || existing?.name || "Actor") : (existing?.name || "Actor")).trim().slice(0, 180),
     actorType,
+    entityKind: tokenState.entityKind,
+    runtimePolicy: tokenState.runtimePolicy,
     relationshipType: normalizeManagedActorRelationshipType(relationshipIsCanonical ? existing?.relationshipType : (foundryWritesContent ? (input.relationshipType || existing?.relationshipType || "") : (existing?.relationshipType || "")), actorType, relationshipOwnerCharacterId),
     ownerCharacterId: relationshipOwnerCharacterId,
     ownerAccountIds: relationshipAccounts,
@@ -6033,9 +6112,9 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
       removedIds: input.removedVariantIds,
       mediaWriteTargets: input.mediaWriteTargets,
     }),
-    definition: foundryWritesContent && input.definition && typeof input.definition === "object" ? input.definition : (existing?.definition || {}),
-    runtime: foundryWritesContent && input.runtime && typeof input.runtime === "object" ? input.runtime : (existing?.runtime || {}),
-    runtimeUpdatedAt: foundryWritesContent ? now : (existing?.runtimeUpdatedAt || existing?.updatedAt || now),
+    definition,
+    runtime: tokenState.runtimePolicy === "shared" ? submittedRuntime : (existing?.runtime || {}),
+    runtimeUpdatedAt: tokenState.runtimePolicy === "shared" && foundryWritesContent ? now : (existing?.runtimeUpdatedAt || existing?.updatedAt || now),
     system: foundryWritesContent && input.system && typeof input.system === "object" ? input.system : (existing?.system || {}),
     site: source === "site" && input.site && typeof input.site === "object" ? input.site : (existing?.site || {}),
     contentHash: String(foundryWritesContent ? (input.contentHash || "") : (existing?.contentHash || "")).slice(0, 160),
@@ -6231,8 +6310,14 @@ async function handleManagedActorRuntimePost(request, route, fallbackCampaignId,
   if (JSON.stringify(body || {}).length > 64 * 1024) return json({ ok: false, error: "Managed actor runtime payload too large" }, 413, corsHeaders);
   const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
   const actorKey = managedActorDocumentKey(campaignId, route.worldId, route.actorId);
-  const actorExists = await env.SIGILLO_KV.get(actorKey);
-  if (!actorExists) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+  const actor = safeJsonParse(await env.SIGILLO_KV.get(actorKey));
+  if (!actor) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+  if (!managedActorHasSharedRuntime(actor)) {
+    return json({ ok: true, saved: false, ignored: "per-instance-runtime", campaignId, worldId: route.worldId, actorId: route.actorId }, 200, {
+      ...corsHeaders,
+      "Cache-Control": "private, no-store",
+    });
+  }
   const updatedAt = new Date().toISOString();
   const runtime = normalizeManagedActorRuntime(body?.runtime);
   await env.SIGILLO_KV.put(managedActorRuntimeKey(campaignId, route.worldId, route.actorId), JSON.stringify({
@@ -6397,6 +6482,9 @@ function managedActorDirectoryEntry(entry) {
     foundryActorId: entry.foundryActorId,
     name: entry.name,
     actorType: entry.actorType,
+    entityKind: entry.entityKind || "person",
+    runtimePolicy: entry.runtimePolicy || "shared",
+    actorLink: typeof entry.actorLink === "boolean" ? entry.actorLink : null,
     relationshipType: entry.relationshipType || "",
     ownerCharacterId: entry.ownerCharacterId || "",
     visibility: entry.visibility,
@@ -6492,13 +6580,20 @@ async function handleManagedActorGet(request, route, campaignId, env, corsHeader
   const canEditStats = Boolean(canEdit || canEditPublicManagedNpcStats(document, reader.user));
   const baselineRuntimeAt = Date.parse(document.runtimeUpdatedAt || document.updatedAt || "") || 0;
   const overlayRuntimeAt = Date.parse(runtimeRecord?.updatedAt || "") || 0;
-  const runtimeData = overlayRuntimeAt > baselineRuntimeAt
+  const sharedRuntime = managedActorHasSharedRuntime(document);
+  const runtimeData = !sharedRuntime
     ? {
       ...document,
-      runtime: mergeManagedActorRuntime(document.runtime || {}, runtimeRecord.runtime || {}),
-      runtimeUpdatedAt: runtimeRecord.updatedAt,
+      runtime: {},
+      runtimePolicy: "per-instance",
     }
-    : document;
+    : runtimeRecord && overlayRuntimeAt >= baselineRuntimeAt
+      ? {
+        ...document,
+        runtime: mergeManagedActorRuntime(document.runtime || {}, runtimeRecord.runtime || {}),
+        runtimeUpdatedAt: runtimeRecord.updatedAt,
+      }
+      : document;
   const canReadProfile = canReadManagedActorProfile(profile, reader.user, reader.isEditor, document, env);
   const readableData = canReadProfile || !runtimeData?.definition?.merchant
     ? runtimeData

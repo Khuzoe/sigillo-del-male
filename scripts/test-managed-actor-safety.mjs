@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import worker from "../workers/main-worker/src/index.js";
 
 class MemoryKv {
@@ -174,6 +175,86 @@ assert.equal(deletedR2.includes(`${mediaPrefix}token-r1.webp`), true, "il media 
 stored = await getDocument();
 assert.equal(stored.definition.marker, "original");
 assert.equal(stored.media.token.path, `media/${mediaPrefix}token-r3.webp`);
+
+const perInstance = await post({
+  expectedRevision: 3,
+  writeScopes: ["content", "media"],
+  name: stored.name,
+  actorType: "npc",
+  definition: {
+    ...stored.definition,
+    prototypeToken: { actorLink: false },
+  },
+  system: stored.system,
+  contentHash: "content-per-instance",
+  mediaHash: "media-r3",
+  media: stored.media,
+});
+assert.equal(perInstance.response.status, 200);
+stored = await getDocument();
+assert.equal(stored.entityKind, "creature");
+assert.equal(stored.runtimePolicy, "per-instance");
+assert.deepEqual(stored.runtime, {}, "il runtime precedente resta conservato ma non deve essere esposto per una creatura unlinked");
+
+const runtimeResponse = await worker.fetch(new Request(`${baseUrl.split("?")[0]}/runtime?campaign=${campaignId}`, {
+  method: "POST",
+  headers,
+  body: JSON.stringify({ campaignId, runtime: { hp: { value: 1, temp: 5 } } }),
+}), env, ctx);
+const runtimePayload = await runtimeResponse.json();
+assert.equal(runtimeResponse.status, 200);
+assert.equal(runtimePayload.saved, false);
+assert.equal(runtimePayload.ignored, "per-instance-runtime");
+
+const separatedPolicy = await post({
+  expectedRevision: stored.revision,
+  writeScopes: ["content"],
+  name: stored.name,
+  actorType: "npc",
+  runtimePolicy: "shared",
+  definition: {
+    ...stored.definition,
+    prototypeToken: { actorLink: false },
+  },
+  runtime: { hp: { value: 150 } },
+  system: stored.system,
+  contentHash: "content-shared-with-unlinked-prototype",
+});
+assert.equal(separatedPolicy.response.status, 200);
+stored = await getDocument();
+assert.equal(stored.definition.prototypeToken.actorLink, false, "actorLink deve restare una proprietà Foundry indipendente");
+assert.equal(stored.runtimePolicy, "shared", "la politica runtime esplicita deve prevalere senza alterare actorLink");
+assert.equal(stored.runtime.hp.value, 150);
+
+const sharedRuntimeResponse = await worker.fetch(new Request(`${baseUrl.split("?")[0]}/runtime?campaign=${campaignId}`, {
+  method: "POST",
+  headers,
+  body: JSON.stringify({ campaignId, runtime: { hp: { value: 149, temp: 2 } } }),
+}), env, ctx);
+const sharedRuntimePayload = await sharedRuntimeResponse.json();
+assert.equal(sharedRuntimeResponse.status, 200);
+assert.equal(sharedRuntimePayload.saved, true);
+stored = await getDocument();
+assert.equal(stored.runtime.hp.value, 149);
+
+const moduleSyncSource = await readFile(new URL("../module/scripts/services/managed-actor-sync.js", import.meta.url), "utf8");
+assert.doesNotMatch(
+  moduleSyncSource,
+  /actor\.update\(\{\s*["']prototypeToken\.actorLink["']:/,
+  "la sincronizzazione non deve mai cambiare automaticamente actorLink sugli Actor esistenti",
+);
+assert.match(moduleSyncSource, /runtimePolicyOverride/, "il modulo deve conservare la politica runtime separata");
+assert.match(moduleSyncSource, /patch\?\.path !== ["']prototypeToken\.actorLink["']/, "il modulo deve scartare anche i vecchi comandi actorLink gia accodati");
+assert.match(moduleSyncSource, /const SYNC_BATCH_WINDOW_MS = 60_000;/, "le modifiche Foundry devono essere raccolte per un minuto");
+assert.match(moduleSyncSource, /if \(!pendingTimers\.has\(actorId\)\) scheduleManagedActorFlush\(actorId, SYNC_BATCH_WINDOW_MS\);/, "nuove modifiche devono confluire nella finestra gia aperta");
+assert.match(moduleSyncSource, /pendingJobs\.get\(actorId\) !== event/, "una modifica arrivata durante l'invio non deve essere cancellata dall'ack precedente");
+
+const managedActorFeSource = await readFile(new URL("../assets/js/pages/managed-actor.js", import.meta.url), "utf8");
+assert.match(
+  managedActorFeSource,
+  /explicitPolicy === ["']shared["']/,
+  "il frontend deve rispettare la politica condivisa esplicita senza ricadere su actorLink",
+);
 
 await Promise.allSettled(waits);
 console.log("Managed Actor safety tests passed.");

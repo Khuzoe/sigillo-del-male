@@ -101,6 +101,20 @@
         return "";
     }
 
+    function getManagedActorAutomaticKind(actor) {
+        if (String(actor?.entityKind || "").trim().toLowerCase() === "creature") return "creature";
+        const actorType = String(actor?.actorType || "").trim().toLowerCase();
+        return actorType === "npc" && actor?.definition?.prototypeToken?.actorLink === false ? "creature" : "person";
+    }
+
+    function managedActorHasSharedRuntime(actor) {
+        const explicitPolicy = String(actor?.runtimePolicy || "").trim().toLowerCase();
+        if (explicitPolicy === "per-instance") return false;
+        if (explicitPolicy === "shared") return true;
+        const actorType = String(actor?.actorType || "").trim().toLowerCase();
+        return !(actorType === "npc" && actor?.definition?.prototypeToken?.actorLink === false);
+    }
+
     function syncManagedActorNavigation(actor, fallback = "") {
         const defaultSection = fallback || (new URLSearchParams(window.location.search).has("character") ? "giocatori" : "npcs");
         const relationshipType = getManagedActorRelationshipType(actor);
@@ -121,6 +135,7 @@
     function renderManagedActor(root, actor, canEdit, editing = false, canManageActor = false) {
         const editMode = Boolean(canEdit && editing);
         const primaryPlayer = isPrimaryManagedPlayer(actor);
+        const sharedRuntime = managedActorHasSharedRuntime(actor);
         clearManagedImagePreviews();
         root.classList.toggle("is-editing", editMode);
         root.classList.toggle("is-viewing", !editMode);
@@ -172,10 +187,11 @@
                     <h1>${editMode ? renderManagedActorControl("name", "text", actor.name || "Actor", { className: "managed-actor-name-input" }) : escapeHtml(actor.name || "Actor")}</h1>
                     ${currentProfile?.role ? `<p class="managed-profile-role">${escapeHtml(currentProfile.role)}</p>` : ""}
                     ${currentProfile?.quote ? `<blockquote class="managed-profile-quote">${escapeHtml(currentProfile.quote)}</blockquote>` : ""}
-                    ${renderManagedHeroVitals(attributes, details, actor.runtime || {}, actor.actorType)}
+                    ${renderManagedHeroVitals(attributes, details, actor.runtime || {}, actor.actorType, sharedRuntime)}
                     ${hasSiteAnimation ? renderManagedMediaDock(media, actor.name || "Actor") : ""}
                     <div class="managed-actor-chips">
                         ${actorDetailsLabel ? `<span class="managed-chip"><i class="fas fa-dna"></i> ${escapeHtml(actorDetailsLabel)}</span>` : ""}
+                        ${!sharedRuntime ? `<span class="managed-chip"><i class="fas fa-dragon"></i> Creatura ? stato per token</span>` : ""}
                         <span class="managed-chip"><i class="fas fa-eye"></i> ${escapeHtml(formatVisibility(actor.visibility))}</span>
                         <span class="managed-chip"><i class="fas fa-code-branch"></i> revisione ${Number(actor.revision || 0)}</span>
                         <span class="managed-chip"><i class="fas fa-clock"></i> ${escapeHtml(formatUpdatedAt(actor.updatedAt))}</span>
@@ -187,7 +203,7 @@
                 ${renderManagedProfileSection(currentProfile, editMode, Boolean(canEdit && currentProfilePermissions.canEdit))}
                 ${merchant ? renderManagedMerchantShop(merchant) : ""}
                 ${editMode && canManageActor ? renderAdmin(actor) : ""}
-                ${renderCoreStats(attributes, details, actor.runtime || {}, actor.actorType, traits, definition.spellSlots || {}, editMode)}
+                ${renderCoreStats(attributes, details, actor.runtime || {}, actor.actorType, traits, definition.spellSlots || {}, editMode, sharedRuntime)}
                 ${renderManagedCurrency(currency, editMode)}
                 ${renderAbilities(abilities, editMode)}
                 ${primaryPlayer ? `<div class="managed-player-extensions managed-player-extensions--companions" data-managed-player-companions></div>` : ""}
@@ -317,6 +333,8 @@
         const blocks = Array.isArray(input.blocks) ? input.blocks : [];
         const mediaInput = input.media && typeof input.media === "object" ? input.media : {};
         const actorMedia = actor?.media || {};
+        const automaticKind = getManagedActorAutomaticKind(actor);
+        const kindSource = String(input.kindSource || "automatic").toLowerCase() === "manual" ? "manual" : "automatic";
         const normalizeSlot = (slot) => {
             const source = typeof slot === "string" ? { path: slot } : (slot && typeof slot === "object" ? slot : null);
             return source?.path ? { path: String(source.path), ...(source.presentation ? { presentation: source.presentation } : {}) } : null;
@@ -335,7 +353,9 @@
             quote: String(input.quote || ""),
             lifeState: normalizeManagedNpcLifeState(input.lifeState, input.status),
             status: String(input.status || ""),
-            kind: String(input.kind || "person").toLowerCase() === "creature" ? "creature" : "person",
+            kind: kindSource === "manual" && String(input.kind || "").toLowerCase() === "creature" ? "creature" : (kindSource === "manual" ? "person" : automaticKind),
+            kindSource,
+            automaticKind,
             tags: Array.isArray(input.tags) ? Array.from(new Set(input.tags.map((tag) => sanitizeId(tag)).filter(Boolean))).slice(0, 24) : [],
             lifecycle: String(input.lifecycle?.state || "active").toLowerCase() === "archived"
                 ? { state: "archived", archivedAt: input.lifecycle?.archivedAt || null, archivedBy: input.lifecycle?.archivedBy || "" }
@@ -490,7 +510,7 @@
                     <label><span>Ruolo o soprannome</span><input type="text" data-managed-profile-field="role" value="${escapeAttr(profile.role)}" placeholder="Es. La Giullare"></label>
                     <label><span>Stato</span><select data-managed-profile-field="lifeState"><option value="none" ${profile.lifeState === "none" ? "selected" : ""}>Nessuno</option><option value="alive" ${profile.lifeState === "alive" ? "selected" : ""}>Vivo</option><option value="dead" ${profile.lifeState === "dead" ? "selected" : ""}>Morto</option><option value="unknown" ${profile.lifeState === "unknown" ? "selected" : ""}>Ignoto</option></select></label>
                     <label><span>Nota sullo stato</span><input type="text" data-managed-profile-field="status" value="${escapeAttr(profile.status)}" placeholder="Facoltativa, es. disperso"></label>
-                    ${canManageProfileLink ? `<label><span>Tipo di scheda</span><select data-managed-profile-field="kind"><option value="person" ${profile.kind !== "creature" ? "selected" : ""}>Personaggio</option><option value="creature" ${profile.kind === "creature" ? "selected" : ""}>Creatura / Mostro</option></select></label>` : ""}
+                    ${canManageProfileLink ? `<label><span>Tipo di scheda</span><select data-managed-profile-field="kind"><option value="automatic" ${profile.kindSource !== "manual" ? "selected" : ""}>Automatico da Foundry (${profile.automaticKind === "creature" ? "Creatura" : "Personaggio"})</option><option value="person" ${profile.kindSource === "manual" && profile.kind !== "creature" ? "selected" : ""}>Personaggio</option><option value="creature" ${profile.kindSource === "manual" && profile.kind === "creature" ? "selected" : ""}>Creatura / Mostro</option></select></label>` : ""}
                     ${canManageProfileLink ? `<label><span>Capacita e tag</span><input type="text" data-managed-profile-field="tags" value="${escapeAttr((profile.tags || []).join(", "))}" placeholder="mercante, boss, missioni"></label>` : ""}
                     ${canManageProfileLink ? `<label class="managed-profile-lifecycle"><span>Archiviazione sicura</span><select data-managed-profile-field="lifecycle"><option value="active" ${profile.lifecycle?.state !== "archived" ? "selected" : ""}>Attivo</option><option value="archived" ${profile.lifecycle?.state === "archived" ? "selected" : ""}>Archiviato (dati conservati)</option></select></label>` : ""}
                     ${canManageProfileLink ? renderManagedNpcCategoryField(profile) : ""}
@@ -693,7 +713,10 @@
         const actorName = String(root.querySelector('[data-managed-actor-path="name"]')?.value || "").trim();
         if (actorName) next.name = actorName;
         next.status = field("status", currentProfile.status || "");
-        next.kind = field("kind", currentProfile.kind || "person") === "creature" ? "creature" : "person";
+        const kindMode = field("kind", currentProfile.kindSource === "manual" ? currentProfile.kind : "automatic");
+        next.kindSource = kindMode === "automatic" ? "automatic" : "manual";
+        next.automaticKind = currentProfile.automaticKind || getManagedActorAutomaticKind(currentDocument);
+        next.kind = next.kindSource === "automatic" ? next.automaticKind : (kindMode === "creature" ? "creature" : "person");
         next.tags = Array.from(new Set(field("tags", (currentProfile.tags || []).join(","))
             .split(",").map((tag) => sanitizeId(tag)).filter(Boolean))).slice(0, 24);
         next.lifecycle = { ...currentProfile.lifecycle, state: field("lifecycle", currentProfile.lifecycle?.state || "active") === "archived" ? "archived" : "active" };
@@ -1175,8 +1198,8 @@
         }
         if (cursor && keys[0]) delete cursor[keys[0]];
     }
-    function renderManagedHeroVitals(attributes = {}, details = {}, runtime = {}, actorType = "") {
-        const hp = runtime?.hp || attributes?.hp || {};
+    function renderManagedHeroVitals(attributes = {}, details = {}, runtime = {}, actorType = "", sharedRuntime = true) {
+        const hp = sharedRuntime ? (runtime?.hp || attributes?.hp || {}) : (attributes?.hp || {});
         const ac = attributes?.ac && typeof attributes.ac === "object" ? (attributes.ac.value ?? attributes.ac.flat) : attributes?.ac;
         const movement = attributes?.movement?.walk;
         const isCharacter = ["character", "player"].includes(String(actorType || "").toLowerCase());
@@ -1188,6 +1211,9 @@
             { icon: isCharacter ? "fa-star" : "fa-skull", label: challengeLabel, value: challenge ?? "—", tone: "challenge" },
             { icon: "fa-person-running", label: "Velocità", value: movement !== undefined ? `${movement} ${attributes?.movement?.units || "ft"}` : "—", tone: "speed" }
         ];
+        if (!sharedRuntime) {
+            entries[0] = { icon: "fa-heart", label: "PF massimi", value: hp.max ?? "\u2014", tone: "health" };
+        }
         return `<div class="managed-hero-vitals">${entries.map((entry) => `<div class="managed-hero-vital is-${entry.tone}"><i class="fas ${entry.icon}"></i><span><small>${escapeHtml(entry.label)}</small><strong>${escapeHtml(entry.value)}</strong></span></div>`).join("")}</div>`;
     }
     function renderManagedCommandBar({ abilities, skills, traits, identityEntries, variants, effects, merchant, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor }) {
@@ -1236,7 +1262,7 @@
         renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
         window.requestAnimationFrame(() => window.scrollTo({ top: Math.min(previousScroll, Math.max(0, document.documentElement.scrollHeight - window.innerHeight)), behavior: "instant" }));
     }
-    function renderCoreStats(attributes, details, runtime, actorType, traits, spellSlotDefinitions = {}, canEdit = false) {
+    function renderCoreStats(attributes, details, runtime, actorType, traits, spellSlotDefinitions = {}, canEdit = false, sharedRuntime = true) {
         const hp = attributes.hp || {};
         const runtimeHp = runtime?.hp || {};
         const acData = attributes.ac && typeof attributes.ac === "object" ? attributes.ac : {};
@@ -1244,9 +1270,13 @@
         const movement = attributes.movement && typeof attributes.movement === "object" ? attributes.movement : {};
         const isCharacter = ["character", "player"].includes(String(actorType || "").toLowerCase());
         const stats = [
-            { label: "PF attuali", path: "system.attributes.hp.value", value: runtimeHp.value ?? hp.value ?? 0, icon: "fa-heart-pulse", type: "number", min: 0, max: 999999, step: 1 },
+            ...(sharedRuntime ? [
+                { label: "PF attuali", path: "system.attributes.hp.value", value: runtimeHp.value ?? hp.value ?? 0, icon: "fa-heart-pulse", type: "number", min: 0, max: 999999, step: 1 }
+            ] : []),
             { label: "PF massimi", path: "system.attributes.hp.max", value: hp.max ?? runtimeHp.max, icon: "fa-heart", type: "number", min: 0, max: 999999, step: 1 },
-            { label: "PF temporanei", path: "system.attributes.hp.temp", value: runtimeHp.temp ?? hp.temp ?? 0, icon: "fa-shield-heart", type: "number", min: 0, max: 999999, step: 1 },
+            ...(sharedRuntime ? [
+                { label: "PF temporanei", path: "system.attributes.hp.temp", value: runtimeHp.temp ?? hp.temp ?? 0, icon: "fa-shield-heart", type: "number", min: 0, max: 999999, step: 1 }
+            ] : []),
             { label: "Classe Armatura", path: "system.attributes.ac.flat", value: acData.flat ?? ac, icon: "fa-shield-halved", type: "number", min: 0, max: 99, step: 1 },
             { label: "Competenza", path: "system.attributes.prof", value: attributes.prof, icon: "fa-dice-d20", type: "number", min: 0, max: 99, step: 1 },
             { label: "Bonus iniziativa", path: "system.attributes.init.bonus", value: attributes.init?.bonus ?? attributes.init?.value ?? 0, icon: "fa-bolt", type: "number", min: -99, max: 99, step: 1 },
@@ -1267,11 +1297,11 @@
             <label><span>Metodo CA</span>${renderManagedActorControl("system.attributes.ac.calc", "select", acData.calc || "flat", { options: [["default", "Equipaggiamento"], ["natural", "Armatura naturale"], ["flat", "Valore fisso"], ["formula", "Formula"], ["custom", "Personalizzato"]] })}</label>
             <label class="managed-rule-check">${renderManagedActorControl("system.attributes.movement.hover", "boolean", Boolean(movement.hover))}<span>Può fluttuare</span></label>
         </div></div>` : "";
-        const spellSlotsEditor = renderManagedSpellSlots(spellSlotDefinitions, runtime?.spellSlots || {}, canEdit);
+        const spellSlotsEditor = renderManagedSpellSlots(spellSlotDefinitions, runtime?.spellSlots || {}, canEdit, sharedRuntime);
         return `<section id="managed-stats" class="managed-panel managed-panel--wide managed-panel--stats"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Profilo di gioco</span><h2><i class="fas fa-chart-simple"></i> Statistiche</h2></div>${renderManagedActorCommandStatus()}</header><div class="managed-stat-grid">${cards}</div>${movementEditor}${spellSlotsEditor}</section>`;
     }
 
-    function renderManagedSpellSlots(definitions = {}, runtime = {}, canEdit = false) {
+    function renderManagedSpellSlots(definitions = {}, runtime = {}, canEdit = false, sharedRuntime = true) {
         const keys = [...Array.from({ length: 9 }, (_, index) => `spell${index + 1}`), "pact"];
         const slots = keys.map((key) => {
             const definition = definitions?.[key] || {};
@@ -1283,6 +1313,11 @@
             const rawValue = Number(usesSpent ? state.spent : (state.value ?? maximum)) || 0;
             const used = usesSpent ? rawValue : Math.max(0, maximum - rawValue);
             const label = key === "pact" ? "Patto" : `Livello ${key.replace("spell", "")}`;
+            if (!sharedRuntime) {
+                const maximumPath = `system.spells.${key}.${definition.override !== undefined ? "override" : "max"}`;
+                if (!canEdit) return `<div class="managed-spell-slot"><span>${label}</span><strong>${maximum}</strong><small>massimi</small></div>`;
+                return `<label class="managed-spell-slot managed-spell-slot--editable"><span>${label}</span>${renderManagedActorControl(maximumPath, "number", maximum, { min: 0, max: 999, step: 1 })}<small>slot massimi</small></label>`;
+            }
             if (!canEdit) return `<div class="managed-spell-slot"><span>${label}</span><strong>${used}/${maximum}</strong><small>usati</small></div>`;
             const desiredRaw = getManagedActorDesiredValue(path, rawValue);
             const desiredUsed = usesSpent ? Number(desiredRaw || 0) : Math.max(0, maximum - Number(desiredRaw ?? maximum));
@@ -1290,7 +1325,8 @@
             return `<label class="managed-spell-slot managed-spell-slot--editable"><span>${label}</span><input type="number" min="0" max="${maximum}" step="1" value="${desiredUsed}" data-managed-actor-path="${path}" data-managed-actor-type="spell-used" data-managed-spell-max="${maximum}" data-managed-spell-mode="${usesSpent ? "spent" : "remaining"}" data-managed-actor-original="${original}"><small>usati su ${maximum}</small></label>`;
         }).filter(Boolean);
         if (!slots.length) return "";
-        return `<div class="managed-spell-editor"><div class="managed-rule-editor-heading"><i class="fas fa-wand-sparkles"></i><div><strong>Slot incantesimo</strong><span>Gli slot usati vengono sincronizzati con Foundry.</span></div></div><div class="managed-spell-slot-grid">${slots.join("")}</div></div>`;
+        const detail = sharedRuntime ? "Gli slot usati vengono sincronizzati con Foundry." : "Sono mostrati solo i massimi dello statblock; ogni token conserva i propri utilizzi.";
+        return `<div class="managed-spell-editor"><div class="managed-rule-editor-heading"><i class="fas fa-wand-sparkles"></i><div><strong>Slot incantesimo</strong><span>${detail}</span></div></div><div class="managed-spell-slot-grid">${slots.join("")}</div></div>`;
     }
 
     function renderManagedCurrency(wallet = {}, canEdit = false) {

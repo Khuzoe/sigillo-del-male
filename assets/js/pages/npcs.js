@@ -224,6 +224,9 @@ function parseYamlLite(yamlText) {
             const statsVisibility = String(actor?.visibility?.state || 'dm').toLowerCase();
             const profileVisibility = String(profile?.visibility?.state || 'dm').toLowerCase();
             const hiddenFromPlayers = statsVisibility === 'dm' && profileVisibility === 'dm';
+            const automaticKind = String(actor?.entityKind || '').toLowerCase() === 'creature' ? 'creature' : 'person';
+            const kindSource = String(profile?.kindSource || 'automatic').toLowerCase();
+            const effectiveKind = kindSource === 'manual' ? profile.kind : (actor?.entityKind || profile.kind || automaticKind);
             return {
                 ...(legacyNpc || {}),
                 id: legacyId || `managed-${actor.worldId || 'world'}-${actor.actorId || 'actor'}`,
@@ -233,7 +236,7 @@ function parseYamlLite(yamlText) {
                 lifeState: normalizeManagedNpcLifeState(profile.lifeState, profile.status || legacyNpc?.status),
                 status: normalizeManagedNpcStatus(profile.lifeState, profile.status || legacyNpc?.status),
                 statusNote: String(profile.status || legacyNpc?.statusNote || ''),
-                kind: profile.kind === 'creature' ? 'creature' : 'person',
+                kind: String(effectiveKind || '').toLowerCase() === 'creature' ? 'creature' : 'person',
                 tags: Array.from(new Set([...(Array.isArray(profile.tags) ? profile.tags : []), ...(Array.isArray(actor?.capabilities) ? actor.capabilities : [])])),
                 archived: profile.lifecycle?.state === 'archived',
                 sync: actor?.sync || null,
