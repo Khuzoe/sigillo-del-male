@@ -248,6 +248,9 @@ assert.match(moduleSyncSource, /patch\?\.path !== ["']prototypeToken\.actorLink[
 assert.match(moduleSyncSource, /const SYNC_BATCH_WINDOW_MS = 60_000;/, "le modifiche Foundry devono essere raccolte per un minuto");
 assert.match(moduleSyncSource, /if \(!pendingTimers\.has\(actorId\)\) scheduleManagedActorFlush\(actorId, SYNC_BATCH_WINDOW_MS\);/, "nuove modifiche devono confluire nella finestra gia aperta");
 assert.match(moduleSyncSource, /pendingJobs\.get\(actorId\) !== event/, "una modifica arrivata durante l'invio non deve essere cancellata dall'ack precedente");
+assert.match(moduleSyncSource, /activity\.damage\?\.includeBase !== false/, "il danno base deve seguire il default D&D5e anche quando includeBase non e serializzato");
+assert.match(moduleSyncSource, /managedCollectionValues\(activity\.damage\?\.parts\)/, "tutti i danni aggiuntivi dell'attivita devono essere esportati");
+assert.match(moduleSyncSource, /const role = damage\.length \|\| index > 0 \? ["']secondary["']/, "i danni successivi al principale devono restare identificabili");
 
 const managedActorFeSource = await readFile(new URL("../assets/js/pages/managed-actor.js", import.meta.url), "utf8");
 assert.match(
@@ -255,6 +258,9 @@ assert.match(
   /explicitPolicy === ["']shared["']/,
   "il frontend deve rispettare la politica condivisa esplicita senza ricadere su actorLink",
 );
+assert.match(managedActorFeSource, /Aggiuntivo/, "il frontend deve distinguere chiaramente i danni secondari");
+assert.match(managedActorFeSource, /buildManagedEffectiveRollFallback/, "i dati Foundry gia salvati devono mostrare i danni anche prima di una nuova sincronizzazione");
+assert.match(managedActorFeSource, /\["capabilities", "spells"\]\.includes\(collectionKind\)/, "i dettagli effettivi devono comparire anche per gli incantesimi");
 
 await Promise.allSettled(waits);
 console.log("Managed Actor safety tests passed.");

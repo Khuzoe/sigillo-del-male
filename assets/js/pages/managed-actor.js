@@ -1829,18 +1829,103 @@
         return `<details${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><summary class="managed-panel-heading managed-collection-summary"><div><span class="managed-panel-eyebrow">Dati Foundry</span><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-collection-summary-meta"><span class="managed-count-badge">${entries.length}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-collection-body">${entries.length ? `${overview}${lead ? `<p class="managed-panel-lead">${escapeHtml(lead)}</p>` : ""}${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</div></details>`;
     }
 
+    function managedRawCollectionValues(value) {
+        if (value === undefined || value === null || value === "") return [];
+        if (Array.isArray(value)) return value;
+        if (typeof value === "object") return Object.values(value);
+        return [value];
+    }
+
+    function resolveManagedRawFormula(value, entry, activity = {}) {
+        const definition = entry?.definition || {};
+        const ability = String(activity?.attack?.ability || definition?.attack?.ability || definition?.ability || "").toLowerCase();
+        const abilityMod = Number(currentDocument?.definition?.abilities?.[ability]?.mod || 0);
+        const proficiency = Number(currentDocument?.definition?.attributes?.prof || 0);
+        return String(value || "")
+            .replace(/@mod\b/g, String(abilityMod))
+            .replace(/@prof\b/g, String(proficiency))
+            .replace(/@abilities\.([a-z]{3})\.mod\b/gi, (_, key) => String(Number(currentDocument?.definition?.abilities?.[String(key).toLowerCase()]?.mod || 0)))
+            .replace(/\s+/g, " ")
+            .trim();
+    }
+
+    function summarizeManagedRawDamage(part, entry, activity, role) {
+        if (Array.isArray(part)) {
+            const formula = resolveManagedRawFormula(part[0], entry, activity);
+            return formula ? { formula, types: managedRawCollectionValues(part[1]).map(String).filter(Boolean), role } : null;
+        }
+        if (!part || typeof part !== "object") return null;
+        const customFormula = part.custom?.enabled ? part.custom?.formula : "";
+        let formula = String(customFormula || part.formula || "").trim();
+        if (!formula) {
+            const number = part.number ?? part.dice?.number;
+            const denomination = part.denomination ?? part.dice?.denomination;
+            const bonus = String(part.bonus ?? "").trim();
+            const dice = number && denomination ? `${number}d${denomination}` : "";
+            formula = dice && bonus ? `${dice}${bonus.startsWith("-") ? " " : " + "}${bonus}` : (dice || bonus);
+        }
+        formula = resolveManagedRawFormula(formula, entry, activity);
+        const types = managedRawCollectionValues(part.types ?? part.type).map(String).filter(Boolean);
+        return formula ? { formula, types, role } : null;
+    }
+
+    function buildManagedEffectiveRollFallback(entry) {
+        const definition = entry?.definition || {};
+        const source = definition.activities && typeof definition.activities === "object" ? definition.activities : {};
+        const activityEntries = Array.isArray(source)
+            ? source.map((activity, index) => [activity?._id || activity?.id || index, activity])
+            : Object.entries(source);
+        const summaries = activityEntries.map(([id, activity = {}]) => {
+            const damage = [];
+            if (activity.damage?.includeBase !== false && definition.damage?.base) {
+                const base = summarizeManagedRawDamage(definition.damage.base, entry, activity, "primary");
+                if (base) damage.push(base);
+            }
+            managedRawCollectionValues(activity.damage?.parts).forEach((part, index) => {
+                const summary = summarizeManagedRawDamage(part, entry, activity, damage.length || index > 0 ? "secondary" : "primary");
+                if (summary) damage.push(summary);
+            });
+            const rawDc = activity.save?.dc?.value ?? activity.save?.dc;
+            const dc = Number(rawDc);
+            const abilities = managedRawCollectionValues(activity.save?.ability ?? activity.save?.abilities).map(String).filter(Boolean);
+            return {
+                id: String(id || ""),
+                name: String(activity.name || entry?.name || "Attività"),
+                damage,
+                save: Number.isFinite(dc) && dc > 0 ? { dc, abilities } : null
+            };
+        }).filter((activity) => activity.damage.length || activity.save);
+        if (summaries.length) return summaries;
+
+        const fallbackDamage = [];
+        managedRawCollectionValues(definition.damage?.parts).forEach((part, index) => {
+            const summary = summarizeManagedRawDamage(part, entry, {}, index > 0 ? "secondary" : "primary");
+            if (summary) fallbackDamage.push(summary);
+        });
+        if (!fallbackDamage.length && definition.damage?.base) {
+            const base = summarizeManagedRawDamage(definition.damage.base, entry, {}, "primary");
+            if (base) fallbackDamage.push(base);
+        }
+        return fallbackDamage.length ? [{ id: "base", name: String(entry?.name || "Attività"), damage: fallbackDamage, save: null }] : [];
+    }
+
     function renderManagedEffectiveRolls(entry) {
-        const activities = Array.isArray(entry?.definition?.effectiveRolls?.activities)
+        const exportedActivities = Array.isArray(entry?.definition?.effectiveRolls?.activities)
             ? entry.definition.effectiveRolls.activities
             : [];
+        const activities = exportedActivities.length ? exportedActivities : buildManagedEffectiveRollFallback(entry);
         const useful = activities.filter((activity) => (Array.isArray(activity?.damage) && activity.damage.length) || Number(activity?.save?.dc) > 0);
         if (!useful.length) return "";
         const showNames = useful.length > 1;
         const rows = useful.map((activity) => {
-            const damage = (Array.isArray(activity.damage) ? activity.damage : []).map((part) => {
+            const damage = (Array.isArray(activity.damage) ? activity.damage : []).map((part, index) => {
                 const formula = String(part?.formula || "").trim();
                 const types = (Array.isArray(part?.types) ? part.types : []).map(formatManagedTraitValue).filter(Boolean).join("/");
-                return formula ? `<span class="managed-effective-damage"><i class="fas fa-burst"></i><strong>${escapeHtml(formula)}</strong>${types ? `<small>${escapeHtml(types)}</small>` : ""}</span>` : "";
+                const role = String(part?.role || "").toLowerCase() === "secondary" || (!part?.role && index > 0)
+                    ? "secondary"
+                    : "primary";
+                const roleLabel = role === "secondary" ? "Aggiuntivo" : "Principale";
+                return formula ? `<span class="managed-effective-damage is-${role}"><i class="fas fa-burst"></i><span class="managed-effective-damage-kind">${roleLabel}</span><strong>${escapeHtml(formula)}</strong>${types ? `<small>${escapeHtml(types)}</small>` : ""}</span>` : "";
             }).filter(Boolean).join("");
             const dc = Number(activity?.save?.dc || 0);
             const abilities = (Array.isArray(activity?.save?.abilities) ? activity.save.abilities : []).map((ability) => String(ability || "").toUpperCase()).filter(Boolean).join("/");
@@ -1861,7 +1946,7 @@
         const status = command ? renderManagedItemSyncStatus(command) : "";
         const searchText = normalizeManagedSearch([entry.name, meta, preparation?.label, searchDescription].filter(Boolean).join(" "));
         const level = Number(entry.definition?.level ?? 0) || 0;
-        const effectiveRolls = collectionKind === "capabilities" ? renderManagedEffectiveRolls(entry) : "";
+        const effectiveRolls = ["capabilities", "spells"].includes(collectionKind) ? renderManagedEffectiveRolls(entry) : "";
         const disclosure = description ? `<details class="managed-entry-disclosure"><summary><span><i class="fas fa-book-open"></i> Descrizione</span><i class="fas fa-chevron-down"></i></summary><div>${formatManagedPreview(description)}</div></details>` : "";
         const preparationAttribute = preparation ? ` data-managed-spell-preparation="${escapeAttr(preparation.key)}"` : "";
         const preparationBadge = preparation ? `<span class="managed-spell-preparation is-${escapeAttr(preparation.key)}"><i class="fas ${escapeAttr(preparation.icon)}"></i>${escapeHtml(preparation.label)}</span>` : "";
