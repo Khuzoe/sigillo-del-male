@@ -113,6 +113,9 @@ function filterVisibleItems(items, { includeHidden = false, includeArchived = fa
 
 async function canCurrentUserSeeHiddenItems() {
     try {
+        if (typeof window.CriptaDiscordAuth?.isCurrentUserDm === "function") {
+            return Boolean(await window.CriptaDiscordAuth.isCurrentUserDm(window.CriptaBasePath || "../"));
+        }
         const authState = await window.CriptaApp?.auth?.verify?.();
         const accountId = getAuthAccountId(authState);
         const discordId = getAuthDiscordId(authState);

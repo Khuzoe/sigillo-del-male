@@ -71,6 +71,14 @@
                 ? window.CriptaDiscordAuth.getToken()
                 : '';
         },
+        async canManageCampaign() {
+            if (typeof window.CriptaDiscordAuth?.isCurrentUserDm !== 'function') return false;
+            try {
+                return Boolean(await window.CriptaDiscordAuth.isCurrentUserDm(window.CriptaBasePath || ''));
+            } catch (_) {
+                return false;
+            }
+        },
         getAccountId(authState, accounts = []) {
             const user = authState?.user || {};
             const explicitAccountId = String(user.accountId || '').trim();
@@ -1814,19 +1822,23 @@
     async function renderScheduledSession(container, config) {
         let authState = null;
         let accounts = [];
+        let canManageCampaign = false;
         try {
-            [authState, accounts] = await Promise.all([
+            [authState, accounts, canManageCampaign] = await Promise.all([
                 authService.verify(),
-                loadGlobalAccounts()
+                loadGlobalAccounts(),
+                authService.canManageCampaign()
             ]);
         } catch (_) {
             authState = null;
             accounts = [];
+            canManageCampaign = false;
         }
 
         const currentAccountId = authService.getAccountId(authState, accounts);
         const currentDiscordId = authService.getDiscordId(authState);
-        const canConfigureSession = canManagePoll(config, currentAccountId, currentDiscordId, accounts);
+        const canConfigureSession = canManageCampaign
+            || canManagePoll(config, currentAccountId, currentDiscordId, accounts);
 
         container.innerHTML = buildScheduledMarkup(config, canConfigureSession);
         const toggleButton = container.querySelector('[data-view-mode]');
@@ -2050,11 +2062,13 @@
         let players = [];
         let authState = null;
         let accounts = [];
+        let canManageCampaign = false;
         try {
-            [players, authState, accounts] = await Promise.all([
+            [players, authState, accounts, canManageCampaign] = await Promise.all([
                 loadEligiblePlayers(effectiveConfig),
                 authService.verify(),
-                loadGlobalAccounts()
+                loadGlobalAccounts(),
+                authService.canManageCampaign()
             ]);
         } catch (error) {
             console.error('Impossibile caricare i player per il planner della prossima sessione:', error);
@@ -2080,7 +2094,8 @@
             return leftIsCurrent ? -1 : 1;
         });
         preloadVoteIcons(orderedPlayers);
-        const canConfigureSession = canManagePoll(effectiveConfig, currentAccountId, currentDiscordId, accounts);
+        const canConfigureSession = canManageCampaign
+            || canManagePoll(effectiveConfig, currentAccountId, currentDiscordId, accounts);
         const localFallbackVotes = readStoredVotes(effectiveConfig.number, effectiveConfig.availabilityVotes, options, players);
         let baseVotes = localFallbackVotes;
         try {

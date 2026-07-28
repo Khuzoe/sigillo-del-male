@@ -28,5 +28,9 @@
     "id": "alle",
     "name": "Alle",
     "discordId": "142959132171829248"
+  },
+  {
+    "id": "admin",
+    "name": "ADMIN"
   }
 ]

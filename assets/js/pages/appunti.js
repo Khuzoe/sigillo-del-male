@@ -1129,16 +1129,21 @@
 
     const accessContextService = {
         async load() {
-            const [config, players, accounts] = await Promise.all([
+            const canManageCampaignPromise = typeof window.CriptaDiscordAuth?.isCurrentUserDm === "function"
+                ? window.CriptaDiscordAuth.isCurrentUserDm(window.CriptaBasePath || "../").catch(() => false)
+                : Promise.resolve(false);
+            const [config, players, accounts, canManageCampaign] = await Promise.all([
                 dataService.fetchJson(dataUrl("next-session.json")).catch(() => ({})),
                 dataService.fetchJson(dataUrl("players.json")).catch(() => []),
-                dataService.fetchJson(globalDataUrl("users.json")).catch(() => [])
+                dataService.fetchJson(globalDataUrl("users.json")).catch(() => []),
+                canManageCampaignPromise
             ]);
 
             const dmAccountId = String(config?.dmAccountId || "").trim();
             const dmDiscordId = String(config?.dmDiscordId || "").trim();
             const currentDiscordId = authService.getDiscordId(await authService.verify());
-            state.isDm = Boolean(dmAccountId && state.currentDiscordId === dmAccountId)
+            state.isDm = Boolean(canManageCampaign)
+                || Boolean(dmAccountId && state.currentDiscordId === dmAccountId)
                 || Boolean(dmDiscordId && currentDiscordId === dmDiscordId);
 
             const ownersById = new Map();

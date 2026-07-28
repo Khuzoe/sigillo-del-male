@@ -506,6 +506,8 @@ export default {
               JWT_SECRET: !!env.JWT_SECRET,
               SIGILLO_KV: !!env.SIGILLO_KV,
               NOTES_ADMIN_DISCORD_IDS: !!env.NOTES_ADMIN_DISCORD_IDS,
+              GLOBAL_ADMIN_ACCOUNTS: !!(env.GLOBAL_ADMIN_ACCOUNT_IDS || env.GLOBAL_ADMIN_DISCORD_IDS || env.DATA_ADMIN_ACCOUNT_IDS || env.SITE_ADMIN_ACCOUNT_IDS),
+              GLOBAL_ADMIN_DEVICE_CODE: !!env.GLOBAL_ADMIN_DEVICE_CODE,
               DEVICE_LOGIN_CODES: !!(env.DEVICE_LOGIN_CODES_SECRET || env.DEVICE_LOGIN_CODES),
             },
             values: {
@@ -1143,7 +1145,7 @@ export default {
 
         const authenticatedAccountId = getAuthenticatedAccountId(user, env);
         const authenticatedDiscordId = getAuthenticatedDiscordId(user);
-        const canManagePoll = (
+        const canManagePoll = isAuthenticatedGlobalAdmin(user, env) || (
           (dmAccountId && authenticatedAccountId === dmAccountId)
           || pollManagerAccountIds.includes(authenticatedAccountId)
           || (dmDiscordId && authenticatedDiscordId === dmDiscordId)
@@ -1783,7 +1785,7 @@ async function handleDiscordShareCard(request, fallbackCampaignId, env, corsHead
   }
 
   const campaignId = sanitizeCampaignId(form.get("campaignId") || form.get("campaign") || fallbackCampaignId);
-  const canPublish = isAuthenticatedAdmin(user, env)
+  const canPublish = isAuthenticatedGlobalAdmin(user, env)
     || await isAuthenticatedCampaignContentEditor(user, env, campaignId);
   if (!canPublish) {
     return json({ ok: false, error: "Forbidden: user must be the campaign DM or content editor" }, 403, corsHeaders);
@@ -1960,7 +1962,7 @@ async function loadSessionForDiscordAction(env, campaignId, rawNumber) {
 }
 
 function canManageSessionDiscordAction(user, env, session) {
-  if (isAuthenticatedAdmin(user, env)) return true;
+  if (isAuthenticatedGlobalAdmin(user, env)) return true;
   const accountId = getAuthenticatedAccountId(user, env);
   const discordId = getAuthenticatedDiscordId(user);
   const dmAccountId = sanitizeAccountId(session?.dmAccountId || "");
@@ -2369,7 +2371,7 @@ function projectMissionForReader(mission, reader) {
 
 async function isMissionEditor(user, env, campaignId) {
   if (!user) return false;
-  if (isAuthenticatedAdmin(user, env)) return true;
+  if (isAuthenticatedGlobalAdmin(user, env)) return true;
   const accountId = getAuthenticatedAccountId(user, env);
   const discordId = getAuthenticatedDiscordId(user);
   if (isExplicitDataAdmin(accountId, discordId, env)) return true;
@@ -3631,12 +3633,13 @@ async function getManagedActorReader(request, env, campaignId) {
 }
 async function handleCampaignAccessGet(request, campaignId, env, corsHeaders = {}) {
   const user = await getOptionalAuthenticatedUser(request, env);
+  const isGlobalAdmin = Boolean(user && isAuthenticatedGlobalAdmin(user, env));
   const isEditor = Boolean(user && await isAuthenticatedCampaignContentEditor(user, env, campaignId));
   return json({
     ok: true,
     campaignId,
     authenticated: Boolean(user),
-    permissions: { isEditor, canManageCampaign: isEditor },
+    permissions: { isEditor, canManageCampaign: isEditor, isGlobalAdmin },
   }, 200, {
     ...corsHeaders,
     "Cache-Control": user ? "private, no-store" : "public, max-age=60, must-revalidate",
@@ -8331,12 +8334,24 @@ function isNotesAdmin(discordId, env) {
   return ids.includes(String(discordId));
 }
 
+function isAuthenticatedGlobalAdmin(user, env) {
+  if (!user) return false;
+  return isExplicitDataAdmin(
+    getAuthenticatedAccountId(user, env),
+    getAuthenticatedDiscordId(user),
+    env
+  );
+}
+
 function isAuthenticatedAdmin(user, env) {
-  return isNotesAdmin(getAuthenticatedAccountId(user, env), env)
+  return isAuthenticatedGlobalAdmin(user, env)
+    || isNotesAdmin(getAuthenticatedAccountId(user, env), env)
     || isNotesAdmin(getAuthenticatedDiscordId(user), env);
 }
 
 async function isAuthenticatedCampaignContentEditor(user, env, campaignId) {
+  if (isAuthenticatedGlobalAdmin(user, env)) return true;
+
   const cleanCampaignId = sanitizeCampaignId(campaignId);
   const accountId = getAuthenticatedAccountId(user, env);
   const discordId = getAuthenticatedDiscordId(user);
@@ -8361,12 +8376,11 @@ async function isAuthenticatedCampaignContentEditor(user, env, campaignId) {
 
 
 async function isAuthenticatedCampaignEditor(user, env, campaignId) {
-  if (isAuthenticatedAdmin(user, env)) return true;
+  if (isAuthenticatedGlobalAdmin(user, env)) return true;
 
   const cleanCampaignId = sanitizeCampaignId(campaignId);
   const accountId = getAuthenticatedAccountId(user, env);
   const discordId = getAuthenticatedDiscordId(user);
-  if (isExplicitDataAdmin(accountId, discordId, env)) return true;
   if (isExplicitCampaignEditor(cleanCampaignId, accountId, discordId, env)) return true;
 
   if (!env.SIGILLO_KV) return false;
@@ -8392,9 +8406,17 @@ async function isAuthenticatedCampaignEditor(user, env, campaignId) {
 }
 
 function isExplicitDataAdmin(accountId, discordId, env) {
-  const accountIds = normalizeDelimitedStringList(env.DATA_ADMIN_ACCOUNT_IDS || env.SITE_ADMIN_ACCOUNT_IDS || "")
+  const accountIds = normalizeDelimitedStringList([
+    env.GLOBAL_ADMIN_ACCOUNT_IDS,
+    env.DATA_ADMIN_ACCOUNT_IDS,
+    env.SITE_ADMIN_ACCOUNT_IDS,
+  ].filter(Boolean).join(","))
     .map(sanitizeAccountId);
-  const discordIds = normalizeDelimitedStringList(env.DATA_ADMIN_DISCORD_IDS || env.SITE_ADMIN_DISCORD_IDS || "")
+  const discordIds = normalizeDelimitedStringList([
+    env.GLOBAL_ADMIN_DISCORD_IDS,
+    env.DATA_ADMIN_DISCORD_IDS,
+    env.SITE_ADMIN_DISCORD_IDS,
+  ].filter(Boolean).join(","))
     .filter((entry) => /^\d{5,32}$/.test(entry));
   return (accountId && accountIds.includes(accountId))
     || (discordId && discordIds.includes(discordId));
@@ -8488,6 +8510,21 @@ function getAuthenticatedDiscordId(user) {
 
 function findDeviceLoginAccount(code, env) {
   if (!code) return null;
+
+  const globalAdminCode = normalizeDeviceCode(env.GLOBAL_ADMIN_DEVICE_CODE || "");
+  if (globalAdminCode.length >= 20 && code === globalAdminCode) {
+    const accountId = normalizeDelimitedStringList(env.GLOBAL_ADMIN_ACCOUNT_IDS || "")
+      .map(sanitizeAccountId)
+      .find(Boolean);
+    if (accountId) {
+      return {
+        accountId,
+        discordId: "",
+        username: accountId,
+        globalName: "ADMIN",
+      };
+    }
+  }
 
   const raw = String(env.DEVICE_LOGIN_CODES_SECRET || env.DEVICE_LOGIN_CODES || "").trim();
   if (!raw) return null;
