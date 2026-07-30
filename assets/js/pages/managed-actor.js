@@ -13,6 +13,11 @@
     const managedPreviewUrls = new Map();
     const managedProfileFiles = new Map();
     const managedProfilePreviewUrls = new Map();
+    let managedActorLinkRefreshTimer = 0;
+    let managedActorLinkPollAttempts = 0;
+    let managedActorLinkExpectedActorLink = null;
+    let managedCommandRefreshTimer = 0;
+    let managedCommandPollAttempts = 0;
 
     window.CriptaApp.onPageReady("managed-actor", async () => {
         const root = document.querySelector("[data-managed-actor-root]");
@@ -108,11 +113,215 @@
     }
 
     function managedActorHasSharedRuntime(actor) {
+        const actorType = String(actor?.actorType || "").trim().toLowerCase();
+        const actorLink = actor?.definition?.prototypeToken?.actorLink;
+        if (actorType === "npc" && typeof actorLink === "boolean") return actorLink;
         const explicitPolicy = String(actor?.runtimePolicy || "").trim().toLowerCase();
         if (explicitPolicy === "per-instance") return false;
         if (explicitPolicy === "shared") return true;
-        const actorType = String(actor?.actorType || "").trim().toLowerCase();
-        return !(actorType === "npc" && actor?.definition?.prototypeToken?.actorLink === false);
+        return true;
+    }
+
+    function getManagedActorLinkCommands(actor = currentDocument) {
+        return (Array.isArray(actor?.sync?.commands) ? actor.sync.commands : []).filter((command) => String(command.kind || "").startsWith("actor-link."));
+    }
+
+    function getManagedActorLinkState(actor = currentDocument) {
+        const commands = getManagedActorLinkCommands(actor);
+        const apply = commands.find((command) => command.kind === "actor-link.apply") || null;
+        const inspection = commands.find((command) => command.kind === "actor-link.inspect") || null;
+        const review = apply?.current?.sources?.length ? apply.current : (inspection?.current?.sources?.length ? inspection.current : null);
+        const actual = actor?.definition?.prototypeToken?.actorLink !== false;
+        const finalizing = managedActorLinkExpectedActorLink === true && !actual && apply?.status !== "pending";
+        return {
+            actual,
+            finalizing,
+            inspection,
+            apply,
+            review,
+            busy: finalizing || [inspection, apply].some((command) => command?.status === "pending")
+        };
+    }
+
+    function managedActorLinkSameValue(left, right) {
+        return JSON.stringify(left ?? null) === JSON.stringify(right ?? null);
+    }
+
+    function managedActorLinkValue(value) {
+        if (value === undefined || value === null || value === "") return "—";
+        if (typeof value === "boolean") return value ? "Si" : "No";
+        return String(value);
+    }
+
+    function managedActorLinkResourceLabel(key) {
+        return String(currentDocument?.definition?.resources?.[key]?.label || key || "Risorsa");
+    }
+
+    function managedActorLinkSlotLabel(key) {
+        if (key === "pact") return "Slot Patto";
+        const level = Number(String(key || "").replace("spell", ""));
+        return Number.isFinite(level) && level > 0 ? `Slot livello ${level}` : String(key || "Slot");
+    }
+
+    function managedActorLinkRuntimeDifferences(source, baseline) {
+        if (!source || !baseline || source.id === baseline.id) return [];
+        const current = source.runtime || {};
+        const base = baseline.runtime || {};
+        const differences = [];
+        const add = (label, before, after, icon = "fa-arrow-right-arrow-left") => {
+            if (managedActorLinkSameValue(before, after)) return;
+            differences.push({ label, before: managedActorLinkValue(before), after: managedActorLinkValue(after), icon, kind: "runtime" });
+        };
+        add("PF attuali", base.hp?.value, current.hp?.value, "fa-heart-pulse");
+        add("PF massimi", base.hp?.max, current.hp?.max, "fa-heart");
+        add("PF temporanei", base.hp?.temp, current.hp?.temp, "fa-shield-heart");
+        add("Massimo temporanei", base.hp?.tempmax, current.hp?.tempmax, "fa-shield");
+        add("Ispirazione", base.inspiration, current.inspiration, "fa-star");
+        add("Successi morte", base.death?.success, current.death?.success, "fa-heart-crack");
+        add("Fallimenti morte", base.death?.failure, current.death?.failure, "fa-skull");
+
+        const resourceKeys = Array.from(new Set([
+            ...Object.keys(base.resources || {}),
+            ...Object.keys(current.resources || {})
+        ]));
+        for (const key of resourceKeys) {
+            const before = base.resources?.[key] || {};
+            const after = current.resources?.[key] || {};
+            const beforeText = `${managedActorLinkValue(before.value)}/${managedActorLinkValue(before.max)}`;
+            const afterText = `${managedActorLinkValue(after.value)}/${managedActorLinkValue(after.max)}`;
+            add(managedActorLinkResourceLabel(key), beforeText, afterText, "fa-bolt");
+        }
+
+        const slotKeys = Array.from(new Set([
+            ...Object.keys(base.spellSlots || {}),
+            ...Object.keys(current.spellSlots || {})
+        ])).sort();
+        for (const key of slotKeys) {
+            const before = base.spellSlots?.[key] || {};
+            const after = current.spellSlots?.[key] || {};
+            const beforeText = before.spent !== null && before.spent !== undefined
+                ? `${managedActorLinkValue(before.spent)} spesi / ${managedActorLinkValue(before.max)}`
+                : `${managedActorLinkValue(before.value)}/${managedActorLinkValue(before.max)}`;
+            const afterText = after.spent !== null && after.spent !== undefined
+                ? `${managedActorLinkValue(after.spent)} spesi / ${managedActorLinkValue(after.max)}`
+                : `${managedActorLinkValue(after.value)}/${managedActorLinkValue(after.max)}`;
+            add(managedActorLinkSlotLabel(key), beforeText, afterText, "fa-wand-sparkles");
+        }
+        return differences;
+    }
+
+    function managedActorLinkAllDifferences(source, baseline) {
+        const differences = managedActorLinkRuntimeDifferences(source, baseline);
+        const definitionIcons = {
+            ability: "fa-dumbbell",
+            proficiency: "fa-award",
+            stat: "fa-gauge-high",
+            movement: "fa-person-running",
+            trait: "fa-shield-halved"
+        };
+        for (const difference of Array.isArray(source?.definitionDifferences) ? source.definitionDifferences : []) {
+            const group = ["ability", "proficiency", "stat", "movement", "trait"].includes(difference.group) ? difference.group : "stat";
+            differences.push({
+                label: difference.label || "Statistica",
+                before: managedActorLinkValue(difference.before),
+                after: managedActorLinkValue(difference.after),
+                icon: definitionIcons[group],
+                kind: group
+            });
+        }
+        for (const item of Array.isArray(source?.itemStateDifferences) ? source.itemStateDifferences : []) {
+            for (const change of Array.isArray(item.changes) ? item.changes : []) {
+                differences.push({
+                    label: `${item.name || "Elemento"} · ${change.label || "Variazione"}`,
+                    before: managedActorLinkValue(change.before),
+                    after: managedActorLinkValue(change.after),
+                    icon: item.structural ? "fa-triangle-exclamation" : "fa-backpack",
+                    kind: item.structural ? "structural" : "item"
+                });
+            }
+        }
+        for (const effect of Array.isArray(source?.effectDifferences) ? source.effectDifferences : []) {
+            const before = effect.kind === "added" ? "Assente" : "Prototype";
+            const after = effect.kind === "missing" ? "Assente" : (effect.detail || "Differente");
+            differences.push({
+                label: `Effetto · ${effect.name || "Effetto"}`,
+                before,
+                after,
+                icon: "fa-wand-magic-sparkles",
+                kind: "structural"
+            });
+        }
+        return differences;
+    }
+
+    function formatManagedActorLinkSource(source, baseline) {
+        const hp = source?.runtime?.hp || {};
+        const parts = [`PF ${hp.value ?? "—"}/${hp.max ?? "—"}`];
+        if (Number(hp.temp || 0) > 0) parts.push(`+${Number(hp.temp)} temporanei`);
+        const differences = managedActorLinkAllDifferences(source, baseline);
+        if (source?.id === baseline?.id) parts.push("riferimento");
+        else parts.push(differences.length ? `${differences.length} differenze` : "identico al prototype");
+        return parts.join(" · ");
+    }
+
+    function renderManagedActorLinkDifferenceRow(difference) {
+        return `<div class="managed-actor-link-difference is-${escapeAttr(difference.kind || "runtime")}"><i class="fas ${escapeAttr(difference.icon || "fa-arrow-right-arrow-left")}"></i><span><strong>${escapeHtml(difference.label || "Variazione")}</strong><small><del>${escapeHtml(difference.before)}</del><i class="fas fa-arrow-right"></i><b>${escapeHtml(difference.after)}</b></small></span></div>`;
+    }
+
+    function renderManagedActorLinkDifferences(source, baseline) {
+        if (source?.id === baseline?.id) {
+            return '<div class="managed-actor-link-baseline"><i class="fas fa-bullseye"></i><span>Valori dell\'Actor originale usati come riferimento.</span></div>';
+        }
+        const differences = managedActorLinkAllDifferences(source, baseline);
+        if (!differences.length) {
+            return '<div class="managed-actor-link-baseline is-equal"><i class="fas fa-equals"></i><span>Nessuna differenza di stato rispetto al prototype.</span></div>';
+        }
+        const primary = differences.slice(0, 5);
+        const remaining = differences.slice(5);
+        return `<div class="managed-actor-link-differences">${primary.map(renderManagedActorLinkDifferenceRow).join("")}${remaining.length ? `<details><summary><i class="fas fa-plus"></i> Altre ${remaining.length} differenze</summary><div>${remaining.map(renderManagedActorLinkDifferenceRow).join("")}</div></details>` : ""}</div>`;
+    }
+
+    function renderManagedActorLinkSource(source, baseline, checked = false) {
+        const badges = [
+            source.currentScene ? '<span class="is-current"><i class="fas fa-location-dot"></i> Scena corrente</span>' : "",
+            source.actorLink ? '<span><i class="fas fa-link"></i> Collegato</span>' : (source.kind === "token" ? '<span><i class="fas fa-link-slash"></i> Indipendente</span>' : ""),
+            source.structuralDifferences ? '<span class="is-warning"><i class="fas fa-triangle-exclamation"></i> Differenze strutturali</span>' : ""
+        ].filter(Boolean).join("");
+        return `<article class="managed-actor-link-source ${source.structuralDifferences ? "has-structural-differences" : ""}"><label class="managed-actor-link-source-selector"><input type="radio" name="managed-actor-link-source" value="${escapeAttr(source.id)}" ${checked ? "checked" : ""}><span class="managed-actor-link-source-check"><i class="fas fa-check"></i></span><span class="managed-actor-link-source-body"><strong>${escapeHtml(source.label || (source.kind === "token" ? "Token" : "Actor originale"))}</strong><small>${escapeHtml(formatManagedActorLinkSource(source, baseline))}</small><span class="managed-actor-link-source-badges">${badges}</span></span></label>${renderManagedActorLinkDifferences(source, baseline)}</article>`;
+    }
+    function renderManagedActorLinkPanel(actor, editable = false) {
+        if (String(actor?.actorType || "").toLowerCase() !== "npc" || actor?.permissions?.isEditor !== true) return "";
+        const state = getManagedActorLinkState(actor);
+        if (!editable && !state.inspection && !state.apply) return "";
+        const inspectionStatus = String(state.inspection?.status || "");
+        const applyStatus = String(state.apply?.status || "");
+        const awaitingInspection = inspectionStatus === "pending";
+        const applying = applyStatus === "pending";
+        const failed = [state.inspection, state.apply].find((command) => ["failed", "conflict"].includes(String(command?.status || "")));
+        const review = state.review;
+        const sources = Array.isArray(review?.sources) ? review.sources : [];
+        const structuralConflicts = sources.filter((source) => source.kind === "token" && source.structuralDifferences).length;
+        const defaultSourceId = sources.find((source) => source.currentScene && !source.structuralDifferences)?.id || sources.find((source) => source.kind === "actor")?.id || sources[0]?.id || "";
+        const switchChecked = state.actual || state.finalizing || Boolean(state.inspection || state.apply);
+        const switchDisabled = applying || state.finalizing || (state.actual && !state.inspection && !state.apply);
+        const status = state.finalizing
+            ? { icon: "fa-arrows-rotate", title: "Aggiornamento della scheda", text: "Foundry ha completato la conversione; sto rileggendo automaticamente lo stato condiviso.", tone: "pending" }
+            : applying
+                ? { icon: "fa-arrows-rotate", title: "Conversione in corso", text: "Foundry sta applicando lo stato selezionato e verificando i token.", tone: "pending" }
+            : awaitingInspection
+                ? { icon: "fa-magnifying-glass", title: "Foundry sta cercando le istanze", text: "Il flag reale non e ancora stato modificato.", tone: "pending" }
+                : review
+                    ? { icon: "fa-list-check", title: `${Number(review.tokenCount || 0)} istanze trovate`, text: structuralConflicts ? `${structuralConflicts} istanze contengono differenze strutturali: scegli la fonte e conferma l'unificazione.` : "Scegli quale stato deve diventare quello condiviso.", tone: structuralConflicts ? "warning" : "review" }
+                    : state.actual
+                        ? { icon: "fa-link", title: "Token collegati", text: "Actor e token condividono lo stesso stato corrente.", tone: "linked" }
+                        : { icon: "fa-link-slash", title: "Token indipendenti", text: "Ogni istanza puo conservare uno stato differente.", tone: "idle" };
+        return `<section id="managed-actor-link" class="managed-panel managed-panel--wide managed-actor-link-panel is-${status.tone}" data-managed-actor-link-panel>
+            <header><div><span class="managed-panel-kicker">Foundry · sicurezza istanze</span><h2><i class="fas fa-diagram-project"></i> Link Actor Data</h2></div><button type="button" class="managed-actor-link-switch" role="switch" aria-checked="${switchChecked}" ${switchDisabled || !editable ? "disabled" : ""} data-managed-actor-link-toggle><span></span><b>${switchChecked ? "Attivo" : "Disattivo"}</b></button></header>
+            <div class="managed-actor-link-status"><i class="fas ${status.icon}"></i><span><strong>${escapeHtml(status.title)}</strong><small>${escapeHtml(status.text)}</small></span></div>
+            ${failed ? `<div class="managed-actor-link-error"><i class="fas fa-triangle-exclamation"></i><span>${escapeHtml(failed.error || "La conversione richiede una nuova verifica.")}</span></div>` : ""}
+            ${review ? `<div class="managed-actor-link-review"><div class="managed-actor-link-review-head"><strong>Stato corrente autorevole</strong><span>Ispezione ${escapeHtml(formatUpdatedAt(review.inspectedAt))}</span></div><div class="managed-actor-link-sources">${sources.map((source) => renderManagedActorLinkSource(source, sources.find((entry) => entry.kind === "actor") || sources[0], source.id === defaultSourceId)).join("")}</div>${editable ? `<div class="managed-actor-link-actions"><button type="button" class="managed-command-secondary" data-managed-actor-link-cancel><i class="fas fa-xmark"></i> Annulla richiesta</button><button type="button" class="managed-command-primary" data-managed-actor-link-apply><i class="fas fa-link"></i> ${structuralConflicts ? "Conferma e uniforma" : "Collega usando questo stato"}</button></div>` : ""}</div>` : ""}
+            ${editable && !state.actual && state.inspection && !applying && !review ? `<div class="managed-actor-link-actions"><button type="button" class="managed-command-secondary" data-managed-actor-link-cancel><i class="fas fa-xmark"></i> Annulla richiesta</button></div>` : ""}
+        </section>`;
     }
 
     function syncManagedActorNavigation(actor, fallback = "") {
@@ -133,6 +342,8 @@
     }
 
     function renderManagedActor(root, actor, canEdit, editing = false, canManageActor = false) {
+        if (managedActorLinkRefreshTimer) window.clearTimeout(managedActorLinkRefreshTimer);
+        managedActorLinkRefreshTimer = 0;
         const editMode = Boolean(canEdit && editing);
         const primaryPlayer = isPrimaryManagedPlayer(actor);
         const sharedRuntime = managedActorHasSharedRuntime(actor);
@@ -200,6 +411,7 @@
             </section>
             ${renderManagedCommandBar({ abilities, skills, traits, identityEntries, variants, effects, merchant, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor })}
             <div class="managed-actor-panels">
+                ${renderManagedActorLinkPanel(actor, Boolean(editMode && actor.permissions?.isEditor === true))}
                 ${renderManagedProfileSection(currentProfile, editMode, Boolean(canEdit && currentProfilePermissions.canEdit))}
                 ${merchant ? renderManagedMerchantShop(merchant) : ""}
                 ${editMode && canManageActor ? renderAdmin(actor) : ""}
@@ -244,6 +456,8 @@
         setupManagedAvatarFallback(root, actor.media);
         if (editMode) root.addEventListener("input", () => { root.dataset.managedDirty = "true"; });
         setupManagedProfileEditor(root, editMode);
+        setupManagedActorLinkControls(root);
+        scheduleManagedCommandRefresh(root);
         if (editMode) root.addEventListener("change", () => { root.dataset.managedDirty = "true"; });
         if (primaryPlayer) {
             window.CriptaManagedPlayerExtensions?.mount?.({
@@ -510,12 +724,12 @@
                     <label><span>Ruolo o soprannome</span><input type="text" data-managed-profile-field="role" value="${escapeAttr(profile.role)}" placeholder="Es. La Giullare"></label>
                     <label><span>Stato</span><select data-managed-profile-field="lifeState"><option value="none" ${profile.lifeState === "none" ? "selected" : ""}>Nessuno</option><option value="alive" ${profile.lifeState === "alive" ? "selected" : ""}>Vivo</option><option value="dead" ${profile.lifeState === "dead" ? "selected" : ""}>Morto</option><option value="unknown" ${profile.lifeState === "unknown" ? "selected" : ""}>Ignoto</option></select></label>
                     <label><span>Nota sullo stato</span><input type="text" data-managed-profile-field="status" value="${escapeAttr(profile.status)}" placeholder="Facoltativa, es. disperso"></label>
-                    ${canManageProfileLink ? `<label><span>Tipo di scheda</span><select data-managed-profile-field="kind"><option value="automatic" ${profile.kindSource !== "manual" ? "selected" : ""}>Automatico da Foundry (${profile.automaticKind === "creature" ? "Creatura" : "Personaggio"})</option><option value="person" ${profile.kindSource === "manual" && profile.kind !== "creature" ? "selected" : ""}>Personaggio</option><option value="creature" ${profile.kindSource === "manual" && profile.kind === "creature" ? "selected" : ""}>Creatura / Mostro</option></select></label>` : ""}
+                    ${canManageProfileLink ? `<label><span>Classificazione nella lista</span><select data-managed-profile-field="kind"><option value="automatic" ${profile.kindSource !== "manual" ? "selected" : ""}>Automatica da Link Actor (${profile.automaticKind === "creature" ? "Bestiario" : "NPC"})</option><option value="person" ${profile.kindSource === "manual" && profile.kind !== "creature" ? "selected" : ""}>Forza nella sezione NPC</option><option value="creature" ${profile.kindSource === "manual" && profile.kind === "creature" ? "selected" : ""}>Forza nel Bestiario</option></select></label>` : ""}
                     ${canManageProfileLink ? `<label><span>Capacita e tag</span><input type="text" data-managed-profile-field="tags" value="${escapeAttr((profile.tags || []).join(", "))}" placeholder="mercante, boss, missioni"></label>` : ""}
                     ${canManageProfileLink ? `<label class="managed-profile-lifecycle"><span>Archiviazione sicura</span><select data-managed-profile-field="lifecycle"><option value="active" ${profile.lifecycle?.state !== "archived" ? "selected" : ""}>Attivo</option><option value="archived" ${profile.lifecycle?.state === "archived" ? "selected" : ""}>Archiviato (dati conservati)</option></select></label>` : ""}
                     ${canManageProfileLink ? renderManagedNpcCategoryField(profile) : ""}
                     ${canManageProfileLink ? '<label><span>ID wiki collegato</span><input type="text" data-managed-profile-field="legacyCharacterId" value="' + escapeAttr(profile.legacyCharacterId) + '" placeholder="zara"></label>' : ""}
-                    <label class="managed-profile-field-wide"><span>Citazione</span><textarea rows="2" data-managed-profile-field="quote" placeholder="Una frase rappresentativa">${escapeHtml(profile.quote)}</textarea></label>
+                    <label class="managed-profile-field-wide managed-profile-quote-editor"><span>Citazione</span><div><i class="fas fa-quote-left" aria-hidden="true"></i><textarea rows="3" data-managed-profile-field="quote" placeholder="Una frase rappresentativa">${escapeHtml(profile.quote)}</textarea></div></label>
                 </div>
                 <div class="managed-profile-summary-editor">${renderManagedProfileSummaryInput("race", "Razza", profile.summary?.race)}${renderManagedProfileSummaryInput("birthYear", "Anno di nascita", profile.summary?.birthYear)}${renderManagedProfileSummaryInput("age", "Eta", profile.summary?.age)}${renderManagedProfileSummaryInput("height", "Altezza", profile.summary?.height)}${renderManagedProfileSummaryInput("weight", "Peso", profile.summary?.weight)}</div>
                 <div class="managed-profile-editor-toolbar"><div><strong>Blocchi del dossier</strong><span>Trascina per riordinare o usa le frecce.</span></div><div><button type="button" data-managed-profile-add="lore"><i class="fas fa-align-left"></i> Testo</button><button type="button" data-managed-profile-add="image_box"><i class="fas fa-image"></i> Immagine</button><button type="button" data-managed-profile-add="custom_box"><i class="fas fa-message"></i> Riquadro</button><button type="button" data-managed-profile-add="banner_box"><i class="fas fa-panorama"></i> Banner</button></div></div>
@@ -1234,21 +1448,26 @@
             ["managed-variants", "fa-layer-group", "Varianti", variants.length > 0 || (editMode && canManageActor)],
             ["managed-effects", "fa-wand-magic-sparkles", "Effetti", effects.length > 0 || editMode]
         ].filter(([, , , visible]) => visible);
-        const commands = Array.isArray(actor?.sync?.commands) ? actor.sync.commands : [];
-        const conflicts = commands.filter((command) => command.status === "conflict" || command.status === "failed").length;
-        const pending = commands.filter((command) => command.status === "pending").length;
-        const syncState = conflicts ? { icon: "fa-triangle-exclamation", title: `${conflicts} problemi`, detail: "Apri per vedere quali", className: "is-conflict" }
-            : pending ? { icon: "fa-cloud-arrow-up", title: `${pending} in attesa`, detail: "Apri per vedere quali", className: "is-pending" }
-                : { icon: "fa-circle-check", title: "Sincronizzato", detail: `Revisione ${Number(actor?.revision || 0)}`, className: "is-synced" };
-        const commandLabel = (command) => ({ "actor.update": "Statistiche e identita", "item.update": "Modifica oggetto", "item.create": "Nuovo oggetto", "item.delete": "Rimozione oggetto", "effect.update": "Modifica effetto", "effect.create": "Nuovo effetto", "effect.delete": "Rimozione effetto" }[command.kind] || command.kind || "Modifica");
-        const syncIndicator = commands.length
-            ? `<details class="managed-sync-indicator managed-sync-details ${syncState.className}"><summary><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span><i class="fas fa-chevron-down"></i></summary><div>${commands.map((command) => `<article class="is-${escapeAttr(command.status || "pending")}"><i class="fas ${command.status === "pending" ? "fa-clock" : "fa-triangle-exclamation"}"></i><span><strong>${escapeHtml(commandLabel(command))}</strong><small>${escapeHtml(command.error || (command.status === "pending" ? "In attesa del client Foundry" : "Richiede una nuova conferma"))}</small></span></article>`).join("")}</div></details>`
-            : `<div class="managed-sync-indicator ${syncState.className}"><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span></div>`;
+        const syncIndicator = renderManagedSyncIndicator(actor);
         const actions = canEdit ? (editMode
             ? `<span class="managed-save-status" data-managed-status></span><button type="button" class="managed-command-secondary" data-managed-edit-toggle="view"><i class="fas fa-xmark"></i><span>Chiudi</span></button><button type="button" class="managed-command-primary" data-managed-save><i class="fas fa-cloud-arrow-up"></i><span>Salva scheda</span></button>`
             : `<button type="button" class="managed-command-primary" data-managed-edit-toggle="edit"><i class="fas fa-pen-to-square"></i><span>Modifica</span></button>`)
             : "";
         return `<div class="managed-command-bar"><nav class="managed-section-nav" aria-label="Sezioni della scheda"><div>${links.map(([id, icon, label]) => `<a href="#${id}"><i class="fas ${icon}" aria-hidden="true"></i><span>${escapeHtml(label)}</span></a>`).join("")}</div></nav><div class="managed-command-actions">${syncIndicator}${actions}</div></div>`;
+    }
+    function renderManagedSyncIndicator(actor) {
+        const commands = Array.isArray(actor?.sync?.commands) ? actor.sync.commands : [];
+        const conflicts = commands.filter((command) => command.status === "conflict" || command.status === "failed").length;
+        const pending = commands.filter((command) => command.status === "pending").length;
+        const reviews = commands.filter((command) => command.status === "review").length;
+        const syncState = conflicts ? { icon: "fa-triangle-exclamation", title: `${conflicts} problemi`, detail: "Apri per vedere quali", className: "is-conflict" }
+            : reviews ? { icon: "fa-list-check", title: `${reviews} scelta richiesta`, detail: "Seleziona lo stato corrente", className: "is-pending" }
+                : pending ? { icon: "fa-cloud-arrow-up", title: `${pending} in attesa`, detail: "Apri per vedere quali", className: "is-pending" }
+                    : { icon: "fa-circle-check", title: "Sincronizzato", detail: `Revisione ${Number(actor?.revision || 0)}`, className: "is-synced" };
+        const commandLabel = (command) => ({ "actor.update": "Statistiche e identita", "item.update": "Modifica oggetto", "item.create": "Nuovo oggetto", "item.delete": "Rimozione oggetto", "effect.update": "Modifica effetto", "effect.create": "Nuovo effetto", "effect.delete": "Rimozione effetto", "actor-link.inspect": "Controllo Link Actor Data", "actor-link.apply": "Conversione Link Actor Data" }[command.kind] || command.kind || "Modifica");
+        return commands.length
+            ? `<details class="managed-sync-indicator managed-sync-details ${syncState.className}"><summary><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span><i class="fas fa-chevron-down"></i></summary><div>${commands.map((command) => `<article class="is-${escapeAttr(command.status || "pending")}"><i class="fas ${command.status === "review" ? "fa-list-check" : command.status === "pending" ? "fa-clock" : "fa-triangle-exclamation"}"></i><span><strong>${escapeHtml(commandLabel(command))}</strong><small>${escapeHtml(command.error || (command.status === "review" ? "Scegli lo stato corrente nella sezione Link Actor Data" : command.status === "pending" ? "In attesa del client Foundry" : "Richiede una nuova conferma"))}</small></span></article>`).join("")}</div></details>`
+            : `<div class="managed-sync-indicator ${syncState.className}"><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span></div>`;
     }
     async function toggleManagedEditMode(root, shouldEdit) {
         if (!currentCanEdit || managedEditMode === shouldEdit) return;
@@ -1540,11 +1759,11 @@
         const patches = Array.isArray(command?.patches) ? command.patches : [];
         const current = command?.current && typeof command.current === "object" ? command.current : {};
         const alreadySatisfied = patches.length > 0 && patches.every((patch) => Object.prototype.hasOwnProperty.call(current, patch.path)
-            && sameManagedFormValue(current[patch.path], patch.value));
+            && sameManagedFormValue(current[patch.path], patch.value, patch.path));
         if (alreadySatisfied) return "Valore gi\u00e0 presente in Foundry. Salva per chiudere l'avviso";
         const conflict = patches.find((patch) => Object.prototype.hasOwnProperty.call(current, patch.path)
-            && !sameManagedFormValue(current[patch.path], patch.value)
-            && !sameManagedFormValue(current[patch.path], patch.baseValue));
+            && !sameManagedFormValue(current[patch.path], patch.value, patch.path)
+            && !sameManagedFormValue(current[patch.path], patch.baseValue, patch.path));
         if (!conflict) return command?.error ? `Conflitto: ${command.error}. Salva per confermare` : "Conflitto: salva per confermare";
         return `Conflitto — ${managedActorFieldLabel(conflict.path)}: richiesto ${formatManagedConflictValue(conflict.value)}, Foundry ${formatManagedConflictValue(current[conflict.path])}. Salva per confermare`;
     }
@@ -1832,8 +2051,24 @@
     function managedRawCollectionValues(value) {
         if (value === undefined || value === null || value === "") return [];
         if (Array.isArray(value)) return value;
+        if (value instanceof Set || value instanceof Map) return Array.from(value.values());
         if (typeof value === "object") return Object.values(value);
         return [value];
+    }
+
+    function managedSaveAbilityValues(value) {
+        return managedRawCollectionValues(value)
+            .map((entry) => String(entry || "").trim())
+            .filter((entry) => entry && !/^\[object\s+(?:set|map|object)\]$/i.test(entry));
+    }
+
+    function getManagedRawActivity(entry, activityId) {
+        const source = entry?.definition?.activities;
+        if (!source || typeof source !== "object") return null;
+        const entries = Array.isArray(source)
+            ? source.map((activity, index) => [activity?._id || activity?.id || index, activity])
+            : Object.entries(source);
+        return entries.find(([id]) => String(id || "") === String(activityId || ""))?.[1] || null;
     }
 
     function resolveManagedRawFormula(value, entry, activity = {}) {
@@ -1887,7 +2122,7 @@
             });
             const rawDc = activity.save?.dc?.value ?? activity.save?.dc;
             const dc = Number(rawDc);
-            const abilities = managedRawCollectionValues(activity.save?.ability ?? activity.save?.abilities).map(String).filter(Boolean);
+            const abilities = managedSaveAbilityValues(activity.save?.ability ?? activity.save?.abilities);
             return {
                 id: String(id || ""),
                 name: String(activity.name || entry?.name || "Attività"),
@@ -1928,7 +2163,12 @@
                 return formula ? `<span class="managed-effective-damage is-${role}"><i class="fas fa-burst"></i><span class="managed-effective-damage-kind">${roleLabel}</span><strong>${escapeHtml(formula)}</strong>${types ? `<small>${escapeHtml(types)}</small>` : ""}</span>` : "";
             }).filter(Boolean).join("");
             const dc = Number(activity?.save?.dc || 0);
-            const abilities = (Array.isArray(activity?.save?.abilities) ? activity.save.abilities : []).map((ability) => String(ability || "").toUpperCase()).filter(Boolean).join("/");
+            const exportedAbilities = managedSaveAbilityValues(activity?.save?.abilities);
+            const rawActivity = exportedAbilities.length ? null : getManagedRawActivity(entry, activity?.id);
+            const abilities = (exportedAbilities.length
+                ? exportedAbilities
+                : managedSaveAbilityValues(rawActivity?.save?.ability ?? rawActivity?.save?.abilities))
+                .map((ability) => ability.toUpperCase()).join("/");
             const save = dc > 0 ? `<span class="managed-effective-save"><i class="fas fa-shield-halved"></i><strong>CD ${dc}</strong>${abilities ? `<small>${escapeHtml(abilities)}</small>` : ""}</span>` : "";
             return `<div class="managed-effective-roll-row">${showNames ? `<b>${escapeHtml(activity?.name || "Attività")}</b>` : ""}<div>${damage}${save}</div></div>`;
         }).join("");
@@ -2496,7 +2736,9 @@
             renderManagedGuidedInput("system.save", "dc", "CD", save.dc ?? "", "number", { min: 0, step: 1 }),
             renderManagedGuidedSelect("system.save", "scaling", "Calcolo CD", save.scaling || "", [["", "Valore manuale"], ["spellcasting", "Caratteristica magica"], ["flat", "Fissa"], ["str", "Forza"], ["dex", "Destrezza"], ["con", "Costituzione"], ["int", "Intelligenza"], ["wis", "Saggezza"], ["cha", "Carisma"]])
         ]));
-        const damageEditor = getManagedItemBaseValue(entry, "system.damage") !== undefined ? renderManagedDamageGuide(damage) : "";
+        const hasMeaningfulItemDamage = managedRawCollectionValues(damage.parts).some((part) => Boolean(summarizeManagedRawDamage(part, entry, {}, "primary")))
+            || Boolean(summarizeManagedRawDamage(damage.base, entry, {}, "primary"));
+        const damageEditor = getManagedItemBaseValue(entry, "system.damage") !== undefined && hasMeaningfulItemDamage ? renderManagedDamageGuide(damage) : "";
         const propertyEditor = getManagedItemBaseValue(entry, "system.properties") !== undefined ? renderManagedPropertyGuide(properties, entry.type) : "";
         const materialEditor = getManagedItemBaseValue(entry, "system.materials") !== undefined ? renderManagedGuideCard("fa-gem", "Materiali", "Componenti materiali, costo e consumo.", [
             renderManagedGuidedInput("system.materials", "value", "Descrizione materiale", materials.value ?? "", "text", { wide: true }),
@@ -2507,7 +2749,7 @@
             renderManagedGuidedInput("system.recharge", "value", "Si ricarica con", recharge.value ?? "", "number", { min: 1, max: 6, step: 1 }),
             renderManagedGuidedToggle("system.recharge", "charged", "Attualmente carico", recharge.charged !== false)
         ]) : "";
-        const activitiesEditor = Object.keys(activities).length ? renderManagedActivitiesGuide(activities) : "";
+        const activitiesEditor = Object.keys(activities).length ? renderManagedActivitiesGuide(activities, entry) : "";
         return `<section class="managed-guided-mechanics"><header><div><span class="managed-panel-eyebrow">Editor guidato</span><h4><i class="fas fa-sliders"></i> Meccaniche</h4></div><p>Modifica i valori principali senza toccare il JSON. Le automazioni avanzate restano conservate.</p></header><div class="managed-guided-grid">${cards.join("")}${damageEditor}${propertyEditor}${materialEditor}${rechargeEditor}</div>${activitiesEditor}</section>`;
     }
 
@@ -2523,11 +2765,11 @@
         return `<label class="managed-guide-field ${options.wide ? "is-wide" : ""}"><span>${escapeHtml(label)}</span><input type="${escapeAttr(inputType)}" value="${escapeAttr(value ?? "")}"${attributes}${options.placeholder ? ` placeholder="${escapeAttr(options.placeholder)}"` : ""} data-managed-guided-object="${escapeAttr(objectPath)}" data-managed-guided-key="${escapeAttr(key)}" data-managed-guided-type="${escapeAttr(type)}"></label>`;
     }
 
-    function renderManagedGuidedSelect(objectPath, key, label, value, options) {
-        const normalized = String(value ?? "");
+    function renderManagedGuidedSelect(objectPath, key, label, value, options, type = "text") {
+        const normalized = String(Array.isArray(value) ? (value[0] ?? "") : (value ?? ""));
         const values = Array.isArray(options) ? [...options] : [];
         if (normalized && !values.some(([candidate]) => String(candidate) === normalized)) values.unshift([normalized, formatManagedTraitValue(normalized)]);
-        return `<label class="managed-guide-field"><span>${escapeHtml(label)}</span><select data-managed-guided-object="${escapeAttr(objectPath)}" data-managed-guided-key="${escapeAttr(key)}" data-managed-guided-type="text">${values.map(([candidate, text]) => `<option value="${escapeAttr(candidate)}" ${String(candidate) === normalized ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}</select></label>`;
+        return `<label class="managed-guide-field"><span>${escapeHtml(label)}</span><select data-managed-guided-object="${escapeAttr(objectPath)}" data-managed-guided-key="${escapeAttr(key)}" data-managed-guided-type="${escapeAttr(type)}">${values.map(([candidate, text]) => `<option value="${escapeAttr(candidate)}" ${String(candidate) === normalized ? "selected" : ""}>${escapeHtml(text)}</option>`).join("")}</select></label>`;
     }
 
     function renderManagedGuidedToggle(objectPath, key, label, checked) {
@@ -2571,14 +2813,61 @@
         return `<section class="managed-guide-card managed-guide-card--wide"><header><i class="fas fa-tags"></i><span><strong>${itemType === "spell" ? "Componenti e proprietà" : "Proprietà"}</strong><small>Seleziona tutte le caratteristiche applicabili.</small></span></header><div class="managed-property-chips" data-managed-guided-list="system.properties">${common.map(([value, label]) => `<label><input type="checkbox" value="${escapeAttr(value)}" ${selected.has(value) ? "checked" : ""}><span>${escapeHtml(label)}</span></label>`).join("")}</div>${unknown.length ? `<p class="managed-guide-note">Conservate anche: ${escapeHtml(unknown.join(", "))}</p>` : ""}</section>`;
     }
 
-    function renderManagedActivitiesGuide(activities) {
-        const labels = { attack: "Tiro per colpire", save: "Tiro salvezza", damage: "Danno", heal: "Cura", utility: "Utilità", check: "Prova", summon: "Evocazione", enchant: "Incantamento" };
+    function managedActivityDamageSummaries(activity, entry) {
+        const summaries = [];
+        if (activity?.damage?.includeBase !== false && entry?.definition?.damage?.base) {
+            const base = summarizeManagedRawDamage(entry.definition.damage.base, entry, activity, "primary");
+            if (base) summaries.push(base);
+        }
+        managedRawCollectionValues(activity?.damage?.parts).forEach((part, index) => {
+            const summary = summarizeManagedRawDamage(part, entry, activity, summaries.length || index > 0 ? "secondary" : "primary");
+            if (summary) summaries.push(summary);
+        });
+        return summaries;
+    }
+
+    function renderManagedActivityPreview(activity, entry) {
+        const chips = managedActivityDamageSummaries(activity, entry).map((part) => {
+            const types = managedRawCollectionValues(part.types).map(formatManagedTraitValue).filter(Boolean).join("/");
+            return `<span class="managed-activity-preview-chip is-damage"><i class="fas fa-burst"></i><b>${escapeHtml(part.formula)}</b>${types ? `<small>${escapeHtml(types)}</small>` : ""}</span>`;
+        });
+        const saveAbilities = managedSaveAbilityValues(activity?.save?.ability ?? activity?.save?.abilities).map((ability) => ability.toUpperCase()).join("/");
+        const saveDc = String(activity?.save?.dc?.formula ?? activity?.save?.dc?.value ?? activity?.save?.dc ?? "").trim();
+        if (saveDc) chips.push(`<span class="managed-activity-preview-chip is-save"><i class="fas fa-shield-halved"></i><b>CD ${escapeHtml(saveDc)}</b>${saveAbilities ? `<small>${escapeHtml(saveAbilities)}</small>` : ""}</span>`);
+        return chips.length ? `<div class="managed-activity-preview">${chips.join("")}</div>` : "";
+    }
+
+    function renderManagedActivityDamagePart(activityKey, part, index, hasBase, entry, activity) {
+        const prefix = `${activityKey}.damage.parts.${index}`;
+        const summary = summarizeManagedRawDamage(part, entry, activity, hasBase || index > 0 ? "secondary" : "primary");
+        const role = hasBase || index > 0 ? "Aggiuntivo" : "Principale";
+        if (Array.isArray(part)) {
+            return `<section class="managed-activity-damage-part"><header><strong>${role}</strong>${summary?.formula ? `<span>${escapeHtml(summary.formula)}</span>` : ""}</header><div class="managed-guide-fields">${renderManagedGuidedInput("system.activities", `${prefix}.0`, "Formula", part[0] || "", "text", { placeholder: "2d8 + @mod", wide: true })}${renderManagedGuidedInput("system.activities", `${prefix}.1`, "Tipi di danno", managedRawCollectionValues(part[1]).join(", "), "list", { placeholder: "piercing, fire", wide: true })}</div></section>`;
+        }
+        const value = part && typeof part === "object" ? part : {};
+        return `<section class="managed-activity-damage-part"><header><strong>${role}</strong>${summary?.formula ? `<span>${escapeHtml(summary.formula)}</span>` : ""}</header><div class="managed-guide-fields">${renderManagedGuidedInput("system.activities", `${prefix}.number`, "Numero dadi", value.number ?? "", "number", { min: 0, step: 1 })}${renderManagedGuidedInput("system.activities", `${prefix}.denomination`, "Dado", value.denomination ?? "", "number", { min: 2, step: 2 })}${renderManagedGuidedInput("system.activities", `${prefix}.bonus`, "Bonus o formula", value.bonus ?? "", "text", { placeholder: "@mod oppure +4" })}${renderManagedGuidedInput("system.activities", `${prefix}.types`, "Tipi di danno", managedRawCollectionValues(value.types).join(", "), "list", { placeholder: "bludgeoning, force", wide: true })}${renderManagedGuidedToggle("system.activities", `${prefix}.custom.enabled`, "Formula personalizzata", value.custom?.enabled === true)}${renderManagedGuidedInput("system.activities", `${prefix}.custom.formula`, "Formula personalizzata", value.custom?.formula ?? "", "text", { placeholder: "4d10 + 7", wide: true })}</div></section>`;
+    }
+
+    function renderManagedActivitiesGuide(activities, entry) {
+        const labels = { attack: "Tiro per colpire", save: "Tiro salvezza", damage: "Danno", heal: "Cura", utility: "Utilita", check: "Prova", summon: "Evocazione", enchant: "Incantamento" };
         const cards = Object.entries(activities).map(([key, activity], index) => {
             const value = activity && typeof activity === "object" ? activity : {};
-            const title = labels[value.type] || `Attività ${index + 1}`;
-            return `<section class="managed-activity-guide"><header><span><b>${index + 1}</b><strong>${escapeHtml(title)}</strong></span><small>Dati specifici dell’attività Foundry</small></header><div class="managed-guide-fields">${renderManagedGuidedSelect("system.activities", `${key}.type`, "Tipo attività", value.type || "utility", [["attack", "Tiro per colpire"], ["save", "Tiro salvezza"], ["damage", "Danno"], ["heal", "Cura"], ["utility", "Utilità"], ["check", "Prova"], ["summon", "Evocazione"], ["enchant", "Incantamento"]])}${renderManagedGuidedSelect("system.activities", `${key}.activation.type`, "Attivazione", value.activation?.type || "action", [["action", "Azione"], ["bonus", "Azione bonus"], ["reaction", "Reazione"], ["special", "Speciale"], ["none", "Nessuna"]])}${renderManagedGuidedInput("system.activities", `${key}.activation.value`, "Costo", value.activation?.value ?? 1, "number", { min: 0, step: 1 })}${renderManagedGuidedSelect("system.activities", `${key}.attack.ability`, "Caratteristica attacco", value.attack?.ability || "", managedAbilityOptions("Automatica"))}${renderManagedGuidedSelect("system.activities", `${key}.damage.onSave`, "Danno con TS riuscito", value.damage?.onSave || "none", [["none", "Nessun danno"], ["half", "Metà danno"], ["full", "Danno completo"]])}</div></section>`;
+            const title = labels[value.type] || `Attivita ${index + 1}`;
+            const hasAttack = value.type === "attack" || (value.attack && typeof value.attack === "object");
+            const hasSave = value.type === "save" || (value.save && typeof value.save === "object");
+            const damageParts = managedRawCollectionValues(value.damage?.parts);
+            const hasBase = value.damage?.includeBase !== false && Boolean(summarizeManagedRawDamage(entry?.definition?.damage?.base, entry, value, "primary"));
+            const commonFields = [
+                renderManagedGuidedSelect("system.activities", `${key}.type`, "Tipo attivita", value.type || "utility", [["attack", "Tiro per colpire"], ["save", "Tiro salvezza"], ["damage", "Danno"], ["heal", "Cura"], ["utility", "Utilita"], ["check", "Prova"], ["summon", "Evocazione"], ["enchant", "Incantamento"]]),
+                renderManagedGuidedSelect("system.activities", `${key}.activation.type`, "Attivazione", value.activation?.type || "action", [["action", "Azione"], ["bonus", "Azione bonus"], ["reaction", "Reazione"], ["legendary", "Azione leggendaria"], ["lair", "Azione di tana"], ["special", "Speciale"], ["none", "Nessuna"]]),
+                renderManagedGuidedInput("system.activities", `${key}.activation.value`, "Costo", value.activation?.value ?? 1, "number", { min: 0, step: 1 })
+            ].join("");
+            const attackFields = hasAttack ? `<section class="managed-activity-section"><h5><i class="fas fa-crosshairs"></i> Tiro per colpire</h5><div class="managed-guide-fields">${renderManagedGuidedSelect("system.activities", `${key}.attack.type.value`, "Tipo attacco", value.attack?.type?.value || "melee", [["melee", "Mischia"], ["ranged", "Distanza"]])}${renderManagedGuidedSelect("system.activities", `${key}.attack.ability`, "Caratteristica", value.attack?.ability || "", managedAbilityOptions("Automatica"))}${renderManagedGuidedInput("system.activities", `${key}.attack.bonus`, "Bonus aggiuntivo", value.attack?.bonus ?? "", "text", { placeholder: "+2 oppure 1d4" })}${renderManagedGuidedToggle("system.activities", `${key}.attack.flat`, "Bonus fisso", value.attack?.flat === true)}</div></section>` : "";
+            const saveFields = hasSave ? `<section class="managed-activity-section"><h5><i class="fas fa-shield-halved"></i> Tiro salvezza</h5><div class="managed-guide-fields">${renderManagedGuidedSelect("system.activities", `${key}.save.ability`, "Caratteristica TS", value.save?.ability || value.save?.abilities || [], managedAbilityOptions("Nessuna"), "list")}${renderManagedGuidedInput("system.activities", `${key}.save.dc.formula`, "CD o formula", value.save?.dc?.formula ?? value.save?.dc?.value ?? "", "text", { placeholder: "16 oppure 8 + @prof + @mod" })}${renderManagedGuidedSelect("system.activities", `${key}.damage.onSave`, "Con TS riuscito", value.damage?.onSave || "none", [["none", "Nessun danno"], ["half", "Meta danno"], ["full", "Danno completo"]])}</div></section>` : "";
+            const damageFields = damageParts.length || hasBase ? `<section class="managed-activity-section managed-activity-damage"><h5><i class="fas fa-burst"></i> Danni effettivi</h5>${hasBase ? `<div class="managed-activity-base-damage">${renderManagedGuidedToggle("system.activities", `${key}.damage.includeBase`, "Includi il danno base dell'elemento", value.damage?.includeBase !== false)}</div>` : ""}<div class="managed-activity-damage-grid">${damageParts.map((part, partIndex) => renderManagedActivityDamagePart(key, part, partIndex, hasBase, entry, value)).join("")}</div></section>` : "";
+            return `<section class="managed-activity-guide"><header><span><b>${index + 1}</b><strong>${escapeHtml(title)}</strong></span><small>Attivita Foundry</small></header>${renderManagedActivityPreview(value, entry)}<div class="managed-guide-fields managed-activity-common">${commonFields}</div>${attackFields}${saveFields}${damageFields}</section>`;
         }).join("");
-        return `<details class="managed-activities-guide"><summary><span><i class="fas fa-diagram-project"></i> Attività Foundry</span><b>${Object.keys(activities).length}</b><i class="fas fa-chevron-down"></i></summary><div>${cards}</div></details>`;
+        return `<details class="managed-activities-guide" open><summary><span><i class="fas fa-diagram-project"></i> Attivita Foundry</span><b>${Object.keys(activities).length}</b><i class="fas fa-chevron-down"></i></summary><div>${cards}</div></details>`;
     }
     function renderManagedItemControl(entry, command, path, label, type) {
         const baseValue = getManagedItemBaseValue(entry, path);
@@ -3070,6 +3359,8 @@
             rememberManagedCommand(response.command, (command) => String(command.kind || "").startsWith("item.") && managedCommandTargetsItem(command, transferId, itemId));
             result.textContent = "Modifica in attesa di Foundry.";
             updateManagedCardStatus(form.closest("[data-managed-item-card]"), response.command);
+            managedCommandPollAttempts = 0;
+            scheduleManagedCommandRefresh(button.closest("[data-managed-actor-root]"));
         } catch (error) {
             console.error("Accodamento modifica elemento fallito", error);
             result.textContent = error.message || "Modifica non accodata.";
@@ -3093,6 +3384,8 @@
             rememberManagedCommand(response.command, (command) => String(command.kind || "").startsWith("item.") && managedCommandTargetsItem(command, transferId, itemId));
             result.textContent = "Eliminazione in attesa di Foundry.";
             updateManagedCardStatus(form.closest("[data-managed-item-card]"), response.command);
+            managedCommandPollAttempts = 0;
+            scheduleManagedCommandRefresh(button.closest("[data-managed-actor-root]"));
         } catch (error) {
             result.textContent = error.message || "Eliminazione non accodata.";
         } finally {
@@ -3285,6 +3578,135 @@
         catch (_) { throw new Error(`${label}: JSON non valido.`); }
     }
 
+    function rerenderManagedActorLinkPanel(root) {
+        const previous = root.querySelector("[data-managed-actor-link-panel]");
+        const html = renderManagedActorLinkPanel(currentDocument, Boolean(managedEditMode && currentDocument?.permissions?.isEditor === true));
+        if (!html) {
+            previous?.remove();
+            return;
+        }
+        const template = document.createElement("template");
+        template.innerHTML = html.trim();
+        const replacement = template.content.firstElementChild;
+        if (!replacement) return;
+        if (previous) previous.replaceWith(replacement);
+        else root.querySelector(".managed-actor-panels")?.prepend(replacement);
+        setupManagedActorLinkControls(root);
+        scheduleManagedCommandRefresh(root);
+    }
+
+    function scheduleManagedActorLinkRefresh(root) {
+        if (managedActorLinkRefreshTimer) window.clearTimeout(managedActorLinkRefreshTimer);
+        managedActorLinkRefreshTimer = 0;
+        const pending = getManagedActorLinkCommands().some((command) => command.status === "pending")
+            || managedActorLinkExpectedActorLink === true;
+        if (!pending || managedActorLinkPollAttempts >= 36) return;
+        const delay = managedActorLinkExpectedActorLink === true
+            ? Math.min(2_500 + (managedActorLinkPollAttempts * 1_250), 10_000)
+            : 10_000;
+        managedActorLinkRefreshTimer = window.setTimeout(() => refreshManagedActorLinkState(root), delay);
+    }
+
+    async function refreshManagedActorLinkState(root) {
+        managedActorLinkRefreshTimer = 0;
+        managedActorLinkPollAttempts += 1;
+        try {
+            const token = getToken();
+            const previousActual = currentDocument?.definition?.prototypeToken?.actorLink !== false;
+            const payload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(currentDocument.worldId)}/${encodeURIComponent(currentDocument.actorId)}`, { cache: false, ...(token ? { token } : {}) });
+            currentDocument = payload.data;
+            const nextActual = currentDocument?.definition?.prototypeToken?.actorLink !== false;
+            const freshState = getManagedActorLinkState();
+            if (["failed", "conflict"].includes(String(freshState.apply?.status || ""))) {
+                managedActorLinkExpectedActorLink = null;
+            }
+            if (managedActorLinkExpectedActorLink === true && nextActual) {
+                managedActorLinkExpectedActorLink = null;
+                managedActorLinkPollAttempts = 0;
+            }
+            if (previousActual !== nextActual) {
+                const scroll = window.scrollY;
+                renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
+                window.requestAnimationFrame(() => window.scrollTo({ top: scroll, behavior: "instant" }));
+                return;
+            }
+            rerenderManagedActorLinkPanel(root);
+        } catch (error) {
+            console.warn("Stato Link Actor Data non aggiornato.", error);
+            scheduleManagedActorLinkRefresh(root);
+        }
+    }
+
+    async function requestManagedActorLinkInspection(root) {
+        const token = getToken();
+        if (!token) throw new Error("Sessione non disponibile.");
+        const response = await postManagedActorCommand({ kind: "actor-link.inspect", document: { requestedActorLink: true } }, token);
+        rememberManagedCommand(response.command, (command) => String(command.kind || "").startsWith("actor-link."));
+        managedActorLinkPollAttempts = 0;
+        rerenderManagedActorLinkPanel(root);
+    }
+
+    async function cancelManagedActorLinkInspection(root) {
+        const state = getManagedActorLinkState();
+        const inspectionId = state.inspection?.id || state.apply?.document?.inspectionId || "";
+        if (!inspectionId) return;
+        const token = getToken();
+        await postManagedActorCommand({ kind: "actor-link.cancel", document: { inspectionId } }, token);
+        const commands = (Array.isArray(currentDocument?.sync?.commands) ? currentDocument.sync.commands : []).filter((command) => !String(command.kind || "").startsWith("actor-link."));
+        currentDocument.sync = { ...(currentDocument.sync || {}), commands };
+        managedActorLinkExpectedActorLink = null;
+        managedActorLinkPollAttempts = 0;
+        rerenderManagedActorLinkPanel(root);
+    }
+
+    async function applyManagedActorLinkSelection(root) {
+        const state = getManagedActorLinkState();
+        const review = state.review;
+        const inspectionId = state.inspection?.id || state.apply?.document?.inspectionId || "";
+        const sourceId = root.querySelector('input[name="managed-actor-link-source"]:checked')?.value || "";
+        if (!inspectionId || !review?.snapshotHash || !sourceId) throw new Error("Scegli lo stato corrente da usare.");
+        const structuralSources = (Array.isArray(review.sources) ? review.sources : []).filter((source) => source.kind === "token" && source.structuralDifferences);
+        const selectedSource = (Array.isArray(review.sources) ? review.sources : []).find((source) => source.id === sourceId);
+        const acceptStructural = structuralSources.length > 0;
+        if (acceptStructural) {
+            const selectedLabel = selectedSource?.kind === "token" ? `il token "${selectedSource.label || "selezionato"}"` : "l'Actor originale";
+            const message = `Stai scegliendo ${selectedLabel} come stato autorevole.\n\nOggetti, attacchi, effetti e statistiche delle altre istanze verranno uniformati. Prima della modifica Foundry salvera un backup completo per il rollback.\n\nVuoi continuare?`;
+            if (!window.confirm(message)) return;
+        }
+        const token = getToken();
+        const response = await postManagedActorCommand({ kind: "actor-link.apply", document: { inspectionId, sourceId, snapshotHash: review.snapshotHash, acceptStructural } }, token);
+        managedActorLinkExpectedActorLink = true;
+        rememberManagedCommand(response.command, (command) => command.kind === "actor-link.apply");
+        managedActorLinkPollAttempts = 0;
+        rerenderManagedActorLinkPanel(root);
+    }
+
+    function setupManagedActorLinkControls(root) {
+        const panel = root.querySelector("[data-managed-actor-link-panel]");
+        if (!panel) return;
+        const run = async (button, action) => {
+            if (!button || button.disabled) return;
+            button.disabled = true;
+            try { await action(); }
+            catch (error) {
+                console.error("Operazione Link Actor Data non completata.", error);
+                window.alert(error.message || "Operazione non completata.");
+                button.disabled = false;
+            }
+        };
+        const toggle = panel.querySelector("[data-managed-actor-link-toggle]");
+        toggle?.addEventListener("click", () => run(toggle, async () => {
+            const state = getManagedActorLinkState();
+            if (state.inspection || state.apply) await cancelManagedActorLinkInspection(root);
+            else if (!state.actual) await requestManagedActorLinkInspection(root);
+        }));
+        const cancel = panel.querySelector("[data-managed-actor-link-cancel]");
+        cancel?.addEventListener("click", () => run(cancel, () => cancelManagedActorLinkInspection(root)));
+        const apply = panel.querySelector("[data-managed-actor-link-apply]");
+        apply?.addEventListener("click", () => run(apply, () => applyManagedActorLinkSelection(root)));
+        scheduleManagedActorLinkRefresh(root);
+    }
+
     async function postManagedActorCommand(payload, token) {
         if (!token || !currentDocument) throw new Error("Sessione non disponibile.");
         return window.CriptaApp.api.post(`api/managed-actors/${encodeURIComponent(currentDocument.worldId)}/${encodeURIComponent(currentDocument.actorId)}/commands`, { expectedRevision: currentDocument.revision, ...payload }, { token });
@@ -3301,6 +3723,64 @@
         const statusHtml = renderManagedItemSyncStatus(command);
         if (previousStatus) previousStatus.outerHTML = statusHtml;
         else card?.querySelector(".managed-entry-title")?.insertAdjacentHTML("afterend", statusHtml);
+        if (card && command?.id) card.dataset.managedCommandTracking = String(command.id);
+    }
+
+    function scheduleManagedCommandRefresh(root) {
+        if (managedCommandRefreshTimer) window.clearTimeout(managedCommandRefreshTimer);
+        managedCommandRefreshTimer = 0;
+        const pending = (Array.isArray(currentDocument?.sync?.commands) ? currentDocument.sync.commands : [])
+            .some((command) => command.status === "pending" && !String(command.kind || "").startsWith("actor-link."));
+        if (!root || !pending || managedCommandPollAttempts >= 36) return;
+        const delay = Math.min(2_500 + (managedCommandPollAttempts * 750), 10_000);
+        managedCommandRefreshTimer = window.setTimeout(() => refreshManagedCommandState(root), delay);
+    }
+
+    async function refreshManagedCommandState(root) {
+        managedCommandRefreshTimer = 0;
+        managedCommandPollAttempts += 1;
+        try {
+            const token = getToken();
+            const payload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(currentDocument.worldId)}/${encodeURIComponent(currentDocument.actorId)}`, {
+                cache: false,
+                ...(token ? { token } : {})
+            });
+            currentDocument = payload.data;
+            refreshManagedCommandIndicators(root);
+            scheduleManagedCommandRefresh(root);
+        } catch (error) {
+            console.warn("Stato sincronizzazione elemento non aggiornato.", error);
+            scheduleManagedCommandRefresh(root);
+        }
+    }
+
+    function refreshManagedCommandIndicators(root) {
+        const currentIndicator = root.querySelector(".managed-command-actions > .managed-sync-indicator");
+        if (currentIndicator) {
+            const template = document.createElement("template");
+            template.innerHTML = renderManagedSyncIndicator(currentDocument).trim();
+            const replacement = template.content.firstElementChild;
+            if (replacement) currentIndicator.replaceWith(replacement);
+        }
+        const entries = Array.isArray(currentDocument?.definition?.items) ? currentDocument.definition.items : [];
+        root.querySelectorAll("[data-managed-item-card]").forEach((card) => {
+            const key = String(card.dataset.managedItemCard || "");
+            const entry = entries.find((candidate) => String(candidate.transferId || candidate.itemId || "") === key);
+            const command = entry ? findManagedItemCommand(entry) : null;
+            const previousStatus = card.querySelector("[data-managed-item-sync]");
+            if (command) {
+                const statusHtml = renderManagedItemSyncStatus(command);
+                if (previousStatus) previousStatus.outerHTML = statusHtml;
+                else card.querySelector(".managed-entry-title")?.insertAdjacentHTML("afterend", statusHtml);
+                return;
+            }
+            previousStatus?.remove();
+            if (card.dataset.managedCommandTracking) {
+                const result = card.querySelector("[data-managed-item-result]");
+                if (result) result.textContent = "Applicato in Foundry.";
+                delete card.dataset.managedCommandTracking;
+            }
+        });
     }
 
     async function uploadManagedItemIcon(file, transferId, revision, token) {
@@ -3320,8 +3800,10 @@
         if (!response.ok || payload?.ok === false) throw new Error(payload?.error || "Upload icona fallito");
         return payload.path || `media/${payload.key}`;
     }
-    function sameManagedFormValue(left, right) {
+    function sameManagedFormValue(left, right, path = "") {
         const normalizeScalar = (value) => {
+            if (path === "system.attributes.init.bonus"
+                && (value === null || value === undefined || value === "" || Number(value) === 0)) return 0;
             if (typeof value !== "string") return value;
             const clean = value.trim();
             if (!clean || !/^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(clean)) return value;
@@ -3575,7 +4057,7 @@
             const command = findManagedActorUpdateCommand();
             const retrying = ["conflict", "failed"].includes(command?.status)
                 && (Array.isArray(command?.patches) ? command.patches : []).some((patch) => patch.path === path);
-            if (sameManagedFormValue(value, originalComparable) && !retrying) return null;
+            if (sameManagedFormValue(value, originalComparable, path) && !retrying) return null;
             const commandPatch = (Array.isArray(command?.patches) ? command.patches : []).find((patch) => patch.path === path);
             const hasConflictValue = command?.current && Object.prototype.hasOwnProperty.call(command.current, path);
             const baseValue = hasConflictValue

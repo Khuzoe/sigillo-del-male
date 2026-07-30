@@ -113,7 +113,7 @@ export default {
         return handleManagedActorCommandEnqueue(request, managedActorCommandRoute, queryCampaignId, env, corsHeaders, ctx);
       }
       if (managedActorCommandBatchRoute?.action === "ack" && request.method === "POST") {
-        return handleManagedActorCommandAck(request, managedActorCommandBatchRoute, queryCampaignId, env, corsHeaders);
+        return handleManagedActorCommandAck(request, managedActorCommandBatchRoute, queryCampaignId, env, corsHeaders, ctx);
       }
       if (managedActorCommandBatchRoute?.action === "list" && request.method === "GET") {
         return handleManagedActorCommandList(request, managedActorCommandBatchRoute, queryCampaignId, env, corsHeaders);
@@ -4198,6 +4198,62 @@ async function hydrateManagedActorProfileIndex(doc, campaignId, env) {
   return next;
 }
 
+async function hydrateManagedActorClassificationIndex(doc, campaignId, env) {
+  if (Number(doc?.actorLinkIndexVersion || 0) >= 1) return doc;
+  const entries = Array.isArray(doc?.data) ? doc.data : [];
+  const unresolved = entries.filter((entry) => (
+    String(entry?.actorType || "").trim().toLowerCase() === "npc"
+    && typeof entry?.actorLink !== "boolean"
+    && entry?.worldId
+    && entry?.actorId
+  ));
+  const documents = await Promise.all(unresolved.map(async (entry) => {
+    const raw = await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, entry.worldId, entry.actorId));
+    return safeJsonParse(raw);
+  }));
+  const tokenStateById = new Map();
+  unresolved.forEach((entry, index) => {
+    const document = documents[index];
+    if (!document) return;
+    const tokenState = normalizeManagedActorRuntimePolicy(
+      document.actorType,
+      document.definition,
+      document,
+      document.runtimePolicy,
+    );
+    if (typeof tokenState.actorLink === "boolean") tokenStateById.set(entry.id, tokenState);
+  });
+  let changed = false;
+  const data = entries.map((entry) => {
+    const indexedActorLink = typeof entry?.actorLink === "boolean" ? entry.actorLink : null;
+    const tokenState = indexedActorLink === null
+      ? tokenStateById.get(entry?.id)
+      : normalizeManagedActorRuntimePolicy(
+        entry.actorType,
+        { prototypeToken: { actorLink: indexedActorLink } },
+        entry,
+        entry.runtimePolicy,
+      );
+    if (!tokenState) return entry;
+    const nextEntry = {
+      ...entry,
+      entityKind: tokenState.entityKind,
+      runtimePolicy: tokenState.runtimePolicy,
+      actorLink: tokenState.actorLink,
+    };
+    if (managedActorIndexEntryComparable(entry) !== managedActorIndexEntryComparable(nextEntry)) changed = true;
+    return nextEntry;
+  });
+  const next = {
+    ...doc,
+    actorLinkIndexVersion: 1,
+    version: Number(doc?.version || 0) + 1,
+    updatedAt: changed ? new Date().toISOString() : (doc?.updatedAt || null),
+    data,
+  };
+  await env.SIGILLO_KV.put(managedActorIndexKey(campaignId), JSON.stringify(next));
+  return next;
+}
 async function updateManagedActorProfileIndex(env, campaignId, actor, profile) {
   const indexKey = managedActorIndexKey(campaignId);
   const indexDoc = safeJsonParse(await env.SIGILLO_KV.get(indexKey)) || { version: 0, campaignId, data: [] };
@@ -5297,8 +5353,9 @@ function normalizeManagedActorCommandPatch(input, kind = "item.update") {
   } else return null;
   const normalized = normalizeValue(path, input.value);
   if (!normalized.valid) return null;
-  const base = input.baseValue === null || input.baseValue === undefined || input.baseValue === ""
-    ? { valid: true, value: null }
+  const baseIsEmpty = input.baseValue === null || input.baseValue === undefined || input.baseValue === "";
+  const base = baseIsEmpty
+    ? { valid: true, value: path === "system.attributes.init.bonus" ? 0 : null }
     : normalizeValue(path, input.baseValue);
   return { path, value: normalized.value, baseValue: base.valid ? base.value : null };
 }
@@ -5334,6 +5391,97 @@ function normalizeManagedActorCommandTarget(input) {
   const effectId = String(input.effectId || "").trim().slice(0, 96);
   const clientId = String(input.clientId || "").trim().slice(0, 96);
   return transferId || itemId || effectId || clientId ? { transferId, itemId, effectId, clientId } : null;
+}
+
+function normalizeManagedActorLinkCommandDocument(input, kind) {
+  const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+  if (kind === "actor-link.inspect") return { requestedActorLink: true };
+  const inspectionId = String(source.inspectionId || "").trim().slice(0, 96);
+  if (kind === "actor-link.cancel") return inspectionId ? { inspectionId } : null;
+  if (kind !== "actor-link.apply") return null;
+  const sourceId = String(source.sourceId || "").trim().replace(/[^A-Za-z0-9:._-]+/g, "").slice(0, 240);
+  const snapshotHash = String(source.snapshotHash || "").trim().replace(/[^A-Za-z0-9:_-]+/g, "").slice(0, 160);
+  return inspectionId && sourceId && snapshotHash ? { inspectionId, sourceId, snapshotHash, acceptStructural: source.acceptStructural === true } : null;
+}
+
+function normalizeManagedActorLinkDifferenceValue(value) {
+  if (value === undefined || value === null || value === "") return "—";
+  if (["string", "number", "boolean"].includes(typeof value)) return String(value).trim().slice(0, 160);
+  return "—";
+}
+function normalizeManagedActorLinkItemDifferences(input) {
+  return (Array.isArray(input) ? input : []).slice(0, 32).map((entry) => {
+    const value = entry && typeof entry === "object" && !Array.isArray(entry) ? entry : {};
+    const changes = (Array.isArray(value.changes) ? value.changes : []).slice(0, 8).map((change) => ({
+      label: String(change?.label || "Variazione").trim().slice(0, 120),
+      before: normalizeManagedActorLinkDifferenceValue(change?.before),
+      after: normalizeManagedActorLinkDifferenceValue(change?.after),
+    }));
+    if (!changes.length) return null;
+    return {
+      name: String(value.name || "Elemento").trim().slice(0, 180),
+      type: String(value.type || "item").trim().slice(0, 48),
+      kind: ["added", "missing", "changed"].includes(value.kind) ? value.kind : "changed",
+      structural: value.structural === true,
+      changes,
+    };
+  }).filter(Boolean);
+}
+
+function normalizeManagedActorLinkEffectDifferences(input) {
+  return (Array.isArray(input) ? input : []).slice(0, 24).map((entry) => {
+    const value = entry && typeof entry === "object" && !Array.isArray(entry) ? entry : {};
+    return {
+      name: String(value.name || "Effetto").trim().slice(0, 180),
+      kind: ["added", "missing", "changed"].includes(value.kind) ? value.kind : "changed",
+      detail: String(value.detail || "Stato differente").trim().slice(0, 180),
+    };
+  });
+}
+function normalizeManagedActorLinkDefinitionDifferences(input) {
+  return (Array.isArray(input) ? input : []).slice(0, 96).map((entry) => {
+    const value = entry && typeof entry === "object" && !Array.isArray(entry) ? entry : {};
+    return {
+      label: String(value.label || "Statistica").trim().slice(0, 120),
+      before: String(value.before ?? "—").trim().slice(0, 120),
+      after: String(value.after ?? "—").trim().slice(0, 120),
+      group: ["ability", "proficiency", "stat", "movement", "trait"].includes(value.group) ? value.group : "stat",
+    };
+  });
+}
+function normalizeManagedActorLinkReview(input) {
+  const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+  const snapshotHash = String(source.snapshotHash || "").trim().replace(/[^A-Za-z0-9:_-]+/g, "").slice(0, 160);
+  const sources = (Array.isArray(source.sources) ? source.sources : []).slice(0, 65).map((entry) => {
+    const value = entry && typeof entry === "object" && !Array.isArray(entry) ? entry : {};
+    const id = String(value.id || "").trim().replace(/[^A-Za-z0-9:._-]+/g, "").slice(0, 240);
+    if (!id) return null;
+    return {
+      id,
+      kind: value.kind === "token" ? "token" : "actor",
+      label: String(value.label || (value.kind === "token" ? "Token" : "Actor originale")).trim().slice(0, 180),
+      sceneId: sanitizeManagedActorId(value.sceneId || ""),
+      sceneName: String(value.sceneName || "").trim().slice(0, 180),
+      tokenId: sanitizeManagedActorId(value.tokenId || ""),
+      tokenName: String(value.tokenName || "").trim().slice(0, 180),
+      actorLink: value.actorLink === true,
+      currentScene: value.currentScene === true,
+      runtime: normalizeManagedActorRuntime(value.runtime || {}),
+      itemStateChanges: Math.max(0, Math.min(999, Math.floor(Number(value.itemStateChanges) || 0))),
+      itemStateDifferences: normalizeManagedActorLinkItemDifferences(value.itemStateDifferences),
+      effectDifferences: normalizeManagedActorLinkEffectDifferences(value.effectDifferences),
+      definitionDifferences: normalizeManagedActorLinkDefinitionDifferences(value.definitionDifferences),
+      structuralDifferences: value.structuralDifferences === true,
+      effectCount: Math.max(0, Math.min(999, Math.floor(Number(value.effectCount) || 0))),
+    };
+  }).filter(Boolean);
+  return snapshotHash && sources.length ? {
+    actorLink: source.actorLink === true,
+    snapshotHash,
+    inspectedAt: String(source.inspectedAt || new Date().toISOString()).slice(0, 64),
+    tokenCount: Math.max(0, Math.min(999, Math.floor(Number(source.tokenCount) || Math.max(0, sources.length - 1)))),
+    sources,
+  } : null;
 }
 
 function readManagedActorCommandQueue(raw, campaignId, worldId) {
@@ -5510,6 +5658,7 @@ function publicManagedActorCommand(command) {
   return {
     id: command.id,
     kind: command.kind,
+    baseRevision: Number(command.baseRevision || 0),
     actorId: command.actorId,
     foundryActorId: command.foundryActorId,
     target: command.target,
@@ -5548,16 +5697,22 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
   }
 
   const kind = String(body?.kind || "item.update").trim().toLowerCase();
-  const allowedKinds = new Set(["actor.update", "item.update", "item.create", "item.delete", "effect.update", "effect.create", "effect.delete"]);
+  const allowedKinds = new Set(["actor.update", "item.update", "item.create", "item.delete", "effect.update", "effect.create", "effect.delete", "actor-link.inspect", "actor-link.apply", "actor-link.cancel"]);
   if (!allowedKinds.has(kind)) return json({ ok: false, error: "Unsupported managed actor command" }, 400, corsHeaders);
 
+  const isActorLinkKind = kind.startsWith("actor-link.");
+  if (isActorLinkKind && !authorization.isEditor) {
+    return json({ ok: false, error: "Only a campaign DM or admin can change Link Actor Data" }, 403, corsHeaders);
+  }
   const isUpdate = kind.endsWith(".update");
   const isCreate = kind.endsWith(".create");
   const isDelete = kind.endsWith(".delete");
   const isItemKind = kind.startsWith("item.");
   const isEffectKind = kind.startsWith("effect.");
-  let document = isCreate ? normalizeManagedCreateDocument(body?.document, kind) : null;
-  let target = kind === "actor.update" ? {} : normalizeManagedActorCommandTarget(body?.target);
+  let document = isActorLinkKind
+    ? normalizeManagedActorLinkCommandDocument(body?.document, kind)
+    : (isCreate ? normalizeManagedCreateDocument(body?.document, kind) : null);
+  let target = (kind === "actor.update" || isActorLinkKind) ? {} : normalizeManagedActorCommandTarget(body?.target);
   if (kind === "item.create" && document) {
     document.transferId ||= `item-${crypto.randomUUID()}`;
     target = { transferId: document.transferId, itemId: "", effectId: "", clientId: "" };
@@ -5572,16 +5727,46 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
   if (kind === "actor.update" && !managedActorHasSharedRuntime(actor)) {
     patches = patches.filter((patch) => !isManagedActorInstanceRuntimePatch(patch.path));
   }
-  if ((isUpdate && !patches.length) || ((isItemKind || isEffectKind) && !target) || (isCreate && !document) || (!isUpdate && !isCreate && !isDelete)) {
+  if ((isUpdate && !patches.length) || ((isItemKind || isEffectKind) && !target) || (isCreate && !document) || (isActorLinkKind && !document) || (!isActorLinkKind && !isUpdate && !isCreate && !isDelete)) {
     return json({ ok: false, error: "Managed actor command has no valid target or payload" }, 400, corsHeaders);
   }
 
   const queueKey = managedActorCommandQueueKey(campaignId, route.worldId);
   const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(queueKey), campaignId, route.worldId);
   const now = new Date().toISOString();
+  if (kind === "actor-link.cancel") {
+    const previousLength = queue.commands.length;
+    queue.commands = queue.commands.filter((entry) => !(
+      entry.actorId === route.actorId
+      && (entry.id === document.inspectionId || entry.document?.inspectionId === document.inspectionId)
+      && String(entry.kind || "").startsWith("actor-link.")
+    ));
+    if (queue.commands.length !== previousLength) {
+      queue.version += 1;
+      queue.updatedAt = now;
+      await writeManagedActorCommandQueue(env, queue);
+      scheduleFoundryLiveInvalidation(ctx, env, {
+        campaignId,
+        worldId: route.worldId,
+        collections: ["managed-actors"],
+        actorIds: [route.actorId],
+        reason: "managed-actor-command:actor-link.cancel",
+        revision: queue.version,
+      });
+    }
+    return json({ ok: true, cancelled: true, campaignId, worldId: route.worldId, actorId: route.actorId, queueVersion: queue.version }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
+  }
+  if (kind === "actor-link.apply") {
+    const inspection = queue.commands.find((entry) => entry.id === document.inspectionId && entry.actorId === route.actorId && entry.kind === "actor-link.inspect" && entry.status === "review");
+    if (!inspection) return json({ ok: false, error: "Actor Link inspection is no longer available", code: "INSPECTION_MISSING" }, 409, corsHeaders);
+    if (String(inspection.current?.snapshotHash || "") !== document.snapshotHash) {
+      return json({ ok: false, error: "Actor Link inspection is outdated", code: "INSPECTION_STALE" }, 409, corsHeaders);
+    }
+  }
   const entityMatches = (command) => {
     if (command.actorId !== route.actorId) return false;
     if (kind === "actor.update") return command.kind === "actor.update";
+    if (isActorLinkKind) return String(command.kind || "") === kind;
     if (isItemKind && !String(command.kind || "").startsWith("item.")) return false;
     if (isEffectKind && !String(command.kind || "").startsWith("effect.")) return false;
     if (target.transferId) return command.target?.transferId === target.transferId;
@@ -5741,7 +5926,7 @@ async function handleManagedActorCommandList(request, route, campaignId, env, co
   return json({ ok: true, campaignId, worldId: route.worldId, version: queue.version, createVersion: createQueue.version, commands, createRequests }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
 }
 
-async function handleManagedActorCommandAck(request, route, fallbackCampaignId, env, corsHeaders = {}) {
+async function handleManagedActorCommandAck(request, route, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   if (!isFoundrySyncSecretAuthorized(request, env)) return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
   let body;
@@ -5762,18 +5947,49 @@ async function handleManagedActorCommandAck(request, route, fallbackCampaignId, 
   if (!results.size && !createResults.size) return json({ ok: false, error: "Missing command results" }, 400, corsHeaders);
 
   const now = new Date().toISOString();
+  const affectedActorIds = Array.from(new Set(queue.commands.filter((command) => results.has(command.id)).map((command) => command.actorId).filter(Boolean)));
+  const completedInspections = new Set(queue.commands.flatMap((command) => {
+    const result = results.get(command.id);
+    return command.kind === "actor-link.apply" && String(result?.status || "").toLowerCase() === "applied" && command.document?.inspectionId
+      ? [String(command.document.inspectionId)]
+      : [];
+  }));
+  const refreshedInspections = new Map(queue.commands.flatMap((command) => {
+    const result = results.get(command.id);
+    const status = String(result?.status || "").toLowerCase();
+    if (command.kind !== "actor-link.apply" || !["conflict", "failed"].includes(status) || !command.document?.inspectionId) return [];
+    const current = normalizeManagedActorLinkReview(result.current);
+    return current ? [[String(command.document.inspectionId), current]] : [];
+  }));
   let changed = false;
   queue.commands = queue.commands.flatMap((command) => {
+    if (completedInspections.has(String(command.id || ""))) {
+      changed = true;
+      return [];
+    }
+    const refreshedInspection = refreshedInspections.get(String(command.id || ""));
+    if (command.kind === "actor-link.inspect" && refreshedInspection) {
+      changed = true;
+      return [{ ...command, status: "review", error: "", current: refreshedInspection, updatedAt: now }];
+    }
     const result = results.get(command.id);
     if (!result) return [command];
     const status = String(result.status || "").toLowerCase();
+    if (status === "review" && command.kind === "actor-link.inspect") {
+      const current = normalizeManagedActorLinkReview(result.current);
+      changed = true;
+      return current
+        ? [{ ...command, status: "review", error: "", current, updatedAt: now }]
+        : [{ ...command, status: "failed", error: "Foundry ha restituito un inventario istanze non valido", updatedAt: now }];
+    }
     if (status === "applied") {
       changed = true;
       return [];
     }
     if (["conflict", "failed"].includes(status)) {
       changed = true;
-      return [{ ...command, status, error: String(result.error || result.message || status).slice(0, 800), current: result.current && typeof result.current === "object" ? result.current : undefined, updatedAt: now }];
+      const current = command.kind === "actor-link.apply" ? normalizeManagedActorLinkReview(result.current) : (result.current && typeof result.current === "object" ? result.current : undefined);
+      return [{ ...command, status, error: String(result.error || result.message || status).slice(0, 800), current, updatedAt: now }];
     }
     return [command];
   });
@@ -5800,6 +6016,14 @@ async function handleManagedActorCommandAck(request, route, fallbackCampaignId, 
     queue.version += 1;
     queue.updatedAt = now;
     await writeManagedActorCommandQueue(env, queue);
+    scheduleFoundryLiveInvalidation(ctx, env, {
+      campaignId,
+      worldId: route.worldId,
+      collections: ["managed-actors"],
+      actorIds: affectedActorIds,
+      reason: "managed-actor-command-ack",
+      revision: queue.version,
+    });
   }
   if (createChanged) {
     createQueue.version += 1;
@@ -6037,7 +6261,7 @@ function normalizeManagedActorRuntimePolicy(actorType, definition = {}, existing
     ? String(requestedPolicy).trim().toLowerCase()
     : "";
   const perInstance = type === "npc"
-    && (explicitPolicy ? explicitPolicy === "per-instance" : actorLink === false);
+    && (typeof actorLink === "boolean" ? actorLink === false : explicitPolicy === "per-instance");
   return {
     actorLink,
     runtimePolicy: perInstance ? "per-instance" : "shared",
@@ -6047,11 +6271,13 @@ function normalizeManagedActorRuntimePolicy(actorType, definition = {}, existing
 
 function managedActorHasSharedRuntime(actor) {
   if (!actor || typeof actor !== "object") return true;
+  const type = String(actor.actorType || "").trim().toLowerCase();
+  const actorLink = actor?.definition?.prototypeToken?.actorLink;
+  if (type === "npc" && typeof actorLink === "boolean") return actorLink;
   const explicitPolicy = String(actor.runtimePolicy || "").trim().toLowerCase();
   if (explicitPolicy === "per-instance") return false;
   if (explicitPolicy === "shared") return true;
-  const type = String(actor.actorType || "").trim().toLowerCase();
-  return !(type === "npc" && actor?.definition?.prototypeToken?.actorLink === false);
+  return true;
 }
 function normalizeManagedActorDocument(input, existing, campaignId, route, source) {
   const now = new Date().toISOString();
@@ -6511,7 +6737,8 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
     reader.isEditor && directoryView ? env.SIGILLO_KV.get(managedActorCreateRequestQueueKey(campaignId)) : Promise.resolve(null),
   ]);
   const storedDoc = safeJsonParse(raw) || { version: 0, campaignId, data: [] };
-  const doc = await hydrateManagedActorProfileIndex(storedDoc, campaignId, env);
+  const profileDoc = await hydrateManagedActorProfileIndex(storedDoc, campaignId, env);
+  const doc = await hydrateManagedActorClassificationIndex(profileDoc, campaignId, env);
   const entries = Array.isArray(doc.data) ? doc.data : [];
   const managedLegacyCharacterIds = Array.from(new Set(entries
     .map((entry) => sanitizeAssetId(entry?.profile?.legacyCharacterId || ""))
@@ -6524,10 +6751,10 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
       await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, worldId)), campaignId, worldId,
     )));
     for (const queue of queues) {
-      for (const command of queue.commands.filter((entry) => ["pending", "conflict", "failed"].includes(entry.status))) {
+      for (const command of queue.commands.filter((entry) => ["pending", "review", "conflict", "failed"].includes(entry.status))) {
         const key = `${queue.worldId}:${command.actorId}`;
         const current = syncByActor.get(key) || { pending: 0, conflicts: 0, failed: 0, updatedAt: queue.updatedAt || null };
-        if (command.status === "pending") current.pending += 1;
+        if (command.status === "pending" || command.status === "review") current.pending += 1;
         else if (command.status === "conflict") current.conflicts += 1;
         else current.failed += 1;
         syncByActor.set(key, current);
@@ -6563,6 +6790,129 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
     ...corsHeaders,
     "Cache-Control": reader.user || reader.isEditor ? "private, no-store" : "public, max-age=60, must-revalidate",
   });
+}
+function normalizeManagedActorCommandComparable(value) {
+  if (value === null || value === undefined || value === "") return undefined;
+  if (Array.isArray(value)) return value.map(normalizeManagedActorCommandComparable).filter((entry) => entry !== undefined);
+  if (typeof value === "string") {
+    const clean = value.trim();
+    if (clean && /^-?(?:\d+(?:\.\d+)?|\.\d+)$/.test(clean)) {
+      const number = Number(clean);
+      if (Number.isFinite(number)) return number;
+    }
+    return value;
+  }
+  if (typeof value === "object") {
+    return Object.fromEntries(Object.entries(value)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entry]) => [key, normalizeManagedActorCommandComparable(entry)])
+      .filter(([, entry]) => entry !== undefined));
+  }
+  return value;
+}
+
+function managedActorCommandValuesEqual(left, right) {
+  return JSON.stringify(normalizeManagedActorCommandComparable(left)) === JSON.stringify(normalizeManagedActorCommandComparable(right));
+}
+function managedActorCommandPatchValuesEqual(path, left, right) {
+  if (path === "system.attributes.init.bonus") {
+    const normalizeInitiative = (value) => (
+      value === null || value === undefined || value === "" || Number(value) === 0
+        ? 0
+        : value
+    );
+    return managedActorCommandValuesEqual(normalizeInitiative(left), normalizeInitiative(right));
+  }
+  return managedActorCommandValuesEqual(left, right);
+}
+
+
+function managedActorCommandItem(document, target = {}) {
+  const items = Array.isArray(document?.definition?.items) ? document.definition.items : [];
+  const transferId = String(target.transferId || "");
+  const itemId = String(target.itemId || "");
+  return items.find((item) => (transferId && String(item?.transferId || "") === transferId)
+    || (!transferId && itemId && String(item?.itemId || "") === itemId)) || null;
+}
+
+function managedActorCommandItemValue(item, path) {
+  const definition = item?.definition && typeof item.definition === "object" ? item.definition : {};
+  const state = item?.state && typeof item.state === "object" ? item.state : {};
+  if (path === "name") return item?.name || "";
+  if (path === "img") return definition.img || "";
+  if (path === "system.description.value") return definition.description || "";
+  if (path === "system.quantity") return state.quantity ?? definition.quantity;
+  if (path === "system.equipped") return state.equipped ?? definition.equipped;
+  if (path === "system.attuned") return state.attuned ?? definition.attuned;
+  if (path === "system.preparation.prepared") return state.prepared ?? definition.preparation?.prepared;
+  if (path === "system.uses.value") return state.uses?.value;
+  if (path === "system.uses.spent") return state.uses?.spent;
+  const keys = String(path || "").replace(/^system\./, "").split(".").filter(Boolean);
+  return keys.reduce((value, key) => value?.[key], definition);
+}
+function managedActorCommandActorValue(document, path) {
+  if (path === "name") return document?.name || "";
+  if (path === "system.attributes.hp.value") return document?.runtime?.hp?.value;
+  if (path === "system.attributes.hp.temp") return document?.runtime?.hp?.temp;
+  const spell = String(path || "").match(/^system\.spells\.(spell[0-9]|pact)\.(value|spent|max|override)$/);
+  if (spell) {
+    if (["value", "spent"].includes(spell[2])) return document?.runtime?.spellSlots?.[spell[1]]?.[spell[2]];
+    return document?.definition?.spellSlots?.[spell[1]]?.[spell[2]];
+  }
+  const customCurrency = String(path || "").match(/^flags\.khuzoe-merchant\.wallet\.([a-z0-9_-]+)$/);
+  if (customCurrency) return document?.definition?.currency?.[customCurrency[1]];
+  const nativeCurrency = String(path || "").match(/^system\.currency\.([a-z0-9_-]+)$/);
+  if (nativeCurrency) return document?.definition?.currency?.[nativeCurrency[1]];
+  const keys = String(path || "").replace(/^system\./, "").split(".").filter(Boolean);
+  return keys.reduce((value, key) => value?.[key], document?.definition);
+}
+
+
+function managedActorCommandChangedPaths(baseValue, desiredValue, path = [], output = []) {
+  if (managedActorCommandValuesEqual(baseValue, desiredValue)) return output;
+  if (Array.isArray(baseValue) && Array.isArray(desiredValue) && baseValue.length === desiredValue.length) {
+    baseValue.forEach((entry, index) => managedActorCommandChangedPaths(entry, desiredValue[index], [...path, String(index)], output));
+    return output;
+  }
+  const baseObject = baseValue && typeof baseValue === "object" && !Array.isArray(baseValue);
+  const desiredObject = desiredValue && typeof desiredValue === "object" && !Array.isArray(desiredValue);
+  if (baseObject && desiredObject) {
+    const keys = new Set([...Object.keys(baseValue), ...Object.keys(desiredValue)]);
+    keys.forEach((key) => managedActorCommandChangedPaths(baseValue[key], desiredValue[key], [...path, key], output));
+    return output;
+  }
+  output.push(path);
+  return output;
+}
+
+function managedActorCommandRelativeValue(value, path) {
+  return path.reduce((entry, key) => entry?.[key], value);
+}
+
+function managedActorCommandPatchIsSatisfied(currentValue, patch) {
+  if (managedActorCommandPatchValuesEqual(patch?.path, currentValue, patch.value)) return true;
+  const changedPaths = managedActorCommandChangedPaths(patch.baseValue, patch.value);
+  return changedPaths.length === 0 || changedPaths.every((path) => managedActorCommandPatchValuesEqual(patch?.path,
+    managedActorCommandRelativeValue(currentValue, path),
+    managedActorCommandRelativeValue(patch.value, path),
+  ));
+}
+
+function managedActorCommandIsSatisfied(document, command) {
+  const patches = Array.isArray(command?.patches) ? command.patches : [];
+  if (command?.kind === "actor.update") {
+    return Boolean(patches.length && patches.every((patch) => managedActorCommandPatchIsSatisfied(
+      managedActorCommandActorValue(document, patch.path),
+      patch,
+    )));
+  }
+  if (command?.kind !== "item.update") return false;
+  const item = managedActorCommandItem(document, command.target || {});
+
+  return Boolean(item && patches.length && patches.every((patch) => managedActorCommandPatchIsSatisfied(
+    managedActorCommandItemValue(item, patch.path),
+    patch,
+  )));
 }
 async function handleManagedActorGet(request, route, campaignId, env, corsHeaders = {}) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
@@ -6604,9 +6954,25 @@ async function handleManagedActorGet(request, route, campaignId, env, corsHeader
   const commandRaw = canEditStats
     ? await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId))
     : null;
-  const commandQueue = canEditStats ? readManagedActorCommandQueue(commandRaw, campaignId, route.worldId) : null;
+  let commandQueue = canEditStats ? readManagedActorCommandQueue(commandRaw, campaignId, route.worldId) : null;
+  if (commandQueue) {
+    const staleIds = new Set(commandQueue.commands
+      .filter((command) => command.actorId === route.actorId
+        && ["conflict", "failed"].includes(command.status)
+        && managedActorCommandIsSatisfied(runtimeData, command))
+      .map((command) => command.id));
+    if (staleIds.size) {
+      commandQueue = {
+        ...commandQueue,
+        version: Number(commandQueue.version || 0) + 1,
+        updatedAt: new Date().toISOString(),
+        commands: commandQueue.commands.filter((command) => !staleIds.has(command.id)),
+      };
+      await writeManagedActorCommandQueue(env, commandQueue);
+    }
+  }
   const commands = commandQueue
-    ? commandQueue.commands.filter((command) => command.actorId === route.actorId && ["pending", "conflict", "failed"].includes(command.status)).slice(0, 64).map(publicManagedActorCommand)
+    ? commandQueue.commands.filter((command) => command.actorId === route.actorId && ["pending", "review", "conflict", "failed"].includes(command.status)).slice(0, 64).map(publicManagedActorCommand)
     : [];
   const data = {
     ...readableData,

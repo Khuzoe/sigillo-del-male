@@ -113,6 +113,17 @@ function parseYamlLite(yamlText) {
             return window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
         }
 
+        function managedActorDirectoryKind(actor = {}, profile = {}) {
+            const actorLink = actor?.actorLink;
+            if (typeof actorLink === 'boolean') return actorLink ? 'person' : 'creature';
+            const kindSource = String(profile?.kindSource || 'automatic').trim().toLowerCase();
+            const profileKind = String(profile?.kind || '').trim().toLowerCase();
+            if (kindSource === 'manual') return profileKind === 'creature' ? 'creature' : 'person';
+            if (String(actor?.runtimePolicy || '').trim().toLowerCase() === 'per-instance') return 'creature';
+            const entityKind = String(actor?.entityKind || '').trim().toLowerCase();
+            return entityKind === 'creature' || profileKind === 'creature' ? 'creature' : 'person';
+        }
+
         function getSyncedNpcImagePath(npc, variant) {
             return window.CriptaCharacterNormalize.getSyncedNpcImagePath(npc, variant);
         }
@@ -224,9 +235,7 @@ function parseYamlLite(yamlText) {
             const statsVisibility = String(actor?.visibility?.state || 'dm').toLowerCase();
             const profileVisibility = String(profile?.visibility?.state || 'dm').toLowerCase();
             const hiddenFromPlayers = statsVisibility === 'dm' && profileVisibility === 'dm';
-            const automaticKind = String(actor?.entityKind || '').toLowerCase() === 'creature' ? 'creature' : 'person';
-            const kindSource = String(profile?.kindSource || 'automatic').toLowerCase();
-            const effectiveKind = kindSource === 'manual' ? profile.kind : (actor?.entityKind || profile.kind || automaticKind);
+            const effectiveKind = managedActorDirectoryKind(actor, profile);
             return {
                 ...(legacyNpc || {}),
                 id: legacyId || `managed-${actor.worldId || 'world'}-${actor.actorId || 'actor'}`,
@@ -382,21 +391,24 @@ function parseYamlLite(yamlText) {
             document.querySelector('[data-managed-npc-create-modal]')?.remove();
             const worlds = Array.from(new Set((managedState.worldIds || []).map((value) => String(value || '').trim()).filter(Boolean)));
             const categories = (categoryRegistry.categories || []).filter((category) => !category.archived && !category.mergedInto);
+            const selectedDirectoryKind = document.querySelector('[data-roster-type].is-active')?.dataset.rosterType;
+            const initialKind = selectedDirectoryKind === 'creature' ? 'creature' : 'person';
+            const createLabel = initialKind === 'creature' ? 'una creatura' : 'un NPC';
             const overlay = document.createElement('div');
             overlay.className = 'managed-npc-create-overlay';
             overlay.dataset.managedNpcCreateModal = 'true';
             overlay.innerHTML = `<section class="managed-npc-create-dialog" role="dialog" aria-modal="true" aria-labelledby="managed-npc-create-title">
-                <header><div><span>Nuovo flusso</span><h2 id="managed-npc-create-title"><i class="fas fa-wand-magic-sparkles"></i>Crea un NPC</h2><p>Prepara il dossier ora; Foundry costruira automaticamente l'Actor con statistiche di base.</p></div><button type="button" data-create-close aria-label="Chiudi"><i class="fas fa-xmark"></i></button></header>
+                <header><div><span>Nuovo flusso</span><h2 id="managed-npc-create-title"><i class="fas fa-wand-magic-sparkles"></i>Crea ${createLabel}</h2><p>Prepara il dossier ora; Foundry costruira automaticamente l'Actor con statistiche di base.</p></div><button type="button" data-create-close aria-label="Chiudi"><i class="fas fa-xmark"></i></button></header>
                 <form data-managed-npc-create-form>
                     <div class="managed-npc-create-grid">
                         <label class="is-wide"><span>Nome <b>*</b></span><input name="name" required maxlength="180" autocomplete="off" placeholder="Nome del personaggio o della creatura"></label>
-                        <label><span>Tipo</span><select name="kind"><option value="person">Personaggio</option><option value="creature">Creatura / Mostro</option></select></label>
+                        <label><span>Tipo</span><select name="kind"><option value="person" ${initialKind === 'person' ? 'selected' : ''}>NPC collegato</option><option value="creature" ${initialKind === 'creature' ? 'selected' : ''}>Creatura del Bestiario</option></select></label>
                         <label><span>Mondo Foundry <b>*</b></span>${worlds.length ? `<select name="targetWorldId" required>${worlds.map((world) => `<option value="${escapeNpcAttribute(world)}">${escapeNpcAttribute(world)}</option>`).join('')}</select>` : '<input name="targetWorldId" required placeholder="ID del mondo Foundry">'}</label>
                         <label><span>Ruolo o soprannome</span><input name="role" maxlength="240" placeholder="Es. Custode del teatro"></label>
                         <label><span>Categoria</span><select name="categoryId"><option value="">Senza categoria</option>${categories.map((category) => `<option value="${escapeNpcAttribute(category.id)}">${escapeNpcAttribute(category.name)}</option>`).join('')}</select></label>
-                        <label><span>Stato</span><select name="lifeState"><option value="none">Nessuno</option><option value="alive">Vivo</option><option value="dead">Morto</option><option value="unknown">Ignoto</option></select></label>
+                        <label data-create-life-state><span>Stato</span><select name="lifeState"><option value="none">Nessuno</option><option value="alive">Vivo</option><option value="dead">Morto</option><option value="unknown">Ignoto</option></select></label>
                         <label><span>Visibilita dossier</span><select name="visibility"><option value="dm">Solo DM</option><option value="public">Pubblico</option></select></label>
-                        <label class="is-wide"><span>Citazione o nota breve</span><textarea name="quote" rows="2" maxlength="1000" placeholder="Facoltativa"></textarea></label>
+                        <label class="is-wide managed-npc-create-quote"><span>Citazione o nota breve</span><div><i class="fas fa-quote-left" aria-hidden="true"></i><textarea name="quote" rows="3" maxlength="1000" placeholder="Una frase rappresentativa"></textarea></div></label>
                     </div>
                     <fieldset class="managed-npc-create-capabilities"><legend>Capacita</legend><label><input type="checkbox" name="tags" value="mercante"><span><i class="fas fa-store"></i>Mercante</span></label><label><input type="checkbox" name="tags" value="boss"><span><i class="fas fa-crown"></i>Boss</span></label><label><input type="checkbox" name="tags" value="missioni"><span><i class="fas fa-scroll"></i>Missioni</span></label></fieldset>
                     <div class="managed-npc-create-media"><label data-create-file-card><span>Avatar</span><input type="file" name="avatar" accept="image/*"><div><i class="fas fa-image"></i><strong>Immagine grande</strong><small>Trascina o scegli il file</small></div></label><label data-create-file-card><span>Token</span><input type="file" name="token" accept="image/*"><div><i class="fas fa-circle-user"></i><strong>Token della mappa</strong><small>Se manca, usa l'avatar</small></div></label></div>
@@ -409,6 +421,17 @@ function parseYamlLite(yamlText) {
             const close = () => { overlay.remove(); document.body.classList.remove('has-managed-dialog'); };
             overlay.querySelectorAll('[data-create-close]').forEach((button) => button.addEventListener('click', close));
             overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+            const kindControl = overlay.querySelector('select[name="kind"]');
+            const syncKindControls = () => {
+                const isCreature = kindControl?.value === 'creature';
+                const lifeState = overlay.querySelector('[data-create-life-state]');
+                if (lifeState) lifeState.hidden = isCreature;
+                if (isCreature) overlay.querySelector('select[name="lifeState"]').value = 'none';
+                const title = overlay.querySelector('#managed-npc-create-title');
+                if (title) title.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i>Crea ${isCreature ? 'una creatura' : 'un NPC'}`;
+            };
+            kindControl?.addEventListener('change', syncKindControls);
+            syncKindControls();
             overlay.querySelectorAll('[data-create-file-card] input[type="file"]').forEach((input) => input.addEventListener('change', () => {
                 const file = input.files?.[0];
                 const card = input.closest('[data-create-file-card]');
@@ -741,11 +764,29 @@ function parseYamlLite(yamlText) {
             const archiveCount = archiveToggle?.querySelector('[data-roster-archive-count]');
             const count = document.getElementById('npc-count');
             const empty = document.getElementById('npc-filter-empty');
+            const createAction = document.querySelector('[data-npc-create-link]');
             const state = { query: '', npcStatus: 'all', type: 'all', showArchived: false };
             if (archiveToggle) archiveToggle.hidden = options.canEdit !== true;
 
             const apply = () => {
                 const query = normalizeRosterSearch(state.query);
+                const isBestiary = state.type === 'creature';
+                if (isBestiary && state.npcStatus !== 'all') {
+                    state.npcStatus = 'all';
+                    npcFilters?.querySelectorAll('[data-roster-filter]').forEach((entry) => {
+                        const active = entry.dataset.rosterFilter === 'all';
+                        entry.classList.toggle('is-active', active);
+                        entry.setAttribute('aria-pressed', active ? 'true' : 'false');
+                    });
+                }
+                if (npcFilters) npcFilters.hidden = isBestiary;
+                if (search) search.placeholder = isBestiary
+                    ? 'Cerca creatura, tipo o categoria...'
+                    : 'Cerca nome, ruolo, tipo o categoria...';
+                if (createAction) createAction.innerHTML = isBestiary
+                    ? '<i class="fas fa-plus"></i><span>Nuova creatura</span>'
+                    : '<i class="fas fa-plus"></i><span>Nuovo NPC</span>';
+                if (typeFilters) typeFilters.dataset.activeDirectory = state.type;
                 const cards = Array.from(container.querySelectorAll('[data-roster-card="npc"]'));
                 const archivedTotal = cards.filter((card) => card.dataset.rosterArchived === 'true').length;
                 if (archiveCount) archiveCount.textContent = String(archivedTotal);
@@ -767,11 +808,24 @@ function parseYamlLite(yamlText) {
                     const sectionCount = section.querySelector('.npc-category-count');
                     if (sectionCount) sectionCount.textContent = String(visibleCards.length);
                 });
-                if (count) count.textContent = visibleTotal + ' NPC';
+                if (count) {
+                    const noun = state.type === 'creature'
+                        ? (visibleTotal === 1 ? 'creatura' : 'creature')
+                        : state.type === 'merchant'
+                            ? (visibleTotal === 1 ? 'mercante' : 'mercanti')
+                            : state.type === 'all'
+                                ? (visibleTotal === 1 ? 'voce' : 'voci')
+                                : 'NPC';
+                    count.textContent = `${visibleTotal} ${noun}`;
+                }
                 if (empty) {
                     empty.hidden = visibleTotal !== 0;
                     const title = empty.querySelector('[data-roster-empty-title]');
-                    if (title) title.textContent = state.showArchived ? 'Nessun NPC archiviato' : 'Nessun NPC trovato';
+                    if (title) title.textContent = state.showArchived
+                        ? 'Nessun elemento archiviato'
+                        : state.type === 'creature'
+                            ? 'Nessuna creatura nel Bestiario'
+                            : 'Nessun NPC trovato';
                 }
             };
 
@@ -817,6 +871,9 @@ function parseYamlLite(yamlText) {
             const statusInfo = statusMap[npc.status] || null;
             const canMoveCategory = canShare && !npc.pendingCreate && Boolean(npc.managedActorWorldId && npc.managedActorId);
             const canShareCard = canShare && !npc.pendingCreate;
+            const roleLabel = npc.kind === 'creature' && (!npc.role || String(npc.role).trim().toLowerCase() === 'npc')
+                ? ''
+                : (npc.role || 'NPC');
 
             const card = document.createElement('a');
             card.href = npc.pendingCreate ? '#' : (npc.detailUrl || npc.managedActorUrl || buildNpcDetailUrl({ id: npc.id, type: 'npc' }));
@@ -865,13 +922,13 @@ function parseYamlLite(yamlText) {
                 : '<span class="npc-avatar-placeholder"><i class="fas fa-hourglass-half"></i></span>';
 
             card.innerHTML = `
-                ${statusInfo && !npc.pendingCreate ? `<span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>` : ""}
+                ${statusInfo && npc.kind !== 'creature' && !npc.pendingCreate ? `<span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>` : ""}
                 ${visibilityBadge}${npc.archived ? '<span class="npc-archive-badge"><i class="fas fa-box-archive"></i>Archiviato</span>' : ''}${syncBadge}
                 <div class="npc-avatar-container">${avatarMarkup}</div>
                 <div class="npc-info">
                     <div class="npc-header">
                         <h3 class="npc-name">${escapeNpcAttribute(npc.name)}</h3>
-                        <span class="npc-role">${escapeNpcAttribute(npc.role || 'NPC')}</span>
+                        ${roleLabel ? `<span class="npc-role">${escapeNpcAttribute(roleLabel)}</span>` : ''}
                         <span class="npc-kind-badge"><i class="fas ${npc.kind === 'creature' ? 'fa-dragon' : 'fa-user'}"></i>${npc.kind === 'creature' ? 'Creatura' : 'Personaggio'}</span>
                     </div>
                     <p class="npc-desc">${escapeNpcAttribute(npc.quote || '')}</p>
