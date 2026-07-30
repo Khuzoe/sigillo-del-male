@@ -416,7 +416,7 @@ const hashItemValue = (value) => {
 };
 const itemComparison = new Function(
   "foundry", "hashValue", "getItemTransferId", "stableStringify", "MODULE_ID", "TOKENIZER_MODULE_ID",
-  `${itemComparisonBlock}\nreturn { managedActorLinkItemStateDifferences, managedActorLinkStructureSignature, managedActorLinkItemDefinitionDifferences };`,
+  `${itemComparisonBlock}\nreturn { managedActorLinkItemStateDifferences, managedActorLinkStructureSignature, managedActorLinkItemDefinitionDifferences, managedActorLinkItemDefinitionSignature };`,
 )(
   { utils: { deepClone: (value) => structuredClone(value) } },
   hashItemValue,
@@ -425,7 +425,7 @@ const itemComparison = new Function(
   "cripta-wiki-sync",
   "khuzoe-tokenizer",
 );
-const linkTestItem = ({ id, transferId = "", prepared = true, damage = "1d6" }) => {
+const linkTestItem = ({ id, transferId = "", prepared = true, damage = "1d6", activityId = "primary", sourceLabel = "", properties = [] }) => {
   const source = {
     _id: id,
     name: "Multiattack",
@@ -433,7 +433,9 @@ const linkTestItem = ({ id, transferId = "", prepared = true, damage = "1d6" }) 
     img: "icons/example.webp",
     system: {
       preparation: { prepared },
-      activities: { primary: { damage: { parts: [[damage, "piercing"]] } } },
+      source: sourceLabel,
+      properties,
+      activities: { [activityId]: { _id: activityId, sort: 100, damage: { parts: [[damage, "piercing"]] } } },
     },
     flags: transferId ? { "cripta-wiki-sync": { transferId } } : {},
   };
@@ -472,6 +474,17 @@ const mechanicalDifferences = itemComparison.managedActorLinkItemStateDifference
 assert.equal(mechanicalDifferences.length, 1);
 assert.equal(mechanicalDifferences[0].structural, true);
 assert.equal(mechanicalDifferences[0].changes[0].label, "Danni attivita");
+const linkSemanticallyEqualBase = { items: [linkTestItem({
+  id: "semantic-id", activityId: "activity-original", sourceLabel: "PHB'14", properties: new Set(["fin", "mgc"]),
+})], effects: [] };
+const linkSemanticallyEqualToken = { items: [linkTestItem({
+  id: "semantic-id", activityId: "activity-regenerated", sourceLabel: "Player's Handbook", properties: ["mgc", "fin"],
+})], effects: [] };
+assert.deepEqual(
+  itemComparison.managedActorLinkItemStateDifferences(linkSemanticallyEqualBase, linkSemanticallyEqualToken),
+  [],
+  "ID attivita, provenienza editoriale e rappresentazioni Set/Array equivalenti non devono produrre falsi conflitti",
+);
 assert.match(mechanicalDifferences[0].changes[0].before, /1d6/);
 assert.match(mechanicalDifferences[0].changes[0].after, /2d6/);
 assert.match(moduleSyncSource, /schemaVersion: 3/, "il rollback deve usare lo snapshot strutturale completo");
@@ -480,15 +493,70 @@ assert.match(moduleSyncSource, /actorEffects: Array\.from/, "lo snapshot deve co
 assert.match(moduleSyncSource, /applyManagedActorLinkStructuralState/, "la sorgente token deve poter sostituire in sicurezza Item ed effetti");
 assert.match(moduleSyncSource, /reconcileManagedActorLinkEffects/, "gli ActiveEffect devono essere riconciliati senza cancellazione e ricreazione cieca");
 assert.doesNotMatch(moduleSyncSource, /replaceManagedActorLinkEmbeddedDocuments\([^\n]+"ActiveEffect", \[\]\)/, "la conversione e il rollback non devono svuotare preventivamente tutti gli effetti");
+assert.match(moduleSyncSource, /reconcileManagedActorLinkItems/, "gli Item devono essere riconciliati senza cancellazione completa preventiva");
+assert.doesNotMatch(moduleSyncSource, /currentIds\.length\) await actor\.deleteEmbeddedDocuments\(documentName, currentIds/, "la conversione non deve piu eliminare tutti gli Item prima della copia");
+assert.match(moduleSyncSource, /diff: false, recursive: false/, "gli aggiornamenti strutturali devono sostituire in modo deterministico il sotto-documento");
+assert.match(moduleSyncSource, /recoverPreparedManagedActorLinkConversions/, "una conversione interrotta deve essere recuperata dal backup al riavvio");
+assert.match(moduleSyncSource, /managedActorLinkConversions\.has\(actorId\)/, "due conversioni concorrenti dello stesso Actor devono essere bloccate");
+assert.match(moduleSyncSource, /verification\.summary/, "un fallimento strutturale deve indicare le proprieta che non sono state conservate");
+const itemReconcileBlock = moduleSyncSource.match(/function uniqueManagedActorLinkItems[\s\S]+?(?=\r?\nfunction uniqueManagedActorLinkEffects)/)?.[0];
+assert.ok(itemReconcileBlock, "la riconciliazione degli Item deve essere testabile");
+const reconcileActorItems = new Function(
+  "foundry", "stableStringify", "managedActorLinkDocumentSource", "managedActorLinkSemanticValue",
+  `${itemReconcileBlock}\nreturn reconcileManagedActorLinkItems;`,
+)(
+  { utils: { deepClone: (value) => structuredClone(value) } },
+  stableItemStringify,
+  (item) => structuredClone(item?._source || item || {}),
+  (value) => value,
+);
+const itemRecords = new Map([
+  ["existing", { id: "existing", name: "Vecchio", type: "feat", _source: { _id: "existing", name: "Vecchio", type: "feat", system: {} } }],
+  ["stale", { id: "stale", name: "Da rimuovere", type: "feat", _source: { _id: "stale", name: "Da rimuovere", type: "feat", system: {} } }],
+]);
+const itemEvents = [];
+const itemActor = {
+  items: { [Symbol.iterator]: () => itemRecords.values() },
+  async createEmbeddedDocuments(_type, creates) {
+    itemEvents.push("create");
+    creates.forEach((item, index) => {
+      const id = item._id || `created-${index}`;
+      itemRecords.set(id, { id, name: item.name, type: item.type, _source: structuredClone({ ...item, _id: id }) });
+    });
+  },
+  async updateEmbeddedDocuments(_type, updates) {
+    itemEvents.push("update");
+    updates.forEach((item) => itemRecords.set(item._id, { id: item._id, name: item.name, type: item.type, _source: structuredClone(item) }));
+  },
+  async deleteEmbeddedDocuments(_type, ids) {
+    itemEvents.push("delete");
+    ids.forEach((id) => itemRecords.delete(id));
+  },
+};
+await reconcileActorItems(itemActor, [
+  { _id: "existing", name: "Aggiornato", type: "feat", system: { uses: { max: 3 } } },
+  { _id: "created", name: "Nuovo", type: "spell", system: {} },
+]);
+assert.equal(itemRecords.has("stale"), false, "gli Item davvero assenti dalla sorgente devono essere rimossi");
+assert.equal(itemRecords.get("existing")._source.name, "Aggiornato", "un Item esistente deve essere aggiornato in sede");
+assert.equal(itemRecords.has("created"), true, "un Item mancante deve essere creato");
+assert.equal(itemEvents.at(-1), "delete", "la rimozione degli Item superflui deve avvenire soltanto dopo create e update riusciti");
 const effectReconcileBlock = moduleSyncSource.match(/function uniqueManagedActorLinkEffects[\s\S]+?(?=\r?\n\r?\nfunction managedActorLinkStructuralStateSignature)/)?.[0];
+assert.match(moduleSyncSource, /commandAlreadyCompleted/, "un comando gia completato prima di un riavvio deve essere confermato senza ripetere la conversione");
 assert.ok(effectReconcileBlock, "la riconciliazione degli ActiveEffect deve essere testabile");
 const reconcileActorEffects = new Function(
-  "foundry", "stableStringify", "managedActorLinkDocumentSource",
+  "foundry", "stableStringify", "managedActorLinkDocumentSource", "managedActorLinkEffectSemanticState",
   `${effectReconcileBlock}\nreturn reconcileManagedActorLinkEffects;`,
 )(
   { utils: { deepClone: (value) => structuredClone(value) } },
   (value) => JSON.stringify(value),
   (effect) => structuredClone(effect?._source || {}),
+  (effect) => ({
+    name: String(effect?.name || effect?._source?.name || ""),
+    disabled: effect?.disabled === true || effect?._source?.disabled === true,
+    changes: effect?.changes || effect?._source?.changes || [],
+    statuses: Array.from(effect?.statuses || effect?._source?.statuses || []),
+  }),
 );
 const createEffectCollection = (sources = []) => {
   const records = new Map(sources.map((source) => [source._id, { id: source._id, _source: structuredClone(source) }]));
@@ -522,7 +590,7 @@ assert.equal(createdEffects, 0, "un effetto gia presente deve essere aggiornato 
 assert.equal(updatedEffects, 1, "l'effetto Prone esistente deve essere aggiornato in-place");
 assert.equal(effectCollection.get(proneId)._source.disabled, true);
 assert.match(moduleSyncSource, /acceptStructural !== true/, "Foundry deve esigere una conferma esplicita per differenze strutturali");
-assert.match(moduleSyncSource, /managedActorLinkStructureSignature\(actor\) !== selectedState\.structural\.signature/, "la copia strutturale deve essere verificata contro lo snapshot immutabile prima di collegare i token");
+assert.match(moduleSyncSource, /verifyManagedActorLinkStructuralState\(actor, selectedState\.structural\)/, "la copia strutturale deve essere verificata semanticamente contro lo snapshot immutabile prima di collegare i token");
 const definitionBlock = moduleSyncSource.match(/const MANAGED_ACTOR_LINK_DEFINITION_PATHS[\s\S]+?(?=\nfunction managedActorLinkDefinitionUpdate)/)?.[0];
 assert.ok(definitionBlock, "le funzioni di confronto strutturale devono essere testabili");
 const getProperty = (target, path) => String(path || "").split(".").filter(Boolean).reduce((value, key) => value?.[key], target);
@@ -559,6 +627,10 @@ assert.match(managedActorFeSource, /managedActorLinkAllDifferences/, "le opzioni
 assert.match(managedActorFeSource, /definitionDifferences/, "il sito deve mostrare anche statistiche, competenze e resistenze differenti");
 assert.match(managedActorFeSource, /acceptStructural/, "il sito deve trasmettere la conferma strutturale esplicita");
 assert.match(managedActorFeSource, /window\.confirm\(message\)/, "le differenze strutturali devono richiedere conferma prima dell'invio");
+assert.match(managedActorFeSource, /managedActorLinkPreferredSourceId/, "la sorgente scelta deve restare selezionata durante refresh e nuovi tentativi");
+assert.match(managedActorFeSource, /VERSION_CONFLICT.*INSPECTION_STALE.*INSPECTION_MISSING/s, "il sito deve recuperare automaticamente revisioni o ispezioni obsolete");
+assert.match(await readFile(new URL("../workers/main-worker/src/index.js", import.meta.url), "utf8"), /kind === "actor-link\.inspect"[\s\S]+?startsWith\("actor-link\."\)/, "una nuova ispezione deve sostituire i comandi Link Actor obsoleti");
+assert.match(await readFile(new URL("../assets/js/layout.js", import.meta.url), "utf8"), /error\.code = String\(payload\?\.code/, "gli errori API devono esporre il codice macchina al recupero del FE");
 assert.match(managedActorFeSource, /managedActorLinkExpectedActorLink/, "la pagina deve attendere e mostrare automaticamente il risultato della conversione");
 assert.doesNotMatch(managedActorFeSource, /data-managed-actor-link-apply \$\{structuralConflicts \? "disabled"/, "la presenza di differenze strutturali non deve piu bloccare ogni scelta");
 assert.match(managedActorFeSource, /Aggiuntivo/, "il frontend deve distinguere chiaramente i danni secondari");

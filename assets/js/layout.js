@@ -2277,7 +2277,11 @@ async function requestApi(pathname, options = {}) {
 
             if (!response.ok) {
                 const apiMessage = payload?.error || payload?.message || payload?.details || "";
-                throw new Error(apiMessage ? `HTTP ${response.status}: ${apiMessage}` : `HTTP ${response.status}`);
+                const error = new Error(apiMessage ? `HTTP ${response.status}: ${apiMessage}` : `HTTP ${response.status}`);
+                error.status = response.status;
+                error.code = String(payload?.code || "");
+                error.payload = payload;
+                throw error;
             }
 
             return payload;

@@ -16,6 +16,7 @@
     let managedActorLinkRefreshTimer = 0;
     let managedActorLinkPollAttempts = 0;
     let managedActorLinkExpectedActorLink = null;
+    let managedActorLinkPreferredSourceId = "";
     let managedCommandRefreshTimer = 0;
     let managedCommandPollAttempts = 0;
 
@@ -150,6 +151,14 @@
     function managedActorLinkValue(value) {
         if (value === undefined || value === null || value === "") return "—";
         if (typeof value === "boolean") return value ? "Si" : "No";
+        if (value instanceof Set) value = Array.from(value);
+        if (value instanceof Map) value = Object.fromEntries(value.entries());
+        if (Array.isArray(value)) return value.map((entry) => managedActorLinkValue(entry)).join(", ") || "\u2014";
+        if (typeof value === "object") {
+            const main = Array.isArray(value.value) ? value.value.join(", ") : value.value;
+            if (main !== undefined && main !== null && main !== "") return String(main);
+            try { return JSON.stringify(value); } catch (_) { return "Configurazione differente"; }
+        }
         return String(value);
     }
 
@@ -301,7 +310,10 @@
         const review = state.review;
         const sources = Array.isArray(review?.sources) ? review.sources : [];
         const structuralConflicts = sources.filter((source) => source.kind === "token" && source.structuralDifferences).length;
-        const defaultSourceId = sources.find((source) => source.currentScene && !source.structuralDifferences)?.id || sources.find((source) => source.kind === "actor")?.id || sources[0]?.id || "";
+        const rememberedSourceId = state.apply?.document?.sourceId || managedActorLinkPreferredSourceId;
+        const defaultSourceId = sources.some((source) => source.id === rememberedSourceId)
+            ? rememberedSourceId
+            : (sources.find((source) => source.currentScene && !source.structuralDifferences)?.id || sources.find((source) => source.kind === "actor")?.id || sources[0]?.id || "");
         const switchChecked = state.actual || state.finalizing || Boolean(state.inspection || state.apply);
         const switchDisabled = applying || state.finalizing || (state.actual && !state.inspection && !state.apply);
         const status = state.finalizing
@@ -3623,6 +3635,7 @@
             if (managedActorLinkExpectedActorLink === true && nextActual) {
                 managedActorLinkExpectedActorLink = null;
                 managedActorLinkPollAttempts = 0;
+                managedActorLinkPreferredSourceId = "";
             }
             if (previousActual !== nextActual) {
                 const scroll = window.scrollY;
@@ -3656,6 +3669,7 @@
         currentDocument.sync = { ...(currentDocument.sync || {}), commands };
         managedActorLinkExpectedActorLink = null;
         managedActorLinkPollAttempts = 0;
+        managedActorLinkPreferredSourceId = "";
         rerenderManagedActorLinkPanel(root);
     }
 
@@ -3664,6 +3678,7 @@
         const review = state.review;
         const inspectionId = state.inspection?.id || state.apply?.document?.inspectionId || "";
         const sourceId = root.querySelector('input[name="managed-actor-link-source"]:checked')?.value || "";
+        managedActorLinkPreferredSourceId = sourceId;
         if (!inspectionId || !review?.snapshotHash || !sourceId) throw new Error("Scegli lo stato corrente da usare.");
         const structuralSources = (Array.isArray(review.sources) ? review.sources : []).filter((source) => source.kind === "token" && source.structuralDifferences);
         const selectedSource = (Array.isArray(review.sources) ? review.sources : []).find((source) => source.id === sourceId);
@@ -3674,7 +3689,24 @@
             if (!window.confirm(message)) return;
         }
         const token = getToken();
-        const response = await postManagedActorCommand({ kind: "actor-link.apply", document: { inspectionId, sourceId, snapshotHash: review.snapshotHash, acceptStructural } }, token);
+        let response;
+        try {
+            response = await postManagedActorCommand({ kind: "actor-link.apply", document: { inspectionId, sourceId, snapshotHash: review.snapshotHash, acceptStructural } }, token);
+        } catch (error) {
+            const recoverable = ["VERSION_CONFLICT", "INSPECTION_STALE", "INSPECTION_MISSING"].includes(String(error?.code || ""));
+            if (!recoverable) throw error;
+            const payload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(currentDocument.worldId)}/${encodeURIComponent(currentDocument.actorId)}`, {
+                cache: false,
+                token
+            });
+            currentDocument = payload.data;
+            const inspectionResponse = await postManagedActorCommand({ kind: "actor-link.inspect", document: { requestedActorLink: true } }, token);
+            rememberManagedCommand(inspectionResponse.command, (command) => String(command.kind || "").startsWith("actor-link."));
+            managedActorLinkPollAttempts = 0;
+            rerenderManagedActorLinkPanel(root);
+            window.alert("La scheda era stata aggiornata mentre sceglievi lo stato. Ho richiesto automaticamente una nuova ispezione: la tua selezione restera disponibile.");
+            return;
+        }
         managedActorLinkExpectedActorLink = true;
         rememberManagedCommand(response.command, (command) => command.kind === "actor-link.apply");
         managedActorLinkPollAttempts = 0;
@@ -3694,6 +3726,9 @@
                 button.disabled = false;
             }
         };
+        panel.querySelectorAll('input[name="managed-actor-link-source"]').forEach((input) => input.addEventListener("change", () => {
+            if (input.checked) managedActorLinkPreferredSourceId = String(input.value || "");
+        }));
         const toggle = panel.querySelector("[data-managed-actor-link-toggle]");
         toggle?.addEventListener("click", () => run(toggle, async () => {
             const state = getManagedActorLinkState();

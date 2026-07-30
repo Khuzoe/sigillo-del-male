@@ -5756,6 +5756,14 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
     }
     return json({ ok: true, cancelled: true, campaignId, worldId: route.worldId, actorId: route.actorId, queueVersion: queue.version }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
   }
+  if (kind === "actor-link.inspect") {
+    // A new inspection is authoritative for this Actor. Keeping an older review
+    // or failed apply beside it makes the UI reuse an obsolete snapshot.
+    queue.commands = queue.commands.filter((entry) => !(
+      entry.actorId === route.actorId
+      && String(entry.kind || "").startsWith("actor-link.")
+    ));
+  }
   if (kind === "actor-link.apply") {
     const inspection = queue.commands.find((entry) => entry.id === document.inspectionId && entry.actorId === route.actorId && entry.kind === "actor-link.inspect" && entry.status === "review");
     if (!inspection) return json({ ok: false, error: "Actor Link inspection is no longer available", code: "INSPECTION_MISSING" }, 409, corsHeaders);
