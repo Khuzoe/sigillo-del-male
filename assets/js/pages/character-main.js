@@ -2408,6 +2408,11 @@ window.CriptaApp.onPageReady("character", async function () {
             return;
         }
 
+        if (charType === "player" && !createMode && !skillTreeOnlyView && params.get("legacy") !== "1") {
+            const redirected = await redirectToManagedPlayerActor(charId);
+            if (redirected) return;
+        }
+
         const bootstrap = createMode ? null : await loadCharacterBootstrap(charId, charType);
 
         // Quests are only rendered for NPC pages; avoid noisy 404s on player-only campaigns.
@@ -2472,11 +2477,6 @@ window.CriptaApp.onPageReady("character", async function () {
             if (redirected) return;
         }
 
-
-        if (charType === "player" && !createMode && !skillTreeOnlyView && params.get("legacy") !== "1") {
-            const redirected = await redirectToManagedPlayerActor(character.id || charId);
-            if (redirected) return;
-        }
 
         setupCharacterEditLink(character.id || charId, charType);
         // If using static data, we might need to convert markdownText to HTML on the fly
@@ -2543,7 +2543,7 @@ window.CriptaApp.onPageReady("character", async function () {
                 ...(token ? { token } : {})
             });
             const summary = (Array.isArray(payload?.data) ? payload.data : []).find((entry) => isManagedPrimaryPlayerEntry(entry, ownerCharacterId));
-            if (!summary || summary?.permissions?.canReadStats === false) return false;
+            if (!summary) return false;
             const worldId = String(summary.worldId || "");
             const actorId = String(summary.actorId || "");
             if (!worldId || !actorId) return false;
@@ -2551,6 +2551,7 @@ window.CriptaApp.onPageReady("character", async function () {
             target.searchParams.set("world", worldId);
             target.searchParams.set("actor", actorId);
             target.searchParams.set("character", ownerCharacterId);
+            if (summary?.permissions?.canReadStats === false) target.searchParams.set("profile", "1");
             const campaignId = window.CriptaApp?.campaigns?.currentId?.();
             if (campaignId && campaignId !== "cripta-di-sangue") target.searchParams.set("campaign", campaignId);
             window.location.replace(target.toString());

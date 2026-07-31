@@ -145,7 +145,8 @@
     function makeCharacterUrl(record) {
         if (!record || !record.id) return '';
         return record.type === 'player'
-            ? `pages/characters/character.html?id=${record.id}&type=player`
+            ? (window.CriptaApp?.urls?.player?.(record, [record])
+                || `pages/characters/character.html?id=${record.id}&type=player`)
             : `pages/characters/character.html?id=${record.id}`;
     }
 
@@ -182,8 +183,12 @@
                     type,
                     name,
                     role: item.role || item.subtitle || '',
-                    url: item.url || makeCharacterUrl({ id, type }),
+                    url: item.url || makeCharacterUrl({ ...item, id, type }),
                     images: item.images || {},
+                    worldId: item.worldId || '',
+                    actorId: item.actorId || item.foundryActorId || '',
+                    ownerCharacterId: item.ownerCharacterId || (type === 'player' ? id : ''),
+                    relationshipType: item.relationshipType || '',
                     aliases: deriveAliases({
                         id,
                         entityId: item.entityId || id,

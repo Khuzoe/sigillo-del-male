@@ -5396,6 +5396,7 @@ function normalizeManagedActorCommandTarget(input) {
 function normalizeManagedActorLinkCommandDocument(input, kind) {
   const source = input && typeof input === "object" && !Array.isArray(input) ? input : {};
   if (kind === "actor-link.inspect") return { requestedActorLink: true };
+  if (kind === "actor-link.rollback") return { restoreBackup: true };
   const inspectionId = String(source.inspectionId || "").trim().slice(0, 96);
   if (kind === "actor-link.cancel") return inspectionId ? { inspectionId } : null;
   if (kind !== "actor-link.apply") return null;
@@ -5697,7 +5698,7 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
   }
 
   const kind = String(body?.kind || "item.update").trim().toLowerCase();
-  const allowedKinds = new Set(["actor.update", "item.update", "item.create", "item.delete", "effect.update", "effect.create", "effect.delete", "actor-link.inspect", "actor-link.apply", "actor-link.cancel"]);
+  const allowedKinds = new Set(["actor.update", "item.update", "item.create", "item.delete", "effect.update", "effect.create", "effect.delete", "actor-link.inspect", "actor-link.apply", "actor-link.rollback", "actor-link.cancel"]);
   if (!allowedKinds.has(kind)) return json({ ok: false, error: "Unsupported managed actor command" }, 400, corsHeaders);
 
   const isActorLinkKind = kind.startsWith("actor-link.");
@@ -5759,6 +5760,14 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
   if (kind === "actor-link.inspect") {
     // A new inspection is authoritative for this Actor. Keeping an older review
     // or failed apply beside it makes the UI reuse an obsolete snapshot.
+    queue.commands = queue.commands.filter((entry) => !(
+      entry.actorId === route.actorId
+      && String(entry.kind || "").startsWith("actor-link.")
+    ));
+  }
+  if (kind === "actor-link.rollback") {
+    // A rollback supersedes stale inspections and failed conversions for this
+    // Actor, but remains an explicit Foundry command with its own ACK.
     queue.commands = queue.commands.filter((entry) => !(
       entry.actorId === route.actorId
       && String(entry.kind || "").startsWith("actor-link.")

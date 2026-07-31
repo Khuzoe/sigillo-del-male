@@ -482,7 +482,6 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         const syncInfo = inventorySnapshot?.savedAt || inventorySnapshot?.generatedAt
             ? `<span class="player-sync-stamp" title="Ultimo sync Foundry"><i class="fas fa-rotate" aria-hidden="true"></i> ${escapeHtml(formatDateTime(inventorySnapshot.savedAt || inventorySnapshot.generatedAt))}</span>`
             : "";
-        const campaignId = getCurrentCampaignId();
         const hasPlayerCardAnimation = player._hasDedicatedCardImages === true
             && images.idle
             && images.cardHover
@@ -508,9 +507,8 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         const listHoverAdjust = images.cardHoverAdjust || images.listHoverAdjust || images.hoverAdjust || images.tokenHoverAdjust || listAdjust;
         const shouldSwapAvatar = listHoverImage && listHoverImage !== listImage;
         const cardClassWithSwap = `${cardClasses} ${shouldSwapAvatar ? "" : "npc-card--no-avatar-swap"}`.trim();
-        const campaignQuery = campaignId && campaignId !== "cripta-di-sangue"
-            ? `&campaign=${encodeURIComponent(campaignId)}`
-            : "";
+        const playerUrl = window.CriptaApp?.urls?.player?.(player, player._managedActor ? [player._managedActor] : [])
+            || `../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player`;
 
         const rosterSearch = normalizeRosterSearch([
             player.name,
@@ -521,7 +519,7 @@ window.CriptaApp.onPageReady("giocatori", async function() {
         ].filter(Boolean).join(" "));
 
         return `
-            <a href="../pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player${campaignQuery}" class="${cardClassWithSwap}" data-roster-card="player" data-roster-state="${isInactive ? "inactive" : "active"}" data-roster-search="${escapeHtml(rosterSearch)}">
+            <a href="${escapeHtml(playerUrl)}" class="${cardClassWithSwap}" data-roster-card="player" data-roster-state="${isInactive ? "inactive" : "active"}" data-roster-search="${escapeHtml(rosterSearch)}">
                 <div class="npc-avatar-container">
                     <img src="${escapeHtml(listUrl)}" data-original-src="${escapeHtml(listUrl)}" ${listFallback ? `data-fallback-src="${escapeHtml(listFallback)}"` : ""} data-media-dedicated="${hasPlayerCardAnimation ? "true" : "false"}" alt="${escapeHtml(player.name)}" class="npc-img-pop img-main" loading="eager" decoding="async" fetchpriority="auto" style="${buildImageStyle("avatar", listAdjust, listHoverAdjust)}">
                     <img src="${escapeHtml(hoverUrl)}" data-original-src="${escapeHtml(hoverUrl)}" ${hoverFallback ? `data-fallback-src="${escapeHtml(hoverFallback)}"` : ""} data-media-dedicated="${hasPlayerCardAnimation ? "true" : "false"}" alt="${escapeHtml(player.name)}" class="npc-img-pop img-hover" loading="lazy" decoding="async" fetchpriority="low" style="${buildImageStyle("hover", listHoverAdjust, listAdjust)}">

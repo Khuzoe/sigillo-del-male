@@ -259,6 +259,8 @@ stored = await getDocument();
 assert.deepEqual(stored.runtime, {});
 
 const moduleSyncSource = await readFile(new URL("../module/scripts/services/managed-actor-sync.js", import.meta.url), "utf8");
+const workerSource = await readFile(new URL("../workers/main-worker/src/index.js", import.meta.url), "utf8");
+const managedActorFeSource = await readFile(new URL("../assets/js/pages/managed-actor.js", import.meta.url), "utf8");
 assert.doesNotMatch(moduleSyncSource, /\u00C3|\u00C2/, "il modulo non deve contenere testo UTF-8 ricodificato");
 assert.match(moduleSyncSource, /\\u00B7 \$\{scene\.name/, "il nome dell'istanza deve separare token e scena con un punto medio stabile");
 const foundryLiveSyncSource = await readFile(new URL("../module/scripts/services/foundry-live-sync.js", import.meta.url), "utf8");
@@ -273,17 +275,34 @@ assert.match(moduleMainSource, /pullManagedActorCommands: pullManagedActorComman
 assert.match(moduleSyncSource, /applyManagedActorLinkConversion/, "la conversione Link Actor deve usare un flusso dedicato");
 assert.match(moduleSyncSource, /captureManagedActorLinkSnapshot/, "la conversione deve salvare uno snapshot prima di modificare Actor o token");
 assert.match(moduleSyncSource, /restoreManagedActorLinkSnapshot/, "la conversione deve prevedere un rollback completo");
+assert.match(moduleSyncSource, /async function rollbackManagedActorLinkConversion/, "una conversione completata deve poter ripristinare esplicitamente il backup");
+assert.match(moduleSyncSource, /"actor-link.rollback"/, "il client Foundry deve accettare il comando di ripristino Link Actor");
+assert.match(workerSource, /kind === "actor-link.rollback"/, "il Worker deve accodare il ripristino Link Actor");
+assert.match(managedActorFeSource, /rollbackManagedActorLinkSelection/, "il FE deve esporre il ripristino della conversione completata");
 assert.doesNotMatch(moduleSyncSource, /ui\.notifications\.info\(`\$\{actor\.name\}: Link Actor Data/, "la sincronizzazione riuscita degli NPC deve restare soltanto in console");
+const managedActorLinkDisplayBlock = managedActorFeSource.match(/function managedActorLinkDisplayValue[\s\S]+?(?=\r?\n    function managedActorLinkResourceLabel)/)?.[0];
+assert.ok(managedActorLinkDisplayBlock, "il FE deve tradurre le differenze tecniche in valori leggibili");
+const displayManagedActorLinkValue = new Function("managedActorLinkValue", `${managedActorLinkDisplayBlock}\nreturn managedActorLinkDisplayValue;`)((value) => String(value));
+assert.equal(
+  displayManagedActorLinkValue("Danni attivita", JSON.stringify({ includeBase: true, parts: [{ number: 4, denomination: 8, bonus: "31" }] })),
+  "Danno base incluso + 4d8 + 31",
+  "anche le ispezioni gia in coda con JSON grezzo devono mostrare la formula dei danni",
+);
 assert.match(moduleSyncSource, /managedActorLinkItemStateDifferences/, "l'ispezione deve descrivere le differenze di stato degli oggetti");
 assert.match(moduleSyncSource, /managedActorLinkPairItemStates/, "gli oggetti di Actor e token devono essere associati con identita progressive");
 assert.match(moduleSyncSource, /managedActorLinkEffectDifferences/, "l'ispezione deve indicare gli effetti diversi tra Actor e token");
 assert.match(moduleSyncSource, /managedActorLinkDefinitionDifferences/, "l'ispezione deve confrontare statistiche, competenze e tratti");
 assert.match(moduleSyncSource, /managedActorLinkResolvedSystemValue\(sourceActor, `abilities\.\$\{key\}\.value`/, "STR, DEX e le altre caratteristiche devono usare i valori risolti del token sintetico");
 assert.match(moduleSyncSource, /actorDefinitionState/, "lo snapshot deve proteggere anche le statistiche strutturali");
-assert.match(moduleSyncSource, /applyManagedActorLinkDefinition\(actor, selectedState\.definition\)/, "lo stato selezionato deve propagare anche statistiche e competenze");
+assert.match(moduleSyncSource, /applyManagedActorLinkSystemState\(actor, selectedState\.system\)/, "lo stato selezionato deve propagare l'intero sistema meccanico dell'Actor");
+assert.match(moduleSyncSource, /structural: mappedStructural/, "la copia integrale non deve dipendere dal rilevamento preliminare delle differenze");
+assert.match(moduleSyncSource, /await applyManagedActorLinkStructuralState\(actor, selectedState\.structural\)/, "oggetti, attacchi ed effetti devono essere sempre trasposti dalla sorgente scelta");
+assert.doesNotMatch(moduleSyncSource.match(/async function executeManagedActorLinkConversion[\s\S]+?(?=\r?\nasync function applyManagedActorLinkConversion)/)?.[0] || "", /if \(selectedState\.structural\)/, "nessuna firma preliminare deve poter saltare la trasposizione strutturale");
+assert.match(moduleSyncSource, /applyManagedActorLinkPlacedTokens\(actor, selectedState\.tokenConfiguration\)/, "tutte le istanze devono ricevere la configurazione del token autorevole");
+assert.match(moduleSyncSource, /verifyManagedActorLinkPlacedTokens/, "la conversione deve verificare anche tutte le istanze in scena");
 assert.match(moduleSyncSource, /managedActorLinkItemDefinitionSignature/, "le modifiche meccaniche interne agli oggetti devono bloccare una conversione distruttiva");
 assert.doesNotMatch(moduleSyncSource, /foundry\.utils\.unsetProperty/, "la firma degli oggetti deve essere compatibile anche con Foundry senza unsetProperty");
-assert.match(moduleSyncSource, /actor\.update\(\{\s*["']prototypeToken\.actorLink["']:\s*true/, "actorLink puo essere attivato soltanto dalla conversione confermata");
+assert.match(moduleSyncSource, /applyManagedActorLinkPrototypeConfiguration\(actor, selectedState\.tokenConfiguration, true\)/, "actorLink puo essere attivato soltanto dalla conversione autoritativa confermata");
 assert.match(moduleSyncSource, /patch\?\.path !== ["']prototypeToken\.actorLink["']/, "i normali comandi actor.update non devono poter cambiare actorLink");
 assert.match(moduleSyncSource, /const SYNC_BATCH_WINDOW_MS = 60_000;/, "le modifiche Foundry devono essere raccolte per un minuto");
 assert.match(moduleSyncSource, /if \(!pendingTimers\.has\(actorId\)\) scheduleManagedActorFlush\(actorId, SYNC_BATCH_WINDOW_MS\);/, "nuove modifiche devono confluire nella finestra gia aperta");
@@ -416,7 +435,7 @@ const hashItemValue = (value) => {
 };
 const itemComparison = new Function(
   "foundry", "hashValue", "getItemTransferId", "stableStringify", "MODULE_ID", "TOKENIZER_MODULE_ID",
-  `${itemComparisonBlock}\nreturn { managedActorLinkItemStateDifferences, managedActorLinkStructureSignature, managedActorLinkItemDefinitionDifferences, managedActorLinkItemDefinitionSignature };`,
+  `${itemComparisonBlock}\nreturn { managedActorLinkSchemaCleanDocumentSource, managedActorLinkDocumentSource, managedActorLinkSemanticValue, managedActorLinkEffectSemanticState, managedActorLinkItemState, managedActorLinkPairItemStates, managedActorLinkItemStateDifferences, managedActorLinkStructureSignature, managedActorLinkItemDefinitionSource, managedActorLinkItemDefinitionDifferences, managedActorLinkItemDefinitionSignature, managedActorLinkItemStateValueEqual };`,
 )(
   { utils: { deepClone: (value) => structuredClone(value) } },
   hashItemValue,
@@ -425,14 +444,15 @@ const itemComparison = new Function(
   "cripta-wiki-sync",
   "khuzoe-tokenizer",
 );
-const linkTestItem = ({ id, transferId = "", prepared = true, damage = "1d6", activityId = "primary", sourceLabel = "", properties = [] }) => {
+const linkTestItem = ({ id, name = "Multiattack", transferId = "", prepared = true, damage = "1d6", activityId = "primary", sourceLabel = "", properties = [], identifier = undefined }) => {
   const source = {
     _id: id,
-    name: "Multiattack",
+    name,
     type: "feat",
     img: "icons/example.webp",
     system: {
       preparation: { prepared },
+      ...(identifier === undefined ? {} : { identifier }),
       source: sourceLabel,
       properties,
       activities: { [activityId]: { _id: activityId, sort: 100, damage: { parts: [[damage, "piercing"]] } } },
@@ -465,6 +485,15 @@ assert.deepEqual(
   itemComparison.managedActorLinkStructureSignature(linkTokenActor),
   "i metadati di sincronizzazione non devono creare differenze strutturali",
 );
+const linkRenamedIdentifierBase = { items: [linkTestItem({ id: "old-slam", name: "Slam (Copy)", identifier: "slam" })], effects: [] };
+const linkRenamedIdentifierToken = { items: [linkTestItem({ id: "new-slam", name: "Slam" })], effects: [] };
+const renamedIdentifierPairing = itemComparison.managedActorLinkPairItemStates(
+  itemComparison.managedActorLinkItemState(linkRenamedIdentifierBase),
+  itemComparison.managedActorLinkItemState(linkRenamedIdentifierToken),
+);
+assert.equal(renamedIdentifierPairing.pairs.length, 1, "identifier esplicito e identifier automatico devono individuare lo stesso Item rinominato");
+assert.equal(renamedIdentifierPairing.baseOnly.length, 0, "lo Slam precedente non deve restare come elemento separato");
+assert.equal(renamedIdentifierPairing.sourceOnly.length, 0, "lo Slam rinominato non deve essere pianificato come duplicato");
 const linkChangedTokenActor = { items: [linkTestItem({ id: "same-id", prepared: false })], effects: [] };
 const changedItemDifferences = itemComparison.managedActorLinkItemStateDifferences(linkBaseActor, linkChangedTokenActor);
 assert.equal(changedItemDifferences.length, 1);
@@ -472,8 +501,60 @@ assert.equal(changedItemDifferences[0].changes[0].label, "Preparato");
 const linkMechanicalTokenActor = { items: [linkTestItem({ id: "same-id", damage: "2d6" })], effects: [] };
 const mechanicalDifferences = itemComparison.managedActorLinkItemStateDifferences(linkBaseActor, linkMechanicalTokenActor);
 assert.equal(mechanicalDifferences.length, 1);
+assert.equal(itemComparison.managedActorLinkItemStateValueEqual("uses.value", undefined, 0), true, "utilizzi non impostati e zero devono essere equivalenti");
+assert.equal(itemComparison.managedActorLinkItemStateValueEqual("uses.spent", null, 0), true, "utilizzi spesi null e zero devono essere equivalenti");
+const linkUsesItem = ({ id, value, spent, max = 3 }) => {
+  const item = linkTestItem({ id });
+  const uses = { value, max, ...(spent === undefined ? {} : { spent }) };
+  item.system.uses = uses;
+  item._source.system.uses = uses;
+  return item;
+};
+const selectedUsesActor = { items: [linkUsesItem({ id: "limited-spell", value: 2, spent: 1 })], effects: [] };
+const persistedUsesActor = { items: [linkUsesItem({ id: "limited-spell", value: 99, spent: 1 })], effects: [] };
+assert.equal(itemComparison.managedActorLinkItemState(selectedUsesActor)[0].uses.value, undefined);
+assert.equal(itemComparison.managedActorLinkItemState(selectedUsesActor)[0].uses.spent, 1);
+assert.deepEqual(
+  itemComparison.managedActorLinkItemStateDifferences(selectedUsesActor, persistedUsesActor),
+  [],
+  "uses.value ricalcolato da D&D5e non deve bloccare la conversione quando uses.spent e stato conservato",
+);
+const changedSpentActor = { items: [linkUsesItem({ id: "limited-spell", value: 1, spent: 2 })], effects: [] };
+assert.equal(
+  itemComparison.managedActorLinkItemStateDifferences(selectedUsesActor, changedSpentActor)[0].changes[0].label,
+  "Utilizzi spesi",
+  "una differenza reale negli utilizzi spesi deve continuare a essere rilevata",
+);
+const legacyUsesActor = { items: [linkUsesItem({ id: "legacy-uses", value: 2 })], effects: [] };
+const legacyChangedUsesActor = { items: [linkUsesItem({ id: "legacy-uses", value: 1 })], effects: [] };
+assert.equal(
+  itemComparison.managedActorLinkItemStateDifferences(legacyUsesActor, legacyChangedUsesActor)[0].changes[0].label,
+  "Utilizzi",
+  "i sistemi legacy senza uses.spent devono continuare a usare uses.value",
+);
+const itemRuntimeUpdateBlock = moduleSyncSource.match(/function managedActorLinkItemUpdates[\s\S]+?(?=\r?\nasync function applyManagedActorLinkRuntime)/)?.[0];
+assert.ok(itemRuntimeUpdateBlock, "la copia degli utilizzi degli Item deve essere testabile");
+const planItemRuntimeUpdates = new Function(
+  "foundry", "stableStringify", "managedActorLinkItemState", "managedActorLinkPairItemStates",
+  `${itemRuntimeUpdateBlock}\nreturn managedActorLinkItemUpdates;`,
+)(
+  { utils: { deepClone: (value) => structuredClone(value), getProperty: (target, path) => path.split(".").reduce((value, key) => value?.[key], target) } },
+  stableItemStringify,
+  itemComparison.managedActorLinkItemState,
+  itemComparison.managedActorLinkPairItemStates,
+);
+const targetUsesActor = { items: [linkUsesItem({ id: "limited-spell", value: 3, spent: 0 })], effects: [] };
+assert.deepEqual(
+  planItemRuntimeUpdates(targetUsesActor, selectedUsesActor),
+  [{ _id: "limited-spell", "system.uses.spent": 1 }],
+  "la copia deve scrivere uses.spent senza tentare di persistere uses.value derivato",
+);
+assert.equal(itemComparison.managedActorLinkItemStateValueEqual("prepared", undefined, false), true, "un flag booleano opzionale assente deve equivalere al default false");
+assert.equal(itemComparison.managedActorLinkItemStateValueEqual("quantity", undefined, 0), false, "quantita assente e zero devono restare differenti");
 assert.equal(mechanicalDifferences[0].structural, true);
 assert.equal(mechanicalDifferences[0].changes[0].label, "Danni attivita");
+assert.doesNotMatch(mechanicalDifferences[0].changes[0].before, /^\s*[\[{]/, "le differenze dei danni devono essere leggibili e non JSON grezzo");
+assert.match(mechanicalDifferences[0].changes[0].after, /2d6/, "la formula effettiva deve essere immediatamente visibile");
 const linkSemanticallyEqualBase = { items: [linkTestItem({
   id: "semantic-id", activityId: "activity-original", sourceLabel: "PHB'14", properties: new Set(["fin", "mgc"]),
 })], effects: [] };
@@ -485,9 +566,434 @@ assert.deepEqual(
   [],
   "ID attivita, provenienza editoriale e rappresentazioni Set/Array equivalenti non devono produrre falsi conflitti",
 );
+const linkAutomaticIdentifierBase = { items: [linkTestItem({ id: "automatic-identifier" })], effects: [] };
+const linkAutomaticIdentifierToken = { items: [linkTestItem({ id: "automatic-identifier", identifier: "multiattack" })], effects: [] };
+assert.deepEqual(
+  itemComparison.managedActorLinkItemStateDifferences(linkAutomaticIdentifierBase, linkAutomaticIdentifierToken),
+  [],
+  "un identifier generato automaticamente dal nome non deve bloccare la copia meccanica",
+);
+const linkCustomIdentifierBase = { items: [linkTestItem({ id: "custom-identifier", identifier: "multiattack-speciale" })], effects: [] };
+const linkCustomIdentifierToken = { items: [linkTestItem({ id: "custom-identifier", identifier: "multiattack-alternativo" })], effects: [] };
+const customIdentifierDifferences = itemComparison.managedActorLinkItemStateDifferences(linkCustomIdentifierBase, linkCustomIdentifierToken);
+assert.equal(customIdentifierDifferences.length, 1);
+assert.equal(
+  customIdentifierDifferences[0].changes.some((change) => String(change.label).toLowerCase().includes("identifier")),
+  true,
+  "identifier personalizzati realmente diversi devono continuare a essere verificati",
+);
+
+let selectedDocumentSourceMode = null;
+let preparedSystemRead = false;
+const selectedPersistentSystem = {
+  preparation: { prepared: true },
+  properties: ["mgc"],
+  activities: {
+    effective: { _id: "effective", type: "attack", damage: { parts: [["4d10", "force"]] } },
+    secondary: { _id: "secondary", type: "attack", damage: { parts: [["2d12 + 7", "necrotic"], ["1d8", "cold"]] } },
+  },
+};
+const selectedPreparedSystem = {
+  ...structuredClone(selectedPersistentSystem),
+  derivedArmorClass: 23,
+  // ActivityCollection.toObject(false) can expose a prepared array. It must
+  // never replace the persistent mapping used by the selected Token Actor.
+  activities: [{ _id: "stale", type: "attack", damage: { parts: [["1d4", "force"]] } }],
+};
+const selectedMigratedItem = {
+  _source: linkTestItem({ id: "selected-migrated", damage: "1d4" })._source,
+  toObject: (source) => {
+    selectedDocumentSourceMode = source;
+    return {
+      _id: "selected-migrated",
+      name: "Multiattack",
+      type: "feat",
+      system: structuredClone(source ? selectedPersistentSystem : selectedPreparedSystem),
+    };
+  },
+  system: {
+    toObject: () => { preparedSystemRead = true; return structuredClone(selectedPreparedSystem); }
+  },
+};
+const capturedSelectedItem = itemComparison.managedActorLinkDocumentSource(selectedMigratedItem);
+assert.deepEqual(Object.keys(capturedSelectedItem.system.activities), ["effective", "secondary"], "tutte le Activity devono mantenere le loro chiavi native");
+assert.equal(
+  capturedSelectedItem.system.activities.effective.damage.parts[0][0],
+  "4d10",
+  "la conversione deve copiare il danno persistito della Activity scelta e non un array preparato o obsoleto",
+);assert.deepEqual(
+  capturedSelectedItem.system.activities.secondary.damage.parts,
+  [["2d12 + 7", "necrotic"], ["1d8", "cold"]],
+  "la conversione deve conservare anche danni secondari e formule diverse tra piu attacchi",
+);
+assert.equal(selectedDocumentSourceMode, true, "la cattura deve leggere la sorgente persistente e gia fusa del Token Actor sintetico");
+assert.equal(preparedSystemRead, false, "i valori derivati dal DataModel non devono essere salvati insieme alle loro cause persistenti");
+
+class MockSchemaItem {
+  static migrateDataSafe(source) {
+    return structuredClone(source);
+  }
+
+  static cleanData(source) {
+    const cleaned = structuredClone(source);
+    delete cleaned.system.derivedLabel;
+    if (cleaned.system.uses) delete cleaned.system.uses.value;
+    return cleaned;
+  }
+
+  constructor() {
+    this.name = "Capacita con dati derivati";
+    this._effective = {
+      _id: "schema-item",
+      name: this.name,
+      type: "feat",
+      system: { uses: { max: 3, spent: 1, value: 2 }, derivedLabel: "2/3" }
+    };
+    this.system = { toObject: () => structuredClone(this._effective.system) };
+  }
+
+  toObject() {
+    return structuredClone(this._effective);
+  }
+}
+const schemaItem = new MockSchemaItem();
+const schemaCleanedSource = itemComparison.managedActorLinkDocumentSource(schemaItem);
+assert.equal(schemaCleanedSource.system.uses.spent, 1);
+assert.equal(schemaCleanedSource.system.uses.value, undefined, "cleanData deve rimuovere i campi preparati ma non persistenti");
+assert.equal(schemaCleanedSource.system.derivedLabel, undefined, "lo snapshot deve seguire lo schema del Document");
+assert.equal(schemaItem._effective.system.derivedLabel, "2/3", "la normalizzazione non deve mai mutare il documento vivo");
+
+const applyActorSystemBlock = moduleSyncSource.match(/async function applyManagedActorLinkSystemState[\s\S]+?(?=\r?\nfunction inspectManagedActorLink)/)?.[0];
+assert.ok(applyActorSystemBlock, "la sostituzione sicura del sistema Actor deve essere testabile");
+const applyActorSystemState = new Function(
+  "foundry", "managedActorLinkDocumentSource", "managedActorLinkSchemaCleanDocumentSource",
+  `${applyActorSystemBlock}\nreturn applyManagedActorLinkSystemState;`,
+)(
+  { utils: { deepClone: (value) => structuredClone(value) } },
+  itemComparison.managedActorLinkDocumentSource,
+  itemComparison.managedActorLinkSchemaCleanDocumentSource,
+);
+class MockActorDocument {
+  static cleanData(source) {
+    const cleaned = structuredClone(source);
+    delete cleaned.system.derivedArmorClass;
+    return cleaned;
+  }
+
+  constructor() {
+    this.name = "Guscio originale";
+    this.ownership = { default: 3 };
+    this.flags = { "cripta-wiki-sync": { actorId: "stable" } };
+    this._system = { abilities: { str: { value: 10 } }, derivedArmorClass: 12 };
+    this.system = { toObject: () => structuredClone(this._system) };
+  }
+
+  toObject() {
+    return {
+      _id: "actor-shell",
+      name: this.name,
+      ownership: structuredClone(this.ownership),
+      flags: structuredClone(this.flags),
+      type: "npc",
+      system: structuredClone(this._system)
+    };
+  }
+
+  async update(changes, options) {
+    this.receivedChanges = structuredClone(changes);
+    this.receivedOptions = structuredClone(options);
+  }
+}
+const mockActorDocument = new MockActorDocument();
+await applyActorSystemState(mockActorDocument, {
+  abilities: { str: { value: 28 }, int: { value: 22 } },
+  attributes: { hp: { value: 170, max: 170 } },
+  derivedArmorClass: 18
+});
+assert.deepEqual(mockActorDocument.receivedChanges, {
+  system: {
+    abilities: { str: { value: 28 }, int: { value: 22 } },
+    attributes: { hp: { value: 170, max: 170 } }
+  }
+});
+assert.equal(mockActorDocument.receivedOptions.diff, false);
+assert.equal(mockActorDocument.receivedOptions.recursive, false);
+assert.equal("name" in mockActorDocument.receivedChanges, false, "nome e identita del guscio Actor non devono essere sovrascritti");
+assert.equal("ownership" in mockActorDocument.receivedChanges, false, "i permessi dell'Actor non devono essere sovrascritti");
+assert.equal("flags" in mockActorDocument.receivedChanges, false, "i collegamenti del modulo non devono essere sovrascritti");
+
+const authoritativeTokenBlock = moduleSyncSource.match(/const MANAGED_ACTOR_LINK_TOKEN_INSTANCE_KEYS[\s\S]+?(?=\r?\nfunction managedActorLinkResolvedSystemValue)/)?.[0];
+assert.ok(authoritativeTokenBlock, "la trasposizione autoritativa dei token deve essere testabile");
+const authoritativeTokenGame = { scenes: [] };
+const authoritativeTokenHelpers = new Function(
+  "foundry", "managedActorLinkDocumentSource", "managedActorLinkSemanticValue", "stableStringify",
+  "managedActorLinkSchemaCleanDocumentSource", "game",
+  `${authoritativeTokenBlock}\nreturn { managedActorLinkTokenConfigurationState, applyManagedActorLinkPrototypeConfiguration, managedActorLinkPlacedTokenSource, verifyManagedActorLinkPlacedTokens };`,
+)(
+  { utils: { deepClone: (value) => structuredClone(value) } },
+  (document) => structuredClone(document?.toObject?.(false) || document?._source || document || {}),
+  itemComparison.managedActorLinkSemanticValue,
+  stableItemStringify,
+  (_document, source) => structuredClone(source),
+  authoritativeTokenGame,
+);
+const authoritativeSelectedToken = {
+  toObject: () => ({
+    _id: "selected-token", actorId: "actor-id", actorLink: false, delta: { system: { ignored: true } },
+    x: 900, y: 800, elevation: 20, sort: 50, _regions: ["selected-region"],
+    name: "Forma autorevole", width: 3, height: 3,
+    texture: { src: "selected.webp", scaleX: 1.2, scaleY: 1.2 },
+    sight: { enabled: true, range: 120 }, hidden: false, locked: false, flags: { module: { mechanical: true } }
+  })
+};
+const authoritativeConfiguration = authoritativeTokenHelpers.managedActorLinkTokenConfigurationState(authoritativeSelectedToken);
+assert.equal("x" in authoritativeConfiguration, false, "le coordinate non fanno parte dello stato condiviso");
+assert.equal("delta" in authoritativeConfiguration, false, "il delta indipendente non deve sopravvivere al collegamento");
+assert.equal("hidden" in authoritativeConfiguration, false, "la visibilita e uno stato operativo della singola istanza");
+assert.equal("locked" in authoritativeConfiguration, false, "il blocco e uno stato operativo della singola istanza");
+assert.equal("_regions" in authoritativeConfiguration, false, "le regioni appartengono alla singola scena");
+const authoritativePrototypeConfiguration = authoritativeTokenHelpers.managedActorLinkTokenConfigurationState({
+  toObject: () => ({ ...authoritativeSelectedToken.toObject(), randomImg: true })
+});
+assert.deepEqual(authoritativePrototypeConfiguration, authoritativeConfiguration, "randomImg esiste solo sul PrototypeToken e non deve entrare nello stato condiviso");
+const prototypeUpdates = [];
+await authoritativeTokenHelpers.applyManagedActorLinkPrototypeConfiguration({
+  prototypeToken: { randomImg: true },
+  async update(changes) { prototypeUpdates.push(structuredClone(changes)); }
+}, authoritativeConfiguration, true);
+assert.equal(prototypeUpdates[0].prototypeToken.randomImg, true, "randomImg del prototype deve essere conservato");
+assert.equal(authoritativeConfiguration.texture.src, "selected.webp");
+const authoritativeTargetToken = {
+  id: "target-token",
+  toObject: () => ({
+    _id: "target-token", actorId: "actor-id", actorLink: false,
+    x: 100, y: 200, elevation: 5, sort: 10, _regions: ["region-a"],
+    name: "Forma vecchia", width: 1, height: 1,
+    texture: { src: "old.webp" }, hidden: true, locked: true, delta: { system: { attributes: { hp: { value: 1 } } } }
+  })
+};
+const authoritativePlacedSource = authoritativeTokenHelpers.managedActorLinkPlacedTokenSource(
+  authoritativeTargetToken,
+  { id: "actor-id" },
+  authoritativeConfiguration,
+);
+assert.equal(authoritativePlacedSource.x, 100, "ogni istanza deve restare nella propria posizione");
+assert.equal(authoritativePlacedSource.y, 200);
+assert.equal(authoritativePlacedSource.actorLink, true);
+assert.deepEqual(authoritativePlacedSource.delta, {}, "nessuno stato Actor indipendente deve restare sul token collegato");
+assert.equal(authoritativePlacedSource.name, "Forma autorevole");
+assert.equal(authoritativePlacedSource.texture.src, "selected.webp");
+assert.equal(authoritativePlacedSource.hidden, true, "ogni token deve conservare la propria visibilita nella scena");
+assert.equal(authoritativePlacedSource.locked, true, "ogni token deve conservare il proprio blocco nella scena");
+assert.deepEqual(authoritativePlacedSource._regions, ["region-a"], "ogni token deve conservare le proprie regioni");
+const authoritativeLiveToken = {
+  id: "target-token", name: "Forma autorevole", actorId: "actor-id", actorLink: true,
+  toObject: () => structuredClone(authoritativePlacedSource)
+};
+authoritativeTokenGame.scenes = [{ tokens: [authoritativeLiveToken] }];
+assert.equal(authoritativeTokenHelpers.verifyManagedActorLinkPlacedTokens({ id: "actor-id" }, authoritativeConfiguration).ok, true);
+authoritativeLiveToken.toObject = () => ({ ...structuredClone(authoritativePlacedSource), texture: { src: "regressed.webp" } });
+assert.equal(authoritativeTokenHelpers.verifyManagedActorLinkPlacedTokens({ id: "actor-id" }, authoritativeConfiguration).ok, false, "una sola istanza diversa deve invalidare l'intera conversione");
+const canonicalBlock = moduleSyncSource.match(/function managedActorLinkCanonicalOptionalState[\s\S]+?(?=\r?\nfunction managedActorLinkRuntimeDifferenceSummary)/)?.[0];
+assert.ok(canonicalBlock, "lo snapshot meccanico canonico deve essere testabile");
+const canonicalSnapshot = new Function(
+  "MANAGED_ACTOR_LINK_CANONICAL_SCHEMA_VERSION",
+  "foundry", "stableStringify", "managedActorLinkSemanticValue", "managedActorLinkItemState",
+  "managedActorLinkItemDefinitionSource", "managedActorLinkEffectSemanticState",
+  "managedActorLinkRuntimeComparable", "buildManagedActorRuntime", "managedActorLinkSystemState",
+  "managedActorLinkActorEnvelopeState", "managedActorLinkTokenConfigurationState",
+  "managedActorLinkActorEnvelopeComparable", "managedActorLinkTokenConfigurationComparable",
+  "managedActorLinkStructuralStateActor", "managedActorLinkDefinitionDifferences",
+  "managedActorLinkItemStateDifferences", "managedActorLinkEffectDifferences",
+  "verifyManagedActorLinkRuntimeState",
+  `${canonicalBlock}\nreturn managedActorLinkCanonicalMechanicalSnapshot;`,
+)(
+  2,
+  { utils: { deepClone: (value) => structuredClone(value) } },
+  stableItemStringify,
+  itemComparison.managedActorLinkSemanticValue,
+  itemComparison.managedActorLinkItemState,
+  itemComparison.managedActorLinkItemDefinitionSource,
+  itemComparison.managedActorLinkEffectSemanticState,
+  (value) => structuredClone(value || {}),
+  (actor) => structuredClone(actor?.runtime || {}),
+  (actor) => structuredClone(actor?.system || {}),
+  (actor) => ({ name: actor?.name || "", img: actor?.img || "", flags: structuredClone(actor?.flags || {}) }),
+  (token) => structuredClone(token?.configuration || {}),
+  (value) => structuredClone(value || {}),
+  (value) => structuredClone(value || {}),
+  () => ({ items: [], effects: [] }),
+  () => [],
+  () => [],
+  () => [],
+  () => ({ ok: true, summary: [] }),
+);
+const canonicalActorA = {
+  system: { abilities: { str: { value: 18 } }, attributes: { hp: { value: 20, max: 20 } } },
+  items: [linkUsesItem({ id: "canonical-spell", value: 2, spent: 1 })],
+  effects: [],
+  runtime: { hp: { value: 20, max: 20 } }
+};
+const canonicalActorB = {
+  system: structuredClone(canonicalActorA.system),
+  items: [linkUsesItem({ id: "canonical-spell", value: 999, spent: 1 })],
+  effects: [],
+  runtime: structuredClone(canonicalActorA.runtime)
+};
+assert.deepEqual(
+  canonicalSnapshot(canonicalActorA),
+  canonicalSnapshot(canonicalActorB),
+  "il round-trip canonico deve essere idempotente rispetto ai valori derivati",
+);
+const canonicalActorChanged = {
+  ...canonicalActorB,
+  items: [linkUsesItem({ id: "canonical-spell", value: 1, spent: 2 })]
+};
+assert.notDeepEqual(
+  canonicalSnapshot(canonicalActorA),
+  canonicalSnapshot(canonicalActorChanged),
+  "lo snapshot canonico deve continuare a rilevare una modifica meccanica persistente",
+);
+
+const restoreLinkSnapshotBlock = moduleSyncSource.match(/async function restoreManagedActorLinkSnapshot[\s\S]+?(?=\r?\nasync function executeManagedActorLinkConversion)/)?.[0];
+assert.ok(restoreLinkSnapshotBlock, "il rollback completo deve essere testabile");
+const restoreEvents = [];
+const restoreLinkSnapshot = new Function(
+  "foundry", "applyManagedActorLinkSystemState", "applyManagedActorLinkDefinition",
+  "applyManagedActorLinkActorEnvelope", "applyManagedActorLinkPrototypeConfiguration",
+  "replaceManagedActorLinkEmbeddedDocuments", "applyManagedActorLinkRuntime",
+  "managedActorLinkActivitiesSourceMap", "managedActorLinkSchemaCleanDocumentSource",
+  "managedActorLinkActorEnvelopeState", "managedActorLinkTokenConfigurationState",
+  "managedActorLinkTokenConfigurationComparable", "verifyManagedActorLinkCanonicalState",
+  "assertManagedActorLinkVerification", "stableStringify", "managedActorLinkSemanticValue", "game",
+  `${restoreLinkSnapshotBlock}\nreturn restoreManagedActorLinkSnapshot;`,
+)(
+  { utils: { deepClone: (value) => structuredClone(value) } },
+  async (_actor, system) => restoreEvents.push({ kind: "system", system: structuredClone(system) }),
+  async () => restoreEvents.push({ kind: "legacy-definition" }),
+  async (_actor, envelope) => restoreEvents.push({ kind: "actor-envelope", envelope: structuredClone(envelope) }),
+  async (_actor, configuration, actorLink) => restoreEvents.push({ kind: "prototype-configuration", configuration: structuredClone(configuration), actorLink }),
+  async (_actor, documentName, data) => restoreEvents.push({ kind: documentName, data: structuredClone(data) }),
+  async (_actor, runtime) => restoreEvents.push({ kind: "runtime", runtime: structuredClone(runtime) }),
+  (value) => Object.fromEntries((Array.isArray(value) ? value : Object.values(value || {})).map((activity, index) => {
+    const source = activity?.toObject?.(true) || activity || {};
+    const id = String(source._id || activity?._id || index);
+    return [id, structuredClone({ ...source, _id: id })];
+  })),
+  (_document, source) => structuredClone(source),
+  () => ({}),
+  (token) => structuredClone(token?.configuration || token?.toObject?.(false) || token || {}),
+  (value) => structuredClone(value || {}),
+  () => ({ ok: true, summary: [] }),
+  () => {},
+  stableItemStringify,
+  itemComparison.managedActorLinkSemanticValue,
+  { scenes: [] },
+);
+const restoreActor = {
+  async update(changes) {
+    restoreEvents.push({ kind: "prototype", changes: structuredClone(changes) });
+  }
+};
+await restoreLinkSnapshot(restoreActor, {
+  schemaVersion: 4,
+  actorSystem: { abilities: { str: { value: 10 } }, attributes: { hp: { value: 12, max: 12 } } },
+  actorRuntime: { hp: { value: 12, max: 12 } },
+  actorItemState: [],
+  actorItems: [{ _id: "old-item", name: "Elemento originale", type: "feat", system: { activities: [{ _id: "old-attack", type: "attack", damage: { parts: [["3d8", "fire"]] } }] } }],
+  actorEffects: [{ _id: "old-effect", name: "Effetto originale" }],
+  prototypeActorLink: false,
+  tokens: []
+});
+assert.deepEqual(restoreEvents.map((event) => event.kind), [
+  "system", "Item", "ActiveEffect", "runtime", "prototype"
+]);
+assert.deepEqual(restoreEvents[0].system.abilities.str.value, 10);
+assert.deepEqual(Object.keys(restoreEvents.find((event) => event.kind === "Item").data[0].system.activities), ["old-attack"], "anche i backup precedenti devono ripristinare le Activity come mappa persistibile");
+assert.equal(restoreEvents.find((event) => event.kind === "Item").data[0].system.activities["old-attack"].damage.parts[0][0], "3d8");
+assert.equal(
+  restoreEvents.some((event) => event.kind === "legacy-definition"),
+  false,
+  "un backup v4 deve ripristinare il sistema completo e non il vecchio sottoinsieme",
+);
+assert.match(moduleSyncSource, /canonicalSignature: hashValue\(managedActorLinkCanonicalMechanicalSnapshot/, "l'hash di conferma deve coprire tutto lo snapshot canonico");
+
+
+
+const embeddedEffectItem = ({ id, reversed = false, regenerated = false }) => {
+  const item = linkTestItem({ id });
+  const effects = [
+    {
+      _id: regenerated ? "shield-regenerated" : "shield-selected",
+      name: "Shield",
+      origin: regenerated ? "Actor.prototype.Item.shield" : "Scene.scene.Token.token.Actor.actor.Item.shield",
+      sort: regenerated ? 200 : 100,
+      disabled: regenerated ? undefined : false,
+      transfer: regenerated ? undefined : false,
+      duration: regenerated ? {} : { startTime: 0, startRound: 0, startTurn: 0 },
+      changes: [{ key: "system.attributes.ac.bonus", mode: 2, value: "5", priority: 20 }],
+      statuses: [],
+      _stats: { modifiedTime: regenerated ? 200 : 100 },
+    },
+    {
+      _id: regenerated ? "mage-armor-regenerated" : "mage-armor-selected",
+      name: "Mage Armor",
+      origin: regenerated ? "Actor.prototype.Item.mage-armor" : "Scene.scene.Token.token.Actor.actor.Item.mage-armor",
+      sort: regenerated ? 100 : 200,
+      disabled: regenerated ? undefined : false,
+      transfer: regenerated ? undefined : false,
+      duration: {},
+      changes: [{ key: "system.attributes.ac.calc", mode: 5, value: "mage", priority: 20 }],
+      statuses: [],
+      _stats: { modifiedTime: regenerated ? 220 : 120 },
+    },
+  ];
+  item._source.effects = reversed ? effects.reverse() : effects;
+  return item;
+};
+assert.deepEqual(
+  itemComparison.managedActorLinkItemStateDifferences(
+    { items: [embeddedEffectItem({ id: "spell-item" })], effects: [] },
+    { items: [embeddedEffectItem({ id: "spell-item", reversed: true, regenerated: true })], effects: [] },
+  ),
+  [],
+  "ID, ordine, origine e statistiche rigenerate degli effetti incorporati non devono simulare differenze meccaniche",
+);
+const selectedMindBlank = {
+  _id: "mind-blank-selected",
+  name: "Mind Blank",
+  origin: "Scene.scene.Token.token.Actor.actor.Item.mind-blank",
+  sort: 100,
+  disabled: false,
+  transfer: false,
+  duration: { seconds: 86400, startTime: 0, startRound: 0, startTurn: 0 },
+  changes: [{ key: "system.traits.ci.value", mode: 2, value: "charmed", priority: 20 }],
+  statuses: new Set(["mindBlank"]),
+  flags: { dnd5e: { riders: { activity: [] } } },
+  _stats: { modifiedTime: 100 },
+};
+const persistedMindBlank = {
+  ...structuredClone({ ...selectedMindBlank, statuses: ["mindBlank"] }),
+  _id: "mind-blank-regenerated",
+  origin: "Actor.prototype.Item.mind-blank",
+  sort: 200,
+  duration: { seconds: 86400 },
+  _stats: { modifiedTime: 200 },
+};
+assert.deepEqual(
+  itemComparison.managedActorLinkEffectSemanticState(selectedMindBlank),
+  itemComparison.managedActorLinkEffectSemanticState(persistedMindBlank),
+  "la verifica di un Active Effect deve ignorare soltanto i metadati rigenerati da Foundry",
+);
+assert.notDeepEqual(
+  itemComparison.managedActorLinkEffectSemanticState(selectedMindBlank),
+  itemComparison.managedActorLinkEffectSemanticState({ ...persistedMindBlank, duration: { seconds: 3600 } }),
+  "una differenza reale nella durata di un Active Effect deve continuare a bloccare la conversione",
+);
 assert.match(mechanicalDifferences[0].changes[0].before, /1d6/);
 assert.match(mechanicalDifferences[0].changes[0].after, /2d6/);
-assert.match(moduleSyncSource, /schemaVersion: 3/, "il rollback deve usare lo snapshot strutturale completo");
+assert.match(moduleSyncSource, /MANAGED_ACTOR_LINK_BACKUP_SCHEMA_VERSION = 5/, "il rollback deve usare lo snapshot meccanico completo");
+assert.match(moduleSyncSource, /actorSystem: managedActorLinkSystemState\(actor\)/, "il rollback deve conservare l'intero sistema Actor originale");
 assert.match(moduleSyncSource, /actorItems: Array\.from/, "lo snapshot deve conservare tutti gli Item dell'Actor");
 assert.match(moduleSyncSource, /actorEffects: Array\.from/, "lo snapshot deve conservare tutti gli ActiveEffect dell'Actor");
 assert.match(moduleSyncSource, /applyManagedActorLinkStructuralState/, "la sorgente token deve poter sostituire in sicurezza Item ed effetti");
@@ -499,6 +1005,16 @@ assert.match(moduleSyncSource, /diff: false, recursive: false/, "gli aggiornamen
 assert.match(moduleSyncSource, /recoverPreparedManagedActorLinkConversions/, "una conversione interrotta deve essere recuperata dal backup al riavvio");
 assert.match(moduleSyncSource, /managedActorLinkConversions\.has\(actorId\)/, "due conversioni concorrenti dello stesso Actor devono essere bloccate");
 assert.match(moduleSyncSource, /verification\.summary/, "un fallimento strutturale deve indicare le proprieta che non sono state conservate");
+const runtimeComparableBlock = moduleSyncSource.match(/function managedActorLinkRuntimeComparable[\s\S]+?(?=\r?\nfunction managedActorLinkRuntimeDifferenceSummary)/)?.[0];
+assert.ok(runtimeComparableBlock, "la normalizzazione dello stato corrente deve essere testabile");
+const normalizeLinkRuntime = new Function("managedActorLinkSemanticValue", `${runtimeComparableBlock}\nreturn managedActorLinkRuntimeComparable;`)((value) => value);
+assert.deepEqual(
+  normalizeLinkRuntime({ hp: { value: 0, max: 14, temp: null }, xp: { value: 5900, max: 6000 }, weight: { value: 20 }, resources: { primary: { value: 0 } }, spellSlots: { spell1: { value: 0, spent: 0 } } }),
+  { hp: { max: 14 } },
+  "i default vuoti normalizzati da Foundry a zero non devono far fallire il controllo runtime",
+);
+assert.doesNotMatch(moduleSyncSource, /"details\.xp\.value", "details\.xp\.current"/, "la conversione NPC non deve scrivere gli XP derivati dalla CR");
+assert.match(runtimeComparableBlock, /delete comparable\.xp/, "gli XP derivati non devono bloccare la verifica dello stato corrente");
 const itemReconcileBlock = moduleSyncSource.match(/function uniqueManagedActorLinkItems[\s\S]+?(?=\r?\nfunction uniqueManagedActorLinkEffects)/)?.[0];
 assert.ok(itemReconcileBlock, "la riconciliazione degli Item deve essere testabile");
 const reconcileActorItems = new Function(
@@ -510,8 +1026,10 @@ const reconcileActorItems = new Function(
   (item) => structuredClone(item?._source || item || {}),
   (value) => value,
 );
+assert.match(moduleSyncSource, /system\.resources\.\$\{key\}\.max/, "la conversione deve conservare anche il massimo delle risorse");
+assert.match(moduleSyncSource, /system\.spells\.\$\{key\}\.max/, "la conversione deve conservare anche il massimo degli slot");
 const itemRecords = new Map([
-  ["existing", { id: "existing", name: "Vecchio", type: "feat", _source: { _id: "existing", name: "Vecchio", type: "feat", system: {} } }],
+  ["existing", { id: "existing", name: "Vecchio", type: "feat", _source: { _id: "existing", name: "Vecchio", type: "feat", system: {}, flags: { legacy: { stale: true } } } }],
   ["stale", { id: "stale", name: "Da rimuovere", type: "feat", _source: { _id: "stale", name: "Da rimuovere", type: "feat", system: {} } }],
 ]);
 const itemEvents = [];
@@ -540,6 +1058,8 @@ await reconcileActorItems(itemActor, [
 assert.equal(itemRecords.has("stale"), false, "gli Item davvero assenti dalla sorgente devono essere rimossi");
 assert.equal(itemRecords.get("existing")._source.name, "Aggiornato", "un Item esistente deve essere aggiornato in sede");
 assert.equal(itemRecords.has("created"), true, "un Item mancante deve essere creato");
+assert.equal(itemRecords.get("existing")._source.flags, undefined, "la sostituzione deve eliminare le proprieta residue assenti dall'elemento scelto");
+assert.equal(itemEvents.includes("update"), false, "un Item strutturalmente diverso deve essere ricreato con lo stesso ID e non fuso con il precedente");
 assert.equal(itemEvents.at(-1), "delete", "la rimozione degli Item superflui deve avvenire soltanto dopo create e update riusciti");
 const effectReconcileBlock = moduleSyncSource.match(/function uniqueManagedActorLinkEffects[\s\S]+?(?=\r?\n\r?\nfunction managedActorLinkStructuralStateSignature)/)?.[0];
 assert.match(moduleSyncSource, /commandAlreadyCompleted/, "un comando gia completato prima di un riavvio deve essere confermato senza ripetere la conversione");
@@ -563,34 +1083,48 @@ const createEffectCollection = (sources = []) => {
   return { records, get: (id) => records.get(id), [Symbol.iterator]: () => records.values() };
 };
 const proneId = "dnd5eprone000000";
+const deadId = "dnd5edead0000000";
 const effectCollection = createEffectCollection([{ _id: proneId, name: "Prone", disabled: false }]);
-let createdEffects = 0;
-let updatedEffects = 0;
+let effectBranchUpdates = 0;
 const effectActor = {
   effects: effectCollection,
-  async deleteEmbeddedDocuments(_type, ids) { ids.forEach((id) => effectCollection.records.delete(id)); },
-  async updateEmbeddedDocuments(_type, updates) {
-    updatedEffects += updates.length;
-    updates.forEach((effect) => effectCollection.records.set(effect._id, { id: effect._id, _source: structuredClone(effect) }));
-  },
-  async createEmbeddedDocuments(_type, creates) {
-    createdEffects += creates.length;
-    for (const effect of creates) {
-      if (effectCollection.records.has(effect._id)) throw new Error("duplicate effect id");
-      effectCollection.records.set(effect._id, { id: effect._id, _source: structuredClone(effect) });
+  async update(update, options) {
+    effectBranchUpdates += 1;
+    assert.equal(options.diff, false);
+    assert.equal(options.recursive, false);
+    effectCollection.records.clear();
+    for (const effect of update.effects || []) {
+      const id = effect._id || `generated-${effectCollection.records.size}`;
+      effectCollection.records.set(id, { id, _source: structuredClone({ ...effect, _id: id }) });
     }
   },
+  async updateEmbeddedDocuments() { throw new Error(`ActiveEffect "${deadId}" does not exist!`); },
 };
 await reconcileActorEffects(effectActor, [
   { _id: proneId, name: "Prone", disabled: true },
   { _id: proneId, name: "Prone duplicato", disabled: true },
 ]);
 assert.equal(effectCollection.records.size, 1, "un ID statico D&D5e duplicato deve essere conservato una sola volta");
-assert.equal(createdEffects, 0, "un effetto gia presente deve essere aggiornato e non ricreato");
-assert.equal(updatedEffects, 1, "l'effetto Prone esistente deve essere aggiornato in-place");
+assert.equal(effectBranchUpdates, 1, "gli effetti devono essere sostituiti atomicamente sul documento Actor");
 assert.equal(effectCollection.get(proneId)._source.disabled, true);
+// Simula la collezione client obsoleta che ha causato l'errore reale: il Dead
+// sembra esistere in memoria, mentre un updateEmbeddedDocuments server-side lo
+// rifiuterebbe. La sostituzione del ramo Actor non deve usare quella API.
+effectCollection.records.set(deadId, { id: deadId, _source: { _id: deadId, name: "Dead obsoleto", statuses: ["dead"] } });
+await reconcileActorEffects(effectActor, [
+  { _id: proneId, name: "Prone", disabled: true },
+  { _id: deadId, name: "Dead", disabled: false, statuses: ["dead"], duration: { rounds: 1 } },
+]);
+assert.deepEqual(
+  effectCollection.get(deadId)._source.statuses,
+  ["dead"],
+  "gli effetti temporanei presenti nello stato scelto devono essere copiati integralmente",
+);
+assert.equal(effectBranchUpdates, 2, "la collezione client obsoleta non deve provocare update per-ID");
+assert.match(effectReconcileBlock, /actor\.update\(\{ effects: desired \}/, "gli ActiveEffect devono essere sostituiti tramite il ramo del parent Actor");
+
 assert.match(moduleSyncSource, /acceptStructural !== true/, "Foundry deve esigere una conferma esplicita per differenze strutturali");
-assert.match(moduleSyncSource, /verifyManagedActorLinkStructuralState\(actor, selectedState\.structural\)/, "la copia strutturale deve essere verificata semanticamente contro lo snapshot immutabile prima di collegare i token");
+assert.match(moduleSyncSource, /verifyManagedActorLinkCanonicalState\(actor, selectedState\)/, "la conversione deve usare una sola verifica canonica round-trip prima di collegare i token");
 const definitionBlock = moduleSyncSource.match(/const MANAGED_ACTOR_LINK_DEFINITION_PATHS[\s\S]+?(?=\nfunction managedActorLinkDefinitionUpdate)/)?.[0];
 assert.ok(definitionBlock, "le funzioni di confronto strutturale devono essere testabili");
 const getProperty = (target, path) => String(path || "").split(".").filter(Boolean).reduce((value, key) => value?.[key], target);
@@ -600,9 +1134,10 @@ const setProperty = (target, path, value) => {
   for (const key of keys.slice(0, -1)) cursor = cursor[key] ||= {};
   cursor[keys.at(-1)] = value;
 };
-const compareDefinitions = new Function("foundry", "stableStringify", `${definitionBlock}\nreturn managedActorLinkDefinitionDifferences;`)(
+const compareDefinitions = new Function("foundry", "stableStringify", "managedActorLinkSemanticValue", `${definitionBlock}\nreturn managedActorLinkDefinitionDifferences;`)(
   { utils: { getProperty, setProperty, deepClone: (value) => structuredClone(value) } },
-  (value) => JSON.stringify(value)
+  stableItemStringify,
+  itemComparison.managedActorLinkSemanticValue,
 );
 const baseAbilityData = { abilities: { str: { value: 24, proficient: 0 } }, skills: {}, attributes: {}, traits: {}, details: {} };
 const syntheticAbilityData = { abilities: { str: { value: 28, proficient: 0 } }, skills: {}, attributes: {}, traits: {}, details: {} };
@@ -615,7 +1150,37 @@ assert.deepEqual(
   { label: "Forza", before: "24", after: "28", group: "ability" },
   "un token sintetico con STR 28 deve risultare diverso dal prototype con STR 24 anche se _source conserva 24"
 );
-const managedActorFeSource = await readFile(new URL("../assets/js/pages/managed-actor.js", import.meta.url), "utf8");
+const equivalentDerivedDefinitionA = {
+  abilities: {}, skills: {}, details: {},
+  attributes: { ac: { calc: "natural", flat: 18, value: 21 }, prof: 5 },
+  traits: { dr: { value: new Set(["fire", "cold"]), bypasses: new Set(["mgc"]), custom: "" }, languages: { value: new Set(["common", "elvish"]), custom: "Telepatia", communication: { telepathy: { value: 60, units: "ft" } } } },
+};
+const equivalentDerivedDefinitionB = {
+  abilities: {}, skills: {}, details: {},
+  attributes: { ac: { calc: "natural", flat: 18, value: 21 }, prof: 5 },
+  traits: { dr: { value: ["cold", "fire"], bypasses: ["mgc"], custom: "", labels: ["Cold", "Fire"], prepared: true }, languages: { value: ["elvish", "common"], custom: "Telepatia", communication: { telepathy: { value: 60, units: "ft" } }, labels: { languages: ["Common", "Elvish", "Telepatia"], ranged: ["Telepathy 60 ft"] } } },
+};
+assert.deepEqual(
+  compareDefinitions(
+    { _source: { system: structuredClone(equivalentDerivedDefinitionA) }, system: structuredClone(equivalentDerivedDefinitionA) },
+    { _source: { system: structuredClone(equivalentDerivedDefinitionB) }, system: structuredClone(equivalentDerivedDefinitionB) },
+  ),
+  [],
+  "CA, competenza e resistenze equivalenti devono superare la verifica anche tra Set e Array",
+);
+const changedDerivedDefinition = structuredClone(equivalentDerivedDefinitionB);
+changedDerivedDefinition.attributes.ac.value = 22;
+changedDerivedDefinition.attributes.prof = 6;
+changedDerivedDefinition.traits.dr.value = ["cold"];
+const changedDerivedDifferences = compareDefinitions(
+  { _source: { system: structuredClone(equivalentDerivedDefinitionA) }, system: structuredClone(equivalentDerivedDefinitionA) },
+  { _source: { system: structuredClone(changedDerivedDefinition) }, system: structuredClone(changedDerivedDefinition) },
+);
+assert.deepEqual(
+  changedDerivedDifferences.map((entry) => entry.label),
+  ["Classe Armatura", "Bonus competenza", "Resistenze ai danni"],
+  "differenze derivate reali devono continuare a bloccare una copia incompleta",
+);
 assert.match(
   managedActorFeSource,
   /actorType === ["']npc["'] && typeof actorLink === ["']boolean["']\) return actorLink/,

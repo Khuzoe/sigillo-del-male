@@ -727,11 +727,15 @@
     }
 
     async function loadLinkableEntities() {
-        const [searchIndex, items, players] = await Promise.all([
+        const [searchIndex, items, players, managedPayload] = await Promise.all([
             dataService.fetchJson(dataUrl("search-index.json")).catch(() => ({ items: [] })),
             loadDataCollection("items", dataUrl("items.json")),
-            dataService.fetchJson(dataUrl("players.json")).catch(() => [])
+            dataService.fetchJson(dataUrl("players.json")).catch(() => []),
+            window.CriptaApp.api.get("api/managed-actors", {
+                token: authService.getToken() || undefined
+            }).catch(() => ({ data: [] }))
         ]);
+        const managedPlayers = Array.isArray(managedPayload?.data) ? managedPayload.data : [];
 
         state.entities.npc = (Array.isArray(searchIndex.items) ? searchIndex.items : [])
             .filter((entry) => entry.type === "npc")
@@ -756,7 +760,8 @@
                 id: player.id || slugify(player.name),
                 label: player.name || player.id || "Giocatore",
                 meta: player.role || "Giocatore",
-                url: `characters/character.html?id=${encodeURIComponent(player.id || "")}&type=player`,
+                url: window.CriptaApp?.urls?.player?.(player, managedPlayers)
+                    || `characters/character.html?id=${encodeURIComponent(player.id || "")}&type=player`,
                 image: player.images?.avatar || "",
                 icon: "fa-dice-d20"
             }))

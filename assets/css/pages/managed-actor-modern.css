@@ -3532,10 +3532,36 @@ body.managed-image-lightbox-open { overflow: hidden; }
 .managed-actor-link-difference.is-structural > i { background: rgba(220, 107, 102, .08); color: #ee8d84; }
 .managed-actor-link-difference > span { display: grid; gap: .14rem; min-width: 0; }
 .managed-actor-link-difference strong { overflow: hidden; color: rgba(225, 213, 188, .72); font: 700 .56rem var(--font-ui); text-overflow: ellipsis; white-space: nowrap; }
-.managed-actor-link-difference small { display: flex; align-items: center; gap: .34rem; min-width: 0; color: rgba(205, 218, 232, .58); font: 650 .58rem var(--font-ui); }
-.managed-actor-link-difference small del { overflow: hidden; max-width: 42%; color: rgba(225, 160, 156, .56); text-decoration-color: rgba(225, 160, 156, .4); text-overflow: ellipsis; white-space: nowrap; }
-.managed-actor-link-difference small > i { flex: 0 0 auto; color: rgba(141, 184, 232, .4); font-size: .46rem; }
-.managed-actor-link-difference small b { overflow: hidden; color: #d7e6f5; text-overflow: ellipsis; white-space: nowrap; }
+.managed-actor-link-difference small {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 12px minmax(0, 1fr);
+    align-items: center;
+    gap: .42rem;
+    min-width: 0;
+    color: rgba(205, 218, 232, .58);
+    font: 650 .58rem var(--font-ui);
+}
+.managed-actor-link-value { display: grid; gap: .1rem; min-width: 0; }
+.managed-actor-link-value em {
+    color: rgba(205, 218, 232, .34);
+    font: 750 .43rem/1 var(--font-ui);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+}
+.managed-actor-link-value del,
+.managed-actor-link-value b {
+    display: block;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.38;
+    white-space: normal;
+}
+.managed-actor-link-value del { color: rgba(235, 168, 162, .72); text-decoration: none; }
+.managed-actor-link-value b { color: #d7e6f5; font-weight: 750; }
+.managed-actor-link-difference small > i { color: rgba(141, 184, 232, .48); font-size: .46rem; text-align: center; }
+.managed-actor-link-difference.has-detailed-values { align-items: start; padding-block: .42rem; }
+.managed-actor-link-difference.has-detailed-values > i { margin-top: .08rem; }
+.managed-actor-link-difference.has-detailed-values small > i { margin-top: .72rem; }
 .managed-actor-link-differences > details { border-top: 1px solid rgba(141, 184, 232, .07); }
 .managed-actor-link-differences > details > summary {
     display: flex;

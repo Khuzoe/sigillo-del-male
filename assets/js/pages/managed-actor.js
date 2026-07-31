@@ -130,17 +130,21 @@
     function getManagedActorLinkState(actor = currentDocument) {
         const commands = getManagedActorLinkCommands(actor);
         const apply = commands.find((command) => command.kind === "actor-link.apply") || null;
+        const rollback = commands.find((command) => command.kind === "actor-link.rollback") || null;
         const inspection = commands.find((command) => command.kind === "actor-link.inspect") || null;
         const review = apply?.current?.sources?.length ? apply.current : (inspection?.current?.sources?.length ? inspection.current : null);
         const actual = actor?.definition?.prototypeToken?.actorLink !== false;
         const finalizing = managedActorLinkExpectedActorLink === true && !actual && apply?.status !== "pending";
+        const restoring = managedActorLinkExpectedActorLink === false && actual && rollback?.status !== "pending";
         return {
             actual,
             finalizing,
+            restoring,
             inspection,
             apply,
+            rollback,
             review,
-            busy: finalizing || [inspection, apply].some((command) => command?.status === "pending")
+            busy: finalizing || restoring || [inspection, apply, rollback].some((command) => command?.status === "pending")
         };
     }
 
@@ -160,6 +164,25 @@
             try { return JSON.stringify(value); } catch (_) { return "Configurazione differente"; }
         }
         return String(value);
+    }
+
+    function managedActorLinkDisplayValue(label, value) {
+        const text = managedActorLinkValue(value);
+        if (!/danni/i.test(String(label || "")) || !/^\s*[\[{]/.test(text)) return text;
+        const formulas = Array.from(text.matchAll(/"formula":\s*"([^"\\]*(?:\\.[^"\\]*)*)"/g))
+            .map((match) => match[1].replace(/\\"/g, '"').trim())
+            .filter(Boolean);
+        const numbers = Array.from(text.matchAll(/"number":\s*(\d+)/g)).map((match) => Number(match[1]));
+        const denominations = Array.from(text.matchAll(/"denomination":\s*(\d+)/g)).map((match) => Number(match[1]));
+        const bonuses = Array.from(text.matchAll(/"bonus":\s*"([^"\\]*(?:\\.[^"\\]*)*)"/g)).map((match) => match[1].trim());
+        const parts = formulas.length ? formulas : numbers.flatMap((number, index) => {
+            const denomination = denominations[index];
+            if (!(number > 0) || !(denomination > 0)) return [];
+            const bonus = bonuses[index] || "";
+            return [`${number}d${denomination}${bonus ? `${bonus.startsWith("-") ? " " : " + "}${bonus}` : ""}`];
+        });
+        if (!parts.length) return "Configurazione dei danni differente";
+        return `${/"includeBase":\s*true/.test(text) ? "Danno base incluso + " : ""}${parts.join(" + ")}`;
     }
 
     function managedActorLinkResourceLabel(key) {
@@ -274,7 +297,11 @@
     }
 
     function renderManagedActorLinkDifferenceRow(difference) {
-        return `<div class="managed-actor-link-difference is-${escapeAttr(difference.kind || "runtime")}"><i class="fas ${escapeAttr(difference.icon || "fa-arrow-right-arrow-left")}"></i><span><strong>${escapeHtml(difference.label || "Variazione")}</strong><small><del>${escapeHtml(difference.before)}</del><i class="fas fa-arrow-right"></i><b>${escapeHtml(difference.after)}</b></small></span></div>`;
+        const label = difference.label || "Variazione";
+        const before = managedActorLinkDisplayValue(label, difference.before);
+        const after = managedActorLinkDisplayValue(label, difference.after);
+        const expanded = Math.max(before.length, after.length) > 34;
+        return `<div class="managed-actor-link-difference is-${escapeAttr(difference.kind || "runtime")} ${expanded ? "has-detailed-values" : ""}"><i class="fas ${escapeAttr(difference.icon || "fa-arrow-right-arrow-left")}"></i><span><strong>${escapeHtml(label)}</strong><small><span class="managed-actor-link-value is-before"><em>Prima</em><del title="${escapeAttr(before)}">${escapeHtml(before)}</del></span><i class="fas fa-arrow-right"></i><span class="managed-actor-link-value is-after"><em>Dopo</em><b title="${escapeAttr(after)}">${escapeHtml(after)}</b></span></small></span></div>`;
     }
 
     function renderManagedActorLinkDifferences(source, baseline) {
@@ -301,12 +328,13 @@
     function renderManagedActorLinkPanel(actor, editable = false) {
         if (String(actor?.actorType || "").toLowerCase() !== "npc" || actor?.permissions?.isEditor !== true) return "";
         const state = getManagedActorLinkState(actor);
-        if (!editable && !state.inspection && !state.apply) return "";
+        if (!editable && !state.inspection && !state.apply && !state.rollback) return "";
         const inspectionStatus = String(state.inspection?.status || "");
         const applyStatus = String(state.apply?.status || "");
         const awaitingInspection = inspectionStatus === "pending";
         const applying = applyStatus === "pending";
-        const failed = [state.inspection, state.apply].find((command) => ["failed", "conflict"].includes(String(command?.status || "")));
+        const rollingBack = state.rollback?.status === "pending";
+        const failed = [state.inspection, state.apply, state.rollback].find((command) => ["failed", "conflict"].includes(String(command?.status || "")));
         const review = state.review;
         const sources = Array.isArray(review?.sources) ? review.sources : [];
         const structuralConflicts = sources.filter((source) => source.kind === "token" && source.structuralDifferences).length;
@@ -314,9 +342,13 @@
         const defaultSourceId = sources.some((source) => source.id === rememberedSourceId)
             ? rememberedSourceId
             : (sources.find((source) => source.currentScene && !source.structuralDifferences)?.id || sources.find((source) => source.kind === "actor")?.id || sources[0]?.id || "");
-        const switchChecked = state.actual || state.finalizing || Boolean(state.inspection || state.apply);
-        const switchDisabled = applying || state.finalizing || (state.actual && !state.inspection && !state.apply);
-        const status = state.finalizing
+        const switchChecked = (state.actual || state.finalizing || Boolean(state.inspection || state.apply)) && !state.restoring;
+        const switchDisabled = applying || rollingBack || state.finalizing || state.restoring;
+        const status = state.restoring
+            ? { icon: "fa-arrows-rotate", title: "Ripristino della scheda", text: "Foundry ha ripristinato il backup; sto rileggendo lo stato delle istanze.", tone: "pending" }
+            : rollingBack
+                ? { icon: "fa-clock-rotate-left", title: "Ripristino in corso", text: "Foundry sta recuperando Actor e token dal backup completo precedente alla conversione.", tone: "pending" }
+            : state.finalizing
             ? { icon: "fa-arrows-rotate", title: "Aggiornamento della scheda", text: "Foundry ha completato la conversione; sto rileggendo automaticamente lo stato condiviso.", tone: "pending" }
             : applying
                 ? { icon: "fa-arrows-rotate", title: "Conversione in corso", text: "Foundry sta applicando lo stato selezionato e verificando i token.", tone: "pending" }
@@ -1476,7 +1508,7 @@
             : reviews ? { icon: "fa-list-check", title: `${reviews} scelta richiesta`, detail: "Seleziona lo stato corrente", className: "is-pending" }
                 : pending ? { icon: "fa-cloud-arrow-up", title: `${pending} in attesa`, detail: "Apri per vedere quali", className: "is-pending" }
                     : { icon: "fa-circle-check", title: "Sincronizzato", detail: `Revisione ${Number(actor?.revision || 0)}`, className: "is-synced" };
-        const commandLabel = (command) => ({ "actor.update": "Statistiche e identita", "item.update": "Modifica oggetto", "item.create": "Nuovo oggetto", "item.delete": "Rimozione oggetto", "effect.update": "Modifica effetto", "effect.create": "Nuovo effetto", "effect.delete": "Rimozione effetto", "actor-link.inspect": "Controllo Link Actor Data", "actor-link.apply": "Conversione Link Actor Data" }[command.kind] || command.kind || "Modifica");
+        const commandLabel = (command) => ({ "actor.update": "Statistiche e identita", "item.update": "Modifica oggetto", "item.create": "Nuovo oggetto", "item.delete": "Rimozione oggetto", "effect.update": "Modifica effetto", "effect.create": "Nuovo effetto", "effect.delete": "Rimozione effetto", "actor-link.inspect": "Controllo Link Actor Data", "actor-link.apply": "Conversione Link Actor Data", "actor-link.rollback": "Ripristino Link Actor Data" }[command.kind] || command.kind || "Modifica");
         return commands.length
             ? `<details class="managed-sync-indicator managed-sync-details ${syncState.className}"><summary><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span><i class="fas fa-chevron-down"></i></summary><div>${commands.map((command) => `<article class="is-${escapeAttr(command.status || "pending")}"><i class="fas ${command.status === "review" ? "fa-list-check" : command.status === "pending" ? "fa-clock" : "fa-triangle-exclamation"}"></i><span><strong>${escapeHtml(commandLabel(command))}</strong><small>${escapeHtml(command.error || (command.status === "review" ? "Scegli lo stato corrente nella sezione Link Actor Data" : command.status === "pending" ? "In attesa del client Foundry" : "Richiede una nuova conferma"))}</small></span></article>`).join("")}</div></details>`
             : `<div class="managed-sync-indicator ${syncState.className}"><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span></div>`;
@@ -3611,9 +3643,9 @@
         if (managedActorLinkRefreshTimer) window.clearTimeout(managedActorLinkRefreshTimer);
         managedActorLinkRefreshTimer = 0;
         const pending = getManagedActorLinkCommands().some((command) => command.status === "pending")
-            || managedActorLinkExpectedActorLink === true;
+            || typeof managedActorLinkExpectedActorLink === "boolean";
         if (!pending || managedActorLinkPollAttempts >= 36) return;
-        const delay = managedActorLinkExpectedActorLink === true
+        const delay = typeof managedActorLinkExpectedActorLink === "boolean"
             ? Math.min(2_500 + (managedActorLinkPollAttempts * 1_250), 10_000)
             : 10_000;
         managedActorLinkRefreshTimer = window.setTimeout(() => refreshManagedActorLinkState(root), delay);
@@ -3629,10 +3661,15 @@
             currentDocument = payload.data;
             const nextActual = currentDocument?.definition?.prototypeToken?.actorLink !== false;
             const freshState = getManagedActorLinkState();
-            if (["failed", "conflict"].includes(String(freshState.apply?.status || ""))) {
+            if ([freshState.apply, freshState.rollback].some((command) => ["failed", "conflict"].includes(String(command?.status || "")))) {
                 managedActorLinkExpectedActorLink = null;
             }
             if (managedActorLinkExpectedActorLink === true && nextActual) {
+                managedActorLinkExpectedActorLink = null;
+                managedActorLinkPollAttempts = 0;
+                managedActorLinkPreferredSourceId = "";
+            }
+            if (managedActorLinkExpectedActorLink === false && !nextActual) {
                 managedActorLinkExpectedActorLink = null;
                 managedActorLinkPollAttempts = 0;
                 managedActorLinkPreferredSourceId = "";
@@ -3713,6 +3750,17 @@
         rerenderManagedActorLinkPanel(root);
     }
 
+    async function rollbackManagedActorLinkSelection(root) {
+        const message = "Disattivare Link Actor Data e ripristinare il backup completo precedente alla conversione?\n\nFoundry recuperera Actor, oggetti, attacchi, effetti, statistiche e stato indipendente dei token. Il backup restera intatto se il ripristino non supera la verifica.";
+        if (!window.confirm(message)) return;
+        const token = getToken();
+        if (!token) throw new Error("Sessione non disponibile.");
+        const response = await postManagedActorCommand({ kind: "actor-link.rollback", document: { restoreBackup: true } }, token);
+        managedActorLinkExpectedActorLink = false;
+        rememberManagedCommand(response.command, (command) => String(command.kind || "").startsWith("actor-link."));
+        managedActorLinkPollAttempts = 0;
+        rerenderManagedActorLinkPanel(root);
+    }
     function setupManagedActorLinkControls(root) {
         const panel = root.querySelector("[data-managed-actor-link-panel]");
         if (!panel) return;
@@ -3733,6 +3781,7 @@
         toggle?.addEventListener("click", () => run(toggle, async () => {
             const state = getManagedActorLinkState();
             if (state.inspection || state.apply) await cancelManagedActorLinkInspection(root);
+            else if (state.actual) await rollbackManagedActorLinkSelection(root);
             else if (!state.actual) await requestManagedActorLinkInspection(root);
         }));
         const cancel = panel.querySelector("[data-managed-actor-link-cancel]");

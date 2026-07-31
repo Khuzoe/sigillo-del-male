@@ -46,6 +46,20 @@ window.CriptaApp.onPageReady("index", () => {
         return url.toString();
     }
 
+    async function loadManagedPlayerIndex() {
+        try {
+            if (typeof window.CriptaApp?.api?.get !== 'function') return [];
+            const token = String(window.CriptaDiscordAuth?.getToken?.() || '').trim();
+            const payload = await window.CriptaApp.api.get('api/managed-actors?view=directory', {
+                ...(token ? { token } : {})
+            });
+            return Array.isArray(payload?.data) ? payload.data : [];
+        } catch (error) {
+            console.info('Schede gestite non disponibili nella home:', error);
+            return [];
+        }
+    }
+
     function getSyncedPlayerImagePath(player, variant = 'hover') {
         if (typeof window.CriptaMedia?.buildPlayerMediaPath === 'function') {
             return window.CriptaMedia.buildPlayerMediaPath(player, variant, { campaignId: getCurrentCampaignId() });
@@ -67,9 +81,33 @@ window.CriptaApp.onPageReady("index", () => {
         if (url && !candidates.includes(url)) candidates.push(url);
     }
 
+    function addManagedImageEntry(entries, descriptor) {
+        const url = resolveImageUrl(descriptor?.path, '');
+        if (!url || entries.some((entry) => entry.url === url)) return;
+        entries.push({
+            url,
+            frameCircle: window.CriptaImageAdjust?.normalizeFrameCircle?.(descriptor?.presentation?.frameCircle) || null
+        });
+    }
+
+    function getManagedPlayerImageEntries(player) {
+        const media = player?._managedActor?.media || null;
+        if (!media) return [];
+        const entries = [];
+        addManagedImageEntry(entries, media.idle);
+        addManagedImageEntry(entries, media.token);
+        addManagedImageEntry(entries, media.avatar);
+        addManagedImageEntry(entries, media.hover);
+        entries.push({ url: resolveImageUrl('assets/img/logo.webp'), frameCircle: null });
+        return entries;
+    }
+
     function getPlayerImageCandidates(player) {
-        const images = player?.images || {};
+        const managedEntries = getManagedPlayerImageEntries(player);
+        if (managedEntries.length) return managedEntries.map((entry) => entry.url);
+
         const candidates = [];
+        const images = player?.images || {};
         addImageCandidate(candidates, images.hover || images.cardHover || images.listHover || images.showcaseHover);
         addImageCandidate(candidates, getSyncedPlayerImagePath(player, 'hover'));
         addImageCandidate(candidates, images.idle || images.card || images.list || images.showcase);
@@ -88,6 +126,44 @@ window.CriptaApp.onPageReady("index", () => {
 
         addImageCandidate(candidates, 'assets/img/logo.webp');
         return candidates;
+    }
+
+    function buildFrameCircleAttributes(circle) {
+        if (!circle) return '';
+        return ` data-frame-circle="1" data-frame-circle-x="${circle.x}" data-frame-circle-y="${circle.y}" data-frame-circle-radius="${circle.radius}"`;
+    }
+
+    function resetHomeFrameCircleLayout(image) {
+        [
+            'position', 'inset', 'left', 'top', 'width', 'height', 'maxWidth', 'maxHeight',
+            'objectFit', 'objectPosition', 'transform', 'transformOrigin'
+        ].forEach((property) => image.style[property] = '');
+    }
+
+    function setupHomePlayerImages(container) {
+        container.querySelectorAll('img[data-home-player-media]').forEach((image) => {
+            const applyFrame = () => window.CriptaImageAdjust?.applyFrameCircleLayout?.(image);
+            image.addEventListener('load', applyFrame);
+            image.addEventListener('error', () => {
+                let fallbacks = [];
+                try {
+                    fallbacks = JSON.parse(image.dataset.homePlayerFallbacks || '[]');
+                } catch (_) {
+                    fallbacks = [];
+                }
+                const next = fallbacks.shift();
+                image.dataset.homePlayerFallbacks = JSON.stringify(fallbacks);
+                if (!next?.url) {
+                    image.style.display = 'none';
+                    return;
+                }
+                resetHomeFrameCircleLayout(image);
+                window.CriptaImageAdjust?.setFrameCircleDataset?.(image, next.frameCircle || null);
+                image.src = next.url;
+            });
+            applyFrame();
+        });
+        window.CriptaImageAdjust?.initFrameCircleImages?.(container);
     }
 
     function buildImageFallbackAttributes(urls) {
@@ -122,9 +198,10 @@ window.CriptaApp.onPageReady("index", () => {
         }),
         window.CriptaNextSession?.loadConfig
             ? window.CriptaNextSession.loadConfig({ fallbackPath: window.CriptaApp?.urls?.data?.('next-session.json') || 'assets/data/next-session.json' })
-            : fetchJson(window.CriptaApp?.urls?.data?.('next-session.json') || 'assets/data/next-session.json', 'Errore caricamento next-session.json')
+            : fetchJson(window.CriptaApp?.urls?.data?.('next-session.json') || 'assets/data/next-session.json', 'Errore caricamento next-session.json'),
+        loadManagedPlayerIndex()
     ])
-        .then(([sessionsData, playersData, nextSessionConfig]) => {
+        .then(([sessionsData, playersData, nextSessionConfig, managedPlayers]) => {
             const sessionContainer = document.getElementById('next-session-container');
             window.CriptaNextSession?.render(nextSessionConfig, sessionContainer);
 
@@ -135,7 +212,7 @@ window.CriptaApp.onPageReady("index", () => {
             const latestEventsContainer = document.getElementById('latest-events-section');
             setupLatestSession(lastSession, latestEventsContainer);
 
-            setupHomePlayers(playersData);
+            setupHomePlayers(playersData, managedPlayers);
             setupRecentNpcs();
         })
         .catch(error => {
@@ -211,30 +288,70 @@ window.CriptaApp.onPageReady("index", () => {
         }
     }
 
-    function setupHomePlayers(players) {
+    function buildManagedHomePlayers(rosterPlayers, managedPlayers) {
+        const roster = Array.isArray(rosterPlayers) ? rosterPlayers : [];
+        const rosterById = new Map(roster.map((player, index) => [slugify(player?.id || ''), { player, index }]));
+        return (Array.isArray(managedPlayers) ? managedPlayers : [])
+            .filter((actor) => {
+                const relationshipType = String(actor?.relationshipType || '').trim().toLowerCase();
+                const actorType = String(actor?.actorType || '').trim().toLowerCase();
+                const ownerCharacterId = String(actor?.ownerCharacterId || '').trim();
+                return Boolean(ownerCharacterId) && (relationshipType === 'player' || actorType === 'character' || actorType === 'player');
+            })
+            .map((actor) => {
+                const id = slugify(actor.ownerCharacterId);
+                const rosterEntry = rosterById.get(id);
+                const legacyMetadata = rosterEntry?.player || {};
+                const archived = String(actor?.profile?.lifecycle?.state || 'active').toLowerCase() === 'archived';
+                return {
+                    id,
+                    name: actor.name || legacyMetadata.name || id,
+                    role: actor?.profile?.role || legacyMetadata.role || 'Protagonista',
+                    hidden: legacyMetadata.hidden === true,
+                    isActive: !archived && legacyMetadata.isActive !== false,
+                    _managedActor: actor,
+                    _rosterOrder: Number.isInteger(rosterEntry?.index) ? rosterEntry.index : Number.MAX_SAFE_INTEGER
+                };
+            })
+            .sort((left, right) => {
+                if (left._rosterOrder !== right._rosterOrder) return left._rosterOrder - right._rosterOrder;
+                return String(left.name || '').localeCompare(String(right.name || ''), 'it');
+            });
+    }
+
+    function setupHomePlayers(players, managedPlayers = []) {
         const container = document.getElementById('home-players-row');
         if (!container) return;
 
-        const items = Array.isArray(players)
-            ? players.filter((player) => !player.hidden && player.isActive !== false).slice(0, 4)
-            : [];
+        const activePlayers = buildManagedHomePlayers(players, managedPlayers)
+            .filter((player) => !player.hidden && player.isActive !== false);
+        const items = activePlayers.slice(0, 4);
 
-        updateHeroMetric('home-player-count', items.length);
+        updateHeroMetric('home-player-count', activePlayers.length);
         if (items.length === 0) {
             container.innerHTML = '';
             return;
         }
 
-        container.innerHTML = items.map((player) => renderHomePlayerCard(player)).join('');
+        container.innerHTML = items.map((player) => renderHomePlayerCard(player, managedPlayers)).join('');
+        setupHomePlayerImages(container);
     }
 
-    function renderHomePlayerCard(player) {
-        const imageCandidates = getPlayerImageCandidates(player);
-        const avatarPath = imageCandidates[0] || resolveImageUrl('', 'assets/img/logo.webp');
-        const playerUrl = buildSiteUrl(`pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player`);
+    function renderHomePlayerCard(player, managedPlayers = []) {
+        const managedEntries = getManagedPlayerImageEntries(player);
+        const imageCandidates = managedEntries.length
+            ? managedEntries.map((entry) => entry.url)
+            : getPlayerImageCandidates(player);
+        const primaryEntry = managedEntries[0] || { url: imageCandidates[0], frameCircle: null };
+        const avatarPath = primaryEntry.url || resolveImageUrl('', 'assets/img/logo.webp');
+        const fallbackEntries = managedEntries.length
+            ? managedEntries.slice(1)
+            : imageCandidates.slice(1).map((url) => ({ url, frameCircle: null }));
+        const playerUrl = window.CriptaApp?.urls?.player?.(player, managedPlayers)
+            || buildSiteUrl(`pages/characters/character.html?id=${encodeURIComponent(player.id)}&type=player`);
         return `
             <a href="${escapeHtml(playerUrl)}" class="home-char-card home-char-card--player mini">
-                <div class="home-char-avatar"><img src="${escapeHtml(avatarPath)}" alt="${escapeHtml(player.name)}" loading="eager" fetchpriority="high" decoding="async"${buildImageFallbackAttributes(imageCandidates)}></div>
+                <div class="home-char-avatar" data-frame-circle-host="true"><img src="${escapeHtml(avatarPath)}" alt="${escapeHtml(player.name)}" loading="eager" fetchpriority="high" decoding="async" data-home-player-media data-home-player-fallbacks='${escapeHtml(JSON.stringify(fallbackEntries))}'${buildFrameCircleAttributes(primaryEntry.frameCircle)}></div>
                 <div class="home-char-info">
                     <h4 class="name">${escapeHtml(player.name)}</h4>
                     <span class="role">${escapeHtml(player.role || 'Protagonista')}</span>

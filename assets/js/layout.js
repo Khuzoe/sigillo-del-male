@@ -2000,6 +2000,49 @@ function resolveSiteUrl(relativePath) {
     return applyCampaignToUrl(url).toString();
 }
 
+function isManagedPrimaryPlayerEntry(entry, characterId = "") {
+    if (!entry || typeof entry !== "object") return false;
+    const relationshipType = normalizeText(entry.relationshipType || "");
+    const actorType = normalizeText(entry.actorType || "");
+    const ownerCharacterId = slugifyText(entry.ownerCharacterId || entry.characterId || "");
+    const expectedCharacterId = slugifyText(characterId || "");
+    const isPrimaryPlayer = relationshipType === "player"
+        || actorType === "character"
+        || actorType === "player";
+    if (!isPrimaryPlayer) return false;
+    return !expectedCharacterId || ownerCharacterId === expectedCharacterId;
+}
+
+function findManagedPlayerEntry(entries, characterId) {
+    const values = Array.isArray(entries) ? entries : [];
+    return values.find((entry) => isManagedPrimaryPlayerEntry(entry, characterId)) || null;
+}
+
+function buildPlayerPageUrl(playerOrId, managedEntries = []) {
+    const player = playerOrId && typeof playerOrId === "object" ? playerOrId : null;
+    const characterId = slugifyText(player?.id || player?.ownerCharacterId || playerOrId || "");
+    const attachedEntry = player?._managedActor;
+    const managedEntry = isManagedPrimaryPlayerEntry(attachedEntry, characterId)
+        ? attachedEntry
+        : findManagedPlayerEntry(managedEntries, characterId);
+    const worldId = String(managedEntry?.worldId || "").trim();
+    const actorId = String(managedEntry?.actorId || managedEntry?.foundryActorId || "").trim().toLowerCase();
+
+    if (worldId && actorId) {
+        const target = new URL(resolveSiteUrl("pages/characters/managed-actor.html"));
+        target.searchParams.set("world", worldId);
+        target.searchParams.set("actor", actorId);
+        if (managedEntry?.permissions?.canReadStats === false) target.searchParams.set("profile", "1");
+        if (characterId) target.searchParams.set("character", characterId);
+        return target.toString();
+    }
+
+    const legacyTarget = new URL(resolveSiteUrl("pages/characters/character.html"));
+    if (characterId) legacyTarget.searchParams.set("id", characterId);
+    legacyTarget.searchParams.set("type", "player");
+    return legacyTarget.toString();
+}
+
 function resolveDataUrl(dataPath, options = {}) {
     const cleanPath = String(dataPath || "").replace(/^\/+/, "").replace(/^assets\/data\//, "");
     const campaignId = sanitizeCampaignId(options.campaignId || getCampaignId());
@@ -2597,6 +2640,9 @@ window.CriptaApp = {
         },
         pollPage(campaignId) {
             return getSitePollUrl(campaignId);
+        },
+        player(playerOrId, managedEntries = []) {
+            return buildPlayerPageUrl(playerOrId, managedEntries);
         }
     },
     campaigns: {

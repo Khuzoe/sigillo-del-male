@@ -521,6 +521,20 @@ body.page-home .dash-section-title h2::before {
     transform: scale(1.055);
 }
 
+.home-char-avatar img[data-frame-circle='1'] {
+    inset: auto;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    object-fit: fill;
+    transform: none !important;
+    transition: filter .3s ease;
+}
+
+.home-char-card:hover .home-char-avatar img[data-frame-circle='1'] {
+    transform: none !important;
+}
+
 .home-char-info {
     min-width: 0;
 }
