@@ -1680,3 +1680,73 @@ body.mission-editor-open {
 .mission-card--no-entity .mission-card__media img {
   opacity: 0;
 }
+
+/* Ritratto corale per missioni collegate a piu personaggi. */
+.mission-card__media--ensemble {
+  isolation: isolate;
+}
+.mission-card__portrait-stack {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--mission-portrait-count), minmax(0, 1fr));
+  overflow: hidden;
+}
+.mission-card__portrait {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+.mission-card__portrait:not(:first-child):before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 8% auto 8% 0;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(224, 185, 92, .34), transparent);
+  box-shadow: 0 0 14px rgba(224, 185, 92, .14);
+}
+.mission-card__portrait:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(7, 6, 9, .2), transparent 24%, transparent 76%, rgba(7, 6, 9, .2)),
+    linear-gradient(180deg, transparent 58%, rgba(9, 8, 11, .48));
+  pointer-events: none;
+}
+.mission-card__media--ensemble .mission-card__portrait img {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: calc(100% * var(--mission-portrait-count));
+  max-width: none;
+  object-fit: contain;
+  object-position: center bottom;
+  transform: translateX(-50%) scale(.94);
+  transform-origin: center bottom;
+  filter: drop-shadow(0 18px 18px rgba(0, 0, 0, .45));
+}
+.mission-card:hover .mission-card__media--ensemble .mission-card__portrait img {
+  transform: translateX(-50%) scale(.98);
+}
+.mission-card__media--ensemble .mission-card__media-shade {
+  z-index: 1;
+  pointer-events: none;
+}
+.mission-card__media--ensemble .mission-card__type {
+  z-index: 3;
+}
+@media (max-width: 760px) {
+  .mission-card__media--ensemble .mission-card__portrait img {
+    min-height: 220px;
+    height: 220px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mission-card__media--ensemble .mission-card__portrait img {
+    transition: none;
+  }
+}

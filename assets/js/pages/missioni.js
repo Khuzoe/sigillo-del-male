@@ -56,7 +56,35 @@
   }
   function entityImage(e) {
     const x = e?.media || {};
-    return image(x.idle || x.token || x.avatar || x.hover || "");
+    return image(x.avatar || x.idle || x.token || x.hover || "");
+  }
+  function missionMediaEntities(m) {
+    const seen = new Set();
+    return [...m.giverRefs || [], ...m.assigneeRefs || []].flatMap((ref) => {
+      const entity = M.findEntity(ref, S.data);
+      if (!entity) return [];
+      const key = String(entity.type || ref?.type || "entity") + ":" + String(entity.id || ref?.id || entity.name || "").toLowerCase();
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [entity];
+    });
+  }
+  function renderMissionMedia(m, entities, fallbackEntity, giver, featured = false) {
+    const typeIcon = m.type === "main" ? "fa-crown" : m.type === "personal" ? "fa-user" : m.type === "faction" ? "fa-shield-halved" : "fa-scroll";
+    const type = '<span class="mission-card__type"><i class="fa-solid ' + typeIcon + '"></i>' + esc(M.TYPE_LABELS[m.type] || m.type) + '</span>';
+    const shade = '<span class="mission-card__media-shade"></span>';
+    if (entities.length < 2) {
+      return '<div class="mission-card__media"><img src="' + esc(entityImage(fallbackEntity)) + '" alt="' + esc(fallbackEntity?.name || giver?.name || m.title) + '" loading="' + (featured ? "eager" : "lazy") + '">' + shade + type + '</div>';
+    }
+    const names = entities.map((entity) => entity.name).filter(Boolean).join(", ");
+    const portraits = entities.map((entity, index) => (
+      '<figure class="mission-card__portrait" style="--mission-portrait-index:' + index + '" title="' + esc(entity.name) + '">'
+      + '<img src="' + esc(entityImage(entity)) + '" alt="' + esc(entity.name) + '" loading="' + (featured && index < 2 ? "eager" : "lazy") + '">'
+      + '</figure>'
+    )).join("");
+    return '<div class="mission-card__media mission-card__media--ensemble" aria-label="Personaggi coinvolti: ' + esc(names) + '">'
+      + '<div class="mission-card__portrait-stack" style="--mission-portrait-count:' + entities.length + '">' + portraits + '</div>'
+      + shade + type + '</div>';
   }
   function statusIcon(s) {
     return s === "completed" ? "fa-check" : s === "failed" ? "fa-xmark" : s === "active" ? "fa-arrow-right" : s === "hidden" ? "fa-eye-slash" : s === "archived" ? "fa-box-archive" : "fa-circle";
@@ -84,8 +112,8 @@
     return a;
   }
   function card(m, featured = false) {
-    const open = S.expanded.has(m.id), p = M.progress(m), e = entityFor(m), giver = m.giverRefs?.[0], next = nextObjectives(m, featured ? 3 : 2), objectives = (m.objectives || []).filter((o) => S.data.canEdit || !["hidden", "archived"].includes(o.status));
-    return `<article class="mission-card ${!e ? "mission-card--no-entity " : ""}${featured ? "mission-card--featured " : ""}mission-card--${esc(m.status)} ${open ? "is-expanded" : ""}" data-mission-id="${esc(m.id)}"><div class="mission-card__glow"></div><div class="mission-card__media"><img src="${esc(entityImage(e))}" alt="${esc(e?.name || giver?.name || m.title)}" loading="lazy"><span class="mission-card__media-shade"></span><span class="mission-card__type"><i class="fa-solid ${m.type === "main" ? "fa-crown" : m.type === "personal" ? "fa-user" : m.type === "faction" ? "fa-shield-halved" : "fa-scroll"}"></i>${esc(M.TYPE_LABELS[m.type] || m.type)}</span></div><div class="mission-card__content"><header class="mission-card__header"><div class="mission-card__heading"><span class="mission-card__giver">${giver ? `Affidata da ${esc(giver.name)}` : "Diario della compagnia"}</span><h3>${esc(m.title)}</h3></div><span class="mission-status mission-status--${esc(m.status)}"><i class="fa-solid ${statusIcon(m.status)}"></i>${esc(M.STATUS_LABELS[m.status] || m.status)}</span></header>${m.summary ? `<p class="mission-card__summary">${block(m.summary)}</p>` : ""}${next.length && !open ? `<div class="mission-next"><span>Prossimo passo</span>${next.map((o) => `<strong><i class="fa-solid fa-location-arrow"></i>${esc(o.title)}</strong>`).join("")}</div>` : ""}<div class="mission-card__progress"><div class="mission-card__progress-copy"><span>Avanzamento</span><strong>${p.count ? `${p.completed}/${p.count}` : "\u2014"}</strong></div><div class="mission-card__progress-track"><span style="width:${p.percent}%"></span></div><span class="mission-card__percent">${p.percent}%</span></div>${m.assigneeRefs?.length ? `<div class="mission-card__party"><span>Assegnata a</span><div>${m.assigneeRefs.slice(0, 5).map(renderAvatar).join("")}</div></div>` : ""}<div class="mission-card__details" ${open ? "" : "hidden"}>${m.description ? `<div class="mission-card__description">${block(m.description)}</div>` : ""}${objectives.length ? `<div class="mission-card__objectives-head"><span>Obiettivi</span><strong>${objectiveCount(m)}</strong></div><ul class="mission-objectives">${objectives.map((o) => renderObjective(o, m)).join("")}</ul>` : '<p class="mission-card__no-objectives">Nessun obiettivo visibile.</p>'}${m.rewards ? `<div class="mission-reward"><span class="mission-reward__icon"><i class="fa-solid fa-gem"></i></span><div><small>Ricompensa</small><strong>${block(m.rewards)}</strong></div></div>` : ""}${S.data.canEdit && m.dmNotes ? `<div class="mission-dm-notes"><i class="fa-solid fa-lock"></i><div><small>Note DM</small><p>${block(m.dmNotes)}</p></div></div>` : ""}</div><footer class="mission-card__footer"><button class="mission-card__expand" data-action="toggle" data-mission="${esc(m.id)}" aria-expanded="${open}"><span>${open ? "Riduci" : "Apri missione"}</span><i class="fa-solid fa-chevron-down"></i></button>${S.data.canEdit ? `<button class="mission-card__edit" data-action="edit" data-mission="${esc(m.id)}"><i class="fa-solid fa-pen"></i><span>Modifica</span></button>` : ""}</footer></div></article>`;
+    const open = S.expanded.has(m.id), p = M.progress(m), mediaEntities = missionMediaEntities(m), e = mediaEntities[0] || entityFor(m), giver = m.giverRefs?.[0], next = nextObjectives(m, featured ? 3 : 2), objectives = (m.objectives || []).filter((o) => S.data.canEdit || !["hidden", "archived"].includes(o.status));
+    return `<article class="mission-card ${!e ? "mission-card--no-entity " : ""}${featured ? "mission-card--featured " : ""}mission-card--${esc(m.status)} ${open ? "is-expanded" : ""}" data-mission-id="${esc(m.id)}"><div class="mission-card__glow"></div>${renderMissionMedia(m, mediaEntities, e, giver, featured)}<div class="mission-card__content"><header class="mission-card__header"><div class="mission-card__heading"><span class="mission-card__giver">${giver ? `Affidata da ${esc(giver.name)}` : "Diario della compagnia"}</span><h3>${esc(m.title)}</h3></div><span class="mission-status mission-status--${esc(m.status)}"><i class="fa-solid ${statusIcon(m.status)}"></i>${esc(M.STATUS_LABELS[m.status] || m.status)}</span></header>${m.summary ? `<p class="mission-card__summary">${block(m.summary)}</p>` : ""}${next.length && !open ? `<div class="mission-next"><span>Prossimo passo</span>${next.map((o) => `<strong><i class="fa-solid fa-location-arrow"></i>${esc(o.title)}</strong>`).join("")}</div>` : ""}<div class="mission-card__progress"><div class="mission-card__progress-copy"><span>Avanzamento</span><strong>${p.count ? `${p.completed}/${p.count}` : "\u2014"}</strong></div><div class="mission-card__progress-track"><span style="width:${p.percent}%"></span></div><span class="mission-card__percent">${p.percent}%</span></div>${m.assigneeRefs?.length ? `<div class="mission-card__party"><span>Assegnata a</span><div>${m.assigneeRefs.slice(0, 5).map(renderAvatar).join("")}</div></div>` : ""}<div class="mission-card__details" ${open ? "" : "hidden"}>${m.description ? `<div class="mission-card__description">${block(m.description)}</div>` : ""}${objectives.length ? `<div class="mission-card__objectives-head"><span>Obiettivi</span><strong>${objectiveCount(m)}</strong></div><ul class="mission-objectives">${objectives.map((o) => renderObjective(o, m)).join("")}</ul>` : '<p class="mission-card__no-objectives">Nessun obiettivo visibile.</p>'}${m.rewards ? `<div class="mission-reward"><span class="mission-reward__icon"><i class="fa-solid fa-gem"></i></span><div><small>Ricompensa</small><strong>${block(m.rewards)}</strong></div></div>` : ""}${S.data.canEdit && m.dmNotes ? `<div class="mission-dm-notes"><i class="fa-solid fa-lock"></i><div><small>Note DM</small><p>${block(m.dmNotes)}</p></div></div>` : ""}</div><footer class="mission-card__footer"><button class="mission-card__expand" data-action="toggle" data-mission="${esc(m.id)}" aria-expanded="${open}"><span>${open ? "Riduci" : "Apri missione"}</span><i class="fa-solid fa-chevron-down"></i></button>${S.data.canEdit ? `<button class="mission-card__edit" data-action="edit" data-mission="${esc(m.id)}"><i class="fa-solid fa-pen"></i><span>Modifica</span></button>` : ""}</footer></div></article>`;
   }
   function section(section2, grid, count, list, featured = false) {
     section2.hidden = !list.length;

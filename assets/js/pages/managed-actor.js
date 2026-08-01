@@ -325,6 +325,59 @@
         ].filter(Boolean).join("");
         return `<article class="managed-actor-link-source ${source.structuralDifferences ? "has-structural-differences" : ""}"><label class="managed-actor-link-source-selector"><input type="radio" name="managed-actor-link-source" value="${escapeAttr(source.id)}" ${checked ? "checked" : ""}><span class="managed-actor-link-source-check"><i class="fas fa-check"></i></span><span class="managed-actor-link-source-body"><strong>${escapeHtml(source.label || (source.kind === "token" ? "Token" : "Actor originale"))}</strong><small>${escapeHtml(formatManagedActorLinkSource(source, baseline))}</small><span class="managed-actor-link-source-badges">${badges}</span></span></label>${renderManagedActorLinkDifferences(source, baseline)}</article>`;
     }
+    function normalizeManagedActorLinkFailureDiagnostics(command) {
+        return (Array.isArray(command?.diagnostics) ? command.diagnostics : []).map((entry) => ({
+            category: String(entry?.category || entry?.Categoria || "Scheda").trim() || "Scheda",
+            field: String(entry?.field || entry?.Percorso || "Campo non riconosciuto").trim() || "Campo non riconosciuto",
+            path: String(entry?.path || entry?.PercorsoTecnico || "").trim(),
+            expected: String(entry?.expected ?? entry?.Atteso ?? "—"),
+            actual: String(entry?.actual ?? entry?.Ottenuto ?? "—"),
+            instruction: String(entry?.instruction || entry?.Istruzione || "Riallinea questo campo sul token scelto e salvalo.").trim()
+        }));
+    }
+
+    function managedActorLinkDiagnosticIcon(category) {
+        const value = String(category || "").toLowerCase();
+        if (value.includes("oggetto") || value.includes("capacit") || value.includes("incantesimo")) return "fa-wand-sparkles";
+        if (value.includes("effetto")) return "fa-burst";
+        if (value.includes("token")) return "fa-circle-dot";
+        if (value.includes("stato")) return "fa-heart-pulse";
+        if (value.includes("statistic") || value.includes("meccanic")) return "fa-sliders";
+        return "fa-file-lines";
+    }
+
+    function renderManagedActorLinkFailureHelp(command) {
+        const diagnostics = normalizeManagedActorLinkFailureDiagnostics(command);
+        const error = '<div class="managed-actor-link-error"><i class="fas fa-triangle-exclamation"></i><span>' + escapeHtml(command?.error || "La conversione richiede una nuova verifica.") + '</span></div>';
+        if (!diagnostics.length) return error;
+        const groups = new Map();
+        diagnostics.forEach((entry) => {
+            const entries = groups.get(entry.category) || [];
+            entries.push(entry);
+            groups.set(entry.category, entries);
+        });
+        const groupsHtml = Array.from(groups.entries()).map(([category, entries]) => {
+            const rows = entries.map((entry) => (
+                '<article class="managed-actor-link-manual-row">'
+                + '<header><span><i class="fas ' + escapeAttr(managedActorLinkDiagnosticIcon(category)) + '"></i><strong>' + escapeHtml(entry.field) + '</strong></span>'
+                + (entry.path ? '<code>' + escapeHtml(entry.path) + '</code>' : '') + '</header>'
+                + '<div class="managed-actor-link-manual-values">'
+                + '<span><em>Sul token scelto</em><code>' + escapeHtml(entry.expected) + '</code></span>'
+                + '<i class="fas fa-arrow-right"></i>'
+                + '<span><em>Accettato da Foundry</em><code>' + escapeHtml(entry.actual) + '</code></span>'
+                + '</div><p><i class="fas fa-screwdriver-wrench"></i>' + escapeHtml(entry.instruction) + '</p></article>'
+            )).join("");
+            return '<details class="managed-actor-link-manual-group" open><summary><span>' + escapeHtml(category) + '</span><b>' + entries.length + '</b><i class="fas fa-chevron-down"></i></summary><div>' + rows + '</div></details>';
+        }).join("");
+        return error
+            + '<details class="managed-actor-link-manual-help" open>'
+            + '<summary><span><i class="fas fa-life-ring"></i><b>Correzione manuale guidata</b><small>Elenco completo: ' + diagnostics.length + ' ' + (diagnostics.length === 1 ? 'campo non conservato' : 'campi non conservati') + '</small></span><i class="fas fa-chevron-down"></i></summary>'
+            + '<div class="managed-actor-link-manual-body">'
+            + '<p>La conversione \u00E8 stata annullata e il backup ripristinato. Sul <strong>token che avevi scelto</strong>, porta ogni campo dal valore attuale a quello accettato da Foundry e salvalo. Poi richiedi una nuova ispezione e seleziona di nuovo lo stesso token. Se il valore accettato non \u00E8 quello che vuoi conservare, non correggerlo: il caso richiede una modifica al modulo.</p>'
+            + '<div class="managed-actor-link-manual-groups">' + groupsHtml + '</div>'
+            + '<button type="button" class="managed-command-secondary managed-actor-link-reinspect" data-managed-actor-link-reinspect><i class="fas fa-rotate"></i> Nuova ispezione dopo le correzioni</button>'
+            + '</div></details>';
+    }
     function renderManagedActorLinkPanel(actor, editable = false) {
         if (String(actor?.actorType || "").toLowerCase() !== "npc" || actor?.permissions?.isEditor !== true) return "";
         const state = getManagedActorLinkState(actor);
@@ -362,8 +415,8 @@
         return `<section id="managed-actor-link" class="managed-panel managed-panel--wide managed-actor-link-panel is-${status.tone}" data-managed-actor-link-panel>
             <header><div><span class="managed-panel-kicker">Foundry · sicurezza istanze</span><h2><i class="fas fa-diagram-project"></i> Link Actor Data</h2></div><button type="button" class="managed-actor-link-switch" role="switch" aria-checked="${switchChecked}" ${switchDisabled || !editable ? "disabled" : ""} data-managed-actor-link-toggle><span></span><b>${switchChecked ? "Attivo" : "Disattivo"}</b></button></header>
             <div class="managed-actor-link-status"><i class="fas ${status.icon}"></i><span><strong>${escapeHtml(status.title)}</strong><small>${escapeHtml(status.text)}</small></span></div>
-            ${failed ? `<div class="managed-actor-link-error"><i class="fas fa-triangle-exclamation"></i><span>${escapeHtml(failed.error || "La conversione richiede una nuova verifica.")}</span></div>` : ""}
-            ${review ? `<div class="managed-actor-link-review"><div class="managed-actor-link-review-head"><strong>Stato corrente autorevole</strong><span>Ispezione ${escapeHtml(formatUpdatedAt(review.inspectedAt))}</span></div><div class="managed-actor-link-sources">${sources.map((source) => renderManagedActorLinkSource(source, sources.find((entry) => entry.kind === "actor") || sources[0], source.id === defaultSourceId)).join("")}</div>${editable ? `<div class="managed-actor-link-actions"><button type="button" class="managed-command-secondary" data-managed-actor-link-cancel><i class="fas fa-xmark"></i> Annulla richiesta</button><button type="button" class="managed-command-primary" data-managed-actor-link-apply><i class="fas fa-link"></i> ${structuralConflicts ? "Conferma e uniforma" : "Collega usando questo stato"}</button></div>` : ""}</div>` : ""}
+            ${failed ? renderManagedActorLinkFailureHelp(failed) : ""}
+            ${review ? `<div class="managed-actor-link-review"><div class="managed-actor-link-review-head"><strong>Stato corrente autorevole</strong><span>Ispezione ${escapeHtml(formatUpdatedAt(review.inspectedAt))}</span></div><div class="managed-actor-link-sources">${sources.map((source) => renderManagedActorLinkSource(source, sources.find((entry) => entry.kind === "actor") || sources[0], source.id === defaultSourceId)).join("")}</div>${editable && !failed ? `<div class="managed-actor-link-actions"><button type="button" class="managed-command-secondary" data-managed-actor-link-cancel><i class="fas fa-xmark"></i> Annulla richiesta</button><button type="button" class="managed-command-primary" data-managed-actor-link-apply><i class="fas fa-link"></i> ${structuralConflicts ? "Conferma e uniforma" : "Collega usando questo stato"}</button></div>` : ""}</div>` : ""}
             ${editable && !state.actual && state.inspection && !applying && !review ? `<div class="managed-actor-link-actions"><button type="button" class="managed-command-secondary" data-managed-actor-link-cancel><i class="fas fa-xmark"></i> Annulla richiesta</button></div>` : ""}
         </section>`;
     }
@@ -3784,6 +3837,8 @@
             else if (state.actual) await rollbackManagedActorLinkSelection(root);
             else if (!state.actual) await requestManagedActorLinkInspection(root);
         }));
+        const reinspect = panel.querySelector("[data-managed-actor-link-reinspect]");
+        reinspect?.addEventListener("click", () => run(reinspect, () => requestManagedActorLinkInspection(root)));
         const cancel = panel.querySelector("[data-managed-actor-link-cancel]");
         cancel?.addEventListener("click", () => run(cancel, () => cancelManagedActorLinkInspection(root)));
         const apply = panel.querySelector("[data-managed-actor-link-apply]");

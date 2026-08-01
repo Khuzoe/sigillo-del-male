@@ -5655,6 +5655,22 @@ async function enqueueManagedActorRelationshipCommand(env, campaignId, actor, re
   return queue;
 }
 
+function normalizeManagedActorLinkDiagnostics(input) {
+  return (Array.isArray(input) ? input : []).map((entry) => {
+    const value = entry && typeof entry === "object" && !Array.isArray(entry) ? entry : {};
+    const clean = (candidate, maximum = 32000) => String(candidate ?? "").trim().slice(0, maximum);
+    const category = clean(value.category ?? value.Categoria ?? "Scheda", 120) || "Scheda";
+    const field = clean(value.field ?? value.Percorso ?? "Campo non riconosciuto", 500) || "Campo non riconosciuto";
+    return {
+      category,
+      field,
+      path: clean(value.path ?? value.PercorsoTecnico, 1000),
+      expected: clean(value.expected ?? value.Atteso ?? "\u2014"),
+      actual: clean(value.actual ?? value.Ottenuto ?? "\u2014"),
+      instruction: clean(value.instruction ?? value.Istruzione, 1000),
+    };
+  });
+}
 function publicManagedActorCommand(command) {
   return {
     id: command.id,
@@ -5668,6 +5684,7 @@ function publicManagedActorCommand(command) {
     status: command.status,
     error: command.error || "",
     current: command.current && typeof command.current === "object" ? command.current : undefined,
+    diagnostics: Array.isArray(command.diagnostics) ? command.diagnostics : undefined,
     createdAt: command.createdAt,
     updatedAt: command.updatedAt,
   };
@@ -6006,7 +6023,10 @@ async function handleManagedActorCommandAck(request, route, fallbackCampaignId, 
     if (["conflict", "failed"].includes(status)) {
       changed = true;
       const current = command.kind === "actor-link.apply" ? normalizeManagedActorLinkReview(result.current) : (result.current && typeof result.current === "object" ? result.current : undefined);
-      return [{ ...command, status, error: String(result.error || result.message || status).slice(0, 800), current, updatedAt: now }];
+      const diagnostics = command.kind === "actor-link.apply"
+        ? normalizeManagedActorLinkDiagnostics(result.diagnostics)
+        : [];
+      return [{ ...command, status, error: String(result.error || result.message || status).slice(0, 800), current, diagnostics, updatedAt: now }];
     }
     return [command];
   });

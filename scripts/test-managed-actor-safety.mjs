@@ -755,7 +755,9 @@ assert.ok(authoritativeTokenBlock, "la trasposizione autoritativa dei token deve
 const authoritativeTokenGame = { scenes: [] };
 const authoritativeTokenHelpers = new Function(
   "foundry", "managedActorLinkDocumentSource", "managedActorLinkSemanticValue", "stableStringify",
-  "managedActorLinkSchemaCleanDocumentSource", "game",
+  "managedActorLinkSchemaCleanDocumentSource", "managedActorLinkCanonicalDifferencePaths",
+  "managedActorLinkCanonicalDifferenceLabel", "managedActorLinkDiagnosticPathValue",
+  "managedActorLinkDiagnosticValue", "managedActorLinkDiagnosticInstruction", "game",
   `${authoritativeTokenBlock}\nreturn { managedActorLinkTokenConfigurationState, applyManagedActorLinkPrototypeConfiguration, managedActorLinkPlacedTokenSource, verifyManagedActorLinkPlacedTokens };`,
 )(
   { utils: { deepClone: (value) => structuredClone(value) } },
@@ -763,6 +765,11 @@ const authoritativeTokenHelpers = new Function(
   itemComparison.managedActorLinkSemanticValue,
   stableItemStringify,
   (_document, source) => structuredClone(source),
+  (expected, actual) => stableItemStringify(expected) === stableItemStringify(actual) ? [] : ["texture.src"],
+  (path) => path,
+  (root, path) => String(path || "").split(".").filter(Boolean).reduce((value, key) => value?.[key], root),
+  (value) => value === undefined ? "—" : String(value),
+  () => "Riallinea il campo.",
   authoritativeTokenGame,
 );
 const authoritativeSelectedToken = {
@@ -1225,6 +1232,17 @@ assert.match(managedActorFeSource, /VERSION_CONFLICT.*INSPECTION_STALE.*INSPECTI
 assert.match(await readFile(new URL("../workers/main-worker/src/index.js", import.meta.url), "utf8"), /kind === "actor-link\.inspect"[\s\S]+?startsWith\("actor-link\."\)/, "una nuova ispezione deve sostituire i comandi Link Actor obsoleti");
 assert.match(await readFile(new URL("../assets/js/layout.js", import.meta.url), "utf8"), /error\.code = String\(payload\?\.code/, "gli errori API devono esporre il codice macchina al recupero del FE");
 assert.match(managedActorFeSource, /managedActorLinkExpectedActorLink/, "la pagina deve attendere e mostrare automaticamente il risultato della conversione");
+assert.match(moduleSyncSource, /Number\.POSITIVE_INFINITY/, "la diagnostica della conversione deve includere tutti i campi non persistiti");
+const canonicalDifferenceBlock = moduleSyncSource.match(/function managedActorLinkCanonicalDifferencePaths[\s\S]+?(?=\nfunction managedActorLinkCanonicalDifferenceLabel)/)?.[0];
+assert.ok(canonicalDifferenceBlock, "il confronto canonico completo deve essere testabile");
+const collectCanonicalDifferencePaths = new Function("stableStringify", `${canonicalDifferenceBlock}\nreturn managedActorLinkCanonicalDifferencePaths;`)(stableItemStringify);
+const manyExpectedValues = { values: Array.from({ length: 40 }, (_, index) => index) };
+const manyActualValues = { values: Array.from({ length: 40 }, (_, index) => index + 100) };
+assert.equal(collectCanonicalDifferencePaths(manyExpectedValues, manyActualValues, Number.POSITIVE_INFINITY).length, 40, "la diagnostica non deve troncare i campi dopo 24 elementi");
+assert.match(moduleSyncSource, /diagnostics: Array\.isArray\(result\.diagnostics\)/, "il modulo deve inviare la diagnostica completa al Worker");
+assert.match(moduleSyncSource, /diagnostics: Array\.isArray\(error\?\.diagnostics\)/, "un fallimento Link Actor deve restituire i dettagli della verifica");
+assert.match(managedActorFeSource, /Correzione manuale guidata/, "la pagina deve spiegare come correggere manualmente ogni campo fallito");
+assert.match(managedActorFeSource, /data-managed-actor-link-reinspect/, "dopo le correzioni deve essere disponibile una nuova ispezione");
 assert.doesNotMatch(managedActorFeSource, /data-managed-actor-link-apply \$\{structuralConflicts \? "disabled"/, "la presenza di differenze strutturali non deve piu bloccare ogni scelta");
 assert.match(managedActorFeSource, /Aggiuntivo/, "il frontend deve distinguere chiaramente i danni secondari");
 assert.match(managedActorFeSource, /managedSaveAbilityValues/, "il frontend deve normalizzare le caratteristiche del tiro salvezza");
@@ -1306,6 +1324,12 @@ assert.equal(resolveManagedCommandPatch(conflictingActivity, {
   value: activityAfterWebsiteEdit,
 }).conflict, true, "una modifica concorrente dello stesso danno deve restare un conflitto reale");
 const managedActorWorkerSource = await readFile(new URL("../workers/main-worker/src/index.js", import.meta.url), "utf8");
+assert.match(managedActorWorkerSource, /normalizeManagedActorLinkDiagnostics\(result\.diagnostics\)/, "il Worker deve conservare tutta la diagnostica restituita da Foundry");
+const workerDiagnosticsBlock = managedActorWorkerSource.match(/function normalizeManagedActorLinkDiagnostics[\s\S]+?(?=\nfunction publicManagedActorCommand)/)?.[0];
+assert.ok(workerDiagnosticsBlock, "la normalizzazione diagnostica del Worker deve essere testabile");
+const normalizeWorkerDiagnostics = new Function(`${workerDiagnosticsBlock}\nreturn normalizeManagedActorLinkDiagnostics;`)();
+const manyDiagnostics = Array.from({ length: 40 }, (_, index) => ({ Categoria: "Item", Percorso: `Elemento ${index}`, Atteso: index, Ottenuto: index + 1 }));
+assert.equal(normalizeWorkerDiagnostics(manyDiagnostics).length, 40, "il Worker non deve conservare soltanto un sottoinsieme delle correzioni");
 assert.match(managedActorWorkerSource, /managedActorCommandIsSatisfied\(runtimeData, command\)/, "il Worker deve rimuovere i conflitti oggetto giÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â  soddisfatti dallo stato Foundry sincronizzato");
 const satisfiedCommandBlock = managedActorWorkerSource.match(/function normalizeManagedActorCommandComparable[\s\S]+?(?=\nasync function handleManagedActorGet)/)?.[0];
 assert.ok(satisfiedCommandBlock, "la riconciliazione dei conflitti oggetto deve essere testabile");
