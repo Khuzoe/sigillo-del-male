@@ -262,6 +262,9 @@ const moduleSyncSource = await readFile(new URL("../module/scripts/services/mana
 const workerSource = await readFile(new URL("../workers/main-worker/src/index.js", import.meta.url), "utf8");
 const managedActorFeSource = await readFile(new URL("../assets/js/pages/managed-actor.js", import.meta.url), "utf8");
 assert.doesNotMatch(moduleSyncSource, /\u00C3|\u00C2/, "il modulo non deve contenere testo UTF-8 ricodificato");
+assert.match(moduleSyncSource, /console\.table\(diagnostics\)/, "un fallimento Link Actor deve mostrare una tabella leggibile delle differenze");
+assert.match(moduleSyncSource, /error\.diagnostics = diagnostics/, "il dettaglio della verifica deve restare disponibile anche nell errore di rollback");
+assert.match(moduleSyncSource, /conversionDiagnostics[\s\S]+rollbackDiagnostics/, "il log di rollback deve distinguere il fallimento originale da quello del ripristino");
 assert.match(moduleSyncSource, /\\u00B7 \$\{scene\.name/, "il nome dell'istanza deve separare token e scena con un punto medio stabile");
 const foundryLiveSyncSource = await readFile(new URL("../module/scripts/services/foundry-live-sync.js", import.meta.url), "utf8");
 const moduleMainSource = await readFile(new URL("../module/scripts/main.js", import.meta.url), "utf8");
@@ -293,7 +296,9 @@ assert.match(moduleSyncSource, /managedActorLinkPairItemStates/, "gli oggetti di
 assert.match(moduleSyncSource, /managedActorLinkEffectDifferences/, "l'ispezione deve indicare gli effetti diversi tra Actor e token");
 assert.match(moduleSyncSource, /managedActorLinkDefinitionDifferences/, "l'ispezione deve confrontare statistiche, competenze e tratti");
 assert.match(moduleSyncSource, /managedActorLinkResolvedSystemValue\(sourceActor, `abilities\.\$\{key\}\.value`/, "STR, DEX e le altre caratteristiche devono usare i valori risolti del token sintetico");
-assert.match(moduleSyncSource, /actorDefinitionState/, "lo snapshot deve proteggere anche le statistiche strutturali");
+const captureLinkSnapshotBlock = moduleSyncSource.match(/function captureManagedActorLinkSnapshot[\s\S]+?(?=\r?\nasync function restoreManagedActorLinkSnapshot)/)?.[0] || "";
+assert.match(captureLinkSnapshotBlock, /actorSystem: managedActorLinkSystemState\(actor\)/, "lo snapshot deve proteggere l intero sistema Actor");
+assert.doesNotMatch(captureLinkSnapshotBlock, /actorDefinitionState:/, "i nuovi backup non devono serializzare il modello abilities deprecato una seconda volta");
 assert.match(moduleSyncSource, /applyManagedActorLinkSystemState\(actor, selectedState\.system\)/, "lo stato selezionato deve propagare l'intero sistema meccanico dell'Actor");
 assert.match(moduleSyncSource, /structural: mappedStructural/, "la copia integrale non deve dipendere dal rilevamento preliminare delle differenze");
 assert.match(moduleSyncSource, /await applyManagedActorLinkStructuralState\(actor, selectedState\.structural\)/, "oggetti, attacchi ed effetti devono essere sempre trasposti dalla sorgente scelta");
@@ -628,6 +633,29 @@ assert.equal(
 );
 assert.equal(selectedDocumentSourceMode, true, "la cattura deve leggere la sorgente persistente e gia fusa del Token Actor sintetico");
 assert.equal(preparedSystemRead, false, "i valori derivati dal DataModel non devono essere salvati insieme alle loro cause persistenti");
+let liveActivitySourceMode = null;
+const selectedDeltaOnlyItem = {
+  toObject: () => ({
+    _id: "selected-delta-only",
+    name: "Greatsword",
+    type: "weapon",
+    effects: [],
+    system: { actionType: "mwak", activities: {} },
+  }),
+  system: {
+    activities: new Map([["live-attack", {
+      _id: "live-attack",
+      toObject: (source) => {
+        liveActivitySourceMode = source;
+        return { _id: "live-attack", type: "attack", damage: { parts: [["2d6 + 5", "slashing"]] } };
+      },
+    }]]),
+  },
+};
+const capturedDeltaOnlyItem = itemComparison.managedActorLinkDocumentSource(selectedDeltaOnlyItem);
+assert.deepEqual(Object.keys(capturedDeltaOnlyItem.system.activities), ["live-attack"], "le Activity vive omesse dal delta sintetico devono entrare nello snapshot autorevole");
+assert.equal(capturedDeltaOnlyItem.system.activities["live-attack"].damage.parts[0][0], "2d6 + 5");
+assert.equal(liveActivitySourceMode, true, "anche il fallback runtime deve leggere la sorgente persistente della Activity");
 
 class MockSchemaItem {
   static migrateDataSafe(source) {
@@ -1153,12 +1181,12 @@ assert.deepEqual(
 const equivalentDerivedDefinitionA = {
   abilities: {}, skills: {}, details: {},
   attributes: { ac: { calc: "natural", flat: 18, value: 21 }, prof: 5 },
-  traits: { dr: { value: new Set(["fire", "cold"]), bypasses: new Set(["mgc"]), custom: "" }, languages: { value: new Set(["common", "elvish"]), custom: "Telepatia", communication: { telepathy: { value: 60, units: "ft" } } } },
+  traits: { dr: { value: new Set(["fire", "cold"]), bypasses: new Set(["mgc"]), custom: "" }, ci: { value: new Set(["charmed", "poisoned"]), custom: "" }, languages: { value: new Set(["common", "elvish"]), custom: "Telepatia", communication: { telepathy: { value: 60, units: "ft" } } } },
 };
 const equivalentDerivedDefinitionB = {
   abilities: {}, skills: {}, details: {},
   attributes: { ac: { calc: "natural", flat: 18, value: 21 }, prof: 5 },
-  traits: { dr: { value: ["cold", "fire"], bypasses: ["mgc"], custom: "", labels: ["Cold", "Fire"], prepared: true }, languages: { value: ["elvish", "common"], custom: "Telepatia", communication: { telepathy: { value: 60, units: "ft" } }, labels: { languages: ["Common", "Elvish", "Telepatia"], ranged: ["Telepathy 60 ft"] } } },
+  traits: { dr: { value: ["cold", "fire"], bypasses: ["mgc"], custom: "", labels: ["Cold", "Fire"], prepared: true }, ci: { value: ["poisoned", "charmed"], custom: "", labels: ["Poisoned", "Charmed"], prepared: true }, languages: { value: ["elvish", "common"], custom: "Telepatia", communication: { telepathy: { value: 60, units: "ft" } }, labels: { languages: ["Common", "Elvish", "Telepatia"], ranged: ["Telepathy 60 ft"] } } },
 };
 assert.deepEqual(
   compareDefinitions(
