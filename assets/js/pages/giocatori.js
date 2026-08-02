@@ -216,29 +216,89 @@ window.CriptaApp.onPageReady("giocatori", async function() {
 
     async function loadManagedPlayerIndex() {
         try {
-            if (typeof window.CriptaApp?.api?.get !== "function") return [];
+            if (typeof window.CriptaApp?.api?.get !== "function") {
+                return { available: false, entries: [] };
+            }
             const token = String(window.CriptaDiscordAuth?.getToken?.() || "").trim();
-            const payload = await window.CriptaApp.api.get("api/managed-actors", {
+            const payload = await window.CriptaApp.api.get("api/managed-actors?view=directory", {
                 cache: false,
                 ...(token ? { token } : {})
             });
-            return Array.isArray(payload?.data) ? payload.data : [];
+            return {
+                available: true,
+                entries: Array.isArray(payload?.data) ? payload.data : []
+            };
         } catch (error) {
             console.warn("Actor gestiti non disponibili per la lista giocatori.", error);
-            return [];
+            return { available: false, entries: [] };
         }
     }
 
-    function attachManagedPlayers(players, managedEntries) {
-        (Array.isArray(players) ? players : []).forEach((player) => {
-            const playerId = normalizeText(player?.id);
-            const entry = (Array.isArray(managedEntries) ? managedEntries : []).find((candidate) => {
-                const owner = normalizeText(candidate?.ownerCharacterId);
-                const relationship = normalizeText(candidate?.relationshipType);
-                const actorType = normalizeText(candidate?.actorType);
-                return owner === playerId && (relationship === "player" || actorType === "character" || actorType === "player");
-            });
-            if (entry) player._managedActor = entry;
+    function getManagedPlayerCharacterId(entry) {
+        return slugify(entry?.ownerCharacterId || entry?.characterId || "");
+    }
+
+    function isManagedPlayerEntry(entry) {
+        if (!entry || typeof entry !== "object") return false;
+        const relationship = normalizeText(entry.relationshipType);
+        const actorType = normalizeText(entry.actorType);
+        return Boolean(getManagedPlayerCharacterId(entry))
+            && (relationship === "player" || actorType === "character" || actorType === "player");
+    }
+
+    function managedPlayerPriority(entry) {
+        const relationship = normalizeText(entry?.relationshipType);
+        const revision = Math.max(0, Number(entry?.revision) || 0);
+        const updatedAt = Date.parse(entry?.updatedAt || "") || 0;
+        return [relationship === "player" ? 1 : 0, revision, updatedAt];
+    }
+
+    function isHigherPriorityManagedPlayer(candidate, current) {
+        const left = managedPlayerPriority(candidate);
+        const right = managedPlayerPriority(current);
+        for (let index = 0; index < left.length; index += 1) {
+            if (left[index] !== right[index]) return left[index] > right[index];
+        }
+        return false;
+    }
+
+    function buildPlayerRoster(rosterPlayers, managedResult) {
+        const legacyPlayers = Array.isArray(rosterPlayers) ? rosterPlayers : [];
+        const managedAvailable = managedResult?.available === true;
+        const managedEntries = Array.isArray(managedResult?.entries) ? managedResult.entries : [];
+
+        // Se il Worker e temporaneamente irraggiungibile, il vecchio elenco resta
+        // un fallback di sola lettura: non e piu la fonte autorevole del roster.
+        if (!managedAvailable) return legacyPlayers.map((player) => ({ ...player }));
+
+        const legacyById = new Map();
+        legacyPlayers.forEach((player) => {
+            const id = slugify(player?.id || "");
+            if (id && !legacyById.has(id)) legacyById.set(id, player);
+        });
+
+        const managedByCharacterId = new Map();
+        managedEntries.filter(isManagedPlayerEntry).forEach((entry) => {
+            const id = getManagedPlayerCharacterId(entry);
+            const current = managedByCharacterId.get(id);
+            if (!current || isHigherPriorityManagedPlayer(entry, current)) {
+                managedByCharacterId.set(id, entry);
+            }
+        });
+
+        return Array.from(managedByCharacterId, ([id, actor]) => {
+            const metadata = legacyById.get(id) || {};
+            const lifecycle = normalizeText(actor?.profile?.lifecycle?.state || "active");
+            return {
+                ...metadata,
+                id,
+                name: actor?.name || metadata.name || id,
+                role: actor?.profile?.role || metadata.role || "Protagonista",
+                description: metadata.description || "",
+                hidden: metadata.hidden === true,
+                isActive: lifecycle !== "archived" && metadata.isActive !== false,
+                _managedActor: actor
+            };
         });
     }
 
@@ -585,12 +645,12 @@ window.CriptaApp.onPageReady("giocatori", async function() {
     }
 
     try {
-        const [players, inventorySnapshot, managedPlayers] = await Promise.all([
+        const [rosterPlayers, inventorySnapshot, managedResult] = await Promise.all([
             fetchJson(dataUrl("players.json"), []),
             loadInventorySnapshot(),
             loadManagedPlayerIndex()
         ]);
-        attachManagedPlayers(players, managedPlayers);
+        const players = buildPlayerRoster(rosterPlayers, managedResult);
         const visiblePlayers = window.WikiSpoiler ? window.WikiSpoiler.filterVisible(players) : players;
 
         if (!visiblePlayers.length) {

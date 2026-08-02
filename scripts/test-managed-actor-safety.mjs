@@ -657,6 +657,56 @@ assert.deepEqual(Object.keys(capturedDeltaOnlyItem.system.activities), ["live-at
 assert.equal(capturedDeltaOnlyItem.system.activities["live-attack"].damage.parts[0][0], "2d6 + 5");
 assert.equal(liveActivitySourceMode, true, "anche il fallback runtime deve leggere la sorgente persistente della Activity");
 
+let syntheticWeaponActivitySourceMode = null;
+class MockSyntheticWeaponItem {
+  static cleanData(source) {
+    const cleaned = structuredClone(source);
+    // Simula un DataModel che, fuori dal parent Actor, scarta ActivitiesField.
+    delete cleaned.system.activities;
+    return cleaned;
+  }
+
+  constructor() {
+    this.name = "Shortbow";
+    this._source = {
+      _id: "shortbow",
+      name: this.name,
+      type: "weapon",
+      system: {
+        activities: {
+          inherited: { _id: "inherited", type: "attack", damage: { parts: [] } },
+        },
+      },
+    };
+    this.system = {
+      activities: new Map([["shortbow-attack", {
+        _id: "shortbow-attack",
+        toObject: (source) => {
+          syntheticWeaponActivitySourceMode = source;
+          return {
+            _id: "shortbow-attack",
+            type: "attack",
+            attack: { type: { value: "ranged" }, ability: "dex" },
+            damage: { parts: [["2d6 + 5", "piercing"]] },
+          };
+        },
+      }]]),
+    };
+  }
+
+  toObject() {
+    return structuredClone(this._source);
+  }
+}
+const capturedSyntheticWeapon = itemComparison.managedActorLinkDocumentSource(new MockSyntheticWeaponItem());
+assert.deepEqual(
+  Object.keys(capturedSyntheticWeapon.system.activities),
+  ["shortbow-attack"],
+  "le Activity vive complete devono sostituire il ramo sintetico parziale",
+);
+assert.equal(capturedSyntheticWeapon.system.activities["shortbow-attack"].damage.parts[0][0], "2d6 + 5");
+assert.equal(syntheticWeaponActivitySourceMode, true, "la collezione viva deve essere letta in modalita persistente");
+
 class MockSchemaItem {
   static migrateDataSafe(source) {
     return structuredClone(source);
