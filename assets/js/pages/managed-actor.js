@@ -507,6 +507,7 @@
                 </div>
             </section>
             ${renderManagedCommandBar({ abilities, skills, traits, identityEntries, variants, effects, merchant, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor })}
+            ${editMode && currentProfile && canEdit && currentProfilePermissions.canEdit ? renderManagedProfileEditorToolbar() : ""}
             <div class="managed-actor-panels">
                 ${renderManagedActorLinkPanel(actor, Boolean(editMode && actor.permissions?.isEditor === true))}
                 ${renderManagedProfileSection(currentProfile, editMode, Boolean(canEdit && currentProfilePermissions.canEdit))}
@@ -831,7 +832,6 @@
                 </div>
                 <div class="managed-profile-summary-editor">${renderManagedProfileSummaryInput("race", "Razza", profile.summary?.race)}${renderManagedProfileSummaryInput("birthYear", "Anno di nascita", profile.summary?.birthYear)}${renderManagedProfileSummaryInput("age", "Eta", profile.summary?.age)}${renderManagedProfileSummaryInput("height", "Altezza", profile.summary?.height)}${renderManagedProfileSummaryInput("weight", "Peso", profile.summary?.weight)}</div>
                 ${profile.lifecycle?.state === "archived" ? `<div class="managed-profile-archive-notice"><i class="fas fa-eye-slash"></i><span><strong>Nascosto dal sito</strong><small>Questo NPC resta conservato e sincronizzato, ma compare soltanto nell\'Archivio del DM.</small></span></div>` : ""}
-                <div class="managed-profile-editor-toolbar"><div><strong>Blocchi del dossier</strong><span>Aggiungi contenuti in qualsiasi punto della pagina.</span></div><div><button type="button" data-managed-profile-add="lore"><i class="fas fa-align-left"></i> Testo</button><button type="button" data-managed-profile-add="image_box"><i class="fas fa-image"></i> Immagine</button><button type="button" data-managed-profile-add="custom_box"><i class="fas fa-message"></i> Riquadro</button><button type="button" data-managed-profile-add="banner_box"><i class="fas fa-panorama"></i> Banner</button></div></div>
                 <div class="managed-profile-block-editor" data-managed-profile-blocks>${blocks.map(renderManagedProfileEditorBlock).join("") || `<div class="managed-profile-empty"><i class="fas fa-feather-pointed"></i><strong>Nessun blocco</strong><span>Aggiungi il primo capitolo del dossier.</span></div>`}</div>
             </section>`;
         }
@@ -840,6 +840,10 @@
             <header class="managed-profile-header"><div><span class="managed-panel-kicker">Dossier</span><h2><i class="fas fa-book-open"></i> Storia e informazioni</h2></div>${canEdit && legacyLink ? `<a class="managed-profile-legacy-link" href="${escapeAttr(legacyLink)}"><i class="fas fa-clock-rotate-left"></i> Versione precedente</a>` : ""}</header>
             ${summaryEntries.length ? `<dl class="managed-profile-summary">${summaryEntries.map(([label, value]) => `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("")}</dl>` : ""}${content}
         </section>`;
+    }
+
+    function renderManagedProfileEditorToolbar() {
+        return `<div class="managed-profile-editor-toolbar managed-profile-editor-toolbar--persistent" data-managed-profile-toolbar><div><strong>Blocchi del dossier</strong><span>Aggiungi contenuti in qualsiasi punto della pagina.</span></div><div><button type="button" data-managed-profile-add="lore"><i class="fas fa-align-left"></i> Testo</button><button type="button" data-managed-profile-add="image_box"><i class="fas fa-image"></i> Immagine</button><button type="button" data-managed-profile-add="custom_box"><i class="fas fa-message"></i> Riquadro</button><button type="button" data-managed-profile-add="banner_box"><i class="fas fa-panorama"></i> Banner</button></div></div>`;
     }
 
     function renderManagedProfileEditorBlock(block, index) {
@@ -924,7 +928,10 @@
             currentProfile = collectManagedProfileFromRoot(root);
             rerenderManagedProfileSection(root);
         }));
-        section.querySelectorAll("[data-managed-profile-add]").forEach((button) => button.addEventListener("click", () => {
+        root.querySelectorAll("[data-managed-profile-add]").forEach((button) => {
+            if (button.dataset.managedProfileAddBound === "true") return;
+            button.dataset.managedProfileAddBound = "true";
+            button.addEventListener("click", () => {
             currentProfile = collectManagedProfileFromRoot(root);
             const type = button.dataset.managedProfileAdd || "lore";
             const id = uniqueManagedProfileBlockId(type === "image_box" ? "immagine" : "informazioni");
@@ -936,7 +943,8 @@
                 block?.scrollIntoView({ behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth", block: "center" });
                 block?.querySelector('[data-managed-profile-block-field=\"title\"]')?.focus({ preventScroll: true });
             });
-        }));
+            });
+        });
         section.querySelectorAll("[data-managed-profile-delete]").forEach((button) => button.addEventListener("click", () => {
             if (!window.confirm("Eliminare questo blocco dal dossier?")) return;
             const id = button.closest("[data-managed-profile-block]")?.dataset.managedProfileBlockId;

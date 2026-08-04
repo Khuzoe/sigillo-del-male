@@ -3754,6 +3754,10 @@ body.managed-image-lightbox-open { overflow: hidden; }
     box-shadow: 0 13px 34px rgba(0, 0, 0, .34), inset 0 1px rgba(255, 255, 255, .025);
     backdrop-filter: blur(18px);
 }
+.managed-profile-editor-toolbar--persistent {
+    align-self: stretch;
+    margin: 0 0 1rem;
+}
 .managed-profile-editor-toolbar > div:last-child {
     justify-content: flex-end;
 }
