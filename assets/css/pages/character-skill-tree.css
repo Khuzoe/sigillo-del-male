@@ -4982,3 +4982,209 @@ body.has-skill-tree-focus {
 .player-skill-tree-card.is-simple-skill-editor .player-skill-simple-current {
     align-self: center;
 }
+.player-skill-export-button {
+    border-color: rgba(208, 82, 82, 0.34);
+    color: #f1c0b7;
+}
+
+.player-skill-export-button:hover,
+.player-skill-export-button:focus-visible {
+    border-color: rgba(238, 120, 103, 0.72);
+    background: rgba(125, 39, 39, 0.2);
+    color: #ffe9df;
+}
+
+.player-skill-export-dialog {
+    width: min(760px, calc(100vw - 2rem));
+    max-height: calc(100vh - 2rem);
+    padding: 0;
+    overflow: auto;
+    border: 1px solid rgba(212, 175, 55, 0.34);
+    border-radius: 22px;
+    background:
+        radial-gradient(circle at 100% 0%, rgba(112, 51, 105, 0.2), transparent 38%),
+        linear-gradient(145deg, #151319, #0b0b0f 72%);
+    color: #eee1c8;
+    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.78), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.player-skill-export-dialog::backdrop {
+    background: rgba(5, 5, 8, 0.84);
+    backdrop-filter: blur(8px);
+}
+
+.player-skill-export-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    padding: 1.4rem;
+    font-family: var(--font-ui);
+}
+
+.player-skill-export-form > header,
+.player-skill-export-form > footer,
+.player-skill-export-warning {
+    grid-column: 1 / -1;
+}
+
+.player-skill-export-form > header {
+    padding: 0.2rem 0.2rem 0.85rem;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.18);
+}
+
+.player-skill-export-kicker {
+    color: #c99b5c;
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.player-skill-export-form h3 {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin: 0.35rem 0 0.35rem;
+    color: #f4ead2;
+    font-family: var(--font-title);
+    font-size: clamp(1.45rem, 3vw, 2rem);
+}
+
+.player-skill-export-form h3 i {
+    color: #df776a;
+    font-size: 0.82em;
+}
+
+.player-skill-export-form header p {
+    max-width: 60ch;
+    margin: 0;
+    color: rgba(226, 215, 194, 0.7);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.45;
+}
+
+.player-skill-export-form fieldset {
+    min-width: 0;
+    display: grid;
+    align-content: start;
+    gap: 0.65rem;
+    margin: 0;
+    padding: 0.85rem;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.018);
+}
+
+.player-skill-export-form legend {
+    padding: 0 0.4rem;
+    color: #d5ae62;
+    font-size: 0.7rem;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.player-skill-export-choice {
+    position: relative;
+    display: block;
+    cursor: pointer;
+}
+
+.player-skill-export-choice input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.player-skill-export-choice > span {
+    min-height: 76px;
+    display: grid;
+    grid-template-columns: 2.45rem minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 0.75rem;
+    align-content: center;
+    padding: 0.8rem;
+    border: 1px solid rgba(212, 175, 55, 0.14);
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.26);
+    transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.player-skill-export-choice > span > i {
+    grid-row: 1 / 3;
+    align-self: center;
+    width: 2.35rem;
+    height: 2.35rem;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 10px;
+    background: rgba(212, 175, 55, 0.06);
+    color: #d7b45e;
+}
+
+.player-skill-export-choice strong {
+    color: #eee1c8;
+    font-size: 0.82rem;
+}
+
+.player-skill-export-choice small {
+    margin-top: 0.16rem;
+    color: rgba(226, 215, 194, 0.58);
+    font-size: 0.68rem;
+    line-height: 1.35;
+}
+
+.player-skill-export-choice:hover > span,
+.player-skill-export-choice input:focus-visible + span {
+    border-color: rgba(212, 175, 55, 0.4);
+    transform: translateY(-1px);
+}
+
+.player-skill-export-choice input:checked + span {
+    border-color: rgba(225, 187, 84, 0.76);
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.13), rgba(105, 50, 105, 0.08));
+    box-shadow: inset 0 0 0 1px rgba(255, 231, 145, 0.08), 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.player-skill-export-choice.is-disabled {
+    cursor: not-allowed;
+    opacity: 0.42;
+}
+
+.player-skill-export-warning {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid rgba(220, 158, 64, 0.36);
+    border-radius: 12px;
+    background: rgba(137, 81, 26, 0.12);
+    color: #efc987;
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.player-skill-export-warning[hidden] {
+    display: none;
+}
+
+.player-skill-export-form > footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.65rem;
+    padding-top: 0.25rem;
+}
+
+@media (max-width: 680px) {
+    .player-skill-export-form {
+        grid-template-columns: 1fr;
+    }
+
+    .player-skill-export-form > header,
+    .player-skill-export-form > footer,
+    .player-skill-export-warning {
+        grid-column: auto;
+    }
+}

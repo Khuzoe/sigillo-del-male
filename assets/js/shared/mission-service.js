@@ -138,6 +138,8 @@
       legacyCharactersPromise,
       window.CriptaApp.api.get("api/managed-actors", { token: token || void 0, cache: false }).catch(() => ({ data: [] }))
     ]);
+    const archivedNpcIds = new Set((Array.isArray(managedPayload?.archivedLegacyCharacterIds) ? managedPayload.archivedLegacyCharacterIds : [])
+      .map((id) => String(id || "").trim().toLowerCase()).filter(Boolean));
     const map = /* @__PURE__ */ new Map();
     const add = (raw, fallbackType, source) => {
       const entity = normalizeEntity(raw, fallbackType, source);
@@ -159,7 +161,7 @@
       keys.forEach((key) => map.set(key, merged));
     };
     arrayFromPayload(playersPayload).forEach((entry) => add(entry, "player", "legacy"));
-    arrayFromPayload(charactersPayload).forEach((entry) => add(entry, "npc", "legacy"));
+    arrayFromPayload(charactersPayload).filter((entry) => !archivedNpcIds.has(String(entry?.id || "").trim().toLowerCase())).forEach((entry) => add(entry, "npc", "legacy"));
     arrayFromPayload(managedPayload).forEach((entry) => add(entry, entry?.ownerCharacterId ? "player" : "npc", "managed"));
     const displayEntities = /* @__PURE__ */ new Map();
     [...new Set(map.values())].forEach((entity) => {

@@ -213,9 +213,11 @@
       window.CriptaApp.api.get("api/managed-actors", { token: token || undefined, cache: false }).catch(() => ({ data: [] })),
       window.CriptaApp.api.get("api/missions", { token: token || undefined, cache: false }).catch(() => ({ data: [] }))
     ]);
+    const archivedNpcIds = new Set((Array.isArray(results[4]?.archivedLegacyCharacterIds) ? results[4].archivedLegacyCharacterIds : [])
+      .map((id) => String(id || "").trim().toLowerCase()).filter(Boolean));
     const participantValues = [
       ...arrayFromPayload(results[0], ["players", "characters"]).map((entry) => normalizeDirectoryEntry(entry, "player")),
-      ...arrayFromPayload(results[1], ["characters", "npcs"]).map((entry) => normalizeDirectoryEntry(entry, "npc")),
+      ...arrayFromPayload(results[1], ["characters", "npcs"]).filter((entry) => !archivedNpcIds.has(String(entry?.id || "").trim().toLowerCase())).map((entry) => normalizeDirectoryEntry(entry, "npc")),
       ...arrayFromPayload(results[4], ["actors"]).map((entry) => normalizeDirectoryEntry(entry, entry?.ownerCharacterId ? "player" : "npc"))
     ].filter(Boolean);
     const participants = participantValues.filter((entry, index) => participantValues.findIndex((candidate) => candidate.type === entry.type && candidate.id === entry.id) === index)

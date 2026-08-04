@@ -253,7 +253,7 @@
       return;
     }
     const m = S.editor.draft;
-    R.editor.innerHTML = `<div class="mission-editor-backdrop"><section class="mission-editor" role="dialog" aria-modal="true" aria-labelledby="mission-editor-title"><header class="mission-editor__header"><div><span>${m.revision ? "Modifica missione" : "Nuova missione"}</span><h2 id="mission-editor-title">${esc(m.title)}</h2></div><div class="mission-editor__header-actions"><span class="mission-editor__saved" data-save-state>${dirty() ? '<i class="fa-solid fa-circle"></i> Modifiche non salvate' : '<i class="fa-solid fa-check"></i> Tutto salvato'}</span><button data-editor-action="close" aria-label="Chiudi"><i class="fa-solid fa-xmark"></i></button></div></header><div class="mission-editor__body">${identityPanel(m)}${relationsPanel(m)}${objectivesPanel(m)}${notesPanel(m)}</div><footer class="mission-editor__footer"><button class="mission-editor__archive" data-editor-action="archive"><i class="fa-solid fa-box-archive"></i>${m.status === "archived" ? "Ripristina come bozza" : "Archivia"}</button><div><button class="mission-editor__cancel" data-editor-action="close">Annulla</button><button class="mission-editor__save" data-editor-action="save"><i class="fa-solid fa-floppy-disk"></i> Salva missione</button></div></footer></section></div>`;
+    R.editor.innerHTML = `<div class="mission-editor-backdrop"><section class="mission-editor" role="dialog" aria-modal="true" aria-labelledby="mission-editor-title"><header class="mission-editor__header"><div><span>${m.revision ? "Modifica missione" : "Nuova missione"}</span><h2 id="mission-editor-title">${esc(m.title)}</h2></div><div class="mission-editor__header-actions"><button type="button" class="mission-editor__quick-add" data-editor-action="add"><i class="fa-solid fa-plus"></i><span>Nuovo obiettivo</span></button><span class="mission-editor__saved" data-save-state>${dirty() ? '<i class="fa-solid fa-circle"></i> Modifiche non salvate' : '<i class="fa-solid fa-check"></i> Tutto salvato'}</span><button data-editor-action="close" aria-label="Chiudi"><i class="fa-solid fa-xmark"></i></button></div></header><div class="mission-editor__body">${identityPanel(m)}${relationsPanel(m)}${objectivesPanel(m)}${notesPanel(m)}</div><footer class="mission-editor__footer"><button class="mission-editor__archive" data-editor-action="archive"><i class="fa-solid fa-box-archive"></i>${m.status === "archived" ? "Ripristina come bozza" : "Archivia"}</button><div><button class="mission-editor__cancel" data-editor-action="close">Annulla</button><button class="mission-editor__save" data-editor-action="save"><i class="fa-solid fa-floppy-disk"></i> Salva missione</button></div></footer></section></div>`;
     document.body.classList.add("mission-editor-open");
   }
   function collect() {
@@ -318,7 +318,12 @@
   function mutate(action, id) {
     collect();
     const m = S.editor.draft;
-    if (action === "add") m.objectives.push(M.createObjective(m.id));
+    let addedObjectiveId = "";
+    if (action === "add") {
+      const objective = M.createObjective(m.id);
+      m.objectives.push(objective);
+      addedObjectiveId = objective.id;
+    }
     else {
       const l = findLocation(m.objectives, id);
       if (!l) return;
@@ -330,6 +335,11 @@
     }
     scheduleDraft();
     rerenderEditor();
+    if (addedObjectiveId) window.requestAnimationFrame(() => {
+      const card = R.editor.querySelector('[data-objective-editor="' + CSS.escape(addedObjectiveId) + '"]');
+      card?.scrollIntoView({ behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth", block: "center" });
+      card?.querySelector('[data-objective-field="title"]')?.focus({ preventScroll: true });
+    });
   }
   async function saveEditor() {
     if (!S.editor || S.editor.saving) return;

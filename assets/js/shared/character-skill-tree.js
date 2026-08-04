@@ -9,6 +9,9 @@
     let skillTreeAuthState = null;
     let skillTreeCurrentUserIsDm = false;
     const SKILL_TREE_ROUTE_FOCUS_STORAGE_KEY = 'sigillo-skill-tree-route-focus';
+    const SKILL_TREE_PDF_STORAGE_PREFIX = 'sigillo-skill-tree-pdf:';
+    const SKILL_TREE_PDF_STORAGE_TTL_MS = 30 * 60 * 1000;
+    const SKILL_TREE_EXPORT_SNAPSHOT = Symbol('skillTreeExportSnapshot');
     let skillTreeRouteFocusEnabled = (() => {
         try {
             return window.localStorage.getItem(SKILL_TREE_ROUTE_FOCUS_STORAGE_KEY) !== 'false';
@@ -5925,6 +5928,55 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         renderTree();
     });
 
+    card[SKILL_TREE_EXPORT_SNAPSHOT] = () => {
+        recalculateNodes();
+        const definition = normalizeSkillTreeDefinitionForSave(workingTree);
+        const runtimeById = new Map(currentNodes.map((node) => [String(node.id), node]));
+        const exportTree = JSON.parse(JSON.stringify({
+            ...definition,
+            bgImage: resolveSkillAssetPath(definition.bgImage),
+            nodes: (definition.nodes || []).map((node) => ({
+                ...node,
+                icon: resolveSkillAssetPath(node.icon),
+                levels: Array.isArray(node.levels)
+                    ? node.levels.map((level) => ({
+                        ...level,
+                        icon: resolveSkillAssetPath(level?.icon || node.icon)
+                    }))
+                    : node.levels
+            }))
+        }));
+        const runtime = Object.fromEntries((exportTree.nodes || []).map((node) => {
+            const active = runtimeById.get(String(node.id)) || {};
+            return [String(node.id), {
+                state: active.state || node.state || 'locked',
+                level: Math.max(1, Math.round(Number(active.level || nodeLevels[String(node.id)] || 1))),
+                maxLevel: Math.max(1, Math.round(Number(active.maxLevel || getSkillNodeLevels(node).length || 1))),
+                externalProgress: active.externalProgress && typeof active.externalProgress === 'object'
+                    ? active.externalProgress
+                    : (nodeExternalProgress[String(node.id)] || {}),
+                x: Number(active.x ?? node.x),
+                y: Number(active.y ?? node.y),
+                groupRadius: Number(active.groupRadius ?? node.groupRadius),
+                externalSatisfied: active.externalSatisfied === true
+            }];
+        }));
+        return {
+            key: treeKey,
+            label: workingTree.name || workingTree.title || treeKey || 'Albero abilita',
+            shared: isSharedTree,
+            archived: isArchivedTree,
+            dirty: hasUnsavedTreeChanges(),
+            tree: exportTree,
+            state: {
+                unlocked: Array.from(unlockedIds),
+                levels: { ...nodeLevels },
+                externalProgress: JSON.parse(JSON.stringify(nodeExternalProgress || {})),
+                runtime
+            }
+        };
+    };
+
     setDefaultInfo();
     renderTree();
 
@@ -5967,6 +6019,9 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
                 <button type="button" class="player-skill-action-button is-compact" data-skill-create-shared-tree title="Crea un albero condiviso da tutta la campagna">
                     <i class="fas fa-users"></i> Nuovo condiviso
                 </button>
+                <button type="button" class="player-skill-action-button is-compact player-skill-export-button" data-skill-export-pdf title="Esporta gli alberi abilita in PDF">
+                    <i class="fas fa-file-pdf"></i> Esporta PDF
+                </button>
             ` : ''}
         </div>
     `;
@@ -5995,6 +6050,7 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
     const nextButton = toolbar.querySelector('[data-skill-tree-next]');
     const activeActions = toolbar.querySelector('[data-skill-tree-active-actions]');
     const focusButton = toolbar.querySelector('[data-skill-tree-focus-toggle]');
+    const exportButton = toolbar.querySelector('[data-skill-export-pdf]');
 
     const createSkillTree = async (shared = false) => {
         const name = window.prompt(shared ? 'Nome nuovo albero abilita condiviso' : 'Nome nuovo albero abilita', shared ? 'Albero condiviso' : 'Nuovo albero');
@@ -6035,6 +6091,146 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
             console.error('Creazione albero abilita fallita:', error);
             alert(`Creazione albero fallita: ${error?.message || error}`);
         }
+    };
+
+    const cleanupSkillTreePdfExports = () => {
+        const now = Date.now();
+        try {
+            for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+                const key = window.localStorage.key(index);
+                if (!key?.startsWith(SKILL_TREE_PDF_STORAGE_PREFIX)) continue;
+                try {
+                    const stored = JSON.parse(window.localStorage.getItem(key) || 'null');
+                    const createdAt = Date.parse(stored?.createdAt || '');
+                    if (!Number.isFinite(createdAt) || now - createdAt > SKILL_TREE_PDF_STORAGE_TTL_MS) {
+                        window.localStorage.removeItem(key);
+                    }
+                } catch (_) {
+                    window.localStorage.removeItem(key);
+                }
+            }
+        } catch (error) {
+            console.warn('Pulizia anteprime PDF non disponibile:', error);
+        }
+    };
+
+    const collectSkillTreeExportSnapshots = (scope = 'current') => {
+        const selectedCards = scope === 'all'
+            ? cards
+            : (cards[activeTreeIndex] ? [cards[activeTreeIndex]] : []);
+        return selectedCards
+            .map((item) => item.card?.[SKILL_TREE_EXPORT_SNAPSHOT]?.())
+            .filter(Boolean);
+    };
+
+    const openSkillTreeExportDialog = () => {
+        if (!cards.length) {
+            alert('Non ci sono alberi abilita da esportare.');
+            return;
+        }
+        document.querySelector('[data-skill-tree-export-dialog]')?.remove();
+        const dialog = document.createElement('dialog');
+        dialog.className = 'player-skill-export-dialog';
+        dialog.dataset.skillTreeExportDialog = 'true';
+        dialog.innerHTML = `
+            <form class="player-skill-export-form">
+                <header>
+                    <span class="player-skill-export-kicker">Documento del personaggio</span>
+                    <h3><i class="fas fa-file-pdf" aria-hidden="true"></i> Esporta alberi abilita</h3>
+                    <p>Crea un'anteprima ad alta qualita. Il PDF viene generato dal browser e non viene salvato su R2.</p>
+                </header>
+                <fieldset>
+                    <legend>Contenuto</legend>
+                    <label class="player-skill-export-choice">
+                        <input type="radio" name="scope" value="current" checked>
+                        <span><i class="fas fa-diagram-project" aria-hidden="true"></i><strong>Albero corrente</strong><small>${escapeHtml(cards[activeTreeIndex]?.card?.dataset?.skillTreeLabel || 'Albero abilita')}</small></span>
+                    </label>
+                    <label class="player-skill-export-choice${cards.length <= 1 ? ' is-disabled' : ''}">
+                        <input type="radio" name="scope" value="all" ${cards.length <= 1 ? 'disabled' : ''}>
+                        <span><i class="fas fa-layer-group" aria-hidden="true"></i><strong>Tutti gli alberi</strong><small>${cards.length} alberi in un unico documento</small></span>
+                    </label>
+                </fieldset>
+                <fieldset>
+                    <legend>Formato</legend>
+                    <label class="player-skill-export-choice">
+                        <input type="radio" name="format" value="manual" checked>
+                        <span><i class="fas fa-book-open" aria-hidden="true"></i><strong>Documento completo</strong><small>Poster, legenda e schede dettagliate di tutti i nodi</small></span>
+                    </label>
+                    <label class="player-skill-export-choice">
+                        <input type="radio" name="format" value="poster">
+                        <span><i class="fas fa-map" aria-hidden="true"></i><strong>Solo poster</strong><small>Una pagina orizzontale per ogni albero</small></span>
+                    </label>
+                </fieldset>
+                <div class="player-skill-export-warning" data-skill-export-warning hidden>
+                    <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                    <span>L'anteprima includera anche le modifiche non ancora salvate.</span>
+                </div>
+                <footer>
+                    <button type="button" class="player-skill-action-button" data-skill-export-cancel>Annulla</button>
+                    <button type="button" class="player-skill-action-button is-primary" data-skill-export-open><i class="fas fa-eye" aria-hidden="true"></i> Apri anteprima</button>
+                </footer>
+            </form>
+        `;
+        document.body.appendChild(dialog);
+
+        const syncWarning = () => {
+            const scope = dialog.querySelector('input[name="scope"]:checked')?.value || 'current';
+            const dirty = collectSkillTreeExportSnapshots(scope).some((snapshot) => snapshot.dirty);
+            const warning = dialog.querySelector('[data-skill-export-warning]');
+            if (warning) warning.hidden = !dirty;
+        };
+        dialog.querySelectorAll('input[name="scope"]').forEach((input) => input.addEventListener('change', syncWarning));
+        dialog.querySelector('[data-skill-export-cancel]')?.addEventListener('click', () => dialog.close());
+        dialog.addEventListener('click', (event) => {
+            if (event.target === dialog) dialog.close();
+        });
+        dialog.addEventListener('close', () => dialog.remove(), { once: true });
+        dialog.querySelector('[data-skill-export-open]')?.addEventListener('click', () => {
+            const scope = dialog.querySelector('input[name="scope"]:checked')?.value || 'current';
+            const format = dialog.querySelector('input[name="format"]:checked')?.value || 'manual';
+            const trees = collectSkillTreeExportSnapshots(scope);
+            if (!trees.length) {
+                alert('Non ci sono alberi abilita da esportare.');
+                return;
+            }
+            cleanupSkillTreePdfExports();
+            const exportId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+            const payload = {
+                version: 1,
+                createdAt: new Date().toISOString(),
+                format,
+                campaign: {
+                    id: getCurrentCampaignId()
+                },
+                character: {
+                    id: character.id || '',
+                    name: character.name || character.id || 'Personaggio',
+                    avatar: character.avatar || '',
+                    token: character.token || ''
+                },
+                trees
+            };
+            try {
+                window.localStorage.setItem(`${SKILL_TREE_PDF_STORAGE_PREFIX}${exportId}`, JSON.stringify(payload));
+                const previewUrl = new URL('./skill-tree-print.html', window.location.href);
+                previewUrl.searchParams.set('export', exportId);
+                const preview = window.open(previewUrl.toString(), '_blank');
+                if (!preview) {
+                    window.localStorage.removeItem(`${SKILL_TREE_PDF_STORAGE_PREFIX}${exportId}`);
+                    alert('Il browser ha bloccato l anteprima. Consenti l apertura di nuove schede e riprova.');
+                    return;
+                }
+                preview.opener = null;
+                dialog.close();
+            } catch (error) {
+                console.error('Preparazione PDF albero fallita:', error);
+                alert(`Impossibile preparare il PDF: ${error?.message || error}`);
+            }
+        });
+
+        if (typeof dialog.showModal === 'function') dialog.showModal();
+        else dialog.setAttribute('open', '');
+        syncWarning();
     };
 
     const renderActiveTree = () => {
@@ -6158,6 +6354,7 @@ function buildPlayerSkillTreeCards(characterOrId, allSkillTrees) {
     if (skillTreeCurrentUserIsDm) {
         toolbar.querySelector('[data-skill-create-tree]')?.addEventListener('click', () => createSkillTree(false));
         toolbar.querySelector('[data-skill-create-shared-tree]')?.addEventListener('click', () => createSkillTree(true));
+        exportButton?.addEventListener('click', openSkillTreeExportDialog);
     }
 
     renderActiveTree();

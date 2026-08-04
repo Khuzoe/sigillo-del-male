@@ -29,9 +29,17 @@ window.CriptaApp.onPageReady("cerca", async () => {
     const data = typeof window.CriptaApp?.data?.json === "function"
       ? await window.CriptaApp.data.json("search-index.json")
       : await window.CriptaApp.fetchJson(window.CriptaApp?.urls?.data?.("search-index.json") || siteUrl("assets/data/search-index.json"), { clone: true });
+    const token = String(window.CriptaDiscordAuth?.getToken?.() || "").trim();
+    const managedPayload = await window.CriptaApp.api.get("api/managed-actors", {
+      ...(token ? { token } : {}),
+      cache: false
+    }).catch(() => ({ archivedLegacyCharacterIds: [] }));
+    const archivedNpcIds = new Set((Array.isArray(managedPayload?.archivedLegacyCharacterIds) ? managedPayload.archivedLegacyCharacterIds : [])
+      .map((id) => String(id || "").trim().toLowerCase()).filter(Boolean));
     items = Array.isArray(data.items)
       ? data.items.filter(item => {
         if (window.WikiSpoiler && !window.WikiSpoiler.isVisible(item)) return false;
+        if (item.type === "npc" && archivedNpcIds.has(String(item.entityId || "").trim().toLowerCase())) return false;
         return !(item.tags || []).includes("hidden");
       })
       : [];

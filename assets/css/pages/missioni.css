@@ -1750,3 +1750,33 @@ body.mission-editor-open {
     transition: none;
   }
 }
+
+/* Persistent mission objective action */
+.mission-editor__header-actions .mission-editor__quick-add {
+  display: inline-flex;
+  width: auto;
+  min-width: max-content;
+  height: 38px;
+  padding: 0 13px;
+  gap: 7px;
+  border-color: rgba(224, 185, 92, .34);
+  background: rgba(224, 185, 92, .08);
+  color: #ddb95f;
+  font: 700 .6rem Montserrat, sans-serif;
+}
+.mission-editor__header-actions .mission-editor__quick-add:hover,
+.mission-editor__header-actions .mission-editor__quick-add:focus-visible {
+  border-color: rgba(224, 185, 92, .62);
+  background: rgba(224, 185, 92, .14);
+  color: #f0d283;
+}
+@media (max-width: 760px) {
+  .mission-editor__header-actions { gap: 8px; }
+  .mission-editor__saved { display: none; }
+  .mission-editor__header-actions .mission-editor__quick-add {
+    width: 38px;
+    min-width: 38px;
+    padding: 0;
+  }
+  .mission-editor__header-actions .mission-editor__quick-add span { display: none; }
+}

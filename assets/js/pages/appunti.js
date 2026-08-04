@@ -736,9 +736,12 @@
             }).catch(() => ({ data: [] }))
         ]);
         const managedPlayers = Array.isArray(managedPayload?.data) ? managedPayload.data : [];
+        const archivedNpcIds = new Set((Array.isArray(managedPayload?.archivedLegacyCharacterIds) ? managedPayload.archivedLegacyCharacterIds : [])
+            .map((id) => String(id || "").trim().toLowerCase()).filter(Boolean));
 
         state.entities.npc = (Array.isArray(searchIndex.items) ? searchIndex.items : [])
             .filter((entry) => entry.type === "npc")
+            .filter((entry) => !archivedNpcIds.has(String(entry.entityId || entry.id || "").trim().toLowerCase()))
             .filter((entry) => !window.WikiSpoiler || window.WikiSpoiler.isVisible(entry))
             .map((entry) => ({
                 key: `npc:${entry.entityId || entry.id}`,

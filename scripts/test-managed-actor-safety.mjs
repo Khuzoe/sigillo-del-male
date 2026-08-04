@@ -298,17 +298,177 @@ assert.match(moduleSyncSource, /managedActorLinkDefinitionDifferences/, "l'ispez
 assert.match(moduleSyncSource, /managedActorLinkResolvedSystemValue\(sourceActor, `abilities\.\$\{key\}\.value`/, "STR, DEX e le altre caratteristiche devono usare i valori risolti del token sintetico");
 const captureLinkSnapshotBlock = moduleSyncSource.match(/function captureManagedActorLinkSnapshot[\s\S]+?(?=\r?\nasync function restoreManagedActorLinkSnapshot)/)?.[0] || "";
 assert.match(captureLinkSnapshotBlock, /actorSystem: managedActorLinkSystemState\(actor\)/, "lo snapshot deve proteggere l intero sistema Actor");
+assert.match(captureLinkSnapshotBlock, /actorDocument: managedActorLinkNativeActorSource\(actor\)/, "i nuovi backup devono conservare il documento Actor nativo completo");
 assert.doesNotMatch(captureLinkSnapshotBlock, /actorDefinitionState:/, "i nuovi backup non devono serializzare il modello abilities deprecato una seconda volta");
-assert.match(moduleSyncSource, /applyManagedActorLinkSystemState\(actor, selectedState\.system\)/, "lo stato selezionato deve propagare l'intero sistema meccanico dell'Actor");
-assert.match(moduleSyncSource, /structural: mappedStructural/, "la copia integrale non deve dipendere dal rilevamento preliminare delle differenze");
-assert.match(moduleSyncSource, /await applyManagedActorLinkStructuralState\(actor, selectedState\.structural\)/, "oggetti, attacchi ed effetti devono essere sempre trasposti dalla sorgente scelta");
-assert.doesNotMatch(moduleSyncSource.match(/async function executeManagedActorLinkConversion[\s\S]+?(?=\r?\nasync function applyManagedActorLinkConversion)/)?.[0] || "", /if \(selectedState\.structural\)/, "nessuna firma preliminare deve poter saltare la trasposizione strutturale");
+assert.match(moduleSyncSource, /DocumentClass\.fromImport\(foundry\.utils\.deepClone\(source\)\)/, "la conversione deve affidare migrazione e validazione al percorso nativo di Foundry");
+assert.match(moduleSyncSource, /collection\.fromCompendium\(imported\)/, "l'importazione completa deve usare la trasformazione nativa da compendio");
+assert.match(moduleSyncSource, /noHook: true[\s\S]+criptaWikiSyncCommand: true/, "l'importazione nativa non deve generare una seconda sincronizzazione durante la transazione");
+const executeManagedActorLinkBlock = moduleSyncSource.match(/async function executeManagedActorLinkConversion[\s\S]+?(?=\r?\nasync function applyManagedActorLinkConversion)/)?.[0] || "";
+assert.match(executeManagedActorLinkBlock, /importManagedActorLinkActorDocument\(actor, selectedState\.actorDocument\)/, "lo stato selezionato deve usare il JSON Actor completo");
+assert.doesNotMatch(executeManagedActorLinkBlock, /nativeImport\.verification|nativa integrale/, "il percorso nativo riuscito non deve essere invalidato da una seconda ricostruzione euristica");
+assert.doesNotMatch(executeManagedActorLinkBlock, /mappedStructural|verifyManagedActorLinkCanonicalState/, "la conversione nativa non deve passare dalla vecchia associazione euristica degli Item");
+assert.doesNotMatch(executeManagedActorLinkBlock, /applyManagedActorLink(SystemState|StructuralState|Runtime|ActorEnvelope)\(actor, selectedState\./, "la conversione non deve piu ricostruire manualmente sottoinsiemi dell'Actor");
 assert.match(moduleSyncSource, /applyManagedActorLinkPlacedTokens\(actor, selectedState\.tokenConfiguration\)/, "tutte le istanze devono ricevere la configurazione del token autorevole");
 assert.match(moduleSyncSource, /verifyManagedActorLinkPlacedTokens/, "la conversione deve verificare anche tutte le istanze in scena");
 assert.match(moduleSyncSource, /managedActorLinkItemDefinitionSignature/, "le modifiche meccaniche interne agli oggetti devono bloccare una conversione distruttiva");
 assert.doesNotMatch(moduleSyncSource, /foundry\.utils\.unsetProperty/, "la firma degli oggetti deve essere compatibile anche con Foundry senza unsetProperty");
 assert.match(moduleSyncSource, /applyManagedActorLinkPrototypeConfiguration\(actor, selectedState\.tokenConfiguration, true\)/, "actorLink puo essere attivato soltanto dalla conversione autoritativa confermata");
 assert.match(moduleSyncSource, /patch\?\.path !== ["']prototypeToken\.actorLink["']/, "i normali comandi actor.update non devono poter cambiare actorLink");
+assert.doesNotMatch(executeManagedActorLinkBlock, /captureManagedActorLinkStructuralState/, "la verifica nativa non deve rinominare o riassociare gli Item selezionati");
+const nativeActorSourceBlock = moduleSyncSource.match(/function managedActorLinkNativeActorSource[\s\S]+?(?=\r?\nasync function importManagedActorLinkActorDocument)/)?.[0] || "";
+assert.ok(nativeActorSourceBlock, "la cattura JSON nativa dell'Actor deve essere testabile");
+const captureNativeActorSource = new Function(
+  "foundry",
+  `${nativeActorSourceBlock}\nreturn managedActorLinkNativeActorSource;`,
+)({ utils: { deepClone: (value) => structuredClone(value) } });
+assert.deepEqual(
+  captureNativeActorSource({
+    toJSON: () => ({ marker: "token-actor-json", items: [{ _id: "slam" }] }),
+    toObject: () => { throw new Error("toObject non deve sostituire un toJSON valido"); },
+  }),
+  { marker: "token-actor-json", items: [{ _id: "slam" }] },
+  "la sorgente deve coincidere con JSON.stringify(token.actor)",
+);
+
+const nativeActorImportBlock = moduleSyncSource.match(/async function importManagedActorLinkActorDocument[\s\S]+?(?=\r?\nfunction managedActorLinkSemanticValue)/)?.[0] || "";
+assert.ok(nativeActorImportBlock, "il percorso nativo di importazione Actor deve essere testabile");
+const nativeImportEvents = [];
+const nativeFoundry = {
+  utils: {
+    deepClone: (value) => structuredClone(value),
+    getProperty: (object, path) => String(path).split(".").reduce((value, key) => value?.[key], object),
+    mergeObject: (target, source) => Object.assign(target, structuredClone(source)),
+  },
+};
+class NativeImportActorDocument {}
+NativeImportActorDocument.metadata = { preserveOnImport: ["_id", "ownership", "sort"] };
+NativeImportActorDocument.fromImport = async (source) => {
+  nativeImportEvents.push({ kind: "from-import", source: structuredClone(source) });
+  return { source: structuredClone(source) };
+};
+const nativeImportActor = {
+  constructor: NativeImportActorDocument,
+  _id: "actor-target",
+  ownership: { default: 3 },
+  sort: 42,
+  folder: { id: "folder-target" },
+  collection: {
+    fromCompendium(imported) {
+      nativeImportEvents.push({ kind: "from-compendium" });
+      const data = structuredClone(imported.source);
+      delete data._id;
+      data.ownership = { default: 0 };
+      return data;
+    },
+  },
+  async update(data, options) {
+    nativeImportEvents.push({ kind: "update", data: structuredClone(data), options: structuredClone(options) });
+  },
+};
+const importNativeActorDocument = new Function(
+  "foundry",
+  `${nativeActorImportBlock}\nreturn importManagedActorLinkActorDocument;`,
+)(nativeFoundry);
+const nativeImportResult = await importNativeActorDocument(nativeImportActor, {
+  _id: "actor-source",
+  name: "Sorgente",
+  _stats: { coreVersion: "12.331" },
+  items: [{ _id: "slam", name: "Slam" }],
+  effects: [{ _id: "dead", name: "Dead" }],
+});
+assert.deepEqual(nativeImportEvents.map((entry) => entry.kind), ["from-import", "from-compendium", "update"]);
+assert.equal(nativeImportEvents[0].source._stats.coreVersion, "12.331", "la migrazione nativa deve ricevere i metadati di versione");
+const nativeUpdate = nativeImportEvents.at(-1);
+assert.equal(nativeUpdate.data._id, "actor-target", "l'importazione deve conservare l'identita del world Actor");
+assert.deepEqual(nativeUpdate.data.ownership, { default: 3 }, "l'importazione deve conservare i permessi del world Actor");
+assert.equal(nativeUpdate.data.folder, "folder-target", "l'importazione deve conservare la cartella del world Actor");
+assert.equal(nativeUpdate.data.items[0]._id, "slam", "gli Item devono mantenere l'identita scelta nel token sorgente");
+assert.equal(nativeUpdate.options.noHook, true);
+assert.deepEqual(nativeImportResult.expectedSource, nativeUpdate.data, "la verifica deve usare esattamente il payload normalizzato inviato a Foundry");
+assert.equal(nativeUpdate.options.diff, false);
+assert.equal(nativeUpdate.options.recursive, false);
+const nativeActorVerificationBlock = moduleSyncSource.match(/const MANAGED_ACTOR_LINK_NATIVE_IGNORED_ROOT_KEYS[\s\S]+?(?=\r?\nfunction managedActorLinkSemanticValue)/)?.[0] || "";
+const directImportGuards = new Set();
+const directImportEvents = [];
+const directImportActor = {
+  id: "actor-target",
+  name: "Prototype",
+  persisted: null,
+  async importFromJSON(json) {
+    const parsed = JSON.parse(json);
+    directImportEvents.push(parsed);
+    this.persisted = structuredClone(parsed);
+    return this;
+  },
+};
+const importActorJsonDirectly = new Function(
+  "foundry", "managedActorLinkNativeImports", "managedActorLinkNativeActorSource",
+  `${nativeActorImportBlock}\nreturn importManagedActorLinkActorDocument;`,
+)(
+  nativeFoundry,
+  directImportGuards,
+  (actor) => structuredClone(actor.persisted),
+);
+const directActorJson = {
+  _id: "synthetic-source",
+  name: "Token scelto",
+  system: { attributes: { hp: { value: 198, max: 225 } } },
+  items: [{ _id: "summon-fey", name: "Summon Fey", system: { target: { affects: { count: null } } } }],
+  effects: [{ _id: "dead", name: "Dead" }],
+};
+const directImportResult = await importActorJsonDirectly(directImportActor, directActorJson);
+assert.deepEqual(directImportEvents, [directActorJson], "il JSON completo del token deve essere passato invariato a importFromJSON");
+assert.deepEqual(directImportResult.expectedSource, directActorJson, "il risultato deve essere lo stato realmente persistito dal percorso nativo");
+assert.equal(directImportGuards.size, 0, "la protezione dagli hook deve essere sempre rimossa dopo l'importazione");
+
+assert.ok(nativeActorVerificationBlock, "la verifica del documento nativo deve essere testabile");
+const nativeStableStringify = (value) => JSON.stringify(value);
+const verifyNativeActorDocument = new Function(
+  "stableStringify", "managedActorLinkNativeActorSource",
+  "managedActorLinkCanonicalDifferencePaths", "managedActorLinkCanonicalDifferenceLabel",
+  `${nativeActorVerificationBlock}\nreturn verifyManagedActorLinkNativeDocument;`,
+)(
+  nativeStableStringify,
+  (actor) => structuredClone(actor.toObject()),
+  (expected, actual) => nativeStableStringify(expected) === nativeStableStringify(actual) ? [] : ["items.0.name"],
+  (path, expected, actual) => `${expected.items?.[0]?.name || actual.items?.[0]?.name || "Elemento"} - ${path}`,
+);
+const nativeUnidentifiedSource = {
+  _id: "actor-target",
+  name: "Gianni",
+  prototypeToken: { actorLink: false },
+  _stats: { modifiedTime: 100 },
+  system: { attributes: { hp: { value: 198, max: 225 } } },
+  items: [{ _id: "flame-tongue", name: "Flame Tongue Longsword", system: { identified: false } }],
+  effects: [],
+};
+const nativeUnidentifiedActor = {
+  items: [{ _id: "flame-tongue", name: "[Non Identificato] Spada di Fuoco" }],
+  toObject: () => ({
+    ...structuredClone(nativeUnidentifiedSource),
+    prototypeToken: { actorLink: true },
+    _stats: { modifiedTime: 999 },
+  }),
+};
+assert.equal(
+  verifyNativeActorDocument(nativeUnidentifiedActor, nativeUnidentifiedSource).ok,
+  true,
+  "un nome preparato/localizzato non deve invalidare un JSON persistente importato correttamente",
+);
+assert.equal(
+  verifyNativeActorDocument({
+    ...nativeUnidentifiedActor,
+    toObject: () => ({
+      ...structuredClone(nativeUnidentifiedSource),
+      items: [{ _id: "flame-tongue", name: "Oggetto realmente diverso", system: { identified: false } }],
+    }),
+
+  }, nativeUnidentifiedSource).ok,
+  false,
+  "una differenza reale nel JSON persistente deve continuare a bloccare la conversione",
+);
+
+
 assert.match(moduleSyncSource, /const SYNC_BATCH_WINDOW_MS = 60_000;/, "le modifiche Foundry devono essere raccolte per un minuto");
 assert.match(moduleSyncSource, /if \(!pendingTimers\.has\(actorId\)\) scheduleManagedActorFlush\(actorId, SYNC_BATCH_WINDOW_MS\);/, "nuove modifiche devono confluire nella finestra gia aperta");
 assert.match(moduleSyncSource, /pendingJobs\.get\(actorId\) !== event/, "una modifica arrivata durante l'invio non deve essere cancellata dall'ack precedente");
@@ -950,7 +1110,9 @@ const restoreLinkSnapshot = new Function(
   "managedActorLinkActivitiesSourceMap", "managedActorLinkSchemaCleanDocumentSource",
   "managedActorLinkActorEnvelopeState", "managedActorLinkTokenConfigurationState",
   "managedActorLinkTokenConfigurationComparable", "verifyManagedActorLinkCanonicalState",
-  "assertManagedActorLinkVerification", "stableStringify", "managedActorLinkSemanticValue", "game",
+  "verifyManagedActorLinkNativeDocument",
+  "assertManagedActorLinkVerification", "stableStringify", "managedActorLinkSemanticValue",
+  "importManagedActorLinkActorDocument", "game",
   `${restoreLinkSnapshotBlock}\nreturn restoreManagedActorLinkSnapshot;`,
 )(
   { utils: { deepClone: (value) => structuredClone(value) } },
@@ -970,9 +1132,14 @@ const restoreLinkSnapshot = new Function(
   (token) => structuredClone(token?.configuration || token?.toObject?.(false) || token || {}),
   (value) => structuredClone(value || {}),
   () => ({ ok: true, summary: [] }),
+  () => ({ ok: true, summary: [] }),
   () => {},
   stableItemStringify,
   itemComparison.managedActorLinkSemanticValue,
+  async (_actor, actorDocument) => {
+    restoreEvents.push({ kind: "native-document", actorDocument: structuredClone(actorDocument) });
+    return { expectedSource: structuredClone(actorDocument) };
+  },
   { scenes: [] },
 );
 const restoreActor = {
@@ -1001,6 +1168,25 @@ assert.equal(
   false,
   "un backup v4 deve ripristinare il sistema completo e non il vecchio sottoinsieme",
 );
+restoreEvents.length = 0;
+await restoreLinkSnapshot(restoreActor, {
+  schemaVersion: 6,
+  actorDocument: {
+    _id: "actor-original",
+    name: "Actor originale",
+    items: [{ _id: "native-item", name: "Elemento nativo" }],
+    effects: [{ _id: "native-effect", name: "Effetto nativo" }],
+  },
+  prototypeActorLink: false,
+  prototypeTokenConfiguration: { name: "Token originale" },
+  tokens: [],
+});
+assert.deepEqual(
+  restoreEvents.map((event) => event.kind),
+  ["native-document", "prototype-configuration"],
+  "un backup schema 6 deve ripristinare l'Actor completo in un'unica importazione nativa",
+);
+assert.equal(restoreEvents[0].actorDocument.items[0]._id, "native-item");
 assert.match(moduleSyncSource, /canonicalSignature: hashValue\(managedActorLinkCanonicalMechanicalSnapshot/, "l'hash di conferma deve coprire tutto lo snapshot canonico");
 
 
@@ -1077,7 +1263,7 @@ assert.notDeepEqual(
 );
 assert.match(mechanicalDifferences[0].changes[0].before, /1d6/);
 assert.match(mechanicalDifferences[0].changes[0].after, /2d6/);
-assert.match(moduleSyncSource, /MANAGED_ACTOR_LINK_BACKUP_SCHEMA_VERSION = 5/, "il rollback deve usare lo snapshot meccanico completo");
+assert.match(moduleSyncSource, /MANAGED_ACTOR_LINK_BACKUP_SCHEMA_VERSION = 6/, "il rollback deve usare lo snapshot Actor nativo completo");
 assert.match(moduleSyncSource, /actorSystem: managedActorLinkSystemState\(actor\)/, "il rollback deve conservare l'intero sistema Actor originale");
 assert.match(moduleSyncSource, /actorItems: Array\.from/, "lo snapshot deve conservare tutti gli Item dell'Actor");
 assert.match(moduleSyncSource, /actorEffects: Array\.from/, "lo snapshot deve conservare tutti gli ActiveEffect dell'Actor");
@@ -1209,7 +1395,7 @@ assert.equal(effectBranchUpdates, 2, "la collezione client obsoleta non deve pro
 assert.match(effectReconcileBlock, /actor\.update\(\{ effects: desired \}/, "gli ActiveEffect devono essere sostituiti tramite il ramo del parent Actor");
 
 assert.match(moduleSyncSource, /acceptStructural !== true/, "Foundry deve esigere una conferma esplicita per differenze strutturali");
-assert.match(moduleSyncSource, /verifyManagedActorLinkCanonicalState\(actor, selectedState\)/, "la conversione deve usare una sola verifica canonica round-trip prima di collegare i token");
+assert.match(executeManagedActorLinkBlock, /importManagedActorLinkActorDocument\(actor, selectedState\.actorDocument\)/, "la conversione deve importare direttamente il JSON persistente prima di collegare i token");
 const definitionBlock = moduleSyncSource.match(/const MANAGED_ACTOR_LINK_DEFINITION_PATHS[\s\S]+?(?=\nfunction managedActorLinkDefinitionUpdate)/)?.[0];
 assert.ok(definitionBlock, "le funzioni di confronto strutturale devono essere testabili");
 const getProperty = (target, path) => String(path || "").split(".").filter(Boolean).reduce((value, key) => value?.[key], target);

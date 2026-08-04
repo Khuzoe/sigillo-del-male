@@ -48,15 +48,18 @@ window.CriptaApp.onPageReady("index", () => {
 
     async function loadManagedPlayerIndex() {
         try {
-            if (typeof window.CriptaApp?.api?.get !== 'function') return [];
+            if (typeof window.CriptaApp?.api?.get !== 'function') return { actors: [], archivedLegacyCharacterIds: [] };
             const token = String(window.CriptaDiscordAuth?.getToken?.() || '').trim();
             const payload = await window.CriptaApp.api.get('api/managed-actors?view=directory', {
                 ...(token ? { token } : {})
             });
-            return Array.isArray(payload?.data) ? payload.data : [];
+            return {
+                actors: Array.isArray(payload?.data) ? payload.data : [],
+                archivedLegacyCharacterIds: Array.isArray(payload?.archivedLegacyCharacterIds) ? payload.archivedLegacyCharacterIds : []
+            };
         } catch (error) {
             console.info('Schede gestite non disponibili nella home:', error);
-            return [];
+            return { actors: [], archivedLegacyCharacterIds: [] };
         }
     }
 
@@ -201,7 +204,7 @@ window.CriptaApp.onPageReady("index", () => {
             : fetchJson(window.CriptaApp?.urls?.data?.('next-session.json') || 'assets/data/next-session.json', 'Errore caricamento next-session.json'),
         loadManagedPlayerIndex()
     ])
-        .then(([sessionsData, playersData, nextSessionConfig, managedPlayers]) => {
+        .then(([sessionsData, playersData, nextSessionConfig, managedDirectory]) => {
             const sessionContainer = document.getElementById('next-session-container');
             window.CriptaNextSession?.render(nextSessionConfig, sessionContainer);
 
@@ -212,8 +215,8 @@ window.CriptaApp.onPageReady("index", () => {
             const latestEventsContainer = document.getElementById('latest-events-section');
             setupLatestSession(lastSession, latestEventsContainer);
 
-            setupHomePlayers(playersData, managedPlayers);
-            setupRecentNpcs();
+            setupHomePlayers(playersData, managedDirectory.actors);
+            setupRecentNpcs(managedDirectory.archivedLegacyCharacterIds);
         })
         .catch(error => {
             console.error("Errore nel caricamento delle sessioni:", error);
@@ -263,7 +266,7 @@ window.CriptaApp.onPageReady("index", () => {
         if (title) title.textContent = campaignName;
     }
 
-    async function setupRecentNpcs() {
+    async function setupRecentNpcs(archivedLegacyCharacterIds = []) {
         const container = document.getElementById('recent-npcs-row');
         if (!container) return;
         const panel = container.closest('.home-npcs-panel');
@@ -271,7 +274,8 @@ window.CriptaApp.onPageReady("index", () => {
 
         try {
             const data = await fetchJson(window.CriptaApp?.urls?.data?.('home-recent-npcs.json') || 'assets/data/home-recent-npcs.json', 'Lista NPC recenti non trovata');
-            const items = Array.isArray(data.items) ? data.items : [];
+            const archivedIds = new Set(archivedLegacyCharacterIds.map((id) => slugify(id)));
+            const items = (Array.isArray(data.items) ? data.items : []).filter((npc) => !archivedIds.has(slugify(npc.id || npc.entityId || '')));
             if (items.length === 0) {
                 container.innerHTML = '';
                 if (panel) panel.hidden = true;

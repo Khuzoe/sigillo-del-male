@@ -530,6 +530,7 @@
         `;
 
         root.querySelector("[data-managed-save]")?.addEventListener("click", () => saveManagedActorPage(root));
+        root.querySelector("[data-managed-profile-lifecycle-action]")?.addEventListener("click", (event) => setManagedProfileLifecycle(root, event.currentTarget.dataset.managedProfileLifecycleAction));
         root.querySelectorAll("[data-managed-edit-toggle]").forEach((button) => button.addEventListener("click", () => toggleManagedEditMode(root, button.dataset.managedEditToggle === "edit")));
         root.querySelectorAll("[data-managed-item-save]").forEach((button) => button.addEventListener("click", () => enqueueManagedItemUpdate(button)));
         root.querySelectorAll("[data-managed-item-delete]").forEach((button) => button.addEventListener("click", () => enqueueManagedItemDelete(button)));
@@ -548,6 +549,7 @@
         setupManagedDamageMagicControls(root);
         setupManagedCollectionControls(root);
         setupManagedSectionNavigation(root);
+        setupManagedStickyLayout(root);
         setupManagedGuidedMechanics(root);
         setupManagedImageLightbox(root);
         setupManagedAvatarFallback(root, actor.media);
@@ -823,13 +825,13 @@
                     <label><span>Nota sullo stato</span><input type="text" data-managed-profile-field="status" value="${escapeAttr(profile.status)}" placeholder="Facoltativa, es. disperso"></label>
                     ${canManageProfileLink ? `<label><span>Classificazione nella lista</span><select data-managed-profile-field="kind"><option value="automatic" ${profile.kindSource !== "manual" ? "selected" : ""}>Automatica da Link Actor (${profile.automaticKind === "creature" ? "Bestiario" : "NPC"})</option><option value="person" ${profile.kindSource === "manual" && profile.kind !== "creature" ? "selected" : ""}>Forza nella sezione NPC</option><option value="creature" ${profile.kindSource === "manual" && profile.kind === "creature" ? "selected" : ""}>Forza nel Bestiario</option></select></label>` : ""}
                     ${canManageProfileLink ? `<label><span>Capacita e tag</span><input type="text" data-managed-profile-field="tags" value="${escapeAttr((profile.tags || []).join(", "))}" placeholder="mercante, boss, missioni"></label>` : ""}
-                    ${canManageProfileLink ? `<label class="managed-profile-lifecycle"><span>Archiviazione sicura</span><select data-managed-profile-field="lifecycle"><option value="active" ${profile.lifecycle?.state !== "archived" ? "selected" : ""}>Attivo</option><option value="archived" ${profile.lifecycle?.state === "archived" ? "selected" : ""}>Archiviato (dati conservati)</option></select></label>` : ""}
                     ${canManageProfileLink ? renderManagedNpcCategoryField(profile) : ""}
                     ${canManageProfileLink ? '<label><span>ID wiki collegato</span><input type="text" data-managed-profile-field="legacyCharacterId" value="' + escapeAttr(profile.legacyCharacterId) + '" placeholder="zara"></label>' : ""}
                     <label class="managed-profile-field-wide managed-profile-quote-editor"><span>Citazione</span><div><i class="fas fa-quote-left" aria-hidden="true"></i><textarea rows="3" data-managed-profile-field="quote" placeholder="Una frase rappresentativa">${escapeHtml(profile.quote)}</textarea></div></label>
                 </div>
                 <div class="managed-profile-summary-editor">${renderManagedProfileSummaryInput("race", "Razza", profile.summary?.race)}${renderManagedProfileSummaryInput("birthYear", "Anno di nascita", profile.summary?.birthYear)}${renderManagedProfileSummaryInput("age", "Eta", profile.summary?.age)}${renderManagedProfileSummaryInput("height", "Altezza", profile.summary?.height)}${renderManagedProfileSummaryInput("weight", "Peso", profile.summary?.weight)}</div>
-                <div class="managed-profile-editor-toolbar"><div><strong>Blocchi del dossier</strong><span>Trascina per riordinare o usa le frecce.</span></div><div><button type="button" data-managed-profile-add="lore"><i class="fas fa-align-left"></i> Testo</button><button type="button" data-managed-profile-add="image_box"><i class="fas fa-image"></i> Immagine</button><button type="button" data-managed-profile-add="custom_box"><i class="fas fa-message"></i> Riquadro</button><button type="button" data-managed-profile-add="banner_box"><i class="fas fa-panorama"></i> Banner</button></div></div>
+                ${profile.lifecycle?.state === "archived" ? `<div class="managed-profile-archive-notice"><i class="fas fa-eye-slash"></i><span><strong>Nascosto dal sito</strong><small>Questo NPC resta conservato e sincronizzato, ma compare soltanto nell\'Archivio del DM.</small></span></div>` : ""}
+                <div class="managed-profile-editor-toolbar"><div><strong>Blocchi del dossier</strong><span>Aggiungi contenuti in qualsiasi punto della pagina.</span></div><div><button type="button" data-managed-profile-add="lore"><i class="fas fa-align-left"></i> Testo</button><button type="button" data-managed-profile-add="image_box"><i class="fas fa-image"></i> Immagine</button><button type="button" data-managed-profile-add="custom_box"><i class="fas fa-message"></i> Riquadro</button><button type="button" data-managed-profile-add="banner_box"><i class="fas fa-panorama"></i> Banner</button></div></div>
                 <div class="managed-profile-block-editor" data-managed-profile-blocks>${blocks.map(renderManagedProfileEditorBlock).join("") || `<div class="managed-profile-empty"><i class="fas fa-feather-pointed"></i><strong>Nessun blocco</strong><span>Aggiungi il primo capitolo del dossier.</span></div>`}</div>
             </section>`;
         }
@@ -929,6 +931,11 @@
             currentProfile.blocks.push(normalizeManagedProfileBlockClient({ id, type, title: type === "image_box" ? "Nuova immagine" : "Nuove informazioni", visibility: "public", text: "" }, currentProfile.blocks.length));
             markDirty();
             rerenderManagedProfileSection(root);
+            window.requestAnimationFrame(() => {
+                const block = root.querySelector('[data-managed-profile-block-id=\"' + CSS.escape(id) + '\"]');
+                block?.scrollIntoView({ behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth", block: "center" });
+                block?.querySelector('[data-managed-profile-block-field=\"title\"]')?.focus({ preventScroll: true });
+            });
         }));
         section.querySelectorAll("[data-managed-profile-delete]").forEach((button) => button.addEventListener("click", () => {
             if (!window.confirm("Eliminare questo blocco dal dossier?")) return;
@@ -1114,6 +1121,51 @@
         managedProfileDirty = false;
         managedProfileFiles.clear();
         clearManagedProfilePreviews();
+    }
+
+    async function setManagedProfileLifecycle(root, state) {
+        if (!currentProfile || currentProfilePermissions.isEditor !== true || isPrimaryManagedPlayer(currentDocument)) return;
+        const nextState = state === "archived" ? "archived" : "active";
+        if (managedProfileDirty || root.dataset.managedDirty === "true") {
+            window.alert("Salva prima le modifiche aperte, poi nascondi o ripristina l\'NPC.");
+            return;
+        }
+        if (nextState === "archived") {
+            const actorName = currentProfile.name || currentDocument?.name || "questo NPC";
+            const confirmed = window.confirm('Nascondere "' + actorName + '" dal sito?\n\nScomparir\u00e0 da lista, ricerca e pagine pubbliche. Statistiche, immagini, dati salvati e Actor Foundry rimarranno intatti e potrai ripristinarlo dall\'Archivio.');
+            if (!confirmed) return;
+        }
+        const token = getToken();
+        if (!token) { window.alert("Accedi come DM per modificare la visibilit\u00e0 dell\'NPC."); return; }
+        const button = root.querySelector("[data-managed-profile-lifecycle-action]");
+        if (button) {
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>' + (nextState === "archived" ? "Nascondo..." : "Ripristino...") + "</span>";
+        }
+        try {
+            const next = structuredClone(currentProfile);
+            next.lifecycle = { ...(next.lifecycle || {}), state: nextState };
+            const payload = await window.CriptaApp.api.post("api/managed-actors/" + encodeURIComponent(next.worldId) + "/" + encodeURIComponent(next.actorId) + "/profile", {
+                expectedRevision: Number(currentProfile.revision || 0),
+                data: next
+            }, { token });
+            currentProfile = normalizeManagedProfile(payload.data, currentDocument || next);
+            managedProfileSource = "profile";
+            managedProfileDirty = false;
+            root.dataset.managedDirty = "false";
+            window.CriptaApp.api.clearCache?.();
+            if (nextState === "archived") {
+                window.location.assign(buildActorBackLink(currentDocument));
+                return;
+            }
+            renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
+            const status = root.querySelector("[data-managed-status]");
+            if (status) status.textContent = "NPC nuovamente visibile sul sito.";
+        } catch (error) {
+            console.error("Aggiornamento archivio NPC fallito", error);
+            window.alert(error.message || "Non \u00e8 stato possibile aggiornare la visibilit\u00e0 dell\'NPC.");
+            if (button) button.disabled = false;
+        }
     }
 
     async function uploadManagedProfileImage(file, blockId, revision, token) {
@@ -1546,12 +1598,29 @@
             ["managed-effects", "fa-wand-magic-sparkles", "Effetti", effects.length > 0 || editMode]
         ].filter(([, , , visible]) => visible);
         const syncIndicator = renderManagedSyncIndicator(actor);
-        const actions = canEdit ? (editMode
-            ? `<span class="managed-save-status" data-managed-status></span><button type="button" class="managed-command-secondary" data-managed-edit-toggle="view"><i class="fas fa-xmark"></i><span>Chiudi</span></button><button type="button" class="managed-command-primary" data-managed-save><i class="fas fa-cloud-arrow-up"></i><span>Salva scheda</span></button>`
-            : `<button type="button" class="managed-command-primary" data-managed-edit-toggle="edit"><i class="fas fa-pen-to-square"></i><span>Modifica</span></button>`)
+        const canManageProfileLifecycle = currentProfilePermissions.isEditor === true && !primaryPlayer && Boolean(currentProfile);
+        const profileArchived = currentProfile?.lifecycle?.state === "archived";
+        const lifecycleAction = canManageProfileLifecycle && (editMode || profileArchived)
+            ? '<button type="button" class="' + (profileArchived ? "managed-command-restore" : "managed-command-danger") + '" data-managed-profile-lifecycle-action="' + (profileArchived ? "active" : "archived") + '"><i class="fas ' + (profileArchived ? "fa-rotate-left" : "fa-eye-slash") + '"></i><span>' + (profileArchived ? "Ripristina sul sito" : "Nascondi dal sito") + "</span></button>"
             : "";
+        const editActions = editMode
+            ? '<span class="managed-save-status" data-managed-status></span><button type="button" class="managed-command-secondary" data-managed-edit-toggle="view"><i class="fas fa-xmark"></i><span>Chiudi</span></button><button type="button" class="managed-command-primary" data-managed-save><i class="fas fa-cloud-arrow-up"></i><span>Salva scheda</span></button>'
+            : '<button type="button" class="managed-command-primary" data-managed-edit-toggle="edit"><i class="fas fa-pen-to-square"></i><span>Modifica</span></button>';
+        const actions = canEdit ? lifecycleAction + editActions : "";
         return `<div class="managed-command-bar"><nav class="managed-section-nav" aria-label="Sezioni della scheda"><div>${links.map(([id, icon, label]) => `<a href="#${id}"><i class="fas ${icon}" aria-hidden="true"></i><span>${escapeHtml(label)}</span></a>`).join("")}</div></nav><div class="managed-command-actions">${syncIndicator}${actions}</div></div>`;
     }
+    function setupManagedStickyLayout(root) {
+        root._managedStickyResizeObserver?.disconnect?.();
+        const commandBar = root.querySelector(".managed-command-bar");
+        if (!commandBar) return;
+        const update = () => root.style.setProperty("--managed-command-bar-height", Math.ceil(commandBar.getBoundingClientRect().height) + "px");
+        update();
+        if (typeof ResizeObserver === "function") {
+            root._managedStickyResizeObserver = new ResizeObserver(update);
+            root._managedStickyResizeObserver.observe(commandBar);
+        }
+    }
+
     function renderManagedSyncIndicator(actor) {
         const commands = Array.isArray(actor?.sync?.commands) ? actor.sync.commands : [];
         const conflicts = commands.filter((command) => command.status === "conflict" || command.status === "failed").length;

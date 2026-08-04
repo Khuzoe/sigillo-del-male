@@ -6780,6 +6780,10 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
   const managedLegacyCharacterIds = Array.from(new Set(entries
     .map((entry) => sanitizeAssetId(entry?.profile?.legacyCharacterId || ""))
     .filter(Boolean)));
+  const archivedLegacyCharacterIds = Array.from(new Set(entries
+    .filter((entry) => String(entry?.profile?.lifecycle?.state || "active") === "archived")
+    .map((entry) => sanitizeAssetId(entry?.profile?.legacyCharacterId || ""))
+    .filter(Boolean)));
 
   const syncByActor = new Map();
   if (reader.isEditor && directoryView) {
@@ -6801,7 +6805,7 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
 
   const data = entries.flatMap((entry) => {
     const archived = String(entry?.profile?.lifecycle?.state || "active") === "archived";
-    if (archived && !reader.isEditor) return [];
+    if (archived && (!reader.isEditor || !directoryView)) return [];
     const canReadStats = canReadManagedActor(entry, reader.user, reader.isEditor, env);
     const canReadProfile = canReadManagedActorProfileIndex(entry.profile, reader.user, reader.isEditor, entry, env);
     if (!canReadStats && !canReadProfile) return [];
@@ -6823,7 +6827,7 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
     ? createQueue.requests.filter((entry) => ["pending", "conflict", "failed"].includes(entry.status)).map(publicManagedActorCreateRequest)
     : [];
   const worldIds = Array.from(new Set(entries.map((entry) => sanitizeManagedActorId(entry?.worldId || "")).filter(Boolean))).sort();
-  return json({ ok: true, campaignId, version: Number(doc.version || 0), directoryVersion: directoryView ? 1 : 0, updatedAt: doc.updatedAt || null, managedLegacyCharacterIds, npcCategoryRevision: categoryRegistry.revision, npcCategories, worldIds, pendingCreates, data }, 200, {
+  return json({ ok: true, campaignId, version: Number(doc.version || 0), directoryVersion: directoryView ? 1 : 0, updatedAt: doc.updatedAt || null, managedLegacyCharacterIds, archivedLegacyCharacterIds, npcCategoryRevision: categoryRegistry.revision, npcCategories, worldIds, pendingCreates, data }, 200, {
     ...corsHeaders,
     "Cache-Control": reader.user || reader.isEditor ? "private, no-store" : "public, max-age=60, must-revalidate",
   });
