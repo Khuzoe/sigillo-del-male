@@ -3662,12 +3662,15 @@ function normalizeNpcCategoryRecord(value, index = 0) {
   const icon = String(input.icon || "fa-folder-open")
     .replace(/[^A-Za-z0-9_-]+/g, "")
     .slice(0, 64) || "fa-folder-open";
+  const requestedRosterSection = String(input.rosterSection || "").trim().toLowerCase();
+  const rosterSection = requestedRosterSection === "npc" || requestedRosterSection === "other" ? requestedRosterSection : "";
   return {
     id,
     name,
     order: Number.isFinite(orderValue) ? Math.round(orderValue) : ((index + 1) * 10),
     color,
     icon,
+    ...(rosterSection ? { rosterSection } : {}),
     archived: input.archived === true,
     mergedInto: sanitizeNpcCategoryId(input.mergedInto || ""),
   };
@@ -3733,6 +3736,7 @@ function enrichManagedActorProfileCategory(profile, registry) {
     categoryOrder: resolved.order,
     categoryColor: resolved.color,
     categoryIcon: resolved.icon,
+    categoryRosterSection: resolved.rosterSection === "other" ? "other" : "npc",
     categoryArchived: resolved.archived === true,
   };
 }
@@ -3784,6 +3788,7 @@ async function buildNpcCategoryRegistryView(env, campaignId, storedRegistry = nu
   const storedIds = new Set(registry.categories.map((category) => category.id));
   const categories = registry.categories.map((category) => ({
     ...category,
+    rosterSection: category.rosterSection === "other" ? "other" : "npc",
     inferred: false,
     usageCount: usage.get(category.id)?.usageCount || 0,
   }));
@@ -3795,6 +3800,7 @@ async function buildNpcCategoryRegistryView(env, campaignId, storedRegistry = nu
       order: entry.order ?? (1000 + (categories.length * 10)),
       color: "#b99a45",
       icon: "fa-folder-open",
+      rosterSection: "npc",
       archived: false,
       mergedInto: "",
       inferred: true,

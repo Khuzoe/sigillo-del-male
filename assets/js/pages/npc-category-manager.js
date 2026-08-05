@@ -52,6 +52,13 @@
                 <input type="color" data-category-field="color" value="${escapeHtml(category.color)}" aria-label="Colore categoria">
                 <select data-category-field="icon" aria-label="Icona categoria">${iconOptions(category.icon)}</select>
             </div>
+            <label class="npc-category-row__section">
+                <span>Mostra in</span>
+                <select data-category-field="rosterSection" aria-label="Sezione frontend">
+                    <option value="npc" ${category.rosterSection !== "other" ? "selected" : ""}>NPC</option>
+                    <option value="other" ${category.rosterSection === "other" ? "selected" : ""}>Altri</option>
+                </select>
+            </label>
             <label class="npc-category-row__merge">
                 <select data-category-field="mergedInto" aria-label="Unisci categoria">
                     <option value="">Non unire</option>
@@ -170,7 +177,7 @@
                     return;
                 }
                 const maxOrder = Math.max(0, ...state.categories.map((category) => Number(category.order) || 0));
-                state.categories.push({ id, name, order: maxOrder + 10, color: "#b99a45", icon: "fa-folder-open", archived: false, mergedInto: "", usageCount: 0 });
+                state.categories.push({ id, name, order: maxOrder + 10, color: "#b99a45", icon: "fa-folder-open", rosterSection: "npc", archived: false, mergedInto: "", usageCount: 0 });
                 state.dirty = true;
                 render(dialog, state);
                 return;

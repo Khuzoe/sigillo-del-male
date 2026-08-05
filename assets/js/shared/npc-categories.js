@@ -17,6 +17,11 @@
             .slice(0, 80);
     }
 
+    function normalizeRosterSection(value) {
+        return String(value || "").trim().toLowerCase() === "other" ? "other" : "npc";
+    }
+
+
     function normalizeCategory(value = {}, index = 0) {
         const input = value && typeof value === "object" ? value : {};
         const name = String(input.name || input.label || "").trim().slice(0, 120);
@@ -34,6 +39,7 @@
             order: Number.isFinite(orderValue) ? Math.round(orderValue) : ((index + 1) * 10),
             color,
             icon,
+            rosterSection: normalizeRosterSection(input.rosterSection),
             archived: input.archived === true,
             mergedInto: normalizeId(input.mergedInto || ""),
             inferred: input.inferred === true,
@@ -100,5 +106,5 @@
         cache.delete(campaignId());
     }
 
-    window.CriptaNpcCategories = { clear, load, normalizeCategory, normalizeId, normalizeRegistry, resolve, save };
+    window.CriptaNpcCategories = { clear, load, normalizeCategory, normalizeId, normalizeRegistry, normalizeRosterSection, resolve, save };
 })();

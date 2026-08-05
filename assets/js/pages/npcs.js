@@ -259,6 +259,7 @@ function parseYamlLite(yamlText) {
                 categoryPriority: profile.categoryOrder ?? legacyNpc?.categoryPriority ?? null,
                 categoryColor: profile.categoryColor || legacyNpc?.categoryColor || '',
                 categoryIcon: profile.categoryIcon || legacyNpc?.categoryIcon || '',
+                categoryRosterSection: profile.categoryRosterSection || legacyNpc?.categoryRosterSection || 'npc',
                 images: {
                     ...legacyImages,
                     avatar: avatarPath,
@@ -304,6 +305,7 @@ function parseYamlLite(yamlText) {
                 sync: { pending: request?.status === 'pending' ? 1 : 0, conflicts: request?.status === 'conflict' ? 1 : 0, failed: request?.status === 'failed' ? 1 : 0 },
                 categoryId: profile.categoryId || '',
                 category: profile.category || 'In attesa di Foundry',
+                categoryRosterSection: profile.categoryRosterSection || 'npc',
                 images: { avatar: media.avatar || '', token: media.token || media.avatar || '', idle: media.token || media.avatar || '', hover: media.token || media.avatar || '' },
                 managedActorWorldId: request?.targetWorldId || '',
                 managedActorId: '',
@@ -615,7 +617,8 @@ function parseYamlLite(yamlText) {
                 category: resolved.name,
                 categoryPriority: resolved.order,
                 categoryColor: resolved.color,
-                categoryIcon: resolved.icon
+                categoryIcon: resolved.icon,
+                categoryRosterSection: resolved.rosterSection
             };
         }
 
@@ -765,11 +768,12 @@ function parseYamlLite(yamlText) {
             const count = document.getElementById('npc-count');
             const empty = document.getElementById('npc-filter-empty');
             const createAction = document.querySelector('[data-npc-create-link]');
-            const state = { query: '', npcStatus: 'all', type: 'all', showArchived: false };
+            const state = { query: '', npcStatus: 'all', type: 'person', showArchived: false };
             if (archiveToggle) archiveToggle.hidden = options.canEdit !== true;
 
             const apply = () => {
                 const query = normalizeRosterSearch(state.query);
+                const isGlobalSearch = Boolean(query) && state.type !== 'merchant';
                 const isBestiary = state.type === 'creature';
                 if (isBestiary && state.npcStatus !== 'all') {
                     state.npcStatus = 'all';
@@ -780,9 +784,9 @@ function parseYamlLite(yamlText) {
                     });
                 }
                 if (npcFilters) npcFilters.hidden = isBestiary;
-                if (search) search.placeholder = isBestiary
-                    ? 'Cerca creatura, tipo o categoria...'
-                    : 'Cerca nome, ruolo, tipo o categoria...';
+                if (search) search.placeholder = state.type === 'merchant'
+                    ? 'Cerca tra i mercanti...'
+                    : 'Cerca in NPC, Altri e Bestiario...';
                 if (createAction) createAction.innerHTML = isBestiary
                     ? '<i class="fas fa-plus"></i><span>Nuova creatura</span>'
                     : '<i class="fas fa-plus"></i><span>Nuovo NPC</span>';
@@ -795,9 +799,9 @@ function parseYamlLite(yamlText) {
                     const tags = String(card.dataset.rosterTags || '').split(' ').filter(Boolean);
                     const matchesQuery = !query || String(card.dataset.rosterSearch || '').includes(query);
                     const matchesStatus = state.npcStatus === 'all' || card.dataset.rosterStatus === state.npcStatus;
-                    const matchesType = state.type === 'all'
-                        || card.dataset.rosterKind === state.type
-                        || (state.type === 'merchant' && tags.includes('mercante'));
+                    const matchesType = isGlobalSearch
+                        || (state.type === 'merchant' && tags.includes('mercante'))
+                        || card.dataset.rosterSection === state.type;
                     const matchesArchive = state.showArchived ? card.dataset.rosterArchived === 'true' : card.dataset.rosterArchived !== 'true';
                     card.hidden = !(matchesQuery && matchesStatus && matchesType && matchesArchive);
                     if (!card.hidden) visibleTotal += 1;
@@ -809,13 +813,15 @@ function parseYamlLite(yamlText) {
                     if (sectionCount) sectionCount.textContent = String(visibleCards.length);
                 });
                 if (count) {
-                    const noun = state.type === 'creature'
-                        ? (visibleTotal === 1 ? 'creatura' : 'creature')
-                        : state.type === 'merchant'
-                            ? (visibleTotal === 1 ? 'mercante' : 'mercanti')
-                            : state.type === 'all'
-                                ? (visibleTotal === 1 ? 'voce' : 'voci')
-                                : 'NPC';
+                    const noun = isGlobalSearch
+                        ? (visibleTotal === 1 ? 'risultato' : 'risultati')
+                        : state.type === 'creature'
+                            ? (visibleTotal === 1 ? 'creatura' : 'creature')
+                            : state.type === 'merchant'
+                                ? (visibleTotal === 1 ? 'mercante' : 'mercanti')
+                                : state.type === 'other'
+                                    ? (visibleTotal === 1 ? 'voce in Altri' : 'voci in Altri')
+                                    : 'NPC';
                     count.textContent = `${visibleTotal} ${noun}`;
                 }
                 if (empty) {
@@ -823,9 +829,11 @@ function parseYamlLite(yamlText) {
                     const title = empty.querySelector('[data-roster-empty-title]');
                     if (title) title.textContent = state.showArchived
                         ? 'Nessun elemento archiviato'
-                        : state.type === 'creature'
-                            ? 'Nessuna creatura nel Bestiario'
-                            : 'Nessun NPC trovato';
+                        : isGlobalSearch
+                            ? 'Nessun risultato'
+                            : state.type === 'creature'
+                                ? 'Nessuna creatura nel Bestiario'
+                                : state.type === 'other' ? 'Nessun NPC nella sezione Altri' : 'Nessun NPC trovato';
                 }
             };
 
@@ -844,7 +852,7 @@ function parseYamlLite(yamlText) {
             typeFilters?.addEventListener('click', (event) => {
                 const typeButton = event.target.closest('[data-roster-type]');
                 if (typeButton) {
-                    state.type = typeButton.dataset.rosterType || 'all';
+                    state.type = typeButton.dataset.rosterType || 'person';
                     typeFilters.querySelectorAll('[data-roster-type]').forEach((entry) => {
                         const active = entry === typeButton;
                         entry.classList.toggle('is-active', active);
@@ -882,6 +890,7 @@ function parseYamlLite(yamlText) {
             card.dataset.rosterCard = 'npc';
             card.dataset.rosterStatus = ['vivo', 'morto', 'ignoto'].includes(String(npc.status || '').toLowerCase()) ? String(npc.status).toLowerCase() : 'none';
             card.dataset.rosterKind = npc.kind === 'creature' ? 'creature' : 'person';
+            card.dataset.rosterSection = card.dataset.rosterKind === 'creature' ? 'creature' : (npc.categoryRosterSection === 'other' ? 'other' : 'person');
             card.dataset.rosterTags = (Array.isArray(npc.tags) ? npc.tags : []).join(' ');
             card.dataset.rosterArchived = npc.archived === true ? 'true' : 'false';
             card.dataset.rosterSearch = normalizeRosterSearch([npc.name, npc.role, npc.quote, npc.category, npc.status, npc.statusNote, npc.kind, ...(npc.tags || []), npc.searchTerms].filter(Boolean).join(' '));
