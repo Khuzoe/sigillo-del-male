@@ -1704,21 +1704,25 @@
             const usesSpent = state.spent !== undefined && state.spent !== null;
             const path = `system.spells.${key}.${usesSpent ? "spent" : "value"}`;
             const rawValue = Number(usesSpent ? state.spent : (state.value ?? maximum)) || 0;
-            const used = usesSpent ? rawValue : Math.max(0, maximum - rawValue);
+            const remaining = usesSpent
+                ? Math.max(0, maximum - rawValue)
+                : Math.max(0, Math.min(maximum, rawValue));
             const label = key === "pact" ? "Patto" : `Livello ${key.replace("spell", "")}`;
             if (!sharedRuntime) {
                 const maximumPath = `system.spells.${key}.${definition.override !== undefined ? "override" : "max"}`;
                 if (!canEdit) return `<div class="managed-spell-slot"><span>${label}</span><strong>${maximum}</strong><small>massimi</small></div>`;
                 return `<label class="managed-spell-slot managed-spell-slot--editable"><span>${label}</span>${renderManagedActorControl(maximumPath, "number", maximum, { min: 0, max: 999, step: 1 })}<small>slot massimi</small></label>`;
             }
-            if (!canEdit) return `<div class="managed-spell-slot"><span>${label}</span><strong>${used}/${maximum}</strong><small>usati</small></div>`;
+            if (!canEdit) return `<div class="managed-spell-slot"><span>${label}</span><strong>${remaining}/${maximum}</strong><small>rimanenti</small></div>`;
             const desiredRaw = getManagedActorDesiredValue(path, rawValue);
-            const desiredUsed = usesSpent ? Number(desiredRaw || 0) : Math.max(0, maximum - Number(desiredRaw ?? maximum));
+            const desiredRemaining = usesSpent
+                ? Math.max(0, maximum - Number(desiredRaw || 0))
+                : Math.max(0, Math.min(maximum, Number(desiredRaw ?? maximum)));
             const original = escapeAttr(JSON.stringify(rawValue));
-            return `<label class="managed-spell-slot managed-spell-slot--editable"><span>${label}</span><input type="number" min="0" max="${maximum}" step="1" value="${desiredUsed}" data-managed-actor-path="${path}" data-managed-actor-type="spell-used" data-managed-spell-max="${maximum}" data-managed-spell-mode="${usesSpent ? "spent" : "remaining"}" data-managed-actor-original="${original}"><small>usati su ${maximum}</small></label>`;
+            return `<label class="managed-spell-slot managed-spell-slot--editable"><span>${label}</span><input type="number" min="0" max="${maximum}" step="1" value="${desiredRemaining}" data-managed-actor-path="${path}" data-managed-actor-type="spell-remaining" data-managed-spell-max="${maximum}" data-managed-spell-mode="${usesSpent ? "spent" : "remaining"}" data-managed-actor-original="${original}"><small>rimanenti su ${maximum}</small></label>`;
         }).filter(Boolean);
         if (!slots.length) return "";
-        const detail = sharedRuntime ? "Gli slot usati vengono sincronizzati con Foundry." : "Sono mostrati solo i massimi dello statblock; ogni token conserva i propri utilizzi.";
+        const detail = sharedRuntime ? "Gli slot rimanenti vengono sincronizzati con Foundry." : "Sono mostrati solo i massimi dello statblock; ogni token conserva i propri utilizzi.";
         return `<div class="managed-spell-editor"><div class="managed-rule-editor-heading"><i class="fas fa-wand-sparkles"></i><div><strong>Slot incantesimo</strong><span>${detail}</span></div></div><div class="managed-spell-slot-grid">${slots.join("")}</div></div>`;
     }
 
@@ -4256,10 +4260,10 @@
                 }
             }
             else if (type === "boolean") value = control.checked;
-            else if (type === "spell-used") {
-                const used = Math.max(0, Number(control.value) || 0);
+            else if (type === "spell-remaining") {
                 const maximum = Math.max(0, Number(control.dataset.managedSpellMax) || 0);
-                value = control.dataset.managedSpellMode === "remaining" ? Math.max(0, maximum - used) : used;
+                const remaining = Math.max(0, Math.min(maximum, Number(control.value) || 0));
+                value = control.dataset.managedSpellMode === "spent" ? maximum - remaining : remaining;
             }
             else if (type === "number" || type === "select-number") {
                 const raw = String(control.value ?? "").trim();
