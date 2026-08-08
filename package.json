@@ -21,6 +21,7 @@
     "test:calendar": "node scripts/test-calendar-engine.js && node scripts/test-calendar-worker.js",
     "test:economy": "node scripts/test-economy-worker.js && node scripts/test-campaign-item-economy.js && node scripts/test-item-site-sync.js",
     "test:item-categories": "node --experimental-default-type=module scripts/test-campaign-item-categories.mjs",
+    "test:npc-categories": "node --experimental-default-type=module scripts/test-npc-subcategories.mjs",
     "test:managed-actors": "node --experimental-default-type=module scripts/test-managed-actor-safety.mjs",
     "test:auth": "node --experimental-default-type=module scripts/test-global-admin.mjs",
     "test:transformations": "node --experimental-default-type=module scripts/test-khuzoe-transformations.mjs",

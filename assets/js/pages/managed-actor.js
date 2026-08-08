@@ -10,6 +10,7 @@
     let managedEconomyRegistry = null;
     let managedProfileDirty = false;
     let managedProfileSource = "empty";
+    let managedProfileOpenBlockId = null;
     const managedPreviewUrls = new Map();
     const managedProfileFiles = new Map();
     const managedProfilePreviewUrls = new Map();
@@ -513,7 +514,7 @@
                 ${renderManagedProfileSection(currentProfile, editMode, Boolean(canEdit && currentProfilePermissions.canEdit))}
                 ${merchant ? renderManagedMerchantShop(merchant) : ""}
                 ${editMode && canManageActor ? renderAdmin(actor) : ""}
-                ${renderCoreStats(attributes, details, actor.runtime || {}, actor.actorType, traits, definition.spellSlots || {}, editMode, sharedRuntime)}
+                ${renderCoreStats(attributes, details, actor.runtime || {}, actor.actorType, traits, definition.spellSlots || {}, definition.resources || {}, editMode, sharedRuntime)}
                 ${renderManagedCurrency(currency, editMode)}
                 ${renderAbilities(abilities, editMode)}
                 ${primaryPlayer ? `<div class="managed-player-extensions managed-player-extensions--companions" data-managed-player-companions></div>` : ""}
@@ -796,15 +797,27 @@
         const requestedId = normalizeId(profile.categoryId || profile.category || "");
         const resolved = window.CriptaNpcCategories?.resolve?.(npcCategoryRegistry, requestedId, profile.category);
         const selectedId = resolved?.id || requestedId;
-        const categories = (Array.isArray(npcCategoryRegistry?.categories) ? npcCategoryRegistry.categories : [])
-            .filter((category) => (!category.archived && !category.mergedInto) || category.id === selectedId)
-            .sort((left, right) => left.order - right.order || left.name.localeCompare(right.name, "it"));
+        const allCategories = Array.isArray(npcCategoryRegistry?.categories) ? npcCategoryRegistry.categories : [];
+        const categories = allCategories.filter((category) => (!category.archived && !category.mergedInto) || category.id === selectedId);
+        const byId = new Map(allCategories.map((category) => [category.id, category]));
+        const sortCategories = (items) => [...items].sort((left, right) => left.order - right.order || left.name.localeCompare(right.name, "it"));
+        const roots = sortCategories(categories.filter((category) => !category.parentId || !byId.has(category.parentId)));
+        const renderedIds = new Set();
+        const option = (category, child = false) => {
+            renderedIds.add(category.id);
+            return `<option value="${escapeAttr(category.id)}" ${category.id === selectedId ? "selected" : ""}>${child ? "↳ " : ""}${escapeHtml(category.name)}${category.archived ? " (archiviata)" : ""}</option>`;
+        };
+        const treeOptions = roots.map((rootCategory) => {
+            const children = sortCategories(categories.filter((category) => category.parentId === rootCategory.id));
+            return `${option(rootCategory)}${children.length ? `<optgroup label="Sottocategorie di ${escapeAttr(rootCategory.name)}">${children.map((category) => option(category, true)).join("")}</optgroup>` : ""}`;
+        }).join("");
+        const orphanOptions = sortCategories(categories.filter((category) => !renderedIds.has(category.id))).map((category) => option(category, Boolean(category.parentId))).join("");
         const hasSelected = categories.some((category) => category.id === selectedId);
         const fallbackOption = selectedId && !hasSelected
             ? `<option value="${escapeAttr(selectedId)}" selected>${escapeHtml(profile.category || selectedId)}</option>`
             : "";
         return `<div class="managed-profile-category-picker">
-            <label><span>Categoria nella lista NPC</span><select data-managed-profile-field="categoryId"><option value="">Senza categoria</option>${fallbackOption}${categories.map((category) => `<option value="${escapeAttr(category.id)}" ${category.id === selectedId ? "selected" : ""}>${escapeHtml(category.name)}${category.archived ? " (archiviata)" : ""}</option>`).join("")}</select></label>
+            <label><span>Categoria / sottocategoria</span><select data-managed-profile-field="categoryId"><option value="">Senza categoria</option>${fallbackOption}${treeOptions}${orphanOptions}</select></label>
             <button type="button" data-managed-category-create><i class="fas fa-plus"></i><span>Nuova</span></button>
             <a href="../npcs.html?manageCategories=1"><i class="fas fa-folder-tree"></i><span>Gestisci</span></a>
         </div>`;
@@ -832,7 +845,7 @@
                 </div>
                 <div class="managed-profile-summary-editor">${renderManagedProfileSummaryInput("race", "Razza", profile.summary?.race)}${renderManagedProfileSummaryInput("birthYear", "Anno di nascita", profile.summary?.birthYear)}${renderManagedProfileSummaryInput("age", "Eta", profile.summary?.age)}${renderManagedProfileSummaryInput("height", "Altezza", profile.summary?.height)}${renderManagedProfileSummaryInput("weight", "Peso", profile.summary?.weight)}</div>
                 ${profile.lifecycle?.state === "archived" ? `<div class="managed-profile-archive-notice"><i class="fas fa-eye-slash"></i><span><strong>Nascosto dal sito</strong><small>Questo NPC resta conservato e sincronizzato, ma compare soltanto nell\'Archivio del DM.</small></span></div>` : ""}
-                <div class="managed-profile-block-editor" data-managed-profile-blocks>${blocks.map(renderManagedProfileEditorBlock).join("") || `<div class="managed-profile-empty"><i class="fas fa-feather-pointed"></i><strong>Nessun blocco</strong><span>Aggiungi il primo capitolo del dossier.</span></div>`}</div>
+                <div class="managed-profile-block-editor" data-managed-profile-blocks>${blocks.length ? `${renderManagedProfileInsertRow(0)}${blocks.map((block, index) => `${renderManagedProfileEditorBlock(block, index)}${renderManagedProfileInsertRow(index + 1)}`).join("")}` : `<div class="managed-profile-empty"><i class="fas fa-feather-pointed"></i><strong>Nessun blocco</strong><span>Aggiungi il primo capitolo del dossier.</span></div>`}</div>
             </section>`;
         }
         const content = blocks.length ? `<div class="managed-profile-block-grid">${blocks.map(renderManagedProfileViewBlock).join("")}</div>` : `<div class="managed-profile-empty"><i class="fas fa-book"></i><strong>Dossier ancora vuoto</strong><span>Le informazioni narrative verranno aggiunte qui.</span></div>`;
@@ -843,7 +856,39 @@
     }
 
     function renderManagedProfileEditorToolbar() {
-        return `<div class="managed-profile-editor-toolbar managed-profile-editor-toolbar--persistent" data-managed-profile-toolbar><div><strong>Blocchi del dossier</strong><span>Aggiungi contenuti in qualsiasi punto della pagina.</span></div><div><button type="button" data-managed-profile-add="lore"><i class="fas fa-align-left"></i> Testo</button><button type="button" data-managed-profile-add="image_box"><i class="fas fa-image"></i> Immagine</button><button type="button" data-managed-profile-add="custom_box"><i class="fas fa-message"></i> Riquadro</button><button type="button" data-managed-profile-add="banner_box"><i class="fas fa-panorama"></i> Banner</button></div></div>`;
+        return `<div class="managed-profile-editor-toolbar managed-profile-editor-toolbar--persistent" data-managed-profile-toolbar><div><strong>Blocchi del dossier</strong><span>Aggiungi in fondo oppure usa i separatori per scegliere il punto esatto.</span></div><div>${renderManagedProfileAddButtons()}</div></div>`;
+    }
+
+    function getManagedProfileBlockTypeMeta(type) {
+        return ({
+            lore: { label: "Testo", icon: "fa-align-left", title: "Nuove informazioni", visibility: "public", blockIcon: "fa-scroll" },
+            image_box: { label: "Immagine", icon: "fa-image", title: "Nuova immagine", visibility: "public", blockIcon: "fa-book-open" },
+            custom_box: { label: "Riquadro", icon: "fa-message", title: "Nuovo riquadro", visibility: "public", blockIcon: "fa-message" },
+            banner_box: { label: "Banner", icon: "fa-panorama", title: "Nuovo banner", visibility: "public", blockIcon: "fa-panorama" },
+            secret_dossier: { label: "Segreto", icon: "fa-user-secret", title: "Dossier segreto", visibility: "dm", blockIcon: "fa-user-secret" }
+        })[type] || { label: "Blocco", icon: "fa-scroll", title: "Nuove informazioni", visibility: "public", blockIcon: "fa-scroll" };
+    }
+
+    function renderManagedProfileAddButtons(index = null) {
+        return ["lore", "image_box", "custom_box", "banner_box", "secret_dossier"].map((type) => {
+            const meta = getManagedProfileBlockTypeMeta(type);
+            const indexAttribute = Number.isInteger(index) ? ` data-managed-profile-add-index="${index}"` : "";
+            return `<button type="button" data-managed-profile-add="${type}"${indexAttribute}><i class="fas ${meta.icon}"></i>${escapeHtml(meta.label)}</button>`;
+        }).join("");
+    }
+
+    function renderManagedProfileInsertRow(index) {
+        return `<div class="managed-profile-insert-row"><details><summary><i class="fas fa-plus"></i><span>Inserisci qui</span></summary><div>${renderManagedProfileAddButtons(index)}</div></details></div>`;
+    }
+
+    function getManagedProfileBlockExcerpt(block) {
+        const text = String(block?.text || "")
+            .replace(/%%|==|\*\*|__|[*_#>`~]/g, "")
+            .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, target, label) => label || target)
+            .replace(/\s+/g, " ")
+            .trim();
+        if (!text) return "Blocco ancora vuoto";
+        return text.length > 120 ? `${text.slice(0, 117).trim()}...` : text;
     }
 
     function renderManagedProfileEditorBlock(block, index) {
@@ -852,8 +897,12 @@
         const preview = getManagedProfilePreview(block) || (imageValue ? resolveMedia(imageValue) : "");
         const richTextHtml = window.CriptaRichTextEditor?.markdownToHtml?.(block.text || "", { context: block.type, preserveBlankLines: true, showInlineSecrets: true }) || window.CriptaMarkdown?.render?.(block.text || "", { context: block.type, preserveLineBreaks: true, preserveBlankLines: true, showInlineSecrets: true }) || `<p>${escapeHtml(block.text || "").replace(/\n/g, "<br>")}</p>`;
         const richTextToolbar = window.CriptaRichTextEditor?.toolbarHtml?.() || "";
-        return `<article class="managed-profile-edit-block" data-managed-profile-block data-managed-profile-block-id="${escapeAttr(block.id)}">
-            <div class="managed-profile-edit-block-head"><button type="button" class="managed-profile-drag" draggable="true" data-managed-profile-drag="${escapeAttr(block.id)}" aria-label="Trascina ${escapeAttr(block.title)}"><i class="fas fa-grip-vertical"></i></button><strong>${escapeHtml(block.title || `Blocco ${index + 1}`)}</strong><div><button type="button" data-managed-profile-move="up" aria-label="Sposta su"><i class="fas fa-arrow-up"></i></button><button type="button" data-managed-profile-move="down" aria-label="Sposta giu"><i class="fas fa-arrow-down"></i></button><button type="button" class="is-danger" data-managed-profile-delete aria-label="Elimina blocco"><i class="fas fa-trash"></i></button></div></div>
+        const expanded = managedProfileOpenBlockId === null ? index === 0 : managedProfileOpenBlockId === block.id;
+        const typeMeta = getManagedProfileBlockTypeMeta(block.type);
+        const visibilityLabel = block.visibility === "dm" ? "Solo DM" : "Tutti";
+        return `<article class="managed-profile-edit-block ${expanded ? "is-expanded" : "is-collapsed"}" data-managed-profile-block data-managed-profile-block-id="${escapeAttr(block.id)}">
+            <div class="managed-profile-edit-block-head"><button type="button" class="managed-profile-drag" draggable="true" data-managed-profile-drag="${escapeAttr(block.id)}" aria-label="Trascina ${escapeAttr(block.title)}"><i class="fas fa-grip-vertical"></i></button><button type="button" class="managed-profile-block-toggle" data-managed-profile-toggle aria-expanded="${expanded ? "true" : "false"}"><span><strong>${escapeHtml(block.title || `Blocco ${index + 1}`)}</strong><small><b><i class="fas ${typeMeta.icon}"></i>${escapeHtml(typeMeta.label)}</b><b class="${block.visibility === "dm" ? "is-dm" : ""}"><i class="fas ${block.visibility === "dm" ? "fa-eye-slash" : "fa-eye"}"></i>${visibilityLabel}</b><em>${escapeHtml(getManagedProfileBlockExcerpt(block))}</em></small></span><i class="fas fa-chevron-${expanded ? "up" : "down"}" aria-hidden="true"></i></button><div><button type="button" data-managed-profile-duplicate aria-label="Duplica blocco"><i class="fas fa-copy"></i></button><button type="button" data-managed-profile-move="up" aria-label="Sposta su"><i class="fas fa-arrow-up"></i></button><button type="button" data-managed-profile-move="down" aria-label="Sposta giu"><i class="fas fa-arrow-down"></i></button><button type="button" class="is-danger" data-managed-profile-delete aria-label="Elimina blocco"><i class="fas fa-trash"></i></button></div></div>
+            <div class="managed-profile-edit-block-content" ${expanded ? "" : "hidden"}>
             <input type="hidden" data-managed-profile-block-field="id" value="${escapeAttr(block.id)}">
             <div class="managed-profile-block-fields">
                 <label><span>Tipo</span><select data-managed-profile-block-field="type"><option value="lore" ${block.type === "lore" ? "selected" : ""}>Testo</option><option value="image_box" ${block.type === "image_box" ? "selected" : ""}>Immagine e testo</option><option value="custom_box" ${block.type === "custom_box" ? "selected" : ""}>Riquadro</option><option value="banner_box" ${block.type === "banner_box" ? "selected" : ""}>Banner</option><option value="secret_dossier" ${block.type === "secret_dossier" ? "selected" : ""}>Dossier segreto</option></select></label>
@@ -863,6 +912,7 @@
             </div>
             ${needsImage ? `<div class="managed-profile-image-editor"><div class="managed-profile-image-drop" data-managed-profile-image-drop="${escapeAttr(block.id)}">${preview ? `<img data-managed-profile-image-preview src="${escapeAttr(preview)}" alt="">` : `<i class="fas fa-image"></i><span>Trascina immagine</span>`}</div><div><label><span>Percorso immagine</span><input type="text" data-managed-profile-block-field="image" value="${escapeAttr(imageValue)}"></label><label class="managed-profile-file-button"><i class="fas fa-cloud-arrow-up"></i><span>Scegli immagine</span><input type="file" accept="image/*" data-managed-profile-image-file="${escapeAttr(block.id)}"></label></div></div>` : ""}
             <div class="managed-profile-text-editor"><span>Testo del blocco</span><div class="managed-profile-rich-text" data-managed-profile-rich-text>${richTextToolbar}<textarea hidden data-rich-text-source data-managed-profile-block-field="text">${escapeHtml(block.text)}</textarea><div class="managed-profile-markdown managed-profile-rich-text-editor" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" data-rich-text-editor>${richTextHtml || "<p><br></p>"}</div><div class="managed-rich-text-hint"><span><i class="fas fa-turn-down"></i> Invio crea un nuovo paragrafo; Maiusc + Invio va a capo.</span><span>Incolla testo senza trascinarti dietro stili estranei.</span></div></div></div>
+            </div>
         </article>`;
     }
 
@@ -890,7 +940,7 @@
         }
         if (!category) {
             const maxOrder = Math.max(0, ...(npcCategoryRegistry.categories || []).map((entry) => Number(entry.order) || 0));
-            const nextCategories = [...(npcCategoryRegistry.categories || []), { id, name, order: maxOrder + 10, color: "#b99a45", icon: "fa-folder-open", archived: false, mergedInto: "" }];
+            const nextCategories = [...(npcCategoryRegistry.categories || []), { id, name, parentId: "", order: maxOrder + 10, color: "#b99a45", icon: "fa-folder-open", archived: false, mergedInto: "" }];
             try {
                 npcCategoryRegistry = await window.CriptaNpcCategories.save(nextCategories, npcCategoryRegistry.revision, { token: getToken() });
                 category = npcCategoryRegistry.categories.find((entry) => entry.id === id);
@@ -924,6 +974,39 @@
         section.querySelectorAll("[data-managed-profile-rich-text]").forEach((shell) => {
             window.CriptaRichTextEditor?.mount?.(shell, { onChange: markDirty });
         });
+        section.querySelectorAll("[data-managed-profile-toggle]").forEach((button) => button.addEventListener("click", () => {
+            const blockNode = button.closest("[data-managed-profile-block]");
+            const id = blockNode?.dataset.managedProfileBlockId || "";
+            if (!id) return;
+            const viewportTop = blockNode.getBoundingClientRect().top;
+            const shouldExpand = button.getAttribute("aria-expanded") !== "true";
+            managedProfileOpenBlockId = shouldExpand ? id : "";
+            const previousOverflowAnchor = section.style.overflowAnchor;
+            const previousRootScrollBehavior = document.documentElement.style.scrollBehavior;
+            const previousBodyScrollBehavior = document.body.style.scrollBehavior;
+            section.style.overflowAnchor = "none";
+            document.documentElement.style.scrollBehavior = "auto";
+            document.body.style.scrollBehavior = "auto";
+            section.querySelectorAll("[data-managed-profile-block]").forEach((candidate) => {
+                const expanded = shouldExpand && candidate === blockNode;
+                candidate.classList.toggle("is-expanded", expanded);
+                candidate.classList.toggle("is-collapsed", !expanded);
+                const candidateToggle = candidate.querySelector("[data-managed-profile-toggle]");
+                candidateToggle?.setAttribute("aria-expanded", expanded ? "true" : "false");
+                const chevron = candidateToggle?.querySelector(".fa-chevron-up, .fa-chevron-down");
+                chevron?.classList.toggle("fa-chevron-up", expanded);
+                chevron?.classList.toggle("fa-chevron-down", !expanded);
+                const content = candidate.querySelector(".managed-profile-edit-block-content");
+                if (content) content.hidden = !expanded;
+            });
+            const offset = blockNode.getBoundingClientRect().top - viewportTop;
+            if (Math.abs(offset) > 0.5) window.scrollTo(window.scrollX, Math.max(0, window.scrollY + offset));
+            window.requestAnimationFrame(() => {
+                section.style.overflowAnchor = previousOverflowAnchor;
+                document.documentElement.style.scrollBehavior = previousRootScrollBehavior;
+                document.body.style.scrollBehavior = previousBodyScrollBehavior;
+            });
+        }));
         section.querySelectorAll('[data-managed-profile-block-field="type"]').forEach((select) => select.addEventListener("change", () => {
             currentProfile = collectManagedProfileFromRoot(root);
             rerenderManagedProfileSection(root);
@@ -934,8 +1017,14 @@
             button.addEventListener("click", () => {
             currentProfile = collectManagedProfileFromRoot(root);
             const type = button.dataset.managedProfileAdd || "lore";
-            const id = uniqueManagedProfileBlockId(type === "image_box" ? "immagine" : "informazioni");
-            currentProfile.blocks.push(normalizeManagedProfileBlockClient({ id, type, title: type === "image_box" ? "Nuova immagine" : "Nuove informazioni", visibility: "public", text: "" }, currentProfile.blocks.length));
+            const meta = getManagedProfileBlockTypeMeta(type);
+            const id = uniqueManagedProfileBlockId(type === "image_box" ? "immagine" : type === "secret_dossier" ? "segreto" : "informazioni");
+            const requestedIndex = Number(button.dataset.managedProfileAddIndex);
+            const insertAt = button.dataset.managedProfileAddIndex !== undefined && Number.isInteger(requestedIndex)
+                ? Math.max(0, Math.min(currentProfile.blocks.length, requestedIndex))
+                : currentProfile.blocks.length;
+            currentProfile.blocks.splice(insertAt, 0, normalizeManagedProfileBlockClient({ id, type, title: meta.title, icon: meta.blockIcon, visibility: meta.visibility, text: "" }, insertAt));
+            managedProfileOpenBlockId = id;
             markDirty();
             rerenderManagedProfileSection(root);
             window.requestAnimationFrame(() => {
@@ -945,11 +1034,30 @@
             });
             });
         });
+        section.querySelectorAll("[data-managed-profile-duplicate]").forEach((button) => button.addEventListener("click", () => {
+            const sourceId = button.closest("[data-managed-profile-block]")?.dataset.managedProfileBlockId || "";
+            if (!sourceId) return;
+            currentProfile = collectManagedProfileFromRoot(root);
+            const sourceIndex = currentProfile.blocks.findIndex((block) => block.id === sourceId);
+            if (sourceIndex < 0) return;
+            const source = currentProfile.blocks[sourceIndex];
+            const id = uniqueManagedProfileBlockId(`${source.id || "blocco"}-copia`);
+            const duplicate = normalizeManagedProfileBlockClient({ ...structuredClone(source), id, title: `${source.title || "Informazioni"} (copia)` }, sourceIndex + 1);
+            currentProfile.blocks.splice(sourceIndex + 1, 0, duplicate);
+            const pendingFile = managedProfileFiles.get(sourceId);
+            if (pendingFile) managedProfileFiles.set(id, pendingFile);
+            managedProfileOpenBlockId = id;
+            markDirty();
+            rerenderManagedProfileSection(root);
+            window.requestAnimationFrame(() => root.querySelector(`[data-managed-profile-block-id="${CSS.escape(id)}"]`)?.scrollIntoView({ behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? "auto" : "smooth", block: "center" }));
+        }));
         section.querySelectorAll("[data-managed-profile-delete]").forEach((button) => button.addEventListener("click", () => {
             if (!window.confirm("Eliminare questo blocco dal dossier?")) return;
             const id = button.closest("[data-managed-profile-block]")?.dataset.managedProfileBlockId;
             currentProfile = collectManagedProfileFromRoot(root);
+            const deletedIndex = currentProfile.blocks.findIndex((block) => block.id === id);
             currentProfile.blocks = currentProfile.blocks.filter((block) => block.id !== id);
+            if (managedProfileOpenBlockId === id) managedProfileOpenBlockId = currentProfile.blocks[Math.min(Math.max(0, deletedIndex), currentProfile.blocks.length - 1)]?.id || "";
             managedProfileFiles.delete(id);
             const previewUrl = managedProfilePreviewUrls.get(id);
             if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -1655,7 +1763,7 @@
         renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
         window.requestAnimationFrame(() => window.scrollTo({ top: Math.min(previousScroll, Math.max(0, document.documentElement.scrollHeight - window.innerHeight)), behavior: "instant" }));
     }
-    function renderCoreStats(attributes, details, runtime, actorType, traits, spellSlotDefinitions = {}, canEdit = false, sharedRuntime = true) {
+    function renderCoreStats(attributes, details, runtime, actorType, traits, spellSlotDefinitions = {}, resourceDefinitions = {}, canEdit = false, sharedRuntime = true) {
         const hp = attributes.hp || {};
         const runtimeHp = runtime?.hp || {};
         const acData = attributes.ac && typeof attributes.ac === "object" ? attributes.ac : {};
@@ -1677,7 +1785,8 @@
             { label: "Taglia", path: "system.traits.size", value: traits?.size || "med", icon: "fa-ruler-combined", type: "select", options: [["tiny", "Minuscola"], ["sm", "Piccola"], ["med", "Media"], ["lg", "Grande"], ["huge", "Enorme"], ["grg", "Mastodontica"]] },
             isCharacter
                 ? { label: "Livello", value: details.level ?? 1, icon: "fa-star", editable: false, note: "Calcolato dalle classi" }
-                : { label: "CR", path: "system.details.cr", value: details.cr, icon: "fa-skull", type: "text" }
+                : { label: "CR", path: "system.details.cr", value: details.cr, icon: "fa-skull", type: "text" },
+            ...getManagedLegendaryResourceStats(resourceDefinitions, runtime?.resources || {}, actorType, sharedRuntime)
         ].filter((entry) => canEdit || (entry.value !== undefined && entry.value !== null && entry.value !== ""));
         if (!stats.length) return "";
         const cards = stats.map((entry) => canEdit && entry.editable !== false
@@ -1692,6 +1801,26 @@
         </div></div>` : "";
         const spellSlotsEditor = renderManagedSpellSlots(spellSlotDefinitions, runtime?.spellSlots || {}, canEdit, sharedRuntime);
         return `<section id="managed-stats" class="managed-panel managed-panel--wide managed-panel--stats"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Profilo di gioco</span><h2><i class="fas fa-chart-simple"></i> Statistiche</h2></div>${renderManagedActorCommandStatus()}</header><div class="managed-stat-grid">${cards}</div>${movementEditor}${spellSlotsEditor}</section>`;
+    }
+
+    function getManagedLegendaryResourceStats(definitions = {}, runtime = {}, actorType = "", sharedRuntime = true) {
+        if (String(actorType || "").toLowerCase() !== "npc") return [];
+        return [
+            { key: "legact", label: "Azioni leggendarie", icon: "fa-crown" },
+            { key: "legres", label: "Resistenze leggendarie", icon: "fa-shield-halved" }
+        ].map((entry) => {
+            const definition = definitions?.[entry.key] || {};
+            const state = runtime?.[entry.key] || {};
+            const rawMaximum = Number(state.max ?? definition.max);
+            const rawRemaining = state.value === null || state.value === undefined || state.value === "" ? Number.NaN : Number(state.value);
+            const hasMaximum = Number.isFinite(rawMaximum) && rawMaximum > 0;
+            const hasRemaining = Number.isFinite(rawRemaining) && rawRemaining >= 0;
+            if (!hasMaximum && !(hasRemaining && rawRemaining > 0)) return null;
+            const maximum = hasMaximum ? rawMaximum : rawRemaining;
+            if (!sharedRuntime) return { ...entry, value: maximum, editable: false, note: "massime" };
+            const remaining = hasRemaining ? Math.max(0, Math.min(maximum, rawRemaining)) : maximum;
+            return { ...entry, value: `${remaining}/${maximum}`, editable: false, note: "rimanenti" };
+        }).filter(Boolean);
     }
 
     function renderManagedSpellSlots(definitions = {}, runtime = {}, canEdit = false, sharedRuntime = true) {

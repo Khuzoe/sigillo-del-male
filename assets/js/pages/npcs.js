@@ -392,7 +392,7 @@ function parseYamlLite(yamlText) {
         function openManagedNpcCreateWizard({ managedState = {}, categoryRegistry = {} } = {}) {
             document.querySelector('[data-managed-npc-create-modal]')?.remove();
             const worlds = Array.from(new Set((managedState.worldIds || []).map((value) => String(value || '').trim()).filter(Boolean)));
-            const categories = (categoryRegistry.categories || []).filter((category) => !category.archived && !category.mergedInto);
+            const categories = orderedNpcCategories((categoryRegistry.categories || []).filter((category) => !category.archived && !category.mergedInto));
             const selectedDirectoryKind = document.querySelector('[data-roster-type].is-active')?.dataset.rosterType;
             const initialKind = selectedDirectoryKind === 'creature' ? 'creature' : 'person';
             const createLabel = initialKind === 'creature' ? 'una creatura' : 'un NPC';
@@ -407,7 +407,7 @@ function parseYamlLite(yamlText) {
                         <label><span>Tipo</span><select name="kind"><option value="person" ${initialKind === 'person' ? 'selected' : ''}>NPC collegato</option><option value="creature" ${initialKind === 'creature' ? 'selected' : ''}>Creatura del Bestiario</option></select></label>
                         <label><span>Mondo Foundry <b>*</b></span>${worlds.length ? `<select name="targetWorldId" required>${worlds.map((world) => `<option value="${escapeNpcAttribute(world)}">${escapeNpcAttribute(world)}</option>`).join('')}</select>` : '<input name="targetWorldId" required placeholder="ID del mondo Foundry">'}</label>
                         <label><span>Ruolo o soprannome</span><input name="role" maxlength="240" placeholder="Es. Custode del teatro"></label>
-                        <label><span>Categoria</span><select name="categoryId"><option value="">Senza categoria</option>${categories.map((category) => `<option value="${escapeNpcAttribute(category.id)}">${escapeNpcAttribute(category.name)}</option>`).join('')}</select></label>
+                        <label><span>Categoria / sottocategoria</span><select name="categoryId"><option value="">Senza categoria</option>${categories.map((category) => `<option value="${escapeNpcAttribute(category.id)}">${category.parentId ? '↳ ' : ''}${escapeNpcAttribute(category.parentName ? `${category.parentName} / ${category.name}` : category.name)}</option>`).join('')}</select></label>
                         <label data-create-life-state><span>Stato</span><select name="lifeState"><option value="none">Nessuno</option><option value="alive">Vivo</option><option value="dead">Morto</option><option value="unknown">Ignoto</option></select></label>
                         <label><span>Visibilita dossier</span><select name="visibility"><option value="dm">Solo DM</option><option value="public">Pubblico</option></select></label>
                         <label class="is-wide managed-npc-create-quote"><span>Citazione o nota breve</span><div><i class="fas fa-quote-left" aria-hidden="true"></i><textarea name="quote" rows="3" maxlength="1000" placeholder="Una frase rappresentativa"></textarea></div></label>
@@ -611,6 +611,9 @@ function parseYamlLite(yamlText) {
         function applyNpcCategoryMetadata(npc, registry) {
             const resolved = window.CriptaNpcCategories?.resolve?.(registry, npc?.categoryId, npc?.category);
             if (!resolved) return npc;
+            const parent = resolved.parentId
+                ? window.CriptaNpcCategories?.resolve?.(registry, resolved.parentId, "")
+                : null;
             return {
                 ...npc,
                 categoryId: resolved.id,
@@ -618,8 +621,38 @@ function parseYamlLite(yamlText) {
                 categoryPriority: resolved.order,
                 categoryColor: resolved.color,
                 categoryIcon: resolved.icon,
-                categoryRosterSection: resolved.rosterSection
+                categoryRosterSection: resolved.rosterSection,
+                categoryParentId: parent?.id || "",
+                categoryParent: parent?.name || "",
+                categoryGroupId: parent?.id || resolved.id,
+                categoryGroupName: parent?.name || resolved.name,
+                categoryGroupPriority: parent?.order ?? resolved.order,
+                categoryGroupColor: parent?.color || resolved.color,
+                categoryGroupIcon: parent?.icon || resolved.icon,
+                categorySubcategoryId: parent ? resolved.id : "",
+                categorySubcategory: parent ? resolved.name : ""
             };
+        }
+
+        function orderedNpcCategories(categories) {
+            const items = Array.isArray(categories) ? categories : [];
+            const byId = new Map(items.map((category) => [category.id, category]));
+            const sort = (values) => [...values].sort((left, right) => Number(left.order || 0) - Number(right.order || 0) || String(left.name || '').localeCompare(String(right.name || ''), 'it'));
+            const roots = sort(items.filter((category) => !category.parentId || !byId.has(category.parentId)));
+            const ordered = [];
+            const visited = new Set();
+            roots.forEach((root) => {
+                ordered.push({ ...root, parentName: '' });
+                visited.add(root.id);
+                sort(items.filter((category) => category.parentId === root.id)).forEach((child) => {
+                    ordered.push({ ...child, parentName: root.name });
+                    visited.add(child.id);
+                });
+            });
+            sort(items.filter((category) => !visited.has(category.id))).forEach((category) => {
+                ordered.push({ ...category, parentName: byId.get(category.parentId)?.name || '' });
+            });
+            return ordered;
         }
 
         function renderNpcGroups(container, npcs, base_path, canShare = false) {
@@ -640,43 +673,156 @@ function parseYamlLite(yamlText) {
                     icon.className = `fas ${group.icon}`;
                     title.appendChild(icon);
                 }
-                title.appendChild(document.createTextNode(group.category || 'Senza categoria'));
+                title.appendChild(document.createTextNode(group.category || ''));
                 const count = document.createElement('span');
                 count.className = 'npc-category-count';
                 count.textContent = String(group.items.length);
                 header.append(title, count);
-                section.appendChild(header);
+                if (group.category) {
+                    section.appendChild(header);
+                } else {
+                    section.classList.add('is-uncategorized');
+                }
 
-                const cards = document.createElement('div');
-                cards.className = 'npc-category-list';
-                group.items.forEach((npc) => {
-                    cards.appendChild(createNpcCard(npc, base_path, canShare));
-                });
-                section.appendChild(cards);
+                const hasSubcategories = group.subgroups.some((subgroup) => Boolean(subgroup.id));
+                if (!hasSubcategories) {
+                    const cards = document.createElement('div');
+                    cards.className = 'npc-category-list';
+                    group.items.forEach((npc) => cards.appendChild(createNpcCard(npc, base_path, canShare)));
+                    section.appendChild(cards);
+                } else {
+                    const subcategoryList = document.createElement('div');
+                    subcategoryList.className = 'npc-subcategory-list';
+                    group.subgroups.forEach((subgroup) => {
+                        const cards = document.createElement('div');
+                        cards.className = `npc-category-list${subgroup.id ? '' : ' npc-category-list--direct'}`;
+                        subgroup.items.forEach((npc) => cards.appendChild(createNpcCard(npc, base_path, canShare)));
+                        if (!subgroup.id) {
+                            subcategoryList.appendChild(cards);
+                            return;
+                        }
+                        const subgroupSection = document.createElement('section');
+                        subgroupSection.className = 'npc-subcategory-group';
+                        subgroupSection.dataset.npcSubcategory = subgroup.id;
+                        subgroupSection.dataset.npcSubcategoryStorageKey = npcSubcategoryStorageKey(group.id, subgroup.id);
+                        if (subgroup.color) subgroupSection.style.setProperty('--npc-subcategory-accent', subgroup.color);
+                        const subgroupHeader = document.createElement('header');
+                        subgroupHeader.className = 'npc-subcategory-header';
+                        const subgroupToggle = document.createElement('button');
+                        subgroupToggle.type = 'button';
+                        subgroupToggle.dataset.npcSubcategoryToggle = '';
+                        const subgroupTitle = document.createElement('h3');
+                        if (subgroup.icon) {
+                            const subgroupIcon = document.createElement('i');
+                            subgroupIcon.className = `fas ${subgroup.icon}`;
+                            subgroupTitle.appendChild(subgroupIcon);
+                        }
+                        subgroupTitle.appendChild(document.createTextNode(subgroup.category));
+                        const subgroupMeta = document.createElement('span');
+                        subgroupMeta.className = 'npc-subcategory-meta';
+                        const subgroupCount = document.createElement('span');
+                        subgroupCount.className = 'npc-subcategory-count';
+                        subgroupCount.textContent = String(subgroup.items.length);
+                        const subgroupChevron = document.createElement('i');
+                        subgroupChevron.className = 'fas fa-chevron-down npc-subcategory-chevron';
+                        subgroupChevron.setAttribute('aria-hidden', 'true');
+                        subgroupMeta.append(subgroupCount, subgroupChevron);
+                        subgroupToggle.append(subgroupTitle, subgroupMeta);
+                        subgroupHeader.appendChild(subgroupToggle);
+                        subgroupSection.appendChild(subgroupHeader);
+                        cards.dataset.npcSubcategoryContent = '';
+                        subgroupSection.appendChild(cards);
+                        const collapsed = readNpcSubcategoryCollapsed(subgroupSection.dataset.npcSubcategoryStorageKey);
+                        subgroupSection.dataset.npcSubcategoryCollapsed = collapsed ? 'true' : 'false';
+                        setNpcSubcategoryCollapsed(subgroupSection, collapsed);
+                        subgroupToggle.addEventListener('click', () => {
+                            const nextCollapsed = subgroupSection.dataset.npcSubcategoryCollapsed !== 'true';
+                            subgroupSection.dataset.npcSubcategoryCollapsed = nextCollapsed ? 'true' : 'false';
+                            writeNpcSubcategoryCollapsed(subgroupSection.dataset.npcSubcategoryStorageKey, nextCollapsed);
+                            setNpcSubcategoryCollapsed(subgroupSection, nextCollapsed);
+                        });
+                        subcategoryList.appendChild(subgroupSection);
+                    });
+                    section.appendChild(subcategoryList);
+                }
                 container.appendChild(section);
             });
             window.CriptaImageAdjust?.initFrameCircleImages?.(container);
         }
 
+        function npcSubcategoryStorageKey(groupId, subgroupId) {
+            const campaignId = window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
+            return `npc-subcategory:${campaignId}:${groupId || 'uncategorized'}:${subgroupId}`;
+        }
+
+        function readNpcSubcategoryCollapsed(key) {
+            try {
+                return window.sessionStorage.getItem(key) !== 'expanded';
+            } catch (_) {
+                return true;
+            }
+        }
+
+        function writeNpcSubcategoryCollapsed(key, collapsed) {
+            try {
+                window.sessionStorage.setItem(key, collapsed ? 'collapsed' : 'expanded');
+            } catch (_) {
+                // La preferenza resta valida per la sessione corrente anche senza storage.
+            }
+        }
+
+        function setNpcSubcategoryCollapsed(section, collapsed) {
+            section.classList.toggle('is-collapsed', collapsed);
+            const toggle = section.querySelector('[data-npc-subcategory-toggle]');
+            const content = section.querySelector('[data-npc-subcategory-content]');
+            if (toggle) toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+            if (content) content.hidden = collapsed;
+        }
+
         function groupNpcsByCategory(npcs) {
             const groups = new Map();
             (Array.isArray(npcs) ? npcs : []).forEach((npc) => {
-                const category = String(npc?.category || '').trim();
-                const id = window.CriptaNpcCategories?.normalizeId?.(npc?.categoryId || category) || category.toLocaleLowerCase('it');
+                const category = String(npc?.categoryGroupName || npc?.category || '').trim();
+                const id = window.CriptaNpcCategories?.normalizeId?.(npc?.categoryGroupId || npc?.categoryId || category) || category.toLocaleLowerCase('it');
                 const key = id || '__uncategorized__';
                 if (!groups.has(key)) {
-                    groups.set(key, { id, category, color: npc?.categoryColor || '', icon: npc?.categoryIcon || '', priority: null, items: [] });
+                    groups.set(key, { id, category, color: npc?.categoryGroupColor || npc?.categoryColor || '', icon: npc?.categoryGroupIcon || npc?.categoryIcon || '', priority: null, items: [], subgroupMap: new Map() });
                 }
                 const group = groups.get(key);
-                if (!group.color && npc?.categoryColor) group.color = npc.categoryColor;
-                if (!group.icon && npc?.categoryIcon) group.icon = npc.categoryIcon;
-                const priority = normalizeCategoryPriority(npc?.categoryPriority);
+                if (!group.color && (npc?.categoryGroupColor || npc?.categoryColor)) group.color = npc.categoryGroupColor || npc.categoryColor;
+                if (!group.icon && (npc?.categoryGroupIcon || npc?.categoryIcon)) group.icon = npc.categoryGroupIcon || npc.categoryIcon;
+                const priority = normalizeCategoryPriority(npc?.categoryGroupPriority ?? npc?.categoryPriority);
                 if (priority !== null && (group.priority === null || priority < group.priority)) {
                     group.priority = priority;
                 }
                 group.items.push(npc);
+                const subcategoryId = String(npc?.categorySubcategoryId || '');
+                const subgroupKey = subcategoryId || '__direct__';
+                if (!group.subgroupMap.has(subgroupKey)) {
+                    group.subgroupMap.set(subgroupKey, {
+                        id: subcategoryId,
+                        category: String(npc?.categorySubcategory || ''),
+                        color: npc?.categoryColor || '',
+                        icon: npc?.categoryIcon || '',
+                        priority: normalizeCategoryPriority(npc?.categoryPriority),
+                        items: []
+                    });
+                }
+                group.subgroupMap.get(subgroupKey).items.push(npc);
             });
-            return Array.from(groups.values()).sort((left, right) => {
+            const output = Array.from(groups.values()).map((group) => {
+                group.subgroups = Array.from(group.subgroupMap.values()).sort((left, right) => {
+                    if (!left.id && right.id) return -1;
+                    if (left.id && !right.id) return 1;
+                    const leftPriority = normalizeCategoryPriority(left.priority);
+                    const rightPriority = normalizeCategoryPriority(right.priority);
+                    if (leftPriority !== null && rightPriority !== null && leftPriority !== rightPriority) return leftPriority - rightPriority;
+                    return left.category.localeCompare(right.category, 'it');
+                });
+                delete group.subgroupMap;
+                return group;
+            });
+            return output.sort((left, right) => {
                 const leftPriority = normalizeCategoryPriority(left.priority);
                 const rightPriority = normalizeCategoryPriority(right.priority);
                 if (leftPriority !== null && rightPriority !== null && leftPriority !== rightPriority) return leftPriority - rightPriority;
@@ -806,6 +952,14 @@ function parseYamlLite(yamlText) {
                     card.hidden = !(matchesQuery && matchesStatus && matchesType && matchesArchive);
                     if (!card.hidden) visibleTotal += 1;
                 });
+                container.querySelectorAll('.npc-subcategory-group').forEach((section) => {
+                    const visibleCards = Array.from(section.querySelectorAll('[data-roster-card="npc"]')).filter((card) => !card.hidden);
+                    section.hidden = visibleCards.length === 0;
+                    const sectionCount = section.querySelector('.npc-subcategory-count');
+                    if (sectionCount) sectionCount.textContent = String(visibleCards.length);
+                    const userCollapsed = section.dataset.npcSubcategoryCollapsed === 'true';
+                    setNpcSubcategoryCollapsed(section, Boolean(query) && visibleCards.length ? false : userCollapsed);
+                });
                 container.querySelectorAll('.npc-category-group').forEach((section) => {
                     const visibleCards = Array.from(section.querySelectorAll('[data-roster-card="npc"]')).filter((card) => !card.hidden);
                     section.hidden = visibleCards.length === 0;
@@ -893,7 +1047,7 @@ function parseYamlLite(yamlText) {
             card.dataset.rosterSection = card.dataset.rosterKind === 'creature' ? 'creature' : (npc.categoryRosterSection === 'other' ? 'other' : 'person');
             card.dataset.rosterTags = (Array.isArray(npc.tags) ? npc.tags : []).join(' ');
             card.dataset.rosterArchived = npc.archived === true ? 'true' : 'false';
-            card.dataset.rosterSearch = normalizeRosterSearch([npc.name, npc.role, npc.quote, npc.category, npc.status, npc.statusNote, npc.kind, ...(npc.tags || []), npc.searchTerms].filter(Boolean).join(' '));
+            card.dataset.rosterSearch = normalizeRosterSearch([npc.name, npc.role, npc.quote, npc.categoryParent, npc.category, npc.status, npc.statusNote, npc.kind, ...(npc.tags || []), npc.searchTerms].filter(Boolean).join(' '));
             card.dataset.managedActorWorld = String(npc.managedActorWorldId || '');
             card.dataset.managedActorId = String(npc.managedActorId || '');
             card.dataset.npcCategoryId = String(npc.categoryId || '');
@@ -982,15 +1136,14 @@ function parseYamlLite(yamlText) {
             if (!movable.length) return;
 
             const npcByKey = new Map(movable.map((npc) => [managedNpcRosterKey(npc.managedActorWorldId, npc.managedActorId), npc]));
-            const categories = (Array.isArray(state.categoryRegistry?.categories) ? state.categoryRegistry.categories : [])
-                .filter((category) => !category.archived && !category.mergedInto)
-                .sort((left, right) => Number(left.order || 0) - Number(right.order || 0) || String(left.name || '').localeCompare(String(right.name || ''), 'it'));
+            const categories = orderedNpcCategories((Array.isArray(state.categoryRegistry?.categories) ? state.categoryRegistry.categories : [])
+                .filter((category) => !category.archived && !category.mergedInto));
             const dock = document.createElement('div');
             dock.className = 'npc-category-drop-dock';
             dock.hidden = true;
             dock.setAttribute('aria-label', 'Categorie di destinazione');
-            const targets = [{ id: '', name: 'Senza categoria', icon: 'fa-box-archive' }, ...categories];
-            dock.innerHTML = `<span class="npc-category-drop-dock-label"><i class="fas fa-folder-tree"></i> Sposta in</span><div>${targets.map((category) => `<button type="button" data-npc-category-drop-id="${escapeNpcAttribute(category.id)}"><i class="fas ${escapeNpcAttribute(category.icon || 'fa-folder-open')}"></i><span>${escapeNpcAttribute(category.name)}</span></button>`).join('')}</div>`;
+            const targets = [{ id: '', name: 'Senza categoria', icon: 'fa-box-archive', parentId: '' }, ...categories];
+            dock.innerHTML = `<span class="npc-category-drop-dock-label"><i class="fas fa-folder-tree"></i> Sposta in</span><div>${targets.map((category) => `<button type="button" class="${category.parentId ? 'is-subcategory' : ''}" data-npc-category-drop-id="${escapeNpcAttribute(category.id)}"><i class="fas ${escapeNpcAttribute(category.icon || 'fa-folder-open')}"></i><span>${category.parentId ? '↳ ' : ''}${escapeNpcAttribute(category.parentName ? `${category.parentName} / ${category.name}` : category.name)}</span></button>`).join('')}</div>`;
             container.prepend(dock);
 
             let draggedNpc = null;
@@ -1035,6 +1188,15 @@ function parseYamlLite(yamlText) {
                     npc.categoryPriority = targetCategory?.order ?? null;
                     npc.categoryColor = targetCategory?.color || '';
                     npc.categoryIcon = targetCategory?.icon || '';
+                    if (targetCategory) {
+                        Object.assign(npc, applyNpcCategoryMetadata(npc, state.categoryRegistry));
+                    } else {
+                        Object.assign(npc, {
+                            categoryParentId: '', categoryParent: '', categoryGroupId: '', categoryGroupName: '',
+                            categoryGroupPriority: null, categoryGroupColor: '', categoryGroupIcon: '',
+                            categorySubcategoryId: '', categorySubcategory: '', categoryRosterSection: 'npc'
+                        });
+                    }
                     npc.managedProfileRevision = Math.max(0, Number(profile.revision || npc.managedProfileRevision || 0));
                     state.render?.();
                     showNpcRosterFeedback(`${npc.name} spostato in ${targetCategory?.name || 'Senza categoria'}.`, 'success');
@@ -1048,12 +1210,13 @@ function parseYamlLite(yamlText) {
 
             const pointerDropTargetAt = (clientX, clientY) => {
                 const node = document.elementFromPoint(clientX, clientY);
-                const target = node?.closest?.('[data-npc-category-drop-id], .npc-category-group') || null;
+                const target = node?.closest?.('[data-npc-category-drop-id], .npc-subcategory-group, .npc-category-group') || null;
                 return target && container.contains(target) ? target : null;
             };
             const pointerTargetCategoryId = (target) => {
                 if (!target) return null;
                 if (target.matches('[data-npc-category-drop-id]')) return target.dataset.npcCategoryDropId || '';
+                if (target.matches('.npc-subcategory-group')) return target.dataset.npcSubcategory || '';
                 return target.dataset.npcCategory || '';
             };
             const highlightPointerTarget = (target) => {

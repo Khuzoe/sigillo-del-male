@@ -36,6 +36,7 @@
         return {
             id,
             name,
+            parentId: normalizeId(input.parentId || ""),
             order: Number.isFinite(orderValue) ? Math.round(orderValue) : ((index + 1) * 10),
             color,
             icon,

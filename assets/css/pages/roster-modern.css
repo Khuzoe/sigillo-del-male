@@ -332,6 +332,83 @@ body.page-players {
     gap: .85rem;
     align-items: stretch;
 }
+.roster-page .npc-subcategory-list {
+    display: grid;
+    gap: .85rem;
+}
+.roster-page .npc-subcategory-group {
+    display: grid;
+    gap: .68rem;
+    padding: .78rem;
+    border: 1px solid color-mix(in srgb, var(--npc-subcategory-accent, var(--npc-category-accent, var(--roster-accent))) 20%, transparent);
+    border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, .018), rgba(0, 0, 0, .13));
+    transition: border-color .18s, background .18s, transform .18s;
+}
+.roster-page .npc-subcategory-group.is-collapsed {
+    gap: 0;
+    padding-block: .62rem;
+}
+.roster-page .npc-subcategory-header {
+    padding: 0 0 .48rem;
+    border-bottom: 1px solid rgba(223, 195, 111, .08);
+}
+.roster-page .npc-subcategory-group.is-collapsed .npc-subcategory-header {
+    padding-bottom: 0;
+    border-bottom-color: transparent;
+}
+.roster-page .npc-subcategory-header button {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: .8rem;
+    padding: .08rem .12rem;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+.roster-page .npc-subcategory-header button:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--npc-subcategory-accent, var(--roster-gold)) 55%, transparent);
+    outline-offset: 5px;
+    border-radius: 6px;
+}
+.roster-page .npc-subcategory-header h3 {
+    display: inline-flex;
+    align-items: center;
+    gap: .42rem;
+    margin: 0;
+    color: color-mix(in srgb, var(--npc-subcategory-accent, var(--roster-gold)) 70%, #fff 30%);
+    font: 700 .76rem var(--font-heading);
+    letter-spacing: .045em;
+    text-transform: uppercase;
+}
+.roster-page .npc-subcategory-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: .48rem;
+}
+.roster-page .npc-subcategory-count {
+    min-width: 1.8rem;
+    padding: .18rem .42rem;
+    border-radius: 999px;
+    background: rgba(223, 195, 111, .045);
+    color: rgba(225, 213, 188, .42);
+    font: 750 .52rem var(--font-ui);
+    text-align: center;
+}
+.roster-page .npc-subcategory-chevron {
+    color: color-mix(in srgb, var(--npc-subcategory-accent, var(--roster-gold)) 68%, transparent);
+    font-size: .62rem;
+    transition: transform .18s ease;
+}
+.roster-page .npc-subcategory-group.is-collapsed .npc-subcategory-chevron {
+    transform: rotate(-90deg);
+}
+.roster-page .npc-subcategory-group [data-npc-subcategory-content][hidden] {
+    display: none;
+}
 .roster-page .npc-card {
     --card-accent: var(--roster-accent);
     position: relative;
@@ -536,7 +613,7 @@ body.page-players {
     padding: .23rem .44rem;
     font-size: .5rem;
 }
-.roster-page .npc-card[hidden], .roster-page .npc-category-group[hidden], .roster-collection[hidden] { display: none; }
+.roster-page .npc-card[hidden], .roster-page .npc-subcategory-group[hidden], .roster-page .npc-category-group[hidden], .roster-collection[hidden] { display: none; }
 .roster-page .npc-card--loading { min-height: 192px; opacity: .55; }
 .roster-page .npc-card--loading .npc-avatar-container { margin: 0; }
 .roster-empty-state {
@@ -739,6 +816,16 @@ body.page-players {
     border-style: dashed;
     border-color: rgba(223, 195, 111, .22);
 }
+.roster-page .npc-list.is-category-dragging .npc-subcategory-group {
+    border-style: dashed;
+    border-color: rgba(223, 195, 111, .2);
+}
+.roster-page .npc-subcategory-group.is-category-drop-target {
+    transform: translateY(-1px);
+    border-style: solid;
+    border-color: color-mix(in srgb, var(--npc-subcategory-accent, var(--roster-accent)) 68%, var(--roster-gold) 32%);
+    background: linear-gradient(135deg, rgba(223, 195, 111, .075), rgba(0, 0, 0, .18));
+}
 .roster-page .npc-category-group.is-category-drop-target {
     transform: translateY(-2px);
     border-style: solid;
@@ -803,6 +890,10 @@ body.sidebar-collapsed .roster-page .npc-category-drop-dock {
     transition: transform .16s, border-color .16s, background .16s, color .16s;
 }
 .roster-page .npc-category-drop-dock button i { color: var(--roster-gold); }
+.roster-page .npc-category-drop-dock button.is-subcategory {
+    border-style: dashed;
+    background: rgba(223, 195, 111, .045);
+}
 .roster-page .npc-category-drop-dock button:hover,
 .roster-page .npc-category-drop-dock button.is-category-drop-target {
     transform: translateY(-1px);

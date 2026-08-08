@@ -1072,11 +1072,104 @@ body.managed-image-lightbox-open { overflow: hidden; }
     border-bottom: 1px solid rgba(255, 255, 255, .055);
     background: rgba(255, 255, 255, .022);
 }
-.managed-profile-edit-block-head > strong { min-width: 0; flex: 1; overflow: hidden; color: #eadcc3; font: 700 .76rem var(--font-ui); text-overflow: ellipsis; white-space: nowrap; }
 .managed-profile-edit-block-head > div { display: flex; gap: .3rem; }
 .managed-profile-edit-block-head button { width: 30px; height: 30px; padding: 0; }
 .managed-profile-edit-block-head button.is-danger { color: #d39797; }
 .managed-profile-drag { cursor: grab !important; }
+.managed-profile-block-toggle {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    height: auto !important;
+    flex: 1;
+    gap: .7rem;
+    padding: .18rem .25rem !important;
+    border: 0 !important;
+    background: transparent !important;
+    text-align: left;
+}
+.managed-profile-block-toggle > span { display: grid; min-width: 0; flex: 1; gap: .22rem; }
+.managed-profile-block-toggle strong { overflow: hidden; color: #eadcc3; font: 700 .76rem var(--font-ui); text-overflow: ellipsis; white-space: nowrap; }
+.managed-profile-block-toggle small { display: flex; align-items: center; min-width: 0; gap: .38rem; }
+.managed-profile-block-toggle small b {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: .24rem;
+    padding: .16rem .34rem;
+    border: 1px solid rgba(223, 195, 111, .12);
+    border-radius: 999px;
+    color: rgba(225, 210, 182, .62);
+    font: 700 .48rem var(--font-ui);
+    letter-spacing: .035em;
+    text-transform: uppercase;
+}
+.managed-profile-block-toggle small b.is-dm { border-color: rgba(211, 119, 119, .22); color: #d9a0a0; }
+.managed-profile-block-toggle small em { overflow: hidden; color: rgba(214, 202, 179, .43); font: normal .7rem var(--font-body); text-overflow: ellipsis; white-space: nowrap; }
+.managed-profile-block-toggle > i { flex: 0 0 auto; color: rgba(223, 195, 111, .56); font-size: .65rem; }
+.managed-profile-edit-block.is-collapsed .managed-profile-edit-block-head { border-bottom-color: transparent; }
+.managed-profile-edit-block-content[hidden] { display: none; }
+.managed-profile-insert-row {
+    position: relative;
+    display: grid;
+    min-height: 22px;
+    place-items: center;
+}
+.managed-profile-insert-row::before {
+    position: absolute;
+    right: 0;
+    left: 0;
+    height: 1px;
+    background: rgba(223, 195, 111, .09);
+    content: "";
+}
+.managed-profile-insert-row details { position: relative; z-index: 1; }
+.managed-profile-insert-row summary {
+    display: inline-flex;
+    align-items: center;
+    gap: .32rem;
+    padding: .25rem .5rem;
+    border: 1px solid rgba(223, 195, 111, .13);
+    border-radius: 999px;
+    background: #111014;
+    color: rgba(226, 211, 182, .56);
+    font: 700 .52rem var(--font-ui);
+    cursor: pointer;
+    list-style: none;
+}
+.managed-profile-insert-row summary::-webkit-details-marker { display: none; }
+.managed-profile-insert-row details[open] summary { border-color: rgba(223, 195, 111, .3); color: #ead7ad; }
+.managed-profile-insert-row details > div {
+    position: absolute;
+    top: calc(100% + .35rem);
+    left: 50%;
+    display: flex;
+    width: max-content;
+    max-width: min(88vw, 640px);
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .3rem;
+    padding: .42rem;
+    transform: translateX(-50%);
+    border: 1px solid rgba(223, 195, 111, .18);
+    border-radius: 10px;
+    background: rgba(14, 13, 16, .98);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .42);
+}
+.managed-profile-insert-row button {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    padding: .4rem .5rem;
+    border: 1px solid rgba(223, 195, 111, .14);
+    border-radius: 7px;
+    background: rgba(223, 195, 111, .055);
+    color: rgba(233, 219, 190, .78);
+    font: 700 .55rem var(--font-ui);
+    cursor: pointer;
+}
+.managed-profile-insert-row button:hover,
+.managed-profile-insert-row button:focus-visible { border-color: rgba(223, 195, 111, .38); color: #f0dfb7; }
 .managed-profile-block-fields {
     display: grid;
     grid-template-columns: 145px 145px minmax(220px, 1fr) 150px;
@@ -1205,6 +1298,11 @@ body.managed-image-lightbox-open { overflow: hidden; }
     .managed-profile-image-editor, .managed-profile-text-editor { grid-template-columns: 1fr; }
     .managed-profile-block-fields { grid-template-columns: 1fr; }
     .managed-profile-field-grow { grid-column: auto; }
+    .managed-profile-edit-block-head { align-items: flex-start; flex-wrap: wrap; }
+    .managed-profile-block-toggle { width: calc(100% - 40px) !important; flex: 1 1 calc(100% - 40px); }
+    .managed-profile-edit-block-head > div { width: 100%; justify-content: flex-end; padding-left: 40px; }
+    .managed-profile-block-toggle small em { display: none; }
+    .managed-profile-insert-row details > div { max-width: min(82vw, 360px); }
 }
 
 /* Managed player: companion e alberi restano raccolte indipendenti dallo statblock. */

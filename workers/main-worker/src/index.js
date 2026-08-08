@@ -3654,6 +3654,7 @@ function normalizeNpcCategoryRecord(value, index = 0) {
   const input = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   const name = String(input.name || input.label || "").trim().slice(0, 120);
   const id = sanitizeNpcCategoryId(input.id || name);
+  const parentId = sanitizeNpcCategoryId(input.parentId || "");
   if (!id || !name) return null;
   const orderValue = Number(input.order);
   const color = /^#[0-9a-f]{6}$/i.test(String(input.color || ""))
@@ -3667,6 +3668,7 @@ function normalizeNpcCategoryRecord(value, index = 0) {
   return {
     id,
     name,
+    ...(parentId ? { parentId } : {}),
     order: Number.isFinite(orderValue) ? Math.round(orderValue) : ((index + 1) * 10),
     color,
     icon,
@@ -3836,6 +3838,21 @@ function validateNpcCategoryAliases(categories) {
   return "";
 }
 
+function validateNpcCategoryHierarchy(categories) {
+  const byId = new Map(categories.map((category) => [category.id, category]));
+  for (const category of categories) {
+    const parentId = sanitizeNpcCategoryId(category.parentId || "");
+    if (!parentId) continue;
+    if (parentId === category.id) return `La categoria ${category.name} non puo essere sottocategoria di se stessa.`;
+    const parent = byId.get(parentId);
+    if (!parent) return `Categoria principale non trovata per ${category.name}.`;
+    if (parent.parentId) return "E consentito un solo livello di sottocategorie.";
+    if (parent.archived || parent.mergedInto) return `La categoria principale ${parent.name} deve essere attiva.`;
+    if (category.mergedInto) return `Rimuovi la categoria principale da ${category.name} prima di unirla.`;
+  }
+  return "";
+}
+
 async function authorizeNpcCategoryManagement(request, env, campaignId, corsHeaders) {
   if (isFoundrySyncSecretAuthorized(request, env)) return { source: "foundry", user: null };
   const user = await requireUser(request, env, corsHeaders);
@@ -3888,6 +3905,8 @@ async function handleNpcCategoriesPost(request, campaignId, env, corsHeaders = {
     });
   const aliasError = validateNpcCategoryAliases(categories);
   if (aliasError) return json({ ok: false, error: aliasError }, 400, corsHeaders);
+  const hierarchyError = validateNpcCategoryHierarchy(categories);
+  if (hierarchyError) return json({ ok: false, error: hierarchyError }, 400, corsHeaders);
 
   const usage = await collectNpcCategoryUsage(env, campaignId);
   const nextIds = new Set(categories.map((category) => category.id));
