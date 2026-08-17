@@ -1,9 +1,8 @@
 {
   "itemCount": 3,
   "sessionIds": [
-    27,
-    28,
-    29
+    30,
+    31
   ],
   "items": [
     {
@@ -15,28 +14,28 @@
       "token": "media/campaigns/cripta-di-sangue/characters/zara/token.webp",
       "hoverFallback": "media/campaigns/cripta-di-sangue/characters/zara/token.webp",
       "url": "pages/characters/character.html?id=zara",
-      "score": 36
+      "score": 10
     },
     {
-      "id": "ginevra",
-      "name": "Ginevra Von T",
-      "role": "L'Alambicco Vivente",
-      "avatar": "media/creatures/transp/ginevra_transp.webp",
-      "hover": "media/campaigns/cripta-di-sangue/characters/ginevra/hover.webp",
-      "token": "media/campaigns/cripta-di-sangue/characters/ginevra/token.webp",
-      "hoverFallback": "media/campaigns/cripta-di-sangue/characters/ginevra/token.webp",
-      "url": "pages/characters/character.html?id=ginevra",
+      "id": "franky",
+      "name": "Franky",
+      "role": "Lo Scienziato",
+      "avatar": "media/creatures/transp/franky_transp.webp",
+      "hover": "media/campaigns/cripta-di-sangue/characters/franky/hover.webp",
+      "token": "media/campaigns/cripta-di-sangue/characters/franky/token.webp",
+      "hoverFallback": "media/campaigns/cripta-di-sangue/characters/franky/token.webp",
+      "url": "pages/characters/character.html?id=franky",
       "score": 4
     },
     {
-      "id": "karla",
-      "name": "Karla Von T",
-      "role": "La Vampira",
-      "avatar": "media/creatures/transp/karla_transp.webp",
-      "hover": "media/campaigns/cripta-di-sangue/characters/karla/hover.webp",
-      "token": "media/campaigns/cripta-di-sangue/characters/karla/token.webp",
-      "hoverFallback": "media/campaigns/cripta-di-sangue/characters/karla/token.webp",
-      "url": "pages/characters/character.html?id=karla",
+      "id": "x",
+      "name": "X Von T",
+      "role": "La Studiosa",
+      "avatar": "media/creatures/transp/x_transp.webp",
+      "hover": "media/campaigns/cripta-di-sangue/characters/x/hover.webp",
+      "token": "media/campaigns/cripta-di-sangue/characters/x/token.webp",
+      "hoverFallback": "media/campaigns/cripta-di-sangue/characters/x/token.webp",
+      "url": "pages/characters/character.html?id=x",
       "score": 2
     }
   ]

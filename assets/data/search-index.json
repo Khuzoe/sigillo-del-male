@@ -1,5 +1,5 @@
 {
-  "itemCount": 91,
+  "itemCount": 93,
   "items": [
     {
       "id": "item:cuore-di-albert",
@@ -920,6 +920,30 @@
         "session"
       ],
       "content": "Decidete di affrontare i cani a ovest, riuscendo a sconfiggerli. Vi avvicinate leggermente allo 'Spremiagrumi'; non sembra reagire in modo ostile, porge la mano a Ga'Run, che però non si avvicina. Tornate nella stanza con i bracieri, entrando nello stanzino aperto da 'Gianni': dentro trovate varie copie del libro \"Sotto la guida di Abrak\", che parla del popolo Klaren e di una divinità - Abrak - nata dopo un patto tra i Klaren stessi ed un'altra entità di cui non sono specificati nome o natura. Raccogliete velocemente dei documenti, che includono quattro macchie colorate collegate da una frecc..."
+    },
+    {
+      "id": "session:30",
+      "type": "session",
+      "entityId": "30",
+      "title": "Sessione 30",
+      "subtitle": "20/07/2026",
+      "url": "pages/sessioni.html#session-30",
+      "tags": [
+        "session"
+      ],
+      "content": "Decidete di acquistare alcuni degli oggetti messi in vendita da Agonia. Per approfittare dello sconto, Theldarion lascia un foglio firmato nel quale dichiara che tornerà a ritirare un altro ago entro la fine della giornata. Riuscite inoltre a ottenere la bambola con le sembianze di X Von T. Vi dirigete poi verso la discarica, dove incontrate un soldato di guardia rinchiuso in una cella. Dopo aver scambiato qualche parola con lui, scoprite che sono state \"le guardie\" a condurlo fin lì e a imprigionarlo. Nella discarica fate anche la conoscenza dello Scienziato Pezza. Lo strano individuo vi pro..."
+    },
+    {
+      "id": "session:31",
+      "type": "session",
+      "entityId": "31",
+      "title": "Sessione 31",
+      "subtitle": "27/07/2026",
+      "url": "pages/sessioni.html#session-31",
+      "tags": [
+        "session"
+      ],
+      "content": "Il combattimento prosegue e, colpo dopo colpo, riuscite a danneggiare il dinosauro fino a farlo piangere e tornare alla sua postazione. Completata la sfida, lo Scienziato Pezza mantiene la promessa e vi consegna le monete, mentre Zara scompare nel corso della battaglia gettandosi nuovamente tra i rifiuti. Terminato lo scontro, vi incamminate verso la Sala degli Ospiti. Durante il tragitto Valdor viene però afferrato da un potente incantesimo di telecinesi. Nonostante i vostri tentativi di fermarlo, viene sollevato da terra, trascinato fino all'ingresso dello studio di Zara e strofinato sugli ..."
     },
     {
       "id": "session:4",

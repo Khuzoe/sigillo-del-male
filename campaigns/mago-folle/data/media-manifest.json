@@ -43,6 +43,19 @@
           "avatar": "media/campaigns/mago-folle/players/sir-elric-avatar.webp"
         },
         "current": {}
+      },
+      "va-lariel": {
+        "id": "va-lariel",
+        "name": "Va'Lariel",
+        "type": "player",
+        "mediaSlug": "va-lariel",
+        "canonical": {
+          "idle": "media/campaigns/mago-folle/players/va-lariel-idle.webp",
+          "hover": "media/campaigns/mago-folle/players/va-lariel-hover.webp",
+          "token": "media/campaigns/mago-folle/players/va-lariel-token.webp",
+          "avatar": "media/campaigns/mago-folle/players/va-lariel-avatar.webp"
+        },
+        "current": {}
       }
     }
   }

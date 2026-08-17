@@ -261,6 +261,8 @@ assert.deepEqual(stored.runtime, {});
 const moduleSyncSource = await readFile(new URL("../module/scripts/services/managed-actor-sync.js", import.meta.url), "utf8");
 const workerSource = await readFile(new URL("../workers/main-worker/src/index.js", import.meta.url), "utf8");
 const managedActorFeSource = await readFile(new URL("../assets/js/pages/managed-actor.js", import.meta.url), "utf8");
+const playerRosterFeSource = await readFile(new URL("../assets/js/pages/giocatori.js", import.meta.url), "utf8");
+const layoutFeSource = await readFile(new URL("../assets/js/layout.js", import.meta.url), "utf8");
 assert.doesNotMatch(moduleSyncSource, /\u00C3|\u00C2/, "il modulo non deve contenere testo UTF-8 ricodificato");
 assert.match(moduleSyncSource, /console\.table\(diagnostics\)/, "un fallimento Link Actor deve mostrare una tabella leggibile delle differenze");
 assert.match(moduleSyncSource, /error\.diagnostics = diagnostics/, "il dettaglio della verifica deve restare disponibile anche nell errore di rollback");
@@ -1466,7 +1468,25 @@ assert.match(managedActorFeSource, /window\.confirm\(message\)/, "le differenze 
 assert.match(managedActorFeSource, /managedActorLinkPreferredSourceId/, "la sorgente scelta deve restare selezionata durante refresh e nuovi tentativi");
 assert.match(managedActorFeSource, /VERSION_CONFLICT.*INSPECTION_STALE.*INSPECTION_MISSING/s, "il sito deve recuperare automaticamente revisioni o ispezioni obsolete");
 assert.match(await readFile(new URL("../workers/main-worker/src/index.js", import.meta.url), "utf8"), /kind === "actor-link\.inspect"[\s\S]+?startsWith\("actor-link\."\)/, "una nuova ispezione deve sostituire i comandi Link Actor obsoleti");
-assert.match(await readFile(new URL("../assets/js/layout.js", import.meta.url), "utf8"), /error\.code = String\(payload\?\.code/, "gli errori API devono esporre il codice macchina al recupero del FE");
+assert.match(layoutFeSource, /error\.code = String\(payload\?\.code/, "gli errori API devono esporre il codice macchina al recupero del FE");
+const managedPlayerRosterFilterBlock = playerRosterFeSource.match(/function getManagedPlayerCharacterId[\s\S]+?(?=\r?\n    function managedPlayerPriority)/)?.[0] || "";
+assert.ok(managedPlayerRosterFilterBlock, "il filtro del roster giocatori deve essere testabile");
+const managedPlayerRosterHelpers = new Function("window", "normalizeText", `${managedPlayerRosterFilterBlock}\nreturn { getManagedPlayerCharacterId, isManagedPlayerEntry };`)(
+  { CriptaApp: { utils: { slugify: (value, fallback = "") => String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || fallback } } },
+  (value) => String(value || "").trim().toLowerCase(),
+);
+assert.equal(managedPlayerRosterHelpers.getManagedPlayerCharacterId({ actorType: "character" }), "", "un actor senza proprietario non deve ricevere l'id fittizio personaggio");
+assert.equal(managedPlayerRosterHelpers.isManagedPlayerEntry({ actorType: "character" }), false, "un actor character non collegato non deve comparire tra i giocatori");
+assert.equal(managedPlayerRosterHelpers.isManagedPlayerEntry({ actorType: "character", ownerCharacterId: "garun" }), false, "il solo tipo character non deve sostituire la relazione esplicita player");
+assert.equal(managedPlayerRosterHelpers.isManagedPlayerEntry({ actorType: "character", relationshipType: "player", ownerCharacterId: "garun" }), true, "un giocatore collegato deve restare nel roster");
+const managedPlayerUrlFilterBlock = layoutFeSource.match(/function isManagedPrimaryPlayerEntry[\s\S]+?(?=\r?\nfunction findManagedPlayerEntry)/)?.[0] || "";
+assert.ok(managedPlayerUrlFilterBlock, "il filtro dei link giocatore deve essere testabile");
+const isManagedPrimaryPlayerForUrl = new Function("normalizeText", "slugifyText", `${managedPlayerUrlFilterBlock}\nreturn isManagedPrimaryPlayerEntry;`)(
+  (value) => String(value || "").trim().toLowerCase(),
+  (value) => String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
+);
+assert.equal(isManagedPrimaryPlayerForUrl({ actorType: "character" }), false, "il router non deve trattare un actor trasformazione scollegato come pagina giocatore");
+assert.equal(isManagedPrimaryPlayerForUrl({ relationshipType: "player", ownerCharacterId: "garun" }, "garun"), true, "il router deve continuare ad aprire il Managed Actor del giocatore valido");
 assert.match(managedActorFeSource, /managedActorLinkExpectedActorLink/, "la pagina deve attendere e mostrare automaticamente il risultato della conversione");
 assert.match(moduleSyncSource, /Number\.POSITIVE_INFINITY/, "la diagnostica della conversione deve includere tutti i campi non persistiti");
 const canonicalDifferenceBlock = moduleSyncSource.match(/function managedActorLinkCanonicalDifferencePaths[\s\S]+?(?=\nfunction managedActorLinkCanonicalDifferenceLabel)/)?.[0];
@@ -1484,6 +1504,90 @@ assert.match(managedActorFeSource, /Aggiuntivo/, "il frontend deve distinguere c
 assert.match(managedActorFeSource, /managedSaveAbilityValues/, "il frontend deve normalizzare le caratteristiche del tiro salvezza");
 assert.match(managedActorFeSource, /renderManagedActivityDamagePart/, "l'editor guidato deve modificare ogni componente di danno delle attivita Foundry");
 assert.match(managedActorFeSource, /save\.dc\.formula/, "l'editor guidato deve modificare la CD effettiva dell'attivita Foundry");
+assert.match(managedActorFeSource, /renderManagedLegendaryCapabilitySummary/, "le risorse leggendarie disponibili devono comparire accanto a capacita e attacchi");
+assert.match(managedActorFeSource, /managed-entry--legendary/, "le azioni leggendarie devono avere una resa distinta dalle azioni normali");
+const managedActivationHelpers = managedActorFeSource.match(/function getManagedEntryActivities[\s\S]+?(?=\r?\n    function renderManagedLegendaryActionBadge)/)?.[0] || "";
+const managedEntryGroupBlock = managedActorFeSource.match(/function getManagedEntryGroup[\s\S]+?(?=\r?\n    function normalizeManagedSearch)/)?.[0] || "";
+assert.ok(managedActivationHelpers && managedEntryGroupBlock, "la classificazione delle attivita deve essere testabile");
+const classifyManagedCapability = new Function(`${managedActivationHelpers}\n${managedEntryGroupBlock}\nreturn getManagedEntryGroup;`)();
+assert.equal(classifyManagedCapability({ definition: { activation: { type: "action" }, activities: { use: { activation: { type: "legendary", value: 2 } } } } }, "capabilities").key, "legendary", "l'attivazione moderna D&D5e deve prevalere sul vecchio campo azione");
+assert.equal(classifyManagedCapability({ definition: { activities: { attack: { activation: { type: "action" } } } } }, "capabilities").key, "action", "un attacco normale deve restare tra le azioni normali");
+const managedOverviewSummaryBlock = managedActorFeSource.match(/function formatManagedMovementSummary[\s\S]+?(?=\r?\n    function renderCoreStats)/)?.[0] || "";
+assert.ok(managedOverviewSummaryBlock, "movimento e sensi del riepilogo devono essere testabili");
+const managedOverviewSummaries = new Function(`${managedOverviewSummaryBlock}\nreturn { formatManagedMovementSummary, formatManagedSensesSummary, getManagedMovementFacts, getManagedSenseFacts };`)();
+assert.equal(managedOverviewSummaries.formatManagedMovementSummary({ walk: 60, climb: 40, fly: 0, units: "ft" }), "Terra 60 ft · Scalata 40 ft", "il riepilogo deve mostrare tutte le modalita di movimento valorizzate");
+assert.equal(managedOverviewSummaries.formatManagedSensesSummary({ darkvision: 120, blindsight: 120, truesight: 120, tremorsense: 0, units: "ft" }), "Scurovisione 120 ft · Vista cieca 120 ft · Vista pura 120 ft", "il riepilogo deve mostrare tutti i sensi valorizzati");
+assert.deepEqual(managedOverviewSummaries.getManagedMovementFacts({ walk: 60, climb: 40, units: "ft" }).map(({ key, icon }) => ({ key, icon })), [{ key: "walk", icon: "fa-person-walking" }, { key: "climb", icon: "fa-mountain" }], "ogni modalita di movimento deve avere un'icona riconoscibile");
+assert.deepEqual(managedOverviewSummaries.getManagedSenseFacts({ darkvision: 120, truesight: 120, units: "ft" }).map(({ key, icon }) => ({ key, icon })), [{ key: "darkvision", icon: "fa-moon" }, { key: "truesight", icon: "fa-eye" }], "ogni tipo di visione deve avere un'icona riconoscibile");
+assert.match(managedActorFeSource, /initiative\.total \?\? initiative\.mod \?\? initiative\.bonus/, "in lettura l'iniziativa deve usare il totale Foundry prima del solo bonus manuale");
+assert.match(managedActorFeSource, /note: String\(hp\.formula/, "la formula dei PF deve comparire come informazione secondaria");
+assert.match(managedActorFeSource, /runtime\?\.xp\?\.value[\s\S]*?label: "PE"/, "gli XP disponibili devono comparire nel riepilogo NPC");
+assert.match(managedActorFeSource, /primaryCards[\s\S]*?managed-stat-grid--primary/, "le statistiche principali devono avere una fascia dedicata");
+assert.match(managedActorFeSource, /layout: "context"[\s\S]*?contextCards[\s\S]*?managed-stat-grid--context/, "movimento, sensi e risorse tattiche devono essere separati dalla fascia principale");
+const managedRechargeBlock = managedActorFeSource.match(/function getManagedEntryRecharge[\s\S]+?(?=\r?\n    function renderManagedRechargeBadge)/)?.[0] || "";
+assert.ok(managedRechargeBlock, "la presentazione delle capacita con ricarica deve essere testabile");
+const readManagedRecharge = new Function(`${managedRechargeBlock}\nreturn getManagedEntryRecharge;`)();
+assert.deepEqual(readManagedRecharge({ definition: { recharge: { value: 5, charged: true } } }), { threshold: 5, charged: true, label: "Ricarica 5–6", stateLabel: "Pronta" }, "la soglia e lo stato disponibile devono arrivare dal dato Foundry");
+assert.deepEqual(readManagedRecharge({ definition: { recharge: { value: 6, charged: false } } }), { threshold: 6, charged: false, label: "Ricarica 6", stateLabel: "Da ricaricare" }, "una capacita consumata deve essere riconoscibile senza alterarne i dati");
+assert.deepEqual(readManagedRecharge({ definition: { recharge: { value: 5, charged: false } } }, false), { threshold: 5, charged: null, label: "Ricarica 5–6", stateLabel: "" }, "per i token indipendenti deve comparire la soglia ma non uno stato globale fuorviante");
+const modernRechargeUses = { max: 1, recovery: [{ period: "recharge", type: "recoverAll", formula: "5" }] };
+assert.deepEqual(readManagedRecharge({ definition: { uses: modernRechargeUses } }), { threshold: 5, charged: null, label: "Ricarica 5–6", stateLabel: "" }, "uses.recovery deve riconoscere esattamente il formato Recharge moderno di D&D5e anche senza stato runtime");
+assert.deepEqual(readManagedRecharge({ definition: { uses: modernRechargeUses }, state: { uses: { max: 1, spent: 0 } } }), { threshold: 5, charged: true, label: "Ricarica 5–6", stateLabel: "Pronta" }, "uses.recovery deve mostrare pronta quando resta un uso");
+assert.deepEqual(readManagedRecharge({ definition: { uses: modernRechargeUses }, state: { uses: { max: 1, spent: 1 } } }), { threshold: 5, charged: false, label: "Ricarica 5–6", stateLabel: "Da ricaricare" }, "uses.recovery deve mostrare da ricaricare quando l'uso e stato speso");
+assert.deepEqual(readManagedRecharge({ definition: { uses: { max: 1, recovery: [{ period: "recharge", type: "recoverAll", formula: "6" }] } }, state: { uses: { value: 1 } } }, false), { threshold: 6, charged: null, label: "Ricarica 6", stateLabel: "" }, "lo stato degli usi moderni non deve essere condiviso tra token indipendenti");
+assert.equal(readManagedRecharge({ definition: { uses: { max: 1, recovery: [{ period: "shortRest", type: "recoverAll", formula: "5" }] } } }), null, "un recupero al riposo non deve essere scambiato per una ricarica");
+assert.equal(readManagedRecharge({ definition: {} }), null, "le capacita normali non devono ricevere il badge ricarica");
+assert.equal(readManagedRecharge({ definition: { recharge: { value: null, charged: true } } }), null, "il valore charged predefinito di D&D5e non deve trasformare una capacita normale in Recharge 6");
+assert.match(moduleSyncSource, /recharge:\s*system\.recharge/, "il modulo Foundry deve gia esportare la soglia e lo stato Recharge nel documento esistente");
+assert.match(moduleSyncSource, /uses:\s*\{\s*max:\s*system\.uses\?\.max,\s*recovery:\s*system\.uses\?\.recovery/s, "il modulo Foundry deve gia esportare uses.recovery nel documento esistente");
+assert.match(moduleSyncSource, /Hooks\.on\("updateItem"[\s\S]*?queueManagedItemOwnerSync/, "un cambio dello stato Recharge deve gia accodare l'aggiornamento del Managed Actor");
+const managedDamageAverageBlock = managedActorFeSource.match(/function calculateManagedDamageAverage[\s\S]+?(?=\r?\n    function renderManagedEffectiveRolls)/)?.[0] || "";
+assert.ok(managedDamageAverageBlock, "il calcolo FE del danno medio deve essere testabile");
+const calculateManagedDamageAverage = new Function(`${managedDamageAverageBlock}\nreturn calculateManagedDamageAverage;`)();
+assert.equal(calculateManagedDamageAverage("2d6 + 4"), 11, "la media deve sommare dadi e bonus fissi");
+assert.equal(calculateManagedDamageAverage("1d6"), 3, "la media D&D deve essere arrotondata per difetto");
+assert.equal(calculateManagedDamageAverage("2 * (1d6 + 3)"), 13, "il calcolo deve gestire in sicurezza parentesi e moltiplicazioni");
+assert.equal(calculateManagedDamageAverage("2d8 + @mod"), null, "una formula non risolta non deve mostrare una media potenzialmente errata");
+assert.equal(calculateManagedDamageAverage("7"), null, "un danno fisso non deve ripetere inutilmente lo stesso valore come media");
+assert.match(managedActorFeSource, /managed-effective-damage-average/, "la media deve comparire accanto alla formula nel tag danno");
+const managedDamageDedupBlock = managedActorFeSource.match(/function managedDamageIdentity[\s\S]+?(?=\r?\n    function renderManagedEffectiveRolls)/)?.[0] || "";
+assert.ok(managedDamageDedupBlock, "la deduplicazione FE dei danni base deve essere testabile");
+const deduplicateManagedDamageParts = new Function("managedRawCollectionValues", `${managedDamageDedupBlock}\nreturn deduplicateManagedDamageParts;`)((value) => Array.isArray(value) ? value : value == null ? [] : [value]);
+const duplicatedPiercingDamage = [
+  { formula: "5d12 + 10", types: ["piercing"], role: "primary" },
+  { formula: "5d12 + 10", types: ["piercing"], role: "secondary" },
+  { formula: "6d8", types: ["psychic"], role: "secondary" },
+];
+assert.deepEqual(deduplicateManagedDamageParts(duplicatedPiercingDamage, duplicatedPiercingDamage[0]), [duplicatedPiercingDamage[0], duplicatedPiercingDamage[2]], "il danno base duplicato nell'export non deve produrre due tag perforanti");
+assert.equal(deduplicateManagedDamageParts(duplicatedPiercingDamage, null).length, 3, "senza riscontro nel danno base il FE non deve nascondere componenti potenzialmente legittime");
+const managedRawActivityBlock = managedActorFeSource.match(/function getManagedRawActivity[\s\S]+?(?=\r?\n    function resolveManagedRawFormula)/)?.[0] || "";
+assert.ok(managedRawActivityBlock, "la risoluzione delle attivita Foundry deve essere testabile");
+const getManagedRawActivity = new Function(`${managedRawActivityBlock}\nreturn getManagedRawActivity;`)();
+const nestedFoundryActivity = { _id: "BNwVlKgdqBCg74h7", damage: { includeBase: true } };
+assert.equal(getManagedRawActivity({ definition: { activities: { 0: nestedFoundryActivity } } }, "BNwVlKgdqBCg74h7"), nestedFoundryActivity, "un'attivita moderna indicizzata numericamente deve essere ritrovata tramite il proprio id Foundry");
+const managedAttackFactBlock = managedActorFeSource.match(/function getManagedActivityAttackFact[\s\S]+?(?=\r?\n    function getManagedActivityRangeFact)/)?.[0] || "";
+assert.ok(managedAttackFactBlock, "il tiro per colpire strutturato deve essere testabile");
+const getManagedActivityAttackFact = new Function("currentDocument", "resolveManagedRawFormula", "formatSigned", `${managedAttackFactBlock}\nreturn getManagedActivityAttackFact;`)(
+  { definition: { attributes: { prof: 8 }, abilities: { str: { mod: 10, attack: 18 } } } },
+  (value) => String(value),
+  (value) => `${Number(value) >= 0 ? "+" : ""}${Number(value)}`,
+);
+assert.deepEqual(getManagedActivityAttackFact({ definition: {} }, { type: "attack", attack: { type: { value: "melee" }, ability: "str", flat: false } }), { icon: "fa-crosshairs", label: "+18 a colpire", className: "is-attack" }, "il payload NPC deve produrre il tiro per colpire totale");
+const managedGeometryFactBlock = managedActorFeSource.match(/function getManagedActivityRangeFact[\s\S]+?(?=\r?\n    function getManagedActivityDurationFact)/)?.[0] || "";
+assert.ok(managedGeometryFactBlock, "gittata, area e bersagli devono essere testabili");
+const managedGeometryFacts = new Function(`${managedGeometryFactBlock}\nreturn { getManagedActivityRangeFact, getManagedActivityAreaFact, getManagedActivityTargetFact };`)();
+assert.deepEqual(managedGeometryFacts.getManagedActivityRangeFact({ definition: { range: { value: 20, reach: 5, units: "ft" } } }, { attack: { type: { value: "melee" } }, range: { units: "self", override: false } }), { icon: "fa-arrows-left-right", label: "Portata 20 ft", className: "is-range" }, "una portata ereditata dall'elemento deve restare visibile");
+assert.deepEqual(managedGeometryFacts.getManagedActivityAreaFact({ target: { template: { type: "cone", size: 60, units: "ft" } } }), { icon: "fa-triangle", label: "Cono 60 ft", className: "is-area is-cone" }, "un cono deve avere forma e dimensione leggibili");
+assert.deepEqual(managedGeometryFacts.getManagedActivityAreaFact({ target: { template: { type: "radius", size: 20, units: "ft" } } }), { icon: "fa-circle", label: "Raggio 20 ft", className: "is-area is-circle" }, "un raggio deve usare l'icona circolare");
+assert.deepEqual(managedGeometryFacts.getManagedActivityAreaFact({ target: { template: { type: "cube", size: 15, units: "ft" } } }), { icon: "fa-square", label: "Cubo 15 ft", className: "is-area is-square" }, "un cubo deve usare l'icona quadrata");
+assert.deepEqual(managedGeometryFacts.getManagedActivityAreaFact({ target: { template: { type: "line", size: 20, width: 10, units: "ft" } } }), { icon: "fa-minus", label: "Linea 20 × 10 ft", className: "is-area is-line" }, "una linea deve mostrare lunghezza e larghezza");
+assert.deepEqual(managedGeometryFacts.getManagedActivityTargetFact({ target: { affects: { count: 6, type: "creature" } } }), { icon: "fa-bullseye", label: "6 creature", className: "is-target" }, "il numero di bersagli deve essere leggibile");
+const managedTimingFactBlock = managedActorFeSource.match(/function getManagedActivityDurationFact[\s\S]+?(?=\r?\n    function getManagedActivityTacticalFacts)/)?.[0] || "";
+assert.ok(managedTimingFactBlock, "durata ed esito del tiro salvezza devono essere testabili");
+const managedTimingFacts = new Function("managedRawCollectionValues", `${managedTimingFactBlock}\nreturn { getManagedActivityDurationFact, getManagedSaveOutcomeFact };`)((value) => Array.isArray(value) ? value : value == null ? [] : [value]);
+assert.deepEqual(managedTimingFacts.getManagedActivityDurationFact({ duration: { value: 1, units: "minute", concentration: true } }), { icon: "fa-hourglass-half", label: "1 minuto · concentrazione", className: "is-duration" }, "durata e concentrazione devono comparire nello stesso tag compatto");
+assert.deepEqual(managedTimingFacts.getManagedSaveOutcomeFact({ damage: { onSave: "half", parts: [{}] } }, { damage: [{ formula: "6d10" }] }), { icon: "fa-shield", label: "Metà con TS riuscito", className: "is-save-outcome" }, "il danno dimezzato con TS riuscito deve essere esplicito");
+assert.match(managedActorFeSource, /renderManagedActivityTacticalFacts\(getManagedActivityTacticalFacts/, "i metadati tattici devono essere inseriti accanto a danni e CD");
 assert.match(managedActorFeSource, /damage\.parts\.\$\{index\}/, "i campi guidati devono puntare ai danni reali dentro system.activities");
 assert.match(managedActorFeSource, /renderManagedActivitiesGuide\(activities, entry\)/, "l'editor e il riepilogo devono risolvere le formule dalla stessa definizione dell'elemento");
 assert.match(managedActorFeSource, /scheduleManagedCommandRefresh\(button\.closest\("\[data-managed-actor-root\]"\)\)/, "la pagina deve seguire automaticamente una modifica elemento fino alla conferma di Foundry");

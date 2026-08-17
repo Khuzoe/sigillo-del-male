@@ -2003,13 +2003,9 @@ function resolveSiteUrl(relativePath) {
 function isManagedPrimaryPlayerEntry(entry, characterId = "") {
     if (!entry || typeof entry !== "object") return false;
     const relationshipType = normalizeText(entry.relationshipType || "");
-    const actorType = normalizeText(entry.actorType || "");
     const ownerCharacterId = slugifyText(entry.ownerCharacterId || entry.characterId || "");
     const expectedCharacterId = slugifyText(characterId || "");
-    const isPrimaryPlayer = relationshipType === "player"
-        || actorType === "character"
-        || actorType === "player";
-    if (!isPrimaryPlayer) return false;
+    if (relationshipType !== "player" || !ownerCharacterId) return false;
     return !expectedCharacterId || ownerCharacterId === expectedCharacterId;
 }
 

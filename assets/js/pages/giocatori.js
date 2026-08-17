@@ -235,15 +235,15 @@ window.CriptaApp.onPageReady("giocatori", async function() {
     }
 
     function getManagedPlayerCharacterId(entry) {
-        return slugify(entry?.ownerCharacterId || entry?.characterId || "");
+        const rawCharacterId = String(entry?.ownerCharacterId || entry?.characterId || "").trim();
+        return rawCharacterId ? window.CriptaApp.utils.slugify(rawCharacterId, "") : "";
     }
 
     function isManagedPlayerEntry(entry) {
         if (!entry || typeof entry !== "object") return false;
         const relationship = normalizeText(entry.relationshipType);
-        const actorType = normalizeText(entry.actorType);
         return Boolean(getManagedPlayerCharacterId(entry))
-            && (relationship === "player" || actorType === "character" || actorType === "player");
+            && relationship === "player";
     }
 
     function managedPlayerPriority(entry) {

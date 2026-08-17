@@ -1763,35 +1763,103 @@
         renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
         window.requestAnimationFrame(() => window.scrollTo({ top: Math.min(previousScroll, Math.max(0, document.documentElement.scrollHeight - window.innerHeight)), behavior: "instant" }));
     }
+    function formatManagedMovementSummary(movement = {}) {
+        return getManagedMovementFacts(movement).map((fact) => fact.text).join(" · ");
+    }
+
+    function getManagedMovementFacts(movement = {}) {
+        if (!movement || typeof movement !== "object") return [];
+        const definitions = [
+            { key: "walk", label: "Terra", icon: "fa-person-walking" },
+            { key: "fly", label: "Volo", icon: "fa-feather-pointed" },
+            { key: "swim", label: "Nuoto", icon: "fa-person-swimming" },
+            { key: "climb", label: "Scalata", icon: "fa-mountain" },
+            { key: "burrow", label: "Scavo", icon: "fa-arrow-down" }
+        ];
+        const units = String(movement.units || "ft").trim();
+        return definitions.flatMap(({ key, label, icon }) => {
+            const value = Number(movement[key]);
+            if (!Number.isFinite(value) || value <= 0) return [];
+            const hover = key === "fly" && movement.hover === true ? " (fluttua)" : "";
+            const detail = `${value}${units ? ` ${units}` : ""}${hover}`;
+            return [{ key, label, icon, detail, text: `${label} ${detail}` }];
+        });
+    }
+
+    function formatManagedSensesSummary(senses = {}) {
+        return getManagedSenseFacts(senses).map((fact) => fact.text).join(" · ");
+    }
+
+    function getManagedSenseFacts(senses = {}) {
+        if (!senses || typeof senses !== "object") return [];
+        const definitions = [
+            { key: "darkvision", label: "Scurovisione", icon: "fa-moon" },
+            { key: "blindsight", label: "Vista cieca", icon: "fa-eye-low-vision" },
+            { key: "tremorsense", label: "Percezione tellurica", icon: "fa-wave-square" },
+            { key: "truesight", label: "Vista pura", icon: "fa-eye" }
+        ];
+        const units = String(senses.units || "ft").trim();
+        return definitions.flatMap(({ key, label, icon }) => {
+            const value = Number(senses[key]);
+            if (!Number.isFinite(value) || value <= 0) return [];
+            const detail = `${value}${units ? ` ${units}` : ""}`;
+            return [{ key, label, icon, detail, text: `${label} ${detail}` }];
+        });
+    }
+
+    function renderManagedStatFacts(facts = []) {
+        if (!Array.isArray(facts) || !facts.length) return "";
+        return `<strong class="managed-stat-facts">${facts.map((fact) => `<span class="managed-stat-fact managed-stat-fact--${escapeAttr(fact.key || "item")}"><i class="fas ${escapeAttr(fact.icon || "fa-circle")}" aria-hidden="true"></i>${escapeHtml(fact.text || "")}</span>`).join("")}</strong>`;
+    }
+
     function renderCoreStats(attributes, details, runtime, actorType, traits, spellSlotDefinitions = {}, resourceDefinitions = {}, canEdit = false, sharedRuntime = true) {
         const hp = attributes.hp || {};
         const runtimeHp = runtime?.hp || {};
         const acData = attributes.ac && typeof attributes.ac === "object" ? attributes.ac : {};
         const ac = readNumber(acData.value ?? acData.flat ?? attributes.ac);
         const movement = attributes.movement && typeof attributes.movement === "object" ? attributes.movement : {};
+        const movementSummary = formatManagedMovementSummary(movement);
+        const movementFacts = getManagedMovementFacts(movement);
+        const senses = attributes.senses && typeof attributes.senses === "object" ? attributes.senses : {};
+        const sensesSummary = formatManagedSensesSummary(senses);
+        const senseFacts = getManagedSenseFacts(senses);
+        const initiative = attributes.init && typeof attributes.init === "object" ? attributes.init : {};
         const isCharacter = ["character", "player"].includes(String(actorType || "").toLowerCase());
+        const rawXp = runtime?.xp?.value ?? (details?.xp && typeof details.xp === "object" ? details.xp.value : details?.xp);
+        const xp = Number(rawXp);
         const stats = [
             ...(sharedRuntime ? [
-                { label: "PF attuali", path: "system.attributes.hp.value", value: runtimeHp.value ?? hp.value ?? 0, icon: "fa-heart-pulse", type: "number", min: 0, max: 999999, step: 1 }
+                { label: "PF attuali", path: "system.attributes.hp.value", value: runtimeHp.value ?? hp.value ?? 0, icon: "fa-heart-pulse", type: "number", min: 0, max: 999999, step: 1, className: "managed-stat--health" }
             ] : []),
-            { label: "PF massimi", path: "system.attributes.hp.max", value: hp.max ?? runtimeHp.max, icon: "fa-heart", type: "number", min: 0, max: 999999, step: 1 },
+            { label: "PF massimi", path: "system.attributes.hp.max", value: hp.max ?? runtimeHp.max, icon: "fa-heart", type: "number", min: 0, max: 999999, step: 1, note: String(hp.formula || "").trim() ? `Formula ${String(hp.formula).trim()}` : "", className: "managed-stat--health" },
             ...(sharedRuntime ? [
-                { label: "PF temporanei", path: "system.attributes.hp.temp", value: runtimeHp.temp ?? hp.temp ?? 0, icon: "fa-shield-heart", type: "number", min: 0, max: 999999, step: 1 }
+                { label: "PF temporanei", path: "system.attributes.hp.temp", value: runtimeHp.temp ?? hp.temp ?? 0, icon: "fa-shield-heart", type: "number", min: 0, max: 999999, step: 1, className: "managed-stat--health" }
             ] : []),
-            { label: "Classe Armatura", path: "system.attributes.ac.flat", value: acData.flat ?? ac, icon: "fa-shield-halved", type: "number", min: 0, max: 99, step: 1 },
+            { label: "Classe Armatura", path: "system.attributes.ac.flat", value: acData.flat ?? ac, icon: "fa-shield-halved", type: "number", min: 0, max: 99, step: 1, className: "managed-stat--armor" },
             { label: "Competenza", path: "system.attributes.prof", value: attributes.prof, icon: "fa-dice-d20", type: "number", min: 0, max: 99, step: 1 },
-            { label: "Bonus iniziativa", path: "system.attributes.init.bonus", value: attributes.init?.bonus ?? attributes.init?.value ?? 0, icon: "fa-bolt", type: "number", min: -99, max: 99, step: 1 },
-            { label: "Velocità", path: "system.attributes.movement.walk", value: movement.walk, icon: "fa-person-running", type: "number", min: 0, max: 9999, step: 1 },
-            { label: "Taglia", path: "system.traits.size", value: traits?.size || "med", icon: "fa-ruler-combined", type: "select", options: [["tiny", "Minuscola"], ["sm", "Piccola"], ["med", "Media"], ["lg", "Grande"], ["huge", "Enorme"], ["grg", "Mastodontica"]] },
+            { label: "Bonus iniziativa", path: "system.attributes.init.bonus", value: canEdit ? (initiative.bonus ?? 0) : formatSigned(initiative.total ?? initiative.mod ?? initiative.bonus ?? initiative.value ?? 0), icon: "fa-bolt", type: "number", min: -99, max: 99, step: 1 },
+            canEdit
+                ? { label: "Velocità", path: "system.attributes.movement.walk", value: movement.walk, icon: "fa-person-running", type: "number", min: 0, max: 9999, step: 1 }
+                : { label: "Movimento", value: movementSummary, facts: movementFacts, icon: "fa-route", editable: false, layout: "context", className: "managed-stat--wide managed-stat--compact managed-stat--movement" },
+            ...(sensesSummary ? [{ label: "Sensi", value: sensesSummary, facts: senseFacts, icon: "fa-eye", editable: false, layout: "context", className: "managed-stat--wide managed-stat--compact managed-stat--senses" }] : []),
+            { label: "Taglia", path: "system.traits.size", value: traits?.size || "med", icon: "fa-ruler-combined", type: "select", className: "managed-stat--number managed-stat--size", options: [["tiny", "Minuscola"], ["sm", "Piccola"], ["med", "Media"], ["lg", "Grande"], ["huge", "Enorme"], ["grg", "Mastodontica"]] },
             isCharacter
                 ? { label: "Livello", value: details.level ?? 1, icon: "fa-star", editable: false, note: "Calcolato dalle classi" }
                 : { label: "CR", path: "system.details.cr", value: details.cr, icon: "fa-skull", type: "text" },
+            ...(!isCharacter && Number.isFinite(xp) && xp > 0 ? [{ label: "PE", value: new Intl.NumberFormat("it-IT").format(xp), icon: "fa-gem", editable: false, layout: "context", className: "managed-stat--number managed-stat--economy" }] : []),
             ...getManagedLegendaryResourceStats(resourceDefinitions, runtime?.resources || {}, actorType, sharedRuntime)
+                .map((entry) => ({ ...entry, layout: "context", className: "managed-stat--legendary" }))
         ].filter((entry) => canEdit || (entry.value !== undefined && entry.value !== null && entry.value !== ""));
         if (!stats.length) return "";
-        const cards = stats.map((entry) => canEdit && entry.editable !== false
-            ? `<label class="managed-stat managed-stat--editable"><i class="fas ${entry.icon}"></i><div><span>${escapeHtml(entry.label)}</span>${renderManagedActorControl(entry.path, entry.type, entry.value, entry)}</div></label>`
-            : `<div class="managed-stat ${entry.editable === false ? "managed-stat--derived" : ""}"><i class="fas ${entry.icon}"></i><div><span>${escapeHtml(entry.label)}</span><strong>${escapeHtml(formatManagedStatValue(entry))}</strong>${entry.note ? `<small>${escapeHtml(entry.note)}</small>` : ""}</div></div>`).join("");
+        const renderStatValue = (entry) => entry.facts?.length
+            ? renderManagedStatFacts(entry.facts)
+            : `<strong>${escapeHtml(formatManagedStatValue(entry))}</strong>`;
+        const renderStatCard = (entry) => canEdit && entry.editable !== false
+            ? `<label class="managed-stat managed-stat--editable ${escapeAttr(entry.className || "")}"><i class="fas ${entry.icon}"></i><div><span>${escapeHtml(entry.label)}</span>${renderManagedActorControl(entry.path, entry.type, entry.value, entry)}</div></label>`
+            : `<div class="managed-stat ${entry.editable === false ? "managed-stat--derived" : ""} ${escapeAttr(entry.className || "")}"><i class="fas ${entry.icon}"></i><div><span>${escapeHtml(entry.label)}</span>${renderStatValue(entry)}${entry.note ? `<small>${escapeHtml(entry.note)}</small>` : ""}</div></div>`;
+        const primaryCards = stats.filter((entry) => entry.layout !== "context").map(renderStatCard).join("");
+        const contextCards = stats.filter((entry) => entry.layout === "context").map(renderStatCard).join("");
+        const statLayout = `<div class="managed-stat-layout"><div class="managed-stat-grid managed-stat-grid--primary">${primaryCards}</div>${contextCards ? `<div class="managed-stat-grid managed-stat-grid--context" aria-label="Informazioni tattiche">${contextCards}</div>` : ""}</div>`;
         const movementEditor = canEdit ? `<div class="managed-rule-editor"><div class="managed-rule-editor-heading"><i class="fas fa-route"></i><div><strong>Movimento e calcolo</strong><span>Modifica ogni modalità senza perdere quelle non usate.</span></div></div><div class="managed-rule-grid">${[
             ["Volo", "fly"], ["Nuoto", "swim"], ["Scalata", "climb"], ["Scavo", "burrow"]
         ].map(([label, key]) => `<label><span>${label}</span>${renderManagedActorControl(`system.attributes.movement.${key}`, "number", movement[key] ?? 0, { min: 0, max: 9999, step: 1 })}</label>`).join("")}
@@ -1800,7 +1868,7 @@
             <label class="managed-rule-check">${renderManagedActorControl("system.attributes.movement.hover", "boolean", Boolean(movement.hover))}<span>Può fluttuare</span></label>
         </div></div>` : "";
         const spellSlotsEditor = renderManagedSpellSlots(spellSlotDefinitions, runtime?.spellSlots || {}, canEdit, sharedRuntime);
-        return `<section id="managed-stats" class="managed-panel managed-panel--wide managed-panel--stats"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Profilo di gioco</span><h2><i class="fas fa-chart-simple"></i> Statistiche</h2></div>${renderManagedActorCommandStatus()}</header><div class="managed-stat-grid">${cards}</div>${movementEditor}${spellSlotsEditor}</section>`;
+        return `<section id="managed-stats" class="managed-panel managed-panel--wide managed-panel--stats"><header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Profilo di gioco</span><h2><i class="fas fa-chart-simple"></i> Statistiche</h2></div>${renderManagedActorCommandStatus()}</header>${statLayout}${movementEditor}${spellSlotsEditor}</section>`;
     }
 
     function getManagedLegendaryResourceStats(definitions = {}, runtime = {}, actorType = "", sharedRuntime = true) {
@@ -2342,7 +2410,7 @@
         })).sort((left, right) => left.order - right.order);
         if (collectionKind === "inventory") groups.forEach((group) => group.entries.sort(compareManagedInventoryEntries));
         const cardsFor = (groupEntries, groupKey) => groupEntries.map((entry) => renderManagedEntryCard(entry, canEdit, groupKey, collectionKind, entries)).join("");
-        const groupedContent = groups.length ? groups.map((group) => `<section class="managed-entry-group" data-managed-entry-group="${escapeAttr(group.key)}"><header><span>${escapeHtml(group.label)}</span><b>${group.entries.length}</b></header><div class="managed-entry-grid">${cardsFor(group.entries, group.key)}</div></section>`).join("") : "";
+        const groupedContent = groups.length ? groups.map((group) => `<section class="managed-entry-group managed-entry-group--${escapeAttr(group.key)}" data-managed-entry-group="${escapeAttr(group.key)}"><header>${group.icon ? `<i class="fas ${escapeAttr(group.icon)}" aria-hidden="true"></i>` : ""}<span>${escapeHtml(group.label)}</span>${group.description ? `<small>${escapeHtml(group.description)}</small>` : ""}<b>${group.entries.length}</b></header><div class="managed-entry-grid">${cardsFor(group.entries, group.key)}</div></section>`).join("") : "";
         const empty = !entries.length ? `<div class="managed-empty-state"><i class="fas ${panelIcon}"></i><strong>Nessun elemento</strong><span>Puoi aggiungerne uno entrando in modifica.</span></div>` : "";
         const hasUnprepared = collectionKind === "spells" && entries.some((entry) => getManagedSpellPreparation(entry, findManagedItemCommand(entry))?.key === "unprepared");
         const groupFilterButtons = groups.length > 1 ? `<span class="managed-filter-label">Tipo</span><button type="button" class="is-active" data-managed-entry-filter="all" aria-pressed="true">Tutti</button>${groups.map((group) => `<button type="button" data-managed-entry-filter="${escapeAttr(group.key)}" aria-pressed="false">${escapeHtml(group.shortLabel || group.label)}</button>`).join("")}` : "";
@@ -2352,7 +2420,20 @@
         const tools = entries.length > 5 ? `<div class="managed-collection-tools"><label class="managed-collection-search"><i class="fas fa-magnifying-glass"></i><input type="search" placeholder="Cerca ${escapeAttr(title.toLowerCase())}" aria-label="Cerca ${escapeAttr(title.toLowerCase())}" data-managed-entry-search></label>${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : filterButtons ? `<div class="managed-collection-tools">${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : "";
         const lead = collectionKind === "spells" ? "Cerca e filtra il grimorio; apri soltanto ciò che vuoi leggere o modificare." : collectionKind === "capabilities" ? "Azioni, reazioni e capacità sono ordinate secondo il loro utilizzo in Foundry." : "";
         const overview = collectionKind === "inventory" && entries.length ? renderManagedInventoryOverview(entries) : "";
-        return `<details${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><summary class="managed-panel-heading managed-collection-summary"><div><span class="managed-panel-eyebrow">Dati Foundry</span><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-collection-summary-meta"><span class="managed-count-badge">${entries.length}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-collection-body">${entries.length ? `${overview}${lead ? `<p class="managed-panel-lead">${escapeHtml(lead)}</p>` : ""}${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</div></details>`;
+        const legendarySummary = collectionKind === "capabilities" ? renderManagedLegendaryCapabilitySummary() : "";
+        return `<details${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><summary class="managed-panel-heading managed-collection-summary"><div><span class="managed-panel-eyebrow">Dati Foundry</span><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-collection-summary-meta"><span class="managed-count-badge">${entries.length}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-collection-body">${entries.length ? `${overview}${legendarySummary}${lead ? `<p class="managed-panel-lead">${escapeHtml(lead)}</p>` : ""}${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</div></details>`;
+    }
+
+    function renderManagedLegendaryCapabilitySummary() {
+        if (String(currentDocument?.actorType || "").toLowerCase() !== "npc") return "";
+        const stats = getManagedLegendaryResourceStats(
+            currentDocument?.definition?.resources || {},
+            currentDocument?.runtime?.resources || {},
+            currentDocument.actorType,
+            managedActorHasSharedRuntime(currentDocument)
+        );
+        if (!stats.length) return "";
+        return `<aside class="managed-legendary-summary" aria-label="Risorse leggendarie"><div><i class="fas fa-crown" aria-hidden="true"></i><span><strong>Risorse leggendarie</strong><small>Disponibilità sincronizzata con Foundry</small></span></div><dl>${stats.map((entry) => `<div class="managed-legendary-resource managed-legendary-resource--${entry.key}"><dt><i class="fas ${escapeAttr(entry.icon)}" aria-hidden="true"></i>${escapeHtml(entry.label)}</dt><dd><strong>${escapeHtml(formatManagedStatValue(entry))}</strong><small>${escapeHtml(entry.note || "")}</small></dd></div>`).join("")}</dl></aside>`;
     }
 
     function managedRawCollectionValues(value) {
@@ -2375,7 +2456,7 @@
         const entries = Array.isArray(source)
             ? source.map((activity, index) => [activity?._id || activity?.id || index, activity])
             : Object.entries(source);
-        return entries.find(([id]) => String(id || "") === String(activityId || ""))?.[1] || null;
+        return entries.find(([id, activity]) => [id, activity?._id, activity?.id].some((candidate) => String(candidate || "") === String(activityId || "")))?.[1] || null;
     }
 
     function resolveManagedRawFormula(value, entry, activity = {}) {
@@ -2427,11 +2508,11 @@
                 const summary = summarizeManagedRawDamage(part, entry, activity, damage.length || index > 0 ? "secondary" : "primary");
                 if (summary) damage.push(summary);
             });
-            const rawDc = activity.save?.dc?.value ?? activity.save?.dc;
+            const rawDc = activity.save?.dc?.formula ?? activity.save?.dc?.value ?? activity.save?.dc;
             const dc = Number(rawDc);
             const abilities = managedSaveAbilityValues(activity.save?.ability ?? activity.save?.abilities);
             return {
-                id: String(id || ""),
+                id: String(activity?._id || activity?.id || id || ""),
                 name: String(activity.name || entry?.name || "Attività"),
                 damage,
                 save: Number.isFinite(dc) && dc > 0 ? { dc, abilities } : null
@@ -2451,6 +2532,216 @@
         return fallbackDamage.length ? [{ id: "base", name: String(entry?.name || "Attività"), damage: fallbackDamage, save: null }] : [];
     }
 
+    function calculateManagedDamageAverage(formula) {
+        const raw = String(formula ?? "").trim();
+        if (!raw || !/(?:\d+)?d\d+/i.test(raw)) return null;
+        let invalidDice = false;
+        const expression = raw.replace(/[−–—]/g, "-").replace(/(\d*)d(\d+)/gi, (_, countValue, facesValue) => {
+            const count = Number(countValue || 1);
+            const faces = Number(facesValue);
+            if (!Number.isInteger(count) || count <= 0 || !Number.isInteger(faces) || faces <= 0) {
+                invalidDice = true;
+                return "";
+            }
+            return String(count * ((faces + 1) / 2));
+        });
+        if (invalidDice || !/^[\d+\-*/().\s]+$/.test(expression)) return null;
+        const compact = expression.replace(/\s+/g, "");
+        const tokens = compact.match(/\d+(?:\.\d+)?|[()+\-*/]/g);
+        if (!tokens || tokens.join("") !== compact) return null;
+        let index = 0;
+        const parsePrimary = () => {
+            const token = tokens[index];
+            if (token === "+" || token === "-") {
+                index += 1;
+                const value = parsePrimary();
+                return value === null ? null : (token === "-" ? -value : value);
+            }
+            if (token === "(") {
+                index += 1;
+                const value = parseExpression();
+                if (value === null || tokens[index] !== ")") return null;
+                index += 1;
+                return value;
+            }
+            if (!/^\d+(?:\.\d+)?$/.test(token || "")) return null;
+            index += 1;
+            return Number(token);
+        };
+        const parseProduct = () => {
+            let value = parsePrimary();
+            if (value === null) return null;
+            while (tokens[index] === "*" || tokens[index] === "/") {
+                const operator = tokens[index++];
+                const next = parsePrimary();
+                if (next === null || (operator === "/" && next === 0)) return null;
+                value = operator === "*" ? value * next : value / next;
+            }
+            return value;
+        };
+        const parseExpression = () => {
+            let value = parseProduct();
+            if (value === null) return null;
+            while (tokens[index] === "+" || tokens[index] === "-") {
+                const operator = tokens[index++];
+                const next = parseProduct();
+                if (next === null) return null;
+                value = operator === "+" ? value + next : value - next;
+            }
+            return value;
+        };
+        const average = parseExpression();
+        if (average === null || index !== tokens.length || !Number.isFinite(average)) return null;
+        return Math.floor(average + Number.EPSILON);
+    }
+
+    function managedDamageIdentity(part) {
+        const formula = String(part?.formula || "").replace(/[−–—]/g, "-").replace(/\s+/g, "").toLowerCase();
+        if (!formula) return "";
+        const types = managedRawCollectionValues(part?.types)
+            .map((type) => String(type || "").trim().toLowerCase())
+            .filter(Boolean)
+            .sort()
+            .join("|");
+        return `${formula}::${types}`;
+    }
+
+    function deduplicateManagedDamageParts(parts, duplicatedBasePart) {
+        const values = Array.isArray(parts) ? parts : [];
+        const duplicateKey = managedDamageIdentity(duplicatedBasePart);
+        if (!duplicateKey) return values;
+        let found = false;
+        return values.filter((part) => {
+            if (managedDamageIdentity(part) !== duplicateKey) return true;
+            if (found) return false;
+            found = true;
+            return true;
+        });
+    }
+
+    function getManagedActivityAttackFact(entry, activity = {}) {
+        const attack = activity?.attack && typeof activity.attack === "object" ? activity.attack : {};
+        const attackType = String(attack?.type?.value || attack?.type || "").trim().toLowerCase();
+        if (String(activity?.type || "").toLowerCase() !== "attack" && !attackType) return null;
+        const ability = String(attack.ability || entry?.definition?.attack?.ability || entry?.definition?.ability || "").trim().toLowerCase();
+        if (!ability) return null;
+        const actorAbility = currentDocument?.definition?.abilities?.[ability] || {};
+        const rawExtra = String(attack.bonus ?? "").trim();
+        const resolvedExtra = rawExtra ? Number(resolveManagedRawFormula(rawExtra, entry, activity)) : 0;
+        if (attack.flat === true) {
+            if (!rawExtra || !Number.isFinite(resolvedExtra)) return null;
+            return { icon: "fa-crosshairs", label: `${formatSigned(resolvedExtra)} a colpire`, className: "is-attack" };
+        }
+        const explicitAttack = Number(actorAbility.attack);
+        const modifier = Number(actorAbility.mod);
+        const proficiency = Number(currentDocument?.definition?.attributes?.prof);
+        const base = Number.isFinite(explicitAttack)
+            ? explicitAttack
+            : Number.isFinite(modifier) && Number.isFinite(proficiency)
+                ? modifier + proficiency
+                : Number.NaN;
+        if (!Number.isFinite(base) || (rawExtra && !Number.isFinite(resolvedExtra))) return null;
+        return { icon: "fa-crosshairs", label: `${formatSigned(base + resolvedExtra)} a colpire`, className: "is-attack" };
+    }
+
+    function getManagedActivityRangeFact(entry, activity = {}) {
+        const itemRange = entry?.definition?.range && typeof entry.definition.range === "object" ? entry.definition.range : {};
+        const activityRange = activity?.range && typeof activity.range === "object" ? activity.range : {};
+        const hasDistance = (range) => [range?.value, range?.reach].some((value) => value !== null && value !== undefined && value !== "");
+        const source = activityRange.override === true || !hasDistance(itemRange) ? activityRange : itemRange;
+        const value = source.value ?? source.reach;
+        const units = String(source.units || itemRange.units || activityRange.units || "").trim().toLowerCase();
+        const unitLabels = { ft: "ft", m: "m", km: "km", mi: "mi" };
+        const numeric = value !== null && value !== undefined && value !== "" ? String(value).trim() : "";
+        if (!numeric) {
+            if (units === "touch") return { icon: "fa-hand", label: "Tocco", className: "is-range" };
+            if (["spec", "special"].includes(units)) return { icon: "fa-location-crosshairs", label: "Gittata speciale", className: "is-range" };
+            if (units === "any") return { icon: "fa-location-crosshairs", label: "Qualsiasi distanza", className: "is-range" };
+            return null;
+        }
+        const attackType = String(activity?.attack?.type?.value || activity?.attack?.type || "").trim().toLowerCase();
+        const prefix = attackType === "melee" ? "Portata" : "Gittata";
+        return { icon: attackType === "melee" ? "fa-arrows-left-right" : "fa-location-crosshairs", label: `${prefix} ${numeric}${unitLabels[units] ? ` ${unitLabels[units]}` : ""}`, className: "is-range" };
+    }
+
+    function getManagedActivityAreaFact(activity = {}) {
+        const template = activity?.target?.template && typeof activity.target.template === "object" ? activity.target.template : {};
+        const type = String(template.type || "").trim().toLowerCase();
+        const variants = {
+            cone: { label: "Cono", icon: "fa-triangle", family: "cone" },
+            circle: { label: "Cerchio", icon: "fa-circle", family: "circle" },
+            radius: { label: "Raggio", icon: "fa-circle", family: "circle" },
+            sphere: { label: "Sfera", icon: "fa-circle", family: "circle" },
+            cylinder: { label: "Cilindro", icon: "fa-circle", family: "circle" },
+            cube: { label: "Cubo", icon: "fa-square", family: "square" },
+            square: { label: "Quadrato", icon: "fa-square", family: "square" },
+            rect: { label: "Rettangolo", icon: "fa-square", family: "square" },
+            line: { label: "Linea", icon: "fa-minus", family: "line" },
+            wall: { label: "Muro", icon: "fa-grip-lines-vertical", family: "line" }
+        };
+        const variant = variants[type];
+        if (!variant) return null;
+        const size = template.size !== null && template.size !== undefined && template.size !== "" ? String(template.size).trim() : "";
+        const width = template.width !== null && template.width !== undefined && template.width !== "" ? String(template.width).trim() : "";
+        const units = String(template.units || "").trim();
+        const dimensions = size ? `${size}${type === "line" && width ? ` × ${width}` : ""}${units ? ` ${units}` : ""}` : "";
+        return { icon: variant.icon, label: `${variant.label}${dimensions ? ` ${dimensions}` : ""}`, className: `is-area is-${variant.family}` };
+    }
+
+    function getManagedActivityTargetFact(activity = {}) {
+        const affects = activity?.target?.affects && typeof activity.target.affects === "object" ? activity.target.affects : {};
+        const type = String(affects.type || "").trim().toLowerCase();
+        const count = affects.count !== null && affects.count !== undefined && affects.count !== "" ? String(affects.count).trim() : "";
+        const labels = {
+            creature: ["creatura", "creature"], ally: ["alleato", "alleati"], enemy: ["nemico", "nemici"],
+            object: ["oggetto", "oggetti"], space: ["spazio", "spazi"], self: ["sé stesso", "sé stessi"], any: ["bersaglio", "bersagli"]
+        };
+        if (!type || !labels[type]) return null;
+        const noun = Number(count) === 1 ? labels[type][0] : labels[type][1];
+        return { icon: "fa-bullseye", label: `${count ? `${count} ` : ""}${noun}`, className: "is-target" };
+    }
+
+    function getManagedActivityDurationFact(activity = {}) {
+        const duration = activity?.duration && typeof activity.duration === "object" ? activity.duration : {};
+        const units = String(duration.units || "").trim().toLowerCase();
+        const value = duration.value !== null && duration.value !== undefined && duration.value !== "" ? Number(duration.value) : Number.NaN;
+        const unitLabels = {
+            turn: ["turno", "turni"], round: ["round", "round"], minute: ["minuto", "minuti"], hour: ["ora", "ore"],
+            day: ["giorno", "giorni"], month: ["mese", "mesi"], year: ["anno", "anni"]
+        };
+        let label = "";
+        if (Number.isFinite(value) && unitLabels[units]) label = `${value} ${value === 1 ? unitLabels[units][0] : unitLabels[units][1]}`;
+        else if (units === "perm") label = "Permanente";
+        else if (["spec", "special"].includes(units)) label = "Durata speciale";
+        if (!label && duration.concentration !== true) return null;
+        return { icon: "fa-hourglass-half", label: `${label || "Durata"}${duration.concentration === true ? " · concentrazione" : ""}`, className: "is-duration" };
+    }
+
+    function getManagedSaveOutcomeFact(activity = {}, effectiveActivity = {}) {
+        const outcome = String(activity?.damage?.onSave || "").trim().toLowerCase();
+        const hasDamage = (Array.isArray(effectiveActivity?.damage) && effectiveActivity.damage.some((part) => String(part?.formula || "").trim()))
+            || managedRawCollectionValues(activity?.damage?.parts).length > 0;
+        if (!hasDamage || !["half", "none", "full"].includes(outcome)) return null;
+        const labels = { half: "Metà con TS riuscito", none: "Nessun danno con TS riuscito", full: "Danno completo con TS riuscito" };
+        return { icon: "fa-shield", label: labels[outcome], className: "is-save-outcome" };
+    }
+
+    function getManagedActivityTacticalFacts(entry, effectiveActivity = {}, rawActivity = null) {
+        if (!rawActivity) return [];
+        return [
+            getManagedActivityAttackFact(entry, rawActivity),
+            getManagedActivityRangeFact(entry, rawActivity),
+            getManagedActivityAreaFact(rawActivity),
+            getManagedActivityTargetFact(rawActivity),
+            getManagedActivityDurationFact(rawActivity),
+            getManagedSaveOutcomeFact(rawActivity, effectiveActivity)
+        ].filter(Boolean);
+    }
+
+    function renderManagedActivityTacticalFacts(facts = []) {
+        return facts.map((fact) => `<span class="managed-effective-fact ${escapeAttr(fact.className || "")}"><i class="fas ${escapeAttr(fact.icon || "fa-circle-info")}" aria-hidden="true"></i><strong>${escapeHtml(fact.label || "")}</strong></span>`).join("");
+    }
+
     function renderManagedEffectiveRolls(entry) {
         const exportedActivities = Array.isArray(entry?.definition?.effectiveRolls?.activities)
             ? entry.definition.effectiveRolls.activities
@@ -2460,24 +2751,38 @@
         if (!useful.length) return "";
         const showNames = useful.length > 1;
         const rows = useful.map((activity) => {
-            const damage = (Array.isArray(activity.damage) ? activity.damage : []).map((part, index) => {
+            const rawActivity = getManagedRawActivity(entry, activity?.id);
+            const includedBase = rawActivity?.damage?.includeBase !== false
+                ? summarizeManagedRawDamage(entry?.definition?.damage?.base, entry, rawActivity || {}, "primary")
+                : null;
+            const baseKey = managedDamageIdentity(includedBase);
+            const additionalKeys = new Set(managedRawCollectionValues(rawActivity?.damage?.parts)
+                .map((part, index) => summarizeManagedRawDamage(part, entry, rawActivity || {}, index > 0 ? "secondary" : "primary"))
+                .map(managedDamageIdentity)
+                .filter(Boolean));
+            const duplicatedBase = baseKey && !additionalKeys.has(baseKey) ? includedBase : null;
+            const damageParts = deduplicateManagedDamageParts(activity.damage, duplicatedBase);
+            const damage = damageParts.map((part, index) => {
                 const formula = String(part?.formula || "").trim();
+                const average = calculateManagedDamageAverage(formula);
+                const averageMarkup = Number.isFinite(average) ? `<span class="managed-effective-damage-average" title="Danno medio">(${escapeHtml(average)})</span>` : "";
                 const types = (Array.isArray(part?.types) ? part.types : []).map(formatManagedTraitValue).filter(Boolean).join("/");
                 const role = String(part?.role || "").toLowerCase() === "secondary" || (!part?.role && index > 0)
                     ? "secondary"
                     : "primary";
                 const roleLabel = role === "secondary" ? "Aggiuntivo" : "Principale";
-                return formula ? `<span class="managed-effective-damage is-${role}"><i class="fas fa-burst"></i><span class="managed-effective-damage-kind">${roleLabel}</span><strong>${escapeHtml(formula)}</strong>${types ? `<small>${escapeHtml(types)}</small>` : ""}</span>` : "";
+                return formula ? `<span class="managed-effective-damage is-${role}"><i class="fas fa-burst"></i><span class="managed-effective-damage-kind">${roleLabel}</span><strong>${escapeHtml(formula)}${averageMarkup}</strong>${types ? `<small>${escapeHtml(types)}</small>` : ""}</span>` : "";
             }).filter(Boolean).join("");
             const dc = Number(activity?.save?.dc || 0);
             const exportedAbilities = managedSaveAbilityValues(activity?.save?.abilities);
-            const rawActivity = exportedAbilities.length ? null : getManagedRawActivity(entry, activity?.id);
+            const rawSaveActivity = exportedAbilities.length ? null : rawActivity;
             const abilities = (exportedAbilities.length
                 ? exportedAbilities
-                : managedSaveAbilityValues(rawActivity?.save?.ability ?? rawActivity?.save?.abilities))
+                : managedSaveAbilityValues(rawSaveActivity?.save?.ability ?? rawSaveActivity?.save?.abilities))
                 .map((ability) => ability.toUpperCase()).join("/");
             const save = dc > 0 ? `<span class="managed-effective-save"><i class="fas fa-shield-halved"></i><strong>CD ${dc}</strong>${abilities ? `<small>${escapeHtml(abilities)}</small>` : ""}</span>` : "";
-            return `<div class="managed-effective-roll-row">${showNames ? `<b>${escapeHtml(activity?.name || "Attività")}</b>` : ""}<div>${damage}${save}</div></div>`;
+            const tactical = renderManagedActivityTacticalFacts(getManagedActivityTacticalFacts(entry, activity, rawActivity));
+            return `<div class="managed-effective-roll-row">${showNames ? `<b>${escapeHtml(activity?.name || "Attività")}</b>` : ""}<div>${damage}${save}${tactical}</div></div>`;
         }).join("");
         return `<div class="managed-effective-rolls" aria-label="Danni e CD effettivi da Foundry">${rows}</div>`;
     }
@@ -2491,13 +2796,91 @@
         const preparation = getManagedSpellPreparation(entry, command);
         const editor = canEdit ? renderManagedItemEditor(entry, command) : "";
         const status = command ? renderManagedItemSyncStatus(command) : "";
-        const searchText = normalizeManagedSearch([entry.name, meta, preparation?.label, searchDescription].filter(Boolean).join(" "));
+        const recharge = collectionKind === "capabilities" ? getManagedEntryRecharge(entry, managedActorHasSharedRuntime(currentDocument)) : null;
+        const searchText = normalizeManagedSearch([entry.name, meta, preparation?.label, recharge?.label, recharge?.stateLabel, searchDescription].filter(Boolean).join(" "));
         const level = Number(entry.definition?.level ?? 0) || 0;
         const effectiveRolls = ["capabilities", "spells"].includes(collectionKind) ? renderManagedEffectiveRolls(entry) : "";
         const disclosure = description ? `<details class="managed-entry-disclosure"><summary><span><i class="fas fa-book-open"></i> Descrizione</span><i class="fas fa-chevron-down"></i></summary><div>${formatManagedPreview(description)}</div></details>` : "";
         const preparationAttribute = preparation ? ` data-managed-spell-preparation="${escapeAttr(preparation.key)}"` : "";
         const preparationBadge = preparation ? `<span class="managed-spell-preparation is-${escapeAttr(preparation.key)}"><i class="fas ${escapeAttr(preparation.icon)}"></i>${escapeHtml(preparation.label)}</span>` : "";
-        return `<article class="managed-entry ${preparation ? `managed-entry--spell-${escapeAttr(preparation.key)}` : ""}" data-managed-item-card="${escapeAttr(entry.transferId || entry.itemId || "")}" data-managed-entry-search-value="${escapeAttr(searchText)}" data-managed-entry-level="${level}" data-managed-entry-group-key="${escapeAttr(groupKey)}"${preparationAttribute}>${icon ? `<img src="${escapeAttr(resolveMedia(icon))}" alt="">` : '<div class="managed-entry-icon"><i class="fas fa-dice-d20"></i></div>'}<div class="managed-entry-copy"><div class="managed-entry-title"><h3>${escapeHtml(entry.name || "Elemento")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div>${preparationBadge}${status}${effectiveRolls}${disclosure}${editor}</div></article>`;
+        const legendaryBadge = collectionKind === "capabilities" && groupKey === "legendary" ? renderManagedLegendaryActionBadge(entry) : "";
+        const rechargeBadge = recharge ? renderManagedRechargeBadge(recharge) : "";
+        const specialBadges = legendaryBadge || rechargeBadge ? `<div class="managed-capability-badges">${legendaryBadge}${rechargeBadge}</div>` : "";
+        return `<article class="managed-entry ${groupKey === "legendary" ? "managed-entry--legendary" : ""} ${recharge ? `managed-entry--recharge ${recharge.charged === false ? "is-recharge-spent" : "is-recharge-ready"}` : ""} ${preparation ? `managed-entry--spell-${escapeAttr(preparation.key)}` : ""}" data-managed-item-card="${escapeAttr(entry.transferId || entry.itemId || "")}" data-managed-entry-search-value="${escapeAttr(searchText)}" data-managed-entry-level="${level}" data-managed-entry-group-key="${escapeAttr(groupKey)}"${preparationAttribute}>${icon ? `<img src="${escapeAttr(resolveMedia(icon))}" alt="">` : `<div class="managed-entry-icon"><i class="fas ${groupKey === "legendary" ? "fa-crown" : recharge ? "fa-arrows-rotate" : "fa-dice-d20"}"></i></div>`}<div class="managed-entry-copy"><div class="managed-entry-title"><h3>${escapeHtml(entry.name || "Elemento")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div>${specialBadges}${preparationBadge}${status}${effectiveRolls}${disclosure}${editor}</div></article>`;
+    }
+
+    function getManagedEntryRecharge(entry, sharedRuntime = true) {
+        const recharge = entry?.definition?.recharge;
+        const directRecharge = recharge && typeof recharge === "object" ? recharge : {};
+        const uses = entry?.definition?.uses && typeof entry.definition.uses === "object" ? entry.definition.uses : {};
+        const recoverySource = uses.recovery;
+        const recoveries = recoverySource instanceof Map
+            ? Array.from(recoverySource.values())
+            : Array.isArray(recoverySource)
+                ? recoverySource
+                : recoverySource && typeof recoverySource === "object"
+                    ? Object.values(recoverySource)
+                    : [];
+        const rechargeRecovery = recoveries.find((recovery) => String(recovery?.period || "").trim().toLowerCase() === "recharge");
+        const directThreshold = Number(directRecharge.value ?? directRecharge.threshold);
+        const recoveryFormula = String(rechargeRecovery?.formula ?? "").trim();
+        const recoveryThresholdMatch = recoveryFormula.match(/^([1-6])(?:\s*[-–]\s*6)?$/);
+        const threshold = Number.isFinite(directThreshold) && directThreshold >= 1 && directThreshold <= 6
+            ? directThreshold
+            : Number(recoveryThresholdMatch?.[1]);
+        let charged = null;
+        if (sharedRuntime) {
+            if (directRecharge.charged === true || directRecharge.charged === false) {
+                charged = directRecharge.charged;
+            } else if (rechargeRecovery) {
+                const stateUses = entry?.state?.uses && typeof entry.state.uses === "object" ? entry.state.uses : {};
+                const numberOrNaN = (value) => value === null || value === undefined || value === "" ? Number.NaN : Number(value);
+                const maximum = numberOrNaN(stateUses.max ?? uses.max);
+                const spent = numberOrNaN(stateUses.spent);
+                const remaining = numberOrNaN(stateUses.value);
+                if (Number.isFinite(maximum) && maximum > 0 && Number.isFinite(spent)) charged = spent < maximum;
+                else if (Number.isFinite(remaining)) charged = remaining > 0;
+            }
+        }
+        if (!Number.isFinite(threshold) || threshold < 1 || threshold > 6) return null;
+        const normalizedThreshold = Math.max(1, Math.min(6, Math.floor(threshold)));
+        const roll = normalizedThreshold >= 6 ? "6" : `${normalizedThreshold}–6`;
+        return {
+            threshold: normalizedThreshold,
+            charged,
+            label: `Ricarica ${roll}`,
+            stateLabel: charged === true ? "Pronta" : charged === false ? "Da ricaricare" : ""
+        };
+    }
+
+    function renderManagedRechargeBadge(recharge) {
+        const state = recharge.stateLabel ? `<small class="${recharge.charged ? "is-ready" : "is-spent"}"><i class="fas ${recharge.charged ? "fa-circle-check" : "fa-hourglass-half"}" aria-hidden="true"></i>${escapeHtml(recharge.stateLabel)}</small>` : "";
+        return `<span class="managed-recharge-badge"><i class="fas fa-arrows-rotate" aria-hidden="true"></i><strong>${escapeHtml(recharge.label)}</strong>${state}</span>`;
+    }
+
+    function getManagedEntryActivities(entry) {
+        const source = entry?.definition?.activities;
+        if (!source || typeof source !== "object") return [];
+        if (source instanceof Map) return Array.from(source.values());
+        return Array.isArray(source) ? source : Object.values(source);
+    }
+
+    function getManagedEntryActivationTypes(entry) {
+        return Array.from(new Set([
+            entry?.definition?.activation?.type,
+            ...getManagedEntryActivities(entry).map((activity) => activity?.activation?.type)
+        ].map((value) => String(value || "").trim().toLowerCase()).filter(Boolean)));
+    }
+
+    function renderManagedLegendaryActionBadge(entry) {
+        const costs = getManagedEntryActivities(entry)
+            .filter((activity) => String(activity?.activation?.type || "").toLowerCase() === "legendary")
+            .map((activity) => Number(activity?.activation?.value))
+            .filter((value) => Number.isFinite(value) && value > 0);
+        const directCost = Number(entry?.definition?.activation?.value);
+        if (!costs.length && Number.isFinite(directCost) && directCost > 0) costs.push(directCost);
+        const cost = costs.length ? Math.min(...costs) : 1;
+        return `<span class="managed-legendary-action-badge"><i class="fas fa-crown" aria-hidden="true"></i>${cost} ${cost === 1 ? "azione leggendaria" : "azioni leggendarie"}</span>`;
     }
     function renderManagedInventoryEntryCard(entry, canEdit, groupKey, collectionEntries = []) {
         const icon = String(entry?.media?.icon?.path || entry?.definition?.img || "").trim();
@@ -2830,11 +3213,15 @@
             return { key: `level-${level}`, label: level ? `Livello ${level}` : "Trucchetti", shortLabel: level ? String(level) : "0", order: level };
         }
         if (kind === "capabilities") {
-            const activation = String(entry.definition?.activation?.type || "").toLowerCase();
+            const activationTypes = getManagedEntryActivationTypes(entry);
+            const activation = ["legendary", "lair", "reaction", "bonus", "bonusaction", "action", "attack"]
+                .find((type) => activationTypes.includes(type)) || activationTypes[0] || "";
             if (["action", "attack"].includes(activation)) return { key: "action", label: "Azioni", shortLabel: "Azioni", order: 1 };
             if (["bonus", "bonusaction"].includes(activation)) return { key: "bonus", label: "Azioni bonus", shortLabel: "Bonus", order: 2 };
             if (activation === "reaction") return { key: "reaction", label: "Reazioni", shortLabel: "Reazioni", order: 3 };
-            if (["legendary", "lair"].includes(activation)) return { key: activation, label: activation === "legendary" ? "Azioni leggendarie" : "Azioni di tana", shortLabel: activation === "legendary" ? "Leggendarie" : "Tana", order: 4 };
+            if (["legendary", "lair"].includes(activation)) return activation === "legendary"
+                ? { key: "legendary", label: "Azioni leggendarie", shortLabel: "Leggendarie", icon: "fa-crown", description: "Utilizzabili fuori dal proprio turno", order: 4 }
+                : { key: "lair", label: "Azioni di tana", shortLabel: "Tana", icon: "fa-dungeon", order: 4 };
             return { key: "passive", label: "Tratti e capacità passive", shortLabel: "Passive", order: 5 };
         }
         if (kind === "inventory") {

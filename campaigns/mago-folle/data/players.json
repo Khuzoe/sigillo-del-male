@@ -19,5 +19,12 @@
     "name": "Archimede",
     "campaignRole": "player",
     "isActive": true
+  },
+  {
+    "id": "va-lariel",
+    "accountId": "luca",
+    "name": "Va'Lariel",
+    "campaignRole": "player",
+    "isActive": true
   }
 ]

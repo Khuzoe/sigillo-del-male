@@ -29,7 +29,9 @@
     26,
     27,
     28,
-    29
+    29,
+    30,
+    31
   ],
   "items": [
     {
@@ -43,8 +45,22 @@
       "id": "zara",
       "name": "Zara Klaren",
       "order_slot": null,
-      "lastMentionSessionId": 29,
-      "mentions": 20
+      "lastMentionSessionId": 31,
+      "mentions": 23
+    },
+    {
+      "id": "franky",
+      "name": "Franky",
+      "order_slot": null,
+      "lastMentionSessionId": 31,
+      "mentions": 7
+    },
+    {
+      "id": "x",
+      "name": "X Von T",
+      "order_slot": null,
+      "lastMentionSessionId": 30,
+      "mentions": 21
     },
     {
       "id": "karla",
@@ -68,13 +84,6 @@
       "mentions": 6
     },
     {
-      "id": "franky",
-      "name": "Franky",
-      "order_slot": null,
-      "lastMentionSessionId": 24,
-      "mentions": 6
-    },
-    {
       "id": "rabberduscolanderson",
       "name": "Rabberduscolanderson Von T",
       "order_slot": null,
@@ -87,13 +96,6 @@
       "order_slot": null,
       "lastMentionSessionId": 22,
       "mentions": 6
-    },
-    {
-      "id": "x",
-      "name": "X Von T",
-      "order_slot": null,
-      "lastMentionSessionId": 21,
-      "mentions": 20
     },
     {
       "id": "nino_olegna",
