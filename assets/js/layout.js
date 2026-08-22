@@ -34,6 +34,11 @@ const apiResponseCache = new Map();
 const API_GET_CACHE_TTL_MS = 45 * 1000;
 const isEmbedMode = new URLSearchParams(window.location.search).get("embed") === "1";
 const isEmbeddedRuntime = isEmbedMode || window.self !== window.top;
+const EMBEDDED_PARENT_ORIGIN_KEY = "cripta_embedded_parent_origin_v1";
+const TRUSTED_FOUNDRY_PARENT_ORIGINS = new Set([
+    "https://desktop-5bh5mve.tail197377.ts.net"
+]);
+const embeddedParentOrigin = resolveEmbeddedParentOrigin();
 let embeddedDiscordToken = "";
 let embeddedDiscordPopup = null;
 let spaNavigationInProgress = false;
@@ -60,7 +65,6 @@ document.addEventListener("DOMContentLoaded", async function () {
     document.documentElement.dataset.campaign = currentCampaignId;
     document.body.classList.toggle("is-embed", isEmbeddedRuntime);
     restoreSidebarPreference();
-    consumeEmbeddedTokenFromQuery();
     await consumeDeviceCodeFromQuery();
     await applyCurrentCampaignConfig(basePath);
 
@@ -595,11 +599,11 @@ function runSpaEnterTransition() {
 
 function notifyEmbeddedLocation() {
     if (!isEmbeddedRuntime) return;
-    window.parent?.postMessage({
+    postEmbeddedParentMessage({
         type: "cripta-spa-navigate",
         url: window.location.href,
         pageId: getCurrentPageId()
-    }, "*");
+    });
 }
 
 function createPageScope(pageId) {
@@ -2074,11 +2078,11 @@ function redirectToDiscordLogin() {
             "cripta-discord-auth",
             "popup=yes,width=640,height=900,resizable=yes,scrollbars=yes"
         );
-        window.parent?.postMessage({
+        postEmbeddedParentMessage({
             type: "cripta-discord-login",
             url: loginUrl.toString(),
             popupOpened: Boolean(embeddedDiscordPopup)
-        }, "*");
+        });
         return;
     }
     window.location.href = loginUrl.toString();
@@ -2103,11 +2107,11 @@ async function loginWithDeviceCode(code) {
     discordAuthCache = response.user ? { ok: true, user: response.user } : null;
 
     if (isEmbeddedRuntime) {
-        window.parent?.postMessage({
+        postEmbeddedParentMessage({
             type: "cripta-auth-token",
             token: response.token,
             user: response.user || null
-        }, "*");
+        });
     }
 
     return response;
@@ -2149,6 +2153,7 @@ function promptDeviceLogin() {
 function handleEmbeddedAuthMessage(event) {
     const data = event?.data;
     if (data?.type === "cripta-discord-auth-start" && data?.authUrl) {
+        if (event.source !== embeddedDiscordPopup || event.origin !== new URL(DISCORD_WORKER_URL).origin) return;
         if (embeddedDiscordPopup && !embeddedDiscordPopup.closed) {
             const authUrl = new URL(String(data.authUrl), window.location.href);
             applyCampaignToUrl(authUrl, { force: true });
@@ -2162,6 +2167,7 @@ function handleEmbeddedAuthMessage(event) {
         return;
     }
 
+    if (event.source !== window.parent || !embeddedParentOrigin || event.origin !== embeddedParentOrigin) return;
     if (data?.type !== "cripta-auth-token" || !data?.token) return;
 
     storeToken(String(data.token));
@@ -2174,16 +2180,38 @@ function handleEmbeddedAuthMessage(event) {
     window.location.reload();
 }
 
-function consumeEmbeddedTokenFromQuery() {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("foundryJwt") || "";
-    if (!token) return;
+function resolveEmbeddedParentOrigin() {
+    if (!isEmbeddedRuntime || window.self === window.top) return "";
+    const stored = String(window.sessionStorage?.getItem?.(EMBEDDED_PARENT_ORIGIN_KEY) || "");
+    if (isTrustedFoundryParentOrigin(stored)) return stored;
+    try {
+        const referrerOrigin = new URL(document.referrer).origin;
+        if (!isTrustedFoundryParentOrigin(referrerOrigin)) return "";
+        window.sessionStorage?.setItem?.(EMBEDDED_PARENT_ORIGIN_KEY, referrerOrigin);
+        return referrerOrigin;
+    } catch (_) {
+        return "";
+    }
+}
 
-    storeToken(token);
-    params.delete("foundryJwt");
-    const nextSearch = params.toString();
-    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash || ""}`;
-    history.replaceState(null, "", nextUrl);
+function isTrustedFoundryParentOrigin(value) {
+    let url;
+    try { url = new URL(String(value || "")); }
+    catch (_) { return false; }
+    if (!["http:", "https:"].includes(url.protocol)) return false;
+    if (TRUSTED_FOUNDRY_PARENT_ORIGINS.has(url.origin)) return true;
+    const host = url.hostname.toLowerCase();
+    if (["localhost", "127.0.0.1", "[::1]", "::1"].includes(host)) return true;
+    if (/^10\./.test(host) || /^192\.168\./.test(host)) return true;
+    const match = host.match(/^172\.(\d{1,3})\./);
+    const octet = Number(match?.[1]);
+    return Number.isInteger(octet) && octet >= 16 && octet <= 31;
+}
+
+function postEmbeddedParentMessage(message) {
+    if (!isEmbeddedRuntime || !embeddedParentOrigin || window.parent === window) return false;
+    window.parent.postMessage(message, embeddedParentOrigin);
+    return true;
 }
 
 function logoutDiscord() {
@@ -2609,7 +2637,12 @@ window.CriptaApp = {
     },
     config: {
         workerOrigin: DISCORD_WORKER_URL,
-        tokenStorageKey: DISCORD_TOKEN_KEY
+        tokenStorageKey: DISCORD_TOKEN_KEY,
+        embeddedParentOrigin
+    },
+    embedded: {
+        parentOrigin: embeddedParentOrigin,
+        postMessage: postEmbeddedParentMessage
     },
     utils: {
         appendAssetVersion,
