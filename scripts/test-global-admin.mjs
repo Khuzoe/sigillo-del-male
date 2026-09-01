@@ -29,14 +29,15 @@ const env = {
   ].join(";"),
 };
 
-async function login(code, campaign = "cripta-di-sangue") {
+async function login(code, campaign = "cripta-di-sangue", origin = "") {
   const response = await worker.fetch(new Request(`https://worker.test/auth/device/login?campaign=${campaign}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(origin ? { Origin: origin } : {}) },
     body: JSON.stringify({ code, campaignId: campaign }),
   }), env, {});
   const payload = await response.json();
   assert.equal(response.status, 200, payload.error || `Login ${code} fallito`);
+  if (origin) assert.equal(response.headers.get("Access-Control-Allow-Origin"), origin);
   return payload;
 }
 
@@ -49,7 +50,37 @@ async function campaignAccess(token, campaign) {
   return payload;
 }
 
-const admin = await login("ADMIN-TEST-CODE-VERY-STRONG-2026");
+async function corsPreflight(origin) {
+  return worker.fetch(new Request("https://worker.test/auth/device/login?campaign=mago-folle", {
+    method: "OPTIONS",
+    headers: {
+      Origin: origin,
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type",
+    },
+  }), env, {});
+}
+
+for (const origin of [
+  "http://79.19.118.218:2050",
+  "http://93.44.120.17:30000",
+  "https://desktop-5bh5mve.tail197377.ts.net",
+  "https://foundry.example.test",
+]) {
+  const response = await corsPreflight(origin);
+  assert.equal(response.status, 200, `Preflight CORS rifiutato per ${origin}`);
+  assert.equal(response.headers.get("Access-Control-Allow-Origin"), origin);
+  assert.equal(response.headers.get("Vary"), "Origin");
+  assert.equal(response.headers.has("Access-Control-Allow-Credentials"), false);
+}
+
+for (const origin of ["null", "file:///foundry", "ftp://foundry.example.test"]) {
+  const response = await corsPreflight(origin);
+  assert.equal(response.status, 403, `Origin non HTTP(S) accettata: ${origin}`);
+  assert.equal(response.headers.has("Access-Control-Allow-Origin"), false);
+}
+
+const admin = await login("ADMIN-TEST-CODE-VERY-STRONG-2026", "cripta-di-sangue", "http://79.19.118.218:2050");
 assert.equal(admin.user.accountId, "admin");
 for (const campaign of ["cripta-di-sangue", "mago-folle", "oltre-il-velo", "campagna-futura"]) {
   const access = await campaignAccess(admin.token, campaign);

@@ -13,11 +13,16 @@ export default {
   async fetch(request, env, ctx) {
     try {
       const url = new URL(request.url);
-      const corsHeaders = corsHeadersFor(request);
+      const corsHeaders = isPublicMediaReadRequest(request, url)
+        ? publicMediaCorsHeaders()
+        : corsHeadersFor(request, env);
       const queryCampaignId = getCampaignIdFromUrl(url);
 
       // Preflight CORS
       if (request.method === "OPTIONS") {
+        if (request.headers.get("Origin") && !corsHeaders["Access-Control-Allow-Origin"]) {
+          return json({ ok: false, error: "Origin not allowed" }, 403, corsHeaders);
+        }
         return new Response(null, { headers: corsHeaders });
       }
 
@@ -417,11 +422,7 @@ export default {
         let token = "";
         const auth = request.headers.get("Authorization");
 
-        if (auth && auth.toLowerCase().startsWith("bearer ")) {
-          token = auth.slice(7).trim();
-        } else {
-          token = url.searchParams.get("token") || "";
-        }
+        if (auth && auth.toLowerCase().startsWith("bearer ")) token = auth.slice(7).trim();
 
         if (!token) {
           return new Response(JSON.stringify({ ok: true, user: null }), {
@@ -495,6 +496,11 @@ export default {
       // DEBUG ENV
       // =========================
       if (url.pathname === "/auth/debug" && request.method === "GET") {
+        const user = await requireUser(request, env, corsHeaders);
+        if (user instanceof Response) return user;
+        if (!isAuthenticatedGlobalAdmin(user, env)) {
+          return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
+        }
         return new Response(
           JSON.stringify({
             ok: true,
@@ -594,7 +600,7 @@ export default {
 
       // ======================================================
       // INVENTORY / CHARACTER SNAPSHOT
-      // POST protetto se INVENTORY_SYNC_SECRET e configurato.
+      // POST protetto da INVENTORY_SYNC_SECRET.
       // ======================================================
 
       // POST /api/inventory -> salva snapshot
@@ -614,6 +620,11 @@ export default {
           }
         } catch (e) {
           return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+        }
+
+        const contract = normalizeFoundrySyncContract(data?.contract);
+        if (!contract) {
+          return json({ ok: false, error: "Unsupported Foundry sync contract", code: "CONTRACT_UNSUPPORTED" }, 426, corsHeaders);
         }
 
         if (!env.SIGILLO_KV) {
@@ -1517,7 +1528,8 @@ function json(data, status = 200, corsHeaders = {}) {
 }
 
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
-const WORKER_CODE_VERSION = "2026-07-21-npc-status-none1";
+const WORKER_CODE_VERSION = "2026-08-25-dynamic-foundry-cors1";
+const FOUNDRY_SYNC_CONTRACT_VERSION = 1;
 const SYNC_BOOTSTRAP_COLLECTIONS = [
   "characters",
   "quests",
@@ -1545,6 +1557,29 @@ function sanitizeCampaignId(value) {
     .replace(/^-+|-+$/g, "");
   if (!campaignId || campaignId.length > 64) return DEFAULT_CAMPAIGN_ID;
   return campaignId;
+}
+
+function normalizeFoundrySyncContract(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const version = Math.floor(Number(value.version) || 0);
+  const generation = Math.floor(Number(value?.foundry?.generation) || 0);
+  if (value.name !== "khuzoe-wiki-sync" || version !== FOUNDRY_SYNC_CONTRACT_VERSION || generation < 14) return null;
+  return {
+    name: "khuzoe-wiki-sync",
+    version,
+    module: {
+      id: String(value?.module?.id || "").trim().slice(0, 96),
+      version: String(value?.module?.version || "").trim().slice(0, 48),
+    },
+    foundry: {
+      generation,
+      version: String(value?.foundry?.version || "").trim().slice(0, 48),
+    },
+    system: {
+      id: String(value?.system?.id || "").trim().slice(0, 96),
+      version: String(value?.system?.version || "").trim().slice(0, 48),
+    },
+  };
 }
 
 function getCampaignIdFromUrl(url) {
@@ -3397,7 +3432,23 @@ function isFoundrySyncSecretAuthorized(request, env) {
     || request.headers.get("X-Inventory-Sync-Secret")
     || ""
   ).trim();
-  return Boolean(provided && provided === expected);
+  return Boolean(provided && provided === expected && isFoundryV14Request(request));
+}
+
+function isFoundryV14Request(request) {
+  const contractVersion = Math.floor(Number(request.headers.get("X-Khuzoe-Sync-Contract")) || 0);
+  const generation = Math.floor(Number(request.headers.get("X-Khuzoe-Foundry-Generation")) || 0);
+  return contractVersion === FOUNDRY_SYNC_CONTRACT_VERSION && generation >= 14;
+}
+
+function hasMatchingFoundrySyncSecret(request, env) {
+  const expected = String(env.INVENTORY_SYNC_SECRET || "").trim();
+  const provided = String(
+    request.headers.get("X-Cripta-Inventory-Secret")
+    || request.headers.get("X-Inventory-Sync-Secret")
+    || ""
+  ).trim();
+  return Boolean(expected && provided && provided === expected);
 }
 
 async function authorizeFoundryLive(request, env, campaignId, corsHeaders = {}) {
@@ -3423,6 +3474,10 @@ async function handleFoundryLiveTicket(request, fallbackCampaignId, env, corsHea
     body = await request.json();
   } catch {
     return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders);
+  }
+  const contract = normalizeFoundrySyncContract(body?.contract);
+  if (!contract) {
+    return json({ ok: false, error: "Unsupported Foundry sync contract", code: "CONTRACT_UNSUPPORTED" }, 426, corsHeaders);
   }
   const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
   const worldId = sanitizeManagedActorId(body?.worldId || "");
@@ -6380,6 +6435,9 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
     : (existing?.runtime || {});
   return {
     schemaVersion: Math.max(1, Math.floor(Number(input.schemaVersion) || 1)),
+    contract: source === "foundry"
+      ? (normalizeFoundrySyncContract(input.contract) || existing?.contract || undefined)
+      : (existing?.contract || undefined),
     id: `${route.worldId}:${route.actorId}`,
     campaignId,
     worldId: route.worldId,
@@ -6484,6 +6542,9 @@ async function reconcileManagedActorMediaCleanup(env, campaignId, route, existin
 
 async function handleManagedActorPost(request, route, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
+  if (hasMatchingFoundrySyncSecret(request, env) && !isFoundryV14Request(request)) {
+    return json({ ok: false, error: "Unsupported Foundry sync contract", code: "CONTRACT_UNSUPPORTED" }, 426, corsHeaders);
+  }
   let body;
   try {
     body = await request.json();
@@ -6497,6 +6558,9 @@ async function handleManagedActorPost(request, route, fallbackCampaignId, env, c
   const existing = safeJsonParse(await env.SIGILLO_KV.get(key));
   const authorization = await authorizeManagedActorWrite(request, env, campaignId, corsHeaders, existing);
   if (authorization instanceof Response) return authorization;
+  if (authorization.source === "foundry" && !normalizeFoundrySyncContract(body?.contract)) {
+    return json({ ok: false, error: "Unsupported Foundry sync contract", code: "CONTRACT_UNSUPPORTED" }, 426, corsHeaders);
+  }
   if (authorization.source === "site" && !existing) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
   const expectedRevision = Number(body?.expectedRevision);
   const hasExpectedRevision = body?.expectedRevision !== undefined && body?.expectedRevision !== null && body?.expectedRevision !== "";
@@ -8066,7 +8130,9 @@ async function canAuthenticatedUserUploadMedia(user, env, campaignId, folder, fi
 }
 function requireInventorySyncSecret(request, env, corsHeaders = {}) {
   const expected = String(env.INVENTORY_SYNC_SECRET || "").trim();
-  if (!expected) return true;
+  if (!expected) {
+    return json({ ok: false, error: "Foundry sync is not configured" }, 503, corsHeaders);
+  }
 
   const provided = String(
     request.headers.get("X-Cripta-Inventory-Secret") ||
@@ -8074,6 +8140,9 @@ function requireInventorySyncSecret(request, env, corsHeaders = {}) {
     ""
   ).trim();
 
+  if (provided && provided === expected && !isFoundryV14Request(request)) {
+    return json({ ok: false, error: "Unsupported Foundry sync contract", code: "CONTRACT_UNSUPPORTED" }, 426, corsHeaders);
+  }
   if (provided && provided === expected) return true;
   return json({ ok: false, error: "Unauthorized inventory sync" }, 401, corsHeaders);
 }
@@ -8687,6 +8756,7 @@ function normalizeInventorySnapshot(input) {
     ok: true,
     data: {
       schemaVersion: Number(input.schemaVersion) || 1,
+      contract: normalizeFoundrySyncContract(input.contract) || undefined,
       moduleId: String(input.moduleId || "unknown"),
       world: normalizeInventoryRecord(input.world, 8),
       gm: normalizeInventoryRecord(input.gm, 8),
@@ -9326,18 +9396,49 @@ async function verifyJWT(secret, token) {
   }
 }
 
-/**
- * CORS SENZA VINCOLI:
- * - permette chiamate da qualunque origine
- *
- * Nota: per maggiore sicurezza, in produzione puoi sostituire "*"
- * con il dominio esatto della tua wiki.
- */
 function corsHeadersFor(request) {
+  const origin = String(request.headers.get("Origin") || "").trim();
+  const allowedOrigin = normalizeAllowedCorsOrigin(origin);
   return {
-    "Access-Control-Allow-Origin": "*",
+    ...(allowedOrigin ? { "Access-Control-Allow-Origin": allowedOrigin, "Vary": "Origin" } : {}),
     "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, Cache-Control, X-Cripta-Inventory-Secret, X-Inventory-Sync-Secret",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, Cache-Control, X-Cripta-Inventory-Secret, X-Inventory-Sync-Secret, X-Khuzoe-Sync-Contract, X-Khuzoe-Foundry-Generation",
     "Access-Control-Max-Age": "86400",
   };
+}
+
+function isPublicMediaReadRequest(request, url = new URL(request.url)) {
+  const requestedMethod = request.method === "OPTIONS"
+    ? String(request.headers.get("Access-Control-Request-Method") || "").toUpperCase()
+    : String(request.method || "GET").toUpperCase();
+  return url.pathname.startsWith("/media/") && ["GET", "HEAD"].includes(requestedMethod);
+}
+
+function publicMediaCorsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,HEAD,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Cache-Control, If-None-Match, Range",
+    "Access-Control-Max-Age": "86400",
+    "Cross-Origin-Resource-Policy": "cross-origin",
+  };
+}
+
+function normalizeAllowedCorsOrigin(origin) {
+  origin = String(origin || "").trim();
+  if (!origin) return "";
+  let url;
+  try { url = new URL(origin); }
+  catch (_) { return ""; }
+
+  // Foundry can legitimately be reached through a changing public IP, a
+  // private address, Tailscale, or a stable hostname. CORS is therefore an
+  // interoperability boundary here, not an authentication boundary: private
+  // routes remain protected by explicit Bearer JWTs or sync secrets.
+  if (!["http:", "https:"].includes(url.protocol)) return "";
+  if (!url.hostname || url.origin === "null" || url.username || url.password) return "";
+
+  // Echo only the normalized origin. Do not enable Access-Control-Allow-Credentials:
+  // the Foundry client authenticates explicitly with its Bearer token.
+  return url.origin;
 }

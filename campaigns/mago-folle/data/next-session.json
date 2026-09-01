@@ -47,6 +47,11 @@
       "yes": "media/ui/mago-folle/dm-folle_yes.webp",
       "maybe": "media/ui/mago-folle/dm-folle_maybe.webp",
       "no": "media/ui/mago-folle/dm-folle_no.webp"
+    },
+    "va-lariel": {
+      "yes": "media/ui/mago-folle/valariel_yes.webp",
+      "maybe": "media/ui/mago-folle/valariel_maybe.webp",
+      "no": "media/ui/mago-folle/valariel_no.webp"
     }
   }
 }

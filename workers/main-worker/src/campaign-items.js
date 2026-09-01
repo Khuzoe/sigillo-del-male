@@ -1,6 +1,7 @@
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
 const MAX_BATCH_ITEMS = 64;
 const MAX_BODY_BYTES = 1024 * 1024;
+const FOUNDRY_SYNC_CONTRACT_VERSION = 1;
 const CAMPAIGN_ITEM_FAMILIES = new Set(["weapon", "armor", "consumable", "equipment", "tool", "material", "loot", "container"]);
 const ARMOR_SUBTYPES = new Set(["light", "medium", "heavy", "natural", "shield"]);
 const LEGACY_ITEM_CLASSIFICATIONS = {
@@ -154,6 +155,11 @@ export async function handleCampaignItemFoundrySync(request, fallbackCampaignId,
   try { body = rawText ? JSON.parse(rawText) : {}; }
   catch (_) { return json({ ok: false, error: "Invalid JSON body" }, 400, corsHeaders); }
 
+  const contract = normalizeFoundrySyncContract(body?.contract);
+  if (!contract) {
+    return json({ ok: false, error: "Unsupported Foundry sync contract", code: "CONTRACT_UNSUPPORTED" }, 426, corsHeaders);
+  }
+
   const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
   const worldId = sanitizeId(body?.worldId);
   if (!worldId) return json({ ok: false, error: "Missing worldId" }, 400, corsHeaders);
@@ -250,6 +256,7 @@ export async function handleCampaignItemFoundrySync(request, fallbackCampaignId,
       folderPath: document.folderPath,
       document: document.document,
       hash: foundryHash,
+      ...((contract || previous?.foundry?.contract) ? { contract: contract || previous.foundry.contract } : {}),
       updatedAt: now,
     };
     next.sync = {
@@ -285,7 +292,30 @@ export async function handleCampaignItemFoundrySync(request, fallbackCampaignId,
     }));
   }
 
-  return json({ ok: true, campaignId, worldId, saved: changed, version, updatedAt, results }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
+  return json({ ok: true, campaignId, worldId, saved: changed, version, updatedAt, contract, results }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
+}
+
+function normalizeFoundrySyncContract(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const version = Math.floor(Number(value.version) || 0);
+  const generation = Math.floor(Number(value?.foundry?.generation) || 0);
+  if (value.name !== "khuzoe-wiki-sync" || version !== FOUNDRY_SYNC_CONTRACT_VERSION || generation < 14) return null;
+  return {
+    name: "khuzoe-wiki-sync",
+    version,
+    module: {
+      id: String(value?.module?.id || "").trim().slice(0, 96),
+      version: String(value?.module?.version || "").trim().slice(0, 48),
+    },
+    foundry: {
+      generation,
+      version: String(value?.foundry?.version || "").trim().slice(0, 48),
+    },
+    system: {
+      id: String(value?.system?.id || "").trim().slice(0, 96),
+      version: String(value?.system?.version || "").trim().slice(0, 48),
+    },
+  };
 }
 
 export function normalizeFoundrySnapshot(input, worldId, campaignId) {
@@ -326,6 +356,7 @@ function normalizeSiteFoundryState(input, previous) {
       ? source.document
       : previous?.document,
     hash: String(previous?.hash || source.hash || "").trim().slice(0, 128),
+    contract: normalizeFoundrySyncContract(previous?.contract || source.contract) || undefined,
     updatedAt: previous?.updatedAt || source.updatedAt || null,
   };
   return result.document ? result : null;

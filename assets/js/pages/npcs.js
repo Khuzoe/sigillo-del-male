@@ -172,10 +172,11 @@ function parseYamlLite(yamlText) {
                     categoryRegistry,
                     basePath: base_path,
                     canEdit: currentUserIsDm,
+                    sortMode: readNpcRosterSortMode(),
                     render: null
                 };
                 const renderRoster = () => {
-                    renderNpcGroups(npcListContainer, rosterState.npcs, rosterState.basePath, currentUserIsDm);
+                    renderNpcDirectory(npcListContainer, rosterState.npcs, rosterState.basePath, currentUserIsDm, rosterState.sortMode);
                     window.CriptaRosterMedia?.init(npcListContainer);
                     initNpcCategoryDragAndDrop(npcListContainer, rosterState);
                     refreshRosterFilters();
@@ -184,7 +185,12 @@ function parseYamlLite(yamlText) {
                 renderRoster();
                 refreshRosterFilters = initNpcRosterControls(npcListContainer, {
                     entries: rosterState.npcs,
-                    canEdit: currentUserIsDm
+                    canEdit: currentUserIsDm,
+                    sortMode: rosterState.sortMode,
+                    onSortModeChange: (sortMode) => {
+                        rosterState.sortMode = sortMode;
+                        rosterState.render?.();
+                    }
                 }) || (() => {});
                 refreshRosterFilters();
                 if (currentUserIsDm) setupManagedNpcCreateWizard({ managedState, categoryRegistry, rosterState });
@@ -557,6 +563,60 @@ function parseYamlLite(yamlText) {
             return ordered;
         }
 
+        function normalizeNpcRosterSortMode(value) {
+            return value === 'updated' ? 'updated' : 'categories';
+        }
+
+        function npcRosterSortStorageKey() {
+            const campaignId = window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
+            return `npc-roster-sort:${campaignId}`;
+        }
+
+        function readNpcRosterSortMode() {
+            try {
+                return normalizeNpcRosterSortMode(window.localStorage.getItem(npcRosterSortStorageKey()));
+            } catch (_) {
+                return 'categories';
+            }
+        }
+
+        function writeNpcRosterSortMode(value) {
+            const normalized = normalizeNpcRosterSortMode(value);
+            try {
+                window.localStorage.setItem(npcRosterSortStorageKey(), normalized);
+            } catch (_) {
+                // La selezione resta valida per la pagina corrente anche senza storage.
+            }
+            return normalized;
+        }
+
+        function npcUpdatedAtTimestamp(value) {
+            const timestamp = Date.parse(String(value || ''));
+            return Number.isFinite(timestamp) ? timestamp : 0;
+        }
+
+        function sortNpcsByUpdatedAt(npcs) {
+            return [...(Array.isArray(npcs) ? npcs : [])].sort((left, right) => {
+                const updatedDifference = npcUpdatedAtTimestamp(right?.updatedAt) - npcUpdatedAtTimestamp(left?.updatedAt);
+                if (updatedDifference) return updatedDifference;
+                return String(left?.name || left?.id || '').localeCompare(String(right?.name || right?.id || ''), 'it');
+            });
+        }
+
+        function formatNpcUpdatedAt(value) {
+            const timestamp = npcUpdatedAtTimestamp(value);
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            const currentYear = new Date().getFullYear();
+            return new Intl.DateTimeFormat('it-IT', {
+                day: '2-digit',
+                month: 'short',
+                ...(date.getFullYear() === currentYear ? {} : { year: 'numeric' }),
+                hour: '2-digit',
+                minute: '2-digit'
+            }).format(date);
+        }
+
         async function loadNpcData(base_path) {
             const liveCharacters = await loadCharactersCollection();
             if (Array.isArray(liveCharacters)) {
@@ -653,6 +713,27 @@ function parseYamlLite(yamlText) {
                 ordered.push({ ...category, parentName: byId.get(category.parentId)?.name || '' });
             });
             return ordered;
+        }
+
+        function renderNpcDirectory(container, npcs, base_path, canShare = false, sortMode = 'categories') {
+            const normalizedSortMode = normalizeNpcRosterSortMode(sortMode);
+            container.dataset.npcSortMode = normalizedSortMode;
+            if (normalizedSortMode === 'updated') {
+                renderNpcUpdatedList(container, npcs, base_path, canShare);
+                return;
+            }
+            renderNpcGroups(container, npcs, base_path, canShare);
+        }
+
+        function renderNpcUpdatedList(container, npcs, base_path, canShare = false) {
+            container.innerHTML = '';
+            const cards = document.createElement('div');
+            cards.className = 'npc-updated-list';
+            sortNpcsByUpdatedAt(npcs).forEach((npc) => {
+                cards.appendChild(createNpcCard(npc, base_path, canShare, { showUpdatedAt: true }));
+            });
+            container.appendChild(cards);
+            window.CriptaImageAdjust?.initFrameCircleImages?.(container);
         }
 
         function renderNpcGroups(container, npcs, base_path, canShare = false) {
@@ -909,13 +990,22 @@ function parseYamlLite(yamlText) {
             const search = document.getElementById('npc-search');
             const npcFilters = document.getElementById('npc-status-filters');
             const typeFilters = document.getElementById('npc-type-filters');
+            const sortSwitch = document.querySelector('[data-npc-sort-switch]');
             const archiveToggle = typeFilters?.querySelector('[data-roster-archive-toggle]');
             const archiveCount = archiveToggle?.querySelector('[data-roster-archive-count]');
             const count = document.getElementById('npc-count');
             const empty = document.getElementById('npc-filter-empty');
             const createAction = document.querySelector('[data-npc-create-link]');
-            const state = { query: '', npcStatus: 'all', type: 'person', showArchived: false };
+            const state = { query: '', npcStatus: 'all', type: 'person', showArchived: false, sortMode: normalizeNpcRosterSortMode(options.sortMode) };
             if (archiveToggle) archiveToggle.hidden = options.canEdit !== true;
+
+            const syncSortSwitch = () => {
+                sortSwitch?.querySelectorAll('[data-npc-sort]').forEach((button) => {
+                    const active = normalizeNpcRosterSortMode(button.dataset.npcSort) === state.sortMode;
+                    button.classList.toggle('is-active', active);
+                    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+            };
 
             const apply = () => {
                 const query = normalizeRosterSearch(state.query);
@@ -992,6 +1082,15 @@ function parseYamlLite(yamlText) {
             };
 
             search?.addEventListener('input', (event) => { state.query = event.target.value; apply(); });
+            sortSwitch?.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-npc-sort]');
+                if (!button) return;
+                const sortMode = normalizeNpcRosterSortMode(button.dataset.npcSort);
+                if (sortMode === state.sortMode) return;
+                state.sortMode = writeNpcRosterSortMode(sortMode);
+                syncSortSwitch();
+                options.onSortModeChange?.(state.sortMode);
+            });
             npcFilters?.addEventListener('click', (event) => {
                 const button = event.target.closest('[data-roster-filter]');
                 if (!button) return;
@@ -1021,10 +1120,11 @@ function parseYamlLite(yamlText) {
                 }
                 if (typeButton || archiveButton) apply();
             });
+            syncSortSwitch();
             apply();
             return apply;
         }
-        function createNpcCard(npc, base_path, canShare = false) {
+        function createNpcCard(npc, base_path, canShare = false, options = {}) {
             const statusMap = {
                 vivo: { text: 'VIVO', class: 'status-vivo' },
                 morto: { text: 'MORTO', class: 'status-morto' },
@@ -1036,6 +1136,10 @@ function parseYamlLite(yamlText) {
             const roleLabel = npc.kind === 'creature' && (!npc.role || String(npc.role).trim().toLowerCase() === 'npc')
                 ? ''
                 : (npc.role || 'NPC');
+            const updatedAtLabel = options.showUpdatedAt ? formatNpcUpdatedAt(npc.updatedAt) : '';
+            const categoryLabel = options.showUpdatedAt
+                ? [npc.categoryParent, npc.category].map((value) => String(value || '').trim()).filter((value, index, values) => value && values.indexOf(value) === index).join(' / ')
+                : '';
 
             const card = document.createElement('a');
             card.href = npc.pendingCreate ? '#' : (npc.detailUrl || npc.managedActorUrl || buildNpcDetailUrl({ id: npc.id, type: 'npc' }));
@@ -1051,6 +1155,7 @@ function parseYamlLite(yamlText) {
             card.dataset.managedActorWorld = String(npc.managedActorWorldId || '');
             card.dataset.managedActorId = String(npc.managedActorId || '');
             card.dataset.npcCategoryId = String(npc.categoryId || '');
+            card.dataset.rosterUpdatedAt = String(npc.updatedAt || '');
             const hiddenFromPlayers = npc.hidden === true || npc.status === 'hidden';
             if (hiddenFromPlayers) card.classList.add('npc-card--dm-hidden');
             if (npc.archived) card.classList.add('npc-card--archived');
@@ -1093,6 +1198,7 @@ function parseYamlLite(yamlText) {
                         <h3 class="npc-name">${escapeNpcAttribute(npc.name)}</h3>
                         ${roleLabel ? `<span class="npc-role">${escapeNpcAttribute(roleLabel)}</span>` : ''}
                         <span class="npc-kind-badge"><i class="fas ${npc.kind === 'creature' ? 'fa-dragon' : 'fa-user'}"></i>${npc.kind === 'creature' ? 'Creatura' : 'Personaggio'}</span>
+                        ${options.showUpdatedAt ? `<span class="npc-updated-meta">${categoryLabel ? `<span><i class="fas fa-folder" aria-hidden="true"></i>${escapeNpcAttribute(categoryLabel)}</span>` : ''}${updatedAtLabel ? `<time datetime="${escapeNpcAttribute(npc.updatedAt)}" title="Ultima modifica: ${escapeNpcAttribute(updatedAtLabel)}"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i>${escapeNpcAttribute(updatedAtLabel)}</time>` : '<span><i class="fas fa-clock" aria-hidden="true"></i>Data non disponibile</span>'}</span>` : ''}
                     </div>
                     <p class="npc-desc">${escapeNpcAttribute(npc.quote || '')}</p>
                 </div>

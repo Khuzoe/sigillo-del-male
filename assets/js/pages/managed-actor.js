@@ -2472,23 +2472,85 @@
             .trim();
     }
 
-    function summarizeManagedRawDamage(part, entry, activity, role) {
-        if (Array.isArray(part)) {
-            const formula = resolveManagedRawFormula(part[0], entry, activity);
-            return formula ? { formula, types: managedRawCollectionValues(part[1]).map(String).filter(Boolean), role } : null;
-        }
-        if (!part || typeof part !== "object") return null;
+    function managedRawDamageSourceFormula(part) {
+        if (Array.isArray(part)) return String(part[0] || "").trim();
+        if (!part || typeof part !== "object") return "";
         const customFormula = part.custom?.enabled ? part.custom?.formula : "";
         let formula = String(customFormula || part.formula || "").trim();
-        if (!formula) {
-            const number = part.number ?? part.dice?.number;
-            const denomination = part.denomination ?? part.dice?.denomination;
-            const bonus = String(part.bonus ?? "").trim();
-            const dice = number && denomination ? `${number}d${denomination}` : "";
-            formula = dice && bonus ? `${dice}${bonus.startsWith("-") ? " " : " + "}${bonus}` : (dice || bonus);
+        if (formula) return formula;
+        const number = part.number ?? part.dice?.number;
+        const denomination = part.denomination ?? part.dice?.denomination;
+        const bonus = String(part.bonus ?? "").trim();
+        const dice = number && denomination ? `${number}d${denomination}` : "";
+        return dice && bonus ? `${dice}${bonus.startsWith("-") ? " " : " + "}${bonus}` : (dice || bonus);
+    }
+
+    function getManagedDamageAbilityKey(entry, activity = {}) {
+        let ability = String(activity?.attack?.ability || entry?.definition?.attack?.ability || entry?.definition?.ability || "").trim().toLowerCase();
+        if (ability === "spellcasting") ability = String(currentDocument?.definition?.attributes?.spellcasting || "").trim().toLowerCase();
+        return ["str", "dex", "con", "int", "wis", "cha"].includes(ability) ? ability : "";
+    }
+
+    function getManagedDamageActionType(entry, activity = {}) {
+        const explicit = String(activity?.actionType || activity?.attack?.actionType || entry?.definition?.actionType || "").trim().toLowerCase();
+        if (/^[mr][ws]ak$/.test(explicit)) return explicit;
+        const attackType = String(activity?.attack?.type?.value || activity?.attack?.type || "").trim().toLowerCase();
+        if (!['melee', 'ranged'].includes(attackType)) return "";
+        const classification = String(activity?.attack?.type?.classification || "").trim().toLowerCase();
+        const spellAttack = classification === "spell" || String(entry?.type || "").toLowerCase() === "spell";
+        return `${attackType === "ranged" ? "r" : "m"}${spellAttack ? "s" : "w"}ak`;
+    }
+
+    function managedAppendDamageFormula(formula, additions = []) {
+        let result = String(formula || "").trim();
+        additions.map((value) => String(value || "").trim()).filter(Boolean).forEach((value) => {
+            if (/^[+]?0(?:\.0+)?$/.test(value)) return;
+            if (value.startsWith("-")) result = `${result} - ${value.slice(1).trim()}`;
+            else result = `${result} + ${value.replace(/^\+\s*/, "")}`;
+        });
+        return result.replace(/\s+/g, " ").trim();
+    }
+
+    function getManagedFallbackDamageAdditions(part, entry, activity, role, sourceFormula) {
+        if (role !== "primary") return [];
+        const additions = [];
+        const modernPart = part && typeof part === "object" && !Array.isArray(part);
+        const itemType = String(entry?.type || "").trim().toLowerCase();
+        const activityType = String(activity?.type || "").trim().toLowerCase();
+        const actionType = getManagedDamageActionType(entry, activity);
+        const ability = getManagedDamageAbilityKey(entry, activity);
+        const abilityMod = Number(currentDocument?.definition?.abilities?.[ability]?.mod);
+        const attackMode = String(activity?.attackMode || activity?.attack?.mode || "").trim().toLowerCase();
+        const attackClassification = String(activity?.attack?.type?.classification || "").trim().toLowerCase();
+        const weaponType = String(entry?.definition?.type?.value || entry?.definition?.type || "").trim().toLowerCase();
+        const naturalSpellAttack = attackClassification === "spell" && weaponType === "natural";
+        const deterministic = !/(?:\d+)?d\d+/i.test(String(sourceFormula || ""));
+        const alreadyHasMod = /@mod\b/i.test(String(sourceFormula || ""));
+        const offhand = attackMode.endsWith("offhand");
+        if (modernPart && itemType === "weapon" && activityType === "attack" && ability && Number.isFinite(abilityMod)
+            && !deterministic && !alreadyHasMod && (!offhand || abilityMod < 0) && !naturalSpellAttack) {
+            additions.push(String(abilityMod));
         }
-        formula = resolveManagedRawFormula(formula, entry, activity);
-        const types = managedRawCollectionValues(part.types ?? part.type).map(String).filter(Boolean);
+
+        const actorBonus = actionType ? currentDocument?.definition?.bonuses?.[actionType]?.damage : "";
+        const itemBonus = entry?.definition?.damageBonus;
+        const magicalBonus = itemType === "weapon" && entry?.definition?.magicAvailable === true
+            ? entry?.definition?.magicalBonus
+            : "";
+        [actorBonus, itemBonus, magicalBonus].forEach((value) => {
+            const resolved = resolveManagedRawFormula(value, entry, activity);
+            if (resolved) additions.push(resolved);
+        });
+        return additions;
+    }
+
+    function summarizeManagedRawDamage(part, entry, activity, role) {
+        if (!part || (typeof part !== "object" && !Array.isArray(part))) return null;
+        const sourceFormula = managedRawDamageSourceFormula(part);
+        let formula = resolveManagedRawFormula(sourceFormula, entry, activity);
+        if (formula) formula = managedAppendDamageFormula(formula, getManagedFallbackDamageAdditions(part, entry, activity, role, sourceFormula));
+        const rawTypes = Array.isArray(part) ? part[1] : (part.types ?? part.type);
+        const types = managedRawCollectionValues(rawTypes).map(String).filter(Boolean);
         return formula ? { formula, types, role } : null;
     }
 
@@ -2530,6 +2592,26 @@
             if (base) fallbackDamage.push(base);
         }
         return fallbackDamage.length ? [{ id: "base", name: String(entry?.name || "Attività"), damage: fallbackDamage, save: null }] : [];
+    }
+
+    function getManagedEffectiveRollActivities(entry) {
+        const effectiveRolls = entry?.definition?.effectiveRolls && typeof entry.definition.effectiveRolls === "object"
+            ? entry.definition.effectiveRolls
+            : {};
+        const exported = Array.isArray(effectiveRolls.activities) ? effectiveRolls.activities : [];
+        const fallback = buildManagedEffectiveRollFallback(entry);
+        if (!exported.length) return fallback;
+        if (Number(effectiveRolls.formulaVersion || 0) >= 2) return exported;
+        const fallbackById = new Map(fallback.map((activity) => [String(activity?.id || ""), activity]));
+        return exported.map((activity, index) => {
+            const replacement = fallbackById.get(String(activity?.id || "")) || fallback[index] || null;
+            if (!replacement) return activity;
+            return {
+                ...activity,
+                damage: Array.isArray(replacement.damage) && replacement.damage.length ? replacement.damage : activity.damage,
+                save: activity.save || replacement.save || null
+            };
+        });
     }
 
     function calculateManagedDamageAverage(formula) {
@@ -2743,10 +2825,7 @@
     }
 
     function renderManagedEffectiveRolls(entry) {
-        const exportedActivities = Array.isArray(entry?.definition?.effectiveRolls?.activities)
-            ? entry.definition.effectiveRolls.activities
-            : [];
-        const activities = exportedActivities.length ? exportedActivities : buildManagedEffectiveRollFallback(entry);
+        const activities = getManagedEffectiveRollActivities(entry);
         const useful = activities.filter((activity) => (Array.isArray(activity?.damage) && activity.damage.length) || Number(activity?.save?.dc) > 0);
         if (!useful.length) return "";
         const showNames = useful.length > 1;

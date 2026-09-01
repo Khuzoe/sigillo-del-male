@@ -70,8 +70,16 @@ function zipStage() {
     cwd: STAGE_DIR,
     stdio: "inherit"
   });
-  if (result.status !== 0) {
-    throw new Error(`Compress-Archive fallito con codice ${result.status}`);
+  if (result.status === 0) return;
+
+  console.warn("Compress-Archive non disponibile; uso tar.exe come fallback ZIP.");
+  const entries = fs.readdirSync(STAGE_DIR);
+  const fallback = spawnSync("tar.exe", ["-a", "-c", "-f", ZIP_PATH, ...entries], {
+    cwd: STAGE_DIR,
+    stdio: "inherit"
+  });
+  if (fallback.status !== 0) {
+    throw new Error(`Creazione ZIP fallita: Compress-Archive ${result.status}, tar.exe ${fallback.status}`);
   }
 }
 

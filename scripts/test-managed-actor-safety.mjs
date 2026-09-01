@@ -49,6 +49,15 @@ const ctx = { waitUntil(promise) { waits.push(Promise.resolve(promise)); } };
 const headers = {
   "Content-Type": "application/json",
   "X-Cripta-Inventory-Secret": secret,
+  "X-Khuzoe-Sync-Contract": "1",
+  "X-Khuzoe-Foundry-Generation": "14",
+};
+const contract = {
+  name: "khuzoe-wiki-sync",
+  version: 1,
+  module: { id: "cripta-wiki-sync", version: "0.9.0" },
+  foundry: { generation: 14, version: "14.367" },
+  system: { id: "dnd5e", version: "5.3.3" },
 };
 
 function media(path, revision = 1) {
@@ -59,7 +68,7 @@ async function post(body) {
   const response = await worker.fetch(new Request(baseUrl, {
     method: "POST",
     headers,
-    body: JSON.stringify({ campaignId, ...body }),
+    body: JSON.stringify({ campaignId, contract, ...body }),
   }), env, ctx);
   const payload = await response.json();
   return { response, payload };
@@ -1565,6 +1574,69 @@ assert.ok(managedRawActivityBlock, "la risoluzione delle attivita Foundry deve e
 const getManagedRawActivity = new Function(`${managedRawActivityBlock}\nreturn getManagedRawActivity;`)();
 const nestedFoundryActivity = { _id: "BNwVlKgdqBCg74h7", damage: { includeBase: true } };
 assert.equal(getManagedRawActivity({ definition: { activities: { 0: nestedFoundryActivity } } }, "BNwVlKgdqBCg74h7"), nestedFoundryActivity, "un'attivita moderna indicizzata numericamente deve essere ritrovata tramite il proprio id Foundry");
+const managedFallbackDamageBlock = managedActorFeSource.match(/function managedRawDamageSourceFormula[\s\S]+?(?=\r?\n    function buildManagedEffectiveRollFallback)/)?.[0] || "";
+assert.ok(managedFallbackDamageBlock, "il calcolo FE dei modificatori impliciti deve essere testabile");
+const fallbackDamageDocument = {
+  definition: {
+    abilities: { str: { mod: 5 } },
+    attributes: { spellcasting: "int" },
+    bonuses: { mwak: { damage: "" }, rwak: {}, msak: {}, rsak: {} },
+  },
+};
+const fallbackDamageHelpers = new Function(
+  "currentDocument",
+  "managedRawCollectionValues",
+  "resolveManagedRawFormula",
+  `${managedFallbackDamageBlock}\nreturn { summarizeManagedRawDamage, managedAppendDamageFormula };`,
+)(
+  fallbackDamageDocument,
+  (value) => Array.isArray(value) ? value : value == null || value === "" ? [] : [value],
+  (value, entry, activity = {}) => {
+    const ability = String(activity?.attack?.ability || entry?.definition?.attack?.ability || "").toLowerCase();
+    const mod = Number(fallbackDamageDocument.definition.abilities?.[ability]?.mod || 0);
+    return String(value || "").replace(/@mod\b/g, String(mod)).trim();
+  },
+);
+const toncaWeapon = { type: "weapon", definition: { type: { value: "natural" } } };
+const toncaMeleeAttack = { type: "attack", attack: { type: { value: "melee" }, ability: "str" }, attackMode: "oneHanded" };
+assert.equal(
+  fallbackDamageHelpers.summarizeManagedRawDamage({ number: 4, denomination: 6, types: ["slashing"] }, toncaWeapon, toncaMeleeAttack, "primary").formula,
+  "4d6 + 5",
+  "un'arma v14 deve aggiungere il modificatore implicito di Forza al danno primario",
+);
+assert.equal(
+  fallbackDamageHelpers.summarizeManagedRawDamage({ number: 4, denomination: 6, bonus: "@mod", types: ["slashing"] }, toncaWeapon, toncaMeleeAttack, "primary").formula,
+  "4d6 + 5",
+  "un @mod gia presente non deve essere sommato due volte",
+);
+assert.equal(
+  fallbackDamageHelpers.summarizeManagedRawDamage({ number: 2, denomination: 6, types: ["fire"] }, toncaWeapon, toncaMeleeAttack, "secondary").formula,
+  "2d6",
+  "il modificatore implicito non deve contaminare i danni secondari",
+);
+assert.equal(
+  fallbackDamageHelpers.summarizeManagedRawDamage({ custom: { enabled: true, formula: "12" }, types: ["force"] }, toncaWeapon, toncaMeleeAttack, "primary").formula,
+  "12",
+  "un danno fisso non deve ricevere il modificatore di caratteristica",
+);
+assert.equal(
+  fallbackDamageHelpers.summarizeManagedRawDamage({ number: 4, denomination: 6, types: ["slashing"] }, toncaWeapon, { ...toncaMeleeAttack, attackMode: "offhand" }, "primary").formula,
+  "4d6",
+  "una mano secondaria con modificatore positivo deve seguire l'esclusione di D&D5e",
+);
+fallbackDamageDocument.definition.bonuses.mwak.damage = "+2";
+toncaWeapon.definition.damageBonus = "1d4";
+toncaWeapon.definition.magicAvailable = true;
+toncaWeapon.definition.magicalBonus = "+1";
+assert.equal(
+  fallbackDamageHelpers.summarizeManagedRawDamage({ number: 4, denomination: 6, types: ["slashing"] }, toncaWeapon, toncaMeleeAttack, "primary").formula,
+  "4d6 + 5 + 2 + 1d4 + 1",
+  "bonus globale, bonus elemento e bonus magico devono completare il danno primario",
+);
+assert.match(moduleSyncSource, /activity\.getDamageConfig\(\)/, "l'export Foundry deve usare il calcolo danni preparato nativo di D&D5e v14");
+assert.match(moduleSyncSource, /formulaVersion:\s*2/, "il nuovo riepilogo danni deve essere distinguibile dai documenti precedenti");
+assert.match(managedActorFeSource, /getManagedEffectiveRollActivities/, "il FE deve correggere anche i documenti sincronizzati prima del nuovo formato");
+assert.match(managedActorFeSource, /effectiveRolls\.formulaVersion/, "il FE deve fidarsi dei modificatori gia risolti dal nuovo export");
 const managedAttackFactBlock = managedActorFeSource.match(/function getManagedActivityAttackFact[\s\S]+?(?=\r?\n    function getManagedActivityRangeFact)/)?.[0] || "";
 assert.ok(managedAttackFactBlock, "il tiro per colpire strutturato deve essere testabile");
 const getManagedActivityAttackFact = new Function("currentDocument", "resolveManagedRawFormula", "formatSigned", `${managedAttackFactBlock}\nreturn getManagedActivityAttackFact;`)(

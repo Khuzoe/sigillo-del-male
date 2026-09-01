@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
     <link rel="stylesheet" href="../assets/css/pages/managed-actors.css?v=20260713-frame-circle2" data-page-style>
-    <link rel="stylesheet" href="../assets/css/pages/roster-modern.css?v=20260805-npc-sections1" data-page-style>
+    <link rel="stylesheet" href="../assets/css/pages/roster-modern.css?v=20260831-npc-updated-sort1" data-page-style>
     <link rel="stylesheet" href="../assets/css/pages/npc-categories.css?v=20260805-npc-sections1" data-page-style>
     <link rel="stylesheet" href="../assets/css/components/discord-share.css?v=20260715-discord-share3">
     <link rel="stylesheet" href="../assets/css/components/archive-hero.css?v=20260719-archive-hero2">
@@ -48,8 +48,12 @@
                         <button class="roster-filter" type="button" data-roster-filter="ignoto" aria-pressed="false"><i class="fas fa-circle-question"></i>Ignoti</button>
                         <button class="roster-filter" type="button" data-roster-filter="morto" aria-pressed="false"><i class="fas fa-skull"></i>Morti</button>
                     </div>
+                    <div class="npc-sort-switch" data-npc-sort-switch role="group" aria-label="Ordina l'elenco NPC">
+                        <button class="is-active" type="button" data-npc-sort="categories" aria-pressed="true"><i class="fas fa-folder-tree" aria-hidden="true"></i><span>Categorie</span></button>
+                        <button type="button" data-npc-sort="updated" aria-pressed="false"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i><span>Ultima modifica</span></button>
+                    </div>
                     <button class="roster-secondary-action" type="button" data-npc-category-manager hidden>
-                        <i class="fas fa-folder-tree" aria-hidden="true"></i><span>Categorie</span>
+                        <i class="fas fa-sliders" aria-hidden="true"></i><span>Gestisci categorie</span>
                     </button>
                     <button class="roster-primary-action" type="button" data-npc-create-link data-requires-dm hidden>
                         <i class="fas fa-plus" aria-hidden="true"></i><span>Nuovo NPC</span>
@@ -96,6 +100,6 @@
     <script src="../assets/js/shared/npc-categories.js?v=20260805-npc-sections1"></script>
     <script src="../assets/js/pages/npc-category-manager.js?v=20260805-npc-sections1"></script>
     <script src="../assets/js/shared/discord-share.js?v=20260718-discord-image1"></script>
-    <script src="../assets/js/pages/npcs.js?v=20260805-npc-sections1"></script>
+    <script src="../assets/js/pages/npcs.js?v=20260831-npc-updated-sort1"></script>
 </body>
 </html>

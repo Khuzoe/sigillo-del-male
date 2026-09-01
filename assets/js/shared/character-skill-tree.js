@@ -2319,7 +2319,7 @@ async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, leve
     skillTreeStatesVersion = Number(result?.version || skillTreeStatesVersion || 0);
     skillTreeStatesMemoryCache = nextStates;
     updateRuntimeSkillTreeStates(nextStates, skillTreeStatesVersion);
-    window.parent?.postMessage?.({
+    window.CriptaApp?.embedded?.postMessage?.({
         type: 'cripta-skill-tree-state-updated',
         campaignId: getCurrentCampaignId(),
         characterId: subject.characterId,
@@ -2327,7 +2327,7 @@ async function saveCharacterSkillTreeState(character, treeKey, unlockedIds, leve
         shared: subject.shared,
         unlocked: nextRecord.unlocked,
         externalProgress: nextRecord.externalProgress
-    }, '*');
+    });
     return result;
 }
 

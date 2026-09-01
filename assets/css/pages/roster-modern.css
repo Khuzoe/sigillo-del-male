@@ -944,8 +944,76 @@ body.sidebar-collapsed .roster-page .npc-category-drop-dock {
 
 /* Unified NPC and bestiary archive */
 .roster-tools--archive {
-    grid-template-columns: minmax(260px, 1fr) auto auto auto;
+    grid-template-columns: minmax(260px, 1fr) auto auto auto auto;
 }
+
+.npc-sort-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: .18rem;
+    min-height: 46px;
+    padding: .24rem;
+    border: 1px solid rgba(223, 195, 111, .14);
+    border-radius: 13px;
+    background: rgba(4, 4, 7, .6);
+    box-shadow: inset 0 1px rgba(255, 255, 255, .02);
+}
+
+.npc-sort-switch button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .38rem;
+    min-height: 36px;
+    padding: 0 .62rem;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: rgba(225, 213, 188, .48);
+    font: 750 .56rem var(--font-ui);
+    cursor: pointer;
+    transition: color .16s ease, border-color .16s ease, background .16s ease, transform .16s ease;
+}
+
+.npc-sort-switch button:hover {
+    transform: translateY(-1px);
+    color: var(--roster-ink);
+    background: rgba(255, 255, 255, .025);
+}
+
+.npc-sort-switch button.is-active {
+    border-color: rgba(223, 195, 111, .28);
+    background: rgba(223, 195, 111, .09);
+    color: var(--roster-gold-bright);
+}
+
+.npc-sort-switch button.is-active i { color: var(--roster-gold); }
+
+.roster-page .npc-updated-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .85rem;
+    align-items: stretch;
+}
+
+.roster-page .npc-updated-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .36rem .68rem;
+    color: rgba(225, 213, 188, .43);
+    font: 680 .52rem var(--font-ui);
+    letter-spacing: .025em;
+}
+
+.roster-page .npc-updated-meta > span,
+.roster-page .npc-updated-meta time {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+}
+
+.roster-page .npc-updated-meta i { color: rgba(223, 195, 111, .65); }
 
 .roster-scope-switch {
     grid-column: 1 / -1;
@@ -1086,10 +1154,13 @@ body.sidebar-collapsed .roster-page .npc-category-drop-dock {
 
 @media (max-width: 1220px) {
     .roster-tools--archive { grid-template-columns: minmax(220px, 1fr) auto; }
+    .roster-page .npc-updated-list { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 840px) {
     .roster-tools--archive { grid-template-columns: 1fr; }
+    .npc-sort-switch { width: 100%; }
+    .npc-sort-switch button { flex: 1 1 0; }
     .roster-scope-option { min-height: 44px; padding: 0 .55rem; }
 }
 
