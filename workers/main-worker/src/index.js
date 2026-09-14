@@ -514,7 +514,7 @@ export default {
               NOTES_ADMIN_DISCORD_IDS: !!env.NOTES_ADMIN_DISCORD_IDS,
               GLOBAL_ADMIN_ACCOUNTS: !!(env.GLOBAL_ADMIN_ACCOUNT_IDS || env.GLOBAL_ADMIN_DISCORD_IDS || env.DATA_ADMIN_ACCOUNT_IDS || env.SITE_ADMIN_ACCOUNT_IDS),
               GLOBAL_ADMIN_DEVICE_CODE: !!env.GLOBAL_ADMIN_DEVICE_CODE,
-              DEVICE_LOGIN_CODES: !!(env.DEVICE_LOGIN_CODES_SECRET || env.DEVICE_LOGIN_CODES),
+              DEVICE_LOGIN_CODES: !!(env.DEVICE_LOGIN_CODES_SECRET || env.DEVICE_LOGIN_CODES || env.DEVICE_LOGIN_CODES_EXTRA_SECRET),
             },
             values: {
               DISCORD_REDIRECT_URI: env.DISCORD_REDIRECT_URI || null,
@@ -9010,6 +9010,18 @@ function getAuthenticatedDiscordId(user) {
   return /^\d{5,32}$/.test(legacyId) ? legacyId : "";
 }
 
+function deviceLoginCodeEntries(env) {
+  // Keep the primary registry authoritative; the optional extra registry only
+  // adds codes and never replaces the existing secret or its Discord mappings.
+  return [
+    env.DEVICE_LOGIN_CODES_SECRET || env.DEVICE_LOGIN_CODES || "",
+    env.DEVICE_LOGIN_CODES_EXTRA_SECRET || "",
+  ].flatMap((raw) => String(raw)
+    .split(/\r?\n|;/)
+    .map((entry) => entry.trim())
+    .filter(Boolean));
+}
+
 function findDeviceLoginAccount(code, env) {
   if (!code) return null;
 
@@ -9028,15 +9040,7 @@ function findDeviceLoginAccount(code, env) {
     }
   }
 
-  const raw = String(env.DEVICE_LOGIN_CODES_SECRET || env.DEVICE_LOGIN_CODES || "").trim();
-  if (!raw) return null;
-
-  const entries = raw
-    .split(/\r?\n|;/)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-
-  for (const entry of entries) {
+  for (const entry of deviceLoginCodeEntries(env)) {
     const [rawCode, rawDiscordId, rawAccountId, rawGlobalName] = entry
       .split("|")
       .map((part) => String(part || "").trim());
@@ -9064,15 +9068,7 @@ function findDeviceLoginAccountByDiscordId(discordId, env) {
   const id = String(discordId || "").trim();
   if (!/^\d{5,32}$/.test(id)) return null;
 
-  const raw = String(env.DEVICE_LOGIN_CODES_SECRET || env.DEVICE_LOGIN_CODES || "").trim();
-  if (!raw) return null;
-
-  const entries = raw
-    .split(/\r?\n|;/)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-
-  for (const entry of entries) {
+  for (const entry of deviceLoginCodeEntries(env)) {
     const [rawCode, rawDiscordId, rawAccountId, rawGlobalName] = entry
       .split("|")
       .map((part) => String(part || "").trim());

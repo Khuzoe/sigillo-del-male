@@ -4,6 +4,11 @@
         : (typeof DISCORD_WORKER_URL === 'string' ? DISCORD_WORKER_URL : 'https://sigillo-api.khuzoe.workers.dev');
     const STORAGE_PREFIX = 'cripta-next-session-votes';
     const NEXT_SESSION_CONFIG_OVERRIDE_KEY = 'cripta-next-session-config-override';
+    const POLL_CACHE_PREFIX = 'cripta-poll-cache-v1:';
+    const POLL_CACHE_TTL_MS = 2 * 60 * 1000;
+    const pollCache = new Map();
+    const pendingPollReads = new Map();
+    const pollRenders = new WeakMap();
     const PLAYERS_DATA_PATH = 'data/players.json';
     const DM_PLAYER = { id: 'dm', name: 'DM', discordId: '' };
     const VIEW_MODES = {
@@ -161,8 +166,10 @@
 
             return payload;
         },
-        getCurrentSession() {
-            return this.request('api/session/current', { method: 'GET' }, 'Session API');
+        getCurrentSession(campaignId = getCurrentCampaignId()) {
+            return readCachedPoll(`session:${campaignId}`, () => this.request('api/session/current', {
+                method: 'GET', query: { campaign: campaignId }, cache: false
+            }, 'Session API'));
         },
         saveSession(config, token = '') {
             return this.request('api/session', {
@@ -182,18 +189,20 @@
                 }
             }, 'Session Discord API');
         },
-        getVotes(sessionNumber) {
-            return this.request('api/session-votes', {
+        getVotes(sessionNumber, campaignId = getCurrentCampaignId()) {
+            return readCachedPoll(`votes:${campaignId}:${sessionNumber}`, () => this.request('api/session-votes', {
                 method: 'GET',
-                query: { session: sessionNumber }
-            }, 'Session votes API');
+                query: { session: sessionNumber, campaign: campaignId }, cache: false
+            }, 'Session votes API'));
         },
-        saveVote({ sessionNumber, playerAccountId, playerDiscordId, optionId, value, token }) {
+        saveVote({ sessionNumber, playerAccountId, playerDiscordId, optionId, value, token, campaignId = getCurrentCampaignId() }) {
             const accountId = String(playerAccountId || '').trim();
             return this.request('api/session-votes', {
                 method: 'POST',
+                query: { campaign: campaignId },
                 token,
                 body: {
+                    campaignId,
                     sessionNumber,
                     accountId,
                     playerId: accountId,
@@ -204,6 +213,45 @@
             }, 'Session votes API POST');
         }
     };
+
+    // Public poll responses are shared within this tab; identity filtering happens when building hints.
+    function writePollCache(key, payload) {
+        const entry = { expiresAt: Date.now() + POLL_CACHE_TTL_MS, payload };
+        pendingPollReads.delete(key);
+        pollCache.set(key, entry);
+        try { window.sessionStorage.setItem(POLL_CACHE_PREFIX + key, JSON.stringify(entry)); } catch (_) { /* Memory cache still works. */ }
+    }
+
+    function invalidatePollCache(key) {
+        pendingPollReads.delete(key);
+        pollCache.delete(key);
+        try { window.sessionStorage.removeItem(POLL_CACHE_PREFIX + key); } catch (_) { /* Storage may be unavailable. */ }
+    }
+
+    async function readCachedPoll(key, fetchPayload) {
+        let cached = pollCache.get(key);
+        if (!cached) {
+            try { cached = JSON.parse(window.sessionStorage.getItem(POLL_CACHE_PREFIX + key)); } catch (_) { /* Ignore damaged/unavailable storage. */ }
+        }
+        if (cached?.expiresAt > Date.now()) {
+            if (cached.error) throw cached.error;
+            return JSON.parse(JSON.stringify(cached.payload));
+        }
+        if (pendingPollReads.has(key)) return pendingPollReads.get(key);
+        const pending = Promise.resolve().then(fetchPayload).then((payload) => {
+            if (pendingPollReads.get(key) === pending) writePollCache(key, payload);
+            return payload;
+        }, (error) => {
+            if (pendingPollReads.get(key) === pending) {
+                pollCache.set(key, { expiresAt: Date.now() + POLL_CACHE_TTL_MS, error });
+            }
+            throw error;
+        }).finally(() => {
+            if (pendingPollReads.get(key) === pending) pendingPollReads.delete(key);
+        });
+        pendingPollReads.set(key, pending);
+        return pending;
+    }
 
     function escapeHtml(value) {
         return window.CriptaApp.utils.escapeHtml(value);
@@ -261,6 +309,8 @@
             sessionCardImageVersion: String(config?.sessionCardImageVersion || config?.ui?.sessionCardImageVersion || '').trim(),
             disableDiscordNotifications: Boolean(config?.disableDiscordNotifications),
             number: Number(config?.number) || 1,
+            createdAt: String(config?.createdAt || '').trim(),
+            updatedAt: String(config?.updatedAt || '').trim(),
             dmAccountId: String(config?.dmAccountId || '').trim(),
             dmDiscordId: String(config?.dmDiscordId || '').trim(),
             pollManagerAccountIds: sanitizeStringList(config?.pollManagerAccountIds || config?.sessionManagerAccountIds || []),
@@ -458,8 +508,8 @@
         return appendCacheBust(`${getAssetsBasePath()}img/ui/${value}`, version);
     }
 
-    async function loadEligiblePlayers(config) {
-        const playersPath = window.CriptaApp?.urls?.data?.('players.json') || `${getAssetsBasePath()}${PLAYERS_DATA_PATH}`;
+    async function loadEligiblePlayers(config, campaignId = getCurrentCampaignId()) {
+        const playersPath = window.CriptaApp?.urls?.data?.('players.json', { campaignId }) || `${getAssetsBasePath()}${PLAYERS_DATA_PATH}`;
         const [players, accounts] = await Promise.all([
             dataService.fetchJson(playersPath, 'File dati players non trovato'),
             loadGlobalAccounts()
@@ -508,6 +558,77 @@
     function getAccountById(accounts, accountId) {
         const id = String(accountId || '').trim();
         return Array.isArray(accounts) ? accounts.find((account) => String(account?.id || '').trim() === id) : null;
+    }
+
+    function matchesPollIdentity(player, identity) {
+        return Boolean(identity.accountId && player.accountId === identity.accountId)
+            || Boolean(identity.discordId && player.discordId === identity.discordId);
+    }
+
+    function getPollSlotKey(option, config) {
+        // Legacy ids end in HHmm; newer imported ids may also contain an explicit year.
+        const match = String(option?.id || '').toLowerCase().match(/^(lun|mar|mer|gio|ven|sab|dom)-(\d{1,2})-(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)-(?:(\d{4})-)?(\d{4})$/);
+        const range = parseTimeRange(option?.time);
+        if (!match || !range || ![range.start, range.end].every((time) => /^([01]\d|2[0-3]):[0-5]\d$/.test(time))) return '';
+        const month = getMonthIndex(match[3]);
+        const day = Number(match[2]);
+        const weekday = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'].indexOf(match[1]);
+        const reference = new Date(config?.updatedAt || config?.createdAt || Date.now());
+        if (Number.isNaN(reference.getTime())) return '';
+        const year = reference.getFullYear();
+        const years = match[4] ? [Number(match[4])] : [year - 1, year, year + 1];
+        const dates = years.map((candidate) => new Date(candidate, month, day, 12))
+            .filter((date) => date.getMonth() === month && date.getDate() === day && (match[4] || date.getDay() === weekday))
+            .sort((a, b) => Math.abs(a - reference) - Math.abs(b - reference));
+        if (!dates.length) return '';
+        return `${dates[0].getFullYear()}-${month + 1}-${day}|${range.start}|${range.end}`;
+    }
+
+    function buildCrossCampaignHints(config, sources, identity) {
+        const hints = new Map();
+        for (const option of config.availabilityOptions) {
+            const key = getPollSlotKey(option, config);
+            if (!key) continue;
+            const entries = [];
+            for (const source of sources) {
+                const ownVotes = source.votes.filter((vote) => matchesPollIdentity(vote, identity));
+                for (const sourceOption of source.config.availabilityOptions) {
+                    if (getPollSlotKey(sourceOption, source.config) !== key) continue;
+                    for (const vote of ownVotes) {
+                        const value = vote.selections[sourceOption.id];
+                        if (!getVoteState(value) || entries.some((entry) => entry.campaignId === source.campaignId && entry.value === value)) continue;
+                        entries.push({ campaignId: source.campaignId, campaignName: source.campaignName, value });
+                    }
+                }
+            }
+            if (entries.length) hints.set(option.id, entries);
+        }
+        return hints;
+    }
+
+    async function loadCrossCampaignHints(config, identity) {
+        const campaignId = config.campaignId || getCurrentCampaignId();
+        const campaignsPath = window.CriptaApp.urls.globalData('campaigns.json');
+        const catalog = await dataService.fetchJson(campaignsPath);
+        const campaigns = (catalog?.campaigns || []).filter((campaign) => campaign.id && campaign.enabled !== false && campaign.id !== campaignId);
+        const results = await Promise.allSettled(campaigns.map(async (campaign) => {
+            const localConfig = await dataService.fetchJson(window.CriptaApp.urls.data('next-session.json', { campaignId: campaign.id }));
+            const players = await loadEligiblePlayers(localConfig, campaign.id);
+            if (!players.some((player) => matchesPollIdentity(player, identity))) return null;
+            const remote = extractSessionConfigFromApiPayload(await sessionApiService.getCurrentSession(campaign.id));
+            if (!remote || (remote.campaignId || 'cripta-di-sangue') !== campaign.id) return null;
+            const sourceConfig = sanitizeNextSessionConfig(remote);
+            const targetSlots = new Set(config.availabilityOptions.map((option) => getPollSlotKey(option, config)).filter(Boolean));
+            if (!sourceConfig.availabilityOptions.some((option) => targetSlots.has(getPollSlotKey(option, sourceConfig)))) return null;
+            const payload = await sessionApiService.getVotes(sourceConfig.number, campaign.id);
+            return {
+                campaignId: campaign.id,
+                campaignName: campaign.name || sourceConfig.campaignName || campaign.id,
+                config: sourceConfig,
+                votes: sanitizeVotes(extractVotesFromApiPayload(payload), sourceConfig.availabilityOptions, players)
+            };
+        }));
+        return buildCrossCampaignHints(config, results.filter((result) => result.status === 'fulfilled' && result.value).map((result) => result.value), identity);
     }
 
     function getAccountByDiscordId(accounts, discordId) {
@@ -1390,6 +1511,9 @@
         const payload = await sessionApiService.saveSession(config, token);
 
         const sessionConfig = extractSessionConfigFromApiPayload(payload);
+        const campaignId = config.campaignId || getCurrentCampaignId();
+        writePollCache(`session:${campaignId}`, sessionConfig || config);
+        invalidatePollCache(`votes:${campaignId}:${config.number}`);
         return sanitizeNextSessionConfig(sessionConfig || config);
     }
 
@@ -1573,8 +1697,13 @@
         return sanitizeVotes(extractVotesFromApiPayload(payload), options, players);
     }
 
-    async function postRemoteVote({ sessionNumber, playerAccountId, playerDiscordId, optionId, value, token }) {
-        return sessionApiService.saveVote({ sessionNumber, playerAccountId, playerDiscordId, optionId, value, token });
+    async function postRemoteVote({ sessionNumber, playerAccountId, playerDiscordId, optionId, value, token, campaignId = getCurrentCampaignId() }) {
+        const payload = await sessionApiService.saveVote({ sessionNumber, playerAccountId, playerDiscordId, optionId, value, token, campaignId });
+        const document = payload?.data || payload;
+        const key = `votes:${campaignId}:${sessionNumber}`;
+        if (Array.isArray(document?.votes) || Array.isArray(document)) writePollCache(key, document);
+        else invalidatePollCache(key);
+        return payload;
     }
 
     function persistVotes(sessionNumber, votes) {
@@ -2005,6 +2134,8 @@
                     </div>
                     <p>${escapeHtml(pollHint)}</p>
                 </div>
+                <p class="availability-cross-hint-guide" hidden>I simboli sbiaditi ricordano i tuoi voti in altre campagne: qui devi ancora votare. Tocca ⓘ per i dettagli.</p>
+                <p class="availability-cross-hint-details" role="status" hidden></p>
                 <div class="next-session-poll-table-shell">
                     <div class="availability-table-wrap">
                         <table class="availability-table">
@@ -2045,8 +2176,10 @@
             </article>
         `;
     }
-    async function renderAvailabilityPoll(container, config) {
+    async function renderAvailabilityPoll(container, config, renderId) {
         const effectiveConfig = sanitizeNextSessionConfig(config);
+        const campaignId = effectiveConfig.campaignId || getCurrentCampaignId();
+        const isCurrentRender = () => pollRenders.get(container) === renderId && container.isConnected && getCurrentCampaignId() === campaignId;
         setCurrentVoteIconSets(effectiveConfig);
         const options = sanitizeOptions(effectiveConfig.availabilityOptions);
         const title = effectiveConfig.pollTitle || `Sessione ${effectiveConfig.number}`;
@@ -2097,6 +2230,7 @@
         const canConfigureSession = canManageCampaign
             || canManagePoll(effectiveConfig, currentAccountId, currentDiscordId, accounts);
         const localFallbackVotes = readStoredVotes(effectiveConfig.number, effectiveConfig.availabilityVotes, options, players);
+        if (!isCurrentRender()) return;
         let baseVotes = localFallbackVotes;
         try {
             baseVotes = await loadRemoteVotes(effectiveConfig.number, options, players);
@@ -2104,6 +2238,7 @@
         } catch (error) {
             console.warn('Session votes API non raggiungibile, uso fallback locale.', error);
         }
+        if (!isCurrentRender()) return;
 
         let votes = orderedPlayers.map((player) => {
             const existingVote = baseVotes.find((vote) => vote.playerId === player.id);
@@ -2124,6 +2259,9 @@
         }));
 
         let statusMessage = '';
+        let crossCampaignHints = new Map();
+        let hintDetailOptionId = '';
+        let hintLoadStarted = false;
         let editorState = {
             open: false,
             mode: EDITOR_MODES.createNext,
@@ -2182,6 +2320,81 @@
             }
         }
 
+        function describeHint(option, entries) {
+            const labels = { yes: 'Disponibile', maybe: 'Forse', no: 'Non disponibile' };
+            return `${option.label}, ${option.time}. ${entries.map((entry) => `${entry.campaignName}: ${labels[entry.value]}`).join('; ')}. In questo sondaggio non hai ancora votato.`;
+        }
+
+        function ensureCrossCampaignHints() {
+            if (hintLoadStarted || !authToken || !votes.some((vote) => vote.canEdit && options.some((option) => !vote.selections[option.id]))) return;
+            hintLoadStarted = true;
+            loadCrossCampaignHints(effectiveConfig, { accountId: currentAccountId, discordId: currentDiscordId }).then((hints) => {
+                if (!isCurrentRender()) return;
+                crossCampaignHints = hints;
+                applyCrossCampaignHints();
+            }).catch(() => { /* Optional hints must never block the current poll. */ });
+        }
+
+        function applyCrossCampaignHints() {
+            let visibleHints = 0;
+            let detail = '';
+            const rows = container.querySelectorAll('.availability-table tbody tr');
+            votes.forEach((vote, rowIndex) => {
+                if (!vote.canEdit) return;
+                const row = rows[rowIndex];
+                if (!row) return;
+                options.forEach((option) => {
+                    const button = getOptionButton(row, option.id);
+                    if (!button) return;
+                    const slot = button.parentElement;
+                    const value = vote.selections[option.id] || '';
+                    const entries = value ? [] : (crossCampaignHints.get(option.id) || []);
+                    button.className = getVoteChoiceClass(value);
+                    button.innerHTML = buildVoteChoiceContent(value, vote.playerId);
+                    button.removeAttribute('title');
+                    button.setAttribute('aria-label', `Cambia ${vote.name} per ${option.label} ${option.time}`);
+                    const clear = getOptionButton(row, option.id, 'clear');
+                    if (clear) clear.hidden = entries.length > 0;
+                    const existingInfo = slot.querySelector('.availability-hint-info');
+                    if (!entries.length) {
+                        existingInfo?.remove();
+                        return;
+                    }
+                    visibleHints += 1;
+                    const values = [...new Set(entries.map((entry) => entry.value))];
+                    const description = describeHint(option, entries);
+                    button.classList.add('has-cross-campaign-hint');
+                    if (values.length === 1) {
+                        button.classList.add(`hint-${values[0]}`);
+                        button.innerHTML = buildVoteChoiceContent(values[0], vote.playerId);
+                    } else {
+                        button.innerHTML = '<span class="availability-hint-conflict" aria-hidden="true">≠<small>Diversi</small></span>';
+                    }
+                    button.title = description;
+                    button.setAttribute('aria-label', `${description} Clicca per votare disponibile.`);
+                    const info = existingInfo || document.createElement('button');
+                    info.type = 'button';
+                    info.className = 'availability-hint-info';
+                    info.dataset.optionId = option.id;
+                    info.dataset.action = 'hint';
+                    info.textContent = 'ⓘ';
+                    info.setAttribute('aria-label', `Mostra i tuoi voti nelle altre campagne per ${option.label} ${option.time}`);
+                    info.setAttribute('aria-expanded', String(hintDetailOptionId === option.id));
+                    info.title = description;
+                    if (!existingInfo) slot.appendChild(info);
+                    if (hintDetailOptionId === option.id) detail = description;
+                });
+            });
+            const guide = container.querySelector('.availability-cross-hint-guide');
+            if (guide) guide.hidden = !visibleHints;
+            const details = container.querySelector('.availability-cross-hint-details');
+            if (details) {
+                details.hidden = !detail;
+                details.textContent = detail;
+            }
+            if (!detail) hintDetailOptionId = '';
+        }
+
         function refreshPollVotesDom() {
             const table = container.querySelector('.availability-table');
             if (!table) {
@@ -2225,7 +2438,9 @@
                 });
             });
 
+            applyCrossCampaignHints();
             updateStatusMessage();
+            ensureCrossCampaignHints();
         }
 
         function updateEditorDay(index, patch) {
@@ -2276,6 +2491,7 @@
             };
 
             container.innerHTML = buildPollMarkup(effectiveConfig, options, votes, statusMessage, canConfigureSession, editorState);
+            applyCrossCampaignHints();
             const table = container.querySelector('.availability-table');
             const card = container.querySelector('.next-session-card-poll');
             const tableWrap = container.querySelector('.availability-table-wrap');
@@ -2306,6 +2522,12 @@
                 table.addEventListener('click', async (event) => {
                     const target = event.target.closest('button');
                     if (!target) return;
+                    if (target.dataset.action === 'hint') {
+                        const optionId = target.dataset.optionId;
+                        hintDetailOptionId = hintDetailOptionId === optionId ? '' : optionId;
+                        applyCrossCampaignHints();
+                        return;
+                    }
 
                     const confirmOptionId = target.getAttribute('data-confirm-option-id');
                     if (confirmOptionId) {
@@ -2377,6 +2599,7 @@
 
                     try {
                         const payload = await postRemoteVote({
+                            campaignId,
                             sessionNumber: effectiveConfig.number,
                             playerAccountId: targetVote.accountId,
                             playerDiscordId: targetVote.discordId,
@@ -2684,10 +2907,13 @@
         }
 
         rerender();
+        ensureCrossCampaignHints();
     }
 
     function renderNextSession(config, container) {
         if (!container || !config) return;
+        const renderId = Symbol('poll-render');
+        pollRenders.set(container, renderId);
 
         const effectiveConfig = readStoredNextSessionConfig(config);
         const availabilityOptions = sanitizeOptions(effectiveConfig.availabilityOptions);
@@ -2710,7 +2936,7 @@
         }
 
         if (shouldShowPoll) {
-            renderAvailabilityPoll(container, effectiveConfig);
+            renderAvailabilityPoll(container, effectiveConfig, renderId);
             return;
         }
 
