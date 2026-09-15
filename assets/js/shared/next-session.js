@@ -84,6 +84,16 @@
                 return false;
             }
         },
+        async getCampaignAccess() {
+            const token = this.getToken();
+            if (!token) return {};
+            try {
+                const access = await sessionApiService.request('api/campaign/access', { method: 'GET', token, cache: false });
+                return access?.permissions || {};
+            } catch (_) {
+                return { canManageCampaign: await this.canManageCampaign(), isGlobalAdmin: false };
+            }
+        },
         getAccountId(authState, accounts = []) {
             const user = authState?.user || {};
             const explicitAccountId = String(user.accountId || '').trim();
@@ -321,7 +331,9 @@
             isScheduled: Boolean(config?.isScheduled),
             availabilityOptions: sanitizeOptions(config?.availabilityOptions || []),
             availabilityVotes: Array.isArray(config?.availabilityVotes) ? config.availabilityVotes : [],
-            voteIcons: sanitizeVoteIconSets(config?.voteIcons || config?.ui?.voteIcons || {})
+            voteIcons: sanitizeVoteIconSets(config?.voteIcons || config?.ui?.voteIcons || {}),
+            voteIconOverrides: sanitizeVoteIconSets(config?.voteIconOverrides || {}),
+            voteIconsVersion: String(config?.voteIconsVersion || '')
         };
     }
 
@@ -353,11 +365,16 @@
         return out;
     }
 
+    function buildVoteIconSets(config) {
+        const defaults = { ...VOTE_ICON_SETS, ...(config?.voteIcons || {}) };
+        const overrides = config?.voteIconOverrides || {};
+        return Object.fromEntries([...new Set([...Object.keys(defaults), ...Object.keys(overrides)])].map((playerId) => [
+            playerId, { ...VOTE_ICON_SETS.dm, ...defaults.dm, ...defaults[playerId], ...overrides[playerId] }
+        ]));
+    }
+
     function setCurrentVoteIconSets(config) {
-        currentVoteIconSets = {
-            ...VOTE_ICON_SETS,
-            ...(config?.voteIcons || {})
-        };
+        currentVoteIconSets = buildVoteIconSets(config);
     }
 
     function readStoredNextSessionConfig(baseConfig) {
@@ -633,6 +650,7 @@
 
     function getAccountByDiscordId(accounts, discordId) {
         const id = String(discordId || '').trim();
+        if (!id) return null;
         return Array.isArray(accounts) ? accounts.find((account) => String(account?.discordId || '').trim() === id) : null;
     }
 
@@ -1514,7 +1532,7 @@
         const campaignId = config.campaignId || getCurrentCampaignId();
         writePollCache(`session:${campaignId}`, sessionConfig || config);
         invalidatePollCache(`votes:${campaignId}:${config.number}`);
-        return sanitizeNextSessionConfig(sessionConfig || config);
+        return sanitizeNextSessionConfig({ ...config, ...sessionConfig, voteIcons: config.voteIcons });
     }
 
     async function loadSessionConfig({ fallbackPath }) {
@@ -2031,12 +2049,95 @@
         `;
     }
 
-    function buildPollMarkup(config, options, votes, statusMessage, canConfigureSession, editorState) {
+    function getVoteProgress(vote, options) {
+        const answered = options.filter((option) => getVoteState(vote.selections[option.id])).length;
+        return { answered, total: options.length, complete: options.length > 0 && answered === options.length };
+    }
+
+    function formatVoteProgress(vote, options) {
+        const progress = getVoteProgress(vote, options);
+        if (!progress.answered) return 'Da compilare';
+        return progress.complete ? 'Completo' : `${progress.answered}/${progress.total} risposte`;
+    }
+
+    function groupPollDays(options, config) {
+        const groups = [];
+        options.forEach((option) => {
+            const dateKey = getPollSlotKey(option, config).split('|')[0];
+            // Unrecognized dates remain separate rather than merging unrelated imported slots.
+            const key = dateKey || option.id;
+            const previous = groups[groups.length - 1];
+            if (previous?.key === key) { previous.options.push(option); return; }
+            let week = '';
+            if (dateKey) {
+                const [year, month, day] = dateKey.split('-').map(Number);
+                const monday = new Date(Date.UTC(year, month - 1, day));
+                monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+                week = monday.toISOString().slice(0, 10);
+            }
+            groups.push({ key, week, startsWeek: Boolean(week && previous?.week && previous.week !== week), label: formatAvailabilityLabel(option), options: [option] });
+        });
+        return groups;
+    }
+
+    function getPollCandidates(votes, options) {
+        const totals = computeTotals(votes, options);
+        const dm = votes.find((vote) => vote.playerId === 'dm');
+        return options.map((option, index) => {
+            const counts = totals[option.id];
+            return { option, index, ...counts, missing: votes.length - counts.yes - counts.maybe - counts.no, dmValue: dm?.selections[option.id] || '' };
+        }).filter((candidate) => candidate.yes > 0 && candidate.dmValue !== 'no')
+            .sort((a, b) => a.no - b.no || b.yes - a.yes || a.missing - b.missing || a.index - b.index)
+            .slice(0, 3);
+    }
+
+    function buildPollSummary(options, votes) {
+        const candidates = getPollCandidates(votes, options);
+        const dm = votes.find((vote) => vote.playerId === 'dm');
+        const dmUnavailable = options.length > 0 && options.every((option) => dm?.selections[option.id] === 'no');
+        if (!candidates.length) {
+            return `<p class="poll-summary-empty">${dmUnavailable ? 'Il DM non è disponibile in nessuna delle fasce proposte.' : 'Le date più promettenti compariranno qui dopo i primi voti disponibili.'}</p>`;
+        }
+        return `<div class="poll-summary-heading">Date più promettenti <span>in base alle risposte attuali</span></div>
+            <div class="poll-candidates">${candidates.map((candidate) => {
+                const { option, yes, maybe, no, missing, dmValue } = candidate;
+                const allYes = votes.length > 0 && yes === votes.length;
+                const counts = [`${yes} sì`, maybe ? `${maybe} forse` : '', no ? `${no} no` : '', missing ? `${missing} senza risposta` : ''].filter(Boolean).join(' · ');
+                const dmNote = dmValue === 'maybe' ? 'DM: forse' : dm && !dmValue ? 'DM: da confermare' : '';
+                return `<button type="button" class="poll-candidate${allYes ? ' is-unanimous' : ''}" data-poll-action="jump-option" data-option-id="${escapeHtml(option.id)}">
+                    <strong>${escapeHtml(option.label)} <span>${escapeHtml(option.time)}</span></strong>
+                    <span>${allYes ? `Tutti disponibili · ${yes}/${votes.length}` : escapeHtml(counts)}</span>
+                    ${dmNote ? `<small>${dmNote}</small>` : ''}
+                </button>`;
+            }).join('')}</div>`;
+    }
+
+    function buildPersonalPollMarkup(options, votes) {
+        return votes.map((vote, rowIndex) => !vote.canEdit ? '' : `<section class="poll-personal-player" aria-label="Disponibilità di ${escapeHtml(vote.name)}">
+            <h3>${escapeHtml(vote.name)}</h3>
+            ${options.map((option) => `<article class="poll-personal-slot" data-personal-row="${rowIndex}" data-option-id="${escapeHtml(option.id)}">
+                <div class="poll-personal-slot-heading">
+                    <div class="poll-personal-preview" aria-hidden="true"></div>
+                    <div><h4>${escapeHtml(option.label)}</h4><p>${escapeHtml(option.time)}</p></div>
+                    <button type="button" class="poll-personal-clear" data-action="clear" data-row-index="${rowIndex}" data-option-id="${escapeHtml(option.id)}" aria-label="Rimuovi voto di ${escapeHtml(vote.name)} per ${escapeHtml(option.label)} ${escapeHtml(option.time)}" hidden>Rimuovi</button>
+                </div>
+                <div class="poll-personal-choices" role="group" aria-label="Voto di ${escapeHtml(vote.name)} per ${escapeHtml(option.label)} ${escapeHtml(option.time)}">
+                    ${[['yes', 'Sì', '✓'], ['maybe', 'Forse', '−'], ['no', 'No', '×']].map(([value, label, symbol]) => `<button type="button" class="poll-personal-choice is-${value}" data-action="set" data-row-index="${rowIndex}" data-option-id="${escapeHtml(option.id)}" data-value="${value}" aria-pressed="false"><span aria-hidden="true">${symbol}</span> ${label}</button>`).join('')}
+                </div>
+                <div class="poll-personal-save" hidden><span></span><button type="button" data-poll-action="retry-vote" hidden>Riprova</button></div>
+                <p class="poll-personal-hint" hidden></p>
+            </article>`).join('')}
+        </section>`).join('');
+    }
+
+    function buildPollMarkup(config, options, votes, statusMessage, canConfigureSession, editorState, canEditIcons = false) {
         const totals = computeTotals(votes, options);
         const voteCount = votes.length;
         const title = config.pollTitle || `Sessione ${config.number}`;
         const subtitle = config.pollSubtitle || config.campaignName || 'Prossima Sessione';
         const hasEditableVote = votes.some((vote) => vote.canEdit);
+        const dayGroups = groupPollDays(options, config);
+        const weekStarts = new Set(dayGroups.filter((group) => group.startsWeek).map((group) => group.options[0].id));
         const showStandaloneLink = !document.body.classList.contains('poll-page');
         const pollHint = hasEditableVote
             ? 'Clicca sulle tue caselle per passare da disponibile a forse, no e di nuovo vuoto.'
@@ -2048,10 +2149,11 @@
                         <span class="availability-name-wrap">
                             <span class="availability-name-text">${escapeHtml(vote.name)}</span>
                             ${vote.canEdit ? '<small class="availability-own-badge">Tu</small>' : ''}
+                            <small class="poll-row-progress">${formatVoteProgress(vote, options)}</small>
                         </span>
                     </th>
                     ${options.map(option => `
-                        <td class="availability-vote-cell ${getColumnStateClass(option.id, totals, voteCount)}">
+                        <td class="availability-vote-cell ${getColumnStateClass(option.id, totals, voteCount)}${weekStarts.has(option.id) ? ' is-week-start' : ''}">
                             <div class="availability-choice-slot" role="group" aria-label="Voto ${escapeHtml(vote.name)} per ${escapeHtml(option.label)} ${escapeHtml(option.time)}">
                                 ${vote.canEdit ? `
                                     <button
@@ -2071,7 +2173,7 @@
                                     data-option-id="${escapeHtml(option.id)}"
                                     data-action="cycle"
                                     ${vote.canEdit ? '' : 'disabled'}
-                                    aria-label="${vote.canEdit ? 'Cambia' : 'Voto di'} ${escapeHtml(vote.name)} per ${escapeHtml(option.label)}">
+                                    aria-label="${vote.canEdit ? 'Cambia' : 'Voto di'} ${escapeHtml(vote.name)} per ${escapeHtml(option.label)} ${escapeHtml(option.time)}: ${getVoteState(vote.selections[option.id])?.label || 'Senza risposta'}">
                                     ${buildVoteChoiceContent(vote.selections[option.id], vote.playerId)}
                                 </button>
                             </div>
@@ -2098,10 +2200,12 @@
                         <h2 class="next-title text-gold-gradient">${escapeHtml(title)}</h2>
                         <div class="next-session-poll-meta" aria-label="Riepilogo sondaggio">
                             <span><i class="fa-solid fa-users" aria-hidden="true"></i>${voteCount} partecipanti</span>
-                            <span><i class="fa-regular fa-clock" aria-hidden="true"></i>${options.length} slot</span>
+                            <span><i class="fa-regular fa-clock" aria-hidden="true"></i>${options.length} fasce orarie</span>
+                            <span class="poll-group-progress"></span>
                         </div>
                     </div>
                     <div class="next-session-card-controls" aria-label="Azioni sondaggio">
+                        ${canEditIcons ? '<button type="button" class="next-session-icons-trigger" data-poll-action="edit-icons" title="Personalizza icone">Personalizza icone</button>' : ''}
                         ${showStandaloneLink ? `
                             <a class="next-session-open-poll" href="${escapeHtml(getSessionPollUrl(config))}" aria-label="Apri il sondaggio a pagina intera" title="Apri a pagina intera">
                                 <i class="fa-solid fa-up-right-from-square"></i>
@@ -2126,6 +2230,16 @@
                     </div>
                 </header>
                 ${statusMessage ? `<div class="availability-feedback" role="status">${escapeHtml(statusMessage)}</div>` : ''}
+                <div class="poll-summary" aria-label="Date più promettenti">${buildPollSummary(options, votes)}</div>
+                ${hasEditableVote ? `<div class="poll-voting-toolbar">
+                    <div class="poll-own-progress">${votes.map((vote, rowIndex) => !vote.canEdit ? '' : `<div data-progress-row="${rowIndex}"><span></span><button type="button" data-poll-action="first-empty" data-row-index="${rowIndex}">Prima risposta mancante <span aria-hidden="true">→</span></button></div>`).join('')}</div>
+                    <div class="poll-save-feedback"><span class="poll-save-status" role="status" aria-live="polite" aria-atomic="true"></span><button type="button" data-poll-action="retry-vote" hidden>Riprova</button></div>
+                    <div class="poll-layout-switch" role="group" aria-label="Vista sondaggio">
+                        <button type="button" data-poll-layout="personal" aria-pressed="false">Le mie disponibilità</button>
+                        <button type="button" data-poll-layout="table" aria-pressed="true">Tabella completa</button>
+                    </div>
+                </div>` : ''}
+                <div class="poll-table-view">
                 <div class="next-session-poll-guide">
                     <div class="availability-legend" aria-label="Legenda risposte">
                         <span class="is-yes"><i class="fa-solid fa-check" aria-hidden="true"></i>Disponibile</span>
@@ -2139,27 +2253,31 @@
                 <div class="next-session-poll-table-shell">
                     <div class="availability-table-wrap">
                         <table class="availability-table">
+                            <colgroup span="1"></colgroup>
+                            ${dayGroups.map((group) => `<colgroup span="${group.options.length}"></colgroup>`).join('')}
                             <thead>
                                 <tr>
-                                    <th class="availability-corner-cell">Compagnia</th>
+                                    <th class="availability-corner-cell" rowspan="2" scope="col">Compagnia</th>
+                                    ${dayGroups.map((group) => `<th class="poll-day-group${group.startsWeek ? ' is-week-start' : ''}" scope="colgroup" colspan="${group.options.length}"><span>${escapeHtml(group.label.day)}</span><small>${escapeHtml(group.label.month)}</small></th>`).join('')}
+                                </tr>
+                                <tr>
                                     ${options.map(option => {
             const labelParts = formatAvailabilityLabel(option);
             const optionTotals = totals[option.id] || { yes: 0, maybe: 0, no: 0 };
             return `
-                                        <th class="availability-option-cell ${getColumnStateClass(option.id, totals, voteCount)}" scope="col">
+                                        <th class="availability-option-cell ${getColumnStateClass(option.id, totals, voteCount)}${weekStarts.has(option.id) ? ' is-week-start' : ''}" scope="col" tabindex="-1" data-option-id="${escapeHtml(option.id)}">
                                             <button
                                                 type="button"
                                                 class="availability-option-trigger${canConfigureSession ? ' is-confirmable' : ''}"
                                                 ${canConfigureSession ? `data-confirm-option-id="${escapeHtml(option.id)}"` : 'disabled'}
                                                 aria-label="Conferma la prossima sessione su ${escapeHtml(labelParts.day)} ${labelParts.month ? escapeHtml(labelParts.month) : ''} ${escapeHtml(option.time || '')}">
-                                                <span class="availability-option-label">${escapeHtml(labelParts.day)}</span>
-                                                ${labelParts.month ? `<span class="availability-option-month">${escapeHtml(labelParts.month)}</span>` : ''}
                                                 ${option.time ? `<span class="availability-option-time">${escapeHtml(option.time)}</span>` : ''}
-                                                <span class="availability-option-totals" aria-label="${optionTotals.yes} disponibili, ${optionTotals.maybe} forse, ${optionTotals.no} non disponibili">
+                                                <span class="availability-option-totals" aria-label="${optionTotals.yes} disponibili, ${optionTotals.maybe} forse, ${optionTotals.no} non disponibili, ${voteCount - optionTotals.yes - optionTotals.maybe - optionTotals.no} senza risposta">
                                                     <span class="availability-total availability-total-yes"><i class="fa-solid fa-check" aria-hidden="true"></i><b data-total-kind="yes">${optionTotals.yes}</b></span>
                                                     <span class="availability-total availability-total-maybe"><i class="fa-solid fa-minus" aria-hidden="true"></i><b data-total-kind="maybe">${optionTotals.maybe}</b></span>
                                                     <span class="availability-total availability-total-no"><i class="fa-solid fa-xmark" aria-hidden="true"></i><b data-total-kind="no">${optionTotals.no}</b></span>
                                                 </span>
+                                                <span class="poll-option-missing">${voteCount - optionTotals.yes - optionTotals.maybe - optionTotals.no || 0} senza risposta</span>
                                                 ${canConfigureSession ? '<span class="availability-option-confirm-hint"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i>Fissa</span>' : ''}
                                             </button>
                                         </th>
@@ -2173,6 +2291,8 @@
                         </table>
                     </div>
                 </div>
+                </div>
+                ${hasEditableVote ? `<div class="poll-personal-view" hidden><p class="poll-personal-guide">Scegli una risposta per ogni fascia oraria. Ogni scelta viene salvata automaticamente.</p>${buildPersonalPollMarkup(options, votes)}</div>` : ''}
             </article>
         `;
     }
@@ -2195,13 +2315,13 @@
         let players = [];
         let authState = null;
         let accounts = [];
-        let canManageCampaign = false;
+        let campaignAccess = {};
         try {
-            [players, authState, accounts, canManageCampaign] = await Promise.all([
+            [players, authState, accounts, campaignAccess] = await Promise.all([
                 loadEligiblePlayers(effectiveConfig),
                 authService.verify(),
                 loadGlobalAccounts(),
-                authService.canManageCampaign()
+                authService.getCampaignAccess()
             ]);
         } catch (error) {
             console.error('Impossibile caricare i player per il planner della prossima sessione:', error);
@@ -2227,6 +2347,8 @@
             return leftIsCurrent ? -1 : 1;
         });
         preloadVoteIcons(orderedPlayers);
+        const canManageCampaign = Boolean(campaignAccess.canManageCampaign);
+        const canEditIcons = Boolean(campaignAccess.isGlobalAdmin);
         const canConfigureSession = canManageCampaign
             || canManagePoll(effectiveConfig, currentAccountId, currentDiscordId, accounts);
         const localFallbackVotes = readStoredVotes(effectiveConfig.number, effectiveConfig.availabilityVotes, options, players);
@@ -2259,6 +2381,11 @@
         }));
 
         let statusMessage = '';
+        let pollLayout = votes.some((vote) => vote.canEdit) && window.matchMedia?.('(max-width: 640px)').matches ? 'personal' : 'table';
+        let voteSaveState = 'idle';
+        let voteSaveError = '';
+        let voteSaveTarget = null;
+        let failedVote = null;
         let crossCampaignHints = new Map();
         let hintDetailOptionId = '';
         let hintLoadStarted = false;
@@ -2352,7 +2479,7 @@
                     button.className = getVoteChoiceClass(value);
                     button.innerHTML = buildVoteChoiceContent(value, vote.playerId);
                     button.removeAttribute('title');
-                    button.setAttribute('aria-label', `Cambia ${vote.name} per ${option.label} ${option.time}`);
+                    button.setAttribute('aria-label', `Cambia ${vote.name} per ${option.label} ${option.time}: ${getVoteState(value)?.label || 'Senza risposta'}`);
                     const clear = getOptionButton(row, option.id, 'clear');
                     if (clear) clear.hidden = entries.length > 0;
                     const existingInfo = slot.querySelector('.availability-hint-info');
@@ -2393,6 +2520,126 @@
                 details.textContent = detail;
             }
             if (!detail) hintDetailOptionId = '';
+            refreshPersonalVotesDom();
+        }
+
+        function refreshPersonalVotesDom() {
+            container.querySelectorAll('.poll-personal-slot').forEach((slot) => {
+                const vote = votes[Number(slot.dataset.personalRow)];
+                const option = options.find((entry) => entry.id === slot.dataset.optionId);
+                if (!vote?.canEdit || !option) return;
+                const value = vote.selections[option.id] || '';
+                const entries = value ? [] : (crossCampaignHints.get(option.id) || []);
+                const hintValues = [...new Set(entries.map((entry) => entry.value))];
+                const preview = slot.querySelector('.poll-personal-preview');
+                preview.classList.toggle('is-hint', entries.length > 0);
+                preview.innerHTML = value ? buildVoteChoiceContent(value, vote.playerId)
+                    : hintValues.length === 1 ? buildVoteChoiceContent(hintValues[0], vote.playerId)
+                    : `<span>${entries.length ? '≠' : '?'}</span>`;
+                slot.querySelectorAll('.poll-personal-choice').forEach((button) => {
+                    button.setAttribute('aria-pressed', String(button.dataset.value === value));
+                });
+                slot.querySelector('.poll-personal-clear').hidden = !value;
+                const hint = slot.querySelector('.poll-personal-hint');
+                hint.hidden = !entries.length;
+                const labels = { yes: 'Sì', maybe: 'Forse', no: 'No' };
+                hint.textContent = entries.length ? `Nelle altre campagne: ${entries.map((entry) => `${entry.campaignName}: ${labels[entry.value]}`).join(' · ')}. Qui devi ancora votare.` : '';
+                const feedback = slot.querySelector('.poll-personal-save');
+                feedback.hidden = voteSaveTarget?.rowIndex !== Number(slot.dataset.personalRow) || voteSaveTarget?.optionId !== option.id;
+                feedback.dataset.state = voteSaveState;
+                feedback.querySelector('span').textContent = voteSaveState === 'saving' ? 'Salvataggio…' : voteSaveState === 'saved' ? '✓ Salvato' : voteSaveState === 'error' ? 'Voto non salvato' : '';
+                feedback.querySelector('button').hidden = feedback.hidden || voteSaveState !== 'error';
+            });
+        }
+
+        function setPollLayout(layout) {
+            pollLayout = layout === 'personal' && votes.some((vote) => vote.canEdit) ? 'personal' : 'table';
+            const tableView = container.querySelector('.poll-table-view');
+            const personalView = container.querySelector('.poll-personal-view');
+            if (tableView) tableView.hidden = pollLayout !== 'table';
+            if (personalView) personalView.hidden = pollLayout !== 'personal';
+            container.querySelectorAll('[data-poll-layout]').forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.pollLayout === pollLayout)));
+        }
+
+        function refreshPollOverview() {
+            const completed = votes.filter((vote) => getVoteProgress(vote, options).complete).length;
+            const groupProgress = container.querySelector('.poll-group-progress');
+            if (groupProgress) groupProgress.textContent = `${completed}/${votes.length} compilazioni complete`;
+            const summary = container.querySelector('.poll-summary');
+            if (summary) summary.innerHTML = buildPollSummary(options, votes);
+            const rows = container.querySelectorAll('.availability-table tbody tr');
+            votes.forEach((vote, rowIndex) => {
+                const progress = getVoteProgress(vote, options);
+                const label = rows[rowIndex]?.querySelector('.poll-row-progress');
+                if (label) { label.textContent = formatVoteProgress(vote, options); label.classList.toggle('is-complete', progress.complete); }
+                const ownProgress = Array.from(container.querySelectorAll('[data-progress-row]')).find((element) => Number(element.dataset.progressRow) === rowIndex);
+                if (ownProgress) {
+                    ownProgress.querySelector('span').textContent = `${vote.name} · ${progress.answered}/${progress.total} risposte${progress.complete ? ' · Completato' : ''}`;
+                    ownProgress.querySelector('button').hidden = progress.answered === progress.total;
+                }
+            });
+            const busy = voteSaveState === 'saving';
+            container.querySelectorAll('[data-action="cycle"], [data-action="set"], [data-action="clear"]').forEach((button) => {
+                button.disabled = busy || !votes[Number(button.dataset.rowIndex)]?.canEdit;
+            });
+            // Session changes must not race an in-flight vote for the current session.
+            container.querySelectorAll('[data-confirm-option-id], [data-editor-action], [data-poll-action="edit-icons"]').forEach((button) => { button.disabled = busy; });
+            const saveStatus = container.querySelector('.poll-save-status');
+            if (saveStatus) {
+                saveStatus.dataset.state = voteSaveState;
+                saveStatus.textContent = busy ? 'Salvataggio…' : voteSaveState === 'saved' ? '✓ Salvato'
+                    : voteSaveState === 'error' ? `Voto non salvato. ${voteSaveError}` : 'Salvataggio automatico';
+            }
+            const retry = container.querySelector('[data-poll-action="retry-vote"]');
+            if (retry) retry.hidden = !failedVote || busy;
+            setPollLayout(pollLayout);
+        }
+
+        function focusPollOption(optionId, rowIndex) {
+            let target;
+            if (pollLayout === 'personal' && Number.isInteger(rowIndex)) {
+                const slot = Array.from(container.querySelectorAll('.poll-personal-slot')).find((element) => element.dataset.optionId === optionId && Number(element.dataset.personalRow) === rowIndex);
+                target = slot?.querySelector('.poll-personal-choice');
+            } else {
+                setPollLayout('table');
+                const row = container.querySelectorAll('.availability-table tbody tr')[rowIndex];
+                target = row ? getOptionButton(row, optionId) : Array.from(container.querySelectorAll('.availability-option-cell')).find((element) => element.dataset.optionId === optionId);
+            }
+            if (target) {
+                target.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' });
+                target.focus({ preventScroll: true });
+            }
+        }
+
+        async function saveVote(rowIndex, optionId, nextChoice) {
+            if (voteSaveState === 'saving' || !isCurrentRender()) return;
+            const targetVote = votes[rowIndex];
+            if (!targetVote?.canEdit || !targetVote.accountId || !authToken || !options.some((option) => option.id === optionId)) return;
+            if (nextChoice !== '' && !getVoteState(nextChoice)) return;
+            if ((targetVote.selections[optionId] || '') === nextChoice) return;
+            const previousVotes = votes;
+            votes = votes.map((vote, index) => index !== rowIndex ? vote : { ...vote, selections: { ...vote.selections, [optionId]: nextChoice } });
+            voteSaveState = 'saving';
+            voteSaveTarget = { rowIndex, optionId };
+            voteSaveError = '';
+            failedVote = null;
+            refreshPollVotesDom();
+            try {
+                const payload = await postRemoteVote({ campaignId, sessionNumber: effectiveConfig.number, playerAccountId: targetVote.accountId, playerDiscordId: targetVote.discordId, optionId, value: nextChoice, token: authToken });
+                if (!isCurrentRender()) return;
+                const remoteVotes = sanitizeVotes(extractVotesFromApiPayload(payload?.data || payload), options, players);
+                votes = remoteVotes.length > 0 ? decorateVotes(remoteVotes) : decorateVotes(votes);
+                persistVotes(effectiveConfig.number, votes.map(({ canEdit, ...vote }) => vote));
+                voteSaveState = 'saved';
+            } catch (error) {
+                if (!isCurrentRender()) return;
+                console.error('Impossibile salvare il voto della prossima sessione:', error);
+                votes = previousVotes;
+                voteSaveState = 'error';
+                voteSaveError = 'Riprova o ricarica il sondaggio.';
+                failedVote = { rowIndex, optionId, value: nextChoice };
+            }
+            refreshPollVotesDom();
         }
 
         function refreshPollVotesDom() {
@@ -2413,6 +2660,10 @@
                     const count = headerCell?.querySelector(`[data-total-kind="${kind}"]`);
                     if (count) count.textContent = String(optionTotals[kind] || 0);
                 });
+                const missing = voteCount - optionTotals.yes - optionTotals.maybe - optionTotals.no;
+                const missingLabel = headerCell?.querySelector('.poll-option-missing');
+                if (missingLabel) { missingLabel.textContent = `${missing} senza risposta`; missingLabel.hidden = missing === 0; }
+                headerCell?.querySelector('.availability-option-totals')?.setAttribute('aria-label', `${optionTotals.yes} disponibili, ${optionTotals.maybe} forse, ${optionTotals.no} non disponibili, ${missing} senza risposta`);
             });
 
             const rows = Array.from(table.tBodies[0]?.rows || []);
@@ -2435,10 +2686,12 @@
                     setColumnStateClass(cell, option.id, totals, voteCount);
                     button.className = getVoteChoiceClass(value);
                     button.innerHTML = buildVoteChoiceContent(value, vote.playerId);
+                    button.setAttribute('aria-label', `${vote.canEdit ? 'Cambia' : 'Voto di'} ${vote.name} per ${option.label} ${option.time}: ${getVoteState(value)?.label || 'Senza risposta'}`);
                 });
             });
 
             applyCrossCampaignHints();
+            refreshPollOverview();
             updateStatusMessage();
             ensureCrossCampaignHints();
         }
@@ -2490,8 +2743,8 @@
                 tableTop: previousTableWrap ? previousTableWrap.scrollTop : 0
             };
 
-            container.innerHTML = buildPollMarkup(effectiveConfig, options, votes, statusMessage, canConfigureSession, editorState);
-            applyCrossCampaignHints();
+            container.innerHTML = buildPollMarkup(effectiveConfig, options, votes, statusMessage, canConfigureSession, editorState, canEditIcons);
+            refreshPollVotesDom();
             const table = container.querySelector('.availability-table');
             const card = container.querySelector('.next-session-card-poll');
             const tableWrap = container.querySelector('.availability-table-wrap');
@@ -2531,6 +2784,7 @@
 
                     const confirmOptionId = target.getAttribute('data-confirm-option-id');
                     if (confirmOptionId) {
+                        if (voteSaveState === 'saving') return;
                         const selectedOption = options.find((option) => option.id === confirmOptionId);
                         if (!selectedOption || !canConfigureSession) {
                             return;
@@ -2582,42 +2836,7 @@
 
                     const currentChoice = targetVote.selections[optionId];
                     const nextChoice = action === 'clear' ? '' : getNextVoteValue(currentChoice);
-                    const previousVotes = votes;
-
-                    votes = votes.map((vote, index) => {
-                        if (index !== rowIndex) return vote;
-                        return {
-                            ...vote,
-                            selections: {
-                                ...vote.selections,
-                                [optionId]: nextChoice
-                            }
-                        };
-                    });
-                    statusMessage = '';
-                    refreshPollVotesDom();
-
-                    try {
-                        const payload = await postRemoteVote({
-                            campaignId,
-                            sessionNumber: effectiveConfig.number,
-                            playerAccountId: targetVote.accountId,
-                            playerDiscordId: targetVote.discordId,
-                            optionId,
-                            value: nextChoice,
-                            token: authToken
-                        });
-                        const remoteVotes = sanitizeVotes(extractVotesFromApiPayload(payload?.data || payload), options, players);
-                        votes = remoteVotes.length > 0 ? decorateVotes(remoteVotes) : decorateVotes(votes.map(({ canEdit, ...vote }) => vote));
-                        persistVotes(effectiveConfig.number, votes.map(({ canEdit, ...vote }) => vote));
-                        statusMessage = '';
-                        refreshPollVotesDom();
-                    } catch (error) {
-                        console.error('Impossibile salvare il voto della prossima sessione:', error);
-                        votes = previousVotes;
-                        statusMessage = error?.message || 'Impossibile salvare il voto sul server.';
-                        refreshPollVotesDom();
-                    }
+                    await saveVote(rowIndex, optionId, nextChoice);
                 });
             }
 
@@ -2626,9 +2845,58 @@
                     const button = event.target.closest('button');
                     if (!button) return;
 
+                    if (button.dataset.pollLayout) {
+                        setPollLayout(button.dataset.pollLayout);
+                        return;
+                    }
+                    if (button.closest('.poll-personal-view') && ['set', 'clear'].includes(button.dataset.action)) {
+                        await saveVote(Number(button.dataset.rowIndex), button.dataset.optionId, button.dataset.action === 'clear' ? '' : button.dataset.value);
+                        return;
+                    }
                     const pollAction = button.getAttribute('data-poll-action');
                     const action = button.getAttribute('data-editor-action');
                     const viewMode = button.getAttribute('data-view-mode');
+                    if (pollAction === 'first-empty') {
+                        const rowIndex = Number(button.dataset.rowIndex);
+                        const vote = votes[rowIndex];
+                        const missing = vote?.canEdit && options.find((option) => !getVoteState(vote.selections[option.id]));
+                        if (missing) focusPollOption(missing.id, rowIndex);
+                        return;
+                    }
+                    if (pollAction === 'jump-option') {
+                        setPollLayout('table');
+                        focusPollOption(button.dataset.optionId);
+                        return;
+                    }
+                    if (pollAction === 'retry-vote') {
+                        if (failedVote) await saveVote(failedVote.rowIndex, failedVote.optionId, failedVote.value);
+                        return;
+                    }
+                    if (voteSaveState === 'saving' && (action || pollAction === 'edit-icons' || viewMode)) return;
+                    if (pollAction === 'edit-icons' && canEditIcons) {
+                        const defaults = buildVoteIconSets({ ...effectiveConfig, voteIconOverrides: {} });
+                        window.CriptaPollIconEditor.open({
+                            campaignId,
+                            campaignName: effectiveConfig.campaignName,
+                            players: orderedPlayers,
+                            token: authToken,
+                            request: (method, body) => sessionApiService.request('api/poll-icons', {
+                                method, query: { campaign: campaignId }, token: authToken, cache: false, ...(body ? { body } : {})
+                            }),
+                            defaultIcon: (playerId, state) => resolveVoteIconUrl((defaults[playerId] || defaults.dm)[state]),
+                            resolveIcon: resolveVoteIconUrl,
+                            onSave: (settings) => {
+                                invalidatePollCache(`session:${campaignId}`);
+                                if (!isCurrentRender()) return;
+                                effectiveConfig.voteIconOverrides = sanitizeVoteIconSets(settings.voteIcons);
+                                effectiveConfig.voteIconsVersion = settings.version;
+                                setCurrentVoteIconSets(effectiveConfig);
+                                statusMessage = 'Icone aggiornate per questa campagna.';
+                                refreshPollVotesDom();
+                            }
+                        });
+                        return;
+                    }
                     if (pollAction === 'send-link') {
                         if (!canConfigureSession) return;
                         button.disabled = true;

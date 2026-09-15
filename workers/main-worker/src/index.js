@@ -153,6 +153,9 @@ export default {
       if (url.pathname === "/api/campaign/access" && request.method === "GET") {
         return handleCampaignAccessGet(request, queryCampaignId, env, corsHeaders);
       }
+      if (url.pathname === "/api/poll-icons" && ["GET", "POST"].includes(request.method)) {
+        return handlePollIcons(request, queryCampaignId, env, corsHeaders);
+      }
 
       if (url.pathname === "/api/asset-cleanup/dry-run" && request.method === "GET") {
         return handleAssetCleanupDryRun(request, queryCampaignId, env, corsHeaders);
@@ -1057,7 +1060,7 @@ export default {
           return json({ ok: false, error: "Stored session is invalid JSON" }, 500, corsHeaders);
         }
 
-        return json(scrubSessionData(session), 200, corsHeaders);
+        return json(await withPollIcons(session, campaignId, env), 200, corsHeaders);
       }
 
       // ======================================================
@@ -1097,7 +1100,7 @@ export default {
           return json({ ok: false, error: "Stored session is invalid JSON" }, 500, corsHeaders);
         }
 
-        return json(scrubSessionData(session), 200, corsHeaders);
+        return json(await withPollIcons(session, campaignId, env), 200, corsHeaders);
       }
 
       // ======================================================
@@ -1262,7 +1265,7 @@ export default {
             ok: true,
             saved: true,
             number,
-            data: sessionData,
+            data: await withPollIcons(sessionData, campaignId, env),
           },
           200,
           corsHeaders
@@ -1983,6 +1986,73 @@ function scrubSessionData(session) {
   const copy = { ...session };
   delete copy.discordWebhookUrl;
   return copy;
+}
+
+async function loadPollIcons(campaignId, env) {
+  const saved = safeJsonParse(await env.SIGILLO_KV.get(campaignKey(campaignId, "poll-icons")));
+  return {
+    campaignId,
+    voteIcons: saved?.voteIcons || {},
+    version: saved?.version || "",
+    updatedAt: saved?.updatedAt || "",
+  };
+}
+
+async function withPollIcons(session, campaignId, env) {
+  const settings = await loadPollIcons(campaignId, env);
+  return { ...scrubSessionData(session), voteIconOverrides: settings.voteIcons, voteIconsVersion: settings.version };
+}
+
+async function handlePollIcons(request, campaignId, env, corsHeaders) {
+  if (!env.SIGILLO_KV) return json({ ok: false, error: "Archivio non disponibile." }, 503, corsHeaders);
+  if (request.method === "GET") {
+    return json(await loadPollIcons(campaignId, env), 200, { ...corsHeaders, "Cache-Control": "no-store" });
+  }
+  const user = await requireUser(request, env, corsHeaders);
+  if (user instanceof Response) return user;
+  if (!isAuthenticatedGlobalAdmin(user, env)) {
+    return json({ ok: false, error: "Solo l’admin può personalizzare le icone dei sondaggi." }, 403, corsHeaders);
+  }
+  const body = await request.json().catch(() => null);
+  if (!body || (body.campaignId && body.campaignId !== campaignId) || typeof body.version !== "string"
+      || !Array.isArray(body.changes) || !body.changes.length || body.changes.length > 150) {
+    return json({ ok: false, error: "Configurazione icone non valida." }, 400, corsHeaders);
+  }
+  const seen = new Set();
+  for (const change of body.changes) {
+    if (!change || typeof change.playerId !== "string" || !/^[a-z0-9][a-z0-9_-]{0,99}$/.test(change.playerId)
+        || ["constructor", "prototype", "__proto__"].includes(change.playerId)
+        || !["yes", "maybe", "no"].includes(change.state) || seen.has(`${change.playerId}:${change.state}`)) {
+      return json({ ok: false, error: "Partecipante o risposta non validi." }, 400, corsHeaders);
+    }
+    seen.add(`${change.playerId}:${change.state}`);
+    const prefix = `media/campaigns/${campaignId}/poll-icons/`;
+    if (change.path !== null && (typeof change.path !== "string" || !change.path.startsWith(prefix)
+        || !/^[a-z0-9][a-z0-9_-]{0,179}\.webp$/.test(change.path.slice(prefix.length)))) {
+      return json({ ok: false, error: "L’immagine deve appartenere alle icone di questa campagna." }, 400, corsHeaders);
+    }
+  }
+  // Changes are applied only after every supplied image has been verified.
+  for (const change of body.changes) {
+    if (change.path && (!env.MEDIA_BUCKET || !await env.MEDIA_BUCKET.head(change.path.slice(6)))) {
+      return json({ ok: false, error: "Immagine non trovata. Ricaricala prima di salvare." }, 400, corsHeaders);
+    }
+  }
+  const settings = await loadPollIcons(campaignId, env);
+  if (body.version !== settings.version) {
+    return json({ ok: false, error: "Le icone sono state modificate altrove. Chiudi e riapri il pannello prima di riprovare." }, 409, corsHeaders);
+  }
+  for (const { playerId, state, path } of body.changes) {
+    if (path) settings.voteIcons[playerId] = { ...settings.voteIcons[playerId], [state]: path };
+    else if (Object.hasOwn(settings.voteIcons, playerId)) {
+      delete settings.voteIcons[playerId][state];
+      if (!Object.keys(settings.voteIcons[playerId]).length) delete settings.voteIcons[playerId];
+    }
+  }
+  settings.version = crypto.randomUUID();
+  settings.updatedAt = new Date().toISOString();
+  await env.SIGILLO_KV.put(campaignKey(campaignId, "poll-icons"), JSON.stringify(settings));
+  return json({ ok: true, ...settings }, 200, corsHeaders);
 }
 
 async function loadSessionForDiscordAction(env, campaignId, rawNumber) {
@@ -8194,6 +8264,9 @@ async function handleMediaUpload(request, env, corsHeaders = {}) {
     user = await requireUser(request, env, corsHeaders);
     if (user instanceof Response) return user;
   }
+  if (folder === "poll-icons" && !isAuthenticatedGlobalAdmin(user, env)) {
+    return json({ ok: false, error: "Solo l’admin può caricare le icone dei sondaggi." }, 403, corsHeaders);
+  }
   const isCampaignEditor = foundrySyncAuthorized || (isManagedActorFolder
     ? await isAuthenticatedCampaignContentEditor(user, env, campaignId)
     : await isAuthenticatedCampaignEditor(user, env, campaignId));
@@ -8533,6 +8606,7 @@ function sanitizeMediaFolder(value) {
   if (/^companions(\/[a-z0-9_-]+)?$/.test(folder)) return folder;
   if (/^skill-trees(\/[a-z0-9_-]+)?$/.test(folder)) return folder;
   const allowed = new Set([
+    "poll-icons",
     "economy/currencies",
     "items",
     "bestiary",

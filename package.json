@@ -19,6 +19,7 @@
     "check:encoding": "node scripts/check_encoding.js",
     "check:webp-only": "node scripts/check_webp_only.js",
     "test:calendar": "node scripts/test-calendar-engine.js && node scripts/test-calendar-worker.js",
+    "test:poll": "node scripts/test-poll-hints.mjs && node --experimental-default-type=module scripts/test-poll-icons.mjs && node scripts/test-poll-ux.mjs",
     "test:economy": "node scripts/test-economy-worker.js && node scripts/test-campaign-item-economy.js && node scripts/test-item-site-sync.js",
     "test:item-categories": "node --experimental-default-type=module scripts/test-campaign-item-categories.mjs",
     "test:npc-categories": "node --experimental-default-type=module scripts/test-npc-subcategories.mjs",
