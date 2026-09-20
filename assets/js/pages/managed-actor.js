@@ -20,6 +20,9 @@
     let managedActorLinkPreferredSourceId = "";
     let managedCommandRefreshTimer = 0;
     let managedCommandPollAttempts = 0;
+    let managedEditorSnapshot = null;
+    let managedSaveInProgress = false;
+    const managedFieldBaselines = new WeakMap();
 
     window.CriptaApp.onPageReady("managed-actor", async () => {
         const root = document.querySelector("[data-managed-actor-root]");
@@ -268,7 +271,7 @@
                     label: `${item.name || "Elemento"} · ${change.label || "Variazione"}`,
                     before: managedActorLinkValue(change.before),
                     after: managedActorLinkValue(change.after),
-                    icon: item.structural ? "fa-triangle-exclamation" : "fa-backpack",
+                    icon: item.structural ? "fa-triangle-exclamation" : "fa-briefcase",
                     kind: item.structural ? "structural" : "item"
                 });
             }
@@ -440,6 +443,7 @@
     }
 
     function renderManagedActor(root, actor, canEdit, editing = false, canManageActor = false) {
+        root._managedDossierCleanup?.();
         if (managedActorLinkRefreshTimer) window.clearTimeout(managedActorLinkRefreshTimer);
         managedActorLinkRefreshTimer = 0;
         const editMode = Boolean(canEdit && editing);
@@ -448,7 +452,9 @@
         clearManagedImagePreviews();
         root.classList.toggle("is-editing", editMode);
         root.classList.toggle("is-viewing", !editMode);
+        root.classList.toggle("is-npc", String(actor.actorType || "").toLowerCase() === "npc");
         root.dataset.managedDirty = "false";
+        managedEditorSnapshot = structuredCloneManaged(actor);
         document.querySelectorAll("body > [data-managed-image-lightbox]").forEach((lightbox) => lightbox.remove());
         document.querySelectorAll("body > [data-managed-frame-circle-dialog]").forEach((entry) => {
             if (entry._managedFrameCircleResizeHandler) {
@@ -466,6 +472,7 @@
         const actorDetailsLabel = formatDetails(details);
         const media = actor.media || {};
         const avatarPath = media.avatar?.path || media.token?.path || "";
+        root.classList.toggle("has-npc-art", Boolean(avatarPath));
         const tokenPath = media.token?.path || avatarPath;
         const hasSiteAnimation = Boolean(media.idle?.path || media.hover?.path);
         const entries = Array.isArray(definition.items) ? definition.items : [];
@@ -484,7 +491,7 @@
         root.innerHTML = `
             <nav class="managed-actor-breadcrumb" aria-label="Navigazione scheda">
                 <a href="${escapeAttr(buildActorBackLink(actor))}"><i class="fas fa-arrow-left"></i> Torna alla wiki</a>
-                <span><i class="fas fa-cloud"></i> Sincronizzato con Foundry</span>
+                <span><i class="fas fa-cloud"></i> Scheda collegata a Foundry</span>
             </nav>
             <section class="managed-actor-hero">
                 <div class="managed-actor-art">
@@ -508,6 +515,7 @@
                 </div>
             </section>
             ${renderManagedCommandBar({ abilities, skills, traits, identityEntries, variants, effects, merchant, attackEntries, spellEntries, inventoryEntries, canEdit, editMode, actor, canManageActor })}
+            ${editMode ? '<p class="managed-editor-help">Salva scheda invia statistiche, abilità, oggetti ed effetti modificati. Le nuove creazioni hanno il proprio pulsante Crea. Foundry applica gli invii quando un GM è collegato e la ricezione dal sito è abilitata.</p>' : ""}
             ${editMode && currentProfile && canEdit && currentProfilePermissions.canEdit ? renderManagedProfileEditorToolbar() : ""}
             <div class="managed-actor-panels">
                 ${renderManagedActorLinkPanel(actor, Boolean(editMode && actor.permissions?.isEditor === true))}
@@ -531,6 +539,7 @@
             ${renderManagedImageLightbox()}
         `;
 
+        setupManagedNpcWorkspace(root, actor, editMode);
         root.querySelector("[data-managed-save]")?.addEventListener("click", () => saveManagedActorPage(root));
         root.querySelector("[data-managed-profile-lifecycle-action]")?.addEventListener("click", (event) => setManagedProfileLifecycle(root, event.currentTarget.dataset.managedProfileLifecycleAction));
         root.querySelectorAll("[data-managed-edit-toggle]").forEach((button) => button.addEventListener("click", () => toggleManagedEditMode(root, button.dataset.managedEditToggle === "edit")));
@@ -555,11 +564,11 @@
         setupManagedGuidedMechanics(root);
         setupManagedImageLightbox(root);
         setupManagedAvatarFallback(root, actor.media);
-        if (editMode) root.addEventListener("input", () => { root.dataset.managedDirty = "true"; });
         setupManagedProfileEditor(root, editMode);
         setupManagedActorLinkControls(root);
+        setupManagedDraftTracking(root, editMode);
+        root._managedNpcUpdateDraft?.();
         scheduleManagedCommandRefresh(root);
-        if (editMode) root.addEventListener("change", () => { root.dataset.managedDirty = "true"; });
         if (primaryPlayer) {
             window.CriptaManagedPlayerExtensions?.mount?.({
                 companions: root.querySelector("[data-managed-player-companions]"),
@@ -767,14 +776,36 @@
     }
 
     function renderManagedProfileOnly(root, profile) {
+        root._managedDossierCleanup?.();
         const media = profile.media || {};
         const avatarPath = media.avatar?.path || media.idle?.path || "";
         const hasAnimation = Boolean(media.idle?.path || media.hover?.path);
-        root.classList.add("is-viewing", "is-profile-only");
+        root.classList.add("is-viewing", "is-profile-only", "is-npc");
+        root.classList.toggle("has-npc-art", Boolean(avatarPath));
         document.title = `${profile.name || "NPC"} - Cripta di Sangue`;
         root.innerHTML = `<nav class="managed-actor-breadcrumb" aria-label="Navigazione scheda"><a href="../npcs.html"><i class="fas fa-arrow-left"></i> Torna agli NPC</a></nav>
             <section class="managed-actor-hero managed-actor-hero--profile-only"><div class="managed-actor-art"><div class="managed-actor-aura" aria-hidden="true"></div><div class="managed-actor-avatar">${renderManagedAvatarArtwork(media, avatarPath, profile.name)}</div></div><div class="managed-actor-title"><h1>${escapeHtml(profile.name)}</h1>${profile.role ? `<p class="managed-profile-role">${escapeHtml(profile.role)}</p>` : ""}${profile.quote ? `<blockquote class="managed-profile-quote">${escapeHtml(profile.quote)}</blockquote>` : ""}${hasAnimation ? renderManagedSiteAnimation(media, profile.name) : ""}</div></section>
             <div class="managed-actor-panels">${renderManagedProfileSection(profile, false, false)}${profile.merchant?.enabled ? renderManagedMerchantShop(profile.merchant) : ""}</div>${renderManagedImageLightbox()}`;
+        const hero = root.querySelector(".managed-actor-hero");
+        const panel = root.querySelector(".managed-profile-panel");
+        const dossier = document.createElement("div");
+        dossier.className = "managed-npc-pane managed-npc-pane--profile";
+        dossier.id = "managed-npc-profile";
+        panel.before(dossier);
+        let portrait;
+        if (avatarPath) {
+            portrait = document.createElement("aside");
+            portrait.className = "managed-npc-portrait";
+            portrait.setAttribute("aria-label", "Ritratto del personaggio");
+            portrait.append(hero.querySelector(".managed-actor-art"));
+            const animation = hero.querySelector(".managed-actor-site-animation");
+            if (animation) portrait.append(animation);
+            dossier.append(portrait);
+            dossier.classList.add("has-portrait");
+        }
+        dossier.append(panel);
+        root.classList.add("is-npc-dossier");
+        setupManagedNpcDossierLayout(root, dossier, portrait, false);
         setupManagedImageLightbox(root);
         setupManagedAvatarFallback(root, media);
     }
@@ -892,14 +923,50 @@
     }
 
     function renderManagedProfileEditorBlock(block, index) {
-        const needsImage = ["image_box", "banner_box", "secret_dossier"].includes(block.type);
         const imageValue = block.type === "banner_box" ? (block.banner || block.image || "") : (block.image || "");
+        const needsImage = Boolean(imageValue) || ["image_box", "banner_box", "secret_dossier"].includes(block.type);
         const preview = getManagedProfilePreview(block) || (imageValue ? resolveMedia(imageValue) : "");
         const richTextHtml = window.CriptaRichTextEditor?.markdownToHtml?.(block.text || "", { context: block.type, preserveBlankLines: true, showInlineSecrets: true }) || window.CriptaMarkdown?.render?.(block.text || "", { context: block.type, preserveLineBreaks: true, preserveBlankLines: true, showInlineSecrets: true }) || `<p>${escapeHtml(block.text || "").replace(/\n/g, "<br>")}</p>`;
         const richTextToolbar = window.CriptaRichTextEditor?.toolbarHtml?.() || "";
         const expanded = managedProfileOpenBlockId === null ? index === 0 : managedProfileOpenBlockId === block.id;
         const typeMeta = getManagedProfileBlockTypeMeta(block.type);
         const visibilityLabel = block.visibility === "dm" ? "Solo DM" : "Tutti";
+        if (String(currentDocument?.actorType || "").toLowerCase() === "npc") {
+            return `<article class="managed-profile-edit-block managed-npc-edit-chapter ${expanded ? "is-expanded" : "is-collapsed"}" data-managed-profile-block data-managed-profile-block-id="${escapeAttr(block.id)}">
+                <header class="managed-profile-edit-block-head">
+                    <button type="button" class="managed-profile-drag" draggable="true" data-managed-profile-drag="${escapeAttr(block.id)}" aria-label="Trascina ${escapeAttr(block.title)}"><i class="fas fa-grip-vertical" aria-hidden="true"></i></button>
+                    <span class="managed-edit-chapter-number" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span>
+                    <button type="button" class="managed-profile-block-toggle" data-managed-profile-toggle aria-expanded="${expanded}" aria-controls="managed-edit-chapter-${escapeAttr(block.id)}"><span><strong>${escapeHtml(block.title || `Capitolo ${index + 1}`)}</strong><small><b>${escapeHtml(typeMeta.label)}</b><b class="${block.visibility === "dm" ? "is-dm" : ""}">${visibilityLabel}</b><em>${escapeHtml(getManagedProfileBlockExcerpt(block))}</em></small></span><i class="fas fa-chevron-${expanded ? "up" : "down"}" aria-hidden="true"></i></button>
+                    <details class="managed-edit-chapter-actions"><summary aria-label="Azioni per ${escapeAttr(block.title || `Capitolo ${index + 1}`)}"><i class="fas fa-ellipsis" aria-hidden="true"></i><span>Azioni</span></summary><div>
+                        <button type="button" data-managed-profile-duplicate><i class="fas fa-copy" aria-hidden="true"></i>Duplica</button>
+                        <button type="button" data-managed-profile-move="up" ${index === 0 ? "disabled" : ""}><i class="fas fa-arrow-up" aria-hidden="true"></i>Sposta su</button>
+                        <button type="button" data-managed-profile-move="down"><i class="fas fa-arrow-down" aria-hidden="true"></i>Sposta giù</button>
+                        <button type="button" class="is-danger" data-managed-profile-delete><i class="fas fa-trash" aria-hidden="true"></i>Elimina</button>
+                    </div></details>
+                </header>
+                <div id="managed-edit-chapter-${escapeAttr(block.id)}" class="managed-profile-edit-block-content" ${expanded ? "" : "hidden"}>
+                    <input type="hidden" data-managed-profile-block-field="id" value="${escapeAttr(block.id)}">
+                    <div class="managed-profile-block-fields">
+                        <label><span>Titolo del capitolo</span><input type="text" data-managed-profile-block-field="title" value="${escapeAttr(block.title)}" placeholder="Dai un titolo al capitolo"></label>
+                        <label><span>Chi può leggerlo</span><select data-managed-profile-block-field="visibility" ${currentProfilePermissions.isEditor === true ? "" : "disabled"}><option value="public" ${block.visibility !== "dm" ? "selected" : ""}>Tutti</option><option value="dm" ${block.visibility === "dm" ? "selected" : ""}>Solo DM</option></select></label>
+                    </div>
+                    <div class="managed-edit-chapter-workspace ${preview ? "has-image" : ""}">
+                        <div class="managed-profile-text-editor"><span>Testo</span><div class="managed-profile-rich-text" data-managed-profile-rich-text>${richTextToolbar}<textarea hidden data-rich-text-source data-managed-profile-block-field="text">${escapeHtml(block.text)}</textarea><div class="managed-profile-markdown managed-profile-rich-text-editor" contenteditable="true" role="textbox" aria-label="Testo di ${escapeAttr(block.title || `Capitolo ${index + 1}`)}" aria-multiline="true" spellcheck="true" data-rich-text-editor>${richTextHtml || "<p><br></p>"}</div></div></div>
+                        <aside class="managed-edit-chapter-options" aria-label="Immagine e formato del capitolo">
+                            <details class="managed-edit-chapter-image" ${preview ? "open" : ""}><summary><i class="fas fa-image" aria-hidden="true"></i>Immagine<i class="fas fa-chevron-down" aria-hidden="true"></i></summary><div class="managed-profile-image-editor">
+                                <label class="managed-profile-image-drop" data-managed-profile-image-drop="${escapeAttr(block.id)}" for="managed-chapter-image-${escapeAttr(block.id)}">${preview ? `<img data-managed-profile-image-preview src="${escapeAttr(preview)}" alt="Immagine di ${escapeAttr(block.title)}">` : '<i class="fas fa-cloud-arrow-up" aria-hidden="true"></i><span>Trascina qui un’immagine</span>'}</label>
+                                <div class="managed-edit-image-buttons"><label class="managed-profile-file-button"><span>${preview ? "Sostituisci" : "Scegli immagine"}</span><input id="managed-chapter-image-${escapeAttr(block.id)}" type="file" accept="image/*" data-managed-profile-image-file="${escapeAttr(block.id)}"></label>${preview ? '<button type="button" data-managed-profile-image-remove>Rimuovi</button>' : ""}</div>
+                                <details class="managed-edit-image-url"><summary>Usa un indirizzo immagine</summary><label><span>URL o percorso</span><input type="text" data-managed-profile-block-field="image" value="${escapeAttr(imageValue)}" placeholder="https://…"></label></details>
+                            </div></details>
+                            <details class="managed-edit-chapter-format"><summary>Formato e icona<i class="fas fa-chevron-down" aria-hidden="true"></i></summary><div>
+                                <label><span>Formato</span><select data-managed-profile-block-field="type">${["lore", "image_box", "custom_box", "banner_box", "secret_dossier"].map((type) => `<option value="${type}" ${block.type === type ? "selected" : ""}>${escapeHtml(getManagedProfileBlockTypeMeta(type).label)}</option>`).join("")}</select></label>
+                                <label><span>Icona</span><input type="text" data-managed-profile-block-field="icon" value="${escapeAttr(block.icon)}" placeholder="fa-scroll"></label>
+                            </div></details>
+                        </aside>
+                    </div>
+                </div>
+            </article>`;
+        }
         return `<article class="managed-profile-edit-block ${expanded ? "is-expanded" : "is-collapsed"}" data-managed-profile-block data-managed-profile-block-id="${escapeAttr(block.id)}">
             <div class="managed-profile-edit-block-head"><button type="button" class="managed-profile-drag" draggable="true" data-managed-profile-drag="${escapeAttr(block.id)}" aria-label="Trascina ${escapeAttr(block.title)}"><i class="fas fa-grip-vertical"></i></button><button type="button" class="managed-profile-block-toggle" data-managed-profile-toggle aria-expanded="${expanded ? "true" : "false"}"><span><strong>${escapeHtml(block.title || `Blocco ${index + 1}`)}</strong><small><b><i class="fas ${typeMeta.icon}"></i>${escapeHtml(typeMeta.label)}</b><b class="${block.visibility === "dm" ? "is-dm" : ""}"><i class="fas ${block.visibility === "dm" ? "fa-eye-slash" : "fa-eye"}"></i>${visibilityLabel}</b><em>${escapeHtml(getManagedProfileBlockExcerpt(block))}</em></small></span><i class="fas fa-chevron-${expanded ? "up" : "down"}" aria-hidden="true"></i></button><div><button type="button" data-managed-profile-duplicate aria-label="Duplica blocco"><i class="fas fa-copy"></i></button><button type="button" data-managed-profile-move="up" aria-label="Sposta su"><i class="fas fa-arrow-up"></i></button><button type="button" data-managed-profile-move="down" aria-label="Sposta giu"><i class="fas fa-arrow-down"></i></button><button type="button" class="is-danger" data-managed-profile-delete aria-label="Elimina blocco"><i class="fas fa-trash"></i></button></div></div>
             <div class="managed-profile-edit-block-content" ${expanded ? "" : "hidden"}>
@@ -957,9 +1024,65 @@
         markDirty();
     }
 
+    function setupManagedNpcProfileEditorLayout(root, section) {
+        if (!root.classList.contains("is-npc") || section.querySelector(".managed-profile-edit-overview")) return;
+        const meta = section.querySelector(".managed-profile-meta-editor");
+        const summary = section.querySelector(".managed-profile-summary-editor");
+        const blocks = section.querySelector("[data-managed-profile-blocks]");
+        if (!meta || !blocks) return;
+        const overview = document.createElement("div");
+        overview.className = "managed-profile-edit-overview";
+        const heading = section.querySelector(".managed-profile-header");
+        if (heading) {
+            heading.querySelector("h2").textContent = "Identità e dati";
+            const jump = document.createElement("a");
+            jump.href = "#managed-profile-chapters-editor";
+            jump.className = "managed-edit-chapters-jump";
+            jump.textContent = "Vai ai capitoli ↓";
+            heading.append(jump);
+            overview.append(heading);
+        }
+        const organization = document.createElement("details");
+        organization.className = "managed-profile-edit-organization";
+        organization.innerHTML = '<summary><span>Organizzazione e visibilità</span><i class="fas fa-chevron-down" aria-hidden="true"></i></summary><div class="managed-profile-organization-fields"></div>';
+        const organizationFields = organization.lastElementChild;
+        ["kind", "tags", "legacyCharacterId"].forEach((name) => {
+            const field = meta.querySelector(`[data-managed-profile-field="${name}"]`)?.closest("label");
+            if (field) organizationFields.append(field);
+        });
+        const category = meta.querySelector(".managed-profile-category-picker");
+        if (category) organizationFields.prepend(category);
+        const access = section.querySelector(".managed-profile-access-editor");
+        if (access) organizationFields.append(access);
+        overview.append(meta);
+        if (summary) {
+            const facts = document.createElement("fieldset");
+            facts.className = "managed-profile-edit-facts";
+            facts.innerHTML = "<legend>Dati del personaggio</legend>";
+            facts.append(summary);
+            overview.append(facts);
+        }
+        const chapters = document.createElement("section");
+        chapters.className = "managed-profile-edit-chapters";
+        chapters.id = "managed-profile-chapters-editor";
+        chapters.setAttribute("aria-labelledby", "managed-profile-chapters-heading");
+        let toolbar = root.querySelector("[data-managed-profile-toolbar]");
+        if (!toolbar) {
+            toolbar = document.createElement("div");
+            toolbar.className = "managed-profile-editor-toolbar";
+            toolbar.dataset.managedProfileToolbar = "";
+        }
+        toolbar.innerHTML = `<div><h2 id="managed-profile-chapters-heading">Capitoli</h2><span>Apri un capitolo per modificarlo.</span></div><details class="managed-profile-add-menu"><summary><i class="fas fa-plus" aria-hidden="true"></i>Aggiungi capitolo</summary><div>${renderManagedProfileAddButtons()}</div></details>`;
+        chapters.append(toolbar, blocks);
+        section.prepend(overview);
+        if (organizationFields.children.length) section.append(organization);
+        section.append(chapters);
+    }
+
     function setupManagedProfileEditor(root, editMode) {
         const section = root.querySelector("[data-managed-profile]");
         if (!section || !editMode || !currentProfilePermissions.canEdit) return;
+        setupManagedNpcProfileEditorLayout(root, section);
         const markDirty = () => { managedProfileDirty = true; root.dataset.managedDirty = "true"; };
         const actorNameControl = root.querySelector('[data-managed-actor-path="name"]');
         if (actorNameControl && actorNameControl.dataset.managedProfileNameBound !== "true") {
@@ -1073,6 +1196,29 @@
             const file = input.files?.[0];
             if (file) assignManagedProfileFile(root, input.dataset.managedProfileImageFile, file);
         }));
+        section.querySelectorAll("[data-managed-profile-image-remove]").forEach((button) => button.addEventListener("click", () => {
+            const block = button.closest("[data-managed-profile-block]");
+            const id = block.dataset.managedProfileBlockId;
+            block.querySelector('[data-managed-profile-block-field="image"]').value = "";
+            const savedBlock = currentProfile?.blocks.find((entry) => entry.id === id);
+            if (savedBlock) { savedBlock.image = ""; savedBlock.banner = ""; }
+            managedProfileFiles.delete(id);
+            const previewUrl = managedProfilePreviewUrls.get(id);
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            managedProfilePreviewUrls.delete(id);
+            currentProfile = collectManagedProfileFromRoot(root);
+            markDirty();
+            rerenderManagedProfileSection(root);
+        }));
+        if (root.classList.contains("is-npc")) section.querySelectorAll('[data-managed-profile-block-field="image"]').forEach((input) => input.addEventListener("change", () => {
+            const id = input.closest("[data-managed-profile-block]").dataset.managedProfileBlockId;
+            managedProfileFiles.delete(id);
+            const previewUrl = managedProfilePreviewUrls.get(id);
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            managedProfilePreviewUrls.delete(id);
+            currentProfile = collectManagedProfileFromRoot(root);
+            rerenderManagedProfileSection(root);
+        }));
         section.querySelectorAll("[data-managed-profile-image-drop]").forEach((drop) => {
             drop.addEventListener("dragover", (event) => { event.preventDefault(); drop.classList.add("is-dragover"); });
             drop.addEventListener("dragleave", () => drop.classList.remove("is-dragover"));
@@ -1108,6 +1254,7 @@
 
     function assignManagedProfileFile(root, id, file) {
         if (!id || !file) return;
+        currentProfile = collectManagedProfileFromRoot(root);
         const previousUrl = managedProfilePreviewUrls.get(id);
         if (previousUrl) URL.revokeObjectURL(previousUrl);
         managedProfilePreviewUrls.delete(id);
@@ -1180,40 +1327,74 @@
         template.innerHTML = renderManagedProfileSection(currentProfile, managedEditMode, Boolean(currentCanEdit && currentProfilePermissions.canEdit)).trim();
         const replacement = template.content.firstElementChild;
         if (!replacement) return;
+        // This control belongs to the actor draft, not to the narrative profile being rebuilt.
+        const visibility = previous.querySelector("[data-managed-visibility]");
+        if (visibility) replacement.querySelector("[data-managed-visibility]")?.replaceWith(visibility);
+        const organizationOpen = previous.querySelector(".managed-profile-edit-organization")?.open;
         previous.replaceWith(replacement);
         setupManagedProfileEditor(root, managedEditMode);
+        const organization = replacement.querySelector(".managed-profile-edit-organization");
+        if (organization) organization.open = Boolean(organizationOpen);
         setupManagedImageLightbox(root);
+        root._managedNpcUpdateDraft?.();
     }
 
     async function saveManagedActorPage(root) {
         const status = root.querySelector("[data-managed-status]");
         const button = root.querySelector("[data-managed-save]");
         const token = getToken();
-        if (!token) return;
-        const actorHasChanges = collectManagedActorPatches(root).length > 0 || hasManagedPresentationChanges(root, currentDocument);
-        let profileSaved = false;
-        if (currentProfilePermissions.canEdit === true && (managedProfileDirty || managedProfileSource === "legacy")) {
-            button.disabled = true;
-            if (status) status.textContent = "Salvataggio dossier...";
-            try {
-                await saveManagedActorProfile(root, token);
-                profileSaved = true;
-            } catch (error) {
-                console.error("Salvataggio dossier fallito", error);
-                if (status) status.textContent = error.message || "Salvataggio dossier fallito";
-                button.disabled = false;
-                return;
+        if (!token || managedSaveInProgress) return;
+        managedSaveInProgress = true;
+        button.disabled = true;
+        let saved = 0;
+        try {
+            // Validate every existing editor before sending the first change.
+            const actorHasChanges = collectManagedActorPatches(root).length > 0
+                || (currentCanManageActor && hasManagedPresentationChanges(root, managedEditorSnapshot || currentDocument));
+            const editors = [];
+            for (const kind of ["item", "effect"]) {
+                for (const form of root.querySelectorAll(`[data-managed-${kind}-form]`)) {
+                    const entity = kind === "item" ? findCurrentManagedItem(form.dataset.managedTransferId, form.dataset.managedItemId)
+                        : findCurrentManagedEffect(form.dataset.managedEffectId, form.dataset.managedEffectClientId);
+                    const command = entity && (kind === "item" ? findManagedItemCommand(entity) : findManagedEffectCommand(entity));
+                    if (collectManagedEntityPatches(form, kind, command).length || form.querySelector("[data-managed-item-icon]")?.files?.length) {
+                        editors.push({ kind, form });
+                    }
+                }
             }
+            root.inert = true;
+            if (currentProfilePermissions.canEdit && (managedProfileDirty || managedProfileSource === "legacy")) {
+                status.textContent = "Salvataggio dossier...";
+                await saveManagedActorProfile(root, token);
+                saved += 1;
+            }
+            if (actorHasChanges) {
+                if (!await saveManagedActorPresentation(root)) return;
+                saved += 1;
+            }
+            for (const { kind, form } of editors) {
+                const send = kind === "item" ? enqueueManagedItemUpdate : enqueueManagedEffectUpdate;
+                if (!await send(form.querySelector(`[data-managed-${kind}-save]`))) {
+                    status.textContent = "Alcune modifiche non sono state inviate. La bozza è conservata: controlla l'elemento segnalato.";
+                    return;
+                }
+                saved += 1;
+            }
+            const remaining = hasManagedUnsavedChanges(root);
+            root.dataset.managedDirty = remaining ? "true" : "false";
+            status.textContent = remaining ? "Modifiche salvate. Completa le nuove creazioni con il pulsante Crea."
+                : saved ? "Modifiche salvate sul sito. Gli invii a Foundry sono indicati nella sincronizzazione."
+                    : "Nessuna modifica da salvare.";
+            refreshManagedCommandIndicators(root);
+        } catch (error) {
+            console.error("Salvataggio scheda non completato", error);
+            status.textContent = `${error.message || "Salvataggio non completato"} La bozza è conservata.`;
+        } finally {
+            managedSaveInProgress = false;
+            root.inert = false;
             button.disabled = false;
-        }
-        if (actorHasChanges) {
-            await saveManagedActorPresentation(root);
-            return;
-        }
-        if (status) status.textContent = profileSaved ? `Dossier salvato - revisione ${currentProfile.revision}` : "Nessuna modifica da salvare.";
-        if (profileSaved) {
-            root.dataset.managedDirty = "false";
-            rerenderManagedProfileSection(root);
+            root._managedNpcUpdateDraft?.();
+            scheduleManagedCommandRefresh(root);
         }
     }
 
@@ -1574,12 +1755,38 @@
         });
     }
     function setupManagedGuidedMechanics(root) {
+        root.querySelectorAll("[data-managed-item-form]").forEach((form) => {
+            form.addEventListener("input", (event) => {
+                if (!event.target.matches('[data-managed-item-type="json"]')) return;
+                const entry = findCurrentManagedItem(form.dataset.managedTransferId, form.dataset.managedItemId);
+                if (!entry) return;
+                try {
+                    const draft = structuredCloneManaged(entry);
+                    for (const path of ["system.damage", "system.activities"]) {
+                        const control = form.querySelector(`[data-managed-item-path="${path}"]`);
+                        if (control) draft.definition[path.slice(7)] = JSON.parse(control.value);
+                    }
+                    form.querySelectorAll("[data-managed-activity-key]").forEach((card) => {
+                        const activity = draft.definition.activities?.[card.dataset.managedActivityKey];
+                        const preview = card.querySelector("[data-managed-draft-preview]");
+                        if (activity && preview) preview.innerHTML = renderManagedActivityPreview(activity, draft);
+                    });
+                } catch (_) { /* Keep the previous preview while JSON is incomplete. */ }
+            });
+        });
         const bindControl = (control) => {
             const sync = () => syncManagedGuidedControl(control);
             control.addEventListener("input", sync);
             control.addEventListener("change", sync);
         };
         root.querySelectorAll("[data-managed-guided-object]").forEach(bindControl);
+        root.querySelectorAll("[data-managed-override-group]").forEach((group) => {
+            const toggle = group.querySelector('input[type="checkbox"]');
+            const fields = group.querySelector("fieldset");
+            const sync = () => { if (fields) fields.disabled = !toggle.checked; };
+            toggle?.addEventListener("change", sync);
+            if (toggle) sync();
+        });
         root.querySelectorAll("[data-managed-guided-list]").forEach((group) => group.querySelectorAll('input[type="checkbox"]').forEach((input) => input.addEventListener("change", () => syncManagedGuidedList(group))));
         root.querySelectorAll("[data-managed-damage-parts]").forEach((list) => {
             list.querySelectorAll("[data-managed-damage-formula], [data-managed-damage-type]").forEach((control) => {
@@ -1620,6 +1827,14 @@
         let value = type === "boolean" ? control.checked : type === "number" ? (control.value === "" ? undefined : Number(control.value)) : type === "list" ? String(control.value || "").split(",").map((entry) => entry.trim()).filter(Boolean) : String(control.value || "").trim();
         if (value === "" || value === undefined || (typeof value === "number" && !Number.isFinite(value))) deleteManagedGuidedValue(objectValue, key);
         else setManagedGuidedValue(objectValue, key, value);
+        const activationField = objectPath === "system.activities" && key.match(/^([^.]+)\.activation\.(type|value)$/);
+        if (activationField) setManagedGuidedValue(objectValue, `${activationField[1]}.activation.override`, true);
+        const saveFormula = objectPath === "system.activities" && key.match(/^([^.]+)\.save\.dc\.formula$/);
+        if (saveFormula) {
+            setManagedGuidedValue(objectValue, `${saveFormula[1]}.save.dc.calculation`, "");
+            const calculation = control.closest("[data-managed-item-form]")?.querySelector(`[data-managed-guided-key="${CSS.escape(saveFormula[1])}.save.dc.calculation"]`);
+            if (calculation) calculation.value = "";
+        }
         textarea.value = JSON.stringify(objectValue, null, 2);
         textarea.dispatchEvent(new Event("input", { bubbles: true }));
     }
@@ -1709,7 +1924,7 @@
             ["managed-traits", "fa-fingerprint", "Tratti", Object.keys(traits || {}).length > 0 || identityEntries.length > 0],
             ["managed-capabilities", "fa-burst", "Combattimento", attackEntries.length > 0 || editMode],
             ["managed-spells", "fa-wand-sparkles", "Incantesimi", spellEntries.length > 0 || editMode],
-            ["managed-inventory", "fa-backpack", "Inventario", inventoryEntries.length > 0 || editMode],
+            ["managed-inventory", "fa-briefcase", "Inventario", inventoryEntries.length > 0 || editMode],
             ["managed-variants", "fa-layer-group", "Varianti", variants.length > 0 || (editMode && canManageActor)],
             ["managed-effects", "fa-wand-magic-sparkles", "Effetti", effects.length > 0 || editMode]
         ].filter(([, , , visible]) => visible);
@@ -1745,7 +1960,7 @@
         const syncState = conflicts ? { icon: "fa-triangle-exclamation", title: `${conflicts} problemi`, detail: "Apri per vedere quali", className: "is-conflict" }
             : reviews ? { icon: "fa-list-check", title: `${reviews} scelta richiesta`, detail: "Seleziona lo stato corrente", className: "is-pending" }
                 : pending ? { icon: "fa-cloud-arrow-up", title: `${pending} in attesa`, detail: "Apri per vedere quali", className: "is-pending" }
-                    : { icon: "fa-circle-check", title: "Sincronizzato", detail: `Revisione ${Number(actor?.revision || 0)}`, className: "is-synced" };
+                    : { icon: "fa-circle-check", title: "Nessuna modifica in coda", detail: `Ultima lettura · revisione ${Number(actor?.revision || 0)}`, className: "is-synced" };
         const commandLabel = (command) => ({ "actor.update": "Statistiche e identita", "item.update": "Modifica oggetto", "item.create": "Nuovo oggetto", "item.delete": "Rimozione oggetto", "effect.update": "Modifica effetto", "effect.create": "Nuovo effetto", "effect.delete": "Rimozione effetto", "actor-link.inspect": "Controllo Link Actor Data", "actor-link.apply": "Conversione Link Actor Data", "actor-link.rollback": "Ripristino Link Actor Data" }[command.kind] || command.kind || "Modifica");
         return commands.length
             ? `<details class="managed-sync-indicator managed-sync-details ${syncState.className}"><summary><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span><i class="fas fa-chevron-down"></i></summary><div>${commands.map((command) => `<article class="is-${escapeAttr(command.status || "pending")}"><i class="fas ${command.status === "review" ? "fa-list-check" : command.status === "pending" ? "fa-clock" : "fa-triangle-exclamation"}"></i><span><strong>${escapeHtml(commandLabel(command))}</strong><small>${escapeHtml(command.error || (command.status === "review" ? "Scegli lo stato corrente nella sezione Link Actor Data" : command.status === "pending" ? "In attesa del client Foundry" : "Richiede una nuova conferma"))}</small></span></article>`).join("")}</div></details>`
@@ -1753,7 +1968,7 @@
     }
     async function toggleManagedEditMode(root, shouldEdit) {
         if (!currentCanEdit || managedEditMode === shouldEdit) return;
-        if (!shouldEdit && root.dataset.managedDirty === "true" && !window.confirm("Uscire dalla modalità modifica? Le modifiche non ancora inviate andranno perse.")) return;
+        if (!shouldEdit && hasManagedUnsavedChanges(root) && !window.confirm("Uscire dalla modalità modifica? Le modifiche non ancora inviate andranno perse.")) return;
         if (!shouldEdit && managedProfileDirty) {
             await loadManagedActorProfile(currentDocument, getToken());
             managedProfileDirty = false;
@@ -1836,7 +2051,7 @@
                 { label: "PF temporanei", path: "system.attributes.hp.temp", value: runtimeHp.temp ?? hp.temp ?? 0, icon: "fa-shield-heart", type: "number", min: 0, max: 999999, step: 1, className: "managed-stat--health" }
             ] : []),
             { label: "Classe Armatura", path: "system.attributes.ac.flat", value: acData.flat ?? ac, icon: "fa-shield-halved", type: "number", min: 0, max: 99, step: 1, className: "managed-stat--armor" },
-            { label: "Competenza", path: "system.attributes.prof", value: attributes.prof, icon: "fa-dice-d20", type: "number", min: 0, max: 99, step: 1 },
+            { label: "Competenza", value: attributes.prof, icon: "fa-dice-d20", editable: false },
             { label: "Bonus iniziativa", path: "system.attributes.init.bonus", value: canEdit ? (initiative.bonus ?? 0) : formatSigned(initiative.total ?? initiative.mod ?? initiative.bonus ?? initiative.value ?? 0), icon: "fa-bolt", type: "number", min: -99, max: 99, step: 1 },
             canEdit
                 ? { label: "Velocità", path: "system.attributes.movement.walk", value: movement.walk, icon: "fa-person-running", type: "number", min: 0, max: 9999, step: 1 }
@@ -1844,7 +2059,7 @@
             ...(sensesSummary ? [{ label: "Sensi", value: sensesSummary, facts: senseFacts, icon: "fa-eye", editable: false, layout: "context", className: "managed-stat--wide managed-stat--compact managed-stat--senses" }] : []),
             { label: "Taglia", path: "system.traits.size", value: traits?.size || "med", icon: "fa-ruler-combined", type: "select", className: "managed-stat--number managed-stat--size", options: [["tiny", "Minuscola"], ["sm", "Piccola"], ["med", "Media"], ["lg", "Grande"], ["huge", "Enorme"], ["grg", "Mastodontica"]] },
             isCharacter
-                ? { label: "Livello", value: details.level ?? 1, icon: "fa-star", editable: false, note: "Calcolato dalle classi" }
+                ? { label: "Livello", value: details.level ?? 1, icon: "fa-star", editable: false }
                 : { label: "CR", path: "system.details.cr", value: details.cr, icon: "fa-skull", type: "text" },
             ...(!isCharacter && Number.isFinite(xp) && xp > 0 ? [{ label: "PE", value: new Intl.NumberFormat("it-IT").format(xp), icon: "fa-gem", editable: false, layout: "context", className: "managed-stat--number managed-stat--economy" }] : []),
             ...getManagedLegendaryResourceStats(resourceDefinitions, runtime?.resources || {}, actorType, sharedRuntime)
@@ -1906,7 +2121,7 @@
                 : Math.max(0, Math.min(maximum, rawValue));
             const label = key === "pact" ? "Patto" : `Livello ${key.replace("spell", "")}`;
             if (!sharedRuntime) {
-                const maximumPath = `system.spells.${key}.${definition.override !== undefined ? "override" : "max"}`;
+                const maximumPath = `system.spells.${key}.override`;
                 if (!canEdit) return `<div class="managed-spell-slot"><span>${label}</span><strong>${maximum}</strong><small>massimi</small></div>`;
                 return `<label class="managed-spell-slot managed-spell-slot--editable"><span>${label}</span>${renderManagedActorControl(maximumPath, "number", maximum, { min: 0, max: 999, step: 1 })}<small>slot massimi</small></label>`;
             }
@@ -1915,12 +2130,11 @@
             const desiredRemaining = usesSpent
                 ? Math.max(0, maximum - Number(desiredRaw || 0))
                 : Math.max(0, Math.min(maximum, Number(desiredRaw ?? maximum)));
-            const original = escapeAttr(JSON.stringify(rawValue));
+            const original = escapeAttr(JSON.stringify(desiredRaw));
             return `<label class="managed-spell-slot managed-spell-slot--editable"><span>${label}</span><input type="number" min="0" max="${maximum}" step="1" value="${desiredRemaining}" data-managed-actor-path="${path}" data-managed-actor-type="spell-remaining" data-managed-spell-max="${maximum}" data-managed-spell-mode="${usesSpent ? "spent" : "remaining"}" data-managed-actor-original="${original}"><small>rimanenti su ${maximum}</small></label>`;
         }).filter(Boolean);
         if (!slots.length) return "";
-        const detail = sharedRuntime ? "Gli slot rimanenti vengono sincronizzati con Foundry." : "Sono mostrati solo i massimi dello statblock; ogni token conserva i propri utilizzi.";
-        return `<div class="managed-spell-editor"><div class="managed-rule-editor-heading"><i class="fas fa-wand-sparkles"></i><div><strong>Slot incantesimo</strong><span>${detail}</span></div></div><div class="managed-spell-slot-grid">${slots.join("")}</div></div>`;
+        return `<div class="managed-spell-editor"><div class="managed-rule-editor-heading"><i class="fas fa-wand-sparkles"></i><div><strong>Slot incantesimo</strong></div></div><div class="managed-spell-slot-grid">${slots.join("")}</div></div>`;
     }
 
     function renderManagedCurrency(wallet = {}, canEdit = false) {
@@ -2086,7 +2300,9 @@
     }
 
     function renderManagedProficiencyControl(path, value) {
-        return renderManagedActorControl(path, "select-number", Number(value || 0), { options: [[0, "Nessuna"], [.5, "Mezza"], [1, "Competente"], [2, "Maestria"]] });
+        const options = path.endsWith(".proficient") ? [[0, "Nessuna"], [1, "Competente"]]
+            : [[0, "Nessuna"], [.5, "Mezza"], [1, "Competente"], [2, "Maestria"]];
+        return renderManagedActorControl(path, "select-number", Number(value || 0), { options });
     }
 
     function renderManagedActorControl(path, type, fallbackValue, options = {}) {
@@ -2127,7 +2343,7 @@
     function renderManagedActorCommandStatus() {
         const command = findManagedActorUpdateCommand();
         if (!command) return "";
-        const label = command.status === "pending" ? formatManagedPendingFields(command.patches || []) : command.status === "conflict" ? formatManagedActorConflict(command) : "Invio fallito: salva per riprovare";
+        const label = command.status === "pending" ? formatManagedPendingFields(command.patches || []) : command.status === "conflict" ? formatManagedActorConflict(command) : `Invio non applicato: ${command.error || "Foundry non ha accettato i valori"}. Controlla i campi e salva per riprovare.`;
         return `<span class="managed-actor-sync managed-actor-sync--${escapeAttr(command.status || "pending")}"><i class="fas ${command.status === "pending" ? "fa-clock" : "fa-triangle-exclamation"}"></i> ${escapeHtml(label)}</span>`;
     }
     function formatManagedActorConflict(command) {
@@ -2418,10 +2634,9 @@
         const inventoryFilterButtons = collectionKind === "inventory" && entries.length ? renderManagedInventoryFilterButtons(entries) : "";
         const filterButtons = groupFilterButtons || preparationFilterButton || inventoryFilterButtons ? `<div class="managed-filter-chips${collectionKind === "inventory" ? " managed-filter-chips--inventory" : ""}" role="group" aria-label="Filtra ${escapeAttr(title)}">${groupFilterButtons}${inventoryFilterButtons}${preparationFilterButton}</div>` : "";
         const tools = entries.length > 5 ? `<div class="managed-collection-tools"><label class="managed-collection-search"><i class="fas fa-magnifying-glass"></i><input type="search" placeholder="Cerca ${escapeAttr(title.toLowerCase())}" aria-label="Cerca ${escapeAttr(title.toLowerCase())}" data-managed-entry-search></label>${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : filterButtons ? `<div class="managed-collection-tools">${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : "";
-        const lead = collectionKind === "spells" ? "Cerca e filtra il grimorio; apri soltanto ciò che vuoi leggere o modificare." : collectionKind === "capabilities" ? "Azioni, reazioni e capacità sono ordinate secondo il loro utilizzo in Foundry." : "";
         const overview = collectionKind === "inventory" && entries.length ? renderManagedInventoryOverview(entries) : "";
         const legendarySummary = collectionKind === "capabilities" ? renderManagedLegendaryCapabilitySummary() : "";
-        return `<details${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><summary class="managed-panel-heading managed-collection-summary"><div><span class="managed-panel-eyebrow">Dati Foundry</span><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-collection-summary-meta"><span class="managed-count-badge">${entries.length}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-collection-body">${entries.length ? `${overview}${legendarySummary}${lead ? `<p class="managed-panel-lead">${escapeHtml(lead)}</p>` : ""}${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</div></details>`;
+        return `<details${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><summary class="managed-panel-heading managed-collection-summary"><div><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-collection-summary-meta"><span class="managed-count-badge">${entries.length}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-collection-body">${entries.length ? `${overview}${legendarySummary}${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</div></details>`;
     }
 
     function renderManagedLegendaryCapabilitySummary() {
@@ -2433,7 +2648,7 @@
             managedActorHasSharedRuntime(currentDocument)
         );
         if (!stats.length) return "";
-        return `<aside class="managed-legendary-summary" aria-label="Risorse leggendarie"><div><i class="fas fa-crown" aria-hidden="true"></i><span><strong>Risorse leggendarie</strong><small>Disponibilità sincronizzata con Foundry</small></span></div><dl>${stats.map((entry) => `<div class="managed-legendary-resource managed-legendary-resource--${entry.key}"><dt><i class="fas ${escapeAttr(entry.icon)}" aria-hidden="true"></i>${escapeHtml(entry.label)}</dt><dd><strong>${escapeHtml(formatManagedStatValue(entry))}</strong><small>${escapeHtml(entry.note || "")}</small></dd></div>`).join("")}</dl></aside>`;
+        return `<aside class="managed-legendary-summary" aria-label="Risorse leggendarie"><div><i class="fas fa-crown" aria-hidden="true"></i><span><strong>Risorse leggendarie</strong></span></div><dl>${stats.map((entry) => `<div class="managed-legendary-resource managed-legendary-resource--${entry.key}"><dt><i class="fas ${escapeAttr(entry.icon)}" aria-hidden="true"></i>${escapeHtml(entry.label)}</dt><dd><strong>${escapeHtml(formatManagedStatValue(entry))}</strong><small>${escapeHtml(entry.note || "")}</small></dd></div>`).join("")}</dl></aside>`;
     }
 
     function managedRawCollectionValues(value) {
@@ -2861,12 +3076,17 @@
                 .map((ability) => ability.toUpperCase()).join("/");
             const save = dc > 0 ? `<span class="managed-effective-save"><i class="fas fa-shield-halved"></i><strong>CD ${dc}</strong>${abilities ? `<small>${escapeHtml(abilities)}</small>` : ""}</span>` : "";
             const tactical = renderManagedActivityTacticalFacts(getManagedActivityTacticalFacts(entry, activity, rawActivity));
-            return `<div class="managed-effective-roll-row">${showNames ? `<b>${escapeHtml(activity?.name || "Attività")}</b>` : ""}<div>${damage}${save}${tactical}</div></div>`;
+            const npcActivityTypes = { attack: "Attacco", save: "Tiro salvezza", damage: "Danno", heal: "Cura", utility: "Utilità", check: "Prova" };
+            const activityTitle = String(currentDocument?.actorType || "").toLowerCase() === "npc" && activity?.name === entry.name
+                ? npcActivityTypes[rawActivity?.type] || activity?.name
+                : activity?.name;
+            return `<div class="managed-effective-roll-row">${showNames ? `<b>${escapeHtml(activityTitle || "Attività")}</b>` : ""}<div>${damage}${save}${tactical}</div></div>`;
         }).join("");
         return `<div class="managed-effective-rolls" aria-label="Danni e CD effettivi da Foundry">${rows}</div>`;
     }
     function renderManagedEntryCard(entry, canEdit, groupKey, collectionKind = "capabilities", collectionEntries = []) {
         if (collectionKind === "inventory") return renderManagedInventoryEntryCard(entry, canEdit, groupKey, collectionEntries);
+        const npcLayout = String(currentDocument?.actorType || "").toLowerCase() === "npc";
         const icon = entry.media?.icon?.path;
         const description = stripManagedDuplicateHeading(htmlToText(entry.definition?.description || ""), entry.name);
         const searchDescription = truncatePreview(description, 900);
@@ -2879,13 +3099,84 @@
         const searchText = normalizeManagedSearch([entry.name, meta, preparation?.label, recharge?.label, recharge?.stateLabel, searchDescription].filter(Boolean).join(" "));
         const level = Number(entry.definition?.level ?? 0) || 0;
         const effectiveRolls = ["capabilities", "spells"].includes(collectionKind) ? renderManagedEffectiveRolls(entry) : "";
-        const disclosure = description ? `<details class="managed-entry-disclosure"><summary><span><i class="fas fa-book-open"></i> Descrizione</span><i class="fas fa-chevron-down"></i></summary><div>${formatManagedPreview(description)}</div></details>` : "";
+        const disclosure = npcLayout
+            ? ""
+            : `${renderManagedAbilityRules(entry)}${description ? `<details class="managed-entry-disclosure"><summary><span><i class="fas fa-book-open"></i> Descrizione e regole speciali</span><i class="fas fa-chevron-down"></i></summary><div>${formatManagedPreview(description)}</div></details>` : ""}`;
         const preparationAttribute = preparation ? ` data-managed-spell-preparation="${escapeAttr(preparation.key)}"` : "";
         const preparationBadge = preparation ? `<span class="managed-spell-preparation is-${escapeAttr(preparation.key)}"><i class="fas ${escapeAttr(preparation.icon)}"></i>${escapeHtml(preparation.label)}</span>` : "";
         const legendaryBadge = collectionKind === "capabilities" && groupKey === "legendary" ? renderManagedLegendaryActionBadge(entry) : "";
         const rechargeBadge = recharge ? renderManagedRechargeBadge(recharge) : "";
         const specialBadges = legendaryBadge || rechargeBadge ? `<div class="managed-capability-badges">${legendaryBadge}${rechargeBadge}</div>` : "";
+        if (npcLayout) {
+            const rules = renderManagedAbilityRules(entry, true);
+            const compactUsage = rules.startsWith('<dl class="managed-npc-ability-usage">') ? rules : "";
+            const mechanics = `${effectiveRolls}${compactUsage ? "" : rules}`;
+            return `<article class="managed-entry managed-npc-capability ${groupKey === "legendary" ? "managed-entry--legendary" : ""} ${recharge ? `managed-entry--recharge ${recharge.charged === false ? "is-recharge-spent" : "is-recharge-ready"}` : ""} ${preparation ? `managed-entry--spell-${escapeAttr(preparation.key)}` : ""}" data-managed-item-card="${escapeAttr(entry.transferId || entry.itemId || "")}" data-managed-entry-search-value="${escapeAttr(searchText)}" data-managed-entry-level="${level}" data-managed-entry-group-key="${escapeAttr(groupKey)}"${preparationAttribute}>
+                <header class="managed-npc-capability-heading">
+                    ${icon ? `<img src="${escapeAttr(resolveMedia(icon))}" alt="" loading="lazy">` : `<div class="managed-entry-icon"><i class="fas ${groupKey === "legendary" ? "fa-crown" : recharge ? "fa-arrows-rotate" : "fa-dice-d20"}" aria-hidden="true"></i></div>`}
+                    <div class="managed-entry-title"><h3>${escapeHtml(entry.name || "Elemento")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div>
+                    <div class="managed-npc-capability-badges">${compactUsage}${specialBadges}${preparationBadge}</div>
+                </header>
+                ${status}
+                <div class="managed-npc-capability-body ${mechanics ? "has-mechanics" : ""} ${description ? "has-description" : ""}">
+                    ${description ? `<div class="managed-npc-capability-prose">${renderManagedNpcAbilityDescription(description)}</div>` : ""}
+                    ${mechanics ? `<aside class="managed-npc-capability-mechanics" aria-label="Valori di gioco di ${escapeAttr(entry.name || "questa capacità")}">${mechanics}</aside>` : ""}
+                </div>
+                ${editor}
+            </article>`;
+        }
         return `<article class="managed-entry ${groupKey === "legendary" ? "managed-entry--legendary" : ""} ${recharge ? `managed-entry--recharge ${recharge.charged === false ? "is-recharge-spent" : "is-recharge-ready"}` : ""} ${preparation ? `managed-entry--spell-${escapeAttr(preparation.key)}` : ""}" data-managed-item-card="${escapeAttr(entry.transferId || entry.itemId || "")}" data-managed-entry-search-value="${escapeAttr(searchText)}" data-managed-entry-level="${level}" data-managed-entry-group-key="${escapeAttr(groupKey)}"${preparationAttribute}>${icon ? `<img src="${escapeAttr(resolveMedia(icon))}" alt="">` : `<div class="managed-entry-icon"><i class="fas ${groupKey === "legendary" ? "fa-crown" : recharge ? "fa-arrows-rotate" : "fa-dice-d20"}"></i></div>`}<div class="managed-entry-copy"><div class="managed-entry-title"><h3>${escapeHtml(entry.name || "Elemento")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div>${specialBadges}${preparationBadge}${status}${effectiveRolls}${disclosure}${editor}</div></article>`;
+    }
+
+    function managedConsumptionLabel(target = {}) {
+        if (target.type === "itemUses") return "utilizzi dell'elemento";
+        if (target.type === "activityUses") return "utilizzi dell'attività";
+        if (target.type === "spellSlots") return "slot incantesimo";
+        const attributes = { "resources.legact.value": "azioni leggendarie", "resources.legact.spent": "azioni leggendarie consumate", "resources.legres.value": "resistenze leggendarie", "attributes.hp.value": "PF attuali" };
+        return attributes[target.target] || (target.type === "attribute" ? managedActorFieldLabel(`system.${target.target}`) : target.target || target.type || "risorsa");
+    }
+
+    function renderManagedNpcAbilityDescription(description) {
+        if (!description) return "";
+        if (description.length <= 420) return `<div class="managed-npc-ability-description">${formatManagedPreview(description)}</div>`;
+        return `<details class="managed-npc-ability-story"><summary><span class="managed-npc-story-preview">${formatManagedPreview(truncatePreview(description, 340))}</span><span class="managed-npc-story-toggle"><span class="when-closed">Leggi tutto</span><span class="when-open">Riduci testo</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-npc-ability-description">${formatManagedPreview(description)}</div></details>`;
+    }
+
+    function renderManagedAbilityRules(entry, npcLayout = false) {
+        const activities = Object.entries(entry.definition?.activities || {});
+        if (!activities.length) return "";
+        const activationLabels = { action: "Azione", bonus: "Azione bonus", reaction: "Reazione", legendary: "Azione leggendaria", lair: "Azione di tana", special: "Speciale", none: "Nessuna azione" };
+        const types = { attack: "Attacco", save: "Tiro salvezza", damage: "Danno", heal: "Cura", utility: "Utilità", check: "Prova", summon: "Evocazione", enchant: "Incantamento" };
+        let compactUsage = false;
+        const cards = activities.map(([id, activity]) => {
+            const activation = activity.activation?.override === false && entry.definition?.activation?.type ? entry.definition.activation : activity.activation || {};
+            const targets = managedRawCollectionValues(activity.consumption?.targets);
+            const rows = [];
+            const add = (label, value) => { if (value) rows.push(`<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`); };
+            add("Attivazione", npcLayout && !activation.type ? "" : `${activationLabels[activation.type] || activation.type || "Non specificata"}${activation.value && (!npcLayout || Number(activation.value) !== 1 || activation.type === "legendary") ? ` · costo ${activation.value}` : ""}`);
+            add("Consumo", targets.map((target) => `${target.value ?? "?"} ${managedConsumptionLabel(target)}`).join("; ") || (npcLayout ? "" : "Nessuna risorsa indicata"));
+            const healing = activity.type === "heal" ? summarizeManagedRawDamage(activity.healing, entry, activity, "primary") : null;
+            if (healing) add("Cura", healing.formula);
+            const trigger = activity.midiProperties?.triggeredActivityId;
+            if (trigger && trigger !== "none") add("Attività successiva", entry.definition.activities[trigger]?.name || entry.definition.activities[trigger]?.type || "Collegamento a un'attività non presente nei dati");
+            if (activity.isOverTimeFlag === true) add("Periodicità", "Attività periodica");
+            if (activity.regionBehavior?.enabled === true) add("Area persistente", "Configurata");
+            if (activity.macroData?.name) add("Macro associata", activity.macroData.name);
+            const effects = managedRawCollectionValues(activity.effects).map((reference) => {
+                const effect = managedRawCollectionValues(entry.definition?.effects).find((candidate) => (candidate._id || candidate.id) === reference._id);
+                const when = activity.type === "save" ? (reference.onSave === true ? "Collegato anche al TS riuscito" : "Collegato al TS fallito") : "Collegato all'attività";
+                return `<li><strong>${escapeHtml(effect?.name || "Effetto collegato")}</strong><span>${escapeHtml(when)}</span>${effect ? `<small>${escapeHtml(managedRawCollectionValues(effect.statuses).map(formatManagedTraitValue).join(", "))}</small>` : '<small class="managed-rule-warning">Dettagli non disponibili.</small>'}</li>`;
+            }).join("");
+            const legendaryMismatch = activation.type === "legendary" && targets.length && !targets.some((target) => target.type === "attribute" && target.target === "resources.legact.value" && Number(target.value) === Number(activation.value));
+            if (npcLayout && !rows.length && !effects && !legendaryMismatch) return "";
+            if (npcLayout && activities.length === 1 && rows.length === 1 && !effects && !legendaryMismatch) {
+                compactUsage = true;
+                return `<dl class="managed-npc-ability-usage">${rows.join("")}</dl>`;
+            }
+            return `<section class="managed-rule-readout">${!npcLayout || activities.length > 1 ? `<h4>${escapeHtml(activity.name || types[activity.type] || "Attività")}</h4>` : ""}${rows.length ? `<dl>${rows.join("")}</dl>` : ""}${effects ? `${npcLayout ? '<h5 class="managed-npc-effects-heading">Effetti collegati</h5>' : ""}<ul class="managed-linked-effects">${effects}</ul>` : ""}${legendaryMismatch ? '<p class="managed-rule-warning">Il consumo configurato non corrisponde al costo in azioni leggendarie. Controlla la risorsa prima di usare l’abilità.</p>' : ""}</section>`;
+        }).join("");
+        if (npcLayout) return compactUsage ? cards : cards ? `<details class="managed-npc-ability-details"><summary><span>Dettagli di gioco</span><i class="fas fa-chevron-down" aria-hidden="true"></i></summary><div class="managed-npc-ability-detail-body">${cards}</div></details>` : "";
+        return `<details class="managed-ability-rules"><summary><span><i class="fas fa-list-check"></i> Regole ed effetti</span><span>${activities.length}</span></summary>${cards}</details>`;
     }
 
     function getManagedEntryRecharge(entry, sharedRuntime = true) {
@@ -3073,13 +3364,13 @@
             light: "Armatura leggera", medium: "Armatura media", heavy: "Armatura pesante", shield: "Scudo",
             clothing: "Vestiario", trinket: "Monile", wondrous: "Oggetto meraviglioso"
         };
-        if (type === "weapon") return { label: subtypeLabels[subtype] || "Arma", icon: "fa-swords", groupKey: "weapons", groupLabel: "Armi", order: 1 };
+        if (type === "weapon") return { label: subtypeLabels[subtype] || "Arma", icon: "fa-khanda", groupKey: "weapons", groupLabel: "Armi", order: 1 };
         if (type === "equipment" && ["light", "medium", "heavy", "natural", "shield"].includes(subtype)) return { label: subtypeLabels[subtype] || "Armatura", icon: subtype === "shield" ? "fa-shield" : "fa-vest", groupKey: "armor", groupLabel: "Armature e scudi", order: 2 };
-        if (type === "consumable") return { label: subtypeLabels[subtype] || "Consumabile", icon: "fa-flask-round-potion", groupKey: "consumables", groupLabel: "Consumabili", order: 4 };
+        if (type === "consumable") return { label: subtypeLabels[subtype] || "Consumabile", icon: "fa-flask", groupKey: "consumables", groupLabel: "Consumabili", order: 4 };
         if (type === "container" || definition.capacity) return { label: "Contenitore", icon: "fa-box-open", groupKey: "containers", groupLabel: "Contenitori", order: 5 };
         if (type === "tool") return { label: subtypeLabels[subtype] || "Strumento", icon: "fa-screwdriver-wrench", groupKey: "tools", groupLabel: "Strumenti", order: 6 };
         if (["loot", "resource", "currency"].includes(type)) return { label: type === "resource" ? "Risorsa" : "Bene", icon: "fa-gem", groupKey: "loot", groupLabel: "Beni e risorse", order: 7 };
-        if (type === "equipment") return { label: subtypeLabels[subtype] || "Equipaggiamento", icon: "fa-backpack", groupKey: "equipment", groupLabel: "Equipaggiamento", order: 3 };
+        if (type === "equipment") return { label: subtypeLabels[subtype] || "Equipaggiamento", icon: "fa-briefcase", groupKey: "equipment", groupLabel: "Equipaggiamento", order: 3 };
         return { label: subtypeLabels[subtype] || type.replace(/[_-]+/g, " ") || "Oggetto", icon: "fa-box", groupKey: "other", groupLabel: "Altro", order: 8 };
     }
 
@@ -3119,7 +3410,7 @@
         const badges = [{ className: "is-type", icon: typeMeta.icon, label: typeMeta.label }];
         const rarity = formatManagedInventoryRarity(entry?.definition?.rarity || catalogItem?.rarity);
         if (rarity) badges.push({ className: "is-rarity", icon: "fa-sparkles", label: rarity });
-        if (state.equipped) badges.push({ className: "is-equipped", icon: "fa-shield-check", label: "Equipaggiato" });
+        if (state.equipped) badges.push({ className: "is-equipped", icon: "fa-shield-halved", label: "Equipaggiato" });
         if (state.attuned) badges.push({ className: "is-attuned", icon: "fa-link", label: "In sintonia" });
         else if (state.attunementRequired) badges.push({ className: "needs-attunement", icon: "fa-link-slash", label: "Richiede sintonia" });
         if (!state.identified) badges.push({ className: "is-unidentified", icon: "fa-question", label: "Non identificato" });
@@ -3210,7 +3501,7 @@
         const stats = [
             { icon: "fa-boxes-stacked", value: entries.length, label: entries.length === 1 ? "scheda" : "schede" },
             ...(totalUnits !== entries.length ? [{ icon: "fa-layer-group", value: formatManagedInventoryNumber(totalUnits), label: "unità" }] : []),
-            { icon: "fa-shield-check", value: equipped, label: "equipaggiati" },
+            { icon: "fa-shield-halved", value: equipped, label: "equipaggiati" },
             { icon: "fa-link", value: attuned, label: "in sintonia", className: attuned ? "is-attuned" : "" },
             ...(needsAttunement ? [{ icon: "fa-link-slash", value: needsAttunement, label: "da sintonizzare", className: "needs-attunement" }] : []),
             ...(catalogLinked ? [{ icon: "fa-book-bookmark", value: catalogLinked, label: "nel catalogo", className: "is-catalog" }] : [])
@@ -3232,7 +3523,7 @@
         const states = entries.map(getManagedInventoryState);
         const filters = [
             { key: "all", label: "Tutti", icon: "fa-grid-2", count: entries.length },
-            { key: "equipped", label: "Equipaggiati", icon: "fa-shield-check", count: states.filter((state) => state.equipped).length },
+            { key: "equipped", label: "Equipaggiati", icon: "fa-shield-halved", count: states.filter((state) => state.equipped).length },
             { key: "attuned", label: "In sintonia", icon: "fa-link", count: states.filter((state) => state.attuned).length },
             { key: "requires-attunement", label: "Da sintonizzare", icon: "fa-link-slash", count: states.filter((state) => state.attunementRequired && !state.attuned).length },
             { key: "catalog", label: "Catalogo", icon: "fa-book-bookmark", count: entries.filter((entry) => getManagedInventoryCatalogItem(entry)).length }
@@ -3374,7 +3665,397 @@
             });
         });
     }
+    // Tabs keep every editor mounted: switching sections never replaces a draft.
+    function setupManagedTabGroup(nav, panes, initialId, onChange = () => {}) {
+        nav.setAttribute("role", "tablist");
+        nav.innerHTML = panes.map(({ id, label, count }) => `<button type="button" role="tab" id="${id}-tab" aria-controls="${id}" data-managed-tab="${id}"><span>${escapeHtml(label)}</span>${count !== undefined ? `<small>${Number(count)}</small>` : ""}</button>`).join("");
+        const buttons = Array.from(nav.querySelectorAll("[data-managed-tab]"));
+        const activate = (id, interact = false) => {
+            const chosen = panes.find((pane) => pane.id === id) || panes[0];
+            if (!chosen) return;
+            panes.forEach((pane, index) => {
+                const selected = pane === chosen;
+                pane.node.hidden = !selected;
+                pane.node.setAttribute("role", "tabpanel");
+                pane.node.setAttribute("aria-labelledby", `${pane.id}-tab`);
+                buttons[index].setAttribute("aria-selected", String(selected));
+                buttons[index].tabIndex = selected ? 0 : -1;
+            });
+            onChange(chosen, interact);
+        };
+        buttons.forEach((button, index) => {
+            button.addEventListener("click", () => activate(button.dataset.managedTab, true));
+            button.addEventListener("keydown", (event) => {
+                const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1
+                    : event.key === "ArrowRight" ? (index + 1) % buttons.length
+                        : event.key === "ArrowLeft" ? (index - 1 + buttons.length) % buttons.length : -1;
+                if (next < 0) return;
+                event.preventDefault();
+                activate(buttons[next].dataset.managedTab, true);
+                buttons[next].focus();
+            });
+        });
+        activate(initialId);
+        return activate;
+    }
+
+    function managedDossierImageWidth(available, gap = available >= 500 ? 28 : 16) {
+        // One shared illustration column, regardless of image format or paragraph length.
+        const textWidth = available >= 700 ? 360 : available >= 500 ? 240 : 180;
+        const room = available - textWidth - gap;
+        return Math.round(Math.min(340, Math.max(64, room), Math.max(0, available)));
+    }
+
+    function setupManagedNpcDossierLayout(root, dossier, portrait, editing) {
+        root._managedDossierCleanup?.();
+        dossier.classList.add("is-adaptive-dossier");
+        dossier.classList.toggle("is-dossier-editing", editing);
+        portrait?.classList.remove("has-summary");
+        const avatar = root.querySelector(".managed-avatar-button [data-managed-avatar-layer]");
+        const blocks = Array.from(dossier.querySelectorAll(".managed-profile-block"));
+        const illustrations = blocks.map((block) => ({ block, image: block.querySelector(".managed-profile-block-image img"), textLength: (block.querySelector(".managed-profile-markdown")?.textContent || "").trim().length })).filter(({ image }) => image);
+        let identitySlot, contents;
+        if (!editing) {
+            dossier.classList.add("is-dossier-reader");
+            const panel = dossier.querySelector(".managed-profile-panel");
+            const summary = dossier.querySelector(".managed-profile-summary");
+            const opening = document.createElement("div");
+            opening.className = "managed-dossier-opening";
+            identitySlot = document.createElement("div");
+            identitySlot.className = "managed-dossier-identity";
+            const title = root.querySelector(".managed-actor-title");
+            if (title) identitySlot.append(title);
+            const animation = portrait?.querySelector(".managed-actor-site-animation") || title?.querySelector(".managed-actor-media-dock, .managed-actor-site-animation");
+            if (animation) identitySlot.append(animation);
+            if (portrait) opening.append(portrait);
+            opening.append(identitySlot);
+            if (summary) (portrait || opening).append(summary);
+            const chapters = dossier.querySelector(".managed-profile-block-grid");
+            blocks.forEach((block, index) => {
+                const oldHeading = block.querySelector("h3");
+                const heading = document.createElement("h2");
+                heading.className = "managed-dossier-chapter-title";
+                if (oldHeading) {
+                    heading.append(...oldHeading.childNodes);
+                    oldHeading.replaceWith(heading);
+                }
+                block.id = `managed-dossier-chapter-${index + 1}`;
+                block.tabIndex = -1;
+                block.setAttribute("aria-labelledby", `${block.id}-title`);
+                if (heading) heading.id = `${block.id}-title`;
+                const label = document.createElement("span");
+                label.className = "managed-dossier-chapter-number";
+                label.setAttribute("aria-hidden", "true");
+                label.textContent = String(index + 1).padStart(2, "0");
+                if (heading) heading.prepend(label);
+            });
+            if (blocks[0]) {
+                blocks[0].classList.add("is-opening-chapter");
+                opening.append(blocks[0]);
+            }
+            opening.classList.toggle("has-brief-opening", (blocks[0]?.querySelector(".managed-profile-markdown")?.textContent || "").trim().length < 400);
+            if (panel) panel.prepend(opening);
+            else dossier.prepend(opening);
+            const legacyLink = panel?.querySelector(".managed-profile-legacy-link");
+            if (legacyLink) panel.append(legacyLink);
+            if (chapters && !chapters.children.length) chapters.remove();
+            if (blocks.length > 1) {
+                contents = document.createElement("details");
+                contents.className = "managed-dossier-contents";
+                contents.innerHTML = '<summary><span>In questo dossier</span><small></small><i class="fas fa-chevron-down" aria-hidden="true"></i></summary><nav aria-label="Capitoli del dossier"></nav>';
+                contents.querySelector("small").textContent = `${blocks.length} capitoli`;
+                const nav = contents.querySelector("nav");
+                blocks.forEach((block, index) => {
+                    const link = document.createElement("a");
+                    link.href = `#${block.id}`;
+                    const number = document.createElement("span");
+                    number.textContent = String(index + 1).padStart(2, "0");
+                    number.setAttribute("aria-hidden", "true");
+                    const text = document.createElement("span");
+                    // Read only the rendered title: never infer headings from hidden profile data.
+                    text.textContent = Array.from(block.querySelector(".managed-dossier-chapter-title")?.childNodes || []).filter((node) => node.nodeType === Node.TEXT_NODE).map((node) => node.textContent).join("").trim() || `Capitolo ${index + 1}`;
+                    link.append(number, text);
+                    link.addEventListener("click", (event) => {
+                        if (event.button || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+                        event.preventDefault();
+                        if (dossier.classList.contains("is-compact-dossier")) contents.open = false;
+                        window.history.replaceState(null, "", link.hash);
+                        block.focus({ preventScroll: true });
+                        block.scrollIntoView({ block: "start", behavior: "instant" });
+                    });
+                    nav.append(link);
+                });
+                dossier.prepend(contents);
+            }
+        }
+        let frame = 0;
+        let compact;
+        let initialChapter = editing ? null : blocks.find((block) => `#${block.id}` === window.location.hash);
+        const cancelInitialAnchor = () => {
+            initialChapter = null;
+            ["wheel", "pointerdown", "keydown", "touchstart"].forEach((event) => window.removeEventListener(event, cancelInitialAnchor));
+        };
+        if (initialChapter) ["wheel", "pointerdown", "keydown", "touchstart"].forEach((event) => window.addEventListener(event, cancelInitialAnchor, { passive: true }));
+        const setStyle = (node, key, value) => { if (node.style.getPropertyValue(key) !== value) node.style.setProperty(key, value); };
+        const update = () => {
+            frame = 0;
+            if (!root.isConnected || !dossier.clientWidth) return;
+            const width = dossier.clientWidth;
+            const ratio = avatar?.naturalWidth && avatar?.naturalHeight ? avatar.naturalWidth / avatar.naturalHeight : .7;
+            dossier.dataset.avatarFormat = !portrait ? "none" : ratio > 1.2 ? "landscape" : ratio < .88 ? "portrait" : "square";
+            dossier.classList.toggle("is-compact-dossier", width < 700);
+            if (compact !== (width < 700)) {
+                compact = width < 700;
+                if (contents) contents.open = !compact;
+            }
+            for (const { block, textLength } of illustrations) {
+                const blockWidth = block.clientWidth;
+                if (!blockWidth) continue;
+                block.classList.add("has-adaptive-image");
+                block.classList.toggle("is-image-only", !textLength);
+                const gap = compact ? 16 : block.classList.contains("is-opening-chapter") ? 20 : 28;
+                setStyle(block, "--dossier-image-width", `${managedDossierImageWidth(blockWidth, gap)}px`);
+            }
+            // Keep a direct chapter link aligned while preceding images load; user input ends it.
+            initialChapter?.scrollIntoView({ block: "start", behavior: "instant" });
+        };
+        const schedule = () => { if (!frame) frame = window.requestAnimationFrame(update); };
+        const images = [avatar, ...illustrations.map(({ image }) => image)].filter(Boolean);
+        images.forEach((image) => image.addEventListener("load", schedule));
+        const observer = new ResizeObserver(schedule);
+        observer.observe(dossier);
+        blocks.forEach((block) => observer.observe(block));
+        schedule();
+        root._managedDossierCleanup = () => {
+            cancelInitialAnchor();
+            observer.disconnect();
+            if (frame) window.cancelAnimationFrame(frame);
+            images.forEach((image) => image.removeEventListener("load", schedule));
+            root._managedDossierCleanup = null;
+        };
+        return identitySlot;
+    }
+
+    function setupManagedNpcWorkspace(root, actor, editing) {
+        root._managedNpcReveal = null;
+        root._managedNpcOpenHash = null;
+        root._managedNpcUpdateDraft = null;
+        if (!root.classList.contains("is-npc")) return;
+        const container = root.querySelector(".managed-actor-panels");
+        const nav = root.querySelector(".managed-section-nav");
+        if (!container || !nav) return;
+        const identity = `${actor.worldId}/${actor.actorId}`;
+        if (root.dataset.npcIdentity !== identity) delete root.dataset.npcPane;
+        root.dataset.npcIdentity = identity;
+        const initialPane = root.dataset.npcPane;
+        nav.className = "managed-npc-tabs";
+        nav.setAttribute("aria-label", "Sezioni NPC");
+        const entries = actor.definition?.items || [];
+        const groups = [
+            { key: "stats", label: "Statistiche", selectors: ["#managed-stats", "#managed-abilities", "#managed-traits", "#managed-skills"] },
+            { key: "actions", label: "Capacità", count: entries.filter((item) => ["weapon", "feat", "spell"].includes(item.type)).length, selectors: ["#managed-capabilities", "#managed-spells"] },
+            { key: "inventory", label: "Inventario", selectors: ["#managed-wallet", "#managed-inventory", "#managed-shop"] },
+            { key: "effects", label: "Effetti", count: actor.definition?.effects?.length || 0, selectors: ["#managed-effects"] },
+            { key: "profile", label: "Dossier", selectors: ["#managed-profile", "#managed-appearance", "#managed-variants", "#managed-actor-link"] }
+        ];
+        const panes = groups.flatMap((group) => {
+            const nodes = group.selectors.map((selector) => container.querySelector(selector)).filter(Boolean);
+            if (!nodes.length) return [];
+            const node = document.createElement("div");
+            node.id = `managed-npc-${group.key}`;
+            node.className = `managed-npc-pane managed-npc-pane--${group.key}`;
+            node.dataset.managedNpcPane = group.key;
+            nodes.forEach((section) => {
+                if (section.matches("details.managed-collection")) section.open = true;
+                node.append(section);
+            });
+            container.append(node);
+            return [{ ...group, id: node.id, node }];
+        });
+        const dossier = panes.find((pane) => pane.key === "profile")?.node;
+        const hero = root.querySelector(".managed-actor-hero");
+        const artwork = hero?.querySelector(".managed-actor-art");
+        const heroTitle = hero?.querySelector(".managed-actor-title");
+        const heroMediaDock = heroTitle?.querySelector(".managed-actor-media-dock");
+        let portrait;
+        if (dossier && artwork && root.classList.contains("has-npc-art")) {
+            portrait = document.createElement("aside");
+            portrait.className = "managed-npc-portrait";
+            portrait.setAttribute("aria-label", "Ritratto del personaggio");
+            dossier.classList.add("has-portrait");
+            dossier.prepend(portrait);
+            if (editing) {
+                const tools = document.createElement("div");
+                tools.className = "managed-edit-portrait-tools";
+                tools.innerHTML = '<span>Ritratto attuale</span>';
+                if (root.querySelector("#managed-appearance")) {
+                    const button = document.createElement("button");
+                    button.type = "button";
+                    button.textContent = "Modifica immagini";
+                    button.addEventListener("click", () => {
+                        const appearance = root.querySelector("#managed-appearance");
+                        root._managedNpcReveal?.(appearance);
+                        appearance?.scrollIntoView({ block: "start", behavior: "instant" });
+                        appearance?.querySelector("button, input")?.focus({ preventScroll: true });
+                    });
+                    tools.append(button);
+                }
+                portrait.append(tools);
+            }
+            const summary = !editing && dossier.querySelector(".managed-profile-summary");
+            if (summary) {
+                portrait.classList.add("has-summary");
+                portrait.append(summary);
+            }
+        }
+        const toolbar = root.querySelector("[data-managed-profile-toolbar]");
+        const dossierIdentity = dossier && setupManagedNpcDossierLayout(root, dossier, portrait, editing);
+        if (toolbar && dossier) dossier.prepend(toolbar);
+        if (dossier) {
+            const settings = document.createElement("details");
+            settings.className = "managed-npc-settings";
+            settings.innerHTML = '<summary>Immagini e impostazioni <i class="fas fa-chevron-down" aria-hidden="true"></i></summary>';
+            ["#managed-appearance", "#managed-variants", "#managed-actor-link", "[data-managed-profile-lifecycle-action]"].forEach((selector) => {
+                const node = root.querySelector(selector);
+                if (node) settings.append(node);
+            });
+            if (settings.children.length > 1) dossier.append(settings);
+            if (getManagedActorLinkCommands(actor).length) settings.open = true;
+        }
+        const activate = setupManagedTabGroup(nav, panes, root.dataset.npcPane, (pane, interact) => {
+            root.dataset.npcPane = pane.id;
+            const showsPortrait = pane.key === "profile" && Boolean(portrait);
+            root.classList.toggle("is-npc-dossier", pane.key === "profile");
+            root.classList.toggle("is-reading-dossier", pane.key === "profile" && !editing);
+            // Move the existing artwork so lightbox/fallback handlers and animation stay intact.
+            if (artwork && portrait) (showsPortrait ? portrait : hero).prepend(artwork);
+            if (heroTitle && dossierIdentity) (pane.key === "profile" ? dossierIdentity : hero).append(heroTitle);
+            if (heroMediaDock && dossierIdentity) (pane.key === "profile" ? dossierIdentity : heroTitle).append(heroMediaDock);
+            if (interact) {
+                window.history.replaceState(null, "", `#${pane.id}`);
+                const bar = root.querySelector(".managed-command-bar");
+                if (container.getBoundingClientRect().top < bar.getBoundingClientRect().bottom) {
+                    window.scrollTo({ top: Math.max(0, container.getBoundingClientRect().top + window.scrollY - bar.offsetHeight - 24), behavior: "instant" });
+                }
+            }
+        });
+        root._managedNpcReveal = (control) => {
+            const pane = control?.closest?.("[data-managed-npc-pane]");
+            if (pane) activate(pane.id);
+            const form = control?.closest?.("[data-managed-item-form]");
+            const editorPane = control?.closest?.("[data-managed-editor-pane]");
+            if (form && editorPane) form._managedActivatePane?.(editorPane.id);
+            for (let parent = control?.parentElement; parent && parent !== root; parent = parent.parentElement) {
+                if (parent.matches("details")) parent.open = true;
+            }
+        };
+        root._managedNpcOpenHash = () => {
+            let id;
+            try { id = decodeURIComponent(window.location.hash.slice(1)); } catch (_) { return; }
+            if (id) root._managedNpcReveal?.(root.querySelector(`#${CSS.escape(id)}`));
+        };
+        if (!initialPane || !panes.some((pane) => pane.id === initialPane)) root._managedNpcOpenHash();
+        if (!root._managedNpcHashListener) {
+            root._managedNpcHashListener = () => { if (root.isConnected) root._managedNpcOpenHash?.(); };
+            window.addEventListener("hashchange", root._managedNpcHashListener);
+            root.addEventListener("invalid", (event) => root._managedNpcReveal?.(event.target), true);
+        }
+        root.querySelectorAll("input[data-managed-actor-path], select[data-managed-actor-path]").forEach((control) => {
+            control.setAttribute("aria-label", managedActorFieldLabel(control.dataset.managedActorPath));
+        });
+        const help = root.querySelector(".managed-editor-help");
+        if (help) {
+            const strip = document.createElement("div");
+            strip.className = "managed-npc-edit-status";
+            strip.innerHTML = '<span data-managed-npc-draft role="status"></span>';
+            const saveStatus = root.querySelector("[data-managed-status]");
+            if (saveStatus) { saveStatus.setAttribute("role", "status"); strip.append(saveStatus); }
+            help.replaceWith(strip);
+        }
+        root._managedNpcUpdateDraft = () => {
+            const label = root.querySelector("[data-managed-npc-draft]");
+            if (!label) return;
+            const dirty = hasManagedUnsavedChanges(root);
+            const message = dirty ? "Modifiche da salvare" : "Nessuna modifica da salvare";
+            if (label.textContent !== message) label.textContent = message;
+            label.classList.toggle("is-dirty", dirty);
+        };
+        if (editing) setupManagedNpcItemEditors(root);
+        root.querySelector(".managed-actor-breadcrumb > span")?.remove();
+        root.querySelector(".managed-sync-indicator.is-synced small")?.remove();
+    }
+
+    function setupManagedNpcItemEditors(root) {
+        root.querySelectorAll("[data-managed-item-form]").forEach((form, index) => {
+            const editor = form.closest(".managed-item-editor");
+            if (!editor) return;
+            const label = editor.querySelector("summary > span");
+            if (label) label.textContent = "Modifica capacità";
+            const collection = form.closest("[data-managed-collection]")?.dataset.managedCollection;
+            if (label && collection === "inventory") label.textContent = "Modifica oggetto";
+            if (label && collection === "spells") label.textContent = "Modifica incantesimo";
+            const actions = form.querySelector(".managed-item-actions");
+            const basics = form.querySelector(":scope > .managed-item-fields");
+            const nameField = basics?.querySelector('[data-managed-item-path="name"]')?.closest("label");
+            if (nameField) {
+                nameField.classList.add("managed-npc-item-name");
+                form.prepend(nameField);
+            }
+            basics?.classList.add("managed-npc-item-basics");
+            const specs = [
+                { key: "mechanics", label: "Meccaniche", selectors: [".managed-npc-item-basics", ".managed-guided-mechanics"] },
+                { key: "description", label: "Descrizione", selectors: [".managed-item-icon-editor", ".managed-item-description"] },
+                { key: "advanced", label: "Avanzato", selectors: [".managed-mechanics-advanced"] }
+            ];
+            const panes = specs.flatMap((spec) => {
+                const nodes = spec.selectors.map((selector) => form.querySelector(`:scope > ${selector}`)).filter(Boolean);
+                if (!nodes.length) return [];
+                const node = document.createElement("div");
+                node.id = `managed-npc-item-${index}-${spec.key}`;
+                node.dataset.managedEditorPane = spec.key;
+                node.className = "managed-npc-editor-pane";
+                nodes.forEach((child) => { if (child.matches("details")) child.open = true; node.append(child); });
+                form.insertBefore(node, actions);
+                return [{ ...spec, id: node.id, node }];
+            });
+            const nav = document.createElement("div");
+            nav.className = "managed-npc-editor-tabs";
+            nav.setAttribute("aria-label", "Sezioni modifica elemento");
+            if (nameField) nameField.after(nav);
+            else form.prepend(nav);
+            form._managedActivatePane = setupManagedTabGroup(nav, panes, panes[0]?.id);
+            const collapse = (node, title) => {
+                if (!node) return;
+                const details = document.createElement("details");
+                details.className = "managed-npc-extra-fields";
+                const summary = document.createElement("summary");
+                summary.textContent = title;
+                details.append(summary);
+                node.replaceWith(details);
+                details.append(node);
+            };
+            form.querySelectorAll(".managed-activity-geometry").forEach((node) => collapse(node, "Portata, bersagli e durata"));
+            form.querySelectorAll("[data-managed-guided-list]").forEach((node) => {
+                if (node.dataset.managedGuidedList === "system.properties") collapse(node, "Proprietà dell'elemento");
+            });
+            form.querySelectorAll('input[data-managed-guided-key$=".custom.enabled"]').forEach((toggle) => {
+                const field = form.querySelector(`[data-managed-guided-key="${CSS.escape(toggle.dataset.managedGuidedKey.replace(/enabled$/, "formula"))}"]`);
+                const label = field?.closest("label");
+                const update = () => { if (label) label.hidden = !toggle.checked; };
+                toggle.addEventListener("change", update);
+                update();
+            });
+            const closedLabel = label?.textContent;
+            editor.addEventListener("toggle", () => {
+                form.closest("[data-managed-item-card]")?.classList.toggle("is-editor-open", editor.open);
+                if (label) label.textContent = editor.open ? "Chiudi modifica" : closedLabel;
+            });
+        });
+    }
+
     function setupManagedSectionNavigation(root) {
+        root._managedSectionObserver?.disconnect();
+        if (root.classList.contains("is-npc")) return;
         const links = Array.from(root.querySelectorAll('.managed-section-nav a[href^="#"]'));
         const sections = links.map((link) => ({ link, id: String(link.getAttribute("href") || "").slice(1) }))
             .map((entry) => ({ ...entry, target: root.querySelector(`#${CSS.escape(entry.id)}`) }))
@@ -3419,6 +4100,7 @@
                 if (best) activate(best[0]);
             }, { rootMargin: "-18% 0px -66% 0px", threshold: [0, .05, .2, .5] });
             sections.forEach((entry) => observer.observe(entry.target));
+            root._managedSectionObserver = observer;
         }
         if (window.location.hash) {
             try { openSection(decodeURIComponent(window.location.hash), true); }
@@ -3457,10 +4139,11 @@
             ["system.activation", "Attivazione"], ["system.range", "Gittata"], ["system.target", "Bersagli"],
             ["system.duration", "Durata"], ["system.attack", "Tiro per colpire"], ["system.damage", "Danni"],
             ["system.save", "Tiro salvezza e CD"], ["system.properties", "Proprietà e componenti"],
-            ["system.materials", "Materiali"], ["system.recharge", "Ricarica"], ["system.activities", "Attività D&D5e"]
+            ["system.materials", "Materiali"], ["system.recharge", "Ricarica"], ["system.activities", "Attività D&D5e"],
+            ["system.uses.recovery", "Recupero utilizzi"]
         ].map(([path, label]) => renderManagedItemJsonControl(entry, command, path, label)).filter(Boolean).join("");
         const guidedMechanics = renderManagedHumanMechanicsEditor(entry, command);
-        return `<details class="managed-item-editor"><summary><span><i class="fas fa-pen"></i> Modifica elemento</span><i class="fas fa-chevron-down managed-editor-chevron" aria-hidden="true"></i></summary><div class="managed-item-form" data-managed-item-form="${escapeAttr(key)}" data-managed-item-id="${escapeAttr(entry.itemId || "")}" data-managed-transfer-id="${escapeAttr(entry.transferId || "")}"><div class="managed-item-fields">${fields}</div><div class="managed-item-icon-editor" ${currentCanManageActor ? "" : "hidden"}><div>${entry.media?.icon?.path ? `<img src="${escapeAttr(resolveMedia(entry.media.icon.path))}" alt="">` : `<i class="fas fa-image"></i>`}</div><label class="managed-file-field"><span>Icona elemento</span><input type="file" accept="image/*" data-managed-item-icon></label></div><label class="managed-item-description"><span>Descrizione</span><div class="managed-richtext-editor" contenteditable="true" spellcheck="true" data-managed-item-path="system.description.value" data-managed-item-type="richtext" data-managed-description-dirty="false">${buildManagedDescriptionEditorHtml(description ?? "")}</div><small>Incantesimi, riferimenti e tiri restano collegati a Foundry.</small></label>${guidedMechanics}<details class="managed-mechanics-editor managed-mechanics-advanced"><summary><span><i class="fas fa-code"></i> Avanzato e automazioni</span><i class="fas fa-chevron-down"></i></summary><p>Qui rimangono i dati completi di D&D5e, MidiQOL e degli altri moduli. Usali solo per campi non presenti nell’editor guidato.</p><div class="managed-mechanics-grid">${mechanicalFields}</div></details><div class="managed-item-actions"><span data-managed-item-result></span><button type="button" class="button-gold-outline managed-danger-action" data-managed-item-delete><i class="fas fa-trash"></i> Elimina</button><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-save><i class="fas fa-cloud-arrow-up"></i> Invia a Foundry</button></div></div></details>`;
+        return `<details class="managed-item-editor"><summary><span><i class="fas fa-pen"></i> Modifica elemento</span><i class="fas fa-chevron-down managed-editor-chevron" aria-hidden="true"></i></summary><div class="managed-item-form" data-managed-item-form="${escapeAttr(key)}" data-managed-item-id="${escapeAttr(entry.itemId || "")}" data-managed-transfer-id="${escapeAttr(entry.transferId || "")}"><div class="managed-item-fields">${fields}</div><div class="managed-item-icon-editor" ${currentCanManageActor ? "" : "hidden"}><div>${entry.media?.icon?.path ? `<img src="${escapeAttr(resolveMedia(entry.media.icon.path))}" alt="">` : `<i class="fas fa-image"></i>`}</div><label class="managed-file-field"><span>Icona elemento</span><input type="file" accept="image/*" data-managed-item-icon></label></div><label class="managed-item-description"><span>Descrizione</span><div class="managed-richtext-editor" contenteditable="true" spellcheck="true" data-managed-item-path="system.description.value" data-managed-item-type="richtext" data-managed-description-dirty="false">${buildManagedDescriptionEditorHtml(description ?? "")}</div></label>${guidedMechanics}<details class="managed-mechanics-editor managed-mechanics-advanced"><summary><span><i class="fas fa-code"></i> Avanzato e automazioni</span><i class="fas fa-chevron-down"></i></summary><p>Qui rimangono i dati completi di D&D5e, MidiQOL e degli altri moduli. Usali solo per campi non presenti nell’editor guidato.</p><div class="managed-mechanics-grid">${mechanicalFields}</div></details><div class="managed-item-actions"><span data-managed-item-result></span><button type="button" class="button-gold-outline managed-danger-action" data-managed-item-delete><i class="fas fa-trash"></i> Elimina</button><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-save><i class="fas fa-cloud-arrow-up"></i> Invia a Foundry</button></div></div></details>`;
     }
 
     function renderManagedHumanMechanicsEditor(entry, command) {
@@ -3480,6 +4163,12 @@
         const recharge = object("system.recharge");
         const activities = object("system.activities");
         const cards = [];
+        const recoveries = object("system.uses.recovery", []);
+        managedRawCollectionValues(recoveries).forEach((recovery, index) => {
+            if (recovery.period === "recharge") cards.push(renderManagedGuideCard("fa-arrows-rotate", "Ricarica degli utilizzi", "Soglia sul d6 necessaria per recuperare l'abilità.", [
+                renderManagedGuidedInput("system.uses.recovery", `${index}.formula`, "Si ricarica con", recovery.formula ?? "", "number", { min: 1, max: 6, step: 1 })
+            ]));
+        });
         if (getManagedItemBaseValue(entry, "system.activation") !== undefined) cards.push(renderManagedGuideCard("fa-bolt", "Attivazione", "Quando e quanto costa usare l’elemento.", [
             renderManagedGuidedSelect("system.activation", "type", "Tipo", activation.type || "action", [["action", "Azione"], ["bonus", "Azione bonus"], ["reaction", "Reazione"], ["minute", "Minuti"], ["hour", "Ore"], ["special", "Speciale"], ["none", "Nessuna"]]),
             renderManagedGuidedInput("system.activation", "value", "Costo", activation.value ?? 1, "number", { min: 0, step: 1 })
@@ -3600,9 +4289,10 @@
     }
 
     function renderManagedActivityPreview(activity, entry) {
-        const chips = managedActivityDamageSummaries(activity, entry).map((part) => {
+        const healing = activity.type === "heal" ? summarizeManagedRawDamage(activity.healing, entry, activity, "primary") : null;
+        const chips = (healing ? [healing] : managedActivityDamageSummaries(activity, entry)).map((part) => {
             const types = managedRawCollectionValues(part.types).map(formatManagedTraitValue).filter(Boolean).join("/");
-            return `<span class="managed-activity-preview-chip is-damage"><i class="fas fa-burst"></i><b>${escapeHtml(part.formula)}</b>${types ? `<small>${escapeHtml(types)}</small>` : ""}</span>`;
+            return `<span class="managed-activity-preview-chip is-damage"><i class="fas ${healing ? "fa-heart" : "fa-burst"}"></i><b>${escapeHtml(part.formula)}</b>${types ? `<small>${escapeHtml(types)}</small>` : ""}</span>`;
         });
         const saveAbilities = managedSaveAbilityValues(activity?.save?.ability ?? activity?.save?.abilities).map((ability) => ability.toUpperCase()).join("/");
         const saveDc = String(activity?.save?.dc?.formula ?? activity?.save?.dc?.value ?? activity?.save?.dc ?? "").trim();
@@ -3610,37 +4300,52 @@
         return chips.length ? `<div class="managed-activity-preview">${chips.join("")}</div>` : "";
     }
 
-    function renderManagedActivityDamagePart(activityKey, part, index, hasBase, entry, activity) {
-        const prefix = `${activityKey}.damage.parts.${index}`;
-        const summary = summarizeManagedRawDamage(part, entry, activity, hasBase || index > 0 ? "secondary" : "primary");
-        const role = hasBase || index > 0 ? "Aggiuntivo" : "Principale";
+    function renderManagedActivityDamagePart(activityKey, part, index, hasBase, entry, activity, healing = false) {
+        const prefix = healing ? `${activityKey}.healing` : `${activityKey}.damage.parts.${index}`;
+        const role = healing ? "Cura" : hasBase || index > 0 ? "Aggiuntivo" : "Principale";
         if (Array.isArray(part)) {
-            return `<section class="managed-activity-damage-part"><header><strong>${role}</strong>${summary?.formula ? `<span>${escapeHtml(summary.formula)}</span>` : ""}</header><div class="managed-guide-fields">${renderManagedGuidedInput("system.activities", `${prefix}.0`, "Formula", part[0] || "", "text", { placeholder: "2d8 + @mod", wide: true })}${renderManagedGuidedInput("system.activities", `${prefix}.1`, "Tipi di danno", managedRawCollectionValues(part[1]).join(", "), "list", { placeholder: "piercing, fire", wide: true })}</div></section>`;
+            return `<section class="managed-activity-damage-part"><header><strong>${role}</strong></header><div class="managed-guide-fields">${renderManagedGuidedInput("system.activities", `${prefix}.0`, "Formula", part[0] || "", "text", { placeholder: "2d8 + @mod", wide: true })}${renderManagedGuidedInput("system.activities", `${prefix}.1`, "Tipi di danno", managedRawCollectionValues(part[1]).join(", "), "list", { placeholder: "piercing, fire", wide: true })}</div></section>`;
         }
         const value = part && typeof part === "object" ? part : {};
-        return `<section class="managed-activity-damage-part"><header><strong>${role}</strong>${summary?.formula ? `<span>${escapeHtml(summary.formula)}</span>` : ""}</header><div class="managed-guide-fields">${renderManagedGuidedInput("system.activities", `${prefix}.number`, "Numero dadi", value.number ?? "", "number", { min: 0, step: 1 })}${renderManagedGuidedInput("system.activities", `${prefix}.denomination`, "Dado", value.denomination ?? "", "number", { min: 2, step: 2 })}${renderManagedGuidedInput("system.activities", `${prefix}.bonus`, "Bonus o formula", value.bonus ?? "", "text", { placeholder: "@mod oppure +4" })}${renderManagedGuidedInput("system.activities", `${prefix}.types`, "Tipi di danno", managedRawCollectionValues(value.types).join(", "), "list", { placeholder: "bludgeoning, force", wide: true })}${renderManagedGuidedToggle("system.activities", `${prefix}.custom.enabled`, "Formula personalizzata", value.custom?.enabled === true)}${renderManagedGuidedInput("system.activities", `${prefix}.custom.formula`, "Formula personalizzata", value.custom?.formula ?? "", "text", { placeholder: "4d10 + 7", wide: true })}</div></section>`;
+        return `<section class="managed-activity-damage-part"><header><strong>${role}</strong></header><div class="managed-guide-fields">${renderManagedGuidedInput("system.activities", `${prefix}.number`, "Numero dadi", value.number ?? "", "number", { min: 0, step: 1 })}${renderManagedGuidedInput("system.activities", `${prefix}.denomination`, "Dado", value.denomination ?? "", "number", { min: 2, step: 2 })}${renderManagedGuidedInput("system.activities", `${prefix}.bonus`, "Bonus o formula", value.bonus ?? "", "text", { placeholder: "@mod oppure +4" })}${renderManagedGuidedInput("system.activities", `${prefix}.types`, "Tipi di danno", managedRawCollectionValues(value.types).join(", "), "list", { placeholder: "bludgeoning, force", wide: true })}${renderManagedGuidedToggle("system.activities", `${prefix}.custom.enabled`, "Formula personalizzata", value.custom?.enabled === true)}${renderManagedGuidedInput("system.activities", `${prefix}.custom.formula`, "Formula personalizzata", value.custom?.formula ?? "", "text", { placeholder: "4d10 + 7", wide: true })}</div></section>`;
+    }
+
+    function renderManagedActivityGeometryEditor(key, activity) {
+        const input = (branch, field, label, type = "text", options = {}) => renderManagedGuidedInput("system.activities", `${key}.${branch}.${field}`, label, field.split(".").reduce((value, part) => value?.[part], activity[branch]) ?? "", type, options);
+        const select = (branch, field, label, values) => renderManagedGuidedSelect("system.activities", `${key}.${branch}.${field}`, label, field.split(".").reduce((value, part) => value?.[part], activity[branch]) ?? "", values);
+        const group = (branch, label, fields) => `<section class="managed-activity-section" data-managed-override-group><h5>${label}</h5>${renderManagedGuidedToggle("system.activities", `${key}.${branch}.override`, "Usa valori propri per questa attività", activity[branch]?.override === true)}<p class="managed-guide-note">Se disattivato, usa i valori dell'elemento.</p><fieldset class="managed-guide-fields" aria-label="${label}">${fields}</fieldset></section>`;
+        return `<div class="managed-activity-geometry">${group("range", "Portata", input("range", "value", "Distanza") + select("range", "units", "Unità", [["ft", "Piedi"], ["m", "Metri"], ["self", "Sé stesso"], ["touch", "Contatto"], ["any", "Qualsiasi"]]))}${group("target", "Bersagli e area", input("target", "affects.count", "Numero bersagli") + select("target", "affects.type", "Bersaglio", [["", "Non specificato"], ["creature", "Creatura"], ["ally", "Alleato"], ["enemy", "Nemico"], ["object", "Oggetto"], ["self", "Sé stesso"]]) + select("target", "template.type", "Forma", [["", "Nessuna"], ["cone", "Cono"], ["radius", "Raggio"], ["sphere", "Sfera"], ["line", "Linea"], ["cube", "Cubo"], ["cylinder", "Cilindro"]]) + input("target", "template.size", "Dimensione") + input("target", "template.width", "Larghezza") + select("target", "template.units", "Unità area", [["ft", "Piedi"], ["m", "Metri"]]))}${group("duration", "Durata", input("duration", "value", "Durata") + select("duration", "units", "Unità", [["inst", "Istantanea"], ["turn", "Turni"], ["round", "Round"], ["minute", "Minuti"], ["hour", "Ore"], ["day", "Giorni"], ["perm", "Permanente"], ["spec", "Speciale"]]))}</div>`;
+    }
+
+    function renderManagedActivityConsumptionEditor(key, activity) {
+        const targets = managedRawCollectionValues(activity.consumption?.targets);
+        if (!targets.length) return "";
+        const fields = targets.map((target, index) => `<div class="managed-guide-fields">${target.type === "attribute" ? renderManagedGuidedSelect("system.activities", `${key}.consumption.targets.${index}.target`, "Risorsa consumata", target.target, [["resources.legact.value", "Azioni leggendarie"], ["resources.legres.value", "Resistenze leggendarie"], ["attributes.hp.value", "Punti ferita"]]) : `<p>${escapeHtml(managedConsumptionLabel(target))}</p>`}${renderManagedGuidedInput("system.activities", `${key}.consumption.targets.${index}.value`, "Quantità o formula", target.value ?? "", "text")}</div>`).join("");
+        return `<section class="managed-activity-section"><h5>Consumo delle risorse</h5>${fields}</section>`;
     }
 
     function renderManagedActivitiesGuide(activities, entry) {
         const labels = { attack: "Tiro per colpire", save: "Tiro salvezza", damage: "Danno", heal: "Cura", utility: "Utilita", check: "Prova", summon: "Evocazione", enchant: "Incantamento" };
         const cards = Object.entries(activities).map(([key, activity], index) => {
             const value = activity && typeof activity === "object" ? activity : {};
-            const title = labels[value.type] || `Attivita ${index + 1}`;
+            const title = value.name || labels[value.type] || `Attività ${index + 1}`;
             const hasAttack = value.type === "attack" || (value.attack && typeof value.attack === "object");
             const hasSave = value.type === "save" || (value.save && typeof value.save === "object");
             const damageParts = managedRawCollectionValues(value.damage?.parts);
             const hasBase = value.damage?.includeBase !== false && Boolean(summarizeManagedRawDamage(entry?.definition?.damage?.base, entry, value, "primary"));
             const commonFields = [
-                renderManagedGuidedSelect("system.activities", `${key}.type`, "Tipo attivita", value.type || "utility", [["attack", "Tiro per colpire"], ["save", "Tiro salvezza"], ["damage", "Danno"], ["heal", "Cura"], ["utility", "Utilita"], ["check", "Prova"], ["summon", "Evocazione"], ["enchant", "Incantamento"]]),
+                renderManagedGuidedInput("system.activities", `${key}.name`, "Nome attività", value.name || "", "text", { placeholder: labels[value.type] || "Attività" }),
                 renderManagedGuidedSelect("system.activities", `${key}.activation.type`, "Attivazione", value.activation?.type || "action", [["action", "Azione"], ["bonus", "Azione bonus"], ["reaction", "Reazione"], ["legendary", "Azione leggendaria"], ["lair", "Azione di tana"], ["special", "Speciale"], ["none", "Nessuna"]]),
                 renderManagedGuidedInput("system.activities", `${key}.activation.value`, "Costo", value.activation?.value ?? 1, "number", { min: 0, step: 1 })
             ].join("");
             const attackFields = hasAttack ? `<section class="managed-activity-section"><h5><i class="fas fa-crosshairs"></i> Tiro per colpire</h5><div class="managed-guide-fields">${renderManagedGuidedSelect("system.activities", `${key}.attack.type.value`, "Tipo attacco", value.attack?.type?.value || "melee", [["melee", "Mischia"], ["ranged", "Distanza"]])}${renderManagedGuidedSelect("system.activities", `${key}.attack.ability`, "Caratteristica", value.attack?.ability || "", managedAbilityOptions("Automatica"))}${renderManagedGuidedInput("system.activities", `${key}.attack.bonus`, "Bonus aggiuntivo", value.attack?.bonus ?? "", "text", { placeholder: "+2 oppure 1d4" })}${renderManagedGuidedToggle("system.activities", `${key}.attack.flat`, "Bonus fisso", value.attack?.flat === true)}</div></section>` : "";
             const saveFields = hasSave ? `<section class="managed-activity-section"><h5><i class="fas fa-shield-halved"></i> Tiro salvezza</h5><div class="managed-guide-fields">${renderManagedGuidedSelect("system.activities", `${key}.save.ability`, "Caratteristica TS", value.save?.ability || value.save?.abilities || [], managedAbilityOptions("Nessuna"), "list")}${renderManagedGuidedInput("system.activities", `${key}.save.dc.formula`, "CD o formula", value.save?.dc?.formula ?? value.save?.dc?.value ?? "", "text", { placeholder: "16 oppure 8 + @prof + @mod" })}${renderManagedGuidedSelect("system.activities", `${key}.damage.onSave`, "Con TS riuscito", value.damage?.onSave || "none", [["none", "Nessun danno"], ["half", "Meta danno"], ["full", "Danno completo"]])}</div></section>` : "";
-            const damageFields = damageParts.length || hasBase ? `<section class="managed-activity-section managed-activity-damage"><h5><i class="fas fa-burst"></i> Danni effettivi</h5>${hasBase ? `<div class="managed-activity-base-damage">${renderManagedGuidedToggle("system.activities", `${key}.damage.includeBase`, "Includi il danno base dell'elemento", value.damage?.includeBase !== false)}</div>` : ""}<div class="managed-activity-damage-grid">${damageParts.map((part, partIndex) => renderManagedActivityDamagePart(key, part, partIndex, hasBase, entry, value)).join("")}</div></section>` : "";
-            return `<section class="managed-activity-guide"><header><span><b>${index + 1}</b><strong>${escapeHtml(title)}</strong></span><small>Attivita Foundry</small></header>${renderManagedActivityPreview(value, entry)}<div class="managed-guide-fields managed-activity-common">${commonFields}</div>${attackFields}${saveFields}${damageFields}</section>`;
+            const damageFields = damageParts.length || hasBase ? `<section class="managed-activity-section managed-activity-damage"><h5><i class="fas fa-burst"></i> Danni configurati</h5>${hasBase ? `<div class="managed-activity-base-damage">${renderManagedGuidedToggle("system.activities", `${key}.damage.includeBase`, "Includi il danno base dell'elemento", value.damage?.includeBase !== false)}</div>` : ""}<div class="managed-activity-damage-grid">${damageParts.map((part, partIndex) => renderManagedActivityDamagePart(key, part, partIndex, hasBase, entry, value)).join("")}</div></section>` : "";
+            const healingFields = value.type === "heal" ? `<section class="managed-activity-section"><h5>Cura</h5>${renderManagedActivityDamagePart(key, value.healing || {}, 0, false, entry, value, true).replace("Tipi di danno", "Tipo di cura").replace("bludgeoning, force", "healing, temphp")}</section>` : "";
+            const dcCalculation = hasSave ? `<div class="managed-guide-fields">${renderManagedGuidedSelect("system.activities", `${key}.save.dc.calculation`, "Calcolo della CD", value.save?.dc?.calculation || "", [["", "Formula fissa"], ["initial", "Automatico"], ["spellcasting", "Caratteristica magica"], ...managedAbilityOptions().filter(([ability]) => ability)])}</div>` : "";
+            return `<section class="managed-activity-guide" data-managed-activity-key="${escapeAttr(key)}"><header><span><b>${index + 1}</b><strong>${escapeHtml(title)}</strong></span><small>${escapeHtml(labels[value.type] || value.type)}</small></header><div data-managed-draft-preview>${renderManagedActivityPreview(value, entry)}</div><div class="managed-guide-fields managed-activity-common">${commonFields}</div>${attackFields}${saveFields}${dcCalculation}${damageFields}${healingFields}${renderManagedActivityGeometryEditor(key, value)}${renderManagedActivityConsumptionEditor(key, value)}</section>`;
         }).join("");
-        return `<details class="managed-activities-guide" open><summary><span><i class="fas fa-diagram-project"></i> Attivita Foundry</span><b>${Object.keys(activities).length}</b><i class="fas fa-chevron-down"></i></summary><div>${cards}</div></details>`;
+        return `<details class="managed-activities-guide" open><summary><span><i class="fas fa-diagram-project"></i> Attività</span><b>${Object.keys(activities).length}</b><i class="fas fa-chevron-down"></i></summary><div>${cards}</div></details>`;
     }
     function renderManagedItemControl(entry, command, path, label, type) {
         const baseValue = getManagedItemBaseValue(entry, path);
@@ -4100,23 +4805,8 @@
         button.disabled = true;
         result.textContent = "Preparazione...";
         try {
-            const patches = [];
-            for (const control of form.querySelectorAll("[data-managed-item-path]")) {
-                const path = String(control.dataset.managedItemPath || "");
-                const type = String(control.dataset.managedItemType || "text");
-                const snapshotValue = getManagedItemBaseValue(entry, path);
-                const commandPatch = (Array.isArray(existingCommand?.patches) ? existingCommand.patches : []).find((patch) => patch.path === path);
-                const hasConflictValue = existingCommand?.current && Object.prototype.hasOwnProperty.call(existingCommand.current, path);
-                const baseValue = hasConflictValue ? existingCommand.current[path] : commandPatch ? commandPatch.baseValue : snapshotValue;
-                let value;
-                if (type === "boolean") value = control.checked;
-                else if (type === "number") value = Number(control.value);
-                else if (type === "json") value = parseManagedJson(control.value, path);
-                else if (type === "richtext") value = control.dataset.managedDescriptionDirty === "true" ? serializeManagedDescriptionEditor(control) : getManagedItemDesiredValue(entry, existingCommand, path);
-                else value = control.value;
-                const retrying = ["conflict", "failed"].includes(existingCommand?.status) && Boolean(commandPatch);
-                if (!sameManagedFormValue(value, snapshotValue) || retrying) patches.push({ path, value, baseValue });
-            }
+            const patches = collectManagedEntityPatches(form, "item", existingCommand);
+            form.inert = true;
             const iconFile = form.querySelector("[data-managed-item-icon]")?.files?.[0];
             if (iconFile) {
                 const revision = Number(entry.media?.icon?.revision || 0) + 1;
@@ -4125,20 +4815,26 @@
             }
             if (!patches.length) {
                 result.textContent = "Nessuna modifica da inviare.";
-                return;
+                return true;
             }
             if (patches.some((patch) => patch.path === "name" && !String(patch.value || "").trim())) throw new Error("Il nome non può essere vuoto.");
             const response = await postManagedActorCommand({ kind: "item.update", target: { transferId, itemId }, patches }, token);
             rememberManagedCommand(response.command, (command) => String(command.kind || "").startsWith("item.") && managedCommandTargetsItem(command, transferId, itemId));
+            acceptManagedFieldPatches(form, "item", patches);
+            if (iconFile) form.querySelector("[data-managed-item-icon]").value = "";
             result.textContent = "Modifica in attesa di Foundry.";
             updateManagedCardStatus(form.closest("[data-managed-item-card]"), response.command);
             managedCommandPollAttempts = 0;
             scheduleManagedCommandRefresh(button.closest("[data-managed-actor-root]"));
+            return true;
         } catch (error) {
             console.error("Accodamento modifica elemento fallito", error);
             result.textContent = error.message || "Modifica non accodata.";
+            return false;
         } finally {
+            form.inert = false;
             button.disabled = false;
+            form.closest?.("[data-managed-actor-root]")?._managedNpcUpdateDraft?.();
         }
     }
 
@@ -4230,6 +4926,123 @@
         if (typeof structuredClone === "function") return structuredClone(value);
         return JSON.parse(JSON.stringify(value));
     }
+
+    function readManagedEditorField(control, kind) {
+        const type = control.dataset[kind === "item" ? "managedItemType" : "managedEffectType"] || "text";
+        if (type === "boolean") return control.checked;
+        if (type === "number") return control.value === "" ? null : Number(control.value);
+        if (type === "json") return parseManagedJson(control.value, "Dati della regola");
+        if (type === "list") return String(control.value || "").split(",").map((value) => value.trim()).filter(Boolean);
+        if (type === "richtext") return control.dataset.managedDescriptionDirty === "true"
+            ? serializeManagedDescriptionEditor(control) : managedFieldBaselines.get(control)?.value ?? "";
+        return control.value;
+    }
+
+    function setupManagedDraftTracking(root, editing) {
+        if (editing) {
+            root.querySelectorAll("[data-managed-actor-path]").forEach((control) => {
+                let value = null;
+                try { value = JSON.parse(control.dataset.managedActorOriginal || "null"); } catch (_) { /* Empty field. */ }
+                const pending = findManagedActorUpdateCommand()?.status === "pending";
+                const patch = findManagedActorUpdateCommand()?.patches?.find((entry) => entry.path === control.dataset.managedActorPath);
+                managedFieldBaselines.set(control, { value, baseValue: pending && patch ? patch.value : readManagedActorBaseValue(control.dataset.managedActorPath, managedEditorSnapshot) ?? null });
+            });
+            for (const kind of ["item", "effect"]) {
+                root.querySelectorAll(`[data-managed-${kind}-form]`).forEach((form) => {
+                    const entity = kind === "item" ? findCurrentManagedItem(form.dataset.managedTransferId, form.dataset.managedItemId)
+                        : findCurrentManagedEffect(form.dataset.managedEffectId, form.dataset.managedEffectClientId);
+                    if (!entity) return;
+                    const command = kind === "item" ? findManagedItemCommand(entity) : findManagedEffectCommand(entity);
+                    form.querySelectorAll(`[data-managed-${kind}-path]`).forEach((control) => {
+                        const path = control.dataset[kind === "item" ? "managedItemPath" : "managedEffectPath"];
+                        const patch = command?.patches?.find((entry) => entry.path === path);
+                        const baseValue = kind === "item" ? getManagedItemBaseValue(entity, path) : getManagedEffectBaseValue(entity, path);
+                        const value = patch ? patch.value : baseValue;
+                        managedFieldBaselines.set(control, { value: structuredCloneManaged(value ?? null), baseValue: structuredCloneManaged(command?.status === "pending" && patch ? patch.value : baseValue ?? null) });
+                        // Compare the value actually displayed by the control, including empty numeric fields.
+                        if (control.dataset.managedItemType !== "richtext") managedFieldBaselines.get(control).value = readManagedEditorField(control, kind);
+                    });
+                });
+            }
+            root.querySelectorAll("[data-managed-item-create-field], [data-managed-effect-create-field]").forEach((control) => {
+                control._managedInitialInput = control.type === "checkbox" ? control.checked : control.value;
+            });
+        }
+        if (!root._managedDraftHandler) {
+            root._managedDraftHandler = () => {
+                if (managedEditMode) root.dataset.managedDirty = hasManagedUnsavedChanges(root) ? "true" : "false";
+                root._managedNpcUpdateDraft?.();
+            };
+            root.addEventListener("input", root._managedDraftHandler);
+            root.addEventListener("change", root._managedDraftHandler);
+        }
+        window.CriptaApp.navigation?.addLeaveGuard?.("managed-actor", () => root.isConnected
+            && (managedSaveInProgress || hasManagedUnsavedChanges(root))
+            ? "Ci sono modifiche alla scheda non ancora salvate. Uscire dalla pagina?" : false);
+    }
+
+    function revealManagedInvalidField(control) {
+        const root = control.closest?.("[data-managed-actor-root]");
+        root?._managedNpcReveal?.(control);
+        control.focus?.();
+    }
+
+    function collectManagedEntityPatches(form, kind, command, includeRetry = true) {
+        return Array.from(form.querySelectorAll(`[data-managed-${kind}-path]`)).flatMap((control) => {
+            const path = control.dataset[kind === "item" ? "managedItemPath" : "managedEffectPath"];
+            const baseline = managedFieldBaselines.get(control);
+            if (!baseline) return [];
+            let value;
+            try { value = readManagedEditorField(control, kind); }
+            catch (error) { if (includeRetry) revealManagedInvalidField(control); throw error; }
+            const commandPatch = command?.patches?.find((patch) => patch.path === path);
+            const retrying = includeRetry && ["conflict", "failed"].includes(command?.status) && Boolean(commandPatch);
+            if (sameManagedFormValue(value, baseline.value, path) && !retrying) return [];
+            if (path === "name" && !String(value || "").trim()) {
+                if (includeRetry) revealManagedInvalidField(control);
+                throw new Error("Il nome non può essere vuoto.");
+            }
+            const type = control.dataset[kind === "item" ? "managedItemType" : "managedEffectType"];
+            if (type === "number" && (value === null || !Number.isFinite(value))) {
+                if (includeRetry) revealManagedInvalidField(control);
+                throw new Error("Inserisci un numero valido nel campo modificato.");
+            }
+            if (includeRetry && control.reportValidity && !control.reportValidity()) throw new Error("Controlla il campo evidenziato.");
+            const baseValue = retrying && Object.prototype.hasOwnProperty.call(command?.current || {}, path)
+                ? command.current[path] : baseline.baseValue;
+            return [{ path, value, baseValue: baseValue ?? null }];
+        });
+    }
+
+    function acceptManagedFieldPatches(container, kind, patches) {
+        container.querySelectorAll(`[data-managed-${kind}-path]`).forEach((control) => {
+            const path = control.dataset[kind === "actor" ? "managedActorPath" : kind === "item" ? "managedItemPath" : "managedEffectPath"];
+            const patch = patches.find((entry) => entry.path === path);
+            if (!patch) return;
+            managedFieldBaselines.set(control, { value: structuredCloneManaged(patch.value), baseValue: structuredCloneManaged(patch.value) });
+            if (kind === "actor") control.dataset.managedActorOriginal = JSON.stringify(patch.value);
+            if (control.dataset.managedItemType === "richtext") control.dataset.managedDescriptionDirty = "false";
+        });
+    }
+
+    function hasManagedUnsavedChanges(root) {
+        if (!managedEditMode) return false;
+        if (managedProfileDirty || managedProfileFiles.size) return true;
+        try {
+            if (collectManagedActorPatches(root, false).length) return true;
+            if (managedEditorSnapshot && currentCanManageActor && hasManagedPresentationChanges(root, managedEditorSnapshot)) return true;
+            for (const kind of ["item", "effect"]) {
+                for (const form of root.querySelectorAll(`[data-managed-${kind}-form]`)) {
+                    if (collectManagedEntityPatches(form, kind, null, false).length || form.querySelector("[data-managed-item-icon]")?.files?.length) return true;
+                }
+            }
+            return Array.from(root.querySelectorAll("[data-managed-item-create-field], [data-managed-effect-create-field]")).some((control) => {
+                if (control.closest('[data-managed-pending-create="true"]')) return false;
+                return control.type === "file" ? control.files?.length > 0
+                    : (control.type === "checkbox" ? control.checked : control.value) !== control._managedInitialInput;
+            });
+        } catch (_) { return true; }
+    }
     async function enqueueManagedItemCreate(button) {
         const form = button.closest("[data-managed-item-create-form]");
         const result = form?.querySelector("[data-managed-item-create-result]");
@@ -4270,27 +5083,25 @@
         const clientId = String(form.dataset.managedEffectClientId || "");
         const effect = findCurrentManagedEffect(effectId, clientId);
         const existingCommand = effect ? findManagedEffectCommand(effect) : null;
-        const patches = [];
         try {
             if (!effect) throw new Error("Effetto non più disponibile: ricarica la pagina.");
-            for (const control of form.querySelectorAll("[data-managed-effect-path]")) {
-                const path = String(control.dataset.managedEffectPath || "");
-                const type = String(control.dataset.managedEffectType || "text");
-                const snapshotValue = getManagedEffectBaseValue(effect, path);
-                const commandPatch = (Array.isArray(existingCommand?.patches) ? existingCommand.patches : []).find((patch) => patch.path === path);
-                const hasConflictValue = existingCommand?.current && Object.prototype.hasOwnProperty.call(existingCommand.current, path);
-                const baseValue = hasConflictValue ? existingCommand.current[path] : commandPatch ? commandPatch.baseValue : snapshotValue;
-                const value = type === "boolean" ? control.checked : type === "json" ? parseManagedJson(control.value, path) : type === "list" ? String(control.value || "").split(",").map((entry) => entry.trim()).filter(Boolean) : control.value;
-                const retrying = ["conflict", "failed"].includes(existingCommand?.status) && Boolean(commandPatch);
-                if (!sameManagedFormValue(value, snapshotValue) || retrying) patches.push({ path, value, baseValue });
-            }
-            if (!patches.length) throw new Error("Nessuna modifica da inviare.");
+            button.disabled = true;
+            const patches = collectManagedEntityPatches(form, "effect", existingCommand);
+            form.inert = true;
+            if (!patches.length) { result.textContent = "Nessuna modifica da inviare."; return true; }
             const token = getToken();
             const response = await postManagedActorCommand({ kind: "effect.update", target: { effectId, clientId }, patches }, token);
             rememberManagedCommand(response.command, (command) => managedCommandTargetsEffect(command, effectId, clientId));
+            acceptManagedFieldPatches(form, "effect", patches);
             result.textContent = "Modifica in attesa di Foundry.";
+            return true;
         } catch (error) {
             result.textContent = error.message || "Modifica non accodata.";
+            return false;
+        } finally {
+            form.inert = false;
+            button.disabled = false;
+            form.closest?.("[data-managed-actor-root]")?._managedNpcUpdateDraft?.();
         }
     }
 
@@ -4403,7 +5214,7 @@
                 managedActorLinkPollAttempts = 0;
                 managedActorLinkPreferredSourceId = "";
             }
-            if (previousActual !== nextActual) {
+            if (previousActual !== nextActual && !hasManagedUnsavedChanges(root) && !managedSaveInProgress) {
                 const scroll = window.scrollY;
                 renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
                 window.requestAnimationFrame(() => window.scrollTo({ top: scroll, behavior: "instant" }));
@@ -4524,13 +5335,28 @@
 
     async function postManagedActorCommand(payload, token) {
         if (!token || !currentDocument) throw new Error("Sessione non disponibile.");
-        return window.CriptaApp.api.post(`api/managed-actors/${encodeURIComponent(currentDocument.worldId)}/${encodeURIComponent(currentDocument.actorId)}/commands`, { expectedRevision: currentDocument.revision, ...payload }, { token });
+        const endpoint = `api/managed-actors/${encodeURIComponent(currentDocument.worldId)}/${encodeURIComponent(currentDocument.actorId)}`;
+        try {
+            return await window.CriptaApp.api.post(`${endpoint}/commands`, { ...payload, expectedRevision: currentDocument.revision }, { token });
+        } catch (error) {
+            if (error.code !== "VERSION_CONFLICT" || String(payload.kind || "").startsWith("actor-link.")) throw error;
+            const latest = await window.CriptaApp.api.get(endpoint, { token, cache: false });
+            currentDocument = latest.data;
+            // Keep the editor's field baselines when refreshing the envelope revision.
+            return window.CriptaApp.api.post(`${endpoint}/commands`, { ...payload, expectedRevision: currentDocument.revision }, { token });
+        }
     }
 
     function rememberManagedCommand(command, removePredicate) {
         const commands = Array.isArray(currentDocument?.sync?.commands) ? currentDocument.sync.commands : [];
         currentDocument.sync = { ...(currentDocument.sync || {}), commands: [...commands.filter((entry) => !removePredicate(entry)), command] };
         window.CriptaApp.api.clearCache?.();
+        const root = document.querySelector("[data-managed-actor-root]");
+        if (root) {
+            managedCommandPollAttempts = 0;
+            refreshManagedCommandIndicators(root);
+            scheduleManagedCommandRefresh(root);
+        }
     }
 
     function updateManagedCardStatus(card, command) {
@@ -4546,21 +5372,42 @@
         managedCommandRefreshTimer = 0;
         const pending = (Array.isArray(currentDocument?.sync?.commands) ? currentDocument.sync.commands : [])
             .some((command) => command.status === "pending" && !String(command.kind || "").startsWith("actor-link."));
-        if (!root || !pending || managedCommandPollAttempts >= 36) return;
-        const delay = Math.min(2_500 + (managedCommandPollAttempts * 750), 10_000);
+        if (!root?.isConnected || !pending) return;
+        const delay = Math.min(2_500 + (managedCommandPollAttempts * 750), 30_000);
         managedCommandRefreshTimer = window.setTimeout(() => refreshManagedCommandState(root), delay);
     }
 
     async function refreshManagedCommandState(root) {
         managedCommandRefreshTimer = 0;
+        if (!root?.isConnected) return;
+        if (managedSaveInProgress || root.querySelector('[data-managed-item-form][inert], [data-managed-effect-form][inert]')) {
+            scheduleManagedCommandRefresh(root);
+            return;
+        }
         managedCommandPollAttempts += 1;
         try {
+            const identity = `${currentDocument.worldId}/${currentDocument.actorId}`;
+            const previousCommands = currentDocument.sync?.commands || [];
             const token = getToken();
             const payload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(currentDocument.worldId)}/${encodeURIComponent(currentDocument.actorId)}`, {
                 cache: false,
                 ...(token ? { token } : {})
             });
+            if (!root.isConnected || managedSaveInProgress || identity !== `${currentDocument.worldId}/${currentDocument.actorId}`) {
+                scheduleManagedCommandRefresh(root);
+                return;
+            }
             currentDocument = payload.data;
+            const completed = previousCommands.some((command) => command.status === "pending"
+                && !(currentDocument.sync?.commands || []).some((entry) => entry.id === command.id));
+            if (completed && !hasManagedUnsavedChanges(root)) {
+                const scroll = window.scrollY;
+                renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
+                const status = root.querySelector("[data-managed-status]");
+                if (status) status.textContent = "Stato aggiornato da Foundry.";
+                window.requestAnimationFrame(() => window.scrollTo({ top: scroll, behavior: "instant" }));
+                return;
+            }
             refreshManagedCommandIndicators(root);
             scheduleManagedCommandRefresh(root);
         } catch (error) {
@@ -4570,6 +5417,7 @@
     }
 
     function refreshManagedCommandIndicators(root) {
+        if (!root?.isConnected) return;
         const currentIndicator = root.querySelector(".managed-command-actions > .managed-sync-indicator");
         if (currentIndicator) {
             const template = document.createElement("template");
@@ -4577,6 +5425,15 @@
             const replacement = template.content.firstElementChild;
             if (replacement) currentIndicator.replaceWith(replacement);
         }
+        const statsHeading = root.querySelector("#managed-stats > header");
+        statsHeading?.querySelector(".managed-actor-sync")?.remove();
+        statsHeading?.insertAdjacentHTML("beforeend", renderManagedActorCommandStatus());
+        root.querySelectorAll("[data-managed-effect-form]").forEach((form) => {
+            const effect = findCurrentManagedEffect(form.dataset.managedEffectId, form.dataset.managedEffectClientId);
+            const command = effect && findManagedEffectCommand(effect);
+            form.querySelector(".managed-item-sync")?.remove();
+            if (command) form.insertAdjacentHTML("afterbegin", renderManagedEntitySyncStatus(command));
+        });
         const entries = Array.isArray(currentDocument?.definition?.items) ? currentDocument.definition.items : [];
         root.querySelectorAll("[data-managed-item-card]").forEach((card) => {
             const key = String(card.dataset.managedItemCard || "");
@@ -4592,7 +5449,7 @@
             previousStatus?.remove();
             if (card.dataset.managedCommandTracking) {
                 const result = card.querySelector("[data-managed-item-result]");
-                if (result) result.textContent = "Applicato in Foundry.";
+                if (result) result.textContent = "Stato aggiornato da Foundry.";
                 delete card.dataset.managedCommandTracking;
             }
         });
@@ -4698,23 +5555,21 @@
         const token = getToken();
         if (!token) return;
         const actorPatches = collectManagedActorPatches(root);
-        const presentationChanged = hasManagedPresentationChanges(root, currentDocument);
+        const presentationChanged = currentCanManageActor && hasManagedPresentationChanges(root, managedEditorSnapshot || currentDocument);
         if (!actorPatches.length && !presentationChanged) {
             status.textContent = "Nessuna modifica da salvare.";
-            return;
+            return true;
         }
         button.disabled = true;
         status.textContent = "Salvataggio...";
         try {
-            const next = structuredClone(currentDocument);
             const latest = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(currentDocument.worldId)}/${encodeURIComponent(currentDocument.actorId)}`, { token, cache: false });
-            if (Number(latest?.data?.revision || 0) !== Number(currentDocument.revision || 0)) {
-                currentDocument = latest.data;
-                renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
-                const refreshedStatus = root.querySelector("[data-managed-status]");
-                if (refreshedStatus) refreshedStatus.textContent = "La scheda era cambiata: ho caricato la versione più recente. Ripeti la modifica.";
-                return;
+            if (presentationChanged && (!sameManagedFormValue(latest.data.media, managedEditorSnapshot?.media)
+                || !sameManagedFormValue(latest.data.visibility, managedEditorSnapshot?.visibility))) {
+                throw new Error("L'aspetto della scheda è cambiato anche online. Le tue modifiche sono conservate; verifica la versione aggiornata prima di sostituirlo.");
             }
+            currentDocument = latest.data;
+            const next = structuredCloneManaged(currentDocument);
 
             let revision = Number(currentDocument.revision || 0);
             if (presentationChanged) {
@@ -4760,8 +5615,15 @@
                 next.variantSync = true;
                 const result = await window.CriptaApp.api.post(`api/managed-actors/${encodeURIComponent(next.worldId)}/${encodeURIComponent(next.actorId)}`, next, { token });
                 revision = Number(result.revision || revision);
+                managedEditorSnapshot.media = structuredCloneManaged(next.media);
+                managedEditorSnapshot.visibility = structuredCloneManaged(next.visibility);
+                root.querySelectorAll("[data-managed-file], [data-managed-variant-file], [data-managed-variant-add-file]").forEach((control) => { control.value = ""; });
+                root.querySelectorAll("[data-managed-remove]").forEach((control) => { control.checked = false; });
             }
-            if (actorPatches.length) await enqueueManagedActorUpdate(actorPatches, revision, token);
+            if (actorPatches.length) {
+                await enqueueManagedActorUpdate(actorPatches, revision, token);
+                acceptManagedFieldPatches(root, "actor", actorPatches);
+            }
 
             status.textContent = actorPatches.length
                 ? formatManagedPendingFields(actorPatches)
@@ -4769,14 +5631,13 @@
             window.CriptaApp.api.clearCache?.();
             const payload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(next.worldId)}/${encodeURIComponent(next.actorId)}`, { token, cache: false });
             currentDocument = payload.data;
-            renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
-            const savedStatus = root.querySelector("[data-managed-status]");
-            if (savedStatus) savedStatus.textContent = actorPatches.length
-                ? formatManagedPendingFields(actorPatches)
-                : `Salvato - revisione ${revision}`;
+            refreshManagedCommandIndicators(root);
+            scheduleManagedCommandRefresh(root);
+            return true;
         } catch (error) {
             console.error("Salvataggio Managed Actor fallito", error);
-            status.textContent = error.message || "Salvataggio fallito";
+            status.textContent = `${error.message || "Salvataggio fallito"} La bozza è conservata.`;
+            return false;
         } finally {
             if (button) button.disabled = false;
         }
@@ -4817,7 +5678,7 @@
         }
         return Boolean(root.querySelector("[data-managed-variant-add-file]")?.files?.length);
     }
-    function collectManagedActorPatches(root) {
+    function collectManagedActorPatches(root, includeRetry = true) {
         const patches = Array.from(root.querySelectorAll("[data-managed-actor-path]")).map((control) => {
             const path = String(control.dataset.managedActorPath || "");
             const type = String(control.dataset.managedActorType || "text");
@@ -4870,49 +5731,52 @@
             const originalComparable = path === "system.details.cr" ? normalizeManagedChallengeRating(original) : original;
             if (path === "system.details.cr") value = normalizeManagedChallengeRating(value);
             const command = findManagedActorUpdateCommand();
-            const retrying = ["conflict", "failed"].includes(command?.status)
+            const retrying = includeRetry && ["conflict", "failed"].includes(command?.status)
                 && (Array.isArray(command?.patches) ? command.patches : []).some((patch) => patch.path === path);
             if (sameManagedFormValue(value, originalComparable, path) && !retrying) return null;
-            const commandPatch = (Array.isArray(command?.patches) ? command.patches : []).find((patch) => patch.path === path);
-            const hasConflictValue = command?.current && Object.prototype.hasOwnProperty.call(command.current, path);
+            if (["number", "select-number"].includes(type) && value === null) {
+                if (includeRetry) revealManagedInvalidField(control);
+                throw new Error(`Inserisci un valore per ${managedActorFieldLabel(path)}.`);
+            }
+            if (includeRetry && control.reportValidity && !control.reportValidity()) throw new Error(`Controlla ${managedActorFieldLabel(path)}.`);
+            const hasConflictValue = retrying && command?.current && Object.prototype.hasOwnProperty.call(command.current, path);
+            const baseline = managedFieldBaselines.get(control);
             const baseValue = hasConflictValue
                 ? command.current[path]
-                : commandPatch
-                    ? commandPatch.baseValue
-                    : readManagedActorBaseValue(path);
+                : baseline ? baseline.baseValue : original;
             return { path, value, baseValue: baseValue ?? null };
         }).filter(Boolean);
         const acPatch = patches.find((patch) => patch.path === "system.attributes.ac.flat");
-        const currentAcMethod = String(readManagedActorBaseValue("system.attributes.ac.calc") || "");
+        const currentAcMethod = String(readManagedActorBaseValue("system.attributes.ac.calc", managedEditorSnapshot || currentDocument) || "");
         if (acPatch && !patches.some((patch) => patch.path === "system.attributes.ac.calc") && !["flat", "natural"].includes(currentAcMethod)) {
             patches.push({ path: "system.attributes.ac.calc", value: "flat", baseValue: currentAcMethod || null });
         }
         return patches;
     }
 
-    function readManagedActorBaseValue(path) {
+    function readManagedActorBaseValue(path, source = currentDocument) {
         const customCurrency = String(path || "").match(/^flags\.khuzoe-merchant\.wallet\.([a-z0-9_-]+)$/);
-        if (customCurrency) return currentDocument?.definition?.currency?.[customCurrency[1]];
+        if (customCurrency) return source?.definition?.currency?.[customCurrency[1]];
         const nativeCurrency = String(path || "").match(/^system\.currency\.([a-z0-9_-]+)$/);
-        if (nativeCurrency) return currentDocument?.definition?.currency?.[nativeCurrency[1]];
-        if (path === "name") return currentDocument?.name;
-        if (path === "system.attributes.hp.value") return currentDocument?.runtime?.hp?.value;
-        if (path === "system.attributes.hp.temp") return currentDocument?.runtime?.hp?.temp;
+        if (nativeCurrency) return source?.definition?.currency?.[nativeCurrency[1]];
+        if (path === "name") return source?.name;
+        if (path === "system.attributes.hp.value") return source?.runtime?.hp?.value;
+        if (path === "system.attributes.hp.temp") return source?.runtime?.hp?.temp;
         const spell = String(path || "").match(/^system\.spells\.(spell[0-9]|pact)\.(value|spent|max|override)$/);
         if (spell) {
-            if (["value", "spent"].includes(spell[2])) return currentDocument?.runtime?.spellSlots?.[spell[1]]?.[spell[2]];
-            return currentDocument?.definition?.spellSlots?.[spell[1]]?.[spell[2]];
+            if (["value", "spent"].includes(spell[2])) return source?.runtime?.spellSlots?.[spell[1]]?.[spell[2]];
+            return source?.definition?.spellSlots?.[spell[1]]?.[spell[2]];
         }
         const keys = String(path || "").replace(/^system\./, "").split(".").filter(Boolean);
-        return keys.reduce((value, key) => value?.[key], currentDocument?.definition);
+        return keys.reduce((value, key) => value?.[key], source?.definition);
     }
 
     async function enqueueManagedActorUpdate(patches, expectedRevision, token) {
-        const response = await window.CriptaApp.api.post(`api/managed-actors/${encodeURIComponent(currentDocument.worldId)}/${encodeURIComponent(currentDocument.actorId)}/commands`, {
+        const response = await postManagedActorCommand({
             kind: "actor.update",
             expectedRevision,
             patches
-        }, { token });
+        }, token);
         const commands = Array.isArray(currentDocument.sync?.commands) ? currentDocument.sync.commands : [];
         currentDocument.sync = {
             ...(currentDocument.sync || {}),

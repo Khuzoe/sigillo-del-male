@@ -1,0 +1,247 @@
+/* NPC reading view. The editor keeps its own mounted fields and layout. */
+.is-npc:is(.is-reading-dossier, .is-profile-only) > .managed-actor-hero { display: none; }
+.is-npc .managed-npc-pane--profile.is-dossier-reader { display: block; }
+.is-npc .is-dossier-reader > .managed-profile-panel { display: flow-root; padding: 0; border: 0; background: none; }
+.is-npc .is-dossier-reader .managed-profile-header { display: none; }
+.is-npc .is-dossier-reader .managed-profile-legacy-link { display: inline-flex; }
+
+/* A quiet chapter index, expanded on wide screens and collapsible on phones. */
+.is-npc .managed-dossier-contents { margin: 0 0 28px; padding: 0 0 16px; border: 0; border-bottom: 1px solid var(--npc-line); border-radius: 0; background: none; }
+.is-npc .managed-dossier-contents > summary { display: flex; align-items: center; gap: 12px; width: fit-content; padding: 0; color: var(--npc-muted); font: 500 .7rem/1.5 var(--font-ui); cursor: pointer; list-style: none; }
+.is-npc .managed-dossier-contents > summary::-webkit-details-marker { display: none; }
+.is-npc .managed-dossier-contents > summary > small { font: inherit; opacity: .7; }
+.is-npc .managed-dossier-contents > summary > i { font-size: .6rem; transition: transform .15s; }
+.is-npc .managed-dossier-contents[open] > summary > i { transform: rotate(180deg); }
+.is-npc .managed-dossier-contents nav { display: flex; flex-wrap: wrap; gap: 6px 22px; padding-top: 12px; }
+.is-npc .managed-dossier-contents a { display: inline-flex; align-items: baseline; gap: 7px; padding: 4px 0; color: #d9d2c6; font: 500 .73rem/1.4 var(--font-ui); text-decoration: none; }
+.is-npc .managed-dossier-contents a > span:first-child { color: #92816a; font-size: .65rem; font-variant-numeric: tabular-nums; }
+.is-npc .managed-dossier-contents a:hover { color: #f1d494; }
+.is-npc .managed-dossier-contents :is(a, summary):focus-visible { outline: 2px solid #cfb377; outline-offset: 5px; border-radius: 2px; }
+
+/* The portrait, identity, facts and opening chapter are one composition. */
+.is-npc .managed-dossier-opening { display: grid; grid-template-columns: minmax(230px, .52fr) minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 0 32px; align-items: start; margin-bottom: 28px; }
+.is-npc .managed-dossier-opening > .managed-npc-portrait { grid-column: 1; grid-row: 1 / 4; float: none; width: 100%; margin: 0; position: sticky; top: calc(var(--managed-command-bar-height, 0px) + 24px); }
+.is-npc .managed-dossier-opening > .managed-dossier-identity { display: flex; gap: 20px; grid-column: 2; min-width: 0; }
+.is-npc .managed-dossier-identity .managed-actor-title { flex: 1; min-width: 0; width: 100%; max-width: none; padding: 0; }
+.is-npc .managed-dossier-identity .managed-actor-title h1 { max-width: none; margin: 0 0 12px; font-size: clamp(2rem, 3.5vw, 3.5rem); line-height: 1.12; letter-spacing: -.04em; text-wrap: balance; overflow-wrap: anywhere; }
+.is-npc .managed-dossier-identity .managed-profile-role { margin: 0 0 14px; color: #cfb783; font: 500 .88rem/1.5 var(--font-ui); }
+.is-npc .managed-dossier-identity .managed-profile-quote { padding: 0; margin: 0; border: 0; color: #a99e90; font: italic 1.12rem/1.5 var(--font-body); }
+.is-npc .managed-dossier-identity :is(.managed-hero-vitals, .managed-actor-chips) { display: none; }
+.is-npc .managed-dossier-opening .managed-profile-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; margin: 18px 0 0; padding: 18px 0 0; border: 0; border-top: 1px solid var(--npc-line); }
+.is-npc .managed-dossier-opening .managed-profile-summary > div { flex: 0 1 auto; padding: 0; border: 0; background: none; }
+.is-npc .managed-dossier-opening .managed-profile-summary dt { font-size: .68rem; color: #9f998f; }
+.is-npc .managed-dossier-opening .managed-profile-summary dd { margin: 4px 0 0; font: 500 .82rem/1.5 var(--font-ui); overflow-wrap: anywhere; }
+.is-npc .managed-dossier-opening > .is-opening-chapter { grid-column: 2; margin: 0; padding: 0; border: 0; }
+.is-npc .managed-dossier-opening .managed-npc-portrait .managed-actor-art { max-width: none; border-radius: 6px; box-shadow: 0 12px 40px #0003; }
+.is-npc .managed-dossier-opening .managed-actor-avatar-layer.is-base { width: 100%; max-height: 680px; object-fit: contain; }
+.is-npc .is-dossier-reader .managed-actor-site-animation { position: relative; inset: auto; width: 80px; max-width: 100%; margin: 12px 0 0; }
+.is-npc .is-dossier-reader .managed-site-animation-button { width: 80px; height: 80px; }
+.is-npc .is-dossier-reader .managed-actor-site-animation figcaption { font-size: .55rem; }
+.is-npc .managed-dossier-identity > .managed-actor-site-animation { flex: 0 0 100px; align-self: center; margin: 0; padding: 0; border: 0; background: none; }
+.is-npc .is-dossier-reader .managed-actor-site-animation { --dossier-animation-size: 100px; display: grid; justify-items: center; width: var(--dossier-animation-size); box-sizing: content-box; }
+.is-npc .is-dossier-reader .managed-actor-site-animation .managed-site-animation-button { display: block; width: var(--dossier-animation-size); height: var(--dossier-animation-size); min-width: 0; margin: 0; padding: 0; }
+.is-npc .is-dossier-reader .managed-actor-site-animation .managed-site-animation-stack { display: block; width: 100%; height: 100%; margin: 0; }
+.is-npc .is-dossier-reader .managed-actor-site-animation .managed-site-animation-layer { inset: 0; width: 100%; height: 100%; margin: 0; }
+.is-npc .is-dossier-reader .managed-actor-site-animation:hover,
+.is-npc .is-dossier-reader .managed-actor-site-animation:focus-within { transform: none; }
+.is-npc .managed-dossier-identity > .managed-actor-site-animation figcaption { display: block; margin-top: 6px; color: var(--npc-muted); font: 400 .55rem/1.4 var(--font-ui); text-align: center; text-transform: none; letter-spacing: 0; }
+.is-npc .managed-dossier-identity > .managed-actor-site-animation figcaption > i { display: none; }
+.is-npc .managed-dossier-identity > .managed-actor-media-dock { position: static; flex: 0 0 100px; display: block; align-self: center; width: 100px; max-width: 100%; margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+.is-npc .managed-dossier-identity > .managed-actor-media-dock::before { display: none; }
+.is-npc .managed-dossier-identity > .managed-actor-media-dock .managed-actor-site-animation { margin: 0; padding: 0; border: 0; background: none; box-shadow: none; }
+.is-npc .managed-dossier-identity > .managed-actor-media-dock figcaption { display: block; width: 100%; margin-top: 6px; padding: 0; color: var(--npc-muted); font: 400 .55rem/1.4 var(--font-ui); text-align: center; text-transform: none; letter-spacing: 0; }
+.is-npc .managed-dossier-identity > .managed-actor-media-dock figcaption > i { display: none; }
+
+
+
+/* Chapters read as a continuous document, with smaller illustrations at the edge. */
+.is-npc .is-dossier-reader .managed-profile-block-grid { display: flex; flex-direction: column; gap: 0; }
+.is-npc .is-dossier-reader .managed-profile-block { display: flow-root; margin: 0; padding: 28px 0; border: 0; border-top: 1px solid var(--npc-line); border-radius: 0; background: none; overflow: visible; scroll-margin-top: calc(var(--managed-command-bar-height, 0px) + 24px); }
+.is-npc .is-dossier-reader .managed-profile-block:focus { outline: none; }
+.is-npc .is-dossier-reader .managed-profile-block:focus-visible { outline: 1px solid #cfb377; outline-offset: 8px; }
+.is-npc .is-dossier-reader .managed-profile-block-body { display: flow-root; }
+.is-npc .is-dossier-reader .managed-dossier-chapter-title { display: flex; align-items: baseline; gap: 12px; margin: 0 0 16px; color: #efe1c2; font: 600 1.25rem/1.4 var(--font-ui); letter-spacing: -.02em; }
+.is-npc .is-dossier-reader .managed-dossier-chapter-title > i { display: none; }
+.is-npc .managed-dossier-chapter-number { flex: none; color: #9b825d; font: 400 .75rem/1.5 var(--font-ui); font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.is-npc .is-dossier-reader .managed-profile-markdown { color: #d9d2c8; font-size: 1.14rem; line-height: 1.75; }
+.is-npc .is-dossier-reader .managed-profile-markdown > :is(p, ul, ol) { max-width: none; margin: 0 0 14px; }
+.is-npc .is-dossier-reader .managed-profile-markdown > :last-child { margin-bottom: 0; }
+.is-npc .is-dossier-reader .managed-profile-markdown > .doc-blank-line { height: .2em; min-height: .2em; margin: 0; }
+.is-npc .is-dossier-reader .managed-profile-markdown > .doc-blank-line + .doc-blank-line { display: none; }
+.is-npc .is-dossier-reader .has-adaptive-image .managed-profile-block-image { float: right; width: var(--dossier-image-width, 340px); max-width: 100%; margin: 2px 0 14px 28px; border: 0; border-radius: 6px; background: none; }
+.is-npc .is-dossier-reader .has-adaptive-image .managed-profile-block-image img { display: block; width: 100%; height: auto; max-height: none; object-fit: contain; }
+.is-npc .is-dossier-reader .has-adaptive-image .managed-profile-block-image:hover img { transform: none; }
+.is-npc .is-dossier-reader .is-opening-chapter .managed-profile-block-image { margin-left: 20px; }
+.is-npc .is-dossier-reader .is-opening-chapter { padding: 0; border: 0; }
+.is-npc .is-dossier-reader .managed-profile-block--secret_dossier { border-top-color: rgba(181,116,130,.35); }
+.is-npc .is-dossier-reader .managed-profile-hidden { margin-bottom: 12px; }
+.is-npc .is-dossier-reader .is-image-only .managed-profile-block-image { float: none; max-width: 100%; margin: 0 auto; }
+.is-npc .is-dossier-reader .managed-profile-block--banner_box.has-adaptive-image > .managed-profile-block-image { margin-top: 2px; }
+.is-npc .is-dossier-reader .managed-profile-block--banner_box .managed-profile-block-body { display: block; }
+.is-npc .is-dossier-reader > .managed-npc-settings { margin-top: 20px; }
+.is-npc .is-dossier-reader:not(.is-compact-dossier) .managed-profile-block-grid .has-adaptive-image:not(.managed-profile-block--banner_box) .managed-profile-block-body { display: grid; grid-template-columns: minmax(0, 1fr) var(--dossier-image-width, 180px); column-gap: 28px; }
+.is-npc .is-dossier-reader:not(.is-compact-dossier) .managed-profile-block-grid .managed-profile-block-body > :is(.managed-dossier-chapter-title, .managed-profile-hidden, .managed-profile-markdown) { grid-column: 1; }
+.is-npc .is-dossier-reader:not(.is-compact-dossier) .managed-profile-block-grid .has-adaptive-image:not(.managed-profile-block--banner_box) .managed-profile-block-image { grid-column: 2; grid-row: 1 / span 3; max-width: 100%; margin: 0; align-self: start; }
+
+/* Let subsequent chapters use the room beside a short introduction, then reclaim the full width. */
+.is-npc .is-dossier-reader:not(.is-compact-dossier) .managed-dossier-opening,
+.is-npc .is-dossier-reader:not(.is-compact-dossier) .managed-profile-block-grid { display: contents; }
+.is-npc .is-dossier-reader:not(.is-compact-dossier) .managed-dossier-opening > .managed-npc-portrait { float: left; position: static; width: 32%; max-width: 350px; margin: 0 32px 24px 0; }
+.is-npc .is-dossier-reader:not(.is-compact-dossier) .managed-dossier-identity { display: flex; margin-bottom: 24px; }
+.is-npc .is-dossier-reader:not(.is-compact-dossier) .is-opening-chapter { padding-bottom: 28px; }
+.is-npc .is-dossier-reader:not(.is-compact-dossier) .has-brief-opening > .managed-npc-portrait { width: 27%; max-width: 280px; }
+.is-npc .is-dossier-reader:not(.is-compact-dossier)[data-avatar-format="landscape"] .managed-dossier-opening > .managed-npc-portrait { width: 44%; max-width: 480px; }
+.is-npc .is-dossier-reader[data-avatar-format="none"] .managed-dossier-opening > .managed-profile-summary { display: flex; flex-wrap: wrap; margin: 0 0 24px; padding: 0 0 18px; border: 0; border-bottom: 1px solid var(--npc-line); }
+
+/* On a narrow page, show identity beside a compact portrait, then full-width prose. */
+.is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-contents { margin-bottom: 22px; padding-bottom: 14px; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-contents > summary { width: 100%; min-height: 32px; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-contents > summary > small { margin-left: auto; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-contents nav { display: grid; gap: 4px; padding-top: 12px; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-contents a { min-height: 34px; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-opening { grid-template-columns: minmax(0, .85fr) minmax(0, 1fr); gap: 0 20px; margin-bottom: 26px; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-npc-portrait { display: contents; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-npc-portrait .managed-actor-art { grid-column: 1; grid-row: 1; width: 100%; margin: 0; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-actor-avatar-layer.is-base { width: 100%; max-height: 340px; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-identity { flex-direction: column; gap: 12px; grid-column: 2; grid-row: 1; align-self: center; padding-bottom: 0; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-identity > .managed-actor-site-animation { align-self: flex-start; flex-basis: auto; margin: 0; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-actor-site-animation { --dossier-animation-size: 80px; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-identity > .managed-actor-media-dock { flex-basis: auto; width: 80px; align-self: flex-start; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-identity h1 { font-size: clamp(1.45rem, 5.8vw, 2.4rem); line-height: 1.15; letter-spacing: -.03em; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-profile-role { font-size: .75rem; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-profile-quote { font-size: 1rem; margin-bottom: 0; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-profile-summary { display: flex; flex-wrap: wrap; grid-column: 1 / -1; grid-row: 2; gap: 10px 20px; margin: 18px 0 22px; padding: 14px 0; border-block: 1px solid var(--npc-line); }
+.is-npc .is-dossier-reader.is-compact-dossier .is-opening-chapter { grid-column: 1 / -1; grid-row: 3; margin-top: 0; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-profile-block { padding-block: 24px; }
+.is-npc .is-dossier-reader.is-compact-dossier .is-opening-chapter { padding: 0; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-chapter-title { font-size: 1.08rem; gap: 10px; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-profile-markdown { font-size: 1.08rem; line-height: 1.7; }
+.is-npc .is-dossier-reader.is-compact-dossier .has-adaptive-image .managed-profile-block-image { margin-left: 16px; }
+.is-npc .is-dossier-reader.is-compact-dossier[data-avatar-format="landscape"] .managed-dossier-opening { display: flex; flex-direction: column; gap: 18px; }
+.is-npc .is-dossier-reader.is-compact-dossier[data-avatar-format="landscape"] .managed-dossier-identity { align-self: stretch; order: -1; }
+.is-npc .is-dossier-reader.is-compact-dossier[data-avatar-format="none"] .managed-dossier-opening { display: block; }
+.is-npc .is-dossier-reader.is-compact-dossier[data-avatar-format="landscape"] .managed-dossier-identity h1 { font-size: 2rem; }
+.is-npc .is-dossier-reader.is-compact-dossier[data-avatar-format="landscape"] .managed-actor-avatar-layer.is-base { max-height: 240px; }
+
+@media (max-width: 760px) {
+    .is-npc .is-dossier-editing .managed-npc-portrait .managed-actor-art { width: fit-content; margin-inline: auto; }
+    .is-npc .is-dossier-editing .managed-npc-portrait .managed-actor-avatar-layer.is-base { width: auto; max-width: 100%; max-height: 300px; }
+}
+
+/* Editing: a compact identity form followed by a full-width chapter workspace. */
+.is-npc.is-editing.is-npc-dossier .managed-actor-hero { margin-bottom: 16px; min-height: 0; }
+.is-npc.is-editing.is-npc-dossier .managed-actor-title { padding: 0; max-width: none; }
+.is-npc.is-editing.is-npc-dossier .managed-actor-title h1 { margin: 0; }
+.is-npc.is-editing.is-npc-dossier .managed-actor-name-input { font: 600 1.65rem/1.3 var(--font-ui); padding: 10px 14px; max-width: 680px; }
+.is-npc.is-editing.is-npc-dossier .managed-actor-title > :is(.managed-profile-role, .managed-profile-quote, .managed-hero-vitals, .managed-actor-chips, .managed-actor-media-dock) { display: none; }
+.is-npc.is-editing .managed-npc-pane--profile.is-dossier-editing { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 24px 28px; }
+.is-npc.is-editing .managed-npc-pane--profile.is-dossier-editing.has-portrait { grid-template-columns: minmax(160px, 230px) minmax(0, 1fr); }
+.is-npc .is-dossier-editing > .is-editing-profile { display: contents; }
+.is-npc .is-dossier-editing > .managed-npc-portrait { grid-column: 1; grid-row: 1; position: static; }
+.is-npc .is-dossier-editing .managed-npc-portrait .managed-actor-art { width: 100%; border-radius: 10px; }
+.is-npc .is-dossier-editing .managed-npc-portrait .managed-actor-avatar-layer.is-base { width: 100%; height: auto; max-height: 330px; object-fit: contain; }
+.is-npc .managed-edit-portrait-tools { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 12px; }
+.is-npc .managed-edit-portrait-tools > span { color: var(--npc-muted); font: 400 .72rem/1.5 var(--font-ui); }
+.is-npc .managed-edit-portrait-tools button { padding: 9px 14px; border: 1px solid var(--npc-line); border-radius: 8px; background: #18171c; color: #e4d3ad; font: 500 .76rem/1.5 var(--font-ui); cursor: pointer; }
+.is-npc .managed-profile-edit-overview { grid-column: 1 / -1; min-width: 0; }
+.is-npc .has-portrait .managed-profile-edit-overview { grid-column: 2; grid-row: 1; }
+.is-npc .is-dossier-editing .managed-profile-header { display: flex; align-items: center; justify-content: space-between; margin: 0 0 20px; gap: 12px; }
+.is-npc .is-dossier-editing .managed-profile-header .managed-panel-kicker { display: none; }
+.is-npc .is-dossier-editing .managed-profile-header h2 { font: 600 1.15rem/1.4 var(--font-ui); margin: 0; }
+.is-npc .managed-edit-chapters-jump { font: 500 .73rem/1.5 var(--font-ui); color: #cfb783; text-decoration: none; }
+.is-npc .is-dossier-editing .managed-profile-meta-editor { grid-template-columns: 1.2fr .8fr 1.2fr; gap: 14px; margin: 0 0 20px; }
+.is-npc .is-dossier-editing label { display: grid; min-width: 0; gap: 7px; }
+.is-npc .is-dossier-editing label > span { color: #bcb5aa; font: 500 .75rem/1.5 var(--font-ui); text-transform: none; letter-spacing: 0; }
+.is-npc .is-dossier-editing :is(input[type="text"], select, textarea:not([hidden])) { width: 100%; min-width: 0; min-height: 42px; padding: 10px 12px; border: 1px solid #3b3738; border-radius: 8px; background: #151419; color: #e8e1d5; font: 400 .88rem/1.5 var(--font-ui); box-shadow: none; }
+.is-npc .is-dossier-editing :is(input, select, textarea):focus-visible { outline: 2px solid #bfa36a; outline-offset: 2px; }
+.is-npc .is-dossier-editing .managed-profile-quote-editor > div > i { display: none; }
+.is-npc .is-dossier-editing .managed-profile-quote-editor textarea { min-height: 78px; resize: vertical; }
+.is-npc .managed-profile-edit-facts { min-width: 0; margin: 0; padding: 16px 0 0; border: 0; border-top: 1px solid var(--npc-line); }
+.is-npc .managed-profile-edit-facts legend { padding: 0 12px 0 0; color: #ddd0b5; font: 500 .78rem/1.5 var(--font-ui); }
+.is-npc .is-dossier-editing .managed-profile-summary-editor { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 0; }
+.is-npc .managed-profile-edit-organization { grid-column: 1 / -1; padding: 0; border: 1px solid var(--npc-line); border-radius: 10px; background: #151419; }
+.is-npc .managed-profile-edit-organization > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; cursor: pointer; list-style: none; color: #c9c0b1; font: 500 .8rem/1.5 var(--font-ui); }
+.is-npc .managed-profile-organization-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; padding: 2px 18px 20px; }
+.is-npc .managed-profile-organization-fields .managed-profile-access-editor { grid-column: 1 / -1; margin: 0; }
+.is-npc .is-dossier-editing .managed-profile-access-editor > label { padding: 14px; border-radius: 8px; background: #1c1b21; }
+.is-npc .is-dossier-editing > .managed-npc-settings,
+.is-npc .is-dossier-editing .managed-profile-archive-notice { grid-column: 1 / -1; }
+.is-npc .managed-profile-edit-chapters { grid-column: 1 / -1; min-width: 0; scroll-margin-top: calc(var(--managed-command-bar-height, 70px) + 24px); }
+.is-npc .managed-profile-edit-chapters .managed-profile-editor-toolbar { position: static; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin: 10px 0 18px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; backdrop-filter: none; }
+.is-npc .managed-profile-edit-chapters .managed-profile-editor-toolbar h2 { margin: 0; color: #eee1c6; font: 600 1.3rem/1.4 var(--font-ui); }
+.is-npc .managed-profile-edit-chapters .managed-profile-editor-toolbar span { display: block; margin-top: 4px; color: var(--npc-muted); font: 400 .75rem/1.5 var(--font-ui); }
+.is-npc .managed-profile-add-menu, .is-npc .managed-edit-chapter-actions { position: relative; }
+.is-npc .managed-profile-add-menu > summary { display: inline-flex; align-items: center; gap: 9px; min-height: 42px; padding: 10px 16px; border: 1px solid #5b4d33; border-radius: 8px; color: #e6cc92; background: #252119; cursor: pointer; list-style: none; font: 500 .78rem/1.5 var(--font-ui); }
+.is-npc :is(.managed-profile-add-menu, .managed-edit-chapter-actions) > div { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; display: grid; gap: 4px; width: 210px; padding: 8px; border: 1px solid #48403a; border-radius: 10px; background: #201e24; box-shadow: 0 16px 40px #0008; }
+.is-npc :is(.managed-profile-add-menu, .managed-edit-chapter-actions) > div > button { display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; height: auto; min-height: 40px; padding: 9px 12px; border: 0; background: none; border-radius: 6px; color: #ddd3c1; text-align: left; font: 400 .8rem/1.5 var(--font-ui); }
+.is-npc :is(.managed-profile-add-menu, .managed-edit-chapter-actions) > div > button:hover { background: #343039; }
+.is-npc :is(.managed-profile-add-menu, .managed-edit-chapter-actions) > div > button:disabled { opacity: .35; cursor: default; }
+.is-npc .managed-edit-chapter-actions > div > button.is-danger { color: #e4a7a2; }
+.is-npc .managed-profile-edit-chapters .managed-profile-block-editor { gap: 2px; }
+.is-npc .managed-profile-edit-chapters .managed-profile-insert-row { min-height: 34px; }
+.is-npc .managed-profile-edit-chapters .managed-profile-insert-row:first-child { display: none; }
+.is-npc .managed-profile-edit-chapters .managed-profile-insert-row summary { min-height: 28px; padding: 4px 10px; font: 400 .65rem/1.4 var(--font-ui); border: 0; }
+.is-npc .managed-profile-edit-chapters .managed-profile-insert-row details > div { z-index: 30; }
+.is-npc .managed-npc-edit-chapter { overflow: visible; border: 1px solid var(--npc-line); border-radius: 12px; background: #151419; }
+.is-npc .managed-npc-edit-chapter.is-expanded { border-color: #67573b; }
+.is-npc .managed-npc-edit-chapter .managed-profile-edit-block-head { display: grid; grid-template-columns: 28px 22px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 16px; border-radius: 12px 12px 0 0; background: none; }
+.is-npc .managed-edit-chapter-number { color: #bba57c; font: 400 .8rem/1.5 var(--font-ui); }
+.is-npc .managed-npc-edit-chapter .managed-profile-drag { width: 28px; border: 0; background: none; color: #82796e; }
+.is-npc .managed-npc-edit-chapter .managed-profile-block-toggle strong { font-size: 1rem; font-weight: 600; white-space: normal; }
+.is-npc .managed-npc-edit-chapter .managed-profile-block-toggle small b { padding: 0; border: 0; border-radius: 0; font: 400 .7rem/1.5 var(--font-ui); letter-spacing: 0; text-transform: none; }
+.is-npc .managed-npc-edit-chapter .managed-profile-block-toggle small b + b::before { content: '·'; margin-right: 6px; color: #736a60; }
+.is-npc .managed-npc-edit-chapter.is-collapsed .managed-profile-block-toggle small em { display: block; font-size: .78rem; }
+.is-npc .managed-edit-chapter-actions > summary { display: flex; align-items: center; gap: 8px; padding: 8px; min-height: 38px; border-radius: 7px; font: 400 .73rem/1.5 var(--font-ui); color: #bfb6a6; cursor: pointer; list-style: none; }
+.is-npc .managed-edit-chapter-actions[open] > summary { background: #2e2931; color: #eddbb5; }
+.is-npc .managed-npc-edit-chapter .managed-profile-block-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, .32fr); padding: 20px; gap: 16px; }
+.is-npc .managed-edit-chapter-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 0 20px 20px; }
+.is-npc .managed-edit-chapter-workspace.has-image { grid-template-columns: minmax(0, 1fr) 240px; }
+.is-npc .managed-npc-edit-chapter .managed-profile-text-editor { min-width: 0; padding: 0; gap: 8px; align-content: start; }
+.is-npc .managed-npc-edit-chapter .managed-profile-text-editor > span { color: #bcb5aa; font: 500 .75rem/1.5 var(--font-ui); letter-spacing: 0; text-transform: none; }
+.is-npc .managed-npc-edit-chapter .managed-profile-rich-text { background: #1b1a20; border-color: #3b3738; border-radius: 8px; box-shadow: none; }
+.is-npc .managed-npc-edit-chapter .managed-rich-text-toolbar { background: #222127; border-color: #3b3738; gap: 2px; padding: 6px; }
+.is-npc .managed-npc-edit-chapter .managed-rich-text-toolbar button { width: 34px; height: 34px; min-width: 34px; min-height: 34px; }
+.is-npc .managed-npc-edit-chapter .managed-profile-rich-text-editor { min-height: 260px; max-height: 640px; padding: 18px; font-size: 1.08rem; line-height: 1.7; }
+.is-npc .managed-edit-chapter-options { display: grid; gap: 12px; align-content: start; min-width: 0; }
+.is-npc .managed-edit-chapter-workspace:not(.has-image) .managed-edit-chapter-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.is-npc .managed-edit-chapter-options > details { min-width: 0; border: 1px solid var(--npc-line); border-radius: 8px; background: #1c1b20; }
+.is-npc .managed-edit-chapter-options > details > summary { display: flex; align-items: center; gap: 8px; padding: 12px; color: #c9c0b1; font: 500 .75rem/1.5 var(--font-ui); cursor: pointer; list-style: none; }
+.is-npc .managed-edit-chapter-options > details > summary > i:last-child { margin-left: auto; font-size: .6rem; }
+.is-npc .managed-edit-chapter-format > div { display: grid; gap: 12px; padding: 0 12px 12px; }
+.is-npc .managed-npc-edit-chapter .managed-profile-image-editor { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 0 12px 12px; }
+.is-npc .managed-npc-edit-chapter .managed-profile-image-drop { min-height: 140px; border-radius: 6px; padding: 0; cursor: pointer; }
+.is-npc .managed-npc-edit-chapter .managed-profile-image-drop img { width: 100%; height: auto; max-height: 300px; object-fit: contain; }
+.is-npc .managed-npc-edit-chapter .managed-edit-image-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.is-npc .managed-npc-edit-chapter :is(.managed-profile-file-button, [data-managed-profile-image-remove]) { min-height: 36px; margin: 0; padding: 8px 10px; border: 1px solid #46403a; border-radius: 6px; background: #262229; color: #dfccaa; font: 400 .73rem/1.4 var(--font-ui); cursor: pointer; }
+.is-npc .managed-npc-edit-chapter .managed-profile-file-button input { display: block; position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; overflow: hidden; clip-path: inset(50%); }
+.is-npc .managed-npc-edit-chapter .managed-profile-file-button:focus-within { outline: 2px solid #bfa36a; outline-offset: 2px; }
+.is-npc .managed-edit-image-url > summary { color: #a69c8e; font: 400 .69rem/1.5 var(--font-ui); cursor: pointer; }
+.is-npc .managed-edit-image-url > label { margin-top: 10px; }
+.is-npc .is-dossier-editing details > summary::-webkit-details-marker { display: none; }
+.is-npc .is-dossier-editing :is(button, summary, a):focus-visible { outline: 2px solid #bfa36a; outline-offset: 3px; }
+@media (max-width: 1100px) {
+    .is-npc .is-dossier-editing .managed-profile-meta-editor { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-npc .is-dossier-editing .managed-profile-meta-editor > label:has([data-managed-profile-field="status"]) { grid-column: 1 / -1; }
+    .is-npc .is-dossier-editing .managed-profile-summary-editor { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-npc .managed-edit-chapter-workspace.has-image { grid-template-columns: minmax(0, 1fr) 200px; }
+}
+@media (max-width: 760px) {
+    .is-npc.is-editing .managed-npc-pane--profile.is-dossier-editing.has-portrait { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+    .is-npc .is-dossier-editing > .managed-npc-portrait { display: flex; align-items: center; gap: 18px; grid-column: 1; grid-row: auto; }
+    .is-npc .is-dossier-editing .managed-npc-portrait .managed-actor-art { width: 90px; flex: 0 0 90px; margin: 0; }
+    .is-npc .is-dossier-editing .managed-npc-portrait .managed-actor-avatar-layer.is-base { height: 130px; max-height: 130px; }
+    .is-npc .managed-edit-portrait-tools { margin: 0; align-items: flex-start; }
+    .is-npc .has-portrait .managed-profile-edit-overview { grid-column: 1; grid-row: auto; }
+    .is-npc .is-dossier-editing .managed-profile-header { align-items: flex-start; }
+    .is-npc .managed-profile-organization-fields { grid-template-columns: minmax(0, 1fr); }
+    .is-npc .managed-edit-chapter-workspace.has-image { grid-template-columns: minmax(0, 1fr); }
+    .is-npc .managed-npc-edit-chapter .managed-profile-edit-block-head { grid-template-columns: 24px 18px minmax(0, 1fr) 34px; gap: 6px; padding: 12px; }
+    .is-npc .managed-npc-edit-chapter .managed-profile-block-toggle strong { font-size: .9rem; }
+    .is-npc .managed-edit-chapter-actions > summary > span, .is-npc .managed-npc-edit-chapter.is-collapsed .managed-profile-block-toggle small em { display: none; }
+    .is-npc .managed-npc-edit-chapter .managed-profile-block-fields { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+    .is-npc .managed-edit-chapter-workspace { padding: 0 16px 16px; gap: 16px; }
+    .is-npc .managed-edit-chapter-workspace:not(.has-image) .managed-edit-chapter-options { grid-template-columns: minmax(0, 1fr); }
+    .is-npc .managed-npc-edit-chapter .managed-profile-rich-text-editor { min-height: 220px; padding: 14px; }
+    .is-npc .managed-npc-edit-chapter .managed-profile-image-drop img { max-height: 240px; }
+    .is-npc .managed-profile-edit-chapters .managed-profile-editor-toolbar span { max-width: 32ch; }
+}

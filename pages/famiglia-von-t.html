@@ -10,27 +10,30 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
     <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
+    <link rel="stylesheet" href="../assets/css/components/page-layout.css?v=20260915-layout1" data-page-style>
 </head>
-<body>
+<body class="site-layout">
     <nav class="sidebar" id="sidebar-container">
         <!-- Sidebar content will be loaded here by layout.js -->
     </nav>
 
     <main class="main-content">
-        <header class="hero-mini">
-            <div class="hero-title">
-                <h1>Famiglia Von T</h1>
-                <div class="subtitle">L'albero genealogico della nobile stirpe Von T.</div>
-            </div>
-        </header>
+        <div class="page-frame">
+            <header class="hero-mini">
+                <div class="hero-title">
+                    <h1>Famiglia Von T</h1>
+                    <div class="subtitle">L'albero genealogico della nobile stirpe Von T.</div>
+                </div>
+            </header>
 
-        <div class="container family-page-layout">
-            <div id="family-tree-container" class="family-tree-container">
-                <svg id="family-tree-spouses-svg"></svg>
-                <svg id="family-tree-children-svg"></svg>
-                <!-- Family tree will be rendered here by JavaScript -->
+            <div class="container family-page-layout">
+                <div id="family-tree-container" class="family-tree-container">
+                    <svg id="family-tree-spouses-svg"></svg>
+                    <svg id="family-tree-children-svg"></svg>
+                    <!-- Family tree will be rendered here by JavaScript -->
+                </div>
+                <aside id="family-birth-order" class="family-birth-order" aria-label="Ordine cronologico di nascita Von T"></aside>
             </div>
-            <aside id="family-birth-order" class="family-birth-order" aria-label="Ordine cronologico di nascita Von T"></aside>
         </div>
     </main>
 

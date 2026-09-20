@@ -1663,7 +1663,7 @@ assert.match(managedActorFeSource, /renderManagedActivityTacticalFacts\(getManag
 assert.match(managedActorFeSource, /damage\.parts\.\$\{index\}/, "i campi guidati devono puntare ai danni reali dentro system.activities");
 assert.match(managedActorFeSource, /renderManagedActivitiesGuide\(activities, entry\)/, "l'editor e il riepilogo devono risolvere le formule dalla stessa definizione dell'elemento");
 assert.match(managedActorFeSource, /scheduleManagedCommandRefresh\(button\.closest\("\[data-managed-actor-root\]"\)\)/, "la pagina deve seguire automaticamente una modifica elemento fino alla conferma di Foundry");
-assert.match(managedActorFeSource, /Applicato in Foundry\./, "un comando concluso deve rimuovere il vecchio conflitto e mostrare l'esito");
+assert.match(managedActorFeSource, /Stato aggiornato da Foundry\./, "un comando concluso deve rimuovere il vecchio conflitto e mostrare la rilettura");
 assert.match(managedActorFeSource, /object\\s\+\(\?:set\|map\|object\)/, "il frontend deve nascondere i placeholder Object Set gia salvati");
 assert.match(managedActorFeSource, /buildManagedEffectiveRollFallback/, "i dati Foundry gia salvati devono mostrare i danni anche prima di una nuova sincronizzazione");
 assert.match(managedActorFeSource, /\["capabilities", "spells"\]\.includes\(collectionKind\)/, "i dettagli effettivi devono comparire anche per gli incantesimi");

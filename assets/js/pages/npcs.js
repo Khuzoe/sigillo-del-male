@@ -286,8 +286,9 @@ function parseYamlLite(yamlText) {
                 managedActorWorldId: String(actor?.worldId || '').trim(),
                 managedProfileRevision: Math.max(0, Number(profile.revision || 0)),
                 managedProfileCanEdit: actor?.permissions?.isEditor === true,
+                managedProfileVisibility: profileVisibility === 'public' ? 'public' : 'dm',
+                managedStatsVisibility: statsVisibility,
                 managedActorId: String(actor?.actorId || '').trim(),
-                discordShareSource: 'managed',
                 managedActorUrl: buildManagedActorDetailUrl(actor)
             };
         }
@@ -715,28 +716,28 @@ function parseYamlLite(yamlText) {
             return ordered;
         }
 
-        function renderNpcDirectory(container, npcs, base_path, canShare = false, sortMode = 'categories') {
+        function renderNpcDirectory(container, npcs, base_path, canEdit = false, sortMode = 'categories') {
             const normalizedSortMode = normalizeNpcRosterSortMode(sortMode);
             container.dataset.npcSortMode = normalizedSortMode;
             if (normalizedSortMode === 'updated') {
-                renderNpcUpdatedList(container, npcs, base_path, canShare);
+                renderNpcUpdatedList(container, npcs, base_path, canEdit);
                 return;
             }
-            renderNpcGroups(container, npcs, base_path, canShare);
+            renderNpcGroups(container, npcs, base_path, canEdit);
         }
 
-        function renderNpcUpdatedList(container, npcs, base_path, canShare = false) {
+        function renderNpcUpdatedList(container, npcs, base_path, canEdit = false) {
             container.innerHTML = '';
             const cards = document.createElement('div');
             cards.className = 'npc-updated-list';
             sortNpcsByUpdatedAt(npcs).forEach((npc) => {
-                cards.appendChild(createNpcCard(npc, base_path, canShare, { showUpdatedAt: true }));
+                cards.appendChild(createNpcCard(npc, base_path, canEdit, { showUpdatedAt: true }));
             });
             container.appendChild(cards);
             window.CriptaImageAdjust?.initFrameCircleImages?.(container);
         }
 
-        function renderNpcGroups(container, npcs, base_path, canShare = false) {
+        function renderNpcGroups(container, npcs, base_path, canEdit = false) {
             container.innerHTML = '';
             const groups = groupNpcsByCategory(npcs);
             groups.forEach((group) => {
@@ -769,7 +770,7 @@ function parseYamlLite(yamlText) {
                 if (!hasSubcategories) {
                     const cards = document.createElement('div');
                     cards.className = 'npc-category-list';
-                    group.items.forEach((npc) => cards.appendChild(createNpcCard(npc, base_path, canShare)));
+                    group.items.forEach((npc) => cards.appendChild(createNpcCard(npc, base_path, canEdit)));
                     section.appendChild(cards);
                 } else {
                     const subcategoryList = document.createElement('div');
@@ -777,7 +778,7 @@ function parseYamlLite(yamlText) {
                     group.subgroups.forEach((subgroup) => {
                         const cards = document.createElement('div');
                         cards.className = `npc-category-list${subgroup.id ? '' : ' npc-category-list--direct'}`;
-                        subgroup.items.forEach((npc) => cards.appendChild(createNpcCard(npc, base_path, canShare)));
+                        subgroup.items.forEach((npc) => cards.appendChild(createNpcCard(npc, base_path, canEdit)));
                         if (!subgroup.id) {
                             subcategoryList.appendChild(cards);
                             return;
@@ -1124,15 +1125,15 @@ function parseYamlLite(yamlText) {
             apply();
             return apply;
         }
-        function createNpcCard(npc, base_path, canShare = false, options = {}) {
+        function createNpcCard(npc, base_path, canEdit = false, options = {}) {
             const statusMap = {
                 vivo: { text: 'VIVO', class: 'status-vivo' },
                 morto: { text: 'MORTO', class: 'status-morto' },
                 ignoto: { text: 'IGNOTO', class: 'status-ignoto' }
             };
             const statusInfo = statusMap[npc.status] || null;
-            const canMoveCategory = canShare && !npc.pendingCreate && Boolean(npc.managedActorWorldId && npc.managedActorId);
-            const canShareCard = canShare && !npc.pendingCreate;
+            const canMoveCategory = canEdit && !npc.pendingCreate && Boolean(npc.managedActorWorldId && npc.managedActorId);
+            const canChangeVisibility = canEdit && npc.managedProfileCanEdit === true && canMoveCategory;
             const roleLabel = npc.kind === 'creature' && (!npc.role || String(npc.role).trim().toLowerCase() === 'npc')
                 ? ''
                 : (npc.role || 'NPC');
@@ -1190,12 +1191,11 @@ function parseYamlLite(yamlText) {
                 : '<span class="npc-avatar-placeholder"><i class="fas fa-hourglass-half"></i></span>';
 
             card.innerHTML = `
-                ${statusInfo && npc.kind !== 'creature' && !npc.pendingCreate ? `<span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>` : ""}
                 ${visibilityBadge}${npc.archived ? '<span class="npc-archive-badge"><i class="fas fa-box-archive"></i>Archiviato</span>' : ''}${syncBadge}
                 <div class="npc-avatar-container">${avatarMarkup}</div>
                 <div class="npc-info">
                     <div class="npc-header">
-                        <h3 class="npc-name">${escapeNpcAttribute(npc.name)}</h3>
+                        <div class="npc-title-row"><h3 class="npc-name">${escapeNpcAttribute(npc.name)}</h3>${statusInfo && npc.kind !== 'creature' && !npc.pendingCreate ? `<span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>` : ""}</div>
                         ${roleLabel ? `<span class="npc-role">${escapeNpcAttribute(roleLabel)}</span>` : ''}
                         <span class="npc-kind-badge"><i class="fas ${npc.kind === 'creature' ? 'fa-dragon' : 'fa-user'}"></i>${npc.kind === 'creature' ? 'Creatura' : 'Personaggio'}</span>
                         ${options.showUpdatedAt ? `<span class="npc-updated-meta">${categoryLabel ? `<span><i class="fas fa-folder" aria-hidden="true"></i>${escapeNpcAttribute(categoryLabel)}</span>` : ''}${updatedAtLabel ? `<time datetime="${escapeNpcAttribute(npc.updatedAt)}" title="Ultima modifica: ${escapeNpcAttribute(updatedAtLabel)}"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i>${escapeNpcAttribute(updatedAtLabel)}</time>` : '<span><i class="fas fa-clock" aria-hidden="true"></i>Data non disponibile</span>'}</span>` : ''}
@@ -1204,21 +1204,38 @@ function parseYamlLite(yamlText) {
                 </div>
                 <span class="npc-card-actions">
                     ${canMoveCategory ? '<span class="npc-category-drag-handle" role="button" tabindex="0" draggable="false" title="Trascina in una categoria diversa" aria-label="Sposta ' + escapeNpcAttribute(npc.name) + ' in una categoria diversa"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>' : ''}
-                    ${canShareCard ? '<span class="npc-discord-share" role="button" tabindex="0" title="Condividi su Discord" aria-label="Condividi ' + escapeNpcAttribute(npc.name) + ' su Discord"><i class="fab fa-discord" aria-hidden="true"></i></span>' : ''}
+                    ${canChangeVisibility ? '<span class="npc-profile-visibility" role="switch" tabindex="0" aria-label="Dossier visibile a tutti: ' + escapeNpcAttribute(npc.name) + '"><span class="npc-visibility-caption" aria-hidden="true">Dossier</span><span class="npc-visibility-track" aria-hidden="true"></span><span class="npc-visibility-state" aria-hidden="true"></span></span>' : ''}
                     <i class="fas fa-chevron-right arrow-icon"></i>
                 </span>
             `;
-            if (canShareCard) {
-                const shareButton = card.querySelector('.npc-discord-share');
-                const openShare = (event) => {
+            if (canChangeVisibility) {
+                const visibilityControl = card.querySelector('.npc-profile-visibility');
+                const toggleVisibility = async (event) => {
                     event.preventDefault();
                     event.stopPropagation();
-                    shareNpcOnDiscord(npc, card.href, base_path);
+                    if (npc.visibilitySaving) return;
+                    npc.visibilitySaving = true;
+                    updateNpcDossierVisibilityControl(card, npc);
+                    try {
+                        await setNpcDossierVisibility(npc, npc.managedProfileVisibility !== 'public');
+                        showNpcRosterFeedback(npc.managedProfileVisibility === 'public'
+                            ? `Dossier di ${npc.name} visibile a tutti.`
+                            : `Dossier di ${npc.name} visibile solo al DM.`, 'success');
+                    } catch (error) {
+                        const conflict = error?.status === 409 || /revision conflict/i.test(error?.message || '');
+                        showNpcRosterFeedback(conflict
+                            ? 'Il dossier è cambiato. Ricarica l’elenco e riprova.'
+                            : 'Visibilità non aggiornata. Riprova o verifica di essere connesso come DM.', 'error');
+                    } finally {
+                        npc.visibilitySaving = false;
+                        updateNpcDossierVisibilityControl(card, npc);
+                    }
                 };
-                shareButton?.addEventListener('click', openShare);
-                shareButton?.addEventListener('keydown', (event) => {
-                    if (event.key === 'Enter' || event.key === ' ') openShare(event);
+                visibilityControl.addEventListener('click', toggleVisibility);
+                visibilityControl.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') toggleVisibility(event);
                 });
+                updateNpcDossierVisibilityControl(card, npc);
             }
             const frameHost = card.querySelector(".npc-avatar-container");
             const mainImage = card.querySelector(".img-main");
@@ -1470,8 +1487,8 @@ function parseYamlLite(yamlText) {
         }
 
         async function saveManagedNpcProfilePatch(npc, data) {
-            const token = String(window.CriptaDiscordAuth?.getToken?.() || '').trim();
-            if (!token) throw new Error('Accedi per modificare la categoria.');
+            const token = String(window.CriptaDiscordAuth?.getToken?.() || window.CriptaApp?.auth?.getToken?.() || '').trim();
+            if (!token) throw new Error('Accedi come DM per modificare il dossier.');
             if (!npc?.managedActorWorldId || !npc?.managedActorId) throw new Error('Questo NPC non usa ancora il flusso gestito.');
             const payload = await window.CriptaApp.api.post(`api/managed-actors/${encodeURIComponent(npc.managedActorWorldId)}/${encodeURIComponent(npc.managedActorId)}/profile`, {
                 expectedRevision: Math.max(0, Number(npc.managedProfileRevision || 0)),
@@ -1497,34 +1514,38 @@ function parseYamlLite(yamlText) {
             feedback._npcFeedbackTimer = window.setTimeout(() => feedback.classList.remove('is-visible'), 3200);
         }
 
-        function shareNpcOnDiscord(npc, detailUrl, base_path) {
-            if (!window.CriptaDiscordShare) return;
-            const description = getNpcShareDescription(npc);
-            const image = npc?.images?.avatar || npc?.images?.idle || npc?.images?.token || '';
-            window.CriptaDiscordShare.open({
-                kind: 'npc',
-                source: npc.discordShareSource || 'characters',
-                campaignId: getCurrentCampaignId(),
-                entityId: npc.managedActorId || npc.id,
-                worldId: npc.managedActorWorldId || '',
-                actorId: npc.managedActorId || '',
-                name: npc.name || 'NPC',
-                subtitle: npc.role || npc.category || 'NPC',
-                description,
-                imageUrl: image ? resolveNpcImageUrl(npc, image, base_path) : '',
-                badges: [npc.category || '', normalizeManagedNpcStatus(npc.lifeState, npc.status)].filter(Boolean),
-                facts: [],
-                hidden: npc.hidden === true || npc.status === 'hidden',
-                pageUrl: detailUrl
-            });
+        async function setNpcDossierVisibility(npc, isPublic) {
+            if (npc?.managedProfileCanEdit !== true || npc.pendingCreate) throw new Error('Permesso DM richiesto.');
+            const state = isPublic ? 'public' : 'dm';
+            const profile = await saveManagedNpcProfilePatch(npc, { visibility: { state } });
+            if (profile.visibility?.state !== state) throw new Error('Visibilità non confermata.');
+            npc.managedProfileVisibility = state;
+            npc.managedProfileRevision = Math.max(0, Number(profile.revision || 0));
+            npc.hidden = state === 'dm' && npc.managedStatsVisibility === 'dm';
+            window.CriptaApp.api.clearCache?.();
+            return profile;
         }
 
-        function getNpcShareDescription(npc) {
-            const quote = String(npc?.quote || '').trim();
-            if (quote) return quote;
-            const blocks = Array.isArray(npc?.content_blocks) ? npc.content_blocks : (Array.isArray(npc?.blocks) ? npc.blocks : []);
-            const publicBlock = blocks.find((block) => block && block.hidden !== true && String(block.markdownText || block.text || '').trim());
-            return String(publicBlock?.markdownText || publicBlock?.text || '').replace(/[#*_>`~]/g, '').trim();
+        function updateNpcDossierVisibilityControl(card, npc) {
+            // Sorting or moving a card can replace it while its request is pending.
+            const cards = new Set([card, ...document.querySelectorAll('[data-roster-card="npc"]')]);
+            for (const target of cards) {
+                if (target.dataset.managedActorWorld !== npc.managedActorWorldId || target.dataset.managedActorId !== npc.managedActorId) continue;
+                const control = target.querySelector('.npc-profile-visibility');
+                if (!control) continue;
+                const isPublic = npc.managedProfileVisibility === 'public';
+                control.setAttribute('aria-checked', String(isPublic));
+                control.setAttribute('aria-disabled', String(Boolean(npc.visibilitySaving)));
+                control.setAttribute('aria-busy', String(Boolean(npc.visibilitySaving)));
+                control.title = npc.visibilitySaving ? 'Salvataggio…' : isPublic
+                    ? 'Dossier visibile a tutti. Premi per riservarlo al DM.'
+                    : 'Dossier riservato al DM. Premi per renderlo visibile a tutti.';
+                control.querySelector('.npc-visibility-state').textContent = npc.visibilitySaving ? 'Salvo…' : isPublic ? 'Tutti' : 'Solo DM';
+                target.classList.toggle('npc-card--dm-hidden', npc.hidden === true);
+                const badge = target.querySelector('.npc-player-visibility-badge');
+                if (!npc.hidden) badge?.remove();
+                else if (!badge) target.insertAdjacentHTML('afterbegin', '<span class="npc-player-visibility-badge"><i class="fas fa-user-shield" aria-hidden="true"></i>Solo DM</span>');
+            }
         }
 
         function escapeNpcAttribute(value) {

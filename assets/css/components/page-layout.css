@@ -1,0 +1,197 @@
+/* Shared page geometry. Campaign themes continue to own colors and artwork. */
+body.site-layout {
+  --page-max-width: 1760px;
+  --page-gutter: clamp(16px, 2vw, 32px);
+  --page-top: 32px;
+  --page-bottom: 64px;
+  --page-gap: 20px;
+  --page-reading-width: 76ch;
+  --page-heading-size: clamp(2rem, 3.5vw, 3.4rem);
+}
+
+body.site-layout .main-content {
+  min-width: 0;
+  padding: var(--page-top) var(--page-gutter) var(--page-bottom);
+}
+
+body.site-layout .page-frame {
+  width: 100%;
+  max-width: var(--page-max-width);
+  min-width: 0;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* Older pages have a separate header and content container inside the frame. */
+body.site-layout .page-frame > .container {
+  width: 100%;
+  padding-inline: 0;
+}
+
+body.site-layout.poll-page .poll-page-shell {
+  width: calc(100% - 2 * var(--page-gutter));
+  padding-block: var(--page-top) var(--page-bottom);
+}
+
+/* Collection headers share a compact scale; the home keeps its campaign cover. */
+body.site-layout:not(.page-home) :is(.archive-hero, .items-hero) {
+  grid-template-columns: minmax(0, 1fr) 190px;
+  min-height: 220px;
+  margin: 0 0 var(--page-gap);
+  padding: 0;
+  border-radius: 22px;
+}
+
+body.site-layout:not(.page-home) :is(.archive-hero__copy, .items-hero-copy) {
+  max-width: none;
+  min-width: 0;
+  padding: clamp(20px, 2.4vw, 36px);
+}
+
+body.site-layout:not(.page-home) :is(.archive-hero, .items-hero) h1,
+body.site-layout .hero-mini h1 {
+  max-width: none;
+  margin: 0.4rem 0 0.65rem;
+  font: 400 var(--page-heading-size)/1.08 var(--font-heading);
+  letter-spacing: -0.025em;
+  text-transform: none;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+body.site-layout:not(.page-home) :is(.archive-hero__sigil, .items-hero-sigil) {
+  width: 154px;
+  justify-self: center;
+}
+
+body.site-layout:not(.page-home) :is(.archive-hero__emblem, .items-hero-gem) {
+  width: 70px;
+  height: 70px;
+  border-radius: 20px;
+  font-size: 1.85rem;
+}
+
+body.site-layout .hero-mini {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  min-height: 172px;
+  margin: 0 0 var(--page-gap);
+  padding: clamp(20px, 2.4vw, 36px);
+  border: 1px solid var(--border-soft);
+  border-radius: 22px;
+}
+
+body.site-layout .hero-mini .hero-title { min-width: 0; }
+body.site-layout .hero-mini .subtitle {
+  max-width: var(--page-reading-width);
+  font: 500 0.85rem/1.6 var(--font-ui);
+  letter-spacing: 0.025em;
+  text-transform: none;
+}
+
+body.site-layout .managed-actor-title h1 {
+  font-size: clamp(2rem, 3.8vw, 3.8rem);
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+body.site-layout.page-home .dashboard-header.archive-hero--home {
+  min-height: 280px;
+  margin-bottom: var(--page-gap);
+  border-radius: 22px;
+}
+
+body.site-layout.page-home .home-hero__copy {
+  padding: clamp(24px, 3vw, 44px);
+}
+
+body.site-layout.page-home .dashboard-header h1 {
+  font-size: clamp(2.4rem, 4vw, 4.4rem);
+  line-height: 1.06;
+}
+
+/* Add columns when cards have room, including with the sidebar collapsed. */
+body.site-layout.roster-page .npc-category-list,
+body.site-layout.page-oggetti .items-grid-section-cards {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr));
+}
+
+/* The canvas can grow without turning narrative paragraphs into long lines. */
+body.site-layout :is(.session-event p, .session-card__teaser, .mission-card__description,
+  .managed-profile-markdown > p, .managed-profile-markdown > ul,
+  .managed-profile-markdown > ol, .location-detail-description) {
+  max-width: var(--page-reading-width);
+}
+
+body.site-layout .document-content .chapter-content {
+  max-width: var(--page-reading-width);
+}
+
+body.site-layout .notes-editor > :is(p, ul, ol, blockquote, h1, h2, h3) {
+  max-width: var(--page-reading-width);
+}
+
+body.site-layout :is(.sessions-toolbar, .missions-toolbar, .roster-tools, .items-tools, .economy-toolbar) {
+  margin-bottom: var(--page-gap);
+  border-radius: 14px;
+}
+
+@media (max-width: 900px) {
+  body.site-layout {
+    --page-gutter: 16px;
+    --page-top: 20px;
+    --page-bottom: 48px;
+  }
+
+  html[data-campaign] body.site-layout .main-content {
+    padding-top: calc(var(--sidebar-mobile-height) + var(--page-top));
+  }
+}
+
+@media (max-width: 640px) {
+  body.site-layout {
+    --page-gutter: 12px;
+    --page-top: 16px;
+    --page-gap: 16px;
+    --page-heading-size: clamp(1.9rem, 7vw, 2.6rem);
+  }
+
+  body.site-layout:not(.page-home) :is(.archive-hero, .items-hero) {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 190px;
+    border-radius: 16px;
+  }
+
+  body.site-layout:not(.page-home) :is(.archive-hero__copy, .items-hero-copy) {
+    padding: 22px 18px;
+  }
+
+  body.site-layout:not(.page-home) :is(.archive-hero__sigil, .items-hero-sigil) {
+    position: absolute;
+    right: -42px;
+    width: 150px;
+    opacity: 0.15;
+    pointer-events: none;
+  }
+
+  body.site-layout .hero-mini {
+    min-height: 150px;
+    padding: 22px 18px;
+    border-radius: 16px;
+  }
+
+  body.site-layout.page-home .dashboard-header.archive-hero--home {
+    min-height: 250px;
+    border-radius: 16px;
+  }
+
+  body.site-layout.page-home .home-hero__copy { padding: 24px 18px; }
+}
+
+/* Foundry embeds have no mobile navigation bar. */
+html[data-campaign] body.site-layout.is-embed .main-content {
+  padding-top: var(--page-top);
+}

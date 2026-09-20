@@ -14,28 +14,31 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
   <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
     <link rel="stylesheet" href="../assets/css/pages/cerca.css" data-page-style>
+    <link rel="stylesheet" href="../assets/css/components/page-layout.css?v=20260915-layout1" data-page-style>
 </head>
 
-<body>
+<body class="site-layout">
   <nav class="sidebar" id="sidebar-container"></nav>
 
   <main class="main-content">
-    <header class="hero-mini">
-      <div class="hero-title">
-        <h1>Ricerca</h1>
-        <div class="subtitle">Trova rapidamente NPC, sessioni, missioni e altro</div>
-      </div>
-    </header>
+        <div class="page-frame">
+        <header class="hero-mini">
+          <div class="hero-title">
+            <h1>Ricerca</h1>
+            <div class="subtitle">Trova rapidamente NPC, sessioni, missioni e altro</div>
+          </div>
+        </header>
 
-    <div class="container search-wrap">
-      <div class="search-box">
-        <i class="fas fa-search" style="color: var(--gold);"></i>
-        <input id="search-input" type="search" placeholder="Es: Karla, Sessione 19, cuore, rituale...">
-      </div>
+        <div class="container search-wrap">
+          <div class="search-box">
+            <i class="fas fa-search" style="color: var(--gold);"></i>
+            <input id="search-input" type="search" placeholder="Es: Karla, Sessione 19, cuore, rituale...">
+          </div>
 
-      <div class="search-meta" id="search-meta">Caricamento indice...</div>
-      <div class="result-list" id="result-list"></div>
-    </div>
+          <div class="search-meta" id="search-meta">Caricamento indice...</div>
+          <div class="result-list" id="result-list"></div>
+        </div>
+        </div>
   </main>
 
   <script src="../assets/js/spoiler-policy.js"></script>

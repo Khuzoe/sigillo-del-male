@@ -10,55 +10,58 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
     <link rel="stylesheet" href="../assets/css/pages/locations.css" data-page-style>
+    <link rel="stylesheet" href="../assets/css/components/page-layout.css?v=20260915-layout1" data-page-style>
 </head>
-<body class="page-mappa page-locations">
+<body class="page-mappa page-locations site-layout">
 
     <nav class="sidebar" id="sidebar-container"></nav>
 
     <main class="main-content">
-        <header class="hero-mini">
-            <div class="hero-title">
-                <h1>Luoghi</h1>
-                <div class="subtitle">Mappe, regioni, piani e punti d'interesse della campagna.</div>
-            </div>
-        </header>
-
-        <div class="container">
-            <section class="locations-shell" aria-labelledby="locations-title">
-                <div class="locations-heading">
-                    <h2 id="locations-title">Archivio dei Luoghi</h2>
-                    <span id="locations-count" class="locations-count">0 voci</span>
+        <div class="page-frame">
+            <header class="hero-mini">
+                <div class="hero-title">
+                    <h1>Luoghi</h1>
+                    <div class="subtitle">Mappe, regioni, piani e punti d'interesse della campagna.</div>
                 </div>
+            </header>
 
-                <div class="locations-tools" aria-label="Filtri luoghi">
-                    <label class="locations-search">
-                        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
-                        <input id="locations-search" type="search" placeholder="Cerca luogo, area, descrizione..." autocomplete="off">
-                    </label>
-                    <div class="locations-filter-row">
-                        <span>Categoria</span>
-                        <div id="locations-group-filters" class="locations-filter-group" aria-label="Filtro categoria"></div>
+            <div class="container">
+                <section class="locations-shell" aria-labelledby="locations-title">
+                    <div class="locations-heading">
+                        <h2 id="locations-title">Archivio dei Luoghi</h2>
+                        <span id="locations-count" class="locations-count">0 voci</span>
                     </div>
-                    <div class="locations-filter-row">
-                        <span>Tipo</span>
-                        <div id="locations-type-filters" class="locations-filter-group" aria-label="Filtro tipo"></div>
-                    </div>
-                    <label class="locations-option">
-                        <input id="locations-group-toggle" type="checkbox" checked>
-                        <span>Suddividi per categorie</span>
-                    </label>
-                </div>
 
-                <div class="locations-list" id="locations-list">
-                    <div class="location-card location-card--loading" aria-hidden="true">
-                        <div class="location-card-image"></div>
-                        <div class="location-card-info">
-                            <div class="location-card-title">Caricamento luoghi...</div>
-                            <p class="location-card-summary">Le mappe e le cronache stanno emergendo dagli archivi.</p>
+                    <div class="locations-tools" aria-label="Filtri luoghi">
+                        <label class="locations-search">
+                            <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                            <input id="locations-search" type="search" placeholder="Cerca luogo, area, descrizione..." autocomplete="off">
+                        </label>
+                        <div class="locations-filter-row">
+                            <span>Categoria</span>
+                            <div id="locations-group-filters" class="locations-filter-group" aria-label="Filtro categoria"></div>
+                        </div>
+                        <div class="locations-filter-row">
+                            <span>Tipo</span>
+                            <div id="locations-type-filters" class="locations-filter-group" aria-label="Filtro tipo"></div>
+                        </div>
+                        <label class="locations-option">
+                            <input id="locations-group-toggle" type="checkbox" checked>
+                            <span>Suddividi per categorie</span>
+                        </label>
+                    </div>
+
+                    <div class="locations-list" id="locations-list">
+                        <div class="location-card location-card--loading" aria-hidden="true">
+                            <div class="location-card-image"></div>
+                            <div class="location-card-info">
+                                <div class="location-card-title">Caricamento luoghi...</div>
+                                <p class="location-card-summary">Le mappe e le cronache stanno emergendo dagli archivi.</p>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
+            </div>
         </div>
     </main>
 

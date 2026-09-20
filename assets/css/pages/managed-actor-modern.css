@@ -3950,3 +3950,36 @@ body.managed-image-lightbox-open { overflow: hidden; }
 @media (max-width: 560px) {
     .managed-command-danger, .managed-command-restore { min-height: 39px; padding-inline: .62rem; }
 }
+/* Rules received from Foundry and guided activity fields. */
+.managed-editor-help, .managed-rule-origin {
+    color: var(--text-muted, #b5aa9e);
+    font: .85rem/1.55 var(--font-body, Georgia, serif);
+    margin: .7rem 0;
+}
+.managed-editor-help { padding: .75rem 1rem; border-left: 2px solid #ad8a43; background: rgba(173, 138, 67, .06); }
+.managed-ability-rules { margin-top: .8rem; border: 1px solid rgba(223, 195, 111, .2); border-radius: 10px; padding: .7rem .9rem; }
+.managed-ability-rules > summary { display: flex; justify-content: space-between; gap: .7rem; cursor: pointer; color: #dfc36f; font: 600 .76rem/1.5 var(--font-ui, sans-serif); }
+.managed-ability-rules > summary > span:first-child { display: flex; align-items: center; gap: .5rem; }
+.managed-rule-readout + .managed-rule-readout { border-top: 1px solid rgba(223, 195, 111, .14); margin-top: .9rem; padding-top: .7rem; }
+.managed-rule-readout h4 { margin: .7rem 0; color: #ecdfc9; }
+.managed-rule-readout dl { margin: 0; }
+.managed-rule-readout dl > div { display: grid; grid-template-columns: minmax(100px, .7fr) minmax(0, 1fr); gap: .8rem; padding: .3rem 0; font-size: .85rem; }
+.managed-rule-readout dt { color: #cbbd9f; }
+.managed-rule-readout dd { margin: 0; overflow-wrap: anywhere; }
+.managed-linked-effects { list-style: none; padding: 0; margin: .75rem 0; }
+.managed-linked-effects li { display: grid; gap: .3rem; padding: .6rem .7rem; border-left: 2px solid #b99455; background: rgba(185, 148, 85, .06); font-size: .85rem; }
+.managed-rule-warning { color: #e8ba7b; font-size: .83rem; line-height: 1.5; }
+.managed-activity-geometry { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: .8rem; }
+.managed-activity-geometry fieldset { min-width: 0; padding: 0; margin: .65rem 0 0; border: 0; }
+.managed-activity-geometry fieldset:disabled { opacity: .5; }
+.managed-guide-fields > * { min-width: 0; }
+.managed-guide-fields input, .managed-guide-fields select { max-width: 100%; }
+.managed-item-actions > span, .managed-save-status { overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+    .managed-rule-readout dl > div { grid-template-columns: 1fr; gap: .2rem; }
+    .managed-ability-rules { padding: .65rem; }
+    .managed-item-form, .managed-guided-mechanics { padding: .45rem; }
+    .managed-activities-guide > div { padding: .25rem; }
+    .managed-activity-guide { padding: .4rem; }
+    .managed-activity-section, .managed-activity-damage-part { padding: .45rem; }
+}

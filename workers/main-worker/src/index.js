@@ -5344,7 +5344,6 @@ const MANAGED_ACTOR_UPDATE_STATIC_PATHS = new Set([
   "system.attributes.hp.tempmax",
   "system.attributes.ac.flat",
   "system.attributes.ac.calc",
-  "system.attributes.prof",
   "system.attributes.init.bonus",
   "system.attributes.movement.walk",
   "system.attributes.movement.fly",
@@ -5456,10 +5455,13 @@ function normalizeManagedActorUpdateCommandValue(path, value) {
   if (["system.attributes.ac.calc", "system.attributes.movement.units", "system.traits.size"].includes(path)) {
     return { valid: typeof value === "string", value: String(value || "").trim().slice(0, 40) };
   }
-  if (/^system\.abilities\.(str|dex|con|int|wis|cha)\.proficient$/.test(path)
-    || /^system\.skills\.[a-z0-9_-]{2,16}\.value$/.test(path)) {
+  if (/^system\.abilities\.(str|dex|con|int|wis|cha)\.proficient$/.test(path)) {
     const number = Number(value);
-    return { valid: Number.isFinite(number), value: Math.max(0, Math.min(2, number)) };
+    return { valid: [0, 1].includes(number), value: number };
+  }
+  if (/^system\.skills\.[a-z0-9_-]{2,16}\.value$/.test(path)) {
+    const number = Number(value);
+    return { valid: [0, 0.5, 1, 2].includes(number), value: number };
   }
   if (/^system\.abilities\.(str|dex|con|int|wis|cha)\.value$/.test(path)) {
     const number = Number(value);
@@ -5840,6 +5842,26 @@ function publicManagedActorCommand(command) {
   };
 }
 
+function mergeManagedPendingPatch(previous, patch) {
+  let value = structuredClone(previous.value);
+  // Two editors can change separate fields of the same activities object.
+  // Carry only the second editor's intent onto the already queued value.
+  for (const path of managedActorCommandChangedPaths(patch.baseValue, patch.value)) {
+    if (!path.length) { value = structuredClone(patch.value); continue; }
+    if (!value || typeof value !== "object") value = /^\d+$/.test(path[0]) ? [] : {};
+    let cursor = value;
+    for (let index = 0; index < path.length - 1; index++) {
+      const key = path[index];
+      if (!cursor[key] || typeof cursor[key] !== "object") cursor[key] = /^\d+$/.test(path[index + 1]) ? [] : {};
+      cursor = cursor[key];
+    }
+    const desired = path.reduce((entry, key) => entry?.[key], patch.value);
+    if (desired === undefined) delete cursor[path.at(-1)];
+    else cursor[path.at(-1)] = structuredClone(desired);
+  }
+  return { ...patch, value, baseValue: previous.baseValue };
+}
+
 async function handleManagedActorCommandEnqueue(request, route, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   let body;
@@ -5892,6 +5914,9 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
   let patches = isUpdate
     ? (Array.isArray(body?.patches) ? body.patches : []).slice(0, 64).map((patch) => normalizeManagedActorCommandPatch(patch, kind)).filter(Boolean)
     : [];
+  if (isUpdate && (!Array.isArray(body?.patches) || patches.length !== body.patches.length)) {
+    return json({ ok: false, error: "La richiesta contiene campi non modificabili o valori non validi. Nessuna modifica è stata accodata.", code: "INVALID_PATCH" }, 400, corsHeaders);
+  }
   if (kind === "actor.update" && !managedActorHasSharedRuntime(actor)) {
     patches = patches.filter((patch) => !isManagedActorInstanceRuntimePatch(patch.path));
   }
@@ -5967,9 +5992,11 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
       const byPath = new Map((Array.isArray(previous.patches) ? previous.patches : []).map((patch) => [patch.path, patch]));
       for (const patch of patches) {
         const existingPatch = byPath.get(patch.path);
-        byPath.set(patch.path, existingPatch ? { ...patch, baseValue: existingPatch.baseValue } : patch);
+        byPath.set(patch.path, existingPatch ? mergeManagedPendingPatch(existingPatch, patch) : patch);
       }
-      command = { ...previous, patches: Array.from(byPath.values()), updatedAt: now };
+      // An older GM fetch may still be applying the previous payload. Its ACK
+      // must never remove or mark a newer edit as completed.
+      command = { ...previous, id: crypto.randomUUID(), patches: Array.from(byPath.values()), updatedAt: now };
       queue.commands[pendingIndex] = command;
     } else command = previous;
   } else {

@@ -1,0 +1,600 @@
+/* NPC workspace: the shared Actor/Player layout keeps its existing styles. */
+.managed-actor-page.is-npc {
+    --npc-line: rgba(221, 203, 168, .14);
+    --npc-muted: #b2a99d;
+    --npc-surface: #17161b;
+    --npc-accent: #dfc36f;
+    --font-ui: "Inter", "Segoe UI", sans-serif;
+    max-width: 1440px;
+    color: #eee8de;
+}
+.managed-actor-page.page-frame.is-npc { max-width: 1440px; }
+.is-npc [hidden] { display: none !important; }
+.is-npc .managed-actor-breadcrumb { margin-bottom: 16px; font-size: .78rem; }
+.is-npc .managed-actor-breadcrumb > span { border: 0; background: none; color: var(--npc-muted); }
+.managed-actor-page.is-npc .managed-actor-hero {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) !important;
+    min-height: 560px;
+    margin-bottom: 20px;
+    border: 1px solid var(--npc-line);
+    border-radius: 22px;
+    background: radial-gradient(ellipse at 0 30%, rgba(159, 114, 53, .13), transparent 65%), #17151a;
+    box-shadow: none;
+}
+.is-npc:not(.has-npc-art) .managed-actor-hero { grid-template-columns: minmax(0, 1fr) !important; min-height: 150px; }
+.is-npc:not(.has-npc-art) .managed-actor-art { display: none; }
+.is-npc .managed-actor-art { min-height: 560px; height: 100%; isolation: isolate; }
+.is-npc .managed-actor-avatar { height: 560px; min-height: 0; padding: 12px; }
+.is-npc .managed-actor-avatar img { max-height: 100%; object-fit: contain; }
+.is-npc .managed-actor-aura { width: 85%; opacity: .35; animation: none; }
+.is-npc .managed-actor-token { display: none; }
+.is-npc .managed-actor-title { padding: 30px 32px; width: 100%; max-width: none; align-self: center; }
+.is-npc .managed-actor-title h1 { margin: 0 0 12px; font-size: clamp(2.6rem, 4.5vw, 4rem); line-height: 1.1; max-width: none; }
+.is-npc .managed-actor-name-input { font-size: inherit; padding: 6px 10px; max-width: 720px; }
+.is-npc .managed-profile-role { margin: 6px 0; font: 500 1rem/1.5 var(--font-ui); text-transform: none; letter-spacing: .02em; color: #d8c79f; }
+.is-npc .managed-profile-quote { max-width: 55ch; margin: 16px 0; padding-left: 14px; font-size: 1.1rem; line-height: 1.65; color: #bdb4a8; }
+.is-npc .managed-hero-vitals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 24px; gap: 14px; }
+.is-npc .managed-hero-vital { display: block; min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+.is-npc .managed-hero-vital > i { display: none; }
+.is-npc .managed-hero-vital small { font: 400 .7rem/1.5 var(--font-ui); text-transform: none; letter-spacing: 0; color: var(--npc-muted); }
+.is-npc .managed-hero-vital strong { font: 600 1.15rem/1.8 var(--font-ui); color: #eee4d2; }
+.is-npc .managed-hero-vital.is-health strong { color: #ddaaa1; }
+.is-npc.is-editing .managed-hero-vitals { display: none; }
+.is-npc.is-npc-dossier .managed-actor-hero { grid-template-columns: minmax(0, 1fr) !important; min-height: 0; }
+.is-npc.is-npc-dossier .managed-hero-vitals { display: none; }
+.is-npc .managed-actor-chips { gap: 8px; margin-top: 12px; }
+.is-npc .managed-chip { min-height: 26px; padding: 3px 8px; border-color: var(--npc-line); background: transparent; font-size: .68rem; }
+.is-npc .managed-chip:has(.fa-code-branch) { display: none; }
+.is-npc .managed-actor-media-dock { margin-top: 20px; }
+
+/* A stable navigation bar, with the save action always in the same place. */
+.is-npc .managed-command-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    top: 10px;
+    padding: 10px 12px;
+    margin-bottom: 20px;
+    border: 1px solid var(--npc-line);
+    border-radius: 12px;
+    background: rgba(23, 22, 27, .97);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, .2);
+    backdrop-filter: blur(16px);
+}
+.managed-npc-tabs, .managed-npc-editor-tabs { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.managed-npc-tabs::-webkit-scrollbar, .managed-npc-editor-tabs::-webkit-scrollbar { display: none; }
+.managed-npc-tabs button, .managed-npc-editor-tabs button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    gap: 7px;
+    min-height: 42px;
+    padding: 10px 13px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: #bdb4a8;
+    font: 600 .8rem/1.2 var(--font-ui, sans-serif);
+    cursor: pointer;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.managed-npc-tabs button:hover, .managed-npc-editor-tabs button:hover { background: rgba(223, 195, 111, .06); color: #f2e7ce; }
+.managed-npc-tabs button[aria-selected="true"], .managed-npc-editor-tabs button[aria-selected="true"] {
+    color: #f1d994;
+    border-color: rgba(223, 195, 111, .25);
+    background: rgba(223, 195, 111, .1);
+}
+.managed-npc-tabs button small { color: inherit; opacity: .7; font-size: .7rem; }
+.is-npc button:focus-visible, .is-npc summary:focus-visible, .is-npc a:focus-visible { outline: 2px solid var(--npc-accent); outline-offset: 3px; }
+.is-npc .managed-command-actions { gap: 8px; justify-content: flex-end; flex-wrap: nowrap; }
+.is-npc .managed-command-primary, .is-npc .managed-command-secondary { min-height: 42px; padding: 10px 14px; border-radius: 8px; font-size: .8rem; box-shadow: none; }
+.is-npc .managed-command-primary { background: #d9bd77; color: #211c13; border-color: #d9bd77; }
+.is-npc .managed-command-primary:hover { background: #ecd49b; }
+.is-npc .managed-command-secondary { background: transparent; border-color: var(--npc-line); color: #d3cabe; }
+.is-npc .managed-sync-indicator { padding: 6px 8px; min-height: 38px; max-width: 215px; border: 0; border-radius: 8px; background: transparent; }
+.is-npc .managed-sync-indicator strong { font-size: .68rem; }
+.is-npc .managed-sync-indicator small { font-size: .62rem; }
+.managed-npc-edit-status { display: flex; align-items: start; flex-wrap: wrap; gap: 10px 20px; margin: -5px 0 20px; color: var(--npc-muted); font: .8rem/1.6 var(--font-ui, sans-serif); }
+.managed-npc-edit-status > span:first-child { display: flex; align-items: center; gap: 8px; }
+.managed-npc-edit-status > span:first-child::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #8caa92; }
+.managed-npc-edit-status > span.is-dirty { color: #e9ce8e; }
+.managed-npc-edit-status > span.is-dirty::before { background: #e9ce8e; }
+.managed-npc-edit-status .managed-save-status { flex-basis: 100%; margin: 0; font-size: .82rem; }
+.managed-npc-edit-status .managed-save-status:empty { display: none; }
+
+/* Flat, readable stat panels. */
+.is-npc .managed-actor-panels { display: block; }
+.managed-npc-pane { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 20px; min-width: 0; }
+.managed-npc-pane > * { grid-column: 1 / -1; min-width: 0; }
+.is-npc .managed-panel {
+    padding: 24px;
+    border: 1px solid var(--npc-line);
+    border-radius: 12px;
+    background: var(--npc-surface);
+    box-shadow: none;
+    content-visibility: visible;
+    contain-intrinsic-size: none;
+}
+.is-npc .managed-panel-heading { margin-bottom: 20px; align-items: center; }
+.is-npc .managed-panel-heading h2 { font: 600 1.3rem/1.4 var(--font-ui); color: #eee4d2; }
+.is-npc .managed-panel-eyebrow { color: #a99e8a; font-size: .65rem; letter-spacing: .09em; margin-bottom: 4px; }
+.is-npc .managed-panel-heading h2 > i { font-size: .85em; opacity: .55; }
+.is-npc .managed-stat-grid--primary { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.is-npc .managed-stat { padding: 14px; min-height: 92px; border: 1px solid var(--npc-line); border-radius: 8px; background: #111115; box-shadow: none; }
+.is-npc .managed-stat > i { display: none; }
+.is-npc .managed-stat > div > span { color: #bdb4a6; font-size: .72rem; letter-spacing: 0; text-transform: none; }
+.is-npc .managed-stat strong { font-family: var(--font-ui, sans-serif); font-size: 1.7rem; color: #f4ecdf; }
+.is-npc .managed-stat small { font-size: .68rem; color: #aaa297; line-height: 1.5; }
+.is-npc .managed-stat--health { border-top: 2px solid #b87773; }
+.is-npc .managed-stat--armor { border-top: 2px solid #c8ae75; }
+.is-npc .managed-stat--size strong { font-size: 1rem; overflow-wrap: anywhere; }
+.is-npc .managed-stat-grid--context { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.is-npc .managed-stat-grid--context .managed-stat { min-width: 0; grid-column: auto; min-height: 72px; }
+.is-npc .managed-stat-grid--context strong { font-size: 1rem; line-height: 1.5; }
+.is-npc .managed-stat-facts { flex-wrap: wrap; }
+.is-npc .managed-ability-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.is-npc .managed-ability { padding: 16px 10px; gap: 8px; border: 1px solid var(--npc-line); border-radius: 8px; background: #111115; box-shadow: none; }
+.is-npc .managed-ability > span { font-size: .77rem; letter-spacing: 0; text-transform: none; color: #c7bdad; }
+.is-npc .managed-ability > strong { font: 600 2rem/1.2 var(--font-ui, sans-serif); color: #f2e6cc; }
+.is-npc .managed-ability > b { color: #e0c986; font-size: 1rem; }
+.is-npc .managed-ability > small { font-size: .77rem; color: var(--npc-muted); }
+.is-npc .managed-ability-save { display: grid; width: 100%; gap: 5px; }
+.is-npc .managed-skill-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 24px; }
+.is-npc .managed-skill { min-height: 49px; padding: 10px 0; border: 0; border-bottom: 1px solid var(--npc-line); border-radius: 0; background: transparent; box-shadow: none; }
+.is-npc .managed-skill-name { font-size: .83rem; color: #ded6c9; }
+.is-npc .managed-skill-name small { font-size: .64rem; color: #9f9688; }
+.is-npc .managed-skill strong { font: 600 1rem var(--font-ui, sans-serif); color: #e6cb87; }
+.is-npc .managed-trait { padding: 12px 0; border: 0; border-bottom: 1px solid var(--npc-line); background: none; border-radius: 0; grid-template-columns: 180px minmax(0, 1fr); }
+.is-npc .managed-trait strong { font-size: .84rem; color: #d9c79f; }
+.is-npc .managed-trait > span { font-size: .98rem; line-height: 1.6; color: #ddd4c6; }
+.is-npc.is-editing .managed-panel :is(input:not([type="checkbox"]):not([type="file"]), select, textarea) {
+    padding: 10px 12px;
+    border: 1px solid rgba(221, 203, 168, .22);
+    border-radius: 7px;
+    background: #0f0f13;
+    color: #f1e9dd;
+    font-size: .88rem;
+}
+.is-npc.is-editing .managed-panel :is(input:not([type="checkbox"]):not([type="file"]), select) { min-height: 44px; }
+.is-npc.is-editing .managed-panel :is(input, select, textarea):focus { border-color: #dfc36f; outline: 2px solid rgba(223, 195, 111, .18); outline-offset: 1px; box-shadow: none; }
+.is-npc.is-editing .managed-ability-score { text-align: center; font-size: 1.5rem !important; }
+.is-npc.is-editing .managed-ability-save select { padding-inline: 6px; font-size: .72rem; }
+.is-npc.is-editing .managed-skill-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.is-npc.is-editing .managed-rule-editor { border: 0; border-top: 1px solid var(--npc-line); background: none; padding: 20px 0 0; border-radius: 0; margin-top: 24px; }
+
+/* Capability cards use one reading column and an editor with three clear views. */
+.is-npc .managed-collection-summary { list-style: none; }
+.is-npc .managed-collection-summary-meta > i { opacity: .4; }
+.is-npc .managed-panel-lead { font-size: .93rem; color: var(--npc-muted); }
+.is-npc .managed-entry-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+.is-npc .managed-entry-group { padding: 0; background: none; border: 0; }
+.is-npc .managed-entry-group > header { padding: 12px 0; margin-top: 12px; color: #d8c79f; border-bottom: 1px solid var(--npc-line); }
+.is-npc .managed-entry { --npc-entry-icon: 48px; grid-template-columns: var(--npc-entry-icon) minmax(0, 1fr); gap: 16px; align-items: start; padding: 20px; border: 1px solid var(--npc-line); border-radius: 14px; background: #121216; box-shadow: none; }
+.is-npc .managed-entry > img, .is-npc .managed-entry > .managed-entry-icon { width: var(--npc-entry-icon); height: var(--npc-entry-icon); border-radius: 10px; }
+.is-npc .managed-entry-title { display: grid; gap: 5px; }
+.is-npc .managed-entry-title h3 { font: 600 1.05rem/1.5 var(--font-ui); color: #f0e7d7; }
+.is-npc .managed-entry-title > span { justify-self: start; font-size: .64rem; color: #aaa092; }
+.is-npc .managed-entry-copy { min-width: 0; }
+.is-npc .managed-entry.is-editor-open { grid-column: 1 / -1; grid-template-columns: var(--npc-entry-icon) minmax(0, 1fr); }
+.is-npc .managed-entry.is-editor-open > .managed-entry-copy { display: contents; }
+.is-npc .managed-entry.is-editor-open > .managed-entry-copy > * { grid-column: 1 / -1; }
+.is-npc .managed-entry.is-editor-open > .managed-entry-copy > .managed-entry-title { grid-column: 2; grid-row: 1; }
+.is-npc .managed-effective-rolls { padding: 12px 0; border: 0; border-bottom: 1px solid var(--npc-line); border-radius: 0; background: transparent; }
+.is-npc .managed-effective-rolls strong { font-size: .86rem; }
+.is-npc .managed-entry-disclosure > summary, .is-npc .managed-ability-rules > summary { min-height: 40px; font-size: .78rem; }
+.is-npc .managed-entry-disclosure { margin-top: 0; border: 0; background: none; }
+.is-npc .managed-entry-disclosure > div { margin: 0; padding: 8px 0; border: 0; color: #e2d8c8; font-size: 1.02rem; line-height: 1.65; }
+.is-npc .managed-ability-rules { padding: 0; border: 0; margin-top: 4px; border-radius: 0; }
+
+/* Ability cards: a readable text excerpt, then optional structured game details. */
+.is-npc .managed-entry { align-content: start; }
+.is-npc .managed-npc-ability-usage { margin: 0; padding-top: 12px; border-top: 1px solid var(--npc-line); }
+.is-npc .managed-npc-ability-usage > div { display: flex; flex-wrap: wrap; gap: 6px 12px; font: 400 .78rem/1.5 var(--font-ui); }
+.is-npc .managed-npc-ability-usage dt { color: var(--npc-muted); }
+.is-npc .managed-npc-ability-usage dd { margin: 0; color: #e0d7c7; }
+.is-npc .managed-entry:has(.managed-npc-ability-description, .managed-npc-ability-story, .managed-npc-ability-details) > .managed-entry-copy { display: contents; }
+.is-npc .managed-entry:has(.managed-npc-ability-description, .managed-npc-ability-story, .managed-npc-ability-details) > .managed-entry-copy > * { grid-column: 1 / -1; }
+.is-npc .managed-entry:has(.managed-npc-ability-description, .managed-npc-ability-story, .managed-npc-ability-details) > .managed-entry-copy > .managed-entry-title { grid-column: 2; grid-row: 1; }
+.is-npc .managed-npc-ability-description, .is-npc .managed-npc-story-preview { color: #ded8ce; font: 400 .96rem/1.7 var(--font-ui); overflow-wrap: anywhere; }
+.is-npc .managed-npc-ability-story, .is-npc .managed-npc-ability-details { min-width: 0; margin: 0; }
+.is-npc .managed-npc-ability-story > summary, .is-npc .managed-npc-ability-details > summary { list-style: none; cursor: pointer; }
+.is-npc .managed-npc-ability-story > summary::-webkit-details-marker, .is-npc .managed-npc-ability-details > summary::-webkit-details-marker { display: none; }
+.is-npc .managed-npc-story-preview { display: block; }
+.is-npc .managed-npc-story-toggle { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; color: #d9bd7c; font: 500 .8rem/1.4 var(--font-ui); }
+.is-npc .managed-npc-story-toggle > i, .is-npc .managed-npc-ability-details > summary > i { font-size: .65rem; }
+.is-npc .managed-npc-ability-story:not([open]) .when-open, .is-npc .managed-npc-ability-story[open] .when-closed, .is-npc .managed-npc-ability-story[open] .managed-npc-story-preview { display: none; }
+.is-npc .managed-npc-ability-story[open] .managed-npc-story-toggle > i, .is-npc .managed-npc-ability-details[open] > summary > i { transform: rotate(180deg); }
+.is-npc .managed-npc-ability-details { border: 1px solid var(--npc-line); border-radius: 10px; background: #19191f; overflow: hidden; }
+.is-npc .managed-npc-ability-details > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 12px 14px; color: #e0d7c7; font: 500 .82rem/1.4 var(--font-ui); }
+.is-npc .managed-npc-ability-details > summary:hover { background: rgba(255,255,255,.035); }
+.is-npc .managed-npc-ability-story > summary:focus-visible, .is-npc .managed-npc-ability-details > summary:focus-visible { outline: 2px solid #d9bd7c; outline-offset: -2px; border-radius: 6px; }
+.is-npc .managed-npc-ability-detail-body { padding: 0 14px 14px; }
+.is-npc .managed-npc-ability-detail-body .managed-rule-readout { border: 0; padding: 14px 0 0; margin: 0; border-top: 1px solid var(--npc-line); background: none; }
+.is-npc .managed-npc-ability-detail-body .managed-rule-readout + .managed-rule-readout { margin-top: 16px; }
+.is-npc .managed-npc-ability-detail-body h4 { margin: 0 0 12px; color: #eee6d8; font: 600 .87rem/1.5 var(--font-ui); }
+.is-npc .managed-npc-ability-detail-body dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 14px; margin: 0; }
+.is-npc .managed-npc-ability-detail-body dl > div { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 0; border: 0; min-width: 0; }
+.is-npc .managed-npc-ability-detail-body dt { color: var(--npc-muted); font: 400 .74rem/1.5 var(--font-ui); text-transform: none; letter-spacing: 0; }
+.is-npc .managed-npc-ability-detail-body dd { margin: 0; color: #eee6d8; font: 500 .85rem/1.5 var(--font-ui); overflow-wrap: anywhere; }
+.is-npc .managed-npc-effects-heading { margin: 18px 0 8px; color: var(--npc-muted); font: 500 .74rem/1.5 var(--font-ui); }
+.is-npc .managed-npc-ability-detail-body .managed-linked-effects { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.is-npc .managed-npc-ability-detail-body .managed-linked-effects li { display: grid; gap: 4px; padding: 12px; border: 1px solid var(--npc-line); border-radius: 8px; background: #121216; font: 400 .8rem/1.5 var(--font-ui); }
+.is-npc .managed-npc-ability-detail-body .managed-linked-effects li > span { color: var(--npc-muted); }
+.is-npc .managed-npc-ability-detail-body .managed-rule-warning { font-size: .78rem; line-height: 1.55; }
+.is-npc .managed-rule-origin { font-size: .82rem; color: #aba294; line-height: 1.5; }
+.is-npc .managed-item-editor { margin-top: 12px; border: 1px solid rgba(223, 195, 111, .24); border-radius: 8px; background: none; }
+.is-npc .managed-item-editor > summary { padding: 12px 14px; min-height: 44px; color: #e1c98d; font-size: .82rem; }
+.is-npc .managed-item-form { padding: 18px; gap: 18px; }
+.managed-npc-item-name { display: grid; gap: 8px; min-width: 0; }
+.managed-npc-item-name > span { font: 500 .78rem var(--font-ui); color: var(--npc-muted); }
+.is-npc .managed-npc-item-basics { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 14px; padding-bottom: 20px; border-bottom: 1px solid var(--npc-line); }
+.is-npc .managed-npc-item-basics:empty { display: none; }
+.is-npc .managed-item-fields > label > span { font: 500 .78rem/1.4 var(--font-ui); text-transform: none; letter-spacing: 0; }
+.is-npc .managed-item-check { min-height: 44px; gap: 10px; }
+.is-npc .managed-item-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--npc-accent); }
+.managed-npc-editor-tabs { padding-bottom: 12px; border-bottom: 1px solid var(--npc-line); }
+.managed-npc-editor-pane { display: grid; gap: 18px; min-width: 0; }
+.is-npc .managed-guided-mechanics { border: 0; background: transparent; padding: 0; gap: 20px; }
+.is-npc .managed-guided-mechanics > header { display: none; }
+.is-npc .managed-guide-card, .is-npc .managed-guide-properties { border: 0; background: none; padding: 0; box-shadow: none; }
+.is-npc .managed-activities-guide { border: 0; background: none; }
+.is-npc .managed-activities-guide > summary { padding-inline: 0; font-size: .85rem; }
+.is-npc .managed-activities-guide > div { padding: 16px 0 0; border-top-color: var(--npc-line); gap: 20px; }
+.is-npc .managed-activity-guide { padding: 18px; background: #19181e; border: 1px solid var(--npc-line); border-radius: 8px; gap: 18px; }
+.is-npc .managed-activity-guide > header strong { font-size: .95rem; color: #f0e7d9; }
+.is-npc .managed-activity-guide > header small { font-size: .73rem; }
+.is-npc .managed-guide-fields { gap: 14px; }
+.is-npc .managed-guide-field > span { font-size: .72rem; text-transform: none; letter-spacing: 0; color: #c7bdad; }
+.is-npc .managed-activity-section, .is-npc .managed-activity-damage-part { padding: 16px 0 0; border: 0; border-top: 1px solid var(--npc-line); border-radius: 0; background: transparent; }
+.is-npc .managed-activity-section h5 { font-size: .78rem; color: #ddc998; }
+.is-npc .managed-activity-geometry { gap: 22px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.is-npc .managed-activity-geometry .managed-guide-fields { grid-template-columns: 1fr; }
+.is-npc .managed-guide-note { color: #aba294; font-size: .8rem; line-height: 1.55; }
+.managed-npc-extra-fields { border-top: 1px solid var(--npc-line); }
+.managed-npc-extra-fields > summary { padding: 14px 0; color: #d9c79f; font: 600 .8rem var(--font-ui, sans-serif); cursor: pointer; }
+.managed-npc-extra-fields > .managed-activity-geometry { padding-bottom: 8px; }
+.managed-npc-extra-fields .managed-activity-section { border-top: 0; padding-top: 4px; }
+.is-npc .managed-mechanics-advanced { padding: 0; border: 0; background: none; }
+.is-npc .managed-mechanics-advanced > summary { display: none; }
+.is-npc .managed-item-actions { padding-top: 16px; border-top: 1px solid var(--npc-line); }
+.is-npc .managed-item-actions button { min-height: 42px; padding: 10px 14px; border-radius: 7px; font-size: .76rem; }
+.is-npc .managed-item-actions .managed-danger-action { margin-right: auto; border: 0; background: none; color: #c88f8b; }
+.is-npc .managed-collection-search input { font-size: .9rem; }
+.is-npc .managed-filter-chips button { min-height: 38px; font-size: .72rem; }
+.is-npc .managed-profile-editor-toolbar { position: static; margin: 0; border-radius: 10px; background: var(--npc-surface); }
+.managed-npc-settings { border: 1px solid var(--npc-line); border-radius: 10px; overflow: hidden; }
+.managed-npc-settings > summary { display: flex; justify-content: space-between; gap: 12px; padding: 18px 22px; font: 600 .85rem var(--font-ui, sans-serif); color: #d7c7a9; cursor: pointer; }
+.managed-npc-settings > summary i { opacity: .5; }
+.is-npc .managed-npc-settings > .managed-panel { border: 0; border-top: 1px solid var(--npc-line); border-radius: 0; }
+.managed-npc-settings > button { margin: 16px 22px; }
+
+/* Inventory has its own media element. The grid track and media share one size. */
+.is-npc .managed-entry--inventory { --npc-entry-icon: 72px; min-height: 0; align-content: start; }
+.is-npc .managed-entry--inventory::after { display: none; }
+.is-npc .managed-entry--inventory:hover { transform: none; box-shadow: none; border-color: rgba(223, 195, 111, .32); }
+.is-npc .managed-entry--inventory > .managed-entry-media { width: var(--npc-entry-icon); height: var(--npc-entry-icon); padding: 4px; border-radius: 12px; grid-column: 1; grid-row: 1; }
+.is-npc .managed-entry--inventory > .managed-entry-copy { display: contents; }
+.is-npc .managed-entry--inventory > .managed-entry-copy > * { grid-column: 1 / -1; min-width: 0; }
+.is-npc .managed-entry--inventory > .managed-entry-copy > .managed-entry-title { grid-column: 2; grid-row: 1; align-self: center; }
+.is-npc .managed-entry--inventory .managed-entry-title h3 { font: 600 1.05rem/1.4 var(--font-ui); margin-bottom: 10px; }
+.is-npc .managed-inventory-badges { gap: 6px; }
+.is-npc .managed-inventory-badge { font: 500 .7rem/1.4 var(--font-ui); letter-spacing: 0; text-transform: none; padding: 4px 8px; min-height: 26px; border-radius: 6px; }
+.is-npc .managed-inventory-facts { margin: 0; gap: 12px 24px; padding-top: 14px; border-top: 1px solid var(--npc-line); }
+.is-npc .managed-inventory-facts > div { display: grid; gap: 4px; }
+.is-npc .managed-inventory-facts dt { font: 400 .72rem var(--font-ui); text-transform: none; color: var(--npc-muted); }
+.is-npc .managed-inventory-facts dd { font: 600 .87rem/1.4 var(--font-ui); }
+.is-npc .managed-entry-disclosure--inventory { margin: 0; }
+.is-npc .managed-entry-disclosure--inventory > summary { justify-content: space-between; width: 100%; border-top: 1px solid var(--npc-line); border-radius: 0; background: none; padding: 12px 0 0; font: 500 .8rem var(--font-ui); }
+.is-npc .managed-entry-disclosure--inventory > div { margin: 0; padding: 16px 0 0; }
+.is-npc .managed-inventory-overview { grid-template-columns: minmax(0, 1fr); background: none; padding: 0; border: 0; gap: 16px; margin-bottom: 22px; }
+.is-npc .managed-inventory-overview-stats { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.is-npc .managed-inventory-overview-stats > div { gap: 12px; padding: 14px; border: 1px solid var(--npc-line); background: #111115; }
+.is-npc .managed-inventory-overview-stats span { font: 400 .75rem/1.5 var(--font-ui); color: var(--npc-muted); }
+.is-npc .managed-inventory-overview-stats strong { font-size: 1.3rem; }
+.is-npc .managed-inventory-weight { padding: 14px; background: #111115; }
+.is-npc .managed-inventory-weight > div { font-size: .78rem; }
+.is-npc .managed-collection-tools { flex-wrap: wrap; padding: 0; border: 0; background: none; gap: 12px; margin-bottom: 20px; }
+.is-npc .managed-collection-search { flex: 1 1 220px; border-radius: 8px; min-height: 44px; }
+.is-npc .managed-collection-search input { width: 100%; min-width: 0; }
+.is-npc .managed-filter-chips { flex: 1 1 100%; flex-wrap: wrap; gap: 6px; overflow: visible; }
+.is-npc .managed-filter-chips button { border-radius: 8px; color: #bdb4a8; }
+.is-npc .managed-collection-result { font-size: .75rem; }
+.is-npc .managed-inventory-filter-label { font-size: .68rem; }
+.is-npc .managed-effective-fact, .is-npc .managed-effective-damage, .is-npc .managed-effective-save { font-size: .75rem; border-radius: 7px; padding: 6px 8px; height: auto; }
+.is-npc .managed-effective-fact strong { font-size: .75rem; }
+.is-npc .managed-effective-damage small, .is-npc .managed-effective-save small { font-size: .64rem; }
+.is-npc .managed-effective-damage-kind { font-size: .6rem; }
+.is-npc .managed-effective-roll-row > b { font-size: .7rem; }
+
+/* A generous portrait shares the opening with the text, without pushing it down. */
+.managed-npc-pane--profile.has-portrait { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 24px; }
+.managed-npc-pane--profile > .managed-npc-portrait { grid-column: 1; }
+.managed-npc-pane--profile.has-portrait > .managed-profile-panel { grid-column: 2; }
+.is-npc.is-editing .managed-npc-pane--profile.has-portrait { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); }
+.managed-npc-portrait { --npc-art-height: clamp(460px, 72vh, 720px); position: sticky; top: calc(var(--managed-command-bar-height, 64px) + 26px); overflow: hidden; border: 1px solid var(--npc-line); border-radius: 20px; background: radial-gradient(ellipse at 50% 45%, rgba(168, 126, 60, .14), transparent 75%), #17161b; }
+.is-npc .managed-npc-portrait .managed-actor-art { min-height: var(--npc-art-height); }
+.is-npc .managed-npc-portrait .managed-actor-avatar { height: var(--npc-art-height); padding: 12px; }
+.is-npc .managed-profile-block .managed-profile-block-image { max-height: min(85vh, 900px); }
+.is-npc .managed-profile-block .managed-profile-block-image img { object-fit: contain; }
+.is-npc .managed-profile-header { gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.is-npc .managed-profile-header h2 { font: 600 1.3rem/1.4 var(--font-ui); }
+.is-npc .managed-profile-header h2 > i { display: none; }
+.is-npc .managed-panel-kicker { font-size: .68rem; color: var(--npc-muted); letter-spacing: .1em; }
+.is-npc .managed-profile-summary { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; padding: 0 0 22px; margin-bottom: 24px; border-bottom: 1px solid var(--npc-line); }
+.is-npc .managed-profile-summary > div { border: 0; padding: 0; border-radius: 0; background: none; }
+.is-npc .managed-profile-summary dt { font: 400 .75rem/1.6 var(--font-ui); letter-spacing: 0; text-transform: none; color: var(--npc-muted); }
+.is-npc .managed-profile-summary dd { font-size: .92rem; }
+.is-npc .managed-profile-block-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.is-npc .managed-profile-block { border: 0; border-radius: 0; background: none; box-shadow: none; }
+.is-npc .managed-profile-block + .managed-profile-block { border-top: 1px solid var(--npc-line); padding-top: 24px; }
+.is-npc .managed-profile-block-body { padding: 0; }
+.is-npc .managed-profile-block h3 { font: 600 1.1rem/1.5 var(--font-ui); margin-bottom: 12px; }
+.is-npc .managed-profile-markdown { color: #d8d0c2; font-size: 1.07rem; line-height: 1.85; overflow-wrap: anywhere; }
+.is-npc .managed-profile-block--secret_dossier, .is-npc .managed-profile-block--custom_box { padding: 20px; border: 1px solid rgba(181, 116, 130, .22); border-radius: 12px; background: rgba(111, 56, 74, .08); }
+.is-npc .managed-profile-meta-editor, .is-npc .managed-profile-summary-editor { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.is-npc .managed-profile-meta-editor label > span, .is-npc .managed-profile-summary-editor label > span { font: 500 .78rem/1.4 var(--font-ui); letter-spacing: 0; text-transform: none; }
+.is-npc .managed-profile-access-editor { grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; margin-bottom: 24px; }
+.is-npc .managed-profile-access-editor > label { display: flex; flex-direction: column; align-items: stretch; gap: 14px; padding: 16px; border-radius: 10px; background: #111115; }
+.is-npc .managed-profile-access-editor select { width: 100%; min-width: 0; }
+.is-npc .managed-profile-access-editor b { font-size: .8rem; letter-spacing: 0; text-transform: none; }
+.is-npc .managed-profile-access-editor small { font-size: .75rem; line-height: 1.5; white-space: normal; color: var(--npc-muted); }
+.is-npc .managed-profile-category-picker { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; }
+.is-npc .managed-profile-category-picker > button, .is-npc .managed-profile-category-picker > a { min-height: 44px; font-size: .72rem; }
+.is-npc .managed-profile-editor-toolbar { padding: 18px 22px; gap: 16px; }
+.is-npc .managed-profile-editor-toolbar strong { font-size: .9rem; }
+.is-npc .managed-profile-editor-toolbar button { min-height: 40px; font-size: .75rem; border-radius: 7px; }
+.is-npc .managed-profile-editor-toolbar > div:last-child { min-width: 0; flex-wrap: wrap; overflow: visible; }
+.is-npc .managed-profile-block-fields { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: 14px; padding: 16px; }
+.is-npc .managed-profile-block-fields label { min-width: 0; }
+.is-npc .managed-profile-block-fields label > span { font: 500 .75rem/1.5 var(--font-ui); text-transform: none; letter-spacing: 0; }
+.is-npc .managed-profile-edit-block-head { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 10px; padding: 12px; }
+.is-npc .managed-profile-edit-block-head > div { grid-column: 1 / -1; justify-content: flex-end; }
+.is-npc .managed-profile-edit-block-head button:not(.managed-profile-block-toggle) { width: 40px; height: 40px; border-radius: 7px; }
+.is-npc .managed-profile-block-toggle { width: 100%; }
+.is-npc .managed-profile-block-toggle strong { font-size: .88rem; }
+.is-npc .managed-profile-block-toggle small { flex-wrap: wrap; }
+.is-npc .managed-profile-block-toggle small em { display: none; }
+.is-npc .managed-profile-image-editor { grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); }
+.is-npc .managed-profile-image-editor > div { min-width: 0; }
+.is-npc .managed-profile-rich-text-editor { min-height: 200px; padding: 16px; font-size: 1rem; }
+.is-npc .managed-rich-text-toolbar button { min-width: 36px; min-height: 36px; }
+.is-npc .managed-effects-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 16px; }
+.is-npc .managed-effect-card { padding: 20px; border: 1px solid var(--npc-line); border-radius: 14px; background: #121216; }
+.is-npc .managed-effect-title { flex-wrap: wrap; gap: 14px; }
+.is-npc .managed-effect-title h3 { font: 600 1rem/1.5 var(--font-ui); }
+.is-npc .managed-effect-title > label:not(.managed-item-check) { flex: 1 1 200px; min-width: 0; }
+.is-npc .managed-effect-card label > span { font-size: .78rem; text-transform: none; }
+.is-npc .managed-effect-card > label, .is-npc .managed-effect-json-grid > label { display: grid; min-width: 0; gap: 8px; }
+.is-npc .managed-effect-json-grid { gap: 18px; }
+.is-npc .managed-effect-json-grid textarea { width: 100%; min-width: 0; min-height: 180px; resize: vertical; font-family: ui-monospace, Consolas, monospace; }
+.is-npc .managed-wallet-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 12px; }
+.is-npc .managed-wallet-currency { padding: 14px; border-radius: 10px; background: #111115; }
+.is-npc .managed-wallet-currency strong { font: 500 .85rem/1.5 var(--font-ui); }
+.is-npc .managed-wallet-currency input { width: 90px; }
+
+@media (max-width: 1100px) {
+    .is-npc .managed-command-bar { grid-template-columns: 1fr; gap: 8px; }
+    .is-npc .managed-command-actions { grid-row: 1; }
+    .managed-npc-tabs { justify-content: flex-start; }
+    .is-npc .managed-sync-indicator { margin-right: auto; }
+    .is-npc .managed-skill-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-npc .managed-entry-grid { grid-template-columns: 1fr; }
+    .managed-actor-page.is-npc .managed-actor-hero { grid-template-columns: minmax(0, 1fr) !important; min-height: 0; }
+    .is-npc .managed-profile-meta-editor, .is-npc .managed-profile-summary-editor { grid-template-columns: 1fr; }
+}
+@media (max-width: 900px) {
+    .managed-npc-pane--profile.has-portrait,
+    .is-npc.is-editing .managed-npc-pane--profile.has-portrait { grid-template-columns: minmax(0, 1fr); }
+    .managed-npc-pane--profile.has-portrait > .managed-profile-panel { grid-column: 1; }
+    .managed-npc-portrait { --npc-art-height: clamp(260px, 80vw, 380px); position: static; }
+    .is-npc .managed-npc-portrait .managed-actor-art { height: var(--npc-art-height); }
+}
+@media (max-width: 700px) {
+    .managed-actor-page.is-npc .managed-actor-hero { grid-template-columns: minmax(0, 1fr) !important; min-height: 0; }
+    .is-npc .managed-actor-art, .is-npc .managed-actor-avatar { min-height: 0; height: clamp(340px, 100vw, 520px); }
+    .is-npc .managed-actor-avatar { padding: 8px; }
+    .is-npc .managed-actor-title { padding: 24px; }
+    .is-npc .managed-actor-title h1 { font-size: 2.6rem; }
+    .is-npc .managed-hero-vitals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-npc .managed-npc-portrait .managed-actor-avatar { padding: 8px; }
+    .is-npc .managed-effect-json-grid { grid-template-columns: 1fr; }
+    .is-npc .managed-profile-category-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-npc .managed-profile-category-picker > label { grid-column: 1 / -1; }
+    .is-npc .managed-profile-category-picker > a { grid-column: auto; }
+    .is-npc .managed-panel { padding: 18px; }
+    .is-npc .managed-stat-grid--primary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-npc .managed-stat-grid--context { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-npc .managed-ability-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .is-npc .managed-activity-geometry { grid-template-columns: 1fr; }
+    .is-npc .managed-activity-geometry .managed-guide-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .is-npc .managed-skill-grid, .is-npc.is-editing .managed-skill-grid { grid-template-columns: 1fr; }
+    .is-npc .managed-trait { grid-template-columns: 1fr; gap: 6px; }
+}
+@media (max-width: 480px) {
+    .is-npc .managed-actor-breadcrumb > span { display: none; }
+    .is-npc .managed-actor-title { padding: 18px; }
+    .is-npc .managed-command-bar { top: 4px; padding: 8px; gap: 6px; border-radius: 10px; }
+    .is-npc .managed-command-primary, .is-npc .managed-command-secondary { padding: 9px 10px; font-size: .75rem; }
+    .is-npc .managed-command-secondary span { display: inline; }
+    .is-npc .managed-sync-indicator { max-width: 140px; padding: 4px; }
+    .is-npc .managed-sync-indicator > i { display: none; }
+    .is-npc .managed-sync-indicator strong { font-size: .62rem; }
+    .managed-npc-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 0; overflow: visible; }
+    .managed-npc-tabs button { min-width: 0; min-height: 44px; padding: 10px 2px; font-size: .72rem; }
+    .managed-npc-tabs button small { display: none; }
+    .managed-npc-edit-status { font-size: .74rem; }
+    .is-npc .managed-panel { padding: 14px; }
+    .is-npc .managed-panel-heading { margin-bottom: 16px; }
+    .is-npc .managed-panel-heading h2 { font-size: 1.2rem; }
+    .is-npc .managed-stat-grid--primary, .is-npc .managed-stat-grid--context { gap: 8px; }
+    .is-npc .managed-stat { padding: 12px; }
+    .is-npc .managed-stat-grid--context { grid-template-columns: 1fr; }
+    .is-npc .managed-ability-grid { gap: 8px; }
+    .is-npc .managed-ability { padding: 12px 6px; }
+    .is-npc .managed-ability > span { font-size: .7rem; }
+    .is-npc .managed-entry { --npc-entry-icon: 40px; padding: 14px; gap: 12px; }
+    .is-npc .managed-entry--inventory { --npc-entry-icon: 56px; }
+    .is-npc .managed-entry:not(.is-editor-open) > .managed-entry-copy { display: contents; }
+    .is-npc .managed-entry > .managed-entry-copy > * { grid-column: 1 / -1; }
+    .is-npc .managed-entry > .managed-entry-copy > .managed-entry-title { grid-column: 2; grid-row: 1; }
+    .is-npc .managed-item-form { padding: 12px; }
+    .is-npc .managed-activity-guide { padding: 12px; }
+    .managed-npc-editor-tabs { gap: 0; }
+    .managed-npc-editor-tabs button { padding: 10px 8px; font-size: .73rem; }
+    .is-npc .managed-activity-geometry .managed-guide-fields { grid-template-columns: 1fr; }
+    .is-npc.is-editing .managed-panel :is(input:not([type="checkbox"]):not([type="file"]), select, textarea) { font-size: 16px; }
+    .is-npc.is-editing .managed-ability-save select { font-size: .66rem; }
+    .is-npc .managed-inventory-overview-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Reading layout: one ability per row, with a separate column for game values. */
+.is-npc .managed-npc-pane--actions .managed-panel { padding: 8px 0; border: 0; border-radius: 0; background: transparent; }
+.is-npc .managed-npc-pane--actions .managed-entry-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.is-npc .managed-npc-pane--actions .managed-panel-heading { padding: 12px 0; margin-bottom: 16px; }
+.is-npc .managed-npc-pane--actions .managed-panel-heading h2 { font-size: 1.5rem; letter-spacing: -.025em; }
+.is-npc .managed-npc-pane--actions .managed-panel-heading h2 > i { display: none; }
+.is-npc .managed-npc-pane--actions .managed-entry-group > header { margin: 14px 0; padding: 0; border: 0; gap: 12px; }
+.is-npc .managed-npc-pane--actions .managed-entry-group > header > span { font: 600 .8rem/1.5 var(--font-ui); text-transform: none; letter-spacing: .01em; }
+.is-npc .managed-npc-pane--actions .managed-entry-group > header > i { font-size: .8rem; }
+.is-npc .managed-npc-pane--actions .managed-entry-group > header > small { font-size: .72rem; }
+.is-npc .managed-npc-pane--actions .managed-entry-group > header::after { content: ''; height: 1px; flex: 1; background: var(--npc-line); }
+.is-npc .managed-npc-pane--actions .managed-entry-group > header > b { margin: 0; background: none; border: 0; color: var(--npc-muted); font: 400 .75rem var(--font-ui); }
+.is-npc .managed-npc-pane--actions .managed-collection-tools { gap: 12px; padding: 16px 0; border-block: 1px solid var(--npc-line); }
+.is-npc .managed-npc-pane--actions .managed-filter-chips { flex: 1 1 auto; }
+.is-npc .managed-npc-pane--actions .managed-filter-label { display: none; }
+.is-npc .managed-npc-pane--actions .managed-filter-chips button { min-height: 40px; padding: 8px 12px; font-size: .78rem; border: 1px solid transparent; background: transparent; }
+.is-npc .managed-npc-pane--actions .managed-filter-chips button.is-active { border-color: var(--npc-line); background: #242229; color: #f0dfb7; }
+.is-npc .managed-npc-pane--actions .managed-legendary-summary { padding: 12px 16px; background: #1c1821; border-color: rgba(191,156,209,.16); border-radius: 10px; gap: 12px; }
+.is-npc .managed-npc-pane--actions .managed-legendary-summary > div > i { width: 30px; height: 30px; flex-basis: 30px; border: 0; background: none; }
+.is-npc .managed-npc-pane--actions .managed-legendary-summary > div strong { font-size: .82rem; font-weight: 500; }
+.is-npc .managed-npc-pane--actions .managed-legendary-resource { padding: 0 0 0 16px; background: none; border: 0; border-left: 1px solid var(--npc-line); border-radius: 0; }
+.is-npc .managed-npc-pane--actions .managed-legendary-resource dt { font-size: .75rem; font-weight: 400; }
+.is-npc .managed-npc-pane--actions .managed-legendary-resource dd strong { font: 600 1.15rem var(--font-ui); }
+.is-npc .managed-entry.managed-npc-capability { display: block; container-type: inline-size; padding: 24px; border: 1px solid var(--npc-line); border-radius: 16px; background: linear-gradient(120deg, #1c1b21, #17161c); }
+.is-npc .managed-npc-capability-heading { display: flex; align-items: center; gap: 16px; min-width: 0; margin: 0; padding: 0; border: 0; background: none; }
+.is-npc .managed-npc-capability-heading > img, .is-npc .managed-npc-capability-heading > .managed-entry-icon { flex: 0 0 52px; width: 52px; height: 52px; object-fit: contain; border-radius: 12px; background: #121216; border: 1px solid var(--npc-line); }
+.is-npc .managed-npc-capability-heading .managed-entry-title { min-width: 0; gap: 3px; }
+.is-npc .managed-npc-capability-heading h3 { font: 600 1.2rem/1.35 var(--font-ui); letter-spacing: -.02em; overflow-wrap: anywhere; margin: 0; }
+.is-npc .managed-npc-capability-heading .managed-entry-title > span { padding: 0; background: none; border: 0; border-radius: 0; font-size: .68rem; font-weight: 400; letter-spacing: .035em; }
+.is-npc .managed-npc-capability-badges { margin-left: auto; flex: 0 1 auto; }
+.is-npc .managed-npc-capability-badges:empty { display: none; }
+.is-npc .managed-npc-capability-badges .managed-capability-badges { margin: 0; justify-content: flex-end; }
+.is-npc .managed-npc-capability-body { display: grid; gap: 24px; margin-top: 20px; align-items: start; }
+.is-npc .managed-npc-capability-body.has-description.has-mechanics { grid-template-columns: minmax(0, 1fr) minmax(250px, .6fr); }
+.is-npc .managed-npc-capability-body:empty { display: none; }
+.is-npc .managed-npc-capability-prose { min-width: 0; }
+.is-npc .managed-npc-capability-prose .managed-npc-ability-description, .is-npc .managed-npc-capability-prose .managed-npc-story-preview { font-size: 1rem; line-height: 1.8; color: #d3cec5; }
+.is-npc .managed-npc-capability-prose .managed-npc-ability-description { max-width: 80ch; }
+.is-npc .managed-npc-capability-mechanics { min-width: 0; padding: 16px; border: 1px solid rgba(221,203,168,.09); border-radius: 12px; background: #121217; }
+.is-npc .managed-npc-capability-mechanics .managed-effective-rolls { padding: 0; margin: 0; border: 0; }
+.is-npc .managed-npc-capability-mechanics .managed-effective-roll-row { gap: 8px; }
+.is-npc .managed-npc-capability-mechanics .managed-effective-roll-row + .managed-effective-roll-row { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--npc-line); }
+.is-npc .managed-npc-capability-mechanics .managed-effective-roll-row > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.is-npc .managed-npc-capability-mechanics .managed-effective-damage { display: grid; grid-template-columns: auto minmax(0,1fr) auto; flex: 1 1 100%; gap: 4px 8px; padding: 0; border: 0; border-radius: 0; background: none; }
+.is-npc .managed-npc-capability-mechanics .managed-effective-damage > i { grid-column: 1; grid-row: 2; font-size: .8rem; }
+.is-npc .managed-npc-capability-mechanics .managed-effective-damage-kind { grid-column: 1 / -1; padding: 0; background: none; font-size: .64rem; font-weight: 400; letter-spacing: .06em; color: #ada397; }
+.is-npc .managed-npc-capability-mechanics .managed-effective-damage strong { grid-column: 2; grid-row: 2; font: 600 1.25rem/1.5 var(--font-ui); }
+.is-npc .managed-npc-capability-mechanics .managed-effective-damage small { grid-column: 3; grid-row: 2; align-self: center; font-size: .63rem; color: #d2bda5; }
+.is-npc .managed-npc-capability-mechanics .managed-effective-fact, .is-npc .managed-npc-capability-mechanics .managed-effective-save { min-height: 32px; padding: 6px 8px; background: #1e1e27; border-color: transparent; font-size: .75rem; }
+.is-npc .managed-npc-capability-mechanics .managed-effective-save strong { font-size: .95rem; }
+.is-npc .managed-npc-capability-mechanics .managed-npc-ability-usage { padding: 0; border: 0; }
+.is-npc .managed-npc-capability-mechanics .managed-effective-rolls + .managed-npc-ability-usage { padding-top: 12px; margin-top: 14px; border-top: 1px solid var(--npc-line); }
+.is-npc .managed-npc-capability-mechanics .managed-npc-ability-details { border: 0; background: none; border-radius: 0; }
+.is-npc .managed-npc-capability-mechanics .managed-effective-rolls + .managed-npc-ability-details { border-top: 1px solid var(--npc-line); margin-top: 14px; padding-top: 4px; }
+.is-npc .managed-npc-capability-mechanics .managed-npc-ability-details > summary { padding-inline: 0; font-size: .78rem; color: #cbb88a; }
+.is-npc .managed-npc-capability-mechanics .managed-npc-ability-detail-body { padding: 0; }
+.is-npc .managed-npc-capability-mechanics .managed-npc-ability-detail-body dl { grid-template-columns: 1fr; }
+.is-npc .managed-npc-capability > .managed-item-editor { margin: 18px 0 0; border: 0; border-top: 1px solid var(--npc-line); border-radius: 0; background: none; }
+.is-npc .managed-npc-capability > .managed-item-editor > summary { display: flex; justify-content: flex-end; gap: 12px; padding: 12px 0 0; font: 500 .8rem var(--font-ui); }
+.is-npc .managed-npc-capability > .managed-item-editor[open] > summary { padding-bottom: 16px; }
+.is-npc .managed-npc-capability:has(> .managed-item-editor[open]) > .managed-npc-capability-body { display: none; }
+.is-npc .managed-npc-capability > .managed-item-editor > .managed-item-form { padding: 0; }
+.is-npc .managed-npc-capability:has(> .managed-item-editor[open]) { border-color: rgba(223,195,111,.38); }
+.is-npc .managed-npc-capability .managed-npc-editor-tabs { padding-bottom: 8px; border-bottom: 1px solid var(--npc-line); }
+.is-npc .managed-npc-capability .managed-npc-editor-tabs button { min-width: 110px; }
+
+@container (max-width: 640px) {
+    .is-npc .managed-npc-capability-body.has-description.has-mechanics { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+    .is-npc .managed-npc-capability-mechanics { grid-row: 1; }
+    .is-npc .managed-npc-capability-heading { flex-wrap: wrap; gap: 12px; }
+    .is-npc .managed-npc-capability-heading .managed-entry-title { flex: 1; }
+    .is-npc .managed-npc-capability-badges { flex-basis: 100%; margin: 0; }
+    .is-npc .managed-npc-capability-badges .managed-capability-badges { justify-content: flex-start; }
+    .is-npc .managed-npc-capability-mechanics .managed-effective-damage { flex-basis: 170px; }
+    .is-npc .managed-npc-capability-mechanics .managed-npc-ability-detail-body dl { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+    .is-npc .managed-npc-capability .managed-npc-editor-tabs button { min-width: 0; flex: 1; }
+}
+@media (max-width: 700px) {
+    .is-npc .managed-entry.managed-npc-capability { padding: 18px; border-radius: 12px; }
+    .is-npc .managed-npc-pane--actions .managed-collection-tools { gap: 10px; }
+    .is-npc .managed-npc-pane--actions .managed-collection-search { flex-basis: 100%; }
+    .is-npc .managed-npc-pane--actions .managed-filter-chips { gap: 2px; }
+    .is-npc .managed-npc-pane--actions .managed-filter-chips button { padding: 8px; font-size: .73rem; }
+    .is-npc .managed-npc-pane--actions .managed-legendary-summary { flex-direction: row; flex-wrap: wrap; }
+    .is-npc .managed-npc-pane--actions .managed-legendary-resource { padding: 0; border: 0; }
+    .is-npc .managed-npc-capability-heading h3 { font-size: 1.1rem; }
+}
+.is-npc .managed-npc-capability-heading .managed-npc-ability-usage { margin: 0; padding: 0; border: 0; }
+.is-npc .managed-npc-capability-heading .managed-npc-ability-usage > div { align-items: center; gap: 6px; }
+.is-npc .managed-npc-capability-heading .managed-npc-ability-usage dt { font-size: .72rem; }
+.is-npc .managed-npc-capability-heading .managed-npc-ability-usage dd { padding: 6px 10px; border: 1px solid var(--npc-line); border-radius: 6px; font-size: .75rem; }
+.is-npc .managed-npc-capability > .managed-item-editor > summary,
+.is-npc .managed-npc-capability > .managed-item-editor[open] > summary { background: none; border: 0; border-radius: 0; box-shadow: none; }
+.is-npc .managed-npc-capability > .managed-item-editor > summary:hover { color: #f3db9e; }
+.is-npc .managed-npc-pane--actions .managed-panel::before,
+.is-npc .managed-npc-pane--actions .managed-panel::after { display: none; }
+.is-npc .managed-npc-capability-mechanics .managed-npc-ability-details[open] > summary { background: none; border: 0; box-shadow: none; }
+
+/* Dossier: preserve the portrait's own proportions and keep facts beside the story. */
+.is-npc .managed-npc-pane--profile.has-portrait > .managed-profile-panel { grid-column: 2; }
+.is-npc .managed-npc-pane--profile.has-portrait,
+.is-npc.is-editing .managed-npc-pane--profile.has-portrait { grid-template-columns: minmax(0, .62fr) minmax(0, 1fr); align-items: start; gap: 28px; }
+.is-npc .managed-npc-portrait { position: static; align-self: start; min-width: 0; overflow: visible; border: 0; border-radius: 0; background: none; }
+.is-npc .managed-npc-portrait .managed-actor-art { display: block; width: 100%; height: auto; min-height: 0; padding: 0; overflow: hidden; border-radius: 14px; background: #17161b; }
+.is-npc .managed-npc-portrait .managed-actor-aura { display: none; }
+.is-npc .managed-npc-portrait .managed-actor-avatar { display: block; width: 100%; height: auto; min-height: 0; padding: 0; }
+.is-npc .managed-npc-portrait .managed-avatar-button { display: block; height: auto; border-radius: 0; }
+.is-npc .managed-npc-portrait .managed-avatar-stack { position: relative; display: block; }
+.is-npc .managed-npc-portrait .managed-actor-avatar-layer.is-base { position: relative; display: block; inset: auto; width: 100%; height: auto; max-height: none; object-fit: contain; filter: none; transform: none; }
+.is-npc .managed-npc-portrait .managed-profile-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 12px 18px; margin: 0; padding: 18px 0 0; border: 0; }
+.is-npc .managed-npc-portrait .managed-profile-summary > div { min-width: 0; }
+.is-npc .managed-npc-portrait .managed-profile-summary dd { margin: 2px 0 0; overflow-wrap: anywhere; font-weight: 500; }
+.is-npc .managed-npc-pane--profile > .managed-profile-panel { align-self: start; padding: 0; border: 0; border-radius: 0; background: none; overflow: visible; }
+.is-npc .managed-npc-pane--profile > .managed-profile-panel::before,
+.is-npc .managed-npc-pane--profile > .managed-profile-panel::after { display: none; }
+.is-npc .managed-npc-pane--profile .managed-profile-header { gap: 10px; margin-bottom: 18px; }
+.is-npc .managed-npc-pane--profile .managed-profile-header .managed-panel-kicker { display: none; }
+.is-npc .managed-npc-pane--profile .managed-profile-header h2 { margin: 0; font-size: 1.25rem; }
+.is-npc .managed-npc-pane--profile .managed-profile-block-grid { display: flex; flex-direction: column; align-items: stretch; gap: 20px; }
+.is-npc .managed-npc-pane--profile .managed-profile-block { flex: none; min-height: 0; }
+.is-npc .managed-npc-pane--profile .managed-profile-block + .managed-profile-block { padding-top: 18px; }
+.is-npc .managed-npc-pane--profile .managed-profile-block h3 { margin: 0 0 8px; font-size: 1.05rem; }
+.is-npc .managed-npc-pane--profile .managed-profile-markdown { font-size: 1.02rem; line-height: 1.7; }
+.is-npc .managed-npc-pane--profile .managed-profile-markdown > :is(p, ul, ol) { margin-block: 0 10px; }
+.is-npc .managed-npc-pane--profile .managed-profile-markdown > :last-child { margin-bottom: 0; }
+.is-npc .managed-npc-pane--profile .managed-profile-markdown > .doc-blank-line { min-height: .5em; height: .5em; margin: 0; }
+.is-npc .managed-npc-pane--profile .managed-profile-markdown > .doc-blank-line + .doc-blank-line { display: none; }
+.is-npc .managed-npc-pane--profile .managed-profile-block-image { width: fit-content; max-width: 100%; max-height: none; margin: 0 auto 14px; background: none; border: 0; }
+.is-npc .managed-npc-pane--profile .managed-profile-block-image img { width: auto; height: auto; max-width: 100%; max-height: 680px; object-fit: contain; }
+.is-npc .managed-npc-pane--profile .managed-profile-block--banner_box .managed-profile-block-image { margin: 0 auto 14px; border-radius: 10px; }
+.is-npc.is-npc-dossier .managed-actor-hero { padding: 0; border: 0; border-radius: 0; background: none; }
+.is-npc.is-npc-dossier .managed-actor-title { padding: 4px 0 16px; }
+.is-npc.is-npc-dossier .managed-actor-title h1 { font-size: clamp(2rem, 3vw, 3rem); margin-bottom: 6px; }
+.is-npc.is-npc-dossier .managed-profile-quote { margin-block: 8px; font-size: 1rem; }
+.is-npc .managed-npc-pane--profile > .managed-profile-editor-toolbar { padding: 16px 0; }
+@media (max-width: 1100px) and (min-width: 761px) {
+    .is-npc .managed-npc-pane--profile.has-portrait,
+    .is-npc.is-editing .managed-npc-pane--profile.has-portrait { grid-template-columns: minmax(0, .68fr) minmax(0, 1fr); gap: 22px; }
+}
+@media (max-width: 760px) {
+    .is-npc .managed-npc-pane--profile.has-portrait,
+    .is-npc.is-editing .managed-npc-pane--profile.has-portrait { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+    .is-npc .managed-npc-pane--profile.has-portrait > .managed-profile-panel { grid-column: 1; }
+    .is-npc .managed-npc-portrait.has-summary { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+    .is-npc .managed-npc-portrait .managed-profile-summary { grid-template-columns: minmax(0, 1fr); padding: 0; gap: 10px; }
+    .is-npc .managed-npc-portrait:not(.has-summary) .managed-actor-art { max-width: 320px; margin-inline: auto; }
+    .is-npc .managed-npc-pane--profile .managed-profile-block-image img { max-height: 480px; }
+    .is-npc .managed-npc-pane--profile .managed-profile-header { flex-direction: row; align-items: center; flex-wrap: wrap; }
+}

@@ -1,0 +1,80 @@
+--- a/scripts/services/managed-actor-sync.js
++++ b/scripts/services/managed-actor-sync.js
+@@ -816,17 +816,19 @@
+     for (const group of appliedByActor.values()) {
+         const pullCommandReconciliation = !canPushToWorker();
+         try {
+-            await syncManagedActorNow(group.actor, { source: "site-command", pullCommandReconciliation });
++            const synchronized = await syncManagedActorNow(group.actor, { source: "site-command", forceContentSync: true, pullCommandReconciliation });
++            if (!synchronized) continue;
+             acknowledgements.push(...group.commandIds.map((id) => ({ id, status: "applied" })));
+         } catch (error) {
+             if (error?.code === "VERSION_CONFLICT") {
+                 try {
+                     await realignManagedActorAfterConflict(group.actor, error.currentRevision);
+-                    await syncManagedActorNow(group.actor, {
++                    const synchronized = await syncManagedActorNow(group.actor, {
+                         source: "site-command-retry",
+                         forceContentSync: true,
+                         pullCommandReconciliation
+                     });
++                    if (!synchronized) continue;
+                     acknowledgements.push(...group.commandIds.map((id) => ({ id, status: "applied" })));
+                     continue;
+                 } catch (retryError) {
+@@ -3344,23 +3346,54 @@
+             writeManagedCommandPath(update, patch.path, desiredValue);
+         }
+     }
+-    if (Object.keys(update).length) await applyUpdate(update);
++    if (Object.keys(update).length) {
++        try {
++            await applyUpdate(update);
++        } catch (error) {
++            return {
++                status: "failed",
++                error: String(error?.message || "Foundry non ha accettato la modifica"),
++                current: Object.fromEntries(patches.map((patch) => [patch.path, readManagedCommandPath(documentValue, patch.path)]))
++            };
++        }
++    }
+     return { status: "applied", actor };
+ }
+ 
+ async function applyManagedActorDocumentUpdate(actor, command) {
++    if ((command?.patches || []).some((patch) => patch.path === "system.attributes.prof")) {
++        return { status: "failed", error: "Il bonus di competenza è calcolato da D&D5e. Modifica il GS, il livello o l'effetto che lo determina." };
++    }
+     // actorLink and resource bars are local Foundry state. Never apply them from
+     // website commands, including commands queued by an older module version.
+     const safePatches = (Array.isArray(command?.patches) ? command.patches : [])
+         .filter((patch) => patch?.path !== "prototypeToken.actorLink")
+         .filter((patch) => !/^prototypeToken\.(displayBars|bar1|bar2)(\.|$)/.test(String(patch?.path || "")));
+     if (!safePatches.length) return { status: "applied", actor };
++    const overridden = safePatches.filter((patch) => foundry.utils.getProperty(actor.overrides || {}, patch.path) !== undefined);
++    if (overridden.length) return {
++        status: "failed",
++        error: `Valori controllati da effetti attivi: ${overridden.map((patch) => patch.path).join(", ")}. Modifica l'effetto in Foundry prima di cambiare questi valori dal sito.`,
++        current: Object.fromEntries(overridden.map((patch) => [patch.path, readManagedCommandPath(actor, patch.path)]))
++    };
+     const namePatch = safePatches.find((patch) => patch?.path === "name");
+     const requestedName = String(namePatch?.value || "").trim();
+     const result = await applyManagedDocumentPatches(actor, safePatches, async (update) => {
+         if (typeof update.name === "string" && update.name.trim()) update["prototypeToken.name"] = update.name.trim();
+         await actor.update(update, { criptaWikiSyncCommand: true });
+     }, actor);
++    if (result.status === "applied") {
++        const current = Object.fromEntries(safePatches.map((patch) => [patch.path, readManagedCommandPath(actor, patch.path)]));
++        const rejected = safePatches.filter((patch) => managedCommandChangedPaths(patch.baseValue, patch.value)
++            .some((path) => !sameManagedCommandPatchValue(patch.path,
++                managedCommandRelativeValue(current[patch.path], path),
++                managedCommandRelativeValue(patch.value, path))));
++        if (rejected.length) return {
++            status: "failed",
++            error: `Foundry non ha mantenuto il valore richiesto per: ${rejected.map((patch) => patch.path).join(", ")}. Controlla campi calcolati, effetti o limiti della scheda.`,
++            current
++        };
++    }
+     if (result.status === "applied" && requestedName) {
+         if (String(actor.prototypeToken?.name || "") !== requestedName) {
+             await actor.update({ "prototypeToken.name": requestedName }, { criptaWikiSyncCommand: true });
