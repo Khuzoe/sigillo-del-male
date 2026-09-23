@@ -9,6 +9,7 @@
     const pollCache = new Map();
     const pendingPollReads = new Map();
     const pollRenders = new WeakMap();
+    const pollChoiceContents = new WeakMap();
     const PLAYERS_DATA_PATH = 'data/players.json';
     const DM_PLAYER = { id: 'dm', name: 'DM', discordId: '' };
     const VIEW_MODES = {
@@ -64,6 +65,7 @@
         }
     };
     let currentVoteIconSets = VOTE_ICON_SETS;
+    let currentVoteIconCompositions = {};
 
     const authService = {
         async verify() {
@@ -249,9 +251,13 @@
         }
         if (pendingPollReads.has(key)) return pendingPollReads.get(key);
         const pending = Promise.resolve().then(fetchPayload).then((payload) => {
-            if (pendingPollReads.get(key) === pending) writePollCache(key, payload);
+            // A completed write can supersede this GET while it is in flight.
+            // Return the current response as well as protecting the cache itself.
+            if (pendingPollReads.get(key) !== pending) return readCachedPoll(key, fetchPayload);
+            writePollCache(key, payload);
             return payload;
         }, (error) => {
+            if (pendingPollReads.get(key) !== pending) return readCachedPoll(key, fetchPayload);
             if (pendingPollReads.get(key) === pending) {
                 pollCache.set(key, { expiresAt: Date.now() + POLL_CACHE_TTL_MS, error });
             }
@@ -300,8 +306,7 @@
         return Number.isNaN(parsed.getTime()) ? null : parsed;
     }
 
-    function getStorageKey(sessionNumber) {
-        const campaignId = window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
+    function getStorageKey(sessionNumber, campaignId = getCurrentCampaignId()) {
         return `${STORAGE_PREFIX}-${campaignId}-${sessionNumber}`;
     }
 
@@ -333,6 +338,7 @@
             availabilityVotes: Array.isArray(config?.availabilityVotes) ? config.availabilityVotes : [],
             voteIcons: sanitizeVoteIconSets(config?.voteIcons || config?.ui?.voteIcons || {}),
             voteIconOverrides: sanitizeVoteIconSets(config?.voteIconOverrides || {}),
+            voteIconCompositions: config?.voteIconCompositions || {},
             voteIconsVersion: String(config?.voteIconsVersion || '')
         };
     }
@@ -375,6 +381,11 @@
 
     function setCurrentVoteIconSets(config) {
         currentVoteIconSets = buildVoteIconSets(config);
+        currentVoteIconCompositions = config?.voteIconCompositions || {};
+    }
+
+    function isComposedVoteIcon(value, playerId) {
+        return currentVoteIconCompositions[String(playerId || '').trim().toLowerCase()]?.[value]?.version === 1;
     }
 
     function readStoredNextSessionConfig(baseConfig) {
@@ -1624,6 +1635,8 @@
                     : {};
 
                 options.forEach((option) => {
+                    // Missing fields in a legacy duplicate are not explicit removals.
+                    if (!Object.prototype.hasOwnProperty.call(sourceSelections, option.id)) return;
                     const rawValue = String(sourceSelections[option.id] || '').toLowerCase();
                     selections[option.id] = VOTE_STATES.some(state => state.value === rawValue) ? rawValue : '';
                 });
@@ -1662,7 +1675,10 @@
             });
         });
 
-        return Array.from(mergedByPlayerId.values());
+        return Array.from(mergedByPlayerId.values()).map((vote) => ({
+            ...vote,
+            selections: Object.fromEntries(options.map((option) => [option.id, vote.selections[option.id] || '']))
+        }));
     }
 
     function aggregateFlatVotes(votes) {
@@ -1710,8 +1726,8 @@
         return [];
     }
 
-    async function loadRemoteVotes(sessionNumber, options, players) {
-        const payload = await sessionApiService.getVotes(sessionNumber);
+    async function loadRemoteVotes(sessionNumber, options, players, campaignId = getCurrentCampaignId()) {
+        const payload = await sessionApiService.getVotes(sessionNumber, campaignId);
         return sanitizeVotes(extractVotesFromApiPayload(payload), options, players);
     }
 
@@ -1724,9 +1740,9 @@
         return payload;
     }
 
-    function persistVotes(sessionNumber, votes) {
+    function persistVotes(sessionNumber, votes, campaignId = getCurrentCampaignId()) {
         try {
-            window.localStorage.setItem(getStorageKey(sessionNumber), JSON.stringify(votes));
+            window.localStorage.setItem(getStorageKey(sessionNumber, campaignId), JSON.stringify(votes));
         } catch (error) {
             console.warn('Impossibile salvare i voti della prossima sessione:', error);
         }
@@ -1765,6 +1781,9 @@
         if (!value) return '';
         const iconPath = getVoteIconPath(value, playerId);
         const fallbackPath = getVoteIconFallbackPath(value, playerId);
+        if (window.CriptaPollIconComposer) return window.CriptaPollIconComposer.markup({
+            state: value, source: iconPath, fallback: fallbackPath, final: isComposedVoteIcon(value, playerId)
+        });
         const fallbackAttrs = fallbackPath && fallbackPath !== iconPath
             ? ` data-fallback-src="${escapeHtml(fallbackPath)}" onerror="if(this.dataset.fallbackSrc){this.src=this.dataset.fallbackSrc;this.dataset.fallbackSrc='';}else{this.style.display='none';}"`
             : ' onerror="this.style.display=\'none\';"';
@@ -2054,6 +2073,18 @@
         return { answered, total: options.length, complete: options.length > 0 && answered === options.length };
     }
 
+    function updatePollChoiceContent(element, value, playerId, kind = 'vote') {
+        const key = JSON.stringify([kind, value, value ? getVoteIconPath(value, playerId) : '', value ? getVoteIconFallbackPath(value, playerId) : '', isComposedVoteIcon(value, playerId)]);
+        if (pollChoiceContents.get(element) === key) return;
+        const image = value ? buildVoteChoiceContent(value, playerId) : '';
+        element.innerHTML = kind === 'hint-conflict'
+            ? '<span class="availability-hint-conflict" aria-hidden="true">≠<small>Diversi</small></span><span class="availability-hint-label" aria-hidden="true">Altre campagne</span>'
+            : kind === 'hint' ? `${image}<span class="availability-hint-label" aria-hidden="true">Altre campagne</span>`
+                : kind === 'personal-conflict' ? '<span>≠</span>'
+                    : kind === 'personal-empty' ? '<span>?</span>' : image;
+        pollChoiceContents.set(element, key);
+    }
+
     function formatVoteProgress(vote, options) {
         const progress = getVoteProgress(vote, options);
         if (!progress.answered) return 'Da compilare';
@@ -2325,6 +2356,7 @@
             ]);
         } catch (error) {
             console.error('Impossibile caricare i player per il planner della prossima sessione:', error);
+            if (!isCurrentRender()) return;
             container.innerHTML = `
                 <div class="next-session-card next-session-card-poll">
                     <span class="next-label">${escapeHtml(subtitle)}</span>
@@ -2355,8 +2387,9 @@
         if (!isCurrentRender()) return;
         let baseVotes = localFallbackVotes;
         try {
-            baseVotes = await loadRemoteVotes(effectiveConfig.number, options, players);
-            persistVotes(effectiveConfig.number, baseVotes);
+            baseVotes = await loadRemoteVotes(effectiveConfig.number, options, players, campaignId);
+            if (!isCurrentRender()) return;
+            persistVotes(effectiveConfig.number, baseVotes, campaignId);
         } catch (error) {
             console.warn('Session votes API non raggiungibile, uso fallback locale.', error);
         }
@@ -2467,7 +2500,6 @@
             let detail = '';
             const rows = container.querySelectorAll('.availability-table tbody tr');
             votes.forEach((vote, rowIndex) => {
-                if (!vote.canEdit) return;
                 const row = rows[rowIndex];
                 if (!row) return;
                 options.forEach((option) => {
@@ -2475,15 +2507,15 @@
                     if (!button) return;
                     const slot = button.parentElement;
                     const value = vote.selections[option.id] || '';
-                    const entries = value ? [] : (crossCampaignHints.get(option.id) || []);
+                    const entries = value || !vote.canEdit ? [] : (crossCampaignHints.get(option.id) || []);
                     button.className = getVoteChoiceClass(value);
-                    button.innerHTML = buildVoteChoiceContent(value, vote.playerId);
                     button.removeAttribute('title');
-                    button.setAttribute('aria-label', `Cambia ${vote.name} per ${option.label} ${option.time}: ${getVoteState(value)?.label || 'Senza risposta'}`);
+                    button.setAttribute('aria-label', `${vote.canEdit ? 'Cambia' : 'Voto di'} ${vote.name} per ${option.label} ${option.time}: ${getVoteState(value)?.label || 'Senza risposta'}`);
                     const clear = getOptionButton(row, option.id, 'clear');
-                    if (clear) clear.hidden = entries.length > 0;
+                    if (clear) clear.hidden = !value;
                     const existingInfo = slot.querySelector('.availability-hint-info');
                     if (!entries.length) {
+                        updatePollChoiceContent(button, value, vote.playerId);
                         existingInfo?.remove();
                         return;
                     }
@@ -2493,9 +2525,9 @@
                     button.classList.add('has-cross-campaign-hint');
                     if (values.length === 1) {
                         button.classList.add(`hint-${values[0]}`);
-                        button.innerHTML = buildVoteChoiceContent(values[0], vote.playerId);
+                        updatePollChoiceContent(button, values[0], vote.playerId, 'hint');
                     } else {
-                        button.innerHTML = '<span class="availability-hint-conflict" aria-hidden="true">≠<small>Diversi</small></span>';
+                        updatePollChoiceContent(button, '', vote.playerId, 'hint-conflict');
                     }
                     button.title = description;
                     button.setAttribute('aria-label', `${description} Clicca per votare disponibile.`);
@@ -2533,9 +2565,8 @@
                 const hintValues = [...new Set(entries.map((entry) => entry.value))];
                 const preview = slot.querySelector('.poll-personal-preview');
                 preview.classList.toggle('is-hint', entries.length > 0);
-                preview.innerHTML = value ? buildVoteChoiceContent(value, vote.playerId)
-                    : hintValues.length === 1 ? buildVoteChoiceContent(hintValues[0], vote.playerId)
-                    : `<span>${entries.length ? '≠' : '?'}</span>`;
+                const previewValue = value || (hintValues.length === 1 ? hintValues[0] : '');
+                updatePollChoiceContent(preview, previewValue, vote.playerId, previewValue ? 'vote' : entries.length ? 'personal-conflict' : 'personal-empty');
                 slot.querySelectorAll('.poll-personal-choice').forEach((button) => {
                     button.setAttribute('aria-pressed', String(button.dataset.value === value));
                 });
@@ -2629,7 +2660,7 @@
                 if (!isCurrentRender()) return;
                 const remoteVotes = sanitizeVotes(extractVotesFromApiPayload(payload?.data || payload), options, players);
                 votes = remoteVotes.length > 0 ? decorateVotes(remoteVotes) : decorateVotes(votes);
-                persistVotes(effectiveConfig.number, votes.map(({ canEdit, ...vote }) => vote));
+                persistVotes(effectiveConfig.number, votes.map(({ canEdit, ...vote }) => vote), campaignId);
                 voteSaveState = 'saved';
             } catch (error) {
                 if (!isCurrentRender()) return;
@@ -2681,12 +2712,8 @@
                     const button = getOptionButton(row, option.id);
                     if (!button) return;
 
-                    const value = vote.selections[option.id] || '';
                     const cell = button.closest('.availability-vote-cell');
                     setColumnStateClass(cell, option.id, totals, voteCount);
-                    button.className = getVoteChoiceClass(value);
-                    button.innerHTML = buildVoteChoiceContent(value, vote.playerId);
-                    button.setAttribute('aria-label', `${vote.canEdit ? 'Cambia' : 'Voto di'} ${vote.name} per ${option.label} ${option.time}: ${getVoteState(value)?.label || 'Senza risposta'}`);
                 });
             });
 
@@ -2884,11 +2911,13 @@
                                 method, query: { campaign: campaignId }, token: authToken, cache: false, ...(body ? { body } : {})
                             }),
                             defaultIcon: (playerId, state) => resolveVoteIconUrl((defaults[playerId] || defaults.dm)[state]),
+                            defaultIconFallback: (playerId, state) => resolveVoteIconUrl((defaults[playerId] || defaults.dm)[state].replace(/^\/?media\/ui\//i, 'assets/img/ui/')),
                             resolveIcon: resolveVoteIconUrl,
                             onSave: (settings) => {
                                 invalidatePollCache(`session:${campaignId}`);
                                 if (!isCurrentRender()) return;
                                 effectiveConfig.voteIconOverrides = sanitizeVoteIconSets(settings.voteIcons);
+                                effectiveConfig.voteIconCompositions = settings.compositions || {};
                                 effectiveConfig.voteIconsVersion = settings.version;
                                 setCurrentVoteIconSets(effectiveConfig);
                                 statusMessage = 'Icone aggiornate per questa campagna.';

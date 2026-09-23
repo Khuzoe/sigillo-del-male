@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
+import { resolve } from "node:path";
 import worker from "../workers/main-worker/src/index.js";
 
 class MemoryKv {
@@ -267,7 +269,9 @@ assert.equal(sharedRuntimePayload.saved, false);
 stored = await getDocument();
 assert.deepEqual(stored.runtime, {});
 
-const moduleSyncSource = await readFile(new URL("../module/scripts/services/managed-actor-sync.js", import.meta.url), "utf8");
+const moduleSyncUrl = process.argv[2] ? pathToFileURL(resolve(process.argv[2])) : new URL("../module/scripts/services/managed-actor-sync.js", import.meta.url);
+const moduleSyncSource = await readFile(moduleSyncUrl, "utf8");
+const dnd5eHelpers = await import(new URL("dnd5e-fields.js", moduleSyncUrl));
 const workerSource = await readFile(new URL("../workers/main-worker/src/index.js", import.meta.url), "utf8");
 const managedActorFeSource = await readFile(new URL("../assets/js/pages/managed-actor.js", import.meta.url), "utf8");
 const playerRosterFeSource = await readFile(new URL("../assets/js/pages/giocatori.js", import.meta.url), "utf8");
@@ -277,8 +281,8 @@ assert.match(moduleSyncSource, /console\.table\(diagnostics\)/, "un fallimento L
 assert.match(moduleSyncSource, /error\.diagnostics = diagnostics/, "il dettaglio della verifica deve restare disponibile anche nell errore di rollback");
 assert.match(moduleSyncSource, /conversionDiagnostics[\s\S]+rollbackDiagnostics/, "il log di rollback deve distinguere il fallimento originale da quello del ripristino");
 assert.match(moduleSyncSource, /\\u00B7 \$\{scene\.name/, "il nome dell'istanza deve separare token e scena con un punto medio stabile");
-const foundryLiveSyncSource = await readFile(new URL("../module/scripts/services/foundry-live-sync.js", import.meta.url), "utf8");
-const moduleMainSource = await readFile(new URL("../module/scripts/main.js", import.meta.url), "utf8");
+const foundryLiveSyncSource = await readFile(new URL("foundry-live-sync.js", moduleSyncUrl), "utf8");
+const moduleMainSource = await readFile(new URL("../main.js", moduleSyncUrl), "utf8");
 assert.match(moduleSyncSource, /export async function pullManagedActorCommandsNow/, "il modulo deve poter controllare la sola coda comandi senza riallineare tutti gli Actor");
 assert.match(moduleSyncSource, /if \(managedActorCommandPullPromise\) return managedActorCommandPullPromise/, "due controlli della coda non devono applicare lo stesso comando contemporaneamente");
 assert.match(moduleSyncSource, /managedActorCommandPullPromise = executeManagedActorCommandPull\(worldId\)/, "la coda deve usare una singola esecuzione condivisa");
@@ -610,7 +614,7 @@ const hashItemValue = (value) => {
   return `fnv1a:${(hash >>> 0).toString(16).padStart(8, "0")}`;
 };
 const itemComparison = new Function(
-  "foundry", "hashValue", "getItemTransferId", "stableStringify", "MODULE_ID", "TOKENIZER_MODULE_ID",
+  "foundry", "hashValue", "getItemTransferId", "stableStringify", "MODULE_ID", "TOKENIZER_MODULE_ID", "normalizePreparedState", "readSpellPreparation", "spellPreparationForWiki", "readDnd5eSenses",
   `${itemComparisonBlock}\nreturn { managedActorLinkSchemaCleanDocumentSource, managedActorLinkDocumentSource, managedActorLinkSemanticValue, managedActorLinkEffectSemanticState, managedActorLinkItemState, managedActorLinkPairItemStates, managedActorLinkItemStateDifferences, managedActorLinkStructureSignature, managedActorLinkItemDefinitionSource, managedActorLinkItemDefinitionDifferences, managedActorLinkItemDefinitionSignature, managedActorLinkItemStateValueEqual };`,
 )(
   { utils: { deepClone: (value) => structuredClone(value) } },
@@ -619,12 +623,13 @@ const itemComparison = new Function(
   stableItemStringify,
   "cripta-wiki-sync",
   "khuzoe-tokenizer",
+  dnd5eHelpers.normalizePreparedState, dnd5eHelpers.readSpellPreparation, dnd5eHelpers.spellPreparationForWiki, dnd5eHelpers.readDnd5eSenses,
 );
-const linkTestItem = ({ id, name = "Multiattack", transferId = "", prepared = true, damage = "1d6", activityId = "primary", sourceLabel = "", properties = [], identifier = undefined }) => {
+const linkTestItem = ({ id, name = "Multiattack", type = "feat", transferId = "", prepared = true, damage = "1d6", activityId = "primary", sourceLabel = "", properties = [], identifier = undefined }) => {
   const source = {
     _id: id,
     name,
-    type: "feat",
+    type,
     img: "icons/example.webp",
     system: {
       preparation: { prepared },
@@ -670,8 +675,9 @@ const renamedIdentifierPairing = itemComparison.managedActorLinkPairItemStates(
 assert.equal(renamedIdentifierPairing.pairs.length, 1, "identifier esplicito e identifier automatico devono individuare lo stesso Item rinominato");
 assert.equal(renamedIdentifierPairing.baseOnly.length, 0, "lo Slam precedente non deve restare come elemento separato");
 assert.equal(renamedIdentifierPairing.sourceOnly.length, 0, "lo Slam rinominato non deve essere pianificato come duplicato");
-const linkChangedTokenActor = { items: [linkTestItem({ id: "same-id", prepared: false })], effects: [] };
-const changedItemDifferences = itemComparison.managedActorLinkItemStateDifferences(linkBaseActor, linkChangedTokenActor);
+const linkPreparedBaseActor = {items: [linkTestItem({id: "same-id", type: "spell", prepared: true})], effects: []};
+const linkChangedTokenActor = { items: [linkTestItem({ id: "same-id", type: "spell", prepared: false })], effects: [] };
+const changedItemDifferences = itemComparison.managedActorLinkItemStateDifferences(linkPreparedBaseActor, linkChangedTokenActor);
 assert.equal(changedItemDifferences.length, 1);
 assert.equal(changedItemDifferences[0].changes[0].label, "Preparato");
 const linkMechanicalTokenActor = { items: [linkTestItem({ id: "same-id", damage: "2d6" })], effects: [] };
@@ -1061,7 +1067,7 @@ const canonicalSnapshot = new Function(
   "managedActorLinkActorEnvelopeComparable", "managedActorLinkTokenConfigurationComparable",
   "managedActorLinkStructuralStateActor", "managedActorLinkDefinitionDifferences",
   "managedActorLinkItemStateDifferences", "managedActorLinkEffectDifferences",
-  "verifyManagedActorLinkRuntimeState",
+  "verifyManagedActorLinkRuntimeState", "normalizePreparedState",
   `${canonicalBlock}\nreturn managedActorLinkCanonicalMechanicalSnapshot;`,
 )(
   2,
@@ -1083,6 +1089,7 @@ const canonicalSnapshot = new Function(
   () => [],
   () => [],
   () => ({ ok: true, summary: [] }),
+  dnd5eHelpers.normalizePreparedState,
 );
 const canonicalActorA = {
   system: { abilities: { str: { value: 18 } }, attributes: { hp: { value: 20, max: 20 } } },
@@ -1416,10 +1423,11 @@ const setProperty = (target, path, value) => {
   for (const key of keys.slice(0, -1)) cursor = cursor[key] ||= {};
   cursor[keys.at(-1)] = value;
 };
-const compareDefinitions = new Function("foundry", "stableStringify", "managedActorLinkSemanticValue", `${definitionBlock}\nreturn managedActorLinkDefinitionDifferences;`)(
+const compareDefinitions = new Function("foundry", "stableStringify", "managedActorLinkSemanticValue", "readDnd5eSenses", `${definitionBlock}\nreturn managedActorLinkDefinitionDifferences;`)(
   { utils: { getProperty, setProperty, deepClone: (value) => structuredClone(value) } },
   stableItemStringify,
   itemComparison.managedActorLinkSemanticValue,
+  dnd5eHelpers.readDnd5eSenses,
 );
 const baseAbilityData = { abilities: { str: { value: 24, proficient: 0 } }, skills: {}, attributes: {}, traits: {}, details: {} };
 const syntheticAbilityData = { abilities: { str: { value: 28, proficient: 0 } }, skills: {}, attributes: {}, traits: {}, details: {} };
@@ -1661,7 +1669,7 @@ assert.deepEqual(managedTimingFacts.getManagedActivityDurationFact({ duration: {
 assert.deepEqual(managedTimingFacts.getManagedSaveOutcomeFact({ damage: { onSave: "half", parts: [{}] } }, { damage: [{ formula: "6d10" }] }), { icon: "fa-shield", label: "Metà con TS riuscito", className: "is-save-outcome" }, "il danno dimezzato con TS riuscito deve essere esplicito");
 assert.match(managedActorFeSource, /renderManagedActivityTacticalFacts\(getManagedActivityTacticalFacts/, "i metadati tattici devono essere inseriti accanto a danni e CD");
 assert.match(managedActorFeSource, /damage\.parts\.\$\{index\}/, "i campi guidati devono puntare ai danni reali dentro system.activities");
-assert.match(managedActorFeSource, /renderManagedActivitiesGuide\(activities, entry\)/, "l'editor e il riepilogo devono risolvere le formule dalla stessa definizione dell'elemento");
+assert.match(managedActorFeSource, /renderManagedActivitiesGuide\(activities, entry(?:, command)?\)/, "l'editor e il riepilogo devono risolvere le formule dalla stessa definizione dell'elemento");
 assert.match(managedActorFeSource, /scheduleManagedCommandRefresh\(button\.closest\("\[data-managed-actor-root\]"\)\)/, "la pagina deve seguire automaticamente una modifica elemento fino alla conferma di Foundry");
 assert.match(managedActorFeSource, /Stato aggiornato da Foundry\./, "un comando concluso deve rimuovere il vecchio conflitto e mostrare la rilettura");
 assert.match(managedActorFeSource, /object\\s\+\(\?:set\|map\|object\)/, "il frontend deve nascondere i placeholder Object Set gia salvati");

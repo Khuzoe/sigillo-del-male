@@ -1,0 +1,94 @@
+/* Editor layout only: retain the site's existing campaign colors and artwork. */
+.is-npc .managed-npc-editor-intro {
+    margin: 0;
+    color: var(--npc-muted);
+    font: .84rem/1.6 var(--font-ui, sans-serif);
+}
+.is-npc .managed-npc-editor-workspace {
+    display: grid;
+    grid-template-columns: 176px minmax(0, 1fr);
+    min-width: 0;
+    border-top: 1px solid var(--npc-line);
+}
+.is-npc .managed-item-form .managed-npc-editor-tabs {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    margin: 0;
+    padding: 20px 12px 20px 0;
+    overflow: visible;
+    border-bottom: 0;
+    border-right: 1px solid var(--npc-line);
+}
+.is-npc .managed-item-form .managed-npc-editor-tabs button {
+    flex: 0 0 auto;
+    min-width: max-content;
+    min-height: 44px;
+    justify-content: flex-start;
+}
+.is-npc .managed-npc-editor-content { min-width: 0; padding: 24px 0 24px 24px; }
+.is-npc .managed-npc-editor-pane { gap: 24px; }
+.is-npc .managed-npc-item-basics { padding-bottom: 0; border-bottom: 0; }
+.is-npc .managed-activities-guide.has-activity-navigation > summary { display: none; }
+.is-npc .managed-activities-guide.has-activity-navigation > div { padding-top: 0; }
+.is-npc .managed-npc-activity-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.is-npc .managed-npc-activity-tabs button {
+    min-width: 0;
+    max-width: 100%;
+    min-height: 44px;
+    padding: 10px 14px;
+    border: 1px solid var(--npc-line);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--npc-muted);
+    cursor: pointer;
+    font: 600 .82rem/1.5 var(--font-ui, sans-serif);
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+.is-npc .managed-npc-activity-tabs button:hover { color: #f2e7ce; background: rgba(223, 195, 111, .06); }
+.is-npc .managed-npc-activity-tabs button[aria-selected="true"] {
+    color: #f1d994;
+    border-color: var(--npc-accent);
+    background: rgba(223, 195, 111, .1);
+}
+.is-npc .managed-npc-editor-content .managed-guided-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    gap: 24px;
+}
+.is-npc .managed-npc-editor-content .managed-guide-fields,
+.is-npc .managed-npc-editor-content .managed-activity-common {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    gap: 18px;
+}
+.is-npc .managed-npc-editor-content .managed-activity-damage-grid,
+.is-npc .managed-npc-editor-content .managed-mechanics-grid { grid-template-columns: minmax(0, 1fr); }
+.is-npc .managed-npc-editor-content .managed-richtext-editor { min-height: 240px; }
+
+@media (max-width: 900px) {
+    body:not(.is-embed) .is-npc .managed-command-bar { top: calc(var(--sidebar-mobile-height, 64px) + 6px); }
+    body.is-embed .is-npc .managed-command-bar { top: 6px; }
+}
+@media (max-width: 760px) {
+    .is-npc .managed-npc-editor-workspace { grid-template-columns: minmax(0, 1fr); }
+    .is-npc .managed-item-form .managed-npc-editor-tabs {
+        flex-direction: row;
+        gap: 4px;
+        padding: 12px 0;
+        overflow-x: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--npc-line);
+    }
+    .is-npc .managed-item-form .managed-npc-editor-tabs button { justify-content: center; padding: 10px 12px; }
+    .is-npc .managed-npc-editor-content { padding: 20px 0; }
+}
+@media (max-width: 480px) {
+    .is-npc .managed-npc-editor-content .managed-guide-fields,
+    .is-npc .managed-npc-editor-content .managed-activity-common { grid-template-columns: minmax(0, 1fr); }
+}
+/* Quick mechanical presets share the existing NPC palette. */
+.managed-condition-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .5rem; margin: .9rem 0; }
+.managed-condition-choices label { display: flex; align-items: center; gap: .45rem; padding: .5rem .65rem; border: 1px solid rgba(205,166,84,.22); border-radius: 6px; cursor: pointer; }
+.managed-condition-choices label:has(input:checked) { background: rgba(205,166,84,.14); border-color: rgba(205,166,84,.65); }
+.managed-rule-note, .managed-controlled-stat small { display: block; font-size: .8rem; line-height: 1.5; opacity: .8; }
+.managed-controlled-stat { display: grid; gap: .35rem; }

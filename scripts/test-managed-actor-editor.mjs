@@ -41,6 +41,7 @@ const exposed = `
         renderManagedActivitiesGuide, renderManagedActivityPreview, renderCoreStats, saveManagedActorPage, managedDossierImageWidth,
         enqueueManagedItemUpdate, enqueueManagedEffectUpdate, saveManagedActorPresentation,
         hasManagedUnsavedChanges, refreshManagedCommandState,
+        syncManagedGuidedList, renderManagedNpcRule, renderManagedActorControl,
         setAttempts(value) { managedCommandPollAttempts = value; }
     };
 `;
@@ -104,11 +105,33 @@ equal(posts.at(-1).patches[0].baseValue, 20, "revision retry preserves the field
 
 editor.setDocument({ ...copy(actor), sync: { commands: [{ status: "pending", kind: "effect.create" }] } });
 editor.setAttempts(40);
+const beforeCutoff = timerCalls;
+const pendingIndicator = {};
+editor.scheduleManagedCommandRefresh({ isConnected: true, querySelector: () => pendingIndicator });
+equal(timerCalls, beforeCutoff, "offline pending commands stop polling after the bounded KV budget");
+check(pendingIndicator.textContent.includes("ancora in coda"), "cutoff keeps pending state visible and explains how to refresh");
+editor.setAttempts(0);
 editor.scheduleManagedCommandRefresh({ isConnected: true });
-check(timerCalls > 0, "polling continues after the old retry cutoff for create commands");
+check(timerCalls > beforeCutoff, "a fresh command starts polling");
 const count = timerCalls;
 editor.scheduleManagedCommandRefresh({ isConnected: false });
 equal(timerCalls, count, "polling stops for detached pages");
+
+editor.setDocument({...copy(actor), definition: {...actor.definition, editor: {npcRules: 1, fields: {"system.abilities.str.value": {base: 12, effective: 20, editable: false}}}}});
+const preset = editor.renderManagedNpcRule("attack", {type: "attack"}, {definition: {flags: {"khuzoe-automations": {npcRules: {version: 1, activities: {attack: {healing: 0.5, conditions: ["prone"]}}}}}}}, null);
+check(preset.includes("Metà dei danni inflitti") && preset.includes('value="prone" checked'), "configured presets are visible as selected choices");
+const controlled = editor.renderManagedActorControl("system.abilities.str.value", "number", 20);
+check(controlled.includes("Base 12") && controlled.includes("Effettivo 20") && !controlled.includes("data-managed-actor-path"), "effect-controlled values show base and effective without creating a writable control");
+let events = 0;
+const rulesTextarea = {value: JSON.stringify({version: 1, activities: {attack: {healing: 0.5, conditions: ["prone"]}, save: {rounds: 2}}}), dispatchEvent() {events++;}};
+const rulesGroup = {dataset: {managedGuidedList: "flags.khuzoe-automations.npcRules", managedGuidedKey: "activities.attack.conditions"},
+  closest: () => ({querySelector: () => rulesTextarea}),
+  querySelectorAll: selector => selector.includes(":checked") ? [{value: "poisoned"}] : [{value: "prone"}, {value: "poisoned"}]
+};
+sandbox.Event = class Event {};
+editor.syncManagedGuidedList(rulesGroup);
+equal(JSON.parse(rulesTextarea.value), {version: 1, activities: {attack: {healing: 0.5, conditions: ["poisoned"]}, save: {rounds: 2}}}, "condition toggles preserve healing and other activities");
+equal(events, 1, "preset changes use the existing draft event, without network requests");
 
 editor.setDocument(copy(actor), true);
 const rules = editor.renderManagedAbilityRules({ name: "Swallow", definition: { activities: activity, description: "Heals half damage" } });

@@ -1844,11 +1844,15 @@
         const textarea = findManagedAdvancedTextarea(group, objectPath);
         if (!textarea) return;
         let current = [];
-        try { current = JSON.parse(textarea.value || "[]"); } catch (_) { current = []; }
+        try { current = JSON.parse(textarea.value || "[]"); } catch (_) { return; }
+        const nestedKey = group.dataset.managedGuidedKey;
+        const listValue = nestedKey ? nestedKey.split(".").reduce((value, key) => value?.[key], current) : current;
         const known = new Set(Array.from(group.querySelectorAll('input[type="checkbox"]')).map((input) => input.value));
-        const preserved = Array.isArray(current) ? current.filter((value) => !known.has(String(value))) : [];
+        const preserved = Array.isArray(listValue) ? listValue.filter((value) => !known.has(String(value))) : [];
         const selected = Array.from(group.querySelectorAll('input[type="checkbox"]:checked')).map((input) => input.value);
-        textarea.value = JSON.stringify(Array.from(new Set([...preserved, ...selected])), null, 2);
+        const next = Array.from(new Set([...preserved, ...selected]));
+        if (nestedKey) setManagedGuidedValue(current, nestedKey, next);
+        textarea.value = JSON.stringify(nestedKey ? current : next, null, 2);
         textarea.dispatchEvent(new Event("input", { bubbles: true }));
     }
 
@@ -2306,6 +2310,10 @@
     }
 
     function renderManagedActorControl(path, type, fallbackValue, options = {}) {
+        const metadata = currentDocument?.definition?.editor?.fields?.[path];
+        if (metadata?.editable === false) {
+            return `<span class="managed-controlled-stat"><input disabled value="${escapeAttr(metadata.effective ?? fallbackValue)}" aria-label="Valore effettivo in Foundry"><small>Base ${escapeHtml(String(metadata.base))} · Effettivo ${escapeHtml(String(metadata.effective))}<br>${escapeHtml(metadata.reason || "Controllato da un effetto attivo")}</small></span>`;
+        }
         const desired = getManagedActorDesiredValue(path, fallbackValue);
         const serialized = escapeAttr(JSON.stringify(desired ?? null));
         const common = `data-managed-actor-path="${escapeAttr(path)}" data-managed-actor-type="${escapeAttr(type)}" data-managed-actor-original="${serialized}"`;
@@ -3686,9 +3694,10 @@
         buttons.forEach((button, index) => {
             button.addEventListener("click", () => activate(button.dataset.managedTab, true));
             button.addEventListener("keydown", (event) => {
+                const vertical = nav.getAttribute("aria-orientation") === "vertical";
                 const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1
-                    : event.key === "ArrowRight" ? (index + 1) % buttons.length
-                        : event.key === "ArrowLeft" ? (index - 1 + buttons.length) % buttons.length : -1;
+                    : event.key === (vertical ? "ArrowDown" : "ArrowRight") ? (index + 1) % buttons.length
+                        : event.key === (vertical ? "ArrowUp" : "ArrowLeft") ? (index - 1 + buttons.length) % buttons.length : -1;
                 if (next < 0) return;
                 event.preventDefault();
                 activate(buttons[next].dataset.managedTab, true);
@@ -3945,6 +3954,8 @@
             const form = control?.closest?.("[data-managed-item-form]");
             const editorPane = control?.closest?.("[data-managed-editor-pane]");
             if (form && editorPane) form._managedActivatePane?.(editorPane.id);
+            const activityPane = control?.closest?.("[data-managed-activity-key]");
+            if (form && activityPane) form._managedActivateActivity?.(activityPane.id);
             for (let parent = control?.parentElement; parent && parent !== root; parent = parent.parentElement) {
                 if (parent.matches("details")) parent.open = true;
             }
@@ -4002,8 +4013,17 @@
                 form.prepend(nameField);
             }
             basics?.classList.add("managed-npc-item-basics");
+            const activities = form.querySelector(".managed-activities-guide");
+            // Move existing controls: every activity keeps its draft and original data binding.
+            if (activities) form.insertBefore(activities, actions);
+            if (basics && !basics.children.length) basics.remove();
+            const guided = form.querySelector(".managed-guided-mechanics");
+            if (guided && !guided.querySelector(".managed-guided-grid")?.children.length) guided.remove();
+            const advanced = form.querySelector(".managed-mechanics-advanced");
+            if (advanced && !advanced.querySelector(".managed-mechanics-grid")?.children.length) advanced.remove();
             const specs = [
-                { key: "mechanics", label: "Meccaniche", selectors: [".managed-npc-item-basics", ".managed-guided-mechanics"] },
+                { key: "activities", label: "Attività", selectors: [".managed-activities-guide"] },
+                { key: "mechanics", label: "Impostazioni", selectors: [".managed-npc-item-basics", ".managed-guided-mechanics"] },
                 { key: "description", label: "Descrizione", selectors: [".managed-item-icon-editor", ".managed-item-description"] },
                 { key: "advanced", label: "Avanzato", selectors: [".managed-mechanics-advanced"] }
             ];
@@ -4024,6 +4044,26 @@
             if (nameField) nameField.after(nav);
             else form.prepend(nav);
             form._managedActivatePane = setupManagedTabGroup(nav, panes, panes[0]?.id);
+            const workspace = document.createElement("div");
+            workspace.className = "managed-npc-editor-workspace";
+            nav.before(workspace);
+            workspace.append(nav);
+            const content = document.createElement("div");
+            content.className = "managed-npc-editor-content";
+            panes.forEach((pane) => content.append(pane.node));
+            workspace.append(content);
+            // Read the current layout on focus, avoiding per-item global resize listeners.
+            const updateOrientation = () => nav.setAttribute("aria-orientation", window.matchMedia("(max-width: 760px)").matches ? "horizontal" : "vertical");
+            nav.addEventListener("focusin", updateOrientation);
+            nav.addEventListener("keydown", updateOrientation, true);
+            updateOrientation();
+            setupManagedNpcActivityTabs(form, index);
+            const intro = document.createElement("p");
+            intro.className = "managed-npc-editor-intro";
+            intro.textContent = activities ? "Scegli un’attività e modifica i suoi valori. L’anteprima segue le tue modifiche." : "Modifica le impostazioni e la descrizione di questa capacità.";
+            if (nameField) nameField.after(intro);
+            const result = form.querySelector("[data-managed-item-result]");
+            result?.setAttribute("role", "status");
             const collapse = (node, title) => {
                 if (!node) return;
                 const details = document.createElement("details");
@@ -4049,6 +4089,33 @@
             editor.addEventListener("toggle", () => {
                 form.closest("[data-managed-item-card]")?.classList.toggle("is-editor-open", editor.open);
                 if (label) label.textContent = editor.open ? "Chiudi modifica" : closedLabel;
+            });
+        });
+    }
+
+    function setupManagedNpcActivityTabs(form, itemIndex) {
+        const group = form.querySelector(".managed-activities-guide");
+        const cards = Array.from(group?.querySelectorAll("[data-managed-activity-key]") || []);
+        if (!cards.length) return;
+        group.classList.add("has-activity-navigation");
+        const nav = document.createElement("div");
+        nav.className = "managed-npc-activity-tabs";
+        nav.setAttribute("aria-label", "Attività della capacità");
+        const panes = cards.map((node, index) => {
+            node.id = "managed-npc-activity-" + itemIndex + "-" + index;
+            const label = node.querySelector("header strong")?.textContent || "Attività " + (index + 1);
+            return { id: node.id, node, label };
+        });
+        group.querySelector("summary").after(nav);
+        form._managedActivateActivity = setupManagedTabGroup(nav, panes, panes[0].id);
+        // Keep navigation labels in sync without rebuilding controls or losing focus.
+        cards.forEach((card) => {
+            const input = Array.from(card.querySelectorAll("[data-managed-guided-key]")).find((field) => field.dataset.managedGuidedKey === card.dataset.managedActivityKey + ".name");
+            input?.addEventListener("input", () => {
+                const pane = panes.find((candidate) => candidate.node === card);
+                const text = input.value.trim() || pane.label;
+                nav.querySelector('[aria-controls="' + card.id + '"] span').textContent = text;
+                card.querySelector("header strong").textContent = text;
             });
         });
     }
@@ -4128,7 +4195,7 @@
             renderManagedItemControl(entry, command, "system.level", "Livello", "number"),
             renderManagedItemControl(entry, command, "system.school", "Scuola", "text"),
             renderManagedItemControl(entry, command, "system.preparation.mode", "Preparazione", "text"),
-            renderManagedItemControl(entry, command, "system.uses.max", "Utilizzi massimi", "number"),
+            renderManagedItemControl(entry, command, "system.uses.max", "Utilizzi massimi o formula", "text"),
             renderManagedItemControl(entry, command, "system.equipped", "Equipaggiato", "boolean"),
             renderManagedItemControl(entry, command, "system.attuned", "In sintonia", "boolean"),
             renderManagedItemControl(entry, command, "system.preparation.prepared", "Preparato", "boolean"),
@@ -4140,10 +4207,12 @@
             ["system.duration", "Durata"], ["system.attack", "Tiro per colpire"], ["system.damage", "Danni"],
             ["system.save", "Tiro salvezza e CD"], ["system.properties", "Proprietà e componenti"],
             ["system.materials", "Materiali"], ["system.recharge", "Ricarica"], ["system.activities", "Attività D&D5e"],
-            ["system.uses.recovery", "Recupero utilizzi"]
+            ["system.uses.recovery", "Recupero utilizzi"], ["effects", "Effetti collegati all'elemento"],
+            ["flags.midi-qol", "Impostazioni Midi-QOL"], ["flags.dae", "Impostazioni DAE"],
+            ["flags.khuzoe-automations.npcRules", "Preset Khuzoe per le attività"]
         ].map(([path, label]) => renderManagedItemJsonControl(entry, command, path, label)).filter(Boolean).join("");
         const guidedMechanics = renderManagedHumanMechanicsEditor(entry, command);
-        return `<details class="managed-item-editor"><summary><span><i class="fas fa-pen"></i> Modifica elemento</span><i class="fas fa-chevron-down managed-editor-chevron" aria-hidden="true"></i></summary><div class="managed-item-form" data-managed-item-form="${escapeAttr(key)}" data-managed-item-id="${escapeAttr(entry.itemId || "")}" data-managed-transfer-id="${escapeAttr(entry.transferId || "")}"><div class="managed-item-fields">${fields}</div><div class="managed-item-icon-editor" ${currentCanManageActor ? "" : "hidden"}><div>${entry.media?.icon?.path ? `<img src="${escapeAttr(resolveMedia(entry.media.icon.path))}" alt="">` : `<i class="fas fa-image"></i>`}</div><label class="managed-file-field"><span>Icona elemento</span><input type="file" accept="image/*" data-managed-item-icon></label></div><label class="managed-item-description"><span>Descrizione</span><div class="managed-richtext-editor" contenteditable="true" spellcheck="true" data-managed-item-path="system.description.value" data-managed-item-type="richtext" data-managed-description-dirty="false">${buildManagedDescriptionEditorHtml(description ?? "")}</div></label>${guidedMechanics}<details class="managed-mechanics-editor managed-mechanics-advanced"><summary><span><i class="fas fa-code"></i> Avanzato e automazioni</span><i class="fas fa-chevron-down"></i></summary><p>Qui rimangono i dati completi di D&D5e, MidiQOL e degli altri moduli. Usali solo per campi non presenti nell’editor guidato.</p><div class="managed-mechanics-grid">${mechanicalFields}</div></details><div class="managed-item-actions"><span data-managed-item-result></span><button type="button" class="button-gold-outline managed-danger-action" data-managed-item-delete><i class="fas fa-trash"></i> Elimina</button><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-save><i class="fas fa-cloud-arrow-up"></i> Invia a Foundry</button></div></div></details>`;
+        return `<details class="managed-item-editor"><summary><span><i class="fas fa-pen"></i> Modifica elemento</span><i class="fas fa-chevron-down managed-editor-chevron" aria-hidden="true"></i></summary><div class="managed-item-form" data-managed-item-form="${escapeAttr(key)}" data-managed-item-id="${escapeAttr(entry.itemId || "")}" data-managed-transfer-id="${escapeAttr(entry.transferId || "")}"><div class="managed-item-fields">${fields}</div><div class="managed-item-icon-editor" ${currentCanManageActor ? "" : "hidden"}><div>${entry.media?.icon?.path ? `<img src="${escapeAttr(resolveMedia(entry.media.icon.path))}" alt="">` : `<i class="fas fa-image"></i>`}</div><label class="managed-file-field"><span>Icona elemento</span><input type="file" accept="image/*" data-managed-item-icon></label></div><label class="managed-item-description"><span>Descrizione</span><div class="managed-richtext-editor" contenteditable="true" spellcheck="true" data-managed-item-path="system.description.value" data-managed-item-type="richtext" data-managed-description-dirty="false">${buildManagedDescriptionEditorHtml(description ?? "")}</div></label>${guidedMechanics}<details class="managed-mechanics-editor managed-mechanics-advanced"><summary><span><i class="fas fa-code"></i> Avanzato e automazioni</span><i class="fas fa-chevron-down"></i></summary><p>Attività, effetti collegati e impostazioni Midi/DAE. Usali per campi non presenti nell’editor guidato. I preset gestiscono i propri effetti: per rimuoverli, disattiva la relativa condizione.</p><div class="managed-mechanics-grid">${mechanicalFields}</div></details><div class="managed-item-actions"><span data-managed-item-result></span><button type="button" class="button-gold-outline managed-danger-action" data-managed-item-delete><i class="fas fa-trash"></i> Elimina</button><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-save><i class="fas fa-cloud-arrow-up"></i> Invia a Foundry</button></div></div></details>`;
     }
 
     function renderManagedHumanMechanicsEditor(entry, command) {
@@ -4211,7 +4280,7 @@
             renderManagedGuidedInput("system.recharge", "value", "Si ricarica con", recharge.value ?? "", "number", { min: 1, max: 6, step: 1 }),
             renderManagedGuidedToggle("system.recharge", "charged", "Attualmente carico", recharge.charged !== false)
         ]) : "";
-        const activitiesEditor = Object.keys(activities).length ? renderManagedActivitiesGuide(activities, entry) : "";
+        const activitiesEditor = Object.keys(activities).length ? renderManagedActivitiesGuide(activities, entry, command) : "";
         return `<section class="managed-guided-mechanics"><header><div><span class="managed-panel-eyebrow">Editor guidato</span><h4><i class="fas fa-sliders"></i> Meccaniche</h4></div><p>Modifica i valori principali senza toccare il JSON. Le automazioni avanzate restano conservate.</p></header><div class="managed-guided-grid">${cards.join("")}${damageEditor}${propertyEditor}${materialEditor}${rechargeEditor}</div>${activitiesEditor}</section>`;
     }
 
@@ -4324,7 +4393,19 @@
         return `<section class="managed-activity-section"><h5>Consumo delle risorse</h5>${fields}</section>`;
     }
 
-    function renderManagedActivitiesGuide(activities, entry) {
+    function renderManagedNpcRule(key, activity, entry, command) {
+        if (currentDocument?.definition?.editor?.npcRules !== 1) return `<p class="managed-rule-note">Per i preset di condizioni e cura dai danni, aggiorna Khuzoe Automations e sincronizza questa scheda da Foundry.</p>`;
+        if (!["attack", "save", "damage", "utility"].includes(activity.type)) return "";
+        const path = "flags.khuzoe-automations.npcRules";
+        const rules = getManagedItemDesiredValue(entry, command, path) || {version: 1, activities: {}};
+        const rule = rules.activities?.[key] || {};
+        const prefix = `activities.${key}`;
+        const conditions = [["blinded", "Accecato"], ["charmed", "Affascinato"], ["deafened", "Assordato"], ["frightened", "Spaventato"], ["grappled", "Afferrato"], ["incapacitated", "Incapacitato"], ["invisible", "Invisibile"], ["paralyzed", "Paralizzato"], ["petrified", "Pietrificato"], ["poisoned", "Avvelenato"], ["prone", "Prono"], ["restrained", "Trattenuto"], ["stunned", "Stordito"], ["unconscious", "Privo di sensi"]];
+        const trigger = activity.type === "save" ? "Ai bersagli che falliscono il tiro salvezza." : activity.type === "attack" ? "Ai bersagli colpiti dall'attacco." : "Ai bersagli dell'attività.";
+        return `<section class="managed-activity-section managed-npc-rules"><h5><i class="fas fa-wand-magic-sparkles"></i> Effetti rapidi</h5><p class="managed-rule-note">${trigger} Foundry usa le normali impostazioni di applicazione effetti di Midi.</p><div class="managed-guide-fields">${activity.type !== "utility" ? renderManagedGuidedSelect(path, `${prefix}.healing`, "Cura chi usa l'abilità", rule.healing ?? 0, [[0, "Nessuna cura"], [0.5, "Metà dei danni inflitti"], [1, "Tutti i danni inflitti"]], "number") : ""}${renderManagedGuidedInput(path, `${prefix}.rounds`, "Durata condizioni in round (0 = finché rimosse)", rule.rounds ?? 1, "number", {min: 0, max: 100, step: 1})}${renderManagedGuidedSelect(path, `${prefix}.expiry`, "Scadenza delle condizioni", rule.expiry ?? "turnEnd", [["turnEnd", "Fine del turno"], ["turnStart", "Inizio del turno"]])}</div><div class="managed-condition-choices" data-managed-guided-list="${path}" data-managed-guided-key="${prefix}.conditions">${conditions.map(([id, name]) => `<label><input type="checkbox" value="${id}" ${(rule.conditions ?? []).includes(id) ? "checked" : ""}><span>${name}</span></label>`).join("")}</div><p class="managed-rule-note">La cura somma i danni dopo resistenze, immunità e riduzioni, poi arrotonda per difetto. Richiede l'applicazione automatica dei danni in Midi. Le condizioni rapide non includono prove ripetute o rimozioni speciali, come la fuga da una presa.</p></section>`;
+    }
+
+    function renderManagedActivitiesGuide(activities, entry, command = null) {
         const labels = { attack: "Tiro per colpire", save: "Tiro salvezza", damage: "Danno", heal: "Cura", utility: "Utilita", check: "Prova", summon: "Evocazione", enchant: "Incantamento" };
         const cards = Object.entries(activities).map(([key, activity], index) => {
             const value = activity && typeof activity === "object" ? activity : {};
@@ -4343,7 +4424,7 @@
             const damageFields = damageParts.length || hasBase ? `<section class="managed-activity-section managed-activity-damage"><h5><i class="fas fa-burst"></i> Danni configurati</h5>${hasBase ? `<div class="managed-activity-base-damage">${renderManagedGuidedToggle("system.activities", `${key}.damage.includeBase`, "Includi il danno base dell'elemento", value.damage?.includeBase !== false)}</div>` : ""}<div class="managed-activity-damage-grid">${damageParts.map((part, partIndex) => renderManagedActivityDamagePart(key, part, partIndex, hasBase, entry, value)).join("")}</div></section>` : "";
             const healingFields = value.type === "heal" ? `<section class="managed-activity-section"><h5>Cura</h5>${renderManagedActivityDamagePart(key, value.healing || {}, 0, false, entry, value, true).replace("Tipi di danno", "Tipo di cura").replace("bludgeoning, force", "healing, temphp")}</section>` : "";
             const dcCalculation = hasSave ? `<div class="managed-guide-fields">${renderManagedGuidedSelect("system.activities", `${key}.save.dc.calculation`, "Calcolo della CD", value.save?.dc?.calculation || "", [["", "Formula fissa"], ["initial", "Automatico"], ["spellcasting", "Caratteristica magica"], ...managedAbilityOptions().filter(([ability]) => ability)])}</div>` : "";
-            return `<section class="managed-activity-guide" data-managed-activity-key="${escapeAttr(key)}"><header><span><b>${index + 1}</b><strong>${escapeHtml(title)}</strong></span><small>${escapeHtml(labels[value.type] || value.type)}</small></header><div data-managed-draft-preview>${renderManagedActivityPreview(value, entry)}</div><div class="managed-guide-fields managed-activity-common">${commonFields}</div>${attackFields}${saveFields}${dcCalculation}${damageFields}${healingFields}${renderManagedActivityGeometryEditor(key, value)}${renderManagedActivityConsumptionEditor(key, value)}</section>`;
+            return `<section class="managed-activity-guide" data-managed-activity-key="${escapeAttr(key)}"><header><span><b>${index + 1}</b><strong>${escapeHtml(title)}</strong></span><small>${escapeHtml(labels[value.type] || value.type)}</small></header><div data-managed-draft-preview>${renderManagedActivityPreview(value, entry)}</div><div class="managed-guide-fields managed-activity-common">${commonFields}</div>${attackFields}${saveFields}${dcCalculation}${damageFields}${healingFields}${renderManagedNpcRule(key, value, entry, command)}${renderManagedActivityGeometryEditor(key, value)}${renderManagedActivityConsumptionEditor(key, value)}</section>`;
         }).join("");
         return `<details class="managed-activities-guide" open><summary><span><i class="fas fa-diagram-project"></i> Attività</span><b>${Object.keys(activities).length}</b><i class="fas fa-chevron-down"></i></summary><div>${cards}</div></details>`;
     }
@@ -5373,13 +5454,22 @@
         const pending = (Array.isArray(currentDocument?.sync?.commands) ? currentDocument.sync.commands : [])
             .some((command) => command.status === "pending" && !String(command.kind || "").startsWith("actor-link."));
         if (!root?.isConnected || !pending) return;
-        const delay = Math.min(2_500 + (managedCommandPollAttempts * 750), 30_000);
+        if (managedCommandPollAttempts >= 20) {
+            const indicator = root.querySelector(".managed-sync-indicator");
+            if (indicator) indicator.textContent = "Modifiche ancora in coda. Ricarica la scheda per ricontrollare Foundry.";
+            return;
+        }
+        const delay = Math.min(2_500 * (2 ** Math.min(managedCommandPollAttempts, 5)), 60_000);
         managedCommandRefreshTimer = window.setTimeout(() => refreshManagedCommandState(root), delay);
     }
 
     async function refreshManagedCommandState(root) {
         managedCommandRefreshTimer = 0;
         if (!root?.isConnected) return;
+        if (document.hidden) {
+            managedCommandRefreshTimer = window.setTimeout(() => refreshManagedCommandState(root), 30_000);
+            return;
+        }
         if (managedSaveInProgress || root.querySelector('[data-managed-item-form][inert], [data-managed-effect-form][inert]')) {
             scheduleManagedCommandRefresh(root);
             return;

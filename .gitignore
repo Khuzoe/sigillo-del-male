@@ -1,4 +1,6 @@
 assets/data/foundry.json
+# Archivi generati: conservarli in locale, senza versionarli.
+*.zip
 module/
 foundry-modules/
 workers/

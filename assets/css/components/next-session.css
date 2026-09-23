@@ -421,9 +421,9 @@
 
 .poll-icon-editor {
   --icon-accent: #e1c379;
-  width: min(720px, calc(100% - 24px));
+  width: min(1000px, calc(100% - 24px));
   max-width: none;
-  max-height: 90dvh;
+  max-height: calc(100dvh - 24px);
   margin: auto;
   padding: 0;
   overflow: hidden;
@@ -442,22 +442,22 @@ html[data-campaign='mago-folle'] .poll-icon-editor { --icon-accent: #8be7ff; }
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: 1rem 1.25rem;
+  padding: .7rem 1.25rem;
   flex-shrink: 0;
 }
 .poll-icon-editor__header { border-bottom: 1px solid #ffffff13; }
 .poll-icon-editor__header p { margin: 0 0 0.3rem; color: var(--icon-accent); font-size: 0.72rem; }
-.poll-icon-editor h2 { margin: 0; font: 600 1.5rem/1.2 var(--font-heading); color: #f3ede5; }
+.poll-icon-editor h2 { margin: 0; font: 600 1.3rem/1.2 var(--font-heading); color: #f3ede5; }
 .poll-icon-editor h3 { margin: 0 0 0.65rem; font-size: 0.9rem; color: #e6ddd2; }
 .poll-icon-editor__intro, .poll-icon-editor__status {
   margin: 0;
-  padding: 0.7rem 1.25rem 0;
+  padding: 0.4rem 1.25rem 0;
   font-size: 0.76rem;
   line-height: 1.5;
   color: #bfb5c6;
   flex-shrink: 0;
 }
-.poll-icon-editor__status { padding-bottom: 0.7rem; color: var(--icon-accent); }
+.poll-icon-editor__status { padding-bottom: 0.4rem; color: var(--icon-accent); }
 .poll-icon-editor__status.is-error { color: #ffacac; }
 .poll-icon-editor__rows { min-height: 0; overflow-y: auto; padding: 0 1.25rem 1rem; }
 .poll-icon-editor__participant { padding: 0.9rem 0; border-top: 1px solid #ffffff13; }
@@ -471,7 +471,23 @@ html[data-campaign='mago-folle'] .poll-icon-editor { --icon-accent: #8be7ff; }
 }
 .poll-icon-editor__slot.is-dragover img { border-color: var(--icon-accent); }
 .poll-icon-editor__state { font-size: 0.78rem; font-weight: 700; }
-.poll-icon-editor__slot img { width: min(100%, 130px); aspect-ratio: 1; object-fit: cover; border: 1px solid #ffffff26; border-radius: 12px; background: #0c0b10; }
+.poll-icon-editor__preview { width: min(100%, 200px); aspect-ratio: 1; cursor: grab; touch-action: none; user-select: none; }
+.poll-icon-editor__preview:active { cursor: grabbing; }
+.poll-icon-editor[aria-busy="true"] .poll-icon-editor__preview { cursor: wait; }
+.poll-icon-editor__toolbar { display: flex; gap: 1rem; align-items: end; padding: .6rem 1.25rem; border-bottom: 1px solid #ffffff13; }
+.poll-icon-editor__toolbar[hidden], .poll-icon-editor__participant[hidden] { display: none; }
+.poll-icon-editor__toolbar > label { display: grid; gap: .4rem; flex: 1; color: #c9bbcf; font-size: .73rem; }
+.poll-icon-editor select, .poll-icon-editor input[type="number"] { min-width: 0; padding: .5rem; border: 1px solid #ffffff2b; border-radius: 7px; background: #211c29; color: #eee8df; font: inherit; }
+.poll-icon-editor__position { display: grid; gap: .65rem; width: 100%; padding: .65rem 0; }
+.poll-icon-editor__position label { display: grid; grid-template-columns: 5.3rem minmax(0, 1fr) 3.2rem auto; gap: .3rem; align-items: center; font-size: .67rem; color: #c9bbcf; }
+.poll-icon-editor__position input[type="range"] { width: 100%; min-width: 0; margin: 0; accent-color: var(--icon-accent); }
+.poll-icon-editor__position input[type="number"] { width: 100%; padding: .35rem; }
+.poll-icon-editor__slot-actions { display: flex; gap: .35rem; flex-wrap: wrap; justify-content: center; }
+.poll-icon-art { position: relative; display: block; width: 100%; height: 100%; overflow: hidden; }
+.poll-icon-art img { display: block; width: 100%; height: 100%; border: 0; border-radius: 0; background: transparent; pointer-events: none; }
+.poll-icon-art__base { position: absolute; inset: 0; object-fit: fill; }
+.poll-icon-art__portrait { position: absolute; overflow: hidden; }
+.poll-icon-art__source { position: absolute; inset: 0; object-fit: contain; transform-origin: center; }
 .poll-icon-editor__slot small { font-size: 0.65rem; color: #b3a8bc; }
 .poll-icon-editor button, .poll-icon-editor__upload {
   position: relative;
@@ -497,21 +513,28 @@ html[data-campaign='mago-folle'] .poll-icon-editor { --icon-accent: #8be7ff; }
   .poll-icon-editor__rows { padding-inline: 0.8rem; }
   .poll-icon-editor__footer { align-items: stretch; flex-direction: column; gap: 0.65rem; }
   .poll-icon-editor__footer > div { justify-content: flex-end; }
-  .poll-icon-editor__states { gap: 0.5rem; }
+  .poll-icon-editor__states { grid-template-columns: 1fr; gap: 1.25rem; }
+  .poll-icon-editor__slot { padding: 1rem; border: 1px solid #ffffff13; border-radius: 12px; }
+  .poll-icon-editor__position { max-width: 320px; }
+  .poll-icon-editor__toolbar { flex-wrap: wrap; padding: .8rem; }
 }
 
 .next-session-card-poll .availability-choice.has-cross-campaign-hint {
+  position: relative;
   border-style: dashed;
-  border-color: rgba(var(--poll-accent-rgb), 0.4);
+  border-color: rgba(var(--poll-accent-rgb), 0.22);
 }
 
 .next-session-card-poll .has-cross-campaign-hint .availability-choice-icon {
-  opacity: 0.38;
+  opacity: 0.16;
+  filter: none;
 }
 
-.next-session-card-poll .has-cross-campaign-hint.hint-yes { background: rgba(31, 190, 98, 0.1); }
-.next-session-card-poll .has-cross-campaign-hint.hint-maybe { background: rgba(216, 155, 29, 0.1); }
-.next-session-card-poll .has-cross-campaign-hint.hint-no { background: rgba(201, 61, 61, 0.1); }
+.next-session-card-poll .has-cross-campaign-hint.hint-yes { background: rgba(31, 190, 98, 0.025); }
+.next-session-card-poll .has-cross-campaign-hint.hint-maybe { background: rgba(216, 155, 29, 0.025); }
+.next-session-card-poll .has-cross-campaign-hint.hint-no { background: rgba(201, 61, 61, 0.025); }
+.availability-hint-label { position: absolute; inset: auto 0 0; padding: 4px 2px; background: rgba(17, 15, 21, .85); color: #b8aebd; font: 500 .55rem/1.3 var(--font-ui); text-align: center; pointer-events: none; }
+.next-session-card-poll .availability-row-is-own .availability-choice:disabled { opacity: 1; }
 
 .availability-hint-conflict {
   display: grid;
@@ -738,7 +761,9 @@ html[data-campaign='oltre-il-velo'] .next-session-card-poll {
 .poll-personal-slot-heading h4 { margin: 0; color: #eee6d7; font: 700 0.83rem/1.4 var(--font-ui); }
 .poll-personal-slot-heading p { margin: 0.2rem 0 0; color: #b7aabc; font: 500 0.74rem/1.4 var(--font-ui); }
 .poll-personal-preview { width: 54px; height: 54px; flex: 0 0 54px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--poll-line); border-radius: 9px; background: rgba(var(--poll-accent-rgb),0.04); color: #a595af; font: 500 1.4rem var(--font-ui); }
-.poll-personal-preview.is-hint { opacity: 0.38; border-style: dashed; }
+.poll-personal-preview.is-hint { border-style: dashed; background: transparent; }
+.poll-personal-preview.is-hint .availability-choice-icon { opacity: .16; filter: none; }
+.poll-personal-preview.is-hint > span { opacity: .4; }
 .poll-personal-clear { margin-left: auto; padding: 0.25rem; min-height: 40px; border: 0; background: transparent; color: #b7aabc; font: 500 0.68rem/1.4 var(--font-ui); text-decoration: underline; cursor: pointer; }
 .poll-personal-choices { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 0.4rem; }
 .poll-personal-choice { display: flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 44px; padding: 0.4rem 0.3rem; border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; background: rgba(255,255,255,0.03); color: #d4cbd9; font: 650 0.78rem/1.4 var(--font-ui); cursor: pointer; }
@@ -746,6 +771,7 @@ html[data-campaign='oltre-il-velo'] .next-session-card-poll {
 .poll-personal-choice[aria-pressed="true"].is-maybe { color: #ffe2a0; background: rgba(167,121,38,0.24); border-color: #c0994e; }
 .poll-personal-choice[aria-pressed="true"].is-no { color: #ffc2bf; background: rgba(172,58,58,0.25); border-color: #b76e6e; }
 .poll-personal-choice:disabled { cursor: wait; opacity: 0.65; }
+.poll-personal-choice:disabled[aria-pressed="true"] { opacity: 1; }
 .poll-personal-hint { margin: 0.65rem 0 0; color: #b8aabc; font: 500 0.69rem/1.5 var(--font-ui); }
 .poll-personal-save { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.5rem; color: #9acba7; font: 500 0.7rem/1.5 var(--font-ui); }
 .poll-personal-save[data-state="saving"] { color: var(--poll-accent); }

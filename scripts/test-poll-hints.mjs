@@ -6,7 +6,8 @@ const source = await readFile(new URL('../assets/js/shared/next-session.js', imp
 const exposedSource = source.replace('window.CriptaNextSession = {', `window.testPoll = {
     sessionApiService, readCachedPoll, writePollCache, invalidatePollCache, getPollSlotKey,
     buildCrossCampaignHints, loadCrossCampaignHints, postRemoteVote, postRemoteSessionConfig,
-    computeTotals, buildPollMarkup, sanitizeVotes, getNextVoteValue
+    computeTotals, buildPollMarkup, sanitizeVotes, getNextVoteValue, updatePollChoiceContent,
+    persistVotes, loadRemoteVotes
 }; window.CriptaNextSession = {`);
 const copy = (value) => JSON.parse(JSON.stringify(value));
 const identity = { accountId: 'alice', discordId: '100001' };
@@ -85,8 +86,87 @@ function createHarness({ storage = new Map(), request = async () => ({}), data =
     await Promise.resolve();
     h.api.writePollCache('race', { value: 'new' });
     resolveRead({ value: 'old' });
-    await pending;
+    assert.equal((await pending).value, 'new', 'The waiting UI must also receive the saved vote, not the stale GET');
     assert.equal((await h.api.readCachedPoll('race', () => assert.fail())).value, 'new');
+}
+
+// A late failed GET cannot make the UI fall back to old local votes after a successful write.
+{
+    let rejectRead;
+    const h = createHarness();
+    const pending = h.api.readCachedPoll('race-error', () => new Promise((resolve, reject) => { rejectRead = reject; }));
+    await Promise.resolve();
+    h.api.writePollCache('race-error', { value: 'saved' });
+    rejectRead(new Error('late network error'));
+    assert.equal((await pending).value, 'saved');
+}
+
+// An invalidated in-flight GET is refetched, rather than returning pre-invalidation votes.
+{
+    let resolveRead;
+    let reads = 0;
+    const h = createHarness();
+    const pending = h.api.readCachedPoll('invalidated', () => ++reads === 1
+        ? new Promise((resolve) => { resolveRead = resolve; }) : { value: 'fresh' });
+    await Promise.resolve();
+    h.api.invalidatePollCache('invalidated');
+    resolveRead({ value: 'old' });
+    assert.equal((await pending).value, 'fresh');
+    assert.equal(reads, 2);
+}
+
+// Partial legacy rows for the same account preserve other slots; explicit removals still apply.
+{
+    const { api } = createHarness();
+    const options = [slot('first'), slot('second'), slot('empty')];
+    const players = [{ id: 'hero', name: 'Hero', ...identity }];
+    const rows = [ownVote({ first: 'yes', second: 'maybe', removed: 'yes' }),
+        { playerId: identity.discordId, selections: { second: 'no' } }];
+    const merged = api.sanitizeVotes(rows, options, players);
+    assert.equal(merged.length, 1);
+    assert.deepEqual(copy(merged[0].selections), { first: 'yes', second: 'no', empty: '' });
+    assert.equal(api.computeTotals(merged, options).first.yes, 1);
+    const cleared = api.sanitizeVotes([...rows, ownVote({ first: '' })], options, players);
+    assert.deepEqual(copy(cleared[0].selections), { first: '', second: 'no', empty: '' });
+    const flat = api.sanitizeVotes([
+        { playerId: 'hero', optionId: 'first', value: 'yes' },
+        { playerId: identity.discordId, optionId: 'second', value: 'maybe' }
+    ], options, players);
+    assert.deepEqual(copy(flat[0].selections), { first: 'yes', second: 'maybe', empty: '' });
+}
+
+// Hint refreshes and save feedback must keep the same image node when its content is unchanged.
+{
+    const { api } = createHarness();
+    let replacements = 0;
+    let html = '';
+    const element = { set innerHTML(value) { html = value; replacements += 1; } };
+    api.updatePollChoiceContent(element, 'yes', 'hero');
+    const savedMarkup = html;
+    api.updatePollChoiceContent(element, 'yes', 'hero');
+    assert.equal(replacements, 1, 'Unchanged votes do not reload the image');
+    api.updatePollChoiceContent(element, 'yes', 'hero', 'hint');
+    assert.match(html, /Altre campagne/);
+    api.updatePollChoiceContent(element, 'yes', 'hero', 'hint');
+    assert.equal(replacements, 2, 'Opening hint details does not reload the image');
+    api.updatePollChoiceContent(element, 'yes', 'hero');
+    assert.equal(html, savedMarkup, 'A confirmed vote removes the other-campaign label');
+    api.updatePollChoiceContent(element, '', 'hero');
+    assert.equal(html, '', 'An explicit removal clears the selected image');
+}
+
+// Navigation cannot change the campaign targeted by an already-started read or persistence.
+{
+    const calls = [];
+    const h = createHarness({ request: async (path, options) => { calls.push(options.query.campaign); return { votes: [] }; } });
+    const local = new Map();
+    h.window.localStorage = { setItem: (key, value) => local.set(key, value) };
+    h.window.CriptaApp.campaigns.currentId = () => 'other';
+    await h.api.loadRemoteVotes(7, [], [], 'original');
+    h.api.persistVotes(7, [ownVote()], 'original');
+    assert.deepEqual(calls, ['original']);
+    assert.equal(local.size, 1);
+    assert.ok([...local.keys()][0].endsWith('-original-7'));
 }
 
 // Successful writes refresh only the relevant campaign; rejected votes leave the cache unchanged.

@@ -1993,6 +1993,8 @@ async function loadPollIcons(campaignId, env) {
   return {
     campaignId,
     voteIcons: saved?.voteIcons || {},
+    compositions: saved?.compositions || {},
+    compositionVersion: 1,
     version: saved?.version || "",
     updatedAt: saved?.updatedAt || "",
   };
@@ -2000,7 +2002,22 @@ async function loadPollIcons(campaignId, env) {
 
 async function withPollIcons(session, campaignId, env) {
   const settings = await loadPollIcons(campaignId, env);
-  return { ...scrubSessionData(session), voteIconOverrides: settings.voteIcons, voteIconsVersion: settings.version };
+  return { ...scrubSessionData(session), voteIconOverrides: settings.voteIcons, voteIconCompositions: settings.compositions, voteIconsVersion: settings.version };
+}
+
+function validPollIconPath(path, campaignId) {
+  const prefix = `media/campaigns/${campaignId}/poll-icons/`;
+  return typeof path === "string" && path.startsWith(prefix)
+    && /^[a-z0-9][a-z0-9_-]{0,179}\.webp$/.test(path.slice(prefix.length));
+}
+
+function validPollIconComposition(value, campaignId) {
+  return value && typeof value === "object" && !Array.isArray(value) && value.version === 1
+    && Object.keys(value).every(key => ["version", "sourcePath", "x", "y", "scale"].includes(key))
+    && (value.sourcePath === null || validPollIconPath(value.sourcePath, campaignId))
+    && typeof value.x === "number" && Number.isFinite(value.x) && Math.abs(value.x) <= 100
+    && typeof value.y === "number" && Number.isFinite(value.y) && Math.abs(value.y) <= 100
+    && typeof value.scale === "number" && Number.isFinite(value.scale) && value.scale >= 20 && value.scale <= 300;
 }
 
 async function handlePollIcons(request, campaignId, env, corsHeaders) {
@@ -2026,10 +2043,12 @@ async function handlePollIcons(request, campaignId, env, corsHeaders) {
       return json({ ok: false, error: "Partecipante o risposta non validi." }, 400, corsHeaders);
     }
     seen.add(`${change.playerId}:${change.state}`);
-    const prefix = `media/campaigns/${campaignId}/poll-icons/`;
-    if (change.path !== null && (typeof change.path !== "string" || !change.path.startsWith(prefix)
-        || !/^[a-z0-9][a-z0-9_-]{0,179}\.webp$/.test(change.path.slice(prefix.length)))) {
+    if (change.path !== null && !validPollIconPath(change.path, campaignId)) {
       return json({ ok: false, error: "L’immagine deve appartenere alle icone di questa campagna." }, 400, corsHeaders);
+    }
+    if (change.composition !== undefined && (!change.path || !validPollIconComposition(change.composition, campaignId)
+        || change.composition.sourcePath === change.path)) {
+      return json({ ok: false, error: "Posizione o immagine originale non valide." }, 400, corsHeaders);
     }
   }
   // Changes are applied only after every supplied image has been verified.
@@ -2037,16 +2056,24 @@ async function handlePollIcons(request, campaignId, env, corsHeaders) {
     if (change.path && (!env.MEDIA_BUCKET || !await env.MEDIA_BUCKET.head(change.path.slice(6)))) {
       return json({ ok: false, error: "Immagine non trovata. Ricaricala prima di salvare." }, 400, corsHeaders);
     }
+    if (change.composition?.sourcePath && !await env.MEDIA_BUCKET.head(change.composition.sourcePath.slice(6))) {
+      return json({ ok: false, error: "Immagine originale non trovata. Ricaricala prima di salvare." }, 400, corsHeaders);
+    }
   }
   const settings = await loadPollIcons(campaignId, env);
   if (body.version !== settings.version) {
     return json({ ok: false, error: "Le icone sono state modificate altrove. Chiudi e riapri il pannello prima di riprovare." }, 409, corsHeaders);
   }
-  for (const { playerId, state, path } of body.changes) {
+  for (const { playerId, state, path, composition } of body.changes) {
     if (path) settings.voteIcons[playerId] = { ...settings.voteIcons[playerId], [state]: path };
     else if (Object.hasOwn(settings.voteIcons, playerId)) {
       delete settings.voteIcons[playerId][state];
       if (!Object.keys(settings.voteIcons[playerId]).length) delete settings.voteIcons[playerId];
+    }
+    if (composition) settings.compositions[playerId] = { ...settings.compositions[playerId], [state]: composition };
+    else if (Object.hasOwn(settings.compositions, playerId)) {
+      delete settings.compositions[playerId][state];
+      if (!Object.keys(settings.compositions[playerId]).length) delete settings.compositions[playerId];
     }
   }
   settings.version = crypto.randomUUID();
@@ -5308,6 +5335,10 @@ const MANAGED_ACTOR_ITEM_PATCH_PATHS = new Set([
 ]);
 
 const MANAGED_ACTOR_ITEM_OBJECT_PATCH_PATHS = new Set([
+  "effects",
+  "flags.midi-qol",
+  "flags.dae",
+  "flags.khuzoe-automations.npcRules",
   "system.properties",
   "system.activation",
   "system.target",
@@ -5403,6 +5434,22 @@ function normalizeManagedMediaReference(value) {
 }
 
 function normalizeManagedActorItemCommandValue(path, value) {
+  if (["effects", "flags.midi-qol", "flags.dae", "flags.khuzoe-automations.npcRules"].includes(path)) {
+    const normalized = normalizeManagedCommandObject(value);
+    // A partial/truncated automation is dangerous. Reject it instead of silently dropping data.
+    if (!normalized.valid || JSON.stringify(normalized.value) !== JSON.stringify(value)) return {valid: false, value: null};
+    if (path === "effects") {
+      const ids = new Set();
+      if (!Array.isArray(value) || value.length > 64 || value.some(effect => {
+        if (!effect || !/^[A-Za-z0-9]{16}$/.test(effect._id ?? "") || ids.has(effect._id)
+          || typeof effect.name !== "string" || !effect.name.trim() || !Array.isArray(effect.statuses ?? [])) return true;
+        ids.add(effect._id);
+        return false;
+      })) return {valid: false, value: null};
+    } else if (Array.isArray(value)) return {valid: false, value: null};
+    if (path === "flags.khuzoe-automations.npcRules" && !validManagedNpcRules(value)) return {valid: false, value: null};
+    return normalized;
+  }
   if (path === "name") return { valid: typeof value === "string" && Boolean(String(value).trim()), value: String(value || "").trim().slice(0, 180) };
   if (path === "img") return normalizeManagedMediaReference(value);
   if (path === "system.description.value") {
@@ -5412,7 +5459,10 @@ function normalizeManagedActorItemCommandValue(path, value) {
   if (["system.equipped", "system.attuned", "system.preparation.prepared"].includes(path)) {
     return { valid: typeof value === "boolean", value: Boolean(value) };
   }
-  if (["system.quantity", "system.uses.value", "system.uses.spent", "system.uses.max", "system.level"].includes(path)) {
+  if (path === "system.uses.max") {
+    return {valid: typeof value === "string" ? value.length <= 180 : Number.isFinite(value) && value >= 0, value};
+  }
+  if (["system.quantity", "system.uses.value", "system.uses.spent", "system.level"].includes(path)) {
     const number = Number(value);
     return { valid: Number.isFinite(number), value: Math.max(0, Math.min(999_999, number)) };
   }
@@ -5422,6 +5472,20 @@ function normalizeManagedActorItemCommandValue(path, value) {
   }
   if (MANAGED_ACTOR_ITEM_OBJECT_PATCH_PATHS.has(path)) return normalizeManagedCommandObject(value);
   return { valid: false, value: null };
+}
+
+function validManagedNpcRules(value) {
+  const conditions = new Set(["blinded", "charmed", "deafened", "frightened", "grappled", "incapacitated", "invisible", "paralyzed", "petrified", "poisoned", "prone", "restrained", "stunned", "unconscious"]);
+  if (value?.version !== 1 || !value.activities || typeof value.activities !== "object" || Array.isArray(value.activities)
+    || Object.keys(value).some(key => !["version", "activities"].includes(key)) || Object.keys(value.activities).length > 32) return false;
+  return Object.entries(value.activities).every(([id, rule]) => /^[A-Za-z0-9_-]{1,64}$/.test(id)
+    && rule && typeof rule === "object" && !Array.isArray(rule)
+    && Object.keys(rule).every(key => ["healing", "conditions", "rounds", "expiry"].includes(key))
+    && [0, 0.5, 1].includes(rule.healing ?? 0)
+    && Array.isArray(rule.conditions ?? []) && (rule.conditions ?? []).length <= 14
+    && (rule.conditions ?? []).every(id => conditions.has(id))
+    && Number.isInteger(rule.rounds ?? 1) && (rule.rounds ?? 1) >= 0 && (rule.rounds ?? 1) <= 100
+    && ["turnStart", "turnEnd"].includes(rule.expiry ?? "turnEnd"));
 }
 
 function normalizeManagedActorEffectCommandValue(path, value) {
@@ -5509,6 +5573,7 @@ function normalizeManagedActorCommandPatch(input, kind = "item.update") {
   const base = baseIsEmpty
     ? { valid: true, value: path === "system.attributes.init.bonus" ? 0 : null }
     : normalizeValue(path, input.baseValue);
+  if ((path === "effects" || path.startsWith("flags.")) && !base.valid) return null;
   return { path, value: normalized.value, baseValue: base.valid ? base.value : null };
 }
 
@@ -6772,7 +6837,14 @@ async function handleManagedActorRuntimePost(request, route, fallbackCampaignId,
   }
   const updatedAt = new Date().toISOString();
   const runtime = normalizeManagedActorRuntime(body?.runtime);
-  await env.SIGILLO_KV.put(managedActorRuntimeKey(campaignId, route.worldId, route.actorId), JSON.stringify({
+  const runtimeKey = managedActorRuntimeKey(campaignId, route.worldId, route.actorId);
+  const previous = safeJsonParse(await env.SIGILLO_KV.get(runtimeKey));
+  if (previous && managedActorCommandValuesEqual(previous.runtime, runtime)) {
+    return json({ok: true, saved: false, campaignId, worldId: route.worldId, actorId: route.actorId, runtimeUpdatedAt: previous.updatedAt}, 200, {
+      ...corsHeaders, "Cache-Control": "private, no-store",
+    });
+  }
+  await env.SIGILLO_KV.put(runtimeKey, JSON.stringify({
     schemaVersion: 1,
     campaignId,
     worldId: route.worldId,
