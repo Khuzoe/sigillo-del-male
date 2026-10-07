@@ -17,6 +17,7 @@ workers/main-worker/src/*
 !workers/main-worker/src/calendar-v2.js
 !workers/main-worker/src/calendar-store.js
 !workers/main-worker/src/poll-store.js
+!workers/main-worker/src/skill-tree-store.js
 !workers/main-worker/src/campaign-items.js
 !workers/main-worker/src/economy-v1.js
 !workers/main-worker/src/foundry-sync-hub.js

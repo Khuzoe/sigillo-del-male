@@ -21,6 +21,7 @@
     "test:calendar": "node scripts/test-calendar-engine.js && node scripts/test-calendar-worker.js && node scripts/test-calendar-store.mjs && node scripts/test-calendar-sync-ui.mjs",
     "test:poll": "node scripts/test-poll-hints.mjs && node --experimental-default-type=module scripts/test-poll-icons.mjs && node scripts/test-poll-ux.mjs && node scripts/test-poll-composer.mjs",
     "test:poll-storage": "node --experimental-default-type=module scripts/test-poll-storage.mjs && node scripts/test-poll-storage-ui.mjs",
+    "test:skill-tree-storage": "node --experimental-default-type=module scripts/test-skill-tree-storage.mjs",
     "test:economy": "node scripts/test-economy-worker.js && node scripts/test-campaign-item-economy.js && node scripts/test-item-site-sync.js",
     "test:item-categories": "node --experimental-default-type=module scripts/test-campaign-item-categories.mjs",
     "test:npc-categories": "node --experimental-default-type=module scripts/test-npc-subcategories.mjs",

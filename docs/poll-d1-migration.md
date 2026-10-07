@@ -24,7 +24,7 @@ Restano le API `/api/session/current`, `/api/session`, `/api/session-votes`, il 
 - `poll_vote_documents`: metadati originali della raccolta.
 - `poll_imports`: copie integrali dei JSON KV originali e marcatori di importazione.
 
-La prima lettura di un sondaggio di una campagna abilitata copia sessione e voti da KV. Importazione e marcatore sono una transazione: due richieste contemporanee non duplicano i voti. I documenti KV originali non vengono modificati o cancellati. I sondaggi storici vengono importati quando consultati; quelli ancora solo in KV restano disponibili attraverso la stessa API. Il calendario, gli Actor e i progressi degli alberi non vengono migrati.
+La prima lettura di un sondaggio di una campagna abilitata copia sessione e voti da KV. Importazione e marcatore sono una transazione: due richieste contemporanee non duplicano i voti. I documenti KV originali non vengono modificati o cancellati. I sondaggi storici vengono importati quando consultati; quelli ancora solo in KV restano disponibili attraverso la stessa API. La migrazione dei sondaggi non coinvolge calendario, Actor o alberi. La successiva migrazione dei soli progressi degli alberi delle tre campagne è descritta in [skill-tree-d1-migration.md](skill-tree-d1-migration.md).
 
 Solo la campagna `cripta-di-sangue` può importare le vecchie chiavi senza prefisso campagna. Un JSON non valido interrompe l'importazione: non viene sostituito con dati vuoti. Una sessione corrente presente solo nella vecchia chiave `session/current` viene recuperata anche senza `session/<numero>`.
 

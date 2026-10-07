@@ -16,6 +16,7 @@
     let skillsVersion = null;
     let states = [];
     let statesVersion = null;
+    let stateRevisions = null;
     let skillTreeModulePromise = null;
 
     function escapeHtml(value) {
@@ -50,7 +51,7 @@
         if (skillTreeModulePromise) return skillTreeModulePromise;
         skillTreeModulePromise = new Promise((resolve, reject) => {
             const script = document.createElement("script");
-            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20260930-skill-requirements4", window.location.href).toString();
+            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20261007-skill-states-d1-1", window.location.href).toString();
             script.defer = true;
             script.dataset.managedSkillTreeScript = "true";
             script.addEventListener("load", () => window.CriptaCharacterSkillTree ? resolve(window.CriptaCharacterSkillTree) : reject(new Error("Modulo alberi non inizializzato.")), { once: true });
@@ -606,9 +607,11 @@
         try {
             const payload = await getApi("api/data/skill-tree-states", { query: { _: Date.now() } });
             statesVersion = Number(payload?.version || 0);
+            stateRevisions = payload?.stateRevisions || null;
             states = Array.isArray(payload?.data) ? payload.data : [];
         } catch (_) {
             statesVersion = null;
+            stateRevisions = null;
             states = [];
         }
         return states;
@@ -725,6 +728,7 @@
             skillsMemoryCache: allTrees,
             skillTreeStatesMemoryCache: allStates,
             skillTreeStatesVersion: statesVersion,
+            skillTreeStateRevisions: stateRevisions,
             skillTreeAuthState: authState,
             skillTreeCurrentUserIsDm: Boolean(isDm),
             escapeHtml,
@@ -739,8 +743,9 @@
             loadSkillTreeStates: async () => states,
             saveSkillTreesData: saveTrees,
             saveSkillTreeData: saveTree,
-            setSkillTreeStates(nextStates, version) {
+            setSkillTreeStates(nextStates, version, revisions) {
                 states = Array.isArray(nextStates) ? nextStates : [];
+                stateRevisions = revisions || null;
                 if (Number.isFinite(Number(version))) statesVersion = Number(version);
             },
             setSkillsCache(nextTrees, version) {

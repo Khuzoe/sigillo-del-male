@@ -116,7 +116,7 @@ function renderMarkdown(md, options = {}) {
     return window.CriptaMarkdown.render(md, getCharacterMarkdownOptions(options));
 }
 
-const CHARACTER_MODULE_VERSION = '20260930-skill-requirements4';
+const CHARACTER_MODULE_VERSION = '20261007-skill-states-d1-1';
 
 function versionedCharacterModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);
@@ -510,6 +510,7 @@ let skillsVersion = null;
 let skillTreeStatesRequestPromise = null;
 let skillTreeStatesMemoryCache = null;
 let skillTreeStatesVersion = null;
+let skillTreeStateRevisions = null;
 let characterSkillTreeModulePromise = null;
 let characterTransformationsModulePromise = null;
 let characterLoadoutModulePromise = null;
@@ -1084,6 +1085,7 @@ function applyCharacterBootstrap(bootstrap) {
     }
 
     const skillStatesDoc = dataService?.getCollectionDocument?.(bootstrap, 'skill-tree-states');
+    skillTreeStateRevisions = skillStatesDoc?.stateRevisions || null;
     if (Array.isArray(skillStatesDoc?.data)) {
         skillTreeStatesVersion = Number(skillStatesDoc.version || 0);
         skillTreeStatesMemoryCache = skillStatesDoc.data;
@@ -1383,11 +1385,13 @@ async function loadSkillTreeStates() {
         try {
             const payload = await window.CriptaApp?.api?.get?.('api/data/skill-tree-states', { query: { _: Date.now() } });
             skillTreeStatesVersion = Number(payload?.version || 0);
+            skillTreeStateRevisions = payload?.stateRevisions || null;
             skillTreeStatesMemoryCache = Array.isArray(payload?.data) ? payload.data : [];
             return skillTreeStatesMemoryCache;
         } catch (error) {
             console.warn('Stati alberi abilita online non disponibili:', error);
             skillTreeStatesVersion = null;
+            skillTreeStateRevisions = null;
             skillTreeStatesMemoryCache = [];
             return skillTreeStatesMemoryCache;
         } finally {
@@ -2230,6 +2234,7 @@ window.CriptaApp.onPageReady("character", async function () {
             skillsMemoryCache: skillsMemoryCache || currentPlayerSkillTrees || null,
             skillTreeStatesMemoryCache,
             skillTreeStatesVersion,
+            skillTreeStateRevisions,
             skillTreeAuthState: currentAuthState,
             skillTreeCurrentUserIsDm: currentUserIsDm,
             escapeHtml,
@@ -2244,8 +2249,9 @@ window.CriptaApp.onPageReady("character", async function () {
             loadSkillTreeStates,
             saveSkillTreesData,
             saveSkillTreeData: saveSingleSkillTreeData,
-            setSkillTreeStates(states, version) {
+            setSkillTreeStates(states, version, revisions) {
                 skillTreeStatesMemoryCache = Array.isArray(states) ? states : [];
+                skillTreeStateRevisions = revisions || null;
                 if (Number.isFinite(Number(version))) skillTreeStatesVersion = Number(version);
             },
             setSkillsCache(trees, version) {

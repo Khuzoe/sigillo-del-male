@@ -6,6 +6,7 @@
     let skillsMemoryCache = null;
     let skillTreeStatesMemoryCache = null;
     let skillTreeStatesVersion = null;
+    let skillTreeStateRevisions = null;
     let skillTreeStateSaveQueue = Promise.resolve();
     let skillTreeAuthState = null;
     let skillTreeCurrentUserIsDm = false;
@@ -65,12 +66,14 @@
             ? Number(skillTreeRuntime.skillTreeStatesVersion)
             : null;
         skillTreeAuthState = skillTreeRuntime.skillTreeAuthState || null;
+        skillTreeStateRevisions = skillTreeRuntime.skillTreeStateRevisions && typeof skillTreeRuntime.skillTreeStateRevisions === 'object'
+            ? { ...skillTreeRuntime.skillTreeStateRevisions } : null;
         skillTreeCurrentUserIsDm = Boolean(skillTreeRuntime.skillTreeCurrentUserIsDm);
     }
 
     function updateRuntimeSkillTreeStates(states, version) {
         if (typeof skillTreeRuntime.setSkillTreeStates === 'function') {
-            skillTreeRuntime.setSkillTreeStates(states, version);
+            skillTreeRuntime.setSkillTreeStates(states, version, skillTreeStateRevisions);
         }
     }
 
@@ -2381,13 +2384,16 @@ async function writeCharacterSkillTreeState(character, treeKey, unlockedIds, lev
         updatedAt: new Date().toISOString()
     };
     const nextStates = [...kept, nextRecord];
-    const body = { data: nextStates, expectedVersion };
+    const body = skillTreeStateRevisions !== null
+        ? { state: nextRecord, expectedStateRevision: skillTreeStateRevisions[stateId] ?? 0 }
+        : { data: nextStates, expectedVersion };
     const token = readSharedAuthToken();
     if (!token) throw new Error('Login richiesto per salvare lo stato albero abilita.');
     const result = await window.CriptaApp.api.post('api/data/skill-tree-states', body, { token });
     skillTreeStatesVersion = Number(result?.version || skillTreeStatesVersion || 0);
-    skillTreeStatesMemoryCache = nextStates;
-    updateRuntimeSkillTreeStates(nextStates, skillTreeStatesVersion);
+    if (result?.stateRevisions && typeof result.stateRevisions === 'object') skillTreeStateRevisions = { ...result.stateRevisions };
+    skillTreeStatesMemoryCache = Array.isArray(result?.data) ? result.data : nextStates;
+    updateRuntimeSkillTreeStates(skillTreeStatesMemoryCache, skillTreeStatesVersion);
     window.CriptaApp?.embedded?.postMessage?.({
         type: 'cripta-skill-tree-state-updated',
         campaignId: getCurrentCampaignId(),
@@ -2446,8 +2452,9 @@ async function deleteSkillTreeData(treeKey, treeData, allSkillTrees) {
         if (nextStates.length === existingStates.length) return;
         const result = await window.CriptaApp.api.post('api/data/skill-tree-states', { data: nextStates, expectedVersion: requireSkillTreeStatesVersion() }, { token });
         skillTreeStatesVersion = Number(result?.version || skillTreeStatesVersion || 0);
-        skillTreeStatesMemoryCache = nextStates;
-        updateRuntimeSkillTreeStates(nextStates, skillTreeStatesVersion);
+        if (result?.stateRevisions && typeof result.stateRevisions === 'object') skillTreeStateRevisions = { ...result.stateRevisions };
+        skillTreeStatesMemoryCache = Array.isArray(result?.data) ? result.data : nextStates;
+        updateRuntimeSkillTreeStates(skillTreeStatesMemoryCache, skillTreeStatesVersion);
     } catch (error) {
         console.warn('Pulizia stati albero abilita fallita:', error);
     }
