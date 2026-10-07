@@ -131,11 +131,14 @@
         const source = value || {};
         const hour = Number(source.hour);
         const minute = Number(source.minute);
+        const second = Number(source.second ?? 0);
         if (options.strict && (!Number.isInteger(hour) || hour < 0 || hour >= def.timeSystem.hoursPerDay)) return null;
         if (options.strict && (!Number.isInteger(minute) || minute < 0 || minute >= def.timeSystem.minutesPerHour)) return null;
+        if (options.strict && (!Number.isInteger(second) || second < 0 || second >= 60)) return null;
         return {
             hour: integer(hour, 0, def.timeSystem.hoursPerDay - 1, 0),
-            minute: integer(minute, 0, def.timeSystem.minutesPerHour - 1, 0)
+            minute: integer(minute, 0, def.timeSystem.minutesPerHour - 1, 0),
+            second: integer(second, 0, 59, 0)
         };
     }
 
@@ -200,14 +203,15 @@
     function shiftClock(definition, clockValue, amount, unit) {
         const def = normalizeDefinition(definition);
         const clock = normalizeClock(def, clockValue);
-        const perHour = def.timeSystem.minutesPerHour;
+        const perHour = def.timeSystem.minutesPerHour * 60;
         const perDay = def.timeSystem.hoursPerDay * perHour;
-        const factor = unit === "day" ? perDay : unit === "hour" ? perHour : 1;
-        const total = minuteIndex(def, clock.time) + Math.trunc(Number(amount) || 0) * factor;
+        const factor = unit === "day" ? perDay : unit === "hour" ? perHour : unit === "second" ? 1 : 60;
+        const total = clock.time.hour * perHour + clock.time.minute * 60 + clock.time.second + Math.trunc(Number(amount) || 0) * factor;
+        const withinDay = ((total % perDay) + perDay) % perDay;
         return {
             ...clock,
             date: addDays(def, clock.date, Math.floor(total / perDay)),
-            time: timeFromIndex(def, total)
+            time: { hour: Math.floor(withinDay / perHour), minute: Math.floor((withinDay % perHour) / 60), second: withinDay % 60 }
         };
     }
 

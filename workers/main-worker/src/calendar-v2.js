@@ -128,11 +128,14 @@ function normalizeTime(value, definition, strict = false) {
   const source = value || {};
   const hour = Number(source.hour);
   const minute = Number(source.minute);
+  const second = Number(source.second ?? 0);
   if (strict && (!Number.isInteger(hour) || hour < 0 || hour >= definition.timeSystem.hoursPerDay)) return null;
   if (strict && (!Number.isInteger(minute) || minute < 0 || minute >= definition.timeSystem.minutesPerHour)) return null;
+  if (strict && (!Number.isInteger(second) || second < 0 || second >= 60)) return null;
   return {
     hour: integer(hour, 0, definition.timeSystem.hoursPerDay - 1, 0),
     minute: integer(minute, 0, definition.timeSystem.minutesPerHour - 1, 0),
+    second: integer(second, 0, 59, 0),
   };
 }
 
@@ -178,17 +181,19 @@ function dateFromOrdinal(value, definition) {
 }
 
 function shiftClock(clockValue, amount, unit, definition) {
+  if (!["second", "minute", "hour", "day"].includes(unit) || !Number.isSafeInteger(Number(amount))) return null;
   const clock = normalizeClock(clockValue, definition);
-  const minutesPerHour = definition.timeSystem.minutesPerHour;
-  const minutesPerDay = definition.timeSystem.hoursPerDay * minutesPerHour;
-  const factor = unit === "day" ? minutesPerDay : unit === "hour" ? minutesPerHour : 1;
-  const total = clock.time.hour * minutesPerHour + clock.time.minute + integer(amount, -999999999, 999999999, 0) * factor;
-  const dayDelta = Math.floor(total / minutesPerDay);
-  const withinDay = ((total % minutesPerDay) + minutesPerDay) % minutesPerDay;
+  const perHour = definition.timeSystem.minutesPerHour * 60;
+  const perDay = definition.timeSystem.hoursPerDay * perHour;
+  const factor = { second: 1, minute: 60, hour: perHour, day: perDay }[unit];
+  const total = clock.time.hour * perHour + clock.time.minute * 60 + clock.time.second + Number(amount) * factor;
+  if (!Number.isSafeInteger(total)) return null;
+  const dayDelta = Math.floor(total / perDay);
+  const withinDay = ((total % perDay) + perDay) % perDay;
   return {
     ...clock,
     date: dateFromOrdinal(dateOrdinal(clock.date, definition) + dayDelta, definition),
-    time: { hour: Math.floor(withinDay / minutesPerHour), minute: withinDay % minutesPerHour },
+    time: { hour: Math.floor(withinDay / perHour), minute: Math.floor((withinDay % perHour) / 60), second: withinDay % 60 },
   };
 }
 
@@ -500,6 +505,9 @@ export async function handleCalendarEventUpsert(request, campaignId, env, corsHe
   const versionConflict = conflict(document, body.expectedVersion, corsHeaders);
   if (versionConflict) return versionConflict;
   const incomingId = id(body.event?.id) || `event-${crypto.randomUUID()}`;
+  if (body.expectedDefinitionRevision !== undefined && Number(body.expectedDefinitionRevision) !== document.definition.revision) {
+    return response({ ok: false, code: "DEFINITION_CONFLICT", error: "La struttura del calendario è cambiata. Riapri l'evento prima di salvare." }, 409, corsHeaders);
+  }
   const index = document.events.findIndex((event) => event.id === incomingId);
   const existing = index >= 0 ? document.events[index] : null;
   const expectedRevision = Number(body.expectedRevision || 0);
@@ -532,8 +540,8 @@ export async function handleCalendarEventUpsert(request, campaignId, env, corsHe
     const startOrdinal = dateOrdinal(normalized.start.date, document.definition);
     const endOrdinal = dateOrdinal(normalized.end.date, document.definition);
     const minutesPerHour = document.definition.timeSystem.minutesPerHour;
-    const startTime = normalized.allDay ? 0 : normalized.start.time.hour * minutesPerHour + normalized.start.time.minute;
-    const endTime = normalized.allDay ? 0 : normalized.end.time.hour * minutesPerHour + normalized.end.time.minute;
+    const startTime = normalized.allDay ? 0 : (normalized.start.time.hour * minutesPerHour + normalized.start.time.minute) * 60 + normalized.start.time.second;
+    const endTime = normalized.allDay ? 0 : (normalized.end.time.hour * minutesPerHour + normalized.end.time.minute) * 60 + normalized.end.time.second;
     if (endOrdinal < startOrdinal || (endOrdinal === startOrdinal && endTime < startTime)) {
       return response({ ok: false, error: "La fine non puo precedere l'inizio." }, 400, corsHeaders);
     }

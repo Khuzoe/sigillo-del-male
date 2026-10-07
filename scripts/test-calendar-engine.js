@@ -13,7 +13,7 @@ const definition = engine.normalizeDefinition({
 assert.equal(engine.formatTime(definition, { hour: 29, minute: 19 }), "29:19");
 assert.deepEqual(
     engine.shiftClock(definition, { date: { year: 1, monthId: "alpha", day: 10 }, time: { hour: 29, minute: 10 } }, 15, "minute"),
-    { revision: 1, date: { year: 1, monthId: "beta", day: 1 }, time: { hour: 0, minute: 5 }, updatedAt: "", updatedBy: "" }
+    { revision: 1, date: { year: 1, monthId: "beta", day: 1 }, time: { hour: 0, minute: 5, second: 0 }, updatedAt: "", updatedBy: "" }
 );
 assert.deepEqual(
     engine.shiftClock(definition, { date: { year: 1, monthId: "alpha", day: 1 }, time: { hour: 0, minute: 5 } }, -15, "minute").date,

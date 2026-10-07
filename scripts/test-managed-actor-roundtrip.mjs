@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
+import { CalendarStoreBase } from "../workers/main-worker/src/calendar-store.js";
 
 const copy = value => value === undefined ? undefined : structuredClone(value);
 const get = (value, path) => path.split(".").reduce((entry, key) => entry?.[key], value);
@@ -88,8 +89,8 @@ check(deferred.events[0].forceContentSync === true, "successful local changes fo
 equal((await pullSandbox.runPull(true)).acks, [{ id: "one", status: "applied" }], "ACK follows a confirmed snapshot publication");
 
 const workerSource = await readFile(new URL("../workers/main-worker/src/index.js", import.meta.url), "utf8");
-const workerSandbox = { console, Request, Response, Headers, URL, URLSearchParams, TextEncoder, TextDecoder, structuredClone, crypto: globalThis.crypto, atob, btoa, setTimeout, clearTimeout };
-vm.runInNewContext(workerSource.replace(/^import .*;\r?\n/gm, "").replace(/^export \{.*;\r?\n/gm, "").replace("export default {", "const worker = {") + `
+const workerSandbox = { console, Request, Response, Headers, URL, URLSearchParams, TextEncoder, TextDecoder, structuredClone, crypto: globalThis.crypto, atob, btoa, setTimeout, clearTimeout, CalendarStoreBase };
+vm.runInNewContext(workerSource.replace(/^import .*;\r?\n/gm, "").replace(/^export \{.*;\r?\n/gm, "").replace(/^export class /gm, "class ").replace("export default {", "const worker = {") + `
     authorizeManagedActorStatsWrite = async () => ({source: "site", isEditor: true, user: {id: "test-editor"}});
     globalThis.workerTest = { handleManagedActorCommandEnqueue, handleManagedActorCommandAck, handleManagedActorCommandList, managedActorDocumentKey, managedActorCommandQueueKey, managedActorCommandIsSatisfied, mergeManagedPendingPatch };
 `, workerSandbox);

@@ -1,6 +1,8 @@
 import { discordBotPreferencesKey, handleDiscordBotDmNotifications, normalizeDiscordBotPreferences, sendDiscordBotChannelCard } from "./discord-bot/notifications.js";
 import { handleCampaignItemFoundrySync, normalizeCampaignItemsForSiteSave } from "./campaign-items.js";
 import { handleCalendarGet, handleLegacyCalendarGet, handleCalendarEventUpsert, handleCalendarEventArchive, handleCalendarClockPost, handleCalendarConfigPost } from "./calendar-v2.js";
+import { CalendarStoreBase } from "./calendar-store.js";
+import { D1PollStore, PollStorageError } from "./poll-store.js";
 import { handleEconomyGet, handleEconomyPost } from "./economy-v1.js";
 export { FoundrySyncHub } from "./foundry-sync-hub.js";
 
@@ -59,6 +61,9 @@ export default {
       }
       if (url.pathname === "/api/item-categories" && request.method === "POST") {
         return handleItemCategoriesPost(request, queryCampaignId, env, corsHeaders, ctx);
+      }
+      if (calendarRoute(request) && env.CALENDAR_STORE) {
+        return env.CALENDAR_STORE.get(env.CALENDAR_STORE.idFromName(queryCampaignId)).fetch(request);
       }
       if (url.pathname === "/api/calendar" && request.method === "GET") {
         return handleCalendarGet(request, queryCampaignId, env, corsHeaders, calendarServices());
@@ -155,6 +160,15 @@ export default {
       }
       if (url.pathname === "/api/poll-icons" && ["GET", "POST"].includes(request.method)) {
         return handlePollIcons(request, queryCampaignId, env, corsHeaders);
+      }
+
+      if (url.pathname === "/api/polls/storage/export" && request.method === "GET") {
+        const user = await requireUser(request, env, corsHeaders);
+        if (user instanceof Response) return user;
+        if (!isAuthenticatedGlobalAdmin(user, env)) return json({ ok: false, error: "Solo admin." }, 403, corsHeaders);
+        const storage = pollStorage(env, queryCampaignId);
+        if (!storage) return json({ ok: false, error: "D1 non attivo per questa campagna." }, 409, corsHeaders);
+        return json(await storage.exportCampaign(), 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
       }
 
       if (url.pathname === "/api/asset-cleanup/dry-run" && request.method === "GET") {
@@ -1049,7 +1063,7 @@ export default {
         }
 
         const campaignId = queryCampaignId;
-        const data = await getCampaignKv(env.SIGILLO_KV, sessionCurrentKey(campaignId), "session/current");
+        const data = await readPollSessionRaw(env, campaignId);
 
         if (!data) {
           return json({ ok: false, error: "Current session not found" }, 404, corsHeaders);
@@ -1084,8 +1098,7 @@ export default {
         }
 
         const sessionNumber = Number(numberRaw);
-        const key = sessionKey(campaignId, sessionNumber);
-        const data = await getCampaignKv(env.SIGILLO_KV, key, `session/${sessionNumber}`);
+        const data = await readPollSessionRaw(env, campaignId, sessionNumber);
 
         if (!data) {
           return json(
@@ -1136,6 +1149,8 @@ export default {
 
         const campaignId = getCampaignIdFromBodyOrUrl(body, url);
         const number = body?.number;
+        const maintenance = pollWriteMaintenance(env, campaignId, corsHeaders);
+        if (maintenance) return maintenance;
         const dmAccountId = typeof body?.dmAccountId === "string" ? body.dmAccountId.trim() : "";
         const dmDiscordId = String(body?.dmDiscordId || "").trim();
         const pollManagerAccountIds = normalizeStringList(body?.pollManagerAccountIds || body?.sessionManagerAccountIds || []);
@@ -1159,12 +1174,13 @@ export default {
 
         const authenticatedAccountId = getAuthenticatedAccountId(user, env);
         const authenticatedDiscordId = getAuthenticatedDiscordId(user);
-        const canManagePoll = isAuthenticatedGlobalAdmin(user, env) || (
-          (dmAccountId && authenticatedAccountId === dmAccountId)
-          || pollManagerAccountIds.includes(authenticatedAccountId)
-          || (dmDiscordId && authenticatedDiscordId === dmDiscordId)
-          || pollManagerDiscordIds.includes(authenticatedDiscordId)
-        );
+        const existingSessionRaw = await readPollSessionRaw(env, campaignId, number);
+        const existingSession = safeJsonParse(existingSessionRaw) || {};
+        // Authorize against stored/configured roles, never roles in the draft.
+        const canManagePoll = isAuthenticatedGlobalAdmin(user, env)
+          || isExplicitCampaignEditor(campaignId, authenticatedAccountId, authenticatedDiscordId, env)
+          || (existingSessionRaw ? canManageSessionDiscordAction(user, env, existingSession)
+            : await isAuthenticatedCampaignEditor(user, env, campaignId));
         if (!canManagePoll) {
           return json(
             {
@@ -1214,14 +1230,12 @@ export default {
         }
 
         const sessionStorageKey = sessionKey(campaignId, number);
-        const existingSessionRaw = await getCampaignKv(env.SIGILLO_KV, sessionStorageKey, `session/${number}`);
-        const existingSession = safeJsonParse(existingSessionRaw) || {};
         const nowIso = new Date().toISOString();
         const createdAt = typeof body?.createdAt === "string" && body.createdAt.trim()
           ? body.createdAt.trim()
           : (typeof existingSession?.createdAt === "string" && existingSession.createdAt.trim() ? existingSession.createdAt.trim() : nowIso);
 
-        const sessionData = {
+        let sessionData = {
           number,
           campaignId,
           campaignName,
@@ -1241,23 +1255,28 @@ export default {
           updatedAt: nowIso,
         };
 
-        await putCampaignKv(env.SIGILLO_KV, sessionStorageKey, `session/${number}`, JSON.stringify(sessionData));
+        const storage = pollStorage(env, campaignId);
+        if (storage) {
+          sessionData = await storage.saveSession(sessionData, body.expectedRevision);
+        } else {
+          await putCampaignKv(env.SIGILLO_KV, sessionStorageKey, `session/${number}`, JSON.stringify(sessionData));
 
-        // aggiorna il puntatore alla prossima sessione attiva
-        await putCampaignKv(env.SIGILLO_KV, sessionCurrentKey(campaignId), "session/current", JSON.stringify(sessionData));
+          // aggiorna il puntatore alla prossima sessione attiva
+          await putCampaignKv(env.SIGILLO_KV, sessionCurrentKey(campaignId), "session/current", JSON.stringify(sessionData));
 
-        // inizializza i voti se non esistono
-        const votesKey = sessionVotesKey(campaignId, number);
-        const existingVotes = await getCampaignKv(env.SIGILLO_KV, votesKey, `session-votes/${number}`);
+          // inizializza i voti se non esistono
+          const votesKey = sessionVotesKey(campaignId, number);
+          const existingVotes = await getCampaignKv(env.SIGILLO_KV, votesKey, campaignId === DEFAULT_CAMPAIGN_ID ? `session-votes/${number}` : "");
 
-        if (!existingVotes) {
-          const votesData = {
-            sessionNumber: number,
-            campaignId,
-            votes: [],
-          };
+          if (!existingVotes) {
+            const votesData = {
+              sessionNumber: number,
+              campaignId,
+              votes: [],
+            };
 
-          await putCampaignKv(env.SIGILLO_KV, votesKey, `session-votes/${number}`, JSON.stringify(votesData));
+            await putCampaignKv(env.SIGILLO_KV, votesKey, `session-votes/${number}`, JSON.stringify(votesData));
+          }
         }
 
         return json(
@@ -1308,9 +1327,10 @@ export default {
         }
 
         const key = sessionVotesKey(campaignId, session);
-        const data = await getCampaignKv(env.SIGILLO_KV, key, `session-votes/${session}`);
+        const storage = pollStorage(env, campaignId);
+        const data = storage ? JSON.stringify(await storage.getVotes(Number(session))) : await getCampaignKv(env.SIGILLO_KV, key, campaignId === DEFAULT_CAMPAIGN_ID ? `session-votes/${session}` : "");
 
-        if (!data) {
+        if (!data || data === "null") {
           return json(
             { ok: false, error: "Session votes not found", session: Number(session) },
             404,
@@ -1319,7 +1339,7 @@ export default {
         }
 
         return new Response(data, {
-          headers: { "Content-Type": "application/json", ...corsHeaders },
+          headers: { "Content-Type": "application/json", ...corsHeaders, "Cache-Control": "no-store" },
         });
       }
 
@@ -1362,10 +1382,11 @@ export default {
 
         const campaignId = getCampaignIdFromBodyOrUrl(body, url);
         const sessionNumber = body?.sessionNumber;
+        const maintenance = pollWriteMaintenance(env, campaignId, corsHeaders);
+        if (maintenance) return maintenance;
         const authenticatedAccountId = getAuthenticatedAccountId(user, env);
         const authenticatedDiscordId = getAuthenticatedDiscordId(user);
         const requestedAccountId = sanitizeAccountId(body?.accountId || body?.playerId || "");
-        const requestedDiscordId = String(body?.discordId || "").trim();
         const optionId = String(body?.optionId || "").trim();
         const value = body?.value;
 
@@ -1399,8 +1420,7 @@ export default {
         }
 
         // controllo che la sessione esista e che optionId sia valido
-        const sessionStorageKey = sessionKey(campaignId, sessionNumber);
-        const sessionRaw = await getCampaignKv(env.SIGILLO_KV, sessionStorageKey, `session/${sessionNumber}`);
+        const sessionRaw = await readPollSessionRaw(env, campaignId, sessionNumber);
 
         if (!sessionRaw) {
           return json({ ok: false, error: "Session not found" }, 404, corsHeaders);
@@ -1421,8 +1441,18 @@ export default {
           return json({ ok: false, error: "Invalid optionId for this session" }, 400, corsHeaders);
         }
 
+        const storage = pollStorage(env, campaignId);
+        if (storage) {
+          const data = await storage.saveVote(sessionNumber, {
+            accountId: requestedAccountId, authenticatedDiscordId,
+            name: user.global_name || user.username || requestedAccountId, optionId, value
+          });
+          return json({ ok: true, saved: true, sessionNumber, playerId: requestedAccountId,
+            accountId: requestedAccountId, optionId, value, data }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+        }
+
         const key = sessionVotesKey(campaignId, sessionNumber);
-        const raw = await getCampaignKv(env.SIGILLO_KV, key, `session-votes/${sessionNumber}`);
+        const raw = await getCampaignKv(env.SIGILLO_KV, key, campaignId === DEFAULT_CAMPAIGN_ID ? `session-votes/${sessionNumber}` : "");
 
         let data;
         if (raw) {
@@ -1456,15 +1486,14 @@ export default {
           const voteAccountId = sanitizeAccountId(v?.accountId || v?.playerId || "");
           const voteDiscordId = String(v?.discordId || "").trim();
           return voteAccountId === requestedAccountId
-            || (authenticatedDiscordId && voteDiscordId === authenticatedDiscordId)
-            || (requestedDiscordId && voteDiscordId === requestedDiscordId);
+            || (authenticatedDiscordId && voteDiscordId === authenticatedDiscordId);
         });
 
         if (!player) {
           player = {
             playerId: requestedAccountId,
             accountId: requestedAccountId,
-            discordId: authenticatedDiscordId || requestedDiscordId || "",
+            discordId: authenticatedDiscordId || "",
             name: user.global_name || user.username || requestedAccountId,
             selections: {},
           };
@@ -1477,7 +1506,7 @@ export default {
 
         player.playerId = requestedAccountId;
         player.accountId = requestedAccountId;
-        player.discordId = authenticatedDiscordId || requestedDiscordId || player.discordId || "";
+        player.discordId = authenticatedDiscordId || player.discordId || "";
         player.name = user.global_name || user.username || player.name || requestedAccountId;
         player.selections[optionId] = value;
 
@@ -1504,6 +1533,9 @@ export default {
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     } catch (err) {
+      if (typeof PollStorageError !== "undefined" && err instanceof PollStorageError) {
+        return json({ ok: false, error: err.message, code: err.code }, err.status, corsHeadersFor(request));
+      }
       return new Response(
         JSON.stringify({
           ok: false,
@@ -2005,6 +2037,27 @@ async function withPollIcons(session, campaignId, env) {
   return { ...scrubSessionData(session), voteIconOverrides: settings.voteIcons, voteIconCompositions: settings.compositions, voteIconsVersion: settings.version };
 }
 
+function pollStorage(env, campaignId) {
+  const enabled = String(env.POLL_D1_CAMPAIGNS || "").split(/[,;\s]+/).includes(campaignId);
+  return enabled ? new D1PollStore(env, campaignId) : null;
+}
+
+function pollWriteMaintenance(env, campaignId, corsHeaders) {
+  const paused = String(env.POLL_WRITES_PAUSED_CAMPAIGNS || "").split(/[,;\s]+/).includes(campaignId);
+  return paused ? json({ ok: false, code: "POLL_WRITES_PAUSED", error: "Sondaggi in manutenzione. Riprova tra poco." },
+    503, { ...corsHeaders, "Cache-Control": "no-store", "Retry-After": "60" }) : null;
+}
+
+async function readPollSessionRaw(env, campaignId, number) {
+  const storage = pollStorage(env, campaignId);
+  if (storage) {
+    const session = number == null ? await storage.getCurrentSession() : await storage.getSession(number);
+    return session ? JSON.stringify(session) : null;
+  }
+  const key = number == null ? "session/current" : `session/${number}`;
+  return getCampaignKv(env.SIGILLO_KV, campaignKey(campaignId, key), campaignId === DEFAULT_CAMPAIGN_ID ? key : "");
+}
+
 function validPollIconPath(path, campaignId) {
   const prefix = `media/campaigns/${campaignId}/poll-icons/`;
   return typeof path === "string" && path.startsWith(prefix)
@@ -2087,8 +2140,8 @@ async function loadSessionForDiscordAction(env, campaignId, rawNumber) {
   const numberText = String(rawNumber || "").trim();
   const number = /^\d+$/.test(numberText) ? Number(numberText) : 0;
   const raw = number > 0
-    ? await getCampaignKv(env.SIGILLO_KV, sessionKey(cleanCampaignId, number), `session/${number}`)
-    : await getCampaignKv(env.SIGILLO_KV, sessionCurrentKey(cleanCampaignId), cleanCampaignId === DEFAULT_CAMPAIGN_ID ? "session/current" : "");
+    ? await readPollSessionRaw(env, cleanCampaignId, number)
+    : await readPollSessionRaw(env, cleanCampaignId);
   const session = safeJsonParse(raw);
   return session && typeof session === "object" ? { ...session, campaignId: session.campaignId || cleanCampaignId } : null;
 }
@@ -2214,11 +2267,7 @@ function getSessionNotificationCampaignIds(env) {
 }
 
 async function handleSessionStartNotificationForCampaign(env, campaignId) {
-  const raw = await getCampaignKv(
-    env.SIGILLO_KV,
-    sessionCurrentKey(campaignId),
-    campaignId === DEFAULT_CAMPAIGN_ID ? "session/current" : ""
-  );
+  const raw = await readPollSessionRaw(env, campaignId);
   const session = safeJsonParse(raw);
   if (!session || typeof session !== "object") return;
   if (!session.isScheduled || session.disableDiscordNotifications) return;
@@ -3508,6 +3557,21 @@ function calendarServices() {
     isAuthenticatedCampaignContentEditor,
     getAuthenticatedAccountId,
   };
+}
+
+function calendarRoute(request) {
+  const path = new URL(request.url).pathname;
+  if (request.method === "GET" && path === "/api/calendar") return handleCalendarGet;
+  if (request.method !== "POST") return null;
+  return ({ "/api/calendar/events/upsert": handleCalendarEventUpsert, "/api/calendar/events/archive": handleCalendarEventArchive,
+    "/api/calendar/clock": handleCalendarClockPost, "/api/calendar/config": handleCalendarConfigPost })[path] || null;
+}
+
+export class CalendarStore extends CalendarStoreBase {
+  context(request) {
+    return { campaignId: getCampaignIdFromUrl(new URL(request.url)), corsHeaders: corsHeadersFor(request, this.env),
+      services: calendarServices(), handler: calendarRoute(request), readHandler: handleCalendarGet };
+  }
 }
 
 function economyServices() {
@@ -5339,6 +5403,7 @@ const MANAGED_ACTOR_ITEM_OBJECT_PATCH_PATHS = new Set([
   "flags.midi-qol",
   "flags.dae",
   "flags.khuzoe-automations.npcRules",
+  "flags.khuzoe-automations.midiRollConfig",
   "system.properties",
   "system.activation",
   "system.target",
@@ -5434,7 +5499,7 @@ function normalizeManagedMediaReference(value) {
 }
 
 function normalizeManagedActorItemCommandValue(path, value) {
-  if (["effects", "flags.midi-qol", "flags.dae", "flags.khuzoe-automations.npcRules"].includes(path)) {
+  if (["effects", "flags.midi-qol", "flags.dae", "flags.khuzoe-automations.npcRules", "flags.khuzoe-automations.midiRollConfig"].includes(path)) {
     const normalized = normalizeManagedCommandObject(value);
     // A partial/truncated automation is dangerous. Reject it instead of silently dropping data.
     if (!normalized.valid || JSON.stringify(normalized.value) !== JSON.stringify(value)) return {valid: false, value: null};
@@ -5448,6 +5513,7 @@ function normalizeManagedActorItemCommandValue(path, value) {
       })) return {valid: false, value: null};
     } else if (Array.isArray(value)) return {valid: false, value: null};
     if (path === "flags.khuzoe-automations.npcRules" && !validManagedNpcRules(value)) return {valid: false, value: null};
+    if (path === "flags.khuzoe-automations.midiRollConfig" && !validManagedMidiRollConfig(value)) return {valid: false, value: null};
     return normalized;
   }
   if (path === "name") return { valid: typeof value === "string" && Boolean(String(value).trim()), value: String(value || "").trim().slice(0, 180) };
@@ -5472,6 +5538,33 @@ function normalizeManagedActorItemCommandValue(path, value) {
   }
   if (MANAGED_ACTOR_ITEM_OBJECT_PATCH_PATHS.has(path)) return normalizeManagedCommandObject(value);
   return { valid: false, value: null };
+}
+
+function validManagedMidiRollConfig(config, activities) {
+  const object = value => value && typeof value === "object" && !Array.isArray(value);
+  if (!object(config) || (config.version !== undefined && config.version !== 1)
+    || Object.keys(config).some(key => !["version", "activities"].includes(key))
+    || !object(config.activities) || Object.keys(config.activities).length > 32) return false;
+  return Object.entries(config.activities).every(([id, rule]) => {
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || ["__proto__", "constructor", "prototype"].includes(id)
+      || (activities && !Object.hasOwn(activities, id)) || !object(rule)
+      || Object.keys(rule).some(key => !["enabled", "attackMaxChance", "damageMaxChance"].includes(key))
+      || (rule.enabled !== undefined && typeof rule.enabled !== "boolean")) return false;
+    for (const field of ["attackMaxChance", "damageMaxChance"]) {
+      const value = rule[field];
+      if (value !== undefined && value !== null && (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 100)) return false;
+    }
+    return !activities || ((rule.attackMaxChance == null || activities[id].type === "attack")
+      && (rule.damageMaxChance == null || ["attack", "save", "damage"].includes(activities[id].type)));
+  });
+}
+
+function stripManagedMidiRollConfig(value) {
+  if (Array.isArray(value)) return value.map(stripManagedMidiRollConfig);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value)
+    .filter(([key]) => key !== "midiRollConfig" && key !== "flags.khuzoe-automations.midiRollConfig")
+    .map(([key, entry]) => [key, stripManagedMidiRollConfig(entry)]));
 }
 
 function validManagedNpcRules(value) {
@@ -5907,6 +6000,19 @@ function publicManagedActorCommand(command) {
   };
 }
 
+function managedActorCommandForReader(command, canReadMidiRolls) {
+  const result = publicManagedActorCommand(command);
+  const path = "flags.khuzoe-automations.midiRollConfig";
+  if (canReadMidiRolls || !result.patches?.some(patch => patch.path === path)) return result;
+  result.patches = result.patches.filter(patch => patch.path !== path);
+  if (!result.patches.length) return null;
+  result.current = stripManagedMidiRollConfig(result.current);
+  // Diagnostics can contain complete compared values of the private patch.
+  result.diagnostics = undefined;
+  result.error = result.error ? "Verifica le modifiche in attesa con l’admin." : "";
+  return result;
+}
+
 function mergeManagedPendingPatch(previous, patch) {
   let value = structuredClone(previous.value);
   // Two editors can change separate fields of the same activities object.
@@ -5946,6 +6052,12 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
   const authorization = await authorizeManagedActorStatsWrite(request, env, campaignId, corsHeaders, actor);
   if (authorization instanceof Response) return authorization;
   if (authorization.source !== "site") return json({ ok: false, error: "Managed actor commands must originate from the site" }, 400, corsHeaders);
+  const midiConfigPath = "flags.khuzoe-automations.midiRollConfig";
+  const midiPatches = Array.isArray(body?.patches) ? body.patches.filter(patch => String(patch?.path || "").trim() === midiConfigPath) : [];
+  const midiPatch = midiPatches[0];
+  if (midiPatch && !isAuthenticatedGlobalAdmin(authorization.user, env)) {
+    return json({ ok: false, error: "Solo l’admin può configurare le probabilità dei tiri." }, 403, corsHeaders);
+  }
   const expectedRevision = Number(body?.expectedRevision);
   if (!Number.isFinite(expectedRevision) || expectedRevision !== Number(actor.revision || 0)) {
     return json({ ok: false, error: "Managed actor revision conflict", code: "VERSION_CONFLICT", currentRevision: actor.revision || 0 }, 409, corsHeaders);
@@ -5981,6 +6093,14 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
     : [];
   if (isUpdate && (!Array.isArray(body?.patches) || patches.length !== body.patches.length)) {
     return json({ ok: false, error: "La richiesta contiene campi non modificabili o valori non validi. Nessuna modifica è stata accodata.", code: "INVALID_PATCH" }, 400, corsHeaders);
+  }
+  if (midiPatch) {
+    const item = (actor.definition?.items || []).find(entry =>
+      (target?.itemId && entry.itemId === target.itemId) || (target?.transferId && entry.transferId === target.transferId));
+    const activities = patches.find(patch => patch.path === "system.activities")?.value ?? item?.definition?.activities;
+    if (midiPatches.length !== 1 || kind !== "item.update" || !item || !activities || !validManagedMidiRollConfig(midiPatch.value, activities)) {
+      return json({ ok: false, error: "Configurazione tiri o attività non valida.", code: "INVALID_PATCH" }, 400, corsHeaders);
+    }
   }
   if (kind === "actor.update" && !managedActorHasSharedRuntime(actor)) {
     patches = patches.filter((patch) => !isManagedActorInstanceRuntimePatch(patch.path));
@@ -6099,7 +6219,7 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
     reason: `managed-actor-command:${kind}`,
     revision: queue.version,
   });
-  return json({ ok: true, queued: true, campaignId, worldId: route.worldId, actorId: route.actorId, queueVersion: queue.version, command: publicManagedActorCommand(command) }, 202, { ...corsHeaders, "Cache-Control": "private, no-store" });
+  return json({ ok: true, queued: true, campaignId, worldId: route.worldId, actorId: route.actorId, queueVersion: queue.version, command: managedActorCommandForReader(command, isAuthenticatedGlobalAdmin(authorization.user, env)) }, 202, { ...corsHeaders, "Cache-Control": "private, no-store" });
 }
 
 
@@ -7216,6 +7336,8 @@ function managedActorCommandIsSatisfied(document, command) {
 async function handleManagedActorGet(request, route, campaignId, env, corsHeaders = {}) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   const reader = await getManagedActorReader(request, env, campaignId);
+  const canConfigureMidiRolls = Boolean(isAuthenticatedGlobalAdmin(reader.user, env));
+  const canReadMidiRolls = canConfigureMidiRolls || isFoundrySyncSecretAuthorized(request, env);
   const [documentRaw, runtimeRaw, profileRaw] = await Promise.all([
     env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId)),
     env.SIGILLO_KV.get(managedActorRuntimeKey(campaignId, route.worldId, route.actorId)),
@@ -7271,16 +7393,17 @@ async function handleManagedActorGet(request, route, campaignId, env, corsHeader
     }
   }
   const commands = commandQueue
-    ? commandQueue.commands.filter((command) => command.actorId === route.actorId && ["pending", "review", "conflict", "failed"].includes(command.status)).slice(0, 64).map(publicManagedActorCommand)
+    ? commandQueue.commands.filter((command) => command.actorId === route.actorId && ["pending", "review", "conflict", "failed"].includes(command.status)).map(command => managedActorCommandForReader(command, canReadMidiRolls)).filter(Boolean).slice(0, 64)
     : [];
   const data = {
-    ...readableData,
+    ...(canReadMidiRolls ? readableData : stripManagedMidiRollConfig(readableData)),
     permissions: {
       canEdit,
       canEditStats,
       isEditor: reader.isEditor,
       isOwner,
       canManageVisibility: reader.isEditor,
+      canConfigureMidiRolls,
     },
     ...(commands.length ? { sync: { queueVersion: commandQueue.version, commands } } : {}),
   };
@@ -7570,6 +7693,9 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
   const existingData = Array.isArray(existing.data) ? existing.data : [];
   const expectedVersion = Number(body?.expectedVersion);
   const currentVersion = Number(existing.version || 0);
+  if (collection === "skill-tree-states" && (typeof body?.expectedVersion !== "number" || !Number.isInteger(expectedVersion) || expectedVersion < 0)) {
+    return json({ok: false, error: "Ricarica la pagina per leggere i progressi prima di salvarli.", code: "VERSION_CONFLICT", collection, campaignId, currentVersion}, 409, corsHeaders);
+  }
   if (Number.isFinite(expectedVersion) && expectedVersion !== currentVersion) {
     return json({
       ok: false,
@@ -7588,7 +7714,7 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
   let nextData = collection === "transformations" && !isCampaignEditor
     ? mergeUserTransformations(existingData, data, authenticatedAccountId)
     : collection === "skill-tree-states" && !isCampaignEditor
-      ? mergeUserSkillTreeStates(existingData, data, authenticatedAccountId)
+      ? mergeUserSkillTreeStates(existingData, data, authenticatedAccountId, (safeJsonParse(await env.SIGILLO_KV.get(dataCollectionKey("skill-trees", campaignId))) || {}).data)
       : collection === "calendar" && !isCampaignEditor
         ? mergeUserCalendarNotes(existingData, data, authenticatedAccountId, user)
       : ["ability-overrides", "item-overrides", "media-overrides"].includes(collection) && !isCampaignEditor
@@ -8120,23 +8246,42 @@ function mergeUserTransformations(existingData, submittedData, accountId) {
   return [...kept, ...own];
 }
 
-function isSharedSkillTreeStateEntry(entry) {
+function isSharedSkillTreeDefinition(entry) {
+  const tree = entry?.tree && typeof entry.tree === "object" ? entry.tree : entry;
+  if (!tree || typeof tree !== "object") return false;
+  const scope = String(tree.scope || entry.scope || tree.treeScope || entry.treeScope || tree.visibility || "").trim().toLowerCase();
+  const key = String(entry.id || entry.key || entry.treeKey || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  return tree.shared === true || entry.shared === true || tree.campaignShared === true || entry.campaignShared === true
+    || tree.global === true || entry.global === true
+    || ["campaign", "campagna", "shared", "condiviso", "global"].includes(scope)
+    || /^(campaign|campagna)(-|$)|^(shared|condiviso)-/.test(key);
+}
+
+function isSharedSkillTreeStateEntry(entry, sharedTreeKeys = new Set()) {
   if (!entry || typeof entry !== "object") return false;
   const scope = String(entry.scope || entry.stateScope || entry.visibility || "").trim().toLowerCase();
-  const characterId = sanitizeAssetId(entry.characterId || entry.subjectId || "");
+  const characterId = sanitizeAssetId(entry.characterId || entry.subjectId || "").replace(/^_+|_+$/g, "");
   return entry.shared === true
     || entry.campaignShared === true
+    || entry.global === true
+    || sharedTreeKeys.has(sanitizeAssetToken(entry.treeKey))
     || ["campaign", "campagna", "shared", "condiviso", "global"].includes(scope)
     || ["campaign", "campagna", "global", "all", "tutti"].includes(characterId);
 }
 
-function mergeUserSkillTreeStates(existingData, submittedData, accountId) {
+function mergeUserSkillTreeStates(existingData, submittedData, accountId, trees = []) {
   const cleanAccountId = sanitizeAccountId(accountId);
   if (!cleanAccountId) return existingData;
   const belongsToUser = (entry) => sanitizeAccountId(entry?.ownerAccountId || entry?.accountId || "") === cleanAccountId;
-  const kept = (Array.isArray(existingData) ? existingData : []).filter((entry) => isSharedSkillTreeStateEntry(entry) || !belongsToUser(entry));
+  const sharedTreeKeys = new Set((Array.isArray(trees) ? trees : []).filter(isSharedSkillTreeDefinition)
+    .map(entry => sanitizeAssetToken(entry.id || entry.key || entry.treeKey)).filter(Boolean));
+  const isShared = entry => isSharedSkillTreeStateEntry(entry, sharedTreeKeys)
+    || isSharedSkillTreeDefinition({id: entry?.treeKey});
+  const kept = (Array.isArray(existingData) ? existingData : []).filter((entry) => isShared(entry) || !belongsToUser(entry));
+  const protectedKeys = new Set(kept.filter(isShared).flatMap(entry => [entry?.id, entry?.key]).filter(Boolean).map(String));
   const own = (Array.isArray(submittedData) ? submittedData : [])
-    .filter((entry) => entry && typeof entry === "object" && belongsToUser(entry) && !isSharedSkillTreeStateEntry(entry))
+    .filter((entry) => entry && typeof entry === "object" && belongsToUser(entry) && !isShared(entry)
+      && ![entry.id, entry.key].some(key => key && protectedKeys.has(String(key))))
     .map((entry) => ({
       ...entry,
       ownerAccountId: cleanAccountId,
@@ -9033,11 +9178,7 @@ async function isAuthenticatedCampaignContentEditor(user, env, campaignId) {
   if (isExplicitCampaignEditor(cleanCampaignId, accountId, discordId, env)) return true;
   if (!env.SIGILLO_KV) return false;
 
-  const raw = await getCampaignKv(
-    env.SIGILLO_KV,
-    sessionCurrentKey(cleanCampaignId),
-    cleanCampaignId === DEFAULT_CAMPAIGN_ID ? "session/current" : ""
-  );
+  const raw = await readPollSessionRaw(env, cleanCampaignId);
   const session = safeJsonParse(raw);
   if (!session || typeof session !== "object") return false;
 
@@ -9060,11 +9201,7 @@ async function isAuthenticatedCampaignEditor(user, env, campaignId) {
 
   if (!env.SIGILLO_KV) return false;
 
-  const raw = await getCampaignKv(
-    env.SIGILLO_KV,
-    sessionCurrentKey(cleanCampaignId),
-    cleanCampaignId === DEFAULT_CAMPAIGN_ID ? "session/current" : ""
-  );
+  const raw = await readPollSessionRaw(env, cleanCampaignId);
   const session = safeJsonParse(raw);
   if (!session || typeof session !== "object") return false;
 

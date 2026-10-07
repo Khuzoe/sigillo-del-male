@@ -41,7 +41,7 @@ const exposed = `
         renderManagedActivitiesGuide, renderManagedActivityPreview, renderCoreStats, saveManagedActorPage, managedDossierImageWidth,
         enqueueManagedItemUpdate, enqueueManagedEffectUpdate, saveManagedActorPresentation,
         hasManagedUnsavedChanges, refreshManagedCommandState,
-        syncManagedGuidedList, renderManagedNpcRule, renderManagedActorControl,
+        syncManagedGuidedList, syncManagedGuidedControl, syncManagedMidiRollControls, renderManagedItemJsonControl, renderManagedItemEditor, renderManagedNpcRule, renderManagedActorControl,
         setAttempts(value) { managedCommandPollAttempts = value; }
     };
 `;
@@ -176,4 +176,48 @@ check(970 - editor.managedDossierImageWidth(970) - 28 >= 360, "wide illustrated 
 check(320 - editor.managedDossierImageWidth(320) - 16 >= 180, "mobile illustrations leave space for the text");
 check(editor.managedDossierImageWidth(40) <= 40, "illustrations cannot exceed even a very narrow container");
 
+const midiPath = "flags.khuzoe-automations.midiRollConfig";
+const midiEntry = {definition: {activities: {attack: {name: "Morso", type: "attack"}, save: {name: "Soffio", type: "save"}}, flags: {"khuzoe-automations": {midiRollConfig: {version: 1, activities: {attack: {enabled: true, attackMaxChance: 20, damageMaxChance: 50}}}}}}};
+editor.setDocument({...copy(actor), permissions: {canConfigureMidiRolls: false}});
+equal(editor.renderManagedItemJsonControl(midiEntry, null, midiPath, "Tiri"), "", "private controls are absent for non-admins even with a supplied config");
+editor.setDocument({...copy(actor), permissions: {canConfigureMidiRolls: true}});
+const midiHtml = editor.renderManagedItemJsonControl(midiEntry, null, midiPath, "Tiri");
+check(midiHtml.includes("Solo admin") && midiHtml.includes('placeholder="Normale"'), "admin sees simple controls with normal defaults");
+check(!midiHtml.includes("activities.save.attackMaxChance"), "save activity has no attack probability input");
+// Exercise the complete editor: testing the JSON control alone missed its capability gate.
+sandbox.DOMParser = class {
+    parseFromString(value) { assert.equal(value, ""); return {body: {innerHTML: "", querySelectorAll: () => []}}; }
+};
+const legacyMidiEntry = {name: "Morso", itemId: "bite", definition: {activities: {attack: {name: "Morso", type: "attack"}}}};
+for (const capability of [undefined, 0, 1]) {
+    const definition = copy(actor.definition);
+    if (capability !== undefined) definition.editor = {midiRollConfig: capability};
+    editor.setDocument({...copy(actor), definition, permissions: {canConfigureMidiRolls: true}});
+    const html = editor.renderManagedItemEditor(legacyMidiEntry, null);
+    check(html.includes(`data-managed-item-path="${midiPath}"`) && html.includes("20 naturale"), "admin can configure old NPCs without runtime metadata or stored flags");
+    check(html.includes('activities.attack.enabled') && !html.includes('activities.attack.enabled" data-managed-guided-type="boolean" checked'), "a legacy ability starts with normal dice and no enabled rule");
+}
+for (const permissions of [undefined, {canConfigureMidiRolls: false, canEditStats: true}]) {
+    editor.setDocument({...copy(actor), permissions, definition: {...copy(actor.definition), editor: {midiRollConfig: 1}}});
+    check(!editor.renderManagedItemEditor(midiEntry, null).includes(midiPath), "complete editor hides private configuration for DM and missing admin permission");
+}
+editor.setDocument({...copy(actor), permissions: {canConfigureMidiRolls: true}});
+const pendingMidiConfig = {version: 1, activities: {attack: {enabled: true, attackMaxChance: 75}}};
+const pendingMidiHtml = editor.renderManagedItemEditor(legacyMidiEntry, {kind: "item.update", status: "pending", patches: [{path: midiPath, value: pendingMidiConfig}]});
+check(pendingMidiHtml.includes('value="75"') && pendingMidiHtml.includes('&quot;attackMaxChance&quot;: 75'), "old snapshots show the queued admin configuration while Foundry has not acknowledged it");
+const midiTextarea = {value: JSON.stringify(midiEntry.definition.flags["khuzoe-automations"].midiRollConfig), dispatchEvent() {}};
+const midiForm = {querySelector: () => midiTextarea};
+sandbox.Event = class {constructor(type) {this.type = type;}};
+const chanceControl = {value: "75", dataset: {managedGuidedObject: midiPath, managedGuidedKey: "activities.attack.damageMaxChance", managedGuidedType: "number"}, closest: () => midiForm};
+const beforeMidiPosts = posts.length;
+editor.syncManagedGuidedControl(chanceControl);
+equal(JSON.parse(midiTextarea.value).activities.attack.damageMaxChance, 75, "percentage updates JSON draft");
+chanceControl.value = ""; editor.syncManagedGuidedControl(chanceControl);
+check(!Object.hasOwn(JSON.parse(midiTextarea.value).activities.attack, "damageMaxChance"), "blank restores normal probability by omitting the field");
+const enabledControl = {checked: false, dataset: {managedGuidedObject: midiPath, managedGuidedKey: "activities.attack.enabled", managedGuidedType: "boolean"}, closest: () => midiForm};
+editor.syncManagedGuidedControl(enabledControl);
+equal(JSON.parse(midiTextarea.value).activities.attack.attackMaxChance, 20, "disable retains configured attack percentage");
+equal(posts.length, beforeMidiPosts, "editing probabilities never saves automatically");
+editor.syncManagedMidiRollControls({querySelectorAll: () => [chanceControl, enabledControl]}, {activities: {attack: {enabled: true, damageMaxChance: 35}}});
+equal([chanceControl.value, enabledControl.checked], [35, true], "JSON edits update guided controls too");
 console.log(`Managed actor editor: ${assertions} behavioral checks passed.`);

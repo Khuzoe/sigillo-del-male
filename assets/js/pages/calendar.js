@@ -26,10 +26,17 @@
     };
     let root;
     let modalRoot;
+    let refreshTimer;
+    let refreshing = false;
+    const REFRESH_MS = 60000;
+    let lastReadAt = 0, retryAfter = 0, refreshFailures = 0;
+
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) void refreshFromFoundry(); });
 
     window.CriptaApp.onPageReady("calendario", init);
 
     async function init() {
+        clearInterval(refreshTimer);
         root = document.getElementById("calendar-root");
         modalRoot = document.getElementById("calendar-modal-root");
         if (!root || !modalRoot) return;
@@ -49,13 +56,38 @@
         try {
             consume(await API.load(), true);
             render();
+            refreshTimer = setInterval(refreshFromFoundry, REFRESH_MS);
         } catch (error) {
             console.error("Calendario non disponibile", error);
             root.innerHTML = `<div class="calendar-error"><i class="fa-solid fa-triangle-exclamation"></i><h1>Il calendario non si ? aperto</h1><p>${esc(error?.message || error)}</p><button data-action="reload">Riprova</button></div>`;
         }
     }
 
-    function consume(payload, initial = false) {
+    async function refreshFromFoundry() {
+        if (!root?.isConnected) { clearInterval(refreshTimer); return; }
+        // Keep an editor and its captured revision intact until it is closed.
+        if (document.hidden || S.modal || S.modalDirty || S.saving || refreshing || Date.now() - lastReadAt < REFRESH_MS || Date.now() < retryAfter) return;
+        refreshing = true;
+        const currentRoot = root;
+        const startedAt = Date.now();
+        try {
+            const payload = await API.load({ allowFallback: false });
+            lastReadAt = startedAt; retryAfter = 0; refreshFailures = 0;
+            if (root !== currentRoot || !root.isConnected || S.modal || S.saving) return;
+            if (payload.source === "static") return;
+            if (payload.version !== S.version || JSON.stringify(payload.permissions) !== JSON.stringify(S.permissions) || JSON.stringify(payload.calendar?.events) !== JSON.stringify(S.events)) {
+                consume(payload, false, startedAt);
+                render();
+            }
+        } catch (_) {
+            // Keep the last calendar while offline; do not also fetch legacy data.
+            retryAfter = Date.now() + Math.min(300000, REFRESH_MS * 2 ** Math.min(refreshFailures++, 3));
+        }
+        finally { refreshing = false; }
+    }
+
+    function consume(payload, initial = false, readAt = Date.now()) {
+        lastReadAt = readAt; retryAfter = 0; refreshFailures = 0;
         const calendar = payload?.calendar || {};
         S.definition = E.normalizeDefinition(calendar.definition);
         S.clock = E.normalizeClock(S.definition, calendar.clock);
@@ -320,12 +352,12 @@
         const isDm = Boolean(S.permissions.canEdit);
         const date = existing?.start?.date || S.selectedDate || S.clock.date;
         const draft = existing || {
-            id: "", revision: 0, kind: isDm ? "event" : "note",
+            id: `event-${crypto.randomUUID()}`, revision: 0, kind: isDm ? "event" : "note",
             visibility: isDm ? "players" : "owner", status: "scheduled",
             title: "", description: "", allDay: true,
             start: { date, time: { ...S.clock.time } }, end: null
         };
-        S.modal = { type: "event", draft };
+        S.modal = { type: "event", draft, definitionRevision: S.definition.revision };
         S.modalDirty = false;
         modalRoot.innerHTML = `
             <div class="calendar-modal-backdrop">
@@ -378,7 +410,7 @@
     }
 
     function openClockEditor() {
-        S.modal = { type: "clock" };
+        S.modal = { type: "clock", revision: S.clock.revision, version: S.version };
         S.modalDirty = false;
         modalRoot.innerHTML = `
             <div class="calendar-modal-backdrop">
@@ -415,7 +447,7 @@
 
     function openConfigEditor() {
         const def = S.definition;
-        S.modal = { type: "config" };
+        S.modal = { type: "config", version: S.version };
         S.modalDirty = false;
         modalRoot.innerHTML = `
             <div class="calendar-modal-backdrop">
@@ -508,7 +540,7 @@
             start: readMoment(data, "start", allDay),
             end: data.get("hasEnd") === "on" ? readMoment(data, "end", allDay) : null
         };
-        await modalSave(() => API.upsertEvent(event, Number(existing?.revision || 0), S.version), "Evento salvato.");
+        await modalSave(() => API.upsertEvent(event, Number(existing?.revision || 0), S.version, S.modal.definitionRevision), "Evento salvato.");
     }
 
     async function archiveEvent() {
@@ -521,7 +553,7 @@
         const form = modalRoot.querySelector("[data-clock-form]");
         if (!form?.reportValidity()) return;
         const data = new FormData(form);
-        await modalSave(() => API.updateClock({ clock: readMoment(data, "clock", false) }, S.clock.revision, S.version), "Data della campagna aggiornata.");
+        await modalSave(() => API.updateClock({ clock: readMoment(data, "clock", false) }, S.modal.revision, S.modal.version), "Data della campagna aggiornata.");
     }
 
     async function saveConfig() {
@@ -564,7 +596,7 @@
                 minute: Number(data.get("configMinute"))
             }
         };
-        await modalSave(() => API.saveConfig(definition, clock, S.version), "Configurazione salvata.");
+        await modalSave(() => API.saveConfig(definition, clock, S.modal.version), "Configurazione salvata.");
     }
 
     async function modalSave(operation, successMessage) {

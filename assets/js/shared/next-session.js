@@ -324,6 +324,7 @@
             sessionCardImageVersion: String(config?.sessionCardImageVersion || config?.ui?.sessionCardImageVersion || '').trim(),
             disableDiscordNotifications: Boolean(config?.disableDiscordNotifications),
             number: Number(config?.number) || 1,
+            revision: Number.isSafeInteger(config?.revision) && config.revision >= 0 ? config.revision : 0,
             createdAt: String(config?.createdAt || '').trim(),
             updatedAt: String(config?.updatedAt || '').trim(),
             dmAccountId: String(config?.dmAccountId || '').trim(),
@@ -401,6 +402,7 @@
         return {
             campaignId: cleanConfig.campaignId,
             number: cleanConfig.number,
+            expectedRevision: cleanConfig.revision,
             dmAccountId: cleanConfig.dmAccountId,
             dmDiscordId: cleanConfig.dmDiscordId,
             pollManagerAccountIds: cleanConfig.pollManagerAccountIds,
@@ -1408,7 +1410,9 @@
                     data-editor-action="toggle-pending-date"
                     data-pending-date="${escapeHtml(dateValue)}"
                     aria-pressed="${isExisting ? 'true' : 'false'}"
-                    title="${escapeHtml(isExisting ? 'Rimuovi questo giorno dal sondaggio' : formatLongItalianDate(dateValue))}">
+                    aria-label="${escapeHtml(formatLongItalianDate(dateValue))}, ${isExisting ? 'selezionato: clicca per rimuovere' : 'non selezionato: clicca per aggiungere'}"
+                    title="${escapeHtml(formatLongItalianDate(dateValue))} · ${isExisting ? 'Rimuovi dal sondaggio' : 'Aggiungi al sondaggio'}">
+                    ${isExisting ? '<svg class="next-session-calendar-check" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="m3 8 3 3 7-7"/></svg>' : ''}
                     <span>${date.getDate()}</span>
                     ${isWeekend ? '<small>p+s</small>' : ''}
                 </button>
@@ -1431,6 +1435,10 @@
                 </div>
                 <div class="next-session-calendar-grid">
                     ${days}
+                </div>
+                <div class="next-session-calendar-selection">
+                    <strong role="status" aria-live="polite" aria-atomic="true">${existingDates.size === 0 ? 'Nessun giorno selezionato' : `${existingDates.size} ${existingDates.size === 1 ? 'giorno selezionato' : 'giorni selezionati'}`}</strong>
+                    <span>Clicca un giorno per aggiungerlo o rimuoverlo.</span>
                 </div>
             </div>
         `;
@@ -1537,7 +1545,13 @@
     }
 
     async function postRemoteSessionConfig(config, token = '') {
-        const payload = await sessionApiService.saveSession(config, token);
+        let payload;
+        try {
+            payload = await sessionApiService.saveSession(config, token);
+        } catch (error) {
+            invalidatePollCache(`session:${config.campaignId || getCurrentCampaignId()}`);
+            throw error;
+        }
 
         const sessionConfig = extractSessionConfigFromApiPayload(payload);
         const campaignId = config.campaignId || getCurrentCampaignId();
@@ -2752,6 +2766,7 @@
             return sanitizeNextSessionConfig({
                 ...effectiveConfig,
                 number: isEditingCurrent ? Number(effectiveConfig.number) : Number(effectiveConfig.number) + 1,
+                revision: isEditingCurrent ? effectiveConfig.revision : 0,
                 date: '',
                 timeStart: '',
                 timeEnd: '',

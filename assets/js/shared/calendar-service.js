@@ -2,6 +2,7 @@
     "use strict";
 
     const API_ROOT = "api/calendar";
+    let coordinatedWrites = false;
 
     function token() {
         return String(window.CriptaDiscordAuth?.getToken?.() || window.CriptaApp?.auth?.getToken?.() || "").trim();
@@ -12,10 +13,14 @@
         return { cache: false, ...extra, ...(authToken ? { token: authToken } : {}) };
     }
 
-    async function load() {
+    async function load({ allowFallback = true } = {}) {
         try {
-            return await window.CriptaApp.api.get(API_ROOT, options({ query: { _: Date.now() } }));
+            const result = await window.CriptaApp.api.get(API_ROOT, options({ query: { _: Date.now() } }));
+            coordinatedWrites = Boolean(result.capabilities?.coordinatedWrites);
+            return result;
         } catch (error) {
+            if (!allowFallback) throw error;
+            coordinatedWrites = false;
             console.warn("Calendario v2 non disponibile, uso il fallback locale.", error);
             const legacy = await window.CriptaApp.data.globalJson("calendar.json", { cache: false });
             return legacyFallback(legacy);
@@ -70,13 +75,16 @@
     function post(path, body) {
         const authToken = token();
         if (!authToken) return Promise.reject(new Error("Accedi per modificare il calendario."));
+        // Event revisions protect the edited record; unrelated time steps must
+        // not invalidate an event editor while a Foundry session is running.
+        if (coordinatedWrites && path !== "config") { body = { ...body }; delete body.expectedVersion; }
         return window.CriptaApp.api.post(`${API_ROOT}/${path}`, body, { token: authToken });
     }
 
     window.CriptaCalendarService = {
         load,
-        upsertEvent(event, expectedRevision, expectedVersion) {
-            return post("events/upsert", { event, expectedRevision, expectedVersion });
+        upsertEvent(event, expectedRevision, expectedVersion, expectedDefinitionRevision) {
+            return post("events/upsert", { event, expectedRevision, expectedVersion, expectedDefinitionRevision });
         },
         archiveEvent(eventId, expectedRevision, expectedVersion) {
             return post("events/archive", { eventId, expectedRevision, expectedVersion });

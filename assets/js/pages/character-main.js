@@ -116,7 +116,7 @@ function renderMarkdown(md, options = {}) {
     return window.CriptaMarkdown.render(md, getCharacterMarkdownOptions(options));
 }
 
-const CHARACTER_MODULE_VERSION = '20260716-skill-editor2';
+const CHARACTER_MODULE_VERSION = '20260930-skill-requirements4';
 
 function versionedCharacterModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);

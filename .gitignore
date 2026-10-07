@@ -1,6 +1,9 @@
 assets/data/foundry.json
 # Archivi generati: conservarli in locale, senza versionarli.
 *.zip
+# Anteprime, esportazioni e cache locali: restano sul disco.
+/output/
+/.wrangler/
 module/
 foundry-modules/
 workers/
@@ -12,12 +15,16 @@ workers/main-worker/*
 workers/main-worker/src/*
 !workers/main-worker/src/index.js
 !workers/main-worker/src/calendar-v2.js
+!workers/main-worker/src/calendar-store.js
+!workers/main-worker/src/poll-store.js
 !workers/main-worker/src/campaign-items.js
 !workers/main-worker/src/economy-v1.js
 !workers/main-worker/src/foundry-sync-hub.js
 !workers/main-worker/src/discord-bot/
 !workers/main-worker/src/discord-bot/**
 !workers/main-worker/wrangler.jsonc
+!workers/main-worker/migrations/
+!workers/main-worker/migrations/*.sql
 workers/*/node_modules/
 workers/*/.wrangler/
 workers/*/.dev.vars

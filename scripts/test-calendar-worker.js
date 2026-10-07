@@ -82,7 +82,7 @@ async function main() {
     const stepped = await api.handleCalendarClockPost(stepRequest, campaign, env, {}, services);
     assert.equal(stepped.status, 200);
     const steppedJson = await stepped.json();
-    assert.deepEqual(steppedJson.calendar.clock.time, { hour: 0, minute: 5 });
+    assert.deepEqual(steppedJson.calendar.clock.time, { hour: 0, minute: 5, second: 0 });
     assert.equal(steppedJson.calendar.clock.date.day, 2);
 
     console.log("Calendar worker: privacy, migrazione e tempo superati.");

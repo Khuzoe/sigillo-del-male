@@ -1,3 +1,5 @@
+import { D1PollStore, pollD1Enabled } from "../poll-store.js";
+
 const DEFAULT_CAMPAIGN_ID = "cripta-di-sangue";
 const DEFAULT_NOTIFY_CAMPAIGNS = "cripta-di-sangue,mago-folle,oltre-il-velo";
 const DISCORD_API_BASE = "https://discord.com/api/v10";
@@ -190,6 +192,7 @@ async function notifySessionAdvance(env, campaignId, session, numberKey, partici
 }
 
 async function loadCurrentSession(env, campaignId) {
+  if (pollD1Enabled(env, campaignId)) return new D1PollStore(env, campaignId).getCurrentSession();
   const raw = await getCampaignKv(
     env.SIGILLO_KV,
     sessionCurrentKey(campaignId),
@@ -199,6 +202,7 @@ async function loadCurrentSession(env, campaignId) {
 }
 
 async function loadSessionVotes(env, campaignId, numberKey) {
+  if (pollD1Enabled(env, campaignId)) return await new D1PollStore(env, campaignId).getVotes(Number(numberKey)) || { votes: [] };
   const raw = await getCampaignKv(
     env.SIGILLO_KV,
     sessionVotesKey(campaignId, numberKey),

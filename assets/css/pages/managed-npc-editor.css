@@ -92,3 +92,11 @@
 .managed-condition-choices label:has(input:checked) { background: rgba(205,166,84,.14); border-color: rgba(205,166,84,.65); }
 .managed-rule-note, .managed-controlled-stat small { display: block; font-size: .8rem; line-height: 1.5; opacity: .8; }
 .managed-controlled-stat { display: grid; gap: .35rem; }
+.managed-midi-roll-config { grid-column: 1 / -1; padding: 1.2rem; border: 1px solid rgba(181, 139, 212, .25); border-radius: 14px; background: rgba(181, 139, 212, .045); }
+.managed-midi-roll-config > header { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.managed-midi-roll-config > header span { padding: .2rem .5rem; border-radius: 20px; background: rgba(181, 139, 212, .12); font-size: .7rem; }
+.managed-midi-roll-config > p { font-size: .85rem; line-height: 1.5; opacity: .75; }
+.managed-midi-roll-rule { padding-top: .9rem; margin-top: .9rem; border-top: 1px solid rgba(181, 139, 212, .15); }
+.managed-midi-roll-rule h5 { margin: 0 0 .7rem; }
+.managed-midi-roll-rule .managed-guide-toggle { display: inline-flex; align-items: center; gap: .5rem; }
+.managed-midi-roll-rule .managed-guide-fields { margin-top: .75rem; }

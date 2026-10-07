@@ -315,12 +315,13 @@ const captureLinkSnapshotBlock = moduleSyncSource.match(/function captureManaged
 assert.match(captureLinkSnapshotBlock, /actorSystem: managedActorLinkSystemState\(actor\)/, "lo snapshot deve proteggere l intero sistema Actor");
 assert.match(captureLinkSnapshotBlock, /actorDocument: managedActorLinkNativeActorSource\(actor\)/, "i nuovi backup devono conservare il documento Actor nativo completo");
 assert.doesNotMatch(captureLinkSnapshotBlock, /actorDefinitionState:/, "i nuovi backup non devono serializzare il modello abilities deprecato una seconda volta");
-assert.match(moduleSyncSource, /DocumentClass\.fromImport\(foundry\.utils\.deepClone\(source\)\)/, "la conversione deve affidare migrazione e validazione al percorso nativo di Foundry");
+assert.match(moduleSyncSource, /DocumentClass\.fromImport\(foundry\.utils\.deepClone\(source\), \{ strict: true, dropInvalidEmbedded: false \}\)/, "la conversione deve validare nativamente senza scartare documenti incorporati");
 assert.match(moduleSyncSource, /collection\.fromCompendium\(imported\)/, "l'importazione completa deve usare la trasformazione nativa da compendio");
 assert.match(moduleSyncSource, /noHook: true[\s\S]+criptaWikiSyncCommand: true/, "l'importazione nativa non deve generare una seconda sincronizzazione durante la transazione");
 const executeManagedActorLinkBlock = moduleSyncSource.match(/async function executeManagedActorLinkConversion[\s\S]+?(?=\r?\nasync function applyManagedActorLinkConversion)/)?.[0] || "";
 assert.match(executeManagedActorLinkBlock, /importManagedActorLinkActorDocument\(actor, selectedState\.actorDocument\)/, "lo stato selezionato deve usare il JSON Actor completo");
 assert.doesNotMatch(executeManagedActorLinkBlock, /nativeImport\.verification|nativa integrale/, "il percorso nativo riuscito non deve essere invalidato da una seconda ricostruzione euristica");
+assert.match(executeManagedActorLinkBlock, /verifyManagedActorLinkNativeDocument\(actor, nativeImport.expectedSource\)/, "la conferma deve confrontare il documento persistito con il payload nativo preparato prima della scrittura");
 assert.doesNotMatch(executeManagedActorLinkBlock, /mappedStructural|verifyManagedActorLinkCanonicalState/, "la conversione nativa non deve passare dalla vecchia associazione euristica degli Item");
 assert.doesNotMatch(executeManagedActorLinkBlock, /applyManagedActorLink(SystemState|StructuralState|Runtime|ActorEnvelope)\(actor, selectedState\./, "la conversione non deve piu ricostruire manualmente sottoinsiemi dell'Actor");
 assert.match(moduleSyncSource, /applyManagedActorLinkPlacedTokens\(actor, selectedState\.tokenConfiguration\)/, "tutte le istanze devono ricevere la configurazione del token autorevole");
@@ -357,8 +358,8 @@ const nativeFoundry = {
 };
 class NativeImportActorDocument {}
 NativeImportActorDocument.metadata = { preserveOnImport: ["_id", "ownership", "sort"] };
-NativeImportActorDocument.fromImport = async (source) => {
-  nativeImportEvents.push({ kind: "from-import", source: structuredClone(source) });
+NativeImportActorDocument.fromImport = async (source, options) => {
+  nativeImportEvents.push({ kind: "from-import", source: structuredClone(source), options });
   return { source: structuredClone(source) };
 };
 const nativeImportActor = {
@@ -381,9 +382,9 @@ const nativeImportActor = {
   },
 };
 const importNativeActorDocument = new Function(
-  "foundry",
+  "foundry", "managedActorLinkNativeImports",
   `${nativeActorImportBlock}\nreturn importManagedActorLinkActorDocument;`,
-)(nativeFoundry);
+)(nativeFoundry, new Set());
 const nativeImportResult = await importNativeActorDocument(nativeImportActor, {
   _id: "actor-source",
   name: "Sorgente",
@@ -393,6 +394,7 @@ const nativeImportResult = await importNativeActorDocument(nativeImportActor, {
 });
 assert.deepEqual(nativeImportEvents.map((entry) => entry.kind), ["from-import", "from-compendium", "update"]);
 assert.equal(nativeImportEvents[0].source._stats.coreVersion, "12.331", "la migrazione nativa deve ricevere i metadati di versione");
+assert.deepEqual(nativeImportEvents[0].options, { strict: true, dropInvalidEmbedded: false }, "un Item o effetto invalido deve impedire l'importazione invece di essere omesso");
 const nativeUpdate = nativeImportEvents.at(-1);
 assert.equal(nativeUpdate.data._id, "actor-target", "l'importazione deve conservare l'identita del world Actor");
 assert.deepEqual(nativeUpdate.data.ownership, { default: 3 }, "l'importazione deve conservare i permessi del world Actor");
@@ -431,9 +433,8 @@ const directActorJson = {
   items: [{ _id: "summon-fey", name: "Summon Fey", system: { target: { affects: { count: null } } } }],
   effects: [{ _id: "dead", name: "Dead" }],
 };
-const directImportResult = await importActorJsonDirectly(directImportActor, directActorJson);
-assert.deepEqual(directImportEvents, [directActorJson], "il JSON completo del token deve essere passato invariato a importFromJSON");
-assert.deepEqual(directImportResult.expectedSource, directActorJson, "il risultato deve essere lo stato realmente persistito dal percorso nativo");
+await assert.rejects(importActorJsonDirectly(directImportActor, directActorJson), /non supporta l'importazione completa/);
+assert.deepEqual(directImportEvents, [], "senza la preparazione nativa verificabile non deve esserci un fallback a importFromJSON che puo perdere documenti incorporati");
 assert.equal(directImportGuards.size, 0, "la protezione dagli hook deve essere sempre rimossa dopo l'importazione");
 
 assert.ok(nativeActorVerificationBlock, "la verifica del documento nativo deve essere testabile");

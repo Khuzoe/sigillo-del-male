@@ -14,6 +14,14 @@
       "id": "7c63ace205664e65bd59db105d74708a"
     }
   ],
+  "d1_databases": [
+    {
+      "binding": "POLL_DB",
+      "database_name": "khuzoe-wiki",
+      "database_id": "7cbdeb91-6194-4212-a89b-eda4fce4d58d",
+      "migrations_dir": "migrations"
+    }
+  ],
   "r2_buckets": [
     {
       "binding": "MEDIA_BUCKET",
@@ -22,6 +30,10 @@
   ],
   "durable_objects": {
     "bindings": [
+      {
+        "name": "CALENDAR_STORE",
+        "class_name": "CalendarStore"
+      },
       {
         "name": "FOUNDRY_SYNC_HUB",
         "class_name": "FoundrySyncHub"
@@ -34,9 +46,16 @@
       "new_sqlite_classes": [
         "FoundrySyncHub"
       ]
+    },
+    {
+      "tag": "calendar-store-v1",
+      "new_sqlite_classes": ["CalendarStore"]
     }
   ],
   "vars": {
+    // D1 enabled only for Cripta di Sangue; other campaigns keep KV.
+    "POLL_D1_CAMPAIGNS": "cripta-di-sangue",
+    "POLL_WRITES_PAUSED_CAMPAIGNS": "",
     "DISCORD_CLIENT_ID": "1475822167890595841",
     "DISCORD_REDIRECT_URI": "https://sigillo-api.khuzoe.workers.dev/auth/discord/callback",
     "FE_URL": "https://khuzoe.github.io/sigillo-del-male/",

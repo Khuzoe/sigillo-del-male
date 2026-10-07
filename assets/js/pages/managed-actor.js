@@ -1758,6 +1758,9 @@
         root.querySelectorAll("[data-managed-item-form]").forEach((form) => {
             form.addEventListener("input", (event) => {
                 if (!event.target.matches('[data-managed-item-type="json"]')) return;
+                if (event.target.dataset.managedItemPath === "flags.khuzoe-automations.midiRollConfig") {
+                    try { syncManagedMidiRollControls(form, JSON.parse(event.target.value)); } catch (_) { /* Keep controls while JSON is incomplete. */ }
+                }
                 const entry = findCurrentManagedItem(form.dataset.managedTransferId, form.dataset.managedItemId);
                 if (!entry) return;
                 try {
@@ -3845,6 +3848,15 @@
         return identitySlot;
     }
 
+    function hasManagedProfileContent(profile) {
+        const hasValue = (value) => String(value ?? "").trim().length > 0;
+        return Boolean(profile && (
+            hasValue(profile.role) || hasValue(profile.quote)
+            || Object.values(profile.summary || {}).some(hasValue)
+            || (profile.blocks || []).some((block) => hasValue(block.text) || hasValue(block.image) || hasValue(block.banner))
+        ));
+    }
+
     function setupManagedNpcWorkspace(root, actor, editing) {
         root._managedNpcReveal = null;
         root._managedNpcOpenHash = null;
@@ -3931,7 +3943,9 @@
             if (settings.children.length > 1) dossier.append(settings);
             if (getManagedActorLinkCommands(actor).length) settings.open = true;
         }
-        const activate = setupManagedTabGroup(nav, panes, root.dataset.npcPane, (pane, interact) => {
+        const defaultPane = hasManagedProfileContent(currentProfile) ? "managed-npc-profile" : "managed-npc-stats";
+        const preferredPane = panes.some((pane) => pane.id === initialPane) ? initialPane : defaultPane;
+        const activate = setupManagedTabGroup(nav, panes, preferredPane, (pane, interact) => {
             root.dataset.npcPane = pane.id;
             const showsPortrait = pane.key === "profile" && Boolean(portrait);
             root.classList.toggle("is-npc-dossier", pane.key === "profile");
@@ -4093,6 +4107,14 @@
         });
     }
 
+    function syncManagedMidiRollControls(form, config) {
+        form.querySelectorAll('[data-managed-guided-object="flags.khuzoe-automations.midiRollConfig"]').forEach(control => {
+            const value = control.dataset.managedGuidedKey.split(".").reduce((entry, key) => entry?.[key], config);
+            if (control.dataset.managedGuidedType === "boolean") control.checked = value === true;
+            else control.value = value ?? "";
+        });
+    }
+
     function setupManagedNpcActivityTabs(form, itemIndex) {
         const group = form.querySelector(".managed-activities-guide");
         const cards = Array.from(group?.querySelectorAll("[data-managed-activity-key]") || []);
@@ -4209,7 +4231,9 @@
             ["system.materials", "Materiali"], ["system.recharge", "Ricarica"], ["system.activities", "Attività D&D5e"],
             ["system.uses.recovery", "Recupero utilizzi"], ["effects", "Effetti collegati all'elemento"],
             ["flags.midi-qol", "Impostazioni Midi-QOL"], ["flags.dae", "Impostazioni DAE"],
-            ["flags.khuzoe-automations.npcRules", "Preset Khuzoe per le attività"]
+            ["flags.khuzoe-automations.npcRules", "Preset Khuzoe per le attività"],
+            ...(currentDocument?.permissions?.canConfigureMidiRolls === true
+                ? [["flags.khuzoe-automations.midiRollConfig", "Probabilità dei tiri · JSON admin"]] : [])
         ].map(([path, label]) => renderManagedItemJsonControl(entry, command, path, label)).filter(Boolean).join("");
         const guidedMechanics = renderManagedHumanMechanicsEditor(entry, command);
         return `<details class="managed-item-editor"><summary><span><i class="fas fa-pen"></i> Modifica elemento</span><i class="fas fa-chevron-down managed-editor-chevron" aria-hidden="true"></i></summary><div class="managed-item-form" data-managed-item-form="${escapeAttr(key)}" data-managed-item-id="${escapeAttr(entry.itemId || "")}" data-managed-transfer-id="${escapeAttr(entry.transferId || "")}"><div class="managed-item-fields">${fields}</div><div class="managed-item-icon-editor" ${currentCanManageActor ? "" : "hidden"}><div>${entry.media?.icon?.path ? `<img src="${escapeAttr(resolveMedia(entry.media.icon.path))}" alt="">` : `<i class="fas fa-image"></i>`}</div><label class="managed-file-field"><span>Icona elemento</span><input type="file" accept="image/*" data-managed-item-icon></label></div><label class="managed-item-description"><span>Descrizione</span><div class="managed-richtext-editor" contenteditable="true" spellcheck="true" data-managed-item-path="system.description.value" data-managed-item-type="richtext" data-managed-description-dirty="false">${buildManagedDescriptionEditorHtml(description ?? "")}</div></label>${guidedMechanics}<details class="managed-mechanics-editor managed-mechanics-advanced"><summary><span><i class="fas fa-code"></i> Avanzato e automazioni</span><i class="fas fa-chevron-down"></i></summary><p>Attività, effetti collegati e impostazioni Midi/DAE. Usali per campi non presenti nell’editor guidato. I preset gestiscono i propri effetti: per rimuoverli, disattiva la relativa condizione.</p><div class="managed-mechanics-grid">${mechanicalFields}</div></details><div class="managed-item-actions"><span data-managed-item-result></span><button type="button" class="button-gold-outline managed-danger-action" data-managed-item-delete><i class="fas fa-trash"></i> Elimina</button><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-save><i class="fas fa-cloud-arrow-up"></i> Invia a Foundry</button></div></div></details>`;
@@ -4437,10 +4461,25 @@
     }
 
     function renderManagedItemJsonControl(entry, command, path, label) {
+        if (path === "flags.khuzoe-automations.midiRollConfig" && currentDocument?.permissions?.canConfigureMidiRolls !== true) return "";
         const baseValue = getManagedItemBaseValue(entry, path);
         if (baseValue === undefined || baseValue === null) return "";
         const value = getManagedItemDesiredValue(entry, command, path);
-        return `<label class="managed-json-field"><span>${escapeHtml(label)}</span><textarea rows="7" spellcheck="false" data-managed-item-path="${escapeAttr(path)}" data-managed-item-type="json">${escapeHtml(JSON.stringify(value, null, 2))}</textarea></label>`;
+        const guide = path === "flags.khuzoe-automations.midiRollConfig" ? renderManagedMidiRollConfig(entry, command) : "";
+        return `${guide}<label class="managed-json-field"><span>${escapeHtml(label)}</span><textarea rows="7" spellcheck="false" data-managed-item-path="${escapeAttr(path)}" data-managed-item-type="json">${escapeHtml(JSON.stringify(value, null, 2))}</textarea></label>`;
+    }
+
+    function renderManagedMidiRollConfig(entry, command) {
+        if (currentDocument?.permissions?.canConfigureMidiRolls !== true) return "";
+        const path = "flags.khuzoe-automations.midiRollConfig";
+        const rules = getManagedItemDesiredValue(entry, command, path) || {version: 1, activities: {}};
+        const activities = getManagedItemDesiredValue(entry, command, "system.activities") || {};
+        const cards = Object.entries(activities).filter(([, activity]) => ["attack", "save", "damage"].includes(activity.type)).map(([id, activity]) => {
+            const rule = rules.activities?.[id] || {};
+            const prefix = `activities.${id}`;
+            return `<section class="managed-midi-roll-rule"><h5>${escapeHtml(activity.name || "Attività")}</h5>${renderManagedGuidedToggle(path, `${prefix}.enabled`, "Personalizza le probabilità", rule.enabled === true)}<div class="managed-guide-fields">${activity.type === "attack" ? renderManagedGuidedInput(path, `${prefix}.attackMaxChance`, "Probabilità di 20 naturale (%)", rule.attackMaxChance ?? "", "number", {min: 0, max: 100, step: .1, placeholder: "Normale"}) : ""}${renderManagedGuidedInput(path, `${prefix}.damageMaxChance`, "Probabilità del massimo sui danni (%)", rule.damageMaxChance ?? "", "number", {min: 0, max: 100, step: .1, placeholder: "Normale"})}</div></section>`;
+        }).join("");
+        return cards ? `<section class="managed-midi-roll-config"><header><strong>Probabilità dei tiri</strong><span>Solo admin</span></header><p>Lascia un campo vuoto per usare le probabilità normali. Ogni dado viene tirato separatamente; sono inclusi i dadi del critico. Il 20 naturale può causare un critico.</p>${cards}</section>` : "";
     }
 
     function renderManagedItemCreator(title) {
@@ -4474,6 +4513,7 @@
     function getManagedItemBaseValue(entry, path) {
         const definition = entry.definition || {};
         const state = entry.state || {};
+        if (path === "flags.khuzoe-automations.midiRollConfig") return definition.flags?.["khuzoe-automations"]?.midiRollConfig ?? {version: 1, activities: {}};
         if (path === "name") return entry.name || "";
         if (path === "img") return definition.img || "";
         if (path === "system.description.value") return definition.description || "";
