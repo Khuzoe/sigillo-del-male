@@ -53,8 +53,8 @@
     }
   ],
   "vars": {
-    // D1 enabled only for Cripta di Sangue; other campaigns keep KV.
-    "POLL_D1_CAMPAIGNS": "cripta-di-sangue",
+    // D1 enabled for polls in all currently configured campaigns.
+    "POLL_D1_CAMPAIGNS": "cripta-di-sangue,mago-folle,oltre-il-velo",
     "POLL_WRITES_PAUSED_CAMPAIGNS": "",
     "DISCORD_CLIENT_ID": "1475822167890595841",
     "DISCORD_REDIRECT_URI": "https://sigillo-api.khuzoe.workers.dev/auth/discord/callback",

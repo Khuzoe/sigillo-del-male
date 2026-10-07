@@ -2,13 +2,17 @@
 
 ## Stato della modifica
 
-Attivo dal 7 ottobre 2026 per i soli sondaggi di `cripta-di-sangue`. Il database D1 `khuzoe-wiki`, creato dall'utente su Cloudflare, è configurato nel binding `POLL_DB` con ID `7cbdeb91-6194-4212-a89b-eda4fce4d58d`; è stata applicata la migrazione additiva `0001_polls.sql`. La versione finale del Worker pubblicata e verificata è `cfe8bd3e-c79e-4cfa-b888-a1281a53266d`, con `POLL_D1_CAMPAIGNS=cripta-di-sangue` e `POLL_WRITES_PAUSED_CAMPAIGNS` vuoto. I salvataggi sono riabilitati e le altre campagne continuano a usare KV.
+Attivo dal 7 ottobre 2026 per i sondaggi di tutte le campagne attualmente configurate: `cripta-di-sangue`, `mago-folle` e `oltre-il-velo`. Il database D1 `khuzoe-wiki`, creato dall'utente su Cloudflare, è configurato nel binding `POLL_DB` con ID `7cbdeb91-6194-4212-a89b-eda4fce4d58d`; è stata applicata la migrazione additiva `0001_polls.sql`. La versione finale del Worker pubblicata e verificata è `0542ef6d-0a08-4bdf-aa90-148d1fb63985`, con `POLL_D1_CAMPAIGNS=cripta-di-sangue,mago-folle,oltre-il-velo` e `POLL_WRITES_PAUSED_CAMPAIGNS` vuoto. I salvataggi sono riabilitati per tutte e tre.
 
 Prima dell'attivazione è stata salvata una copia locale di 60 documenti KV dei sondaggi di Cripta di Sangue, inclusi quelli legacy, in `output/poll-backup-20261007/2026-10-07T12-28-44-975Z/`: ogni documento è stato verificato byte per byte e registrato nel manifest con SHA-256. La sessione corrente via API è la 37, con 5 partecipanti nel documento dei voti. Nessun dato remoto è stato modificato da questo backup. È uno snapshot acquisito con il servizio attivo; ripetere il backup nella finestra del passaggio prima di importare.
 
 Durante il passaggio sono stati bloccati i soli salvataggi dei sondaggi di Cripta, attendendo la propagazione prima del backup definitivo in `output/poll-backup-20261007/2026-10-07T12-33-45-588Z/`. La successiva attivazione di D1 è avvenuta mantenendo il blocco fino al termine delle verifiche. Importati 17 sondaggi (sessioni 21–37), 86 documenti di voto e 18 marcatori/copie originali; la sessione corrente rimane la 37 con 5 partecipanti. Confrontate 37 risposte API prima/dopo, comprese le sessioni correnti delle altre due campagne: configurazioni e voti coincidono. Verificati inoltre byte per byte tutti i 60 documenti KV e le copie originali D1. I report sono `verification.json` e `storage-verification.json` accanto al backup.
 
 Il frontend locale invia `expectedRevision`; la home locale è stata verificata nel browser e mostra la sessione 37, 5 partecipanti, 11 fasce orarie e le disponibilità preesistenti, senza errori di caricamento. Non sono stati inseriti voti fittizi o risalvate configurazioni reali per la verifica. Il frontend pubblico controllato il 7 ottobre 2026 non invia ancora la revisione e carica `next-session.js?v=20260923-poll-composer1`: l'utente ha autorizzato esplicitamente l'attivazione usando per ora il frontend locale. Lettura e normali voti rimangono compatibili; per modificare la configurazione dal sito pubblico resta da pubblicare `assets/js/shared/next-session.js`, `index.html`, `pages/sondaggio.html` e `pages/sessioni.html` aggiornati e verificare la versione `20261007-poll-storage1`.
+
+Successivamente l'utente ha modificato il proprio voto (account `andre`) per mercoledì 7 ottobre nella sessione 37 da `yes` a `no`: verificato sia direttamente in D1 sia tramite l'API. L'estensione alle altre due campagne ha bloccato temporaneamente solo i loro salvataggi, mantenendo Cripta disponibile. Il backup in `output/poll-backup-20261007/all-campaigns-2026-10-07T14-02-17-247Z/` contiene i 48 documenti KV delle due campagne e l'esportazione SQL di D1 prima dell'estensione, inclusa la modifica reale del voto di Cripta. Confrontate 48 risposte API prima/dopo e verificate tutte le copie KV immutate e 25 marcatori/copie originali D1. Il report è `verification.json` accanto al backup.
+
+In D1 risultano 17 sondaggi/86 documenti di voto per Cripta, 14/62 per Mago Folle e 9/35 per Oltre il Velo. Dopo la riapertura verificati i sondaggi correnti: Cripta sessione 37 con 5 partecipanti (voto modificato ancora `no`), Mago Folle sessione 15 con 5 partecipanti, Oltre il Velo sessione 10 con 3 partecipanti; tutti restituiscono `revision=1`. Il flag elenca gli ID esplicitamente: per una futura campagna nuova, eseguire la procedura di backup e attivazione e aggiungere il suo ID.
 
 Restano le API `/api/session/current`, `/api/session`, `/api/session-votes`, il formato dei voti e il compositore delle immagini. Le icone rimangono nei servizi KV/R2 attuali. Discord e i controlli dei permessi leggono il medesimo archivio selezionato per la campagna.
 
@@ -65,7 +69,7 @@ Il test crea un runtime Workers con D1/SQLite temporaneo, applica lo schema dal 
 6. Impostare `POLL_D1_CAMPAIGNS` a una sola campagna, per esempio `cripta-di-sangue`, e pubblicare il Worker. Successivamente si possono aggiungere ID separati da virgole.
 7. Controllare sessione corrente, voti preesistenti, immagini, una modifica autorizzata, un voto e i permessi. Verificare le metriche D1 prima di estendere l'attivazione.
 
-Cripta di Sangue è già attiva su D1. Resta da pubblicare il frontend pubblico aggiornato; per le altre campagne la procedura descritta resta da eseguire solo quando si sceglie di attivarle.
+Le tre campagne attuali sono già attive su D1. Resta da pubblicare il frontend pubblico aggiornato; la procedura descritta serve per eventuali campagne future.
 
 ## Esportazione e ritorno a KV
 
