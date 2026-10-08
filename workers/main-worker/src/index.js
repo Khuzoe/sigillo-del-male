@@ -4,6 +4,7 @@ import { handleCalendarGet, handleLegacyCalendarGet, handleCalendarEventUpsert, 
 import { CalendarStoreBase } from "./calendar-store.js";
 import { D1PollStore, PollStorageError } from "./poll-store.js";
 import { SkillTreeStateStore } from "./skill-tree-store.js";
+import { SkillTreeDefinitionStore } from "./skill-tree-definition-store.js";
 import { handleEconomyGet, handleEconomyPost } from "./economy-v1.js";
 export { FoundrySyncHub } from "./foundry-sync-hub.js";
 
@@ -181,12 +182,21 @@ export default {
         return json(await storage.exportCampaign(), 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
       }
 
+      if (url.pathname === "/api/skill-trees/storage/export" && request.method === "GET") {
+        const user = await requireUser(request, env, corsHeaders);
+        if (user instanceof Response) return user;
+        if (!isAuthenticatedGlobalAdmin(user, env)) return json({ ok: false, error: "Solo admin." }, 403, corsHeaders);
+        const storage = skillTreeDefinitionStorage(env, queryCampaignId);
+        if (!storage) return json({ ok: false, error: "D1 non attivo per questa campagna." }, 409, corsHeaders);
+        return json(await storage.exportCampaign(), 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
+      }
+
       if (url.pathname === "/api/asset-cleanup/dry-run" && request.method === "GET") {
-        return handleAssetCleanupDryRun(request, queryCampaignId, env, corsHeaders);
+        return await handleAssetCleanupDryRun(request, queryCampaignId, env, corsHeaders);
       }
 
       if (url.pathname === "/api/asset-cleanup/apply" && request.method === "POST") {
-        return handleAssetCleanupApply(request, queryCampaignId, env, corsHeaders);
+        return await handleAssetCleanupApply(request, queryCampaignId, env, corsHeaders);
       }
 
       if (url.pathname === "/auth/discord/foundry/start" && request.method === "GET") {
@@ -3150,7 +3160,8 @@ async function handleDataCollectionGet(collection, campaignId, env, corsHeaders 
     return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   }
 
-  const storage = collection === "skill-tree-states" ? skillTreeStorage(env, campaignId) : null;
+  const storage = collection === "skill-tree-states" ? skillTreeStorage(env, campaignId)
+    : collection === "skill-trees" ? skillTreeDefinitionStorage(env, campaignId) : null;
   if (storage) return json(await storage.getDocument(), 200, { ...corsHeaders, "Cache-Control": "no-store" });
   const key = dataCollectionKey(collection, campaignId);
   const raw = await env.SIGILLO_KV.get(key);
@@ -3177,7 +3188,8 @@ async function handleDataCollectionGet(collection, campaignId, env, corsHeaders 
 
 async function readDataCollectionDocument(collection, campaignId, env) {
   if (!env.SIGILLO_KV) return null;
-  const storage = collection === "skill-tree-states" ? skillTreeStorage(env, campaignId) : null;
+  const storage = collection === "skill-tree-states" ? skillTreeStorage(env, campaignId)
+    : collection === "skill-trees" ? skillTreeDefinitionStorage(env, campaignId) : null;
   if (storage) return storage.getDocument();
   const key = dataCollectionKey(collection, campaignId);
   const raw = await env.SIGILLO_KV.get(key);
@@ -7667,6 +7679,42 @@ function skillTreeStorage(env, campaignId) {
   return enabled ? new SkillTreeStateStore(env, campaignId) : null;
 }
 
+function skillTreeDefinitionStorage(env, campaignId) {
+  const enabled = String(env.SKILL_TREE_DEFINITION_D1_CAMPAIGNS || "").split(/[,;\s]+/).includes(campaignId);
+  return enabled ? new SkillTreeDefinitionStore(env, campaignId) : null;
+}
+
+function assertSkillTreeDefinitionWritesAllowed(env, campaignId) {
+  if (String(env.SKILL_TREE_DEFINITION_WRITES_PAUSED_CAMPAIGNS || "").split(/[,;\s]+/).includes(campaignId)) {
+    throw new PollStorageError("Struttura alberi in manutenzione. Riprova tra poco.", 503, "SKILL_TREE_DEFINITION_WRITES_PAUSED");
+  }
+}
+
+async function handleSkillTreeDefinitionD1Post(body, campaignId, user, env, corsHeaders, ctx) {
+  const storage = skillTreeDefinitionStorage(env, campaignId);
+  const attribution = { updatedAt: new Date().toISOString(), updatedBy: String(user.global_name || user.username || user.sub || ""), updatedByDiscordId: String(user.sub || "") };
+  const tree = body?.tree;
+  const targeted = tree && typeof tree === "object" && !Array.isArray(tree);
+  const data = targeted ? [tree] : body?.data;
+  if (!Array.isArray(data)) return json({ ok: false, error: "Expected { tree: {...} } or { data: [...] }." }, 400, corsHeaders);
+  if (JSON.stringify(data).length > 1024 * 1024) return json({ ok: false, error: "Payload too large" }, 413, corsHeaders);
+  let saved;
+  if (targeted && Object.hasOwn(body, "expectedTreeRevision")) {
+    saved = await storage.saveTree(tree, body.expectedTreeRevision, attribution);
+  } else {
+    let next = data;
+    if (targeted) {
+      const current = await storage.getDocument();
+      const existing = current.data || [];
+      const index = existing.findIndex(entry => String(entry.id || entry.key || "") === tree.id);
+      next = index < 0 ? [...existing, tree] : existing.map((entry, i) => i === index ? tree : entry);
+    }
+    saved = await storage.replaceCollection(next, body?.expectedVersion, attribution);
+  }
+  scheduleFoundryLiveInvalidation(ctx, env, { campaignId, collections: ["light-sync"], reason: "data:skill-trees", revision: saved.version });
+  return json({ ...saved, saved: true, count: saved.data.length }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+}
+
 async function handleSkillTreeStateD1Post(body, campaignId, user, isEditor, env, corsHeaders, ctx) {
   if (String(env.SKILL_TREE_WRITES_PAUSED_CAMPAIGNS || "").split(/[,;\s]+/).includes(campaignId)) {
     return json({ ok: false, error: "Progressi in manutenzione. Riprova tra poco.", code: "SKILL_TREE_WRITES_PAUSED" }, 503,
@@ -7682,7 +7730,7 @@ async function handleSkillTreeStateD1Post(body, campaignId, user, isEditor, env,
     let record = body.state;
     if (JSON.stringify(record).length > 1024 * 1024) return json({ ok: false, error: "Payload too large" }, 413, corsHeaders);
     if (!isEditor) {
-      const definitions = (safeJsonParse(await env.SIGILLO_KV.get(dataCollectionKey("skill-trees", campaignId))) || {}).data;
+      const definitions = (await readDataCollectionDocument("skill-trees", campaignId, env))?.data;
       const allowed = mergeUserSkillTreeStates(existing.data || [], [record], accountId, definitions)
         .find(entry => entry.id === record.id && sanitizeAccountId(entry.ownerAccountId) === accountId);
       const owned = await getEditableCharacterIdsForAccount(env, campaignId, accountId);
@@ -7693,7 +7741,7 @@ async function handleSkillTreeStateD1Post(body, campaignId, user, isEditor, env,
   } else {
     if (!Array.isArray(body?.data)) return json({ ok: false, error: "Expected { state: {...} } or { data: [...] }." }, 400, corsHeaders);
     if (JSON.stringify(body.data).length > 1024 * 1024) return json({ ok: false, error: "Payload too large" }, 413, corsHeaders);
-    const definitions = !isEditor ? (safeJsonParse(await env.SIGILLO_KV.get(dataCollectionKey("skill-trees", campaignId))) || {}).data : [];
+    const definitions = !isEditor ? (await readDataCollectionDocument("skill-trees", campaignId, env))?.data : [];
     const next = isEditor ? body.data : mergeUserSkillTreeStates(existing.data || [], body.data, accountId, definitions);
     saved = await storage.replaceCollection(next, body.expectedVersion, attribution);
   }
@@ -7718,6 +7766,11 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
 
   const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
   const isCampaignEditor = await isAuthenticatedCampaignEditor(user, env, campaignId);
+  if (collection === "skill-trees") {
+    if (!isCampaignEditor) return json({ ok: false, error: "Forbidden: data editing requires campaign editor permissions" }, 403, corsHeaders);
+    assertSkillTreeDefinitionWritesAllowed(env, campaignId);
+    if (skillTreeDefinitionStorage(env, campaignId)) return handleSkillTreeDefinitionD1Post(body, campaignId, user, env, corsHeaders, ctx);
+  }
   if (collection === "skill-tree-states") {
     if (String(env.SKILL_TREE_WRITES_PAUSED_CAMPAIGNS || "").split(/[,;\s]+/).includes(campaignId)) {
       return json({ ok: false, error: "Progressi in manutenzione. Riprova tra poco.", code: "SKILL_TREE_WRITES_PAUSED" }, 503,
@@ -7774,7 +7827,7 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
   let nextData = collection === "transformations" && !isCampaignEditor
     ? mergeUserTransformations(existingData, data, authenticatedAccountId)
     : collection === "skill-tree-states" && !isCampaignEditor
-      ? mergeUserSkillTreeStates(existingData, data, authenticatedAccountId, (safeJsonParse(await env.SIGILLO_KV.get(dataCollectionKey("skill-trees", campaignId))) || {}).data)
+      ? mergeUserSkillTreeStates(existingData, data, authenticatedAccountId, (await readDataCollectionDocument("skill-trees", campaignId, env))?.data)
       : collection === "calendar" && !isCampaignEditor
         ? mergeUserCalendarNotes(existingData, data, authenticatedAccountId, user)
       : ["ability-overrides", "item-overrides", "media-overrides"].includes(collection) && !isCampaignEditor
@@ -7972,6 +8025,12 @@ async function handleAssetCleanupApply(request, fallbackCampaignId, env, corsHea
 }
 
 async function writeDataCollectionDocument(collection, campaignId, data, user, env, expectedVersion) {
+  if (collection === "skill-trees") {
+    assertSkillTreeDefinitionWritesAllowed(env, campaignId);
+    const storage = skillTreeDefinitionStorage(env, campaignId);
+    if (storage) return storage.replaceCollection(data, expectedVersion, { updatedAt: new Date().toISOString(),
+      updatedBy: String(user?.global_name || user?.username || user?.sub || "cleanup"), updatedByDiscordId: String(user?.sub || "") });
+  }
   if (collection === "skill-tree-states") {
     if (String(env.SKILL_TREE_WRITES_PAUSED_CAMPAIGNS || "").split(/[,;\s]+/).includes(campaignId)) {
       throw new PollStorageError("Progressi in manutenzione.", 503, "SKILL_TREE_WRITES_PAUSED");

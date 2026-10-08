@@ -79,6 +79,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     bindPrefetchForLinks(document);
     setDmOnlyVisibility(false);
     window.addEventListener("message", handleEmbeddedAuthMessage);
+    postEmbeddedParentMessage({ type: "cripta-embed-ready" });
     loadSidebar(basePath);
     warmEmbedSectionScripts(basePath);
     initPageAccessControls(basePath);
@@ -2169,6 +2170,10 @@ function handleEmbeddedAuthMessage(event) {
 
     if (event.source !== window.parent || !embeddedParentOrigin || event.origin !== embeddedParentOrigin) return;
     if (data?.type !== "cripta-auth-token" || !data?.token) return;
+
+    // Foundry sends authentication again after iframe load or navigation.
+    // Receiving the same session must not start another page reload.
+    if (String(data.token) === readStoredToken()) return;
 
     storeToken(String(data.token));
     try {

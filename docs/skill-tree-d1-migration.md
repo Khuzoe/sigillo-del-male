@@ -2,7 +2,7 @@
 
 ## Ambito
 
-La raccolta `skill-tree-states` può usare D1 per campagne elencate esplicitamente in `SKILL_TREE_D1_CAMPAIGNS`. Definizioni degli alberi, requisiti, immagini, personaggi, inventario e calendari rimangono nei loro archivi attuali. Il binding D1 è lo stesso `POLL_DB` già usato dai sondaggi.
+La raccolta `skill-tree-states` può usare D1 per campagne elencate esplicitamente in `SKILL_TREE_D1_CAMPAIGNS`. Questo passaggio riguarda i progressi. La successiva migrazione delle definizioni, con nodi e requisiti, è descritta in [skill-tree-definitions-d1-migration.md](skill-tree-definitions-d1-migration.md). Immagini, personaggi, inventario e calendari rimangono nei loro archivi attuali. Il binding D1 è lo stesso `POLL_DB` già usato dai sondaggi.
 
 Lo schema additivo `0002_skill_tree_states.sql` crea tre tabelle: documento/metadati di campagna, revisioni dei singoli soggetti, record di progresso. Un soggetto corrisponde a un albero e un personaggio, oppure all'albero condiviso della campagna. I JSON conservano livelli, sblocchi, progressi dei requisiti e campi sconosciuti.
 
@@ -37,6 +37,14 @@ Dopo nuovi salvataggi D1, disabilitare semplicemente il flag farebbe leggere la 
 ## Verifiche locali
 
 `npm run test:skill-tree-storage` usa SQLite/D1 temporaneo e il Worker reale, senza credenziali di produzione né messaggi Discord. Copre importazioni concorrenti, copie originali, salvataggi distinti e concorrenti, permessi, stati condivisi, cancellazione e ripristino, rollback dopo errori, client legacy, manutenzione, bootstrap/sync e serializzazione del frontend. Eseguire anche `npm run test:skill-trees` e `npm run test:poll-storage` per verificare i comportamenti esistenti.
+
+## Compatibilità Foundry Wiki Sync
+
+La versione locale 0.11.7 di Wiki Sync validava i dati degli alberi richiedendo esattamente `source: "kv"`, quindi rifiutava i progressi migrati nonostante API, dati e versione invariati. Corretto nella 0.11.8 locale, in `scripts/services/skill-tree-sync.js`: accettate le fonti autorevoli `kv` e `d1`, mantenuti tutti i controlli su campagna, versione, array, nodi e sblocchi. Le risposte statiche, sconosciute o incomplete continuano a interrompere il sincronismo prima delle scritture.
+
+Superati tutti i 30 test del modulo, comprese combinazioni KV/D1 per definizioni e progressi, anteprima in sola lettura, applicazione su Actor simulati e blocco dei payload invalidi. Verificate con il validatore reale le risposte online delle tre campagne senza mutazioni Foundry: Cripta 9 alberi/11 record di progresso, Mago Folle 9/5, Oltre il Velo 10/7. Il report è `output/wiki-sync-d1-compat/live-validation.json`.
+
+La patch riproducibile è [skill-tree-d1-compat.patch](../integrations/cripta-wiki-sync/skill-tree-d1-compat.patch); backup dei quattro file originali conservato in `output/wiki-sync-d1-compat/before/`. Modifica applicata solo ai file del modulo installato nella directory Foundry DEV TEST, senza dati del mondo. Ricaricare il client GM con Ctrl+F5. La nuova versione deve essere distribuita alle installazioni che usano il controllo precedente; non è stato pubblicato uno ZIP o aggiornato il pacchetto pubblico, né usato il vecchio `module/` locale 0.9.6 per sovrascrivere il modulo attuale.
 
 ## Stato online
 

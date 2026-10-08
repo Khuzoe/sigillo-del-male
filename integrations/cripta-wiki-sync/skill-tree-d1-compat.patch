@@ -1,0 +1,117 @@
+diff --git a/scripts/services/skill-tree-sync.js b/scripts/services/skill-tree-sync.js
+index 07a7964..8ec057a 100644
+--- a/scripts/services/skill-tree-sync.js
++++ b/scripts/services/skill-tree-sync.js
+@@ -78,7 +78,7 @@ export function skillNodeAtLevel(node, requestedLevel) {
+ 
+ function collectionPayload(payload, collection, campaignId) {
+     if (!object(payload) || payload.ok !== true || payload.collection !== collection
+-        || payload.campaignId !== campaignId || payload.source !== "kv"
++        || payload.campaignId !== campaignId || !["kv", "d1"].includes(payload.source)
+         || !Number.isSafeInteger(payload.version) || payload.version < 0 || !Array.isArray(payload.data)) {
+         throw new Error(`Dati ${collection} non autorevoli o incompleti: sincronizzazione annullata.`);
+     }
+diff --git a/tools/test-skill-tree-sync.mjs b/tools/test-skill-tree-sync.mjs
+index 6be3da2..e2526c3 100644
+--- a/tools/test-skill-tree-sync.mjs
++++ b/tools/test-skill-tree-sync.mjs
+@@ -157,12 +157,25 @@ test('invalid or fallback payloads never become an authoritative empty selection
+         { ...t, data: [tree(), tree()] }, { ...t, data: [tree('valdor', [node(), node()])] }]) {
+         assert.throws(() => validateSkillTreeSnapshot(invalid, s, C));
+     }
+-    for (const invalid of [{}, { ...s, data: {} }, { ...s, data: [{ treeKey: 'valdor' }] }, { ...s, data: [{ ...state(), unlocked: null }] }]) {
++    for (const invalid of [{}, { ...s, source: 'static' }, { ...s, source: 'unknown' }, { ...s, source: 'd1', campaignId: 'other' },
++        { ...s, source: 'd1', data: null }, { ...s, data: {} }, { ...s, data: [{ treeKey: 'valdor' }] }, { ...s, data: [{ ...state(), unlocked: null }] }]) {
+         assert.throws(() => validateSkillTreeSnapshot(t, invalid, C));
+     }
+     assert.deepEqual(snapshot([], []).trees, {});
+ });
+ 
++test('KV and D1 authoritative snapshots preserve grants, levels and revisions in every combination', () => {
++    const states = [{ ...state(), levels: { '1': 2 } }];
++    for (const treeSource of ['kv', 'd1']) for (const stateSource of ['kv', 'd1']) {
++        const treesPayload = { ...payload('skill-trees', [tree()], 31), source: treeSource };
++        const statesPayload = { ...payload('skill-tree-states', states, 166), source: stateSource, stateRevisions: { [states[0].id]: 3 } };
++        const result = validateSkillTreeSnapshot(treesPayload, statesPayload, C);
++        assert.deepEqual(result.states, states);
++        assert.equal(result.treeVersion, 31); assert.equal(result.stateVersion, 166);
++        assert.deepEqual(result.trees.valdor.nodes, treesPayload.data[0].nodes);
++    }
++});
++
+ test('updates preserve activities, counters, automation flags, effects and custom image; repeat is a no-op', async () => {
+     const a = new Actor('Valdor', [owned()]);
+     a.items[0].img = 'custom.webp';
+@@ -348,7 +361,7 @@ test('concurrent requests serialize and re-fetch once after an in-flight change;
+ // Exercise the actual entry points in main.js without booting Foundry or connecting to a world.
+ const main = fs.readFileSync(new URL('../scripts/main.js', import.meta.url), 'utf8');
+ function definition(start, end) { const a = main.indexOf(start); assert.ok(a >= 0); const b = main.indexOf(end, a); assert.ok(b > a); return main.slice(a, b); }
+-function integration({ actors = [], canPull = true, failFetch = false, trees = [tree()], states = [], badStates = false } = {}) {
++function integration({ actors = [], canPull = true, failFetch = false, trees = [tree()], states = [], badStates = false, treeSource = 'kv', stateSource = 'kv' } = {}) {
+     const gm = { id: 'gm', isGM: true, active: true }, users = [gm]; users.activeGM = gm;
+     const context = vm.createContext({ MODULE_ID: M, DISCORD_WORKER_URL: 'https://example.invalid', game: { user: gm, users, actors, scenes: [] },
+         getCampaignId: () => C, canPullFromWorker: () => canPull, getActorSkillTreeCandidateIds: a => [a.characterId],
+@@ -361,7 +374,7 @@ function integration({ actors = [], canPull = true, failFetch = false, trees = [
+             if (failFetch) throw new Error('offline');
+             const collection = new URL(url).pathname.split('/').at(-1);
+             if (badStates && collection === 'skill-tree-states') return { data: [] };
+-            return payload(collection, collection === 'skill-trees' ? trees : states);
++            return { ...payload(collection, collection === 'skill-trees' ? trees : states), source: collection === 'skill-trees' ? treeSource : stateSource };
+         }
+     });
+     vm.runInContext([
+@@ -380,7 +393,7 @@ test('actual main preview is read-only; actual reconcile uses only non-archived
+ });
+ 
+ test('actual main respects disabled pull mode and never writes on network/schema failure', async () => {
+-    for (const settings of [{ canPull: false }, { failFetch: true }, { badStates: true }]) {
++    for (const settings of [{ canPull: false }, { failFetch: true }, { badStates: true }, { stateSource: 'static' }, { treeSource: 'unknown' }]) {
+         const a = new Actor('Valdor', [owned()]); const ctx = integration({ actors: [a], ...settings });
+         if (settings.canPull === false) assert.equal(await ctx.reconcileSkillTreeAbilities(), false);
+         else await assert.rejects(ctx.reconcileSkillTreeAbilities());
+@@ -388,6 +401,17 @@ test('actual main respects disabled pull mode and never writes on network/schema
+     }
+ });
+ 
++test('actual main reads migrated D1 states and future D1 trees through the same endpoints', async () => {
++    for (const treeSource of ['kv', 'd1']) {
++        const a = new Actor('Valdor', [owned()]);
++        const ctx = integration({ actors: [a], trees: [tree('valdor', [node('1', 'D1 update')])], states: [state()], treeSource, stateSource: 'd1' });
++        assert.equal((await ctx.previewSkillTreeSync()).updated, 1); assert.equal(a.calls.length, 0);
++        assert.equal((await ctx.reconcileSkillTreeAbilities()).updated, 1);
++        assert.equal(a.items[0].name, 'D1 update');
++        assert.equal((await ctx.reconcileSkillTreeAbilities()).updated, 0);
++    }
++});
++
+ test('actual main can update, retire and create abilities across actors without leaking document context', async () => {
+     const a = new Actor('Valdor', [owned()]);
+     const b = new Actor('Retired', [owned('Old', 'retired')]);
+diff --git a/module.json b/module.json
+index 6c4f0f7..2b8ff60 100644
+--- a/module.json
++++ b/module.json
+@@ -2,7 +2,7 @@
+     "id":  "cripta-wiki-sync",
+     "title":  "Khuzoe Wiki Sync",
+     "description":  "Sincronizzazione bidirezionale tra wiki e Foundry per Actor gestiti, Tokenizer e catalogo oggetti di campagna.",
+-  "version": "0.11.7",
++  "version": "0.11.8",
+     "authors":  [
+                     {
+                         "name":  "Delia + Codex"
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 91ae624..a3dd203 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,3 +1,10 @@
++# Khuzoe Wiki Sync 0.11.8 — 7 ottobre 2026
++
++Compatibilità della sincronizzazione degli alberi con l'archivio D1 della wiki.
++
++- Le risposte autorevoli `source: "kv"` e `source: "d1"` vengono entrambe accettate per definizioni e progressi, mantenendo i controlli su campagna, versione, nodi e sblocchi. Risposte statiche, incomplete o non valide continuano a interrompere la sincronizzazione prima di qualunque scrittura.
++- API e comportamento degli alberi rimangono invariati. Verifica con Actor simulati e letture delle tre campagne; nessuna modifica ai dati reali del mondo durante lo sviluppo. Ricaricare il client GM con **Ctrl+F5**.
++
+ # Khuzoe Wiki Sync 0.11.6 — 2 ottobre 2026
+ 
+ Corretto l'allineamento della visibilità dei dossier durante l'apertura del mondo.

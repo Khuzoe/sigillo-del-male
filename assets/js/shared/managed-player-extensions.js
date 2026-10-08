@@ -14,6 +14,7 @@
     const SKILL_TREE_ICON_SIZE = 256;
     let skills = {};
     let skillsVersion = null;
+    let treeRevisions = null;
     let states = [];
     let statesVersion = null;
     let stateRevisions = null;
@@ -43,7 +44,7 @@
         if (!document.querySelector("link[data-managed-skill-tree-style]")) {
             const style = document.createElement("link");
             style.rel = "stylesheet";
-            style.href = new URL("../../assets/css/pages/character-skill-tree.css?v=20260930-skill-requirements4", window.location.href).toString();
+            style.href = new URL("../../assets/css/pages/character-skill-tree.css?v=20261008-skill-tree-styles1", window.location.href).toString();
             style.dataset.managedSkillTreeStyle = "true";
             document.head.appendChild(style);
         }
@@ -51,7 +52,7 @@
         if (skillTreeModulePromise) return skillTreeModulePromise;
         skillTreeModulePromise = new Promise((resolve, reject) => {
             const script = document.createElement("script");
-            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20261007-skill-states-d1-1", window.location.href).toString();
+            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20261008-skill-tree-styles1", window.location.href).toString();
             script.defer = true;
             script.dataset.managedSkillTreeScript = "true";
             script.addEventListener("load", () => window.CriptaCharacterSkillTree ? resolve(window.CriptaCharacterSkillTree) : reject(new Error("Modulo alberi non inizializzato.")), { once: true });
@@ -589,13 +590,15 @@
     async function loadTrees() {
         try {
             const payload = await getApi("api/data/skill-trees", { query: { _: Date.now() } });
-            if (Array.isArray(payload?.data) && payload.data.length) {
+            treeRevisions = payload?.treeRevisions || null;
+            if (Array.isArray(payload?.data)) {
                 skillsVersion = Number(payload.version || 0);
                 skills = normalizeTrees(payload.data);
                 return skills;
             }
         } catch (_) {
             // Usa la raccolta statica senza mutarla.
+            treeRevisions = null;
         }
         const fallback = await window.CriptaApp?.data?.json?.("skills.json").catch(() => ({}));
         skillsVersion = null;
@@ -622,18 +625,21 @@
         if (Number.isFinite(Number(skillsVersion))) body.expectedVersion = Number(skillsVersion);
         const result = await window.CriptaApp.api.post("api/data/skill-trees", body, { token: token() });
         skillsVersion = Number(result?.version || skillsVersion || 0);
-        skills = nextTrees;
-        return result;
+        treeRevisions = result?.treeRevisions || null;
+        skills = Array.isArray(result?.data) ? normalizeTrees(result.data) : nextTrees;
+        return { ...result, normalizedTrees: skills };
     }
 
     async function saveTree(treeId, tree, nextTrees) {
         const body = { tree: { ...tree, id: treeId } };
-        if (Number.isFinite(Number(skillsVersion))) body.expectedVersion = Number(skillsVersion);
+        if (treeRevisions !== null) body.expectedTreeRevision = treeRevisions[treeId] ?? 0;
+        else if (Number.isFinite(Number(skillsVersion))) body.expectedVersion = Number(skillsVersion);
         try {
             const result = await window.CriptaApp.api.post("api/data/skill-trees", body, { token: token() });
             skillsVersion = Number(result?.version || skillsVersion || 0);
-            skills = nextTrees;
-            return result;
+            treeRevisions = result?.treeRevisions || null;
+            skills = Array.isArray(result?.data) ? normalizeTrees(result.data) : nextTrees;
+            return { ...result, normalizedTrees: skills };
         } catch (error) {
             const status = Number(error?.response?.status || error?.status || 0);
             const message = String(error?.payload?.error || error?.message || "");
@@ -748,8 +754,9 @@
                 stateRevisions = revisions || null;
                 if (Number.isFinite(Number(version))) statesVersion = Number(version);
             },
-            setSkillsCache(nextTrees, version) {
+            setSkillsCache(nextTrees, version, revisions) {
                 skills = nextTrees || {};
+                treeRevisions = revisions || null;
                 if (Number.isFinite(Number(version))) skillsVersion = Number(version);
             }
         };

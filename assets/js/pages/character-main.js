@@ -116,7 +116,7 @@ function renderMarkdown(md, options = {}) {
     return window.CriptaMarkdown.render(md, getCharacterMarkdownOptions(options));
 }
 
-const CHARACTER_MODULE_VERSION = '20261007-skill-states-d1-1';
+const CHARACTER_MODULE_VERSION = '20261008-skill-tree-styles1';
 
 function versionedCharacterModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);
@@ -507,6 +507,7 @@ let managedInventoryCacheKey = '';
 let skillsRequestPromise = null;
 let skillsMemoryCache = null;
 let skillsVersion = null;
+let skillTreeDefinitionRevisions = null;
 let skillTreeStatesRequestPromise = null;
 let skillTreeStatesMemoryCache = null;
 let skillTreeStatesVersion = null;
@@ -1011,13 +1012,15 @@ async function loadSkillsData() {
     skillsRequestPromise = (async () => {
         try {
             const onlinePayload = await window.CriptaApp?.api?.get?.('api/data/skill-trees', { query: { _: Date.now() } });
-            if (Array.isArray(onlinePayload?.data) && onlinePayload.data.length > 0) {
+            skillTreeDefinitionRevisions = onlinePayload?.treeRevisions || null;
+            if (Array.isArray(onlinePayload?.data)) {
                 skillsVersion = Number(onlinePayload.version || 0);
                 skillsMemoryCache = normalizeSkillTreesCollection(onlinePayload.data);
                 return skillsMemoryCache;
             }
         } catch (error) {
             console.warn('Alberi abilita online non disponibili, uso JSON statico.', error);
+            skillTreeDefinitionRevisions = null;
         }
 
         let payload = null;
@@ -1079,7 +1082,8 @@ function applyCharacterBootstrap(bootstrap) {
     }
 
     const skillTreesDoc = dataService?.getCollectionDocument?.(bootstrap, 'skill-trees');
-    if (Array.isArray(skillTreesDoc?.data) && skillTreesDoc.data.length > 0) {
+    skillTreeDefinitionRevisions = skillTreesDoc?.treeRevisions || null;
+    if (Array.isArray(skillTreesDoc?.data)) {
         skillsVersion = Number(skillTreesDoc.version || 0);
         skillsMemoryCache = normalizeSkillTreesCollection(skillTreesDoc.data);
     }
@@ -1355,20 +1359,23 @@ async function saveSkillTreesData(trees) {
     if (!token) throw new Error('Login richiesto per salvare l albero abilita.');
     const result = await window.CriptaApp.api.post('api/data/skill-trees', body, { token });
     skillsVersion = Number(result?.version || skillsVersion || 0);
-    skillsMemoryCache = trees;
-    return result;
+    skillTreeDefinitionRevisions = result?.treeRevisions || null;
+    skillsMemoryCache = Array.isArray(result?.data) ? normalizeSkillTreesCollection(result.data) : trees;
+    return { ...result, normalizedTrees: skillsMemoryCache };
 }
 
 async function saveSingleSkillTreeData(treeId, tree, trees) {
     const token = readSharedAuthToken();
     if (!token) throw new Error('Login richiesto per salvare l albero abilita.');
     const body = { tree: { ...tree, id: treeId } };
-    if (Number.isFinite(Number(skillsVersion))) body.expectedVersion = Number(skillsVersion);
+    if (skillTreeDefinitionRevisions !== null) body.expectedTreeRevision = skillTreeDefinitionRevisions[treeId] ?? 0;
+    else if (Number.isFinite(Number(skillsVersion))) body.expectedVersion = Number(skillsVersion);
     try {
         const result = await window.CriptaApp.api.post('api/data/skill-trees', body, { token });
         skillsVersion = Number(result?.version || skillsVersion || 0);
-        skillsMemoryCache = trees;
-        return result;
+        skillTreeDefinitionRevisions = result?.treeRevisions || null;
+        skillsMemoryCache = Array.isArray(result?.data) ? normalizeSkillTreesCollection(result.data) : trees;
+        return { ...result, normalizedTrees: skillsMemoryCache };
     } catch (error) {
         const status = Number(error?.response?.status || error?.status || 0);
         const message = String(error?.payload?.error || error?.message || '');
@@ -1403,6 +1410,8 @@ async function loadSkillTreeStates() {
 }
 
 function loadCharacterSkillTreeModule() {
+    loadCharacterStylesheet('character-skill-tree.css', 'skill-tree');
+
     if (window.CriptaCharacterSkillTree) return Promise.resolve(window.CriptaCharacterSkillTree);
     if (characterSkillTreeModulePromise) return characterSkillTreeModulePromise;
 
@@ -2254,8 +2263,9 @@ window.CriptaApp.onPageReady("character", async function () {
                 skillTreeStateRevisions = revisions || null;
                 if (Number.isFinite(Number(version))) skillTreeStatesVersion = Number(version);
             },
-            setSkillsCache(trees, version) {
+            setSkillsCache(trees, version, revisions) {
                 skillsMemoryCache = trees || {};
+                skillTreeDefinitionRevisions = revisions || null;
                 currentPlayerSkillTrees = skillsMemoryCache;
                 if (Number.isFinite(Number(version))) skillsVersion = Number(version);
             }

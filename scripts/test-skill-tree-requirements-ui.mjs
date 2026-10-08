@@ -3,6 +3,39 @@ import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 
 const source = await readFile(new URL('../assets/js/shared/character-skill-tree.js', import.meta.url), 'utf8');
+const characterPageSource = await readFile(new URL('../assets/js/pages/character-main.js', import.meta.url), 'utf8');
+const stylesheetHelpers = characterPageSource.slice(characterPageSource.indexOf('const CHARACTER_MODULE_VERSION ='), characterPageSource.indexOf('async function loadCharactersManifest('));
+const moduleLoader = characterPageSource.slice(characterPageSource.indexOf('function loadCharacterSkillTreeModule('), characterPageSource.indexOf('function loadCharacterTransformationsModule('));
+const loadedAssets = [];
+const pageSandbox = {URL, window: {location: {href: 'https://wiki.test/subsite/pages/characters/character.html?embed=1'}}, document: {
+  querySelector(selector) {
+    if (selector.includes('data-character-style')) return loadedAssets.find(element => element.dataset.characterStyle === 'skill-tree') || null;
+    if (selector.includes('assets/css/pages/character.css')) return {href: 'https://wiki.test/subsite/assets/css/pages/character.css?v=old'};
+    if (selector.includes('assets/js/pages/character-main.js')) return {src: 'https://wiki.test/subsite/assets/js/pages/character-main.js?v=old'};
+    return null;
+  },
+  createElement(tag) {return {tag, dataset: {}, listeners: {}, addEventListener(event, callback) {this.listeners[event] = callback;}};},
+  head: {appendChild(element) {loadedAssets.push(element);}}
+}};
+vm.createContext(pageSandbox);
+vm.runInContext('let characterSkillTreeModulePromise = null;\n' + stylesheetHelpers + moduleLoader, pageSandbox);
+const initialModuleLoad = vm.runInContext('loadCharacterSkillTreeModule()', pageSandbox);
+const injectedStyle = loadedAssets.find(asset => asset.tag === 'link');
+const injectedScript = loadedAssets.find(asset => asset.tag === 'script');
+assert.ok(injectedStyle, 'The legacy/Foundry tree page loads its stylesheet alongside the renderer');
+assert.equal(new URL(injectedStyle.href).pathname, '/subsite/assets/css/pages/character-skill-tree.css');
+assert.equal(new URL(injectedStyle.href).searchParams.get('v'), new URL(injectedScript.src).searchParams.get('v'), 'Tree markup and CSS use the same cache version');
+pageSandbox.window.CriptaCharacterSkillTree = {loaded: true};
+injectedScript.listeners.load();
+assert.equal(await initialModuleLoad, pageSandbox.window.CriptaCharacterSkillTree);
+await vm.runInContext('loadCharacterSkillTreeModule()', pageSandbox);
+assert.equal(loadedAssets.length, 2, 'Reopening the tree does not duplicate styles or scripts');
+// A renderer loaded by another host must still receive its stylesheet.
+loadedAssets.length = 0;
+await vm.runInContext('loadCharacterSkillTreeModule()', pageSandbox);
+assert.equal(loadedAssets.length, 1);
+assert.equal(loadedAssets[0].tag, 'link', 'Styles load even when the renderer is already available');
+console.log('OK embedded tree asset loading, version alignment and repeated opening');
 const sandbox = {console, Set, Map, URL, window: {localStorage: {getItem() {return null;}}}};
 vm.runInNewContext(source.replace(/\}\)\(\);\s*$/, `
   globalThis.ui = {applySkillTreeRuntime, deriveSkillTreeNodes, getSkillTreeRequirementView,
@@ -11,7 +44,7 @@ vm.runInNewContext(source.replace(/\}\)\(\);\s*$/, `
 const ui = sandbox.ui;
 ui.applySkillTreeRuntime({escapeHtml: value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))});
 const copy = value => JSON.parse(JSON.stringify(value));
-let checks = 0;
+let checks = 1; // Embedded asset loading regression above.
 const test = (label, run) => {run(); checks++; console.log(`OK ${label}`);};
 const node = {id: 'next', title: 'Next', requires: ['a','b'], levels: [{label:'I'},{label:'II'},{label:'III'}], externalRequirements: [
   {id:'goal',label:'Approval',target:1,level:1},

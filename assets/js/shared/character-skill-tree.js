@@ -183,9 +183,9 @@
     async function saveSkillTreesData(trees) {
         if (typeof skillTreeRuntime.saveSkillTreesData !== 'function') throw new Error('Salvataggio albero non disponibile.');
         const result = await skillTreeRuntime.saveSkillTreesData(trees);
-        skillsMemoryCache = trees;
+        skillsMemoryCache = result?.normalizedTrees || trees;
         if (typeof skillTreeRuntime.setSkillsCache === 'function') {
-            skillTreeRuntime.setSkillsCache(trees, result?.version);
+            skillTreeRuntime.setSkillsCache(skillsMemoryCache, result?.version, result?.treeRevisions);
         }
         return result;
     }
@@ -194,9 +194,9 @@
         const result = typeof skillTreeRuntime.saveSkillTreeData === 'function'
             ? await skillTreeRuntime.saveSkillTreeData(treeKey, tree, trees)
             : await saveSkillTreesData(trees);
-        skillsMemoryCache = trees;
+        skillsMemoryCache = result?.normalizedTrees || trees;
         if (typeof skillTreeRuntime.setSkillsCache === 'function') {
-            skillTreeRuntime.setSkillsCache(trees, result?.version);
+            skillTreeRuntime.setSkillsCache(skillsMemoryCache, result?.version, result?.treeRevisions);
         }
         return result;
     }
