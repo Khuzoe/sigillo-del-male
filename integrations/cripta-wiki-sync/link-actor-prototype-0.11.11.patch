@@ -1,0 +1,234 @@
+diff --git a/scripts/services/managed-actor-sync.js b/scripts/services/managed-actor-sync.js
+index b8ced64..0bbb47c 100644
+--- a/scripts/services/managed-actor-sync.js
++++ b/scripts/services/managed-actor-sync.js
+@@ -1834,7 +1834,7 @@ const MANAGED_ACTOR_LINK_TOKEN_INSTANCE_KEYS = new Set([
+     "_id", "id", "_stats", "actorId", "actorLink", "delta",
+     "x", "y", "elevation", "sort", "hidden", "locked", "_regions"
+ ]);
+-const MANAGED_ACTOR_LINK_TOKEN_PROTOTYPE_ONLY_KEYS = new Set(["randomImg"]);
++const MANAGED_ACTOR_LINK_TOKEN_PROTOTYPE_ONLY_KEYS = new Set(["randomImg", "appendNumber", "prependAdjective"]);
+ const MANAGED_ACTOR_LINK_TOKEN_NON_SHARED_KEYS = new Set([
+     ...MANAGED_ACTOR_LINK_TOKEN_INSTANCE_KEYS,
+     ...MANAGED_ACTOR_LINK_TOKEN_PROTOTYPE_ONLY_KEYS
+@@ -1914,9 +1914,36 @@ async function applyManagedActorLinkPrototypeConfiguration(actor, configuration,
+         ? managedActorLinkSchemaCleanDocumentSource(actor.prototypeToken, desired)
+         : desired;
+     cleaned.actorLink = actorLink === true;
+-    await actor.update({ prototypeToken: prepareManagedActorLinkBarUpdate(cleaned) }, {
+-        criptaWikiSyncCommand: true, render: false, diff: false, recursive: false
++    const prototypeUpdate = prepareManagedActorLinkBarUpdate(cleaned);
++    // Update the embedded model normally. In v14 a non-recursive replacement
++    // resets omitted fields to defaults: Bar Brawl deliberately removes an
++    // unchanged displayBars from the payload, so replacing the whole model
++    // would reset it to NONE. Only flags require replacement (not a merge).
++    prototypeUpdate.flags = globalThis._replace(prototypeUpdate.flags || {});
++    await actor.update({ prototypeToken: prototypeUpdate }, {
++        criptaWikiSyncCommand: true, render: false, diff: false
+     });
++    // Link state is a transaction requirement, independent of normalization
++    // of the complete embedded PrototypeToken configuration. Use Foundry's
++    // normal partial-update path too, including when restoring a backup.
++    // An already persisted value produces no additional database write.
++    if (actor.prototypeToken?.actorLink !== (actorLink === true)) {
++        await actor.update({ "prototypeToken.actorLink": actorLink === true }, {
++            criptaWikiSyncCommand: true, render: false
++        });
++    }
++    if (actor.prototypeToken?.actorLink !== (actorLink === true)) {
++        const error = new Error("Foundry non ha mantenuto Link Actor Data nel token predefinito. La conversione viene annullata.");
++        error.diagnostics = [{
++            Categoria: "Configurazione token",
++            Percorso: "Prototype Token \u00B7 Link Actor Data",
++            PercorsoTecnico: "prototypeToken.actorLink",
++            Atteso: actorLink === true ? "Si" : "No",
++            Ottenuto: actor.prototypeToken?.actorLink === true ? "Si" : "No",
++            Istruzione: "Questo campo viene impostato automaticamente. Non modificarlo manualmente: il modulo non ha ricevuto conferma del valore richiesto da Foundry."
++        }];
++        throw error;
++    }
+ }
+ 
+ function managedActorLinkPlacedTokenSource(token, actor, configuration) {
+@@ -3162,7 +3189,7 @@ async function executeManagedActorLinkConversion(actor, command) {
+                     PercorsoTecnico: "prototypeToken.actorLink",
+                     Atteso: "Si",
+                     Ottenuto: "No",
+-                    Istruzione: managedActorLinkDiagnosticInstruction("Configurazione token")
++                    Istruzione: "Il collegamento del token predefinito è cambiato durante la conversione. Non impostarlo manualmente su No: richiedi una nuova ispezione dopo aver ricaricato Foundry."
+                 });
+             }
+             throw error;
+diff --git a/module.json b/module.json
+index 8323e0f..c456cb9 100644
+--- a/module.json
++++ b/module.json
+@@ -2,7 +2,7 @@
+     "id":  "cripta-wiki-sync",
+     "title":  "Khuzoe Wiki Sync",
+     "description":  "Sincronizzazione bidirezionale tra wiki e Foundry per Actor gestiti, Tokenizer e catalogo oggetti di campagna.",
+-  "version": "0.11.10",
++  "version": "0.11.11",
+     "authors":  [
+                     {
+                         "name":  "Delia + Codex"
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index c60ebad..6c24f5e 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,3 +1,9 @@
++# Khuzoe Wiki Sync 0.11.11 — 8 ottobre 2026
++
++- Rafforzato il salvataggio di Link Actor Data del token predefinito: aggiornamento puntuale del flag se la configurazione completa non lo conserva e verifica immediata prima di convertire i token in mappa. Un rifiuto effettivo interrompe la conversione e mantiene il ripristino dal backup; la diagnostica non suggerisce più di impostare manualmente il collegamento su No.
++- La configurazione del PrototypeToken usa l'aggiornamento ricorsivo nativo, sostituendo soltanto i flag. Evitato l'azzeramento di `displayBars` nel ciclo v14 di validazione, trasporto e persistenza quando Bar Brawl elimina il campo invariato dal payload. Conservate anche le opzioni `appendNumber` e `prependAdjective`, oltre a `randomImg`, che appartengono soltanto al token predefinito.
++- Verifiche con i veri DataModel, PrototypeToken, operatori e hook Bar Brawl installati, su copie in memoria: attivazione, ripristino, rifiuto e protezione delle barre. Nessun dato reale del mondo modificato. Ricaricare il client GM con **Ctrl+F5** e richiedere una nuova ispezione dal sito; il caso segnalato va confermato nel mondo effettivo.
++
+ # Khuzoe Wiki Sync 0.11.10 — 8 ottobre 2026
+ 
+ - Corretta la verifica nativa di Link Actor Data: l'importazione Foundry rimuove `ownership` dagli Item incorporati e la persistenza ripristina il valore predefinito `{default: 0}`. Campo assente, oggetto vuoto e questo solo valore predefinito vengono confrontati come equivalenti.
+diff --git a/tools/test-link-actor-bars.mjs b/tools/test-link-actor-bars.mjs
+index 2af71ec..a9f9f58 100644
+--- a/tools/test-link-actor-bars.mjs
++++ b/tools/test-link-actor-bars.mjs
+@@ -132,6 +132,7 @@ test("actual Link Actor prototype writer uses the adapter and preserves prototyp
+         writes.push(update);
+         assert.equal(options.noHook, undefined);
+         h.hooks.get("preUpdateActor")(this, update);
++        if ("prototypeToken.actorLink" in update) prototype.actorLink = update["prototypeToken.actorLink"];
+     } };
+     await h.ctx.applyManagedActorLinkPrototypeConfiguration(owner, source, true);
+     assert.equal(writes[0].prototypeToken.actorLink, true);
+diff --git a/tools/test-link-actor-prototype.mjs b/tools/test-link-actor-prototype.mjs
+new file mode 100644
+index 0000000..06c590f
+--- /dev/null
++++ b/tools/test-link-actor-prototype.mjs
+@@ -0,0 +1,128 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import fs from 'node:fs';
++import '../../../../App/resources/app/common/primitives/_module.mjs';
++import DataModel from '../../../../App/resources/app/common/abstract/data.mjs';
++import Document from '../../../../App/resources/app/common/abstract/document.mjs';
++import * as fields from '../../../../App/resources/app/common/data/fields.mjs';
++import * as utils from '../../../../App/resources/app/common/utils/helpers.mjs';
++import * as constants from '../../../../App/resources/app/common/constants.mjs';
++import * as operators from '../../../../App/resources/app/common/data/operators.mjs';
++import * as documents from '../../../../App/resources/app/common/documents/_module.mjs';
++import {PrototypeToken} from '../../../../App/resources/app/common/data/data.mjs';
++import BasePackage from '../../../../App/resources/app/common/packages/base-package.mjs';
++
++// Actual v14 schema and update pipeline, operating exclusively in memory.
++globalThis.CONST = constants;
++globalThis.CONFIG = {Token: {movement: {}}, Actor: {}};
++globalThis.game = {system: {primaryTokenAttribute: 'attributes.hp'}};
++globalThis.foundry = {abstract: {DataModel, Document}, data: {fields}, utils, documents, packages: {BasePackage}};
++class MemoryActor extends DataModel {
++    static defineSchema() {return {prototypeToken: new fields.EmbeddedDataField(PrototypeToken)};}
++}
++const transport = value => JSON.parse(JSON.stringify(value), (_key, entry) =>
++    entry && entry[operators.OPERATOR_IDENTIFIER] ? operators.reconstructOperator(entry) : entry);
++function harness({dropFullLink = false, rejectLink = false} = {}) {
++    const hooks = new Map(), warnings = [], writes = [];
++    globalThis._del = new operators.ForcedDeletion();
++    globalThis._replace = operators.ForcedReplacement.create;
++    const environment = {MODULE_ID: 'cripta-wiki-sync', Map, Set, foundry: globalThis.foundry,
++        CONST: constants, _del: globalThis._del, _replace: operators.ForcedReplacement.create,
++        game: {modules: new Map([['barbrawl', {active: true}]]), scenes: []},
++        console: {warn: (...args) => warnings.push(args), debug() {}},
++        adjustPrototypeOverrides() {}, extendBarRenderer() {}, extendTokenHud() {}, extendTokenConfig() {}, api: {},
++        Hooks: {once() {}, on: (name, callback) => hooks.set(name, callback)}};
++    let code = '';
++    for (const path of ['../../barbrawl/module/api.js', '../../barbrawl/module/synchronization.js', '../../barbrawl/barbrawl.js', '../scripts/services/managed-actor-sync.js']) {
++        code += fs.readFileSync(new URL(path, import.meta.url), 'utf8')
++            .replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '') + '\n';
++    }
++    const ctx = new Function(...Object.keys(environment), code + '\nreturn {applyManagedActorLinkPrototypeConfiguration, managedActorLinkTokenConfigurationState, prepareManagedActorLinkBarUpdate};')(...Object.values(environment));
++    const actor = new MemoryActor({prototypeToken: {actorLink: false, name: 'NPC', randomImg: true, appendNumber: true, prependAdjective: true,
++        displayBars: 50, flags: {barbrawl: {resourceBars: {bar1: {id: 'bar1', attribute: 'attributes.hp', ownerVisibility: 50}}}}}});
++    const server = new MemoryActor(actor.toObject());
++    actor.update = async (requested, suppliedOptions) => {
++        const options = {diff: true, recursive: true, ...suppliedOptions};
++        let changes = MemoryActor.cleanData(requested, {migrate: true, sanitize: true, partial: true}, {creation: false, model: actor, source: actor._source});
++        hooks.get('preUpdateActor')(actor, changes);
++        if (rejectLink || (dropFullLink && 'name' in (changes.prototypeToken || {}))) delete changes.prototypeToken.actorLink;
++        const diff = actor.updateSource(changes, {clean: true, dryRun: true, fallback: false, recursive: options.recursive});
++        if (options.diff && utils.isEmpty(diff)) return actor;
++        if (options.diff || options.recursive === false) changes = diff;
++        writes.push(transport(changes));
++        const serverDiff = server.updateSource(transport(changes), options);
++        const result = MemoryActor.cleanData(transport(serverDiff), {copy: false, migrate: false, model: false, partial: true, sanitize: false}, {creation: false, model: actor, source: actor._source});
++        actor.updateSource(result, {...options, clean: {copy: false, migrate: false, sanitize: false}});
++        return actor;
++    };
++    return {ctx, actor, server, warnings, writes, hooks};
++}
++test('reproduces Bar Brawl displayBars resetting to NONE with the old full-model replacement', async () => {
++    const h = harness();
++    const update = {prototypeToken: h.ctx.prepareManagedActorLinkBarUpdate(h.actor.prototypeToken.toObject())};
++    // Actual Bar Brawl behavior: remove an unchanged displayBars from updates.
++    h.hooks.get('preUpdateActor')(h.actor, update);
++    assert.equal(Object.hasOwn(update.prototypeToken, 'displayBars'), false);
++    await h.actor.update(update, {diff: false, recursive: false});
++    assert.equal(h.actor.prototypeToken.displayBars, constants.TOKEN_DISPLAY_MODES.NONE);
++});
++test('real v14 PrototypeToken saves Link Actor Data with a full update', () => {
++    const actor = new MemoryActor({prototypeToken: {actorLink: false, name: 'NPC'}});
++    const update = {prototypeToken: {...actor.prototypeToken.toObject(), actorLink: true}};
++    const diff = actor.updateSource(update, {recursive: false});
++    assert.equal(actor.prototypeToken.actorLink, true);
++    assert.ok(diff.prototypeToken);
++});
++test('installed writer persists prototype link through actual cleaning, Bar Brawl and transport', async () => {
++    const h = harness();
++    const config = h.ctx.managedActorLinkTokenConfigurationState(h.actor.prototypeToken);
++    await h.ctx.applyManagedActorLinkPrototypeConfiguration(h.actor, config, true);
++    assert.equal(h.actor.prototypeToken.actorLink, true);
++    assert.equal(h.server.prototypeToken.actorLink, true);
++    assert.equal(h.warnings.length, 0);
++    assert.equal(h.actor.prototypeToken.displayBars, 50);
++    assert.equal(h.writes.length, 1, 'the confirmation is a no-op when the full update already saved the link');
++});
++test('a full update that omits link state is followed by a persisted partial link update', async () => {
++    const h = harness({dropFullLink: true});
++    const config = h.ctx.managedActorLinkTokenConfigurationState(h.actor.prototypeToken);
++    const before = transport(config);
++    config.name = 'Forma selezionata';
++    config.texture.src = 'npc.webp';
++    await h.ctx.applyManagedActorLinkPrototypeConfiguration(h.actor, config, true);
++    assert.equal(h.actor.prototypeToken.actorLink, true);
++    assert.equal(h.server.prototypeToken.actorLink, true);
++    assert.equal(h.actor.prototypeToken.name, 'Forma selezionata');
++    assert.equal(h.actor.prototypeToken.texture.src, 'npc.webp');
++    assert.equal(h.actor.prototypeToken.randomImg, true);
++    assert.equal(h.actor.prototypeToken.appendNumber, true);
++    assert.equal(h.actor.prototypeToken.prependAdjective, true);
++    assert.deepEqual(h.actor.prototypeToken.flags, before.flags);
++    assert.equal(Object.hasOwn(h.actor.prototypeToken.flags.barbrawl.resourceBars, 'bar2'), false);
++    assert.equal(h.warnings.length, 0);
++});
++test('rollback restores false using the same persisted partial update path', async () => {
++    const h = harness({dropFullLink: true});
++    const config = h.ctx.managedActorLinkTokenConfigurationState(h.actor.prototypeToken);
++    await h.ctx.applyManagedActorLinkPrototypeConfiguration(h.actor, config, true);
++    await h.ctx.applyManagedActorLinkPrototypeConfiguration(h.actor, config, false);
++    assert.equal(h.actor.prototypeToken.actorLink, false);
++    assert.equal(h.server.prototypeToken.actorLink, false);
++    assert.equal(h.actor.prototypeToken.randomImg, true);
++    assert.equal(h.actor.prototypeToken.appendNumber, true);
++    assert.equal(h.actor.prototypeToken.prependAdjective, true);
++    assert.equal(h.warnings.length, 0);
++});
++test('rejected partial updates stop conversion with an accurate automatic-field diagnostic', async () => {
++    const h = harness({rejectLink: true});
++    const config = h.ctx.managedActorLinkTokenConfigurationState(h.actor.prototypeToken);
++    await assert.rejects(h.ctx.applyManagedActorLinkPrototypeConfiguration(h.actor, config, true), error => {
++        assert.equal(error.diagnostics[0].PercorsoTecnico, 'prototypeToken.actorLink');
++        assert.equal(error.diagnostics[0].Atteso, 'Si');
++        assert.equal(error.diagnostics[0].Ottenuto, 'No');
++        assert.match(error.diagnostics[0].Istruzione, /Non modificarlo manualmente/);
++        return true;
++    });
++    assert.equal(h.actor.prototypeToken.actorLink, false);
++    assert.equal(h.server.prototypeToken.actorLink, false);
++});

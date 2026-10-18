@@ -23,6 +23,8 @@ function frontend(records = [], version = 3, post = async () => ({version: 4})) 
         const character = {id: 'hero'}, treeKey = workingTree.id;
         let currentNodes = deriveSkillTreeNodes(workingTree, state);
         let unlockedIds = new Set(state.unlocked || []), nodeLevels = structuredClone(state.levels || {}), nodeExternalProgress = structuredClone(state.externalProgress || {});
+        let treeProgress = state.treeProgress || 0;
+        const progressPanel = null;
         let selectedNodeId = '', lockedInfoNodeId = '', renders = 0;
         const infoPanel = {setAttribute() {}, querySelectorAll() {return [];}};
         const renderTree = () => {currentNodes = deriveSkillTreeNodes(workingTree, {unlocked: [...unlockedIds], levels: nodeLevels, externalProgress: nodeExternalProgress}); renders++;};

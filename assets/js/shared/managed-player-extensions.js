@@ -44,7 +44,7 @@
         if (!document.querySelector("link[data-managed-skill-tree-style]")) {
             const style = document.createElement("link");
             style.rel = "stylesheet";
-            style.href = new URL("../../assets/css/pages/character-skill-tree.css?v=20261008-skill-tree-styles1", window.location.href).toString();
+            style.href = new URL("../../assets/css/pages/character-skill-tree.css?v=20261018-npc-tree-progress1", window.location.href).toString();
             style.dataset.managedSkillTreeStyle = "true";
             document.head.appendChild(style);
         }
@@ -52,7 +52,7 @@
         if (skillTreeModulePromise) return skillTreeModulePromise;
         skillTreeModulePromise = new Promise((resolve, reject) => {
             const script = document.createElement("script");
-            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20261008-skill-tree-styles1", window.location.href).toString();
+            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20261018-npc-tree-progress1", window.location.href).toString();
             script.defer = true;
             script.dataset.managedSkillTreeScript = "true";
             script.addEventListener("load", () => window.CriptaCharacterSkillTree ? resolve(window.CriptaCharacterSkillTree) : reject(new Error("Modulo alberi non inizializzato.")), { once: true });
@@ -171,6 +171,17 @@
     function setSectionNavVisible(sectionId, visible) {
         const link = document.querySelector(`.managed-section-nav a[href="#${sectionId}"]`);
         if (link) link.hidden = !visible;
+    }
+
+    function skillTreeSubject(actor) {
+        // A companion must never inherit the identity (or trees) of its owner.
+        if (normalize(actor?.actorType) === "npc") {
+            const world = actor.worldId || new URLSearchParams(window.location.search).get("world");
+            const actorId = actor.actorId || actor.foundryActorId || actor.id;
+            return world && actorId ? { id: `npc-${slugify(world)}-${slugify(actorId)}`, isNpc: true } : null;
+        }
+        const id = slugify(actor?.ownerCharacterId || new URLSearchParams(window.location.search).get("character") || "");
+        return id ? { id, isNpc: false } : null;
     }
 
 
@@ -708,7 +719,7 @@
         return resizeWebp(file, width, height, quality, false);
     }
 
-    async function renderSkillTrees(host, actor, characterId) {
+    async function renderSkillTrees(host, actor, subject) {
         await ensureSkillTreeAssets();
         if (!window.CriptaCharacterSkillTree) {
             setSectionNavVisible("managed-player-skill-trees", false);
@@ -723,9 +734,9 @@
         if (!host.isConnected) return;
         const authAccountId = String(authState?.user?.accountId || authState?.user?.id || authState?.user?.sub || "").trim();
         const character = {
-            id: characterId,
-            name: actor.name || characterId,
-            accountId: actor.ownerAccountIds?.[0] || (actor.permissions?.isOwner ? authAccountId : ""),
+            ...subject,
+            name: actor.name || subject.id,
+            accountId: subject.isNpc ? "" : actor.ownerAccountIds?.[0] || (actor.permissions?.isOwner ? authAccountId : ""),
             avatar: mediaUrl(actor.media?.avatar || actor.avatar || actor.img || ""),
             token: mediaUrl(actor.media?.token || actor.token || "")
         };
@@ -736,7 +747,7 @@
             skillTreeStatesVersion: statesVersion,
             skillTreeStateRevisions: stateRevisions,
             skillTreeAuthState: authState,
-            skillTreeCurrentUserIsDm: Boolean(isDm),
+            skillTreeCurrentUserIsDm: Boolean(isDm || actor.permissions?.isEditor),
             escapeHtml,
             normalizeText: normalize,
             slugify,
@@ -781,8 +792,8 @@
         const companionHost = targetMap ? (targets.companions || null) : targets;
         const skillTreeHost = targetMap ? (targets.skillTrees || null) : targets;
         const hosts = [...new Set([companionHost, skillTreeHost].filter(Boolean))];
-        const characterId = slugify(actor.ownerCharacterId || new URLSearchParams(window.location.search).get("character") || "");
-        if (!characterId) {
+        const subject = skillTreeSubject(actor);
+        if (!subject) {
             hosts.forEach((host) => host.remove());
             setSectionNavVisible("managed-companions", false);
             setSectionNavVisible("managed-player-skill-trees", false);
@@ -790,11 +801,14 @@
         }
         const loading = `<div class="managed-player-extension-loading"><i class="fas fa-circle-notch fa-spin"></i> Caricamento...</div>`;
         hosts.forEach((host) => { host.innerHTML = loading; });
-        const result = await loadCompanions(characterId);
+        const result = companionHost ? await loadCompanions(subject.id) : null;
         if (!hosts.some((host) => host.isConnected)) return;
         hosts.forEach((host) => { host.innerHTML = ""; });
-        if (companionHost?.isConnected) renderCompanions(companionHost, characterId, actor.name || characterId, result, options, actor);
-        if (skillTreeHost?.isConnected) await renderSkillTrees(skillTreeHost, actor, characterId);
+        if (companionHost?.isConnected) renderCompanions(companionHost, subject.id, actor.name || subject.id, result, options, actor);
+        if (skillTreeHost?.isConnected) {
+            const visible = await renderSkillTrees(skillTreeHost, actor, subject);
+            if (!visible) skillTreeHost.innerHTML = '<p class="managed-player-extension-loading">Nessun albero abilità disponibile.</p>';
+        }
     }
 
     window.CriptaManagedPlayerExtensions = Object.freeze({ mount });

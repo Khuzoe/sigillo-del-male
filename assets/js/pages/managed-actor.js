@@ -526,7 +526,7 @@
                 ${renderManagedCurrency(currency, editMode)}
                 ${renderAbilities(abilities, editMode)}
                 ${primaryPlayer ? `<div class="managed-player-extensions managed-player-extensions--companions" data-managed-player-companions></div>` : ""}
-                ${primaryPlayer ? `<div class="managed-player-extensions managed-player-extensions--skill-trees" data-managed-player-skill-trees></div>` : ""}
+                <div class="managed-player-extensions managed-player-extensions--skill-trees" data-managed-player-skill-trees></div>
                 ${renderSkills(skills, editMode)}
                 ${renderTraits(traits, editMode, identityEntries)}
                 ${renderEntries("Attacchi e capacità", attackEntries, editMode, "managed-capabilities")}
@@ -569,12 +569,16 @@
         setupManagedDraftTracking(root, editMode);
         root._managedNpcUpdateDraft?.();
         scheduleManagedCommandRefresh(root);
-        if (primaryPlayer) {
+        {
             window.CriptaManagedPlayerExtensions?.mount?.({
                 companions: root.querySelector("[data-managed-player-companions]"),
                 skillTrees: root.querySelector("[data-managed-player-skill-trees]")
             }, actor, { canEdit, editMode, canManageCompanions: Boolean(editMode && actor.permissions?.isEditor) })
-                .catch((error) => console.warn("Estensioni giocatore non disponibili.", error));
+                .catch((error) => {
+                    console.warn("Alberi e companion non disponibili.", error);
+                    const host = root.querySelector("[data-managed-player-skill-trees]");
+                    if (host) host.textContent = "Impossibile caricare gli alberi. Ricarica la pagina per riprovare.";
+                });
         }
     }
 
@@ -727,6 +731,12 @@
         }, actor);
     }
 
+    function normalizeManagedBannerHeight(value) {
+        if (!["number", "string"].includes(typeof value) || value === "") return null;
+        const height = Number(value);
+        return Number.isFinite(height) && height > 0 ? Math.min(600, Math.max(120, Math.round(height))) : null;
+    }
+
     function normalizeManagedProfileBlockClient(value, index = 0) {
         const block = value && typeof value === "object" ? value : {};
         const allowedTypes = ["lore", "image_box", "banner_box", "custom_box", "secret_dossier"];
@@ -746,6 +756,7 @@
             visibility: normalizeManagedProfileVisibility(block.hidden === true ? "dm" : (block.visibility?.state || block.visibility || "public")),
             image: String(block.image || ""),
             banner: String(block.banner || ""),
+            bannerHeight: type === "banner_box" ? normalizeManagedBannerHeight(block.bannerHeight) : null,
             imageCaption: String(block.imageCaption || block.image_caption || ""),
             borderColor: String(block.borderColor || ""),
             tags: Array.isArray(block.tags) ? block.tags.slice() : []
@@ -820,7 +831,8 @@
         const image = imagePath ? `<button type="button" class="managed-profile-block-image" data-managed-image-open="${escapeAttr(resolveMedia(imagePath))}" data-managed-image-title="${escapeAttr(block.title)}"><img src="${escapeAttr(resolveMedia(imagePath))}" alt="${escapeAttr(block.title)}" loading="lazy" decoding="async"><span><i class="fas fa-expand"></i></span></button>` : "";
         const html = window.CriptaMarkdown?.render?.(block.text || "", { context: type, preserveLineBreaks: true, preserveBlankLines: true, showInlineSecrets: currentProfilePermissions.isEditor === true }) || `<p>${escapeHtml(block.text || "").replace(/\n/g, "<br>")}</p>`;
         const hiddenBadge = block.visibility === "dm" && currentProfilePermissions.isEditor ? `<span class="managed-profile-hidden"><i class="fas fa-eye-slash"></i> Solo DM</span>` : "";
-        return `<article class="managed-profile-block managed-profile-block--${escapeAttr(type)}">${type === "banner_box" ? image : ""}<div class="managed-profile-block-body">${hiddenBadge}<h3><i class="fas ${escapeAttr(block.icon || "fa-scroll")}"></i>${escapeHtml(block.title)}</h3>${type !== "banner_box" ? image : ""}<div class="managed-profile-markdown">${html}</div></div></article>`;
+        const bannerHeight = type === "banner_box" ? normalizeManagedBannerHeight(block.bannerHeight) : null;
+        return `<article class="managed-profile-block managed-profile-block--${escapeAttr(type)}"${bannerHeight ? ` style="--managed-banner-height:${bannerHeight}px"` : ""}>${type === "banner_box" ? image : ""}<div class="managed-profile-block-body">${hiddenBadge}<h3><i class="fas ${escapeAttr(block.icon || "fa-scroll")}"></i>${escapeHtml(block.title)}</h3>${type !== "banner_box" ? image : ""}<div class="managed-profile-markdown">${html}</div></div></article>`;
     }
 
     function renderManagedNpcCategoryField(profile) {
@@ -922,6 +934,39 @@
         return text.length > 120 ? `${text.slice(0, 117).trim()}...` : text;
     }
 
+    function renderManagedBannerEditor(block, preview) {
+        if (block.type !== "banner_box") return "";
+        const height = normalizeManagedBannerHeight(block.bannerHeight);
+        return `<section class="managed-banner-editor" data-managed-banner-editor aria-label="Scorcio del banner">
+            <div class="managed-banner-controls">
+                <label><span>Altezza intestazione <output data-managed-banner-height-label>${height ? `${height} px` : "Auto"}</output></span><input type="range" min="120" max="600" step="1" value="${height || 240}" data-managed-banner-height aria-label="Altezza intestazione in pixel"></label>
+                <button type="button" data-managed-banner-auto aria-pressed="${height === null}">Auto</button>
+                <input type="hidden" data-managed-profile-block-field="bannerHeight" value="${height || ""}">
+            </div>
+            ${preview ? `<div class="managed-banner-frame" data-managed-banner-preview${height ? ` style="--managed-banner-height:${height}px"` : ""}><img src="${escapeAttr(preview)}" alt="Anteprima dello scorcio di ${escapeAttr(block.title)}"></div>` : ""}
+        </section>`;
+    }
+
+    function setupManagedBannerEditors(section, markDirty) {
+        section.querySelectorAll("[data-managed-banner-editor]").forEach((editor) => {
+            const slider = editor.querySelector("[data-managed-banner-height]");
+            const field = editor.querySelector('[data-managed-profile-block-field="bannerHeight"]');
+            const label = editor.querySelector("[data-managed-banner-height-label]");
+            const auto = editor.querySelector("[data-managed-banner-auto]");
+            const preview = editor.querySelector("[data-managed-banner-preview]");
+            const update = (height) => {
+                field.value = height || "";
+                label.textContent = height ? `${height} px` : "Auto";
+                auto.setAttribute("aria-pressed", String(height === null));
+                if (height) preview?.style.setProperty("--managed-banner-height", `${height}px`);
+                else preview?.style.removeProperty("--managed-banner-height");
+                markDirty();
+            };
+            slider.addEventListener("input", () => update(normalizeManagedBannerHeight(slider.value)));
+            auto.addEventListener("click", () => { slider.value = "240"; update(null); });
+        });
+    }
+
     function renderManagedProfileEditorBlock(block, index) {
         const imageValue = block.type === "banner_box" ? (block.banner || block.image || "") : (block.image || "");
         const needsImage = Boolean(imageValue) || ["image_box", "banner_box", "secret_dossier"].includes(block.type);
@@ -964,6 +1009,7 @@
                             </div></details>
                         </aside>
                     </div>
+                    ${renderManagedBannerEditor(block, preview)}
                 </div>
             </article>`;
         }
@@ -1084,6 +1130,7 @@
         if (!section || !editMode || !currentProfilePermissions.canEdit) return;
         setupManagedNpcProfileEditorLayout(root, section);
         const markDirty = () => { managedProfileDirty = true; root.dataset.managedDirty = "true"; };
+        setupManagedBannerEditors(section, markDirty);
         const actorNameControl = root.querySelector('[data-managed-actor-path="name"]');
         if (actorNameControl && actorNameControl.dataset.managedProfileNameBound !== "true") {
             actorNameControl.dataset.managedProfileNameBound = "true";
@@ -1314,7 +1361,9 @@
             const value = (name) => node.querySelector(`[data-managed-profile-block-field="${CSS.escape(name)}"]`)?.value ?? "";
             const type = value("type") || "lore";
             const imageValue = value("image");
-            return normalizeManagedProfileBlockClient({ ...(previousBlocks.get(value("id")) || {}), id: value("id") || `blocco-${index + 1}`, type, title: value("title") || "Informazioni", icon: value("icon") || "fa-scroll", visibility: value("visibility") || "public", text: value("text"), ...(type === "banner_box" ? { banner: imageValue } : { image: imageValue }) }, index);
+            const heightField = node.querySelector('[data-managed-profile-block-field="bannerHeight"]');
+            const previous = previousBlocks.get(value("id")) || {};
+            return normalizeManagedProfileBlockClient({ ...previous, id: value("id") || `blocco-${index + 1}`, type, title: value("title") || "Informazioni", icon: value("icon") || "fa-scroll", visibility: value("visibility") || "public", text: value("text"), ...(type === "banner_box" ? { banner: imageValue, bannerHeight: heightField ? heightField.value : previous.bannerHeight } : { image: imageValue }) }, index);
         });
         if (currentDocument?.media) next.media = { avatar: currentDocument.media.avatar || next.media?.avatar || null, idle: currentDocument.media.idle || next.media?.idle || null, hover: currentDocument.media.hover || next.media?.hover || null };
         return next;
@@ -1412,7 +1461,15 @@
             expectedRevision: Number(currentProfile?.revision || 0),
             data: next
         }, { token });
-        currentProfile = normalizeManagedProfile(payload.data, currentDocument || next);
+        const savedProfile = normalizeManagedProfile(payload.data, currentDocument || next);
+        const savedBlocks = new Map(savedProfile.blocks.map(block => [block.id, block]));
+        const lostBannerHeight = next.blocks.some(block => block.type === "banner_box"
+            && normalizeManagedBannerHeight(block.bannerHeight) !== normalizeManagedBannerHeight(savedBlocks.get(block.id)?.bannerHeight));
+        if (lostBannerHeight) {
+            currentProfile = { ...next, revision: savedProfile.revision };
+            throw new Error("Il server non ha conservato l'altezza del banner. Pubblica il Worker aggiornato e riprova: la scelta resta nella bozza.");
+        }
+        currentProfile = savedProfile;
         currentProfilePermissions = { ...currentProfilePermissions, canEdit: true, isEditor: true };
         managedProfileSource = "profile";
         managedProfileDirty = false;
@@ -1926,7 +1983,7 @@
             ["managed-stats", "fa-gauge-high", "Panoramica", true],
             ["managed-abilities", "fa-dumbbell", "Caratteristiche", Object.keys(abilities || {}).length > 0],
             ["managed-companions", "fa-paw", "Companion", primaryPlayer],
-            ["managed-player-skill-trees", "fa-diagram-project", "Alberi", primaryPlayer],
+            ["managed-player-skill-trees", "fa-diagram-project", "Alberi", true],
             ["managed-skills", "fa-list-check", "Abilita", Object.keys(skills || {}).length > 0],
             ["managed-traits", "fa-fingerprint", "Tratti", Object.keys(traits || {}).length > 0 || identityEntries.length > 0],
             ["managed-capabilities", "fa-burst", "Combattimento", attackEntries.length > 0 || editMode],
@@ -3876,6 +3933,7 @@
             { key: "stats", label: "Statistiche", selectors: ["#managed-stats", "#managed-abilities", "#managed-traits", "#managed-skills"] },
             { key: "actions", label: "Capacità", count: entries.filter((item) => ["weapon", "feat", "spell"].includes(item.type)).length, selectors: ["#managed-capabilities", "#managed-spells"] },
             { key: "inventory", label: "Inventario", selectors: ["#managed-wallet", "#managed-inventory", "#managed-shop"] },
+            { key: "trees", label: "Alberi", selectors: ["[data-managed-player-skill-trees]"] },
             { key: "effects", label: "Effetti", count: actor.definition?.effects?.length || 0, selectors: ["#managed-effects"] },
             { key: "profile", label: "Dossier", selectors: ["#managed-profile", "#managed-appearance", "#managed-variants", "#managed-actor-link"] }
         ];

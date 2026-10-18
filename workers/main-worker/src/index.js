@@ -4624,6 +4624,12 @@ async function syncStoredManagedActorProfileMedia(env, campaignId, route, actor)
   return true;
 }
 
+function normalizeManagedActorBannerHeight(value) {
+  if (!["number", "string"].includes(typeof value) || value === "") return null;
+  const height = Number(value);
+  return Number.isFinite(height) && height > 0 ? Math.min(600, Math.max(120, Math.round(height))) : null;
+}
+
 function normalizeManagedActorProfileBlock(block, index = 0) {
   const input = block && typeof block === "object" && !Array.isArray(block) ? block : {};
   const allowedTypes = new Set(["lore", "image_box", "banner_box", "custom_box", "secret_dossier"]);
@@ -4641,6 +4647,7 @@ function normalizeManagedActorProfileBlock(block, index = 0) {
   const id = sanitizeAssetId(input.id || input.title || fallbackId) || fallbackId;
   const image = normalizeManagedActorProfileMediaPath(input.image);
   const banner = normalizeManagedActorProfileMediaPath(input.banner);
+  const bannerHeight = type === "banner_box" ? normalizeManagedActorBannerHeight(input.bannerHeight) : null;
   const text = normalizeManagedActorProfileText(input.markdownText ?? input.text ?? input.content ?? "");
   const tags = Array.isArray(input.tags)
     ? input.tags.map((tag) => String(tag || "").trim().slice(0, 40)).filter(Boolean).slice(0, 12)
@@ -4654,6 +4661,7 @@ function normalizeManagedActorProfileBlock(block, index = 0) {
     visibility: managedActorProfileBlockVisibility(input.visibility, input.hidden === true),
     ...(image ? { image } : {}),
     ...(banner ? { banner } : {}),
+    ...(bannerHeight ? { bannerHeight } : {}),
     ...(input.image_caption ? { imageCaption: String(input.image_caption).trim().slice(0, 500) } : {}),
     ...(input.borderColor ? { borderColor: String(input.borderColor).trim().slice(0, 32) } : {}),
     ...(tags.length ? { tags } : {}),

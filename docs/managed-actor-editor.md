@@ -14,6 +14,10 @@ Intervento del 17 settembre 2026. Il frontend usa il contratto attuale di wiki-s
 
 ## Interfaccia NPC
 
+I capitoli Banner mostrano l'immagine come intestazione a tutta larghezza, seguita da titolo e testo. In Modifica, **Altezza intestazione** permette di scegliere uno scorcio tra 120 e 600 px, con anteprima immediata; **Auto** ripristina le proporzioni automatiche. Su mobile l'intestazione non supera 240 px. Il campo opzionale `blocks[].bannerHeight` viene validato e conservato dal Worker: per salvare la scelta occorre pubblicare anche il Worker aggiornato, senza aggiornamenti a Foundry. Se il server restituisce un profilo privo dell'altezza scelta, il FE segnala il problema e conserva la bozza con la revisione restituita, così il tentativo successivo non usa una revisione scaduta. I dossier esistenti mantengono Auto fino a una scelta esplicita.
+
+Verificati con `test:npc-banner-height` il salvataggio e la rilettura attraverso il Worker reale con archivio in memoria, permessi e conflitti, Auto e conservazione della bozza con server precedente. Nell'anteprima locale con renderer e controlli FE reali sono stati controllati minimo, massimo e Auto su desktop e a 320 px: testo sotto l'immagine, limite mobile di 240 px e nessuna eccedenza orizzontale. Nessun salvataggio verso il servizio reale.
+
 I testi della scheda evitano note sulla provenienza dei dati, sui calcoli di Foundry e sulle revisioni tecniche. Restano gli stati di salvataggio, gli errori, i conflitti e le indicazioni necessarie per interpretare o modificare i valori. I campi derivati conservano il comportamento di sola lettura anche senza la nota esplicativa.
 
 La scheda NPC si apre sulle statistiche, con navigazione in Statistiche, Capacità, Inventario, Effetti e Dossier (le sezioni senza contenuti vengono omesse). Le schede dei personaggi giocanti mantengono la navigazione precedente. Tutti i pulsanti delle sezioni rimangono visibili. Il dossier pubblico senza statistiche condivide la stessa composizione della scheda completa.
@@ -67,3 +71,13 @@ FE e Worker sono modificati nel repository. Il modulo di test installato è aggi
 La cartella `module/` è ignorata da Git ed è una sorgente 0.9.6 differente; contiene la stessa correzione del servizio per consentire i test del repository, ma non va usata per ricreare la distribuzione 0.10.8. La patch del servizio è conservata in `docs/patches/wiki-sync-0.10.8.patch` per revisione. Il precedente `dist/cripta-wiki-sync.zip`, già modificato prima di questo lavoro, è conservato.
 
 Per attivare tutto sul sito pubblico servono la pubblicazione degli asset FE, il deploy del Worker e la distribuzione del pacchetto aggiornato con il relativo manifest di release. Nessun deploy remoto o modifica dei dati del mondo è stato eseguito qui. La verifica completa in una sessione Foundry connessa al Worker pubblicato resta il controllo finale della release.
+
+## Alberi NPC e barra progresso (18 ottobre 2026)
+
+La scheda completa degli NPC include la sezione **Alberi**, anche per i companion. Il DM crea gli alberi con **Nuovo albero** e li modifica con lo stesso editor guidato dei personaggi. L'identità usata per definizioni e progressi è `npc-{worldId}-{actorId}`, normalizzata: resta separata dal personaggio proprietario e dagli NPC di altri mondi. Gli alberi condivisi di campagna continuano a comparire nelle schede dei personaggi; non vengono aggiunti automaticamente alle schede NPC. Per gli NPC la gestione degli alberi e degli sblocchi rimane al DM; il lettore della scheda vede soltanto i contenuti pubblicati, secondo le regole attuali.
+
+In **Modifica → Albero → Barra di progresso** si possono abilitare il contatore, un nome (ad esempio Esperienza o Affinità), un obiettivo e la posizione: verticale a destra oppure orizzontale sotto il disegno. Dopo **Salva albero**, il DM usa **Aggiorna** sulla barra per impostare il valore. La barra non applica livelli o sblocchi automatici e il valore può superare l'obiettivo senza perdere punti. Disattivarla o cambiare obiettivo non azzera il contatore.
+
+La configurazione viene conservata nella definizione come `progressTrack: {enabled, label, target, position}`; il valore viene conservato nel record progressi come `treeProgress`. Gli aggiornamenti degli sblocchi preservano il contatore e i metadati preesistenti. I salvataggi continuano a usare versioni/revisioni, coda e ripristino in caso di errore. Non sono necessarie migrazioni, deploy del Worker o aggiornamenti di wiki-sync: questo intervento modifica solo il FE e riutilizza le API esistenti, senza scritture dirette a KV, D1 o al mondo Foundry durante lo sviluppo.
+
+`npm run test:skill-trees` include i controlli di separazione degli NPC, visibilità, conservazione dei punti e ripristino dopo errori. La verifica visuale usa una scheda NPC completa con servizi simulati e nessun collegamento ai dati online.

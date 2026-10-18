@@ -1,0 +1,471 @@
+diff --git a/scripts/khuzoe-tokenizer.js b/scripts/khuzoe-tokenizer.js
+index 4a897b4..8c04b61 100644
+--- a/scripts/khuzoe-tokenizer.js
++++ b/scripts/khuzoe-tokenizer.js
+@@ -225,6 +225,16 @@ import {
+         button.addEventListener("click", (event) => this._deleteVariant(event));
+       });
+ 
++      root.querySelectorAll('[data-action="variant-avatar-choose"], [data-action="variant-avatar-remove"]').forEach((button) => {
++        button.addEventListener("click", (event) => {
++          event.preventDefault();
++          event.stopPropagation();
++          if (this._busy) return;
++          if (button.dataset.action === "variant-avatar-remove") this._saveAvatar(button.dataset.variantId, "");
++          else chooseVariantAvatar(this.actor, button.dataset.variantId, (path) => this._saveAvatar(button.dataset.variantId, path));
++        });
++      });
++
+       root.querySelectorAll("[data-variant-manager-field]").forEach((input) => {
+         input.addEventListener("change", (event) => this._updateVariant(event));
+       });
+@@ -244,6 +254,20 @@ import {
+       dropzone.addEventListener("drop", (event) => this._onDrop(event));
+     }
+ 
++    async _saveAvatar(variantId, path) {
++      if (this._busy) return;
++      this._setBusy(true);
++      try {
++        await saveActorVariantAvatar(this.actor, variantId, path);
++        this.render();
++      } catch (error) {
++        console.error(`${MODULE_ID} | Variant avatar save failed`, error);
++        ui.notifications.error(getUserFacingErrorMessage(error, `${MODULE_ID}.notifications.variantSaveFailed`));
++      } finally {
++        this._setBusy(false);
++      }
++    }
++
+     _chooseImage() {
+       if (this._busy) return;
+       openFilePicker({
+@@ -647,6 +671,7 @@ import {
+       if (action === "variant-save") return this._saveTokenVariant();
+       if (action === "variant-edit-base") return this._editTokenBase();
+       if (action === "variant-edit") return this._editTokenVariant(button.dataset.variantId);
++      if (action === "variant-avatar-manage") return openTokenVariantManager(this.actor);
+       if (action === "variant-delete") return this._deleteTokenVariant(button.dataset.variantId);
+     }
+ 
+@@ -1902,6 +1927,23 @@ import {
+       label.appendChild(size);
+       row.appendChild(label);
+ 
++      if (options.base) {
++        const placeholder = document.createElement("span");
++        placeholder.className = "ktz-variant-icon-placeholder";
++        row.appendChild(placeholder);
++      } else {
++        const avatarButton = this._createVariantButton("variant-avatar-manage", variant.id, "fa-user", game.i18n.localize(`${MODULE_ID}.buttons.variantAvatar`));
++        if (variant.avatarSrc) {
++          avatarButton.classList.add("has-avatar");
++          avatarButton.replaceChildren();
++          const image = document.createElement("img");
++          image.src = variant.avatarSrc;
++          image.alt = game.i18n.localize(`${MODULE_ID}.labels.variantAvatar`);
++          avatarButton.appendChild(image);
++        }
++        row.appendChild(avatarButton);
++      }
++
+       row.appendChild(this._createVariantButton(
+         options.base ? "variant-edit-base" : "variant-edit",
+         variant.id,
+@@ -2002,6 +2044,7 @@ import {
+       open: (actor) => openTokenizer(actor),
+       manageVariants: (actor) => openTokenVariantManager(actor),
+       getVariants: (actor) => getActorTokenVariants(actor),
++      getTokenAvatar: (tokenDocument) => getTokenAvatar(tokenDocument),
+       syncVariants: (actor, payload = {}) => syncActorTokenVariants(actor, payload),
+       replaceVariants: (actor, payload = {}) => replaceActorTokenVariants(actor, payload),
+       applyVariant: (tokenDocument, variantOrId, options = {}) => applyTokenVariant(tokenDocument, variantOrId, options),
+@@ -2314,7 +2357,7 @@ import {
+ 
+     const actor = token.actor;
+     const groundLootPreview = getMerchantGroundLootPreview(token);
+-    const source = String(groundLootPreview?.source || actor?.img || "").trim();
++    const source = String(groundLootPreview?.source || getTokenAvatar(token.document) || "").trim();
+     if (!source) {
+       ui.notifications.info(game.i18n.localize(`${MODULE_ID}.notifications.avatarPreviewMissing`));
+       return true;
+@@ -2337,7 +2380,7 @@ import {
+ 
+     activeAvatarPreview = openImagePopout(source, {
+       title,
+-      uuid: !groundLootPreview && canIdentify && actor?.uuid ? actor.uuid : null
++      uuid: !groundLootPreview && canIdentify && source === actor?.img && actor?.uuid ? actor.uuid : null
+     });
+     if (activeAvatarPreview) {
+       activeAvatarPreview._ktzAvatarSource = source;
+@@ -3201,6 +3244,41 @@ import {
+     return /^#[0-9a-f]{6}$/i.test(color) ? color : fallback;
+   }
+ 
++  function getTokenAvatar(tokenDocument) {
++    const token = tokenDocument?.document || tokenDocument;
++    const activeId = String(token?.getFlag?.(MODULE_ID, "activeTokenVariant") || "base");
++    if (activeId !== "base") {
++      const ownerId = token?.getFlag?.(MODULE_ID, "variantOwnerActorId");
++      const catalogActor = (ownerId && game.actors?.get?.(ownerId)) || token?.actor;
++      const variant = getActorTokenVariants(catalogActor).find((entry) => entry.id === activeId);
++      if (variant?.avatarSrc) return variant.avatarSrc;
++    }
++    return String(token?.actor?.img || "");
++  }
++
++  function chooseVariantAvatar(actor, variantId, callback) {
++    const variant = getActorTokenVariants(actor).find((entry) => entry.id === variantId);
++    if (!variant || !isEditableTokenVariant(variant) || (!game.user?.isGM && !actor?.isOwner)) return;
++    openFilePicker({ type: "image", current: variant.avatarSrc || actor.img || "", callback });
++  }
++
++  async function saveActorVariantAvatar(actor, variantId, source) {
++    if (!actor || (!game.user?.isGM && !actor.isOwner)) throw createUserFacingError(`${MODULE_ID}.notifications.variantAvatarDenied`);
++    const original = getActorTokenVariants(actor).find((entry) => entry.id === variantId);
++    if (!original || !isEditableTokenVariant(original)) throw createUserFacingError(`${MODULE_ID}.notifications.managedVariant`);
++    const avatarSrc = source ? await uploadVariantAvatarSource(actor, source, variantId) : "";
++    // Re-read after the upload so concurrent metadata edits are not overwritten.
++    const variants = getActorTokenVariants(actor);
++    const variant = variants.find((entry) => entry.id === variantId);
++    if (!variant || !isEditableTokenVariant(variant) || (!game.user?.isGM && !actor.isOwner)) throw createUserFacingError(`${MODULE_ID}.notifications.variantAvatarDenied`);
++    variant.avatarSrc = stripCacheBust(avatarSrc);
++    variant.updatedAt = new Date().toISOString();
++    await actor.setFlag(MODULE_ID, "tokenVariants", variants.map(cleanTokenVariant));
++    await emitTokenizerSaved(actor, { reason: "variant-avatar-updated", variantsChanged: true });
++    refreshOpenTokenVariantViews(actor);
++    return variant.avatarSrc;
++  }
++
+   function getActorTokenVariants(actor) {
+     const variants = actor?.getFlag(MODULE_ID, "tokenVariants") || [];
+     return Array.isArray(variants)
+@@ -3223,6 +3301,7 @@ import {
+       .map((variant) => createTokenVariant({
+         ...variant,
+         scale: variant.scale === undefined ? existingById.get(String(variant.id))?.scale : variant.scale,
++        avatarSrc: variant.avatarSrc === undefined ? existingById.get(String(variant.id))?.avatarSrc : variant.avatarSrc,
+         source: "manual",
+         createdAt: variant.createdAt || now,
+         updatedAt: variant.updatedAt || now
+@@ -3252,6 +3331,7 @@ import {
+         return createTokenVariant({
+           ...variant,
+           scale: variant.scale === undefined ? previous?.scale : variant.scale,
++          avatarSrc: variant.avatarSrc === undefined ? previous?.avatarSrc : variant.avatarSrc,
+           source,
+           createdAt: previous?.createdAt || variant?.createdAt,
+           updatedAt: previous?.updatedAt || variant?.updatedAt
+@@ -3346,6 +3426,7 @@ import {
+       id: String(data.id || generateVariantId()),
+       name: String(data.name || fileNameWithoutExtension(data.src || data.image || "") || "Token"),
+       src: stripCacheBust(data.src || data.path || data.image || ""),
++      avatarSrc: typeof data.avatarSrc === "string" ? stripCacheBust(data.avatarSrc.trim()) : "",
+       remoteImage: String(data.remoteImage || data.remote || ""),
+       revision: normalizeTokenVariantRevision(data.revision || data.imageRevision),
+       width: normalizeTokenVariantSize(data.width || size),
+@@ -3559,6 +3640,24 @@ import {
+     return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 40);
+   }
+ 
++  async function uploadVariantAvatarSource(actor, src, variantId) {
++    const image = await loadImage(src);
++    const width = image.naturalWidth || image.width || 1;
++    const height = image.naturalHeight || image.height || 1;
++    const limit = clamp(Math.round(Number(game.settings.get(MODULE_ID, "avatarMaxDimension")) || 1024), 128, 4096);
++    const scale = Math.min(1, limit / Math.max(width, height));
++    const canvas = document.createElement("canvas");
++    canvas.width = Math.max(1, Math.round(width * scale));
++    canvas.height = Math.max(1, Math.round(height * scale));
++    const context = canvas.getContext("2d");
++    context.imageSmoothingEnabled = true;
++    context.imageSmoothingQuality = "high";
++    context.drawImage(image, 0, 0, canvas.width, canvas.height);
++    const blob = await canvasToWebpBlob(canvas, getWebpQuality());
++    const directory = await ensureActorOutputDirectory(actor);
++    return uploadBlob(directory, `avatar-variant-${sanitizeSegment(variantId)}-${await hashBlob(blob)}.webp`, blob);
++  }
++
+   async function uploadTokenVariantSource(actor, src, sourceName = "", variantId = generateVariantId()) {
+     if (!actor || !src) throw new Error("Missing Actor or token variant source.");
+ 
+diff --git a/templates/token-variant-manager.hbs b/templates/token-variant-manager.hbs
+index a762eaf..a6336b2 100644
+--- a/templates/token-variant-manager.hbs
++++ b/templates/token-variant-manager.hbs
+@@ -50,6 +50,12 @@
+       <button type="button" class="ktz-variant-manager-delete" data-action="variant-manager-delete" data-variant-id="{{id}}" title="{{localize "khuzoe-tokenizer.buttons.deleteVariant"}}" {{#if managed}}disabled{{/if}}>
+         <i class="fas fa-trash"></i>
+       </button>
++      <div class="ktz-variant-avatar">
++        {{#if avatarSrc}}<img src="{{avatarSrc}}" alt="{{localize 'khuzoe-tokenizer.labels.variantAvatar'}}">{{/if}}
++        <span><strong>{{localize "khuzoe-tokenizer.labels.variantAvatar"}}</strong><small>{{#if avatarSrc}}{{localize "khuzoe-tokenizer.labels.tokenOnlyAvatar"}}{{else}}{{localize "khuzoe-tokenizer.labels.inheritAvatar"}}{{/if}}</small></span>
++        <button type="button" data-action="variant-avatar-choose" data-variant-id="{{id}}" {{#if managed}}disabled{{/if}}>{{#if avatarSrc}}{{localize "khuzoe-tokenizer.buttons.replaceAvatar"}}{{else}}{{localize "khuzoe-tokenizer.buttons.addAvatar"}}{{/if}}</button>
++        {{#if avatarSrc}}<button type="button" data-action="variant-avatar-remove" data-variant-id="{{id}}" {{#if managed}}disabled{{/if}}>{{localize "khuzoe-tokenizer.buttons.removeAvatar"}}</button>{{/if}}
++      </div>
+     </div>
+     {{else}}
+     <div class="ktz-variant-manager-empty">{{localize "khuzoe-tokenizer.labels.variantManagerEmpty"}}</div>
+diff --git a/styles/khuzoe-tokenizer.css b/styles/khuzoe-tokenizer.css
+index e3391bd..775b7ee 100644
+--- a/styles/khuzoe-tokenizer.css
++++ b/styles/khuzoe-tokenizer.css
+@@ -410,7 +410,7 @@
+   border: 1px solid transparent;
+   display: grid;
+   gap: 6px;
+-  grid-template-columns: 34px minmax(0, 1fr) 28px 28px;
++  grid-template-columns: 34px minmax(0, 1fr) 28px 28px 28px;
+   min-height: 38px;
+   padding: 2px;
+ }
+@@ -1496,6 +1496,22 @@
+   padding: 7px;
+ }
+ 
++.ktz-variant-avatar {
++  grid-column: 1 / -1;
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  flex-wrap: wrap;
++  padding: 10px 0 2px;
++  border-top: 1px solid #344047;
++}
++.ktz-variant-avatar > img { width: 48px; height: 64px; object-fit: contain; border-radius: 4px; background: #13191b; }
++.ktz-variant-avatar > span { flex: 1; min-width: 110px; display: grid; gap: 4px; }
++.ktz-variant-avatar strong { font-size: 12px; }
++.ktz-variant-avatar small { color: #9eabb1; font-size: 11px; }
++.ktz-variant-avatar > button { width: auto; flex: 0 0 auto; padding: 5px 9px; }
++.ktz-variant-icon.has-avatar > img { width: 100%; height: 26px; object-fit: contain; border-radius: 3px; pointer-events: none; }
++
+ .ktz-variant-manager-preview {
+   align-self: center;
+   aspect-ratio: 1;
+diff --git a/lang/it.json b/lang/it.json
+index e461ebb..ad9f13d 100644
+--- a/lang/it.json
++++ b/lang/it.json
+@@ -1,4 +1,12 @@
+ {
++    "khuzoe-tokenizer.buttons.variantAvatar": "Gestisci avatar della variante",
++    "khuzoe-tokenizer.buttons.addAvatar": "Associa avatar",
++    "khuzoe-tokenizer.buttons.replaceAvatar": "Sostituisci",
++    "khuzoe-tokenizer.buttons.removeAvatar": "Usa avatar base",
++    "khuzoe-tokenizer.labels.variantAvatar": "Avatar variante · opzionale",
++    "khuzoe-tokenizer.labels.tokenOnlyAvatar": "Mostrato con M sui token che usano questa variante",
++    "khuzoe-tokenizer.labels.inheritAvatar": "Usa il ritratto base del personaggio",
++    "khuzoe-tokenizer.notifications.variantAvatarDenied": "Non puoi modificare questa variante, oppure non è più disponibile. Riapri la gestione varianti.",
+     "khuzoe-tokenizer.app.title":  "Tokenizer",
+     "khuzoe-tokenizer.buttons.choose":  "Scegli file",
+     "khuzoe-tokenizer.buttons.copyFromAvatar":  "Usa avatar",
+diff --git a/lang/en.json b/lang/en.json
+index f09d135..22ec7d4 100644
+--- a/lang/en.json
++++ b/lang/en.json
+@@ -1,4 +1,12 @@
+ ﻿{
++    "khuzoe-tokenizer.buttons.variantAvatar": "Manage variant portrait",
++    "khuzoe-tokenizer.buttons.addAvatar": "Assign portrait",
++    "khuzoe-tokenizer.buttons.replaceAvatar": "Replace",
++    "khuzoe-tokenizer.buttons.removeAvatar": "Use base portrait",
++    "khuzoe-tokenizer.labels.variantAvatar": "Variant portrait · optional",
++    "khuzoe-tokenizer.labels.tokenOnlyAvatar": "Shown with M on tokens using this variant",
++    "khuzoe-tokenizer.labels.inheritAvatar": "Uses the character's base portrait",
++    "khuzoe-tokenizer.notifications.variantAvatarDenied": "You cannot edit this variant, or it is no longer available. Reopen the variant manager.",
+     "khuzoe-tokenizer.app.title":  "Tokenizer",
+     "khuzoe-tokenizer.buttons.choose":  "Choose file",
+     "khuzoe-tokenizer.buttons.copyFromAvatar":  "Use avatar",
+diff --git a/module.json b/module.json
+index c9a77c3..cd3e68b 100644
+--- a/module.json
++++ b/module.json
+@@ -2,7 +2,7 @@
+     "id":  "khuzoe-tokenizer",
+     "title":  "Khuzoe Tokenizer",
+     "description":  "Editor WebP per immagini utente, avatar, token con varianti e scala visiva, oggetti, capacità e incantesimi.",
+-    "version":  "1.1.0",
++    "version":  "1.2.0",
+     "authors":  [
+                     {
+                         "name":  "Khuzoe"
+diff --git a/package.json b/package.json
+index a6e7e1c..cf2faa3 100644
+--- a/package.json
++++ b/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "khuzoe-tokenizer",
+-  "version": "1.1.0",
++  "version": "1.2.0",
+   "private": true,
+   "type": "module",
+   "scripts": {
+diff --git a/README.md b/README.md
+index c5632c5..da84947 100644
+--- a/README.md
++++ b/README.md
+@@ -1,5 +1,16 @@
+ # Khuzoe Tokenizer
+ 
++## 1.2.0 — Avatar opzionali delle varianti
++
++- In **Gestisci varianti** ogni variante offre **Associa avatar**, **Sostituisci** e **Usa avatar base**. Nell'editor Tokenizer il pulsante ritratto accanto a ciascuna variante apre la gestione. Le varianti esistenti usano il ritratto base fino a un'associazione esplicita.
++- L'immagine viene convertita in WebP mantenendo il formato originale e il limite `avatarMaxDimension`, poi caricata e verificata nella cartella dell'Actor con nome `avatar-variant-<id>-<hash>.webp`. Rimuovere l'associazione non cancella file.
++- Con **M** sul token viene mostrato l'avatar della sua variante attiva. Token diversi dello stesso Actor possono mostrare ritratti diversi; `Actor.img`, scheda condivisa, chat e dossier wiki restano invariati. Tornando alla base o a una variante senza avatar, l'anteprima usa il ritratto base. Permessi e anteprime del bottino di Khuzoe Merchant restano applicati.
++- L'associazione è memorizzata in `tokenVariants[].avatarSrc`; l'API `getTokenAvatar(tokenDocument)` restituisce il ritratto effettivo del token. Il catalogo resta sull'Actor, la scelta della variante sul singolo Token.
++- `replaceVariants()` e `syncVariants()` conservano l'avatar locale quando il campo è omesso; `avatarSrc: null` o `""` rimuove l'associazione. Wiki Sync attualmente non trasporta il campo: l'associazione resta locale al mondo Foundry.
++- Nessuna migrazione dei documenti al caricamento, nessuna nuova esportazione verso R2. Ricaricare Foundry per utilizzare la nuova versione.
++
++Validazione: suite del modulo e prove su token collegati, varianti precedenti, fallback, rimozione, permessi, errore di upload e aggiornamenti esterni con campo omesso.
++
+ ## 1.1.0 — Immagine utente e scala delle varianti
+ 
+ - Nel profilo utente Foundry, accanto al campo dell'immagine, **Inquadra immagine** apre l'editor con trascinamento, zoom, ritaglio e sfondo. Salva `User.avatar`, senza cambiare il ritratto del personaggio assegnato. Un giocatore può modificare il proprio profilo; il GM anche quelli degli altri utenti.
+diff --git a/tests/module.test.mjs b/tests/module.test.mjs
+index 2f04921..7cc3fee 100644
+--- a/tests/module.test.mjs
++++ b/tests/module.test.mjs
+@@ -9,7 +9,7 @@ const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), "u
+ 
+ test("manifest targets Foundry V14 and loads one ES module entry", () => {
+   const manifest = JSON.parse(read("module.json"));
+-  assert.equal(manifest.version, "1.1.0");
++  assert.equal(manifest.version, "1.2.0");
+   assert.equal(manifest.compatibility.minimum, "14");
+   assert.equal(manifest.compatibility.verified, "14.367");
+   assert.deepEqual(manifest.esmodules, ["scripts/main.js"]);
+@@ -76,7 +76,7 @@ test("the M preview uses Merchant ground-loot artwork instead of the shared prox
+ 
+   assert.match(tokenizer, /getFlag\?\.\(MERCHANT_MODULE_ID, "groundLoot"\)/);
+   assert.match(tokenizer, /loot\.img,[\s\S]*loot\.item\?\.img,[\s\S]*token\?\.document\?\.texture\?\.src/);
+-  assert.match(tokenizer, /const source = String\(groundLootPreview\?\.source \|\| actor\?\.img/);
++  assert.match(tokenizer, /const source = String\(groundLootPreview\?\.source \|\| getTokenAvatar\(token\.document\)/);
+   assert.match(tokenizer, /const title = groundLootPreview\?\.title \|\|/);
+   assert.match(tokenizer, /uuid: !groundLootPreview && canIdentify/);
+ });
+diff --git a/tests/features.test.mjs b/tests/features.test.mjs
+index e21fde7..f64cf3f 100644
+--- a/tests/features.test.mjs
++++ b/tests/features.test.mjs
+@@ -65,7 +65,8 @@ function runtime(file, exports) {
+ function variantRuntime() {
+   return runtime("khuzoe-tokenizer.js", [
+     "createTokenVariant", "applyTokenVariant", "restoreTokenVariantBase", "replaceActorTokenVariants",
+-    "syncActorTokenVariants", "updatePlacedTokensUsingVariant", "KhuzoeTokenVariantManagerApp"
++    "syncActorTokenVariants", "updatePlacedTokensUsingVariant", "KhuzoeTokenVariantManagerApp",
++    "getTokenAvatar", "saveActorVariantAvatar"
+   ]);
+ }
+ function imageRuntime() {
+@@ -293,3 +294,110 @@ test("shared crop renderer applies cover, zoom and framing to the exported portr
+   rt.drawImageState(context, { image: { width: 400, height: 200 }, background: { enabled: false }, mode: "cover", zoom: 1.25, offsetX: .1, offsetY: -.1 }, 100);
+   assert.deepEqual(draws[0].slice(1), [-65, -22.5, 250, 125]);
+ });
++
++test("variant portraits follow individual linked tokens, not the shared Actor", async () => {
++  const r = variantRuntime(), actor = actorFixture();
++  const variants = [r.createTokenVariant({ id: "one", src: "one.webp", avatarSrc: "one-portrait.webp" }), r.createTokenVariant({ id: "two", src: "two.webp", avatarSrc: "two-portrait.webp" }), r.createTokenVariant({ id: "legacy", src: "legacy.webp" })];
++  actor.flags.tokenVariants = variants;
++  const first = tokenFixture(actor), second = tokenFixture(actor);
++  first.actorLink = second.actorLink = true;
++  second.id = "second";
++  await r.applyTokenVariant(first, "one");
++  await r.applyTokenVariant(second, "two");
++  assert.equal(r.getTokenAvatar(first), "one-portrait.webp");
++  assert.equal(r.getTokenAvatar({ document: second }), "two-portrait.webp");
++  assert.equal(actor.img, "portrait.webp");
++  assert.equal(actor.prototypeToken.texture.src, "base.webp");
++  const secondBefore = clone(second.updates);
++  await r.applyTokenVariant(first, "legacy");
++  assert.equal(r.getTokenAvatar(first), actor.img);
++  assert.deepEqual(second.updates, secondBefore);
++  assert.equal(r.getTokenAvatar(second), "two-portrait.webp");
++  await r.restoreTokenVariantBase(second);
++  assert.equal(r.getTokenAvatar(second), actor.img);
++  assert.equal(r.getTokenAvatar(null), "");
++});
++
++test("portrait resolves the variant owner catalog and falls back after deletion", async () => {
++  const r = variantRuntime(), actor = actorFixture(), owner = actorFixture();
++  owner.id = "catalog-owner";
++  owner.flags.tokenVariants = [r.createTokenVariant({ id: "form", src: "form.webp", avatarSrc: "form-portrait.webp" })];
++  r.game.actors.set(owner.id, owner);
++  const token = tokenFixture(actor);
++  await r.applyTokenVariant(token, "form", { actor: owner });
++  assert.equal(r.getTokenAvatar(token), "form-portrait.webp");
++  owner.flags.tokenVariants = [];
++  assert.equal(r.getTokenAvatar(token), actor.img);
++  assert.equal(actor.img, "portrait.webp");
++});
++
++test("external variant synchronization preserves omitted portraits and supports explicit reset", async () => {
++  const r = variantRuntime(), actor = actorFixture();
++  actor.flags.tokenVariants = [r.createTokenVariant({ id: "one", src: "one.webp", avatarSrc: "local-portrait.webp", scale: 1.25 })];
++  await r.replaceActorTokenVariants(actor, { variants: [{ id: "one", src: "updated.webp" }] });
++  assert.equal(actor.flags.tokenVariants[0].avatarSrc, "local-portrait.webp");
++  assert.equal(actor.flags.tokenVariants[0].scale, 1.25);
++  await r.replaceActorTokenVariants(actor, { variants: [{ id: "one", src: "updated.webp", avatarSrc: null }] });
++  assert.equal(actor.flags.tokenVariants[0].avatarSrc, "");
++  await r.syncActorTokenVariants(actor, { source: "external", variants: [{ id: "other", src: "other.webp", avatarSrc: "external.webp" }] });
++  await r.syncActorTokenVariants(actor, { source: "external", variants: [{ id: "other", src: "changed.webp" }] });
++  assert.equal(actor.flags.tokenVariants.find(v => v.id === "other").avatarSrc, "external.webp");
++  await r.syncActorTokenVariants(actor, { source: "external", variants: [{ id: "other", src: "changed.webp", avatarSrc: "" }] });
++  assert.equal(actor.flags.tokenVariants.find(v => v.id === "other").avatarSrc, "");
++  assert.equal(actor.img, "portrait.webp");
++});
++
++function portraitUploadRuntime() {
++  const r = variantRuntime();
++  const canvases = [];
++  r.sandbox.Image = class {
++    constructor() { this.naturalWidth = 600; this.naturalHeight = 1800; }
++    set src(value) { this.onload(); }
++  };
++  r.sandbox.document = { createElement() {
++    const canvas = { getContext() { return { drawImage() {} }; }, toBlob(callback) { callback(new Blob(["portrait"], { type: "image/webp" })); } };
++    canvases.push(canvas); return canvas;
++  } };
++  return { ...r, canvases };
++}
++
++test("portrait upload retains vertical shape, metadata and active token isolation", async () => {
++  const r = portraitUploadRuntime(), actor = actorFixture();
++  actor.isOwner = true;
++  actor.flags.tokenVariants = [r.createTokenVariant({ id: "one", name: "Forma", src: "one.webp", scale: 1.25, width: 2 })];
++  const first = tokenFixture(actor), second = tokenFixture(actor);
++  await r.applyTokenVariant(first, "one");
++  await r.saveActorVariantAvatar(actor, "one", "source.png");
++  assert.equal(r.canvases[0].height, 1024);
++  assert.equal(r.canvases[0].width, 341);
++  assert.match(actor.flags.tokenVariants[0].avatarSrc, /avatar-variant-one-[a-f0-9]+\.webp$/);
++  assert.equal(actor.flags.tokenVariants[0].src, "one.webp");
++  assert.equal(actor.flags.tokenVariants[0].name, "Forma");
++  assert.equal(actor.flags.tokenVariants[0].scale, 1.25);
++  assert.equal(actor.flags.tokenVariants[0].width, 2);
++  assert.equal(r.getTokenAvatar(first), actor.flags.tokenVariants[0].avatarSrc);
++  assert.equal(r.getTokenAvatar(second), actor.img);
++  assert.equal(actor.img, "portrait.webp");
++  assert.ok(r.events.some(([name]) => name === moduleId + ".variantsChanged"));
++  await r.saveActorVariantAvatar(actor, "one", "");
++  assert.equal(r.getTokenAvatar(first), actor.img);
++  assert.equal(r.uploads.length, 1, "removing an association never uploads or deletes files");
++});
++
++test("failed portrait uploads and unauthorized edits leave the catalog unchanged", async () => {
++  const r = portraitUploadRuntime(), actor = actorFixture();
++  actor.isOwner = true;
++  actor.flags.tokenVariants = [r.createTokenVariant({ id: "one", src: "one.webp", avatarSrc: "previous.webp" })];
++  const before = clone(actor.flags);
++  r.filePicker.upload = async () => ({ path: "missing.webp" });
++  await assert.rejects(r.saveActorVariantAvatar(actor, "one", "source.png"));
++  assert.deepEqual(clone(actor.flags), before);
++  assert.equal(r.events.length, 0);
++  actor.isOwner = false;
++  await assert.rejects(r.saveActorVariantAvatar(actor, "one", ""));
++  assert.deepEqual(clone(actor.flags), before);
++  actor.isOwner = true;
++  actor.flags.tokenVariants[0].source = "managed";
++  await assert.rejects(r.saveActorVariantAvatar(actor, "one", ""));
++  assert.equal(actor.flags.tokenVariants[0].avatarSrc, "previous.webp");
++});

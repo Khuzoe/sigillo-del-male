@@ -5269,3 +5269,130 @@ body.has-skill-tree-focus {
     .skill-requirement-add { flex-wrap: wrap; }
     .skill-requirement-add > label { flex-basis: 100%; }
 }
+
+/* Guided editor: common tasks first, project tools kept in advanced mode. */
+[data-skill-simple-toggle][hidden],
+.player-skill-edit-guide[hidden] { display: none !important; }
+.player-skill-edit-toggle:has(> span) { width: auto; gap: .5rem; padding: .6rem .85rem; }
+.player-skill-tree-active-actions .player-skill-edit-toggle:has(> span) { width: auto; display: inline-flex; align-items: center; }
+.is-editing-skill-tree .skill-tree-progress-legend { display: none; }
+.is-editing-skill-tree .skill-node-progress { display: none; }
+.player-skill-tree-stack:has(.is-simple-skill-editor) :is([data-skill-create-tree], [data-skill-create-shared-tree], [data-skill-export-pdf], [data-skill-delete-tree], [data-skill-route-toggle]) { display: none; }
+.player-skill-edit-guide { display: grid; gap: .35rem; margin-bottom: .85rem; font: .8rem/1.5 var(--font-ui); }
+.player-skill-edit-guide strong { color: var(--ink-ivory); }
+.player-skill-edit-guide span { color: var(--text-muted); }
+[data-skill-editor-canvas-toggle] { display: none; }
+.player-skill-tree-card.is-simple-skill-editor .player-skill-workspace-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.player-skill-tree-card.is-simple-skill-editor .player-skill-workspace-tabs button { display: grid; gap: .3rem; padding: .8rem .4rem; }
+.player-skill-tree-card.is-simple-skill-editor .player-skill-workspace-tabs button span { display: inline; font-size: .8rem; }
+.player-skill-tree-card.is-simple-skill-editor .player-skill-workspace-tabs button small { font: 400 .68rem/1.3 var(--font-ui); text-transform: none; letter-spacing: 0; color: var(--text-muted); }
+.player-skill-tree-card.is-simple-skill-editor .player-skill-simple-shell { grid-template-columns: minmax(0, 1fr); }
+.player-skill-tree-card.is-simple-skill-editor .player-skill-simple-preview { display: block; position: static; }
+.player-skill-guided-picker { display: grid; gap: .45rem; min-width: 0; color: var(--ink-ivory); font: 600 .78rem/1.3 var(--font-ui); }
+.player-skill-guided-picker > span { display: flex; justify-content: space-between; gap: .6rem; }
+.player-skill-guided-picker small { color: var(--text-muted); font-weight: 400; }
+.player-skill-guided-picker select { width: 100%; min-width: 0; min-height: 2.65rem; padding: .6rem .75rem; border: 1px solid rgba(212,175,55,.25); border-radius: 9px; background: #151317; color: var(--ink-ivory); font: 600 .9rem/1.3 var(--font-ui); }
+.player-skill-guided-intro { display: grid; gap: .4rem; }
+.player-skill-guided-intro strong { color: var(--ink-ivory); font: 600 1rem/1.4 var(--font-ui); }
+.player-skill-guided-intro p { margin: 0; color: var(--text-muted); font: .82rem/1.6 var(--font-ui); }
+.player-skill-guided-publication { display: grid; gap: .4rem; color: var(--text-muted); font: .78rem/1.4 var(--font-ui); }
+.player-skill-guided-publication select { min-width: 0; width: 100%; padding: .5rem .65rem; color: var(--ink-ivory); background: #141217; border: 1px solid rgba(212,175,55,.2); border-radius: 8px; }
+.player-skill-guided-levels { display: grid; gap: .7rem; padding: .8rem 0; border-block: 1px solid rgba(212,175,55,.16); }
+.player-skill-guided-levels > div:first-child { display: grid; gap: .3rem; }
+.player-skill-guided-levels strong { color: var(--ink-ivory); font: 600 .8rem/1.4 var(--font-ui); }
+.player-skill-guided-levels small { color: var(--text-muted); font: .74rem/1.5 var(--font-ui); }
+.player-skill-guided-level-buttons { display: flex; flex-wrap: wrap; gap: .4rem; }
+.player-skill-guided-level-buttons > button { min-height: 2.35rem; padding: .4rem .7rem; border: 1px solid rgba(212,175,55,.2); border-radius: 8px; color: var(--ink-ivory); background: rgba(255,255,255,.025); font: 600 .76rem/1.4 var(--font-ui); cursor: pointer; }
+.player-skill-guided-level-buttons > button.is-active { color: #fff0b9; background: rgba(212,175,55,.16); border-color: rgba(212,175,55,.65); }
+.player-skill-guided-level-buttons > button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.player-skill-guided-options { padding: .8rem; border: 1px solid rgba(212,175,55,.13); border-radius: 10px; background: rgba(0,0,0,.14); }
+.player-skill-guided-options > summary { cursor: pointer; color: #cfc3a9; font: 600 .8rem/1.5 var(--font-ui); }
+.player-skill-guided-options > :not(summary) { margin-top: .85rem; }
+.player-skill-guided-options > p { color: var(--text-muted); font: .8rem/1.6 var(--font-ui); }
+.player-skill-guided-options .player-skill-editor-grid { grid-template-columns: minmax(0, 1fr); }
+.player-skill-guided-tree-settings { display: grid; gap: 1rem; }
+.player-skill-guided-tree-settings .player-skill-tree-settings-grid { grid-template-columns: minmax(0, 1fr); }
+.player-skill-guided-bg { width: 4.5rem; height: 4.5rem; object-fit: cover; border-radius: 8px; }
+.player-skill-guided-tree-settings .player-skill-tree-bg-upload { display: flex; flex-wrap: wrap; align-items: center; }
+.player-skill-guided-tree-settings .player-skill-tree-bg-upload > div { flex: 1; min-width: 130px; }
+.player-skill-tree-card.is-simple-skill-editor .player-skill-simple-field { text-transform: none; letter-spacing: 0; font-size: .8rem; font-weight: 600; }
+.player-skill-tree-card.is-simple-skill-editor .player-skill-simple-description .player-skill-level-rich-editor { min-height: 12rem; font-size: 1rem; }
+.player-skill-tree-card.is-simple-skill-editor .player-skill-simple-preview-card { min-height: 0; }
+.player-skill-tree-card.is-simple-skill-editor .player-skill-editor-action-group { max-width: none; grid-template-columns: auto auto; gap: .5rem; }
+.player-skill-tree-card.is-simple-skill-editor .player-skill-editor-action-group .player-skill-action-button { font-size: .75rem; }
+.player-skill-tree-stack.is-focus-mode .player-skill-tree-card.is-simple-skill-editor .player-skill-tree-layout { grid-template-columns: minmax(300px, .95fr) minmax(360px, 1.05fr); }
+.player-skill-tree-stack.is-focus-mode .player-skill-tree-card.is-simple-skill-editor .player-skill-tree-editor { height: min(78vh, 900px); min-height: 0; }
+@media (min-width: 1051px) {
+    .player-skill-tree-stack.is-focus-mode:has(.is-simple-skill-editor) { overflow: hidden; }
+    .player-skill-tree-stack.is-focus-mode:has(.is-simple-skill-editor) .player-skill-tree-stack-viewport { height: 100%; min-height: 0; }
+    .player-skill-tree-stack.is-focus-mode .player-skill-tree-card.is-simple-skill-editor { height: 100%; padding: 1rem; }
+    .player-skill-tree-stack.is-focus-mode .player-skill-tree-card.is-simple-skill-editor .player-skill-tree-layout { height: 100%; min-height: 0; }
+    .player-skill-tree-stack.is-focus-mode .player-skill-tree-card.is-simple-skill-editor .player-skill-tree-editor { height: 100%; }
+    .player-skill-tree-stack.is-focus-mode .player-skill-tree-card.is-simple-skill-editor .player-skill-tree-column { grid-template-rows: auto minmax(0, 1fr); gap: .8rem; min-height: 0; }
+    .player-skill-tree-stack.is-focus-mode .player-skill-tree-card.is-simple-skill-editor .player-skill-edit-guide { margin: 0; }
+    .player-skill-tree-stack.is-focus-mode .player-skill-tree-card.is-simple-skill-editor .player-skill-tree-wrapper { height: 100%; width: auto; max-width: 100%; }
+}
+@media (max-width: 1050px) {
+    .player-skill-tree-stack.is-focus-mode .player-skill-tree-card.is-simple-skill-editor .player-skill-tree-layout { grid-template-columns: minmax(0, 1fr); }
+    .player-skill-tree-stack.is-focus-mode .player-skill-tree-card.is-simple-skill-editor .player-skill-tree-editor { height: auto; max-height: none; }
+    .player-skill-tree-stack.is-focus-mode .player-skill-tree-card.is-simple-skill-editor .player-skill-tree-wrapper { max-height: 40vh; width: min(100%, 30vh); min-height: 0; margin-inline: auto; }
+    .player-skill-tree-card.is-simple-skill-editor [data-skill-editor-canvas-toggle] { display: inline-flex; }
+    .player-skill-tree-card.is-simple-skill-editor .player-skill-edit-guide > span,
+    .player-skill-tree-card.is-simple-skill-editor:not(.is-editor-canvas-open) .player-skill-tree-wrapper { display: none; }
+    .player-skill-tree-card.is-simple-skill-editor.is-editor-canvas-open .player-skill-edit-guide > span { display: block; }
+    .player-skill-tree-card.is-simple-skill-editor .player-skill-tree-editor { overflow: visible; }
+    .player-skill-tree-card.is-simple-skill-editor .player-skill-editor-actions { position: sticky; bottom: 0; z-index: 5; background: #141117; }
+}
+@media (max-width: 620px) {
+    .player-skill-tree-card.is-simple-skill-editor .player-skill-simple-head { grid-template-columns: minmax(0, 1fr) !important; }
+    .player-skill-tree-card.is-simple-skill-editor .player-skill-editor-action-group { width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .player-skill-tree-card.is-simple-skill-editor .player-skill-workspace-tabs button small { font-size: .62rem; }
+    .player-skill-tree-stack:has(.is-simple-skill-editor) .player-skill-tree-nav-controls { flex-direction: row; flex-wrap: wrap; }
+    .player-skill-tree-stack:has(.is-simple-skill-editor) .player-skill-tree-active-actions { width: auto; max-width: 100%; padding-left: 0; border-left: 0; }
+}
+/* Optional tree progress stays outside the canvas, leaving node coordinates intact. */
+.player-skill-tree-stage { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; min-width: 0; align-items: stretch; gap: .65rem; }
+.player-skill-tree-stage.has-progress-track:not(.is-progress-bottom) { grid-template-columns: minmax(0, 1fr) 76px; }
+.player-skill-tree-stage .player-skill-tree-wrapper { min-width: 0; }
+.player-skill-progress[hidden] { display: none !important; }
+.player-skill-progress { display: flex; flex-direction: column; align-items: center; gap: .7rem; padding: .8rem .35rem; min-width: 0; border: 1px solid rgba(212,175,55,.25); border-radius: 12px; background: linear-gradient(180deg,rgba(45,34,18,.6),rgba(12,11,15,.95)); color: var(--ink-ivory); font-family: var(--font-ui); text-align: center; }
+.player-skill-progress-label { font-size: .7rem; line-height: 1.5; overflow-wrap: anywhere; }
+.player-skill-progress-value { font-size: .78rem; font-weight: 700; max-width: 100%; overflow-wrap: anywhere; }
+.player-skill-progress-value small { display: block; color: var(--text-muted); font-size: .62rem; font-weight: 400; margin-top: .25rem; }
+.player-skill-progress-meter { position: relative; flex: 1; width: 14px; min-height: 80px; overflow: hidden; border: 1px solid rgba(212,175,55,.25); border-radius: 999px; background: rgba(0,0,0,.5); }
+.player-skill-progress-meter i { position: absolute; inset: auto 0 0; height: var(--tree-progress); border-radius: inherit; background: linear-gradient(0deg,#896423,#ebcd71); box-shadow: 0 0 16px rgba(212,175,55,.25); }
+.player-skill-progress-edit { display: grid; gap: .3rem; justify-items: center; padding: .4rem .15rem; border: 0; border-radius: 6px; background: transparent; color: #ebcd71; font: 600 .61rem/1.4 var(--font-ui); cursor: pointer; }
+.player-skill-progress-edit:hover { background: rgba(212,175,55,.12); }
+.player-skill-progress-edit:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.player-skill-progress-help { color: var(--text-muted); font: .76rem/1.6 var(--font-ui); margin: .8rem 0 0; }
+.is-progress-bottom .player-skill-progress { display: grid; grid-template-columns: auto minmax(0,1fr) auto; padding: .7rem 1rem; text-align: left; }
+.is-progress-bottom .player-skill-progress-meter { grid-column: 1 / -1; grid-row: 2; width: 100%; height: 10px; min-height: 0; }
+.is-progress-bottom .player-skill-progress-meter i { inset: 0 auto 0 0; width: var(--tree-progress); height: auto; background: linear-gradient(90deg,#896423,#ebcd71); }
+.is-progress-bottom .player-skill-progress-value { justify-self: end; }
+.is-progress-bottom .player-skill-progress-edit { display: flex; padding-inline: .4rem; }
+.player-skill-progress-settings { display: grid; gap: .8rem; }
+.player-skill-progress-settings .player-skill-editor-grid { grid-template-columns: minmax(0,1fr); }
+@media (min-width:1051px) {
+    .player-skill-tree-stack.is-focus-mode .is-simple-skill-editor .player-skill-tree-stage { height: 100%; min-height: 0; justify-content: center; }
+    .player-skill-tree-stack.is-focus-mode .is-simple-skill-editor .player-skill-tree-stage .player-skill-tree-wrapper { width: auto; max-width: 100%; justify-self: center; }
+}
+@media (max-width:1050px) {
+    .player-skill-tree-card.is-simple-skill-editor:not(.is-editor-canvas-open) .player-skill-tree-stage { display: none; }
+    .player-skill-tree-stack.is-focus-mode .is-simple-skill-editor .player-skill-tree-stage { width: min(100%, 40vh); margin-inline: auto; }
+    .player-skill-tree-stack.is-focus-mode .is-simple-skill-editor .player-skill-tree-stage .player-skill-tree-wrapper { width: 100%; }
+}
+.player-skill-progress { position: relative; }
+.player-skill-progress-form[hidden] { display: none !important; }
+.player-skill-progress-form { position: absolute; z-index: 20; bottom: 0; right: 0; box-sizing: border-box; display: grid; gap: .7rem; width: 240px; max-width: 80vw; padding: 1rem; border: 1px solid rgba(212,175,55,.45); border-radius: 12px; background: #171319; box-shadow: 0 8px 30px #000a; text-align: left; }
+.player-skill-progress-form label { display: grid; gap: .5rem; font-size: .8rem; }
+.player-skill-progress-form input { box-sizing: border-box; width: 100%; padding: .65rem; border: 1px solid #8e743a; border-radius: 7px; background: #0d0b0f; color: #fff3d4; font: inherit; }
+.player-skill-progress-form small { color: var(--text-muted); font-size: .68rem; line-height: 1.5; }
+.player-skill-progress-form > div { display: flex; justify-content: end; gap: .5rem; }
+.player-skill-progress-form button { padding: .5rem .7rem; border: 1px solid #8e743a; border-radius: 7px; background: #292119; color: #fff3d4; font: 600 .7rem var(--font-ui); cursor: pointer; }
+@media (min-width:901px) {
+    .player-skill-tree-stack.is-focus-mode .player-skill-tree-card:not(.has-editor-workspace) .player-skill-tree-stage.has-progress-track { width: min(100%, calc(80vh - 82px)); align-self: start; }
+    .player-skill-tree-stack.is-focus-mode .player-skill-tree-card:not(.has-editor-workspace) .player-skill-tree-stage.has-progress-track .player-skill-tree-wrapper { width: 100%; min-height: 0; }
+    .player-skill-tree-stack.is-focus-mode .player-skill-tree-card:not(.has-editor-workspace) .player-skill-tree-stage.has-progress-track.is-progress-bottom { width: min(100%, calc(80vh - 220px)); }
+}
+/* The vertical title accommodates long progress names without breaking words. */
+.player-skill-tree-stage:not(.is-progress-bottom) .player-skill-progress-label { writing-mode: vertical-rl; transform: rotate(180deg); max-height: 8rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

@@ -76,8 +76,6 @@
 .is-npc .is-dossier-reader .managed-profile-block--secret_dossier { border-top-color: rgba(181,116,130,.35); }
 .is-npc .is-dossier-reader .managed-profile-hidden { margin-bottom: 12px; }
 .is-npc .is-dossier-reader .is-image-only .managed-profile-block-image { float: none; max-width: 100%; margin: 0 auto; }
-.is-npc .is-dossier-reader .managed-profile-block--banner_box.has-adaptive-image > .managed-profile-block-image { margin-top: 2px; }
-.is-npc .is-dossier-reader .managed-profile-block--banner_box .managed-profile-block-body { display: block; }
 .is-npc .is-dossier-reader > .managed-npc-settings { margin-top: 20px; }
 .is-npc .is-dossier-reader:not(.is-compact-dossier) .managed-profile-block-grid .has-adaptive-image:not(.managed-profile-block--banner_box) .managed-profile-block-body { display: grid; grid-template-columns: minmax(0, 1fr) var(--dossier-image-width, 180px); column-gap: 28px; }
 .is-npc .is-dossier-reader:not(.is-compact-dossier) .managed-profile-block-grid .managed-profile-block-body > :is(.managed-dossier-chapter-title, .managed-profile-hidden, .managed-profile-markdown) { grid-column: 1; }
@@ -123,7 +121,48 @@
 .is-npc .is-dossier-reader.is-compact-dossier[data-avatar-format="landscape"] .managed-dossier-identity h1 { font-size: 2rem; }
 .is-npc .is-dossier-reader.is-compact-dossier[data-avatar-format="landscape"] .managed-actor-avatar-layer.is-base { max-height: 240px; }
 
+/* Banners introduce a chapter with a wide header, followed by its prose. */
+.is-npc .is-dossier-reader .managed-profile-block.managed-profile-block--banner_box > .managed-profile-block-image {
+    float: none;
+    width: 100%;
+    max-width: 100%;
+    height: var(--managed-banner-height, auto);
+    aspect-ratio: 3 / 1;
+    max-height: var(--managed-banner-height, 320px);
+    margin: 0 0 20px;
+    border-radius: 8px;
+}
+.is-npc .is-dossier-reader .managed-profile-block.managed-profile-block--banner_box > .managed-profile-block-image img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    object-fit: cover;
+    object-position: center;
+}
+.is-npc .is-dossier-reader .managed-profile-block--banner_box .managed-profile-block-body { display: flow-root; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-profile-block.managed-profile-block--banner_box > .managed-profile-block-image {
+    aspect-ratio: 2.2 / 1;
+    max-height: 240px;
+    margin-bottom: 16px;
+}
+
+.is-npc .managed-banner-editor { padding: 0 20px 20px; }
+.is-npc .managed-banner-controls { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+.is-npc .managed-banner-controls > label { flex: 1; }
+.is-npc .managed-banner-controls > label > span { display: flex; justify-content: space-between; gap: 12px; }
+.is-npc .managed-banner-controls output { color: #cfb783; font-variant-numeric: tabular-nums; }
+.is-npc .managed-banner-controls input[type="range"] { width: 100%; height: 24px; min-height: 24px; padding: 0; border: 0; accent-color: #cfb783; cursor: pointer; }
+.is-npc .managed-banner-controls > button { padding: 8px 14px; border: 1px solid #4a4240; border-radius: 8px; background: #211f25; color: #d9d2c6; font: 500 .75rem/1.5 var(--font-ui); cursor: pointer; }
+.is-npc .managed-banner-controls > button[aria-pressed="true"] { border-color: #af925b; color: #ecd49d; background: #30281d; }
+.is-npc .managed-banner-frame { position: relative; width: 100%; height: var(--managed-banner-height, auto); aspect-ratio: 3 / 1; max-height: var(--managed-banner-height, 320px); overflow: hidden; border-radius: 8px; background: #111015; }
+.is-npc .managed-banner-frame > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+
 @media (max-width: 760px) {
+    .is-npc .managed-banner-editor { padding: 0 16px 16px; }
+    .is-npc .managed-banner-frame { aspect-ratio: 2.2 / 1; max-height: 240px; }
+    .is-npc .is-dossier-reader .managed-profile-block.managed-profile-block--banner_box > .managed-profile-block-image { aspect-ratio: 2.2 / 1; max-height: 240px; margin-bottom: 16px; }
     .is-npc .is-dossier-editing .managed-npc-portrait .managed-actor-art { width: fit-content; margin-inline: auto; }
     .is-npc .is-dossier-editing .managed-npc-portrait .managed-actor-avatar-layer.is-base { width: auto; max-width: 100%; max-height: 300px; }
 }
