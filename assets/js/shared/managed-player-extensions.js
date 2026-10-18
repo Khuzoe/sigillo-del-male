@@ -44,7 +44,7 @@
         if (!document.querySelector("link[data-managed-skill-tree-style]")) {
             const style = document.createElement("link");
             style.rel = "stylesheet";
-            style.href = new URL("../../assets/css/pages/character-skill-tree.css?v=20261018-npc-tree-progress1", window.location.href).toString();
+            style.href = new URL("../../assets/css/pages/character-skill-tree.css?v=20261018-companion-owner1", window.location.href).toString();
             style.dataset.managedSkillTreeStyle = "true";
             document.head.appendChild(style);
         }
@@ -52,7 +52,7 @@
         if (skillTreeModulePromise) return skillTreeModulePromise;
         skillTreeModulePromise = new Promise((resolve, reject) => {
             const script = document.createElement("script");
-            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20261018-npc-tree-progress1", window.location.href).toString();
+            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20261018-companion-owner1", window.location.href).toString();
             script.defer = true;
             script.dataset.managedSkillTreeScript = "true";
             script.addEventListener("load", () => window.CriptaCharacterSkillTree ? resolve(window.CriptaCharacterSkillTree) : reject(new Error("Modulo alberi non inizializzato.")), { once: true });
@@ -736,7 +736,7 @@
         const character = {
             ...subject,
             name: actor.name || subject.id,
-            accountId: subject.isNpc ? "" : actor.ownerAccountIds?.[0] || (actor.permissions?.isOwner ? authAccountId : ""),
+            accountId: actor.permissions?.isOwner ? authAccountId : actor.ownerAccountIds?.[0] || "",
             avatar: mediaUrl(actor.media?.avatar || actor.avatar || actor.img || ""),
             token: mediaUrl(actor.media?.token || actor.token || "")
         };
@@ -748,6 +748,7 @@
             skillTreeStateRevisions: stateRevisions,
             skillTreeAuthState: authState,
             skillTreeCurrentUserIsDm: Boolean(isDm || actor.permissions?.isEditor),
+            skillTreeCanManagePersonalTrees: Boolean(subject.isNpc && actor.permissions?.isOwner),
             escapeHtml,
             normalizeText: normalize,
             slugify,

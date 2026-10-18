@@ -7669,6 +7669,18 @@ function sanitizeAssetToken(value) {
   return String(value || "").trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
 }
 
+function managedNpcSkillTreeSubject(actor) {
+  if (String(actor?.actorType || "").toLowerCase() !== "npc" || !actor.worldId || !(actor.actorId || actor.foundryActorId)) return "";
+  const slug = value => String(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return `npc-${slug(actor.worldId)}-${slug(actor.actorId || actor.foundryActorId)}`;
+}
+
+function skillTreeEditableSubjectId(value) {
+  const id = String(value || "");
+  return id.startsWith("npc-") ? id : sanitizeAssetToken(id);
+}
+
 function sanitizeAssetId(value) {
   return String(value || "").trim().toLowerCase().replace(/[^a-z0-9:_-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 180);
 }
@@ -7698,14 +7710,54 @@ function assertSkillTreeDefinitionWritesAllowed(env, campaignId) {
   }
 }
 
-async function handleSkillTreeDefinitionD1Post(body, campaignId, user, env, corsHeaders, ctx) {
+function personalNpcSkillTreeOwner(tree) {
+  if (!tree || tree.tree || isSharedSkillTreeDefinition(tree)) return "";
+  const owners = [...new Set([tree.characterId, tree.ownerCharacterId,
+    ...(Array.isArray(tree.characterIds) ? tree.characterIds : []),
+    ...(Array.isArray(tree.ownerCharacterIds) ? tree.ownerCharacterIds : [])].filter(Boolean).map(String))];
+  return owners.length === 1 && owners[0].startsWith("npc-") ? owners[0] : "";
+}
+
+function canWriteOwnedNpcTree(tree, existing, owned) {
+  const owner = personalNpcSkillTreeOwner(tree);
+  const id = tree?.id || tree?.key;
+  return Boolean(typeof id === "string" && id.trim() === id && id.length > 0 && id.length <= 180 && Array.isArray(tree.nodes)
+    && owner && owned.has(owner) && (!existing || personalNpcSkillTreeOwner(existing) === owner));
+}
+
+function mergeOwnedNpcTrees(existing, submitted, owned) {
+  const previous = new Map(existing.map(tree => [String(tree.id || tree.key || ""), tree]));
+  for (const tree of submitted) {
+    const old = previous.get(String(tree?.id || tree?.key || ""));
+    if (old && owned.has(personalNpcSkillTreeOwner(old)) && !canWriteOwnedNpcTree(tree, old, owned)) {
+      throw new PollStorageError("Modifica albero non consentita: nessun dato salvato.", 403, "SKILL_TREE_OWNER_REQUIRED");
+    }
+  }
+  const kept = existing.filter(tree => !owned.has(personalNpcSkillTreeOwner(tree)));
+  const own = submitted.filter(tree => canWriteOwnedNpcTree(tree, previous.get(String(tree?.id || tree?.key || "")), owned));
+  if (new Set(own.map(tree => String(tree.id || tree.key))).size !== own.length) {
+    throw new PollStorageError("ID albero duplicato: nessun dato salvato.", 400, "SKILL_TREE_DEFINITION_INVALID");
+  }
+  return [...kept, ...own];
+}
+
+async function handleSkillTreeDefinitionD1Post(body, campaignId, user, env, corsHeaders, ctx, owned = null) {
   const storage = skillTreeDefinitionStorage(env, campaignId);
   const attribution = { updatedAt: new Date().toISOString(), updatedBy: String(user.global_name || user.username || user.sub || ""), updatedByDiscordId: String(user.sub || "") };
   const tree = body?.tree;
   const targeted = tree && typeof tree === "object" && !Array.isArray(tree);
-  const data = targeted ? [tree] : body?.data;
+  let data = targeted ? [tree] : body?.data;
   if (!Array.isArray(data)) return json({ ok: false, error: "Expected { tree: {...} } or { data: [...] }." }, 400, corsHeaders);
   if (JSON.stringify(data).length > 1024 * 1024) return json({ ok: false, error: "Payload too large" }, 413, corsHeaders);
+  if (owned) {
+    const current = await storage.getDocument();
+    const existing = current.data || [];
+    if (targeted) {
+      if (!canWriteOwnedNpcTree(tree, existing.find(entry => String(entry.id || entry.key || "") === String(tree.id || tree.key || "")), owned)) {
+        return json({ok: false, error: "Forbidden: albero non appartenente a un tuo companion."}, 403, corsHeaders);
+      }
+    } else data = mergeOwnedNpcTrees(existing, data, owned);
+  }
   let saved;
   if (targeted && Object.hasOwn(body, "expectedTreeRevision")) {
     saved = await storage.saveTree(tree, body.expectedTreeRevision, attribution);
@@ -7739,10 +7791,10 @@ async function handleSkillTreeStateD1Post(body, campaignId, user, isEditor, env,
     if (JSON.stringify(record).length > 1024 * 1024) return json({ ok: false, error: "Payload too large" }, 413, corsHeaders);
     if (!isEditor) {
       const definitions = (await readDataCollectionDocument("skill-trees", campaignId, env))?.data;
-      const allowed = mergeUserSkillTreeStates(existing.data || [], [record], accountId, definitions)
-        .find(entry => entry.id === record.id && sanitizeAccountId(entry.ownerAccountId) === accountId);
       const owned = await getEditableCharacterIdsForAccount(env, campaignId, accountId);
-      if (!allowed || allowed.scope !== "character" || allowed.shared !== false || !owned.has(sanitizeAssetToken(record.characterId))) return json({ ok: false, error: "Forbidden: progresso non modificabile." }, 403, corsHeaders);
+      const allowed = mergeUserSkillTreeStates(existing.data || [], [record], accountId, definitions, owned)
+        .find(entry => entry.id === record.id && sanitizeAccountId(entry.ownerAccountId) === accountId);
+      if (!allowed || allowed.scope !== "character" || allowed.shared !== false || !owned.has(skillTreeEditableSubjectId(record.characterId))) return json({ ok: false, error: "Forbidden: progresso non modificabile." }, 403, corsHeaders);
       record = allowed;
     }
     saved = await storage.saveState(record, body.expectedStateRevision, attribution);
@@ -7750,7 +7802,8 @@ async function handleSkillTreeStateD1Post(body, campaignId, user, isEditor, env,
     if (!Array.isArray(body?.data)) return json({ ok: false, error: "Expected { state: {...} } or { data: [...] }." }, 400, corsHeaders);
     if (JSON.stringify(body.data).length > 1024 * 1024) return json({ ok: false, error: "Payload too large" }, 413, corsHeaders);
     const definitions = !isEditor ? (await readDataCollectionDocument("skill-trees", campaignId, env))?.data : [];
-    const next = isEditor ? body.data : mergeUserSkillTreeStates(existing.data || [], body.data, accountId, definitions);
+    const next = isEditor ? body.data : mergeUserSkillTreeStates(existing.data || [], body.data, accountId, definitions,
+      await getEditableCharacterIdsForAccount(env, campaignId, accountId));
     saved = await storage.replaceCollection(next, body.expectedVersion, attribution);
   }
   scheduleFoundryLiveInvalidation(ctx, env, { campaignId, collections: ["light-sync"], reason: "data:skill-tree-states", revision: saved.version });
@@ -7774,10 +7827,15 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
 
   const campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || fallbackCampaignId);
   const isCampaignEditor = await isAuthenticatedCampaignEditor(user, env, campaignId);
+  let ownedNpcTreeSubjects = null;
   if (collection === "skill-trees") {
-    if (!isCampaignEditor) return json({ ok: false, error: "Forbidden: data editing requires campaign editor permissions" }, 403, corsHeaders);
+    if (!isCampaignEditor) {
+      const owned = await getEditableCharacterIdsForAccount(env, campaignId, getAuthenticatedAccountId(user, env));
+      ownedNpcTreeSubjects = new Set([...owned].filter(id => id.startsWith("npc-")));
+      if (!ownedNpcTreeSubjects.size) return json({ ok: false, error: "Forbidden: nessun companion di proprietà." }, 403, corsHeaders);
+    }
     assertSkillTreeDefinitionWritesAllowed(env, campaignId);
-    if (skillTreeDefinitionStorage(env, campaignId)) return handleSkillTreeDefinitionD1Post(body, campaignId, user, env, corsHeaders, ctx);
+    if (skillTreeDefinitionStorage(env, campaignId)) return handleSkillTreeDefinitionD1Post(body, campaignId, user, env, corsHeaders, ctx, ownedNpcTreeSubjects);
   }
   if (collection === "skill-tree-states") {
     if (String(env.SKILL_TREE_WRITES_PAUSED_CAMPAIGNS || "").split(/[,;\s]+/).includes(campaignId)) {
@@ -7786,7 +7844,7 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
     }
     if (skillTreeStorage(env, campaignId)) return handleSkillTreeStateD1Post(body, campaignId, user, isCampaignEditor, env, corsHeaders, ctx);
   }
-  const isUserScopedCollection = ["calendar", "transformations", "skill-tree-states", "ability-overrides", "item-overrides", "media-overrides"].includes(collection);
+  const isUserScopedCollection = ["calendar", "transformations", "skill-trees", "skill-tree-states", "ability-overrides", "item-overrides", "media-overrides"].includes(collection);
   if (!isCampaignEditor && !isUserScopedCollection) {
     return json({ ok: false, error: "Forbidden: data editing requires campaign editor permissions" }, 403, corsHeaders);
   }
@@ -7814,6 +7872,9 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
   const existingData = Array.isArray(existing.data) ? existing.data : [];
   const expectedVersion = Number(body?.expectedVersion);
   const currentVersion = Number(existing.version || 0);
+  if (ownedNpcTreeSubjects && (!Number.isInteger(body?.expectedVersion) || body.expectedVersion < 0)) {
+    return json({ok: false, error: "Ricarica gli alberi prima di salvare.", code: "VERSION_CONFLICT"}, 409, corsHeaders);
+  }
   if (collection === "skill-tree-states" && (typeof body?.expectedVersion !== "number" || !Number.isInteger(expectedVersion) || expectedVersion < 0)) {
     return json({ok: false, error: "Ricarica la pagina per leggere i progressi prima di salvarli.", code: "VERSION_CONFLICT", collection, campaignId, currentVersion}, 409, corsHeaders);
   }
@@ -7835,7 +7896,8 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
   let nextData = collection === "transformations" && !isCampaignEditor
     ? mergeUserTransformations(existingData, data, authenticatedAccountId)
     : collection === "skill-tree-states" && !isCampaignEditor
-      ? mergeUserSkillTreeStates(existingData, data, authenticatedAccountId, (await readDataCollectionDocument("skill-trees", campaignId, env))?.data)
+      ? mergeUserSkillTreeStates(existingData, data, authenticatedAccountId, (await readDataCollectionDocument("skill-trees", campaignId, env))?.data,
+        await getEditableCharacterIdsForAccount(env, campaignId, authenticatedAccountId))
       : collection === "calendar" && !isCampaignEditor
         ? mergeUserCalendarNotes(existingData, data, authenticatedAccountId, user)
       : ["ability-overrides", "item-overrides", "media-overrides"].includes(collection) && !isCampaignEditor
@@ -7849,9 +7911,14 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
     }
     const nextTree = { ...body.tree, id: treeId };
     const existingIndex = existingData.findIndex((entry) => String(entry?.id || "") === treeId);
+    if (ownedNpcTreeSubjects && !canWriteOwnedNpcTree(nextTree, existingData[existingIndex], ownedNpcTreeSubjects)) {
+      return json({ok: false, error: "Forbidden: albero non appartenente a un tuo companion."}, 403, corsHeaders);
+    }
     nextData = existingIndex >= 0
       ? existingData.map((entry, index) => index === existingIndex ? nextTree : entry)
       : [...existingData, nextTree];
+  } else if (ownedNpcTreeSubjects) {
+    nextData = mergeOwnedNpcTrees(existingData, data, ownedNpcTreeSubjects);
   }
 
   const removedTransformationMedia = collection === "transformations"
@@ -8404,10 +8471,12 @@ function isSharedSkillTreeStateEntry(entry, sharedTreeKeys = new Set()) {
     || ["campaign", "campagna", "global", "all", "tutti"].includes(characterId);
 }
 
-function mergeUserSkillTreeStates(existingData, submittedData, accountId, trees = []) {
+function mergeUserSkillTreeStates(existingData, submittedData, accountId, trees = [], ownedSubjects = new Set()) {
   const cleanAccountId = sanitizeAccountId(accountId);
   if (!cleanAccountId) return existingData;
-  const belongsToUser = (entry) => sanitizeAccountId(entry?.ownerAccountId || entry?.accountId || "") === cleanAccountId;
+  const belongsToUser = (entry) => String(entry?.characterId || "").startsWith("npc-")
+    ? ownedSubjects.has(String(entry.characterId))
+    : sanitizeAccountId(entry?.ownerAccountId || entry?.accountId || "") === cleanAccountId;
   const sharedTreeKeys = new Set((Array.isArray(trees) ? trees : []).filter(isSharedSkillTreeDefinition)
     .map(entry => sanitizeAssetToken(entry.id || entry.key || entry.treeKey)).filter(Boolean));
   const isShared = entry => isSharedSkillTreeStateEntry(entry, sharedTreeKeys)
@@ -8538,6 +8607,14 @@ async function getEditableCharacterIdsForAccount(env, campaignId, accountId) {
     if (ownerAccountId === cleanAccountId) addId(companion?.ownerCharacterId || companion?.characterId);
   }
 
+  // Use current campaign ownership, never a client-supplied owner on a tree record.
+  const managed = safeJsonParse(await env.SIGILLO_KV.get(managedActorIndexKey(campaignId))) || {};
+  for (const actor of Array.isArray(managed.data) ? managed.data : []) {
+    const owners = Array.isArray(actor?.ownerAccountIds) ? actor.ownerAccountIds.map(sanitizeAccountId) : [];
+    const subject = managedNpcSkillTreeSubject(actor);
+    if (subject && owners.includes(cleanAccountId)) ids.add(subject);
+  }
+
   return ids;
 }
 
@@ -8556,6 +8633,12 @@ async function canAuthenticatedUserUploadMedia(user, env, campaignId, folder, fi
 
   const ownedCharacterIds = await getEditableCharacterIdsForAccount(env, campaignId, accountId);
   if (!ownedCharacterIds.size) return false;
+
+  if (root === "skill-trees" && parts.length === 2) {
+    const definitions = (await readDataCollectionDocument("skill-trees", campaignId, env))?.data;
+    const tree = (Array.isArray(definitions) ? definitions : []).find(entry => String(entry.id || entry.key || "") === parts[1]);
+    return Boolean(tree && ownedCharacterIds.has(personalNpcSkillTreeOwner(tree)));
+  }
 
   if (folder === "transformations" || folder.startsWith("transformations/")) return true;
   if (folder === "companion-transformations" || folder.startsWith("companion-transformations/")) return true;

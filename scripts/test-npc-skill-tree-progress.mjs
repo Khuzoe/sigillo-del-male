@@ -16,6 +16,7 @@ assert.equal(sandbox.subject({actorType:'character', ownerCharacterId:'valdor'})
 assert.equal(sandbox.subject({actorType:'npc', worldId:'world-a'}), null, 'Do not fall back to the owner for an unidentified NPC');
 
 vm.runInNewContext(source.replace(/\}\)\(\);\s*$/, `globalThis.api = {applySkillTreeRuntime, resolvePlayerSkillTreeEntries,
+ canManagePersonalSkillTrees, canManageSkillTreeDefinition, canEditSkillTreeUnlocks,
  getSkillTreeProgressTrack, normalizeSkillTreeProgressValue, renderSkillTreeProgressSettings,
  saveCharacterSkillTreeState, getCharacterSkillTreeState, createSkillTreeProgressTransaction}; })();`), sandbox);
 const api = sandbox.api;
@@ -26,6 +27,14 @@ assert.deepEqual(clone(api.resolvePlayerSkillTreeEntries(npc, definitions).map(e
 assert.deepEqual(clone(api.resolvePlayerSkillTreeEntries({id:'valdor'}, definitions).map(entry=>entry.key)), ['valdor','campaign']);
 api.applySkillTreeRuntime({skillTreeCurrentUserIsDm:false});
 assert.equal(api.resolvePlayerSkillTreeEntries(npc, {companion:{...personal,archived:true}}).length, 0);
+api.applySkillTreeRuntime({skillTreeCurrentUserIsDm:false,skillTreeCanManagePersonalTrees:true,skillTreeAuthState:{user:{accountId:'co-owner'}}});
+assert.equal(api.canManagePersonalSkillTrees({...npc,accountId:'co-owner'}),true,'An owner can edit the companion tree without being DM');
+assert.equal(api.canEditSkillTreeUnlocks({...npc,accountId:'co-owner'}),true);
+assert.equal(api.canManagePersonalSkillTrees({...npc,accountId:'other'}),false,'The scoped flag does not authorize another owner');
+assert.equal(api.canManagePersonalSkillTrees({id:'hero',accountId:'co-owner'}),false,'Companion permissions do not widen player tree permissions');
+assert.equal(api.canManageSkillTreeDefinition({...npc,accountId:'co-owner'},personal),true);
+assert.equal(api.canManageSkillTreeDefinition({...npc,accountId:'co-owner'},{...personal,characterIds:['npc-other']}),false,'Mixed owners cannot widen definition permissions');
+assert.equal(api.canManageSkillTreeDefinition({...npc,accountId:'co-owner'},{...personal,shared:true}),false);
 assert.deepEqual(clone(api.getSkillTreeProgressTrack({})), {enabled:false,label:'Esperienza',target:100,position:'right'});
 assert.equal(api.getSkillTreeProgressTrack({progressTrack:{target:0}}).target, 1);
 assert.equal(api.normalizeSkillTreeProgressValue(Infinity), 0);
