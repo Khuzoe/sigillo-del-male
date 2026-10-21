@@ -57,8 +57,11 @@ try {
    const before=(await definitions()).body;
    return call(campaign,'/api/data/skill-trees',{tree:value,...(before.treeRevisions?{expectedTreeRevision:before.treeRevisions[value.id]??0}:{expectedVersion:before.version})},account);
   }
-  response=await saveTree({...ownTree,name:'Edited by owner',nodes:[{...ownTree.nodes[0],desc:'<p>Changed</p>'}]});equal(response.status,200);
+  response=await saveTree({...ownTree,name:'Edited by owner',progressTrack:{enabled:true,pointsEnabled:true,pointsPerGoal:2},nodes:[{...ownTree.nodes[0],desc:'<p>Changed</p>',pointCost:2,levels:[{desc:'Base'},{desc:'Upgrade',pointCost:3}]}]});equal(response.status,200);
   equal((await definitions()).body.data.find(t=>t.id===ownTree.id).nodes[0].desc,'<p>Changed</p>');
+  const pricedTree=(await definitions()).body.data.find(t=>t.id===ownTree.id);
+  equal(pricedTree.progressTrack.pointsPerGoal,2,'Point rewards survive definition storage');
+  equal(pricedTree.nodes[0].levels[1].pointCost,3,'Per-level costs survive definition storage');
   equal((await saveTree({...otherTree,characterId:subject,ownerCharacterId:subject})).status,403,'Owner cannot claim another NPC tree');
   equal((await saveTree({...ownTree,shared:true})).status,403,'Owner cannot turn a personal tree into a campaign tree');
   equal((await saveTree({...ownTree,id:shared.id})).status,403,'Shared IDs cannot be overwritten');
@@ -73,7 +76,8 @@ try {
    return call(campaign,'/api/data/skill-tree-states',before.stateRevisions?{state:value,expectedStateRevision:before.stateRevisions[value.id]??0}
     :{data:before.data.map(entry=>entry.id===value.id?value:entry),expectedVersion:before.version});
   }
-  response=await saveState({...state,ownerAccountId:'alice',treeProgress:55,unlocked:['first']});equal(response.status,200);
+  response=await saveState({...state,ownerAccountId:'alice',treeProgress:55,unlocked:['first'],treePointWallet:{balance:3,spending:{first:{1:2}}}});equal(response.status,200);
+  equal((await states()).body.data.find(s=>s.id===state.id).treePointWallet,{balance:3,spending:{first:{1:2}}},'Wallet and unlock persist atomically in the existing store');
   equal((await states()).body.data.find(s=>s.id===state.id).treeProgress,55);equal((await states()).body.data.find(s=>s.id===state.id).unlocked,['first']);
   response=await saveState({...otherState,treeProgress:0});if(campaign==='test')equal(response.status,403);
   equal((await states()).body.data.find(s=>s.id===otherState.id).treeProgress,99,'Forged ownerAccountId grants no access');

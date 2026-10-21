@@ -33,7 +33,7 @@
     "test:auth": "node --experimental-default-type=module scripts/test-global-admin.mjs && node --experimental-default-type=module scripts/test-device-login-codes.mjs",
     "test:embed-auth": "node scripts/test-embedded-frame-auth.mjs",
     "test:midi-roll-api": "node --experimental-default-type=module scripts/test-midi-roll-api.mjs",
-    "test:skill-trees": "node --experimental-default-type=module scripts/test-skill-tree-unlocks.mjs && node scripts/test-skill-tree-requirements-ui.mjs && node scripts/test-npc-skill-tree-progress.mjs",
+    "test:skill-trees": "node --experimental-default-type=module scripts/test-skill-tree-unlocks.mjs && node scripts/test-skill-tree-requirements-ui.mjs && node scripts/test-npc-skill-tree-progress.mjs && node scripts/test-skill-tree-points.mjs",
     "test:midi-roll-config": "node scripts/test-midi-roll-config.mjs",
     "test:transformations": "node --experimental-default-type=module scripts/test-khuzoe-transformations.mjs",
     "check:all": "npm run validate:data && npm run check:data-sources && npm run check:performance && npm run check:encoding",

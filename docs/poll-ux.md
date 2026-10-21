@@ -16,6 +16,8 @@ I suggerimenti delle altre campagne sono visibili anche nella vista personale ma
 
 Le immagini dei suggerimenti hanno opacità 0,16 in entrambe le viste; nella tabella riportano anche “Altre campagne”. Sono mostrate solo nelle proprie caselle senza risposta. I voti effettivi conservano la piena opacità anche durante il salvataggio. Aprire i dettagli o aggiornare i suggerimenti non ricrea le immagini già presenti, evitando sfarfallii che possono sembrare deselezioni.
 
+Nella tabella, il primo clic su una casella vuota con un suggerimento univoco salva quel voto nella campagna corrente: ad esempio un No sbiadito diventa subito No. Da lì continua il ciclo normale Sì → Forse → No → senza risposta → Sì. Nella stessa compilazione, tornare a vuoto non riapplica il suggerimento e non crea cicli No/vuoto; dopo un salvataggio fallito il primo clic resta disponibile. Se le altre campagne hanno voti diversi, oppure il suggerimento non è ancora caricato, si parte dal consueto Sì. La vista personale conserva i pulsanti di scelta diretta. Il suggerimento da solo non salva né conta alcuna risposta e la modifica non aggiunge richieste di rete.
+
 ## Salvataggio e richieste
 
 Le due viste condividono lo stesso stato e lo stesso POST esistente. Durante il salvataggio i comandi di voto e modifica sessione sono temporaneamente disabilitati per evitare scritture sovrapposte. “Salvato” compare dopo la risposta del server. In caso di errore viene ripristinato lo stato precedente e Riprova invia nuovamente solo quella scelta. Nella vista personale l'esito compare anche accanto alla fascia modificata. Le risposte tardive non modificano una pagina o campagna che nel frattempo è cambiata.

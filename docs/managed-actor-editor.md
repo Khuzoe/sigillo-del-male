@@ -83,3 +83,15 @@ La configurazione viene conservata nella definizione come `progressTrack: {enabl
 `npm run test:skill-trees` include i controlli di separazione degli NPC, visibilità, conservazione dei punti e ripristino dopo errori. La verifica visuale usa una scheda NPC completa con servizi simulati e nessun collegamento ai dati online.
 
 `npm run test:companion-owner` verifica le API reali su D1, KV e R2 locali temporanei: modifica scheda, capacità, effetti e dossier; creazione, modifica e rimozione degli alberi personali; immagini, sblocchi e progresso; blocco delle modifiche ad altri NPC e alberi condivisi e revoca dei permessi.
+
+## Requisiti compatti e punti spendibili (19 ottobre 2026)
+
+Durante la lettura il riepilogo dei requisiti è chiuso dietro il pulsante **Requisiti**, con lucchetto. L'apertura rimane stabile durante gli aggiornamenti del nodo. Il pannello dell'abilità scorre interamente, evitando che descrizioni lunghe facciano sparire i pulsanti di sblocco.
+
+In **Modifica → Albero → Barra di progresso** si possono attivare i **Punti spendibili** e scegliere quanti punti assegnare per barra completata (predefinito: 1). Salvando esplicitamente il progresso, ogni obiettivo completo assegna i punti e la barra riparte conservando l'eccedenza: 250 su 100, con premio 2, assegna 4 punti e lascia 50. La semplice lettura o modifica della configurazione non accredita punti. Senza questa opzione la barra conserva il comportamento precedente.
+
+Nella scheda di ogni abilità si configura il **Costo in punti** per livello: il costo base predefinito è 1, i livelli successivi lo ereditano salvo modifica; 0 significa gratuito. Sblocco e potenziamento scalano automaticamente il saldo, restando soggetti ai requisiti esistenti. Se mancano punti il pulsante è disabilitato con indicazione del motivo. La matita accanto al saldo permette al DM o al proprietario autorizzato di impostarlo manualmente.
+
+Saldo, storico delle spese, livelli e sblocchi viaggiano nello stesso salvataggio con controllo della revisione e ripristino in caso di errore. Annullare uno sblocco o togliere un livello rimborsa soltanto i punti effettivamente spesi, anche se nel frattempo è cambiato il prezzo. Le abilità precedenti non vengono addebitate retroattivamente e non generano rimborsi gratuiti. Disattivare l'opzione conserva saldo e storico.
+
+I nuovi campi sono `progressTrack.pointsEnabled`, `progressTrack.pointsPerGoal`, `node.pointCost`, `node.levels[].pointCost` e, nello stato, `treePointWallet: {balance, spending}`. I percorsi di salvataggio esistenti li preservano su D1 e KV; questo intervento richiede soltanto la pubblicazione del FE, senza nuovo deploy del Worker né modifiche a wiki-sync. Negli alberi condivisi anche saldo e spese sono condivisi. Nessuna scrittura sui dati online è stata eseguita durante le verifiche.

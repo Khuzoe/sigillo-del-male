@@ -2278,8 +2278,8 @@ function canDisableUnlockedSkillNode(treeData, nodeId, unlockedIds) {
     return Array.from(currentUnlocked).every((unlockedId) => unlockedId === id || pruned.has(unlockedId));
 }
 
-function saveCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap = {}, treeData = null, externalProgressMap = {}, treeProgress) {
-    const save = skillTreeStateSaveQueue.then(() => writeCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap, treeData, externalProgressMap, treeProgress));
+function saveCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap = {}, treeData = null, externalProgressMap = {}, treeProgress, treePointWallet) {
+    const save = skillTreeStateSaveQueue.then(() => writeCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap, treeData, externalProgressMap, treeProgress, treePointWallet));
     skillTreeStateSaveQueue = save.catch(() => {});
     return save;
 }
@@ -2364,7 +2364,7 @@ function requireSkillTreeStatesVersion() {
     return skillTreeStatesVersion;
 }
 
-async function writeCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap, treeData, externalProgressMap, treeProgress) {
+async function writeCharacterSkillTreeState(character, treeKey, unlockedIds, levelMap, treeData, externalProgressMap, treeProgress, treePointWallet) {
     const accountId = getCurrentAccountId();
     const subject = getSkillTreeStateSubject(character, treeKey, treeData);
     const stateId = subject.id;
@@ -2400,6 +2400,7 @@ async function writeCharacterSkillTreeState(character, treeKey, unlockedIds, lev
         updatedAt: new Date().toISOString()
     };
     if (treeProgress !== undefined) nextRecord.treeProgress = normalizeSkillTreeProgressValue(treeProgress);
+    if (treePointWallet !== undefined) nextRecord.treePointWallet = normalizeSkillTreePointWallet(treePointWallet);
     const nextStates = [...kept, nextRecord];
     const body = skillTreeStateRevisions !== null
         ? { state: nextRecord, expectedStateRevision: skillTreeStateRevisions[stateId] ?? 0 }
@@ -2434,13 +2435,73 @@ function getSkillTreeProgressTrack(tree) {
         enabled: track.enabled === true,
         label: String(track.label || 'Esperienza').trim().slice(0, 60) || 'Esperienza',
         target: Math.max(1, normalizeSkillTreeProgressValue(track.target ?? 100)),
-        position: track.position === 'bottom' ? 'bottom' : 'right'
+        position: track.position === 'bottom' ? 'bottom' : 'right',
+        pointsEnabled: track.pointsEnabled === true,
+        pointsPerGoal: Math.max(1, normalizeSkillTreeProgressValue(track.pointsPerGoal ?? 1))
     };
+}
+
+function normalizeSkillTreePointWallet(wallet = {}) {
+    return {...wallet, balance: normalizeSkillTreeProgressValue(wallet?.balance), spending: Object.fromEntries(
+        Object.entries(wallet?.spending || {}).map(([nodeId, levels]) => [nodeId, Object.fromEntries(
+            Object.entries(levels || {}).map(([level, cost]) => [level, normalizeSkillTreeProgressValue(cost)]).filter(([, cost]) => cost > 0)
+        )]).filter(([, levels]) => Object.keys(levels).length)
+    )};
+}
+
+function skillTreePointsEnabled(tree) {
+    const track = getSkillTreeProgressTrack(tree);
+    return track.enabled && track.pointsEnabled;
+}
+
+function getSkillTreePointCost(tree, node, level = 1) {
+    if (!skillTreePointsEnabled(tree) || isSkillTreeGroupNode(node)) return 0;
+    const levels = node?.levels || node?.upgrades || node?.variants || [];
+    return normalizeSkillTreeProgressValue(levels[level - 1]?.pointCost ?? node?.pointCost ?? 1);
+}
+
+function skillTreePointsError(message) {
+    return Object.assign(new Error(message), {code: 'SKILL_TREE_POINTS'});
+}
+
+function convertSkillTreeGoalPoints(tree, progress, wallet) {
+    const track = getSkillTreeProgressTrack(tree);
+    const next = normalizeSkillTreePointWallet(wallet);
+    const value = normalizeSkillTreeProgressValue(progress);
+    const goals = skillTreePointsEnabled(tree) ? Math.floor(value / track.target) : 0;
+    const award = goals * track.pointsPerGoal;
+    if (!Number.isSafeInteger(award) || next.balance + award > 1e12) throw skillTreePointsError('Il saldo supererebbe il limite consentito. Riduci il valore prima di riprovare.');
+    next.balance += award;
+    return {progress: goals ? value % track.target : value, wallet: next};
+}
+
+function chargeSkillTreePoints(tree, node, level, wallet) {
+    const next = normalizeSkillTreePointWallet(wallet);
+    const cost = getSkillTreePointCost(tree, node, level);
+    if (!cost || next.spending[String(node.id)]?.[level]) return next;
+    if (cost > next.balance) throw skillTreePointsError(`Punti insufficienti: servono ${cost} punti, ne hai ${next.balance}.`);
+    next.balance -= cost;
+    next.spending = {...next.spending, [String(node.id)]: {...next.spending[String(node.id)], [level]: cost}};
+    return next;
+}
+
+function refundSkillTreePoints(wallet, unlocked, levels) {
+    const next = normalizeSkillTreePointWallet(wallet);
+    for (const [nodeId, paidLevels] of Object.entries(next.spending)) {
+        for (const [level, cost] of Object.entries(paidLevels)) {
+            if (unlocked.has(nodeId) && Number(level) <= Math.max(1, Number(levels[nodeId]) || 1)) continue;
+            if (next.balance + cost > 1e12) throw skillTreePointsError('Riduci il saldo prima di annullare questo sblocco.');
+            next.balance += cost;
+            delete paidLevels[level];
+        }
+        if (!Object.keys(paidLevels).length) delete next.spending[nodeId];
+    }
+    return next;
 }
 
 function renderSkillTreeProgressSettings(tree) {
     const track = getSkillTreeProgressTrack(tree);
-    return `<section class="player-skill-progress-settings player-skill-editor-section"><label class="player-skill-check-control"><input type="checkbox" data-skill-progress-field="enabled" ${track.enabled ? 'checked' : ''}><span><strong>Barra di progresso</strong><small>Un contatore facoltativo, indipendente dallo sblocco delle abilità.</small></span></label>${track.enabled ? `<div class="player-skill-editor-grid"><label>Nome del progresso<input type="text" maxlength="60" data-skill-progress-field="label" value="${escapeHtml(track.label)}" placeholder="Esperienza, addestramento, affinità…"></label><label>Obiettivo<input type="number" min="1" max="1000000000000" step="1" data-skill-progress-field="target" value="${track.target}"></label><label>Posizione<select data-skill-progress-field="position"><option value="right" ${track.position === 'right' ? 'selected' : ''}>Verticale a destra</option><option value="bottom" ${track.position === 'bottom' ? 'selected' : ''}>Orizzontale sotto</option></select></label></div><p class="player-skill-progress-help">Salva l’albero, poi usa Aggiorna sulla barra per cambiare il valore. Nessuno sblocco automatico${isCampaignSharedSkillTree(tree) ? '; negli alberi condivisi il progresso è unico per la campagna' : ''}.</p>` : ''}</section>`;
+    return `<section class="player-skill-progress-settings player-skill-editor-section"><label class="player-skill-check-control"><input type="checkbox" data-skill-progress-field="enabled" ${track.enabled ? 'checked' : ''}><span><strong>Barra di progresso</strong><small>Un contatore facoltativo, indipendente dallo sblocco delle abilità.</small></span></label>${track.enabled ? `<div class="player-skill-editor-grid"><label>Nome del progresso<input type="text" maxlength="60" data-skill-progress-field="label" value="${escapeHtml(track.label)}" placeholder="Esperienza, addestramento, affinità…"></label><label>Obiettivo<input type="number" min="1" max="1000000000000" step="1" data-skill-progress-field="target" value="${track.target}"></label><label>Posizione<select data-skill-progress-field="position"><option value="right" ${track.position === 'right' ? 'selected' : ''}>Verticale a destra</option><option value="bottom" ${track.position === 'bottom' ? 'selected' : ''}>Orizzontale sotto</option></select></label></div><label class="player-skill-check-control"><input type="checkbox" data-skill-progress-field="pointsEnabled" ${track.pointsEnabled ? 'checked' : ''}><span><strong>Punti spendibili</strong><small>Completa la barra per guadagnare punti da usare nelle abilità.</small></span></label>${track.pointsEnabled ? `<label>Punti per barra completata<input type="number" min="1" max="1000000000000" step="1" data-skill-progress-field="pointsPerGoal" value="${track.pointsPerGoal}"></label><p class="player-skill-progress-help">La barra ricomincia a ogni completamento e conserva l’eccedenza. Il costo base è 1 punto per abilità e livello: puoi cambiarlo nella scheda dell’abilità. Il proprietario può anche impostare il saldo.</p>` : ''}<p class="player-skill-progress-help">Salva l’albero, poi usa Aggiorna sulla barra per cambiare il valore. Nessuno sblocco automatico${isCampaignSharedSkillTree(tree) ? '; negli alberi condivisi il progresso è unico per la campagna' : ''}.</p>` : ''}</section>`;
 }
 
 function createSkillTreeProgressTransaction({snapshot, restore, persist, render, setBusy}) {
@@ -2466,6 +2527,7 @@ function createSkillTreeProgressTransaction({snapshot, restore, persist, render,
 }
 
 function skillTreeProgressErrorMessage(error) {
+    if (error?.code === 'SKILL_TREE_POINTS') return error.message;
     if (error?.code === 'VERSION_CONFLICT' || error?.payload?.code === 'VERSION_CONFLICT' || Number(error?.status || error?.response?.status) === 409) {
         return 'I progressi online sono cambiati. Ricarica la pagina prima di riprovare: questa modifica non è stata salvata.';
     }
@@ -2636,10 +2698,12 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     let nodeLevels = { ...(stateRecord?.levels && typeof stateRecord.levels === 'object' ? stateRecord.levels : {}) };
     let nodeExternalProgress = { ...(stateRecord?.externalProgress && typeof stateRecord.externalProgress === 'object' ? stateRecord.externalProgress : {}) };
     let treeProgress = normalizeSkillTreeProgressValue(stateRecord?.treeProgress);
+    let treePointWallet = normalizeSkillTreePointWallet(stateRecord?.treePointWallet);
     let selectedNodeId = currentNodes[0]?.id || '';
     let lockedInfoNodeId = '';
     const previewLevelByNodeId = new Map();
     const requirementStageByNodeId = new Map();
+    const expandedRequirements = new Set();
     const editorLevelByNodeId = new Map();
     const skillLevelDiffTimers = new Map();
     let editMode = false;
@@ -2740,12 +2804,17 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const level = Math.max(1, Number(node.level || 1));
         const maxLevel = Math.max(1, Number(node.maxLevel || 1));
         const buttons = [];
+        const canAfford = targetLevel => getSkillTreePointCost(workingTree, node, targetLevel) <= treePointWallet.balance;
+        const costLabel = targetLevel => {
+            const cost = getSkillTreePointCost(workingTree, node, targetLevel);
+            return skillTreePointsEnabled(workingTree) ? ` · ${cost ? `${cost} ${cost === 1 ? 'punto' : 'punti'}` : 'Gratis'}` : '';
+        };
 
         if (state === 'unlockable') {
             buttons.push(`
-                <button type="button" class="player-skill-info-action" data-skill-node-action="unlock" data-skill-node-id="${escapeHtml(nodeId)}">
+                <button type="button" class="player-skill-info-action" data-skill-node-action="unlock" data-skill-node-id="${escapeHtml(nodeId)}" ${canAfford(1) ? '' : 'disabled title="Punti insufficienti"'}>
                     <i class="fas fa-unlock" aria-hidden="true"></i>
-                    <span>Sblocca</span>
+                    <span>Sblocca${costLabel(1)}</span>
                 </button>
             `);
         }
@@ -2762,9 +2831,9 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     ? `${completedProgress}/${levelRequirements.length} requisiti`
                     : 'pronto';
                 buttons.push(`
-                    <button type="button" class="player-skill-info-action" data-skill-node-action="level-up" data-skill-node-id="${escapeHtml(nodeId)}" ${levelAvailable ? '' : 'disabled'} title="${levelAvailable ? `Sblocca livello ${nextLevel}` : `Completa i requisiti del livello ${nextLevel}`}">
+                    <button type="button" class="player-skill-info-action" data-skill-node-action="level-up" data-skill-node-id="${escapeHtml(nodeId)}" ${levelAvailable && canAfford(nextLevel) ? '' : 'disabled'} title="${!levelAvailable ? `Completa i requisiti del livello ${nextLevel}` : !canAfford(nextLevel) ? 'Punti insufficienti' : `Sblocca livello ${nextLevel}`}">
                         <i class="fas ${levelAvailable ? 'fa-plus' : 'fa-lock'}" aria-hidden="true"></i>
-                        <span>Livello ${escapeHtml(nextLevel)} - ${escapeHtml(progressLabel)}</span>
+                        <span>Livello ${escapeHtml(nextLevel)}${costLabel(nextLevel)}${levelAvailable ? '' : ` · ${escapeHtml(progressLabel)}`}</span>
                     </button>
                 `);
             }
@@ -2787,7 +2856,8 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         }
 
         if (!buttons.length) return '';
-        return `<div class="player-skill-info-actions" aria-label="Azioni nodo">${buttons.join('')}</div>`;
+        const insufficient = (state === 'unlockable' && !canAfford(1)) || (state === 'unlocked' && maxLevel > level && !canAfford(level + 1));
+        return `<div class="player-skill-info-actions" aria-label="Azioni nodo">${buttons.join('')}${insufficient ? '<small class="skill-point-insufficient" role="status">Punti insufficienti</small>' : ''}</div>`;
     };
     const updateInfo = (node) => {
         if (!node) {
@@ -2815,7 +2885,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const previewFlavor = getSkillNodeSharedFlavor(definitionNode) || getSkillNodeSharedFlavor(node);
         const icon = isGroupNode ? '' : resolveSkillAssetPath(previewLevelData.icon || definitionNode.icon || node.icon);
         const requirementView = getSkillTreeRequirementView(workingTree, node, unlockedIds, nodeExternalProgress, requirementStageByNodeId.get(nodeId));
-        const requirementsLabel = renderSkillTreeRequirementChecklist(requirementView, nodeId, Boolean(isInfoLocked && canEditUnlocks), canEditUnlocks);
+        const requirementsLabel = `<details class="skill-requirement-disclosure" data-skill-requirements-disclosure="${escapeHtml(nodeId)}" ${expandedRequirements.has(nodeId) ? 'open' : ''}><summary aria-label="Requisiti per lo sblocco"><i class="fas fa-lock" aria-hidden="true"></i><span>Requisiti</span><i class="fas fa-chevron-down" aria-hidden="true"></i></summary>${renderSkillTreeRequirementChecklist(requirementView, nodeId, Boolean(isInfoLocked && canEditUnlocks), canEditUnlocks)}</details>`;
         const descriptionHtml = editable
             ? (normalizeSkillLevelStoredHtml(node.desc || '') || '<p>Nessun dettaglio disponibile.</p>')
             : isGroupNode
@@ -2972,13 +3042,14 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             activeLevels,
             workingTree,
             activeExternalProgress,
-            treeProgress
+            treeProgress,
+            treePointWallet
         );
     };
 
     const saveProgressChange = createSkillTreeProgressTransaction({
-        snapshot: () => ({unlocked: new Set(unlockedIds), levels: structuredClone(nodeLevels), external: structuredClone(nodeExternalProgress), treeProgress}),
-        restore: previous => { unlockedIds = previous.unlocked; nodeLevels = previous.levels; nodeExternalProgress = previous.external; treeProgress = previous.treeProgress; },
+        snapshot: () => ({unlocked: new Set(unlockedIds), levels: structuredClone(nodeLevels), external: structuredClone(nodeExternalProgress), treeProgress, wallet: structuredClone(treePointWallet)}),
+        restore: previous => { unlockedIds = previous.unlocked; nodeLevels = previous.levels; nodeExternalProgress = previous.external; treeProgress = previous.treeProgress; treePointWallet = previous.wallet; },
         persist: persistUnlocks,
         render: () => renderTree(),
         setBusy: busy => {
@@ -3029,6 +3100,9 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             if (action === 'unlock') {
                 if (node.state === 'unlockable') {
                     getExclusiveSkillTreeSiblingIds(workingTree, id).forEach((siblingId) => unlockedIds.delete(String(siblingId)));
+                    unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
+                    treePointWallet = refundSkillTreePoints(treePointWallet, unlockedIds, nodeLevels);
+                    treePointWallet = chargeSkillTreePoints(workingTree, node, 1, treePointWallet);
                     unlockedIds.add(id);
                     nodeLevels[id] = 1;
                     changed = true;
@@ -3040,6 +3114,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     && Number(node.maxLevel || 1) >= nextLevel
                     && isSkillTreeExternalRequirementSatisfied(node, nodeExternalProgress, nextLevel)
                 ) {
+                    treePointWallet = chargeSkillTreePoints(workingTree, node, nextLevel, treePointWallet);
                     nodeLevels[id] = nextLevel;
                     changed = true;
                 }
@@ -3060,6 +3135,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
 
             if (!changed) return false;
             unlockedIds = pruneUnlockedSkillNodes(workingTree, unlockedIds);
+            treePointWallet = refundSkillTreePoints(treePointWallet, unlockedIds, nodeLevels);
             selectedNodeId = id;
             lockedInfoNodeId = id;
         });
@@ -3475,38 +3551,46 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         if (!track.enabled) return;
         const percent = Math.min(100, treeProgress / track.target * 100);
         const format = value => new Intl.NumberFormat('it-IT').format(value);
-        progressPanel.innerHTML = `<strong class="player-skill-progress-label">${escapeHtml(track.label)}</strong><span class="player-skill-progress-value">${format(treeProgress)}<small>/ ${format(track.target)}</small></span><div class="player-skill-progress-meter" role="progressbar" aria-label="${escapeHtml(track.label)}" aria-valuemin="0" aria-valuemax="${track.target}" aria-valuenow="${Math.min(track.target, treeProgress)}" aria-valuetext="${escapeHtml(`${format(treeProgress)} su ${format(track.target)}`)}" style="--tree-progress:${percent}%"><i></i></div>${canEditUnlocks && !editMode ? `<button type="button" class="player-skill-progress-edit" data-skill-progress-edit aria-label="Aggiorna ${escapeHtml(track.label)}"><i class="fas fa-pen" aria-hidden="true"></i><span>Aggiorna</span></button><form class="player-skill-progress-form" data-skill-progress-form hidden><label>${escapeHtml(track.label)}<input type="number" min="0" max="1000000000000" step="1" required value="${treeProgress}" data-skill-progress-value></label><small>Obiettivo: ${format(track.target)} · il valore può superarlo.</small><div><button type="button" data-skill-progress-cancel>Annulla</button><button type="submit">Salva</button></div></form>` : ''}`;
+        const points = skillTreePointsEnabled(workingTree);
+        const editable = canEditUnlocks && !editMode;
+        const wallet = points ? '<div class="skill-point-wallet" role="status" aria-label="Punti spendibili"><small>Punti</small><strong>'+format(treePointWallet.balance)+'</strong>'+(editable ? '<button type="button" data-skill-wallet-edit aria-label="Modifica punti disponibili"><i class="fas fa-pen" aria-hidden="true"></i></button>' : '')+'</div>' : '';
+        const actions = editable ? '<button type="button" class="player-skill-progress-edit" data-skill-progress-edit aria-label="Aggiorna '+escapeHtml(track.label)+'"><i class="fas fa-pen" aria-hidden="true"></i><span>Aggiorna</span></button>' : '';
+        progressPanel.innerHTML = '<strong class="player-skill-progress-label">'+escapeHtml(track.label)+'</strong><span class="player-skill-progress-value">'+format(treeProgress)+'<small>/ '+format(track.target)+'</small></span><div class="player-skill-progress-meter" role="progressbar" aria-label="'+escapeHtml(track.label)+'" aria-valuemin="0" aria-valuemax="'+track.target+'" aria-valuenow="'+Math.min(track.target,treeProgress)+'" aria-valuetext="'+escapeHtml(format(treeProgress)+' su '+format(track.target))+'" style="--tree-progress:'+percent+'%"><i></i></div>'+wallet+actions;
+        if (!editable) return;
+        progressPanel.insertAdjacentHTML('beforeend', '<form class="player-skill-progress-form" data-skill-progress-form hidden><label>'+escapeHtml(track.label)+'<input type="number" min="0" max="1000000000000" step="1" required value="'+treeProgress+'" data-skill-progress-value></label><small>Obiettivo: '+format(track.target)+(points ? ' · Ogni barra completa assegna '+format(track.pointsPerGoal)+' punti e ricomincia; l’eccedenza resta.' : ' · Il valore può superarlo.')+'</small><div><button type="button" data-skill-progress-cancel>Annulla</button><button type="submit">Salva</button></div></form>'+(points ? '<form class="player-skill-progress-form" data-skill-wallet-form hidden><label>Punti disponibili<input type="number" min="0" max="1000000000000" step="1" required value="'+treePointWallet.balance+'" data-skill-wallet-value></label><div><button type="button" data-skill-progress-cancel>Annulla</button><button type="submit">Salva saldo</button></div></form>' : ''));
     };
 
     progressPanel.addEventListener('click', event => {
-        if (event.target.closest('[data-skill-progress-cancel]')) {
-            renderProgressTrack();
-            progressPanel.querySelector('[data-skill-progress-edit]')?.focus();
-            return;
-        }
-        if (!event.target.closest('[data-skill-progress-edit]') || !canEditUnlocks || editMode) return;
-        if (hasUnsavedTreeChanges()) {
-            alert('Salva o annulla le modifiche all’albero prima di aggiornare il progresso.');
-            return;
-        }
-        progressPanel.querySelector('[data-skill-progress-form]').hidden = false;
-        const input = progressPanel.querySelector('[data-skill-progress-value]');
-        input.focus();
-        input.select();
+        if (event.target.closest('[data-skill-progress-cancel]')) { renderProgressTrack(); return; }
+        const walletEdit = event.target.closest('[data-skill-wallet-edit]');
+        if (!walletEdit && !event.target.closest('[data-skill-progress-edit]')) return;
+        if (!canEditUnlocks || editMode) return;
+        if (hasUnsavedTreeChanges()) { alert('Salva o annulla le modifiche all’albero prima di aggiornare il progresso.'); return; }
+        progressPanel.querySelectorAll('form').forEach(form => {form.hidden = true;});
+        const form = progressPanel.querySelector(walletEdit ? '[data-skill-wallet-form]' : '[data-skill-progress-form]');
+        if (!form) return;
+        form.hidden = false;
+        form.querySelector('input').focus();
+        form.querySelector('input').select();
     });
     progressPanel.addEventListener('submit', async event => {
-        if (!event.target.matches('[data-skill-progress-form]')) return;
+        const form = event.target;
+        if (!form.matches('[data-skill-progress-form], [data-skill-wallet-form]')) return;
         event.preventDefault();
         if (!canEditUnlocks || editMode || hasUnsavedTreeChanges()) return;
-        const input = progressPanel.querySelector('[data-skill-progress-value]');
+        const input = form.querySelector('input');
         const number = Number(input.value);
         if (!input.value.trim() || !Number.isSafeInteger(number) || number < 0 || number > 1e12) return;
-        if (number === treeProgress) { renderProgressTrack(); return; }
         try {
-            await saveProgressChange(() => { treeProgress = number; });
-        } catch (error) {
-            alert(skillTreeProgressErrorMessage(error));
-        }
+            await saveProgressChange(() => {
+                if (form.matches('[data-skill-wallet-form]')) treePointWallet = {...treePointWallet, balance: number};
+                else {
+                    const converted = convertSkillTreeGoalPoints(workingTree, number, treePointWallet);
+                    treeProgress = converted.progress;
+                    treePointWallet = converted.wallet;
+                }
+            });
+        } catch (error) { alert(skillTreeProgressErrorMessage(error)); }
     });
 
     const renderTree = () => {
@@ -4212,6 +4296,10 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         ` : '';
     };
 
+    const buildNodePointCostControl = (node, index = 0) => {
+        if (!node || isSkillTreeGroupNode(node) || !skillTreePointsEnabled(workingTree)) return '';
+        return '<label class="skill-point-cost-control">Costo in punti · Livello '+(index + 1)+'<input type="number" min="0" max="1000000000000" step="1" data-skill-node-point-cost data-skill-node-point-level="'+index+'" value="'+getSkillTreePointCost(workingTree, node, index + 1)+'"><small>0 rende questo livello gratuito. I livelli senza un costo proprio usano quello base.</small></label>';
+    };
     const buildSimpleEditorToolbar = () => `
         <div class="player-skill-rich-toolbar player-skill-level-rich-toolbar" role="toolbar" aria-label="Formato descrizione">
             <button type="button" data-skill-level-rich-command="bold" title="Grassetto" aria-label="Grassetto" aria-pressed="false"><i class="fas fa-bold" aria-hidden="true"></i></button>
@@ -4282,7 +4370,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                             <span>Nome ${isGroup ? 'del gruppo' : 'dell’abilità'}</span>
                             <input type="text" maxlength="120" data-node-base-field="title" value="${escapeHtml(node?.title || '')}" placeholder="Titolo del nodo">
                         </label>
-                        ${publicationHtml}
+                        ${publicationHtml}${buildNodePointCostControl(node, levelIndex)}
                         ${!isGroup ? `<div class="player-skill-simple-field">
                             <span>Icona nodo</span>
                             <div class="player-skill-node-icon-upload player-skill-simple-icon-upload ${node?.icon ? 'has-icon' : ''}" data-skill-node-icon-drop tabindex="0">
@@ -4535,7 +4623,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 </section>
                 <section class="player-skill-workspace-panel ${editorTab === 'unlock' ? 'is-active' : ''}" data-skill-editor-panel="unlock">
                     ${selectedLinkHtml}
-                    ${buildNodeRelationshipPanel(node)}
+                    ${buildNodeRelationshipPanel(node)}${buildNodePointCostControl(node, selectedEditorLevelIndex)}
                 </section>
                 <section class="player-skill-workspace-panel ${editorTab === 'appearance' ? 'is-active' : ''}" data-skill-editor-panel="appearance">
                     <section class="player-skill-editor-section">
@@ -4656,12 +4744,12 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             const track = getSkillTreeProgressTrack(workingTree);
             workingTree.progressTrack = {
                 ...(workingTree.progressTrack || {}), ...track,
-                [progressField]: progressField === 'enabled' ? target.checked
-                    : progressField === 'target' ? Math.max(1, normalizeSkillTreeProgressValue(target.value))
+                [progressField]: ['enabled', 'pointsEnabled'].includes(progressField) ? target.checked
+                    : ['target', 'pointsPerGoal'].includes(progressField) ? Math.max(1, normalizeSkillTreeProgressValue(target.value))
                     : target.value
             };
             renderTree();
-            if (progressField === 'enabled') renderEditor();
+            if (['enabled', 'pointsEnabled'].includes(progressField)) renderEditor();
             else updateEditorDirtyState();
             return;
         }
@@ -4788,11 +4876,23 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
     editorPanel?.addEventListener('input', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement)) return;
+        if (target.matches('[data-skill-node-point-cost]')) {
+            const node = readEditorNode();
+            if (!node) return;
+            const index = Math.max(0, Number(target.dataset.skillNodePointLevel) || 0);
+            const cost = normalizeSkillTreeProgressValue(target.value);
+            const levels = ensureEditableNodeLevels(node);
+            if (index === 0) {node.pointCost = cost; if (levels[0]) delete levels[0].pointCost;}
+            else if (levels[index]) levels[index].pointCost = cost;
+            updateEditorDirtyState();
+            renderTree();
+            return;
+        }
         const progressField = target.dataset.skillProgressField;
-        if (progressField && ['label', 'target'].includes(progressField)) {
+        if (progressField && ['label', 'target', 'pointsPerGoal'].includes(progressField)) {
             workingTree.progressTrack = {
                 ...(workingTree.progressTrack || {}), ...getSkillTreeProgressTrack(workingTree),
-                [progressField]: progressField === 'target' ? Math.max(1, normalizeSkillTreeProgressValue(target.value)) : target.value
+                [progressField]: ['target', 'pointsPerGoal'].includes(progressField) ? Math.max(1, normalizeSkillTreeProgressValue(target.value)) : target.value
             };
             renderTree();
             updateEditorDirtyState();
@@ -5070,6 +5170,14 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         }
     });
 
+
+    infoPanel.addEventListener('toggle', event => {
+        const details = event.target;
+        if (!details.isConnected || !details.matches?.('[data-skill-requirements-disclosure]')) return;
+        const id = details.dataset.skillRequirementsDisclosure;
+        if (details.open) expandedRequirements.add(id);
+        else expandedRequirements.delete(id);
+    }, true);
 
     infoPanel.addEventListener('change', async (event) => {
         const stage = event.target.closest?.('[data-skill-requirement-stage]');
@@ -5996,7 +6104,8 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 levels: { ...nodeLevels },
                 externalProgress: JSON.parse(JSON.stringify(nodeExternalProgress || {})),
                 runtime,
-                treeProgress
+                treeProgress,
+                treePointWallet: structuredClone(treePointWallet)
             }
         };
     };

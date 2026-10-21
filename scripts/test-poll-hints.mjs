@@ -3,11 +3,23 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 
 const source = await readFile(new URL('../assets/js/shared/next-session.js', import.meta.url), 'utf8');
+const voteCycleState = source.slice(source.indexOf('        const interactedVoteSlots = new Set();'), source.indexOf("        let hintDetailOptionId = '';"));
+const saveVoteHandler = source.slice(source.indexOf('        async function saveVote('), source.indexOf('        function refreshPollVotesDom()'));
 const exposedSource = source.replace('window.CriptaNextSession = {', `window.testPoll = {
     sessionApiService, readCachedPoll, writePollCache, invalidatePollCache, getPollSlotKey,
     buildCrossCampaignHints, loadCrossCampaignHints, postRemoteVote, postRemoteSessionConfig,
     computeTotals, buildPollMarkup, sanitizeVotes, getNextVoteValue, updatePollChoiceContent,
-    persistVotes, loadRemoteVotes
+    persistVotes, loadRemoteVotes,
+    createVoteCycleHarness(initialVotes, crossCampaignHints, postRemoteVote) {
+        const options = [{id:'first'}, {id:'second'}], players = [], campaignId = 'main', authToken = 'token', effectiveConfig = {number:7};
+        let votes = initialVotes, voteSaveState = 'idle', voteSaveError = '', voteSaveTarget = null, failedVote = null;
+        const isCurrentRender = () => true, decorateVotes = value => value, refreshPollVotesDom = () => {}, persistVotes = () => {};
+        ${voteCycleState}
+        ${saveVoteHandler}
+        return { cycle: (row, option) => saveVote(row, option, nextVoteChoice(votes[row], option)),
+            read: () => votes, next: (row, option) => nextVoteChoice(votes[row], option),
+            clear: (row, option) => saveVote(row, option, '') };
+    }
 }; window.CriptaNextSession = {`);
 const copy = (value) => JSON.parse(JSON.stringify(value));
 const identity = { accountId: 'alice', discordId: '100001' };
@@ -225,7 +237,16 @@ function createHarness({ storage = new Map(), request = async () => ({}), data =
     const markup = api.buildPollMarkup(config(), [slot()], currentVotes, '', false, {});
     assert.match(markup, /data-total-kind="yes">0</);
     assert.doesNotMatch(markup, /is-yes is-active/);
-    assert.equal(api.getNextVoteValue(''), 'yes', 'A ghost never changes the real vote cycle');
+    assert.equal(api.getNextVoteValue(''), 'yes', 'Without a hint the normal cycle starts at yes');
+    assert.equal(api.getNextVoteValue('', hints.get(slot().id)), 'yes', 'Conflicting hints do not pick an arbitrary campaign');
+    for (const value of ['yes', 'maybe', 'no']) {
+        assert.equal(api.getNextVoteValue('', [{ value }, { value }]), value, 'A unique ghost is the first real vote');
+        assert.equal(api.getNextVoteValue(undefined, [{ value }]), value);
+    }
+    assert.equal(api.getNextVoteValue('', [{ value: 'invalid' }]), 'yes');
+    assert.equal(api.getNextVoteValue('yes', [{ value: 'no' }]), 'maybe');
+    assert.equal(api.getNextVoteValue('maybe', [{ value: 'yes' }]), 'no');
+    assert.equal(api.getNextVoteValue('no', [{ value: 'no' }]), '', 'A real No still cycles to an empty answer');
 }
 
 // Integration: only enabled member campaigns are queried; skip votes without matching slots; isolate errors.
@@ -253,4 +274,34 @@ function createHarness({ storage = new Map(), request = async () => ({}), data =
     assert.equal(calls.length, coldCalls, 'Repeated views reuse GETs, including failed reads');
 }
 
-console.log('Poll hints: cache, matching, membership, conflicts and write regression checks passed.');
+// Exercise the real save handler: importing a red ghost must not trap subsequent clicks
+// in a red/empty loop, and failed writes must leave the initial hint available.
+{
+    const { api } = createHarness();
+    const votes = [0, 1].map(index => ({accountId:`owner-${index}`,playerId:`hero-${index}`,canEdit:true,selections:{}}));
+    const hints = new Map([['first', [{value:'no'}]], ['second', [{value:'maybe'}]]]);
+    const writes = [];
+    const h = api.createVoteCycleHarness(votes, hints, async body => { writes.push(body); return {}; });
+    assert.equal(writes.length, 0, 'Displaying a hint does not save it');
+    for (const value of ['no', '', 'yes', 'maybe', 'no', '', 'yes']) {
+        await h.cycle(0, 'first');
+        assert.equal(h.read()[0].selections.first, value);
+        assert.equal(writes.at(-1).value, value);
+        assert.equal(writes.at(-1).campaignId, 'main', 'Only the current campaign is written');
+    }
+    assert.equal(h.next(0, 'second'), 'maybe', 'Each timeslot has its own first click');
+    assert.equal(h.next(1, 'first'), 'no', 'Another editable row keeps its own first click');
+    const afterError = api.createVoteCycleHarness(votes, hints, async () => { throw new Error('Expected test failure'); });
+    const originalError = console.error;
+    try {
+        console.error = () => {};
+        await afterError.cycle(0, 'first');
+    } finally { console.error = originalError; }
+    assert.equal(afterError.read()[0].selections.first, undefined);
+    assert.equal(afterError.next(0, 'first'), 'no', 'An unsuccessful save does not consume the first hint');
+    const direct = api.createVoteCycleHarness([{...votes[0],selections:{first:'no'}}], hints, async () => ({}));
+    await direct.clear(0, 'first');
+    assert.equal(direct.next(0, 'first'), 'yes', 'Explicitly removing an existing vote continues the usual cycle');
+}
+
+console.log('Poll hints: cache, matching, membership, conflicts, first-click reuse, full rotation and write regression checks passed.');

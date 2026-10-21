@@ -1775,10 +1775,12 @@
         }, {});
     }
 
-    function getNextVoteValue(currentValue) {
+    function getNextVoteValue(currentValue, hintEntries = []) {
         if (currentValue === 'yes') return 'maybe';
         if (currentValue === 'maybe') return 'no';
         if (currentValue === 'no') return '';
+        const hints = [...new Set(hintEntries.map((entry) => entry.value).filter((value) => ['yes', 'maybe', 'no'].includes(value)))];
+        if (hints.length === 1) return hints[0];
         return 'yes';
     }
 
@@ -2293,7 +2295,7 @@
                     </div>
                     <p>${escapeHtml(pollHint)}</p>
                 </div>
-                <p class="availability-cross-hint-guide" hidden>I simboli sbiaditi ricordano i tuoi voti in altre campagne: qui devi ancora votare. Tocca ⓘ per i dettagli.</p>
+                <p class="availability-cross-hint-guide" hidden>I simboli sbiaditi ricordano i tuoi voti in altre campagne: qui devi ancora votare. Il primo clic riprende quel voto; poi continua la rotazione normale. Tocca ⓘ per i dettagli.</p>
                 <p class="availability-cross-hint-details" role="status" hidden></p>
                 <div class="next-session-poll-table-shell">
                     <div class="availability-table-wrap">
@@ -2434,6 +2436,11 @@
         let voteSaveTarget = null;
         let failedVote = null;
         let crossCampaignHints = new Map();
+        // Once a slot has been saved, returning to empty must continue the normal cycle.
+        const interactedVoteSlots = new Set();
+        const voteSlotKey = (vote, optionId) => JSON.stringify([vote.accountId || vote.discordId || vote.playerId, optionId]);
+        const nextVoteChoice = (vote, optionId) => getNextVoteValue(vote.selections[optionId],
+            interactedVoteSlots.has(voteSlotKey(vote, optionId)) ? [] : (crossCampaignHints.get(optionId) || []));
         let hintDetailOptionId = '';
         let hintLoadStarted = false;
         let editorState = {
@@ -2544,7 +2551,7 @@
                         updatePollChoiceContent(button, '', vote.playerId, 'hint-conflict');
                     }
                     button.title = description;
-                    button.setAttribute('aria-label', `${description} Clicca per votare disponibile.`);
+                    button.setAttribute('aria-label', `${description} Clicca per votare ${getVoteState(nextVoteChoice(vote, option.id))?.label || 'disponibile'}.`);
                     const info = existingInfo || document.createElement('button');
                     info.type = 'button';
                     info.className = 'availability-hint-info';
@@ -2675,6 +2682,7 @@
                 const remoteVotes = sanitizeVotes(extractVotesFromApiPayload(payload?.data || payload), options, players);
                 votes = remoteVotes.length > 0 ? decorateVotes(remoteVotes) : decorateVotes(votes);
                 persistVotes(effectiveConfig.number, votes.map(({ canEdit, ...vote }) => vote), campaignId);
+                interactedVoteSlots.add(voteSlotKey(targetVote, optionId));
                 voteSaveState = 'saved';
             } catch (error) {
                 if (!isCurrentRender()) return;
@@ -2876,8 +2884,7 @@
                         return;
                     }
 
-                    const currentChoice = targetVote.selections[optionId];
-                    const nextChoice = action === 'clear' ? '' : getNextVoteValue(currentChoice);
+                    const nextChoice = action === 'clear' ? '' : nextVoteChoice(targetVote, optionId);
                     await saveVote(rowIndex, optionId, nextChoice);
                 });
             }

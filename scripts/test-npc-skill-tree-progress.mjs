@@ -35,7 +35,7 @@ assert.equal(api.canManagePersonalSkillTrees({id:'hero',accountId:'co-owner'}),f
 assert.equal(api.canManageSkillTreeDefinition({...npc,accountId:'co-owner'},personal),true);
 assert.equal(api.canManageSkillTreeDefinition({...npc,accountId:'co-owner'},{...personal,characterIds:['npc-other']}),false,'Mixed owners cannot widen definition permissions');
 assert.equal(api.canManageSkillTreeDefinition({...npc,accountId:'co-owner'},{...personal,shared:true}),false);
-assert.deepEqual(clone(api.getSkillTreeProgressTrack({})), {enabled:false,label:'Esperienza',target:100,position:'right'});
+assert.deepEqual(clone(api.getSkillTreeProgressTrack({})), {enabled:false,label:'Esperienza',target:100,position:'right',pointsEnabled:false,pointsPerGoal:1});
 assert.equal(api.getSkillTreeProgressTrack({progressTrack:{target:0}}).target, 1);
 assert.equal(api.normalizeSkillTreeProgressValue(Infinity), 0);
 assert.equal(api.normalizeSkillTreeProgressValue(-10), 0);
@@ -45,7 +45,7 @@ assert.ok(!api.renderSkillTreeProgressSettings({}).includes('data-skill-progress
 
 let stored;
 const original = {id:`test-companion-tree-${npc.id}`, treeKey:'companion-tree', characterId:npc.id, scope:'character', shared:false,
- unlocked:['a'], levels:{a:2}, externalProgress:{a:{goal:1}}, treeProgress:45, custom:{keep:true}};
+ unlocked:['a'], levels:{a:2}, externalProgress:{a:{goal:1}}, treeProgress:45, treePointWallet:{balance:4,spending:{a:{1:2}}}, custom:{keep:true}};
 const unrelated = {id:'other', treeKey:'valdor', characterId:'valdor', treeProgress:99};
 let reject = false;
 sandbox.window.CriptaApp = {api:{post:async (path,body)=>{
@@ -57,11 +57,13 @@ api.applySkillTreeRuntime({skillTreeStatesMemoryCache:[original,unrelated],skill
 await api.saveCharacterSkillTreeState(npc,'companion-tree',['a'],{a:3},personal,{a:{goal:1}});
 let saved = stored.data.find(entry=>entry.treeKey==='companion-tree');
 assert.equal(saved.treeProgress,45,'Unlock changes preserve the progress counter');
+assert.deepEqual(saved.treePointWallet,original.treePointWallet,'Older saves preserve the wallet and its ledger');
 assert.deepEqual(saved.custom,{keep:true},'Unknown metadata survives state writes');
 assert.equal(stored.data.find(entry=>entry.id==='other').treeProgress,99);
-await api.saveCharacterSkillTreeState(npc,'companion-tree',['a'],{a:3},personal,{a:{goal:1}},150);
+await api.saveCharacterSkillTreeState(npc,'companion-tree',['a'],{a:3},personal,{a:{goal:1}},150,{balance:7,spending:{a:{1:2,3:5}}});
 saved=stored.data.find(entry=>entry.treeKey==='companion-tree');
 assert.equal(saved.treeProgress,150,'Going past the objective does not discard earned points');
+assert.deepEqual(saved.treePointWallet,{balance:7,spending:{a:{1:2,3:5}}},'Points and spending are serialized with the same revision as unlocks');
 assert.deepEqual(saved.unlocked,['a']);
 assert.deepEqual(saved.levels,{a:3});
 assert.deepEqual(saved.externalProgress,{a:{goal:1}});

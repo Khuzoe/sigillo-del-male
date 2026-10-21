@@ -24,6 +24,7 @@ function frontend(records = [], version = 3, post = async () => ({version: 4})) 
         let currentNodes = deriveSkillTreeNodes(workingTree, state);
         let unlockedIds = new Set(state.unlocked || []), nodeLevels = structuredClone(state.levels || {}), nodeExternalProgress = structuredClone(state.externalProgress || {});
         let treeProgress = state.treeProgress || 0;
+        let treePointWallet = normalizeSkillTreePointWallet(state.treePointWallet);
         const progressPanel = null;
         let selectedNodeId = '', lockedInfoNodeId = '', renders = 0;
         const infoPanel = {setAttribute() {}, querySelectorAll() {return [];}};
@@ -31,7 +32,7 @@ function frontend(records = [], version = 3, post = async () => ({version: 4})) 
         const saveCharacterSkillTreeState = persist;
         ${progressHandlers}
         return {action: applyNodeProgressAction, external: updateNodeExternalProgress,
-          read: () => ({unlocked: [...unlockedIds], levels: nodeLevels, externalProgress: nodeExternalProgress, nodes: currentNodes, renders})};
+          read: () => ({unlocked: [...unlockedIds], levels: nodeLevels, externalProgress: nodeExternalProgress, nodes: currentNodes, renders, treePointWallet})};
       }};
   })();`), sandbox);
   sandbox.treeApi.applySkillTreeRuntime({skillTreeStatesMemoryCache: records, skillTreeStatesVersion: version,
