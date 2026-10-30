@@ -14,6 +14,7 @@ workers/main-worker/*
 !workers/main-worker/src/
 workers/main-worker/src/*
 !workers/main-worker/src/index.js
+!workers/main-worker/src/avatar-generation.js
 !workers/main-worker/src/calendar-v2.js
 !workers/main-worker/src/calendar-store.js
 !workers/main-worker/src/poll-store.js

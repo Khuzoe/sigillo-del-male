@@ -1,0 +1,42 @@
+--- a/scripts/services/managed-actor-sync.js
++++ b/scripts/services/managed-actor-sync.js
+@@ -4976,6 +4976,19 @@
+     }
+     return summaries.length ? { formulaVersion: 2, activities: summaries } : undefined;
+ }
++function buildManagedDescriptionLinks(item, description) {
++    const links = {};
++    if (typeof fromUuidSync !== "function") return links;
++    const targets = new Set(Array.from(String(description || "").matchAll(/@UUID\[([^\]]+)\]/gi), (match) => match[1].trim()));
++    for (const target of Array.from(targets).slice(0, 100)) {
++        try {
++            const name = fromUuidSync(target, { relative: item, strict: false })?.name;
++            if (typeof name === "string" && name.trim()) links[target] = name.trim();
++        } catch { /* A missing pack or document must not block actor sync. */ }
++    }
++    return links;
++}
++
+ function buildManagedActorEntry(item, iconStates = {}) {
+     // Serialize the persistent source together with D&D5e's live ActivityCollection.
+     // Items first opened after a v12 migration can still have an empty stored
+@@ -4993,6 +5006,8 @@
+         transferId,
+         campaignItemId: String(flags?.[MODULE_ID]?.campaignItemId || ""),
+         sourceId: String(source?._stats?.compendiumSource || item?._stats?.compendiumSource || flags?.core?.sourceId || ""),
++        cachedFor: item.type === "spell" ? String(flags?.dnd5e?.cachedFor || "") : undefined,
++        descriptionLinks: buildManagedDescriptionLinks(item, system.description?.value || system.description || ""),
+         name: String(item.name || "Elemento"),
+         type: String(item.type || "item"),
+         media: iconState?.path ? { icon: { path: iconState.path, revision: iconState.revision || 1, source: "foundry" } } : undefined,
+--- a/module.json
++++ b/module.json
+@@ -2,7 +2,7 @@
+     "id":  "cripta-wiki-sync",
+     "title":  "Khuzoe Wiki Sync",
+     "description":  "Sincronizzazione bidirezionale tra wiki e Foundry per Actor gestiti, Tokenizer e catalogo oggetti di campagna.",
+-  "version": "0.11.11",
++  "version": "0.11.12",
+     "authors":  [
+                     {
+                         "name":  "Delia + Codex"

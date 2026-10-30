@@ -31,6 +31,10 @@
   "durable_objects": {
     "bindings": [
       {
+        "name": "AVATAR_GENERATOR",
+        "class_name": "AvatarGenerationStore"
+      },
+      {
         "name": "CALENDAR_STORE",
         "class_name": "CalendarStore"
       },
@@ -50,9 +54,15 @@
     {
       "tag": "calendar-store-v1",
       "new_sqlite_classes": ["CalendarStore"]
+    },
+    {
+      "tag": "avatar-generation-v1",
+      "new_sqlite_classes": ["AvatarGenerationStore"]
     }
   ],
   "vars": {
+    // Optional OPENAI_API_KEY secret activates generation. Global request cap, not a euro budget.
+    "AVATAR_MONTHLY_LIMIT": "20",
     // D1 enabled for polls, skill-tree progress and definitions in all configured campaigns.
     "POLL_D1_CAMPAIGNS": "cripta-di-sangue,mago-folle,oltre-il-velo",
     "POLL_WRITES_PAUSED_CAMPAIGNS": "",

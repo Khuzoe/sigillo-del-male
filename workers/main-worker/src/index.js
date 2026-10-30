@@ -2,6 +2,8 @@ import { discordBotPreferencesKey, handleDiscordBotDmNotifications, normalizeDis
 import { handleCampaignItemFoundrySync, normalizeCampaignItemsForSiteSave } from "./campaign-items.js";
 import { handleCalendarGet, handleLegacyCalendarGet, handleCalendarEventUpsert, handleCalendarEventArchive, handleCalendarClockPost, handleCalendarConfigPost } from "./calendar-v2.js";
 import { CalendarStoreBase } from "./calendar-store.js";
+import { handleAvatarGeneration, normalizeGeneratedAvatarPath, normalizeGeneratedAvatarDocument } from "./avatar-generation.js";
+export { AvatarGenerationStore } from "./avatar-generation.js";
 import { D1PollStore, PollStorageError } from "./poll-store.js";
 import { SkillTreeStateStore } from "./skill-tree-store.js";
 import { SkillTreeDefinitionStore } from "./skill-tree-definition-store.js";
@@ -109,6 +111,22 @@ export default {
       }
       if (url.pathname === "/api/session-journal/upsert" && request.method === "POST") {
         return handleSessionJournalUpsert(request, queryCampaignId, env, corsHeaders);
+      }
+      const avatarRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/avatar-generation(?:\/([a-f0-9-]{36})\/(preview|confirm))?$/i);
+      if (avatarRouteMatch) {
+        const actorRoute = matchManagedActorRoute(avatarRouteMatch[1]);
+        if (!actorRoute) return json({ ok: false, error: "Invalid actor" }, 400, corsHeaders);
+        const result = await handleAvatarGeneration(request, { ...actorRoute, jobId: avatarRouteMatch[2], action: avatarRouteMatch[3] }, queryCampaignId, env, {
+          requireUser: (req) => requireUser(req, env, corsHeaders),
+          isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
+          readActor: async (campaignId, route) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId))),
+          saveActor: (body) => handleManagedActorPost(new Request(request.url, {
+            method: "POST", headers: request.headers, body: JSON.stringify(body),
+          }), actorRoute, queryCampaignId, env, corsHeaders, ctx),
+        });
+        const headers = new Headers(result.headers);
+        Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
+        return new Response(result.body, { status: result.status, headers });
       }
       const managedActorRoute = matchManagedActorRoute(url.pathname);
       const managedActorLegacyAdoptRoute = matchManagedActorLegacyAdoptRoute(url.pathname);
@@ -4552,7 +4570,7 @@ function normalizeManagedActorProfileText(value, maxLength = 50_000) {
 }
 
 function normalizeManagedActorProfileMediaPath(value) {
-  const clean = String(value || "").trim().replace(/^\/+/, "").slice(0, 1_000);
+  const clean = normalizeGeneratedAvatarPath(String(value || "").trim().replace(/^\/+/, "")).slice(0, 1_000);
   if (!clean || clean.includes("..")) return "";
   if (/^https:\/\/sigillo-api\.khuzoe\.workers\.dev\/media\//i.test(clean)) return clean;
   if (/^(media|icons|systems|modules|worlds)\/[A-Za-z0-9_./%+@'() -]+\.(png|jpe?g|webp|gif|svg)$/i.test(clean)) return clean;
@@ -5266,6 +5284,13 @@ async function handleManagedActorProfileGet(request, route, campaignId, env, cor
       ? managedActorProfileFromLegacy(legacy, actor, campaignId, route)
       : emptyManagedActorProfile(actor, campaignId, route);
     source = legacy ? "legacy" : "empty";
+  }
+  // Read compatibility for already accepted AI avatars. The old profile snapshot
+  // dropped the raw R2 key; recover its avatar from the actor without rewriting KV.
+  const generatedAvatarPath = normalizeGeneratedAvatarPath(actor?.media?.avatar?.path);
+  if (/^media\/campaigns\/.+\/base\/avatar-ai-[a-f0-9-]{36}\.webp$/i.test(generatedAvatarPath)
+    && profile?.media?.avatar?.path !== generatedAvatarPath) {
+    profile = { ...profile, media: { ...profile.media, avatar: normalizeManagedActorProfileMediaSlot(actor.media.avatar) } };
   }
   profile = managedActorProfileWithClassification(profile, actor);
   const categoryRegistry = await readNpcCategoryRegistry(env, campaignId);
@@ -6504,7 +6529,7 @@ function normalizeManagedActorPresentation(value) {
 
 function normalizeManagedActorMediaSlot(slot) {
   if (!slot || typeof slot !== "object" || Array.isArray(slot)) return null;
-  const path = String(slot.path || slot.src || "").trim();
+  const path = normalizeGeneratedAvatarPath(slot.path || slot.src);
   if (!path) return null;
   return {
     path,
@@ -6749,6 +6774,13 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
   const submittedRuntime = foundryWritesContent && input.runtime && typeof input.runtime === "object"
     ? input.runtime
     : (existing?.runtime || {});
+  let site = source === "site" && input.site && typeof input.site === "object" ? input.site : (existing?.site || {});
+  if (Array.isArray(existing?.site?.avatarHistory)) {
+    // An editor opened before generation must not remove the retained avatar history.
+    const history = new Map([...existing.site.avatarHistory, ...(Array.isArray(site.avatarHistory) ? site.avatarHistory : [])]
+      .filter((entry) => entry?.path).map((entry) => [entry.path, entry]));
+    site = { ...site, avatarHistory: [...history.values()] };
+  }
   return {
     schemaVersion: Math.max(1, Math.floor(Number(input.schemaVersion) || 1)),
     contract: source === "foundry"
@@ -6781,7 +6813,7 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
     runtime: tokenState.runtimePolicy === "shared" ? submittedRuntime : (existing?.runtime || {}),
     runtimeUpdatedAt: tokenState.runtimePolicy === "shared" && foundryWritesContent ? now : (existing?.runtimeUpdatedAt || existing?.updatedAt || now),
     system: foundryWritesContent && input.system && typeof input.system === "object" ? input.system : (existing?.system || {}),
-    site: source === "site" && input.site && typeof input.site === "object" ? input.site : (existing?.site || {}),
+    site,
     contentHash: String(foundryWritesContent ? (input.contentHash || "") : (existing?.contentHash || "")).slice(0, 160),
     mediaHash: String(source === "foundry" ? (input.mediaHash || "") : (existing?.mediaHash || "")).slice(0, 160),
     revision: Number(existing?.revision || 0) + 1,
@@ -7215,7 +7247,8 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
     }
   }
 
-  const data = entries.flatMap((entry) => {
+  const data = entries.flatMap((storedEntry) => {
+    const entry = normalizeGeneratedAvatarDocument(storedEntry);
     const archived = String(entry?.profile?.lifecycle?.state || "active") === "archived";
     if (archived && (!reader.isEditor || !directoryView)) return [];
     const canReadStats = canReadManagedActor(entry, reader.user, reader.isEditor, env);
@@ -7377,7 +7410,7 @@ async function handleManagedActorGet(request, route, campaignId, env, corsHeader
     env.SIGILLO_KV.get(managedActorRuntimeKey(campaignId, route.worldId, route.actorId)),
     env.SIGILLO_KV.get(managedActorProfileKey(campaignId, route.worldId, route.actorId)),
   ]);
-  const document = safeJsonParse(documentRaw);
+  const document = normalizeGeneratedAvatarDocument(safeJsonParse(documentRaw));
   const runtimeRecord = safeJsonParse(runtimeRaw);
   const profile = safeJsonParse(profileRaw);
   if (!document) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
@@ -9104,6 +9137,7 @@ function sanitizeWebpFilename(value) {
 
 function sanitizeMediaKey(value) {
   const key = String(value || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
+  if (key.startsWith("_private/")) return "";
   if (!key || key.includes("..") || key.length > 260) return "";
   if (key.startsWith("campaigns/")) {
     const [, rawCampaignId, folder, ...rest] = key.split("/");

@@ -40,6 +40,7 @@ function fixture() {
     poll: async time => { now = time; await interval(); },
     visibility: async (hidden, time) => { now = time; document.hidden = hidden; listeners.visibilitychange(); for (let i = 0; i < 8; i++) await Promise.resolve(); },
     click: dataset => click(root, dataset), close: () => click(modal, { modalAction: "close" }),
+    change: (selector, value, valid = true) => root.listeners.change({ target: { value, matches: candidate => candidate === selector, reportValidity: () => valid } }),
     get cleared() { return cleared; }
   };
 }
@@ -92,4 +93,20 @@ test("an open editor blocks background reloads and preserves its draft", async (
   await f.poll(60000); await f.visibility(false, 120000);
   assert.equal(f.reads.length, 1); assert.equal(f.modal.innerHTML, draft);
   await f.close(); await f.poll(120000); assert.equal(f.reads.length, 2);
+});
+
+test("browsing years and filtering events never writes or moves the campaign clock", async () => {
+  const f = fixture(); await f.init();
+  const clock = structuredClone(f.remote.calendar.clock);
+  f.change('[data-browse-year]', '124');
+  assert.match(f.root.innerHTML, /aria-label="Alba 124"/);
+  f.change('[data-browse-year]', 'not a year', false);
+  assert.match(f.root.innerHTML, /aria-label="Alba 124"/);
+  f.change('[data-event-filter]', 'note');
+  assert.match(f.root.innerHTML, /value="note" selected/);
+  await f.click({ action: 'jump-current' });
+  assert.match(f.root.innerHTML, /aria-label="Alba 1"/);
+  assert.deepEqual(f.remote.calendar.clock, clock);
+  assert.equal(f.writes.length, 0);
+  assert.equal(f.reads.length, 1);
 });

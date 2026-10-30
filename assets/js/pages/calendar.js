@@ -43,6 +43,7 @@
         if (!root.dataset.bound) {
             root.dataset.bound = "true";
             root.addEventListener("click", onRootClick);
+            root.addEventListener("change", onRootChange);
             modalRoot.addEventListener("click", onModalClick);
             modalRoot.addEventListener("input", onModalInput);
             modalRoot.addEventListener("change", onModalInput);
@@ -59,7 +60,7 @@
             refreshTimer = setInterval(refreshFromFoundry, REFRESH_MS);
         } catch (error) {
             console.error("Calendario non disponibile", error);
-            root.innerHTML = `<div class="calendar-error"><i class="fa-solid fa-triangle-exclamation"></i><h1>Il calendario non si ? aperto</h1><p>${esc(error?.message || error)}</p><button data-action="reload">Riprova</button></div>`;
+            root.innerHTML = `<div class="calendar-error"><i class="fa-solid fa-triangle-exclamation"></i><h1>Il calendario non si è aperto</h1><p>${esc(error?.message || error)}</p><button data-action="reload">Riprova</button></div>`;
         }
     }
 
@@ -104,22 +105,11 @@
     }
 
     function render() {
+        const timeExpanded = root.querySelector(".calendar-manual-time")?.open;
         const def = S.definition;
         const month = def.months.find((entry) => entry.id === S.viewMonthId) || def.months[0];
         root.innerHTML = `
-            <header class="calendar-hero archive-hero archive-hero--calendar">
-                <div class="calendar-hero__copy archive-hero__copy">
-                    <div class="calendar-kicker archive-hero__eyebrow"><span></span>Tempo della campagna</div>
-                    <h1>Calendario</h1>
-                    <div class="archive-hero__meta">
-                        <span><i class="fa-solid fa-clock" aria-hidden="true"></i>${esc(def.name)}</span>
-                    </div>
-                </div>
-                <div class="archive-hero__sigil" aria-hidden="true">
-                    <span class="archive-hero__orbit"></span>
-                    <span class="archive-hero__emblem"><i class="fa-solid fa-calendar-days"></i></span>
-                </div>
-            </header>
+            <header class="calendar-heading"><div><span class="calendar-kicker">Tempo della campagna</span><h1>Calendario</h1></div><p>Eventi, appuntamenti e note del gruppo.</p></header>
             ${renderClock()}
             <section class="calendar-toolbar" aria-label="Navigazione calendario">
                 <div class="calendar-view-tabs" role="tablist" aria-label="Vista">
@@ -128,37 +118,47 @@
                     ${viewButton("timeline", "fa-clock-rotate-left", "Cronologia")}
                 </div>
                 <div class="calendar-toolbar__period">
-                    <button data-action="previous-period" aria-label="Periodo precedente"><i class="fa-solid fa-chevron-left"></i></button>
-                    <strong>${S.view === "month" ? `${esc(month.name)} ${esc(E.formatYear(def, S.viewYear))}` : S.view === "agenda" ? "Prossimi eventi" : "Eventi trascorsi"}</strong>
+                    <button data-action="previous-period" aria-label="Mese precedente" ${S.view === "month" ? "" : "hidden"}><i class="fa-solid fa-chevron-left"></i></button>
+                    ${S.view === "month" ? `<label class="calendar-browse">Mese<select data-browse-month aria-label="Mese da consultare">${def.months.map(item => `<option value="${attr(item.id)}" ${item.id === month.id ? "selected" : ""}>${esc(item.name)}</option>`).join("")}</select></label><label class="calendar-browse">Anno<input data-browse-year aria-label="Anno da consultare" type="number" required min="-99999999" max="99999999" value="${S.viewYear}"></label>` : `<strong>${S.view === "agenda" ? "Prossimi eventi" : "Eventi trascorsi"}</strong>`}
                     <button data-action="next-period" aria-label="Periodo successivo" ${S.view === "month" ? "" : "hidden"}><i class="fa-solid fa-chevron-right"></i></button>
-                    <button class="calendar-today" data-action="jump-current"><i class="fa-solid fa-location-crosshairs"></i> Data della campagna</button>
+                    <button class="calendar-today" data-action="jump-current"><i class="fa-solid fa-location-crosshairs"></i> Data attuale</button>
                 </div>
                 <div class="calendar-toolbar__actions">
-                    ${S.permissions.canEdit ? '<button data-action="open-config"><i class="fa-solid fa-sliders"></i><span>Configura</span></button>' : ""}
+                    ${S.permissions.canEdit ? '<button data-action="open-config"><i class="fa-solid fa-sliders"></i><span>Impostazioni</span></button>' : ""}
                     ${renderCreateButton("toolbar")}
                 </div>
             </section>
-            <section class="calendar-filterbar" aria-label="Filtri eventi">
-                <button class="${S.filter === "all" ? "is-active" : ""}" data-filter="all">Tutto</button>
-                ${Object.entries(KINDS).map(([kind, meta]) => `<button class="${S.filter === kind ? "is-active" : ""}" data-filter="${kind}"><i class="fa-solid ${meta[1]}"></i>${esc(meta[0])}</button>`).join("")}
-            </section>
+            <section class="calendar-filterbar" aria-label="Filtri eventi"><label>Mostra<select data-event-filter aria-label="Tipo di eventi"><option value="all">Tutti gli eventi</option>${Object.entries(KINDS).map(([kind, meta]) => `<option value="${kind}" ${S.filter === kind ? "selected" : ""}>${esc(meta[0])}</option>`).join("")}</select></label><span>${S.view === "month" ? "Seleziona un giorno per leggere o aggiungere eventi." : "Gli eventi seguono la data della campagna."}</span></section>
             <div class="calendar-content">${S.view === "month" ? renderMonth() : renderStream(S.view === "timeline")}</div>
         `;
+        const timeControls = root.querySelector(".calendar-manual-time");
+        if (timeControls) timeControls.open = Boolean(timeExpanded);
     }
 
     function renderClock() {
         const def = S.definition;
         const weekday = def.weekdays[E.weekdayIndex(def, S.clock.date)]?.name || "";
-        return `
-            <section class="calendar-current" aria-label="Data attuale della campagna">
-                <span class="calendar-current__orb"><i class="fa-regular fa-moon"></i></span>
-                <div class="calendar-current__date"><small>${esc(weekday)}</small><strong>${esc(E.formatDate(def, S.clock.date))}</strong></div>
-                <button class="calendar-current__time ${S.permissions.canEdit ? "is-editable" : ""}" ${S.permissions.canEdit ? 'data-action="open-clock"' : ""}>
-                    <small>Ora del mondo</small><strong>${esc(E.formatTime(def, S.clock.time))}</strong>
-                </button>
-                ${S.permissions.canEdit ? `<div class="calendar-time-steps">${def.timeSystem.quickSteps.map((step) => `<button data-action="step-time" data-unit="${esc(step.unit)}" data-amount="${step.amount}" ${S.saving ? "disabled" : ""}>${esc(stepLabel(step))}</button>`).join("")}</div>` : ""}
-            </section>
-        `;
+        return `<section class="calendar-current" aria-label="Data attuale della campagna">
+            <div class="calendar-current__date"><small>Data attuale · ${esc(def.name)}</small><strong>${esc(E.formatDate(def, S.clock.date))}</strong><span>${esc(weekday)}</span></div>
+            <div class="calendar-current__time"><small>Ora della campagna</small><strong>${esc(E.formatTime(def, S.clock.time))}</strong></div>
+            ${S.permissions.canEdit ? `<button class="calendar-edit-clock" data-action="open-clock"><i class="fa-solid fa-pen" aria-hidden="true"></i> Modifica data e ora</button>` : ""}
+            ${S.permissions.canEdit ? `<details class="calendar-manual-time"><summary>Fai passare tempo</summary><p>Questi comandi cambiano la data della campagna. In un mondo Foundry collegato possono influire sulla durata degli effetti.</p><div class="calendar-time-steps">${def.timeSystem.quickSteps.map(step => `<button data-action="step-time" data-unit="${esc(step.unit)}" data-amount="${step.amount}" ${S.saving ? "disabled" : ""}>${esc(stepLabel(step))}</button>`).join("")}</div></details>` : ""}
+        </section>`;
+    }
+
+    function onRootChange(event) {
+        const target = event.target;
+        if (target.matches('[data-event-filter]')) { S.filter = target.value; render(); return; }
+        if (target.matches('[data-browse-month]')) {
+            if (!S.definition.months.some(month => month.id === target.value)) return;
+            S.viewMonthId = target.value;
+        } else if (target.matches('[data-browse-year]')) {
+            const year = Number(target.value);
+            if (!target.reportValidity() || !Number.isInteger(year) || Math.abs(year) > 99999999) return;
+            S.viewYear = year;
+        } else return;
+        S.selectedDate = { year: S.viewYear, monthId: S.viewMonthId, day: 1 };
+        render();
     }
 
     function viewButton(view, icon, label) {
@@ -177,7 +177,7 @@
             const current = sameDate(date, S.clock.date);
             cells.push(`
                 <button class="calendar-day ${selected ? "is-selected" : ""} ${current ? "is-current" : ""}" role="gridcell" aria-selected="${selected}" data-date="${esc(E.dateKey(def, date))}">
-                    <span class="calendar-day__top"><b>${day}</b>${current ? "<em>Ora</em>" : ""}</span>
+                    <span class="calendar-day__top"><b>${day}</b>${current ? "<em>Attuale</em>" : ""}</span>
                     <span class="calendar-day__events">
                         ${events.slice(0, 2).map(renderChip).join("")}
                         ${events.length > 2 ? `<span class="calendar-day__more">+${events.length - 2}</span>` : ""}
@@ -200,7 +200,7 @@
 
     function renderChip(event) {
         const meta = KINDS[event.kind] || KINDS.event;
-        const prefix = event.allDay ? "" : `${esc(E.formatTime(S.definition, event.start.time))} ? `;
+        const prefix = event.allDay ? "" : `${esc(E.formatTime(S.definition, event.start.time))} · `;
         return `<span class="calendar-event-chip calendar-event-chip--${meta[2]}"><i class="fa-solid ${meta[1]}"></i><span>${prefix}${esc(event.title)}</span></span>`;
     }
 
@@ -277,7 +277,7 @@
 
     async function onRootClick(event) {
         const target = event.target.closest("button");
-        if (!target) return;
+        if (!target || target.disabled) return;
         if (target.dataset.action === "reload") return init();
         if (target.dataset.view) {
             S.view = target.dataset.view;
@@ -370,12 +370,9 @@
                         <section class="calendar-editor-panel">
                             <div class="calendar-editor-grid calendar-editor-grid--identity">
                                 <label class="calendar-field calendar-field--title"><span>Titolo</span><input name="title" value="${attr(draft.title)}" maxlength="240" required autofocus></label>
-                                ${isDm ? `
-                                    <label class="calendar-field"><span>Tipo</span><select name="kind">${Object.entries(KINDS).map(([key, meta]) => `<option value="${key}" ${draft.kind === key ? "selected" : ""}>${esc(meta[0])}</option>`).join("")}</select></label>
-                                    <label class="calendar-field"><span>Stato</span><select name="status"><option value="scheduled" ${draft.status === "scheduled" ? "selected" : ""}>Previsto</option><option value="completed" ${draft.status === "completed" ? "selected" : ""}>Completato</option><option value="cancelled" ${draft.status === "cancelled" ? "selected" : ""}>Annullato</option></select></label>
-                                ` : '<input type="hidden" name="kind" value="note"><input type="hidden" name="status" value="scheduled">'}
-                                <label class="calendar-field"><span>Visibilit?</span><select name="visibility">${visibilityOptions(draft.visibility, isDm)}</select></label>
+                                <label class="calendar-field"><span>Chi può leggerlo</span><select name="visibility">${visibilityOptions(draft.visibility, isDm)}</select></label>
                             </div>
+                            <p class="calendar-field-help">Personale: tu e i DM. Giocatori: il gruppo. Solo DM: i gestori della campagna.</p>
                         </section>
                         <section class="calendar-editor-panel">
                             <div class="calendar-editor-panel__heading">
@@ -396,8 +393,14 @@
                             </div>
                         </section>
                         <section class="calendar-editor-panel">
-                            <label class="calendar-field"><span>Descrizione</span><textarea name="description" rows="8" maxlength="12000" placeholder="Cosa accade? Chi ? coinvolto?">${esc(draft.description || "")}</textarea></label>
+                            <label class="calendar-field"><span>Descrizione</span><textarea name="description" rows="4" maxlength="12000" placeholder="Cosa accade? Chi è coinvolto?">${esc(draft.description || "")}</textarea></label>
                         </section>
+                        <details class="calendar-editor-panel calendar-extra"><summary>Altri dettagli</summary><div class="calendar-editor-grid calendar-editor-grid--two">
+                                ${isDm ? `
+                                    <label class="calendar-field"><span>Tipo</span><select name="kind">${Object.entries(KINDS).map(([key, meta]) => `<option value="${key}" ${draft.kind === key ? "selected" : ""}>${esc(meta[0])}</option>`).join("")}</select></label>
+                                    <label class="calendar-field"><span>Stato</span><select name="status"><option value="scheduled" ${draft.status === "scheduled" ? "selected" : ""}>Previsto</option><option value="completed" ${draft.status === "completed" ? "selected" : ""}>Completato</option><option value="cancelled" ${draft.status === "cancelled" ? "selected" : ""}>Annullato</option></select></label>
+                                ` : '<input type="hidden" name="kind" value="note"><input type="hidden" name="status" value="scheduled">'}
+                        </div><p class="calendar-field-help">Il tipo serve a organizzare gli eventi. Non invia promemoria automatici.</p></details>
                     </form>
                     <footer class="calendar-modal__footer">
                         ${existing ? '<button class="is-danger" data-modal-action="archive"><i class="fa-solid fa-box-archive"></i> Archivia</button>' : "<span></span>"}
@@ -416,7 +419,7 @@
             <div class="calendar-modal-backdrop">
                 <section class="calendar-modal calendar-modal--compact" role="dialog" aria-modal="true" aria-labelledby="calendar-clock-title">
                     <header class="calendar-modal__header"><div><span>Orologio della campagna</span><h2 id="calendar-clock-title">Imposta data e ora</h2></div><button data-modal-action="close"><i class="fa-solid fa-xmark"></i></button></header>
-                    <form class="calendar-modal__body" data-clock-form><section class="calendar-editor-panel"><div class="calendar-datetime-grid">${dateFields("clock", S.clock.date)}${timeFields("clock", S.clock.time, false)}</div></section></form>
+                    <form class="calendar-modal__body" data-clock-form><p class="calendar-field-help">Stai modificando la data della campagna, non soltanto il mese che stai consultando. La modifica viene condivisa con Foundry quando il calendario è collegato.</p><section class="calendar-editor-panel"><div class="calendar-datetime-grid">${dateFields("clock", S.clock.date)}${timeFields("clock", S.clock.time, false)}</div></section></form>
                     <footer class="calendar-modal__footer"><span></span><div><button data-modal-action="close">Annulla</button><button class="is-primary" data-modal-action="save-clock"><i class="fa-solid fa-check"></i> Imposta</button></div></footer>
                 </section>
             </div>
@@ -440,7 +443,7 @@
             <div class="calendar-time-fields" data-time-fields ${hidden ? "hidden" : ""}>
                 <label class="calendar-field"><span>Ora</span><input type="number" name="${prefix}Hour" min="0" max="${S.definition.timeSystem.hoursPerDay - 1}" value="${time.hour}" required></label>
                 <span>:</span>
-                <label class="calendar-field"><span>Minuto</span><input type="number" name="${prefix}Minute" min="0" max="${S.definition.timeSystem.minutesPerHour - 1}" value="${time.minute}" required></label>
+                <label class="calendar-field"><span>Minuto</span><input type="number" name="${prefix}Minute" min="0" max="${S.definition.timeSystem.minutesPerHour - 1}" value="${time.minute}" required></label><input type="hidden" name="${prefix}Second" value="${time.second ?? 0}">
             </div>
         `;
     }
@@ -455,7 +458,7 @@
                     <header class="calendar-modal__header"><div><span>Regole del mondo</span><h2 id="calendar-config-title">Configura calendario</h2></div><button data-modal-action="close"><i class="fa-solid fa-xmark"></i></button></header>
                     <form class="calendar-modal__body" data-config-form>
                         <section class="calendar-editor-panel">
-                            <div class="calendar-editor-panel__heading"><i class="fa-solid fa-signature"></i><div><span>Identit?</span><h3>Nome ed era</h3></div></div>
+                            <div class="calendar-editor-panel__heading"><i class="fa-solid fa-signature"></i><div><span>Identità</span><h3>Nome ed era</h3></div></div>
                             <div class="calendar-editor-grid calendar-editor-grid--two">
                                 <label class="calendar-field"><span>Nome calendario</span><input name="name" value="${attr(def.name)}" required></label>
                                 <label class="calendar-field"><span>Era</span><input name="epochName" value="${attr(def.epochName)}" placeholder="es. DR"></label>
@@ -466,14 +469,14 @@
                             <div class="calendar-editor-grid calendar-editor-grid--three">
                                 <label class="calendar-field"><span>Ore per giorno</span><input type="number" name="hoursPerDay" min="1" max="9999" value="${def.timeSystem.hoursPerDay}" required></label>
                                 <label class="calendar-field"><span>Minuti per ora</span><input type="number" name="minutesPerHour" min="1" max="9999" value="${def.timeSystem.minutesPerHour}" required></label>
-                                <label class="calendar-field"><span>Scorciatoie</span><input name="quickSteps" value="${attr(def.timeSystem.quickSteps.map(shortStep).join(", "))}" placeholder="-1h, -15m, +15m, +1h"></label>
+                                <label class="calendar-field"><span>Pulsanti del tempo</span><input name="quickSteps" value="${attr(def.timeSystem.quickSteps.map(shortStep).join(", "))}" placeholder="-1h, -15m, +15m, +1h"><small>Es. +15m = 15 minuti, +1h = un’ora, +1d = un giorno.</small></label>
                             </div>
                         </section>
                         <section class="calendar-editor-panel">
                             <div class="calendar-editor-panel__heading"><i class="fa-solid fa-calendar-week"></i><div><span>Struttura</span><h3>Settimana e mesi</h3></div></div>
                             <div class="calendar-editor-grid calendar-editor-grid--two">
-                                <label class="calendar-field"><span>Giorni ? Nome | abbreviazione</span><textarea name="weekdays" rows="12">${esc(def.weekdays.map((day) => `${day.name}|${day.short}`).join("\n"))}</textarea></label>
-                                <label class="calendar-field"><span>Mesi ? Nome | giorni</span><textarea name="months" rows="12">${esc(def.months.map((month) => `${month.name}|${month.days}`).join("\n"))}</textarea></label>
+                                <label class="calendar-field"><span>Giorni della settimana</span><small>Uno per riga: nome | abbreviazione. Es. Lunedì | Lun</small><textarea name="weekdays" rows="12">${esc(def.weekdays.map((day) => `${day.name}|${day.short}`).join("\n"))}</textarea></label>
+                                <label class="calendar-field"><span>Mesi</span><small>Uno per riga: nome | numero di giorni. Es. Hammer | 30</small><textarea name="months" rows="12">${esc(def.months.map((month) => `${month.name}|${month.days}`).join("\n"))}</textarea></label>
                                 <label class="calendar-field"><span>Primo giorno della settimana</span><select name="firstWeekdayIndex">${def.weekdays.map((day, index) => `<option value="${index}" ${def.firstWeekdayIndex === index ? "selected" : ""}>${esc(day.name)}</option>`).join("")}</select></label>
                             </div>
                         </section>
@@ -482,7 +485,7 @@
                             <div class="calendar-datetime-grid">${dateFields("config", S.clock.date)}${timeFields("config", S.clock.time, false)}</div>
                         </section>
                     </form>
-                    <footer class="calendar-modal__footer"><small>Il vecchio calendario resta conservato come backup.</small><div><button data-modal-action="close">Annulla</button><button class="is-primary" data-modal-action="save-config"><i class="fa-solid fa-floppy-disk"></i> Salva configurazione</button></div></footer>
+                    <footer class="calendar-modal__footer"><small>Queste impostazioni valgono per tutta la campagna.</small><div><button data-modal-action="close">Annulla</button><button class="is-primary" data-modal-action="save-config"><i class="fa-solid fa-floppy-disk"></i> Salva configurazione</button></div></footer>
                 </section>
             </div>
         `;
@@ -545,7 +548,7 @@
 
     async function archiveEvent() {
         const existing = S.modal?.draft;
-        if (!existing?.id || !confirm(`Archiviare "${existing.title}"? Il dato rester? conservato.`)) return;
+        if (!existing?.id || !confirm(`Archiviare "${existing.title}"? Il dato resterà conservato.`)) return;
         await modalSave(() => API.archiveEvent(existing.id, existing.revision, S.version), "Evento archiviato.");
     }
 
@@ -593,13 +596,16 @@
             },
             time: {
                 hour: Number(data.get("configHour")),
-                minute: Number(data.get("configMinute"))
+                minute: Number(data.get("configMinute")),
+                second: Number(data.get("configSecond") || 0)
             }
         };
         await modalSave(() => API.saveConfig(definition, clock, S.modal.version), "Configurazione salvata.");
     }
 
     async function modalSave(operation, successMessage) {
+        if (S.saving) return;
+        S.saving = true;
         const button = modalRoot.querySelector(".is-primary");
         if (button) button.disabled = true;
         try {
@@ -612,11 +618,14 @@
             toast(error?.message || error, true);
             await reloadConflict(error);
         } finally {
+            S.saving = false;
             if (button) button.disabled = false;
+            if (!S.modal) render();
         }
     }
 
     function closeModal(force = false) {
+        if (S.saving && !force) return;
         if (!force && S.modalDirty && !confirm("Chiudere senza salvare le modifiche?")) return;
         S.modal = null;
         S.modalDirty = false;
@@ -641,7 +650,8 @@
             },
             time: allDay ? null : {
                 hour: Number(data.get(`${prefix}Hour`)),
-                minute: Number(data.get(`${prefix}Minute`))
+                minute: Number(data.get(`${prefix}Minute`)),
+                second: Number(data.get(`${prefix}Second`) || 0)
             }
         };
     }
@@ -703,7 +713,7 @@
 
     function writeHelpMessage() {
         if (!S.permissions.authenticated) return "Accedi per aggiungere una nota al calendario.";
-        if (S.source === "static") return "Calendario in sola lettura: il Worker v2 non \u00e8 ancora disponibile.";
+        if (S.source === "static") return "Calendario in sola lettura: il servizio non è al momento disponibile.";
         return "Il tuo account non ha permessi di scrittura in questa campagna.";
     }
 

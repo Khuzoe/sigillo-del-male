@@ -4,6 +4,20 @@ Intervento del 17 settembre 2026. Il frontend usa il contratto attuale di wiki-s
 
 ## Comportamento
 
+### Incantesimi collegati (29 ottobre 2026)
+
+Il sito riconosce le copie interne degli incantesimi create dalle attività `cast` di D&D5e. Rispetta `spell.spellbook`: le copie non destinate al libro degli incantesimi non producono schede aggiuntive. Gli elementi originali, le varianti omonime normali e le copie con collegamento non risolvibile rimangono disponibili. Nessun Item viene cancellato, né sul sito né in Foundry.
+
+Per i vecchi snapshot, il riconoscimento richiede l'effetto nativo `dnd5espellchange`, il riferimento all'incantesimo originale e un'attività `cast` corrispondente. Non viene effettuata una deduplicazione per nome. Wiki Sync 0.11.12 aggiunge `cachedFor` all'esportazione, rendendo esplicito il collegamento nei nuovi snapshot.
+
+I nomi nelle descrizioni si risolvono anche tramite UUID relativi (`@UUID[.id]`, `@UUID[.Item.id]`), UUID completi e provenienza dal compendio. Il modulo esporta inoltre `descriptionLinks`, una mappa di nomi disponibili tramite il resolver sincrono di Foundry; documenti o compendi mancanti non bloccano la sincronizzazione. Il testo originale con gli UUID rimane intatto durante la modifica e il salvataggio.
+
+La patch del modulo installato è conservata in `integrations/cripta-wiki-sync/npc-spell-links-0.11.12.patch`. Non occorre modificare o pubblicare il Worker. Le correzioni FE funzionano sui vecchi snapshot che contengono le informazioni descritte sopra; i metadati aggiuntivi arrivano alla successiva sincronizzazione dal modulo aggiornato.
+
+Test mirati: `node scripts/test-managed-actor-spells.mjs`, passando facoltativamente il percorso di `managed-actor-sync.js` aggiornato per controllare anche l'esportazione. La verifica su una copia locale dei dati di Ginevra ha identificato 7 incantesimi originali e 7 copie interne; il renderer mostra 7 schede e risolve tutti i collegamenti della descrizione di Innate Spellcasting.
+
+### Modifica e sincronizzazione
+
 - Le capacità distinguono le regole configurate nelle attività dal testo dell'abilità. Gli effetti referenziati ma non esportati sono indicati come incompleti, senza attribuire loro condizioni o durate presunte.
 - L'editor delle attività espone portata, area, bersagli, durata e consumi, distinguendo i valori ereditati dall'elemento dai valori propri dell'attività. Sono disponibili la formula delle attività di cura già esistenti e la soglia di ricarica degli utilizzi. La cura proporzionale ai danni resta una regola descrittiva quando il payload la contiene soltanto nel testo.
 - Il costo leggendario e il consumo della risorsa sono separati; le incongruenze ricevute sono segnalate. L'anteprima di danni e CD si aggiorna con la bozza. I campi avanzati non modificati vengono conservati.

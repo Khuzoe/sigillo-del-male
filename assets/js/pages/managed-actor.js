@@ -475,7 +475,7 @@
         root.classList.toggle("has-npc-art", Boolean(avatarPath));
         const tokenPath = media.token?.path || avatarPath;
         const hasSiteAnimation = Boolean(media.idle?.path || media.hover?.path);
-        const entries = Array.isArray(definition.items) ? definition.items : [];
+        const entries = getManagedVisibleEntries(actor);
         const abilities = definition.abilities || {};
         const skills = definition.skills || {};
         const traits = definition.traits || {};
@@ -563,6 +563,7 @@
         setupManagedStickyLayout(root);
         setupManagedGuidedMechanics(root);
         setupManagedImageLightbox(root);
+        setupManagedAvatarGenerator(root);
         setupManagedAvatarFallback(root, actor.media);
         setupManagedProfileEditor(root, editMode);
         setupManagedActorLinkControls(root);
@@ -3928,7 +3929,7 @@
         const initialPane = root.dataset.npcPane;
         nav.className = "managed-npc-tabs";
         nav.setAttribute("aria-label", "Sezioni NPC");
-        const entries = actor.definition?.items || [];
+        const entries = getManagedVisibleEntries(actor);
         const groups = [
             { key: "stats", label: "Statistiche", selectors: ["#managed-stats", "#managed-abilities", "#managed-traits", "#managed-skills"] },
             { key: "actions", label: "Capacità", count: entries.filter((item) => ["weapon", "feat", "spell"].includes(item.type)).length, selectors: ["#managed-capabilities", "#managed-spells"] },
@@ -3963,10 +3964,13 @@
             portrait.setAttribute("aria-label", "Ritratto del personaggio");
             dossier.classList.add("has-portrait");
             dossier.prepend(portrait);
+            const generateAction = renderManagedAvatarGenerateAction(actor.media?.avatar);
+            if (generateAction && !editing) portrait.insertAdjacentHTML("beforeend", generateAction);
             if (editing) {
                 const tools = document.createElement("div");
                 tools.className = "managed-edit-portrait-tools";
                 tools.innerHTML = '<span>Ritratto attuale</span>';
+                if (generateAction) tools.insertAdjacentHTML("beforeend", generateAction);
                 if (root.querySelector("#managed-appearance")) {
                     const button = document.createElement("button");
                     button.type = "button";
@@ -4624,9 +4628,8 @@
     function renderBaseMediaCircleEditor(slot, descriptor) {
         const avatar = slot === "avatar";
         const label = avatar ? "Avatar" : "Token base";
-        const help = avatar ? "Immagine grande del personaggio" : "Immagine usata sulla mappa";
         if (avatar) {
-            return `<fieldset class="managed-base-media managed-base-media--${slot}" data-managed-media-drop="${slot}"><legend><i class="fas fa-image-portrait"></i> ${label}</legend><div class="managed-base-media-preview">${descriptor?.path ? renderImage(descriptor.path, label) : `<div class="managed-slot-placeholder"><i class="fas fa-image"></i><span>Nessuna immagine</span></div>`}<span>${escapeHtml(help)}</span></div><label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label></fieldset>`;
+            return renderBaseMediaEditor(slot, descriptor);
         }
         const presentation = descriptor?.presentation || {};
         const path = descriptor?.path || "";
@@ -4651,7 +4654,37 @@
             const path = descriptor?.path || "";
             return `<fieldset class="managed-base-media managed-base-media--${slot}" data-managed-media-drop="${slot}"><legend><i class="fas fa-chess-pawn"></i> ${label}</legend><div class="managed-slot-list-preview ${path ? "has-preview" : "is-empty"}"><div class="managed-slot-list-preview-frame is-idle"><img ${path ? `src="${escapeAttr(resolveMedia(path))}"` : ""} alt="Anteprima lista ${label}" data-managed-list-adjust-image="${slot}" style="${renderManagedListAdjustStyle(presentation)}"></div><span>Lista NPC</span></div><label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label><div class="managed-adjust-heading"><i class="fas fa-sliders"></i> Regola nella lista</div><div class="managed-adjust-grid"><label><span>X</span><input type="number" min="0" max="100" step="1" value="${Number(presentation.x ?? 50)}" data-managed-adjust="${slot}:x"></label><label><span>Y</span><input type="number" min="0" max="100" step="1" value="${Number(presentation.y ?? 50)}" data-managed-adjust="${slot}:y"></label><label><span>Scala</span><input type="number" min="0.5" max="3" step="0.05" value="${Number(presentation.scale ?? 1)}" data-managed-adjust="${slot}:scale"></label></div></fieldset>`;
         }
-        return `<fieldset class="managed-base-media managed-base-media--${slot}" data-managed-media-drop="${slot}"><legend><i class="fas ${avatar ? "fa-image-portrait" : "fa-chess-pawn"}"></i> ${label}</legend><div class="managed-base-media-preview">${descriptor?.path ? renderImage(descriptor.path, label) : `<div class="managed-slot-placeholder"><i class="fas fa-image"></i><span>Nessuna immagine</span></div>`}<span>${escapeHtml(help)}</span></div><label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label></fieldset>`;
+        const generate = renderManagedAvatarGenerateAction(descriptor);
+        return `<fieldset class="managed-base-media managed-base-media--${slot}" data-managed-media-drop="${slot}"><legend><i class="fas ${avatar ? "fa-image-portrait" : "fa-chess-pawn"}"></i> ${label}</legend><div class="managed-base-media-preview">${descriptor?.path ? renderImage(descriptor.path, label) : `<div class="managed-slot-placeholder"><i class="fas fa-image"></i><span>Nessuna immagine</span></div>`}<span>${escapeHtml(help)}</span></div><label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label>${generate}</fieldset>`;
+    }
+
+    function renderManagedAvatarGenerateAction(descriptor) {
+        if (currentDocument?.actorType !== "npc" || currentDocument?.permissions?.isEditor !== true) return "";
+        return `<div class="managed-avatar-generation"><button type="button" class="managed-avatar-generate-btn" data-managed-generate-avatar ${descriptor?.path ? "" : 'disabled title="Carica e salva prima un avatar da usare come riferimento"'}><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Genera avatar</button><small data-managed-generate-avatar-status role="status"></small></div>`;
+    }
+
+    function setupManagedAvatarGenerator(root) {
+        root.querySelectorAll("[data-managed-generate-avatar]").forEach((button) => button.addEventListener("click", () => {
+            const status = button.closest(".managed-avatar-generation").querySelector("[data-managed-generate-avatar-status]");
+            if (managedSaveInProgress || hasManagedUnsavedChanges(root)) {
+                status.textContent = "Salva prima le modifiche alla scheda, poi genera il nuovo avatar.";
+                return;
+            }
+            if (!window.CriptaAvatarGenerator) { status.textContent = "Ricarica la pagina per aprire il generatore."; return; }
+            status.textContent = "";
+            window.CriptaAvatarGenerator.open({
+                actor: currentDocument, token: getToken(), referenceUrl: resolveMedia(currentDocument.media.avatar.path),
+                onApplied: async ({ avatar, revision }) => {
+                    const previous = currentDocument.media.avatar;
+                    const history = Array.isArray(currentDocument.site?.avatarHistory) ? [...currentDocument.site.avatarHistory] : [];
+                    if (previous?.path && !history.some((entry) => entry.path === previous.path)) history.push(previous);
+                    currentDocument = { ...currentDocument, revision, media: { ...currentDocument.media, avatar }, site: { ...currentDocument.site, avatarHistory: history } };
+                    if (currentProfile) currentProfile.media = { ...currentProfile.media, avatar };
+                    window.CriptaApp.api.clearCache?.();
+                    renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
+                }
+            });
+        }));
     }
 
     function renderSiteSlotEditor(slot, descriptor, fallbackDescriptor = null) {
@@ -6219,13 +6252,64 @@
             .trim();
     }
 
+    function normalizeManagedFoundryUuid(value) {
+        const uuid = String(value || "").trim().split("#")[0];
+        // Older Foundry compendium links omit the document type.
+        return /^Compendium\.[^.]+\.[^.]+\.[^.]+$/.test(uuid)
+            ? uuid.replace(/\.([^.]+)$/, ".Item.$1") : uuid;
+    }
+
+    function findManagedLinkedItem(target, actor = currentDocument) {
+        const uuid = normalizeManagedFoundryUuid(target);
+        if (!uuid) return null;
+        const entries = Array.isArray(actor?.definition?.items) ? actor.definition.items : [];
+        const relativeId = uuid.match(/^\.(?:Item\.)?([^.]+)$/)?.[1];
+        if (relativeId) return entries.find((entry) => entry.itemId === relativeId) || null;
+        const actorUuid = actor?.actorUuid || (actor?.foundryActorId ? `Actor.${actor.foundryActorId}` : "");
+        const direct = entries.find((entry) => normalizeManagedFoundryUuid(entry.uuid) === uuid
+            || (actorUuid && `${actorUuid}.Item.${entry.itemId}` === uuid));
+        if (direct) return direct;
+        return entries.find((entry) => normalizeManagedFoundryUuid(entry.sourceId) === uuid) || null;
+    }
+
+    function getManagedVisibleEntries(actor = currentDocument) {
+        const entries = Array.isArray(actor?.definition?.items) ? actor.definition.items : [];
+        return entries.filter((entry) => {
+            if (entry.type !== "spell") return true;
+            // D&D5e creates cache Items for Cast activities. Follow its spellbook
+            // setting; never merge ordinary spells merely because names match.
+            const cachedFor = String(entry.cachedFor || "");
+            if (cachedFor) {
+                const link = cachedFor.match(/^(.*)\.Activity\.([^.]+)$/);
+                const owner = link && findManagedLinkedItem(link[1], actor);
+                const activity = owner?.definition?.activities?.[link?.[2]];
+                if (activity?.type === "cast") return activity.spell?.spellbook === true;
+                return true; // Keep orphaned/unknown cache records inspectable.
+            }
+            // Snapshots exported before cachedFor was included still contain the
+            // native cache enchantment. Require the original and a Cast reference.
+            const cacheEffect = entry.definition?.effects?.some((effect) => effect._id === "dnd5espellchange" && effect.type === "enchantment");
+            if (!cacheEffect || !entry.sourceId) return true;
+            const original = findManagedLinkedItem(entry.sourceId, actor);
+            if (!original || original === entry || original.type !== "spell") return true;
+            const casts = entries.flatMap((item) => Object.values(item.definition?.activities || {}))
+                .filter((activity) => activity?.type === "cast" && findManagedLinkedItem(activity.spell?.uuid, actor) === original);
+            return !casts.length || casts.some((activity) => activity.spell?.spellbook === true);
+        });
+    }
+
     function resolveManagedFoundryLink(kind, target, explicitLabel = "") {
         if (String(explicitLabel || "").trim()) return String(explicitLabel).trim();
         const rawTarget = String(target || "").trim();
         if (String(kind || "").toLowerCase() !== "uuid") return rawTarget.split("|")[0].replace(/[_-]+/g, " ").trim();
-        const itemId = rawTarget.match(/\.Item\.([^.\s]+)$/i)?.[1] || "";
-        const item = (Array.isArray(currentDocument?.definition?.items) ? currentDocument.definition.items : []).find((entry) => String(entry.itemId || "") === itemId);
-        return String(item?.name || "Elemento collegato");
+        const item = findManagedLinkedItem(rawTarget);
+        if (item?.name) return String(item.name);
+        const entries = currentDocument?.definition?.items || [];
+        for (const entry of entries) {
+            const links = entry.descriptionLinks;
+            if (links && Object.hasOwn(links, rawTarget) && typeof links[rawTarget] === "string" && links[rawTarget].trim()) return links[rawTarget].trim();
+        }
+        return "Elemento collegato";
     }
 
     function simplifyFoundryReference(reference) {

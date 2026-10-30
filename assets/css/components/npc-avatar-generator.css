@@ -1,0 +1,81 @@
+.npc-avatar-generator {
+    position: fixed; inset: 0; margin: auto; box-sizing: border-box;
+    width: min(900px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0;
+    color: #e8e5df; background: #17181e; border: 1px solid #484335; border-radius: 20px;
+    box-shadow: 0 24px 100px #0009; font: 14px/1.6 Montserrat, sans-serif; overflow: hidden; color-scheme: dark;
+}
+.npc-avatar-generator[open] { display: flex; flex-direction: column; }
+.npc-avatar-generator header, .npc-avatar-generator footer { flex-shrink: 0; }
+.npc-avatar-generator::backdrop { background: #08090dd9; backdrop-filter: blur(5px); }
+.npc-avatar-generator [hidden] { display: none !important; }
+.npc-avatar-generator header { display: flex; justify-content: space-between; align-items: center; padding: 22px 28px 12px; gap: 16px; }
+.npc-avatar-generator h2 { margin: 2px 0 0; font: 700 27px/1.3 Cinzel, serif; color: #e4c689; }
+.npc-avatar-generator small { font-size: 10px; letter-spacing: .16em; color: #a6a6b3; }
+.npc-avatar-generator button { min-height: 42px; border: 1px solid #55515c; border-radius: 10px; padding: 9px 16px; color: #eeebe5; background: #24252d; font: inherit; cursor: pointer; }
+.npc-avatar-generator button:hover:enabled { background: #32323b; border-color: #d2b77d; }
+.npc-avatar-generator button:disabled { opacity: .45; cursor: default; }
+.npc-avatar-generator button:focus-visible, .npc-avatar-generator summary:focus-visible, .npc-avatar-generator textarea:focus-visible { outline: 2px solid #e4c689; outline-offset: 3px; }
+.npc-avatar-generator [data-close] { width: 42px; padding: 0; font: 28px/1 sans-serif; }
+.npc-avatar-generator__body { padding: 0 28px 16px; overflow-y: auto; min-height: 0; }
+.npc-avatar-generator [data-name] { margin: 0 0 8px; color: #b8b7c0; }
+.npc-avatar-generator__images { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.npc-avatar-generator figure { margin: 0; min-width: 0; }
+.npc-avatar-generator figcaption { font-size: 12px; font-weight: 600; padding-bottom: 9px; color: #c7c3b9; }
+.npc-avatar-generator figure > div { position: relative; height: clamp(180px, 32vh, 340px); background: #101115; border: 1px solid #34343e; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.npc-avatar-generator button[data-enlarge] { position: absolute; right: 8px; bottom: 8px; min-height: 34px; padding: 5px 10px; font-size: 12px; background: #18171ce8; }
+.npc-avatar-generator figure img { width: 100%; height: 100%; object-fit: contain; cursor: zoom-in; }
+.npc-avatar-generator [data-placeholder] { max-width: 220px; text-align: center; padding: 20px; color: #a7a5b0; }
+.npc-avatar-generator__direction { display: block; font-weight: 600; }
+.npc-avatar-generator__direction span { font-weight: 400; color: #aaa7b2; }
+.npc-avatar-generator textarea { display: block; box-sizing: border-box; width: 100%; margin-top: 8px; padding: 12px; resize: vertical; border: 1px solid #44434d; border-radius: 10px; background: #101115; color: #eeebe5; font: inherit; }
+.npc-avatar-generator__hint, .npc-avatar-generator details { font-size: 12px; color: #aaa8b3; }
+.npc-avatar-generator details { border-bottom: 1px solid #33323b; padding: 2px 0 12px; }
+.npc-avatar-generator summary { cursor: pointer; color: #c7b98e; }
+.npc-avatar-generator details p { line-height: 1.7; }
+.npc-avatar-generator__status { min-height: 24px; margin: 0 0 16px; color: #d7c396; }
+.npc-avatar-generator__status.is-error { color: #ffb5a8; }
+.npc-avatar-generator footer { padding: 18px 28px 22px; background: #131419; border-top: 1px solid #33323b; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.npc-avatar-generator footer > span { max-width: 290px; color: #aaa8b3; font-size: 11px; }
+.npc-avatar-generator footer > div { display: flex; gap: 10px; flex-wrap: wrap; }
+.npc-avatar-generator .npc-avatar-generator__confirm { color: #201b12; background: #dec28a; border-color: #dec28a; font-weight: 600; }
+.npc-avatar-generator .npc-avatar-generator__confirm:hover:enabled { background: #ecd3a4; }
+.managed-avatar-generation { display: grid; justify-items: center; gap: 6px; margin-top: 12px; }
+.managed-avatar-generation > small:empty { display: none; }
+.managed-avatar-generation > small { color: var(--npc-muted, #aaa8b3); font: 400 .72rem/1.5 var(--font-ui, Montserrat, sans-serif); }
+.managed-actor-page .managed-avatar-generation .managed-avatar-generate-btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 9px 14px;
+    border: 1px solid var(--npc-line, #484335); border-radius: 8px; background: #18171c; color: #e4d3ad;
+    font: 500 .76rem/1.5 var(--font-ui, Montserrat, sans-serif); cursor: pointer; transition: background .15s, border-color .15s;
+}
+.managed-avatar-generation .managed-avatar-generate-btn:hover:enabled { background: #29252a; border-color: #c1a266; }
+.managed-avatar-generation .managed-avatar-generate-btn:disabled { opacity: .45; cursor: default; }
+.managed-avatar-generation .managed-avatar-generate-btn:focus-visible { outline: 2px solid #e4c689; outline-offset: 3px; }
+.managed-edit-portrait-tools .managed-avatar-generation { margin-top: 0; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-npc-portrait > .managed-avatar-generation { grid-column: 1; grid-row: 2; margin-bottom: 12px; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-opening:has(.managed-avatar-generation) .managed-profile-summary { grid-row: 3; }
+.is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-opening:has(.managed-avatar-generation) .is-opening-chapter { grid-row: 4; }
+.npc-avatar-generator__options { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.npc-avatar-generator__options label { font-weight: 600; }
+.npc-avatar-generator__options select { display: block; width: 100%; min-height: 42px; margin-top: 6px; padding: 8px 10px; border: 1px solid #44434d; border-radius: 8px; color: #eeebe5; background: #101115; font: inherit; }
+.npc-avatar-generator__options select:focus-visible { outline: 2px solid #e4c689; outline-offset: 2px; }
+.npc-avatar-zoom { position: fixed; inset: 0; margin: auto; padding: 0; width: calc(100vw - 24px); height: calc(100dvh - 24px); max-width: none; max-height: none; box-sizing: border-box; border: 1px solid #484335; border-radius: 14px; background: #101115; color: #eee; overflow: hidden; color-scheme: dark; }
+.npc-avatar-zoom[open] { display: flex; flex-direction: column; }
+.npc-avatar-zoom::backdrop { background: #08090df2; }
+.npc-avatar-zoom header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px; flex-shrink: 0; font: 500 .85rem/1.5 var(--font-ui, Montserrat, sans-serif); }
+.npc-avatar-zoom header > div { display: flex; gap: 8px; }
+.npc-avatar-zoom button { padding: 8px 12px; min-height: 40px; border: 1px solid #484335; border-radius: 8px; background: #18171c; color: #e4d3ad; font: inherit; cursor: pointer; }
+.npc-avatar-zoom button:focus-visible { outline: 2px solid #e4c689; outline-offset: 2px; }
+.npc-avatar-zoom__canvas { flex: 1; min-height: 0; overflow: auto; padding: 8px; }
+.npc-avatar-zoom__canvas img { display: block; width: 100%; height: 100%; object-fit: contain; margin: auto; }
+.npc-avatar-zoom.is-actual-size .npc-avatar-zoom__canvas img { width: auto; height: auto; max-width: none; max-height: none; }
+@media (max-width: 600px) {
+    .npc-avatar-generator header, .npc-avatar-generator footer { padding: 16px; }
+    .npc-avatar-generator__body { padding: 0 16px 16px; }
+    .npc-avatar-generator__images { gap: 10px; }
+    .npc-avatar-generator figure > div { height: 230px; }
+    .npc-avatar-generator footer { flex-direction: column; align-items: stretch; gap: 12px; }
+    .npc-avatar-generator footer > span { max-width: none; }
+    .npc-avatar-generator footer > div > button { flex: 1; }
+    .npc-avatar-generator__options { grid-template-columns: 1fr; gap: 10px; }
+    .npc-avatar-zoom header { flex-wrap: wrap; padding: 10px; }
+}

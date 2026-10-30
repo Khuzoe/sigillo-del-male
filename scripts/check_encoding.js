@@ -19,6 +19,8 @@ const excludedDirs = new Set([
   "node_modules",
   ".wrangler",
   ".vscode",
+  // Local previews and compiled QA artifacts are ignored by Git.
+  "output",
   "assets/img",
   "assets/data/reports",
 ]);
