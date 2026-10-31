@@ -1,0 +1,42 @@
+--- a/scripts/services/managed-actor-sync.js
++++ b/scripts/services/managed-actor-sync.js
+@@ -3587,6 +3587,19 @@
+         effects: foundry.utils.deepClone(librarySource?.effects || (Array.isArray(source.effects) ? source.effects : [])),
+         flags: itemFlags
+     };
++    const rules = source.flags?.["khuzoe-automations"]?.npcRules;
++    if (!librarySource && rules !== undefined) {
++        const compiler = game.modules?.get("khuzoe-automations")?.api?.npcRules;
++        if (compiler?.version !== 1) throw new Error("Attiva e aggiorna Khuzoe Automations prima di creare questa capacità.");
++        const activities = data.system.activities || {};
++        const needsMidi = Object.values(activities).some(activity => activity.midiProperties?.triggeredActivityId)
++            || Object.values(rules.activities || {}).some(rule => rule.healing > 0 || rule.conditions?.length);
++        if (needsMidi && !game.modules?.get("midi-qol")?.active) throw new Error("Questa capacità richiede Midi-QOL attivo.");
++        const compiled = compiler.prepare({rules, activities, effects: data.effects, itemName: data.name, statusEffects: CONFIG.statusEffects});
++        data.system.activities = compiled.activities;
++        data.effects = compiled.effects;
++        data.flags["khuzoe-automations"] = {npcRules: foundry.utils.deepClone(rules)};
++    }
+     await actor.createEmbeddedDocuments("Item", [data], { criptaWikiSyncCommand: true });
+     return { status: "applied", actor };
+ }
+@@ -4808,7 +4821,7 @@
+         fields[path] = {base, effective, editable: !overridden,
+             ...(overridden ? {reason: "Valore controllato da un effetto attivo: modifica l'effetto in Foundry."} : {})};
+     }
+-    return {version: 1, itemEffects: true, npcRules: game.modules?.get("khuzoe-automations")?.api?.npcRules?.version ?? 0, midiRollConfig: game.modules?.get("khuzoe-automations")?.api?.midiRollConfig?.version ?? 0, fields};
++    return {version: 1, itemEffects: true, generatedAbilities: 1, npcRules: game.modules?.get("khuzoe-automations")?.api?.npcRules?.version ?? 0, midiRollConfig: game.modules?.get("khuzoe-automations")?.api?.midiRollConfig?.version ?? 0, fields};
+ }
+ 
+ function normalizeManagedRollFormula(value, rollData = {}) {
+--- a/module.json
++++ b/module.json
+@@ -2,7 +2,7 @@
+     "id":  "cripta-wiki-sync",
+     "title":  "Khuzoe Wiki Sync",
+     "description":  "Sincronizzazione bidirezionale tra wiki e Foundry per Actor gestiti, Tokenizer e catalogo oggetti di campagna.",
+-  "version": "0.11.12",
++  "version": "0.11.13",
+     "authors":  [
+                     {
+                         "name":  "Delia + Codex"

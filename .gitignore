@@ -15,11 +15,16 @@ workers/main-worker/*
 workers/main-worker/src/*
 !workers/main-worker/src/index.js
 !workers/main-worker/src/avatar-generation.js
+!workers/main-worker/src/ability-generation.js
+!workers/main-worker/src/npc-suggestions.js
+!workers/main-worker/src/ai-generation-errors.js
+!workers/main-worker/src/generation-lifecycle.js
 !workers/main-worker/src/calendar-v2.js
 !workers/main-worker/src/calendar-store.js
 !workers/main-worker/src/poll-store.js
 !workers/main-worker/src/skill-tree-store.js
 !workers/main-worker/src/skill-tree-definition-store.js
+!workers/main-worker/src/managed-actor-store.js
 !workers/main-worker/src/campaign-items.js
 !workers/main-worker/src/economy-v1.js
 !workers/main-worker/src/foundry-sync-hub.js

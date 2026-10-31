@@ -1020,10 +1020,20 @@ const authoritativePrototypeConfiguration = authoritativeTokenHelpers.managedAct
 });
 assert.deepEqual(authoritativePrototypeConfiguration, authoritativeConfiguration, "randomImg esiste solo sul PrototypeToken e non deve entrare nello stato condiviso");
 const prototypeUpdates = [];
+// Foundry v14 provides _replace and persists prototype updates before the
+// module checks their readback. Model both behaviors in this test double.
+const previousReplace = globalThis._replace;
+globalThis._replace ||= (value) => structuredClone(value);
 await authoritativeTokenHelpers.applyManagedActorLinkPrototypeConfiguration({
   prototypeToken: { randomImg: true },
-  async update(changes) { prototypeUpdates.push(structuredClone(changes)); }
+  async update(changes) {
+    prototypeUpdates.push(structuredClone(changes));
+    if (changes.prototypeToken) Object.assign(this.prototypeToken, changes.prototypeToken);
+    if ("prototypeToken.actorLink" in changes) this.prototypeToken.actorLink = changes["prototypeToken.actorLink"];
+  }
 }, authoritativeConfiguration, true);
+if (previousReplace === undefined) delete globalThis._replace;
+else globalThis._replace = previousReplace;
 assert.equal(prototypeUpdates[0].prototypeToken.randomImg, true, "randomImg del prototype deve essere conservato");
 assert.equal(authoritativeConfiguration.texture.src, "selected.webp");
 const authoritativeTargetToken = {

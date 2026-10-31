@@ -19,7 +19,7 @@
           <div class="npc-avatar-generator__body">
             <p data-name></p>
             <p class="npc-avatar-generator__status" data-status role="status" aria-live="polite">Caricamento…</p>
-            <button type="button" data-refresh hidden>Riprova caricamento</button>
+            <button type="button" data-refresh hidden>Riprova caricamento</button><p data-stop-note class="npc-avatar-generator__hint" hidden>Interrompere l’attesa libera il generatore. Non garantisce l’annullamento della chiamata o del relativo costo.</p>
             <div class="npc-avatar-generator__images">
               <figure><figcaption>Avatar attuale · riferimento</figcaption><div><img data-reference alt="Avatar attuale usato come riferimento"><button type="button" data-enlarge="reference" aria-label="Ingrandisci avatar attuale">⤢ Ingrandisci</button></div></figure>
               <figure><figcaption>Nuova proposta</figcaption><div><img data-preview alt="Anteprima del nuovo avatar" hidden><p data-placeholder>La nuova illustrazione apparirà qui.</p><button type="button" data-enlarge="preview" aria-label="Ingrandisci nuova proposta" hidden>⤢ Ingrandisci</button></div></figure>
@@ -33,7 +33,7 @@
             <p class="npc-avatar-generator__hint">Figura intera · nuova posa · verticale 9:16. L’avatar attuale viene inviato come riferimento al servizio di generazione OpenAI.</p>
             <details><summary>Stile artistico fisso</summary><p data-style></p></details>
           </div>
-          <footer><span>Ogni generazione usa il budget API. L’avatar cambia solo con la tua conferma.</span><div><button type="button" data-generate disabled>Genera anteprima</button><button type="button" class="npc-avatar-generator__confirm" data-confirm disabled>Usa questo avatar</button></div></footer>`;
+          <footer><span>Ogni generazione usa il budget API. L’avatar cambia solo con la tua conferma.</span><div><button type="button" data-stop hidden>Interrompi attesa</button><button type="button" data-generate disabled>Genera anteprima</button><button type="button" class="npc-avatar-generator__confirm" data-confirm disabled>Usa questo avatar</button></div></footer>`;
         document.body.appendChild(dialog);
         const el = (selector) => dialog.querySelector(selector);
         el("[data-name]").textContent = actor.name || "NPC";
@@ -44,19 +44,20 @@
             el("[data-resolution]").value = options.resolution === "medium" ? "medium" : "high";
         };
         restoreOptions(pendingRequest || {});
-        let job = null, enabled = false, busy = false, loaded = false, closed = false, applying = false;
+        let job = null, enabled = false, canStop = false, busy = false, loaded = false, closed = false, applying = false;
         let disabledReason = "Il generatore deve essere attivato dall’amministratore.";
         let previewId = "", previewUrl = "", timer = null, zoomDialog = null;
         const controller = new AbortController();
         const request = async (suffix = "", body) => {
             const response = await fetch(app.urls.api(base + suffix), {
-                method: body === undefined ? "GET" : "POST", cache: "no-store", signal: controller.signal,
+                method: body === undefined ? "GET" : "POST", cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]),
                 headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
                 ...(body === undefined ? {} : { body: JSON.stringify(body) }),
             });
             if (!response.ok) {
                 const payload = await response.json().catch(() => ({}));
-                throw new Error(payload.error || (response.status === 404 ? "Il generatore non è ancora disponibile: aggiorna il Worker." : "Impossibile contattare il generatore."));
+                const error = new Error(payload.error || (response.status === 404 ? "Il generatore non è ancora disponibile: aggiorna il Worker." : "Impossibile contattare il generatore."));
+                error.status = response.status; throw error;
             }
             return response;
         };
@@ -66,6 +67,9 @@
         };
         const controls = () => {
             const running = ["pending", "running"].includes(job?.status);
+            el("[data-stop]").hidden = !running || !canStop;
+            el("[data-stop]").disabled = busy || !running;
+            el("[data-stop-note]").hidden = !running || !canStop;
             el("[data-generate]").disabled = busy || running || !enabled || !loaded;
             el("[data-generate]").textContent = running ? "Generazione in corso…" : pendingRequest ? "Riprova invio" : job ? "Genera un’altra proposta" : "Genera anteprima";
             el("[data-confirm]").disabled = busy || job?.status !== "ready" || previewId !== job?.id;
@@ -81,8 +85,11 @@
         const showJob = async () => {
             controls();
             if (["pending", "running"].includes(job?.status)) {
-                status("Sto dipingendo il nuovo avatar. Può richiedere qualche minuto: puoi chiudere e ritrovare qui l’anteprima.");
-                timer = setTimeout(refresh, 5000);
+                const seconds = Math.max(0, Math.floor((Date.now() - Date.parse(job.startedAt || job.createdAt)) / 1000));
+                const elapsed = Number.isFinite(seconds) && seconds >= 60 ? ` In attesa da ${Math.floor(seconds / 60)} min.` : "";
+                status(`Sto dipingendo il nuovo avatar.${elapsed} Puoi chiudere questa finestra e continuare a usare la wiki; l’anteprima resterà qui.`);
+                el("[data-refresh]").hidden = false; el("[data-refresh]").textContent = "Controlla stato";
+                timer = setTimeout(refresh, 10000);
                 return;
             }
             if (["ready", "accepted"].includes(job?.status)) {
@@ -117,6 +124,7 @@
                 if (closed) return;
                 const previousId = job?.id;
                 job = payload.job;
+                canStop = payload.canStop === true;
                 enabled = payload.enabled && payload.optionsVersion === 1;
                 disabledReason = payload.optionsVersion === 1
                     ? "Il generatore deve essere attivato dall’amministratore."
@@ -130,9 +138,26 @@
                 if (pendingRequest && job?.id === pendingRequest.requestId) rememberRequest(null);
                 await showJob();
             } catch (error) {
-                if (!closed) { loaded = false; status(error.message, true); el("[data-refresh]").hidden = false; }
+                if (!closed) {
+                    loaded = false;
+                    status(error.status ? error.message : "Non riesco ad aggiornare lo stato della generazione. Puoi chiudere la finestra; il controllo verrà ritentato senza generare un’altra immagine.", true);
+                    el("[data-refresh]").hidden = false; el("[data-refresh]").textContent = "Riprova caricamento";
+                    if (["pending", "running"].includes(job?.status) && ![400, 401, 403, 404].includes(error.status)) timer = setTimeout(refresh, 10000);
+                }
             } finally { busy = false; if (!closed) controls(); }
         }
+        el("[data-stop]").addEventListener("click", async () => {
+            if (busy || !["pending", "running"].includes(job?.status)) return;
+            busy = true; clearTimeout(timer); controls();
+            try {
+                const payload = await (await request(`/${job.id}/stop`, {})).json();
+                if (closed) return;
+                job = payload.job; rememberRequest(null); loaded = true;
+                await showJob();
+            } catch (error) {
+                if (!closed) { status(`${error.message} Controlla lo stato prima di inviare altre richieste.`, true); timer = setTimeout(refresh, 10000); }
+            } finally { busy = false; if (!closed) controls(); }
+        });
         el("[data-generate]").addEventListener("click", async () => {
             if (busy) return;
             if (job?.status === "uncertain" && !window.confirm("La richiesta precedente potrebbe essere stata addebitata. Avviare una nuova generazione a pagamento?")) return;
@@ -152,7 +177,8 @@
                 el("[data-placeholder]").hidden = false;
                 await showJob();
             } catch (error) {
-                if (!closed) { loaded = false; status(`${error.message} Usa «Riprova caricamento» per verificare l’esito.`, true); el("[data-refresh]").hidden = false; }
+                if (error.status && error.status < 500) rememberRequest(null);
+                if (!closed) { loaded = false; status(`${error.message} Usa «Riprova caricamento» per verificare l’esito.`, true); el("[data-refresh]").hidden = false; el("[data-refresh]").textContent = "Riprova caricamento"; timer = setTimeout(refresh, 10000); }
             } finally { busy = false; if (!closed) controls(); }
         });
         el("[data-confirm]").addEventListener("click", async () => {

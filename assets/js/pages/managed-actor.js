@@ -564,6 +564,7 @@
         setupManagedGuidedMechanics(root);
         setupManagedImageLightbox(root);
         setupManagedAvatarGenerator(root);
+        setupManagedAbilityGenerator(root);
         setupManagedAvatarFallback(root, actor.media);
         setupManagedProfileEditor(root, editMode);
         setupManagedActorLinkControls(root);
@@ -4564,7 +4565,10 @@
                 <span class="managed-catalog-picker-result" data-managed-catalog-result></span>
             </section>` : "";
         const customCreator = `<details class="managed-create-editor" data-managed-item-create-form><summary><span><i class="fas fa-plus"></i> Crea elemento personalizzato</span><i class="fas fa-chevron-down"></i></summary><div class="managed-create-form"><div class="managed-item-fields"><label><span>Nome</span><input type="text" value="Nuovo elemento" data-managed-item-create-field="name"></label><label><span>Tipo</span><select data-managed-item-create-field="type">${options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label><label><span>Livello</span><input type="number" min="0" max="20" step="1" value="0" data-managed-item-create-field="level"></label><label class="managed-file-field" ${currentCanManageActor ? "" : "hidden"}><span>Icona</span><input type="file" accept="image/*" data-managed-item-create-field="icon"></label></div><label class="managed-item-description"><span>Descrizione</span><textarea rows="4" data-managed-item-create-field="description"></textarea></label><label class="managed-json-field"><span>Dati system iniziali</span><textarea rows="5" spellcheck="false" data-managed-item-create-field="system">{}</textarea></label><div class="managed-item-actions"><span data-managed-item-create-result></span><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-create><i class="fas fa-plus"></i> Crea in Foundry</button></div></div></details>`;
-        return `${catalogPicker}${customCreator}`;
+        const canGenerate = currentDocument?.actorType === "npc" && currentDocument?.permissions?.isEditor === true && title !== "Inventario" && title !== "Incantesimi";
+        const generatedPending = canGenerate ? (currentDocument.sync?.commands || []).filter(command => command.kind === "item.create" && command.document?.transferId?.startsWith("ai-ability-") && command.status !== "applied").map(command => `<div class="managed-ability-ai-pending" data-managed-ai-command="${escapeAttr(command.id)}"><strong>${escapeHtml(command.document.name)}</strong> · <span>${command.status === "pending" ? "In attesa di Foundry" : escapeHtml(command.error || "Sincronizzazione da verificare")}</span></div>`).join("") : "";
+        const generator = canGenerate ? `<div class="managed-ability-ai"><button type="button" class="button-gold-outline managed-primary-action" data-managed-generate-ability><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Crea abilità con AI</button><button type="button" class="button-gold-outline" data-managed-suggest-npc><i class="fas fa-lightbulb" aria-hidden="true"></i> Suggerisci modifiche</button><small data-managed-generate-ability-status>Descrivi un’abilità oppure cerca idee a partire da avatar e scheda.</small></div>${generatedPending}` : "";
+        return `${generator}${catalogPicker}${customCreator}`;
     }
 
     function getManagedItemDesiredValue(entry, command, path) {
@@ -4661,6 +4665,24 @@
     function renderManagedAvatarGenerateAction(descriptor) {
         if (currentDocument?.actorType !== "npc" || currentDocument?.permissions?.isEditor !== true) return "";
         return `<div class="managed-avatar-generation"><button type="button" class="managed-avatar-generate-btn" data-managed-generate-avatar ${descriptor?.path ? "" : 'disabled title="Carica e salva prima un avatar da usare come riferimento"'}><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Genera avatar</button><small data-managed-generate-avatar-status role="status"></small></div>`;
+    }
+
+    function setupManagedAbilityGenerator(root) {
+        root.querySelectorAll("[data-managed-generate-ability], [data-managed-suggest-npc]").forEach(button => button.addEventListener("click", async () => {
+            const status = button.closest(".managed-ability-ai").querySelector("[data-managed-generate-ability-status]");
+            if (managedSaveInProgress || hasManagedUnsavedChanges(root)) { status.textContent = "Salva prima le modifiche alla scheda, poi crea l’abilità."; return; }
+            if (!window.CriptaAbilityGenerator) { status.textContent = "Ricarica la pagina per aprire il generatore."; return; }
+            try {
+                const openGenerator = initialDetails => window.CriptaAbilityGenerator.open({actor: currentDocument, token: getToken(), initialDetails, onQueued: async command => {
+                    rememberManagedCommand(command, entry => entry.id === command.id);
+                    renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
+                }});
+                if (button.hasAttribute("data-managed-suggest-npc")) {
+                    if (!window.CriptaNpcSuggestions) { status.textContent = "Ricarica la pagina per aprire i suggerimenti."; return; }
+                    await window.CriptaNpcSuggestions.open({actor: currentDocument, token: getToken(), referenceUrl: currentDocument.media?.avatar?.path ? resolveMedia(currentDocument.media.avatar.path) : "", onDevelop: openGenerator});
+                } else await openGenerator("");
+            } catch (error) { status.textContent = error.message || "Impossibile aprire il generatore."; }
+        }));
     }
 
     function setupManagedAvatarGenerator(root) {
@@ -5639,6 +5661,11 @@
 
     function refreshManagedCommandIndicators(root) {
         if (!root?.isConnected) return;
+        root.querySelectorAll("[data-managed-ai-command]").forEach(card => {
+            const command = (currentDocument?.sync?.commands || []).find(entry => entry.id === card.dataset.managedAiCommand);
+            if (!command || command.status === "applied") { card.remove(); return; }
+            card.querySelector("span").textContent = command.status === "pending" ? "In attesa di Foundry" : command.error || "Sincronizzazione da verificare";
+        });
         const currentIndicator = root.querySelector(".managed-command-actions > .managed-sync-indicator");
         if (currentIndicator) {
             const template = document.createElement("template");

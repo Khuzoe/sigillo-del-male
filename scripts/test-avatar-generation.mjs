@@ -80,6 +80,17 @@ assert.equal(emptyStatus.enabled, true);
 assert.equal(emptyStatus.optionsVersion, 1, "frontend can detect an older Worker that would ignore selected settings");
 assert.equal(emptyStatus.style, AVATAR_STYLE);
 assert.equal(emptyStatus.job, null);
+// A new outer Worker can reach an older Durable Object during code propagation.
+assert.equal(emptyStatus.canStop, true);
+const currentAvatarBinding = env.AVATAR_GENERATOR;
+try {
+    env.AVATAR_GENERATOR = {idFromName: n => n, get: () => ({fetch: async request => new URL(request.url).pathname === "/latest"
+        ? Response.json({ok: true, job: null}) : Response.json({ok: false, error: "Operazione non disponibile."}, {status: 409})})};
+    assert.equal((await (await req(generation, undefined, dm)).json()).canStop, false, "do not advertise stop for an old running coordinator");
+    const updating = await req(`${generation}/${randomUUID()}/stop`, {}, dm);
+    assert.equal(updating.status, 503);
+    assert.equal((await updating.json()).code, "GENERATOR_UPDATING");
+} finally {env.AVATAR_GENERATOR = currentAvatarBinding;}
 delete env.OPENAI_API_KEY;
 assert.equal((await req(generation, { requestId: randomUUID(), details: "" }, dm)).status, 503);
 env.OPENAI_API_KEY = "fake-key-no-live-api";
@@ -251,6 +262,19 @@ try {
         assert.deepEqual(resumed.options, { quality, resolution });
     }
     assert.equal(calls, 7, "all four quality/resolution combinations use one provider call each");
+    const stopId = randomUUID();
+    await req(generation, {requestId: stopId, details: "Stop test"}, dm);
+    const beforeStopKV = [...kv.entries()], beforeStopQuota = await storage.get(`usage:${new Date().toISOString().slice(0, 7)}`);
+    assert.equal((await req(`${generation}/${stopId}/stop`, {}, player)).status, 403);
+    assert.equal((await req(`${generation}/${stopId}/stop`, {}, null, syncHeaders)).status, 401);
+    assert.equal((await req(`${generation}/${stopId}/stop`, {}, dm, {}, "mago-folle")).status, 403);
+    assert.equal((await req(`${generation}/${stopId}/stop`, {}, dm)).status, 200);
+    assert.equal((await req(`${generation}/${stopId}/stop`, {}, dm)).status, 200);
+    await coordinator.alarm();
+    assert.equal(calls, 7, "stopping never starts a paid call");
+    assert.equal(await storage.get(`usage:${new Date().toISOString().slice(0, 7)}`), beforeStopQuota, "reserved quota remains conservative");
+    assert.deepEqual([...kv.entries()], beforeStopKV, "stopping leaves every KV record intact");
+
 } finally { globalThis.fetch = originalFetch; }
 console.log("Avatar generation: permissions, reference, fixed style/format, idempotency, recovery, quota, private preview, explicit confirmation and data preservation passed (no real API calls).");
 

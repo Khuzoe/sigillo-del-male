@@ -1,0 +1,57 @@
+.npc-ability-generator { width: min(1060px, calc(100vw - 24px)); }
+.npc-ability-generator h3 { color: #e4c689; margin: 0 0 8px; font-size: 17px; }
+.npc-ability-generator [data-proposal] { border-top: 1px solid #484335; margin-top: 22px; padding-top: 22px; }
+.npc-ability-heading { display: flex; gap: 24px; justify-content: space-between; align-items: flex-start; }
+.npc-ability-heading > div:first-child { flex: 1; min-width: 0; }
+.npc-ability-heading p { color: #d0cdd5; }
+.npc-ability-icon { display: grid; gap: 8px; width: 160px; flex-shrink: 0; }
+.npc-ability-icon img { width: 160px; height: 160px; object-fit: contain; border-radius: 12px; border: 1px solid #484335; }
+.npc-ability-icon button { padding: 6px 10px; font-size: 12px; }
+.npc-ability-generator fieldset { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 18px 0; padding: 16px; border: 1px solid #3c3b46; border-radius: 12px; }
+.npc-ability-generator legend { padding: 0 8px; color: #dbc492; font-weight: 600; }
+.npc-ability-generator label:not(.npc-ability-check) { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.npc-ability-generator input:not([type=checkbox]), .npc-ability-generator select { box-sizing: border-box; width: 100%; min-height: 40px; padding: 8px 10px; border: 1px solid #44434d; border-radius: 8px; background: #101115; color: #eeebe5; font: inherit; }
+.npc-ability-generator textarea { margin-top: 0; }
+.npc-ability-generator label:has(textarea), .npc-ability-conditions { grid-column: 1 / -1; }
+.npc-ability-check { display: flex; align-items: center; gap: 8px; margin: 12px 0; font-size: 12px; }
+.npc-ability-generator input[type=checkbox] { appearance: auto; position: static; width: 17px; height: 17px; accent-color: #dec28a; flex-shrink: 0; margin: 0; }
+.npc-ability-conditions { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+.npc-ability-generator .npc-ability-conditions label { flex-direction: row; align-items: center; }
+.npc-ability-summary { background: #111318; border-left: 3px solid #c9ac6e; border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; }
+.npc-ability-summary p { margin: 8px 0; }
+.npc-ability-generator .is-error { color: #ffb5a8; }
+.npc-ability-generator input:focus-visible, .npc-ability-generator select:focus-visible { outline: 2px solid #e4c689; outline-offset: 2px; }
+.managed-ability-ai { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px 0; font: 13px/1.5 var(--font-ui, Montserrat, sans-serif); }
+.managed-ability-ai button { display: inline-flex; align-items: center; gap: 8px; }
+.managed-ability-ai small { color: #b8b7c0; }
+.managed-ability-ai-pending { padding: 10px 14px; border-left: 2px solid #c9ac6e; font: 12px/1.5 var(--font-ui, Montserrat, sans-serif); }
+.npc-suggestions-intro { display: flex; align-items: center; gap: 18px; margin-bottom: 12px; }
+.npc-suggestions-intro img { width: 76px; height: 100px; object-fit: contain; border-radius: 10px; background: #101115; }
+.npc-suggestions-intro p { margin: 0 0 8px; }
+.npc-suggestions [data-report] { border-top: 1px solid #484335; padding-top: 16px; margin-top: 20px; }
+.npc-suggestions section { margin: 18px 0; }
+.npc-suggestions-card { padding: 18px; margin: 12px 0; border: 1px solid #3c3b46; border-radius: 12px; background: #111318; overflow-wrap: anywhere; }
+.npc-suggestions-card h4 { margin: 0 0 8px; color: #e4c689; font: 600 16px/1.4 Montserrat, sans-serif; }
+.npc-suggestions-card p { margin: 10px 0; }
+.npc-suggestions-card strong { color: #d6c6a3; font-weight: 600; }
+.npc-suggestions-impact { display: inline-block; padding: 3px 9px; border: 1px solid #4b4750; border-radius: 20px; color: #c7c1d0; font-size: 11px; }
+.npc-suggestions-stale { border-left: 3px solid #e5bd73; background: #342d20; padding: 12px; color: #f1d99d; border-radius: 6px; }
+.npc-suggestions [data-summary] { white-space: pre-line; }
+.npc-suggestions li { margin: 7px 0; }
+@media (max-width: 650px) {
+  .npc-ability-generator fieldset { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px; }
+  .npc-ability-generator .npc-avatar-generator__body { padding: 0 16px 12px; }
+  .npc-ability-generator header, .npc-ability-generator footer { padding: 14px 16px; }
+  .npc-ability-generator footer { flex-direction: column; align-items: stretch; gap: 8px; }
+  .npc-ability-generator footer > div { justify-content: flex-end; }
+  .npc-ability-generator footer > span { max-width: none; }
+  .npc-ability-icon { width: 112px; }
+  .npc-ability-icon img { width: 112px; height: 112px; }
+  .npc-ability-heading { flex-direction: column-reverse; gap: 16px; }
+  .npc-ability-icon { width: 100%; display: grid; grid-template-columns: 90px 1fr; align-items: center; gap: 8px 14px; }
+  .npc-ability-icon img { width: 90px; height: 90px; grid-row: span 2; }
+  .npc-ability-icon .npc-ability-check { margin: 0; }
+}
+
+.npc-generation-error-details { margin: 8px 0 16px; color: #c7c1d0; }
+.npc-generation-error-details pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.6 monospace; padding: 12px; border-radius: 8px; background: #111318; }

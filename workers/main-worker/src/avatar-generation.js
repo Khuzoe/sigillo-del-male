@@ -1,3 +1,4 @@
+import {GENERATION_WAIT_MS, GENERATION_PENDING_MS, generationDeadline, recoverGeneration, ownsGeneration, generationStopResponse} from "./generation-lifecycle.js";
 // The model and base style are fixed; quality and resolution use a server-owned allowlist.
 export const AVATAR_STYLE = "Stylized painterly realism, hand-painted surfaces, textured brush strokes, cinematic character portrait, realistic facial structure, expressive eyes, sophisticated color harmony, dramatic rim lighting, soft global illumination, atmospheric perspective, muted but rich color palette, detailed clothing folds, subtle skin texture, realistic lighting behavior, concept art and illustration hybrid, emotional mood, high production animated series quality, visually rich yet grounded, artistic rendering rather than photorealism, masterfully painted 3D look. fullbody. new pose. 9:16";
 export const AVATAR_MODEL = "gpt-image-2.5-sunburst";
@@ -14,7 +15,7 @@ const reply = (data, status = 200) => Response.json(data, { status, headers: { "
 const failure = (message, status = 400) => reply({ ok: false, error: message }, status);
 const identity = (c) => `${c.campaignId}:${c.worldId}:${c.actorId}`;
 const fingerprint = (avatar) => JSON.stringify([normalizeGeneratedAvatarPath(avatar?.path), avatar?.revision || 0, avatar?.hash || ""]);
-const publicJob = (job) => job ? ({ id: job.id, status: job.status, details: job.details, options: avatarGenerationOptions(job.options), error: job.error || "", createdAt: job.createdAt }) : null;
+const publicJob = (job) => job ? ({ id: job.id, status: job.status, details: job.details, options: avatarGenerationOptions(job.options), error: job.error || "", createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job) }) : null;
 
 // Early confirmations stored the R2 key instead of the site's media path.
 // Normalize only those generated assets; never reinterpret arbitrary campaign files.
@@ -58,7 +59,7 @@ export async function handleAvatarGeneration(request, route, campaignId, env, se
   if (request.method === "GET" && !route.action) {
     const result = await call("latest");
     const payload = await result.json();
-    return reply({ ...payload, enabled: Boolean(env.OPENAI_API_KEY), optionsVersion: 1, style: AVATAR_STYLE }, result.status);
+    return reply({ ...payload, enabled: Boolean(env.OPENAI_API_KEY), canStop: payload.canStop === true, optionsVersion: 1, style: AVATAR_STYLE }, result.status);
   }
   if (request.method === "GET" && route.action === "preview") return call("preview", { id: route.jobId });
   if (request.method !== "POST") return failure("Operazione non supportata.", 405);
@@ -69,6 +70,7 @@ export async function handleAvatarGeneration(request, route, campaignId, env, se
     body = JSON.parse(text);
   } catch { return failure("Richiesta non valida."); }
   if (!body || typeof body !== "object" || Array.isArray(body)) return failure("Richiesta non valida.");
+  if (route.action === "stop") return generationStopResponse(await call("stop", { id: route.jobId }));
   if (!route.action) {
     if (!env.OPENAI_API_KEY) return failure("Il generatore deve essere attivato dall’amministratore.", 503);
     if (!/^[a-f0-9-]{36}$/i.test(body.requestId || "")) return failure("Identificativo richiesta non valido.");
@@ -130,12 +132,13 @@ export class AvatarGenerationStore {
   }
   async handle(action, input) {
     const storage = this.state.storage;
+    if (action !== "stop") await recoverGeneration(this.state, job => this.recoverExpired(job));
     const scope = identity(input.context);
     const latest = await storage.get(`latest:${scope}`);
     const id = action === "latest" ? latest : input.id;
     const job = id ? await storage.get(`job:${id}`) : null;
     if (job && identity(job.context) !== scope) return failure("Anteprima non trovata.", 404);
-    if (action === "latest") return reply({ ok: true, job: publicJob(job) });
+    if (action === "latest") return reply({ ok: true, canStop: true, job: publicJob(job) });
     if (action === "create") {
       if (job) return reply({ ok: true, job: publicJob(job) });
       const previous = latest ? await storage.get(`job:${latest}`) : null;
@@ -146,7 +149,7 @@ export class AvatarGenerationStore {
       const configuredLimit = Number(this.env.AVATAR_MONTHLY_LIMIT ?? 20);
       const limit = Number.isFinite(configuredLimit) ? Math.max(0, Math.floor(configuredLimit)) : 20;
       if (used >= limit) return failure("Limite mensile di generazioni raggiunto. Contatta l’amministratore.", 429);
-      const next = { id: input.id, context: input.context, referenceKey: input.referenceKey, reference: input.reference, details: input.details, options: input.options, status: "pending", createdAt: new Date().toISOString() };
+      const next = { id: input.id, context: input.context, referenceKey: input.referenceKey, reference: input.reference, details: input.details, options: input.options, status: "pending", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS };
       // Transaction covers reservation, deduplication marker and alarm together.
       await storage.transaction(async (tx) => {
         await tx.put({ [`job:${next.id}`]: next, [`latest:${scope}`]: next.id, active: next.id, [`usage:${month}`]: used + 1 });
@@ -155,6 +158,17 @@ export class AvatarGenerationStore {
       return reply({ ok: true, job: publicJob(next) }, 202);
     }
     if (!job) return failure("Anteprima non trovata.", 404);
+    if (action === "stop") {
+      if (["pending", "running"].includes(job.status)) {
+        job.status = "uncertain";
+        job.stoppedAt = new Date().toISOString();
+        if (job.status === "uncertain") job.error = "Attesa interrotta. Il generatore è libero. La chiamata precedente potrebbe avere un costo; nessun nuovo tentativo è stato avviato. Un eventuale risultato arrivato in ritardo resterà recuperabile.";
+        await storage.put(`job:${job.id}`, job);
+        if (await storage.get("active") === job.id) { await storage.delete("active"); await storage.deleteAlarm(); }
+        if (this.inFlight === job.id) this.abortController?.abort();
+      }
+      return reply({ ok: true, job: publicJob(job) });
+    }
     if (action === "job") return reply({ ok: true, job });
     if (action === "accepted") {
       if (!["ready", "accepted"].includes(job.status)) return failure("Anteprima non disponibile.", 409);
@@ -169,28 +183,44 @@ export class AvatarGenerationStore {
     }
     return failure("Operazione non disponibile.", 409);
   }
+  async recoverExpired(job) {
+    // R2 may have completed just before the process stopped: retain that result.
+    const image = await this.env.MEDIA_BUCKET.head(`${PRIVATE_PREFIX}${job.id}.webp`);
+    if (image) { job.status = "ready"; job.error = ""; return; }
+    job.status = "uncertain";
+    job.error = "L’attesa della generazione è terminata senza un risultato verificabile. Il generatore è stato sbloccato. Nessun nuovo tentativo automatico; verifica i consumi prima di rigenerare.";
+  }
   async alarm() {
     const job = await this.serial(async () => {
+      await recoverGeneration(this.state, job => this.recoverExpired(job));
       const id = await this.state.storage.get("active");
       if (!id) return null;
       const current = await this.state.storage.get(`job:${id}`);
       if (!current) { await this.state.storage.delete("active"); return null; }
       if (current.status === "running") {
-        current.status = "uncertain";
-        current.error = "Generazione interrotta: esito non verificabile. Nessun nuovo tentativo automatico; controlla i consumi prima di rigenerare.";
+        if (this.inFlight === current.id && generationDeadline(current) > Date.now()) {
+          await this.state.storage.setAlarm(generationDeadline(current));
+          return null;
+        }
+        await this.recoverExpired(current);
         await this.state.storage.put(`job:${id}`, current);
         await this.state.storage.delete("active");
         return null;
       }
       if (current.status !== "pending") { await this.state.storage.delete("active"); return null; }
       current.status = "running";
+      current.startedAt = new Date().toISOString();
+      current.deadlineAt = Date.now() + GENERATION_WAIT_MS;
+      this.inFlight = current.id;
+      this.abortController = new AbortController();
       await this.state.storage.transaction(async (tx) => {
         await tx.put(`job:${id}`, current);
-        await tx.setAlarm(Date.now() + 15 * 60 * 1000);
+        await tx.setAlarm(current.deadlineAt);
       });
       return current;
     });
     if (!job) return;
+    const abortController = this.abortController;
     let providerStarted = false;
     try {
       const options = avatarGenerationOptions(job.options);
@@ -204,7 +234,7 @@ export class AvatarGenerationStore {
       providerStarted = true;
       const response = await fetch("https://api.openai.com/v1/images/edits", {
         method: "POST", headers: { Authorization: `Bearer ${this.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(12 * 60 * 1000),
+        signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(12 * 60 * 1000)]),
         body: JSON.stringify({ model: AVATAR_MODEL, images: [{ image_url: `data:${mime};base64,${encodeBase64(input)}` }], prompt, n: 1, size: `${dimensions.width}x${dimensions.height}`, quality: options.quality, output_format: "webp" }),
       });
       if (!response.ok) {
@@ -227,12 +257,23 @@ export class AvatarGenerationStore {
         : (error.message?.startsWith("Il servizio") || error.message?.startsWith("Avatar") || error.message?.startsWith("Risultato") || error.message?.startsWith("Servizio") ? error.message : "Generazione interrotta. Nessun nuovo tentativo automatico.");
     }
     await this.serial(async () => {
+      if (!await ownsGeneration(this.state, job, "running")) {
+        const current = await this.state.storage.get(`job:${job.id}`);
+        // A late valid image remains usable for its own job. Never change the
+        // latest pointer or clear a lock/alarm belonging to a newer request.
+        if (job.status === "ready" && current?.status === "uncertain") {
+          await this.state.storage.put(`job:${job.id}`, {...current, status: "ready", error: "", finishedAt: new Date().toISOString()});
+        }
+        return;
+      }
+      job.finishedAt = new Date().toISOString();
       await this.state.storage.put(`job:${job.id}`, job);
       if (await this.state.storage.get("active") === job.id) {
         await this.state.storage.delete("active");
         await this.state.storage.deleteAlarm();
       }
     });
+    if (this.abortController === abortController) { this.inFlight = null; this.abortController = null; }
   }
 }
 

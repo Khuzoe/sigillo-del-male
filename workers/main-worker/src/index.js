@@ -4,13 +4,16 @@ import { handleCalendarGet, handleLegacyCalendarGet, handleCalendarEventUpsert, 
 import { CalendarStoreBase } from "./calendar-store.js";
 import { handleAvatarGeneration, normalizeGeneratedAvatarPath, normalizeGeneratedAvatarDocument } from "./avatar-generation.js";
 export { AvatarGenerationStore } from "./avatar-generation.js";
+import { handleAbilityGeneration } from "./ability-generation.js";
+export { AbilityGenerationStore } from "./ability-generation.js";
 import { D1PollStore, PollStorageError } from "./poll-store.js";
 import { SkillTreeStateStore } from "./skill-tree-store.js";
 import { SkillTreeDefinitionStore } from "./skill-tree-definition-store.js";
+import { managedActorStorageEnvironment, managedActorD1Enabled, managedActorWritesPaused, ManagedActorStorageError } from "./managed-actor-store.js";
 import { handleEconomyGet, handleEconomyPost } from "./economy-v1.js";
 export { FoundrySyncHub } from "./foundry-sync-hub.js";
 
-export default {
+const application = {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(handleSessionStartNotifications(env));
     ctx.waitUntil(handleDiscordBotDmNotifications(event, env));
@@ -34,6 +37,20 @@ export default {
 
       if (url.pathname === "/media/upload" && request.method === "POST") {
         return handleMediaUpload(request, env, corsHeaders);
+      }
+
+      if (url.pathname === "/api/managed-actors/storage/status" && request.method === "GET") {
+        const user = await requireUser(request, env, corsHeaders);
+        if (user instanceof Response) return user;
+        if (!isAuthenticatedGlobalAdmin(user, env)) return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
+        const enabled = managedActorD1Enabled(env, queryCampaignId);
+        const state = env.POLL_DB ? await env.POLL_DB.prepare(`SELECT i.*,
+          (SELECT COUNT(*) FROM managed_actor_documents d WHERE d.campaign_id = i.campaign_id AND d.present = 1 AND d.kind = 'actor') AS actors,
+          (SELECT COUNT(*) FROM managed_actor_commands c WHERE c.campaign_id = i.campaign_id AND c.present = 1) AS activeCommands,
+          (SELECT COUNT(*) FROM managed_actor_command_receipts r WHERE r.campaign_id = i.campaign_id) AS receipts
+          FROM managed_actor_imports i WHERE i.campaign_id = ?`).bind(queryCampaignId).first() : null;
+        return json({ ok: true, campaignId: queryCampaignId, source: enabled ? "d1" : "kv", writesPaused: managedActorWritesPaused(env, queryCampaignId), state }, 200,
+          { ...corsHeaders, "Cache-Control": "private, no-store" });
       }
 
       if (url.pathname === "/media/copy-folder" && request.method === "POST") {
@@ -112,7 +129,22 @@ export default {
       if (url.pathname === "/api/session-journal/upsert" && request.method === "POST") {
         return handleSessionJournalUpsert(request, queryCampaignId, env, corsHeaders);
       }
-      const avatarRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/avatar-generation(?:\/([a-f0-9-]{36})\/(preview|confirm))?$/i);
+      const suggestionRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-suggestions$/i);
+      const abilityRouteMatch = suggestionRouteMatch || url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-generation(?:\/([a-f0-9-]{36})\/(preview|save|icon|confirm|stop))?$/i);
+      if (abilityRouteMatch) {
+        const actorRoute = matchManagedActorRoute(abilityRouteMatch[1]);
+        if (!actorRoute) return json({ ok: false, error: "Invalid actor" }, 400, corsHeaders);
+        const result = await handleAbilityGeneration(request, { ...actorRoute, purpose: suggestionRouteMatch ? "suggestions" : "ability", jobId: abilityRouteMatch[2], action: abilityRouteMatch[3] }, queryCampaignId, env, {
+          requireUser: (req) => requireUser(req, env, corsHeaders),
+          isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
+          readActor: async (campaignId, route) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId))),
+          enqueue: (body) => finishManagedActorMutation(handleManagedActorCommandEnqueue(new Request(request.url, {method: "POST", headers: request.headers, body: JSON.stringify(body)}), actorRoute, queryCampaignId, env, corsHeaders, ctx), env, corsHeaders),
+        });
+        const headers = new Headers(result.headers);
+        Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
+        return new Response(result.body, {status: result.status, headers});
+      }
+      const avatarRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/avatar-generation(?:\/([a-f0-9-]{36})\/(preview|confirm|stop))?$/i);
       if (avatarRouteMatch) {
         const actorRoute = matchManagedActorRoute(avatarRouteMatch[1]);
         if (!actorRoute) return json({ ok: false, error: "Invalid actor" }, 400, corsHeaders);
@@ -120,9 +152,9 @@ export default {
           requireUser: (req) => requireUser(req, env, corsHeaders),
           isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
           readActor: async (campaignId, route) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId))),
-          saveActor: (body) => handleManagedActorPost(new Request(request.url, {
+          saveActor: (body) => finishManagedActorMutation(handleManagedActorPost(new Request(request.url, {
             method: "POST", headers: request.headers, body: JSON.stringify(body),
-          }), actorRoute, queryCampaignId, env, corsHeaders, ctx),
+          }), actorRoute, queryCampaignId, env, corsHeaders, ctx), env, corsHeaders),
         });
         const headers = new Headers(result.headers);
         Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
@@ -1571,6 +1603,7 @@ export default {
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     } catch (err) {
+      if (err instanceof ManagedActorStorageError) throw err;
       if (typeof PollStorageError !== "undefined" && err instanceof PollStorageError) {
         return json({ ok: false, error: err.message, code: err.code }, err.status, corsHeadersFor(request));
       }
@@ -1588,6 +1621,62 @@ export default {
     }
   },
 };
+
+// A request stages all managed documents, then commits them in one D1 batch.
+// Other collections and non-pilot campaigns retain their existing storage.
+export default {
+  scheduled(event, env, ctx) {
+    return application.scheduled(event, managedActorStorageEnvironment(env).env, ctx);
+  },
+  async fetch(request, env, ctx) {
+    if (!env.MANAGED_ACTOR_D1_CAMPAIGNS && !env.MANAGED_ACTOR_WRITES_PAUSED_CAMPAIGNS) return application.fetch(request, env, ctx);
+    const url = new URL(request.url), path = url.pathname;
+    let campaignId = getCampaignIdFromUrl(url);
+    const managedRoute = /^\/api\/managed-actors(?:\/|$)/.test(path) || path.startsWith("/api/managed-actor-commands/")
+      || path.startsWith("/api/managed-actor-profiles/") || path === "/api/managed-actor-create-requests" || path === "/api/npc-categories";
+    if (managedRoute && request.method === "POST") {
+      const body = await request.clone().json().catch(() => null);
+      campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || campaignId);
+      if (managedActorWritesPaused(env, campaignId) && !path.endsWith("/stop")) return json({ ok: false,
+        error: "Salvataggi NPC temporaneamente sospesi per la migrazione. Riprova tra poco.", code: "MANAGED_ACTOR_WRITES_PAUSED" }, 503,
+        { ...corsHeadersFor(request, env), "Retry-After": "60", "Cache-Control": "no-store" });
+    }
+    const retrySafe = request.method === "GET" || (request.method === "POST" && (
+      /^\/api\/managed-actors\/[^/]+\/[^/]+(?:\/(?:commands|runtime|profile))?$/.test(path)
+      || /^\/api\/managed-actor-commands\/[^/]+\/ack$/.test(path)));
+    for (let attempt = 0; ; attempt++) {
+      const scoped = managedActorStorageEnvironment(env);
+      try {
+        const response = await application.fetch(request.clone(), scoped.env, ctx);
+        if (response.ok) await scoped.transaction?.commit();
+        if (managedRoute && managedActorD1Enabled(env, campaignId)) response.headers.set("X-Managed-Actor-Storage", "d1");
+        return response;
+      } catch (error) {
+        if (error instanceof ManagedActorStorageError) {
+          if (error.code === "MANAGED_ACTOR_STORAGE_CONFLICT" && retrySafe && attempt < 2) continue;
+          return json({ ok: false, error: error.message, code: error.code }, error.status,
+            { ...corsHeadersFor(request, env), "Cache-Control": "private, no-store" });
+        }
+        console.error("sigillo-api | Managed Actor storage request failed", error);
+        return json({ ok: false, error: "Archivio NPC temporaneamente non disponibile. Nessun salvataggio su KV è stato eseguito.", code: "MANAGED_ACTOR_STORAGE_UNAVAILABLE" }, 503,
+          { ...corsHeadersFor(request, env), "Cache-Control": "private, no-store" });
+      }
+    }
+  },
+};
+
+// A generator may mark a job accepted only after the actual Actor save or
+// command insertion has durably committed, never just after staging it.
+async function finishManagedActorMutation(resultPromise, env, corsHeaders) {
+  try {
+    const result = await resultPromise;
+    if (result.ok) await env.MANAGED_ACTOR_TRANSACTION?.commit();
+    return result;
+  } catch (error) {
+    if (error instanceof ManagedActorStorageError) return json({ ok: false, error: error.message, code: error.code }, error.status, corsHeaders);
+    throw error;
+  }
+}
 
 // =========================
 // Helpers
@@ -3612,6 +3701,10 @@ function calendarRoute(request) {
 }
 
 export class CalendarStore extends CalendarStoreBase {
+  storageEnvironment() {
+    const { MANAGED_ACTOR_TRANSACTION, ...readEnvironment } = managedActorStorageEnvironment(this.env).env;
+    return readEnvironment;
+  }
   context(request) {
     return { campaignId: getCampaignIdFromUrl(new URL(request.url)), corsHeaders: corsHeadersFor(request, this.env),
       services: calendarServices(), handler: calendarRoute(request), readHandler: handleCalendarGet };
@@ -3762,6 +3855,11 @@ async function handleFoundryLiveStatus(request, fallbackCampaignId, env, corsHea
 
 function scheduleFoundryLiveInvalidation(ctx, env, input = {}) {
   if (!env?.FOUNDRY_SYNC_HUB) return false;
+  if (env.MANAGED_ACTOR_TRANSACTION) {
+    const { MANAGED_ACTOR_TRANSACTION, ...committedEnv } = env;
+    MANAGED_ACTOR_TRANSACTION.defer(() => scheduleFoundryLiveInvalidation(ctx, committedEnv, input));
+    return true;
+  }
   const campaignId = sanitizeCampaignId(input.campaignId);
   const collections = Array.from(new Set((Array.isArray(input.collections) ? input.collections : [])
     .map((value) => String(value || "").trim().toLowerCase())
@@ -5739,7 +5837,12 @@ function normalizeManagedCreateDocument(input, kind) {
     const system = normalizeManagedCommandObject(input.system || {}, 96 * 1024);
     const effects = normalizeManagedCommandObject(Array.isArray(input.effects) ? input.effects : [], 64 * 1024);
     if (!img.valid || !system.valid || !effects.valid) return null;
-    return { name, type, img: img.value, system: system.value, effects: effects.value, campaignItemId: sanitizeAssetId(input.campaignItemId || ""), transferId: String(input.transferId || "").trim().slice(0, 180) };
+    // Creation accepts only the declarative NPC presets, never arbitrary module flags/macros.
+    const rules = input.flags?.["khuzoe-automations"]?.npcRules;
+    if (rules !== undefined && (!validManagedNpcRules(rules) || Object.keys(rules.activities).some(id => !Object.hasOwn(system.value.activities || {}, id)))) return null;
+    return { name, type, img: img.value, system: system.value, effects: effects.value,
+      ...(rules !== undefined ? {flags: {"khuzoe-automations": {npcRules: structuredClone(rules)}}} : {}),
+      campaignItemId: sanitizeAssetId(input.campaignItemId || ""), transferId: String(input.transferId || "").trim().slice(0, 180) };
   }
   if (kind === "effect.create") {
     const name = String(input.name || "").trim().slice(0, 180);
@@ -5904,6 +6007,7 @@ function publicManagedActorCreateRequest(request) {
 }
 
 async function cleanupManagedActorCreateDraftMedia(env, campaignId, clientId) {
+  if (managedActorD1Enabled(env, campaignId)) return 0;
   const cleanClientId = sanitizeAssetId(clientId);
   if (!env.MEDIA_BUCKET || !cleanClientId) return 0;
   const prefix = `campaigns/${campaignId}/managed-actors/site-pending/${cleanClientId}/`;
@@ -6370,6 +6474,8 @@ async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignI
 async function handleManagedActorCommandList(request, route, campaignId, env, corsHeaders = {}) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   if (!isFoundrySyncSecretAuthorized(request, env)) return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
+  if (managedActorWritesPaused(env, campaignId)) return json({ ok: false, code: "MANAGED_ACTOR_WRITES_PAUSED",
+    error: "Coda NPC temporaneamente sospesa per la migrazione." }, 503, { ...corsHeaders, "Retry-After": "60", "Cache-Control": "no-store" });
   const [commandRaw, createRaw] = await Promise.all([
     env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId)),
     env.SIGILLO_KV.get(managedActorCreateRequestQueueKey(campaignId)),
@@ -6491,6 +6597,7 @@ async function handleManagedActorCommandAck(request, route, fallbackCampaignId, 
       await Promise.all(appliedCreateDrafts.map((clientId) => cleanupManagedActorCreateDraftMedia(env, campaignId, clientId)));
     }
   }
+  env.MANAGED_ACTOR_TRANSACTION?.recordAcknowledgements(campaignId, route.worldId, body);
   return json({
     ok: true,
     campaignId,
@@ -6826,6 +6933,8 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
 const MANAGED_ACTOR_MEDIA_DELETE_GRACE_MS = 14 * 24 * 60 * 60 * 1000;
 
 async function reconcileManagedActorMediaCleanup(env, campaignId, route, existing, next) {
+  // Keep the rollback snapshot's R2 references usable throughout the pilot.
+  if (managedActorD1Enabled(env, campaignId)) return { scheduled: [], deleted: [] };
   if (!env.MEDIA_BUCKET || !env.SIGILLO_KV) return { scheduled: [], deleted: [] };
   const cleanupKey = managedActorMediaCleanupKey(campaignId, route.worldId, route.actorId);
   const queueRaw = safeJsonParse(await env.SIGILLO_KV.get(cleanupKey));

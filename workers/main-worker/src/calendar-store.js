@@ -47,8 +47,9 @@ export class CalendarStoreBase {
     const key = `campaign:${campaignId}:calendar:v2`;
     const legacyKey = `campaign:${campaignId}:data:calendar:override`;
     let pending;
-    const kv = this.env.SIGILLO_KV;
-    const env = { ...this.env, SIGILLO_KV: {
+    const storageEnv = this.storageEnvironment?.() || this.env;
+    const kv = storageEnv.SIGILLO_KV;
+    const env = { ...storageEnv, SIGILLO_KV: {
       get: async (name, ...args) => {
         // Only canonical data is shared in memory. Authorization lookups still
         // use KV for every request, and responses are filtered for their reader.
