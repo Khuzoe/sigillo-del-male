@@ -974,6 +974,10 @@ function getSkillNodeLevels(node) {
 
 function cleanSkillLevelHtmlTemplate(template) {
     if (!template?.content) return;
+    const comments = document.createTreeWalker(template.content, NodeFilter.SHOW_COMMENT);
+    const discardedComments = [];
+    while (comments.nextNode()) discardedComments.push(comments.currentNode);
+    discardedComments.forEach((entry) => entry.remove());
     template.content
         .querySelectorAll('script, style, iframe, object, embed, .player-skill-level-diff, [data-skill-level-diff], .player-skill-level-future-addition, [data-skill-level-future-addition]')
         .forEach((entry) => entry.remove());
@@ -1031,7 +1035,7 @@ function normalizeSkillLevelStoredHtml(value) {
 
     template.content.querySelectorAll('*').forEach((entry) => {
         const tag = entry.tagName.toLowerCase();
-        if (/^h[1-6]$/.test(tag) || tag === 'blockquote' || tag === 'section' || tag === 'article') {
+        if ((/^h[1-6]$/.test(tag) && tag !== 'h4') || tag === 'section' || tag === 'article') {
             replaceSkillLevelBlockWithParagraph(entry);
             return;
         }
@@ -1043,7 +1047,7 @@ function normalizeSkillLevelStoredHtml(value) {
             replaceSkillLevelBlockWithParagraph(entry);
             return;
         }
-        if (!['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li'].includes(tag)) {
+        if (!['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li', 'h4', 'blockquote'].includes(tag)) {
             entry.replaceWith(document.createTextNode(entry.textContent || ''));
             return;
         }
@@ -1157,6 +1161,14 @@ function applySkillListRichTextCommand(editor, listTagName) {
     if (!range) return;
     const existingList = getSkillRichTextAncestor(range.commonAncestorContainer, 'ul, ol', editor);
     if (existingList) {
+        if (existingList.tagName.toLowerCase() !== listTagName) {
+            const replacement = document.createElement(listTagName);
+            while (existingList.firstChild) replacement.appendChild(existingList.firstChild);
+            existingList.replaceWith(replacement);
+            placeSkillRichTextCaretAtEnd(replacement.lastElementChild || replacement);
+            rememberSkillRichTextSelection(editor);
+            return;
+        }
         const fragment = document.createDocumentFragment();
         Array.from(existingList.children).forEach((entry) => {
             const paragraph = document.createElement('p');
@@ -1171,7 +1183,8 @@ function applySkillListRichTextCommand(editor, listTagName) {
         return;
     }
 
-    const intersectingBlocks = Array.from(editor.children).filter((entry) => {
+    const blockParent = getSkillRichTextAncestor(range.commonAncestorContainer, 'blockquote', editor) || editor;
+    const intersectingBlocks = Array.from(blockParent.children).filter((entry) => {
         try {
             return range.intersectsNode(entry);
         } catch (_) {
@@ -1180,7 +1193,7 @@ function applySkillListRichTextCommand(editor, listTagName) {
     });
     const list = document.createElement(listTagName);
     if (intersectingBlocks.length) {
-        editor.insertBefore(list, intersectingBlocks[0]);
+        blockParent.insertBefore(list, intersectingBlocks[0]);
         intersectingBlocks.forEach((block) => {
             const item = document.createElement('li');
             while (block.firstChild) item.appendChild(block.firstChild);
@@ -1199,6 +1212,73 @@ function applySkillListRichTextCommand(editor, listTagName) {
     rememberSkillRichTextSelection(editor);
 }
 
+function applySkillBlockRichTextCommand(editor, tagName) {
+    const range = restoreSkillRichTextSelection(editor);
+    if (!range) return;
+    if (tagName === 'blockquote') {
+        const existing = getSkillRichTextAncestor(range.commonAncestorContainer, 'blockquote', editor);
+        if (existing) {
+            const last = existing.lastElementChild;
+            existing.replaceWith(...existing.childNodes);
+            placeSkillRichTextCaretAtEnd(last || editor);
+        } else {
+            const blocks = Array.from(editor.children).filter((entry) => range.intersectsNode(entry));
+            const quote = document.createElement('blockquote');
+            if (blocks.length) {
+                editor.insertBefore(quote, blocks[0]);
+                blocks.forEach((block) => quote.appendChild(block));
+            } else {
+                const paragraph = document.createElement('p');
+                paragraph.appendChild(range.collapsed ? document.createElement('br') : range.extractContents());
+                quote.appendChild(paragraph);
+                range.insertNode(quote);
+            }
+            placeSkillRichTextCaretAtEnd(quote.lastElementChild || quote);
+        }
+    } else {
+        const block = getSkillRichTextAncestor(range.commonAncestorContainer, 'p, h4', editor);
+        const blocks = block && range.collapsed ? [block] : Array.from(editor.querySelectorAll('p, h4')).filter((entry) => range.intersectsNode(entry));
+        if (blocks.length) {
+            let last;
+            blocks.forEach((entry) => {
+                const replacement = document.createElement(tagName);
+                while (entry.firstChild) replacement.appendChild(entry.firstChild);
+                entry.replaceWith(replacement);
+                last = replacement;
+            });
+            placeSkillRichTextCaretAtEnd(last);
+        } else {
+            const element = document.createElement(tagName);
+            const item = getSkillRichTextAncestor(range.commonAncestorContainer, 'li', editor);
+            if (item && range.collapsed) {
+                while (item.firstChild) element.appendChild(item.firstChild);
+                item.appendChild(element);
+            } else {
+                element.appendChild(range.collapsed ? document.createElement('br') : range.extractContents());
+                range.insertNode(element);
+            }
+            placeSkillRichTextCaretAtEnd(element);
+        }
+    }
+    rememberSkillRichTextSelection(editor);
+}
+
+function renderSkillRichTextToolbar(label = 'Formato descrizione', attribute = 'data-skill-level-rich-command') {
+    const commands = [
+        ['formatParagraph', 'paragraph', 'Testo'],
+        ['formatHeading', 'heading', 'Titolo'],
+        ['bold', 'bold', 'Grassetto'],
+        ['italic', 'italic', 'Corsivo'],
+        ['underline', 'underline', 'Sottolineato'],
+        ['insertUnorderedList', 'list-ul', 'Elenco puntato'],
+        ['insertOrderedList', 'list-ol', 'Elenco numerato'],
+        ['formatCallout', 'quote-left', 'Riquadro']
+    ];
+    return `<div class="player-skill-rich-toolbar player-skill-level-rich-toolbar" role="toolbar" aria-label="${escapeHtml(label)}">${commands.map(([command, icon, text]) =>
+        `<button type="button" ${attribute}="${command}" title="${text}" aria-label="${text}" aria-pressed="false"><i class="fas fa-${icon}" aria-hidden="true"></i><span>${text}</span></button>`
+    ).join('')}</div><p class="player-skill-rich-help">Seleziona il testo da formattare. Usa Titolo per separare le regole e Riquadro per evidenziare un effetto speciale.</p>`;
+}
+
 function updateSkillRichTextToolbarState(editor) {
     if (!(editor instanceof HTMLElement)) return;
     const toolbar = editor.parentElement?.querySelector?.('.player-skill-rich-toolbar');
@@ -1211,7 +1291,10 @@ function updateSkillRichTextToolbarState(editor) {
         italic: 'em, i',
         underline: 'u',
         insertUnorderedList: 'ul',
-        insertOrderedList: 'ol'
+        insertOrderedList: 'ol',
+        formatHeading: 'h4',
+        formatParagraph: 'p',
+        formatCallout: 'blockquote'
     };
     toolbar.querySelectorAll('[data-skill-rich-command], [data-skill-level-rich-command]').forEach((button) => {
         const command = button.dataset.skillRichCommand || button.dataset.skillLevelRichCommand || '';
@@ -1229,6 +1312,9 @@ function applySkillRichTextCommand(editor, command) {
     else if (command === 'underline') applySkillInlineRichTextCommand(editor, 'u', 'u');
     else if (command === 'insertUnorderedList') applySkillListRichTextCommand(editor, 'ul');
     else if (command === 'insertOrderedList') applySkillListRichTextCommand(editor, 'ol');
+    else if (command === 'formatHeading') applySkillBlockRichTextCommand(editor, 'h4');
+    else if (command === 'formatParagraph') applySkillBlockRichTextCommand(editor, 'p');
+    else if (command === 'formatCallout') applySkillBlockRichTextCommand(editor, 'blockquote');
     updateSkillRichTextToolbarState(editor);
     editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'formatChange' }));
 }
@@ -4300,15 +4386,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         if (!node || isSkillTreeGroupNode(node) || !skillTreePointsEnabled(workingTree)) return '';
         return '<label class="skill-point-cost-control">Costo in punti · Livello '+(index + 1)+'<input type="number" min="0" max="1000000000000" step="1" data-skill-node-point-cost data-skill-node-point-level="'+index+'" value="'+getSkillTreePointCost(workingTree, node, index + 1)+'"><small>0 rende questo livello gratuito. I livelli senza un costo proprio usano quello base.</small></label>';
     };
-    const buildSimpleEditorToolbar = () => `
-        <div class="player-skill-rich-toolbar player-skill-level-rich-toolbar" role="toolbar" aria-label="Formato descrizione">
-            <button type="button" data-skill-level-rich-command="bold" title="Grassetto" aria-label="Grassetto" aria-pressed="false"><i class="fas fa-bold" aria-hidden="true"></i></button>
-            <button type="button" data-skill-level-rich-command="italic" title="Corsivo" aria-label="Corsivo" aria-pressed="false"><i class="fas fa-italic" aria-hidden="true"></i></button>
-            <button type="button" data-skill-level-rich-command="underline" title="Sottolineato" aria-label="Sottolineato" aria-pressed="false"><i class="fas fa-underline" aria-hidden="true"></i></button>
-            <button type="button" data-skill-level-rich-command="insertUnorderedList" title="Elenco puntato" aria-label="Elenco puntato" aria-pressed="false"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
-            <button type="button" data-skill-level-rich-command="insertOrderedList" title="Elenco numerato" aria-label="Elenco numerato" aria-pressed="false"><i class="fas fa-list-ol" aria-hidden="true"></i></button>
-        </div>
-    `;
+    const buildSimpleEditorToolbar = () => renderSkillRichTextToolbar();
 
     const updateSimpleEditorPreview = (node) => {
         if (!editorPanel || !node) return;
@@ -4444,15 +4522,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         editorLevelByNodeId.set(String(node?.id || ''), selectedEditorLevelIndex);
         const selectedEditorLevel = allNodeLevels[selectedEditorLevelIndex] || allNodeLevels[0] || {};
         const editorContextKey = [String(node?.id || ''), editorTab, selectedEditorLevelIndex].join('|');
-        const richToolbarHtml = (label) => `
-            <div class="player-skill-rich-toolbar player-skill-level-rich-toolbar" role="toolbar" aria-label="${escapeHtml(label)}">
-                <button type="button" data-skill-level-rich-command="bold" title="Grassetto" aria-label="Grassetto" aria-pressed="false"><i class="fas fa-bold" aria-hidden="true"></i></button>
-                <button type="button" data-skill-level-rich-command="italic" title="Corsivo" aria-label="Corsivo" aria-pressed="false"><i class="fas fa-italic" aria-hidden="true"></i></button>
-                <button type="button" data-skill-level-rich-command="underline" title="Sottolineato" aria-label="Sottolineato" aria-pressed="false"><i class="fas fa-underline" aria-hidden="true"></i></button>
-                <button type="button" data-skill-level-rich-command="insertUnorderedList" title="Elenco puntato" aria-label="Elenco puntato" aria-pressed="false"><i class="fas fa-list-ul" aria-hidden="true"></i></button>
-                <button type="button" data-skill-level-rich-command="insertOrderedList" title="Elenco numerato" aria-label="Elenco numerato" aria-pressed="false"><i class="fas fa-list-ol" aria-hidden="true"></i></button>
-            </div>
-        `;
+        const richToolbarHtml = (label) => renderSkillRichTextToolbar(label);
         const levelTabsHtml = allNodeLevels.map((level, index) => `
             <button type="button" class="player-skill-level-editor-tab ${index === selectedEditorLevelIndex ? 'is-active' : ''}"
                 data-skill-level-editor-tab="${index}" aria-selected="${index === selectedEditorLevelIndex ? 'true' : 'false'}" role="tab">
