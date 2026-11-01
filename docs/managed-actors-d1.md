@@ -1,8 +1,23 @@
 # NPC e comandi su D1
 
+## Estensione alle tre campagne
+
+Cripta di Sangue, Mago Folle e Oltre il Velo usano ora D1 per i documenti gestiti e le code. Il Worker attivo è `b5a9d74e-c88f-4732-97fd-be0549520536`; tutte le scritture sono riaperte.
+
+Per Mago Folle sono stati copiati 153 documenti, 10.661.009 byte, comprendenti 60 NPC nel registro. Per Oltre il Velo sono stati copiati 460 documenti, 12.067.951 byte, comprendenti 177 NPC. PG, veicolo, collegamenti, dossier e il comando già esistente nella coda condivisa sono stati conservati. La copia non modifica contenuti, identità o riferimenti media.
+
+Prima dell’attivazione è stata verificata l’equivalenza integrale con KV e sono state confrontate 168 risposte pubbliche del sito. Dopo la riapertura sono stati ricontrollati i byte originali, i metadati, le scadenze e le copie di sicurezza di entrambe le campagne. Anche il precedente archivio KV di Cripta è risultato invariato.
+
+Backup locali, esportazioni D1 precedenti all’importazione, piani SQL e report: `output/npc-auto-sync-all-qa/`. Gli ZIP e i backup restano esclusi da Git. Il modulo Wiki Sync 0.11.19 acquisisce automaticamente i JSON nativi nelle tre campagne; l’AI può preparare proposte dai dati completi già archiviati senza richiedere una nuova sincronizzazione manuale.
+
+Le sezioni sul pilota che seguono documentano la prima attivazione.
+
 Il pilota usa il database `khuzoe-wiki`, binding esistente `POLL_DB`. Le API di
 wiki-sync, del sito e dei generatori restano le stesse. La rappresentazione degli
 Actor, delle attività e dei flag non viene cambiata da questa migrazione.
+
+L'estensione successiva per conservare anche la sorgente nativa completa, in
+documenti privati separati, è descritta in [JSON nativo NPC](npc-native-snapshots.md).
 
 ## Pilota attivato il 31 ottobre 2026
 

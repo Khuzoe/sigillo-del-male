@@ -1,0 +1,7 @@
+import {nativeActivityTemplate} from "../../assets/js/shared/npc-native-model.mjs";
+export const attackId="BiteActivity0001",effectId="OldEffect0000001",itemId="Item123456789012",capabilities={healingTypes:1};
+export const editAbilityItem={_id:itemId,type:"weapon",name:"Morso",img:"icons/bite.webp",ownership:{default:0},_stats:{modifiedTime:5},
+ system:{description:{value:"<p>Il morso infligge danni perforanti e necrotici.</p>"},source:{book:"Keep"},uses:{spent:1,max:"3",recovery:[{period:"lr",type:"recoverAll"}]},activities:{[attackId]:{...nativeActivityTemplate("attack","Morso"),_id:attackId,attack:{flat:true,bonus:"8",critical:{threshold:19},type:{value:"melee",classification:"weapon"}},damage:{includeBase:false,parts:[{number:2,denomination:8,bonus:"5",types:["piercing"]},{number:2,denomination:6,bonus:"",types:["necrotic"]}],critical:{bonus:"1d6"}},effects:[{_id:effectId,onSave:false}],macroData:{command:"PRIVATE MACRO"},flags:{opaque:{keep:"PRIVATE ACTIVITY FLAGS"}}}},unknown:{keep:7}},
+ flags:{core:{sourceId:"PRIVATE ORIGIN"},"cripta-wiki-sync":{transferId:"keep"},"khuzoe-automations":{midiRollConfig:{private:"PRIVATE ROLL CONFIG"}},other:{keep:"PRIVATE FLAGS"}},
+ effects:[{_id:effectId,name:"Morso indebolente",type:"base",disabled:false,transfer:false,system:{changes:[{key:"system.attributes.ac.bonus",mode:2,value:"-1",priority:20}]},duration:{value:1,units:"rounds",expiry:"turnEnd"},flags:{core:{sourceId:"PRIVATE EFFECT SOURCE"},other:{macro:"PRIVATE EFFECT MACRO"}},_stats:{modifiedTime:4},statuses:[]}]};
+

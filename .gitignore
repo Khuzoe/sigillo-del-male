@@ -16,6 +16,11 @@ workers/main-worker/src/*
 !workers/main-worker/src/index.js
 !workers/main-worker/src/avatar-generation.js
 !workers/main-worker/src/ability-generation.js
+!workers/main-worker/src/npc-native-ability-context.js
+!workers/main-worker/src/npc-native-ability-edit-context.js
+!workers/main-worker/src/npc-sheet-ai-context.js
+!workers/main-worker/src/npc-sheet-ai-service.js
+!workers/main-worker/src/npc-sheet-job-storage.js
 !workers/main-worker/src/npc-suggestions.js
 !workers/main-worker/src/ai-generation-errors.js
 !workers/main-worker/src/generation-lifecycle.js
@@ -25,6 +30,7 @@ workers/main-worker/src/*
 !workers/main-worker/src/skill-tree-store.js
 !workers/main-worker/src/skill-tree-definition-store.js
 !workers/main-worker/src/managed-actor-store.js
+!workers/main-worker/src/npc-native-snapshot.js
 !workers/main-worker/src/campaign-items.js
 !workers/main-worker/src/economy-v1.js
 !workers/main-worker/src/foundry-sync-hub.js

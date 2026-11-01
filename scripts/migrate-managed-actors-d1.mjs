@@ -115,10 +115,10 @@ async function main(){
    assert.equal(snapshots[0].status,200,'Public NPC index available');
    await writeFile(resolve(folder,'api-before.json'),JSON.stringify(snapshots,null,2),{flag:'wx'});console.log(JSON.stringify({folder,apiSnapshots:snapshots.length,statuses:snapshots.map(s=>s.status)}));
   }else{
-   const snapshots=JSON.parse(await readFile(resolve(folder,'api-before.json'),'utf8'));
+   const snapshots=JSON.parse(await readFile(resolve(folder,'api-before.json'),'utf8')),expectedD1=new Set((option('d1-campaigns')||campaign).split(',').filter(Boolean));
    for(const snapshot of snapshots){const response=await fetch(base+snapshot.path,{headers:{'Cache-Control':'no-cache'}});assert.equal(response.status,snapshot.status,snapshot.path);const current=await response.json();if(snapshot.path.includes(`campaign=${campaign}`))assert.deepEqual(current,snapshot.data,snapshot.path);
-    if(snapshot.path.includes(`campaign=${campaign}`))assert.equal(response.headers.get('X-Managed-Actor-Storage'),'d1','Pilot reads D1');else assert.notEqual(response.headers.get('X-Managed-Actor-Storage'),'d1','Other campaigns remain on KV');}
-   const report={at:new Date().toISOString(),campaign,apiSnapshots:snapshots.length,equivalent:true,pilotSource:'d1',otherCampaignsSource:'kv'};
+    if(snapshot.path.includes(`campaign=${campaign}`))assert.equal(response.headers.get('X-Managed-Actor-Storage'),'d1','Pilot reads D1');else{const target=new URL(base+snapshot.path).searchParams.get('campaign');assert.equal(response.headers.get('X-Managed-Actor-Storage')==='d1',expectedD1.has(target),'Campaign storage matches the configured rollout');}}
+   const report={at:new Date().toISOString(),campaign,apiSnapshots:snapshots.length,equivalent:true,pilotSource:'d1',otherCampaignsSource:option('d1-campaigns')?'configured':'kv',d1Campaigns:[...expectedD1]};
    await writeFile(resolve(folder,`api-verification-${Date.now()}.json`),JSON.stringify(report,null,2));console.log(JSON.stringify(report));
   }
  }else if(mode==='plan'){

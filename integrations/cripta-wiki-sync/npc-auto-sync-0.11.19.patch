@@ -1,0 +1,220 @@
+diff --git a/scripts/services/managed-actor-sync.js b/scripts/services/managed-actor-sync.js
+--- a/scripts/services/managed-actor-sync.js
++++ b/scripts/services/managed-actor-sync.js
+@@ -12,7 +12,7 @@ import { modernizeSpellPreparationUpdate, normalizePreparedState, readDnd5eSense
+ import { NpcDossierVisibilitySync, NPC_VISIBILITY_SETTING } from "./npc-dossier-visibility.mjs";
+ import { validateManagedMidiRollConfig } from "./midi-roll-config.mjs";
+ import { isTemporaryWikiActor } from "./actor-sync-eligibility.mjs";
+-import { captureNpcNativeSnapshot, npcNativeSnapshotEnabled, NPC_NATIVE_SNAPSHOT_VERSION } from "./npc-native-snapshot.mjs";
++import { captureNpcNativeSnapshot, npcNativeSnapshotEnabled, npcNativeBackfillCandidates, NPC_NATIVE_SNAPSHOT_VERSION } from "./npc-native-snapshot.mjs";
+ 
+ const TOKENIZER_MODULE_ID = "khuzoe-tokenizer";
+ const MERCHANT_MODULE_ID = "khuzoe-merchant";
+@@ -50,6 +50,11 @@ const DEFAULT_VISIBILITY = Object.freeze({ state: "dm", published: false });
+ const pendingJobs = new Map();
+ const pendingTimers = new Map();
+ let managedActorFlushChain = Promise.resolve();
++const nativeSnapshotBackfillQueue = new Map();
++let nativeSnapshotBackfillTimer = null;
++let nativeSnapshotBackfillBusy = false;
++let nativeSnapshotBackfillIdentity = '';
++let nativeSnapshotBackfillOwner = '';
+ let managedActorRuntimeChain = Promise.resolve();
+ let managedActorCommandPullPromise = null;
+ const managedActorLinkConversions = new Map();
+@@ -113,7 +118,11 @@ export function registerManagedActorSync(options = {}) {
+     });
+     Hooks.on("updateActor", (...args) => npcDossierVisibilitySync.onActorUpdate(...args));
+     Hooks.on("updateToken", (...args) => npcDossierVisibilitySync.onTokenUpdate(...args));
+-    Hooks.on("userConnected", () => { if (game.ready) npcDossierVisibilitySync.resume(); });
++    Hooks.on("userConnected", () => {
++        if (!game.ready) return;
++        npcDossierVisibilitySync.resume();
++        if (canRunManagedActorSync() && (nativeSnapshotBackfillOwner !== game.user.id || nativeSnapshotBackfillQueue.size && !nativeSnapshotBackfillBusy)) queueManagedNpcNativeBackfill();
++    });
+     Hooks.on("updateUser", () => { if (game.ready) npcDossierVisibilitySync.resume(); });
+ 
+     game.settings.register(MODULE_ID, PENDING_SETTING, {
+@@ -260,9 +269,6 @@ export async function resumeManagedActorSyncQueue() {
+         } else if (actorState?.revision && isManagedMerchant(actor)
+             && Number(actorState.merchantSchemaVersion || 0) < MANAGED_MERCHANT_SCHEMA_VERSION) {
+             event = normalizeTokenizerEvent({ reason: "merchant-schema-upgrade", forceContentSync: true });
+-        } else if (actorState?.revision && npcNativeSnapshotEnabled(getCampaignId(), actor)
+-            && (Number(actorState.nativeSnapshotVersion || 0) < NPC_NATIVE_SNAPSHOT_VERSION || actorState.nativeEditorVersion !== 1 || actorState.nativeAbilityVersion !== 1 || actorState.nativeAbilityEditVersion !== 1 || actorState.nativeSheetVersion !== 1 || Number(actorState.npcRulesHealingTypes || 0) !== Number(game.modules?.get("khuzoe-automations")?.api?.npcRules?.healingTypes || 0))) {
+-            event = normalizeTokenizerEvent({ reason: "native-snapshot-upgrade", nativeSnapshotOnly: true });
+         } else if (!actorState?.revision) {
+             if (isManagedMerchant(actor)) {
+                 event = normalizeTokenizerEvent({
+@@ -284,7 +290,8 @@ export async function resumeManagedActorSyncQueue() {
+         scheduleManagedActorFlush(actor.id, 2_500 + (index * 100));
+     });
+     if (queueChanged) await game.settings.set(MODULE_ID, PENDING_SETTING, nextStored);
+-    return pendingJobs.size > 0;
++    queueManagedNpcNativeBackfill();
++    return pendingJobs.size > 0 || nativeSnapshotBackfillQueue.size > 0 || nativeSnapshotBackfillBusy;
+ }
+ 
+ export function startManagedActorVariantPull({ initialPull = true } = {}) {
+@@ -4007,9 +4014,67 @@ export async function syncManagedActorNow(actor, event = {}) {
+     return true;
+ }
+ 
++// Independent of media/content jobs: a failed portrait upload must not prevent
++// the wiki from receiving an NPC's complete source. Recheck every known NPC at
++// startup, including edits made while the module was disabled; hashes suppress
++// unchanged network writes. One request at a time, with network-error backoff.
++function queueManagedNpcNativeBackfill() {
++    if (!canRunManagedActorSync()) return;
++    nativeSnapshotBackfillOwner = game.user.id;
++    const campaignId = getCampaignId(), worldId = sanitizeId(game.world?.id || 'world');
++    const identity = `${campaignId}:${worldId}`;
++    if (nativeSnapshotBackfillIdentity !== identity) {
++        nativeSnapshotBackfillQueue.clear();
++        if (nativeSnapshotBackfillTimer !== null) window.clearTimeout(nativeSnapshotBackfillTimer);
++        nativeSnapshotBackfillTimer = null;
++        nativeSnapshotBackfillIdentity = identity;
++    }
++    const known = managedActorRelationshipCache.campaignId === campaignId ? managedActorRelationshipCache.payload?.data || [] : [];
++    const actors = Array.from(game.actors || []).filter(actor => !isTemporaryWikiActor(actor));
++    for (const actor of npcNativeBackfillCandidates(actors, {campaignId,worldId,state:getWorldObjectSetting(STATE_SETTING),known})) {
++        nativeSnapshotBackfillQueue.set(actor.id, {actor,identity});
++    }
++    if (!nativeSnapshotBackfillBusy && nativeSnapshotBackfillTimer === null && nativeSnapshotBackfillQueue.size) {
++        nativeSnapshotBackfillTimer = window.setTimeout(flushManagedNpcNativeBackfill, 500);
++    }
++}
++
++async function flushManagedNpcNativeBackfill() {
++    nativeSnapshotBackfillTimer = null;
++    if (nativeSnapshotBackfillBusy || !canRunManagedActorSync()) return;
++    const first = nativeSnapshotBackfillQueue.entries().next().value;
++    if (!first) return;
++    const [id,job] = first;
++    nativeSnapshotBackfillQueue.delete(id);
++    const currentIdentity = () => `${getCampaignId()}:${sanitizeId(game.world?.id || 'world')}`;
++    if (job.identity !== currentIdentity()) { nativeSnapshotBackfillQueue.clear(); return; }
++    nativeSnapshotBackfillBusy = true;
++    let retry = false;
++    try {
++        const run = async () => {
++            const actor = game.actors.get(id);
++            if (actor && actor === job.actor && job.identity === currentIdentity()) await syncManagedNpcNativeSnapshotNow(actor);
++        };
++        const task = managedActorFlushChain.then(run, run);
++        managedActorFlushChain = task.catch(() => {});
++        await task;
++    } catch (error) {
++        retry = true;
++        if (job.identity === currentIdentity()) nativeSnapshotBackfillQueue.set(id, job);
++        console.warn(`${MODULE_ID} | Scheda completa NPC in attesa; nuovo tentativo automatico.`, {actor:job.actor.name,error:error.message});
++    } finally {
++        nativeSnapshotBackfillBusy = false;
++        if (canRunManagedActorSync() && nativeSnapshotBackfillQueue.size) {
++            nativeSnapshotBackfillTimer = window.setTimeout(flushManagedNpcNativeBackfill, retry ? RETRY_DELAY_MS : 50);
++        }
++    }
++}
++
+ async function syncManagedNpcNativeSnapshotNow(actor) {
+     const campaignId = getCampaignId();
+-    if (!canRunManagedActorSync(actor) || !npcNativeSnapshotEnabled(campaignId, actor) || !hasManagedActorState(actor)) return true;
++    const worldId = sanitizeId(game.world?.id || 'world');
++    const known = managedActorRelationshipCache.campaignId === campaignId ? managedActorRelationshipCache.payload?.data || [] : [];
++    if (!canRunManagedActorSync(actor) || !npcNativeBackfillCandidates([actor],{campaignId,worldId,state:getWorldObjectSetting(STATE_SETTING),known}).length) return true;
+     const state = getWorldObjectSetting(STATE_SETTING)[actor.id] || {};
+     const contract = buildFoundrySyncContract();
+     let snapshot;
+@@ -4037,6 +4102,7 @@ async function syncManagedNpcNativeSnapshotNow(actor) {
+         return true;
+     }
+     if (!snapshot || (state.nativeSnapshotHash === snapshot.hash && Number(state.nativeSnapshotVersion || 0) === NPC_NATIVE_SNAPSHOT_VERSION)) return true;
++    if (getCampaignId() !== campaignId || sanitizeId(game.world?.id || 'world') !== worldId || !canRunManagedActorSync(actor)) return true;
+     const url = new URL(`${DISCORD_WORKER_URL}/api/managed-actors/${encodeURIComponent(snapshot.identity.worldId)}/${encodeURIComponent(sanitizeId(actor.id))}/snapshot`);
+     url.searchParams.set("campaign", campaignId);
+     const response = await policyFetch(url.toString(), {
+@@ -4048,10 +4114,11 @@ async function syncManagedNpcNativeSnapshotNow(actor) {
+     if (!response.ok || result?.ok !== true || result.hash !== snapshot.hash || result.schemaVersion !== NPC_NATIVE_SNAPSHOT_VERSION) {
+         throw Object.assign(new Error(result?.error || `Snapshot NPC HTTP ${response.status}`), { status: response.status, code: result?.code || "NPC_SNAPSHOT_NOT_CONFIRMED" });
+     }
++    if (getCampaignId() !== campaignId || sanitizeId(game.world?.id || 'world') !== worldId) return true;
+     // Keep confirmation metadata locally, never a second full Actor JSON.
+     const fresh = getWorldObjectSetting(STATE_SETTING);
+     await game.settings.set(MODULE_ID, STATE_SETTING, {
+-        ...fresh, [actor.id]: { ...(fresh[actor.id] || {}), nativeSnapshotVersion: NPC_NATIVE_SNAPSHOT_VERSION, nativeEditorVersion: 1, nativeAbilityVersion: 1, nativeAbilityEditVersion: 1, nativeSheetVersion: 1, npcRulesHealingTypes: Number(game.modules?.get("khuzoe-automations")?.api?.npcRules?.healingTypes || 0),
++        ...fresh, [actor.id]: { ...(fresh[actor.id] || {}), revision:Math.max(Number(fresh[actor.id]?.revision||0),Number(result.actorRevision||0)), nativeSnapshotVersion: NPC_NATIVE_SNAPSHOT_VERSION, nativeEditorVersion: 1, nativeAbilityVersion: 1, nativeAbilityEditVersion: 1, nativeSheetVersion: 1, npcRulesHealingTypes: Number(game.modules?.get("khuzoe-automations")?.api?.npcRules?.healingTypes || 0),
+             nativeSnapshotHash: snapshot.hash, nativeSnapshotReceivedAt: String(result.receivedAt || ""), nativeSnapshotRejectedHash: "", nativeSnapshotError: "" }
+     });
+     return true;
+diff --git a/module.json b/module.json
+--- a/module.json
++++ b/module.json
+@@ -2,7 +2,7 @@
+   "id": "cripta-wiki-sync",
+   "title": "Khuzoe Wiki Sync",
+   "description": "Sincronizzazione bidirezionale tra wiki e Foundry per Actor gestiti, Tokenizer e catalogo oggetti di campagna.",
+-  "version": "0.11.18",
++  "version": "0.11.19",
+   "authors": [
+     {
+       "name": "Delia + Codex"
+diff --git a/scripts/services/npc-native-snapshot.mjs b/scripts/services/npc-native-snapshot.mjs
+--- a/scripts/services/npc-native-snapshot.mjs
++++ b/scripts/services/npc-native-snapshot.mjs
+@@ -2,10 +2,19 @@
+ // an instruction to update an Actor or import a document into Foundry.
+ export const NPC_NATIVE_SNAPSHOT_VERSION = 1;
+ export const NPC_NATIVE_SNAPSHOT_CAMPAIGN = "cripta-di-sangue";
++export const NPC_NATIVE_SNAPSHOT_CAMPAIGNS = Object.freeze(['cripta-di-sangue','mago-folle','oltre-il-velo']);
+ export const NPC_NATIVE_SNAPSHOT_MAX_BYTES = 8 * 1024 * 1024;
+ 
+ export function npcNativeSnapshotEnabled(campaignId, actor) {
+-  return campaignId === NPC_NATIVE_SNAPSHOT_CAMPAIGN && actor?.type === "npc" && !actor?.isToken;
++  return NPC_NATIVE_SNAPSHOT_CAMPAIGNS.includes(campaignId) && actor?.type === "npc" && !actor?.isToken;
++}
++
++// Read-only bootstrap: include only Actors already registered on the site.
++// It never imports an Actor or turns every creature in a world into a wiki NPC.
++export function npcNativeBackfillCandidates(actors,{campaignId,worldId,state={},known=[]}={}){
++  const normalize=value=>String(value||'').trim().toLowerCase(),world=normalize(worldId);
++  const remote=new Set((Array.isArray(known)?known:[]).filter(entry=>normalize(entry?.worldId)===world).flatMap(entry=>[entry.actorId,entry.foundryActorId].map(normalize)).filter(Boolean));
++  return Array.from(actors||[]).filter(actor=>npcNativeSnapshotEnabled(campaignId,actor)&&(Number(state[actor.id]?.revision||0)>0||remote.has(normalize(actor.id))));
+ }
+ 
+ export function npcNativeSnapshotContent(snapshot) {
+diff --git a/scripts/services/npc-native-sheet.mjs b/scripts/services/npc-native-sheet.mjs
+--- a/scripts/services/npc-native-sheet.mjs
++++ b/scripts/services/npc-native-sheet.mjs
+@@ -1,5 +1,6 @@
+ import {nativeGet,nativeHas,nativeSet,nativeEqual,nativeValidateChanges,nativePatchConflict,nativePatchSatisfied,nativeEditorSource,nativeValuePreserved,nativeTargetKey} from './npc-native-model.mjs';
+ import {applyNpcNativeEditor} from './npc-native-editor.mjs';
++import {npcNativeSnapshotEnabled} from './npc-native-snapshot.mjs';
+ 
+ const clone=structuredClone,sourceOf=document=>JSON.parse(JSON.stringify(document.toJSON?.()??document.toObject(true)));
+ const receiptPath='flags.cripta-wiki-sync.nativeSheetReceipts';
+@@ -38,7 +39,7 @@ function rollbackPatches(before,after,type,patches){
+ // Validate every document before the first write. Foundry has no transaction
+ // across documents: a journal restores only this group's writes on failure.
+ export async function applyNpcNativeSheet(actor,command,services){
+- if(command.nativeSheetVersion!==1||command.campaignId!=='cripta-di-sangue'||actor.isToken||actor.type!=='npc'||command.target?.id!==actor.id)return{status:'failed',error:'Modifica completa non compatibile con questo NPC.'};
++ if(command.nativeSheetVersion!==1||!npcNativeSnapshotEnabled(command.campaignId,actor)||command.target?.id!==actor.id)return{status:'failed',error:'Modifica completa non compatibile con questo NPC.'};
+  const receipts=nativeGet(sourceOf(actor),receiptPath)||[];
+  if(receipts.includes(command.id))return{status:'applied',actor};
+  const operations=command.document?.operations,permissions={...command.nativePermissions,isAdmin:false,embeddedEffects:true,sharedRuntime:actor.prototypeToken?.actorLink!==false},planned=[],seen=new Set();
+diff --git a/scripts/services/npc-native-ability-create.mjs b/scripts/services/npc-native-ability-create.mjs
+--- a/scripts/services/npc-native-ability-create.mjs
++++ b/scripts/services/npc-native-ability-create.mjs
+@@ -1,4 +1,5 @@
+ import {nativeValuePreserved} from "./npc-native-model.mjs";
++import {npcNativeSnapshotEnabled} from './npc-native-snapshot.mjs';
+ 
+ const sourceOf=document=>JSON.parse(JSON.stringify(document.toJSON?.()??document.toObject(true)));
+ const missing=(source,wanted)=>["name","type","img","system","flags","effects"].filter(key=>Object.hasOwn(wanted,key)&&!nativeValuePreserved(source[key],wanted[key]));
+@@ -6,7 +7,7 @@ const missing=(source,wanted)=>["name","type","img","system","flags","effects"].
+ // This path is used only for newly generated pilot abilities. Existing Items
+ // are never replaced or deleted. Retrying verifies the same transfer identity.
+ export async function createVerifiedNpcAbility(actor,command,data,existing=null) {
+- if(command.nativeAbilityVersion!==1||command.campaignId!=="cripta-di-sangue"||actor.isToken||actor.type!=="npc")return{status:"failed",error:"Creazione nativa non compatibile con questo NPC."};
++ if(command.nativeAbilityVersion!==1||!npcNativeSnapshotEnabled(command.campaignId,actor))return{status:"failed",error:"Creazione nativa non compatibile con questo NPC."};
+  if(existing){const lost=missing(sourceOf(existing),data);return lost.length?{status:"conflict",error:`La capacità esiste già ma alcuni valori sono cambiati (${lost.join(", ")}). Verificala in Foundry: non è stata creata una seconda copia.`}:{status:"applied",actor};}
+  try {
+   const ItemClass=globalThis.CONFIG?.Item?.documentClass;

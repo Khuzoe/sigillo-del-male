@@ -3,6 +3,7 @@ import {readFile} from "node:fs/promises";
 import {dirname, resolve} from "node:path";
 import {fileURLToPath, pathToFileURL} from "node:url";
 import vm from "node:vm";
+import {nativeValuePreserved} from "../assets/js/shared/npc-native-model.mjs";
 
 const servicePath = process.argv[2] || fileURLToPath(new URL("../module/scripts/services/managed-actor-sync.js", import.meta.url));
 const automationPath = process.argv[3] || resolve(dirname(servicePath), "../../../khuzoe-automations/scripts/npc-rules.mjs");
@@ -55,7 +56,7 @@ const actor = {id: "npc", items: new Collection([["bite", item]]), async updateE
 }};
 item.parent = actor;
 const sandbox = {console, structuredClone, Set, Map, WeakSet, URL, crypto: globalThis.crypto,
-  ...v14, validateManagedMidiRollConfig, isTemporaryWikiActor, foundry: {utils}, CONFIG: {statusEffects: statuses},
+  ...v14, nativeValuePreserved, validateManagedMidiRollConfig, isTemporaryWikiActor, foundry: {utils}, CONFIG: {statusEffects: statuses},
   MODULE_ID: "cripta-wiki-sync", SETTINGS: {}, DISCORD_WORKER_URL: "https://worker.test",
   game: {actors: new Collection([["npc", actor]]), modules: new Map([["khuzoe-automations", {api: {npcRules: {version: 1, prepare: prepareNpcRules}, midiRollConfig: {version: 1, validate() {throw new Error("Storage must not call the runtime API");}}}}]])}
 };

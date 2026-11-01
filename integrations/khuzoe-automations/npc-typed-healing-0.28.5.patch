@@ -1,0 +1,94 @@
+--- a/module.json
++++ b/module.json
+@@ -2,7 +2,7 @@
+   "id": "khuzoe-automations",
+   "title": "Khuzoe Automations",
+   "description": "Automazioni D&D 5e per Foundry VTT v14 integrate con Coven's Automation Toolkit.",
+-  "version": "0.28.4",
++  "version": "0.28.5",
+   "library": false,
+   "socket": true,
+   "compatibility": {
+--- a/package.json
++++ b/package.json
+@@ -1,7 +1,7 @@
+ {
+   "name": "khuzoe-automations",
+   "private": true,
+-  "version": "0.28.4",
++  "version": "0.28.5",
+   "type": "module",
+   "scripts": {
+     "generate:rune-knight": "node tools/generate-rune-knight-items.mjs",
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,12 +1,12 @@
+ {
+   "name": "khuzoe-automations",
+-  "version": "0.28.4",
++  "version": "0.28.5",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "khuzoe-automations",
+-      "version": "0.28.4",
++      "version": "0.28.5",
+       "devDependencies": {
+         "@foundryvtt/foundryvtt-cli": "1.0.2"
+       }
+--- a/scripts/npc-rules.mjs
++++ b/scripts/npc-rules.mjs
+@@ -16,8 +16,10 @@
+     || Object.keys(rules.activities).length > 32) throw new Error("Preset NPC non valido o di versione non supportata.");
+   for (const [id, rule] of Object.entries(rules.activities)) {
+     if (!/^[A-Za-z0-9_-]{1,64}$/.test(id) || ["__proto__", "constructor", "prototype"].includes(id) || !Object.hasOwn(activities, id)) throw new Error(`Attività del preset non trovata: ${id}`);
+-    if (!rule || typeof rule !== "object" || Array.isArray(rule) || Object.keys(rule).some(key => !["healing", "conditions", "rounds", "expiry"].includes(key))
++    if (!rule || typeof rule !== "object" || Array.isArray(rule) || Object.keys(rule).some(key => !["healing", "healingTypes", "conditions", "rounds", "expiry"].includes(key))
+       || ![0, 0.5, 1].includes(rule.healing ?? 0)
++      || !Array.isArray(rule.healingTypes ?? []) || (rule.healingTypes ?? []).length > 13
++      || (rule.healingTypes ?? []).some(type => !["acid","bludgeoning","cold","fire","force","lightning","necrotic","piercing","poison","psychic","radiant","slashing","thunder"].includes(type))
+       || !Array.isArray(rule.conditions ?? []) || (rule.conditions ?? []).length > 14 || (rule.conditions ?? []).some(id => !NPC_CONDITIONS.includes(id))
+       || !Number.isInteger(rule.rounds ?? 1) || (rule.rounds ?? 1) < 0 || (rule.rounds ?? 1) > 100
+       || !["turnStart", "turnEnd"].includes(rule.expiry ?? "turnEnd")) throw new Error(`Configurazione non valida per ${id}`);
+@@ -82,7 +84,8 @@
+   if (workflow.userId && workflow.userId !== globalThis.game?.user?.id) return;
+   const rules = workflow.item?.flags?.[MODULE]?.npcRules;
+   const id = workflow.activity?.id ?? workflow.activity?._id;
+-  const fraction = rules?.version === 1 ? rules.activities?.[id]?.healing : 0;
++  const rule = rules?.version === 1 ? rules.activities?.[id] : null;
++  const fraction = rule?.healing ?? 0;
+   if (![0.5, 1].includes(fraction)) return;
+   const damageEntries = values(workflow.damageList).filter(entry => entry.isHit !== false);
+   if (!damageEntries.length) return;
+@@ -108,7 +111,7 @@
+     damage += damageDealt({damageList: [measured]}, {
+       uuid: entry.tokenUuid ?? entry.targetUuid, id: entry.tokenId,
+       actor: {uuid: entry.actorUuid, id: entry.actorId}
+-    });
++    }, rule.healingTypes?.length ? rule.healingTypes : undefined);
+   }
+   const amount = Math.floor(damage * fraction);
+   const token = workflow.token?.object ?? workflow.token;
+@@ -126,5 +129,5 @@
+   const module = globalThis.game?.modules?.get(MODULE);
+   if (!module) return;
+   module.api ??= {};
+-  module.api.npcRules = {version: NPC_RULES_VERSION, prepare: prepareNpcRules};
++  module.api.npcRules = {version: NPC_RULES_VERSION, healingTypes: 1, prepare: prepareNpcRules};
+ }
+--- a/scripts/damage-adjustment.mjs
++++ b/scripts/damage-adjustment.mjs
+@@ -45,9 +45,10 @@
+     || data.tokenId === target.id || (!data.tokenUuid && !data.targetUuid && !data.tokenId && (data.actorUuid === target.actor?.uuid || data.actorId === target.actor?.id)));
+   if (!entry || entry.isHit === false) return 0;
+   const details = entry.damageDetail ?? entry.damageDetails?.combinedDamage;
+-  if (!details) return Math.max(0, Number(entry.hpDamage ?? 0) + Number(entry.tempDamage ?? 0));
++  if (!details) return type ? 0 : Math.max(0, Number(entry.hpDamage ?? 0) + Number(entry.tempDamage ?? 0));
++  const selectedTypes = type ? new Set(Array.isArray(type) ? type : [type]) : null;
+   const nonDamage = new Set(["healing", "temphp", "vitality", "maximum", "none", "midi-none"]);
+-  const typed = damageEntries(details).reduce((sum, part) => sum + ((type ? part.type === type : !nonDamage.has(part.type)) ? Math.max(0, Number(part.value ?? part.damage) || 0) : 0), 0);
++  const typed = damageEntries(details).reduce((sum, part) => sum + ((selectedTypes ? selectedTypes.has(part.type) : !nonDamage.has(part.type)) ? Math.max(0, Number(part.value ?? part.damage) || 0) : 0), 0);
+   const genericReduction = damageEntries(details).reduce((sum, part) =>
+     sum + (["none", "midi-none"].includes(part.type) ? Math.min(0, Number(part.value ?? part.damage) || 0) : 0), 0);
+   // Losing the target's last HP does not cap the damage dealt by the spell.

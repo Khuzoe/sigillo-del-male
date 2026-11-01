@@ -22,6 +22,7 @@ export function managedActorKeyScope(key) {
   if (/^managed-actor:[^:]+:[^:]+$/.test(name)) kind = "actor";
   else if (/^managed-actor-runtime:[^:]+:[^:]+$/.test(name)) kind = "runtime";
   else if (/^managed-actor-profile:[^:]+:[^:]+$/.test(name)) kind = "profile";
+  else if (/^managed-actor-native-snapshot:[^:]+:[^:]+$/.test(name)) kind = "native-snapshot";
   else if (/^managed-actor-profile-link:[^:]+$/.test(name)) kind = "profile-link";
   else if (/^managed-actor-media-cleanup:[^:]+:[^:]+$/.test(name)) kind = "media-cleanup";
   else if (/^managed-actor-migration-backup:.+$/.test(name)) kind = "legacy-backup";
@@ -58,7 +59,7 @@ export function managedActorStorageRecord(key, raw, revision = 1, now = new Date
   if (!scope) invalid("Chiave NPC non riconosciuta.");
   const value = parse(raw);
   if (value.campaignId && value.campaignId !== scope.campaignId) invalid("Campagna del documento NPC non coerente.");
-  if (["actor", "runtime", "profile"].includes(scope.kind)) {
+  if (["actor", "runtime", "profile", "native-snapshot"].includes(scope.kind)) {
     const [, , , worldId, actorId] = key.split(":");
     if ((value.worldId && value.worldId !== worldId) || (value.actorId && value.actorId !== actorId)) invalid("Identità del documento NPC non coerente.");
   }

@@ -10,6 +10,9 @@ import { D1PollStore, PollStorageError } from "./poll-store.js";
 import { SkillTreeStateStore } from "./skill-tree-store.js";
 import { SkillTreeDefinitionStore } from "./skill-tree-definition-store.js";
 import { managedActorStorageEnvironment, managedActorD1Enabled, managedActorWritesPaused, ManagedActorStorageError } from "./managed-actor-store.js";
+import { npcNativeSnapshotD1Enabled, npcNativeSnapshotKey, validateNpcNativeSnapshot, saveNpcNativeSnapshot, NPC_NATIVE_SNAPSHOT_MAX_BYTES } from "./npc-native-snapshot.js";
+import { NPC_NATIVE_EDITOR_VERSION, nativeEntities, nativeFindDocument, nativeTargetKey, nativeValidateChanges, nativePatchConflict, nativeEditorSource, nativeEqual } from "../../../assets/js/shared/npc-native-model.mjs";
+import {validateNativeAbilityItem} from "../../../assets/js/shared/npc-native-ability.mjs";
 import { handleEconomyGet, handleEconomyPost } from "./economy-v1.js";
 export { FoundrySyncHub } from "./foundry-sync-hub.js";
 
@@ -137,7 +140,15 @@ const application = {
         const result = await handleAbilityGeneration(request, { ...actorRoute, purpose: suggestionRouteMatch ? "suggestions" : "ability", jobId: abilityRouteMatch[2], action: abilityRouteMatch[3] }, queryCampaignId, env, {
           requireUser: (req) => requireUser(req, env, corsHeaders),
           isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
+          nativeGenerationEnabled:npcNativeSnapshotD1Enabled(env,queryCampaignId),
           readActor: async (campaignId, route) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId))),
+          readNativeActor: async (campaignId,route) => npcNativeSnapshotD1Enabled(env,campaignId)
+            ? safeJsonParse(await env.SIGILLO_KV.get(npcNativeSnapshotKey(campaignId,route.worldId,route.actorId))) : null,
+          readNativeCommands: async (campaignId,route) => npcNativeSnapshotD1Enabled(env,campaignId)
+            ? readManagedActorCommandQueue(await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId,route.worldId)),campaignId,route.worldId).commands.filter(command=>command.actorId===route.actorId) : [],
+          enqueueNativeEditor: body => finishManagedActorMutation(handleNpcNativeEditor(new Request(request.url,{method:"POST",headers:request.headers,body:JSON.stringify(body)}),actorRoute,queryCampaignId,env,corsHeaders,ctx),env,corsHeaders),
+          enqueueNativeSheet: body => finishManagedActorMutation(handleNpcNativeSheet(request,actorRoute,queryCampaignId,env,corsHeaders,ctx,body),env,corsHeaders),
+          commandForReader: command => managedActorCommandForReader(command,false),
           enqueue: (body) => finishManagedActorMutation(handleManagedActorCommandEnqueue(new Request(request.url, {method: "POST", headers: request.headers, body: JSON.stringify(body)}), actorRoute, queryCampaignId, env, corsHeaders, ctx), env, corsHeaders),
         });
         const headers = new Headers(result.headers);
@@ -159,6 +170,18 @@ const application = {
         const headers = new Headers(result.headers);
         Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
         return new Response(result.body, { status: result.status, headers });
+      }
+      const nativeEditorMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/editor$/);
+      if (nativeEditorMatch) {
+        const actorRoute = matchManagedActorRoute(nativeEditorMatch[1]);
+        if (!actorRoute) return json({ok:false,error:"Invalid actor"},400,corsHeaders);
+        return handleNpcNativeEditor(request, actorRoute, queryCampaignId, env, corsHeaders, ctx);
+      }
+      const nativeSnapshotMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/snapshot$/);
+      if (nativeSnapshotMatch) {
+        const actorRoute = matchManagedActorRoute(nativeSnapshotMatch[1]);
+        if (!actorRoute) return json({ ok: false, error: "Invalid actor" }, 400, corsHeaders);
+        return handleNpcNativeSnapshot(request, actorRoute, queryCampaignId, env, corsHeaders);
       }
       const managedActorRoute = matchManagedActorRoute(url.pathname);
       const managedActorLegacyAdoptRoute = matchManagedActorLegacyAdoptRoute(url.pathname);
@@ -1635,14 +1658,15 @@ export default {
     const managedRoute = /^\/api\/managed-actors(?:\/|$)/.test(path) || path.startsWith("/api/managed-actor-commands/")
       || path.startsWith("/api/managed-actor-profiles/") || path === "/api/managed-actor-create-requests" || path === "/api/npc-categories";
     if (managedRoute && request.method === "POST") {
-      const body = await request.clone().json().catch(() => null);
+      // Native snapshots use the campaign in their URL; avoid cloning the large body.
+      const body = path.endsWith("/snapshot") ? null : await request.clone().json().catch(() => null);
       campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || campaignId);
       if (managedActorWritesPaused(env, campaignId) && !path.endsWith("/stop")) return json({ ok: false,
         error: "Salvataggi NPC temporaneamente sospesi per la migrazione. Riprova tra poco.", code: "MANAGED_ACTOR_WRITES_PAUSED" }, 503,
         { ...corsHeadersFor(request, env), "Retry-After": "60", "Cache-Control": "no-store" });
     }
     const retrySafe = request.method === "GET" || (request.method === "POST" && (
-      /^\/api\/managed-actors\/[^/]+\/[^/]+(?:\/(?:commands|runtime|profile))?$/.test(path)
+      /^\/api\/managed-actors\/[^/]+\/[^/]+(?:\/(?:commands|runtime|profile|snapshot))?$/.test(path)
       || /^\/api\/managed-actor-commands\/[^/]+\/ack$/.test(path)));
     for (let attempt = 0; ; attempt++) {
       const scoped = managedActorStorageEnvironment(env);
@@ -5730,7 +5754,9 @@ function validManagedNpcRules(value) {
     || Object.keys(value).some(key => !["version", "activities"].includes(key)) || Object.keys(value.activities).length > 32) return false;
   return Object.entries(value.activities).every(([id, rule]) => /^[A-Za-z0-9_-]{1,64}$/.test(id)
     && rule && typeof rule === "object" && !Array.isArray(rule)
-    && Object.keys(rule).every(key => ["healing", "conditions", "rounds", "expiry"].includes(key))
+    && Object.keys(rule).every(key => ["healing", "healingTypes", "conditions", "rounds", "expiry"].includes(key))
+    && Array.isArray(rule.healingTypes ?? []) && (rule.healingTypes ?? []).length <= 13
+    && (rule.healingTypes ?? []).every(type => ["acid","bludgeoning","cold","fire","force","lightning","necrotic","piercing","poison","psychic","radiant","slashing","thunder"].includes(type))
     && [0, 0.5, 1].includes(rule.healing ?? 0)
     && Array.isArray(rule.conditions ?? []) && (rule.conditions ?? []).length <= 14
     && (rule.conditions ?? []).every(id => conditions.has(id))
@@ -6146,6 +6172,10 @@ function normalizeManagedActorLinkDiagnostics(input) {
 }
 function publicManagedActorCommand(command) {
   return {
+    ...(command.nativeEditorVersion ? {nativeEditorVersion:command.nativeEditorVersion} : {}),
+    ...(command.nativeSheetVersion ? {nativeSheetVersion:command.nativeSheetVersion,summary:command.summary,campaignId:command.campaignId,worldId:command.worldId} : {}),
+    ...(command.nativeAbilityVersion ? {nativeAbilityVersion:command.nativeAbilityVersion,campaignId:command.campaignId,worldId:command.worldId} : {}),
+    ...(command.nativeEditorVersion || command.nativeSheetVersion ? {nativePermissions:command.nativePermissions} : {}),
     id: command.id,
     kind: command.kind,
     baseRevision: Number(command.baseRevision || 0),
@@ -6165,9 +6195,12 @@ function publicManagedActorCommand(command) {
 
 function managedActorCommandForReader(command, canReadMidiRolls) {
   const result = publicManagedActorCommand(command);
-  const path = "flags.khuzoe-automations.midiRollConfig";
-  if (canReadMidiRolls || !result.patches?.some(patch => patch.path === path)) return result;
-  result.patches = result.patches.filter(patch => patch.path !== path);
+  if(command.nativeSheetVersion){delete result.document;delete result.patches;delete result.current;delete result.diagnostics;return result;}
+  const privatePatch = patch => String(patch.path).split(".").includes("midiRollConfig") || (command.nativeEditorVersion && JSON.stringify(patch).includes('"midiRollConfig"'));
+  if (canReadMidiRolls || !result.patches?.some(privatePatch)) return result;
+  result.patches = command.nativeEditorVersion
+    ? result.patches.filter(patch=>!String(patch.path).split(".").includes("midiRollConfig")).map(stripManagedMidiRollConfig)
+    : result.patches.filter(patch => !privatePatch(patch));
   if (!result.patches.length) return null;
   result.current = stripManagedMidiRollConfig(result.current);
   // Diagnostics can contain complete compared values of the private patch.
@@ -6247,6 +6280,17 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
     document.transferId ||= `item-${crypto.randomUUID()}`;
     target = { transferId: document.transferId, itemId: "", effectId: "", clientId: "" };
   }
+  if (body.nativeAbilityVersion !== undefined) {
+    if (body.nativeAbilityVersion !== 1 || kind !== "item.create" || !npcNativeSnapshotD1Enabled(env,campaignId)) return json({ok:false,error:"Creazione nativa non attiva per questa campagna."},400,corsHeaders);
+    const native = safeJsonParse(await env.SIGILLO_KV.get(npcNativeSnapshotKey(campaignId,route.worldId,route.actorId)));
+    if (native?.snapshot?.versions?.nativeAbilityCreate !== 1) return json({ok:false,error:"Ricarica Foundry con Wiki Sync aggiornato prima di creare la capacità."},409,corsHeaders);
+    try {
+      const input=body.document;
+      if(!input||Object.keys(input).some(key=>!["name","type","system","effects","flags","img","transferId"].includes(key)))throw new Error("Documento della capacità non valido.");
+      validateNativeAbilityItem({name:input.name,type:input.type,system:input.system,effects:input.effects,flags:input.flags});
+      if(!document)throw new Error("Documento della capacità non valido.");
+    } catch(error) {return json({ok:false,error:error.message},400,corsHeaders);}
+  }
   if (kind === "effect.create" && document) {
     document.clientId ||= `effect-${crypto.randomUUID()}`;
     target = { transferId: "", itemId: "", effectId: "", clientId: document.clientId };
@@ -6274,6 +6318,7 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
 
   const queueKey = managedActorCommandQueueKey(campaignId, route.worldId);
   const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(queueKey), campaignId, route.worldId);
+  if(queue.commands.some(command=>command.actorId===route.actorId&&command.status==='pending'&&command.nativeSheetVersion))return json({ok:false,error:'Attendi il completamento della modifica completa di questo NPC.'},409,corsHeaders);
   const now = new Date().toISOString();
   if (kind === "actor-link.cancel") {
     const previousLength = queue.commands.length;
@@ -6321,6 +6366,7 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
     }
   }
   const entityMatches = (command) => {
+    if (command.nativeEditorVersion || command.nativeSheetVersion) return false;
     if (command.actorId !== route.actorId) return false;
     if (kind === "actor.update") return command.kind === "actor.update";
     if (isActorLinkKind) return String(command.kind || "") === kind;
@@ -6357,6 +6403,7 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
     command = {
       id: crypto.randomUUID(),
       kind,
+      ...(body.nativeAbilityVersion===1?{nativeAbilityVersion:1}:{}),
       campaignId,
       worldId: route.worldId,
       actorId: route.actorId,
@@ -6997,6 +7044,149 @@ async function reconcileManagedActorMediaCleanup(env, campaignId, route, existin
   return { scheduled, deleted };
 }
 
+// Internal to the AI review flow: one queued group, one acknowledgement. It is
+// deliberately not an endpoint accepting arbitrary document replacements.
+async function handleNpcNativeSheet(request,route,campaignId,env,corsHeaders,ctx,body){
+  const headers={...corsHeaders,'Cache-Control':'private, no-store'},user=await requireUser(request,env,headers);
+  if(user instanceof Response)return user;
+  if(!await isAuthenticatedCampaignContentEditor(user,env,campaignId))return json({ok:false,error:'Forbidden'},403,headers);
+  if(!npcNativeSnapshotD1Enabled(env,campaignId))return json({ok:false,error:'Editor non attivo per questa campagna.'},409,headers);
+  const actor=safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId,route.worldId,route.actorId))),record=safeJsonParse(await env.SIGILLO_KV.get(npcNativeSnapshotKey(campaignId,route.worldId,route.actorId)));
+  if(!actor||actor.actorType!=='npc'||record?.snapshot?.versions?.nativeSheetEditor!==1)return json({ok:false,error:'Ricarica Foundry con Wiki Sync aggiornato e sincronizza questo NPC.'},409,headers);
+  if(body.version!==1||!/^[a-f0-9-]{36}$/i.test(body.requestId||'')||!Array.isArray(body.plan)||!body.plan.length||body.plan.length>256||new TextEncoder().encode(JSON.stringify(body)).length>768*1024)return json({ok:false,error:'Proposta della scheda non valida.'},400,headers);
+  const queue=readManagedActorCommandQueue(await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId,route.worldId)),campaignId,route.worldId),duplicate=queue.commands.find(command=>command.actorId===route.actorId&&command.clientRequestId===body.requestId&&command.nativeSheetVersion===1);
+  if(duplicate)return json({ok:true,command:managedActorCommandForReader(duplicate,false)},202,headers);
+  if(queue.commands.some(command=>command.actorId===route.actorId&&command.status==='pending'))return json({ok:false,error:'Attendi le modifiche già in coda per questo NPC. La proposta è conservata.'},409,headers);
+  const source=record.snapshot.actor,permissions={isAdmin:false,embeddedEffects:true,sharedRuntime:managedActorHasSharedRuntime(actor)},seen=new Set();
+  try{
+    for(const operation of body.plan){
+      const target=operation.target,key=target&&nativeTargetKey(target),current=target&&nativeFindDocument(source,target);
+      if(!target||!['Actor','Item','ActiveEffect'].includes(target.type)||!/^[A-Za-z0-9]{16}$/.test(target.id)||target.itemId||seen.has(key))throw new Error('Destinazione mancante o duplicata.');seen.add(key);
+      if(operation.operation==='update'){
+        if(!current)throw new Error('Un elemento della proposta non esiste più.');
+        nativeValidateChanges(current,target,operation.patches,permissions);
+        if(operation.patches.some(patch=>nativePatchConflict(nativeEditorSource(current,target.type),patch)))return json({ok:false,error:'Alcuni campi sono cambiati. La proposta è conservata e nessuna modifica è stata inviata.'},409,headers);
+      }else if(operation.operation==='create'){
+        const doc=operation.document;
+        if(target.type==='Actor'||current||doc?._id!==target.id||typeof doc.name!=='string'||!doc.name.trim()||Object.hasOwn(doc,'ownership')||Object.hasOwn(doc,'_stats'))throw new Error('Nuovo elemento non valido.');
+      }else if(operation.operation==='delete'){
+        if(target.type==='Actor'||!current||!nativeEqual(nativeEditorSource(current,target.type),operation.baseValue))throw new Error('L’elemento da rimuovere è cambiato.');
+      }else throw new Error('Operazione non valida.');
+    }
+  }catch(error){return json({ok:false,error:error.message},409,headers);}
+  if(queue.commands.length>=256)return json({ok:false,error:'Coda piena. Attendi Foundry.'},429,headers);
+  const now=new Date().toISOString(),command={id:crypto.randomUUID(),nativeSheetVersion:1,clientRequestId:body.requestId,kind:'actor.update',campaignId,worldId:route.worldId,actorId:route.actorId,foundryActorId:source._id,baseRevision:Number(actor.revision||0),target:{type:'Actor',id:source._id},document:{version:1,operations:body.plan},summary:body.summary,nativePermissions:permissions,status:'pending',createdAt:now,updatedAt:now,createdBy:getAuthenticatedAccountId(user,env)};
+  queue.commands.push(command);queue.version++;queue.updatedAt=now;await writeManagedActorCommandQueue(env,queue);
+  scheduleFoundryLiveInvalidation(ctx,env,{campaignId,worldId:route.worldId,collections:['managed-actors'],actorIds:[route.actorId],reason:'npc-sheet-editor',revision:queue.version});
+  return json({ok:true,command:managedActorCommandForReader(command,false)},202,headers);
+}
+
+async function handleNpcNativeEditor(request, route, campaignId, env, corsHeaders = {}, ctx = null) {
+  const headers = {...corsHeaders,"Cache-Control":"private, no-store"};
+  if (!["GET","POST"].includes(request.method)) return json({ok:false,error:"Method not allowed"},405,headers);
+  const user = await requireUser(request,env,headers);
+  if (user instanceof Response) return user;
+  if (!npcNativeSnapshotD1Enabled(env,campaignId)) return json({ok:false,code:"NPC_EDITOR_DISABLED",error:"Editor completo non ancora attivo per questa campagna."},404,headers);
+  const actor = safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId,route.worldId,route.actorId)));
+  if (!actor || actor.actorType !== "npc") return json({ok:false,error:"NPC non trovato."},404,headers);
+  // A public statblock is never sufficient permission to read module flags.
+  if (!await isAuthenticatedCampaignContentEditor(user,env,campaignId) && !isManagedActorOwner(actor,user,env)) return json({ok:false,error:"Forbidden"},403,headers);
+  const record = safeJsonParse(await env.SIGILLO_KV.get(npcNativeSnapshotKey(campaignId,route.worldId,route.actorId)));
+  if (!record?.snapshot?.actor) return json({ok:false,code:"NPC_SNAPSHOT_PENDING",error:"La scheda completa non è ancora arrivata da Foundry."},404,headers);
+  const permissions = {isAdmin:isAuthenticatedGlobalAdmin(user,env),sharedRuntime:managedActorHasSharedRuntime(actor),embeddedEffects:record.snapshot.versions?.nativeAbilityEdit===1};
+  const source = record.snapshot.actor;
+  const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId,route.worldId)),campaignId,route.worldId);
+  const commands = queue.commands.filter(command => command.actorId === route.actorId);
+  const canApply = record.snapshot.versions?.nativeEditor === NPC_NATIVE_EDITOR_VERSION;
+  if (request.method === "GET") return json({ok:true,data:{version:NPC_NATIVE_EDITOR_VERSION,canApply,permissions,
+    receivedAt:record.receivedAt,capabilities:{healingTypes:record.snapshot.versions?.npcRulesHealingTypes===1?1:0,abilityEditing:record.snapshot.versions?.nativeAbilityEdit===1?1:0},entities:nativeEntities(source,permissions),
+    commands:commands.map(command => managedActorCommandForReader(command,permissions.isAdmin)).filter(Boolean)}},200,headers);
+  if (!canApply) return json({ok:false,code:"NPC_EDITOR_UPGRADE",error:"Ricarica Foundry con Wiki Sync aggiornato prima di inviare le modifiche."},409,headers);
+  let body;
+  try { const text = await request.text(); if (new TextEncoder().encode(text).length > 768*1024) return json({ok:false,error:"Modifiche troppo grandi."},413,headers); body=JSON.parse(text); }
+  catch { return json({ok:false,error:"Richiesta non valida."},400,headers); }
+  if (body.version !== NPC_NATIVE_EDITOR_VERSION || !/^[a-f0-9-]{36}$/i.test(body.requestId || "") || !Array.isArray(body.changes) || !body.changes.length || body.changes.length > 64) return json({ok:false,error:"Modifiche non valide."},400,headers);
+  const duplicate = commands.filter(command => command.clientRequestId === body.requestId);
+  if (duplicate.length) return json({ok:true,commands:duplicate.map(command=>managedActorCommandForReader(command,permissions.isAdmin))},202,headers);
+  if (commands.some(command=>command.status === "pending" && (command.kind.startsWith("actor-link.")||command.nativeSheetVersion))) return json({ok:false,error:"Attendi il completamento delle modifiche già inviate a questo NPC."},409,headers);
+  const batch = [],seen = new Set(),now = new Date().toISOString();
+  try {
+    for (const change of body.changes) {
+      const target = change?.target;
+      if (!target || !["Actor","Item","ActiveEffect"].includes(target.type) || typeof target.id !== "string" || (target.type !== "ActiveEffect" && target.itemId)) throw new Error("Destinazione non valida.");
+      const document = nativeFindDocument(source,target),key = nativeTargetKey(target);
+      if (!document || seen.has(key)) throw new Error("Elemento mancante o duplicato.");
+      seen.add(key);
+      const pending = commands.some(command => command.status === "pending" && (command.nativeEditorVersion
+        ? nativeTargetKey(command.target) === key
+        : target.type === "Actor" ? command.kind === "actor.update"
+          : target.type === "Item" ? command.target?.itemId === target.id || (command.target?.transferId && command.target.transferId === document.flags?.["cripta-wiki-sync"]?.transferId)
+            : command.target?.effectId === target.id));
+      if (pending) return json({ok:false,code:"NPC_EDITOR_PENDING",error:"Questo elemento ha già modifiche in attesa. Attendi la sincronizzazione e aggiorna la scheda."},409,headers);
+      const next = nativeValidateChanges(document,target,change.patches,permissions);
+      if (change.patches.some(patch=>nativePatchConflict(nativeEditorSource(document,target.type),patch))) return json({ok:false,code:"NPC_EDITOR_CONFLICT",error:`${document.name}: alcuni campi sono cambiati. Aggiorna la scheda prima di riprovare.`},409,headers);
+      if (target.type === "Item") {
+        const config = next.flags?.["khuzoe-automations"]?.midiRollConfig;
+        if (config && !nativeEqual(config,document.flags?.["khuzoe-automations"]?.midiRollConfig) && !validManagedMidiRollConfig(config,next.system?.activities)) throw new Error("Configurazione delle probabilità non valida.");
+        const rules = next.flags?.["khuzoe-automations"]?.npcRules;
+        if (rules && !nativeEqual(rules,document.flags?.["khuzoe-automations"]?.npcRules) && !validManagedNpcRules(rules)) throw new Error("Regole della capacità non valide.");
+        if(Object.values(rules?.activities||{}).some(rule=>rule.healingTypes?.length)&&record.snapshot.versions?.npcRulesHealingTypes!==1)throw new Error("Aggiorna Khuzoe Automations e sincronizza l’NPC per usare la cura da tipi di danno selezionati.");
+      }
+      batch.push({id:crypto.randomUUID(),nativeEditorVersion:NPC_NATIVE_EDITOR_VERSION,clientRequestId:body.requestId,
+        kind:target.type === "Actor" ? "actor.update" : target.type === "Item" ? "item.update" : "effect.update",
+        campaignId,worldId:route.worldId,actorId:route.actorId,foundryActorId:source._id,baseRevision:Number(actor.revision || 0),
+        target:{type:target.type,id:target.id,...(target.itemId?{itemId:target.itemId}:{})},patches:change.patches,
+        nativePermissions:permissions,status:"pending",createdAt:now,updatedAt:now,createdBy:getAuthenticatedAccountId(user,env)});
+    }
+  } catch(error) { return json({ok:false,code:"INVALID_PATCH",error:error.message},400,headers); }
+  if (queue.commands.length + batch.length > 256) return json({ok:false,error:"Coda piena. Attendi Foundry."},429,headers);
+  queue.commands.push(...batch);queue.version++;queue.updatedAt=now;
+  await writeManagedActorCommandQueue(env,queue);
+  scheduleFoundryLiveInvalidation(ctx,env,{campaignId,worldId:route.worldId,collections:["managed-actors"],actorIds:[route.actorId],reason:"npc-editor",revision:queue.version});
+  return json({ok:true,commands:batch.map(command=>managedActorCommandForReader(command,permissions.isAdmin))},202,headers);
+}
+
+async function handleNpcNativeSnapshot(request, route, campaignId, env, corsHeaders = {}) {
+  const headers = { ...corsHeaders, "Cache-Control": "private, no-store" };
+  if (!["GET", "POST"].includes(request.method)) return json({ ok: false, error: "Method not allowed" }, 405, headers);
+  if (request.method === "GET") {
+    const user = await requireUser(request, env, headers);
+    if (user instanceof Response) return user;
+    if (!isAuthenticatedGlobalAdmin(user, env)) return json({ ok: false, error: "Forbidden" }, 403, headers);
+  } else {
+    if (!hasMatchingFoundrySyncSecret(request, env)) return json({ ok: false, error: "Only Foundry can submit native NPC snapshots" }, 403, headers);
+    if (!isFoundryV14Request(request)) return json({ ok: false, error: "Unsupported Foundry sync contract", code: "CONTRACT_UNSUPPORTED" }, 426, headers);
+  }
+  if (!npcNativeSnapshotD1Enabled(env, campaignId)) return json({ ok: false, error: "Snapshot NPC non abilitati per questa campagna.", code: "NPC_SNAPSHOT_DISABLED" }, 404, headers);
+  const actor = safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId)));
+  if (!actor || actor.actorType !== "npc") return json({ ok: false, error: "Managed NPC not found" }, 404, headers);
+  if (request.method === "GET") {
+    const raw = await env.SIGILLO_KV.get(npcNativeSnapshotKey(campaignId, route.worldId, route.actorId));
+    if (!raw) return json({ ok: false, error: "Il JSON completo di questo NPC non è ancora arrivato da Foundry.", code: "NPC_SNAPSHOT_PENDING" }, 404, headers);
+    return json({ ok: true, campaignId, data: JSON.parse(raw) }, 200, headers);
+  }
+  const maximumBodyBytes = NPC_NATIVE_SNAPSHOT_MAX_BYTES + 65536;
+  if (Number(request.headers.get("Content-Length")) > maximumBodyBytes) return json({ ok: false, error: "Snapshot NPC troppo grande. Nessun dato è stato troncato.", code: "NPC_SNAPSHOT_TOO_LARGE" }, 413, headers);
+  let body;
+  try {
+    const text = await request.text();
+    if (new TextEncoder().encode(text).length > maximumBodyBytes) return json({ ok: false, error: "Snapshot NPC troppo grande. Nessun dato è stato troncato.", code: "NPC_SNAPSHOT_TOO_LARGE" }, 413, headers);
+    body = JSON.parse(text);
+  } catch { return json({ ok: false, error: "Invalid snapshot JSON", code: "NPC_SNAPSHOT_INVALID" }, 400, headers); }
+  const snapshotContract = normalizeFoundrySyncContract(body?.contract);
+  if (body?.campaignId !== campaignId || !snapshotContract) return json({ ok: false, error: "Identità o contratto snapshot NPC non valido.", code: "NPC_SNAPSHOT_INVALID" }, 400, headers);
+  if (new TextEncoder().encode(JSON.stringify(body.snapshot || {})).length > NPC_NATIVE_SNAPSHOT_MAX_BYTES) return json({ ok: false, error: "Snapshot NPC troppo grande. Nessun dato è stato troncato.", code: "NPC_SNAPSHOT_TOO_LARGE" }, 413, headers);
+  try {
+    const snapshot = await validateNpcNativeSnapshot(body.snapshot, campaignId, route, actor, snapshotContract);
+    const result = await saveNpcNativeSnapshot(env, campaignId, route, actor, snapshot);
+    return json({ ok: true, campaignId, worldId: route.worldId, actorId: route.actorId, actorRevision:Number(actor.revision||0), ...result }, 200, headers);
+  } catch (error) {
+    if (error instanceof ManagedActorStorageError) throw error;
+    if (error?.status) return json({ ok: false, error: error.message, code: error.code }, error.status, headers);
+    throw error;
+  }
+}
+
 async function handleManagedActorPost(request, route, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   if (hasMatchingFoundrySyncSecret(request, env) && !isFoundryV14Request(request)) {
@@ -7494,6 +7684,7 @@ function managedActorCommandPatchIsSatisfied(currentValue, patch) {
 }
 
 function managedActorCommandIsSatisfied(document, command) {
+  if (command?.nativeEditorVersion || command?.nativeSheetVersion) return false;
   const patches = Array.isArray(command?.patches) ? command.patches : [];
   if (command?.kind === "actor.update") {
     return Boolean(patches.length && patches.every((patch) => managedActorCommandPatchIsSatisfied(

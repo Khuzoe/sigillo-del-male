@@ -25,6 +25,10 @@
     "test:skill-tree-storage": "node --experimental-default-type=module scripts/test-skill-tree-storage.mjs",
     "test:skill-tree-definition-storage": "node --experimental-default-type=module scripts/test-skill-tree-definition-storage.mjs",
     "test:managed-actor-storage": "node --experimental-default-type=module scripts/test-managed-actor-storage.mjs",
+    "test:npc-native-snapshot": "node --experimental-default-type=module scripts/test-npc-native-snapshot.mjs",
+    "test:npc-sheet-editor": "node --experimental-default-type=module scripts/test-npc-sheet-editor.mjs",
+    "test:npc-reading": "node scripts/test-npc-reading-view.mjs && node scripts/test-managed-actor-spells.mjs",
+    "test:npc-ai-editor": "node --experimental-default-type=module scripts/test-npc-native-ability.mjs && node --experimental-default-type=module scripts/test-npc-ai-editor-worker.mjs",
     "test:economy": "node scripts/test-economy-worker.js && node scripts/test-campaign-item-economy.js && node scripts/test-item-site-sync.js",
     "test:item-categories": "node --experimental-default-type=module scripts/test-campaign-item-categories.mjs",
     "test:npc-categories": "node --experimental-default-type=module scripts/test-npc-subcategories.mjs",
@@ -46,6 +50,9 @@
     "hooks:run": "npm run qa",
     "hooks:install": "git config core.hooksPath .githooks",
     "images:webp": "node scripts/convert-image.js",
-    "fix:chars": "node fixchars.js"
+    "fix:chars": "node fixchars.js",
+    "test:npc-ai-ability-edit": "node --experimental-default-type=module scripts/test-npc-native-ability-edit.mjs && node --experimental-default-type=module scripts/test-npc-ai-ability-edit-worker.mjs && node --experimental-default-type=module scripts/test-npc-ability-edit-foundry.mjs && node --experimental-default-type=module scripts/test-npc-ability-edit-effect-ids.mjs",
+    "test:npc-sheet-ai": "node scripts/test-npc-sheet-ai.mjs && node scripts/test-npc-sheet-ai-worker.mjs && node scripts/test-npc-sheet-foundry.mjs",
+    "test:npc-auto-sync": "node scripts/test-npc-auto-sync.mjs && node scripts/test-npc-sheet-ai-worker.mjs && node scripts/test-npc-sheet-ai-worker.mjs mago-folle && node scripts/test-npc-sheet-ai-worker.mjs oltre-il-velo"
   }
 }

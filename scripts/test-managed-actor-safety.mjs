@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 import { resolve } from "node:path";
 import worker from "../workers/main-worker/src/index.js";
+import { nativeValuePreserved } from "../assets/js/shared/npc-native-model.mjs";
 
 class MemoryKv {
   constructor() {
@@ -557,7 +558,7 @@ assert.deepEqual(
 const activityRuntimeBlock = moduleSyncSource.match(/function managedActivitiesSourceMap[\s\S]+?(?=\r?\n\r?\nfunction readManagedCommandPath)/)?.[0];
 assert.ok(activityRuntimeBlock, "l'applicazione delle Activity D&D5e deve essere testabile");
 const applyActivityUpdate = new Function(
-  "foundry", "managedCommandChangedPaths", "managedCommandRelativeValue", "sameManagedCommandValue", "applyingManagedActivityCommands",
+  "foundry", "managedCommandChangedPaths", "managedCommandRelativeValue", "sameManagedCommandValue", "applyingManagedActivityCommands", "nativeValuePreserved",
   `${activityRuntimeBlock}\nreturn applyManagedActivitiesUpdate;`,
 )(
   { utils: { deepClone: (value) => structuredClone(value) } },
@@ -565,6 +566,7 @@ const applyActivityUpdate = new Function(
   relativeValue,
   (left, right) => JSON.stringify(left) === JSON.stringify(right),
   new WeakSet(),
+  nativeValuePreserved,
 );
 let persistedActivitySource = { _id: "attack-id", type: "attack", sort: 950, damage: { parts: [{ number: 7, denomination: 8 }] } };
 let receivedActivityChanges = null;

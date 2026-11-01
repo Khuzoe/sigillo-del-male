@@ -1,0 +1,488 @@
+--- a/module.json
++++ b/module.json
+@@ -1,42 +1,38 @@
+ {
+-    "id":  "cripta-wiki-sync",
+-    "title":  "Khuzoe Wiki Sync",
+-    "description":  "Sincronizzazione bidirezionale tra wiki e Foundry per Actor gestiti, Tokenizer e catalogo oggetti di campagna.",
+-  "version": "0.11.14",
+-    "authors":  [
+-                    {
+-                        "name":  "Delia + Codex"
+-                    }
+-                ],
+-    "compatibility":  {
+-                          "minimum":  "14",
+-                          "verified":  "14"
+-                      },
+-    "esmodules":  [
+-                      "scripts/main.js"
+-                  ],
+-    "styles":  [
+-                   "styles/module.css"
+-               ],
+-    "languages":  [
+-
+-                  ],
+-    "packs":  [
+-
+-              ],
+-    "relationships":  {
+-                          "systems":  [
+-                                        {
+-                                          "id": "dnd5e",
+-                                          "type": "system",
+-                                          "compatibility": {
+-                                            "minimum": "5.3.0",
+-                                            "verified": "5.3.3"
+-                                          }
+-                                        }
+-                                      ]
+-                      },
+-    "manifest":  "https://khuzoe.github.io/sigillo-del-male/dist/module.json",
+-    "download":  "https://khuzoe.github.io/sigillo-del-male/dist/cripta-wiki-sync.zip",
+-    "url":  "https://khuzoe.github.io/sigillo-del-male/"
++  "id": "cripta-wiki-sync",
++  "title": "Khuzoe Wiki Sync",
++  "description": "Sincronizzazione bidirezionale tra wiki e Foundry per Actor gestiti, Tokenizer e catalogo oggetti di campagna.",
++  "version": "0.11.15",
++  "authors": [
++    {
++      "name": "Delia + Codex"
++    }
++  ],
++  "compatibility": {
++    "minimum": "14",
++    "verified": "14"
++  },
++  "esmodules": [
++    "scripts/main.js"
++  ],
++  "styles": [
++    "styles/module.css"
++  ],
++  "languages": [],
++  "packs": [],
++  "relationships": {
++    "systems": [
++      {
++        "id": "dnd5e",
++        "type": "system",
++        "compatibility": {
++          "minimum": "5.3.0",
++          "verified": "5.3.3"
++        }
++      }
++    ]
++  },
++  "manifest": "https://khuzoe.github.io/sigillo-del-male/dist/module.json",
++  "download": "https://khuzoe.github.io/sigillo-del-male/dist/cripta-wiki-sync.zip",
++  "url": "https://khuzoe.github.io/sigillo-del-male/"
+ }
+--- a/scripts/services/managed-actor-sync.js
++++ b/scripts/services/managed-actor-sync.js
+@@ -1,3 +1,5 @@
++import { applyNpcNativeEditor } from "./npc-native-editor.mjs";
++import { nativeValuePreserved } from "./npc-native-model.mjs";
+ import { DISCORD_WORKER_URL, MODULE_ID, SETTINGS } from "../constants.js";
+ import { canPullFromWorker, canPushToWorker } from "./sync-policy.js";
+ import { policyFetch } from "./worker-gateway.js";
+@@ -256,7 +258,7 @@
+             && Number(actorState.merchantSchemaVersion || 0) < MANAGED_MERCHANT_SCHEMA_VERSION) {
+             event = normalizeTokenizerEvent({ reason: "merchant-schema-upgrade", forceContentSync: true });
+         } else if (actorState?.revision && npcNativeSnapshotEnabled(getCampaignId(), actor)
+-            && Number(actorState.nativeSnapshotVersion || 0) < NPC_NATIVE_SNAPSHOT_VERSION) {
++            && (Number(actorState.nativeSnapshotVersion || 0) < NPC_NATIVE_SNAPSHOT_VERSION || actorState.nativeEditorVersion !== 1)) {
+             event = normalizeTokenizerEvent({ reason: "native-snapshot-upgrade", nativeSnapshotOnly: true });
+         } else if (!actorState?.revision) {
+             if (isManagedMerchant(actor)) {
+@@ -3305,6 +3307,7 @@
+         || Array.from(game.actors || []).find((entry) => sanitizeId(entry.id) === sanitizeId(command.actorId));
+     if (!actor) return { status: "conflict", error: "Actor non trovato in questo mondo" };
+     if (isTemporaryWikiActor(actor)) return { status: "conflict", error: "Le forme temporanee non sono sincronizzate con la wiki" };
++    if (command.nativeEditorVersion) return applyNpcNativeEditor(actor, command, {read: readManagedCommandPath, applyItem: applyManagedActorCommand});
+     if (kind === "relationship.update") {
+         if (typeof callbacks.setCompanionRelationship !== "function") {
+             return { status: "failed", error: "Gestione companion non disponibile" };
+@@ -3353,7 +3356,7 @@
+             // Validate all new embedded data before performing the first write.
+             if (requestedEffects !== undefined) validateManagedItemEffects(item, requestedEffects);
+             if (requestedActivities !== undefined || requestedEffects !== undefined) {
+-                if (requestedActivities !== undefined) managedActivityChanges(currentActivities, requestedActivities);
++                if (requestedActivities !== undefined) managedActivityChanges(currentActivities, requestedActivities, item);
+                 const ids = new Set((requestedEffects ?? getManagedItemEffects(item)).map(effect => effect._id));
+                 for (const activity of Object.values(requestedActivities ?? readManagedCommandPath(item, "system.activities"))) {
+                     if ((activity.effects ?? []).some(effect => !ids.has(effect._id))) throw new Error("Un'attività fa riferimento a un effetto mancante.");
+@@ -3672,16 +3675,19 @@
+     return path;
+ }
+ 
+-function managedActivityChanges(currentActivities, requestedActivities) {
++function managedActivityChanges(currentActivities, requestedActivities, item = null) {
+     const current = managedActivitiesSourceMap(currentActivities);
+     const requested = managedActivitiesSourceMap(requestedActivities);
+     const changedPaths = managedCommandChangedPaths(current, requested);
+     const grouped = new Map();
++    const created = new Set();
++    const removed = new Set();
+     for (const changedPath of changedPaths) {
+         const [activityId, ...relativePath] = changedPath;
+-        if (!activityId || !relativePath.length || !current[activityId] || !requested[activityId]) {
+-            throw new Error("Creazione e rimozione delle attivita D&D5e non sono disponibili da questa modifica");
+-        }
++        if (!activityId) throw new Error("Identificativo attività mancante");
++        if (!current[activityId] && requested[activityId]) { created.add(activityId); continue; }
++        if (current[activityId] && !requested[activityId]) { removed.add(activityId); continue; }
++        if (!relativePath.length) throw new Error("Struttura dell’attività non valida");
+         if (relativePath[0] === "_id") continue;
+         if (relativePath[0] === "type") {
+             throw new Error("Il tipo di un'attivita D&D5e non puo essere cambiato dal sito");
+@@ -3693,20 +3699,33 @@
+         group.verifyPaths.push(relativePath);
+         grouped.set(activityId, group);
+     }
+-    return { requested, grouped };
++    for (const id of created) {
++        const data = requested[id], Activity = CONFIG.DND5E?.activityTypes?.[data.type]?.documentClass;
++        if (!/^[A-Za-z0-9]{16}$/.test(id) || !Activity || data._id !== id) throw new Error("Nuova attività non valida");
++        new Activity(data, {parent: item, strict: true});
++    }
++    for (const activity of Object.values(requested)) {
++        for (const id of [activity.otherActivityId, activity.midiProperties?.triggeredActivityId]) {
++            if (removed.has(id)) throw new Error("Rimuovi prima il collegamento all’attività da eliminare");
++        }
++    }
++    return { requested, grouped, created, removed };
+ }
+ 
+ async function applyManagedActivitiesUpdate(item, currentActivities, requestedActivities) {
+-    const { requested, grouped } = managedActivityChanges(currentActivities, requestedActivities);
+-    if (!grouped.size) return;
++    const { requested, grouped, created, removed } = managedActivityChanges(currentActivities, requestedActivities, item);
++    if (!grouped.size && !created.size && !removed.size) return;
++    if ((created.size && typeof item.createActivity !== "function") || (removed.size && typeof item.deleteActivity !== "function")) throw new Error("Gestione delle attività non disponibile");
+     applyingManagedActivityCommands.add(item);
+     try {
++        for (const id of created) await item.createActivity(requested[id].type, requested[id], {renderSheet:false});
+         for (const [activityId, group] of grouped) {
+             const activity = item.system?.activities?.get?.(activityId);
+             if (!activity) throw new Error(`Attivita ${activityId} non trovata nell'elemento`);
+             if (typeof activity.update !== "function") throw new Error("Aggiornamento attivita D&D5e non disponibile");
+             await activity.update(group.changes);
+         }
++        for (const id of removed) await item.deleteActivity(id);
+     } finally {
+         applyingManagedActivityCommands.delete(item);
+     }
+@@ -3717,9 +3736,11 @@
+         for (const path of group.verifyPaths) {
+             const actual = managedCommandRelativeValue(persisted[activityId], path);
+             const desired = managedCommandRelativeValue(requested[activityId], path);
+-            if (!sameManagedCommandValue(actual, desired)) missingPaths.push(`${activityId}.${path.join(".")}`);
+-        }
+-    }
++            if (!nativeValuePreserved(actual, desired, managedCommandRelativeValue(managedActivitiesSourceMap(currentActivities)[activityId],path))) missingPaths.push(`${activityId}.${path.join(".")}`);
++        }
++    }
++    for (const id of created) if (!nativeValuePreserved(persisted[id],requested[id])) missingPaths.push(id);
++    for (const id of removed) if (persisted[id]) missingPaths.push(id);
+     if (missingPaths.length) {
+         throw new Error(`Foundry non ha conservato le modifiche alle attivita: ${missingPaths.slice(0, 3).join(", ")}`);
+     }
+@@ -3951,6 +3972,7 @@
+         runtimeHash: hashValue(buildManagedActorRuntime(actor)),
+         ...(npcNativeSnapshotEnabled(getCampaignId(), actor) ? {
+             nativeSnapshotVersion: Number(previousState.nativeSnapshotVersion || 0),
++            nativeEditorVersion: Number(previousState.nativeEditorVersion || 0),
+             nativeSnapshotHash: String(previousState.nativeSnapshotHash || ""),
+             nativeSnapshotReceivedAt: String(previousState.nativeSnapshotReceivedAt || ""),
+             nativeSnapshotRejectedHash: String(previousState.nativeSnapshotRejectedHash || ""),
+@@ -3982,6 +4004,7 @@
+             campaignId, worldId: sanitizeId(game.world?.id || "world"),
+             foundry: contract.foundry, system: contract.system,
+             wikiSync: contract.module?.version,
++            nativeEditor: 1,
+             modules: Array.from(game.modules?.values?.() || [])
+         });
+     } catch (error) {
+@@ -4010,7 +4033,7 @@
+     // Keep confirmation metadata locally, never a second full Actor JSON.
+     const fresh = getWorldObjectSetting(STATE_SETTING);
+     await game.settings.set(MODULE_ID, STATE_SETTING, {
+-        ...fresh, [actor.id]: { ...(fresh[actor.id] || {}), nativeSnapshotVersion: NPC_NATIVE_SNAPSHOT_VERSION,
++        ...fresh, [actor.id]: { ...(fresh[actor.id] || {}), nativeSnapshotVersion: NPC_NATIVE_SNAPSHOT_VERSION, nativeEditorVersion: 1,
+             nativeSnapshotHash: snapshot.hash, nativeSnapshotReceivedAt: String(result.receivedAt || ""), nativeSnapshotRejectedHash: "", nativeSnapshotError: "" }
+     });
+     return true;
+@@ -4421,7 +4444,8 @@
+ 
+ function queueManagedEffectOwnerSync(effect, reason, options = {}) {
+     if (isInternalCriptaDocumentUpdate(options)) return;
+-    const actor = effect?.parent;
++    const parent = effect?.parent;
++    const actor = parent?.documentName === "Item" ? (parent.actor || parent.parent) : parent;
+     if (managedActorLinkConversions.has(String(actor?.id || "")) || managedActorLinkNativeImports.has(String(actor?.id || ""))) return;
+     if (!canRunManagedActorSync(actor) || !hasManagedActorState(actor)) return;
+     queueManagedActorSync(actor, { reason }).catch((error) => console.warn(`${MODULE_ID} | Sync effetto modificato non accodata.`, { effect: effect?.name, error }));
+--- a/scripts/services/npc-native-snapshot.mjs
++++ b/scripts/services/npc-native-snapshot.mjs
+@@ -76,6 +76,7 @@
+     schemaVersion: NPC_NATIVE_SNAPSHOT_VERSION,
+     identity: { campaignId: context.campaignId, worldId: context.worldId, foundryActorId: String(actor.id), actorUuid: String(actor.uuid || `Actor.${actor.id}`) },
+     versions: {
++      ...(context.nativeEditor ? {nativeEditor: context.nativeEditor} : {}),
+       foundry: { generation: Number(context.foundry?.generation || 14), version: String(context.foundry?.version || "") },
+       system: { id: String(context.system?.id || ""), version: String(context.system?.version || "") },
+       wikiSync: String(context.wikiSync || ""),
+--- /dev/null
++++ b/scripts/services/npc-native-editor.mjs
+@@ -0,0 +1,71 @@
++import { NPC_NATIVE_EDITOR_VERSION, nativeGet, nativeHas, nativeValidateChanges, nativePatchConflict, nativePatchSatisfied, nativeEqual, nativeEditorSource } from "./npc-native-model.mjs";
++
++const sourceOf = document => JSON.parse(JSON.stringify(document.toJSON?.() ?? document.toObject(true)));
++const deletion = path => { const parts=path.split(".");parts[parts.length-1]="-="+parts.at(-1);return parts.join("."); };
++
++// Keep the native source as the baseline, never prepared HP/AC or a synthetic
++// Actor. Updates are restricted to the selected document and changed fields.
++export async function applyNpcNativeEditor(actor, command, services) {
++  if (command.nativeEditorVersion !== NPC_NATIVE_EDITOR_VERSION || actor.isToken || actor.type !== "npc") return {status:"failed",error:"Editor NPC non compatibile."};
++  const target = command.target;
++  let document = target?.type === "Actor" && target.id === actor.id ? actor
++    : target?.type === "Item" ? actor.items.get(target.id)
++      : target?.type === "ActiveEffect" ? (target.itemId ? actor.items.get(target.itemId) : actor)?.effects?.get(target.id) : null;
++  if (!document) return {status:"conflict",error:"L’elemento selezionato non esiste più."};
++  const readSource=()=>nativeEditorSource(sourceOf(document),target.type);
++  const before=readSource(),patches=command.patches;
++  let next;
++  try { next=nativeValidateChanges(before,target,patches,{...command.nativePermissions,sharedRuntime:actor.prototypeToken?.actorLink !== false}); }
++  catch(error) { return {status:"failed",error:error.message}; }
++  const conflicting=patches.filter(patch=>nativePatchConflict(before,patch));
++  if (conflicting.length) return {status:"conflict",error:`${document.name}: i campi sono cambiati in Foundry (${conflicting.map(patch=>patch.path).join(", ")}).`};
++  if (patches.every(patch=>nativePatchSatisfied(before,patch))) return {status:"applied",actor};
++  // A detached document validates against the installed D&D5e model before
++  // any document is written. It never creates an Actor in the world.
++  // Document.clone() forces strict:false in v14, so use the constructor.
++  try { new document.constructor(next,{parent:document.parent,pack:document.pack,strict:true}); }
++  catch(error) { return {status:"failed",error:`Valori non accettati da Foundry: ${error.message}`}; }
++  const grouped = new Set();
++  if(target.type === "Item") {
++    if(patches.some(patch=>patch.path.startsWith("system.activities"))) grouped.add("system.activities");
++    for(const key of ["npcRules","midiRollConfig"]) if(patches.some(patch=>patch.path.startsWith(`flags.khuzoe-automations.${key}`))) grouped.add(`flags.khuzoe-automations.${key}`);
++  }
++  const groupedPatches = [...grouped].map(path=>({path,value:nativeGet(next,path),baseValue:services.read(document,path)}));
++  const ordinary=patches.filter(patch=>![...grouped].some(path=>patch.path===path||patch.path.startsWith(path+".")));
++  const write = async (doc, changes) => {
++    const update={};for(const patch of changes) update[patch.op==="delete"?deletion(patch.path):patch.path]=patch.op==="delete"?null:patch.value;
++    if(Object.keys(update).length) await doc.update(update,{criptaWikiSyncCommand:true});
++  };
++  let written;
++  try {
++    if(groupedPatches.length) {
++      const result=await services.applyItem({...command,nativeEditorVersion:undefined,patches:groupedPatches,target:{itemId:document.id}});
++      if(result.status!=="applied") throw new Error(result.error || "Attività non aggiornate.");
++    }
++    await write(document,ordinary);
++    written=readSource();
++    document=target.type==="Actor"?actor:target.type==="Item"?actor.items.get(target.id):(target.itemId?actor.items.get(target.itemId):actor).effects.get(target.id);
++    const saved=readSource(),missing=patches.filter(patch=>!nativePatchSatisfied(saved,patch));
++    if(missing.length) throw new Error(`Foundry non ha conservato: ${missing.map(patch=>patch.path).join(", ")}`);
++    return {status:"applied",actor};
++  } catch(error) {
++    // Restore only fields touched by this command that still match our write.
++    // Leave unrelated changes (including combat updates) in place.
++    try {
++      const current=readSource();
++      const restore=ordinary.filter(patch=>written ? nativeHas(current,patch.path)===nativeHas(written,patch.path)&&nativeEqual(nativeGet(current,patch.path),nativeGet(written,patch.path)) : nativePatchSatisfied(current,patch)).map(patch=>({path:patch.path,op:nativeHas(before,patch.path)?"set":"delete",value:nativeGet(before,patch.path)}));
++      await write(document,restore);
++      for(const patch of groupedPatches) {
++        const previous=nativeGet(before,patch.path);
++        // Clearing a new preset must also remove the effects it compiled.
++        const wanted=previous===undefined&&patch.path.endsWith(".npcRules")?{version:1,activities:{}}:previous;
++        if(wanted!==undefined) {
++          const rollback=await services.applyItem({...command,nativeEditorVersion:undefined,target:{itemId:document.id},patches:[{path:patch.path,value:wanted,baseValue:services.read(document,patch.path)}]});
++          if(rollback.status!=="applied")throw new Error(rollback.error||"Attività non ripristinate.");
++        }
++        if(previous===undefined)await write(document,[{path:patch.path,op:"delete"}]);
++      }
++    } catch(rollback) { return {status:"failed",error:`${error.message} Ripristino incompleto: ${rollback.message}. Verifica l’elemento in Foundry.`}; }
++    return {status:"failed",error:error.message};
++  }
++}
+--- /dev/null
++++ b/scripts/services/npc-native-model.mjs
+@@ -0,0 +1,175 @@
++export const NPC_NATIVE_EDITOR_VERSION = 1;
++const protectedSegments = new Set(["__proto__", "prototype", "constructor"]);
++const effectFields = new Set(["name", "img", "disabled", "transfer", "origin", "duration", "changes", "statuses", "flags", "description", "system", "tint", "showIcon"]);
++const clone = value => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
++const canonical = value => JSON.stringify(value, (_key, entry) => entry && typeof entry === "object" && !Array.isArray(entry) ? Object.fromEntries(Object.entries(entry).sort(([a],[b]) => a.localeCompare(b))) : entry);
++export const nativeEqual = (left, right) => canonical(left) === canonical(right);
++export function nativeGet(value, path) { return String(path || "").split(".").reduce((object, key) => object?.[key], value); }
++export function nativeHas(value, path) {
++  const parts = String(path).split("."); let object = value;
++  for (const part of parts) { if (object == null || !Object.hasOwn(object, part)) return false; object = object[part]; }
++  return true;
++}
++export function nativeSet(value, path, next, remove = false) {
++  const parts = String(path).split(".");
++  if (parts.some(part => protectedSegments.has(part) || !part)) throw new Error("Percorso non valido.");
++  let object = value;
++  for (const part of parts.slice(0,-1)) { if (!object[part] || typeof object[part] !== "object") object[part] = {}; object = object[part]; }
++  if (remove) delete object[parts.at(-1)]; else object[parts.at(-1)] = clone(next);
++}
++export function nativePrivatePath(path) { return String(path).split(".").includes("midiRollConfig"); }
++export function nativeEditablePath(type, path, permissions = {}) {
++  if (typeof path !== "string" || path.length > 700) return false;
++  const parts = path.split(".");
++  if (permissions.activityReadOnly && (path.startsWith("system.activities") || path.startsWith("flags.khuzoe-automations.npcRules") || path.startsWith("flags.khuzoe-automations.midiRollConfig"))) return false;
++  if (parts.some(part => !part || protectedSegments.has(part) || part.startsWith("-="))) return false;
++  if (parts.some(part => ["_id", "_stats"].includes(part))) return false;
++  if (!permissions.isAdmin && nativePrivatePath(path)) return false;
++  if (parts[0] === "flags") {
++    if (parts.length < 2 || ["core", "cripta-wiki-sync"].includes(parts[1])) return false;
++    if (parts[1] === "khuzoe-automations" && parts.length < 3) return false;
++    return true;
++  }
++  if (type === "ActiveEffect") return effectFields.has(parts[0]) && parts[0] !== "flags";
++  if (parts[0] === "name") return parts.length === 1;
++  if (parts[0] !== "system" || parts.length < 2) return false;
++  // Source identities and generated advancement records are managed by D&D5e.
++  if (["source", "advancement", "sourceItem"].includes(parts[1])) return false;
++  if (parts[1] === "activities" && parts.length === 4 && parts[3] === "type") return false;
++  if (type === "Actor" && path === "system.attributes.prof") return false;
++  if (type === "Actor" && permissions.sharedRuntime === false && (/^system\.attributes\.hp\.(value|temp)$/.test(path) || /^system\.spells\.[^.]+\.(value|spent)$/.test(path))) return false;
++  return true;
++}
++export function nativeValidateValue(value, depth = 0) {
++  if (depth > 32) throw new Error("Struttura troppo profonda.");
++  if (value === null || ["string", "boolean"].includes(typeof value)) return;
++  if (typeof value === "number") { if (!Number.isFinite(value)) throw new Error("Inserisci un numero valido."); return; }
++  if (!value || typeof value !== "object") throw new Error("Valore non valido.");
++  for (const [key, child] of Object.entries(value)) { if (protectedSegments.has(key)) throw new Error("La struttura contiene un campo riservato."); nativeValidateValue(child, depth + 1); }
++}
++export function nativeValidatePatch(type, patch, permissions = {}) {
++  if (!patch || !["set", "delete"].includes(patch.op) || !nativeEditablePath(type, patch.path, permissions)) throw new Error(`Campo non modificabile: ${patch?.path || ""}`);
++  if (typeof patch.baseExists !== "boolean") throw new Error("Manca il valore di partenza.");
++  if (patch.baseExists) nativeValidateValue(patch.baseValue);
++  if (patch.op === "set") {
++    nativeValidateValue(patch.value);
++    if (!permissions.isAdmin && JSON.stringify(patch.value).includes('"midiRollConfig"')) throw new Error("Configurazione riservata all’admin.");
++    if (patch.path === "name" && (typeof patch.value !== "string" || !patch.value.trim())) throw new Error("Il nome non può essere vuoto.");
++  }
++  return patch;
++}
++export function nativeDiff(base, next, type, permissions = {}, prefix = "") {
++  const result = [];
++  for (const key of new Set([...Object.keys(base || {}), ...Object.keys(next || {})])) {
++    const path = prefix ? `${prefix}.${key}` : key, hasBase = Object.hasOwn(base || {}, key), hasNext = Object.hasOwn(next || {}, key);
++    if (nativeEqual(base?.[key], next?.[key]) && hasBase === hasNext) continue;
++    const a = base?.[key], b = next?.[key], objects = hasBase && hasNext && a && b && typeof a === "object" && typeof b === "object" && !Array.isArray(a) && !Array.isArray(b);
++    const literalKeys = objects && [...Object.keys(a), ...Object.keys(b)].some(name => name.includes("."));
++    const newContainer = !hasBase && hasNext && b && typeof b === "object" && !Array.isArray(b) && ["flags", "flags.khuzoe-automations"].includes(path);
++    if ((objects && !literalKeys) || newContainer) result.push(...nativeDiff(a || {},b,type,permissions,path));
++    else {
++      const patch = { path, op: hasNext ? "set" : "delete", baseExists: hasBase, ...(hasBase ? {baseValue: clone(a)} : {}), ...(hasNext ? {value: clone(b)} : {}) };
++      nativeValidatePatch(type,patch,permissions); result.push(patch);
++    }
++  }
++  return result;
++}
++export function nativeApply(base, patches) { const next = clone(base); for (const patch of patches) nativeSet(next,patch.path,patch.value,patch.op === "delete"); return next; }
++export function nativePatchSatisfied(source, patch) { return patch.op === "delete" ? !nativeHas(source,patch.path) : nativeHas(source,patch.path) && nativeValuePreserved(nativeGet(source,patch.path),patch.value,patch.baseValue); }
++// Schemas may append defaults to new activities, damage parts or effect changes.
++// Every requested value must survive; additional default keys are acceptable.
++export function nativeValuePreserved(actual, wanted, previous) {
++  if (Array.isArray(wanted)) return Array.isArray(actual) && actual.length === wanted.length && wanted.every((value,index)=>nativeValuePreserved(actual[index],value,previous?.[index]));
++  if (wanted && typeof wanted === "object") return actual && typeof actual === "object" && Object.entries(wanted).every(([key,value])=>Object.hasOwn(actual,key)&&nativeValuePreserved(actual[key],value,previous?.[key]))
++    && (!previous || typeof previous !== "object" || Object.keys(previous).every(key=>Object.hasOwn(wanted,key)||!Object.hasOwn(actual,key)));
++  return nativeEqual(actual,wanted);
++}
++export function nativePatchConflict(source, patch) { return !nativePatchSatisfied(source,patch) && (nativeHas(source,patch.path) !== patch.baseExists || (patch.baseExists && !nativeEqual(nativeGet(source,patch.path),patch.baseValue))); }
++export const nativeTargetKey = target => `${target.type}:${target.itemId || ""}:${target.id}`;
++function visibleFlags(flags, permissions) {
++  const value = clone(flags || {}); delete value.core; delete value["cripta-wiki-sync"];
++  const strip = object => { if (!object || typeof object !== "object") return; for (const key of Object.keys(object)) { if (key === "midiRollConfig" && !permissions.isAdmin) delete object[key]; else strip(object[key]); } };
++  strip(value); return value;
++}
++export function nativeEntityData(source, type, permissions) {
++  source = nativeEditorSource(source,type);
++  const result = { name: source.name || "" };
++  if (type === "ActiveEffect") for (const key of effectFields) { if (key !== "name" && key !== "flags" && Object.hasOwn(source,key)) result[key] = clone(source[key]); }
++  else result.system = clone(source.system || {});
++  result.flags = visibleFlags(source.flags, permissions);
++  if (!permissions.isAdmin) {
++    const strip = object => { if(!object||typeof object!=="object")return;for(const key of Object.keys(object)){if(key==="midiRollConfig")delete object[key];else strip(object[key]);} };strip(result);
++  }
++  return result;
++}
++// Older imports can store activity maps under a different key, or as arrays.
++// The editor addresses the stable activity _id without rewriting that archive.
++export function nativeActivitiesAmbiguous(source) { const ids=Object.entries(source.system?.activities||{}).map(([key,value])=>value?._id||key);return new Set(ids).size!==ids.length; }
++export function nativeEditorSource(source,type) {
++  const result=clone(source);
++  if(type === "Item" && result.system?.activities) {
++    const entries=Object.entries(result.system.activities).map(([key,value])=>[value?._id||key,value]);
++    if(!nativeActivitiesAmbiguous(result))result.system.activities=Object.fromEntries(entries);
++  }
++  return result;
++}
++// Check protected descendants as well: replacing a parent must not bypass the
++// leaf policy or erase a setting hidden from the current account.
++export function nativeValidateChanges(source, target, patches, permissions = {}) {
++  source = nativeEditorSource(source,target.type);
++  if (!Array.isArray(patches) || !patches.length || patches.length > 512) throw new Error("Seleziona da 1 a 512 campi da modificare.");
++  const paths = patches.map(patch => patch.path);
++  if (new Set(paths).size !== paths.length || paths.some((path,i) => paths.some((other,j) => i !== j && other.startsWith(path + ".")))) throw new Error("La richiesta contiene campi sovrapposti.");
++  for (const patch of patches) nativeValidatePatch(target.type,patch,permissions);
++  const next = nativeApply(source,patches);
++  if (target.type === "Item" && nativeActivitiesAmbiguous(source) && (!nativeEqual(source.system?.activities,next.system?.activities)
++    || !nativeEqual(source.flags?.["khuzoe-automations"]?.npcRules,next.flags?.["khuzoe-automations"]?.npcRules)
++    || !nativeEqual(source.flags?.["khuzoe-automations"]?.midiRollConfig,next.flags?.["khuzoe-automations"]?.midiRollConfig))) throw new Error("Questa capacità contiene attività con identificativi duplicati. Correggile in Foundry prima di cambiarne le meccaniche.");
++  const immutable = ["flags.core", "flags.cripta-wiki-sync"];
++  if (target.type === "Actor") {
++    immutable.push("system.source","system.advancement","system.sourceItem","system.attributes.prof");
++    if (permissions.sharedRuntime === false) {
++      immutable.push("system.attributes.hp.value","system.attributes.hp.temp");
++      for (const slot of Object.keys(source.system?.spells || {})) immutable.push(`system.spells.${slot}.value`,`system.spells.${slot}.spent`);
++    }
++  } else if (target.type === "Item") immutable.push("system.source","system.advancement","system.sourceItem");
++  const privateFields = (object,prefix="") => { if (!object || typeof object !== "object") return; for (const [key,value] of Object.entries(object)) { const path=prefix?`${prefix}.${key}`:key; if(key === "midiRollConfig") immutable.push(path); else privateFields(value,path); } };
++  if (!permissions.isAdmin) { privateFields(source); privateFields(next); }
++  if (immutable.some(path => !nativeEqual(nativeGet(source,path),nativeGet(next,path)))) throw new Error("La modifica include dati riservati o gestiti automaticamente.");
++  for (const [id,activity] of Object.entries(next.system?.activities || {})) {
++    if(nativeEqual(activity,source.system?.activities?.[id]))continue;
++    if (!/^[A-Za-z0-9]{16}$/.test(id) || activity?._id !== id || !activity.type) throw new Error("Attività non valida.");
++    const previous = source.system?.activities?.[id];
++    if (previous && (activity._id !== previous._id || activity.type !== previous.type)) throw new Error("Il tipo di un’attività esistente non può essere cambiato.");
++  }
++  return next;
++}
++export function nativeEntities(actor, permissions = {}) {
++  const entities = [{ key:`Actor::${actor._id}`, target:{type:"Actor",id:actor._id}, name:actor.name, type:"Actor", category:"stats", data:nativeEntityData(actor,"Actor",permissions) }];
++  for (const item of actor.items || []) {
++    const category = item.type === "spell" ? "spells" : ["feat","weapon"].includes(item.type) ? "abilities" : "inventory";
++    entities.push({key:nativeTargetKey({type:"Item",id:item._id}),target:{type:"Item",id:item._id},type:"Item",itemType:item.type,activityReadOnly:nativeActivitiesAmbiguous(item),name:item.name,img:item.img,category,data:nativeEntityData(item,"Item",permissions)});
++    for (const effect of item.effects || []) entities.push({key:nativeTargetKey({type:"ActiveEffect",id:effect._id,itemId:item._id}),target:{type:"ActiveEffect",id:effect._id,itemId:item._id},type:"ActiveEffect",name:effect.name,img:effect.img,parentName:item.name,category:"effects",data:nativeEntityData(effect,"ActiveEffect",permissions)});
++  }
++  for (const effect of actor.effects || []) entities.push({key:nativeTargetKey({type:"ActiveEffect",id:effect._id}),target:{type:"ActiveEffect",id:effect._id},type:"ActiveEffect",name:effect.name,img:effect.img,category:"effects",data:nativeEntityData(effect,"ActiveEffect",permissions)});
++  return entities;
++}
++export function nativeFindDocument(actor, target) {
++  if (target?.type === "Actor") return target.id === actor._id ? actor : null;
++  if (target?.type === "Item") return (actor.items || []).find(item => item._id === target.id) || null;
++  if (target?.type === "ActiveEffect") { const parent = target.itemId ? (actor.items || []).find(item => item._id === target.itemId) : actor; return (parent?.effects || []).find(effect => effect._id === target.id) || null; }
++  return null;
++}
++export function nativeNewId() { const bytes = new Uint8Array(8); crypto.getRandomValues(bytes); return Array.from(bytes, value => value.toString(16).padStart(2,"0")).join(""); }
++export function nativeActivityTemplate(type, name = "Nuova attività") {
++  const id = nativeNewId();
++  const activity = {_id:id,type,name,activation:{type:"action",value:1,override:true},consumption:{targets:[],scaling:{allowed:false},spellSlot:false},description:{chatFlavor:""},duration:{units:"inst",override:true},effects:[],range:{value:"5",units:"ft",override:true},target:{affects:{count:"1",type:"creature",choice:false},template:{units:"ft"},prompt:true,override:true},uses:{spent:0,max:"",recovery:[]}};
++  if (type === "attack") activity.damage={includeBase:false,parts:[],critical:{bonus:""}};
++  if (type === "save") activity.damage={onSave:"none",parts:[]};
++  if (type === "damage") activity.damage={parts:[],critical:{allow:false,bonus:""}};
++  if (type === "attack") activity.attack={ability:"",bonus:"0",flat:true,type:{value:"melee",classification:"weapon"},critical:{threshold:null}};
++  if (type === "save") activity.save={ability:["con"],dc:{calculation:"",formula:"10"}};
++  if (type === "heal") activity.healing={number:1,denomination:8,bonus:"",types:["healing"],custom:{enabled:false,formula:""},scaling:{mode:"",number:null,formula:""}};
++  if (type === "utility") activity.roll={prompt:false,visible:false,name:"",formula:""};
++  return activity;
++}

@@ -1,5 +1,7 @@
 # Creazione capacità NPC con AI
 
+Per **Cripta di Sangue con snapshot nativo**, le nuove proposte usano la [generazione integrata nel nuovo editor](npc-ai-editor.md): contesto dalle meccaniche native con versioni, attività multiple e stessi controlli della scheda. Il percorso descritto sotto rimane attivo per le altre campagne, per gli NPC senza snapshot e per le bozze precedenti.
+
 In **Modifica → Capacità → Crea abilità con AI**, il DM della campagna o l’admin descrive una capacità. Il Worker legge la scheda meccanica salvata (statistiche, GS, risorse, capacità, multiattacco, effetti e attività), genera una proposta e la conserva come bozza privata. Non invia account, dossier, biografia o macro. Se la scheda supera il limite di contesto di 80.000 byte UTF-8, rifiuta la richiesta prima della chiamata API, senza tagliare abilità in silenzio.
 
 L’anteprima mostra subito le regole e l’eventuale icona. **Modifica valori, effetti e icona** apre i campi guidati; **Salva bozza** non usa API a pagamento. Le modifiche non salvate rimangono nella sessione del browser. **Rivedi con AI** usa la bozza corrente e le nuove istruzioni. I valori modificati aggiornano la descrizione meccanica in modo deterministico; la motivazione del bilanciamento è quella dell’ultima proposta AI, non una certificazione automatica del GS.

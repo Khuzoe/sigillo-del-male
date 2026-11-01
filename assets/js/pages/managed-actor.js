@@ -443,6 +443,12 @@
     }
 
     function renderManagedActor(root, actor, canEdit, editing = false, canManageActor = false) {
+        root._managedNpcReaderCleanup?.();
+        root._managedNpcReader = null;
+        root._managedNpcReaderLoad = null;
+        root._managedCompleteEditor = null;
+        root._managedCompleteLoad = null;
+        root.classList.remove("has-complete-editor");
         root._managedDossierCleanup?.();
         if (managedActorLinkRefreshTimer) window.clearTimeout(managedActorLinkRefreshTimer);
         managedActorLinkRefreshTimer = 0;
@@ -569,6 +575,8 @@
         setupManagedProfileEditor(root, editMode);
         setupManagedActorLinkControls(root);
         setupManagedDraftTracking(root, editMode);
+        if (!editMode && actor.actorType === "npc") setupManagedReadingView(root);
+        if (editMode && actor.actorType === "npc" && currentCanManageActor) setupManagedCompleteEditor(root, actor);
         root._managedNpcUpdateDraft?.();
         scheduleManagedCommandRefresh(root);
         {
@@ -789,11 +797,15 @@
     }
 
     function renderManagedProfileOnly(root, profile) {
+        root._managedNpcReaderCleanup?.();
+        root._managedNpcReader = null;
+        root._managedNpcReaderLoad = null;
         root._managedDossierCleanup?.();
         const media = profile.media || {};
         const avatarPath = media.avatar?.path || media.idle?.path || "";
         const hasAnimation = Boolean(media.idle?.path || media.hover?.path);
         root.classList.add("is-viewing", "is-profile-only", "is-npc");
+        root.classList.remove("is-editing", "has-complete-editor", "has-npc-reader");
         root.classList.toggle("has-npc-art", Boolean(avatarPath));
         document.title = `${profile.name || "NPC"} - Cripta di Sangue`;
         root.innerHTML = `<nav class="managed-actor-breadcrumb" aria-label="Navigazione scheda"><a href="../npcs.html"><i class="fas fa-arrow-left"></i> Torna agli NPC</a></nav>
@@ -1399,6 +1411,7 @@
         button.disabled = true;
         let saved = 0;
         try {
+            root._managedCompleteEditor?.validate();
             // Validate every existing editor before sending the first change.
             const actorHasChanges = collectManagedActorPatches(root).length > 0
                 || (currentCanManageActor && hasManagedPresentationChanges(root, managedEditorSnapshot || currentDocument));
@@ -1414,6 +1427,11 @@
                 }
             }
             root.inert = true;
+            if (root._managedCompleteEditor?.dirty()) {
+                status.textContent = "Invio modifiche alla scheda...";
+                await root._managedCompleteEditor.save();
+                saved += 1;
+            }
             if (currentProfilePermissions.canEdit && (managedProfileDirty || managedProfileSource === "legacy")) {
                 status.textContent = "Salvataggio dossier...";
                 await saveManagedActorProfile(root, token);
@@ -2003,7 +2021,8 @@
         const editActions = editMode
             ? '<span class="managed-save-status" data-managed-status></span><button type="button" class="managed-command-secondary" data-managed-edit-toggle="view"><i class="fas fa-xmark"></i><span>Chiudi</span></button><button type="button" class="managed-command-primary" data-managed-save><i class="fas fa-cloud-arrow-up"></i><span>Salva scheda</span></button>'
             : '<button type="button" class="managed-command-primary" data-managed-edit-toggle="edit"><i class="fas fa-pen-to-square"></i><span>Modifica</span></button>';
-        const actions = canEdit ? lifecycleAction + editActions : "";
+        const sheetAiAction=actor.actorType==='npc'&&actor.permissions?.isEditor===true?`<button type="button" class="managed-command-secondary" data-managed-ai-sheet ${actor.sync?.commands?.some(command=>command.nativeSheetVersion&&command.status==='pending')?'disabled':''}><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i><span>Modifica NPC con AI</span></button>`:'';
+        const actions = canEdit ? sheetAiAction + lifecycleAction + editActions : "";
         return `<div class="managed-command-bar"><nav class="managed-section-nav" aria-label="Sezioni della scheda"><div>${links.map(([id, icon, label]) => `<a href="#${id}"><i class="fas ${icon}" aria-hidden="true"></i><span>${escapeHtml(label)}</span></a>`).join("")}</div></nav><div class="managed-command-actions">${syncIndicator}${actions}</div></div>`;
     }
     function setupManagedStickyLayout(root) {
@@ -3152,7 +3171,7 @@
                 : activity?.name;
             return `<div class="managed-effective-roll-row">${showNames ? `<b>${escapeHtml(activityTitle || "Attività")}</b>` : ""}<div>${damage}${save}${tactical}</div></div>`;
         }).join("");
-        return `<div class="managed-effective-rolls" aria-label="Danni e CD effettivi da Foundry">${rows}</div>`;
+        return `<div class="managed-effective-rolls" aria-label="Danni e tiri">${rows}</div>`;
     }
     function renderManagedEntryCard(entry, canEdit, groupKey, collectionKind = "capabilities", collectionEntries = []) {
         if (collectionKind === "inventory") return renderManagedInventoryEntryCard(entry, canEdit, groupKey, collectionEntries);
@@ -3178,6 +3197,23 @@
         const rechargeBadge = recharge ? renderManagedRechargeBadge(recharge) : "";
         const specialBadges = legendaryBadge || rechargeBadge ? `<div class="managed-capability-badges">${legendaryBadge}${rechargeBadge}</div>` : "";
         if (npcLayout) {
+            if (!canEdit) {
+                const rules = renderManagedAbilityRules(entry, true, true);
+                const inlineUsage = rules.startsWith('<dl class="npc-reader-use"') ? rules : "";
+                return `<article class="managed-entry managed-npc-capability npc-reader-card" data-managed-item-card="${escapeAttr(entry.transferId || entry.itemId || "")}" data-managed-read-key="${escapeAttr(entry.itemId || entry.transferId || "")}" data-managed-entry-search-value="${escapeAttr(searchText)}" data-managed-entry-level="${level}" data-managed-entry-group-key="${escapeAttr(groupKey)}"${preparationAttribute}>
+                    <header class="managed-npc-capability-heading">
+                        ${icon ? `<img src="${escapeAttr(resolveMedia(icon))}" alt="" loading="lazy" decoding="async">` : `<div class="managed-entry-icon" aria-hidden="true"><i class="fas ${groupKey === "legendary" ? "fa-crown" : "fa-dice-d20"}"></i></div>`}
+                        <div class="managed-entry-title"><h3>${escapeHtml(entry.name || "Capacità")}</h3>${meta ? `<span>${escapeHtml(meta)}</span>` : ""}</div>
+                        ${currentDocument?.permissions?.isEditor?`<button type="button" class="npc-reader-ai-action managed-avatar-generate-btn" data-managed-ai-edit="${escapeAttr(entry.itemId)}"${command?.status==="pending"?' disabled title="Modifiche in attesa di Foundry"':""}><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Modifica con AI</button>`:""}
+                    </header>
+                    ${specialBadges || preparationBadge || inlineUsage ? `<div class="npc-reader-badges">${inlineUsage}${specialBadges}${preparationBadge}</div>` : ""}
+                    ${status}
+                    ${effectiveRolls ? `<section class="npc-reader-rolls"><h4>Danni e tiri</h4>${effectiveRolls}</section>` : ""}
+                    ${description ? `<section class="npc-reader-story"><h4>Descrizione</h4>${renderManagedNpcAbilityDescription(description, true)}</section>` : ""}
+                    ${inlineUsage ? "" : rules}
+                    ${!description && !rules && !effectiveRolls ? '<p class="npc-reader-note">Non sono presenti altri dettagli per questa capacità.</p>' : ""}
+                </article>`;
+            }
             const rules = renderManagedAbilityRules(entry, true);
             const compactUsage = rules.startsWith('<dl class="managed-npc-ability-usage">') ? rules : "";
             const mechanics = `${effectiveRolls}${compactUsage ? "" : rules}`;
@@ -3206,13 +3242,13 @@
         return attributes[target.target] || (target.type === "attribute" ? managedActorFieldLabel(`system.${target.target}`) : target.target || target.type || "risorsa");
     }
 
-    function renderManagedNpcAbilityDescription(description) {
+    function renderManagedNpcAbilityDescription(description, expanded = false) {
         if (!description) return "";
-        if (description.length <= 420) return `<div class="managed-npc-ability-description">${formatManagedPreview(description)}</div>`;
+        if (expanded || description.length <= 420) return `<div class="managed-npc-ability-description">${formatManagedPreview(description)}</div>`;
         return `<details class="managed-npc-ability-story"><summary><span class="managed-npc-story-preview">${formatManagedPreview(truncatePreview(description, 340))}</span><span class="managed-npc-story-toggle"><span class="when-closed">Leggi tutto</span><span class="when-open">Riduci testo</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-npc-ability-description">${formatManagedPreview(description)}</div></details>`;
     }
 
-    function renderManagedAbilityRules(entry, npcLayout = false) {
+    function renderManagedAbilityRules(entry, npcLayout = false, reading = false) {
         const activities = Object.entries(entry.definition?.activities || {});
         if (!activities.length) return "";
         const activationLabels = { action: "Azione", bonus: "Azione bonus", reaction: "Reazione", legendary: "Azione leggendaria", lair: "Azione di tana", special: "Speciale", none: "Nessuna azione" };
@@ -3223,28 +3259,48 @@
             const targets = managedRawCollectionValues(activity.consumption?.targets);
             const rows = [];
             const add = (label, value) => { if (value) rows.push(`<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`); };
-            add("Attivazione", npcLayout && !activation.type ? "" : `${activationLabels[activation.type] || activation.type || "Non specificata"}${activation.value && (!npcLayout || Number(activation.value) !== 1 || activation.type === "legendary") ? ` · costo ${activation.value}` : ""}`);
+            const timeUnits = {minute:["minuto","minuti"],hour:["ora","ore"],day:["giorno","giorni"]};
+            const timing = reading && timeUnits[activation.type];
+            add("Attivazione", timing
+                ? `${activation.value || 1} ${timing[Number(activation.value || 1) === 1 ? 0 : 1]}`
+                : npcLayout && !activation.type ? "" : `${activationLabels[activation.type] || activation.type || "Non specificata"}${activation.value && (!npcLayout || Number(activation.value) !== 1 || activation.type === "legendary") ? ` · costo ${activation.value}` : ""}`);
             add("Consumo", targets.map((target) => `${target.value ?? "?"} ${managedConsumptionLabel(target)}`).join("; ") || (npcLayout ? "" : "Nessuna risorsa indicata"));
             const healing = activity.type === "heal" ? summarizeManagedRawDamage(activity.healing, entry, activity, "primary") : null;
             if (healing) add("Cura", healing.formula);
+            const ruleset = entry.definition?.flags?.["khuzoe-automations"]?.npcRules;
+            const preset = reading && ruleset?.version === 1 ? ruleset.activities?.[activity._id || id] : null;
+            const conditionIds = managedRawCollectionValues(preset?.conditions).filter(Boolean);
+            const healingFilter=preset?.healingTypes?.length?` di tipo ${preset.healingTypes.map(formatManagedTraitValue).join(", ")}`:"";
+            if (Number(preset?.healing) === 0.5) add("Cura dai danni", `Chi usa la capacità recupera PF pari alla metà dei danni effettivamente inflitti${healingFilter}, arrotondata per difetto.`);
+            if (Number(preset?.healing) === 1) add("Cura dai danni", `Chi usa la capacità recupera PF pari a tutti i danni effettivamente inflitti${healingFilter}.`);
+            if (conditionIds.length) {
+                const when = activity.type === "save" ? "Con TS fallito" : activity.type === "attack" ? "Se l’attacco colpisce" : "Sul bersaglio";
+                add(when, conditionIds.map(formatManagedTraitValue).join(", "));
+                const rounds = Number(preset.rounds ?? 1);
+                add("Durata condizioni", rounds === 0 ? "Finché rimosse" : `${rounds} ${rounds === 1 ? "round" : "round"} · ${preset.expiry === "turnStart" ? "inizio" : "fine"} del turno`);
+            }
             const trigger = activity.midiProperties?.triggeredActivityId;
             if (trigger && trigger !== "none") add("Attività successiva", entry.definition.activities[trigger]?.name || entry.definition.activities[trigger]?.type || "Collegamento a un'attività non presente nei dati");
             if (activity.isOverTimeFlag === true) add("Periodicità", "Attività periodica");
             if (activity.regionBehavior?.enabled === true) add("Area persistente", "Configurata");
-            if (activity.macroData?.name) add("Macro associata", activity.macroData.name);
+            if (!reading && activity.macroData?.name) add("Macro associata", activity.macroData.name);
             const effects = managedRawCollectionValues(activity.effects).map((reference) => {
                 const effect = managedRawCollectionValues(entry.definition?.effects).find((candidate) => (candidate._id || candidate.id) === reference._id);
-                const when = activity.type === "save" ? (reference.onSave === true ? "Collegato anche al TS riuscito" : "Collegato al TS fallito") : "Collegato all'attività";
-                return `<li><strong>${escapeHtml(effect?.name || "Effetto collegato")}</strong><span>${escapeHtml(when)}</span>${effect ? `<small>${escapeHtml(managedRawCollectionValues(effect.statuses).map(formatManagedTraitValue).join(", "))}</small>` : '<small class="managed-rule-warning">Dettagli non disponibili.</small>'}</li>`;
+                if (reading && conditionIds.length && effect?.disabled !== true && effect?.flags?.["khuzoe-automations"]?.npcRule && managedRawCollectionValues(effect.statuses).length && managedRawCollectionValues(effect.statuses).every(status => conditionIds.includes(status))) return "";
+                const when = activity.type === "save" ? (reference.onSave === true ? "Anche con TS riuscito" : "Con TS fallito") : activity.type === "attack" ? "Se l’attacco colpisce" : "All’uso della capacità";
+                return `<li${reading && effect?.disabled ? ' class="is-disabled"' : ""}><strong>${escapeHtml(effect?.name || "Effetto collegato")}</strong><span>${reading && effect?.disabled ? "Disattivato · " : ""}${escapeHtml(when)}</span>${effect ? `<small>${escapeHtml(managedRawCollectionValues(effect.statuses).map(formatManagedTraitValue).join(", "))}</small>` : '<small class="managed-rule-warning">Dettagli non disponibili.</small>'}</li>`;
             }).join("");
             const legendaryMismatch = activation.type === "legendary" && targets.length && !targets.some((target) => target.type === "attribute" && target.target === "resources.legact.value" && Number(target.value) === Number(activation.value));
             if (npcLayout && !rows.length && !effects && !legendaryMismatch) return "";
+            if (reading && activities.length === 1 && rows.length === 1 && rows[0].includes('<dt>Attivazione</dt>') && !effects && !legendaryMismatch) return `<dl class="npc-reader-use">${rows[0]}</dl>`;
+            if (reading) return `<section class="npc-reader-rule-activity"><h5>${escapeHtml(activities.length > 1 ? activity.name || types[activity.type] || "Attività" : "Come si usa")}</h5>${rows.length ? `<dl>${rows.join("")}</dl>` : ""}${effects ? `<h6>Effetti sul bersaglio</h6><ul class="managed-linked-effects">${effects}</ul>` : ""}</section>`;
             if (npcLayout && activities.length === 1 && rows.length === 1 && !effects && !legendaryMismatch) {
                 compactUsage = true;
                 return `<dl class="managed-npc-ability-usage">${rows.join("")}</dl>`;
             }
             return `<section class="managed-rule-readout">${!npcLayout || activities.length > 1 ? `<h4>${escapeHtml(activity.name || types[activity.type] || "Attività")}</h4>` : ""}${rows.length ? `<dl>${rows.join("")}</dl>` : ""}${effects ? `${npcLayout ? '<h5 class="managed-npc-effects-heading">Effetti collegati</h5>' : ""}<ul class="managed-linked-effects">${effects}</ul>` : ""}${legendaryMismatch ? '<p class="managed-rule-warning">Il consumo configurato non corrisponde al costo in azioni leggendarie. Controlla la risorsa prima di usare l’abilità.</p>' : ""}</section>`;
         }).join("");
+        if (reading) return cards.startsWith('<dl class="npc-reader-use"') ? cards : cards ? `<div class="npc-reader-rules">${cards}</div>` : "";
         if (npcLayout) return compactUsage ? cards : cards ? `<details class="managed-npc-ability-details"><summary><span>Dettagli di gioco</span><i class="fas fa-chevron-down" aria-hidden="true"></i></summary><div class="managed-npc-ability-detail-body">${cards}</div></details>` : "";
         return `<details class="managed-ability-rules"><summary><span><i class="fas fa-list-check"></i> Regole ed effetti</span><span>${activities.length}</span></summary>${cards}</details>`;
     }
@@ -3677,6 +3733,7 @@
 
     function setupManagedCollectionControls(root) {
         root.querySelectorAll("[data-managed-collection]").forEach((collection) => {
+            if (collection.dataset.managedReadHandled === "true") return;
             const search = collection.querySelector("[data-managed-entry-search]");
             const buttons = Array.from(collection.querySelectorAll("[data-managed-entry-filter]"));
             const inventoryButtons = Array.from(collection.querySelectorAll("[data-managed-inventory-filter]"));
@@ -3785,6 +3842,7 @@
         const avatar = root.querySelector(".managed-avatar-button [data-managed-avatar-layer]");
         const blocks = Array.from(dossier.querySelectorAll(".managed-profile-block"));
         const illustrations = blocks.map((block) => ({ block, image: block.querySelector(".managed-profile-block-image img"), textLength: (block.querySelector(".managed-profile-markdown")?.textContent || "").trim().length })).filter(({ image }) => image);
+        dossier.classList.toggle("has-long-illustrated-opening", !editing && illustrations.some(({block,textLength})=>block===blocks[0] && textLength>700 && !block.classList.contains("managed-profile-block--banner_box")));
         let identitySlot, contents;
         if (!editing) {
             dossier.classList.add("is-dossier-reader");
@@ -3819,6 +3877,37 @@
                 label.setAttribute("aria-hidden", "true");
                 label.textContent = String(index + 1).padStart(2, "0");
                 if (heading) heading.prepend(label);
+                const illustration = illustrations.find(entry=>entry.block === block);
+                if (index > 0 && illustration?.textLength > 0 && illustration.textLength < 400 && !block.classList.contains("managed-profile-block--banner_box")) {
+                    const body = block.querySelector(".managed-profile-block-body");
+                    const image = body?.querySelector(".managed-profile-block-image");
+                    if (body && image) {
+                        const copy = document.createElement("div");copy.className = "managed-dossier-brief-copy";
+                        for (const node of Array.from(body.childNodes)) if (node !== image) copy.append(node);
+                        body.prepend(copy);block.classList.add("is-brief-illustrated");
+                    }
+                }
+                if (index === 0 && dossier.classList.contains("has-long-illustrated-opening")) {
+                    const markdown = block.querySelector(".managed-profile-markdown");
+                    const paragraphs = Array.from(markdown?.children || []).filter(node=>node.tagName === "P" && node.textContent.trim());
+                    const image = block.querySelector(".managed-profile-block-image");
+                    if (paragraphs.length > 1 && image) {
+                        // Keep the opening paragraph beside the portrait. Its own
+                        // illustration then accompanies the remaining paragraphs,
+                        // with no competing portrait columns or duplicated text.
+                        const lead = document.createElement("div");
+                        lead.className = "managed-profile-markdown managed-dossier-lead-copy";
+                        const continuation = document.createElement("div");
+                        continuation.className = "managed-dossier-opening-continuation";
+                        while (markdown.firstChild) {
+                            const node = markdown.firstChild;lead.append(node);
+                            if (node === paragraphs[0]) break;
+                        }
+                        image.before(lead,continuation);
+                        continuation.append(image,markdown);
+                        block.classList.add("has-reading-lead");
+                    }
+                }
             });
             if (blocks[0]) {
                 blocks[0].classList.add("is-opening-chapter");
@@ -3860,6 +3949,22 @@
             }
         }
         let frame = 0;
+        let chapterFrame = 0;
+        const updateCurrentChapter = () => {
+            chapterFrame = 0;
+            if (!contents || !dossier.clientWidth) return;
+            const anchorOffset = (parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0)
+                + (parseFloat(getComputedStyle(blocks[0]).scrollMarginTop) || 0);
+            const offset = Math.max((root.querySelector(".managed-command-bar")?.getBoundingClientRect().bottom || 0) + 40, anchorOffset + 8);
+            let active = blocks[0];
+            for (const block of blocks) if (block.getBoundingClientRect().top <= offset) active = block;
+            contents.querySelectorAll("nav a").forEach((link,index) => {
+                if (blocks[index] === active) link.setAttribute("aria-current","location");
+                else link.removeAttribute("aria-current");
+            });
+        };
+        const scheduleCurrentChapter = () => { if (!chapterFrame) chapterFrame = window.requestAnimationFrame(updateCurrentChapter); };
+        if (contents) window.addEventListener("scroll",scheduleCurrentChapter,{passive:true});
         let compact;
         let initialChapter = editing ? null : blocks.find((block) => `#${block.id}` === window.location.hash);
         const cancelInitialAnchor = () => {
@@ -3889,6 +3994,7 @@
             }
             // Keep a direct chapter link aligned while preceding images load; user input ends it.
             initialChapter?.scrollIntoView({ block: "start", behavior: "instant" });
+            updateCurrentChapter();
         };
         const schedule = () => { if (!frame) frame = window.requestAnimationFrame(update); };
         const images = [avatar, ...illustrations.map(({ image }) => image)].filter(Boolean);
@@ -3901,6 +4007,8 @@
             cancelInitialAnchor();
             observer.disconnect();
             if (frame) window.cancelAnimationFrame(frame);
+            if (chapterFrame) window.cancelAnimationFrame(chapterFrame);
+            window.removeEventListener("scroll",scheduleCurrentChapter);
             images.forEach((image) => image.removeEventListener("load", schedule));
             root._managedDossierCleanup = null;
         };
@@ -3914,6 +4022,112 @@
             || Object.values(profile.summary || {}).some(hasValue)
             || (profile.blocks || []).some((block) => hasValue(block.text) || hasValue(block.image) || hasValue(block.banner))
         ));
+    }
+
+    async function setupManagedReadingView(root) {
+        const marker = {};
+        root._managedNpcReaderLoad = marker;
+        try {
+            const {mountNpcReadingView} = await import("../shared/npc-reading-view.mjs?v=20261031-read1");
+            if (!root.isConnected || root._managedNpcReaderLoad !== marker || !root.classList.contains("is-viewing")) return;
+            const reader = mountNpcReadingView(root);
+            root._managedNpcReader = reader;
+            root._managedNpcReaderCleanup = reader ? () => { reader.destroy();root._managedNpcReaderCleanup=null; } : null;
+            root._managedNpcOpenHash?.();
+        } catch(error) { console.warn("Vista di lettura delle capacità non disponibile",error); }
+    }
+
+    async function setupManagedCompleteEditor(root, actor) {
+        const marker = {};
+        const hiddenPanels = [];
+        root._managedCompleteLoad = marker;
+        const endpoint = `api/managed-actors/${encodeURIComponent(actor.worldId)}/${encodeURIComponent(actor.actorId)}/editor`;
+        try {
+            const [module, result] = await Promise.all([
+                import("../shared/npc-sheet-editor.mjs?v=20261031-edit1"),
+                window.CriptaApp.api.get(endpoint, { token: getToken(), cache: false })
+            ]);
+            if (root._managedCompleteLoad !== marker || !managedEditMode || !root.isConnected) return;
+            // Do not replace controls underneath someone who started typing while
+            // the full source was loading. The next entry into edit mode retries.
+            if (hasManagedUnsavedChanges(root)) return;
+            const panes = [
+                { id: "stats", categories: ["stats"], label: "Statistiche" },
+                { id: "actions", categories: ["abilities", "spells"], label: "Capacità e incantesimi" },
+                { id: "inventory", categories: ["inventory"], label: "Inventario" },
+                { id: "effects", categories: ["effects"], label: "Effetti" }
+            ].map(pane => ({ ...pane, node: root.querySelector(`#managed-npc-${pane.id}`) })).filter(pane => pane.node);
+            const legacy = new Map();
+            for (const pane of panes) {
+                const original = Array.from(pane.node.children);
+                const tools = document.createElement("details");
+                tools.className = "npc-sheet-tools";
+                tools.innerHTML = '<summary>Crea elementi e altri strumenti</summary><div></div>';
+                const dock = tools.lastElementChild;
+                for (const child of original) {
+                    if (child.id === "managed-shop") continue;
+                    child.querySelectorAll(".managed-ability-ai, [data-managed-item-create-form], .managed-catalog-picker, .managed-effect-create").forEach(node => dock.append(node));
+                    child.hidden = true;
+                    hiddenPanels.push(child);
+                    legacy.set(child.id,child);
+                }
+                if (dock.children.length) pane.node.append(tools);
+            }
+            const findForm = entity => entity.type === "Item"
+                ? Array.from(root.querySelectorAll("[data-managed-item-form]")).find(form => form.dataset.managedItemId === entity.target.id)
+                : Array.from(root.querySelectorAll("[data-managed-effect-form]")).find(form => form.dataset.managedEffectId === entity.target.id);
+            root._managedCompleteEditor = module.mountNpcSheetEditor({
+                root, source: result.data, panes,
+                onDirty: dirty => { root.dataset.managedDirty = dirty ? "true" : "false"; root._managedNpcUpdateDraft?.(); },
+                onCommands: commands => { for (const command of commands) rememberManagedCommand(command, old => old.id === command.id); },
+                post: payload => window.CriptaApp.api.post(endpoint,payload,{token:getToken()}),
+                getSource: () => window.CriptaApp.api.get(endpoint,{token:getToken(),cache:false}),
+                savePage: () => saveManagedActorPage(root),
+                descriptionHtml: buildManagedDescriptionEditorHtml,
+                descriptionValue: serializeManagedDescriptionEditor,
+                resolveMedia,
+                deleteEntity: async entity => {
+                    if (hasManagedUnsavedChanges(root)) { window.alert("Salva o annulla le modifiche prima di eliminare un elemento."); return; }
+                    const form = findForm(entity), button = form?.querySelector(entity.type === "Item" ? "[data-managed-item-delete]" : "[data-managed-effect-delete]");
+                    if (button) button.click();
+                    else if (window.confirm(`Eliminare “${entity.name}” da Foundry?`)) {
+                        try {
+                            const response = await postManagedActorCommand({kind:entity.type === "Item" ? "item.delete" : "effect.delete",target:entity.type === "Item" ? {itemId:entity.target.id} : {effectId:entity.target.id}},getToken());
+                            rememberManagedCommand(response.command,old=>old.id===response.command.id);
+                            window.alert("Eliminazione inviata. Aggiorna la scheda dopo la sincronizzazione con Foundry.");
+                        } catch(error) { window.alert(error.message || "Eliminazione non inviata."); }
+                    }
+                },
+                onEditWithAi: currentDocument?.permissions?.isEditor ? entity => openManagedAbilityAiEdit(root,{id:entity.target.id,name:entity.name}) : undefined,
+                iconEditor: entity => {
+                    if (hasManagedUnsavedChanges(root)) { window.alert("Salva o annulla le modifiche prima di cambiare icona."); return; }
+                    const form = findForm(entity), input = form?.querySelector("[data-managed-item-icon]");
+                    if (!input) { window.alert("L’icona di questa copia va aggiornata da Foundry."); return; }
+                    input.addEventListener("change", () => { if(input.files?.length) enqueueManagedItemUpdate(form.querySelector("[data-managed-item-save]")); }, {once:true});
+                    input.click();
+                }
+            });
+            const actionsPane=root.querySelector("#managed-npc-actions"),aiTools=actionsPane?.querySelector(".npc-sheet-tools .managed-ability-ai"),editorHeading=actionsPane?.querySelector(".npc-sheet-heading");
+            if(aiTools&&editorHeading){const tools=document.createElement("div");tools.className="npc-sheet-primary-tools";tools.append(aiTools);editorHeading.after(tools);}
+            root.classList.add("has-complete-editor");
+            const navigation = root.querySelector(".managed-npc-tabs");
+            const refreshPane = () => root._managedCompleteEditor?.show(navigation.querySelector('[aria-selected="true"]')?.dataset.managedTab);
+            navigation?.addEventListener("click", refreshPane);
+            navigation?.addEventListener("keydown", refreshPane);
+            for (const pane of panes) {
+                const count = root.querySelector(`#managed-npc-${pane.id}-tab small`);
+                if (count) count.textContent = String(result.data.entities.filter(entity=>pane.categories.includes(entity.category)).length);
+            }
+            const name = root.querySelector('.managed-actor-hero [data-managed-actor-path="name"]');
+            if (name) name.disabled = true;
+            root._managedNpcUpdateDraft?.();
+        } catch (error) {
+            for (const panel of hiddenPanels) panel.hidden = false;
+            root.querySelectorAll(".npc-sheet-editor").forEach(node=>node.remove());
+            // The existing editor remains available for campaigns without the
+            // pilot, NPCs awaiting their source and temporarily offline APIs.
+            if (![403,404].includes(error.status) && !["NPC_EDITOR_DISABLED","NPC_SNAPSHOT_PENDING"].includes(error.code)) console.warn("Editor completo NPC non disponibile", error);
+        }
     }
 
     function setupManagedNpcWorkspace(root, actor, editing) {
@@ -4026,6 +4240,7 @@
             }
         });
         root._managedNpcReveal = (control) => {
+            root._managedNpcReader?.reveal(control);
             const pane = control?.closest?.("[data-managed-npc-pane]");
             if (pane) activate(pane.id);
             const form = control?.closest?.("[data-managed-item-form]");
@@ -4262,7 +4477,7 @@
     function findManagedItemCommand(entry) {
         const commands = Array.isArray(currentDocument?.sync?.commands) ? currentDocument.sync.commands : [];
         return commands.find((command) => String(command.kind || "").startsWith("item.")
-            && ((entry.transferId && command.target?.transferId === entry.transferId) || (!entry.transferId && entry.itemId && command.target?.itemId === entry.itemId))) || null;
+            && ((command.nativeEditorVersion && command.target?.type==="Item" && command.target.id===entry.itemId) || (entry.transferId && command.target?.transferId === entry.transferId) || (!entry.transferId && entry.itemId && command.target?.itemId === entry.itemId))) || null;
     }
 
     function renderManagedItemSyncStatus(command) {
@@ -4667,13 +4882,32 @@
         return `<div class="managed-avatar-generation"><button type="button" class="managed-avatar-generate-btn" data-managed-generate-avatar ${descriptor?.path ? "" : 'disabled title="Carica e salva prima un avatar da usare come riferimento"'}><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Genera avatar</button><small data-managed-generate-avatar-status role="status"></small></div>`;
     }
 
+    async function openManagedAbilityAiEdit(root,item) {
+        if (managedSaveInProgress || hasManagedUnsavedChanges(root)) { window.alert("Salva o annulla prima le modifiche alla scheda, poi descrivi la modifica all’AI."); return; }
+        if(!window.CriptaAbilityGenerator){window.alert("Ricarica la pagina per aprire la modifica con AI.");return;}
+        try{await window.CriptaAbilityGenerator.open({actor:currentDocument,token:getToken(),targetItem:item,
+            editorAdapters:{descriptionHtml:buildManagedDescriptionEditorHtml,descriptionValue:serializeManagedDescriptionEditor,resolveMedia},
+            onQueued:command=>{rememberManagedCommand(command,old=>old.id===command.id);renderManagedActor(root,currentDocument,currentCanEdit,managedEditMode,currentCanManageActor);}});
+        }catch(error){window.alert(error.message||"Impossibile aprire la modifica con AI.");}
+    }
     function setupManagedAbilityGenerator(root) {
+        if(currentDocument.sync?.commands?.some(command=>command.nativeSheetVersion&&command.status==='pending'))for(const button of root.querySelectorAll('[data-managed-ai-edit],[data-managed-generate-ability],[data-managed-suggest-npc]')){button.disabled=true;button.title='Attendi il completamento della modifica completa in Foundry.';}
+        root.querySelectorAll('[data-managed-ai-sheet]').forEach(button=>button.addEventListener('click',async()=>{
+            if(managedSaveInProgress||hasManagedUnsavedChanges(root)){window.alert('Salva o annulla prima le modifiche alla scheda.');return;}
+            if(!window.CriptaNpcSheetAi){window.alert('Ricarica la pagina per aprire la modifica completa con AI.');return;}
+            try{await window.CriptaNpcSheetAi.open({actor:currentDocument,token:getToken(),editorAdapters:{descriptionHtml:buildManagedDescriptionEditorHtml,descriptionValue:serializeManagedDescriptionEditor,resolveMedia},onQueued:command=>{rememberManagedCommand(command,old=>old.id===command.id);renderManagedActor(root,currentDocument,currentCanEdit,managedEditMode,currentCanManageActor);}});}
+            catch(error){window.alert(error.message||'Impossibile aprire l’assistente NPC.');}
+        }));
+        root.querySelectorAll("[data-managed-ai-edit]").forEach(button=>button.addEventListener("click",()=>{
+            const item=currentDocument.definition?.items?.find(item=>item.itemId===button.dataset.managedAiEdit);
+            if(item)openManagedAbilityAiEdit(root,{id:item.itemId,name:item.name});
+        }));
         root.querySelectorAll("[data-managed-generate-ability], [data-managed-suggest-npc]").forEach(button => button.addEventListener("click", async () => {
             const status = button.closest(".managed-ability-ai").querySelector("[data-managed-generate-ability-status]");
             if (managedSaveInProgress || hasManagedUnsavedChanges(root)) { status.textContent = "Salva prima le modifiche alla scheda, poi crea l’abilità."; return; }
             if (!window.CriptaAbilityGenerator) { status.textContent = "Ricarica la pagina per aprire il generatore."; return; }
             try {
-                const openGenerator = initialDetails => window.CriptaAbilityGenerator.open({actor: currentDocument, token: getToken(), initialDetails, onQueued: async command => {
+                const openGenerator = initialDetails => window.CriptaAbilityGenerator.open({actor: currentDocument, token: getToken(), initialDetails,editorAdapters:{descriptionHtml:buildManagedDescriptionEditorHtml,descriptionValue:serializeManagedDescriptionEditor,resolveMedia}, onQueued: async command => {
                     rememberManagedCommand(command, entry => entry.id === command.id);
                     renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
                 }});
@@ -5261,6 +5495,7 @@
 
     function hasManagedUnsavedChanges(root) {
         if (!managedEditMode) return false;
+        if (root._managedCompleteEditor?.dirty()) return true;
         if (managedProfileDirty || managedProfileFiles.size) return true;
         try {
             if (collectManagedActorPatches(root, false).length) return true;
