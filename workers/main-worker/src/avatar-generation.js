@@ -2,11 +2,12 @@ import {GENERATION_WAIT_MS, GENERATION_PENDING_MS, generationDeadline, recoverGe
 // The model and base style are fixed; quality and resolution use a server-owned allowlist.
 export const AVATAR_STYLE = "Stylized painterly realism, hand-painted surfaces, textured brush strokes, cinematic character portrait, realistic facial structure, expressive eyes, sophisticated color harmony, dramatic rim lighting, soft global illumination, atmospheric perspective, muted but rich color palette, detailed clothing folds, subtle skin texture, realistic lighting behavior, concept art and illustration hybrid, emotional mood, high production animated series quality, visually rich yet grounded, artistic rendering rather than photorealism, masterfully painted 3D look. fullbody. new pose. 9:16";
 export const AVATAR_MODEL = "gpt-image-2.5-sunburst";
-export const AVATAR_RESOLUTIONS = Object.freeze({ medium: { width: 864, height: 1536 }, high: { width: 1296, height: 2304 } });
+export const AVATAR_RESOLUTIONS = Object.freeze({ medium: { width: 864, height: 1536 }, high: { width: 1296, height: 2304 }, "2k": { width: 1440, height: 2560 } });
+export const AVATAR_QUALITIES = Object.freeze(["medium", "high", "xhigh"]);
 export function avatarGenerationOptions(input = {}) {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
   const quality = input.quality ?? "high", resolution = input.resolution ?? "high";
-  if (!["medium", "high"].includes(quality) || !["medium", "high"].includes(resolution)) return null;
+  if (!AVATAR_QUALITIES.includes(quality) || typeof resolution !== "string" || !Object.hasOwn(AVATAR_RESOLUTIONS, resolution)) return null;
   return { quality, resolution };
 }
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
@@ -76,7 +77,7 @@ export async function handleAvatarGeneration(request, route, campaignId, env, se
     if (!/^[a-f0-9-]{36}$/i.test(body.requestId || "")) return failure("Identificativo richiesta non valido.");
     if (typeof body.details !== "string" || body.details.length > 1500) return failure("La descrizione può contenere fino a 1500 caratteri.");
     const options = avatarGenerationOptions(body);
-    if (!options) return failure("Scegli qualità e risoluzione media o alta.");
+    if (!options) return failure("Scegli qualità media, alta o extra alta e risoluzione media, alta o 2K.");
     const referenceKey = avatarReferenceKey(actor.media?.avatar?.path, campaignId);
     if (!referenceKey) return failure("Prima carica e salva l’avatar attuale sulla wiki: servirà come riferimento.");
     const reference = await env.MEDIA_BUCKET.head(referenceKey);
@@ -113,7 +114,7 @@ export async function handleAvatarGeneration(request, route, campaignId, env, se
   return reply({ ok: true, avatar, revision: savedPayload.revision });
 }
 
-// A single coordinator bounds API usage across all campaigns. The alarm runs the paid
+// A single coordinator runs one generation at a time across all campaigns. The alarm runs the paid
 // request independently of the browser; its persisted running marker prevents paid retries.
 export class AvatarGenerationStore {
   constructor(state, env) {
@@ -138,7 +139,7 @@ export class AvatarGenerationStore {
     const id = action === "latest" ? latest : input.id;
     const job = id ? await storage.get(`job:${id}`) : null;
     if (job && identity(job.context) !== scope) return failure("Anteprima non trovata.", 404);
-    if (action === "latest") return reply({ ok: true, canStop: true, job: publicJob(job) });
+    if (action === "latest") return reply({ ok: true, canStop: true, supportedResolutions: Object.keys(AVATAR_RESOLUTIONS), supportedQualities: AVATAR_QUALITIES, job: publicJob(job) });
     if (action === "create") {
       if (job) return reply({ ok: true, job: publicJob(job) });
       const previous = latest ? await storage.get(`job:${latest}`) : null;
@@ -146,11 +147,8 @@ export class AvatarGenerationStore {
       if (await storage.get("active")) return failure("È già in corso una generazione. Riprova tra qualche minuto.", 409);
       const month = new Date().toISOString().slice(0, 7);
       const used = Number(await storage.get(`usage:${month}`) || 0);
-      const configuredLimit = Number(this.env.AVATAR_MONTHLY_LIMIT ?? 20);
-      const limit = Number.isFinite(configuredLimit) ? Math.max(0, Math.floor(configuredLimit)) : 20;
-      if (used >= limit) return failure("Limite mensile di generazioni raggiunto. Contatta l’amministratore.", 429);
       const next = { id: input.id, context: input.context, referenceKey: input.referenceKey, reference: input.reference, details: input.details, options: input.options, status: "pending", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS };
-      // Transaction covers reservation, deduplication marker and alarm together.
+      // Keep usage history without a monthly cap; save job, deduplication marker and alarm together.
       await storage.transaction(async (tx) => {
         await tx.put({ [`job:${next.id}`]: next, [`latest:${scope}`]: next.id, active: next.id, [`usage:${month}`]: used + 1 });
         await tx.setAlarm(Date.now() + 100);

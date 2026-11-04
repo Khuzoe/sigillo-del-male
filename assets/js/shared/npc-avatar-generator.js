@@ -25,10 +25,12 @@
               <figure><figcaption>Nuova proposta</figcaption><div><img data-preview alt="Anteprima del nuovo avatar" hidden><p data-placeholder>La nuova illustrazione apparirà qui.</p><button type="button" data-enlarge="preview" aria-label="Ingrandisci nuova proposta" hidden>⤢ Ingrandisci</button></div></figure>
             </div>
             <div class="npc-avatar-generator__options">
-              <label>Qualità<select data-quality><option value="medium">Media</option><option value="high" selected>Alta</option></select></label>
-              <label>Risoluzione<select data-resolution><option value="medium">Media · 864 × 1536</option><option value="high" selected>Alta · 1296 × 2304</option></select></label>
+              <label>Qualità<select data-quality aria-describedby="npc-avatar-cost-warning"><option value="medium">Media</option><option value="high" selected>Alta</option><option value="xhigh" disabled>Extra alta · alto costo</option></select></label>
+              <label>Risoluzione<select data-resolution aria-describedby="npc-avatar-cost-warning"><option value="medium">Media · 864 × 1536</option><option value="high" selected>Alta · 1296 × 2304</option><option value="2k" disabled>2K · 1440 × 2560 · alto costo</option></select></label>
             </div>
             <p class="npc-avatar-generator__hint">Qualità e risoluzione più alte consumano più budget.</p>
+            <p class="npc-avatar-generator__cost" id="npc-avatar-cost-warning" data-cost-warning role="note" aria-live="polite" hidden><strong>Solo per NPC importanti, alto costo!</strong></p>
+            <p class="npc-avatar-generator__hint" data-options-unavailable hidden>Queste impostazioni richiedono il Worker aggiornato.</p>
             <label class="npc-avatar-generator__direction">Dettagli aggiuntivi <span>(facoltativi)</span><textarea maxlength="1500" rows="3" data-details placeholder="Ad esempio: posa fiera, mantello mosso dal vento, una cripta sullo sfondo…"></textarea></label>
             <p class="npc-avatar-generator__hint">Figura intera · nuova posa · verticale 9:16. L’avatar attuale viene inviato come riferimento al servizio di generazione OpenAI.</p>
             <details><summary>Stile artistico fisso</summary><p data-style></p></details>
@@ -40,11 +42,13 @@
         el("[data-reference]").src = referenceUrl;
         if (pendingRequest?.details) el("[data-details]").value = pendingRequest.details;
         const restoreOptions = (options = {}) => {
-            el("[data-quality]").value = options.quality === "medium" ? "medium" : "high";
-            el("[data-resolution]").value = options.resolution === "medium" ? "medium" : "high";
+            el("[data-quality]").value = ["medium", "high", "xhigh"].includes(options.quality) ? options.quality : "high";
+            el("[data-resolution]").value = ["medium", "high", "2k"].includes(options.resolution) ? options.resolution : "high";
         };
         restoreOptions(pendingRequest || {});
         let job = null, enabled = false, canStop = false, busy = false, loaded = false, closed = false, applying = false;
+        let supportedResolutions = ["medium", "high"];
+        let supportedQualities = ["medium", "high"];
         let disabledReason = "Il generatore deve essere attivato dall’amministratore.";
         let previewId = "", previewUrl = "", timer = null, zoomDialog = null;
         const controller = new AbortController();
@@ -67,10 +71,17 @@
         };
         const controls = () => {
             const running = ["pending", "running"].includes(job?.status);
+            const resolution = pendingRequest?.resolution || el("[data-resolution]").value;
+            const quality = pendingRequest?.quality || el("[data-quality]").value;
+            const supported = supportedResolutions.includes(resolution) && supportedQualities.includes(quality);
+            el('[data-resolution] option[value="2k"]').disabled = !supportedResolutions.includes("2k");
+            el('[data-quality] option[value="xhigh"]').disabled = !supportedQualities.includes("xhigh");
+            el("[data-cost-warning]").hidden = resolution !== "2k" && quality !== "xhigh";
+            el("[data-options-unavailable]").hidden = !loaded || supported;
             el("[data-stop]").hidden = !running || !canStop;
             el("[data-stop]").disabled = busy || !running;
             el("[data-stop-note]").hidden = !running || !canStop;
-            el("[data-generate]").disabled = busy || running || !enabled || !loaded;
+            el("[data-generate]").disabled = busy || running || !enabled || !loaded || !supported;
             el("[data-generate]").textContent = running ? "Generazione in corso…" : pendingRequest ? "Riprova invio" : job ? "Genera un’altra proposta" : "Genera anteprima";
             el("[data-confirm]").disabled = busy || job?.status !== "ready" || previewId !== job?.id;
             el("[data-details]").disabled = busy || running || !enabled || Boolean(pendingRequest);
@@ -125,6 +136,8 @@
                 const previousId = job?.id;
                 job = payload.job;
                 canStop = payload.canStop === true;
+                supportedResolutions = Array.isArray(payload.supportedResolutions) ? payload.supportedResolutions.filter(value => ["medium", "high", "2k"].includes(value)) : ["medium", "high"];
+                supportedQualities = Array.isArray(payload.supportedQualities) ? payload.supportedQualities.filter(value => ["medium", "high", "xhigh"].includes(value)) : ["medium", "high"];
                 enabled = payload.enabled && payload.optionsVersion === 1;
                 disabledReason = payload.optionsVersion === 1
                     ? "Il generatore deve essere attivato dall’amministratore."
@@ -159,7 +172,7 @@
             } finally { busy = false; if (!closed) controls(); }
         });
         el("[data-generate]").addEventListener("click", async () => {
-            if (busy) return;
+            if (busy || !enabled || !loaded || ["pending", "running"].includes(job?.status) || !supportedResolutions.includes(pendingRequest?.resolution || el("[data-resolution]").value) || !supportedQualities.includes(pendingRequest?.quality || el("[data-quality]").value)) return;
             if (job?.status === "uncertain" && !window.confirm("La richiesta precedente potrebbe essere stata addebitata. Avviare una nuova generazione a pagamento?")) return;
             busy = true;
             if (!pendingRequest) rememberRequest({ requestId: crypto.randomUUID(), details: el("[data-details]").value.trim(), quality: el("[data-quality]").value, resolution: el("[data-resolution]").value });
@@ -209,6 +222,8 @@
             if (previousFocus?.isConnected) previousFocus.focus();
         }
         el("[data-close]").addEventListener("click", close);
+        el("[data-resolution]").addEventListener("change", controls);
+        el("[data-quality]").addEventListener("change", controls);
         el("[data-refresh]").addEventListener("click", refresh);
         el("[data-reference]").addEventListener("click", () => el('[data-enlarge="reference"]').click());
         el("[data-preview]").addEventListener("click", () => el('[data-enlarge="preview"]').click());

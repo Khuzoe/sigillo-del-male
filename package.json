@@ -53,6 +53,7 @@
     "fix:chars": "node fixchars.js",
     "test:npc-ai-ability-edit": "node --experimental-default-type=module scripts/test-npc-native-ability-edit.mjs && node --experimental-default-type=module scripts/test-npc-ai-ability-edit-worker.mjs && node --experimental-default-type=module scripts/test-npc-ability-edit-foundry.mjs && node --experimental-default-type=module scripts/test-npc-ability-edit-effect-ids.mjs",
     "test:npc-sheet-ai": "node scripts/test-npc-sheet-ai.mjs && node scripts/test-npc-sheet-ai-worker.mjs && node scripts/test-npc-sheet-foundry.mjs",
-    "test:npc-auto-sync": "node scripts/test-npc-auto-sync.mjs && node scripts/test-npc-sheet-ai-worker.mjs && node scripts/test-npc-sheet-ai-worker.mjs mago-folle && node scripts/test-npc-sheet-ai-worker.mjs oltre-il-velo"
+    "test:npc-auto-sync": "node scripts/test-npc-auto-sync.mjs && node scripts/test-npc-sheet-ai-worker.mjs && node scripts/test-npc-sheet-ai-worker.mjs mago-folle && node scripts/test-npc-sheet-ai-worker.mjs oltre-il-velo",
+    "test:tiles-creator": "node scripts/test-tiles-creator.mjs"
   }
 }

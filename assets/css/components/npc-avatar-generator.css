@@ -29,6 +29,7 @@
 .npc-avatar-generator__direction span { font-weight: 400; color: #aaa7b2; }
 .npc-avatar-generator textarea { display: block; box-sizing: border-box; width: 100%; margin-top: 8px; padding: 12px; resize: vertical; border: 1px solid #44434d; border-radius: 10px; background: #101115; color: #eeebe5; font: inherit; }
 .npc-avatar-generator__hint, .npc-avatar-generator details { font-size: 12px; color: #aaa8b3; }
+.npc-avatar-generator__cost { margin: 0 0 16px; padding: 9px 12px; border: 1px solid #d5a85b55; border-radius: 8px; background: #d5a85b0d; color: #ecc586; font-size: 12px; }
 .npc-avatar-generator details { border-bottom: 1px solid #33323b; padding: 2px 0 12px; }
 .npc-avatar-generator summary { cursor: pointer; color: #c7b98e; }
 .npc-avatar-generator details p { line-height: 1.7; }

@@ -39,6 +39,10 @@
         "class_name": "AvatarGenerationStore"
       },
       {
+        "name": "TILE_GENERATOR",
+        "class_name": "TileGenerationStore"
+      },
+      {
         "name": "CALENDAR_STORE",
         "class_name": "CalendarStore"
       },
@@ -66,11 +70,15 @@
     {
       "tag": "ability-generation-v1",
       "new_sqlite_classes": ["AbilityGenerationStore"]
+    },
+    {
+      "tag": "tile-generation-v1",
+      "new_sqlite_classes": ["TileGenerationStore"]
     }
   ],
   "vars": {
-    // Optional OPENAI_API_KEY secret activates generation. Global request cap, not a euro budget.
-    "AVATAR_MONTHLY_LIMIT": "20",
+    // Optional OPENAI_API_KEY secret activates generation. Avatars and tiles have no monthly cap.
+    // The remaining limits apply to abilities, ability icons and suggestions, not a euro budget.
     "ABILITY_MONTHLY_LIMIT": "30",
     "ABILITY_ICON_MONTHLY_LIMIT": "20",
     "NPC_SUGGESTION_MONTHLY_LIMIT": "20",

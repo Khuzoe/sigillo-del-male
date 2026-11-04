@@ -26,7 +26,7 @@ let now=realNow(), calls=0;
 Date.now=()=>now;
 function fixtureStore(Store) {
   const storage=new Storage(), objects=new Map([['ref.webp',image(1296,2304)]]);
-  const env={OPENAI_API_KEY:'fake-no-paid-call',AVATAR_MONTHLY_LIMIT:'100',ABILITY_MONTHLY_LIMIT:'100',ABILITY_ICON_MONTHLY_LIMIT:'100', MEDIA_BUCKET:{
+  const env={OPENAI_API_KEY:'fake-no-paid-call',ABILITY_MONTHLY_LIMIT:'100',ABILITY_ICON_MONTHLY_LIMIT:'100', MEDIA_BUCKET:{
     head:async k=>objects.has(k)?{size:objects.get(k).length}:null,
     get:async k=>objects.has(k)?{size:objects.get(k).length,arrayBuffer:async()=>objects.get(k).slice().buffer}:null,
     put:async(k,b)=>objects.set(k,new Uint8Array(b)), delete:async()=>assert.fail('no R2 deletion')

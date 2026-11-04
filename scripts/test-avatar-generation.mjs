@@ -35,7 +35,7 @@ const env = {
     DEVICE_LOGIN_CODES_SECRET: "PLAYER-AVATAR-TEST||player|Player;DM-AVATAR-TEST||dungeon-master|DM",
     CAMPAIGN_EDITOR_ACCOUNT_IDS: "cripta-di-sangue:dungeon-master",
     INVENTORY_SYNC_SECRET: "foundry-test", OPENAI_API_KEY: "fake-key-no-live-api",
-    AVATAR_MONTHLY_LIMIT: "20", MEDIA_BUCKET: bucket,
+    MEDIA_BUCKET: bucket,
     SIGILLO_KV: { async get(key) { return kv.get(key) ?? null; }, async put(key, value) { kv.set(key, value); }, async delete(key) { kv.delete(key); } },
 };
 let coordinator = new AvatarGenerationStore({ storage }, env);
@@ -78,6 +78,8 @@ assert.equal((await req(generation, undefined, dm)).status, 200);
 const emptyStatus = await (await req(generation, undefined, admin)).json();
 assert.equal(emptyStatus.enabled, true);
 assert.equal(emptyStatus.optionsVersion, 1, "frontend can detect an older Worker that would ignore selected settings");
+assert.deepEqual(emptyStatus.supportedResolutions, ["medium", "high", "2k"], "the active coordinator advertises its supported resolutions");
+assert.deepEqual(emptyStatus.supportedQualities, ["medium", "high", "xhigh"], "the active coordinator advertises its supported quality levels");
 assert.equal(emptyStatus.style, AVATAR_STYLE);
 assert.equal(emptyStatus.job, null);
 // A new outer Worker can reach an older Durable Object during code propagation.
@@ -87,6 +89,8 @@ try {
     env.AVATAR_GENERATOR = {idFromName: n => n, get: () => ({fetch: async request => new URL(request.url).pathname === "/latest"
         ? Response.json({ok: true, job: null}) : Response.json({ok: false, error: "Operazione non disponibile."}, {status: 409})})};
     assert.equal((await (await req(generation, undefined, dm)).json()).canStop, false, "do not advertise stop for an old running coordinator");
+    assert.equal((await (await req(generation, undefined, dm)).json()).supportedResolutions, undefined, "an older coordinator must not advertise 2K before its code updates");
+    assert.equal((await (await req(generation, undefined, dm)).json()).supportedQualities, undefined, "an older coordinator must not advertise extra-high quality before its code updates");
     const updating = await req(`${generation}/${randomUUID()}/stop`, {}, dm);
     assert.equal(updating.status, 503);
     assert.equal((await updating.json()).code, "GENERATOR_UPDATING");
@@ -96,7 +100,7 @@ assert.equal((await req(generation, { requestId: randomUUID(), details: "" }, dm
 env.OPENAI_API_KEY = "fake-key-no-live-api";
 assert.equal((await req(generation, { requestId: randomUUID(), details: "x".repeat(1501) }, dm)).status, 400);
 for (const options of [{ quality: "max" }, { resolution: "4k" }, { quality: 1 }, { resolution: {} }]) {
-    assert.equal((await req(generation, { requestId: randomUUID(), details: "", ...options }, dm)).status, 400, "unsupported settings cannot spend quota");
+    assert.equal((await req(generation, { requestId: randomUUID(), details: "", ...options }, dm)).status, 400, "unsupported settings cannot start a generation");
 }
 assert.equal(avatarReferenceKey("http://localhost/private.png", campaign), "");
 assert.equal(avatarReferenceKey("campaigns/other/npcs/image.webp", campaign), "");
@@ -228,14 +232,36 @@ try {
     await coordinator.alarm();
     assert.equal(calls, 3);
 
-    env.AVATAR_MONTHLY_LIMIT = "4";
-    assert.equal((await req(generation, { requestId: randomUUID(), details: "" }, dm)).status, 429);
-    assert.equal(calls, 3, "quota rejection does not call the provider");
-
-    env.AVATAR_MONTHLY_LIMIT = "20";
-    for (const quality of ["medium", "high"]) for (const resolution of ["medium", "high"]) {
+    const usageKey = `usage:${new Date().toISOString().slice(0, 7)}`, historicalUsageKey = "usage:2000-01";
+    const kvBeforeUnlimited = [...kv.entries()], savedJob = await storage.get(`job:${id}`);
+    await storage.put(usageKey, 1000);
+    await storage.put(historicalUsageKey, 17);
+    for (const legacyLimit of [undefined, "20", "0", "4"]) {
+        if (legacyLimit === undefined) delete env.AVATAR_MONTHLY_LIMIT;
+        else env.AVATAR_MONTHLY_LIMIT = legacyLimit;
+        const requestId = randomUUID(), beforeUsage = await storage.get(usageKey);
+        const started = await req(generation, { requestId, details: "No monthly cap" }, dm);
+        assert.equal(started.status, 202, "existing usage and obsolete limit settings never block avatars");
+        assert.equal((await started.json()).job.id, requestId);
+        assert.equal((await req(generation, { requestId, details: "No monthly cap" }, dm)).status, 200);
+        assert.equal(await storage.get(usageKey), beforeUsage + 1, "duplicate submissions record one attempt");
+        const otherContext = { campaignId: campaign, worldId: "test-world", actorId: "other-npc" };
+        const concurrent = await coordinator.fetch(new Request("https://avatar.internal/create", { method: "POST", body: JSON.stringify({ id: randomUUID(), context: otherContext }) }));
+        assert.equal(concurrent.status, 409, "unlimited avatars still run one generation at a time");
+        assert.equal(await storage.get(usageKey), beforeUsage + 1, "busy rejections do not record another attempt");
+        assert.equal((await req(generation, { requestId: randomUUID(), details: "" }, player)).status, 403);
+        assert.equal((await req(generation, { requestId: randomUUID(), details: "" }, null, syncHeaders)).status, 401);
+        assert.equal((await req(`${generation}/${requestId}/stop`, {}, dm)).status, 200);
+        await coordinator.alarm();
+        assert.equal(calls, 3, "queue and stop checks never call the provider");
+    }
+    delete env.AVATAR_MONTHLY_LIMIT;
+    assert.equal(await storage.get(historicalUsageKey), 17, "old usage history is preserved");
+    assert.deepEqual(await storage.get(`job:${id}`), savedJob, "previous avatar proposals are preserved");
+    assert.deepEqual([...kv.entries()], kvBeforeUnlimited, "removing the cap leaves all KV records intact");
+    for (const quality of ["medium", "high", "xhigh"]) for (const resolution of ["medium", "high", "2k"]) {
         const requestId = randomUUID();
-        const dimensions = resolution === "medium" ? { width: 864, height: 1536 } : { width: 1296, height: 2304 };
+        const dimensions = resolution === "medium" ? { width: 864, height: 1536 } : resolution === "2k" ? { width: 1440, height: 2560 } : { width: 1296, height: 2304 };
         const output = webp.slice();
         for (let byte = 0; byte < 3; byte++) {
             output[24 + byte] = ((dimensions.width - 1) >>> (byte * 8)) & 255;
@@ -261,7 +287,19 @@ try {
         assert.equal(resumed.status, "ready");
         assert.deepEqual(resumed.options, { quality, resolution });
     }
-    assert.equal(calls, 7, "all four quality/resolution combinations use one provider call each");
+    assert.equal(calls, 12, "all nine quality/resolution combinations use one provider call each, including xhigh at native 1440x2560");
+    const wrong2kId = randomUUID(), beforeWrong2kKV = [...kv.entries()];
+    assert.equal((await req(generation, { requestId: wrong2kId, details: "2K output verification", resolution: "2k" }, dm)).status, 202);
+    globalThis.fetch = async (_url, options) => {
+        calls++;
+        assert.equal(JSON.parse(options.body).size, "1440x2560");
+        return Response.json({ data: [{ b64_json: Buffer.from(webp).toString("base64") }] });
+    };
+    await coordinator.alarm();
+    assert.equal((await storage.get(`job:${wrong2kId}`)).status, "uncertain", "a smaller result cannot be accepted as a 2K avatar");
+    assert.equal((await req(`${generation}/${wrong2kId}/preview`, undefined, dm)).status, 409);
+    assert.ok(!objects.has(`_private/ai-avatars/${wrong2kId}.webp`));
+    assert.deepEqual([...kv.entries()], beforeWrong2kKV, "invalid 2K results cannot change existing NPC data");
     const stopId = randomUUID();
     await req(generation, {requestId: stopId, details: "Stop test"}, dm);
     const beforeStopKV = [...kv.entries()], beforeStopQuota = await storage.get(`usage:${new Date().toISOString().slice(0, 7)}`);
@@ -271,12 +309,12 @@ try {
     assert.equal((await req(`${generation}/${stopId}/stop`, {}, dm)).status, 200);
     assert.equal((await req(`${generation}/${stopId}/stop`, {}, dm)).status, 200);
     await coordinator.alarm();
-    assert.equal(calls, 7, "stopping never starts a paid call");
-    assert.equal(await storage.get(`usage:${new Date().toISOString().slice(0, 7)}`), beforeStopQuota, "reserved quota remains conservative");
+    assert.equal(calls, 13, "stopping never starts a paid call");
+    assert.equal(await storage.get(`usage:${new Date().toISOString().slice(0, 7)}`), beforeStopQuota, "stopping preserves the attempt counter");
     assert.deepEqual([...kv.entries()], beforeStopKV, "stopping leaves every KV record intact");
 
 } finally { globalThis.fetch = originalFetch; }
-console.log("Avatar generation: permissions, reference, fixed style/format, idempotency, recovery, quota, private preview, explicit confirmation and data preservation passed (no real API calls).");
+console.log("Avatar generation: permissions, reference, fixed style/format, idempotency, recovery, unlimited attempts with preserved usage, private preview, explicit confirmation and data preservation passed (no real API calls).");
 
 // Exercise the actual appearance panel, not the obsolete standalone media renderer.
 const frontendSource = await readFile(new URL("../assets/js/pages/managed-actor.js", import.meta.url), "utf8");

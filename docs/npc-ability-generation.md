@@ -52,7 +52,7 @@ Nessun deploy o aggiornamento dei dati dei mondi avviene attraverso gli script d
 
 ## Limiti e recupero
 
-`ABILITY_MONTHLY_LIMIT=30` e `ABILITY_ICON_MONTHLY_LIMIT=20` sono limiti globali separati di tentativi per mese UTC, non tetti monetari. Sono aggiuntivi rispetto al limite avatar. Anche errori e richieste con esito incerto consumano una prenotazione, conservativamente. Un solo lavoro abilità alla volta può essere attivo. Le transazioni del Durable Object coordinano quota, UUID e alarm; richieste ripetute riusano il lavoro. Dopo un’interruzione durante una chiamata a pagamento non si ritenta automaticamente.
+`ABILITY_MONTHLY_LIMIT=30` e `ABILITY_ICON_MONTHLY_LIMIT=20` sono limiti globali separati di tentativi per mese UTC, non tetti monetari. Le generazioni avatar e tile non hanno invece un limite mensile. Anche errori e richieste con esito incerto consumano una prenotazione, conservativamente. Un solo lavoro abilità alla volta può essere attivo. Le transazioni del Durable Object coordinano quota, UUID e alarm; richieste ripetute riusano il lavoro. Dopo un’interruzione durante una chiamata a pagamento non si ritenta automaticamente.
 
 La conferma congela il documento da accodare. Se si perde la risposta, **Completa invio** riprende lo stesso documento e lo stesso transfer ID; Wiki Sync riconosce un Item già creato anche dopo la rimozione del comando dalla coda. Rimane la consistenza del percorso di comandi KV preesistente: questa funzione non migra né sostituisce la coda generale.
 
