@@ -15,6 +15,8 @@ workers/main-worker/*
 workers/main-worker/src/*
 !workers/main-worker/src/index.js
 !workers/main-worker/src/avatar-generation.js
+!workers/main-worker/src/drop-generation.js
+!workers/main-worker/src/foundry-maps.js
 !workers/main-worker/src/tile-generation.js
 !workers/main-worker/src/ability-generation.js
 !workers/main-worker/src/npc-native-ability-context.js

@@ -13,6 +13,9 @@ function configured(env, name, campaignId) {
 }
 export const managedActorD1Enabled = (env, campaignId) => configured(env, "MANAGED_ACTOR_D1_CAMPAIGNS", campaignId);
 export const managedActorWritesPaused = (env, campaignId) => configured(env, "MANAGED_ACTOR_WRITES_PAUSED_CAMPAIGNS", campaignId);
+export const campaignItemsD1Enabled = (env, campaignId) => configured(env, "CAMPAIGN_ITEMS_D1_CAMPAIGNS", campaignId);
+export const campaignItemsWritesPaused = (env, campaignId) => configured(env, "CAMPAIGN_ITEMS_WRITES_PAUSED_CAMPAIGNS", campaignId);
+export const isCampaignItemsKind = kind => kind === "campaign-items" || kind === "item-categories";
 
 export function managedActorKeyScope(key) {
   const match = String(key).match(/^campaign:([a-z0-9_-]+):(.+)$/);
@@ -30,6 +33,8 @@ export function managedActorKeyScope(key) {
   else if (name === "managed-actor-create-requests") kind = "create-requests";
   else if (name === "managed-actors:index") kind = "index";
   else if (name === "npc-categories") kind = "categories";
+  else if (name === "data:items:override") kind = "campaign-items";
+  else if (name === "item-categories") kind = "item-categories";
   else return null;
   return { campaignId: match[1], kind };
 }
@@ -59,6 +64,9 @@ export function managedActorStorageRecord(key, raw, revision = 1, now = new Date
   if (!scope) invalid("Chiave NPC non riconosciuta.");
   const value = parse(raw);
   if (value.campaignId && value.campaignId !== scope.campaignId) invalid("Campagna del documento NPC non coerente.");
+  if (isCampaignItemsKind(scope.kind) && !Array.isArray(value[scope.kind === "campaign-items" ? "data" : "categories"])) {
+    invalid("Documento Oggetti non valido. Nessun dato è stato sostituito.");
+  }
   if (["actor", "runtime", "profile", "native-snapshot"].includes(scope.kind)) {
     const [, , , worldId, actorId] = key.split(":");
     if ((value.worldId && value.worldId !== worldId) || (value.actorId && value.actorId !== actorId)) invalid("Identità del documento NPC non coerente.");
@@ -107,14 +115,21 @@ export class ManagedActorTransaction {
     if (!this.db) throw new ManagedActorStorageError("Archivio NPC D1 non configurato.");
     return this.db.prepare(sql).bind(...args);
   }
-  async ensureReady(campaignId) {
-    if (!this.ready.has(campaignId)) this.ready.set(campaignId, this.statement(
-      "SELECT state FROM managed_actor_imports WHERE campaign_id = ?", campaignId).first().then(row => {
-      if (row?.state !== "ready") throw new ManagedActorStorageError("Archivio NPC in preparazione. Riprova tra poco.", 503, "MANAGED_ACTOR_IMPORT_NOT_READY");
+  async ensureReady({ campaignId, kind }) {
+    const items = isCampaignItemsKind(kind);
+    const table = items ? "campaign_item_imports" : "managed_actor_imports";
+    const key = table + ":" + campaignId;
+    if (!this.ready.has(key)) this.ready.set(key, this.statement(
+      "SELECT state FROM " + table + " WHERE campaign_id = ?", campaignId).first().then(row => {
+      if (row?.state !== "ready") throw new ManagedActorStorageError(
+        items ? "Archivio Oggetti in preparazione. Riprova tra poco." : "Archivio NPC in preparazione. Riprova tra poco.",
+        503, items ? "CAMPAIGN_ITEMS_IMPORT_NOT_READY" : "MANAGED_ACTOR_IMPORT_NOT_READY");
     }));
-    return this.ready.get(campaignId);
+    return this.ready.get(key);
   }
   decodeRows(rows, entries, scope) {
+    if (!rows.length && isCampaignItemsKind(scope.kind)) throw new ManagedActorStorageError(
+      "Archivio Oggetti incompleto. Riprova tra poco.", 503, "CAMPAIGN_ITEMS_DOCUMENT_MISSING");
     if (!rows.length) return { raw: null, revision: 0 };
     const row = rows[0];
     if (!row.present) return { raw: null, revision: row.revision };
@@ -138,7 +153,7 @@ export class ManagedActorTransaction {
   async flushLoads() {
     const requests = this.loading.splice(0);
     try {
-      await Promise.all([...new Set(requests.map(item => item.scope.campaignId))].map(id => this.ensureReady(id)));
+      await Promise.all(requests.map(item => this.ensureReady(item.scope)));
       for (const campaign of new Set(requests.map(item => item.scope.campaignId))) {
         const scoped = requests.filter(item => item.scope.campaignId === campaign);
         // Index hydration may request hundreds of profiles together. Batch reads
@@ -165,7 +180,7 @@ export class ManagedActorTransaction {
   }
   async get(key, options) {
     const scope = managedActorKeyScope(key);
-    if (!scope || !managedActorD1Enabled(this.env, scope.campaignId)) return this.kv.get(key, options);
+    if (!this.enabled(scope)) return this.kv.get(key, options);
     if (!this.loaded.has(key)) this.loaded.set(key, this.load(key, scope));
     const stored = await this.loaded.get(key);
     const raw = this.pending.has(key) ? this.pending.get(key) : stored.raw;
@@ -176,26 +191,34 @@ export class ManagedActorTransaction {
     if (type === "stream") return new Blob([raw]).stream();
     throw new TypeError("Unsupported managed Actor storage read type");
   }
+  enabled(scope) {
+    return scope && (isCampaignItemsKind(scope.kind) ? campaignItemsD1Enabled : managedActorD1Enabled)(this.env, scope.campaignId);
+  }
   assertWritable(scope) {
+    if (scope && isCampaignItemsKind(scope.kind)) {
+      if (campaignItemsWritesPaused(this.env, scope.campaignId)) throw new ManagedActorStorageError(
+        "Salvataggi Oggetti temporaneamente sospesi per la migrazione. Riprova tra poco.", 503, "CAMPAIGN_ITEMS_WRITES_PAUSED");
+      return;
+    }
     if (scope && managedActorWritesPaused(this.env, scope.campaignId)) {
       throw new ManagedActorStorageError("Salvataggi NPC temporaneamente sospesi per la migrazione. Riprova tra poco.", 503, "MANAGED_ACTOR_WRITES_PAUSED");
     }
   }
   async put(key, raw, options) {
     const scope = managedActorKeyScope(key); this.assertWritable(scope);
-    if (!scope || !managedActorD1Enabled(this.env, scope.campaignId)) return this.kv.put(key, raw, options);
+    if (!this.enabled(scope)) return this.kv.put(key, raw, options);
     if (typeof raw !== "string") throw new TypeError("Managed Actor documents must be JSON text");
     managedActorStorageRecord(key, raw); // Validate before staging anything.
     await this.get(key); this.pending.set(key, raw);
   }
   async delete(key) {
     const scope = managedActorKeyScope(key); this.assertWritable(scope);
-    if (!scope || !managedActorD1Enabled(this.env, scope.campaignId)) return this.kv.delete(key);
+    if (!this.enabled(scope)) return this.kv.delete(key);
     await this.get(key); this.pending.set(key, null);
   }
   async getWithMetadata(key, options) {
     const scope = managedActorKeyScope(key);
-    if (!scope || !managedActorD1Enabled(this.env, scope.campaignId)) return this.kv.getWithMetadata(key, options);
+    if (!this.enabled(scope)) return this.kv.getWithMetadata(key, options);
     return { value: await this.get(key, options), metadata: null, cacheStatus: null };
   }
   defer(callback) { this.afterCommit.push(callback); }

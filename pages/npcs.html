@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
     <link rel="stylesheet" href="../assets/css/pages/managed-actors.css?v=20260713-frame-circle2" data-page-style>
-    <link rel="stylesheet" href="../assets/css/pages/roster-modern.css?v=20260919-npc-status2" data-page-style>
+    <link rel="stylesheet" href="../assets/css/pages/roster-modern.css?v=20261107-npc-bulk1" data-page-style>
     <link rel="stylesheet" href="../assets/css/pages/npc-categories.css?v=20260805-npc-sections1" data-page-style>
     <link rel="stylesheet" href="../assets/css/components/archive-hero.css?v=20260719-archive-hero2">
     <link rel="stylesheet" href="../assets/css/components/page-layout.css?v=20260915-layout1" data-page-style>
@@ -22,7 +22,7 @@
             <header class="roster-hero roster-hero--npcs archive-hero archive-hero--npcs">
                 <div class="roster-hero-copy archive-hero__copy">
                     <div class="roster-hero-eyebrow archive-hero__eyebrow"><span></span>Volti della campagna</div>
-                    <h1 id="npc-page-title">NPC</h1>
+                    <h1 id="npc-page-title">Atlante degli NPC</h1>
 
                     <div class="roster-hero-meta archive-hero__meta">
                         <span class="roster-count-pill"><i class="fas fa-masks-theater" aria-hidden="true"></i><b id="npc-count">0 NPC</b></span>
@@ -36,48 +36,68 @@
             </header>
 
             <section class="roster-shell" aria-labelledby="npc-page-title">
-                <div class="roster-tools roster-tools--archive" aria-label="Cerca e filtra NPC">
-                    <label class="roster-search">
-                        <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
-                        <input id="npc-search" type="search" aria-label="Cerca NPC per nome, ruolo o categoria" placeholder="Cerca nome, ruolo, tipo o categoria..." autocomplete="off">
-                        <span aria-hidden="true">Cerca</span>
-                    </label>
-                    <div class="roster-filter-group roster-context-filters" id="npc-status-filters" data-roster-context="npc" aria-label="Filtra gli NPC per stato">
-                        <button class="roster-filter is-active" type="button" data-roster-filter="all" aria-pressed="true"><i class="fas fa-layer-group"></i>Tutti</button>
-                        <button class="roster-filter" type="button" data-roster-filter="vivo" aria-pressed="false"><i class="fas fa-heart-pulse"></i>Vivi</button>
-                        <button class="roster-filter" type="button" data-roster-filter="ignoto" aria-pressed="false"><i class="fas fa-circle-question"></i>Ignoti</button>
-                        <button class="roster-filter" type="button" data-roster-filter="morto" aria-pressed="false"><i class="fas fa-skull"></i>Morti</button>
+                <div class="npc-atlas-masthead">
+                    <div class="npc-atlas-toolbar">
+                        <div class="roster-type-tools roster-directory-tabs" id="npc-type-filters" aria-label="Scegli la sezione NPC">
+                            <div class="roster-filter-group roster-directory-primary">
+                                <button class="roster-filter is-active" type="button" data-roster-type="person" aria-pressed="true"><i class="fas fa-masks-theater"></i>NPC</button>
+                                <button class="roster-filter" type="button" data-roster-type="creature" aria-pressed="false"><i class="fas fa-dragon"></i>Bestiario</button>
+                                <button class="roster-filter" type="button" data-roster-type="other" aria-pressed="false"><i class="fas fa-boxes-stacked"></i>Altri</button>
+                            </div>
+                            <div class="roster-filter-group roster-directory-secondary">
+                                <button class="roster-filter" type="button" data-roster-type="merchant" aria-pressed="false"><i class="fas fa-store"></i>Mercanti</button>
+                            </div>
+                            <button class="roster-archive-filter" type="button" data-roster-archive-toggle data-npc-edit-action aria-pressed="false" hidden><i class="fas fa-box-archive"></i><span>Archivio</span><b data-roster-archive-count>0</b></button>
+                        </div>
+                        <label class="roster-search">
+                            <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                            <input id="npc-search" type="search" aria-label="Cerca NPC per nome, ruolo o categoria" placeholder="Cerca nome, ruolo, tipo o categoria..." autocomplete="off">
+                            <span aria-hidden="true">Cerca</span>
+                        </label>
+                        <button class="roster-secondary-action npc-edit-toggle" type="button" data-npc-edit-toggle aria-pressed="false" hidden>
+                            <i class="fas fa-pen" aria-hidden="true"></i><span>Modifica</span>
+                        </button>
                     </div>
-                    <div class="npc-sort-switch" data-npc-sort-switch role="group" aria-label="Ordina l'elenco NPC">
-                        <button class="is-active" type="button" data-npc-sort="categories" aria-pressed="true"><i class="fas fa-folder-tree" aria-hidden="true"></i><span>Categorie</span></button>
-                        <button type="button" data-npc-sort="updated" aria-pressed="false"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i><span>Ultima modifica</span></button>
+                    <div class="roster-tools roster-tools--archive" aria-label="Cerca e filtra NPC">
+                        <div class="roster-filter-group roster-context-filters" id="npc-status-filters" data-roster-context="npc" aria-label="Filtra gli NPC per stato">
+                            <button class="roster-filter is-active" type="button" data-roster-filter="all" aria-pressed="true"><i class="fas fa-layer-group"></i>Tutti</button>
+                            <button class="roster-filter" type="button" data-roster-filter="vivo" aria-pressed="false"><i class="fas fa-heart-pulse"></i>Vivi</button>
+                            <button class="roster-filter" type="button" data-roster-filter="ignoto" aria-pressed="false"><i class="fas fa-circle-question"></i>Ignoti</button>
+                            <button class="roster-filter" type="button" data-roster-filter="morto" aria-pressed="false"><i class="fas fa-skull"></i>Morti</button>
+                        </div>
+                        <div class="npc-sort-switch" data-npc-sort-switch role="group" aria-label="Ordina l'elenco NPC">
+                            <button class="is-active" type="button" data-npc-sort="categories" aria-pressed="true"><i class="fas fa-folder-tree" aria-hidden="true"></i><span>Categorie</span></button>
+                            <button type="button" data-npc-sort="updated" aria-pressed="false"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i><span>Ultima modifica</span></button>
+                        </div>
+                        <button class="roster-secondary-action" type="button" data-npc-category-manager data-npc-edit-action hidden>
+                            <i class="fas fa-sliders" aria-hidden="true"></i><span>Gestisci categorie</span>
+                        </button>
+                        <button class="roster-primary-action" type="button" data-npc-create-link data-npc-edit-action hidden>
+                            <i class="fas fa-plus" aria-hidden="true"></i><span>Nuovo NPC</span>
+                        </button>
                     </div>
-                    <button class="roster-secondary-action" type="button" data-npc-category-manager hidden>
-                        <i class="fas fa-sliders" aria-hidden="true"></i><span>Gestisci categorie</span>
-                    </button>
-                    <button class="roster-primary-action" type="button" data-npc-create-link data-requires-dm hidden>
-                        <i class="fas fa-plus" aria-hidden="true"></i><span>Nuovo NPC</span>
-                    </button>
                 </div>
 
-                <div class="roster-type-tools roster-directory-tabs" id="npc-type-filters" aria-label="Scegli la sezione NPC">
-                    <div class="roster-filter-group roster-directory-primary">
-                        <button class="roster-filter is-active" type="button" data-roster-type="person" aria-pressed="true"><i class="fas fa-masks-theater"></i>NPC</button>
-                        <button class="roster-filter" type="button" data-roster-type="other" aria-pressed="false"><i class="fas fa-boxes-stacked"></i>Altri</button>
-                        <button class="roster-filter" type="button" data-roster-type="creature" aria-pressed="false"><i class="fas fa-dragon"></i>Bestiario</button>
-                    </div>
-                    <div class="roster-filter-group roster-directory-secondary">
-                        <button class="roster-filter" type="button" data-roster-type="merchant" aria-pressed="false"><i class="fas fa-store"></i>Mercanti</button>
-                    </div>
-                    <button class="roster-archive-filter" type="button" data-roster-archive-toggle aria-pressed="false" hidden><i class="fas fa-box-archive"></i><span>Archivio</span><b data-roster-archive-count>0</b></button>
+                <div class="npc-bulk-actions" data-npc-bulk-actions role="region" aria-label="Azioni per gli NPC selezionati" hidden>
+                    <strong data-npc-bulk-count aria-live="polite">Nessun NPC selezionato</strong>
+                    <button type="button" data-npc-bulk-select-all>Seleziona risultati</button>
+                    <button type="button" data-npc-bulk-clear disabled>Deseleziona</button>
+                    <button type="button" data-npc-bulk-category aria-haspopup="dialog" aria-expanded="false" disabled><i class="fas fa-folder-open" aria-hidden="true"></i><span>Sposta selezionati</span></button>
+                    <button type="button" data-npc-bulk-lifecycle disabled><i class="fas fa-trash-can" aria-hidden="true"></i><span>Archivia selezionati</span></button>
+                    <span data-npc-bulk-status role="status" aria-live="polite"></span>
                 </div>
-
-                <div class="npc-list" data-roster-list="npcs">
-                    <div class="npc-card npc-card--loading" aria-hidden="true">
-                        <div class="npc-avatar-container"></div>
-                        <div class="npc-info">
-                            <div class="npc-name">Caricamento NPC...</div>
-                            <p class="npc-desc">Le anime della campagna stanno emergendo dall’oscurità.</p>
+                <div class="npc-atlas-workspace">
+                    <aside class="npc-atlas-index" hidden>
+                        <h2>Indice dei capitoli</h2>
+                        <nav data-npc-atlas-index aria-label="Categorie NPC"></nav>
+                    </aside>
+                    <div class="npc-list" data-roster-list="npcs">
+                        <div class="npc-card npc-card--loading" aria-hidden="true">
+                            <div class="npc-avatar-container"></div>
+                            <div class="npc-info">
+                                <div class="npc-name">Caricamento NPC...</div>
+                                <p class="npc-desc">Le anime della campagna stanno emergendo dall’oscurità.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -97,8 +117,8 @@
     <script src="../assets/js/shared/image-adjust.js?v=20260713-frame-circle6"></script>
     <script src="../assets/js/shared/roster-media.js?v=20260714-roster-media1"></script>
     <script src="../assets/js/shared/character-normalize.js"></script>
-    <script src="../assets/js/shared/npc-categories.js?v=20260805-npc-sections1"></script>
+    <script src="../assets/js/shared/npc-categories.js?v=20261107-uncategorized-campaigns1"></script>
     <script src="../assets/js/pages/npc-category-manager.js?v=20260805-npc-sections1"></script>
-    <script src="../assets/js/pages/npcs.js?v=20260919-npc-status2"></script>
+    <script src="../assets/js/pages/npcs.js?v=20261107-uncategorized-campaigns1"></script>
 </body>
 </html>

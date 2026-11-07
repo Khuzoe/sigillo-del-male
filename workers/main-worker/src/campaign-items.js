@@ -414,7 +414,7 @@ export function campaignItemArchiveFromSnapshot(snapshot) {
   const hasFlag = Object.prototype.hasOwnProperty.call(metadata, "archived");
   return {
     known: archivedFolder || version >= 1 || hasFlag,
-    archived: archivedFolder || metadata.archived === true,
+    archived: metadata.archived === true || ((!hasFlag || version < 1) && archivedFolder),
   };
 }
 

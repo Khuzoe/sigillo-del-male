@@ -99,7 +99,16 @@ export function mountNpcReadingView(root) {
         if(!section){section=make("div","npc-reader-list-group");section.setAttribute("role","presentation");section.append(make("h3","",record.groupLabel));list.append(section);groups.set(record.group,section);}
         const node=button("",()=>select(record,{interact:true}),"npc-reader-entry");node.setAttribute("role","tab");node.id=`npc-read-tab-${index}`;
         record.card.id=npcReadingAnchor(record.key);record.card.setAttribute("role","tabpanel");record.card.setAttribute("aria-labelledby",node.id);record.card.tabIndex=-1;node.setAttribute("aria-controls",record.card.id);
-        if(record.icon){const icon=record.icon.cloneNode(false);icon.alt="";icon.loading="lazy";node.append(icon);}
+        if (record.icon) {
+            const icon = record.icon.cloneNode(false);
+            icon.alt = "";
+            icon.loading = "lazy";
+            node.append(icon);
+        } else {
+            const icon = make("i", `npc-reader-entry-icon fas ${record.kind === "spells" ? "fa-wand-sparkles" : "fa-burst"}`);
+            icon.setAttribute("aria-hidden", "true");
+            node.append(icon);
+        }
         const copy=make("span","npc-reader-entry-copy");copy.append(make("strong","",record.title));const meta=record.card.querySelector(".managed-entry-title > span")?.textContent;if(meta)copy.append(make("small","",meta));node.append(copy);record.button=node;section.append(node);
         node.addEventListener("keydown",event=>{
             const current=visible.indexOf(record),index=event.key==="Home"?0:event.key==="End"?visible.length-1:event.key==="ArrowDown"?(current+1)%visible.length:event.key==="ArrowUp"?(current-1+visible.length)%visible.length:-1;

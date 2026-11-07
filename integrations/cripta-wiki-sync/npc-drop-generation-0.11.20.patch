@@ -1,0 +1,42 @@
+diff --git a/scripts/services/campaign-item-sync.js b/scripts/services/campaign-item-sync.js
+--- a/scripts/services/campaign-item-sync.js
++++ b/scripts/services/campaign-item-sync.js
+@@ -261,7 +261,8 @@ async function linkEmbeddedCampaignItem(item) {
+     }
+     if (!campaignId && source) campaignId = getCampaignItemId(source);
+     if (!campaignId) {
+-        const candidates = managedWorldItems().filter((entry) => normalizeName(entry.name) === normalizeName(item.name));
++        const candidates = managedWorldItems().filter((entry) => !requiresExactCampaignItemId(getCampaignItemId(entry))
++            && normalizeName(entry.name) === normalizeName(item.name));
+         if (candidates.length === 1) {
+             source = candidates[0];
+             campaignId = getCampaignItemId(source);
+@@ -748,18 +749,25 @@
+     return false;
+ }
+ 
++function requiresExactCampaignItemId(id) {
++    return /^(?:ai-drop-[a-f0-9-]{36}-[1-5]|nuovo-oggetto-[a-f0-9-]{36})$/i.test(id);
++}
++
+ function findWorldItemByCampaignId(id, record = null) {
+     const direct = managedWorldItems().find((item) => getCampaignItemId(item) === id || normalizeId(item.getFlag?.(MODULE_ID, "wikiItemId")) === id);
+-    if (direct) return direct;
++    // New site items have a stable identity even when their names are identical.
++    if (direct || requiresExactCampaignItemId(id)) return direct || null;
+     const aliases = new Set([record?.name, ...(Array.isArray(record?.foundryNames) ? record.foundryNames : []), ...(Array.isArray(record?.aliases) ? record.aliases : [])].map(normalizeName).filter(Boolean));
+-    const managedMatch = aliases.size ? managedWorldItems().find((item) => aliases.has(normalizeName(item.name))) || null : null;
++    const managedMatch = aliases.size ? managedWorldItems().find((item) => !requiresExactCampaignItemId(getCampaignItemId(item))
++        && aliases.has(normalizeName(item.name))) || null : null;
+     if (managedMatch) return managedMatch;
+ 
+     // foundryNames e un collegamento esplicito: possiamo adottare un Item fuori
+     // dalla radice gestita soltanto quando la corrispondenza e unica.
+     const explicitNames = new Set((Array.isArray(record?.foundryNames) ? record.foundryNames : []).map(normalizeName).filter(Boolean));
+     if (!explicitNames.size) return null;
+-    const candidates = Array.from(game.items || []).filter((item) => !item?.actor && !item?.pack && explicitNames.has(normalizeName(item.name)));
++    const candidates = Array.from(game.items || []).filter((item) => !item?.actor && !item?.pack
++        && !requiresExactCampaignItemId(getCampaignItemId(item)) && explicitNames.has(normalizeName(item.name)));
+     if (candidates.length === 1) return candidates[0];
+     if (candidates.length > 1) {
+         console.warn(`${MODULE_ID} | Alias Foundry ambiguo; creo una copia gestita senza modificare gli originali.`, {

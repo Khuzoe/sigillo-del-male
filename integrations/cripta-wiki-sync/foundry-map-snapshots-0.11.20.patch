@@ -1,0 +1,13 @@
+diff --git a/module.json b/module.json
+--- a/module.json
++++ b/module.json
+@@ -15,7 +15,8 @@
+     "verified": "14"
+   },
+   "esmodules": [
+-    "scripts/main.js"
++    "scripts/main.js",
++    "scripts/services/foundry-map-snapshots.mjs"
+   ],
+   "styles": [
+     "styles/module.css"

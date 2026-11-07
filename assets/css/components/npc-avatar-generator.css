@@ -80,3 +80,17 @@
     .npc-avatar-generator__options { grid-template-columns: 1fr; gap: 10px; }
     .npc-avatar-zoom header { flex-wrap: wrap; padding: 10px; }
 }
+
+.npc-drop-generator__item {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px;
+    border-top: 1px solid #44434d; padding: 12px 0;
+}
+.npc-drop-generator__item h3, .npc-drop-generator__item p { grid-column: 1 / -1; margin: 0; }
+.npc-drop-generator__item img { grid-column: 2; grid-row: 3; object-fit: contain; border-radius: 8px; }
+.npc-drop-generator__item > div { grid-column: 1; grid-row: 3; min-width: 0; }
+.npc-drop-generator__item label { display: block; margin-bottom: 8px; }
+.npc-drop-generator__item select { max-width: 100%; font: inherit; }
+@media (max-width: 500px) {
+    .npc-drop-generator__item img { grid-column: 1; grid-row: 3; }
+    .npc-drop-generator__item > div { grid-column: 1 / -1; grid-row: 4; }
+}

@@ -39,6 +39,10 @@
         "class_name": "AvatarGenerationStore"
       },
       {
+        "name": "DROP_GENERATOR",
+        "class_name": "DropGenerationStore"
+      },
+      {
         "name": "TILE_GENERATOR",
         "class_name": "TileGenerationStore"
       },
@@ -74,6 +78,10 @@
     {
       "tag": "tile-generation-v1",
       "new_sqlite_classes": ["TileGenerationStore"]
+    },
+    {
+      "tag": "drop-generation-v1",
+      "new_sqlite_classes": ["DropGenerationStore"]
     }
   ],
   "vars": {
@@ -92,6 +100,8 @@
     // Verified managed Actor registries and command queues; original KV preserved.
     "MANAGED_ACTOR_D1_CAMPAIGNS": "cripta-di-sangue,mago-folle,oltre-il-velo",
     "MANAGED_ACTOR_WRITES_PAUSED_CAMPAIGNS": "",
+    "CAMPAIGN_ITEMS_D1_CAMPAIGNS": "cripta-di-sangue,mago-folle,oltre-il-velo",
+    "CAMPAIGN_ITEMS_WRITES_PAUSED_CAMPAIGNS": "",
     "MANAGED_ACTOR_NATIVE_SNAPSHOT_CAMPAIGNS": "cripta-di-sangue,mago-folle,oltre-il-velo",
     "DISCORD_CLIENT_ID": "1475822167890595841",
     "DISCORD_REDIRECT_URI": "https://sigillo-api.khuzoe.workers.dev/auth/discord/callback",

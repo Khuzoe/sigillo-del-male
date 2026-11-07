@@ -128,11 +128,6 @@
 .is-npc.is-viewing .is-dossier-reader .managed-profile-summary dt{font:400 10px/1.5 var(--font-ui,Montserrat,sans-serif);color:var(--read-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px}
 .is-npc.is-viewing .is-dossier-reader .managed-profile-summary dd{font:400 13px/1.5 var(--font-ui,Montserrat,sans-serif);color:#e1d4b9;margin:0}
 .is-npc.is-viewing .is-dossier-reader .managed-profile-block{padding-top:27px;padding-bottom:27px;border-top-color:var(--read-line);scroll-margin-top:calc(var(--managed-command-bar-height,0px) + var(--read-bar-offset) + 24px)}
-.is-npc.is-viewing .is-dossier-reader .is-opening-chapter{padding-top:0}
-.is-npc.is-viewing .is-dossier-reader:not(.is-compact-dossier) .is-opening-chapter.has-reading-lead,.is-npc.is-viewing .is-dossier-reader:not(.is-compact-dossier) .is-opening-chapter.has-reading-lead .managed-profile-block-body{display:block}
-.is-npc.is-viewing .is-dossier-reader .has-reading-lead .managed-dossier-opening-continuation{display:flow-root;clear:both;padding-top:20px}
-.is-npc.is-viewing .is-dossier-reader .has-reading-lead .managed-dossier-lead-copy>:last-child{margin-bottom:0}
-.is-npc.is-viewing .is-dossier-reader:not(.is-compact-dossier) .is-opening-chapter.has-reading-lead::after{content:"";display:block;clear:both}
 .is-npc.is-viewing .is-dossier-reader .managed-dossier-chapter-title{font:500 clamp(19px,1.7vw,24px)/1.4 Cinzel,Georgia,serif;color:#e5d0a6;letter-spacing:0;gap:13px;margin-bottom:18px}
 .is-npc.is-viewing .is-dossier-reader .managed-dossier-chapter-number{font:400 11px/1.5 var(--font-ui,Montserrat,sans-serif);letter-spacing:.1em;color:#a58c5d}
 .is-npc.is-viewing .is-dossier-reader .managed-profile-markdown{font:400 1.2rem/1.85 "Crimson Text",Georgia,serif;color:#ded8cd;overflow-wrap:anywhere}
@@ -181,3 +176,42 @@
 }
 
 .managed-actor-page .npc-reader-ai-action{margin-left:auto;min-height:36px;font-size:11px;padding:8px 12px;white-space:nowrap}@media(max-width:650px){.managed-actor-page .npc-reader-ai-action{margin-left:0}}
+
+/* Ability index rows let text fill the space available with or without an icon. */
+.npc-reader-workspace { grid-template-columns: minmax(255px, 30%) minmax(0, 1fr); }
+.is-npc.is-viewing .npc-reader-library {
+    background: linear-gradient(160deg, #1d1b23, #141318 65%);
+}
+.is-npc.is-viewing .npc-reader-list-group > h3 {
+    padding: 8px 10px 6px;
+    border-bottom: 1px solid var(--read-line);
+    color: #c9b58e;
+}
+.is-npc.is-viewing .npc-read-button.npc-reader-entry {
+    padding: 9px 10px;
+}
+.npc-reader-entry > img,
+.npc-reader-entry-icon {
+    width: 32px;
+    height: 32px;
+    flex: none;
+    border: 1px solid var(--read-line);
+    border-radius: 7px;
+}
+.npc-reader-entry-icon {
+    display: grid;
+    place-items: center;
+    background: #25222a;
+    color: #cfb783;
+    font-size: 13px;
+}
+.npc-reader-entry-copy { flex: 1; }
+.npc-reader-entry-copy > strong { font-size: 14px; font-weight: 600; }
+.is-npc.is-viewing .npc-reader-entry[aria-selected=true] {
+    background: linear-gradient(90deg, rgba(219, 189, 128, .16), rgba(219, 189, 128, .05));
+    box-shadow: inset 3px 0 var(--read-gold);
+}
+.npc-reader.is-compact .npc-reader-library > summary strong {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}

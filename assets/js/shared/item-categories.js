@@ -31,6 +31,7 @@
         return {
             id,
             name,
+            parentId: normalizeId(input.parentId || ""),
             order: Number.isFinite(orderValue) ? Math.round(orderValue) : ((index + 1) * 10),
             color,
             icon,
@@ -101,7 +102,12 @@
         cache.delete(campaignId());
     }
 
-    window.CriptaItemCategories = { clear, load, normalizeCategory, normalizeId, normalizeRegistry, resolve, save };
+    function pathLabel(category, registry) {
+        const parent = category?.parentId && registry?.categories?.find(entry => entry.id === category.parentId);
+        return parent ? parent.name + " / " + category.name : category?.name || "";
+    }
+
+    window.CriptaItemCategories = { clear, load, normalizeCategory, normalizeId, normalizeRegistry, pathLabel, resolve, save };
 })();
 
 

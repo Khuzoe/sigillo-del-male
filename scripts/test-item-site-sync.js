@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
+const { randomUUID } = require("node:crypto");
 
 const normalizerSource = fs.readFileSync(path.join(__dirname, "../assets/js/shared/item-normalize.js"), "utf8");
 const source = fs.readFileSync(path.join(__dirname, "../assets/js/pages/oggetti.js"), "utf8");
@@ -12,8 +13,12 @@ const context = {
     URL,
     setTimeout,
     clearTimeout,
+    crypto: { randomUUID },
     window: {
-        CriptaApp: { onPageReady() {}, utils: { escapeHtml(value) { return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); } } },
+        CriptaApp: { onPageReady() {}, utils: {
+            structuredCloneSafe: structuredClone,
+            escapeHtml(value) { return String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+        } },
         localStorage: {
             values: new Map(),
             getItem(key) { return this.values.get(key) ?? null; },
@@ -31,6 +36,9 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(normalizerSource, context, { filename: "item-normalize.js" });
+for (const file of ["item-categories.js", "image-adjust.js"]) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, "../assets/js/shared", file), "utf8"), context, { filename: file });
+}
 vm.runInContext(source, context, { filename: "oggetti.js" });
 
 function createClassList() {
@@ -158,4 +166,75 @@ context.synchronizeFoundrySystemFromSite(repair, repair, empty);
 assert.match(empty.description.value, /Riparazione/, "una descrizione Foundry vuota viene autoriparata dai dati leggibili");
 
 assert.equal(context.mapSiteTypeToFoundry("Pozione"), "consumable");
+const creation = context.createEmptyItemDraft();
+assert.match(creation.id, /^nuovo-oggetto-[a-f0-9-]{36}$/);
+assert.match(context.renderItemInlineEditor(creation, true), /Cartella del catalogo/);
+assert.doesNotMatch(context.renderItemInlineEditor(creation, true), /data-item-field="foundryType"/);
+vm.runInContext(`currentItemCategoryRegistry = { categories: [
+    { id: "armi", name: "Armi storiche", mergedInto: "arsenale" },
+    { id: "arsenale", name: "Arsenale" },
+    { id: "reliquie", name: "Reliquie" }
+] }`, context);
+
+function newItemForm(family, subtype, mechanics = {}, categoryId = "", name = "Oggetto di prova") {
+    const fields = { name, id: creation.id, categoryId, rarity: "Comune" };
+    const inputs = { "item-field": fields, "item-classification": { family, subtype }, "item-mechanic": mechanics };
+    return {
+        hasAttribute: key => key === "data-new-item",
+        querySelectorAll: selector => selector === "[data-item-field]"
+            ? Object.entries(fields).map(([itemField, value]) => ({ value, dataset: { itemField } })) : [],
+        querySelector(selector) {
+            const match = /^\[data-([\w-]+)="(\w+)"\]$/.exec(selector);
+            const value = match && inputs[match[1]]?.[match[2]];
+            return value == null ? null : { value };
+        }
+    };
+}
+const plain = value => JSON.parse(JSON.stringify(value));
+const sword = context.collectItemDraft(newItemForm("weapon", "martialM", { starter: "longsword", dice: "1d8", damage: "slashing" }), creation);
+assert.equal(sword.categoryId, "arsenale");
+assert.equal(sword.category, "Arsenale");
+assert.equal(sword.foundry.document.type, "weapon");
+assert.deepEqual(plain(sword.foundry.document.system.type), { value: "martialM", baseItem: "longsword" });
+assert.deepEqual(plain(sword.foundry.document.system.damage.base), { number: 1, denomination: 8, types: ["slashing"] });
+assert.equal(sword.foundry.document.system.damage.versatile.denomination, 10);
+const bow = context.collectItemDraft(newItemForm("weapon", "martialR", {
+    starter: "longbow", dice: "1d8", damage: "piercing", range: "150", longRange: "600"
+}, "reliquie"), creation);
+assert.equal(bow.category, "Reliquie");
+assert.equal(bow.foundry.document.type, "weapon");
+assert.deepEqual(plain(bow.foundry.document.system.range), { value: 150, long: 600, units: "ft" });
+assert.equal(bow.foundry.document.system.ammunition.type, "arrow");
+assert.throws(() => context.collectItemDraft(newItemForm("weapon", "martialR", { dice: "1d8", damage: "piercing" }), creation), /gittata normale/);
+const shield = context.collectItemDraft(newItemForm("armor", "shield", { armor: "2" }), creation);
+assert.equal(shield.foundry.document.type, "equipment");
+assert.equal(shield.foundry.document.system.type.value, "shield");
+assert.equal(shield.foundry.document.system.armor.value, 2);
+const potion = context.collectItemDraft(newItemForm("consumable", "potion", { uses: "2" }), creation);
+assert.equal(potion.foundry.document.type, "consumable");
+assert.deepEqual(plain(potion.foundry.document.system.uses), { max: "2", spent: 0 });
+for (const [family, subtype, type] of [
+    ["equipment", "ring", "equipment"], ["tool", "art", "tool"], ["material", "", "loot"], ["loot", "gem", "loot"], ["container", "", "container"]
+]) {
+    const item = context.collectItemDraft(newItemForm(family, subtype), creation);
+    assert.equal(item.foundry.document.type, type);
+    if (family === "material") {
+        assert.equal(item.categoryId, "materiali");
+        assert.equal(item.foundry.document.system.type.value, "material");
+    }
+}
+assert.throws(() => context.collectItemDraft(newItemForm("", ""), creation), /tipo di oggetto/);
+assert.throws(() => context.collectItemDraft(newItemForm("material", "", {}, "", ""), creation), /nome dell’oggetto/);
+vm.runInContext(`currentItemCategoryRegistry.categories.push({ id: "armi-geniali", name: "Armi Geniali", parentId: "arsenale" })`, context);
+const selectedFolder = context.getItemCategoryOptions().find(option => option.value === "armi-geniali");
+assert.equal(selectedFolder.label, "Arsenale / Armi Geniali");
+const nestedSword = context.collectItemDraft(newItemForm("weapon", "martialM", {
+    starter: "longsword", dice: "1d8", damage: "slashing"
+}, selectedFolder.value), creation);
+assert.equal(nestedSword.category, "Armi Geniali");
+assert.equal(nestedSword.foundry.document.type, "weapon");
+const nestedRegistry = vm.runInContext("currentItemCategoryRegistry", context);
+assert.equal(context.filterItems([nestedSword], {
+    query: "arsenale", rarity: "all", type: "all", attunement: "all", category: "arsenale", lifecycle: "active", categoryRegistry: nestedRegistry
+}).length, 1, "il filtro della cartella superiore include gli oggetti della sottocartella");
 console.log("Oggetti sito -> Foundry: testi, proprieta e meccaniche preservate.");

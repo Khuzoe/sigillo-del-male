@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
-    <link rel="stylesheet" href="../assets/css/pages/locations.css" data-page-style>
+    <link rel="stylesheet" href="../assets/css/pages/locations.css?v=20261106-foundry-maps" data-page-style>
     <link rel="stylesheet" href="../assets/css/components/page-layout.css?v=20260915-layout1" data-page-style>
 </head>
 <body class="page-mappa page-locations site-layout">
@@ -26,6 +26,18 @@
             </header>
 
             <div class="container">
+                <details class="locations-shell foundry-map-panel" data-foundry-map-panel>
+                    <summary>Mappe pubblicate da Foundry</summary>
+                    <p role="status" data-map-status></p>
+                    <button type="button" data-map-login hidden>Accedi con codice</button>
+                    <div class="foundry-map-controls" data-map-controls hidden>
+                        <label>Scena <select data-map-select></select></label>
+                        <label data-map-dm-control hidden><input type="checkbox" data-map-dm> Vista DM</label>
+                    </div>
+                    <a data-map-full hidden target="_blank" rel="noopener" aria-label="Apri l’immagine della mappa a grandezza intera">
+                        <img data-map-image alt="">
+                    </a>
+                </details>
                 <section class="locations-shell" aria-labelledby="locations-title">
                     <div class="locations-heading">
                         <h2 id="locations-title">Archivio dei Luoghi</h2>
@@ -69,5 +81,6 @@
     <script src="../assets/js/layout.js?v=20260721-campaign-switch1"></script>
     <script src="../assets/js/shared/location-data-service.js"></script>
     <script src="../assets/js/pages/locations.js"></script>
+    <script src="../assets/js/pages/foundry-maps.js?v=20261106-preview1"></script>
 </body>
 </html>

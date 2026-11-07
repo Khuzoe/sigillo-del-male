@@ -493,6 +493,16 @@
         const spellEntries = entries.filter((entry) => entry.type === "spell");
         const identityEntries = entries.filter((entry) => String(entry.type || "").toLowerCase() === "race");
         const inventoryEntries = entries.filter((entry) => ["weapon", "equipment", "consumable", "loot", "tool", "container", "backpack", "item"].includes(String(entry.type || "").toLowerCase()));
+        for (const command of actor.sync?.commands || []) {
+            const item = command.document;
+            if (command.kind !== "item.create" || command.status === "applied" || !item?.transferId?.startsWith("ai-drop-")
+                || inventoryEntries.some(entry => entry.transferId === item.transferId)) continue;
+            inventoryEntries.push({
+                name: item.name, type: "loot", campaignItemId: item.campaignItemId, transferId: item.transferId,
+                definition: { img: item.img, description: item.system?.description?.value, rarity: item.system?.rarity, quantity: 1 },
+                pendingDrop: true,
+            });
+        }
 
         root.innerHTML = `
             <nav class="managed-actor-breadcrumb" aria-label="Navigazione scheda">
@@ -509,7 +519,7 @@
                     <h1>${editMode ? renderManagedActorControl("name", "text", actor.name || "Actor", { className: "managed-actor-name-input" }) : escapeHtml(actor.name || "Actor")}</h1>
                     ${currentProfile?.role ? `<p class="managed-profile-role">${escapeHtml(currentProfile.role)}</p>` : ""}
                     ${currentProfile?.quote ? `<blockquote class="managed-profile-quote">${escapeHtml(currentProfile.quote)}</blockquote>` : ""}
-                    ${renderManagedHeroVitals(attributes, details, actor.runtime || {}, actor.actorType, sharedRuntime)}
+                    ${renderManagedHeroVitals(attributes, details, actor.runtime || {}, actor.actorType, sharedRuntime, skills.prc?.passive)}
                     ${hasSiteAnimation ? renderManagedMediaDock(media, actor.name || "Actor") : ""}
                     <div class="managed-actor-chips">
                         ${actorDetailsLabel ? `<span class="managed-chip"><i class="fas fa-dna"></i> ${escapeHtml(actorDetailsLabel)}</span>` : ""}
@@ -570,6 +580,7 @@
         setupManagedGuidedMechanics(root);
         setupManagedImageLightbox(root);
         setupManagedAvatarGenerator(root);
+        setupManagedDropGenerator(root);
         setupManagedAbilityGenerator(root);
         setupManagedAvatarFallback(root, actor.media);
         setupManagedProfileEditor(root, editMode);
@@ -851,11 +862,12 @@
 
     function renderManagedNpcCategoryField(profile) {
         const normalizeId = window.CriptaNpcCategories?.normalizeId || sanitizeId;
-        const requestedId = normalizeId(profile.categoryId || profile.category || "");
-        const resolved = window.CriptaNpcCategories?.resolve?.(npcCategoryRegistry, requestedId, profile.category);
+        const assignment = window.CriptaNpcCategories?.normalizeAssignment?.(npcCategoryRegistry, profile.categoryId, profile.category);
+        const requestedId = assignment ? assignment.categoryId : normalizeId(profile.categoryId || profile.category || "");
+        const resolved = requestedId ? window.CriptaNpcCategories?.resolve?.(npcCategoryRegistry, requestedId, assignment?.category ?? profile.category) : null;
         const selectedId = resolved?.id || requestedId;
         const allCategories = Array.isArray(npcCategoryRegistry?.categories) ? npcCategoryRegistry.categories : [];
-        const categories = allCategories.filter((category) => (!category.archived && !category.mergedInto) || category.id === selectedId);
+        const categories = allCategories.filter((category) => !window.CriptaNpcCategories?.isUncategorized?.(category) && ((!category.archived && !category.mergedInto) || category.id === selectedId));
         const byId = new Map(allCategories.map((category) => [category.id, category]));
         const sortCategories = (items) => [...items].sort((left, right) => left.order - right.order || left.name.localeCompare(right.name, "it"));
         const roots = sortCategories(categories.filter((category) => !category.parentId || !byId.has(category.parentId)));
@@ -1976,7 +1988,7 @@
         }
         if (cursor && keys[0]) delete cursor[keys[0]];
     }
-    function renderManagedHeroVitals(attributes = {}, details = {}, runtime = {}, actorType = "", sharedRuntime = true) {
+    function renderManagedHeroVitals(attributes = {}, details = {}, runtime = {}, actorType = "", sharedRuntime = true, passivePerception) {
         const hp = sharedRuntime ? (runtime?.hp || attributes?.hp || {}) : (attributes?.hp || {});
         const ac = attributes?.ac && typeof attributes.ac === "object" ? (attributes.ac.value ?? attributes.ac.flat) : attributes?.ac;
         const movement = attributes?.movement?.walk;
@@ -1991,6 +2003,9 @@
         ];
         if (!sharedRuntime) {
             entries[0] = { icon: "fa-heart", label: "PF massimi", value: hp.max ?? "\u2014", tone: "health" };
+        }
+        if (actorType === "npc" && passivePerception != null && passivePerception !== "") {
+            entries.push({ icon: "fa-eye", label: "Percezione passiva", value: passivePerception, tone: "perception" });
         }
         return `<div class="managed-hero-vitals">${entries.map((entry) => `<div class="managed-hero-vital is-${entry.tone}"><i class="fas ${entry.icon}"></i><span><small>${escapeHtml(entry.label)}</small><strong>${escapeHtml(entry.value)}</strong></span></div>`).join("")}</div>`;
     }
@@ -2008,7 +2023,7 @@
             ["managed-traits", "fa-fingerprint", "Tratti", Object.keys(traits || {}).length > 0 || identityEntries.length > 0],
             ["managed-capabilities", "fa-burst", "Combattimento", attackEntries.length > 0 || editMode],
             ["managed-spells", "fa-wand-sparkles", "Incantesimi", spellEntries.length > 0 || editMode],
-            ["managed-inventory", "fa-briefcase", "Inventario", inventoryEntries.length > 0 || editMode],
+            ["managed-inventory", "fa-briefcase", "Inventario", inventoryEntries.length > 0 || editMode || canGenerateManagedDrops(actor)],
             ["managed-variants", "fa-layer-group", "Varianti", variants.length > 0 || (editMode && canManageActor)],
             ["managed-effects", "fa-wand-magic-sparkles", "Effetti", effects.length > 0 || editMode]
         ].filter(([, , , visible]) => visible);
@@ -2705,7 +2720,8 @@
     }
 
     function renderEntries(title, entries, canEdit = false, sectionId = "") {
-        if (!entries.length && !canEdit) return "";
+        const generateDrops = sectionId === "managed-inventory" && canGenerateManagedDrops(currentDocument);
+        if (!entries.length && !canEdit && !generateDrops) return "";
         const panelIcon = title === "Incantesimi" ? "fa-wand-sparkles" : title === "Inventario" ? "fa-boxes-stacked" : "fa-burst";
         const collectionKind = title === "Incantesimi" ? "spells" : title === "Inventario" ? "inventory" : "capabilities";
         const preparedEntries = entries.map((entry) => ({ entry, group: getManagedEntryGroup(entry, collectionKind) }));
@@ -2725,7 +2741,8 @@
         const tools = entries.length > 5 ? `<div class="managed-collection-tools"><label class="managed-collection-search"><i class="fas fa-magnifying-glass"></i><input type="search" placeholder="Cerca ${escapeAttr(title.toLowerCase())}" aria-label="Cerca ${escapeAttr(title.toLowerCase())}" data-managed-entry-search></label>${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : filterButtons ? `<div class="managed-collection-tools">${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : "";
         const overview = collectionKind === "inventory" && entries.length ? renderManagedInventoryOverview(entries) : "";
         const legendarySummary = collectionKind === "capabilities" ? renderManagedLegendaryCapabilitySummary() : "";
-        return `<details${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><summary class="managed-panel-heading managed-collection-summary"><div><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-collection-summary-meta"><span class="managed-count-badge">${entries.length}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-collection-body">${entries.length ? `${overview}${legendarySummary}${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</div></details>`;
+        const dropButton = generateDrops ? '<div class="managed-ability-ai"><button type="button" class="button-gold-outline managed-primary-action" data-managed-generate-drop><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Genera drop</button><small data-managed-drop-status role="status"></small></div>' : "";
+        return `<details${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><summary class="managed-panel-heading managed-collection-summary"><div><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-collection-summary-meta"><span class="managed-count-badge">${entries.length}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-collection-body">${dropButton}${entries.length ? `${overview}${legendarySummary}${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</div></details>`;
     }
 
     function renderManagedLegendaryCapabilitySummary() {
@@ -3401,7 +3418,7 @@
         const parent = findManagedInventoryContainer(entry, collectionEntries);
         const children = getManagedInventoryChildren(entry, collectionEntries);
         const command = findManagedItemCommand(entry);
-        const editor = canEdit ? renderManagedItemEditor(entry, command) : "";
+        const editor = canEdit && !entry.pendingDrop ? renderManagedItemEditor(entry, command) : "";
         const status = command ? renderManagedItemSyncStatus(command) : "";
         const badges = renderManagedInventoryBadges(entry, state, typeMeta, catalogItem, { hasNegative, hasGenial });
         const facts = renderManagedInventoryFacts(state, parent, catalogItem);
@@ -3838,11 +3855,9 @@
         root._managedDossierCleanup?.();
         dossier.classList.add("is-adaptive-dossier");
         dossier.classList.toggle("is-dossier-editing", editing);
-        portrait?.classList.remove("has-summary");
         const avatar = root.querySelector(".managed-avatar-button [data-managed-avatar-layer]");
         const blocks = Array.from(dossier.querySelectorAll(".managed-profile-block"));
         const illustrations = blocks.map((block) => ({ block, image: block.querySelector(".managed-profile-block-image img"), textLength: (block.querySelector(".managed-profile-markdown")?.textContent || "").trim().length })).filter(({ image }) => image);
-        dossier.classList.toggle("has-long-illustrated-opening", !editing && illustrations.some(({block,textLength})=>block===blocks[0] && textLength>700 && !block.classList.contains("managed-profile-block--banner_box")));
         let identitySlot, contents;
         if (!editing) {
             dossier.classList.add("is-dossier-reader");
@@ -3854,11 +3869,23 @@
             identitySlot.className = "managed-dossier-identity";
             const title = root.querySelector(".managed-actor-title");
             if (title) identitySlot.append(title);
+            const banner = blocks.find(block => block.matches(".managed-profile-block--banner_box")
+                && !block.querySelector(".managed-profile-hidden") && block.querySelector(".managed-profile-block-image img"))
+                ?.querySelector(".managed-profile-block-image img");
+            if (banner) {
+                const cover = banner.cloneNode(false);
+                cover.className = "managed-dossier-cover";
+                cover.alt = "";
+                opening.append(cover);
+            }
             const animation = portrait?.querySelector(".managed-actor-site-animation") || title?.querySelector(".managed-actor-media-dock, .managed-actor-site-animation");
             if (animation) identitySlot.append(animation);
             if (portrait) opening.append(portrait);
-            opening.append(identitySlot);
-            if (summary) (portrait || opening).append(summary);
+            const details = document.createElement("div");
+            details.className = "managed-dossier-details";
+            details.append(identitySlot);
+            if (summary) details.append(summary);
+            opening.append(details);
             const chapters = dossier.querySelector(".managed-profile-block-grid");
             blocks.forEach((block, index) => {
                 const oldHeading = block.querySelector("h3");
@@ -3878,7 +3905,7 @@
                 label.textContent = String(index + 1).padStart(2, "0");
                 if (heading) heading.prepend(label);
                 const illustration = illustrations.find(entry=>entry.block === block);
-                if (index > 0 && illustration?.textLength > 0 && illustration.textLength < 400 && !block.classList.contains("managed-profile-block--banner_box")) {
+                if (illustration?.textLength > 0 && illustration.textLength < 400 && !block.classList.contains("managed-profile-block--banner_box")) {
                     const body = block.querySelector(".managed-profile-block-body");
                     const image = body?.querySelector(".managed-profile-block-image");
                     if (body && image) {
@@ -3887,33 +3914,7 @@
                         body.prepend(copy);block.classList.add("is-brief-illustrated");
                     }
                 }
-                if (index === 0 && dossier.classList.contains("has-long-illustrated-opening")) {
-                    const markdown = block.querySelector(".managed-profile-markdown");
-                    const paragraphs = Array.from(markdown?.children || []).filter(node=>node.tagName === "P" && node.textContent.trim());
-                    const image = block.querySelector(".managed-profile-block-image");
-                    if (paragraphs.length > 1 && image) {
-                        // Keep the opening paragraph beside the portrait. Its own
-                        // illustration then accompanies the remaining paragraphs,
-                        // with no competing portrait columns or duplicated text.
-                        const lead = document.createElement("div");
-                        lead.className = "managed-profile-markdown managed-dossier-lead-copy";
-                        const continuation = document.createElement("div");
-                        continuation.className = "managed-dossier-opening-continuation";
-                        while (markdown.firstChild) {
-                            const node = markdown.firstChild;lead.append(node);
-                            if (node === paragraphs[0]) break;
-                        }
-                        image.before(lead,continuation);
-                        continuation.append(image,markdown);
-                        block.classList.add("has-reading-lead");
-                    }
-                }
             });
-            if (blocks[0]) {
-                blocks[0].classList.add("is-opening-chapter");
-                opening.append(blocks[0]);
-            }
-            opening.classList.toggle("has-brief-opening", (blocks[0]?.querySelector(".managed-profile-markdown")?.textContent || "").trim().length < 400);
             if (panel) panel.prepend(opening);
             else dossier.prepend(opening);
             const legacyLink = panel?.querySelector(".managed-profile-legacy-link");
@@ -3989,7 +3990,7 @@
                 if (!blockWidth) continue;
                 block.classList.add("has-adaptive-image");
                 block.classList.toggle("is-image-only", !textLength);
-                const gap = compact ? 16 : block.classList.contains("is-opening-chapter") ? 20 : 28;
+                const gap = compact ? 16 : 28;
                 setStyle(block, "--dossier-image-width", `${managedDossierImageWidth(blockWidth, gap)}px`);
             }
             // Keep a direct chapter link aligned while preceding images load; user input ends it.
@@ -4028,7 +4029,7 @@
         const marker = {};
         root._managedNpcReaderLoad = marker;
         try {
-            const {mountNpcReadingView} = await import("../shared/npc-reading-view.mjs?v=20261031-read1");
+            const {mountNpcReadingView} = await import("../shared/npc-reading-view.mjs?v=20261105-atlas1");
             if (!root.isConnected || root._managedNpcReaderLoad !== marker || !root.classList.contains("is-viewing")) return;
             const reader = mountNpcReadingView(root);
             root._managedNpcReader = reader;
@@ -4199,11 +4200,6 @@
                     tools.append(button);
                 }
                 portrait.append(tools);
-            }
-            const summary = !editing && dossier.querySelector(".managed-profile-summary");
-            if (summary) {
-                portrait.classList.add("has-summary");
-                portrait.append(summary);
             }
         }
         const toolbar = root.querySelector("[data-managed-profile-toolbar]");
@@ -4917,6 +4913,36 @@
                 } else await openGenerator("");
             } catch (error) { status.textContent = error.message || "Impossibile aprire il generatore."; }
         }));
+    }
+
+    function canGenerateManagedDrops(actor) {
+        return actor?.actorType === "npc" && actor.permissions?.isEditor === true;
+    }
+
+    function setupManagedDropGenerator(root) {
+        root.querySelector("[data-managed-generate-drop]")?.addEventListener("click", () => {
+            const status = root.querySelector("[data-managed-drop-status]");
+            if (managedSaveInProgress || hasManagedUnsavedChanges(root)) {
+                status.textContent = "Salva o annulla prima le modifiche alla scheda.";
+                return;
+            }
+            if (!window.CriptaDropGenerator) {
+                status.textContent = "Ricarica la pagina per aprire il generatore.";
+                return;
+            }
+            const actor = currentDocument;
+            status.textContent = "";
+            window.CriptaDropGenerator.open({ actor, token: getToken(), onQueued: commands => {
+                if (!root.isConnected || currentDocument?.actorId !== actor.actorId || currentDocument.worldId !== actor.worldId) return;
+                for (const command of commands) {
+                    rememberManagedCommand(command, old => old.id === command.id || (old.kind === command.kind && old.target?.transferId === command.target?.transferId));
+                }
+                if (hasManagedUnsavedChanges(root)) return;
+                renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
+                const inventory = root.querySelector("#managed-inventory");
+                if (inventory) inventory.open = true;
+            } });
+        });
     }
 
     function setupManagedAvatarGenerator(root) {
@@ -5877,7 +5903,7 @@
             }
             currentDocument = payload.data;
             const completed = previousCommands.some((command) => command.status === "pending"
-                && !(currentDocument.sync?.commands || []).some((entry) => entry.id === command.id));
+                && !(currentDocument.sync?.commands || []).some((entry) => entry.id === command.id && entry.status === "pending"));
             if (completed && !hasManagedUnsavedChanges(root)) {
                 const scroll = window.scrollY;
                 renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);

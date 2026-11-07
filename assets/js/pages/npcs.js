@@ -136,10 +136,6 @@ function parseYamlLite(yamlText) {
 
             try {
                 const currentUserIsDm = await resolveNpcListUserIsDm(base_path);
-                window.CriptaNpcCategoryManager?.init?.({
-                    isEditor: currentUserIsDm,
-                    onSaved: () => window.location.reload()
-                });
                 const [managedState, recencyData] = await Promise.all([
                     loadManagedNpcEntries([]).catch((error) => {
                         console.warn('Directory NPC gestita non caricata:', error);
@@ -155,38 +151,50 @@ function parseYamlLite(yamlText) {
                         ? normalizedFallback
                         : (window.WikiSpoiler ? window.WikiSpoiler.filterVisible(normalizedFallback) : normalizedFallback.filter((npc) => !npc.hidden));
                 }
-                const categoryRegistry = { categories: managedState?.npcCategories || [] };
+                const categoryRegistry = window.CriptaNpcCategories.normalizeRegistry({ categories: managedState?.npcCategories || [] });
                 const unifiedNpcs = [...legacyNpcs, ...(managedState?.npcs || []), ...(managedState?.pendingCreates || [])]
                     .map((npc) => ({ ...applyNpcCategoryMetadata(npc, categoryRegistry), rosterKind: 'npc' }));
                 const sortedNpcs = sortNpcsByRecency(unifiedNpcs, recencyData);
                 const rosterEntries = sortedNpcs;
-
-                if (rosterEntries.length === 0) {
-                    npcListContainer.innerHTML = '<p style="color: var(--text-muted); text-align: center;">Nessun NPC disponibile.</p>';
-                    return;
-                }
 
                 let refreshRosterFilters = () => {};
                 const rosterState = {
                     npcs: rosterEntries,
                     categoryRegistry,
                     basePath: base_path,
-                    canEdit: currentUserIsDm,
+                    canEdit: false,
+                    selectedNpcKeys: new Set(),
                     sortMode: readNpcRosterSortMode(),
                     render: null
                 };
                 const renderRoster = () => {
-                    renderNpcDirectory(npcListContainer, rosterState.npcs, rosterState.basePath, currentUserIsDm, rosterState.sortMode);
+                    closeNpcRosterPicker();
+                    renderNpcDirectory(npcListContainer, rosterState.npcs, rosterState.basePath, rosterState.canEdit, rosterState.sortMode);
                     window.CriptaRosterMedia?.init(npcListContainer);
-                    initNpcCategoryDragAndDrop(npcListContainer, rosterState);
+                    initNpcRosterQuickActions(npcListContainer, rosterState);
                     refreshRosterFilters();
+                    rosterState.syncBulkSelection?.();
                 };
                 rosterState.render = renderRoster;
+                if (currentUserIsDm) initNpcRosterBulkActions(npcListContainer, rosterState);
                 renderRoster();
+                window.CriptaNpcCategoryManager?.init?.({
+                    isEditor: currentUserIsDm,
+                    onSaved: () => window.location.reload()
+                });
                 refreshRosterFilters = initNpcRosterControls(npcListContainer, {
                     entries: rosterState.npcs,
                     canEdit: currentUserIsDm,
                     sortMode: rosterState.sortMode,
+                    onEditModeChange: (editing) => {
+                        rosterState.canEdit = editing;
+                        if (!editing) {
+                            rosterState.selectedNpcKeys.clear();
+                            rosterState.bulkMessage = '';
+                        }
+                        rosterState.render?.();
+                    },
+                    onFiltersApplied: () => rosterState.syncBulkSelection?.(),
                     onSortModeChange: (sortMode) => {
                         rosterState.sortMode = sortMode;
                         rosterState.render?.();
@@ -261,7 +269,7 @@ function parseYamlLite(yamlText) {
                     : (legacyNpc?.categoryId || ''),
                 category: Object.prototype.hasOwnProperty.call(profile, 'category')
                     ? profile.category
-                    : (legacyNpc?.category || 'Altri NPC'),
+                    : (legacyNpc?.category || ''),
                 categoryPriority: profile.categoryOrder ?? legacyNpc?.categoryPriority ?? null,
                 categoryColor: profile.categoryColor || legacyNpc?.categoryColor || '',
                 categoryIcon: profile.categoryIcon || legacyNpc?.categoryIcon || '',
@@ -399,7 +407,7 @@ function parseYamlLite(yamlText) {
         function openManagedNpcCreateWizard({ managedState = {}, categoryRegistry = {} } = {}) {
             document.querySelector('[data-managed-npc-create-modal]')?.remove();
             const worlds = Array.from(new Set((managedState.worldIds || []).map((value) => String(value || '').trim()).filter(Boolean)));
-            const categories = orderedNpcCategories((categoryRegistry.categories || []).filter((category) => !category.archived && !category.mergedInto));
+            const categories = selectableNpcCategories(categoryRegistry);
             const selectedDirectoryKind = document.querySelector('[data-roster-type].is-active')?.dataset.rosterType;
             const initialKind = selectedDirectoryKind === 'creature' ? 'creature' : 'person';
             const createLabel = initialKind === 'creature' ? 'una creatura' : 'un NPC';
@@ -671,10 +679,19 @@ function parseYamlLite(yamlText) {
 
         function applyNpcCategoryMetadata(npc, registry) {
             const resolved = window.CriptaNpcCategories?.resolve?.(registry, npc?.categoryId, npc?.category);
+            if (window.CriptaNpcCategories?.isUncategorized?.(resolved || { id: npc?.categoryId, name: npc?.category })) {
+                return {
+                    ...npc, categoryId: '', category: '', categoryPriority: null, categoryColor: '', categoryIcon: '',
+                    categoryParentId: '', categoryParent: '', categoryGroupId: '', categoryGroupName: '',
+                    categoryGroupPriority: null, categoryGroupColor: '', categoryGroupIcon: '',
+                    categorySubcategoryId: '', categorySubcategory: ''
+                };
+            }
             if (!resolved) return npc;
             const parent = resolved.parentId
                 ? window.CriptaNpcCategories?.resolve?.(registry, resolved.parentId, "")
                 : null;
+            const uncategorizedParent = window.CriptaNpcCategories?.isUncategorized?.(parent || {});
             return {
                 ...npc,
                 categoryId: resolved.id,
@@ -684,9 +701,9 @@ function parseYamlLite(yamlText) {
                 categoryIcon: resolved.icon,
                 categoryRosterSection: resolved.rosterSection,
                 categoryParentId: parent?.id || "",
-                categoryParent: parent?.name || "",
-                categoryGroupId: parent?.id || resolved.id,
-                categoryGroupName: parent?.name || resolved.name,
+                categoryParent: uncategorizedParent ? 'Senza categoria' : parent?.name || "",
+                categoryGroupId: uncategorizedParent ? '' : parent?.id || resolved.id,
+                categoryGroupName: uncategorizedParent ? '' : parent?.name || resolved.name,
                 categoryGroupPriority: parent?.order ?? resolved.order,
                 categoryGroupColor: parent?.color || resolved.color,
                 categoryGroupIcon: parent?.icon || resolved.icon,
@@ -716,9 +733,20 @@ function parseYamlLite(yamlText) {
             return ordered;
         }
 
+        function selectableNpcCategories(registry) {
+            const categories = (registry?.categories || []).map((category, index) => window.CriptaNpcCategories.normalizeCategory(category, index))
+                .filter((category) => category && !category.archived && !category.mergedInto);
+            return orderedNpcCategories(categories).filter((category) => !window.CriptaNpcCategories.isUncategorized(category));
+        }
+
         function renderNpcDirectory(container, npcs, base_path, canEdit = false, sortMode = 'categories') {
             const normalizedSortMode = normalizeNpcRosterSortMode(sortMode);
             container.dataset.npcSortMode = normalizedSortMode;
+            const index = container.parentElement.querySelector('[data-npc-atlas-index]');
+            if (index) {
+                index.replaceChildren();
+                index.parentElement.hidden = true;
+            }
             if (normalizedSortMode === 'updated') {
                 renderNpcUpdatedList(container, npcs, base_path, canEdit);
                 return;
@@ -740,9 +768,11 @@ function parseYamlLite(yamlText) {
         function renderNpcGroups(container, npcs, base_path, canEdit = false) {
             container.innerHTML = '';
             const groups = groupNpcsByCategory(npcs);
-            groups.forEach((group) => {
+            const index = container.parentElement.querySelector('[data-npc-atlas-index]');
+            groups.forEach((group, groupIndex) => {
                 const section = document.createElement('section');
                 section.className = 'npc-category-group';
+                section.id = `npc-atlas-chapter-${groupIndex + 1}`;
                 section.dataset.npcCategory = group.id || group.category || '';
                 if (group.color) section.style.setProperty('--npc-category-accent', group.color);
 
@@ -755,15 +785,30 @@ function parseYamlLite(yamlText) {
                     icon.className = `fas ${group.icon}`;
                     title.appendChild(icon);
                 }
-                title.appendChild(document.createTextNode(group.category || ''));
+                const chapterName = group.category || 'Senza categoria';
+                title.appendChild(document.createTextNode(chapterName));
+                title.tabIndex = -1;
                 const count = document.createElement('span');
                 count.className = 'npc-category-count';
                 count.textContent = String(group.items.length);
                 header.append(title, count);
-                if (group.category) {
-                    section.appendChild(header);
-                } else {
-                    section.classList.add('is-uncategorized');
+                section.appendChild(header);
+                if (index) {
+                    const chapter = document.createElement('button');
+                    chapter.type = 'button';
+                    chapter.setAttribute('aria-controls', section.id);
+                    const emblem = title.querySelector('i')?.cloneNode(false) || document.createElement('i');
+                    if (!emblem.className) emblem.className = 'fas fa-bookmark';
+                    emblem.setAttribute('aria-hidden', 'true');
+                    chapter.append(emblem, document.createTextNode(chapterName));
+                    chapter.addEventListener('click', () => {
+                        index.querySelector('[aria-current]')?.removeAttribute('aria-current');
+                        chapter.setAttribute('aria-current', 'location');
+                        title.focus({ preventScroll: true });
+                        section.scrollIntoView({ block: 'start' });
+                    });
+                    section._npcAtlasChapter = chapter;
+                    index.appendChild(chapter);
                 }
 
                 const hasSubcategories = group.subgroups.some((subgroup) => Boolean(subgroup.id));
@@ -864,8 +909,9 @@ function parseYamlLite(yamlText) {
         function groupNpcsByCategory(npcs) {
             const groups = new Map();
             (Array.isArray(npcs) ? npcs : []).forEach((npc) => {
-                const category = String(npc?.categoryGroupName || npc?.category || '').trim();
-                const id = window.CriptaNpcCategories?.normalizeId?.(npc?.categoryGroupId || npc?.categoryId || category) || category.toLocaleLowerCase('it');
+                const category = String(npc?.categoryGroupName ?? npc?.category ?? '').trim();
+                const groupId = npc?.categoryGroupId ?? (npc?.categoryId || category);
+                const id = window.CriptaNpcCategories?.normalizeId?.(groupId) ?? String(groupId).toLocaleLowerCase('it');
                 const key = id || '__uncategorized__';
                 if (!groups.has(key)) {
                     groups.set(key, { id, category, color: npc?.categoryGroupColor || npc?.categoryColor || '', icon: npc?.categoryGroupIcon || npc?.categoryIcon || '', priority: null, items: [], subgroupMap: new Map() });
@@ -997,8 +1043,8 @@ function parseYamlLite(yamlText) {
             const count = document.getElementById('npc-count');
             const empty = document.getElementById('npc-filter-empty');
             const createAction = document.querySelector('[data-npc-create-link]');
-            const state = { query: '', npcStatus: 'all', type: 'person', showArchived: false, sortMode: normalizeNpcRosterSortMode(options.sortMode) };
-            if (archiveToggle) archiveToggle.hidden = options.canEdit !== true;
+            const editToggle = document.querySelector('[data-npc-edit-toggle]');
+            const state = { query: '', npcStatus: 'all', type: 'person', showArchived: false, editing: false, sortMode: normalizeNpcRosterSortMode(options.sortMode) };
 
             const syncSortSwitch = () => {
                 sortSwitch?.querySelectorAll('[data-npc-sort]').forEach((button) => {
@@ -1009,6 +1055,20 @@ function parseYamlLite(yamlText) {
             };
 
             const apply = () => {
+                if (editToggle) {
+                    editToggle.hidden = options.canEdit !== true;
+                    editToggle.classList.toggle('is-active', state.editing);
+                    editToggle.setAttribute('aria-pressed', String(state.editing));
+                    editToggle.innerHTML = state.editing
+                        ? '<i class="fas fa-check" aria-hidden="true"></i><span>Fine modifica</span>'
+                        : '<i class="fas fa-pen" aria-hidden="true"></i><span>Modifica</span>';
+                }
+                document.querySelectorAll('[data-npc-edit-action]').forEach((action) => { action.hidden = !state.editing; });
+                if (!state.editing) {
+                    state.showArchived = false;
+                    archiveToggle?.classList.remove('is-active');
+                    archiveToggle?.setAttribute('aria-pressed', 'false');
+                }
                 const query = normalizeRosterSearch(state.query);
                 const isGlobalSearch = Boolean(query) && state.type !== 'merchant';
                 const isBestiary = state.type === 'creature';
@@ -1023,7 +1083,7 @@ function parseYamlLite(yamlText) {
                 if (npcFilters) npcFilters.hidden = isBestiary;
                 if (search) search.placeholder = state.type === 'merchant'
                     ? 'Cerca tra i mercanti...'
-                    : 'Cerca in NPC, Altri e Bestiario...';
+                    : 'Cerca in NPC, Bestiario e Altri...';
                 if (createAction) createAction.innerHTML = isBestiary
                     ? '<i class="fas fa-plus"></i><span>Nuova creatura</span>'
                     : '<i class="fas fa-plus"></i><span>Nuovo NPC</span>';
@@ -1054,9 +1114,16 @@ function parseYamlLite(yamlText) {
                 container.querySelectorAll('.npc-category-group').forEach((section) => {
                     const visibleCards = Array.from(section.querySelectorAll('[data-roster-card="npc"]')).filter((card) => !card.hidden);
                     section.hidden = visibleCards.length === 0;
+                    const chapter = section._npcAtlasChapter;
+                    if (chapter) {
+                        chapter.hidden = section.hidden;
+                        if (chapter.hidden) chapter.removeAttribute('aria-current');
+                    }
                     const sectionCount = section.querySelector('.npc-category-count');
                     if (sectionCount) sectionCount.textContent = String(visibleCards.length);
                 });
+                const atlasIndex = container.parentElement.querySelector('[data-npc-atlas-index]');
+                if (atlasIndex) atlasIndex.parentElement.hidden = !atlasIndex.querySelector('button:not([hidden])');
                 if (count) {
                     const noun = isGlobalSearch
                         ? (visibleTotal === 1 ? 'risultato' : 'risultati')
@@ -1080,8 +1147,16 @@ function parseYamlLite(yamlText) {
                                 ? 'Nessuna creatura nel Bestiario'
                                 : state.type === 'other' ? 'Nessun NPC nella sezione Altri' : 'Nessun NPC trovato';
                 }
+                options.onFiltersApplied?.();
             };
 
+            editToggle?.addEventListener('click', () => {
+                if (options.canEdit !== true) return;
+                state.editing = !state.editing;
+                closeNpcRosterPicker();
+                options.onEditModeChange?.(state.editing);
+                apply();
+            });
             search?.addEventListener('input', (event) => { state.query = event.target.value; apply(); });
             sortSwitch?.addEventListener('click', (event) => {
                 const button = event.target.closest('[data-npc-sort]');
@@ -1114,7 +1189,7 @@ function parseYamlLite(yamlText) {
                     });
                 }
                 const archiveButton = event.target.closest('[data-roster-archive-toggle]');
-                if (archiveButton) {
+                if (archiveButton && state.editing) {
                     state.showArchived = !state.showArchived;
                     archiveButton.classList.toggle('is-active', state.showArchived);
                     archiveButton.setAttribute('aria-pressed', state.showArchived ? 'true' : 'false');
@@ -1132,11 +1207,15 @@ function parseYamlLite(yamlText) {
                 ignoto: { text: 'IGNOTO', class: 'status-ignoto' }
             };
             const statusInfo = statusMap[npc.status] || null;
-            const canMoveCategory = canEdit && !npc.pendingCreate && Boolean(npc.managedActorWorldId && npc.managedActorId);
-            const canChangeVisibility = canEdit && npc.managedProfileCanEdit === true && canMoveCategory;
-            const roleLabel = npc.kind === 'creature' && (!npc.role || String(npc.role).trim().toLowerCase() === 'npc')
-                ? ''
-                : (npc.role || 'NPC');
+            const canMoveCategory = canEdit && npc.managedProfileCanEdit === true && !npc.pendingCreate && Boolean(npc.managedActorWorldId && npc.managedActorId);
+            const canChangeVisibility = canMoveCategory;
+            const canChangeLifeState = canMoveCategory && npc.kind !== 'creature';
+            const lifeStateBadge = canChangeLifeState
+                ? `<span class="npc-status-badge npc-life-state-control ${statusInfo?.class || 'status-none'}" role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false" aria-label="Cambia stato di ${escapeNpcAttribute(npc.name)}: ${statusInfo?.text || 'Nessuno'}" title="Cambia stato">${statusInfo?.text || 'NESSUNO'}<i class="fas fa-chevron-down" aria-hidden="true"></i></span>`
+                : statusInfo && npc.kind !== 'creature' && !npc.pendingCreate
+                    ? `<span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>` : '';
+            const role = String(npc.role || '').trim();
+            const roleLabel = /^npc$/i.test(role) ? '' : role;
             const updatedAtLabel = options.showUpdatedAt ? formatNpcUpdatedAt(npc.updatedAt) : '';
             const categoryLabel = options.showUpdatedAt
                 ? [npc.categoryParent, npc.category].map((value) => String(value || '').trim()).filter((value, index, values) => value && values.indexOf(value) === index).join(' / ')
@@ -1145,6 +1224,7 @@ function parseYamlLite(yamlText) {
             const card = document.createElement('a');
             card.href = npc.pendingCreate ? '#' : (npc.detailUrl || npc.managedActorUrl || buildNpcDetailUrl({ id: npc.id, type: 'npc' }));
             card.className = 'npc-card';
+            card.classList.toggle('is-category-saving', Boolean(npc.profileSaving));
             card.draggable = false;
             card.dataset.rosterCard = 'npc';
             card.dataset.rosterStatus = ['vivo', 'morto', 'ignoto'].includes(String(npc.status || '').toLowerCase()) ? String(npc.status).toLowerCase() : 'none';
@@ -1172,6 +1252,8 @@ function parseYamlLite(yamlText) {
             // Le immagini dedicate hanno la priorit?; token resta il fallback
             // soltanto quando idle/hover ? assente o il file non ? disponibile.
             const avatarFallback = npc.images.idleFallback || npc.images.token || npc.images.avatarFallback || '';
+            const tokenOnly = Boolean(avatarImage && !hasDedicatedIdle && npc.images.token
+                && normalizeImageIdentity(avatarImage) === normalizeImageIdentity(npc.images.token));
             const hoverFallback = npc.images.hoverFallback || npc.images.token || avatarFallback;
             if (normalizeImageIdentity(avatarImage) === normalizeImageIdentity(hoverImage)) {
                 card.classList.add('npc-card--no-avatar-swap');
@@ -1191,11 +1273,12 @@ function parseYamlLite(yamlText) {
                 : '<span class="npc-avatar-placeholder"><i class="fas fa-hourglass-half"></i></span>';
 
             card.innerHTML = `
+                ${canMoveCategory ? `<span class="npc-selection-control" role="checkbox" tabindex="0" aria-checked="false" aria-label="Seleziona ${escapeNpcAttribute(npc.name)}" title="Seleziona NPC"><i class="fas fa-check" aria-hidden="true"></i></span>` : ''}
                 ${visibilityBadge}${npc.archived ? '<span class="npc-archive-badge"><i class="fas fa-box-archive"></i>Archiviato</span>' : ''}${syncBadge}
-                <div class="npc-avatar-container">${avatarMarkup}</div>
+                <div class="npc-atlas-plate${tokenOnly ? ' npc-atlas-plate--token' : ''}"><div class="npc-avatar-container">${avatarMarkup}</div></div>
                 <div class="npc-info">
                     <div class="npc-header">
-                        <div class="npc-title-row"><h3 class="npc-name">${escapeNpcAttribute(npc.name)}</h3>${statusInfo && npc.kind !== 'creature' && !npc.pendingCreate ? `<span class="npc-status-badge ${statusInfo.class}">${statusInfo.text}</span>` : ""}</div>
+                        <div class="npc-title-row"><h3 class="npc-name">${escapeNpcAttribute(npc.name)}</h3>${lifeStateBadge}</div>
                         ${roleLabel ? `<span class="npc-role">${escapeNpcAttribute(roleLabel)}</span>` : ''}
                         <span class="npc-kind-badge"><i class="fas ${npc.kind === 'creature' ? 'fa-dragon' : 'fa-user'}"></i>${npc.kind === 'creature' ? 'Creatura' : 'Personaggio'}</span>
                         ${options.showUpdatedAt ? `<span class="npc-updated-meta">${categoryLabel ? `<span><i class="fas fa-folder" aria-hidden="true"></i>${escapeNpcAttribute(categoryLabel)}</span>` : ''}${updatedAtLabel ? `<time datetime="${escapeNpcAttribute(npc.updatedAt)}" title="Ultima modifica: ${escapeNpcAttribute(updatedAtLabel)}"><i class="fas fa-clock-rotate-left" aria-hidden="true"></i>${escapeNpcAttribute(updatedAtLabel)}</time>` : '<span><i class="fas fa-clock" aria-hidden="true"></i>Data non disponibile</span>'}</span>` : ''}
@@ -1203,8 +1286,9 @@ function parseYamlLite(yamlText) {
                     <p class="npc-desc">${escapeNpcAttribute(npc.quote || '')}</p>
                 </div>
                 <span class="npc-card-actions">
-                    ${canMoveCategory ? '<span class="npc-category-drag-handle" role="button" tabindex="0" draggable="false" title="Trascina in una categoria diversa" aria-label="Sposta ' + escapeNpcAttribute(npc.name) + ' in una categoria diversa"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>' : ''}
+                    ${canMoveCategory ? '<span class="npc-category-drag-handle npc-category-picker-trigger" role="button" tabindex="0" draggable="false" aria-haspopup="dialog" aria-expanded="false" title="Cambia categoria. Puoi anche trascinare." aria-label="Sposta ' + escapeNpcAttribute(npc.name) + ' in una categoria diversa"><i class="fas fa-folder-open" aria-hidden="true"></i><span>Sposta</span></span>' : ''}
                     ${canChangeVisibility ? '<span class="npc-profile-visibility" role="switch" tabindex="0" aria-label="Dossier visibile a tutti: ' + escapeNpcAttribute(npc.name) + '"><span class="npc-visibility-caption" aria-hidden="true">Dossier</span><span class="npc-visibility-track" aria-hidden="true"></span><span class="npc-visibility-state" aria-hidden="true"></span></span>' : ''}
+                    ${canMoveCategory ? `<span class="npc-archive-control" role="button" tabindex="0" data-npc-lifecycle-action="${npc.archived ? 'active' : 'archived'}" title="${npc.archived ? 'Ripristina nell’elenco' : 'Sposta nell’archivio'}" aria-label="${npc.archived ? 'Ripristina' : 'Archivia'} ${escapeNpcAttribute(npc.name)}"><i class="fas ${npc.archived ? 'fa-rotate-left' : 'fa-trash-can'}" aria-hidden="true"></i>${npc.archived ? '<span>Ripristina</span>' : ''}</span>` : ''}
                     <i class="fas fa-chevron-right arrow-icon"></i>
                 </span>
             `;
@@ -1213,7 +1297,7 @@ function parseYamlLite(yamlText) {
                 const toggleVisibility = async (event) => {
                     event.preventDefault();
                     event.stopPropagation();
-                    if (npc.visibilitySaving) return;
+                    if (npc.visibilitySaving || npc.profileSaving) return;
                     npc.visibilitySaving = true;
                     updateNpcDossierVisibilityControl(card, npc);
                     try {
@@ -1250,17 +1334,245 @@ function parseYamlLite(yamlText) {
 
         }
 
-        function initNpcCategoryDragAndDrop(container, state = {}) {
-            if (!container || state.canEdit !== true) return;
+        let npcRosterPicker = null;
+
+        function closeNpcRosterPicker(restoreFocus = false) {
+            npcRosterPicker?.close(restoreFocus);
+        }
+
+        function openNpcRosterPicker(trigger, { title, searchable = false, options, onSelect }) {
+            if (npcRosterPicker?.trigger === trigger) {
+                closeNpcRosterPicker(true);
+                return;
+            }
+            closeNpcRosterPicker();
+            const panel = document.createElement('div');
+            panel.id = 'npc-roster-picker';
+            panel.className = 'npc-roster-picker';
+            panel.setAttribute('popover', 'auto');
+            panel.setAttribute('role', 'dialog');
+            panel.setAttribute('aria-labelledby', 'npc-roster-picker-title');
+            panel.innerHTML = `
+                <div class="npc-roster-picker-heading"><h2 id="npc-roster-picker-title">${escapeNpcAttribute(title)}</h2><button type="button" data-npc-picker-close aria-label="Chiudi"><i class="fas fa-xmark" aria-hidden="true"></i></button></div>
+                ${searchable ? '<input type="search" data-npc-picker-search aria-label="Cerca categoria" placeholder="Cerca categoria…" autocomplete="off">' : ''}
+                <div class="npc-roster-picker-options">${options.map((option) => `<button type="button" data-npc-picker-value="${escapeNpcAttribute(option.value)}" data-npc-picker-search-text="${escapeNpcAttribute(normalizeRosterSearch(option.label))}" class="${option.current ? 'is-current' : ''}"${option.current ? ' aria-current="true"' : ''}${option.lifeState ? ` data-life-state="${escapeNpcAttribute(option.lifeState)}"` : ''}><i class="fas ${escapeNpcAttribute(option.icon || 'fa-folder-open')}" aria-hidden="true"></i><span>${escapeNpcAttribute(option.label)}</span>${option.current ? '<i class="fas fa-check" aria-hidden="true"></i>' : ''}</button>`).join('')}</div>
+                <p data-npc-picker-empty hidden>Nessuna categoria trovata.</p>`;
+            document.body.appendChild(panel);
+            const controller = new AbortController();
+            const close = (restoreFocus = false) => {
+                if (npcRosterPicker?.panel !== panel) return;
+                npcRosterPicker = null;
+                controller.abort();
+                trigger.setAttribute('aria-expanded', 'false');
+                trigger.removeAttribute('aria-controls');
+                if (typeof panel.hidePopover === 'function' && panel.matches(':popover-open')) panel.hidePopover();
+                panel.remove();
+                if (restoreFocus && trigger.isConnected) trigger.focus({ preventScroll: true });
+            };
+            npcRosterPicker = { panel, trigger, close };
+            trigger.setAttribute('aria-expanded', 'true');
+            trigger.setAttribute('aria-controls', panel.id);
+            panel.addEventListener('toggle', (event) => {
+                if (event.newState === 'closed') close();
+            }, { signal: controller.signal });
+            panel.showPopover?.();
+            const anchor = trigger.getBoundingClientRect();
+            const bounds = panel.getBoundingClientRect();
+            const inset = 12;
+            panel.style.left = `${Math.max(inset, Math.min(anchor.left, window.innerWidth - bounds.width - inset))}px`;
+            const below = anchor.bottom + 6;
+            panel.style.top = `${Math.max(inset, below + bounds.height <= window.innerHeight - inset ? below : Math.min(anchor.top - bounds.height - 6, window.innerHeight - bounds.height - inset))}px`;
+            panel.querySelector('[data-npc-picker-close]').addEventListener('click', () => close(true));
+            const buttons = [...panel.querySelectorAll('[data-npc-picker-value]')];
+            for (const button of buttons) {
+                button.addEventListener('click', () => {
+                    const value = button.dataset.npcPickerValue;
+                    close(true);
+                    onSelect(value);
+                });
+            }
+            const search = panel.querySelector('[data-npc-picker-search]');
+            search?.addEventListener('input', () => {
+                const terms = normalizeRosterSearch(search.value).split(' ').filter(Boolean);
+                buttons.forEach((button) => {
+                    button.hidden = !terms.every((term) => button.dataset.npcPickerSearchText.includes(term));
+                });
+                panel.querySelector('[data-npc-picker-empty]').hidden = buttons.some((button) => !button.hidden);
+            });
+            panel.addEventListener('keydown', (event) => {
+                if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+                if (event.target === search && event.key !== 'ArrowDown') return;
+                const visible = buttons.filter((button) => !button.hidden);
+                if (!visible.length) return;
+                event.preventDefault();
+                const current = visible.indexOf(document.activeElement);
+                const index = event.key === 'Home' ? 0 : event.key === 'End' ? visible.length - 1
+                    : event.key === 'ArrowDown' ? (current + 1) % visible.length : (current - 1 + visible.length) % visible.length;
+                visible[index].focus();
+            });
+            document.addEventListener('keydown', (event) => {
+                if (event.key !== 'Escape') return;
+                event.preventDefault();
+                event.stopPropagation();
+                close(true);
+            }, { capture: true, signal: controller.signal });
+            document.addEventListener('pointerdown', (event) => {
+                if (!panel.contains(event.target) && !trigger.contains(event.target)) close();
+            }, { signal: controller.signal });
+            document.addEventListener('focusin', (event) => {
+                if (!panel.contains(event.target) && !trigger.contains(event.target)) close();
+            }, { signal: controller.signal });
+            window.addEventListener('resize', () => close(), { signal: controller.signal });
+            window.addEventListener('scroll', (event) => {
+                if (!panel.contains(event.target)) close();
+            }, { capture: true, signal: controller.signal });
+            (search || panel.querySelector('.is-current') || buttons[0])?.focus({ preventScroll: true });
+        }
+
+        function initNpcRosterBulkActions(container, state) {
+            const toolbar = document.querySelector('[data-npc-bulk-actions]');
+            if (!toolbar) return;
+            const selected = state.selectedNpcKeys ||= new Set();
+            const keyOf = (npc) => managedNpcRosterKey(npc?.managedActorWorldId, npc?.managedActorId);
+            const npcByKey = new Map(state.npcs.map((npc) => [keyOf(npc), npc]));
+            const selectAll = toolbar.querySelector('[data-npc-bulk-select-all]');
+            const clear = toolbar.querySelector('[data-npc-bulk-clear]');
+            const categoryButton = toolbar.querySelector('[data-npc-bulk-category]');
+            const lifecycleButton = toolbar.querySelector('[data-npc-bulk-lifecycle]');
+            const archiveView = () => document.querySelector('[data-roster-archive-toggle]')?.getAttribute('aria-pressed') === 'true';
+            const visibleCards = () => [...container.querySelectorAll('[data-roster-card="npc"]')]
+                .filter((card) => !card.hidden && card.querySelector('.npc-selection-control'));
+            const cardKey = (card) => managedNpcRosterKey(card.dataset.managedActorWorld, card.dataset.managedActorId);
+            const sync = () => {
+                toolbar.hidden = state.canEdit !== true;
+                const visible = new Set(visibleCards().map(cardKey));
+                for (const key of selected) {
+                    if (!state.canEdit || !visible.has(key)) selected.delete(key);
+                }
+                container.querySelectorAll('.npc-selection-control').forEach((control) => {
+                    const card = control.closest('[data-roster-card="npc"]');
+                    const key = cardKey(card);
+                    const npc = npcByKey.get(key);
+                    const checked = selected.has(key);
+                    card.classList.toggle('is-selected', checked);
+                    control.setAttribute('aria-checked', String(checked));
+                    control.setAttribute('aria-disabled', String(Boolean(state.bulkSaving || npc?.profileSaving || npc?.visibilitySaving)));
+                });
+                toolbar.querySelector('[data-npc-bulk-count]').textContent = selected.size
+                    ? `${selected.size} NPC selezionat${selected.size === 1 ? 'o' : 'i'}` : 'Nessun NPC selezionato';
+                toolbar.setAttribute('aria-busy', String(Boolean(state.bulkSaving)));
+                selectAll.disabled = Boolean(state.bulkSaving) || !visible.size;
+                clear.disabled = categoryButton.disabled = lifecycleButton.disabled = Boolean(state.bulkSaving) || !selected.size;
+                lifecycleButton.innerHTML = archiveView()
+                    ? '<i class="fas fa-rotate-left" aria-hidden="true"></i><span>Ripristina selezionati</span>'
+                    : '<i class="fas fa-trash-can" aria-hidden="true"></i><span>Archivia selezionati</span>';
+                toolbar.querySelector('[data-npc-bulk-status]').textContent = state.bulkMessage || '';
+                document.querySelectorAll('#npc-search, #npc-type-filters button, #npc-status-filters button, [data-npc-sort-switch] button, [data-npc-edit-toggle], [data-npc-edit-action]').forEach((control) => {
+                    control.disabled = Boolean(state.bulkSaving);
+                });
+            };
+            state.syncBulkSelection = sync;
+            const toggleSelection = (event) => {
+                const control = event.target.closest('.npc-selection-control');
+                if (!control || !container.contains(control)) return;
+                if (event.type === 'keydown' && !['Enter', ' '].includes(event.key)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const key = cardKey(control.closest('[data-roster-card="npc"]'));
+                const npc = npcByKey.get(key);
+                if (!state.canEdit || state.bulkSaving || !npc || npc.profileSaving || npc.visibilitySaving) return;
+                if (selected.has(key)) selected.delete(key);
+                else selected.add(key);
+                state.bulkMessage = '';
+                sync();
+            };
+            container.addEventListener('click', toggleSelection);
+            container.addEventListener('keydown', toggleSelection);
+            selectAll.addEventListener('click', () => {
+                if (!state.canEdit || state.bulkSaving) return;
+                visibleCards().forEach((card) => {
+                    const key = cardKey(card);
+                    const npc = npcByKey.get(key);
+                    if (npc && !npc.profileSaving && !npc.visibilitySaving) selected.add(key);
+                });
+                state.bulkMessage = '';
+                sync();
+            });
+            clear.addEventListener('click', () => {
+                if (state.bulkSaving) return;
+                selected.clear();
+                state.bulkMessage = '';
+                sync();
+            });
+            const runBulk = async (change, { singular, plural, suffix = '' }) => {
+                if (!state.canEdit || state.bulkSaving) return;
+                sync();
+                const targets = [...selected].map((key) => npcByKey.get(key)).filter(Boolean);
+                if (!targets.length) return;
+                closeNpcRosterPicker();
+                state.bulkSaving = true;
+                sync();
+                try {
+                    const result = await saveNpcBulkChanges(targets, change, ({ completed, total, npc }) => {
+                        if (npc) updateNpcDossierVisibilityControl(null, npc);
+                        else targets.forEach((entry) => updateNpcDossierVisibilityControl(null, entry));
+                        state.bulkMessage = `Salvataggio ${completed} di ${total}…`;
+                        sync();
+                    });
+                    for (const npc of result.succeeded) {
+                        selected.delete(keyOf(npc));
+                        if (npc.categorySubcategoryId) writeNpcSubcategoryCollapsed(npcSubcategoryStorageKey(npc.categoryGroupId, npc.categorySubcategoryId), false);
+                    }
+                    const count = result.succeeded.length;
+                    state.bulkMessage = count ? `${count} NPC ${count === 1 ? singular : plural}${suffix}.` : 'Nessun NPC aggiornato.';
+                    if (result.failed.length) {
+                        const names = result.failed.slice(0, 3).map(({ npc }) => npc.name).join(', ');
+                        state.bulkMessage += ` ${result.failed.length} non aggiornat${result.failed.length === 1 ? 'o' : 'i'} (${names}${result.failed.length > 3 ? '…' : ''}): restano selezionati.`;
+                        if (result.failed.some(({ error }) => error?.status === 409 || /revision conflict/i.test(error?.message || ''))) {
+                            state.bulkMessage += ' Alcuni dossier sono cambiati: ricarica l’elenco prima di riprovare.';
+                        }
+                    }
+                    showNpcRosterFeedback(state.bulkMessage, result.failed.length ? 'error' : 'success');
+                } catch (error) {
+                    state.bulkMessage = error?.message || 'Operazione non completata. Verifica gli NPC selezionati.';
+                    showNpcRosterFeedback(state.bulkMessage, 'error');
+                } finally {
+                    state.bulkSaving = false;
+                    state.render?.();
+                    sync();
+                }
+            };
+            categoryButton.addEventListener('click', () => {
+                if (!state.canEdit || state.bulkSaving || !selected.size) return;
+                const categories = [{ id: '', name: 'Senza categoria', icon: 'fa-box-archive' }, ...selectableNpcCategories(state.categoryRegistry)];
+                openNpcRosterPicker(categoryButton, {
+                    title: `Sposta ${selected.size} NPC`, searchable: true,
+                    options: categories.map((category) => ({ value: category.id, label: `${category.parentName ? `${category.parentName} / ` : ''}${category.name}${category.rosterSection === 'other' ? ' · Altri' : ''}`, icon: category.icon })),
+                    onSelect: (id) => {
+                        const category = categories.find((entry) => entry.id === id);
+                        runBulk((npc) => setNpcCategory(npc, id, state.categoryRegistry), { singular: 'spostato', plural: 'spostati', suffix: ` in ${category.name}` });
+                    }
+                });
+            });
+            lifecycleButton.addEventListener('click', () => {
+                const restore = archiveView();
+                runBulk((npc) => setNpcLifecycle(npc, restore ? 'active' : 'archived'), restore
+                    ? { singular: 'ripristinato', plural: 'ripristinati' } : { singular: 'archiviato', plural: 'archiviati' });
+            });
+            sync();
+        }
+
+        function initNpcRosterQuickActions(container, state = {}) {
+            if (!container) return;
             container._npcCategoryDragCleanup?.();
+            if (state.canEdit !== true) return;
             const listenerController = new AbortController();
             container._npcCategoryDragCleanup = () => listenerController.abort();
-            const movable = (Array.isArray(state.npcs) ? state.npcs : []).filter((npc) => npc?.managedActorWorldId && npc?.managedActorId);
+            const movable = (Array.isArray(state.npcs) ? state.npcs : []).filter((npc) => npc?.managedProfileCanEdit === true && !npc.pendingCreate && npc?.managedActorWorldId && npc?.managedActorId);
             if (!movable.length) return;
 
             const npcByKey = new Map(movable.map((npc) => [managedNpcRosterKey(npc.managedActorWorldId, npc.managedActorId), npc]));
-            const categories = orderedNpcCategories((Array.isArray(state.categoryRegistry?.categories) ? state.categoryRegistry.categories : [])
-                .filter((category) => !category.archived && !category.mergedInto));
+            const categories = selectableNpcCategories(state.categoryRegistry);
             const dock = document.createElement('div');
             dock.className = 'npc-category-drop-dock';
             dock.hidden = true;
@@ -1270,7 +1582,101 @@ function parseYamlLite(yamlText) {
             container.prepend(dock);
 
             let draggedNpc = null;
-            let saving = false;
+            const findNpc = (card) => npcByKey.get(managedNpcRosterKey(card?.dataset.managedActorWorld, card?.dataset.managedActorId));
+            const saveQuickChange = async (npc, card, save, message, focusSelector) => {
+                if (npc.profileSaving || npc.visibilitySaving) return;
+                npc.profileSaving = true;
+                card.classList.add('is-category-saving');
+                updateNpcDossierVisibilityControl(card, npc);
+                let saved = false;
+                try {
+                    await save();
+                    if (focusSelector === '.npc-category-picker-trigger' && npc.categorySubcategoryId) {
+                        writeNpcSubcategoryCollapsed(npcSubcategoryStorageKey(npc.categoryGroupId, npc.categorySubcategoryId), false);
+                    }
+                    saved = true;
+                    showNpcRosterFeedback(message, 'success');
+                } catch (error) {
+                    const conflict = error?.status === 409 || /revision conflict/i.test(error?.message || '');
+                    showNpcRosterFeedback(conflict ? 'Il dossier è cambiato. Ricarica l’elenco e riprova.' : error?.message || 'Modifica non riuscita. Riprova.', 'error');
+                } finally {
+                    npc.profileSaving = false;
+                    const restoreFocus = card.contains(document.activeElement);
+                    if (saved) state.render?.();
+                    card.classList.remove('is-category-saving');
+                    updateNpcDossierVisibilityControl(card, npc);
+                    if (saved && restoreFocus) {
+                        const updatedCard = [...container.querySelectorAll('[data-roster-card="npc"]')].find((entry) => findNpc(entry) === npc);
+                        if (updatedCard && !updatedCard.hidden) updatedCard.querySelector(focusSelector)?.focus({ preventScroll: true });
+                        else if (focusSelector === '.npc-archive-control') document.querySelector('[data-roster-archive-toggle]')?.focus({ preventScroll: true });
+                    }
+                }
+            };
+            container.querySelectorAll('.npc-archive-control').forEach((trigger) => {
+                const card = trigger.closest('[data-roster-card="npc"]');
+                const npc = findNpc(card);
+                const changeLifecycle = (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (!npc || npc.profileSaving || npc.visibilitySaving) return;
+                    const next = trigger.dataset.npcLifecycleAction;
+                    saveQuickChange(npc, card, () => setNpcLifecycle(npc, next), next === 'archived'
+                        ? `${npc.name} archiviato. Lo trovi nell’Archivio.`
+                        : `${npc.name} ripristinato nell’elenco.`, '.npc-archive-control');
+                };
+                trigger.addEventListener('click', changeLifecycle);
+                trigger.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') changeLifecycle(event);
+                });
+            });
+            const openCategoryPicker = (trigger, npc, card) => {
+                if (!npc || npc.profileSaving || npc.visibilitySaving) return;
+                const currentId = window.CriptaNpcCategories.normalizeId(npc.categoryId || npc.category);
+                openNpcRosterPicker(trigger, {
+                    title: `Sposta ${npc.name}`,
+                    searchable: true,
+                    options: targets.map((category) => ({
+                        value: category.id,
+                        label: `${category.parentName ? `${category.parentName} / ` : ''}${category.name}${category.rosterSection === 'other' ? ' · Altri' : ''}`,
+                        icon: category.icon,
+                        current: category.id === currentId
+                    })),
+                    onSelect: (id) => {
+                        if (id === currentId) return;
+                        const category = targets.find((target) => target.id === id);
+                        saveQuickChange(npc, card, () => setNpcCategory(npc, id, state.categoryRegistry), `${npc.name} spostato in ${category.name}.`, '.npc-category-picker-trigger');
+                    }
+                });
+            };
+            container.querySelectorAll('.npc-life-state-control').forEach((trigger) => {
+                const card = trigger.closest('[data-roster-card="npc"]');
+                const npc = findNpc(card);
+                const open = (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (!npc || npc.profileSaving || npc.visibilitySaving) return;
+                    const choices = [
+                        { value: 'alive', label: 'Vivo', icon: 'fa-heart' },
+                        { value: 'unknown', label: 'Ignoto', icon: 'fa-question' },
+                        { value: 'dead', label: 'Morto', icon: 'fa-skull' },
+                        { value: 'none', label: 'Nessuno', icon: 'fa-minus' }
+                    ];
+                    const current = normalizeManagedNpcLifeState(npc.lifeState, npc.status);
+                    openNpcRosterPicker(trigger, {
+                        title: `Stato di ${npc.name}`,
+                        options: choices.map((choice) => ({ ...choice, lifeState: choice.value, current: choice.value === current })),
+                        onSelect: (value) => {
+                            if (value === current) return;
+                            const label = choices.find((choice) => choice.value === value).label;
+                            saveQuickChange(npc, card, () => setNpcLifeState(npc, value), `Stato di ${npc.name} aggiornato: ${label}.`, '.npc-life-state-control');
+                        }
+                    });
+                };
+                trigger.addEventListener('click', open);
+                trigger.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') open(event);
+                });
+            });
             const clearTargets = () => {
                 stopDragAutoScroll();
                 container.classList.remove('is-category-dragging');
@@ -1283,7 +1689,7 @@ function parseYamlLite(yamlText) {
                 clearTargets();
             };
             const moveTo = async (categoryId, card = null) => {
-                if (!draggedNpc || saving) return;
+                if (!draggedNpc) return;
                 const npc = draggedNpc;
                 const targetId = window.CriptaNpcCategories?.normalizeId?.(categoryId || '') || '';
                 const currentId = window.CriptaNpcCategories?.normalizeId?.(npc.categoryId || npc.category || '') || '';
@@ -1299,36 +1705,7 @@ function parseYamlLite(yamlText) {
                     showNpcRosterFeedback('Categoria non disponibile.', 'error');
                     return;
                 }
-                saving = true;
-                card?.classList.add('is-category-saving');
-                try {
-                    const profile = await saveManagedNpcProfilePatch(npc, {
-                        categoryId: targetId,
-                        category: targetCategory?.name || ''
-                    });
-                    npc.categoryId = String(profile.categoryId || targetId);
-                    npc.category = String(profile.category || targetCategory?.name || '');
-                    npc.categoryPriority = targetCategory?.order ?? null;
-                    npc.categoryColor = targetCategory?.color || '';
-                    npc.categoryIcon = targetCategory?.icon || '';
-                    if (targetCategory) {
-                        Object.assign(npc, applyNpcCategoryMetadata(npc, state.categoryRegistry));
-                    } else {
-                        Object.assign(npc, {
-                            categoryParentId: '', categoryParent: '', categoryGroupId: '', categoryGroupName: '',
-                            categoryGroupPriority: null, categoryGroupColor: '', categoryGroupIcon: '',
-                            categorySubcategoryId: '', categorySubcategory: '', categoryRosterSection: 'npc'
-                        });
-                    }
-                    npc.managedProfileRevision = Math.max(0, Number(profile.revision || npc.managedProfileRevision || 0));
-                    state.render?.();
-                    showNpcRosterFeedback(`${npc.name} spostato in ${targetCategory?.name || 'Senza categoria'}.`, 'success');
-                } catch (error) {
-                    card?.classList.remove('is-category-saving');
-                    showNpcRosterFeedback(error?.message || 'Spostamento non riuscito.', 'error');
-                } finally {
-                    saving = false;
-                }
+                await saveQuickChange(npc, card, () => setNpcCategory(npc, targetId, state.categoryRegistry), `${npc.name} spostato in ${targetCategory?.name || 'Senza categoria'}.`, '.npc-category-picker-trigger');
             };
 
             const pointerDropTargetAt = (clientX, clientY) => {
@@ -1402,6 +1779,7 @@ function parseYamlLite(yamlText) {
                 if (!session.active) {
                     const distance = Math.hypot(event.clientX - session.startX, event.clientY - session.startY);
                     if (distance < 6) return;
+                    closeNpcRosterPicker();
                     session.active = true;
                     draggedNpc = session.npc;
                     session.card.classList.add('is-category-drag-source');
@@ -1427,6 +1805,7 @@ function parseYamlLite(yamlText) {
                     return;
                 }
                 if (!wasActive) return;
+                session.handle._npcSuppressPickerUntil = Date.now() + 350;
                 event.preventDefault();
                 event.stopPropagation();
                 const categoryId = pointerTargetCategoryId(target);
@@ -1449,22 +1828,22 @@ function parseYamlLite(yamlText) {
                 signal: listenerController.signal
             });
             container.querySelectorAll('.npc-category-drag-handle').forEach((handle) => {
+                const card = handle.closest('[data-roster-card="npc"]');
+                const npc = findNpc(card);
                 handle.addEventListener('click', (event) => {
                     event.preventDefault();
                     event.stopPropagation();
+                    if (event.detail > 0 && Date.now() < (handle._npcSuppressPickerUntil || 0)) return;
+                    openCategoryPicker(handle, npc, card);
                 });
                 handle.addEventListener('keydown', (event) => {
                     if (event.key !== 'Enter' && event.key !== ' ') return;
                     event.preventDefault();
                     event.stopPropagation();
-                    showNpcRosterFeedback('Trascina la maniglia verso una categoria.', 'info');
+                    openCategoryPicker(handle, npc, card);
                 });
                 handle.addEventListener('pointerdown', (event) => {
-                    if (event.button !== 0 || saving) return;
-                    const card = handle.closest('[data-roster-card="npc"]');
-                    const key = managedNpcRosterKey(card?.dataset.managedActorWorld, card?.dataset.managedActorId);
-                    const npc = npcByKey.get(key) || null;
-                    if (!npc || !card) return;
+                    if (event.button !== 0 || !npc || !card || npc.profileSaving || npc.visibilitySaving) return;
                     pointerSession = {
                         pointerId: event.pointerId,
                         startX: event.clientX,
@@ -1495,6 +1874,77 @@ function parseYamlLite(yamlText) {
                 data
             }, { token });
             return payload?.data || {};
+        }
+
+        async function setNpcLifeState(npc, lifeState) {
+            if (npc?.managedProfileCanEdit !== true || npc.pendingCreate || npc.kind === 'creature') throw new Error('Permesso DM richiesto.');
+            if (!['alive', 'unknown', 'dead', 'none'].includes(lifeState)) throw new Error('Stato non valido.');
+            const profile = await saveManagedNpcProfilePatch(npc, { lifeState });
+            if (profile.lifeState !== lifeState) throw new Error('Stato non confermato.');
+            npc.lifeState = lifeState;
+            npc.status = normalizeManagedNpcStatus(lifeState);
+            npc.managedProfileRevision = Math.max(0, Number(profile.revision || 0));
+            npc.updatedAt = profile.updatedAt || npc.updatedAt;
+            window.CriptaApp.api.clearCache?.();
+            return profile;
+        }
+
+        async function saveNpcBulkChanges(npcs, save, onProgress) {
+            const targets = [...new Map((Array.isArray(npcs) ? npcs : []).filter(Boolean)
+                .map((npc) => [managedNpcRosterKey(npc.managedActorWorldId, npc.managedActorId), npc])).values()];
+            const alreadyBusy = new Set(targets.filter((npc) => npc.profileSaving || npc.visibilitySaving));
+            const result = { succeeded: [], failed: [] };
+            targets.forEach((npc) => { if (!alreadyBusy.has(npc)) npc.profileSaving = true; });
+            try {
+                onProgress?.({ completed: 0, total: targets.length });
+                for (const npc of targets) {
+                    try {
+                        if (alreadyBusy.has(npc)) throw new Error('Una modifica è già in corso per questo NPC.');
+                        if (npc.managedProfileCanEdit !== true || npc.pendingCreate || !npc.managedActorWorldId || !npc.managedActorId) throw new Error('Permesso DM richiesto.');
+                        await save(npc);
+                        result.succeeded.push(npc);
+                    } catch (error) {
+                        result.failed.push({ npc, error });
+                    }
+                    onProgress?.({ completed: result.succeeded.length + result.failed.length, total: targets.length, npc });
+                }
+                return result;
+            } finally {
+                targets.forEach((npc) => { if (!alreadyBusy.has(npc)) npc.profileSaving = false; });
+            }
+        }
+
+        async function setNpcLifecycle(npc, state) {
+            if (npc?.managedProfileCanEdit !== true || npc.pendingCreate) throw new Error('Permesso DM richiesto.');
+            if (!['active', 'archived'].includes(state)) throw new Error('Stato archivio non valido.');
+            const profile = await saveManagedNpcProfilePatch(npc, { lifecycle: { state } });
+            if (profile.lifecycle?.state !== state) throw new Error('Archiviazione non confermata.');
+            npc.archived = state === 'archived';
+            npc.managedProfileRevision = Math.max(0, Number(profile.revision || 0));
+            npc.updatedAt = profile.updatedAt || npc.updatedAt;
+            window.CriptaApp.api.clearCache?.();
+            return profile;
+        }
+
+        async function setNpcCategory(npc, categoryId, registry) {
+            if (npc?.managedProfileCanEdit !== true || npc.pendingCreate) throw new Error('Permesso DM richiesto.');
+            const targetId = window.CriptaNpcCategories.normalizeId(categoryId);
+            const target = targetId ? window.CriptaNpcCategories.resolve(registry, targetId) : null;
+            if (targetId && (!target || target.archived || target.mergedInto)) throw new Error('Categoria non disponibile.');
+            const profile = await saveManagedNpcProfilePatch(npc, { categoryId: targetId, category: target?.name || '' });
+            if (profile.categoryId !== targetId) throw new Error('Categoria non confermata.');
+            Object.assign(npc, {
+                categoryId: targetId, category: target?.name || '',
+                categoryPriority: target?.order ?? null, categoryColor: target?.color || '', categoryIcon: target?.icon || '',
+                categoryParentId: '', categoryParent: '', categoryGroupId: '', categoryGroupName: '',
+                categoryGroupPriority: null, categoryGroupColor: '', categoryGroupIcon: '',
+                categorySubcategoryId: '', categorySubcategory: '', categoryRosterSection: 'npc'
+            });
+            if (target) Object.assign(npc, applyNpcCategoryMetadata(npc, registry));
+            npc.managedProfileRevision = Math.max(0, Number(profile.revision || 0));
+            npc.updatedAt = profile.updatedAt || npc.updatedAt;
+            window.CriptaApp.api.clearCache?.();
+            return profile;
         }
 
         function showNpcRosterFeedback(message, kind = 'info') {
@@ -1530,13 +1980,19 @@ function parseYamlLite(yamlText) {
             // Sorting or moving a card can replace it while its request is pending.
             const cards = new Set([card, ...document.querySelectorAll('[data-roster-card="npc"]')]);
             for (const target of cards) {
-                if (target.dataset.managedActorWorld !== npc.managedActorWorldId || target.dataset.managedActorId !== npc.managedActorId) continue;
+                if (!target || target.dataset.managedActorWorld !== npc.managedActorWorldId || target.dataset.managedActorId !== npc.managedActorId) continue;
+                const busy = Boolean(npc.visibilitySaving || npc.profileSaving);
+                target.classList.toggle('is-category-saving', Boolean(npc.profileSaving));
+                target.querySelectorAll('.npc-category-picker-trigger, .npc-life-state-control, .npc-archive-control, .npc-selection-control').forEach((trigger) => {
+                    trigger.setAttribute('aria-disabled', String(busy));
+                    trigger.setAttribute('aria-busy', String(busy));
+                });
                 const control = target.querySelector('.npc-profile-visibility');
                 if (!control) continue;
                 const isPublic = npc.managedProfileVisibility === 'public';
                 control.setAttribute('aria-checked', String(isPublic));
-                control.setAttribute('aria-disabled', String(Boolean(npc.visibilitySaving)));
-                control.setAttribute('aria-busy', String(Boolean(npc.visibilitySaving)));
+                control.setAttribute('aria-disabled', String(busy));
+                control.setAttribute('aria-busy', String(busy));
                 control.title = npc.visibilitySaving ? 'Salvataggio…' : isPublic
                     ? 'Dossier visibile a tutti. Premi per riservarlo al DM.'
                     : 'Dossier riservato al DM. Premi per renderlo visibile a tutti.';

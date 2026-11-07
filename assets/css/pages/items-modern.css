@@ -163,6 +163,11 @@ body.page-oggetti .item-classification-editor__heading i{color:#c49adc}
 body.page-oggetti .item-classification-editor__heading small{color:rgba(225,213,188,.42);font:.56rem/1.35 var(--font-ui);text-align:right}
 body.page-oggetti .item-classification-editor__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.62rem}
 body.page-oggetti .item-classification-editor .item-inline-editor-field>span small{color:rgba(225,213,188,.35);font-size:.48rem;text-transform:none}
+body.page-oggetti [data-item-creation]{grid-column:1/-1;scroll-margin-top:1rem}
+body.page-oggetti [data-item-creation]:hover{transform:none}
+body.page-oggetti .item-editor-help{align-self:end;color:rgba(225,213,188,.65);font:.72rem/1.4 var(--font-body)}
+body.page-oggetti [data-item-creation] [hidden]{display:none!important}
+body.page-oggetti .items-grid-section--subfolder{margin-inline-start:clamp(.45rem,2vw,1.5rem);border-inline-start-color:var(--item-category-accent)}
 @media(max-width:760px){body.page-oggetti .item-classification-editor__heading{align-items:flex-start;flex-direction:column}body.page-oggetti .item-classification-editor__heading small{text-align:left}body.page-oggetti .item-classification-editor__grid{grid-template-columns:1fr}}
 /* Compact item filters */
 body.page-oggetti .items-tools-primary {

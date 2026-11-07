@@ -21,11 +21,23 @@
         return String(value || "").trim().toLowerCase() === "other" ? "other" : "npc";
     }
 
+    function isUncategorized(category = {}) {
+        if (category.parentId) return false;
+        const key = normalizeId(category.name || category.label || category.id).replace(/_/g, "-");
+        return ["altri", "altri-npc", "senza-categoria"].includes(key);
+    }
+
+    function normalizeAssignment(registry, categoryId, categoryName = "") {
+        const resolved = resolve(registry, categoryId, categoryName);
+        if (isUncategorized(resolved || { id: categoryId, name: categoryName })) return { categoryId: "", category: "" };
+        return { categoryId: normalizeId(resolved?.id || categoryId || categoryName), category: String(resolved?.name || categoryName).trim() };
+    }
 
     function normalizeCategory(value = {}, index = 0) {
         const input = value && typeof value === "object" ? value : {};
-        const name = String(input.name || input.label || "").trim().slice(0, 120);
-        const id = normalizeId(input.id || name);
+        const originalName = String(input.name || input.label || "").trim().slice(0, 120);
+        const name = isUncategorized(input) ? "Senza categoria" : originalName;
+        const id = normalizeId(input.id || originalName);
         if (!id || !name) return null;
         const orderValue = Number(input.order);
         const usageValue = Number(input.usageCount);
@@ -107,5 +119,5 @@
         cache.delete(campaignId());
     }
 
-    window.CriptaNpcCategories = { clear, load, normalizeCategory, normalizeId, normalizeRegistry, normalizeRosterSection, resolve, save };
+    window.CriptaNpcCategories = { clear, isUncategorized, load, normalizeAssignment, normalizeCategory, normalizeId, normalizeRegistry, normalizeRosterSection, resolve, save };
 })();

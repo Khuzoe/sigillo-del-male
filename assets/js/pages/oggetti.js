@@ -6,6 +6,28 @@ let currentItemCategoryRegistry = { categories: [] };
 const ITEM_IMAGE_ADJUST_DATASET_KEYS = { x: "itemAdjustX", y: "itemAdjustY", size: "itemAdjustSize" };
 const ITEM_IMAGE_ADJUST_CSS_VARS = { x: "--item-img-x", y: "--item-img-y", size: "--item-img-scale" };
 const ITEM_IMAGE_ADJUST_FRAME_SELECTORS = ["[data-item-image-preview]", ".item-card-media"];
+const ITEM_CREATION_FOLDERS = {
+    weapon: ["Armi", "Arma"], armor: ["Armature", "Armatura"],
+    consumable: ["Consumabili", "Consumabile"], equipment: ["Equipaggiamento", "Oggetto meraviglioso"],
+    tool: ["Strumenti", "Strumento"], material: ["Materiali", "Materiale"],
+    loot: ["Bottino"], container: ["Contenitori", "Contenitore"]
+};
+const ITEM_CREATION_SUBTYPES = {
+    weapon: "simpleM", armor: "light", consumable: "potion", equipment: "wondrous", material: "material"
+};
+const WEAPON_STARTERS = {
+    dagger: { label: "Pugnale", subtype: "simpleM", dice: "1d4", damage: "piercing", range: [20, 60], properties: ["fin", "lgt", "thr"] },
+    mace: { label: "Mazza", subtype: "simpleM", dice: "1d6", damage: "bludgeoning", properties: [] },
+    longsword: { label: "Spada lunga", subtype: "martialM", dice: "1d8", damage: "slashing", versatile: 10, properties: ["ver"] },
+    greatsword: { label: "Spadone", subtype: "martialM", dice: "2d6", damage: "slashing", properties: ["hvy", "two"] },
+    shortbow: { label: "Arco corto", subtype: "simpleR", dice: "1d6", damage: "piercing", range: [80, 320], ammunition: "arrow", properties: ["amm", "two"] },
+    longbow: { label: "Arco lungo", subtype: "martialR", dice: "1d8", damage: "piercing", range: [150, 600], ammunition: "arrow", properties: ["amm", "hvy", "two"] }
+};
+const ITEM_DAMAGE_TYPES = {
+    bludgeoning: "Contundente", piercing: "Perforante", slashing: "Tagliente", acid: "Acido", cold: "Freddo",
+    fire: "Fuoco", force: "Forza", lightning: "Fulmine", necrotic: "Necrotico", poison: "Veleno",
+    psychic: "Psichico", radiant: "Radioso", thunder: "Tuono"
+};
 
 window.CriptaApp.onPageReady("oggetti", async () => {
     const grid = document.getElementById("items-grid");
@@ -57,6 +79,7 @@ window.CriptaApp.onPageReady("oggetti", async () => {
         initConfigurationControlsButton(configControlsButton, state, controls);
         window.CriptaItemCategoryManager?.init?.({
             isEditor: canSeeHidden,
+            getInferredFolders: () => state.categoryRegistry.categories.filter(category => category.inferred),
             onSaved: (registry) => {
                 state.categoryRegistry = withInferredItemCategories(registry, state.items);
                 currentItemCategoryRegistry = state.categoryRegistry;
@@ -302,7 +325,7 @@ function renderItemCategoryFilters(container, state) {
         || String(left.name).localeCompare(String(right.name), "it"));
     renderItemFilter(container, "items-category", [
         { value: "all", label: "Tutte", icon: "fa-layer-group" },
-        ...categories.map(category => ({ value: category.id, label: category.name, icon: category.icon || "fa-folder-open" }))
+        ...categories.map(category => ({ value: category.id, label: itemFolderLabel(category, state.categoryRegistry), icon: category.icon || "fa-folder-open" }))
     ], state.category);
 }
 function renderItemFilter(container, dataName, filters, activeValue) {
@@ -334,30 +357,34 @@ function initCreateItemButton(button, state, elements) {
     if (!button || !state.canEditItems) return;
     button.hidden = false;
     button.addEventListener("click", () => {
-        const draft = createEmptyItemDraft();
-        state.items = [draft, ...state.items.filter(item => getItemId(item) !== draft.id)];
-        state.editingItemId = draft.id;
-        state.itemDraft = structuredCloneSafe(draft);
-        state.query = "";
-        state.rarity = "all";
-        state.type = "all";
-        state.category = "all";
-        state.attunement = "all";
-        state.lifecycle = "active";
-        if (elements.search) elements.search.value = "";
-        setFilterGroupActive(elements.rarityFilters, "itemsRarity", "all");
-        setFilterGroupActive(elements.typeFilters, "itemsType", "all");
-        setFilterGroupActive(elements.categoryFilters, "itemsCategory", "all");
-        setFilterGroupActive(elements.attunementFilters, "itemsAttunement", "all");
-        setFilterGroupActive(elements.lifecycleFilters, "itemsLifecycle", "active");
-        updateItemsView(state.items, state, elements.grid, elements.count);
-        updateItemFilterPanelState(state, elements);
-        const card = elements.grid.querySelector(`#${CSS.escape(draft.id)}`);
-        if (card) {
-            card.open = true;
-            card.scrollIntoView({ block: "center" });
+        if (state.itemSaving) return;
+        if (!state.creatingItem) {
+            state.itemDraft = createEmptyItemDraft();
+            state.editingItemId = state.itemDraft.id;
+            state.creatingItem = true;
+            resetItemFiltersForCreation(elements, state);
+            updateItemsView(state.items, state, elements.grid, elements.count);
         }
+        const form = elements.grid.querySelector("[data-item-creation]");
+        form?.scrollIntoView({ block: "start" });
+        form?.querySelector('[data-item-field="name"]')?.focus({ preventScroll: true });
     });
+}
+
+function resetItemFiltersForCreation(elements, state) {
+    state.query = "";
+    state.rarity = "all";
+    state.type = "all";
+    state.category = "all";
+    state.attunement = "all";
+    state.lifecycle = "active";
+    if (elements.search) elements.search.value = "";
+    setFilterGroupActive(elements.rarityFilters, "itemsRarity", "all");
+    setFilterGroupActive(elements.typeFilters, "itemsType", "all");
+    setFilterGroupActive(elements.categoryFilters, "itemsCategory", "all");
+    setFilterGroupActive(elements.attunementFilters, "itemsAttunement", "all");
+    setFilterGroupActive(elements.lifecycleFilters, "itemsLifecycle", "active");
+    updateItemFilterPanelState(state, elements);
 }
 
 function initConfigurationControlsButton(button, state, elements) {
@@ -397,12 +424,9 @@ function setFilterGroupActive(container, datasetKey, value) {
 }
 
 function createEmptyItemDraft() {
-    const suffix = Date.now().toString(36);
     return {
-        id: `nuovo-oggetto-${suffix}`,
-        name: "Nuovo oggetto",
-        type: "Oggetto meraviglioso",
-        classification: { version: 1, family: "equipment", subtype: "wondrous" },
+        id: `nuovo-oggetto-${crypto.randomUUID()}`,
+        name: "",
         rarity: "Sconosciuta",
         summary: "",
         notes: "",
@@ -416,12 +440,15 @@ function updateItemsView(items, state, grid, count) {
     currentMaterialTagSuggestions = collectMaterialTagSuggestions(items);
     if (count) count.textContent = `${filtered.length} ${filtered.length === 1 ? "voce" : "voci"}`;
 
-    if (!filtered.length) {
+    if (!filtered.length && !state.creatingItem) {
         grid.innerHTML = '<p class="items-state">Nessun oggetto corrisponde ai filtri.</p>';
         return;
     }
 
-    grid.innerHTML = renderItemsGrid(filtered, {
+    const existingCreation = state.creatingItem ? grid.querySelector("[data-item-creation]") : null;
+    const creation = state.creatingItem && !existingCreation
+        ? `<section class="item-card item-card--editing" data-item-creation>${renderItemInlineEditor(state.itemDraft, true)}</section>` : "";
+    grid.innerHTML = creation + renderItemsGrid(filtered, {
         canEdit: state.canEditItems,
         editingItemId: state.editingItemId,
         itemDraft: state.itemDraft,
@@ -433,6 +460,7 @@ function updateItemsView(items, state, grid, count) {
     bindItemArchiveActions(grid, state, count);
     bindItemCategoryDrag(grid, state, count);
     initItemAdjustedImages(grid);
+    if (existingCreation) grid.prepend(existingCreation);
 }
 
 function renderItemsGrid(items, { canEdit = false, editingItemId = "", itemDraft = null, categoryRegistry = null } = {}) {
@@ -442,12 +470,18 @@ function renderItemsGrid(items, { canEdit = false, editingItemId = "", itemDraft
         if (!groups.has(category.id)) groups.set(category.id, { ...category, items: [] });
         groups.get(category.id).items.push(item);
     }
-    const sections = [...groups.values()].sort((left, right) => Number(left.order || 9999) - Number(right.order || 9999)
-        || String(left.name).localeCompare(String(right.name), "it"));
+    const byId = new Map((categoryRegistry?.categories || []).map(category => [category.id, category]));
+    const sort = (left, right) => Number(left.order || 9999) - Number(right.order || 9999)
+        || left.name.localeCompare(right.name, "it") || left.id.localeCompare(right.id);
+    const sections = [...groups.values()].sort((left, right) => {
+        const leftRoot = byId.get(left.parentId) || left;
+        const rightRoot = byId.get(right.parentId) || right;
+        return sort(leftRoot, rightRoot) || Number(Boolean(left.parentId)) - Number(Boolean(right.parentId)) || sort(left, right);
+    });
     const sectionMarkup = sections.map(section => `
-        <section class="items-grid-section items-grid-section--category" data-item-category-id="${escapeHtml(section.id)}"
+        <section class="items-grid-section items-grid-section--category ${section.parentId ? "items-grid-section--subfolder" : ""}" data-item-category-id="${escapeHtml(section.id)}"
             style="--item-category-accent:${escapeHtml(section.color || "#b99a45")}">
-            ${renderItemsSectionHeader(section.name, section.items.length, section.icon || "fa-folder-open")}
+            ${renderItemsSectionHeader(itemFolderLabel(section, categoryRegistry), section.items.length, section.icon || "fa-folder-open")}
             <div class="items-grid-section-cards">
                 ${section.items.map(item => renderItemCard(item, {
                     canEdit,
@@ -475,7 +509,7 @@ function renderItemCategoryDropDock(registry, canEdit) {
                     <button type="button" data-item-category-drop-id="${escapeHtml(category.id)}"
                         style="--item-category-accent:${escapeHtml(category.color || "#b99a45")}">
                         <i class="fas ${escapeHtml(category.icon || "fa-folder-open")}" aria-hidden="true"></i>
-                        <span>${escapeHtml(category.name)}</span>
+                        <span>${escapeHtml(itemFolderLabel(category, registry))}</span>
                     </button>
                 `).join("")}
             </div>
@@ -522,14 +556,15 @@ function filterItems(items, state) {
         const materialTags = getVisibleMaterialTags(item);
         if (state.rarity !== "all" && normalizeItemRarityLabel(item.rarity) !== state.rarity) return false;
         if (state.type !== "all" && normalizeItemClassification(item).family !== state.type) return false;
-        if (state.category !== "all" && getItemCatalogCategory(item, state.categoryRegistry).id !== state.category) return false;
+        const folder = getItemCatalogCategory(item, state.categoryRegistry);
+        if (state.category !== "all" && folder.id !== state.category && folder.parentId !== state.category) return false;
         if (state.attunement === "yes" && item.attunement !== true) return false;
         if (state.attunement === "no" && item.attunement === true) return false;
         if (!query) return true;
         return normalizeSearch([
             item.name,
             getItemCategory(item),
-            getItemCatalogCategory(item, state.categoryRegistry).name,
+            itemFolderLabel(folder, state.categoryRegistry),
             item.type,
             item.subtype,
             getItemClassificationMeta(item).familyLabel,
@@ -902,7 +937,7 @@ function formatDiscordPropertyCharges(value) {
     if (!Number.isFinite(amount)) return charges;
     return `${charges} ${amount === 1 ? "carica" : "cariche"}`;
 }
-function renderItemInlineEditor(item) {
+function renderItemInlineEditor(item, creating = false) {
     const imagePath = String(item.image || "").trim();
     const imageAdjust = normalizeItemImageAdjust(item.imageAdjust);
     const preview = imagePath
@@ -910,22 +945,23 @@ function renderItemInlineEditor(item) {
         : '<span class="item-inline-editor-preview-empty"><i class="fas fa-image"></i>Nessuna immagine</span>';
     const fileName = getFileNameFromPath(imagePath);
     return `
-        <div class="item-inline-editor" data-item-inline-editor>
+        <div class="item-inline-editor" data-item-inline-editor${creating ? ' data-new-item' : ""}>
             <header class="item-inline-editor-header">
                 <div class="item-inline-editor-heading">
-                    <span>Modifica oggetto</span>
-                    <strong>${escapeHtml(item.name || "Oggetto senza nome")}</strong>
-                    ${renderItemSyncBadge(item)}
+                    <span>${creating ? "Catalogo" : "Modifica oggetto"}</span>
+                    <strong>${escapeHtml(creating ? "Nuovo oggetto" : item.name || "Oggetto senza nome")}</strong>
+                    ${creating ? "" : renderItemSyncBadge(item)}
                 </div>
                 <div class="item-inline-editor-actions">
                     <button class="item-card-edit-link item-card-edit-link--visible" type="button" data-item-edit-action="cancel">
                         <i class="fas fa-xmark" aria-hidden="true"></i><span>Annulla</span>
                     </button>
                     <button class="item-card-edit-link item-card-edit-link--visible item-card-edit-link--primary" type="button" data-item-edit-action="save">
-                        <i class="fas fa-floppy-disk" aria-hidden="true"></i><span>Salva modifiche</span>
+                        <i class="fas fa-floppy-disk" aria-hidden="true"></i><span>${creating ? "Crea oggetto" : "Salva modifiche"}</span>
                     </button>
                 </div>
             </header>
+            ${creating ? '<p class="item-inline-editor-status" role="status" data-item-editor-status></p>' : ""}
             <div class="item-inline-editor-layout">
                 <aside class="item-inline-editor-media">
                     <button class="item-inline-editor-preview" type="button" data-item-image-dropzone>
@@ -954,14 +990,18 @@ function renderItemInlineEditor(item) {
                         </div>
                         <div class="item-inline-editor-grid">
                             ${renderItemEditInput("Nome", "name", item.name || "", "item-inline-editor-field--wide")}
-                            ${renderItemClassificationEditor(item)}
-                            ${renderItemEditSelect("Categoria", "categoryId", getItemCatalogCategory(item).id, getItemCategoryOptions(item))}
+                            ${renderItemClassificationEditor(item, creating)}
+                            ${renderItemEditSelect("Cartella del catalogo", "categoryId", creating ? "" : getItemCatalogCategory(item).id, creating
+                                ? [{ value: "", label: "Automatica in base al tipo" }, ...getItemCategoryOptions()]
+                                : getItemCategoryOptions(item))}
+                            <small class="item-editor-help" data-item-folder-hint>${creating ? "Scegli il tipo per vedere la cartella suggerita." : "La cartella organizza il catalogo e viene sincronizzata in Foundry."}</small>
                             ${renderItemEditSelect("Rarità", "rarity", normalizeItemRarityLabel(item.rarity), getItemRarityOptions(item.rarity))}
                             ${renderItemEditInput("Provenienza / portatore", "owner", item.owner || "")}
                             ${renderItemCostEditor(item)}
                             ${renderItemEditInput("Peso", "weight", item.weight ?? "")}
                         </div>
                     </section>
+                    ${creating ? '<div data-item-guided-mechanics hidden></div>' : ""}
                     <section class="item-inline-editor-section">
                         <div class="item-inline-editor-section-title">
                             <i class="fas fa-feather-pointed" aria-hidden="true"></i>
@@ -1012,9 +1052,9 @@ function renderItemInlineEditor(item) {
                             <span>Questi dati descrivono il documento condiviso. Aprili soltanto quando serve intervenire sulla struttura Foundry.</span>
                         </div>
                         <div class="item-inline-editor-grid">
-                            ${renderItemEditInput("ID stabile", "id", getItemId(item), "", item?.sync?.managed === true)}
+                            ${renderItemEditInput("ID stabile", "id", getItemId(item), "", creating || item?.sync?.managed === true)}
                             ${renderItemEditInput("Stato tecnico", "status", item.status || "")}
-                            ${renderItemEditSelect("Tipo documento", "foundryType", getItemFoundryType(item), getFoundryTypeOptions(getItemFoundryType(item)))}
+                            ${creating ? "" : renderItemEditSelect("Tipo documento", "foundryType", getItemFoundryType(item), getFoundryTypeOptions(getItemFoundryType(item)))}
                             ${renderItemEditJsonObject("Dati meccanici", "foundrySystem", getItemFoundrySystem(item), "item-inline-editor-field--wide item-foundry-json", 12)}
                             ${renderItemEditJsonObject("Effetti attivi", "foundryEffects", getItemFoundryEffects(item), "item-inline-editor-field--wide item-foundry-json", 8)}
                             ${renderItemEditJson("Nomi riconosciuti in Foundry", "foundryNames", item.foundryNames || [], "item-inline-editor-field--wide")}
@@ -1023,7 +1063,7 @@ function renderItemInlineEditor(item) {
                     </details>
                 </div>
             </div>
-            <p class="item-inline-editor-status" data-item-editor-status></p>
+            ${creating ? "" : '<p class="item-inline-editor-status" role="status" data-item-editor-status></p>'}
         </div>
     `;
 }
@@ -1036,23 +1076,24 @@ function renderItemImageAdjustControl(key, label, value, min, max, step) {
     `;
 }
 
-function renderItemClassificationEditor(item) {
-    const classification = normalizeItemClassification(item);
+function renderItemClassificationEditor(item, creating = false) {
+    const classification = creating ? {} : normalizeItemClassification(item);
     const familyOptions = ITEM_FAMILIES.map(entry => ({ value: entry.value, label: entry.label }));
+    if (creating) familyOptions.unshift({ value: "", label: "Scegli il tipo di oggetto" });
     const subtypeOptions = getClassificationSubtypeOptions(classification.family, classification.subtype);
     return `
         <div class="item-classification-editor item-inline-editor-field--wide" data-item-classification-editor>
             <div class="item-classification-editor__heading">
-                <span><i class="fas fa-sitemap" aria-hidden="true"></i><b>Classificazione meccanica</b></span>
-                <small>Definisce come l'oggetto viene interpretato anche in Foundry.</small>
+                <span><i class="fas fa-sitemap" aria-hidden="true"></i><b>${creating ? "Tipo e regole di gioco" : "Classificazione meccanica"}</b></span>
+                <small data-item-foundry-type-hint>Il tipo determina il documento creato in Foundry.</small>
             </div>
             <div class="item-classification-editor__grid">
-                ${renderItemClassificationSelect("Famiglia", "family", classification.family, familyOptions)}
+                ${renderItemClassificationSelect("Tipo di oggetto", "family", classification.family || "", familyOptions)}
                 ${renderItemClassificationSelect("Sottotipo", "subtype", classification.subtype || "", subtypeOptions, true)}
-                <label class="item-inline-editor-field">
+                ${creating ? "" : `<label class="item-inline-editor-field">
                     <span>Oggetto base <small>(opzionale)</small></span>
                     <input data-item-classification="baseItem" value="${escapeHtml(classification.baseItem || "")}" placeholder="Es. longsword, halfplate, shield">
-                </label>
+                </label>`}
             </div>
         </div>
     `;
@@ -1078,6 +1119,101 @@ function getClassificationSubtypeOptions(family, currentValue = "") {
         options.push({ value: current, label: `Personalizzato: ${current}` });
     }
     return options;
+}
+
+function getSuggestedItemFolder(family) {
+    const names = ITEM_CREATION_FOLDERS[family] || [];
+    const registry = currentItemCategoryRegistry;
+    for (const name of names) {
+        const category = window.CriptaItemCategories?.resolve?.(registry, slugify(name), name)
+            || registry.categories?.find(entry => !entry.parentId && normalizeSearch(entry.name) === normalizeSearch(name));
+        if (category && !category.parentId && !category.archived && !category.mergedInto) return category;
+    }
+    const availableName = names.find(name => !registry.categories?.some(category =>
+        category.id === slugify(name) || normalizeSearch(category.name) === normalizeSearch(name)));
+    return getItemCatalogCategory({ category: availableName || "Senza categoria" }, { categories: [] });
+}
+
+function renderGuidedItemMechanics(family) {
+    const input = (label, key, attributes = "") => '<label class="item-inline-editor-field"><span>' + label
+        + '</span><input data-item-mechanic="' + key + '" ' + attributes + '></label>';
+    const select = (label, key, choices, empty) => '<label class="item-inline-editor-field"><span>' + label
+        + '</span><select data-item-mechanic="' + key + '"><option value="">' + empty + '</option>'
+        + Object.entries(choices).map(([value, name]) => '<option value="' + value + '">' + escapeHtml(name) + '</option>').join("")
+        + '</select></label>';
+    const fields = {
+        weapon: () => [
+            select("Modello di partenza", "starter", Object.fromEntries(Object.entries(WEAPON_STARTERS).map(([key, value]) => [key, value.label])), "Arma personalizzata"),
+            input("Dadi di danno", "dice", 'placeholder="Es. 1d8" maxlength="8"'),
+            select("Tipo di danno", "damage", ITEM_DAMAGE_TYPES, "Seleziona il danno"),
+            input("Gittata normale (ft)", "range", 'type="number" min="0" max="9999"'),
+            input("Gittata lunga (ft)", "longRange", 'type="number" min="0" max="9999"')
+        ].join(""),
+        armor: () => input("CA base / bonus scudo", "armor", 'type="number" min="0" max="99"'),
+        consumable: () => input("Utilizzi massimi", "uses", 'type="number" min="1" max="999" value="1"')
+    }[family];
+    return fields ? '<section class="item-inline-editor-section"><div class="item-inline-editor-section-title">'
+        + '<i class="fas fa-dice-d20" aria-hidden="true"></i><span><small>D&amp;D 5e</small><h4>Meccaniche</h4></span></div>'
+        + '<div class="item-inline-editor-grid">' + fields() + '</div></section>' : "";
+}
+
+function bindItemClassificationEditor(editor) {
+    const form = editor.closest("[data-item-inline-editor]");
+    const creating = form.hasAttribute("data-new-item");
+    const family = editor.querySelector('[data-item-classification="family"]');
+    const subtype = editor.querySelector('[data-item-classification="subtype"]');
+    const foundryType = form.querySelector('[data-item-field="foundryType"]');
+    const mechanics = form.querySelector("[data-item-guided-mechanics]");
+    const folder = form.querySelector('[data-item-field="categoryId"]');
+    const folderHint = form.querySelector("[data-item-folder-hint]");
+    const typeHint = editor.querySelector("[data-item-foundry-type-hint]");
+    const updateFolder = () => {
+        const suggested = getSuggestedItemFolder(family.value);
+        folder.options[0].textContent = family.value ? "Automatica · " + suggested.name : "Automatica in base al tipo";
+        folderHint.textContent = folder.value
+            ? "Cartella scelta: " + folder.selectedOptions[0].textContent + ". La scelta resta se cambi tipo."
+            : family.value ? "Cartella in catalogo e in Foundry: " + suggested.name + "." : "Scegli il tipo per vedere la cartella suggerita.";
+    };
+    const readMechanic = key => mechanics?.querySelector('[data-item-mechanic="' + key + '"]');
+    const updateSubtype = () => {
+        const starter = readMechanic("starter");
+        if (starter?.value && WEAPON_STARTERS[starter.value]?.subtype !== subtype.value) starter.value = "";
+        const uses = readMechanic("uses");
+        if (uses) {
+            uses.disabled = subtype.value === "ammo";
+            uses.closest("label").hidden = uses.disabled;
+        }
+    };
+    family.addEventListener("change", () => {
+        const options = getClassificationSubtypeOptions(family.value);
+        subtype.innerHTML = '<option value="">Non specificato</option>'
+            + options.map(option => '<option value="' + escapeHtml(option.value) + '">' + escapeHtml(option.label) + '</option>').join("");
+        subtype.value = creating ? ITEM_CREATION_SUBTYPES[family.value] || "" : "";
+        subtype.disabled = creating && (!options.length || family.value === "material");
+        if (foundryType?.dataset.itemFoundryTypeEdited !== "true" && foundryType?.dataset.followClassification === "true") {
+            foundryType.value = foundryTypeForClassification({ family: family.value });
+        }
+        if (!creating) return;
+        typeHint.textContent = family.value ? "In Foundry: " + foundryTypeForClassification({ family: family.value }) + "." : "Il tipo determina il documento creato in Foundry.";
+        updateFolder();
+        mechanics.innerHTML = renderGuidedItemMechanics(family.value);
+        mechanics.hidden = !mechanics.innerHTML;
+        updateSubtype();
+        readMechanic("starter")?.addEventListener("change", event => {
+            const starter = WEAPON_STARTERS[event.target.value];
+            if (!starter) return;
+            subtype.value = starter.subtype;
+            readMechanic("dice").value = starter.dice;
+            readMechanic("damage").value = starter.damage;
+            readMechanic("range").value = starter.range?.[0] || "";
+            readMechanic("longRange").value = starter.range?.[1] || "";
+        });
+    });
+    if (creating) {
+        subtype.disabled = true;
+        subtype.addEventListener("change", updateSubtype);
+        folder.addEventListener("change", updateFolder);
+    }
 }
 function renderItemEditInput(label, field, value, extraClass = "", readOnly = false) {
     return `
@@ -1298,33 +1434,22 @@ function normalizeItemRarityLabel(value) {
 
 function bindItemInlineEditor(grid, state, count) {
     grid.querySelectorAll('[data-item-field="foundryType"]').forEach(field => {
+        const family = field.closest("[data-item-inline-editor]")?.querySelector('[data-item-classification="family"]')?.value;
+        field.dataset.followClassification = String(field.value === foundryTypeForClassification({ family }));
         field.addEventListener("change", () => {
             field.dataset.itemFoundryTypeEdited = "true";
         });
     });
-    grid.querySelectorAll("[data-item-classification-editor]").forEach(editor => {
-        const familyField = editor.querySelector('[data-item-classification="family"]');
-        const subtypeField = editor.querySelector('[data-item-classification="subtype"]');
-        familyField?.addEventListener("change", () => {
-            const options = getClassificationSubtypeOptions(familyField.value);
-            subtypeField.innerHTML = [
-                '<option value="" selected>Non specificato</option>',
-                ...options.map(option => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
-            ].join("");
-            const form = editor.closest("[data-item-inline-editor]");
-            const foundryType = form?.querySelector('[data-item-field="foundryType"]');
-            if (foundryType && foundryType.dataset.itemFoundryTypeEdited !== "true") {
-                foundryType.value = foundryTypeForClassification({ family: familyField.value });
-            }
-        });
-    });
+    grid.querySelectorAll("[data-item-classification-editor]").forEach(bindItemClassificationEditor);
     grid.querySelectorAll("[data-item-edit]").forEach(button => {
         button.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
+            if (state.itemSaving) return;
             const id = button.dataset.itemEdit || "";
             const item = state.items.find(entry => getItemId(entry) === id);
             if (!item) return;
+            state.creatingItem = false;
             state.editingItemId = id;
             state.itemDraft = structuredCloneSafe(item);
             updateItemsView(state.items, state, grid, count);
@@ -1338,6 +1463,8 @@ function bindItemInlineEditor(grid, state, count) {
             event.stopPropagation();
             const action = button.dataset.itemEditAction;
             if (action === "cancel") {
+                if (state.itemSaving) return;
+                state.creatingItem = false;
                 state.editingItemId = "";
                 state.itemDraft = null;
                 updateItemsView(state.items, state, grid, count);
@@ -1500,7 +1627,9 @@ function getFileNameFromPath(path) {
 }
 
 async function saveInlineItemEdit(form, state, grid, count) {
-    if (!form || !state.itemDraft) return;
+    if (!form || !state.itemDraft || state.itemSaving) return;
+    const save = form.querySelector('[data-item-edit-action="save"]');
+    if (save?.disabled) return;
     const token = readItemsAuthToken();
     if (!token) {
         setItemEditorStatus(form, "Login richiesto: accedi come DM prima di salvare.", true);
@@ -1516,6 +1645,8 @@ async function saveInlineItemEdit(form, state, grid, count) {
     }
 
     try {
+        state.itemSaving = true;
+        if (save) save.disabled = true;
         setItemEditorStatus(form, "Salvataggio online...");
         const loaded = await loadItemsDocumentForSave();
         const nextData = Array.isArray(loaded.data) ? loaded.data.slice() : [];
@@ -1549,7 +1680,13 @@ async function saveInlineItemEdit(form, state, grid, count) {
             siteRevision: Number(draft.sync?.siteRevision || 0) + 1
         };
         state.items = nextData;
+        if (state.creatingItem) {
+            state.categoryRegistry = withInferredItemCategories(state.categoryRegistry, state.items);
+            currentItemCategoryRegistry = state.categoryRegistry;
+            renderItemCategoryFilters(document.getElementById("items-category-filters"), state);
+        }
         state.loadedVersion = payload?.version ?? loaded.version ?? state.loadedVersion;
+        state.creatingItem = false;
         state.editingItemId = "";
         state.itemDraft = null;
         updateItemsView(state.items, state, grid, count);
@@ -1561,10 +1698,14 @@ async function saveInlineItemEdit(form, state, grid, count) {
     } catch (error) {
         console.error("Salvataggio oggetto fallito:", error);
         setItemEditorStatus(form, `Salvataggio fallito: ${error?.message || error}`, true);
+    } finally {
+        state.itemSaving = false;
+        if (save) save.disabled = false;
     }
 }
 
 function collectItemDraft(form, original) {
+    const creating = form.hasAttribute("data-new-item");
     const draft = structuredCloneSafe(original || {});
     form.querySelectorAll("[data-item-field]").forEach(field => {
         const key = field.dataset.itemField;
@@ -1574,6 +1715,10 @@ function collectItemDraft(form, original) {
     });
     const originalClassification = normalizeItemClassification(original || {});
     const classification = collectItemClassification(form, originalClassification);
+    if (creating) {
+        if (!draft.name) throw new Error("Inserisci il nome dell’oggetto.");
+        if (!classification.family) throw new Error("Scegli il tipo di oggetto.");
+    }
     const classificationChanged = itemClassificationFingerprint(classification) !== itemClassificationFingerprint(originalClassification);
     draft.classification = classification;
     if (classificationChanged || !String(draft.type || "").trim()) {
@@ -1582,7 +1727,9 @@ function collectItemDraft(form, original) {
         if (classificationMeta.subtypeLabel) draft.subtype = classificationMeta.subtypeLabel;
         else delete draft.subtype;
     }
-    const selectedCategory = getItemCatalogCategory(draft, currentItemCategoryRegistry);
+    const selectedCategory = creating && !draft.categoryId
+        ? getSuggestedItemFolder(classification.family)
+        : getItemCatalogCategory(draft, currentItemCategoryRegistry);
     draft.categoryId = selectedCategory.id;
     draft.category = selectedCategory.name;
     const costAmount = Math.max(0, Number(form.querySelector("[data-item-cost-amount]")?.value) || 0);
@@ -1625,12 +1772,13 @@ function collectItemDraft(form, original) {
     }
     if (!Array.isArray(foundryEffects)) throw new Error("Effetti attivi: serve un array JSON.");
     synchronizeFoundrySystemFromSite(draft, original, foundrySystem);
+    if (creating) applyGuidedItemMechanics(form, classification, foundrySystem);
     const foundryTypeField = form.querySelector('[data-item-field="foundryType"]');
     const explicitlyEditedFoundryType = foundryTypeField?.dataset.itemFoundryTypeEdited === "true";
     const existingFoundryType = getItemFoundryType(original || {});
     const existingTypeFollowedSite = !original?.foundry?.document
         || existingFoundryType === foundryTypeForClassification(originalClassification);
-    draft.foundryType = String(explicitlyEditedFoundryType || !existingTypeFollowedSite
+    draft.foundryType = String(!creating && (explicitlyEditedFoundryType || !existingTypeFollowedSite)
         ? (foundryTypeField?.value || draft.foundryType || existingFoundryType)
         : foundryTypeForClassification(classification));
     draft.foundry = {
@@ -1653,15 +1801,60 @@ function collectItemDraft(form, original) {
 
 function collectItemClassification(form, fallback = {}) {
     const read = (field) => String(form.querySelector(`[data-item-classification="${field}"]`)?.value || "").trim();
-    const family = read("family") || fallback.family || "equipment";
-    const subtype = read("subtype");
-    const baseItem = read("baseItem");
+    const creating = form.hasAttribute("data-new-item");
+    const selected = read("family");
+    const family = creating ? (ITEM_FAMILIES.some(option => option.value === selected) ? selected : "") : selected || fallback.family || "equipment";
+    const subtype = family === "material" ? "material" : read("subtype");
+    const starterId = String(form.querySelector('[data-item-mechanic="starter"]')?.value || "");
+    const baseItem = creating ? (family === "weapon" && WEAPON_STARTERS[starterId]?.subtype === subtype ? starterId : "") : read("baseItem");
     return {
         version: 1,
         family,
         ...(subtype ? { subtype } : {}),
         ...(baseItem ? { baseItem } : {})
     };
+}
+
+function applyGuidedItemMechanics(form, classification, system) {
+    const { family, subtype, baseItem } = classification;
+    const read = key => String(form.querySelector('[data-item-mechanic="' + key + '"]')?.value || "").trim();
+    const integer = (key, label, min, max) => {
+        const raw = read(key);
+        if (!raw) return null;
+        const value = Number(raw);
+        if (!Number.isInteger(value) || value < min || value > max) throw new Error(label + " non valido.");
+        return value;
+    };
+    if (family === "container") delete system.type;
+    else {
+        system.type = { ...system.type, value: subtype || "", baseItem: baseItem || "" };
+        if (["material", "loot", "consumable"].includes(family)) delete system.type.baseItem;
+    }
+    if (family === "weapon") {
+        if (!subtype) throw new Error("Scegli il sottotipo dell’arma.");
+        const dice = /^([1-9]\d?)d(4|6|8|10|12|20|100)$/i.exec(read("dice"));
+        const damageType = read("damage");
+        if (!dice || !Object.hasOwn(ITEM_DAMAGE_TYPES, damageType)) throw new Error("Imposta i dadi e il tipo di danno dell’arma. Esempio di dadi: 1d8.");
+        const range = integer("range", "Gittata normale", 0, 9999);
+        const long = integer("longRange", "Gittata lunga", 0, 9999);
+        if (["simpleR", "martialR"].includes(subtype) && !range) throw new Error("Inserisci la gittata normale dell’arma a distanza.");
+        if (long !== null && (range === null || long < range)) throw new Error("La gittata lunga richiede una gittata normale uguale o inferiore.");
+        const starter = WEAPON_STARTERS[baseItem];
+        const base = { ...system.damage?.base, number: Number(dice[1]), denomination: Number(dice[2]), types: [damageType] };
+        system.damage = { ...system.damage, base };
+        if (starter?.versatile) system.damage.versatile = { ...system.damage.versatile, number: base.number, denomination: starter.versatile, types: [damageType] };
+        if (starter) system.properties = [...new Set([...(Array.isArray(system.properties) ? system.properties : []), ...starter.properties])];
+        if (starter?.ammunition) system.ammunition = { ...system.ammunition, type: starter.ammunition };
+        if (range !== null) system.range = { ...system.range, value: range, long, units: "ft" };
+    } else if (family === "armor") {
+        if (!subtype) throw new Error("Scegli il sottotipo dell’armatura.");
+        const value = integer("armor", "Valore di CA", 0, 99);
+        if (value === null) throw new Error("Inserisci la CA base o il bonus dello scudo.");
+        system.armor = { ...system.armor, value };
+    } else if (family === "consumable" && subtype !== "ammo") {
+        const max = integer("uses", "Numero di utilizzi", 1, 999);
+        if (max !== null) system.uses = { ...system.uses, max: String(max), spent: 0 };
+    }
 }
 
 function itemClassificationFingerprint(value) {
@@ -1703,7 +1896,7 @@ function synchronizeFoundrySystemFromSite(draft, original, foundrySystem) {
     system.identified = draft?.unidentified !== true;
     system.attunement = draft?.attunement === true ? "required" : "";
 
-    const classification = normalizeItemClassification(draft || {});
+    const classification = draft?.classification || normalizeItemClassification(draft || {});
     const originalClassification = normalizeItemClassification(original || {});
     const classificationChanged = itemClassificationFingerprint(classification) !== itemClassificationFingerprint(originalClassification);
     const currentMechanicalType = system.type && typeof system.type === "object" && !Array.isArray(system.type)
@@ -2160,12 +2353,16 @@ function getItemCatalogCategory(item, registry = currentItemCategoryRegistry) {
 }
 
 function getItemCategoryOptions(item) {
-    const current = getItemCatalogCategory(item);
+    const current = item ? getItemCatalogCategory(item) : null;
     const categories = (Array.isArray(currentItemCategoryRegistry?.categories) ? currentItemCategoryRegistry.categories : [])
         .filter(category => !category.archived && !category.mergedInto)
-        .map(category => ({ value: category.id, label: category.name }));
-    if (!categories.some(category => category.value === current.id)) categories.push({ value: current.id, label: current.name });
+        .map(category => ({ value: category.id, label: itemFolderLabel(category, currentItemCategoryRegistry) }));
+    if (current && !categories.some(category => category.value === current.id)) categories.push({ value: current.id, label: itemFolderLabel(current, currentItemCategoryRegistry) });
     return categories.sort((left, right) => left.label.localeCompare(right.label, "it"));
+}
+
+function itemFolderLabel(category, registry) {
+    return window.CriptaItemCategories?.pathLabel?.(category, registry) || category.name;
 }
 function getItemCategory(item) {
     return window.CriptaItemNormalize.getItemCategory(item);

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import vm from "node:vm";
+import worker from "../workers/main-worker/src/index.js";
 import {
   categoryFolderName,
   isAcceptedCampaignItemSnapshotResult,
@@ -49,6 +51,37 @@ assert.deepEqual(
 );
 assert.equal(categoryFolderName("  Armi / Reliquie  "), "Armi / Reliquie");
 assert.equal(categoryFolderName("\u0000\u0007"), "Senza categoria");
+
+const subfolders = [
+  { id: "arma", name: "Arma" },
+  { id: "armatura", name: "Armatura" },
+  { id: "armi-geniali", name: "Geniali", parentId: "arma" },
+  { id: "armature-geniali", name: "Geniali", parentId: "armatura" },
+];
+assert.deepEqual(resolveRecordCategory({ categoryId: "armi-geniali", category: "Geniali" }, { categories: subfolders }),
+  { id: "armi-geniali", name: "Geniali", parentId: "arma" });
+
+const values = new Map();
+const env = {
+  INVENTORY_SYNC_SECRET: "test-secret",
+  SIGILLO_KV: { async get(key) { return values.get(key) ?? null; }, async put(key, value) { values.set(key, value); } },
+};
+const endpoint = "https://worker.test/api/item-categories?campaign=cripta-di-sangue";
+const saveFolders = (categories, expectedRevision = 0) => worker.fetch(new Request(endpoint, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", "X-Cripta-Inventory-Secret": env.INVENTORY_SYNC_SECRET,
+    "X-Khuzoe-Sync-Contract": "1", "X-Khuzoe-Foundry-Generation": "14" },
+  body: JSON.stringify({ categories, expectedRevision }),
+}), env, {});
+assert.equal((await saveFolders(subfolders)).status, 200, "nomi uguali sono validi in cartelle diverse");
+const readFolders = await worker.fetch(new Request(endpoint), env, {});
+assert.equal((await readFolders.json()).data.categories.find(category => category.id === "armi-geniali").parentId, "arma");
+for (const invalid of [
+  [...subfolders, { id: "duplicata", name: "Geniali", parentId: "arma" }],
+  [...subfolders, { id: "troppo-profonda", name: "Altro", parentId: "armi-geniali" }],
+  subfolders.filter(category => category.id !== "arma"),
+  subfolders.map(category => category.id === "arma" ? { ...category, archived: true } : category),
+]) assert.equal((await saveFolders(invalid, 1)).status, 400);
 
 function snapshot({ folder = "Cripta Wiki Items / Armi", id = "arma", name = "Armi", version = 0 } = {}) {
   return {
@@ -102,6 +135,48 @@ applyCampaignItemCategoryFromFoundry(pending, pending, null, snapshot({ id: "arm
 assert.deepEqual(pending, { categoryId: "arma", category: "Armi" }, "una modifica sito pendente non viene sovrascritta");
 
 const moduleSource = fs.readFileSync(new URL("../module/scripts/services/campaign-item-sync.js", import.meta.url), "utf8");
+const folders = new Map();
+folders[Symbol.iterator] = folders.values;
+function addFolder(data) {
+  const flags = { ...data.flags?.["cripta-wiki-sync"] };
+  const folder = {
+    ...data, id: String(folders.size + 1),
+    getFlag(_scope, name) { return flags[name]; },
+    async update(changes) {
+      for (const [key, value] of Object.entries(changes)) {
+        if (key.startsWith("flags.")) flags[key.split(".").at(-1)] = value;
+        else this[key] = value;
+      }
+    },
+  };
+  folders.set(folder.id, folder);
+  return folder;
+}
+const root = addFolder({ type: "Item", name: "Cripta Wiki Items" });
+const normalizeKey = value => String(value || "").trim().toLowerCase();
+const foundry = vm.createContext({
+  MODULE_ID: "cripta-wiki-sync", CATEGORY_FOLDER_ID_FLAG: "categoryId", CATEGORY_FOLDER_NAME_FLAG: "categoryName",
+  game: { folders }, Folder: { create: addFolder }, getRootFolder: () => root, getOrCreateRootFolder: async () => root,
+  isArchiveFolder: () => false, normalizeId: normalizeKey, normalizeName: normalizeKey, mapRecordType: () => "equipment",
+  latestCategoryRegistry: { categories: subfolders },
+});
+const moduleSection = (start, end) => moduleSource.slice(moduleSource.indexOf(start), moduleSource.indexOf(end)).replaceAll("export function", "function");
+vm.runInContext(moduleSection("function folderParentId(", "function defaultCategoryNameForFoundryType(")
+  + moduleSection("function categoryIdentityForFolder(", "function categoryFolderNeedsRegistration(")
+  + "\nglobalThis.createCategory = getOrCreateCategoryFolder;", foundry);
+const firstBranch = await foundry.createCategory({ categoryId: "armi-geniali" }, { categories: subfolders });
+const secondBranch = await foundry.createCategory({ categoryId: "armature-geniali" }, { categories: subfolders });
+assert.notEqual(firstBranch.id, secondBranch.id);
+assert.equal(folders.get(firstBranch.folder).name, "Arma");
+assert.equal(folders.get(secondBranch.folder).name, "Armatura");
+assert.equal(foundry.categoryFolderForItem({ folder: firstBranch.id }).id, firstBranch.id);
+assert.equal(foundry.categoryIdentityForWorldItem({ folder: firstBranch.id }).id, "armi-geniali");
+assert.equal(foundry.categoryIdentityForWorldItem({ folder: secondBranch.id }).id, "armature-geniali");
+const movedCategories = subfolders.map(category => category.id === "armi-geniali" ? { ...category, name: "Speciali", parentId: "armatura" } : category);
+const moved = await foundry.createCategory({ categoryId: "armi-geniali" }, { categories: movedCategories });
+assert.equal(moved.id, firstBranch.id, "spostare una sottocartella conserva il documento Folder");
+assert.equal(moved.name, "Speciali");
+assert.equal(moved.folder, secondBranch.folder);
 const folderOnlyBranch = moduleSource.match(/else if \(folderChanged \|\| categoryIdentityChanged\) \{([\s\S]*?)localChanges \+= 1;/)?.[1] || "";
 assert.ok(folderOnlyBranch, "la migrazione cartelle deve avere un ramo limitato alla categoria");
 assert.match(moduleSource, /ARCHIVE_FOLDER_NAME\s*=\s*"_ARCHIVIATI"/, "Foundry usa una cartella archivio riservata");

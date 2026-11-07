@@ -491,6 +491,172 @@ body.page-players {
     border-color: rgba(244, 222, 160, .72);
     box-shadow: 0 19px 42px rgba(0, 0, 0, .48), 0 0 0 5px rgba(var(--roster-accent-rgb), .045);
 }
+.page-npcs.roster-page {
+    --npc-medallion-brass: #b39565;
+    --npc-category-tone: var(--npc-category-accent, var(--roster-accent));
+}
+.page-npcs .npc-category-group {
+    --npc-category-tone: var(--npc-category-accent, var(--roster-accent));
+}
+.page-npcs.roster-page .npc-list { gap: clamp(1.1rem, 2vw, 1.8rem); }
+.page-npcs.roster-page .npc-category-header {
+    justify-content: flex-start;
+    gap: .75rem;
+    padding-bottom: .8rem;
+    border-bottom: 0;
+}
+.page-npcs.roster-page .npc-category-header::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--npc-category-tone) 55%, #312633), transparent);
+}
+.page-npcs.roster-page .npc-category-count {
+    flex: none;
+    min-width: 1.75rem;
+    padding: .22rem .4rem;
+    color: #d4c6b3;
+    font-variant-numeric: tabular-nums;
+}
+.page-npcs.roster-page .npc-category-title {
+    gap: .72rem;
+    color: #f1e4ca;
+}
+.page-npcs.roster-page .npc-category-title > i {
+    display: inline-grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--npc-category-tone) 60%, #756250);
+    border-radius: 8px 8px 13px 13px;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--npc-category-tone) 35%, #2b222c), #241c25);
+    color: #ead2a4;
+    font-size: .95rem;
+}
+.page-npcs.roster-page .npc-card[data-roster-card="npc"]:not(.npc-card--pending, .npc-card--dm-hidden) {
+    background: #19151c;
+    border-color: color-mix(in srgb, var(--npc-category-tone) 27%, #302532);
+}
+.page-npcs.roster-page .npc-card[data-roster-card="npc"]:not(.npc-card--pending, .npc-card--dm-hidden):is(:hover, :focus-visible) {
+    border-color: color-mix(in srgb, var(--npc-category-tone) 56%, #b39565);
+}
+.page-npcs.roster-page .npc-card[data-roster-card="npc"] .npc-avatar-container {
+    border-color: var(--npc-medallion-brass);
+    box-shadow: 0 12px 24px #0007;
+}
+.page-npcs.roster-page .npc-card[data-roster-card="npc"] .npc-avatar-container::before {
+    inset: -5px;
+    border-color: color-mix(in srgb, var(--npc-category-tone) 43%, #6e594b);
+}
+.page-npcs.roster-page .npc-card[data-roster-card="npc"]:is(:hover, :focus-visible) .npc-avatar-container {
+    border-color: #ead2a4;
+    box-shadow: 0 14px 30px #0009, 0 0 14px #b3956529;
+}
+.page-npcs.roster-page .npc-card[data-roster-card="npc"] .npc-title-row {
+    gap: .3rem .55rem;
+    align-items: baseline;
+}
+.page-npcs.roster-page .npc-card[data-roster-card="npc"] .npc-title-row .npc-name {
+    flex: 0 1 auto;
+    max-width: 100%;
+    color: #f1e4ca;
+    font-size: clamp(1.05rem, 1.55vw, 1.48rem);
+    line-height: 1.18;
+}
+.page-npcs.roster-page .npc-card[data-roster-card="npc"] .npc-role {
+    display: block;
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #d4c6b3;
+    font: 500 .78rem/1.4 var(--font-ui);
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.page-npcs.roster-page .npc-card[data-roster-card="npc"] .npc-kind-badge {
+    margin-left: 0;
+    color: #a59aa9;
+    font-size: .56rem;
+}
+.page-npcs .npc-atlas-masthead {
+    display: grid;
+    gap: 10px;
+    padding: clamp(12px, 2vw, 22px);
+    border: 1px solid #45353c;
+    border-radius: 14px;
+    background: radial-gradient(ellipse at top right, #33232e, transparent 65%), #1b171e;
+}
+.page-npcs .npc-atlas-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+}
+.page-npcs .npc-atlas-toolbar .roster-directory-tabs,
+.page-npcs .npc-atlas-masthead .roster-tools {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 6px;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+    backdrop-filter: none;
+}
+.page-npcs .npc-atlas-toolbar :is(.roster-directory-primary, .roster-directory-secondary) {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    width: auto;
+    gap: 4px;
+    padding: 0;
+    border: 0;
+    background: none;
+}
+.page-npcs .npc-atlas-toolbar .roster-search {
+    flex: 1 1 230px;
+    min-height: 40px;
+    border-radius: 8px;
+}
+.page-npcs .npc-atlas-toolbar .roster-search input { min-height: 38px; }
+.page-npcs .npc-atlas-toolbar .roster-search > span { display: none; }
+.page-npcs .npc-atlas-toolbar .npc-edit-toggle {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: .65rem;
+    letter-spacing: .02em;
+    text-transform: none;
+}
+.page-npcs .npc-edit-toggle.is-active {
+    border-color: #b99a45;
+    background: #b99a4526;
+    color: #f0dfb8;
+}
+.page-npcs .npc-atlas-masthead .roster-tools {
+    padding-top: 8px;
+    border-top: 1px solid #3a2e36;
+}
+.page-npcs .npc-atlas-masthead .roster-tools .roster-filter-group {
+    flex-wrap: wrap;
+    overflow: visible;
+}
+.page-npcs .npc-atlas-masthead .npc-sort-switch {
+    min-height: 34px;
+    border-color: transparent;
+    background: none;
+    box-shadow: none;
+}
+.page-npcs .npc-atlas-masthead .roster-tools :is(.roster-filter, .npc-sort-switch button) { min-height: 34px; }
+.page-npcs .npc-atlas-masthead [hidden] { display: none; }
 .roster-page .npc-img-pop {
     transition: transform .54s cubic-bezier(.16, 1, .3, 1), opacity .46s ease, filter .32s ease;
 }
@@ -956,7 +1122,7 @@ body.sidebar-collapsed .roster-page .npc-category-drop-dock {
 .npc-roster-feedback.is-info i { color: var(--roster-gold, #dfc36f); }
 
 @media (max-width: 680px) {
-    .roster-page .npc-category-drag-handle { display: none; }
+    .roster-page .npc-category-drag-handle:not(.npc-category-picker-trigger) { display: none; }
     .roster-page .npc-category-drop-dock { position: static; align-items: flex-start; flex-direction: column; }
     .roster-page .npc-category-drop-dock > div { width: 100%; }
 }
@@ -1314,4 +1480,424 @@ body.has-managed-dialog{overflow:hidden}.managed-npc-create-overlay{position:fix
 }
 @media (max-width: 520px) {
     .roster-directory-tabs .roster-directory-primary { grid-template-columns: 1fr; }
+}
+
+/* Shared portrait grid for both NPC atlas views. */
+.page-npcs .npc-atlas-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: clamp(14px, 2.5vw, 34px);
+}
+.page-npcs .npc-atlas-workspace:has(> .npc-atlas-index:not([hidden])) {
+    grid-template-columns: clamp(150px, 17vw, 218px) minmax(0, 1fr);
+}
+.page-npcs .npc-atlas-index {
+    position: sticky;
+    top: 16px;
+    max-height: calc(100dvh - 32px);
+    overflow: auto;
+    scrollbar-width: thin;
+    padding: 14px 12px;
+    border-inline-end: 1px solid #44343c;
+}
+.page-npcs .npc-atlas-index h2 {
+    margin: 0 0 12px;
+    color: #d9bd8e;
+    font: 600 .72rem/1.4 var(--font-ui);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+}
+.page-npcs .npc-atlas-index nav { display: grid; gap: 4px; }
+.page-npcs .npc-atlas-index button {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    min-height: 44px;
+    padding: 8px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: #ded0bc;
+    font: 500 .76rem/1.4 var(--font-ui);
+    overflow-wrap: anywhere;
+    text-align: left;
+    cursor: pointer;
+}
+.page-npcs .npc-atlas-index button[hidden] { display: none; }
+.page-npcs .npc-atlas-index button:is(:hover, [aria-current]) { background: #2b222b; border-color: #5e4b53; }
+.page-npcs .npc-atlas-index button i { flex: none; width: 16px; color: #cfb282; text-align: center; }
+.page-npcs .npc-atlas-index button:focus-visible,
+.page-npcs .npc-category-title:focus-visible { outline: 2px solid #dfc58c; outline-offset: 2px; }
+.page-npcs .npc-atlas-workspace .npc-list { min-width: 0; }
+.page-npcs .npc-atlas-workspace .npc-category-group {
+    gap: 14px;
+    padding: 0 0 16px;
+    border: 0;
+    border-bottom: 1px solid #44343c;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    scroll-margin-top: 20px;
+}
+.page-npcs .npc-atlas-workspace .npc-list.is-category-dragging .npc-category-group {
+    outline: 1px dashed #806856;
+    outline-offset: 4px;
+}
+.page-npcs .npc-atlas-workspace .npc-list .is-category-drop-target {
+    outline: 2px solid var(--npc-category-tone);
+    outline-offset: 4px;
+}
+.page-npcs .npc-atlas-workspace .npc-category-title {
+    font-size: clamp(1.1rem, 2vw, 1.55rem);
+    letter-spacing: .025em;
+    text-transform: none;
+}
+body.page-npcs.site-layout.roster-page .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) {
+    --npc-atlas-column-gap: 14px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, max(176px, calc((100% - 6 * var(--npc-atlas-column-gap)) / 7))), 1fr));
+    gap: 28px var(--npc-atlas-column-gap);
+}
+.page-npcs .npc-atlas-plate { display: contents; }
+.page-npcs.roster-page .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) > .npc-card[data-roster-card="npc"] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr auto;
+    align-items: start;
+    gap: 0;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    transform: none;
+}
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) > .npc-card::before { content: none; }
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) > .npc-card:focus-visible { outline: 2px solid #dfc58c; outline-offset: 4px; }
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 5 / 6;
+    overflow: hidden;
+    isolation: isolate;
+    border: 1px solid color-mix(in srgb, var(--npc-category-tone) 20%, transparent);
+    border-radius: 8px;
+    background: radial-gradient(ellipse at 50% 45%, color-mix(in srgb, var(--npc-category-tone) 9%, transparent), transparent 76%);
+}
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-card:is(:hover, :focus-visible) .npc-atlas-plate {
+    border-color: color-mix(in srgb, var(--npc-category-tone) 38%, transparent);
+}
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate .npc-avatar-container {
+    width: 94%;
+    height: auto;
+    aspect-ratio: 1;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    transform: none;
+}
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate .npc-avatar-container::before,
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate .npc-avatar-container::after { content: none; }
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate .npc-img-pop:not([data-frame-circle]) {
+    border-radius: 0;
+    object-fit: contain;
+}
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate .npc-img-pop {
+    transition: opacity .24s ease-out;
+}
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate .img-main:not([data-frame-circle]) {
+    transform: translate(var(--img-x), var(--img-y)) scale(var(--img-scale-rest));
+}
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate .img-hover:not([data-frame-circle]) {
+    transform: translate(var(--img-x), var(--img-y)) scale(var(--img-scale-hover));
+}
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-card:not(.npc-card--no-avatar-swap) .npc-atlas-plate .npc-avatar-container .img-hover[data-frame-circle="1"] {
+    transform: scale(.85) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+    .page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate .npc-img-pop { transition: none; }
+}
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate--token .npc-avatar-container,
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate [data-frame-circle-host] {
+    width: 84%;
+    overflow: hidden;
+    border-radius: 50%;
+}
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate--token .npc-avatar-container { border: 1px solid #967a59; }
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-info {
+    align-self: stretch;
+    margin-top: 7px;
+    padding: 8px 5px 4px;
+    border-top: 1px solid color-mix(in srgb, var(--npc-category-tone) 24%, transparent);
+}
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-header {
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-title-row .npc-status-badge {
+    position: absolute;
+    inset: .45rem .45rem auto auto;
+    z-index: 12;
+}
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-card:has(.npc-status-badge, .npc-player-visibility-badge) .npc-sync-badge {
+    top: 2.1rem;
+}
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-card:has(.npc-sync-badge):has(.npc-status-badge, .npc-player-visibility-badge) .npc-archive-badge {
+    top: 3.8rem;
+}
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-card[data-roster-card="npc"] .npc-name {
+    font-size: clamp(1rem, 1.4vw, 1.25rem);
+    line-height: 1.22;
+    text-wrap: balance;
+}
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-title-row {
+    align-items: flex-start;
+}
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-card[data-roster-card="npc"] .npc-role {
+    overflow: visible;
+    text-overflow: clip;
+    color: #c8b8a6;
+    font: italic 400 .94rem/1.35 var(--font-body, Georgia, serif);
+}
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) :is(.npc-desc, .npc-kind-badge, .arrow-icon) { display: none; }
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-card-actions {
+    grid-column: 1;
+    justify-self: stretch;
+    justify-content: flex-start;
+    flex-flow: row wrap;
+    gap: 5px;
+    margin: 5px 0 0;
+    padding: 4px 1px 0;
+    border: 0;
+}
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-card-actions:not(:has([role])) { display: none; }
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-category-drag-handle:not(:hover, :focus-visible) {
+    border-color: transparent;
+    background: none;
+    color: #aa9c8d;
+}
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-visibility-state { color: #baad9e; }
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-profile-visibility {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    width: auto;
+    padding: 4px;
+}
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-visibility-caption { display: none; }
+.page-npcs .npc-atlas-workspace .npc-updated-meta {
+    display: grid;
+    justify-items: start;
+    gap: 3px;
+    margin-top: 3px;
+    color: #b5a89a;
+    font: 500 .66rem/1.4 var(--font-ui);
+    overflow-wrap: anywhere;
+}
+/* Direct category and life-state controls for the DM. */
+.page-npcs .npc-bulk-actions {
+    position: sticky;
+    top: 12px;
+    z-index: 40;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 14px 0;
+    padding: 12px;
+    border: 1px solid #796341;
+    border-radius: 10px;
+    background: #211c20;
+    box-shadow: 0 8px 24px #0005;
+    color: #ece2cf;
+    font: 500 .75rem/1.4 var(--font-ui);
+}
+.page-npcs .npc-bulk-actions[hidden] { display: none; }
+.page-npcs .npc-bulk-actions > strong { flex: 1 1 150px; }
+.page-npcs .npc-bulk-actions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 38px;
+    padding: 7px 10px;
+    border: 1px solid #665844;
+    border-radius: 7px;
+    background: #b99a4514;
+    color: #f0dfb8;
+    font: inherit;
+    cursor: pointer;
+}
+.page-npcs .npc-bulk-actions button:disabled { opacity: .45; cursor: default; }
+.page-npcs .npc-bulk-actions button:enabled:hover { border-color: #b99a45; background: #b99a4526; }
+.page-npcs .npc-bulk-actions button:focus-visible { outline: 2px solid #f4dea0; outline-offset: 2px; }
+.page-npcs .npc-bulk-actions [data-npc-bulk-status] { flex: 1 1 100%; color: #d4c6b3; overflow-wrap: anywhere; }
+.page-npcs .npc-bulk-actions [data-npc-bulk-status]:empty { display: none; }
+.roster-page .npc-selection-control {
+    position: absolute;
+    top: .4rem;
+    right: .4rem;
+    z-index: 15;
+    display: grid;
+    place-items: center;
+    box-sizing: border-box;
+    width: 36px;
+    height: 36px;
+    border: 1px solid #a99b85;
+    border-radius: 8px;
+    background: #171410ed;
+    color: #171410;
+    cursor: pointer;
+}
+.roster-page .npc-selection-control > i { opacity: 0; }
+.roster-page .npc-selection-control[aria-checked="true"] { border-color: #f0dfb8; background: #dfc36f; }
+.roster-page .npc-selection-control[aria-checked="true"] > i { opacity: 1; }
+.roster-page .npc-selection-control:focus-visible { outline: 2px solid #f4dea0; outline-offset: 3px; }
+.roster-page .npc-selection-control[aria-disabled="true"] { opacity: .5; cursor: progress; }
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-card.is-selected .npc-atlas-plate { border-color: #dfc36f; box-shadow: 0 0 0 2px #dfc36f55; }
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-card:has(.npc-selection-control) :is(.npc-sync-badge, .npc-archive-badge) { top: 3rem; }
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-card:has(.npc-selection-control):has(.npc-sync-badge) .npc-archive-badge { top: 4.7rem; }
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-category-picker-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: auto;
+    min-height: 34px;
+    height: auto;
+    padding: 6px 8px;
+    font: 600 .65rem/1.2 var(--font-ui);
+    cursor: pointer;
+}
+.page-npcs .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) .npc-title-row .npc-life-state-control {
+    position: static;
+    inset: auto;
+    min-height: 32px;
+    margin: 3px 0 0;
+    padding: 6px 9px;
+    font-size: .6rem;
+    cursor: pointer;
+    user-select: none;
+}
+.roster-page .npc-life-state-control.status-none {
+    border: 1px solid #71685d;
+    color: #c4b8aa;
+}
+.roster-page .npc-life-state-control.status-none::before { background: #a89a87; }
+.roster-page .npc-life-state-control:hover { background: #29251e; }
+.roster-page .npc-life-state-control:focus-visible {
+    outline: 2px solid var(--roster-gold-bright, #f4dea0);
+    outline-offset: 3px;
+}
+.roster-page .npc-archive-control {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 34px;
+    min-height: 34px;
+    padding: 6px 8px;
+    box-sizing: border-box;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: #baad9e;
+    font: 600 .65rem/1.2 var(--font-ui);
+    cursor: pointer;
+}
+.roster-page .npc-archive-control:hover { border-color: #ac6f67; background: #ac6f671f; color: #f0b2a8; }
+.roster-page .npc-archive-control[data-npc-lifecycle-action="active"]:hover { border-color: #6aaf88; background: #6aaf881f; color: #b6dcc6; }
+.roster-page .npc-archive-control:focus-visible { outline: 2px solid var(--roster-gold-bright, #f4dea0); outline-offset: 2px; }
+.roster-page :is(.npc-category-picker-trigger, .npc-life-state-control, .npc-archive-control)[aria-disabled="true"] {
+    opacity: .6;
+    cursor: progress;
+}
+.npc-roster-picker {
+    position: fixed;
+    inset: auto;
+    z-index: 10000;
+    box-sizing: border-box;
+    width: min(320px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px);
+    margin: 0;
+    padding: 12px;
+    overflow: auto;
+    border: 1px solid #796341;
+    border-radius: 12px;
+    background: #1e1b17;
+    box-shadow: 0 12px 40px #0009;
+    color: #ece2cf;
+    font: 500 .8rem/1.4 var(--font-ui, sans-serif);
+    text-align: left;
+}
+.npc-roster-picker [hidden] { display: none; }
+.npc-roster-picker-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.npc-roster-picker-heading h2 {
+    flex: 1;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #f0dfb8;
+    font: 700 .95rem/1.4 var(--font-heading, Georgia, serif);
+    overflow-wrap: anywhere;
+}
+.npc-roster-picker button {
+    appearance: none;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    box-shadow: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    text-transform: none;
+    cursor: pointer;
+}
+.npc-roster-picker-heading button { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 auto; }
+.npc-roster-picker button:is(:hover, :focus-visible) { outline: none; border-color: #b99a45; background: #b99a451f; }
+.npc-roster-picker input {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 40px;
+    margin: 0 0 8px;
+    padding: 8px 10px;
+    border: 1px solid #665844;
+    border-radius: 7px;
+    background: #12110f;
+    color: #ece2cf;
+    font: inherit;
+}
+.npc-roster-picker input:focus { outline: 2px solid #b99a45; outline-offset: 1px; }
+.npc-roster-picker-options { max-height: min(320px, calc(100dvh - 180px)); overflow-y: auto; overscroll-behavior: contain; }
+.npc-roster-picker-options button {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr) 16px;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px;
+}
+.npc-roster-picker-options button > span { overflow-wrap: anywhere; }
+.npc-roster-picker-options button.is-current { background: #b99a4514; color: #f0dfb8; }
+.npc-roster-picker-options [data-life-state="alive"] > i:first-child { color: var(--status-alive, #69c990); }
+.npc-roster-picker-options [data-life-state="unknown"] > i:first-child { color: var(--status-unknown, #e9b55f); }
+.npc-roster-picker-options [data-life-state="dead"] > i:first-child { color: var(--status-dead, #e77a75); }
+.npc-roster-picker > p { margin: 12px 4px 4px; color: #c4b8aa; }
+@media (max-width: 760px) {
+    .page-npcs .npc-atlas-workspace:has(> .npc-atlas-index:not([hidden])) { grid-template-columns: minmax(0, 1fr); }
+    .page-npcs .npc-atlas-index { position: static; max-height: none; padding: 8px 0; border-inline-end: 0; }
+    .page-npcs .npc-atlas-index nav { display: flex; flex-wrap: wrap; }
+    .page-npcs .npc-atlas-index button { width: auto; max-width: 100%; }
+    body.page-npcs.site-layout.roster-page .npc-atlas-workspace :is(.npc-category-list, .npc-updated-list) {
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 128px), 1fr));
+        gap: 24px 10px;
+    }
 }

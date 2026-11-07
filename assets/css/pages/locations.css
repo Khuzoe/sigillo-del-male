@@ -529,3 +529,11 @@
         gap: 0.35rem;
     }
 }
+
+.foundry-map-panel { margin-bottom: 1rem; }
+.foundry-map-panel summary { cursor: pointer; font-weight: 700; }
+.foundry-map-panel [hidden] { display: none !important; }
+.foundry-map-controls { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; margin-bottom: 1rem; }
+.foundry-map-controls label { display: flex; align-items: center; gap: .5rem; }
+.foundry-map-controls select { max-width: min(65vw, 24rem); }
+.foundry-map-panel img { display: block; width: auto; max-width: 100%; max-height: 75vh; margin-inline: auto; object-fit: contain; }

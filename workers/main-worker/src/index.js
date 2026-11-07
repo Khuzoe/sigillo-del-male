@@ -4,6 +4,9 @@ import { handleCalendarGet, handleLegacyCalendarGet, handleCalendarEventUpsert, 
 import { CalendarStoreBase } from "./calendar-store.js";
 import { handleAvatarGeneration, normalizeGeneratedAvatarPath, normalizeGeneratedAvatarDocument } from "./avatar-generation.js";
 export { AvatarGenerationStore } from "./avatar-generation.js";
+import { handleDropGeneration } from "./drop-generation.js";
+import { handleFoundryMaps } from "./foundry-maps.js";
+export { DropGenerationStore } from "./drop-generation.js";
 import { handleTileGeneration } from "./tile-generation.js";
 export { TileGenerationStore } from "./tile-generation.js";
 import { handleAbilityGeneration } from "./ability-generation.js";
@@ -11,7 +14,7 @@ export { AbilityGenerationStore } from "./ability-generation.js";
 import { D1PollStore, PollStorageError } from "./poll-store.js";
 import { SkillTreeStateStore } from "./skill-tree-store.js";
 import { SkillTreeDefinitionStore } from "./skill-tree-definition-store.js";
-import { managedActorStorageEnvironment, managedActorD1Enabled, managedActorWritesPaused, ManagedActorStorageError } from "./managed-actor-store.js";
+import { managedActorStorageEnvironment, managedActorD1Enabled, managedActorWritesPaused, campaignItemsD1Enabled, campaignItemsWritesPaused, ManagedActorStorageError } from "./managed-actor-store.js";
 import { npcNativeSnapshotD1Enabled, npcNativeSnapshotKey, validateNpcNativeSnapshot, saveNpcNativeSnapshot, NPC_NATIVE_SNAPSHOT_MAX_BYTES } from "./npc-native-snapshot.js";
 import { NPC_NATIVE_EDITOR_VERSION, nativeEntities, nativeFindDocument, nativeTargetKey, nativeValidateChanges, nativePatchConflict, nativeEditorSource, nativeEqual } from "../../../assets/js/shared/npc-native-model.mjs";
 import {validateNativeAbilityItem} from "../../../assets/js/shared/npc-native-ability.mjs";
@@ -84,6 +87,20 @@ const application = {
 
       if (url.pathname === "/api/campaign-items/foundry-sync" && request.method === "POST") {
         return handleCampaignItemFoundrySync(request, queryCampaignId, env, corsHeaders);
+      }
+      if (/^\/api\/foundry-maps(?:\/|$)/.test(url.pathname)) {
+        try {
+          return await handleFoundryMaps(request, queryCampaignId, env, {
+            requireUser: req => requireUser(req, env, corsHeaders),
+            isFoundry: req => isFoundrySyncSecretAuthorized(req, env),
+            isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
+            canReadPlayer: async (user, campaignId) => (await getEditableCharacterIdsForAccount(env, campaignId, getAuthenticatedAccountId(user, env))).size > 0,
+          }, corsHeaders);
+        } catch {
+          return json({ ok: false, error: "Mappe Foundry temporaneamente non disponibili." }, 503, {
+            ...corsHeaders, "Cache-Control": "private, no-store",
+          });
+        }
       }
       if (url.pathname === "/api/discord/share-card" && request.method === "POST") {
         return handleDiscordShareCard(request, queryCampaignId, env, corsHeaders);
@@ -168,6 +185,27 @@ const application = {
         const headers = new Headers(result.headers);
         Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
         return new Response(result.body, {status: result.status, headers});
+      }
+      const dropRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/drop-generation(?:\/([a-f0-9-]{36})\/(?:(confirm)|(preview|retry)\/(ai-drop-[a-f0-9-]{36}-[1-5])))?$/i);
+      if (dropRouteMatch) {
+        const actorRoute = matchManagedActorRoute(dropRouteMatch[1]);
+        if (!actorRoute) return json({ ok: false, error: "Invalid actor" }, 400, corsHeaders);
+        const result = await handleDropGeneration(request, {
+          ...actorRoute, jobId: dropRouteMatch[2], action: dropRouteMatch[3] || dropRouteMatch[4], itemId: dropRouteMatch[5],
+        }, queryCampaignId, env, {
+          requireUser: req => requireUser(req, env, corsHeaders),
+          isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
+          readActor: async () => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(queryCampaignId, actorRoute.worldId, actorRoute.actorId))),
+          catalogChanged: revision => scheduleFoundryLiveInvalidation(ctx, env, {
+            campaignId: queryCampaignId, collections: ["campaign-items"], reason: "npc-drop-catalog", revision,
+          }),
+          enqueue: (actor, user, records) => finishManagedActorMutation(
+            enqueueNpcDropItems(env, ctx, queryCampaignId, actorRoute, actor, user, records), env, corsHeaders,
+          ),
+        });
+        const headers = new Headers(result.headers);
+        Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
+        return new Response(result.body, { status: result.status, headers });
       }
       const avatarRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/avatar-generation(?:\/([a-f0-9-]{36})\/(preview|confirm|stop))?$/i);
       if (avatarRouteMatch) {
@@ -1666,14 +1704,16 @@ export default {
     return application.scheduled(event, managedActorStorageEnvironment(env).env, ctx);
   },
   async fetch(request, env, ctx) {
-    if (!env.MANAGED_ACTOR_D1_CAMPAIGNS && !env.MANAGED_ACTOR_WRITES_PAUSED_CAMPAIGNS) return application.fetch(request, env, ctx);
+    if (!env.MANAGED_ACTOR_D1_CAMPAIGNS && !env.MANAGED_ACTOR_WRITES_PAUSED_CAMPAIGNS
+      && !env.CAMPAIGN_ITEMS_D1_CAMPAIGNS && !env.CAMPAIGN_ITEMS_WRITES_PAUSED_CAMPAIGNS) return application.fetch(request, env, ctx);
     const url = new URL(request.url), path = url.pathname;
     let campaignId = getCampaignIdFromUrl(url);
     const managedRoute = /^\/api\/managed-actors(?:\/|$)/.test(path) || path.startsWith("/api/managed-actor-commands/")
       || path.startsWith("/api/managed-actor-profiles/") || path === "/api/managed-actor-create-requests" || path === "/api/npc-categories";
+    const itemsRoute = path === "/api/data/items" || path === "/api/item-categories";
     if (managedRoute && request.method === "POST") {
-      // Native snapshots use the campaign in their URL; avoid cloning the large body.
-      const body = path.endsWith("/snapshot") ? null : await request.clone().json().catch(() => null);
+      // Native snapshots and drop generation use the campaign in their URL.
+      const body = path.endsWith("/snapshot") || path.includes("/drop-generation") ? null : await request.clone().json().catch(() => null);
       campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || campaignId);
       if (managedActorWritesPaused(env, campaignId) && !path.endsWith("/stop")) return json({ ok: false,
         error: "Salvataggi NPC temporaneamente sospesi per la migrazione. Riprova tra poco.", code: "MANAGED_ACTOR_WRITES_PAUSED" }, 503,
@@ -1681,13 +1721,17 @@ export default {
     }
     const retrySafe = request.method === "GET" || (request.method === "POST" && (
       /^\/api\/managed-actors\/[^/]+\/[^/]+(?:\/(?:commands|runtime|profile|snapshot))?$/.test(path)
-      || /^\/api\/managed-actor-commands\/[^/]+\/ack$/.test(path)));
+      || /^\/api\/managed-actor-commands\/[^/]+\/ack$/.test(path) || path === "/api/campaign-items/foundry-sync"));
     for (let attempt = 0; ; attempt++) {
       const scoped = managedActorStorageEnvironment(env);
       try {
         const response = await application.fetch(request.clone(), scoped.env, ctx);
         if (response.ok) await scoped.transaction?.commit();
         if (managedRoute && managedActorD1Enabled(env, campaignId)) response.headers.set("X-Managed-Actor-Storage", "d1");
+        if (itemsRoute && request.method === "GET") {
+          response.headers.set("X-Campaign-Items-Storage", campaignItemsD1Enabled(env, campaignId) ? "d1" : "kv");
+          if (campaignItemsWritesPaused(env, campaignId)) response.headers.set("X-Campaign-Items-Writes-Paused", "1");
+        }
         return response;
       } catch (error) {
         if (error instanceof ManagedActorStorageError) {
@@ -4209,13 +4253,15 @@ async function buildNpcCategoryRegistryView(env, campaignId, storedRegistry = nu
   return { ...registry, categories };
 }
 
-function validateNpcCategoryAliases(categories) {
+function validateNpcCategoryAliases(categories, { scopeNamesByParent = false } = {}) {
   const byId = new Map(categories.map((category) => [category.id, category]));
   const activeNames = new Set();
   for (const category of categories) {
     if (!category.archived && !category.mergedInto) {
-      const nameKey = sanitizeNpcCategoryId(category.name);
-      if (activeNames.has(nameKey)) return "Non possono esistere due categorie attive con lo stesso nome.";
+      const nameKey = (scopeNamesByParent ? (category.parentId || "") + ":" : "") + sanitizeNpcCategoryId(category.name);
+      if (activeNames.has(nameKey)) return scopeNamesByParent
+        ? "Esiste già una cartella attiva con questo nome allo stesso livello."
+        : "Non possono esistere due categorie attive con lo stesso nome.";
       activeNames.add(nameKey);
     }
 
@@ -4411,8 +4457,8 @@ async function handleItemCategoriesPost(request, campaignId, env, corsHeaders = 
       seen.add(category.id);
       return true;
     });
-  const aliasError = validateNpcCategoryAliases(categories);
-  if (aliasError) return json({ ok: false, error: aliasError }, 400, corsHeaders);
+  const categoryError = validateNpcCategoryAliases(categories, { scopeNamesByParent: true }) || validateNpcCategoryHierarchy(categories);
+  if (categoryError) return json({ ok: false, error: categoryError }, 400, corsHeaders);
 
   const usage = await collectItemCategoryUsage(env, campaignId);
   const nextIds = new Set(categories.map((category) => category.id));
@@ -6241,6 +6287,59 @@ function mergeManagedPendingPatch(previous, patch) {
     else cursor[path.at(-1)] = structuredClone(desired);
   }
   return { ...patch, value, baseValue: previous.baseValue };
+}
+
+async function enqueueNpcDropItems(env, ctx, campaignId, route, actor, user, records) {
+  if (!records.length) return json({ ok: true, commands: [] });
+  const { worldId, actorId } = route;
+  const key = managedActorCommandQueueKey(campaignId, worldId);
+  const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(key), campaignId, worldId);
+  if (queue.commands.some(command => command.actorId === actorId && command.status === "pending" && command.nativeSheetVersion)) {
+    return json({ ok: false, error: "Attendi il completamento della modifica completa dell’NPC, poi riprova la conferma." }, 409);
+  }
+  const commands = [];
+  const now = new Date().toISOString();
+  let changed = false;
+  for (const record of records) {
+    const transferId = record.id;
+    if (actor.definition?.items?.some(item => item.transferId === transferId)) continue;
+    const prior = queue.commands.find(command => command.actorId === actorId && command.kind === "item.create" && command.target?.transferId === transferId);
+    if (prior?.status === "pending" || prior?.status === "applied") {
+      commands.push(prior);
+      continue;
+    }
+    const description = String(record.summary || "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    })[char]);
+    const rarity = ({ Comune: "common", "Non comune": "uncommon", Raro: "rare", "Molto raro": "veryRare", Leggendario: "legendary", Artefatto: "artifact" })[record.rarity] || "";
+    const document = normalizeManagedCreateDocument({
+      name: record.name, type: "loot", img: record.image, campaignItemId: record.id, transferId,
+      system: { description: { value: "<p>" + description + "</p>" }, rarity, quantity: 1, type: { value: "material" } },
+    }, "item.create");
+    if (!document) return json({ ok: false, error: "Il materiale non può essere aggiunto all’inventario." }, 409);
+    if (prior) queue.commands = queue.commands.filter(command => command.id !== prior.id);
+    if (queue.commands.length >= 256) return json({ ok: false, error: "Coda Foundry piena. Riprova la conferma dopo la sincronizzazione." }, 429);
+    const command = {
+      id: crypto.randomUUID(), kind: "item.create", campaignId, worldId, actorId,
+      foundryActorId: String(actor.foundryActorId || actor.actorId || actorId).slice(0, 96),
+      baseRevision: Number(actor.revision || 0), status: "pending", document, patches: [],
+      target: { transferId, itemId: "", effectId: "", clientId: "" },
+      createdAt: now, updatedAt: now, createdBy: getAuthenticatedAccountId(user, env) || "editor",
+    };
+    queue.commands.push(command);
+    commands.push(command);
+    changed = true;
+  }
+  if (changed) {
+    queue.version += 1;
+    queue.updatedAt = now;
+    await writeManagedActorCommandQueue(env, queue);
+  }
+  if (commands.length) scheduleFoundryLiveInvalidation(ctx, env, {
+    campaignId, worldId, collections: ["managed-actors"], actorIds: [actorId],
+    reason: "managed-actor-command:item.create", revision: queue.version,
+  });
+  return json({ ok: true, commands: commands.map(command => managedActorCommandForReader(command, false)) }, 202);
 }
 
 async function handleManagedActorCommandEnqueue(request, route, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
@@ -8275,6 +8374,7 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
     nextData = normalizeTransformationRecords(existingData, nextData);
   }
   if (collection === "items") {
+    if (nextData.length > 2000) return json({ ok: false, error: "Il catalogo supera il limite di 2000 oggetti." }, 413, corsHeaders);
     nextData = normalizeCampaignItemsForSiteSave(existingData, nextData);
   }
 
