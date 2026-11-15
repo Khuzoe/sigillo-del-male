@@ -37,3 +37,13 @@ jobs:
         with:
           commit_message: "chore: update derived data [skip ci]"
           file_pattern: 'assets/data/search-index.json assets/data/home-recent-npcs.json assets/data/npc-recency.json'
+
+  assets-walls:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test authenticated wall detection without paid API calls
+        run: npm run test:assets-walls
