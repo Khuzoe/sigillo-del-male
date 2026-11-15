@@ -47,3 +47,7 @@ jobs:
           node-version: "22"
       - name: Test authenticated wall detection without paid API calls
         run: npm run test:assets-walls
+      - name: Build complete Worker without publishing
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: npx --yes wrangler@4.91.0 deploy --dry-run --config workers/main-worker/wrangler.jsonc --outdir "$RUNNER_TEMP/worker-bundle"

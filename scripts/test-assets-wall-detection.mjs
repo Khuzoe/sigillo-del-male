@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { webcrypto } from 'node:crypto';
+import { createHmac, webcrypto } from 'node:crypto';
+import worker from '../workers/main-worker/src/index.js';
 import { handleWallDetection, WallDetectionStore, validateWallRequest, mapWallOutput, clipSegment, jpegSize } from '../workers/main-worker/src/wall-detection.js';
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 const clone = value => value === undefined ? undefined : structuredClone(value);
@@ -55,6 +56,26 @@ test('DM authentication and capabilities do not call the provider',async()=>{
   let response=await handleWallDetection(new Request('https://site/api/assets/walls'),{},'campaign',{},services);assert.equal(response.status,403);
   services.isEditor=async()=>true; response=await handleWallDetection(new Request('https://site/api/assets/walls'),{},'campaign',{},services);assert.equal((await response.json()).enabled,false);
   services.requireUser=async()=>new Response('',{status:401});response=await handleWallDetection(new Request('https://site/api/assets/walls'),{},'campaign',{},services);assert.equal(response.status,401);
+});
+test('real Worker routes enforce authentication and expose capabilities without starting AI work',async()=>{
+  const secret='walls-route-fixture-only', origin='https://khuzoe.github.io';
+  const env={JWT_SECRET:secret,GLOBAL_ADMIN_ACCOUNT_IDS:'admin',CAMPAIGN_EDITOR_ACCOUNT_IDS:'test:dm',
+    WALL_DETECTOR:{get(){throw new Error('Capabilities must not create a job');}},MEDIA_BUCKET:{},OPENAI_API_KEY:'fixture-only'};
+  function token(accountId){
+    const unsigned=[Buffer.from(JSON.stringify({alg:'HS256',typ:'JWT'})).toString('base64url'),
+      Buffer.from(JSON.stringify({accountId,exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')].join('.');
+    return unsigned+'.'+createHmac('sha256',secret).update(unsigned).digest('base64url');
+  }
+  async function call(accountId){return worker.fetch(new Request('https://site/api/assets/walls?campaign=test',{
+    headers:{Origin:origin,...(accountId?{Authorization:'Bearer '+token(accountId)}:{})}}),env,{});}
+  assert.equal((await call()).status,401);
+  assert.equal((await call('player')).status,403);
+  for(const accountId of ['admin','dm']){
+    const response=await call(accountId);assert.equal(response.status,200);
+    assert.equal(response.headers.get('Access-Control-Allow-Origin'),origin);
+    assert.equal(response.headers.get('Cache-Control'),'private, no-store');
+    const data=await response.json();assert.equal(data.enabled,true);assert.equal(data.version,1);
+  }
 });
 test('create is idempotent and polling never starts paid work',async()=>{
   const f=fixture(), r=request();
