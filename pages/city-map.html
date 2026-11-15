@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mappe della campagna | Cripta di Sangue</title>
+    <link rel="stylesheet" href="../assets/css/abyssal.css?v=20260715-sidebar-visual2">
+    <link rel="stylesheet" href="../assets/css/components/page-layout.css?v=20260915-layout1" data-page-style>
+    <link rel="stylesheet" href="../assets/css/pages/city-map.css?v=1" data-page-style>
+</head>
+<body class="site-layout page-city-map">
+    <nav class="sidebar" id="sidebar-container"></nav>
+    <main class="main-content">
+        <div class="page-frame city-map-page" data-city-map>
+            <header class="hero-mini">
+                <div class="hero-title">
+                    <a data-city-back href="mappa.html">Luoghi</a>
+                    <h1 data-city-title>Mappe della campagna</h1>
+                    <p role="status" data-city-status></p>
+                    <button type="button" data-city-login hidden>Accedi con codice</button>
+                </div>
+            </header>
+            <section data-city-list hidden>
+                <ul data-city-links></ul>
+                <details data-city-create hidden>
+                    <summary>Nuova mappa</summary>
+                    <form class="city-form" data-city-create-form>
+                        <label>Titolo <input name="title" maxlength="120" required></label>
+                        <label>Luogo nell’Archivio <select name="locationId" data-city-locations></select></label>
+                        <label>Sfondo
+                            <select name="source">
+                                <option value="upload">Carica un’immagine</option>
+                                <option value="foundry">Usa una scena Foundry</option>
+                            </select>
+                        </label>
+                        <label data-city-upload>Immagine PNG, JPEG o WebP <input type="file" name="file" accept="image/png,image/jpeg,image/webp"></label>
+                        <label data-city-source hidden>Scena pubblicata <select name="scene" data-city-scenes></select></label>
+                        <button type="submit">Crea bozza</button>
+                    </form>
+                </details>
+            </section>
+            <section data-city-detail hidden>
+                <p data-city-location hidden><a>Apri la scheda del luogo</a></p>
+                <details data-city-settings hidden>
+                    <summary>Impostazioni della mappa</summary>
+                    <form class="city-form" data-city-map-form>
+                        <label>Titolo <input name="title" maxlength="120" required></label>
+                        <label>Luogo nell’Archivio <select name="locationId" data-city-locations></select></label>
+                        <label><input type="checkbox" name="published"> Pubblica per il gruppo</label>
+                        <button type="submit">Salva mappa</button>
+                        <a data-city-preview>Anteprima giocatori</a>
+                    </form>
+                    <p data-city-import-status></p>
+                    <form class="city-form" data-city-import hidden>
+                        <label>Mondo Foundry <input name="world" list="city-foundry-worlds" required maxlength="96" pattern="[A-Za-z0-9_\-]+"></label>
+                        <datalist id="city-foundry-worlds"></datalist>
+                        <small>Puoi copiare l’identificativo da Wiki Sync → Importa scene dal sito.</small>
+                        <button type="submit">Crea scena in Foundry</button>
+                    </form>
+                </details>
+                <p data-city-alignment hidden>Controlla la posizione dei punti sulla nuova immagine.
+                    <button type="button" data-city-align>Conferma allineamento</button>
+                </p>
+                <div class="city-workspace">
+                    <section class="city-viewer" aria-label="Mappa interattiva">
+                        <div class="city-toolbar">
+                            <button type="button" data-city-zoom="out" aria-label="Riduci zoom">−</button>
+                            <button type="button" data-city-zoom="reset">Adatta</button>
+                            <button type="button" data-city-zoom="in" aria-label="Aumenta zoom">+</button>
+                            <button type="button" data-city-add hidden>Aggiungi punto</button>
+                        </div>
+                        <div class="city-viewport" data-city-viewport tabindex="0" aria-label="Sfoglia la mappa">
+                            <div class="city-stage" data-city-stage>
+                                <img data-city-image alt="" draggable="false">
+                                <div class="city-pins" data-city-pins></div>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="city-panel" aria-label="Punti e appunti">
+                        <label>Punti della città <select data-city-point-list></select></label>
+                        <article data-city-point hidden>
+                            <h2 data-city-point-title></h2>
+                            <p data-city-point-description></p>
+                            <p data-city-point-location hidden><a>Apri la scheda del luogo</a></p>
+                            <p data-city-point-scene hidden><a>Apri scena Foundry</a></p>
+                            <h3>Note</h3>
+                            <ul class="city-notes" data-city-notes></ul>
+                            <form class="city-form" data-city-note-form hidden>
+                                <label>Nota <textarea name="text" maxlength="4000" rows="3" required></textarea></label>
+                                <label>Visibilità <select name="audience"></select></label>
+                                <div class="city-toolbar">
+                                    <button type="submit">Salva nota</button>
+                                    <button type="button" data-city-note-cancel hidden>Annulla modifica</button>
+                                </div>
+                            </form>
+                        </article>
+                        <form class="city-form city-point-form" data-city-point-form hidden>
+                            <h3 data-city-point-form-title>Modifica punto</h3>
+                            <label>Titolo <input name="title" maxlength="120" required></label>
+                            <label>Descrizione <textarea name="description" maxlength="4000" rows="3"></textarea></label>
+                            <label>Luogo nell’Archivio <select name="locationId" data-city-locations></select></label>
+                            <div class="city-toolbar">
+                                <label>X (%) <input name="x" type="number" min="0" max="100" step="any" required></label>
+                                <label>Y (%) <input name="y" type="number" min="0" max="100" step="any" required></label>
+                            </div>
+                            <label><input type="checkbox" name="revealed"> Rivela al gruppo</label>
+                            <label>Scena di dettaglio <select name="scene" data-city-scenes></select></label>
+                            <label><input type="checkbox" name="detailShared"> Mostra il collegamento al gruppo</label>
+                            <div class="city-toolbar">
+                                <button type="submit">Salva punto</button>
+                                <button type="button" data-city-point-cancel>Annulla</button>
+                            </div>
+                        </form>
+                    </section>
+                </div>
+            </section>
+        </div>
+    </main>
+    <script src="../assets/js/layout.js?v=20261115-required-poll-reminders1"></script>
+    <script src="../assets/js/shared/media-service.js?v=city1"></script>
+    <script src="../assets/js/shared/location-data-service.js"></script>
+    <script src="../assets/js/pages/city-map.js?v=1"></script>
+</body>
+</html>

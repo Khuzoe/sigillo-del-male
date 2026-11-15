@@ -123,11 +123,12 @@ const context = vm.createContext({
     Hooks: { on(name, fn) { hooks.set(name, fn); }, once(name, fn) { hooks.set(name, fn); } },
     game: { user: { id: "gm" }, users: { activeGM: { id: "gm" } } },
     canvas: { ready: false, scene: null },
+    performance,
     canPushToWorker: () => true, MODULE_ID: "cripta-wiki-sync", ui: { notifications: { warn: message => logs.push(message) } },
     captured: () => { captureCount++; },
 });
 vm.runInContext(source.replace(/^import .*$/gm, "").replace(/^export /gm, "")
-    + "\nglobalThis.captureReal = capture; capture = async () => { captured(); return {}; }; publish = async () => {};", context);
+    + "\nglobalThis.captureReal = capture; globalThis.publishReal = publish; capture = async () => { captured(); return {}; }; publish = async () => {};", context);
 const mask = new Uint8Array(3);
 context.unionExploredPixels(mask, new Uint8ClampedArray([255, 0, 0, 255, 1, 0, 0, 255, 250, 0, 0, 1]));
 context.unionExploredPixels(mask, new Uint8ClampedArray([0, 0, 0, 255, 230, 0, 0, 255, 80, 0, 0, 255]));
@@ -159,7 +160,8 @@ const level = { textures: {} };
 const background = { level, name: "background", src: "city.webp" };
 const foreground = { level, name: "foreground", src: null };
 const sceneWithEmptyForeground = {
-    levels: { size: 1 }, fog: { mode: 0 }, _configureLevelTextures: () => [background, foreground],
+    levels: { size: 1, contents: [{ id: "floor" }] }, tiles: [], fog: { mode: 0 },
+    _configureLevelTextures: () => [background, foreground],
 };
 context.CONST = { FOG_EXPLORATION_MODES: { DISABLED: 0 } };
 Object.assign(context.canvas, {
@@ -176,4 +178,89 @@ foreground.src = null;
 background.src = null;
 context.canvas.primary.levelTextures = [];
 assert.equal((await context.captureReal(sceneWithEmptyForeground, approvedView)).player, "render");
-console.log("Mappe Foundry: unione nebbia, esclusioni, avvio GM, due viste private e recupero dopo errore verificati.");
+
+// The saved scene stays authoritative even when the canvas reports no tiles.
+const rendered = [];
+const uploads = [];
+const textures = new Map();
+let elapsed = 0;
+let onWait = () => {};
+Object.assign(context, {
+    performance: { now: () => elapsed },
+    setTimeout(resolve, delay) { elapsed += delay; onWait(); resolve(); },
+    foundry: { canvas: { TextureLoader: { loader: { getCache: src => textures.get(src) } } } },
+    URL, Blob, FormData, AbortSignal,
+    DISCORD_WORKER_URL: "https://worker.test",
+    DEFAULT_CAMPAIGN_ID: "cripta",
+    SETTINGS: {},
+    policyFetch: async (url, options) => {
+        uploads.push({ url, options });
+        return Response.json({ ok: true });
+    },
+    recordRender: tiles => { rendered.push(Array.from(tiles, tile => tile.document.id)); },
+});
+context.game.world = { id: "world" };
+context.game.settings = { get: () => "" };
+vm.runInContext("capture = captureReal; publish = publishReal; renderLayers = (_rect, _size, _background, tiles) => { recordRender(tiles); return 'render'; }; encodeWebp = async image => new Blob([image], {type:'image/webp'});", context);
+const setting = { ...approvedView, title: "P4", auto: true, signature: (await context.captureReal(sceneWithEmptyForeground, approvedView)).signature };
+function tileDocument(id, src, { hidden = false, level = "floor" } = {}) {
+    return { id, hidden, texture: { src }, includedInLevel: viewed => viewed === level };
+}
+function canvasTile(document, baseTexture) {
+    return { document, mesh: { texture: { valid: true, baseTexture } }, renderFlags: new Set() };
+}
+const approvedTile = tileDocument("approved", "approved.webp");
+const hiddenTile = tileDocument("hidden", "hidden.webp", { hidden: true });
+const otherFloor = tileDocument("other-floor", "other.webp", { level: "different" });
+const approvedSource = { valid: true };
+const hiddenSource = { valid: true };
+const approvedPlaceable = canvasTile(approvedTile, approvedSource);
+const hiddenPlaceable = canvasTile(hiddenTile, hiddenSource);
+const fallback = canvasTile(approvedTile, { valid: true });
+const sceneWithTiles = Object.assign(sceneWithEmptyForeground, {
+    id: "p4", active: true, tiles: [approvedTile, hiddenTile, otherFloor], getFlag: () => setting,
+});
+setting.tileKeys = [JSON.stringify([approvedTile.id, approvedTile.texture.src]), JSON.stringify([hiddenTile.id, hiddenTile.texture.src])];
+textures.set(approvedTile.texture.src, approvedSource);
+textures.set(hiddenTile.texture.src, hiddenSource);
+
+rendered.length = 0;
+let waits = 0;
+onWait = () => {
+    assert.equal(uploads.length, 0);
+    assert.equal(rendered.length, 0);
+    if (++waits === 1) context.canvas.tiles.placeables = [fallback, hiddenPlaceable];
+    if (waits === 2) {
+        approvedPlaceable.renderFlags.add("refresh");
+        context.canvas.tiles.placeables = [approvedPlaceable, hiddenPlaceable];
+    }
+    if (waits === 3) approvedPlaceable.renderFlags.clear();
+};
+await hooks.get("canvasReady")();
+assert.equal(waits, 3, "wait for missing tiles, the real texture and applied render flags");
+assert.deepEqual(rendered, [["approved"], ["approved", "hidden"]]);
+assert.equal(uploads.length, 1);
+assert.ok(uploads[0].options.body.has("dm"));
+
+rendered.length = 0;
+context.canvas.tiles.placeables = [];
+const waitStarted = elapsed;
+onWait = () => {};
+await hooks.get("canvasReady")();
+assert.equal(elapsed - waitStarted, 15_000);
+assert.equal(rendered.length, 0);
+assert.equal(uploads.length, 1, "an incomplete capture must never replace the published map");
+assert.match(logs.at(-1), /Mappa non aggiornata.*2 tile/);
+
+context.canvas.tiles.placeables = [approvedPlaceable, hiddenPlaceable];
+const preview = await context.captureReal(sceneWithTiles, setting);
+context.canvas.tiles.placeables = [approvedPlaceable];
+await assert.rejects(context.publishReal(sceneWithTiles, setting, preview), /1 tile/);
+assert.equal(uploads.length, 1, "tile lost after preview must prevent the upload");
+
+context.canvas.tiles.placeables = [];
+onWait = () => { context.canvas.scene = null; };
+await hooks.get("canvasReady")();
+assert.match(logs.at(-1), /scena è cambiata/);
+assert.equal(uploads.length, 1);
+console.log("Mappe Foundry: nebbia, permessi, attesa dei tile e conservazione dell’immagine pubblicata verificati.");

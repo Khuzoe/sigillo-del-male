@@ -1264,7 +1264,7 @@ function parseYamlLite(yamlText) {
             const sync = npc.sync || {};
             const syncProblems = Number(sync.conflicts || 0) + Number(sync.failed || 0);
             const syncBadge = syncProblems
-                ? `<span class="npc-sync-badge is-conflict"><i class="fas fa-triangle-exclamation"></i>${syncProblems} problemi</span>`
+                ? `<span class="npc-sync-badge is-conflict"><i class="fas fa-triangle-exclamation"></i>${syncProblems} ${syncProblems === 1 ? "problema" : "problemi"}</span>`
                 : Number(sync.pending || 0) > 0
                     ? `<span class="npc-sync-badge is-pending"><i class="fas fa-clock"></i>${Number(sync.pending)} in attesa</span>`
                     : '';

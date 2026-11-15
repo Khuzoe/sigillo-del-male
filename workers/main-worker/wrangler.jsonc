@@ -85,11 +85,7 @@
     }
   ],
   "vars": {
-    // Optional OPENAI_API_KEY secret activates generation. Avatars and tiles have no monthly cap.
-    // The remaining limits apply to abilities, ability icons and suggestions, not a euro budget.
-    "ABILITY_MONTHLY_LIMIT": "30",
-    "ABILITY_ICON_MONTHLY_LIMIT": "20",
-    "NPC_SUGGESTION_MONTHLY_LIMIT": "20",
+    // Optional OPENAI_API_KEY secret activates generation. No local monthly caps.
     // D1 enabled for polls, skill-tree progress and definitions in all configured campaigns.
     "POLL_D1_CAMPAIGNS": "cripta-di-sangue,mago-folle,oltre-il-velo",
     "POLL_WRITES_PAUSED_CAMPAIGNS": "",

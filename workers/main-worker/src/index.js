@@ -6,10 +6,12 @@ import { handleAvatarGeneration, normalizeGeneratedAvatarPath, normalizeGenerate
 export { AvatarGenerationStore } from "./avatar-generation.js";
 import { handleDropGeneration } from "./drop-generation.js";
 import { handleFoundryMaps } from "./foundry-maps.js";
+import { handleCityMaps } from "./city-maps.js";
 export { DropGenerationStore } from "./drop-generation.js";
 import { handleTileGeneration } from "./tile-generation.js";
 export { TileGenerationStore } from "./tile-generation.js";
 import { handleAbilityGeneration } from "./ability-generation.js";
+import { handleAbilityIcons } from "./ability-icons.js";
 export { AbilityGenerationStore } from "./ability-generation.js";
 import { D1PollStore, PollStorageError } from "./poll-store.js";
 import { SkillTreeStateStore } from "./skill-tree-store.js";
@@ -88,6 +90,14 @@ const application = {
       if (url.pathname === "/api/campaign-items/foundry-sync" && request.method === "POST") {
         return handleCampaignItemFoundrySync(request, queryCampaignId, env, corsHeaders);
       }
+      if (/^\/api\/city-maps(?:\/|$)/.test(url.pathname)) {
+        return await handleCityMaps(request, queryCampaignId, env, {
+          requireUser: req => requireUser(req, env, corsHeaders),
+          isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
+          accountId: user => getAuthenticatedAccountId(user, env),
+          canReadPlayer: async (user, campaignId) => (await getEditableCharacterIdsForAccount(env, campaignId, getAuthenticatedAccountId(user, env))).size > 0,
+        }, corsHeaders);
+      }
       if (/^\/api\/foundry-maps(?:\/|$)/.test(url.pathname)) {
         try {
           return await handleFoundryMaps(request, queryCampaignId, env, {
@@ -164,11 +174,12 @@ const application = {
         return handleSessionJournalUpsert(request, queryCampaignId, env, corsHeaders);
       }
       const suggestionRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-suggestions$/i);
-      const abilityRouteMatch = suggestionRouteMatch || url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-generation(?:\/([a-f0-9-]{36})\/(preview|save|icon|confirm|stop))?$/i);
+      const iconRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-icons(?:\/([a-f0-9-]{36})\/(preview|confirm|stop))?$/i);
+      const abilityRouteMatch = suggestionRouteMatch || iconRouteMatch || url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-generation(?:\/([a-f0-9-]{36})\/(preview|save|icon|confirm|stop|reopen))?$/i);
       if (abilityRouteMatch) {
         const actorRoute = matchManagedActorRoute(abilityRouteMatch[1]);
         if (!actorRoute) return json({ ok: false, error: "Invalid actor" }, 400, corsHeaders);
-        const result = await handleAbilityGeneration(request, { ...actorRoute, purpose: suggestionRouteMatch ? "suggestions" : "ability", jobId: abilityRouteMatch[2], action: abilityRouteMatch[3] }, queryCampaignId, env, {
+        const result = await (iconRouteMatch ? handleAbilityIcons : handleAbilityGeneration)(request, { ...actorRoute, purpose: suggestionRouteMatch ? "suggestions" : "ability", jobId: abilityRouteMatch[2], action: abilityRouteMatch[3] }, queryCampaignId, env, {
           requireUser: (req) => requireUser(req, env, corsHeaders),
           isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
           nativeGenerationEnabled:npcNativeSnapshotD1Enabled(env,queryCampaignId),
@@ -6373,6 +6384,21 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
   }
 
   const kind = String(body?.kind || "item.update").trim().toLowerCase();
+  if (kind === "command.discard") {
+    if (!authorization.isEditor) return json({ok:false,error:"Solo il DM o l’admin può scartare una richiesta."},403,corsHeaders);
+    const id = String(body.commandId || "");
+    if (!id || id.length > 96) return json({ok:false,error:"Richiesta non valida."},400,corsHeaders);
+    const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId, route.worldId)), campaignId, route.worldId);
+    const command = queue.commands.find(entry => entry.id === id && entry.actorId === route.actorId);
+    if (command && !["failed", "conflict"].includes(command.status)) return json({ok:false,error:"Puoi scartare solo richieste fallite o in conflitto."},409,corsHeaders);
+    if (command) {
+      queue.commands = queue.commands.filter(entry => entry !== command);
+      queue.version++; queue.updatedAt = new Date().toISOString();
+      await writeManagedActorCommandQueue(env, queue);
+      scheduleFoundryLiveInvalidation(ctx, env, {campaignId, worldId:route.worldId, collections:["managed-actors"], actorIds:[route.actorId], reason:"managed-command-discard", revision:queue.version});
+    }
+    return json({ok:true,discarded:true,commandId:id,queueVersion:queue.version},200,{...corsHeaders,"Cache-Control":"private, no-store"});
+  }
   const allowedKinds = new Set(["actor.update", "item.update", "item.create", "item.delete", "effect.update", "effect.create", "effect.delete", "actor-link.inspect", "actor-link.apply", "actor-link.rollback", "actor-link.cancel"]);
   if (!allowedKinds.has(kind)) return json({ ok: false, error: "Unsupported managed actor command" }, 400, corsHeaders);
 
@@ -7166,7 +7192,7 @@ async function handleNpcNativeSheet(request,route,campaignId,env,corsHeaders,ctx
   if(!npcNativeSnapshotD1Enabled(env,campaignId))return json({ok:false,error:'Editor non attivo per questa campagna.'},409,headers);
   const actor=safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId,route.worldId,route.actorId))),record=safeJsonParse(await env.SIGILLO_KV.get(npcNativeSnapshotKey(campaignId,route.worldId,route.actorId)));
   if(!actor||actor.actorType!=='npc'||record?.snapshot?.versions?.nativeSheetEditor!==1)return json({ok:false,error:'Ricarica Foundry con Wiki Sync aggiornato e sincronizza questo NPC.'},409,headers);
-  if(body.version!==1||!/^[a-f0-9-]{36}$/i.test(body.requestId||'')||!Array.isArray(body.plan)||!body.plan.length||body.plan.length>256||new TextEncoder().encode(JSON.stringify(body)).length>768*1024)return json({ok:false,error:'Proposta della scheda non valida.'},400,headers);
+  if(body.version!==1||!/^[a-f0-9-]{36}$/i.test(body.requestId||'')||!Array.isArray(body.plan)||!body.plan.length||body.plan.length>256||new TextEncoder().encode(JSON.stringify(body)).length>2*1024*1024)return json({ok:false,error:'Proposta della scheda non valida.'},400,headers);
   const queue=readManagedActorCommandQueue(await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId,route.worldId)),campaignId,route.worldId),duplicate=queue.commands.find(command=>command.actorId===route.actorId&&command.clientRequestId===body.requestId&&command.nativeSheetVersion===1);
   if(duplicate)return json({ok:true,command:managedActorCommandForReader(duplicate,false)},202,headers);
   if(queue.commands.some(command=>command.actorId===route.actorId&&command.status==='pending'))return json({ok:false,error:'Attendi le modifiche già in coda per questo NPC. La proposta è conservata.'},409,headers);
@@ -7189,6 +7215,7 @@ async function handleNpcNativeSheet(request,route,campaignId,env,corsHeaders,ctx
   }catch(error){return json({ok:false,error:error.message},409,headers);}
   if(queue.commands.length>=256)return json({ok:false,error:'Coda piena. Attendi Foundry.'},429,headers);
   const now=new Date().toISOString(),command={id:crypto.randomUUID(),nativeSheetVersion:1,clientRequestId:body.requestId,kind:'actor.update',campaignId,worldId:route.worldId,actorId:route.actorId,foundryActorId:source._id,baseRevision:Number(actor.revision||0),target:{type:'Actor',id:source._id},document:{version:1,operations:body.plan},summary:body.summary,nativePermissions:permissions,status:'pending',createdAt:now,updatedAt:now,createdBy:getAuthenticatedAccountId(user,env)};
+  if(body.supersedesCommandId)queue.commands=queue.commands.filter(previous=>!(previous.id===body.supersedesCommandId&&previous.actorId===route.actorId&&previous.nativeSheetVersion===1&&['failed','conflict'].includes(previous.status)));
   queue.commands.push(command);queue.version++;queue.updatedAt=now;await writeManagedActorCommandQueue(env,queue);
   scheduleFoundryLiveInvalidation(ctx,env,{campaignId,worldId:route.worldId,collections:['managed-actors'],actorIds:[route.actorId],reason:'npc-sheet-editor',revision:queue.version});
   return json({ok:true,command:managedActorCommandForReader(command,false)},202,headers);

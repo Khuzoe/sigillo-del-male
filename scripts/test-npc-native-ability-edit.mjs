@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {NATIVE_ABILITY_EDIT_FORMAT,compileNativeAbilityEdit,validateNativeAbilityEditDraft,nativeAbilityEditProjection,nativeAbilityEditChanges} from "../assets/js/shared/npc-native-ability-edit.mjs";
+import {NATIVE_ABILITY_EDIT_FORMAT,compileNativeAbilityEdit,validateNativeAbilityEditDraft,nativeAbilityEditProjection,nativeAbilityEditChanges,nativeAbilityAutomationWarnings} from "../assets/js/shared/npc-native-ability-edit.mjs";
 import {nativeApply,nativeGet,nativeActivityTemplate,nativeValidateChanges} from "../assets/js/shared/npc-native-model.mjs";
 import {nativeAbilityEditContext,nativeAbilityEditFingerprint} from "../workers/main-worker/src/npc-native-ability-edit-context.js";
 import {nativeAbilityVersions} from "./fixtures/npc-native-ability.mjs";
@@ -36,10 +36,10 @@ for(const path of ["ownership.default","_id","type","system.source.book","flags.
 for(const change of [set("system.description.value",'<img src=x onerror="evil()">'),set(`system.activities.${attackId}.attack.bonus`,'game.user.id'),set(`system.activities.${attackId}.attack.bonus`,'1;evil()'),set("flags.dae",{macro:{command:"evil"}})])refuses(()=>compileNativeAbilityEdit(proposal([change]),item,capabilities));
 refuses(()=>compileNativeAbilityEdit(editAbilityProposal,item,{healingTypes:0}),/Aggiorna/);
 refuses(()=>compileNativeAbilityEdit(proposal([set(`system.activities.${attackId}.type`,"save")]),item,capabilities));
-refuses(()=>compileNativeAbilityEdit(proposal([set(`system.activities.${attackId}.effects`,[{_id:"AbsentEffect0001"}])]),item,capabilities),/non esiste/);
-refuses(()=>compileNativeAbilityEdit(proposal([set(`system.activities.${attackId}.otherActivityId`,"AbsentActivity01")]),item,capabilities),/non esiste/);
+ok(nativeAbilityAutomationWarnings(compileNativeAbilityEdit(proposal([set(`system.activities.${attackId}.effects`,[{_id:"AbsentEffect0001"}])]),item,capabilities).item).some(text=>text.includes("non è presente")),"Missing effects are manual automation notices");
+ok(nativeAbilityAutomationWarnings(compileNativeAbilityEdit(proposal([set(`system.activities.${attackId}.otherActivityId`,"AbsentActivity01")]),item,capabilities).item).some(text=>text.includes("non risolto")),"Unresolved automation links do not block the proposal");
 const followUp=nativeActivityTemplate('damage','Seguito');followUp.midiProperties={triggeredActivityId:attackId};
-refuses(()=>compileNativeAbilityEdit(proposal([set(`system.activities.${followUp._id}`,followUp),set(`system.activities.${attackId}.midiProperties`,{triggeredActivityId:followUp._id})]),item,capabilities),/ciclo/);
+ok(nativeAbilityAutomationWarnings(compileNativeAbilityEdit(proposal([set(`system.activities.${followUp._id}`,followUp),set(`system.activities.${attackId}.midiProperties`,{triggeredActivityId:followUp._id})]),item,capabilities).item).some(text=>text.includes("ciclo")),"Cycles are visible manual automation notices");
 refuses(()=>compileNativeAbilityEdit(proposal([set("effects",[{...newEffect,system:{changes:[{key:"macro.execute",mode:0,value:"evil"}]}}])]),item,capabilities));
 const bad=structuredClone(draft);bad.itemId="Other12345678901";refuses(()=>validateNativeAbilityEditDraft(bad,item,capabilities),/altra capacità/);
 refuses(()=>validateNativeAbilityEditDraft({...draft,extraData:"unrelated"},item,capabilities),/non previsti/);

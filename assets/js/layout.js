@@ -1825,12 +1825,9 @@ function ensureDiscordNotificationSettingsModal() {
             <div class="discord-notification-modal__body">
                 <label class="discord-notification-toggle">
                     <input type="checkbox" data-discord-pref="dmEnabled">
-                    <span>Ricevere DM dal bot</span>
+                    <span>Ricevere gli altri promemoria del bot</span>
                 </label>
-                <label class="discord-notification-toggle">
-                    <input type="checkbox" data-discord-pref="pollRemindersEnabled">
-                    <span>Promemoria sondaggio non votato</span>
-                </label>
+                <p>I promemoria dei sondaggi sono obbligatori: arrivano in privato su Discord finché non hai risposto a tutte le caselle, anche in caso di voto parziale.</p>
                 <label class="discord-notification-toggle">
                     <input type="checkbox" data-discord-pref="sessionDayReminderEnabled">
                     <span>Promemoria sessione del giorno alle 10</span>
@@ -1873,14 +1870,12 @@ function ensureDiscordNotificationSettingsModal() {
 function fillDiscordNotificationSettings(modal, preferences) {
     const defaults = {
         dmEnabled: true,
-        pollRemindersEnabled: true,
         sessionDayReminderEnabled: true,
         sessionAdvanceReminderEnabled: false,
         sessionReminderMinutes: 60
     };
     const values = { ...defaults, ...(preferences || {}) };
     modal.querySelector('[data-discord-pref="dmEnabled"]').checked = values.dmEnabled !== false;
-    modal.querySelector('[data-discord-pref="pollRemindersEnabled"]').checked = values.pollRemindersEnabled !== false;
     modal.querySelector('[data-discord-pref="sessionDayReminderEnabled"]').checked = values.sessionDayReminderEnabled !== false;
     modal.querySelector('[data-discord-pref="sessionAdvanceReminderEnabled"]').checked = values.sessionAdvanceReminderEnabled === true;
     modal.querySelector('[data-discord-pref="sessionReminderMinutes"]').value = String(Number(values.sessionReminderMinutes) || 60);
@@ -1898,7 +1893,7 @@ async function saveDiscordNotificationSettings(modal) {
     const sessionReminderMinutes = Math.max(0, Math.min(1440, Math.round(Number(minutesInput?.value || 0))));
     const body = {
         dmEnabled: modal.querySelector('[data-discord-pref="dmEnabled"]')?.checked === true,
-        pollRemindersEnabled: modal.querySelector('[data-discord-pref="pollRemindersEnabled"]')?.checked === true,
+        pollRemindersEnabled: true,
         sessionDayReminderEnabled: modal.querySelector('[data-discord-pref="sessionDayReminderEnabled"]')?.checked === true,
         sessionAdvanceReminderEnabled: modal.querySelector('[data-discord-pref="sessionAdvanceReminderEnabled"]')?.checked === true && sessionReminderMinutes > 0,
         sessionReminderMinutes

@@ -1,6 +1,8 @@
-import {NPC_SHEET_AI_FORMAT,NPC_SHEET_AI_COMPILER,validateNpcSheetDraft,npcSheetCommandPlan} from '../../../assets/js/shared/npc-sheet-ai-model.mjs';
+import {NPC_SHEET_AI_FORMAT,NPC_SHEET_AI_COMPILER,validateNpcSheetDraft,npcSheetCommandPlan,rebaseNpcSheetDraft} from '../../../assets/js/shared/npc-sheet-ai-model.mjs';
 import {npcSheetAiContext,npcSheetAiOptions,npcSheetSharedRuntime,npcSheetAiSourceAvailable} from './npc-sheet-ai-context.js';
 import {generationStopResponse} from './generation-lifecycle.js';
+import {avatarReferenceKey} from './avatar-generation.js';
+import {NPC_SHEET_VISUAL_INPUT_VERSION,NPC_AVATAR_MAX_BYTES} from './npc-visual-reference.js';
 const reply=(value,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'private, no-store'}}),fail=(error,status=400)=>reply({ok:false,error},status);
 export async function handleNpcSheetAi(request,route,campaignId,env,services){
  const user=await services.requireUser(request);if(user instanceof Response)return user;
@@ -15,35 +17,75 @@ export async function handleNpcSheetAi(request,route,campaignId,env,services){
   if(!latestResponse.ok||latest.nativeSheetEditor!==NPC_SHEET_AI_COMPILER)return fail('Il generatore si sta aggiornando. Nessuna chiamata AI è stata avviata. Riprova tra poco.',503);
   if(latest.job&&latest.job.format!==NPC_SHEET_AI_FORMAT)return fail('La proposta non appartiene all’editor della scheda.',409);
   const record=await services.readNativeActor(campaignId,route);
-  if(request.method==='GET'&&!route.action)return reply({...latest,version:1,enabled:Boolean(env.OPENAI_API_KEY),canStop:true,canGenerate:npcSheetAiSourceAvailable(record),sharedRuntime:npcSheetSharedRuntime(actor,record?.snapshot?.actor),canSync:record?.snapshot?.versions?.nativeSheetEditor===1});
+  if(request.method==='GET'&&!route.action){
+   let delivery=null;
+   if(latest.job?.status==='accepted'){
+    const commands=await services.readNativeCommands(campaignId,route),command=commands.find(row=>row.id===latest.job.command?.id);
+    const receipt=record?.snapshot?.actor?.flags?.['cripta-wiki-sync']?.nativeSheetReceipts?.includes(latest.job.command?.id);
+    delivery={status:receipt?'applied':command?.status||'missing',error:receipt?'':command?.error||''};
+   }
+   return reply({...latest,delivery,version:1,enabled:Boolean(env.OPENAI_API_KEY),canStop:true,hasAvatar:Boolean(avatarReferenceKey(actor.media?.avatar?.path,campaignId)),supportsVisualInput:latest.nativeSheetVisualInput===NPC_SHEET_VISUAL_INPUT_VERSION,canGenerate:npcSheetAiSourceAvailable(record),sharedRuntime:npcSheetSharedRuntime(actor,record?.snapshot?.actor),canSync:record?.snapshot?.versions?.nativeSheetEditor===1});
+  }
   if(request.method!=='POST')return fail('Operazione non supportata.',405);
   const text=await request.text();if(new TextEncoder().encode(text).length>2*1024*1024)return fail('Proposta troppo grande.',413);let body;try{body=JSON.parse(text);}catch{return fail('Richiesta non valida.');}
+  if(!body||typeof body!=='object'||Array.isArray(body))return fail('Richiesta non valida.');
   if(route.action==='stop')return generationStopResponse(await call('stop',{id:route.jobId,attemptId:body.attemptId}));
   if(!route.action){
    if(!env.OPENAI_API_KEY)return fail('Il generatore deve essere attivato dall’amministratore.',503);
    if(!/^[a-f0-9-]{36}$/i.test(body.requestId||'')||typeof body.details!=='string'||!body.details.trim()||body.details.length>8000||!['general','translate'].includes(body.mode))return fail('Descrivi le modifiche entro 8000 caratteri.');
+   const existing=await call('public-job',{id:body.requestId});if(existing.status!==404)return existing;
+   if(latest.nativeSheetVisualInput!==NPC_SHEET_VISUAL_INPUT_VERSION)return fail('Il generatore si sta aggiornando per usare il riferimento visivo. Nessuna chiamata AI è stata avviata. Riprova tra poco.',503);
    const options=npcSheetAiOptions(record,actor,body.mode),{source,context:sheetContext}=npcSheetAiContext(record,actor,options);
    const pending=await services.readNativeCommands(campaignId,route);if(pending.some(command=>command.status==='pending'))return fail('Attendi la sincronizzazione delle modifiche già inviate a questo NPC prima di avviare una nuova proposta.',409);
-   const baseDraft=body.baseDraft?validateNpcSheetDraft(body.baseDraft,source,options):null;
-   return call('create',{id:body.requestId,format:NPC_SHEET_AI_FORMAT,details:body.details.trim(),withIcon:false,actorSource:source,options,sheet:sheetContext,baseDraft});
+   let baseDraft=null;
+   if(body.baseDraft){
+    const previous=await call('job',{id:body.baseJobId||latest.job?.id});if(!previous.ok)return fail('La bozza precedente non è disponibile. Apri una nuova richiesta.',409);
+    const {job}=await previous.json();if(job.format!==NPC_SHEET_AI_FORMAT)return fail('Bozza precedente non valida.',409);
+    baseDraft=validateNpcSheetDraft(body.baseDraft,job.actorSource,job.options);
+    npcSheetCommandPlan(baseDraft,job.actorSource,record.snapshot.actor,options);
+   }
+   const referenceKey=avatarReferenceKey(actor.media?.avatar?.path,campaignId);
+   let referenceEtag='';
+   if(referenceKey){
+    if(!env.MEDIA_BUCKET)return fail('L’archivio immagini non è disponibile. Nessuna chiamata AI è stata avviata.',503);
+    const reference=await env.MEDIA_BUCKET.head(referenceKey);
+    if(!reference||reference.size>NPC_AVATAR_MAX_BYTES)return fail('L’avatar salvato non è disponibile o supera 12 MB. Salva un avatar valido prima di generare la proposta.');
+    referenceEtag=reference.etag||'';
+   }
+   sheetContext.visualReference={included:Boolean(referenceKey)};
+   return call('create',{id:body.requestId,format:NPC_SHEET_AI_FORMAT,details:body.details.trim(),withIcon:false,actorSource:source,options,sheet:sheetContext,baseDraft,...(referenceKey?{referenceKey,referenceEtag}:{})});
   }
   const stored=await call('job',{id:route.jobId});if(!stored.ok)return stored;const {job}=await stored.json();if(job.format!==NPC_SHEET_AI_FORMAT)return fail('Proposta della scheda non trovata.',404);
+  if(route.action==='reopen'){
+   if(job.status!=='accepted')return call('public-job',{id:job.id});
+   const commands=await services.readNativeCommands(campaignId,route),command=commands.find(row=>row.id===job.command?.id);
+   if(command?.status==='pending')return fail('Attendi l’esito della richiesta già inviata a Foundry.',409);
+   if(command?.status==='applied'||record?.snapshot?.actor?.flags?.['cripta-wiki-sync']?.nativeSheetReceipts?.includes(job.command?.id))return fail('Le modifiche risultano già applicate. Avvia una nuova richiesta.',409);
+   const options=npcSheetAiOptions(record,actor,job.options.mode),rebased=rebaseNpcSheetDraft(job.draft,job.actorSource,record.snapshot.actor,options);
+   return call('reopen-sheet',{id:job.id,draft:rebased.draft,actorSource:rebased.source,options,submissionId:crypto.randomUUID()});
+  }
   if(route.action==='save')return call('save',{id:route.jobId,draft:body.draft});
   if(route.action!=='confirm')return fail('Questa proposta non genera immagini.',405);
   if(job.status==='accepted')return reply({ok:true,command:job.command});
-  const commands=await services.readNativeCommands(campaignId,route),duplicate=commands.find(command=>command.nativeSheetVersion===1&&command.clientRequestId===job.id);
+  let submissionId=job.submissionId||job.id;
+  const commands=await services.readNativeCommands(campaignId,route),duplicate=commands.find(command=>command.nativeSheetVersion===1&&command.clientRequestId===submissionId);
   if(duplicate){const command=services.commandForReader(duplicate);const accepted=await call('accepted',{id:job.id,command});if(!accepted.ok)return accepted;return reply({ok:true,command});}
   const options=npcSheetAiOptions(record,actor,job.options.mode);
   if(record.snapshot.versions?.nativeSheetEditor!==1)return fail('La proposta è conservata. L’invio sarà disponibile appena Wiki Sync aggiornato si collega al mondo e aggiorna automaticamente la scheda: non serve una sincronizzazione manuale dell’NPC.',409);
   // Detect conflicts before freezing the draft. A failed queue insertion can
   // also release it, but only after checking that no command was committed.
   let plan;
-  try{plan=npcSheetCommandPlan(job.prepared?.draft||body.draft,job.actorSource,record.snapshot.actor,options);}
+  try{plan=npcSheetCommandPlan(job.prepared?(job.prepared.draft||job.draft):body.draft,job.actorSource,record.snapshot.actor,options);}
   catch(error){await call('unprepare',{id:job.id});return fail(error.message,409);}
   const prepared=await call('prepare',{id:job.id,draft:body.draft});if(!prepared.ok)return prepared;const {document}=await prepared.json();
-  const queued=await services.enqueueNativeSheet({version:1,requestId:job.id,plan,summary:{text:document.draft.summary,mode:document.draft.mode,names:plan.map(operation=>({operation:operation.operation,type:operation.target.type,id:operation.target.id,name:operation.document?.name||document.draft.items.find(row=>row.id===operation.target.id)?.data.name||document.draft.base.items.find(row=>row.id===operation.target.id)?.data.name||actor.name}))}});
+  // Another open window may have frozen the draft after our first read. Queue
+  // exactly that immutable version, never the now-unrelated request body.
+  submissionId=document.requestId||submissionId;
+  try{plan=npcSheetCommandPlan(document.draft,job.actorSource,record.snapshot.actor,options);}
+  catch(error){await call('unprepare',{id:job.id});return fail(error.message,409);}
+  const queued=await services.enqueueNativeSheet({version:1,requestId:submissionId,supersedesCommandId:job.lastCommand?.id,plan,summary:{text:document.draft.summary,mode:document.draft.mode,names:plan.map(operation=>({operation:operation.operation,type:operation.target.type,id:operation.target.id,name:operation.document?.name||document.draft.items.find(row=>row.id===operation.target.id)?.data.name||document.draft.base.items.find(row=>row.id===operation.target.id)?.data.name||actor.name}))}});
   if(!queued.ok){
-   if(queued.status<500){const saved=(await services.readNativeCommands(campaignId,route)).find(command=>command.nativeSheetVersion===1&&command.clientRequestId===job.id);if(saved){const command=services.commandForReader(saved);await call('accepted',{id:job.id,command});return reply({ok:true,command});}await call('unprepare',{id:job.id});}
+   if(queued.status<500){const saved=(await services.readNativeCommands(campaignId,route)).find(command=>command.nativeSheetVersion===1&&command.clientRequestId===submissionId);if(saved){const command=services.commandForReader(saved);await call('accepted',{id:job.id,command});return reply({ok:true,command});}await call('unprepare',{id:job.id});}
    return queued;
   }const payload=await queued.json(),accepted=await call('accepted',{id:job.id,command:payload.command});if(!accepted.ok)return accepted;return reply(payload);
  }catch(error){return fail(error.message||'Impossibile preparare la modifica della scheda.',error.status||400);}

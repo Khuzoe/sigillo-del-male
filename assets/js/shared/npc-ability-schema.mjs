@@ -70,12 +70,12 @@ export function abilitySummary(d) {
   if (d.conditions.length) lines.push(`${d.save.enabled ? "Con TS fallito" : d.mode === "attack" ? "Se colpisce" : "Sul bersaglio"}: ${d.conditions.map(c => LABELS[c]).join(", ")} per ${d.rounds} round, fino alla fine del turno.`);
   if (d.healing.fraction) lines.push(`L'utilizzatore recupera PF pari al ${d.healing.fraction * 100}% dei ${d.healing.source === "extra" ? "soli danni aggiuntivi" : "danni principali"} inflitti dopo resistenze, immunità e riduzioni (entro i PF massimi).`);
   if (d.uses) lines.push(`${d.uses} utilizzi ${d.recovery === "day" ? "al giorno" : d.recovery === "lr" ? "per riposo lungo" : "per riposo breve"}.`);
+  for(const rule of d.unsupported)lines.push(`Gestione manuale del GM: ${rule}`);
   return lines;
 }
 
 export function compileAbility(input, transferId, img = "") {
   const d = validateAbility(input);
-  if (d.unsupported.length) throw new Error("La proposta contiene meccaniche non automatizzate: chiedi una revisione prima di aggiungerla.");
   const primaryId = "KhzAiPrimary0001", extraId = "KhzAiFollowup001";
   const part = value => ({number: null, denomination: 0, bonus: "", types: [value.type], custom: {enabled: true, formula: value.formula}, scaling: {mode: "", number: null, formula: ""}});
   const base = (id, type, name, secondary = false) => ({

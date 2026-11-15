@@ -1,0 +1,10 @@
+.npc-ability-icons__list { display: grid; gap: 14px; }
+.npc-ability-icons__row { padding: 16px; border: 1px solid #44434d; border-radius: 12px; background: #101115; }
+.npc-ability-icons__row > label { display: flex; align-items: center; gap: 10px; }
+.npc-ability-icons__row input { width: 20px; height: 20px; accent-color: #dec28a; }
+.npc-ability-icons__images { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.npc-ability-icons__images img { width: 112px; height: 112px; object-fit: contain; border-radius: 10px; background: #202127; }
+.npc-ability-icons__row p { font-size: 12px; color: #c7c3b9; }
+.npc-ability-icons__actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.managed-sync-details article > button { margin-left: auto; flex-shrink: 0; cursor: pointer; border: 1px solid #55515c; border-radius: 7px; padding: 6px 9px; background: #24252d; color: #eeebe5; font: inherit; }
+@media (max-width: 600px) { .managed-sync-details article { flex-wrap: wrap; } .npc-ability-icons footer { flex-direction: column; align-items: stretch; } }

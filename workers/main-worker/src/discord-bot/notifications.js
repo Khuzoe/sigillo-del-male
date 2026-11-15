@@ -76,7 +76,8 @@ export function normalizeDiscordBotPreferences(input = {}) {
     accountId: sanitizeAccountId(input.accountId || ""),
     discordId: sanitizeDiscordId(input.discordId || ""),
     dmEnabled: booleanWithDefault(input.dmEnabled, true),
-    pollRemindersEnabled: booleanWithDefault(input.pollRemindersEnabled, true),
+    // Required for every incomplete voter, including legacy opt-outs.
+    pollRemindersEnabled: true,
     sessionDayReminderEnabled: booleanWithDefault(input.sessionDayReminderEnabled, true),
     sessionAdvanceReminderEnabled,
     sessionReminderMinutes,
@@ -87,25 +88,26 @@ export function normalizeDiscordBotPreferences(input = {}) {
 async function handleCampaignDmNotifications(env, campaignId, nowMs) {
   const session = await loadCurrentSession(env, campaignId);
   if (!session || typeof session !== "object") return;
-  if (session.disableDiscordNotifications) return;
+  if (session.isScheduled && session.disableDiscordNotifications) return;
 
   const numberKey = getSessionNumberKey(session);
   if (!numberKey) return;
 
   const [participants, votesDoc] = await Promise.all([
-    loadCampaignParticipants(env, campaignId),
+    loadCampaignParticipants(env, campaignId, session.isScheduled ? null : session),
     loadSessionVotes(env, campaignId, numberKey),
   ]);
   if (!participants.length) return;
 
+  // Poll completion reminders are mandatory and independent of DM preferences.
+  await notifyUnvotedPlayers(env, campaignId, session, numberKey, participants, votesDoc, nowMs);
+  if (!session.isScheduled) return;
   const preferences = await loadPreferencesForParticipants(env, campaignId, participants);
-
-  await notifyUnvotedPlayers(env, campaignId, session, numberKey, participants, votesDoc, preferences, nowMs);
   await notifySessionDay(env, campaignId, session, numberKey, participants, preferences, nowMs);
   await notifySessionAdvance(env, campaignId, session, numberKey, participants, preferences, nowMs);
 }
 
-async function notifyUnvotedPlayers(env, campaignId, session, numberKey, participants, votesDoc, preferences, nowMs) {
+async function notifyUnvotedPlayers(env, campaignId, session, numberKey, participants, votesDoc, nowMs) {
   if (session.isScheduled) return;
   if (!Array.isArray(session.availabilityOptions) || !session.availabilityOptions.length) return;
 
@@ -117,14 +119,16 @@ async function notifyUnvotedPlayers(env, campaignId, session, numberKey, partici
   const pollUrl = getPollUrl(env, campaignId);
 
   for (const participant of participants) {
-    const pref = preferences.get(participant.accountId) || normalizeDiscordBotPreferences();
-    if (!canReceiveDm(participant, pref) || !pref.pollRemindersEnabled) continue;
-    if (hasParticipantVoted(votesDoc, session, participant)) continue;
+    if (!participant.discordId) continue;
+    const progress = getParticipantPollProgress(votesDoc, session, participant);
+    if (!progress.total || progress.complete) continue;
 
     const markerKey = campaignKey(campaignId, `discord-bot/sent/poll-unvoted/${numberKey}/${today}/${participant.accountId}`);
     const content = [
-      `Ciao ${participant.displayName}, non hai ancora votato il sondaggio della sessione ${numberKey} di ${campaignName}.`,
-      `Puoi votare qui: ${pollUrl}`,
+      progress.answered
+        ? `Ciao ${participant.displayName}, il tuo voto nel sondaggio della sessione ${numberKey} di ${campaignName} è parziale: hai risposto a ${progress.answered} ${progress.answered === 1 ? 'casella' : 'caselle'} su ${progress.total}. ${progress.missing === 1 ? 'Manca ancora 1 risposta.' : `Mancano ancora ${progress.missing} risposte.`}`
+        : `Ciao ${participant.displayName}, non hai ancora votato il sondaggio della sessione ${numberKey} di ${campaignName}. ${progress.total === 1 ? 'Manca 1 risposta.' : `Mancano tutte le ${progress.total} risposte.`}`,
+      `Completa tutte le caselle, scegliendo Sì, No o Forse: ${pollUrl}`,
     ].join("\n");
 
     await sendTrackedDm(env, markerKey, participant.discordId, content);
@@ -208,7 +212,7 @@ async function loadSessionVotes(env, campaignId, numberKey) {
     sessionVotesKey(campaignId, numberKey),
     sanitizeCampaignId(campaignId) === DEFAULT_CAMPAIGN_ID ? `session-votes/${numberKey}` : ""
   );
-  return safeJsonParse(raw) || { votes: [] };
+  return safeJsonParse(raw);
 }
 
 async function loadPreferencesForParticipants(env, campaignId, participants) {
@@ -230,7 +234,7 @@ async function loadPreferencesForParticipants(env, campaignId, participants) {
   return map;
 }
 
-async function loadCampaignParticipants(env, campaignId) {
+async function loadCampaignParticipants(env, campaignId, pollSession = null) {
   const [accounts, players] = await Promise.all([
     loadAccounts(env),
     loadCampaignPlayers(env, campaignId),
@@ -242,8 +246,10 @@ async function loadCampaignParticipants(env, campaignId) {
   for (const player of players) {
     if (!player || typeof player !== "object") continue;
     if (player.isActive === false || player.hidden === true) continue;
-    const role = String(player.campaignRole || player.role || "player").trim().toLowerCase();
-    if (role && role !== "player") continue;
+    // Legacy player.role describes the character class (e.g. Barbaro).
+    const role = String(player.campaignRole || "player").trim().toLowerCase();
+    if (role !== "player") continue;
+    if (!player.campaignRole && ["dm", "gm", "admin", "manager", "spectator"].includes(String(player.role || "").trim().toLowerCase())) continue;
 
     const rawAccountId = sanitizeAccountId(player.accountId || "");
     const rawDiscordId = sanitizeDiscordId(player.discordId || "");
@@ -258,11 +264,24 @@ async function loadCampaignParticipants(env, campaignId) {
       id: sanitizeAccountId(player.id || accountId),
       accountId,
       discordId,
-      displayName: String(player.name || account?.name || accountId).trim() || accountId,
+      displayName: String(player.characterName || player.name || account?.name || accountId).trim() || accountId,
       notificationPreferences: extractInlinePreferences(player),
     });
   }
 
+  // The poll also displays a DM row, even when absent from players.json.
+  if (pollSession) {
+    const account = accountById.get(sanitizeAccountId(pollSession.dmAccountId))
+      || accountByDiscordId.get(sanitizeDiscordId(pollSession.dmDiscordId));
+    const discordId = sanitizeDiscordId(pollSession.dmDiscordId || account?.discordId);
+    if (discordId) participants.push({
+      id: "dm",
+      accountId: sanitizeAccountId(pollSession.dmAccountId || account?.id || discordId),
+      discordId,
+      displayName: String(account?.name || "DM"),
+      notificationPreferences: {},
+    });
+  }
   return dedupeParticipants(participants);
 }
 
@@ -280,11 +299,7 @@ async function loadCampaignPlayers(env, campaignId) {
   const data = await fetchJson(new URL(path, getFrontendBaseUrl(env)).toString());
   if (Array.isArray(data)) return data;
 
-  if (cleanCampaignId !== DEFAULT_CAMPAIGN_ID) {
-    const fallback = await fetchJson(new URL("assets/data/players.json", getFrontendBaseUrl(env)).toString());
-    return Array.isArray(fallback) ? fallback : [];
-  }
-
+  // A missing campaign roster must never notify another campaign's players.
   return [];
 }
 
@@ -321,38 +336,41 @@ function shouldSendPollReminder(env, createdMs, nowMs) {
   return daysSinceCreation > 0 && daysSinceCreation % intervalDays === 0;
 }
 
-function hasParticipantVoted(votesDoc, session, participant) {
-  const voteRecords = [];
-  if (Array.isArray(votesDoc?.votes)) voteRecords.push(...votesDoc.votes);
-  if (Array.isArray(session?.votes)) voteRecords.push(...session.votes);
-  if (Array.isArray(session?.availabilityVotes)) voteRecords.push(...session.availabilityVotes);
-
-  return voteRecords.some((record) => recordMatchesParticipant(record, participant) && voteRecordHasSelection(record));
+export function getParticipantPollProgress(votesDoc, session, participant) {
+  const options = Array.isArray(session.availabilityOptions) ? session.availabilityOptions : [];
+  const optionIds = new Set(options.map(option => String(option?.id ?? "").trim()).filter(Boolean));
+  // Current vote storage is authoritative, including an explicitly empty list.
+  // Only older polls without a vote document use the embedded legacy lists.
+  const records = Array.isArray(votesDoc) ? votesDoc
+    : Array.isArray(votesDoc?.votes) ? votesDoc.votes
+      : [...(Array.isArray(session.votes) ? session.votes : []), ...(Array.isArray(session.availabilityVotes) ? session.availabilityVotes : [])];
+  const selections = new Map();
+  const setSelection = (id, value) => {
+    if (optionIds.has(id)) selections.set(id, ["yes", "no", "maybe"].includes(String(value ?? "").trim().toLowerCase()));
+  };
+  for (const record of records) {
+    if (!recordMatchesParticipant(record, participant)) continue;
+    if (record.sessionNumber != null && session.number != null && Number(record.sessionNumber) !== Number(session.number)) continue;
+    for (const key of ["availability", "choices", "selections"]) {
+      const values = record?.[key];
+      if (values && typeof values === "object" && !Array.isArray(values)) {
+        for (const [id, value] of Object.entries(values)) setSelection(id, value);
+      }
+    }
+    if (record?.optionId != null) setSelection(String(record.optionId).trim(), record.value ?? record.vote ?? record.status);
+  }
+  const answered = [...selections.values()].filter(Boolean).length;
+  const total = optionIds.size;
+  return { total, answered, missing: total - answered, complete: total > 0 && answered === total };
 }
 
 function recordMatchesParticipant(record, participant) {
-  const accountId = sanitizeAccountId(record?.accountId || record?.playerId || record?.id || "");
+  const identities = [record?.accountId, record?.playerId, record?.id].map(sanitizeAccountId).filter(Boolean);
   const discordId = sanitizeDiscordId(record?.discordId || "");
   const characterId = sanitizeAccountId(record?.characterId || record?.playerCharacterId || "");
-  return accountId === participant.accountId
-    || accountId === participant.id
+  return identities.some(id => id === participant.accountId || id === participant.id || id === participant.discordId)
     || characterId === participant.id
     || (discordId && discordId === participant.discordId);
-}
-
-function voteRecordHasSelection(record) {
-  const direct = String(record?.value || record?.vote || record?.status || "").trim().toLowerCase();
-  if (["yes", "no", "maybe"].includes(direct)) return true;
-
-  for (const key of ["selections", "availability", "choices"]) {
-    const value = record?.[key];
-    if (!value || typeof value !== "object") continue;
-    if (Object.values(value).some((entry) => ["yes", "no", "maybe"].includes(String(entry || "").trim().toLowerCase()))) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 async function sendTrackedDm(env, markerKey, discordId, content) {

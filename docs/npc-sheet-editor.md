@@ -10,6 +10,12 @@ Identità dei documenti, ownership, `_stats`, provenienza, avanzamenti generati,
 
 I vecchi import possono usare chiavi delle attività diverse dal loro `_id` o elenchi al posto di mappe: l’editor le indirizza con l’identificativo stabile, conservando lo snapshot grezzo. Quando più attività condividono lo stesso `_id`, non sceglie quale eliminare: nome e descrizione restano modificabili, mentre le meccaniche sono bloccate con una spiegazione finché il problema non viene corretto in Foundry. La verifica sui 76 snapshot ricevuti comprende 651 oggetti e 95 effetti; non ha eseguito scritture remote.
 
+## Formule nelle descrizioni
+
+La lettura delle descrizioni risolve i riferimenti numerici ai dati dell’NPC: modificatori/punteggi delle caratteristiche, competenza e alcuni valori contestuali dell’oggetto. Per esempio `@abilities.cha.mod + @attributes.prof` mostra `11` con Carisma +6 e competenza +5. Un tiro inline `[[/r 1d20 + @abilities.cha.mod + @attributes.prof]]` mostra `1d20 + 11`; una CD con formula viene calcolata. Sono supportate operazioni aritmetiche, parentesi e funzioni deterministiche `floor`, `ceil`, `round`, `abs`, `min`, `max`. Nessun codice o tiro di dado viene eseguito.
+
+I dati mancanti non diventano zero: i riferimenti conosciuti mostrano il valore non disponibile e quelli sconosciuti restano ispezionabili. I dadi restano espressioni da tirare; viene combinato soltanto il bonus fisso di una formula semplice. La resa è calcolata durante la visualizzazione, con lo stesso escaping del resto del testo. Formule originali, descrizioni salvate e JSON NPC non vengono riscritti. I token dell’editor mantengono il riferimento originale per il salvataggio. Verifica: `npm run test:npc-reading`, compresi i casi presenti nelle copie dell’audit, valori zero/negativi/mancanti, CD, bonus dei dadi ed esclusione di codice eseguibile. È una modifica al frontend e richiede la pubblicazione del sito.
+
 ## Salvataggio
 
 - `GET /api/managed-actors/:world/:actor/editor?campaign=cripta-di-sangue`: proiezione modificabile, privata, per DM/admin o proprietario del companion. Non concede lettura del JSON completo grezzo.

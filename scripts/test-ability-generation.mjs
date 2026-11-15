@@ -41,7 +41,7 @@ assert.throws(() => validateAbility({...simpleAttack, conditions: ["prone"]}), /
 assert.equal(validateAbility({...simpleAttack, mode: "damage", attackBonus: 100}).attackBonus, 100);
 assert.throws(() => validateAbility({...simpleAttack, attackBonus: 100}), /Bonus attacco/);
 assert.throws(() => validateAbility({...simpleAttack, save: {...simpleAttack.save, dc: "0"}}), /Valore non valido/);
-assert.throws(() => compileAbility({...draft, unsupported: ["TS ripetuti"]}, "x"));
+assert.ok(compileAbility({...draft, unsupported: ["TS ripetuti"]}, "x").system.description.value.includes("Gestione manuale del GM: TS ripetuti"));
 assert.ok(!compileAbility({...draft, flavor: "<script>alert(1)</script>"}, "x").system.description.value.includes("<script>"));
 
 class Storage {
@@ -128,6 +128,7 @@ try {
   await coordinator.alarm(); await coordinator.alarm();
   assert.equal(textCalls, 1); assert.equal(imageCalls, 1);
   assert.equal(capturedImage.size, "1024x1024"); assert.equal(capturedImage.n, 1); assert.ok(capturedImage.images[0].image_url.startsWith("data:image/webp;base64,"));
+  assert.equal(capturedImage.model,'gpt-image-2.6-sunburst');assert.equal(capturedImage.quality,'medium');
   assert.equal(kv.get(actorKey), baseline, "draft never mutates the NPC");
   assert.equal((await req(`${generation}/${id}/preview`, undefined, dm)).status, 200);
   assert.equal((await req(`${generation}/${id}/preview`, undefined, player)).status, 403);
@@ -155,10 +156,12 @@ try {
   let job = (await (await req(generation, undefined, dm)).json()).job;
   assert.equal(job.status, "ready"); assert.equal(job.draft.name, draft.name); assert.ok(job.iconError); assert.ok(!job.iconError.includes("fake-secret")); assert.equal(job.iconErrorDetail.code, "service_error"); assert.equal(job.iconErrorDetail.stage, "icon");
   imageFailure = false; const iconAttempt = randomUUID();
+  const legacyIconJob=await storage.get(`job:${second}`);legacyIconJob.imageModel='gpt-image-2.6-flare';await storage.put(`job:${second}`,legacyIconJob);
   const iconBody = {requestId: iconAttempt, draft};
   assert.equal((await req(`${generation}/${second}/icon`, iconBody, dm)).status, 202);
   assert.equal((await req(`${generation}/${second}/icon`, iconBody, dm)).status, 200);
   await coordinator.alarm(); const textsBefore = textCalls;
+  assert.equal(capturedImage.model,'gpt-image-2.6-sunburst','Explicit icon regeneration uses Sunburst even for an old Flare job');assert.equal(capturedImage.quality,'medium');
   assert.equal((await req(`${generation}/${second}/icon`, iconBody, dm)).status, 200); await coordinator.alarm();
   assert.equal(textCalls, textsBefore, "icon retry never regenerates text");
   assert.equal(imageCalls, 3);
@@ -170,10 +173,14 @@ try {
   assert.equal((await req(`${generation}/${second}/confirm`, {draft}, dm)).status, 409, "stale balance cannot be silently confirmed");
   kv.set(actorKey, baseline);
   const unsupported = {...draft, unsupported: ["Teleportazione non supportata"]};
-  assert.equal((await req(`${generation}/${second}/confirm`, {draft: unsupported}, dm)).status, 400);
+
   modified.definition = {...JSON.parse(baseline).definition, editor: {generatedAbilities: 0}}; kv.set(actorKey, JSON.stringify(modified));
   assert.equal((await req(`${generation}/${second}/confirm`, {draft}, dm)).status, 409, "old wiki-sync cannot silently drop mechanics");
   kv.set(actorKey, baseline);
+  const manualConfirmed = await req(`${generation}/${second}/confirm`, {draft: unsupported}, dm);
+  assert.equal(manualConfirmed.status, 200, "Legacy warnings do not block confirmation");
+  const manualCommand = (await manualConfirmed.json()).command;
+  assert.ok(manualCommand.document.system.description.value.includes("Gestione manuale del GM: Teleportazione non supportata"));
   // Running marker recovery: no paid automatic retry.
   const third = randomUUID();
   await req(generation, {requestId: third, details: "Morso", withIcon: false}, dm);
@@ -181,7 +188,9 @@ try {
   coordinator = new AbilityGenerationStore({storage}, env); await coordinator.alarm();
   assert.equal(textCalls, textsBefore); assert.equal((await storage.get(`job:${third}`)).status, "uncertain");
   env.ABILITY_MONTHLY_LIMIT = "0";
-  assert.equal((await req(generation, {requestId: randomUUID(), details: "Morso", withIcon: false}, dm)).status, 400);
+  const unlimitedTextId = randomUUID();
+  assert.equal((await req(generation, {requestId: unlimitedTextId, details: "Morso", withIcon: false}, dm)).status, 202, "Legacy monthly caps cannot block abilities");
+  assert.equal((await req(`${generation}/${unlimitedTextId}/stop`, {attemptId: unlimitedTextId}, dm)).status, 200);
   assert.equal(textCalls, textsBefore);
 } finally { globalThis.fetch = originalFetch; }
 
@@ -258,10 +267,11 @@ try {
   coordinator = new AbilityGenerationStore({storage}, env); await coordinator.alarm();
   assert.equal(analysisCalls, 2);
   env.NPC_SUGGESTION_MONTHLY_LIMIT = "0";
-  assert.equal((await req(suggestions, {requestId: randomUUID(), details: ""}, dm)).status, 400);
-  assert.equal(analysisCalls, 2);
+  assert.equal((await req(suggestions, {requestId: randomUUID(), details: ""}, dm)).status, 202, "Legacy monthly caps cannot block suggestions");
+  await coordinator.alarm();
+  assert.equal(analysisCalls, 3);
 } finally { globalThis.fetch = originalFetch; }
-console.log("NPC suggestions: visual reference + full mechanical sheet, private permissions, structured advisory output, isolated drafts, unchanged KV/R2, stale reports, deduplication, failure recovery and separate quota passed.");
+console.log("NPC suggestions: visual reference + full mechanical sheet, private permissions, structured advisory output, isolated drafts, unchanged KV/R2, stale reports, deduplication, failure recovery and unlimited attempts passed.");
 
 // Exercise failure handling through real routes and Durable Object alarm, not paid APIs.
 env.ABILITY_MONTHLY_LIMIT = "100";

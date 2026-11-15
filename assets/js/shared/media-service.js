@@ -149,10 +149,12 @@
         const quality = Number.isFinite(Number(options.quality)) ? Number(options.quality) : 0.92;
         const bitmap = await createImageBitmap(file);
         const canvas = document.createElement("canvas");
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
+        const maxEdge = Number(options.maxEdge);
+        const scale = maxEdge > 0 ? Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height)) : 1;
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
         const context = canvas.getContext("2d");
-        context.drawImage(bitmap, 0, 0);
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
         bitmap.close?.();
 
         return new Promise((resolve, reject) => {

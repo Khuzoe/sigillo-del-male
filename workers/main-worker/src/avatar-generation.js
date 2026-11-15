@@ -1,7 +1,7 @@
 import {GENERATION_WAIT_MS, GENERATION_PENDING_MS, generationDeadline, recoverGeneration, ownsGeneration, generationStopResponse} from "./generation-lifecycle.js";
 // The model and base style are fixed; quality and resolution use a server-owned allowlist.
 export const AVATAR_STYLE = "Stylized painterly realism, hand-painted surfaces, textured brush strokes, cinematic character portrait, realistic facial structure, expressive eyes, sophisticated color harmony, dramatic rim lighting, soft global illumination, atmospheric perspective, muted but rich color palette, detailed clothing folds, subtle skin texture, realistic lighting behavior, concept art and illustration hybrid, emotional mood, high production animated series quality, visually rich yet grounded, artistic rendering rather than photorealism, masterfully painted 3D look. fullbody. new pose. 9:16";
-export const AVATAR_MODEL = "gpt-image-2.5-sunburst";
+export const AVATAR_MODEL = "gpt-image-2.6-sunburst";
 export const AVATAR_RESOLUTIONS = Object.freeze({ medium: { width: 864, height: 1536 }, high: { width: 1296, height: 2304 }, "2k": { width: 1440, height: 2560 } });
 export const AVATAR_QUALITIES = Object.freeze(["medium", "high", "xhigh"]);
 export function avatarGenerationOptions(input = {}) {

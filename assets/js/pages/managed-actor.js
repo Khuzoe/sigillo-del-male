@@ -2057,13 +2057,13 @@
         const conflicts = commands.filter((command) => command.status === "conflict" || command.status === "failed").length;
         const pending = commands.filter((command) => command.status === "pending").length;
         const reviews = commands.filter((command) => command.status === "review").length;
-        const syncState = conflicts ? { icon: "fa-triangle-exclamation", title: `${conflicts} problemi`, detail: "Apri per vedere quali", className: "is-conflict" }
+        const syncState = conflicts ? { icon: "fa-triangle-exclamation", title: `${conflicts} ${conflicts === 1 ? "problema" : "problemi"}`, detail: "Apri per vedere quali", className: "is-conflict" }
             : reviews ? { icon: "fa-list-check", title: `${reviews} scelta richiesta`, detail: "Seleziona lo stato corrente", className: "is-pending" }
                 : pending ? { icon: "fa-cloud-arrow-up", title: `${pending} in attesa`, detail: "Apri per vedere quali", className: "is-pending" }
                     : { icon: "fa-circle-check", title: "Nessuna modifica in coda", detail: `Ultima lettura · revisione ${Number(actor?.revision || 0)}`, className: "is-synced" };
         const commandLabel = (command) => ({ "actor.update": "Statistiche e identita", "item.update": "Modifica oggetto", "item.create": "Nuovo oggetto", "item.delete": "Rimozione oggetto", "effect.update": "Modifica effetto", "effect.create": "Nuovo effetto", "effect.delete": "Rimozione effetto", "actor-link.inspect": "Controllo Link Actor Data", "actor-link.apply": "Conversione Link Actor Data", "actor-link.rollback": "Ripristino Link Actor Data" }[command.kind] || command.kind || "Modifica");
         return commands.length
-            ? `<details class="managed-sync-indicator managed-sync-details ${syncState.className}"><summary><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span><i class="fas fa-chevron-down"></i></summary><div>${commands.map((command) => `<article class="is-${escapeAttr(command.status || "pending")}"><i class="fas ${command.status === "review" ? "fa-list-check" : command.status === "pending" ? "fa-clock" : "fa-triangle-exclamation"}"></i><span><strong>${escapeHtml(commandLabel(command))}</strong><small>${escapeHtml(command.error || (command.status === "review" ? "Scegli lo stato corrente nella sezione Link Actor Data" : command.status === "pending" ? "In attesa del client Foundry" : "Richiede una nuova conferma"))}</small></span></article>`).join("")}</div></details>`
+            ? `<details class="managed-sync-indicator managed-sync-details ${syncState.className}"><summary><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span><i class="fas fa-chevron-down"></i></summary><div>${commands.map((command) => `<article class="is-${escapeAttr(command.status || "pending")}"><i class="fas ${command.status === "review" ? "fa-list-check" : command.status === "pending" ? "fa-clock" : "fa-triangle-exclamation"}"></i><span><strong>${escapeHtml(commandLabel(command))}</strong><small>${escapeHtml(command.error || (command.status === "review" ? "Scegli lo stato corrente nella sezione Link Actor Data" : command.status === "pending" ? "In attesa del client Foundry" : "Richiede una nuova conferma"))}</small></span>${actor.permissions?.isEditor && ["failed","conflict"].includes(command.status) ? `<button type="button" data-managed-command-discard="${escapeAttr(command.id)}">Scarta richiesta</button>` : ""}</article>`).join("")}</div></details>`
             : `<div class="managed-sync-indicator ${syncState.className}"><i class="fas ${syncState.icon}"></i><span><strong>${escapeHtml(syncState.title)}</strong><small>${escapeHtml(syncState.detail)}</small></span></div>`;
     }
     async function toggleManagedEditMode(root, shouldEdit) {
@@ -2307,7 +2307,7 @@
     function renderManagedIdentityTraitItem(entry = {}, canEdit = false) {
         const icon = String(entry?.media?.icon?.path || entry?.definition?.img || "").trim();
         const imageUrl = icon ? resolveMedia(icon) : "";
-        const description = stripManagedDuplicateHeading(htmlToText(entry?.definition?.description || ""), entry?.name);
+        const description = stripManagedDuplicateHeading(htmlToText(entry?.definition?.description || "", entry), entry?.name);
         const command = findManagedItemCommand(entry);
         const status = command ? renderManagedItemSyncStatus(command) : "";
         const editor = canEdit ? renderManagedItemEditor(entry, command) : "";
@@ -3194,7 +3194,7 @@
         if (collectionKind === "inventory") return renderManagedInventoryEntryCard(entry, canEdit, groupKey, collectionEntries);
         const npcLayout = String(currentDocument?.actorType || "").toLowerCase() === "npc";
         const icon = entry.media?.icon?.path;
-        const description = stripManagedDuplicateHeading(htmlToText(entry.definition?.description || ""), entry.name);
+        const description = stripManagedDuplicateHeading(htmlToText(entry.definition?.description || "", entry), entry.name);
         const searchDescription = truncatePreview(description, 900);
         const meta = formatEntryMeta(entry);
         const command = findManagedItemCommand(entry);
@@ -3532,7 +3532,7 @@
 
     function getManagedInventoryDescription(entry = {}, catalogItem = null, catalogProperties = []) {
         const raw = normalizeManagedMerchantDescription(entry?.definition?.description ?? entry?.description);
-        const fallback = stripManagedDuplicateHeading(htmlToText(raw), entry?.name);
+        const fallback = stripManagedDuplicateHeading(htmlToText(raw, entry), entry?.name);
         if (!catalogItem) return fallback;
         if (!catalogProperties.length) return String(catalogItem.summary || "").trim() || fallback;
         const normalize = (value) => normalizeManagedSearch(value).replace(/\s+/g, " ").trim();
@@ -4045,7 +4045,7 @@
         const endpoint = `api/managed-actors/${encodeURIComponent(actor.worldId)}/${encodeURIComponent(actor.actorId)}/editor`;
         try {
             const [module, result] = await Promise.all([
-                import("../shared/npc-sheet-editor.mjs?v=20261031-edit1"),
+                import("../shared/npc-sheet-editor.mjs?v=20261113-fields4"),
                 window.CriptaApp.api.get(endpoint, { token: getToken(), cache: false })
             ]);
             if (root._managedCompleteLoad !== marker || !managedEditMode || !root.isConnected) return;
@@ -4778,7 +4778,7 @@
         const customCreator = `<details class="managed-create-editor" data-managed-item-create-form><summary><span><i class="fas fa-plus"></i> Crea elemento personalizzato</span><i class="fas fa-chevron-down"></i></summary><div class="managed-create-form"><div class="managed-item-fields"><label><span>Nome</span><input type="text" value="Nuovo elemento" data-managed-item-create-field="name"></label><label><span>Tipo</span><select data-managed-item-create-field="type">${options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label><label><span>Livello</span><input type="number" min="0" max="20" step="1" value="0" data-managed-item-create-field="level"></label><label class="managed-file-field" ${currentCanManageActor ? "" : "hidden"}><span>Icona</span><input type="file" accept="image/*" data-managed-item-create-field="icon"></label></div><label class="managed-item-description"><span>Descrizione</span><textarea rows="4" data-managed-item-create-field="description"></textarea></label><label class="managed-json-field"><span>Dati system iniziali</span><textarea rows="5" spellcheck="false" data-managed-item-create-field="system">{}</textarea></label><div class="managed-item-actions"><span data-managed-item-create-result></span><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-create><i class="fas fa-plus"></i> Crea in Foundry</button></div></div></details>`;
         const canGenerate = currentDocument?.actorType === "npc" && currentDocument?.permissions?.isEditor === true && title !== "Inventario" && title !== "Incantesimi";
         const generatedPending = canGenerate ? (currentDocument.sync?.commands || []).filter(command => command.kind === "item.create" && command.document?.transferId?.startsWith("ai-ability-") && command.status !== "applied").map(command => `<div class="managed-ability-ai-pending" data-managed-ai-command="${escapeAttr(command.id)}"><strong>${escapeHtml(command.document.name)}</strong> · <span>${command.status === "pending" ? "In attesa di Foundry" : escapeHtml(command.error || "Sincronizzazione da verificare")}</span></div>`).join("") : "";
-        const generator = canGenerate ? `<div class="managed-ability-ai"><button type="button" class="button-gold-outline managed-primary-action" data-managed-generate-ability><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Crea abilità con AI</button><button type="button" class="button-gold-outline" data-managed-suggest-npc><i class="fas fa-lightbulb" aria-hidden="true"></i> Suggerisci modifiche</button><small data-managed-generate-ability-status>Descrivi un’abilità oppure cerca idee a partire da avatar e scheda.</small></div>${generatedPending}` : "";
+        const generator = canGenerate ? `<div class="managed-ability-ai"><button type="button" class="button-gold-outline managed-primary-action" data-managed-generate-ability><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Crea abilità con AI</button><button type="button" class="button-gold-outline" data-managed-suggest-npc><i class="fas fa-lightbulb" aria-hidden="true"></i> Suggerisci modifiche</button><button type="button" class="button-gold-outline" data-managed-generate-icons><i class="fas fa-images" aria-hidden="true"></i> Genera icone abilità</button><small data-managed-generate-ability-status>Descrivi un’abilità oppure cerca idee a partire da avatar e scheda.</small></div>${generatedPending}` : "";
         return `${generator}${catalogPicker}${customCreator}`;
     }
 
@@ -4887,7 +4887,35 @@
         }catch(error){window.alert(error.message||"Impossibile aprire la modifica con AI.");}
     }
     function setupManagedAbilityGenerator(root) {
-        if(currentDocument.sync?.commands?.some(command=>command.nativeSheetVersion&&command.status==='pending'))for(const button of root.querySelectorAll('[data-managed-ai-edit],[data-managed-generate-ability],[data-managed-suggest-npc]')){button.disabled=true;button.title='Attendi il completamento della modifica completa in Foundry.';}
+        if (!root._managedDiscardBound) {
+            root._managedDiscardBound = true;
+            root.addEventListener('click', async event => {
+                const button = event.target.closest('[data-managed-command-discard]');
+                if (!button || button.disabled) return;
+                const id = button.dataset.managedCommandDiscard;
+                button.disabled = true;
+                try {
+                    await postManagedActorCommand({kind:'command.discard',commandId:id},getToken());
+                    window.CriptaApp.api.clearCache?.();
+                    currentDocument.sync = {...currentDocument.sync,commands:(currentDocument.sync?.commands || []).filter(command=>command.id!==id)};
+                    refreshManagedCommandIndicators(root);
+                    await root._managedCompleteEditor?.refresh?.();
+                } catch (error) { window.alert(error.message || 'Impossibile scartare la richiesta.'); }
+                finally { button.disabled = false; }
+            });
+        }
+        root.querySelectorAll('[data-managed-generate-icons]').forEach(button=>button.addEventListener('click',async()=>{
+            if (managedSaveInProgress || hasManagedUnsavedChanges(root)) { window.alert('Salva o annulla prima le modifiche alla scheda.'); return; }
+            if (!window.CriptaAbilityIcons) { window.alert('Ricarica la pagina per generare le icone.'); return; }
+            try {
+                await window.CriptaAbilityIcons.open({actor:currentDocument,token:getToken(),onQueued:command=>{
+                    if(command)rememberManagedCommand(command,old=>old.id===command.id);
+                    refreshManagedCommandIndicators(root);
+                    managedCommandPollAttempts=0; scheduleManagedCommandRefresh(root);
+                }});
+            } catch(error) { window.alert(error.message || 'Generatore icone non disponibile.'); }
+        }));
+        if(currentDocument.sync?.commands?.some(command=>command.nativeSheetVersion&&command.status==='pending'))for(const button of root.querySelectorAll('[data-managed-ai-edit],[data-managed-generate-ability],[data-managed-suggest-npc],[data-managed-generate-icons]')){button.disabled=true;button.title='Attendi il completamento della modifica completa in Foundry.';}
         root.querySelectorAll('[data-managed-ai-sheet]').forEach(button=>button.addEventListener('click',async()=>{
             if(managedSaveInProgress||hasManagedUnsavedChanges(root)){window.alert('Salva o annulla prima le modifiche alla scheda.');return;}
             if(!window.CriptaNpcSheetAi){window.alert('Ricarica la pagina per aprire la modifica completa con AI.');return;}
@@ -6397,8 +6425,19 @@
         return path ? `<img src="${escapeAttr(resolveMedia(path))}" alt="${escapeAttr(alt || "")}" loading="lazy" decoding="async">` : '<div class="managed-entry-icon"><i class="fas fa-user"></i></div>';
     }
 
-    function resolveMedia(path) {
-        return window.CriptaApp.utils.resolveImageUrl(String(path || ""));
+    function resolveMedia(path, entity = null) {
+        let imagePath = String(path || "");
+        const changedDraftIcon = entity && typeof entity.draft?.img === "string" && entity.draft.img !== entity.base?.img;
+        if (entity && !changedDraftIcon) {
+            if (entity.type === "Item") {
+                const items = Array.isArray(currentDocument?.definition?.items) ? currentDocument.definition.items : [];
+                const entry = entity.target?.id ? items.find((item) => String(item.itemId || "") === String(entity.target.id)) : null;
+                imagePath = entry?.media?.icon?.path || imagePath || entry?.definition?.img || "";
+            } else if (entity.type === "Actor") {
+                imagePath = currentDocument?.media?.avatar?.path || currentDocument?.media?.token?.path || imagePath;
+            }
+        }
+        return window.CriptaApp.utils.resolveImageUrl(imagePath);
     }
 
     function getToken() {
@@ -6511,7 +6550,7 @@
         return Number.isFinite(number) ? number : value;
     }
 
-    function htmlToText(value) {
+    function htmlToText(value, entry = null) {
         const documentValue = new DOMParser().parseFromString(String(value || ""), "text/html");
         documentValue.body.querySelectorAll("table").forEach((table) => {
             const rows = Array.from(table.querySelectorAll("tr")).map((row) => (
@@ -6529,15 +6568,16 @@
             node.append(documentValue.createTextNode("\n"));
         });
         documentValue.body.querySelectorAll("p, h1, h2, h3, h4, h5, h6").forEach((node) => node.append(documentValue.createTextNode("\n")));
-        return String(documentValue.body.textContent || "")
+        const text = String(documentValue.body.textContent || "")
             .replace(/(\]|\})(?=@[\w-]+\[)/g, "$1 ")
             .replace(/&(?:amp;)?Reference\[([^\]]+)\]/gi, (_, reference) => simplifyFoundryReference(reference))
             .replace(/@([\w-]+)\[([^\]]+)\](?:\{([^}]+)\})?/gi, (_, kind, target, explicitLabel) => resolveManagedFoundryLink(kind, target, explicitLabel))
-            .replace(/\[\[(?:\/([\w-]+)\s+)?([^\]]+)\]\](?:\{([^}]+)\})?/gi, (_, command, args, explicitLabel) => formatManagedInlineRoll(command, args, explicitLabel))
+            .replace(/\[\[(?:\/([\w-]+)\s+)?([^\]]+)\]\](?:\{([^}]+)\})?/gi, (_, command, args, explicitLabel) => formatManagedInlineRoll(command, args, explicitLabel, entry))
             .replace(/[ \t\f\v]+/g, " ")
             .replace(/ *\n */g, "\n")
             .replace(/\n{3,}/g, "\n\n")
             .trim();
+        return resolveManagedDescriptionFormulas(text, entry);
     }
 
     function normalizeManagedFoundryUuid(value) {
@@ -6607,17 +6647,92 @@
         return String(rawValue || "").trim().replace(/^["']|["']$/g, "").replace(/[_-]+/g, " ").trim();
     }
 
-    function formatManagedInlineRoll(command, args, explicitLabel = "") {
+    function managedDescriptionFormulaValue(reference, entry = null) {
+        const path = reference.replace(/^@(?:system\.)?/i, "").toLowerCase();
+        const actor = currentDocument?.definition || {}, labels = { str: "Forza", dex: "Destrezza", con: "Costituzione", int: "Intelligenza", wis: "Saggezza", cha: "Carisma" };
+        const number = value => ["number", "string"].includes(typeof value) && String(value).trim() !== "" && Number.isFinite(Number(value)) ? Number(value) : null;
+        const ability = path.match(/^abilities\.(str|dex|con|int|wis|cha)\.(mod|value)$/);
+        if (ability) {
+            const data = actor.abilities?.[ability[1]], direct = number(data?.[ability[2]]), score = number(data?.value);
+            return direct ?? (ability[2] === "mod" && score !== null ? Math.floor((score - 10) / 2) : `${ability[2] === "mod" ? "modificatore di " : "punteggio di "}${labels[ability[1]]} non disponibile`);
+        }
+        if (["prof", "attributes.prof"].includes(path)) return number(actor.attributes?.prof) ?? "competenza non disponibile";
+        if (path === "mod") {
+            const activities = Object.values(entry?.definition?.activities || {}), choices = [...new Set(activities.map(activity => activity.attack?.ability).filter(key => Object.hasOwn(labels, key)))];
+            const key = entry?.definition?.attack?.ability || entry?.definition?.ability || (choices.length === 1 ? choices[0] : "") || (entry?.type === "spell" ? actor.attributes?.spellcasting : "");
+            return Object.hasOwn(labels, key) ? managedDescriptionFormulaValue(`@abilities.${key}.mod`, entry) : "modificatore della caratteristica non disponibile";
+        }
+        const values = { "details.cr": actor.details?.cr, "details.level": actor.details?.level, "item.level": entry?.definition?.level, "item.quantity": entry?.definition?.quantity, "item.uses.max": entry?.definition?.uses?.max };
+        return Object.hasOwn(values, path) ? number(values[path]) ?? "valore non disponibile" : reference;
+    }
+
+    // Only deterministic arithmetic is interpreted. No eval, JavaScript or dice
+    // rolls; unknown data stays visible instead of silently becoming zero.
+    function calculateManagedDescriptionFormula(source) {
+        const tokens = String(source).match(/(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?|[a-z]+|[^\s]/gi) || [];
+        if (tokens.length > 256) return null;
+        let index = 0, depth = 0;
+        const functions = { floor: Math.floor, ceil: Math.ceil, round: Math.round, abs: Math.abs, min: Math.min, max: Math.max };
+        const factor = () => {
+            if (++depth > 32) throw new Error("depth");
+            let result, token = tokens[index++];
+            if (token === "+" || token === "-") result = (token === "-" ? -1 : 1) * factor();
+            else if (token === "(") { result = sum(); if (tokens[index++] !== ")") throw new Error("parenthesis"); }
+            else if (Object.hasOwn(functions, token)) {
+                if (tokens[index++] !== "(") throw new Error("function");
+                const args = [sum()]; while (tokens[index] === ",") { index++; args.push(sum()); }
+                if (tokens[index++] !== ")" || !["min", "max"].includes(token) && args.length !== 1) throw new Error("arguments");
+                result = functions[token](...args);
+            } else if (token && /^(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?$/i.test(token)) result = Number(token);
+            else throw new Error("token");
+            depth--; return result;
+        };
+        const product = () => { let result = factor(); while (["*", "/", "%"].includes(tokens[index])) { const op = tokens[index++], right = factor(); result = op === "*" ? result * right : op === "/" ? result / right : result % right; } return result; };
+        const sum = () => { let result = product(); while (["+", "-"].includes(tokens[index])) { const op = tokens[index++], right = product(); result = op === "+" ? result + right : result - right; } return result; };
+        try { const value = sum(); if (index !== tokens.length || !Number.isFinite(value)) return null; const rounded = Math.round(value * 1e10) / 1e10; return Number.isFinite(rounded) && (rounded !== 0 || value === 0) ? rounded : value; } catch { return null; }
+    }
+
+    function resolveManagedDescriptionFormulas(value, entry = null) {
+        const reference = /(?<![\w@])@[a-z_]\w*(?:\.[a-z0-9_]\w*)*/gi;
+        const tokens = String(value ?? "").match(/(?<![\w@])@[a-z_]\w*(?:\.[a-z0-9_]\w*)*|\b\d*d(?:\d+|%)[a-z0-9<=>!]*|(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?|\b(?:floor|ceil|round|abs|min|max)\b|[()+\-*/%,]|\s+|[\s\S]/gi) || [];
+        let result = "", expression = "";
+        const flush = () => {
+            if (!expression) return;
+            let complete = true;
+            const resolved = expression.replace(reference, raw => { const value = managedDescriptionFormulaValue(raw, entry); if (typeof value !== "number") complete = false; return typeof value === "number" ? `(${value})` : value; });
+            if (resolved === expression) result += expression;
+            else {
+                const prefix = resolved.match(/^[,\s]+/)?.[0] || "";
+                let suffix = resolved.slice(prefix.length).match(/[,\s]+$/)?.[0] || "", core = resolved.slice(prefix.length, resolved.length - suffix.length);
+                let extraClosings = (core.match(/\)/g) || []).length - (core.match(/\(/g) || []).length;
+                while (extraClosings-- > 0 && /\)\s*$/.test(core)) { const closing = core.match(/\)\s*$/)[0]; core = core.slice(0, -closing.length); suffix = closing + suffix; }
+                let calculated = complete && !/\d*d(?:\d+|%)/i.test(expression) ? calculateManagedDescriptionFormula(core) : null;
+                // Preserve the die and combine only its deterministic bonus.
+                // Multiplication of a whole roll and multiple dice stay literal.
+                const die = complete && core.trim().match(/^(\d*d(?:\d+|%)[a-z0-9<=>!]*)(\s*[+-][\s\S]+)$/i);
+                if (die) { const bonus = calculateManagedDescriptionFormula(die[2]); if (bonus !== null) calculated = `${die[1]}${bonus ? ` ${bonus < 0 ? "-" : "+"} ${Math.abs(bonus)}` : ""}`; }
+                result += calculated === null ? expression.replace(reference, raw => String(managedDescriptionFormulaValue(raw, entry))) : `${prefix}${typeof calculated === "number" && /^\s*\+/.test(core) && calculated >= 0 ? "+" : ""}${calculated}${suffix}`;
+            }
+            expression = "";
+        };
+        for (const token of tokens) {
+            if (/^@|^\s+$|^[()+\-*/%,]$|^(?:\d|\.\d)|^(?:floor|ceil|round|abs|min|max)$/i.test(token)) expression += token;
+            else { flush(); result += token; }
+        }
+        flush(); return result;
+    }
+
+    function formatManagedInlineRoll(command, args, explicitLabel = "", entry = null) {
         if (String(explicitLabel || "").trim()) return String(explicitLabel).trim();
         const rawArgs = String(args || "").trim();
         const values = Object.fromEntries(Array.from(rawArgs.matchAll(/([a-z0-9_-]+)=("[^"]+"|'[^']+'|[^\s]+)/gi)).map((match) => [match[1].toLowerCase(), match[2].replace(/^["']|["']$/g, "")]));
         const abilityLabels = { str: "Forza", dex: "Destrezza", con: "Costituzione", int: "Intelligenza", wis: "Saggezza", cha: "Carisma" };
         const ability = abilityLabels[String(values.ability || "").toLowerCase()] || values.ability || "";
-        const dc = values.dc ? ` CD ${values.dc}` : "";
+        const dc = values.dc ? ` CD ${resolveManagedDescriptionFormulas(values.dc, entry)}` : "";
         const normalizedCommand = String(command || "").toLowerCase();
         if (normalizedCommand === "save") return `TS${ability ? ` ${ability}` : ""}${dc}`.trim();
         if (normalizedCommand === "check") return `Prova${ability ? ` ${ability}` : ""}${dc}`.trim();
-        return rawArgs.split(/\s+(?=[a-z0-9_-]+=)/i)[0].trim() || rawArgs;
+        return resolveManagedDescriptionFormulas(rawArgs.split(/\s+(?=[a-z0-9_-]+=)/i)[0].trim() || rawArgs, entry);
     }
 
     function buildManagedDescriptionEditorHtml(value) {
@@ -6664,7 +6779,7 @@
     }
 
     function formatManagedPreview(value) {
-        return escapeHtml(value).replace(/\n/g, "<br>");
+        return escapeHtml(resolveManagedDescriptionFormulas(value)).replace(/\n/g, "<br>");
     }
     function stripManagedDuplicateHeading(value, name) {
         const text = String(value || "").trim();

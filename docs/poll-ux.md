@@ -26,6 +26,14 @@ Una lettura iniziata prima di un salvataggio restituisce il risultato aggiornato
 
 Riepilogo, raggruppamenti, completamento e cambio vista non aggiungono GET. Rimane la cache esistente dei suggerimenti tra campagne. Questi miglioramenti richiedono solo il frontend; l'aggiornamento del worker descritto in `poll-icons.md` riguarda invece la precedente personalizzazione delle immagini.
 
+## Promemoria privati obbligatori
+
+Il bot manda un DM Discord a ogni partecipante attivo con un sondaggio incompleto, compreso il DM configurato nel sondaggio. Sono valide le risposte Sì, No e Forse: ogni casella attuale deve avere una risposta. I voti di opzioni rimosse e i suggerimenti di altre campagne non contano. Una risposta cancellata rende nuovamente incompleto il voto. Il messaggio distingue il voto assente da quello parziale e indica quante risposte mancano, con il collegamento alla campagna corretta.
+
+La cadenza rimane ogni due giorni dalla creazione del sondaggio, con un solo invio registrato per persona, campagna, sondaggio e giorno. I promemoria si fermano quando il voto è completo o la sessione è confermata. Le vecchie preferenze di disattivazione e il campo `disableDiscordNotifications` non disattivano questi avvisi; le altre notifiche mantengono le preferenze esistenti. Nel pannello Notifiche bot l'opzione per disattivare i promemoria del sondaggio è stata rimossa e il comando generale riguarda soltanto gli altri promemoria. L'API forza l'impostazione anche per i vecchi client.
+
+I partecipanti vengono risolti dalla campagna corrente: il vecchio campo `role` con la classe del personaggio non esclude i giocatori, mentre una lista giocatori mancante non riutilizza quella di un'altra campagna. Non vengono riscritti sondaggi, voti o preferenze già salvati. La modifica richiede la pubblicazione del frontend e del Worker.
+
 ## Verifica
 
 La tabella riserva meno spazio ai nomi (96 px, 88 px su telefono) e usa celle dei voti più grandi (108 px, 104 px su telefono), con margini interni ridotti per valorizzare le immagini. I nomi lunghi possono andare a capo e la colonna resta visibile durante lo scorrimento orizzontale. Le stesse regole si applicano a tutte le campagne, alla home, alle sessioni e alla pagina sondaggio.
@@ -33,5 +41,7 @@ La tabella riserva meno spazio ai nomi (96 px, 88 px su telefono) e usa celle de
 `npm run test:poll` verifica cache e suggerimenti, icone, raggruppamento delle date anche a cavallo dell'anno, disponibilità del DM, risposte mancanti, completamento, permessi della vista personale ed escape dei dati. Completare con `npm run test:auth` e `npm run check:all`.
 
 Le regressioni dei suggerimenti includono GET tardive dopo un salvataggio, errori tardivi e invalidazioni della cache, righe duplicate parziali con rimozioni esplicite, stabilità del contenuto delle celle e isolamento della persistenza per campagna.
+
+`npm run test:discord-notifications` verifica il completamento e le rimozioni, le identità storiche, i messaggi parziali, la cadenza senza duplicati, le preferenze obbligatorie attraverso l'API autenticata, gli altri promemoria e la lettura da KV e da D1 temporaneo. Tutte le richieste Discord e ai dati del frontend sono simulate: non vengono inviati messaggi reali.
 
 La prova in browser usa dati locali e include desktop/telefono, entrambe le viste, focus alla prima risposta mancante, salvataggio, errore con ripristino, nuovo tentativo e assenza di GET aggiuntive passando da una vista all'altra.

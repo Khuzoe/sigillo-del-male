@@ -1,4 +1,6 @@
 import { nativeGet, nativeSet, nativeHas, nativeEqual, nativeDiff, nativeEditablePath, nativeNewId, nativeActivityTemplate } from "./npc-native-model.mjs";
+import {nativePreserveActivityReferences} from './npc-native-automation.mjs';
+import {validateNpcDomainFields} from './npc-ai-values.mjs';
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
@@ -8,8 +10,10 @@ const damageNames={acid:"Acido",bludgeoning:"Contundenti",cold:"Freddo",fire:"Fu
 const conditions={blinded:"Accecato",charmed:"Affascinato",deafened:"Assordato",frightened:"Spaventato",grappled:"Afferrato",incapacitated:"Incapacitato",invisible:"Invisibile",paralyzed:"Paralizzato",petrified:"Pietrificato",poisoned:"Avvelenato",prone:"Prono",restrained:"Trattenuto",stunned:"Stordito",unconscious:"Privo di sensi",exhaustion:"Indebolimento"};
 const units={"":"Nessuna",inst:"Istantanea",turn:"Turni",round:"Round",second:"Secondi",seconds:"Secondi",minute:"Minuti",hour:"Ore",day:"Giorni",perm:"Permanente",spec:"Speciale",ft:"Piedi",m:"Metri",mi:"Miglia",km:"Chilometri",self:"Sé stesso",touch:"Contatto",any:"Qualsiasi"};
 labels.phase="Fase";
+Object.assign(labels,{communication:'Comunicazioni',telepathy:'Telepatia',ranges:'Distanze'});
 const title=key=>labels[key]||key.replace(/([a-z])([A-Z])/g,"$1 $2").replace(/[_-]/g," ").replace(/^./,c=>c.toUpperCase());
 const optionsMap=(path,entity)=>{
+ if(entity.type==='Actor'&&path==='system.details.type.value')return{'':'Non impostato',aberration:'Aberrazione',beast:'Bestia',celestial:'Celestiale',construct:'Costrutto',dragon:'Drago',elemental:'Elementale',fey:'Folletto',fiend:'Immondo',giant:'Gigante',humanoid:'Umanoide',monstrosity:'Mostruosità',ooze:'Melma',plant:'Vegetale',undead:'Non morto'};
  if(entity.type==="ActiveEffect"&&path==="duration.units")return{seconds:"Secondi",minutes:"Minuti",hours:"Ore",days:"Giorni",months:"Mesi",years:"Anni",rounds:"Round",turns:"Turni"};
  if(entity.type==="ActiveEffect"&&/^system\.changes\.\d+\.type$/.test(path))return{add:"Aggiungi",subtract:"Sottrai",multiply:"Moltiplica",downgrade:"Riduci al massimo",upgrade:"Alza al minimo",override:"Sostituisci",custom:"Personalizzata"};
  if(entity.type==="ActiveEffect"&&path==="duration.expiry")return{turnStart:"Inizio del turno",turnEnd:"Fine del turno",roundStart:"Inizio del round",roundEnd:"Fine del round",combatStart:"Inizio del combattimento",combatEnd:"Fine del combattimento"};
@@ -21,6 +25,7 @@ const optionsMap=(path,entity)=>{
  if(/\.target\.affects\.type$/.test(path))return{creature:"Creature",ally:"Alleati",enemy:"Nemici",self:"Sé stesso"};
  if(/\.target\.template\.type$/.test(path))return{"":"Nessuna area",cone:"Cono",cube:"Cubo",cylinder:"Cilindro",line:"Linea",radius:"Raggio",sphere:"Sfera"};
  if(/\.ability$|\.spellcasting$/.test(path))return{"":"Automatica",str:"Forza",dex:"Destrezza",con:"Costituzione",int:"Intelligenza",wis:"Saggezza",cha:"Carisma"};
+ if(entity.type==='Actor'&&/^system\.(?:attributes\.(?:movement|senses)\.units|traits\.languages\.communication\.[^.]+\.units)$/.test(path))return{ft:'Piedi',m:'Metri',mi:'Miglia',km:'Chilometri'};
  if(/\.units$/.test(path))return units;
  if(/\.onSave$/.test(path))return{none:"Nessun danno",half:"Metà danno",full:"Danno pieno"};
  if(/\.mode$/.test(path)&&path.includes("changes"))return{0:"Personalizzata",1:"Moltiplica",2:"Aggiungi",3:"Riduci al massimo",4:"Alza al minimo",5:"Sostituisci"};
@@ -45,9 +50,16 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
  const locked=entity=>entity.readOnly||state.readOnly||entity.queued||Boolean(findPending(entity));
  const make=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=text;return node;};
  const button=(text,action,cls="")=>{const b=make("button",`npc-sheet-button ${cls}`,text);b.type="button";b.addEventListener("click",action);return b;};
- const set=(entity,path,value,remove=false)=>{nativeSet(entity.draft,path,value,remove);if(creationMode&&path==="system.uses.max")for(const activity of Object.values(entity.draft.system.activities||{}))activity.consumption.targets=value&&activity.activation.type?[{type:"itemUses",target:"",value:"1",scaling:{mode:""}}]:[];for(const input of bindings.get(`${entity.key}:${path}`)||[]){if(!input.isConnected)continue;if(input.type==="checkbox")input.checked=Boolean(value);else if(document.activeElement!==input)input.value=value===null&&input.tagName==="SELECT"?"__null":value??"";}if(path.endsWith('.custom.enabled'))for(const slot of slots)for(const node of slot.detail.querySelectorAll('[data-npc-custom-for]'))if(node.dataset.npcCustomFor===path)node.hidden=!value;update();};
+ const entityIcon=(entity,eager=false)=>{
+  const changedIcon=typeof entity.draft.img==="string"&&entity.draft.img!==entity.base.img;
+  const path=changedIcon?entity.draft.img:entity.img||entity.draft.img||entity.data?.img||"";
+  const src=typeof resolveMedia==="function"?resolveMedia(path,entity):path;
+  if(!src)return null;
+  const img=make("img");img.src=src;img.alt="";img.loading=eager?"eager":"lazy";img.decoding="async";img.draggable=false;return img;
+ };
+ const set=(entity,path,value,remove=false)=>{nativeSet(entity.draft,path,value,remove);if(entity.type==='Item')nativePreserveActivityReferences(entity.base,entity.draft);if(creationMode&&path==="system.uses.max")for(const activity of Object.values(entity.draft.system.activities||{}))activity.consumption.targets=value&&activity.activation.type?[{type:"itemUses",target:"",value:"1",scaling:{mode:""}}]:[];for(const input of bindings.get(`${entity.key}:${path}`)||[]){if(!input.isConnected)continue;if(input.type==="checkbox")input.checked=Boolean(value);else if(document.activeElement!==input)input.value=value===null&&input.tagName==="SELECT"?"__null":value??"";}if(path.endsWith('.custom.enabled'))for(const slot of slots)for(const node of slot.detail.querySelectorAll('[data-npc-custom-for]'))if(node.dataset.npcCustomFor===path)node.hidden=!value;update();};
  function field(entity,path,label=title(path.split(".").at(-1)),value=nativeGet(entity.draft,path)) {
-  const wrapper=make("label","npc-sheet-field"),caption=make("span","",label);wrapper.append(caption);
+  const wrapper=make("label","npc-sheet-field"),caption=make("span","",entity.type==='Actor'&&/^system\.traits\.languages\.communication\.[^.]+\.value$/.test(path)?'Distanza':label);wrapper.append(caption);
   const id=`npc-field-${nativeNewId()}`;caption.id=id;
   let map=optionsMap(path,entity);let input;
   if(creationMode&&/\.attack\.type\.classification$/.test(path))map={weapon:"Arma",spell:"Incantesimo",unarmed:"Senz’armi"};
@@ -63,10 +75,11 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
    wrapper.classList.add("is-switch");input=make("input");input.type="checkbox";input.checked=value;input.addEventListener("change",()=>set(entity,path,input.checked));
   } else {
    const isLong=typeof value==="string"&&(/description|biography|macroData\.command/.test(path)||value.length>140);
-   const numeric=typeof value==="number"||(value===null&&/\.(number|denomination|rounds|turns|seconds|quantity|level|prepared|flat|cr)$|\.hp\.(value|max|temp|tempmax|dt)$|\.duration\.value$/.test(path));
+   const nullableActorNumber=entity.type==='Actor'&&(/^system\.attributes\.senses\.ranges\.[^.]+$|^system\.traits\.languages\.communication\.[^.]+\.value$|^system\.abilities\.[^.]+\.max$|^system\.resources\.[^.]+\.initiative$/.test(path));
+   const numeric=nullableActorNumber||typeof value==="number"||(value===null&&/\.(number|denomination|rounds|turns|seconds|quantity|level|prepared|flat|cr)$|\.hp\.(value|max|temp|tempmax|dt)$|\.duration\.value$/.test(path));
    input=make(isLong?"textarea":"input");if(input.tagName==="INPUT")input.type=numeric?"number":"text";
    if(input.type==="number")input.step="any";if(isLong)input.rows=4;
-   input.value=value??"";if(value===null)input.placeholder="Automatico";
+   input.value=value??"";if(value===null)input.placeholder=entity.type==='Actor'&&numeric?"Non impostato":"Automatico";
    input.addEventListener("input",()=>{
     if(input.type==="number" && !input.validity.valid)return;
     const next=numeric?(input.value===""?null:Number(input.value)):value===null?(input.value===""?null:input.value):input.value;
@@ -134,18 +147,19 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
   editor.addEventListener("paste",event=>{event.preventDefault();document.execCommand("insertText",false,event.clipboardData.getData("text/plain"));});
   section.body.append(toolbar,editor);body.append(section.node);
  }
- function damage(entity,path,body,healing=false) {
-  const section=group(healing?"Cura":"Danni",true);
+ function damage(entity,path,body,healing=false,heading=healing?"Cura":"Danni") {
+  const single=healing||path==="system.damage.base",section=group(heading,true);
   const render=()=>{
-   section.body.replaceChildren();const parts=healing?[nativeGet(entity.draft,path)]:nativeGet(entity.draft,path)||[];
+   section.body.replaceChildren();const parts=single?[nativeGet(entity.draft,path)]:nativeGet(entity.draft,path)||[];
+   if(path==="system.damage.base")section.body.append(make("p","npc-sheet-muted","Condiviso dalle attività che includono il danno base."));
    parts.forEach((part,index)=>{
-    const prefix=healing?path:`${path}.${index}`,row=make("div","npc-sheet-damage");
+    const prefix=single?path:`${path}.${index}`,row=make("div","npc-sheet-damage");
     fields(entity,[[`${prefix}.number`,"Dadi"],[`${prefix}.denomination`,"Facce"],[`${prefix}.bonus`,"Bonus o formula"]],row);
      row.append(chips(entity,`${prefix}.types`,creationMode?Object.fromEntries(Object.entries(damageNames).filter(([key])=>healing?["healing","temphp"].includes(key):!["healing","temphp"].includes(key))):damageNames));
     if(nativeHas(entity.draft,`${prefix}.custom.enabled`)){fields(entity,[[`${prefix}.custom.enabled`,"Formula personalizzata"]],row);const formula=field(entity,`${prefix}.custom.formula`,"Formula personalizzata",nativeGet(entity.draft,`${prefix}.custom.formula`)||"");formula.dataset.npcCustomFor=`${prefix}.custom.enabled`;formula.hidden=!nativeGet(entity.draft,`${prefix}.custom.enabled`);row.append(formula);}
-    if(!healing){const remove=button("Rimuovi danno",()=>{const next=clone(nativeGet(entity.draft,path));next.splice(index,1);set(entity,path,next);render();},"is-subtle");remove.disabled=locked(entity);row.append(remove);}section.body.append(row);
+    if(!single){const remove=button("Rimuovi danno",()=>{const next=clone(nativeGet(entity.draft,path));next.splice(index,1);set(entity,path,next);render();},"is-subtle");remove.disabled=locked(entity);row.append(remove);}section.body.append(row);
    });
-   if(!healing){const add=button("+ Aggiungi danno",()=>{const parts=clone(nativeGet(entity.draft,path)||[]);parts.push({number:1,denomination:6,bonus:"",types:[],custom:{enabled:false},scaling:{mode:"",number:1}});set(entity,path,parts);render();},"is-subtle");add.disabled=locked(entity);section.body.append(add);}
+   if(!single){const add=button("+ Aggiungi danno",()=>{const parts=clone(nativeGet(entity.draft,path)||[]);parts.push({number:1,denomination:6,bonus:"",types:[],custom:{enabled:false},scaling:{mode:"",number:1}});set(entity,path,parts);render();},"is-subtle");add.disabled=locked(entity);section.body.append(add);}
   };render();body.append(section.node);
  }
  function chips(entity,path,choices) {
@@ -179,7 +193,9 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
     if(followUp)content.append(make("p","npc-sheet-muted","Si attiva dopo un colpo riuscito, senza un’altra azione o utilizzo."));
     if(activity.attack){const s=group("Attacco",true);fields(entity,[[`${prefix}.attack.type.value`,"Tipo di attacco"],`${prefix}.attack.type.classification`,...(creationMode?[[`${prefix}.attack.bonus`,"Bonus finale per colpire"]]:[`${prefix}.attack.ability`,`${prefix}.attack.bonus`,`${prefix}.attack.flat`])],s.body);content.append(s.node);}
     if(activity.save){const s=group("Tiro salvezza",true);s.body.append(chips(entity,`${prefix}.save.ability`,Object.fromEntries(["str","dex","con","int","wis","cha"].map(key=>[key,labels[key]]))));fields(entity,[...(!creationMode?[`${prefix}.save.dc.calculation`]:[]),[`${prefix}.save.dc.formula`,"CD"],`${prefix}.damage.onSave`],s.body);content.append(s.node);}
-   if(activity.damage?.parts)damage(entity,`${prefix}.damage.parts`,content);
+   const hasBase=Boolean(entity.draft.system.damage?.base&&typeof entity.draft.system.damage.base==="object"&&!Array.isArray(entity.draft.system.damage.base));
+   if(activity.type==="attack"&&activity.damage&&hasBase){const include=field(entity,`${prefix}.damage.includeBase`,"Includi il danno base in questa attività",activity.damage.includeBase!==false);include.querySelector("input").addEventListener("change",render);content.append(include);if(activity.damage.includeBase===false)content.append(make("p","npc-sheet-muted","Danno base escluso da questa attività."));}
+   if(activity.damage?.parts)damage(entity,`${prefix}.damage.parts`,content,false,hasBase&&activity.type==="attack"&&activity.damage.includeBase!==false?"Danni aggiuntivi":"Danni");
    if(activity.healing)damage(entity,`${prefix}.healing`,content,true);
    const rules=group("Effetti dell’attività"),rulePath=`flags.khuzoe-automations.npcRules`,rule=nativeGet(entity.draft,`${rulePath}.activities.${selected}`)||{};
    const changeRule=(key,value)=>{const config=clone(nativeGet(entity.draft,rulePath)||{version:1,activities:{}});config.activities[selected]={healing:0,conditions:[],rounds:1,expiry:"turnEnd",...config.activities[selected],[key]:value};set(entity,rulePath,config);};
@@ -208,7 +224,7 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
   if(!entity){body.append(make("div","npc-sheet-empty","Nessun elemento in questa sezione."));return;}
   const header=make("div","npc-sheet-entity-heading"),titles=make("div");titles.append(make("span","npc-sheet-eyebrow",entity.parentName?`Effetto · ${entity.parentName}`:entity.type==="Actor"?"Scheda del personaggio":({feat:"Capacità",weapon:"Arma",spell:"Incantesimo",equipment:"Equipaggiamento",consumable:"Consumabile",loot:"Oggetto"}[entity.itemType])||"Effetto"),make("h3","",entity.draft.name));
 
-  if(entity.img){const src=resolveMedia(entity.img);if(src){const img=make("img");img.src=src;img.alt="";img.loading="lazy";header.append(img);}}header.append(titles);body.append(header);
+  const icon=entityIcon(entity,true);if(icon)header.append(icon);header.append(titles);body.append(header);
   if(entity.type==="Item"&&onEditWithAi&&!draftMode){const ai=button("✦ Modifica con AI",()=>onEditWithAi(entity),"is-ai");ai.disabled=locked(entity);header.append(ai);}
    const pending=findPending(entity);if(!draftMode&&locked(entity))body.append(make("p","npc-sheet-notice","Modifiche inviate. Attendi Foundry e aggiorna la scheda per continuare su questo elemento."));
   const issue=source.commands?.find(c=>c.nativeEditorVersion&&c.target?.id===entity.target.id&&["failed","conflict"].includes(c.status));if(issue)body.append(make("p","npc-sheet-notice is-error",issue.error||"La modifica richiede una verifica."));
@@ -225,8 +241,9 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
    const common=group("Impostazioni",true);fields(entity,creationMode?[["system.uses.max","Utilizzi massimi (vuoto = illimitati)"]]:["system.level","system.school","system.method","system.prepared","system.quantity","system.equipped","system.attuned","system.uses.max","system.uses.spent"],common.body);
    if(creationMode){const label=make("label","npc-sheet-field"),select=make("select");label.append(make("span","","Recupero utilizzi"));select.setAttribute("aria-label","Recupero utilizzi");for(const [value,text]of [["lr","Riposo lungo"],["sr","Riposo breve"],["day","Ogni giorno"]]){const option=make("option","",text);option.value=value;select.append(option);}select.value=entity.draft.system.uses.recovery[0]?.period||"lr";select.disabled=locked(entity);select.addEventListener("change",()=>set(entity,"system.uses.recovery",[{period:select.value,type:"recoverAll"}]));label.append(select);common.body.append(label);}
    body.append(common.node);description(entity,body);
+   if(entity.draft.system.damage?.base&&typeof entity.draft.system.damage.base==="object"&&!Array.isArray(entity.draft.system.damage.base))damage(entity,"system.damage.base",body,false,"Danno base");
    if(entity.draft.system.activities)activities(entity,body);
-    for(const key of ["range","target","activation","duration","uses","materials","properties","weight","price","damage"])if(nativeHas(entity.draft,`system.${key}`)&&!creationMode)body.append(tree(entity,`system.${key}`,title(key),1));
+    for(const key of ["range","target","activation","duration","uses","materials","properties","weight","price","damage"])if(nativeHas(entity.draft,`system.${key}`)&&!creationMode)body.append(tree(entity,`system.${key}`,key==="damage"?"Altre impostazioni dei danni":title(key),1));
   } else {
    fields(entity,["disabled","transfer","showIcon","tint"],body);
    if(nativeHas(entity.draft,"statuses")){const s=group("Condizioni",true);s.body.append(chips(entity,"statuses",conditions));body.append(s.node);}
@@ -244,7 +261,7 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
  }
  function renderList(slot) {
   slot.list.replaceChildren();const query=slot.search.value.toLocaleLowerCase("it"),visible=entities.filter(e=>belongs(e,slot.categories)&&(!slot.filter||e.category===slot.filter)&&(e.name+" "+(e.parentName||"")).toLocaleLowerCase("it").includes(query));
-  for(const entity of visible){const b=button("",()=>{renderEntity(slot,entity);renderList(slot);},"npc-sheet-entity");b._npcEntity=entity;b.append(make("span","npc-sheet-entity-name",entity.draft.name||entity.name));b.setAttribute("aria-current",String(slot.current===entity));if(entity.img){const src=resolveMedia(entity.img);if(src){const img=make("img");img.src=src;img.alt="";img.loading="lazy";b.prepend(img);}}const duplicates=entities.filter(e=>e.name===entity.name&&e.category===entity.category),copy=duplicates.length>1?` · Copia ${duplicates.indexOf(entity)+1}`:"";const meta=make("small","",(entity.parentName||({feat:"Capacità",weapon:"Arma",spell:"Incantesimo",equipment:"Equipaggiamento",consumable:"Consumabile",loot:"Oggetto"}[entity.itemType])||"Scheda")+copy);b.append(meta);if(changed(entity))b.append(make("span","npc-sheet-dot","●"));slot.list.append(b);}
+  for(const entity of visible){const b=button("",()=>{renderEntity(slot,entity);renderList(slot);},"npc-sheet-entity");b._npcEntity=entity;b.append(make("span","npc-sheet-entity-name",entity.draft.name||entity.name));b.setAttribute("aria-current",String(slot.current===entity));const icon=entityIcon(entity);if(icon)b.prepend(icon);const duplicates=entities.filter(e=>e.name===entity.name&&e.category===entity.category),copy=duplicates.length>1?` · Copia ${duplicates.indexOf(entity)+1}`:"";const meta=make("small","",(entity.parentName||({feat:"Capacità",weapon:"Arma",spell:"Incantesimo",equipment:"Equipaggiamento",consumable:"Consumabile",loot:"Oggetto"}[entity.itemType])||"Scheda")+copy);b.append(meta);if(changed(entity))b.append(make("span","npc-sheet-dot","●"));slot.list.append(b);}
   if(!visible.length)slot.list.append(make("p","npc-sheet-muted","Nessun risultato."));
  }
  function updateStatus(slot) {
@@ -270,7 +287,7 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
  async function save() {
   if(draftMode)throw new Error("Conferma la capacità dalla proposta AI.");if(state.busy)return;if(!source.canApply)throw new Error("Ricarica Foundry con Wiki Sync aggiornato.");
   for(const slot of slots){const invalid=slot.shell.querySelector(":invalid");if(invalid){invalid.reportValidity();throw new Error("Controlla i valori inseriti.");}}
-  const selected=entities.filter(changed);if(!selected.length)return;
+  const selected=entities.filter(changed);if(!selected.length)return;for(const entity of selected)if(entity.type==='Actor')validateNpcDomainFields(entity.base,entity.draft,'Actor');
   const changes=selected.map(entity=>({target:entity.target,patches:nativeDiff(entity.base,entity.draft,entity.type,permissions)}));
   state.busy=true;slots.forEach(updateStatus);state.requestId ||= crypto.randomUUID();
   try {
@@ -286,10 +303,10 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
    const latest=(await getSource()).data;source.commands=latest.commands;source.canApply=latest.canApply;
    // Preserve unsent drafts and their original baselines, including conflicts.
    // Only clean entities adopt the newly synchronized native source.
-   for(const incoming of latest.entities){const entity=entities.find(e=>e.key===incoming.key);if(entity){if(!changed(entity)){entity.data=clone(incoming.data);entity.base=clone(incoming.data);entity.draft=clone(incoming.data);entity.name=incoming.name;entity.queued=false;}}else entities.push({...incoming,base:clone(incoming.data),draft:clone(incoming.data),queued:false});}
+   for(const incoming of latest.entities){const entity=entities.find(e=>e.key===incoming.key);if(entity){entity.img=incoming.img;if(!changed(entity)){entity.data=clone(incoming.data);entity.base=clone(incoming.data);entity.draft=clone(incoming.data);entity.name=incoming.name;entity.queued=false;}}else entities.push({...incoming,base:clone(incoming.data),draft:clone(incoming.data),queued:false});}
    for(let index=entities.length-1;index>=0;index--)if(!latest.entities.some(e=>e.key===entities[index].key)&&!changed(entities[index]))entities.splice(index,1);
    for(const slot of slots){const current=entities.find(e=>e.key===slot.current?.key)||entities.find(e=>belongs(e,slot.categories));renderEntity(slot,current);renderList(slot);slot.message.textContent="Scheda aggiornata. Le modifiche non inviate sono conservate.";}
   } finally{state.busy=false;slots.forEach(updateStatus);}
  }
-  return {dirty,save,getDraft:()=>clone(entities[0]?.draft),isValid:()=>!invalidControl(),markDraftSaved:()=>{if(!draftMode)return;for(const entity of entities)entity.base=clone(entity.draft);state.draftSaved=true;slots.forEach(updateStatus);},setReadOnly:(value,label="")=>{state.readOnlyLabel=label;if(state.readOnly===Boolean(value)){slots.forEach(updateStatus);return;}state.readOnly=Boolean(value);for(const slot of slots)renderEntity(slot,slot.current);},show:paneId=>{if(invalidControl())return;for(const slot of slots)if(slot.shell.parentElement.id===paneId){renderEntity(slot,slot.current);renderList(slot);}},validate:()=>{const invalid=invalidControl();if(invalid){root._managedNpcReveal?.(invalid);invalid.reportValidity();throw new Error('Controlla il valore del campo segnalato.');}for(const entity of entities.filter(changed))nativeDiff(entity.base,entity.draft,entity.type,permissions);},entities};
+  return {dirty,save,refresh,getDraft:()=>clone(entities[0]?.draft),isValid:()=>!invalidControl(),markDraftSaved:()=>{if(!draftMode)return;for(const entity of entities)entity.base=clone(entity.draft);state.draftSaved=true;slots.forEach(updateStatus);},setReadOnly:(value,label="")=>{state.readOnlyLabel=label;if(state.readOnly===Boolean(value)){slots.forEach(updateStatus);return;}state.readOnly=Boolean(value);for(const slot of slots)renderEntity(slot,slot.current);},show:paneId=>{if(invalidControl())return;for(const slot of slots)if(slot.shell.parentElement.id===paneId){renderEntity(slot,slot.current);renderList(slot);}},validate:()=>{const invalid=invalidControl();if(invalid){root._managedNpcReveal?.(invalid);invalid.reportValidity();throw new Error('Controlla il valore del campo segnalato.');}for(const entity of entities.filter(changed)){if(entity.type==='Actor')validateNpcDomainFields(entity.base,entity.draft,'Actor');nativeDiff(entity.base,entity.draft,entity.type,permissions);}},entities};
 }

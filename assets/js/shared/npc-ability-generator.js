@@ -1,9 +1,9 @@
 (function () {
     "use strict";
-    const schemaUrl = new URL("npc-ability-schema.mjs?v=20261030-optional-fields1", document.currentScript.src).href;
-    const nativeUrl = new URL("npc-native-ability.mjs?v=20261031-ai1", document.currentScript.src).href;
-    const editorUrl = new URL("npc-sheet-editor.mjs?v=20261031-edit1", document.currentScript.src).href;
-    const editUrl=new URL("npc-native-ability-edit.mjs?v=20261031-effects2",document.currentScript.src).href;
+    const schemaUrl = new URL("npc-ability-schema.mjs?v=20261113-fields4", document.currentScript.src).href;
+    const nativeUrl = new URL("npc-native-ability.mjs?v=20261113-fields4", document.currentScript.src).href;
+    const editorUrl = new URL("npc-sheet-editor.mjs?v=20261113-fields4", document.currentScript.src).href;
+    const editUrl=new URL("npc-native-ability-edit.mjs?v=20261113-fields4",document.currentScript.src).href;
     window.CriptaAbilityGenerator = {open};
     async function open({actor, token, onQueued, initialDetails = "", editorAdapters = {}, targetItem = null}) {
         if (document.querySelector("[data-ability-generator]")) return;
@@ -68,7 +68,7 @@
         const set = (object, path, value) => { const parts = path.split("."); const last = parts.pop(); parts.reduce((o, k) => o[k], object)[last] = value; };
         function readDraft() {
             const draft = structuredClone(job.draft);
-            if (isNative()) { if(proposalEditor&&!proposalEditor.isValid())throw new Error("Controlla il campo segnalato nella capacità.");if(proposalEditor){draft.item={...draft.item,...proposalEditor.getDraft()};if(isEdit())draft.item.effects=proposalEditor.entities.filter(entity=>entity.type==="ActiveEffect").map(entity=>({_id:entity.target.id,type:entity.effectType||"base",...structuredClone(entity.draft)}));} }
+            if (isNative()) { if(proposalEditor&&!proposalEditor.isValid())throw new Error("Controlla il campo segnalato nella capacità.");if(proposalEditor){draft.item={...draft.item,...proposalEditor.getDraft()};if(isEdit()&&!nativeModule.nativeEffectsAmbiguous(job.draft.item))draft.item.effects=proposalEditor.entities.filter(entity=>entity.type==="ActiveEffect").map(entity=>({_id:entity.target.id,type:entity.effectType||"base",...structuredClone(entity.draft)}));} }
             el("[data-fields]").querySelectorAll("[data-field]").forEach(control => set(draft, control.dataset.field, control.type === "checkbox" ? control.checked : control.type === "number" ? Number(control.value) : control.value));
             if(!isNative()) { draft.healing.fraction = Number(draft.healing.fraction);
             draft.conditions = Array.from(el("[data-fields]").querySelectorAll("[data-condition]:checked"), c => c.value); }
@@ -82,7 +82,8 @@
                 el("[data-validation]").textContent = "";
                 el("[data-summary]").replaceChildren(...(isNative()?(isEdit()?nativeModule.nativeAbilityEditSummary(draft):nativeModule.nativeAbilitySummary(draft)):abilitySummary(draft)).map(text => { const p = document.createElement("p"); p.textContent = text; return p; }));
                 if(isEdit())renderChanges(draft);
-                return !draft.unsupported.length&&(!isEdit()||nativeModule.nativeAbilityEditDiff(draft).length>0);
+                const warnings=[...new Set([...draft.unsupported,...(isNative()?nativeModule.nativeAbilityAutomationWarnings(draft.item):[])])];const notice=el('[data-unsupported]');notice.classList.remove('is-error');notice.setAttribute('role','note');notice.textContent=warnings.length?`Avvisi sulle automazioni · gestione manuale del GM: ${warnings.join('; ')} Puoi confermare.`:'';
+                return !isEdit()||nativeModule.nativeAbilityEditDiff(draft).length>0;
             } catch (error) { el("[data-validation]").textContent = error.message; return false; }
         }
         function controls() {
@@ -136,14 +137,14 @@
                 const mechanical=value=>({name:value.name,system:value.system,flags:value.flags});
                 const base=isEdit()?draft.base:item,entity={key:"Item::proposal",target:{type:"Item",id:isEdit()?draft.itemId:"proposal"},type:"Item",itemType:isEdit()?draft.itemType:"feat",category:"abilities",name:item.name,data:mechanical(base),initialDraft:mechanical(draft.item)};
                 const entities=[entity];
-                if(isEdit())for(const effect of draft.item.effects||[]){const original=draft.base.effects.find(value=>value._id===effect._id)||effect,data=value=>Object.fromEntries(Object.entries(value).filter(([key])=>!["_id","type"].includes(key)));entities.push({key:`ActiveEffect:${effect._id}`,target:{type:"ActiveEffect",id:effect._id,itemId:draft.itemId},type:"ActiveEffect",effectType:effect.type,readOnly:(draft.generatedEffects||[]).includes(effect._id),category:"abilities",parentName:"Effetto della capacità",name:effect.name,data:data(original),initialDraft:data(effect)});}
+                if(isEdit())for(const effect of draft.item.effects||[]){const original=draft.base.effects.find(value=>value._id===effect._id)||effect,data=value=>Object.fromEntries(Object.entries(value).filter(([key])=>!["_id","type"].includes(key)));entities.push({key:`ActiveEffect:${effect._id}`,target:{type:"ActiveEffect",id:effect._id,itemId:draft.itemId},type:"ActiveEffect",effectType:effect.type,readOnly:nativeModule.nativeEffectsAmbiguous(draft.item)||(draft.generatedEffects||[]).includes(effect._id),category:"abilities",parentName:"Effetto della capacità",name:effect.name,data:data(original),initialDraft:data(effect)});}
                 proposalEditor=nativeEditorModule.mountNpcSheetEditor({root:host,draftMode:true,creationMode:!isEdit(),source:{version:1,canApply:true,permissions:{isAdmin:false,sharedRuntime:true},capabilities:draft.capabilities||{},commands:[],entities},
                     deleteEntity:isEdit()?entity=>{if(entity.readOnly)return;const next=readDraft();next.item.effects=next.item.effects.filter(effect=>effect._id!==entity.target.id);for(const activity of Object.values(next.item.system.activities||{}))activity.effects=(activity.effects||[]).filter(link=>link._id!==entity.target.id);writeLocal(`${key}:${job.id}`,next);renderFields(next);controls();}:undefined,
                     panes:[{node:host,categories:["abilities"],label:isEdit()?draft.item.name:"Attività ed effetti"}],resolveMedia:editorAdapters.resolveMedia||(()=>""),
                     descriptionHtml:editorAdapters.descriptionHtml||(value=>{const node=document.createElement("div");node.textContent=value;return node.innerHTML;}),descriptionValue:editorAdapters.descriptionValue||(node=>node.innerHTML),
                     onDraftChange:()=>{if(!proposalEditor)return;try{writeLocal(`${key}:${job.id}`,readDraft());}catch{}controls();}});
                 if(isEdit()){
-                    const tools=document.createElement("div");tools.className="npc-sheet-entity-tools";const add=document.createElement("button");add.type="button";add.className="npc-sheet-button is-subtle";add.textContent="+ Nuovo effetto";add.dataset.draftTool="";
+                    const tools=document.createElement("div");tools.className="npc-sheet-entity-tools";const add=document.createElement("button");add.type="button";add.className="npc-sheet-button is-subtle";add.textContent="+ Nuovo effetto";add.dataset.draftTool="";add.disabled=nativeModule.nativeEffectsAmbiguous(draft.item);
                     add.addEventListener("click",()=>{const next=readDraft(),id=crypto.randomUUID().replaceAll('-','').slice(0,16);next.item.effects.push({_id:id,name:"Nuovo effetto",type:"base",disabled:false,transfer:false,statuses:[],duration:{value:1,units:"rounds",expiry:"turnEnd"},system:{changes:[]},flags:{}});const activity=Object.values(next.item.system.activities||{})[0];if(activity)activity.effects=[...(activity.effects||[]),{_id:id,onSave:false}];writeLocal(`${key}:${job.id}`,next);renderFields(next);controls();});tools.append(add);host.append(tools);renderChanges(draft);
                 }
                 const art=group("Direzione artistica dell’icona");field(art,"iconPrompt","Dettaglio da rappresentare","textarea");

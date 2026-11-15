@@ -1,7 +1,10 @@
 import {nativeGet, nativeSet, nativeEqual, nativeDiff, nativeValidateChanges, nativeEditorSource, nativeValidateValue, nativeActivitiesAmbiguous} from "./npc-native-model.mjs";
+import {decodeNpcAiValue,validateNpcDomainFields} from './npc-ai-values.mjs';
+import {nativePreserveActivityReferences,nativeEffectsAmbiguous} from './npc-native-automation.mjs';
+export {nativeAbilityAutomationWarnings,nativeEffectsAmbiguous} from './npc-native-automation.mjs';
 
 export const NATIVE_ABILITY_EDIT_FORMAT = "npc-native-ability-edit-v1";
-export const NATIVE_ABILITY_EDIT_COMPILER_VERSION = 4;
+export const NATIVE_ABILITY_EDIT_COMPILER_VERSION = 6;
 const clone = value => value === undefined ? undefined : structuredClone(value);
 const object = properties => ({type:"object",properties,required:Object.keys(properties),additionalProperties:false});
 const string = {type:"string"};
@@ -97,6 +100,9 @@ function assignCreatedIds(item,baseline) {
     } else {
       if([activity._id,activity.id].some(value=>Object.hasOwn(oldActivities,value)))throw new Error("L’attività generata riutilizza l’identificativo di un’altra attività.");
       id=valid(key)?key:valid(activity._id)?activity._id:valid(activity.id)?activity.id:allocate('A');
+      // D&D5e owns the insertion order of a new activity. A copied sort value
+      // must not make a successful create look like a failed persistence.
+      delete activity.sort;
     }
     if(Object.hasOwn(nextActivities,id))throw new Error("La proposta contiene attività duplicate.");
     for(const value of [key,activity._id,activity.id])alias('A',value,id);
@@ -105,7 +111,7 @@ function assignCreatedIds(item,baseline) {
   if(item.system?.activities)item.system.activities=nextActivities;
   const effectAliases=new Set();
   if(!Array.isArray(item.effects))throw new Error("L’elenco degli effetti generato non è valido.");
-  for(const effect of item.effects) {
+  for(const effect of nativeEqual(item.effects,nativeAbilityEditProjection(original).effects)?[]:item.effects) {
     if(!effect||typeof effect!=="object"||Array.isArray(effect))throw new Error("Effetto generato non valido.");
     if(effect.statuses!==undefined&&!Array.isArray(effect.statuses))throw new Error("Le condizioni dell’effetto devono essere un elenco.");
     if((effect.statuses||[]).some(value=>typeof value!=="string"||!value.trim()))throw new Error("Ogni condizione dell’effetto deve avere un identificativo testuale.");
@@ -122,12 +128,14 @@ function assignCreatedIds(item,baseline) {
     if(Object.hasOwn(effect,'label')&&!Object.hasOwn((original.effects||[]).find(value=>value._id===id)||{},'label'))delete effect.label;
   }
   const activityId=id=>maps.A.get(id)||id,effectId=id=>maps.E.get(id)||id;
-  for(const activity of Object.values(nextActivities)) {
+  for(const [id,activity]of Object.entries(nextActivities)) {
+    const activityChanged=!nativeEqual(activity,oldActivities[id]);
     if(activity.otherActivityId)activity.otherActivityId=activityId(activity.otherActivityId);
     if(activity.midiProperties?.triggeredActivityId)activity.midiProperties.triggeredActivityId=activityId(activity.midiProperties.triggeredActivityId);
     for(const link of activity.effects||[])if(link&&typeof link==="object"){
       if(link._id&&link.id&&link._id!==link.id)throw new Error("Un collegamento effetto contiene due identificativi diversi.");
-      link._id=effectId(link._id||link.id);delete link.id;
+      const reference=link._id||link.id,nextReference=effectId(reference);
+      if(activityChanged||nextReference!==reference){link._id=nextReference;delete link.id;}
     }
   }
   const rules=item.flags?.['khuzoe-automations']?.npcRules;
@@ -136,27 +144,21 @@ function assignCreatedIds(item,baseline) {
 }
 function validateMechanics(item,baseline,capabilities={}) {
   const activities=item.system?.activities||{},ids=new Set(Object.keys(activities));
-  if(ids.size>32)throw new Error("Una capacità può contenere al massimo 32 attività.");
+  if(ids.size>32&&!nativeEqual(activities,baseline.system?.activities))throw new Error("Una capacità può contenere al massimo 32 attività.");
   for(const [id,activity]of Object.entries(activities)) {
     if(nativeEqual(activity,baseline.system?.activities?.[id]))continue;
     if(!/^[A-Za-z0-9]{16}$/.test(id)||activity._id!==id||!activity.type)throw new Error("Identificativo di attività non valido.");
     if(!baseline.system?.activities?.[id]&&!['attack','save','damage','heal','utility'].includes(activity.type))throw new Error("La nuova attività richiede un tipo non supportato dall’editor.");
-    for(const linked of [activity.otherActivityId,activity.midiProperties?.triggeredActivityId])if(linked&&linked!=="none"&&!ids.has(linked))throw new Error("L’attività collegata non esiste.");
-  }
-  const followUps=value=>Object.fromEntries(Object.entries(value||{}).map(([id,activity])=>[id,activity.midiProperties?.triggeredActivityId||""]));
-  const links=followUps(activities);
-  if(!nativeEqual(links,followUps(baseline.system?.activities))){
-    for(const start of ids){const visited=new Set();let id=start;while(id&&links[id]){if(visited.has(id))throw new Error("Le attività successive formano un ciclo: ogni tiro deve terminare.");visited.add(id);id=links[id];}}
+    if(!nativeEqual(activity.effects,baseline.system?.activities?.[id]?.effects))for(const link of activity.effects||[])if(!link||!/^[A-Za-z0-9]{16}$/.test(link._id||''))throw new Error('Il collegamento effetto richiede un identificativo Foundry valido.');
   }
   const effects=item.effects||[];
-  if(!Array.isArray(effects)||effects.length>64||new Set(effects.map(effect=>effect._id)).size!==effects.length)throw new Error("Effetti non validi o duplicati.");
-  const effectIds=new Set(effects.map(effect=>effect._id));
-  for(const effect of effects) {
+  const effectsChanged=!nativeEqual(effects,baseline.effects||[]);
+  if(!Array.isArray(effects)||effectsChanged&&(effects.length>64||nativeEffectsAmbiguous(item)))throw new Error("Effetti non validi o duplicati.");
+  for(const effect of effectsChanged?effects:[]) {
     if(nativeEqual(effect,(baseline.effects||[]).find(value=>value._id===effect._id)))continue;
     if(!/^[A-Za-z0-9]{16}$/.test(effect._id)||typeof effect.name!=="string"||!effect.name.trim())throw new Error("Ogni effetto deve avere un nome e un identificativo valido.");
     for(const change of effect.system?.changes||effect.changes||[])if(!/^system\.[A-Za-z0-9_.-]+$/.test(change.key)||!['multiply','add','subtract','downgrade','upgrade','override'].includes(change.type))throw new Error("Gli effetti AI possono modificare campi di gioco, senza macro o operazioni personalizzate.");
   }
-  for(const activity of Object.values(activities))for(const link of activity.effects||[])if(!effectIds.has(link._id))throw new Error("L’attività richiama un effetto che non esiste.");
   const rules=item.flags?.['khuzoe-automations']?.npcRules;
   if(rules && !nativeEqual(rules,baseline.flags?.['khuzoe-automations']?.npcRules)) {
     if(rules.version!==1||!rules.activities||Array.isArray(rules.activities)||Object.keys(rules).some(key=>!['version','activities'].includes(key)))throw new Error("Regole della capacità non valide.");
@@ -183,9 +185,11 @@ export function validateNativeAbilityEditDraft(draft,baseline,capabilities={}) {
     if(patch.op==="set")assertData(patch.value,patch.path);
   }
   const original=baseline?nativeEditorSource(baseline,"Item"):{_id:draft.itemId,type:draft.itemType,...base},next=nativeEditorSource(reconcile(original,base,draft.item),"Item");
+  nativePreserveActivityReferences(original,next);
   const visibleEffects=new Set(base.effects.map(effect=>effect._id));
   for(const effect of original.effects||[])if(!visibleEffects.has(effect._id)&&!nativeEqual(effect,(next.effects||[]).find(value=>value._id===effect._id)))throw new Error("Un effetto gestito da codice deve essere preservato.");
   validateMechanics(next,original,capabilities);
+  validateNpcDomainFields(original,next,'Item');
   const actual=nativeDiff({name:original.name,system:original.system,flags:original.flags||{},effects:original.effects||[]},{name:next.name,system:next.system,flags:next.flags||{},effects:next.effects||[]},"Item",{isAdmin:false,embeddedEffects:true});
   if(actual.length)nativeValidateChanges(original,{type:"Item",id:draft.itemId},actual,{isAdmin:false,embeddedEffects:true});
   for(const effect of original.effects||[])if(effect.flags?.['khuzoe-automations']?.npcRule&&!nativeEqual(effect,(next.effects||[]).find(value=>value._id===effect._id)))throw new Error("Modifica le condizioni dagli effetti dell’attività: questo effetto è generato automaticamente.");
@@ -199,7 +203,7 @@ export function compileNativeAbilityEdit(proposal,baseline,capabilities={}) {
     if(!change||!allowed(change.path)||!['set','delete'].includes(change.op)||typeof change.valueJson!=="string")throw new Error(`Modifica non valida: ${change?.path||""}`);
     if(paths.some(path=>path===change.path||path.startsWith(change.path+'.')||change.path.startsWith(path+'.')))throw new Error("La proposta modifica campi sovrapposti.");
     paths.push(change.path);
-    const value=change.op==="set"?JSON.parse(change.valueJson):undefined;
+    const value=decodeNpcAiValue(change,baseline);
     if(change.op==="set")assertData(value,change.path);
     nativeSet(item,change.path,value,change.op==="delete");
   }

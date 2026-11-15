@@ -6,6 +6,18 @@ const idPattern = /^[a-z0-9_-]{1,96}$/i;
 const privateHeaders = { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" };
 const selectRow = "SELECT * FROM foundry_map_snapshots WHERE campaign_id = ? AND world_id = ? AND scene_id = ?";
 
+export function normalizeMapFrame(value) {
+  if (!value) return "";
+  try {
+    const frame = JSON.parse(value);
+    if (Array.isArray(frame) && [4, 5].includes(frame.length) && frame.slice(0, 4).every(Number.isFinite)
+      && frame[2] > 0 && frame[3] > 0 && (frame.length === 4 || (typeof frame[4] === "string" && frame[4].length <= 512))) {
+      return JSON.stringify(frame);
+    }
+  } catch {}
+  return "";
+}
+
 export async function handleFoundryMaps(request, campaignId, env, services, corsHeaders) {
   const headers = { ...corsHeaders, ...privateHeaders };
   const json = (data, status = 200) => Response.json(data, { status, headers });
@@ -60,14 +72,20 @@ export async function handleFoundryMaps(request, campaignId, env, services, cors
     return fail("Servono immagini WebP valide, della stessa dimensione, fino a 4 MB ciascuna.", 400);
   }
   const previous = await row();
+  const frame = normalizeMapFrame(form.get("frame"));
   if (previous?.player_hash === player.hash && previous.dm_hash === dm.hash && previous.title === title) {
-    return json({ ok: true, unchanged: true, revision: previous.revision });
+    if (!frame || frame === (await media.head(previous.player_key))?.customMetadata?.frame) {
+      return json({ ok: true, unchanged: true, revision: previous.revision });
+    }
   }
   const revision = crypto.randomUUID();
   const prefix = `_private/foundry-maps/${campaignId}/${parts.join("/")}/${revision}`;
   const playerKey = prefix + "/players.webp";
   const dmKey = player.hash === dm.hash ? playerKey : prefix + "/dm.webp";
-  const options = { httpMetadata: { contentType: "image/webp", cacheControl: "private, no-store" } };
+  const options = {
+    httpMetadata: { contentType: "image/webp", cacheControl: "private, no-store" },
+    customMetadata: { frame },
+  };
   const newKeys = [...new Set([playerKey, dmKey])];
   try {
     await media.put(playerKey, player.bytes, options);

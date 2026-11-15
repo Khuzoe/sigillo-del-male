@@ -18,6 +18,7 @@ const sandbox = {
     window: {
         setTimeout: () => ++timerCalls, clearTimeout() {}, requestAnimationFrame() {},
         CriptaApp: {
+            utils: { resolveImageUrl: value => value ? `resolved:${value}` : "" },
             onPageReady() {}, auth: { getToken: () => "test-token" }, navigation: { addLeaveGuard() {} },
             api: {
                 clearCache() {},
@@ -38,7 +39,7 @@ const exposed = `
         baseline(control, value, baseValue = value) { managedFieldBaselines.set(control, { value, baseValue }); },
         collectManagedEntityPatches, collectManagedActorPatches, acceptManagedFieldPatches,
         postManagedActorCommand, scheduleManagedCommandRefresh, renderManagedAbilityRules,
-        renderManagedActivitiesGuide, renderManagedActivityPreview, renderCoreStats, saveManagedActorPage, managedDossierImageWidth,
+        renderManagedActivitiesGuide, renderManagedActivityPreview, renderCoreStats, saveManagedActorPage, managedDossierImageWidth, resolveMedia,
         enqueueManagedItemUpdate, enqueueManagedEffectUpdate, saveManagedActorPresentation,
         hasManagedUnsavedChanges, refreshManagedCommandState,
         syncManagedGuidedList, syncManagedGuidedControl, syncManagedMidiRollControls, renderManagedItemJsonControl, renderManagedItemEditor, renderManagedNpcRule, renderManagedActorControl,
@@ -220,4 +221,19 @@ equal(JSON.parse(midiTextarea.value).activities.attack.attackMaxChance, 20, "dis
 equal(posts.length, beforeMidiPosts, "editing probabilities never saves automatically");
 editor.syncManagedMidiRollControls({querySelectorAll: () => [chanceControl, enabledControl]}, {activities: {attack: {enabled: true, damageMaxChance: 35}}});
 equal([chanceControl.value, enabledControl.checked], [35, true], "JSON edits update guided controls too");
+const iconDocument = { ...copy(actor), media: { avatar: { path: "media/campaigns/test/avatar.webp" } }, definition: { items: [
+    { itemId: "first", name: "Morso", definition: { img: "icons/first.svg" }, media: { icon: { path: "media/campaigns/test/first.webp" } } },
+    { itemId: "second", name: "Morso", definition: { img: "icons/second.svg" }, media: { icon: { path: "media/campaigns/test/second.webp" } } }
+] } };
+editor.setDocument(copy(iconDocument));
+const firstIconEntity = { type: "Item", target: { id: "first" }, base: {}, draft: {} };
+equal(editor.resolveMedia("icons/first.svg", firstIconEntity), "resolved:media/campaigns/test/first.webp", "editor uses the site's published icon instead of a Foundry-only path");
+equal(editor.resolveMedia("icons/second.svg", { ...firstIconEntity, target: { id: "second" } }), "resolved:media/campaigns/test/second.webp", "items with identical names retain their own icons by stable ID");
+equal(editor.resolveMedia("", firstIconEntity), "resolved:media/campaigns/test/first.webp", "a proposal without image metadata can still display its published item icon");
+equal(editor.resolveMedia("icons/unknown.svg", { ...firstIconEntity, target: { id: "missing" } }), "resolved:icons/unknown.svg", "unmatched entities retain their original image");
+equal(editor.resolveMedia("media/new-preview.webp", { ...firstIconEntity, draft: { img: "media/new-preview.webp" } }), "resolved:media/new-preview.webp", "unsaved image changes override the existing site icon");
+equal(editor.resolveMedia("", { ...firstIconEntity, base: { img: "old.webp" }, draft: { img: "" } }), "", "an explicitly removed draft icon is not restored from the published copy");
+equal(editor.resolveMedia("", { type: "Actor", base: {}, draft: {} }), "resolved:media/campaigns/test/avatar.webp", "the actor editor can display the published portrait");
+equal(editor.resolveMedia("media/reading-mode.webp"), "resolved:media/reading-mode.webp", "ordinary media resolution remains unchanged");
+equal(editor.getDocument(), iconDocument, "displaying editor icons never rewrites actor or item data");
 console.log(`Managed actor editor: ${assertions} behavioral checks passed.`);
