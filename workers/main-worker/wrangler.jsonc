@@ -30,6 +30,7 @@
   ],
   "durable_objects": {
     "bindings": [
+      { "name": "WALL_DETECTOR", "class_name": "WallDetectionStore" },
       {
         "name": "ABILITY_GENERATOR",
         "class_name": "AbilityGenerationStore"
@@ -83,8 +84,11 @@
       "tag": "drop-generation-v1",
       "new_sqlite_classes": ["DropGenerationStore"]
     }
+    ,{ "tag": "assets-wall-detection-v1", "new_sqlite_classes": ["WallDetectionStore"] }
   ],
   "vars": {
+    "ASSETS_WALL_MODEL": "gpt-5.4",
+    "ASSETS_WALL_DETAIL": "original",
     // Optional OPENAI_API_KEY secret activates generation. No local monthly caps.
     // D1 enabled for polls, skill-tree progress and definitions in all configured campaigns.
     "POLL_D1_CAMPAIGNS": "cripta-di-sangue,mago-folle,oltre-il-velo",

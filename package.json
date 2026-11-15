@@ -60,6 +60,7 @@
     "test:npc-sheet-ai": "node scripts/test-npc-sheet-ai.mjs && node scripts/test-npc-field-policy.mjs && node scripts/test-npc-sheet-hardening.mjs && node scripts/test-npc-sheet-ai-worker.mjs && node scripts/test-npc-sheet-foundry.mjs",
     "test:npc-auto-sync": "node scripts/test-npc-auto-sync.mjs && node scripts/test-npc-sheet-ai-worker.mjs && node scripts/test-npc-sheet-ai-worker.mjs mago-folle && node scripts/test-npc-sheet-ai-worker.mjs oltre-il-velo",
     "test:npc-ability-icons": "node --experimental-default-type=module scripts/test-npc-ability-icons.mjs",
-    "test:tiles-creator": "node scripts/test-tiles-creator.mjs"
+    "test:tiles-creator": "node scripts/test-tiles-creator.mjs",
+    "test:assets-walls": "node --experimental-default-type=module scripts/test-assets-wall-detection.mjs"
   }
 }

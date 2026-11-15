@@ -1,3 +1,5 @@
+import { handleWallDetection } from "./wall-detection.js";
+export { WallDetectionStore } from "./wall-detection.js";
 import { discordBotPreferencesKey, handleDiscordBotDmNotifications, normalizeDiscordBotPreferences, sendDiscordBotChannelCard } from "./discord-bot/notifications.js";
 import { handleCampaignItemFoundrySync, normalizeCampaignItemsForSiteSave } from "./campaign-items.js";
 import { handleCalendarGet, handleLegacyCalendarGet, handleCalendarEventUpsert, handleCalendarEventArchive, handleCalendarClockPost, handleCalendarConfigPost } from "./calendar-v2.js";
@@ -43,6 +45,18 @@ const application = {
           return json({ ok: false, error: "Origin not allowed" }, 403, corsHeaders);
         }
         return new Response(null, { headers: corsHeaders });
+      }
+
+      const wallRoute = url.pathname.match(/^\/api\/assets\/walls(?:\/([a-f0-9-]{36})(?:\/(stop))?)?$/i);
+      if (wallRoute) {
+        const result = await handleWallDetection(request, { id: wallRoute[1], action: wallRoute[2] }, queryCampaignId, env, {
+          requireUser: req => requireUser(req, env, corsHeaders),
+          isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
+          accountId: user => getAuthenticatedAccountId(user, env),
+        });
+        const headers = new Headers(result.headers);
+        Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
+        return new Response(result.body, { status: result.status, headers });
       }
 
       const tileGenerationRoute = url.pathname.match(/^\/api\/tiles\/generations(?:\/([a-f0-9-]{36})\/(source|preview|stop|placed|reference-(?:[1-9]|1[0-5])))?$/i);
