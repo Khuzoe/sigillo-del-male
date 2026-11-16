@@ -40,6 +40,10 @@
         "class_name": "AvatarGenerationStore"
       },
       {
+        "name": "NPC_GENERATOR",
+        "class_name": "NpcGenerationStore"
+      },
+      {
         "name": "DROP_GENERATOR",
         "class_name": "DropGenerationStore"
       },
@@ -85,6 +89,7 @@
       "new_sqlite_classes": ["DropGenerationStore"]
     }
     ,{ "tag": "assets-wall-detection-v1", "new_sqlite_classes": ["WallDetectionStore"] }
+    ,{ "tag": "npc-generation-v1", "new_sqlite_classes": ["NpcGenerationStore"] }
   ],
   "vars": {
     "ASSETS_WALL_MODEL": "gpt-5.4",

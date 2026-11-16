@@ -37,6 +37,7 @@
     "test:npc-visibility": "node --experimental-default-type=module scripts/test-npc-visibility.mjs",
     "test:npc-banner-height": "node --experimental-default-type=module scripts/test-npc-banner-height.mjs",
     "test:avatar-generation": "node --experimental-default-type=module scripts/test-avatar-generation.mjs",
+    "test:npc-generation": "node --experimental-default-type=module scripts/test-npc-generation.mjs && node scripts/test-npc-generation-d1.mjs",
     "test:npc-drop-generation": "node --experimental-default-type=module scripts/test-npc-drop-generation.mjs",
     "test:campaign-item-storage": "node --experimental-default-type=module scripts/test-npc-drop-generation.mjs --d1",
     "test:foundry-map-snapshots": "node --experimental-default-type=module scripts/test-foundry-map-snapshots.mjs",

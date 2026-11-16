@@ -6,6 +6,8 @@ import { handleCalendarGet, handleLegacyCalendarGet, handleCalendarEventUpsert, 
 import { CalendarStoreBase } from "./calendar-store.js";
 import { handleAvatarGeneration, normalizeGeneratedAvatarPath, normalizeGeneratedAvatarDocument } from "./avatar-generation.js";
 export { AvatarGenerationStore } from "./avatar-generation.js";
+import { handleNpcGeneration } from "./npc-generation.js";
+export { NpcGenerationStore } from "./npc-generation.js";
 import { handleDropGeneration } from "./drop-generation.js";
 import { handleFoundryMaps } from "./foundry-maps.js";
 import { handleCityMaps } from "./city-maps.js";
@@ -227,6 +229,31 @@ const application = {
           enqueue: (actor, user, records) => finishManagedActorMutation(
             enqueueNpcDropItems(env, ctx, queryCampaignId, actorRoute, actor, user, records), env, corsHeaders,
           ),
+        });
+        const headers = new Headers(result.headers);
+        Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
+        return new Response(result.body, { status: result.status, headers });
+      }
+      const npcGenerationRoute = url.pathname.match(/^\/api\/npc-generation(?:\/([a-f0-9-]{36})\/(avatar|token|retry-token|confirm|stop))?$/i);
+      if (npcGenerationRoute) {
+        const result = await handleNpcGeneration(request, { jobId: npcGenerationRoute[1], action: npcGenerationRoute[2] }, queryCampaignId, env, {
+          requireUser: req => requireUser(req, env, corsHeaders),
+          isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
+          accountId: user => getAuthenticatedAccountId(user, env),
+          readActor: async (campaignId, route) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId))),
+          readCategories: async campaignId => (await readNpcCategoryRegistry(env, campaignId)).categories,
+          nameExists: async (campaignId, worldId, name, clientId) => {
+            const [rawIndex, rawQueue] = await Promise.all([
+              env.SIGILLO_KV.get(managedActorIndexKey(campaignId)),
+              env.SIGILLO_KV.get(managedActorCreateRequestQueueKey(campaignId)),
+            ]);
+            const key = name.trim().normalize("NFKC").toLocaleLowerCase();
+            return (safeJsonParse(rawIndex)?.data || []).some(actor => actor.worldId === worldId && String(actor.name || "").trim().normalize("NFKC").toLocaleLowerCase() === key)
+              || readManagedActorCreateRequestQueue(rawQueue, campaignId).requests.some(entry => entry.clientId !== clientId && entry.targetWorldId === worldId && String(entry.document?.name || "").trim().normalize("NFKC").toLocaleLowerCase() === key);
+          },
+          enqueue: (body, creationId) => finishManagedActorMutation(handleManagedActorCreateRequestEnqueue(new Request(request.url, {
+            method: "POST", headers: request.headers, body: JSON.stringify(body),
+          }), queryCampaignId, env, corsHeaders, ctx, creationId), env, corsHeaders),
         });
         const headers = new Headers(result.headers);
         Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
@@ -1734,11 +1761,12 @@ export default {
     const url = new URL(request.url), path = url.pathname;
     let campaignId = getCampaignIdFromUrl(url);
     const managedRoute = /^\/api\/managed-actors(?:\/|$)/.test(path) || path.startsWith("/api/managed-actor-commands/")
-      || path.startsWith("/api/managed-actor-profiles/") || path === "/api/managed-actor-create-requests" || path === "/api/npc-categories";
+      || path.startsWith("/api/managed-actor-profiles/") || path === "/api/managed-actor-create-requests" || path === "/api/npc-categories"
+      || /^\/api\/npc-generation(?:\/|$)/.test(path);
     const itemsRoute = path === "/api/data/items" || path === "/api/item-categories";
     if (managedRoute && request.method === "POST") {
       // Native snapshots and drop generation use the campaign in their URL.
-      const body = path.endsWith("/snapshot") || path.includes("/drop-generation") ? null : await request.clone().json().catch(() => null);
+      const body = path.endsWith("/snapshot") || path.includes("/drop-generation") || path.startsWith("/api/npc-generation") ? null : await request.clone().json().catch(() => null);
       campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || campaignId);
       if (managedActorWritesPaused(env, campaignId) && !path.endsWith("/stop")) return json({ ok: false,
         error: "Salvataggi NPC temporaneamente sospesi per la migrazione. Riprova tra poco.", code: "MANAGED_ACTOR_WRITES_PAUSED" }, 503,
@@ -6586,7 +6614,7 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
 }
 
 
-async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
+async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignId, env, corsHeaders = {}, ctx = null, creationRequestId = "") {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   let body;
   try {
@@ -6644,7 +6672,7 @@ async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignI
   } else {
     if (queue.requests.length >= 128) return json({ ok: false, error: "Managed actor create queue is full" }, 429, corsHeaders);
     createRequest = {
-      id: crypto.randomUUID(),
+      id: creationRequestId || crypto.randomUUID(),
       kind: "actor.create",
       campaignId,
       clientId,

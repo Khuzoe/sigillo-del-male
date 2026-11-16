@@ -202,6 +202,7 @@ function parseYamlLite(yamlText) {
                 }) || (() => {});
                 refreshRosterFilters();
                 if (currentUserIsDm) setupManagedNpcCreateWizard({ managedState, categoryRegistry, rosterState });
+                if (currentUserIsDm) setupNpcGeneration({ managedState, categoryRegistry });
             } catch (error) {
                 console.error("Errore nel caricamento degli NPC:", error);
                 npcListContainer.innerHTML = '<p style="color: var(--red);">Impossibile caricare la lista degli NPC.</p>';
@@ -313,7 +314,7 @@ function parseYamlLite(yamlText) {
                 lifeState: profile.lifeState || 'unknown',
                 statusNote: request?.status || 'pending',
                 kind: profile.kind === 'creature' ? 'creature' : 'person',
-                tags: Array.from(new Set([...(Array.isArray(profile.tags) ? profile.tags : []), ...(Array.isArray(actor?.capabilities) ? actor.capabilities : [])])),
+                tags: Array.isArray(profile.tags) ? [...new Set(profile.tags)] : [],
                 archived: false,
                 pendingCreate: true,
                 createStatus: request?.status || 'pending',
@@ -402,6 +403,19 @@ function parseYamlLite(yamlText) {
             if (!trigger || trigger.dataset.managedCreateReady === 'true') return;
             trigger.dataset.managedCreateReady = 'true';
             trigger.addEventListener('click', () => openManagedNpcCreateWizard({ managedState, categoryRegistry }));
+        }
+
+        function setupNpcGeneration({ managedState, categoryRegistry }) {
+            const trigger = document.querySelector('[data-npc-generate]');
+            if (!trigger || trigger.dataset.generatorReady) return;
+            trigger.dataset.generatorReady = 'true';
+            trigger.addEventListener('click', () => window.CriptaNpcGenerator?.open({
+                npcs: managedState.npcs.filter(npc => npc.managedActorWorldId && npc.managedActorId),
+                worlds: managedState.worldIds || [],
+                categories: selectableNpcCategories(categoryRegistry),
+                initialKind: document.querySelector('[data-roster-type].is-active')?.dataset.rosterType === 'creature' ? 'creature' : 'person',
+                onCreated: () => window.location.reload()
+            }));
         }
 
         function openManagedNpcCreateWizard({ managedState = {}, categoryRegistry = {} } = {}) {
