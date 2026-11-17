@@ -209,10 +209,11 @@ function parseYamlLite(yamlText) {
             }
         });
 
-        async function loadManagedNpcEntries(visibleLegacyNpcs = []) {
+        async function loadManagedNpcEntries(visibleLegacyNpcs = [], requestOptions = {}) {
             if (typeof window.CriptaApp?.api?.get !== 'function') return { managedLegacyCharacterIds: [], npcCategories: [], npcs: [] };
             const token = String(window.CriptaDiscordAuth?.getToken?.() || '').trim();
             const payload = await window.CriptaApp.api.get('api/managed-actors?view=directory', {
+                ...requestOptions,
                 cache: false,
                 ...(token ? { token } : {})
             });
@@ -413,6 +414,11 @@ function parseYamlLite(yamlText) {
                 npcs: managedState.npcs.filter(npc => npc.managedActorWorldId && npc.managedActorId),
                 worlds: managedState.worldIds || [],
                 categories: selectableNpcCategories(categoryRegistry),
+                loadReferences: async ({ signal } = {}) => {
+                    const fresh = await loadManagedNpcEntries([], { signal });
+                    const registry = window.CriptaNpcCategories.normalizeRegistry({ categories: fresh.npcCategories });
+                    return fresh.npcs.filter(npc => npc.managedActorWorldId && npc.managedActorId).map(npc => applyNpcCategoryMetadata(npc, registry));
+                },
                 initialKind: document.querySelector('[data-roster-type].is-active')?.dataset.rosterType === 'creature' ? 'creature' : 'person',
                 onCreated: () => window.location.reload()
             }));
@@ -1058,6 +1064,7 @@ function parseYamlLite(yamlText) {
             const empty = document.getElementById('npc-filter-empty');
             const createAction = document.querySelector('[data-npc-create-link]');
             const editToggle = document.querySelector('[data-npc-edit-toggle]');
+            const generateAction = document.querySelector('[data-npc-generate]');
             const state = { query: '', npcStatus: 'all', type: 'person', showArchived: false, editing: false, sortMode: normalizeNpcRosterSortMode(options.sortMode) };
 
             const syncSortSwitch = () => {
@@ -1069,6 +1076,7 @@ function parseYamlLite(yamlText) {
             };
 
             const apply = () => {
+                if (generateAction) generateAction.hidden = options.canEdit !== true;
                 if (editToggle) {
                     editToggle.hidden = options.canEdit !== true;
                     editToggle.classList.toggle('is-active', state.editing);

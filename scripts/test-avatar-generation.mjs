@@ -316,27 +316,12 @@ try {
 } finally { globalThis.fetch = originalFetch; }
 console.log("Avatar generation: permissions, reference, fixed style/format, idempotency, recovery, unlimited attempts with preserved usage, private preview, explicit confirmation and data preservation passed (no real API calls).");
 
-// Exercise the actual appearance panel, not the obsolete standalone media renderer.
-const frontendSource = await readFile(new URL("../assets/js/pages/managed-actor.js", import.meta.url), "utf8");
-const frontend = { window: { CriptaApp: { onPageReady() {}, utils: { resolveImageUrl: (path) => path } } } };
-vm.runInNewContext(frontendSource.replace(/\}\)\(\);\s*$/, `
-    globalThis.renderAppearance = (actor) => { currentDocument = actor; return renderAdmin(actor); };
-    globalThis.renderPortraitAction = (actor) => { currentDocument = actor; return renderManagedAvatarGenerateAction(actor.media?.avatar); };
-    globalThis.bindGenerator = setupManagedAvatarGenerator;
-})();`), frontend);
-const editorActor = { actorType: "npc", media: { avatar: { path: referenceKey } }, permissions: { isEditor: true } };
+// Media editing remains available; AI actions now live in the common tools panel.
+const frontendSource = await readFile(new URL('../assets/js/pages/managed-actor.js', import.meta.url), 'utf8');
+const frontend = { window: { CriptaApp: { onPageReady() {}, utils: { resolveImageUrl: path => path } } } };
+vm.runInNewContext(frontendSource.replace(/\}\)\(\);\s*$/, `globalThis.renderAppearance = actor => { currentDocument = actor; return renderAdmin(actor); };})();`), frontend);
+const editorActor = { actorType: 'npc', media: { avatar: { path: referenceKey } }, permissions: { isEditor: true } };
 const appearance = frontend.renderAppearance(editorActor);
-assert.equal((appearance.match(/data-managed-generate-avatar(?:\s|>)/g) || []).length, 1, "real appearance editor includes exactly one generation button");
-assert.match(appearance, /data-managed-generate-avatar\s*>/, "generation is enabled with a reference image");
-assert.match(frontend.renderAppearance({ ...editorActor, media: {} }), /data-managed-generate-avatar disabled/, "without a reference image the button is visible but disabled");
-assert.doesNotMatch(frontend.renderAppearance({ ...editorActor, permissions: { isEditor: false, isOwner: true } }), /data-managed-generate-avatar/, "companion ownership alone does not show generation");
-assert.doesNotMatch(frontend.renderAppearance({ ...editorActor, actorType: "character" }), /data-managed-generate-avatar/, "generation is limited to NPCs");
-const portraitAction = frontend.renderPortraitAction(editorActor);
-assert.ok(appearance.includes(portraitAction), "portrait and editor use the exact same button markup and CSS class");
-const buttons = [0, 1].map(() => ({ addEventListener(event, fn) { assert.equal(event, "click"); this.click = fn; }, closest() { return { querySelector: () => ({ textContent: "" }) }; } }));
-let opened = 0;
-frontend.window.CriptaAvatarGenerator = { open: (options) => { opened++; assert.equal(options.actor, editorActor); } };
-frontend.bindGenerator({ querySelectorAll: () => buttons });
-buttons.forEach((button) => button.click());
-assert.equal(opened, 2, "both entry points are wired, not just the first button");
-console.log("Avatar editor integration: actual appearance panel, reference availability and permission gates passed.");
+assert.match(appearance, /data-managed-file="avatar"/, 'Manual media upload remains available');
+assert.doesNotMatch(appearance, /data-managed-generate-avatar/, 'Avatar generation is centralized in AI tools');
+console.log('Avatar media editor integration passed; AI entry points are covered by test:npc-ai-tools.');

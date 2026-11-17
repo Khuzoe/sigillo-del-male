@@ -16,6 +16,7 @@ import { handleTileGeneration } from "./tile-generation.js";
 export { TileGenerationStore } from "./tile-generation.js";
 import { handleAbilityGeneration } from "./ability-generation.js";
 import { handleAbilityIcons } from "./ability-icons.js";
+import { handleAbilityTranslations } from './ability-translations.js';
 export { AbilityGenerationStore } from "./ability-generation.js";
 import { D1PollStore, PollStorageError } from "./poll-store.js";
 import { SkillTreeStateStore } from "./skill-tree-store.js";
@@ -189,21 +190,25 @@ const application = {
       if (url.pathname === "/api/session-journal/upsert" && request.method === "POST") {
         return handleSessionJournalUpsert(request, queryCampaignId, env, corsHeaders);
       }
-      const suggestionRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-suggestions$/i);
+      const suggestionRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-suggestions(?:\/([a-f0-9-]{36})\/(discard))?$/i);
       const iconRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-icons(?:\/([a-f0-9-]{36})\/(preview|confirm|stop))?$/i);
-      const abilityRouteMatch = suggestionRouteMatch || iconRouteMatch || url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-generation(?:\/([a-f0-9-]{36})\/(preview|save|icon|confirm|stop|reopen))?$/i);
+      const translationRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-translations(?:\/([a-f0-9-]{36})\/(confirm|stop))?$/i);
+      const abilityRouteMatch = suggestionRouteMatch || iconRouteMatch || translationRouteMatch || url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-generation(?:\/([a-f0-9-]{36})\/(preview|save|icon|confirm|stop|reopen))?$/i);
       if (abilityRouteMatch) {
         const actorRoute = matchManagedActorRoute(abilityRouteMatch[1]);
         if (!actorRoute) return json({ ok: false, error: "Invalid actor" }, 400, corsHeaders);
-        const result = await (iconRouteMatch ? handleAbilityIcons : handleAbilityGeneration)(request, { ...actorRoute, purpose: suggestionRouteMatch ? "suggestions" : "ability", jobId: abilityRouteMatch[2], action: abilityRouteMatch[3] }, queryCampaignId, env, {
+        const result = await (translationRouteMatch ? handleAbilityTranslations : iconRouteMatch ? handleAbilityIcons : handleAbilityGeneration)(request, { ...actorRoute, purpose: suggestionRouteMatch ? "suggestions" : "ability", jobId: abilityRouteMatch[2], action: abilityRouteMatch[3] }, queryCampaignId, env, {
           requireUser: (req) => requireUser(req, env, corsHeaders),
           isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
+          isOwner: (user, actor) => isManagedActorOwner(actor, user, env),
           nativeGenerationEnabled:npcNativeSnapshotD1Enabled(env,queryCampaignId),
           readActor: async (campaignId, route) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId))),
           readNativeActor: async (campaignId,route) => npcNativeSnapshotD1Enabled(env,campaignId)
             ? safeJsonParse(await env.SIGILLO_KV.get(npcNativeSnapshotKey(campaignId,route.worldId,route.actorId))) : null,
           readNativeCommands: async (campaignId,route) => npcNativeSnapshotD1Enabled(env,campaignId)
             ? readManagedActorCommandQueue(await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId,route.worldId)),campaignId,route.worldId).commands.filter(command=>command.actorId===route.actorId) : [],
+          readCommands: async (campaignId,route) => readManagedActorCommandQueue(await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId,route.worldId)),campaignId,route.worldId).commands.filter(command=>command.actorId===route.actorId),
+          enqueueItemAi: (body, requestId) => finishManagedActorMutation(handleManagedActorCommandEnqueue(new Request(request.url, {method:'POST',headers:request.headers,body:JSON.stringify(body)}),actorRoute,queryCampaignId,env,corsHeaders,ctx,requestId),env,corsHeaders),
           enqueueNativeEditor: body => finishManagedActorMutation(handleNpcNativeEditor(new Request(request.url,{method:"POST",headers:request.headers,body:JSON.stringify(body)}),actorRoute,queryCampaignId,env,corsHeaders,ctx),env,corsHeaders),
           enqueueNativeSheet: body => finishManagedActorMutation(handleNpcNativeSheet(request,actorRoute,queryCampaignId,env,corsHeaders,ctx,body),env,corsHeaders),
           commandForReader: command => managedActorCommandForReader(command,false),
@@ -259,11 +264,11 @@ const application = {
         Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
         return new Response(result.body, { status: result.status, headers });
       }
-      const avatarRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/avatar-generation(?:\/([a-f0-9-]{36})\/(preview|confirm|stop))?$/i);
+      const avatarRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/(avatar|token)-generation(?:\/([a-f0-9-]{36})\/(preview|confirm|stop))?$/i);
       if (avatarRouteMatch) {
         const actorRoute = matchManagedActorRoute(avatarRouteMatch[1]);
         if (!actorRoute) return json({ ok: false, error: "Invalid actor" }, 400, corsHeaders);
-        const result = await handleAvatarGeneration(request, { ...actorRoute, jobId: avatarRouteMatch[2], action: avatarRouteMatch[3] }, queryCampaignId, env, {
+        const result = await handleAvatarGeneration(request, { ...actorRoute, slot: avatarRouteMatch[2].toLowerCase(), jobId: avatarRouteMatch[3], action: avatarRouteMatch[4] }, queryCampaignId, env, {
           requireUser: (req) => requireUser(req, env, corsHeaders),
           isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
           readActor: async (campaignId, route) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId))),
@@ -6395,7 +6400,7 @@ async function enqueueNpcDropItems(env, ctx, campaignId, route, actor, user, rec
   return json({ ok: true, commands: commands.map(command => managedActorCommandForReader(command, false)) }, 202);
 }
 
-async function handleManagedActorCommandEnqueue(request, route, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
+async function handleManagedActorCommandEnqueue(request, route, fallbackCampaignId, env, corsHeaders = {}, ctx = null, aiRequestId = '') {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   let body;
   try {
@@ -6414,6 +6419,13 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
   const authorization = await authorizeManagedActorStatsWrite(request, env, campaignId, corsHeaders, actor);
   if (authorization instanceof Response) return authorization;
   if (authorization.source !== "site") return json({ ok: false, error: "Managed actor commands must originate from the site" }, 400, corsHeaders);
+  // This id comes only from a validated AI job through the internal callback.
+  // Request body fields cannot opt a normal manual edit into this path.
+  if (aiRequestId) {
+    const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId,route.worldId)),campaignId,route.worldId);
+    const duplicate = queue.commands.find(command => command.actorId === route.actorId && command.clientRequestId === aiRequestId);
+    if (duplicate) return json({ok:true,queued:true,command:managedActorCommandForReader(duplicate,isAuthenticatedGlobalAdmin(authorization.user,env))},202,corsHeaders);
+  }
   const midiConfigPath = "flags.khuzoe-automations.midiRollConfig";
   const midiPatches = Array.isArray(body?.patches) ? body.patches.filter(patch => String(patch?.path || "").trim() === midiConfigPath) : [];
   const midiPatch = midiPatches[0];
@@ -6584,6 +6596,7 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
     command = {
       id: crypto.randomUUID(),
       kind,
+      ...(aiRequestId ? {clientRequestId:aiRequestId} : {}),
       ...(body.nativeAbilityVersion===1?{nativeAbilityVersion:1}:{}),
       campaignId,
       worldId: route.worldId,
@@ -7110,11 +7123,11 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
     ? input.runtime
     : (existing?.runtime || {});
   let site = source === "site" && input.site && typeof input.site === "object" ? input.site : (existing?.site || {});
-  if (Array.isArray(existing?.site?.avatarHistory)) {
-    // An editor opened before generation must not remove the retained avatar history.
-    const history = new Map([...existing.site.avatarHistory, ...(Array.isArray(site.avatarHistory) ? site.avatarHistory : [])]
+  for (const historyKey of ["avatarHistory", "tokenHistory"]) if (Array.isArray(existing?.site?.[historyKey])) {
+    // An editor opened before generation must not remove retained artwork.
+    const history = new Map([...existing.site[historyKey], ...(Array.isArray(site[historyKey]) ? site[historyKey] : [])]
       .filter((entry) => entry?.path).map((entry) => [entry.path, entry]));
-    site = { ...site, avatarHistory: [...history.values()] };
+    site = { ...site, [historyKey]: [...history.values()] };
   }
   return {
     schemaVersion: Math.max(1, Math.floor(Number(input.schemaVersion) || 1)),

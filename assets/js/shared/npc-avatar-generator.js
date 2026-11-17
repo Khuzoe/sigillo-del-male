@@ -1,41 +1,43 @@
 (function () {
     "use strict";
     window.CriptaAvatarGenerator = { open };
+    window.CriptaTokenGenerator = { open: options => open({ ...options, mediaSlot: "token" }) };
 
-    function open({ actor, token, referenceUrl, onApplied }) {
-        if (document.querySelector("[data-avatar-generator]")) return;
+    function open({ actor, token, referenceUrl, onApplied, mediaSlot = "avatar" }) {
+        const isToken = mediaSlot === "token", slot = isToken ? "token" : "avatar", costId = `npc-${slot}-cost-warning`;
+        if (document.querySelector(`[data-${slot}-generator]`)) return;
         const app = window.CriptaApp;
-        const base = `api/managed-actors/${encodeURIComponent(actor.worldId)}/${encodeURIComponent(actor.actorId)}/avatar-generation`;
-        const storageKey = `avatar-generation:${app.campaigns.currentId()}:${actor.worldId}:${actor.actorId}`;
+        const base = `api/managed-actors/${encodeURIComponent(actor.worldId)}/${encodeURIComponent(actor.actorId)}/${slot}-generation`;
+        const storageKey = `${slot}-generation:${app.campaigns.currentId()}:${actor.worldId}:${actor.actorId}`;
         let pendingRequest = null;
         try { pendingRequest = JSON.parse(sessionStorage.getItem(storageKey)); } catch (_) { /* Storage may be unavailable. */ }
         const previousFocus = document.activeElement;
         const dialog = document.createElement("dialog");
-        dialog.className = "npc-avatar-generator";
-        dialog.dataset.avatarGenerator = "";
-        dialog.setAttribute("aria-labelledby", "npc-avatar-generator-title");
+        dialog.className = `npc-avatar-generator${isToken ? " npc-token-generator" : ""}`;
+        dialog.dataset[isToken ? "tokenGenerator" : "avatarGenerator"] = "";
+        dialog.setAttribute("aria-labelledby", `npc-${slot}-generator-title`);
         dialog.innerHTML = `
-          <header><div><small>ILLUSTRAZIONE DEL PERSONAGGIO</small><h2 id="npc-avatar-generator-title">Genera avatar</h2></div><button type="button" data-close aria-label="Chiudi">×</button></header>
+          <header><div><small>${isToken ? "TOKEN DEL PERSONAGGIO" : "ILLUSTRAZIONE DEL PERSONAGGIO"}</small><h2 id="npc-${slot}-generator-title">Genera ${slot}</h2></div><button type="button" data-close aria-label="Chiudi">×</button></header>
           <div class="npc-avatar-generator__body">
             <p data-name></p>
             <p class="npc-avatar-generator__status" data-status role="status" aria-live="polite">Caricamento…</p>
             <button type="button" data-refresh hidden>Riprova caricamento</button><p data-stop-note class="npc-avatar-generator__hint" hidden>Interrompere l’attesa libera il generatore. Non garantisce l’annullamento della chiamata o del relativo costo.</p>
             <div class="npc-avatar-generator__images">
               <figure><figcaption>Avatar attuale · riferimento</figcaption><div><img data-reference alt="Avatar attuale usato come riferimento"><button type="button" data-enlarge="reference" aria-label="Ingrandisci avatar attuale">⤢ Ingrandisci</button></div></figure>
-              <figure><figcaption>Nuova proposta</figcaption><div><img data-preview alt="Anteprima del nuovo avatar" hidden><p data-placeholder>La nuova illustrazione apparirà qui.</p><button type="button" data-enlarge="preview" aria-label="Ingrandisci nuova proposta" hidden>⤢ Ingrandisci</button></div></figure>
+              <figure><figcaption>${isToken ? "Nuovo token · 1:1" : "Nuova proposta"}</figcaption><div><img data-preview alt="Anteprima del nuovo ${slot}" hidden><p data-placeholder>${isToken ? "Il nuovo token apparirà qui." : "La nuova illustrazione apparirà qui."}</p><button type="button" data-enlarge="preview" aria-label="Ingrandisci nuova proposta" hidden>⤢ Ingrandisci</button></div></figure>
             </div>
             <div class="npc-avatar-generator__options">
-              <label>Qualità<select data-quality aria-describedby="npc-avatar-cost-warning"><option value="medium">Media</option><option value="high" selected>Alta</option><option value="xhigh" disabled>Extra alta · alto costo</option></select></label>
-              <label>Risoluzione<select data-resolution aria-describedby="npc-avatar-cost-warning"><option value="medium">Media · 864 × 1536</option><option value="high" selected>Alta · 1296 × 2304</option><option value="2k" disabled>2K · 1440 × 2560 · alto costo</option></select></label>
+              <label>Qualità<select data-quality aria-describedby="${costId}"><option value="medium">Media</option><option value="high" selected>Alta</option><option value="xhigh" disabled>Extra alta · alto costo</option></select></label>
+              <label>Risoluzione<select data-resolution aria-describedby="${costId}"><option value="medium">Media · ${isToken ? "1024 × 1024" : "864 × 1536"}</option><option value="high" selected>Alta · ${isToken ? "1536 × 1536" : "1296 × 2304"}</option><option value="2k" disabled>2K · ${isToken ? "2048 × 2048" : "1440 × 2560"} · alto costo</option></select></label>
             </div>
             <p class="npc-avatar-generator__hint">Qualità e risoluzione più alte consumano più budget.</p>
-            <p class="npc-avatar-generator__cost" id="npc-avatar-cost-warning" data-cost-warning role="note" aria-live="polite" hidden><strong>Solo per NPC importanti, alto costo!</strong></p>
+            <p class="npc-avatar-generator__cost" id="${costId}" data-cost-warning role="note" aria-live="polite" hidden><strong>Solo per NPC importanti, alto costo!</strong></p>
             <p class="npc-avatar-generator__hint" data-options-unavailable hidden>Queste impostazioni richiedono il Worker aggiornato.</p>
-            <label class="npc-avatar-generator__direction">Dettagli aggiuntivi <span>(facoltativi)</span><textarea maxlength="1500" rows="3" data-details placeholder="Ad esempio: posa fiera, mantello mosso dal vento, una cripta sullo sfondo…"></textarea></label>
-            <p class="npc-avatar-generator__hint">Figura intera · nuova posa · verticale 9:16. L’avatar attuale viene inviato come riferimento al servizio di generazione OpenAI.</p>
-            <details><summary>Stile artistico fisso</summary><p data-style></p></details>
+            <label class="npc-avatar-generator__direction">Dettagli aggiuntivi <span>(facoltativi)</span><textarea maxlength="1500" rows="3" data-details placeholder="${isToken ? "Ad esempio: cornice di pietra antica, dettagli dorati, luce lunare." : "Ad esempio: posa fiera, mantello mosso dal vento, una cripta sullo sfondo…"}"></textarea></label>
+            <p class="npc-avatar-generator__hint">${isToken ? "Volto e busto · cornice circolare intera · quadrato 1:1 · esterno trasparente. Il modello sceglie angolazione e posa. " : "Figura intera · nuova posa · verticale 9:16. "}L’avatar attuale viene inviato come riferimento al servizio di generazione OpenAI.</p>
+            <details><summary>${isToken ? "Composizione del token" : "Stile artistico fisso"}</summary><p data-style></p></details>
           </div>
-          <footer><span>Ogni generazione usa il budget API. L’avatar cambia solo con la tua conferma.</span><div><button type="button" data-stop hidden>Interrompi attesa</button><button type="button" data-generate disabled>Genera anteprima</button><button type="button" class="npc-avatar-generator__confirm" data-confirm disabled>Usa questo avatar</button></div></footer>`;
+          <footer><span>Ogni generazione usa il budget API. ${isToken ? "Il token" : "L’avatar"} cambia solo con la tua conferma.</span><div><button type="button" data-stop hidden>Interrompi attesa</button><button type="button" data-generate disabled>Genera anteprima</button><button type="button" class="npc-avatar-generator__confirm" data-confirm disabled>Usa questo ${slot}</button></div></footer>`;
         document.body.appendChild(dialog);
         const el = (selector) => dialog.querySelector(selector);
         el("[data-name]").textContent = actor.name || "NPC";
@@ -98,7 +100,7 @@
             if (["pending", "running"].includes(job?.status)) {
                 const seconds = Math.max(0, Math.floor((Date.now() - Date.parse(job.startedAt || job.createdAt)) / 1000));
                 const elapsed = Number.isFinite(seconds) && seconds >= 60 ? ` In attesa da ${Math.floor(seconds / 60)} min.` : "";
-                status(`Sto dipingendo il nuovo avatar.${elapsed} Puoi chiudere questa finestra e continuare a usare la wiki; l’anteprima resterà qui.`);
+                status(`${isToken ? "Sto creando il nuovo token." : "Sto dipingendo il nuovo avatar."}${elapsed} Puoi chiudere questa finestra e continuare a usare la wiki; l’anteprima resterà qui.`);
                 el("[data-refresh]").hidden = false; el("[data-refresh]").textContent = "Controlla stato";
                 timer = setTimeout(refresh, 10000);
                 return;
@@ -119,7 +121,7 @@
                     el('[data-enlarge="preview"]').hidden = false;
                     previewId = job.id;
                 }
-                status(job.status === "accepted" ? "Questa proposta è già stata confermata." : "Controlla la proposta. Se ti piace, scegli «Usa questo avatar».");
+                status(job.status === "accepted" ? "Questa proposta è già stata confermata." : `Controlla la proposta. Se ti piace, scegli «Usa questo ${slot}».`);
             } else if (job?.error) status(job.error, true);
             else status(enabled ? "Pronto: il ritratto attuale guiderà l’aspetto del personaggio." : disabledReason);
             if (!enabled) status(disabledReason, true);
@@ -138,8 +140,9 @@
                 canStop = payload.canStop === true;
                 supportedResolutions = Array.isArray(payload.supportedResolutions) ? payload.supportedResolutions.filter(value => ["medium", "high", "2k"].includes(value)) : ["medium", "high"];
                 supportedQualities = Array.isArray(payload.supportedQualities) ? payload.supportedQualities.filter(value => ["medium", "high", "xhigh"].includes(value)) : ["medium", "high"];
-                enabled = payload.enabled && payload.optionsVersion === 1;
-                disabledReason = payload.optionsVersion === 1
+                if (isToken && job && job.mediaSlot !== "token") throw new Error("La proposta non appartiene al generatore di token. Aggiorna il servizio.");
+                enabled = payload.enabled && payload.optionsVersion === 1 && (!isToken || payload.tokenGenerationVersion === 1);
+                disabledReason = isToken && payload.tokenGenerationVersion !== 1 ? "Aggiorna il servizio per generare token trasparenti." : payload.optionsVersion === 1
                     ? "Il generatore deve essere attivato dall’amministratore."
                     : "Aggiorna il Worker per generare con qualità e risoluzione selezionabili.";
                 loaded = true;
@@ -200,7 +203,7 @@
             applying = true;
             el("[data-close]").disabled = true;
             controls();
-            status("Salvataggio dell’avatar…");
+            status(isToken ? "Salvataggio del token…" : "Salvataggio dell’avatar…");
             try {
                 const payload = await (await request(`/${job.id}/confirm`, {})).json();
                 await onApplied(payload);
@@ -232,7 +235,7 @@
             const source = el(button.dataset.enlarge === "preview" ? "[data-preview]" : "[data-reference]");
             if (!source.src || source.hidden) return;
             zoomDialog = document.createElement("dialog");
-            zoomDialog.className = "npc-avatar-zoom";
+            zoomDialog.className = `npc-avatar-zoom${isToken && button.dataset.enlarge === "preview" ? " npc-token-zoom" : ""}`;
             zoomDialog.setAttribute("aria-label", source.alt);
             zoomDialog.innerHTML = '<header><strong></strong><div><button type="button" data-zoom-size aria-pressed="false">Dimensione reale</button><button type="button" data-zoom-close aria-label="Chiudi anteprima ingrandita">×</button></div></header><div class="npc-avatar-zoom__canvas"><img alt=""></div>';
             zoomDialog.querySelector("strong").textContent = source.alt;

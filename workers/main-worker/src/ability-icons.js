@@ -1,6 +1,7 @@
 import {avatarReferenceKey} from './avatar-generation.js';
 import {generationStopResponse} from './generation-lifecycle.js';
 import {abilityIconSubject,abilityIconContext,ABILITY_ICON_PROMPT_VERSION,ABILITY_ICON_MODEL} from './ability-icon-prompt.js';
+import {canUseAbilityTools,managedAbilityItems,abilityHasPendingCommand} from './managed-ability-tools.js';
 
 const reply=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'private, no-store'}});
 const fail=(error,status=400)=>reply({ok:false,error},status);
@@ -12,15 +13,15 @@ const fingerprint=item=>JSON.stringify([item._id,item.img||'',iconDescription(it
 export async function handleAbilityIcons(request,route,campaignId,env,services) {
   const user=await services.requireUser(request);
   if(user instanceof Response)return user;
-  if(!await services.isEditor(user,campaignId))return fail('Solo il DM o l’admin può generare icone.',403);
   if(!env.ABILITY_GENERATOR||!env.MEDIA_BUCKET)return fail('Aggiorna il Worker per generare le icone.',503);
   const actor=await services.readActor(campaignId,route);
-  if(actor?.actorType!=='npc')return fail('NPC non trovato.',404);
-  const native=await services.readNativeActor?.(campaignId,route);
-  const items=(native?.snapshot?.actor?.items||[]).filter(item=>['feat','weapon'].includes(item.type));
-  const canSync=native?.snapshot?.versions?.nativeEditor===1;
-  const commands=await services.readNativeCommands?.(campaignId,route)||[];
-  const blocked=item=>commands.some(c=>c.status==='pending'&&(c.nativeSheetVersion||c.kind.startsWith('actor-link.')||c.target?.id===item._id||c.target?.itemId===item._id||c.target?.transferId&&c.target.transferId===item.flags?.['cripta-wiki-sync']?.transferId));
+  if(!await canUseAbilityTools(user,actor,campaignId,services))return fail('Solo il DM o il proprietario del personaggio può generare icone.',403);
+  const player=actor.actorType!=='npc';
+  const native=player?null:await services.readNativeActor?.(campaignId,route);
+  const items=player?managedAbilityItems(actor):(native?.snapshot?.actor?.items||[]).filter(item=>['feat','weapon','spell'].includes(item.type));
+  const canSync=player?actor.definition?.editor?.version===1:native?.snapshot?.versions?.nativeEditor===1;
+  const commands=await (player?services.readCommands?.(campaignId,route):services.readNativeCommands?.(campaignId,route))||[];
+  const blocked=item=>abilityHasPendingCommand(commands,item);
   const stub=env.ABILITY_GENERATOR.get(env.ABILITY_GENERATOR.idFromName('ability-generations-v1'));
   const context={campaignId,worldId:route.worldId,actorId:route.actorId,purpose:'ability-icons'};
   const call=(action,data={},itemId)=>stub.fetch(new Request(`https://ability.internal/${action}`,{method:'POST',body:JSON.stringify({...data,context:{...context,...(itemId?{itemId}:{})}})}));
@@ -28,7 +29,7 @@ export async function handleAbilityIcons(request,route,campaignId,env,services) 
     if(request.method==='GET'&&!route.action) {
       const response=await call('icon-list',{itemIds:items.map(item=>item._id)}),data=await response.json();
       if(!response.ok||data.abilityIcons!==1)return fail('Il generatore si sta aggiornando. Riprova tra poco.',503);
-      return reply({...data,enabled:Boolean(env.OPENAI_API_KEY),canSync,hasAvatar:Boolean(avatarReferenceKey(actor.media?.avatar?.path,campaignId)),items:items.map(item=>({id:item._id,name:item.name,img:actor.definition?.items?.find(entry=>entry.itemId===item._id)?.media?.icon?.path||item.img||'',blocked:blocked(item)}))});
+      return reply({...data,iconDirections:1,enabled:Boolean(env.OPENAI_API_KEY),canSync,hasAvatar:Boolean(avatarReferenceKey(actor.media?.avatar?.path,campaignId)),items:items.map(item=>({id:item._id,name:item.name,type:item.type,img:actor.definition?.items?.find(entry=>entry.itemId===item._id)?.media?.icon?.path||item.img||'',blocked:blocked(item)}))});
     }
     const itemId=new URL(request.url).searchParams.get('item');
     const item=items.find(item=>item._id===itemId);
@@ -51,6 +52,8 @@ export async function handleAbilityIcons(request,route,campaignId,env,services) 
       // Retrying the same paid request must recover it even if the source changed.
       const existing=await call('icon-existing',{id:body.requestId},itemId);
       if(existing.status!==404)return existing;
+      if((body.details!==undefined&&typeof body.details!=='string')||(typeof body.details==='string'&&body.details.length>1500))return fail('Le indicazioni aggiuntive devono essere un testo di massimo 1500 caratteri.');
+      const details=(body.details||'').trim();
       if(capabilities.imageModel!==ABILITY_ICON_MODEL)return fail('Il generatore si sta aggiornando a Sunburst 2.6. Nessuna nuova generazione è stata avviata. Riprova tra poco.',503);
       if(capabilities.iconPromptVersion!==ABILITY_ICON_PROMPT_VERSION)return fail('Il generatore sta aggiornando lo stile delle icone. Nessuna nuova generazione è stata avviata. Riprova tra poco.',503);
       if(blocked(item))return fail('Questa capacità ha modifiche in attesa di Foundry.',409);
@@ -58,7 +61,7 @@ export async function handleAbilityIcons(request,route,campaignId,env,services) 
       if(!reference||reference.size>12*1024*1024)return fail('Carica e salva un avatar sulla wiki (massimo 12 MB).');
       const description=iconDescription(item);
       if(description.length>16000)return fail('La descrizione della capacità è troppo estesa per generare l’icona.');
-      return call('create',{id:body.requestId,kind:'ability-icon',withIcon:true,draft:{name:item.name,iconPrompt:''},iconContext:abilityIconContext(item,items),iconPromptVersion:ABILITY_ICON_PROMPT_VERSION,sourceFingerprint:fingerprint(item),sourceImage:item.img||'',referenceKey,referenceEtag:reference.etag||''},itemId);
+      return call('create',{id:body.requestId,kind:'ability-icon',details,withIcon:true,draft:{name:item.name,iconPrompt:details},iconContext:abilityIconContext(item,items),iconPromptVersion:ABILITY_ICON_PROMPT_VERSION,sourceFingerprint:fingerprint(item),sourceImage:item.img||'',referenceKey,referenceEtag:reference.etag||''},itemId);
     }
     if(route.action!=='confirm')return fail('Operazione non supportata.',405);
     const response=await call('job',{id:route.jobId},itemId);
@@ -66,19 +69,21 @@ export async function handleAbilityIcons(request,route,campaignId,env,services) 
     const {job}=await response.json();
     if(job.kind!=='ability-icon')return fail('Generazione non valida.',409);
     if(job.status==='accepted')return reply({ok:true,command:job.command});
-    if(!job.prepared&&job.sourceFingerprint!==fingerprint(item))return fail('La capacità o la sua icona è cambiata. La proposta resta conservata.',409);
-    if(commands.some(c=>c.clientRequestId!==job.id&&c.status==='pending'&&(c.nativeSheetVersion||c.kind.startsWith('actor-link.')||c.target?.id===itemId||c.target?.itemId===itemId)))return fail('Attendi le modifiche già inviate a questa capacità.',409);
+    if(job.sourceFingerprint!==fingerprint(item)&&!(job.prepared&&commands.some(c=>c.clientRequestId===job.id)))return fail('La capacità o la sua icona è cambiata. La proposta resta conservata.',409);
+    if(abilityHasPendingCommand(commands,item,job.id))return fail('Attendi le modifiche già inviate a questa capacità.',409);
     const prepared=await call('prepare-icon',{id:job.id,icon:body.icon,iconId:body.iconId,mediaOrigin:new URL(request.url).origin},itemId);
     if(!prepared.ok)return prepared;
     const {document}=await prepared.json();
-    const queued=await services.enqueueNativeEditor({version:1,requestId:job.id,changes:[{target:{type:'Item',id:itemId},patches:[{path:'img',op:'set',baseExists:Object.hasOwn(item,'img'),...(Object.hasOwn(item,'img')?{baseValue:job.sourceImage}:{}),value:document.img}]}]});
+    const queued=player
+      ?await services.enqueueItemAi({expectedRevision:actor.revision,kind:'item.update',target:{itemId},patches:[{path:'img',baseValue:job.sourceImage,value:new URL(document.img).pathname.replace(/^\/+/, '')}]},job.id)
+      :await services.enqueueNativeEditor({version:1,requestId:job.id,changes:[{target:{type:'Item',id:itemId},patches:[{path:'img',op:'set',baseExists:Object.hasOwn(item,'img'),...(Object.hasOwn(item,'img')?{baseValue:job.sourceImage}:{}),value:document.img}]}]});
     if(!queued.ok) {
       // Validation/conflict rejections performed no queue write. Release the
       // frozen confirmation so a stale preview never prevents a new image.
       if([400,409].includes(queued.status))await call('unprepare-icon',{id:job.id},itemId);
       return queued;
     }
-    const result=await queued.json(),command=result.commands?.[0];
+    const result=await queued.json(),command=player?result.command:result.commands?.[0];
     const accepted=await call('accepted',{id:job.id,command},itemId);
     if(!accepted.ok)return accepted;
     return reply({ok:true,command},202);

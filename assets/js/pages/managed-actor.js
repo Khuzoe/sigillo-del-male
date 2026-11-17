@@ -579,8 +579,6 @@
         setupManagedStickyLayout(root);
         setupManagedGuidedMechanics(root);
         setupManagedImageLightbox(root);
-        setupManagedAvatarGenerator(root);
-        setupManagedDropGenerator(root);
         setupManagedAbilityGenerator(root);
         setupManagedAvatarFallback(root, actor.media);
         setupManagedProfileEditor(root, editMode);
@@ -2036,8 +2034,8 @@
         const editActions = editMode
             ? '<span class="managed-save-status" data-managed-status></span><button type="button" class="managed-command-secondary" data-managed-edit-toggle="view"><i class="fas fa-xmark"></i><span>Chiudi</span></button><button type="button" class="managed-command-primary" data-managed-save><i class="fas fa-cloud-arrow-up"></i><span>Salva scheda</span></button>'
             : '<button type="button" class="managed-command-primary" data-managed-edit-toggle="edit"><i class="fas fa-pen-to-square"></i><span>Modifica</span></button>';
-        const sheetAiAction=actor.actorType==='npc'&&actor.permissions?.isEditor===true?`<button type="button" class="managed-command-secondary" data-managed-ai-sheet ${actor.sync?.commands?.some(command=>command.nativeSheetVersion&&command.status==='pending')?'disabled':''}><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i><span>Modifica NPC con AI</span></button>`:'';
-        const actions = canEdit ? sheetAiAction + lifecycleAction + editActions : "";
+        const aiToolsAction = window.CriptaNpcAiTools?.toolsFor(actor).length ? '<button type="button" class="managed-command-secondary" data-managed-ai-tools aria-label="Strumenti AI" aria-haspopup="dialog"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i><span>Strumenti AI</span></button>' : '';
+        const actions = canEdit ? aiToolsAction + lifecycleAction + editActions : "";
         return `<div class="managed-command-bar"><nav class="managed-section-nav" aria-label="Sezioni della scheda"><div>${links.map(([id, icon, label]) => `<a href="#${id}"><i class="fas ${icon}" aria-hidden="true"></i><span>${escapeHtml(label)}</span></a>`).join("")}</div></nav><div class="managed-command-actions">${syncIndicator}${actions}</div></div>`;
     }
     function setupManagedStickyLayout(root) {
@@ -2741,8 +2739,7 @@
         const tools = entries.length > 5 ? `<div class="managed-collection-tools"><label class="managed-collection-search"><i class="fas fa-magnifying-glass"></i><input type="search" placeholder="Cerca ${escapeAttr(title.toLowerCase())}" aria-label="Cerca ${escapeAttr(title.toLowerCase())}" data-managed-entry-search></label>${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : filterButtons ? `<div class="managed-collection-tools">${filterButtons}<span class="managed-collection-result"><b data-managed-visible-count>${entries.length}</b> risultati</span></div>` : "";
         const overview = collectionKind === "inventory" && entries.length ? renderManagedInventoryOverview(entries) : "";
         const legendarySummary = collectionKind === "capabilities" ? renderManagedLegendaryCapabilitySummary() : "";
-        const dropButton = generateDrops ? '<div class="managed-ability-ai"><button type="button" class="button-gold-outline managed-primary-action" data-managed-generate-drop><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Genera drop</button><small data-managed-drop-status role="status"></small></div>' : "";
-        return `<details${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><summary class="managed-panel-heading managed-collection-summary"><div><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-collection-summary-meta"><span class="managed-count-badge">${entries.length}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-collection-body">${dropButton}${entries.length ? `${overview}${legendarySummary}${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</div></details>`;
+        return `<details${sectionId ? ` id="${escapeAttr(sectionId)}"` : ""} class="managed-panel managed-panel--wide managed-panel--entries managed-collection managed-collection--${collectionKind}" data-managed-collection="${collectionKind}"><summary class="managed-panel-heading managed-collection-summary"><div><h2><i class="fas ${panelIcon}"></i> ${escapeHtml(title)}</h2></div><span class="managed-collection-summary-meta"><span class="managed-count-badge">${entries.length}</span><i class="fas fa-chevron-down" aria-hidden="true"></i></span></summary><div class="managed-collection-body">${entries.length ? `${overview}${legendarySummary}${tools}<div class="managed-entry-groups">${groupedContent}</div>` : empty}${canEdit ? renderManagedItemCreator(title) : ""}</div></details>`;
     }
 
     function renderManagedLegendaryCapabilitySummary() {
@@ -4180,13 +4177,10 @@
             portrait.setAttribute("aria-label", "Ritratto del personaggio");
             dossier.classList.add("has-portrait");
             dossier.prepend(portrait);
-            const generateAction = renderManagedAvatarGenerateAction(actor.media?.avatar);
-            if (generateAction && !editing) portrait.insertAdjacentHTML("beforeend", generateAction);
             if (editing) {
                 const tools = document.createElement("div");
                 tools.className = "managed-edit-portrait-tools";
                 tools.innerHTML = '<span>Ritratto attuale</span>';
-                if (generateAction) tools.insertAdjacentHTML("beforeend", generateAction);
                 if (root.querySelector("#managed-appearance")) {
                     const button = document.createElement("button");
                     button.type = "button";
@@ -4778,8 +4772,7 @@
         const customCreator = `<details class="managed-create-editor" data-managed-item-create-form><summary><span><i class="fas fa-plus"></i> Crea elemento personalizzato</span><i class="fas fa-chevron-down"></i></summary><div class="managed-create-form"><div class="managed-item-fields"><label><span>Nome</span><input type="text" value="Nuovo elemento" data-managed-item-create-field="name"></label><label><span>Tipo</span><select data-managed-item-create-field="type">${options.map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label><label><span>Livello</span><input type="number" min="0" max="20" step="1" value="0" data-managed-item-create-field="level"></label><label class="managed-file-field" ${currentCanManageActor ? "" : "hidden"}><span>Icona</span><input type="file" accept="image/*" data-managed-item-create-field="icon"></label></div><label class="managed-item-description"><span>Descrizione</span><textarea rows="4" data-managed-item-create-field="description"></textarea></label><label class="managed-json-field"><span>Dati system iniziali</span><textarea rows="5" spellcheck="false" data-managed-item-create-field="system">{}</textarea></label><div class="managed-item-actions"><span data-managed-item-create-result></span><button type="button" class="button-gold-outline managed-primary-action" data-managed-item-create><i class="fas fa-plus"></i> Crea in Foundry</button></div></div></details>`;
         const canGenerate = currentDocument?.actorType === "npc" && currentDocument?.permissions?.isEditor === true && title !== "Inventario" && title !== "Incantesimi";
         const generatedPending = canGenerate ? (currentDocument.sync?.commands || []).filter(command => command.kind === "item.create" && command.document?.transferId?.startsWith("ai-ability-") && command.status !== "applied").map(command => `<div class="managed-ability-ai-pending" data-managed-ai-command="${escapeAttr(command.id)}"><strong>${escapeHtml(command.document.name)}</strong> · <span>${command.status === "pending" ? "In attesa di Foundry" : escapeHtml(command.error || "Sincronizzazione da verificare")}</span></div>`).join("") : "";
-        const generator = canGenerate ? `<div class="managed-ability-ai"><button type="button" class="button-gold-outline managed-primary-action" data-managed-generate-ability><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Crea abilità con AI</button><button type="button" class="button-gold-outline" data-managed-suggest-npc><i class="fas fa-lightbulb" aria-hidden="true"></i> Suggerisci modifiche</button><button type="button" class="button-gold-outline" data-managed-generate-icons><i class="fas fa-images" aria-hidden="true"></i> Genera icone abilità</button><small data-managed-generate-ability-status>Descrivi un’abilità oppure cerca idee a partire da avatar e scheda.</small></div>${generatedPending}` : "";
-        return `${generator}${catalogPicker}${customCreator}`;
+        return `${generatedPending}${catalogPicker}${customCreator}`;
     }
 
     function getManagedItemDesiredValue(entry, command, path) {
@@ -4869,13 +4862,7 @@
             const path = descriptor?.path || "";
             return `<fieldset class="managed-base-media managed-base-media--${slot}" data-managed-media-drop="${slot}"><legend><i class="fas fa-chess-pawn"></i> ${label}</legend><div class="managed-slot-list-preview ${path ? "has-preview" : "is-empty"}"><div class="managed-slot-list-preview-frame is-idle"><img ${path ? `src="${escapeAttr(resolveMedia(path))}"` : ""} alt="Anteprima lista ${label}" data-managed-list-adjust-image="${slot}" style="${renderManagedListAdjustStyle(presentation)}"></div><span>Lista NPC</span></div><label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label><div class="managed-adjust-heading"><i class="fas fa-sliders"></i> Regola nella lista</div><div class="managed-adjust-grid"><label><span>X</span><input type="number" min="0" max="100" step="1" value="${Number(presentation.x ?? 50)}" data-managed-adjust="${slot}:x"></label><label><span>Y</span><input type="number" min="0" max="100" step="1" value="${Number(presentation.y ?? 50)}" data-managed-adjust="${slot}:y"></label><label><span>Scala</span><input type="number" min="0.5" max="3" step="0.05" value="${Number(presentation.scale ?? 1)}" data-managed-adjust="${slot}:scale"></label></div></fieldset>`;
         }
-        const generate = renderManagedAvatarGenerateAction(descriptor);
-        return `<fieldset class="managed-base-media managed-base-media--${slot}" data-managed-media-drop="${slot}"><legend><i class="fas ${avatar ? "fa-image-portrait" : "fa-chess-pawn"}"></i> ${label}</legend><div class="managed-base-media-preview">${descriptor?.path ? renderImage(descriptor.path, label) : `<div class="managed-slot-placeholder"><i class="fas fa-image"></i><span>Nessuna immagine</span></div>`}<span>${escapeHtml(help)}</span></div><label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label>${generate}</fieldset>`;
-    }
-
-    function renderManagedAvatarGenerateAction(descriptor) {
-        if (currentDocument?.actorType !== "npc" || currentDocument?.permissions?.isEditor !== true) return "";
-        return `<div class="managed-avatar-generation"><button type="button" class="managed-avatar-generate-btn" data-managed-generate-avatar ${descriptor?.path ? "" : 'disabled title="Carica e salva prima un avatar da usare come riferimento"'}><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Genera avatar</button><small data-managed-generate-avatar-status role="status"></small></div>`;
+        return `<fieldset class="managed-base-media managed-base-media--${slot}" data-managed-media-drop="${slot}"><legend><i class="fas ${avatar ? "fa-image-portrait" : "fa-chess-pawn"}"></i> ${label}</legend><div class="managed-base-media-preview">${descriptor?.path ? renderImage(descriptor.path, label) : `<div class="managed-slot-placeholder"><i class="fas fa-image"></i><span>Nessuna immagine</span></div>`}<span>${escapeHtml(help)}</span></div><label class="managed-file-field"><span>Trascina qui o scegli</span><input type="file" accept="image/*" data-managed-file="${slot}"></label></fieldset>`;
     }
 
     async function openManagedAbilityAiEdit(root,item) {
@@ -4904,97 +4891,98 @@
                 finally { button.disabled = false; }
             });
         }
-        root.querySelectorAll('[data-managed-generate-icons]').forEach(button=>button.addEventListener('click',async()=>{
-            if (managedSaveInProgress || hasManagedUnsavedChanges(root)) { window.alert('Salva o annulla prima le modifiche alla scheda.'); return; }
-            if (!window.CriptaAbilityIcons) { window.alert('Ricarica la pagina per generare le icone.'); return; }
-            try {
-                await window.CriptaAbilityIcons.open({actor:currentDocument,token:getToken(),onQueued:command=>{
-                    if(command)rememberManagedCommand(command,old=>old.id===command.id);
-                    refreshManagedCommandIndicators(root);
-                    managedCommandPollAttempts=0; scheduleManagedCommandRefresh(root);
-                }});
-            } catch(error) { window.alert(error.message || 'Generatore icone non disponibile.'); }
-        }));
-        if(currentDocument.sync?.commands?.some(command=>command.nativeSheetVersion&&command.status==='pending'))for(const button of root.querySelectorAll('[data-managed-ai-edit],[data-managed-generate-ability],[data-managed-suggest-npc],[data-managed-generate-icons]')){button.disabled=true;button.title='Attendi il completamento della modifica completa in Foundry.';}
-        root.querySelectorAll('[data-managed-ai-sheet]').forEach(button=>button.addEventListener('click',async()=>{
-            if(managedSaveInProgress||hasManagedUnsavedChanges(root)){window.alert('Salva o annulla prima le modifiche alla scheda.');return;}
-            if(!window.CriptaNpcSheetAi){window.alert('Ricarica la pagina per aprire la modifica completa con AI.');return;}
-            try{await window.CriptaNpcSheetAi.open({actor:currentDocument,token:getToken(),editorAdapters:{descriptionHtml:buildManagedDescriptionEditorHtml,descriptionValue:serializeManagedDescriptionEditor,resolveMedia},onQueued:command=>{rememberManagedCommand(command,old=>old.id===command.id);renderManagedActor(root,currentDocument,currentCanEdit,managedEditMode,currentCanManageActor);}});}
-            catch(error){window.alert(error.message||'Impossibile aprire l’assistente NPC.');}
-        }));
-        root.querySelectorAll("[data-managed-ai-edit]").forEach(button=>button.addEventListener("click",()=>{
-            const item=currentDocument.definition?.items?.find(item=>item.itemId===button.dataset.managedAiEdit);
-            if(item)openManagedAbilityAiEdit(root,{id:item.itemId,name:item.name});
-        }));
-        root.querySelectorAll("[data-managed-generate-ability], [data-managed-suggest-npc]").forEach(button => button.addEventListener("click", async () => {
-            const status = button.closest(".managed-ability-ai").querySelector("[data-managed-generate-ability-status]");
-            if (managedSaveInProgress || hasManagedUnsavedChanges(root)) { status.textContent = "Salva prima le modifiche alla scheda, poi crea l’abilità."; return; }
-            if (!window.CriptaAbilityGenerator) { status.textContent = "Ricarica la pagina per aprire il generatore."; return; }
-            try {
-                const openGenerator = initialDetails => window.CriptaAbilityGenerator.open({actor: currentDocument, token: getToken(), initialDetails,editorAdapters:{descriptionHtml:buildManagedDescriptionEditorHtml,descriptionValue:serializeManagedDescriptionEditor,resolveMedia}, onQueued: async command => {
-                    rememberManagedCommand(command, entry => entry.id === command.id);
-                    renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
-                }});
-                if (button.hasAttribute("data-managed-suggest-npc")) {
-                    if (!window.CriptaNpcSuggestions) { status.textContent = "Ricarica la pagina per aprire i suggerimenti."; return; }
-                    await window.CriptaNpcSuggestions.open({actor: currentDocument, token: getToken(), referenceUrl: currentDocument.media?.avatar?.path ? resolveMedia(currentDocument.media.avatar.path) : "", onDevelop: openGenerator});
-                } else await openGenerator("");
-            } catch (error) { status.textContent = error.message || "Impossibile aprire il generatore."; }
-        }));
-    }
-
-    function canGenerateManagedDrops(actor) {
-        return actor?.actorType === "npc" && actor.permissions?.isEditor === true;
-    }
-
-    function setupManagedDropGenerator(root) {
-        root.querySelector("[data-managed-generate-drop]")?.addEventListener("click", () => {
-            const status = root.querySelector("[data-managed-drop-status]");
-            if (managedSaveInProgress || hasManagedUnsavedChanges(root)) {
-                status.textContent = "Salva o annulla prima le modifiche alla scheda.";
-                return;
-            }
-            if (!window.CriptaDropGenerator) {
-                status.textContent = "Ricarica la pagina per aprire il generatore.";
-                return;
-            }
-            const actor = currentDocument;
-            status.textContent = "";
-            window.CriptaDropGenerator.open({ actor, token: getToken(), onQueued: commands => {
-                if (!root.isConnected || currentDocument?.actorId !== actor.actorId || currentDocument.worldId !== actor.worldId) return;
-                for (const command of commands) {
-                    rememberManagedCommand(command, old => old.id === command.id || (old.kind === command.kind && old.target?.transferId === command.target?.transferId));
-                }
-                if (hasManagedUnsavedChanges(root)) return;
-                renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
-                const inventory = root.querySelector("#managed-inventory");
-                if (inventory) inventory.open = true;
-            } });
+        root.querySelectorAll('[data-managed-ai-tools]').forEach(button => button.addEventListener('click', () => openManagedAiTools(root)));
+        const pendingSheet = currentDocument.sync?.commands?.some(command => command.nativeSheetVersion && command.status === 'pending');
+        root.querySelectorAll('[data-managed-ai-edit]').forEach(button => {
+            if (pendingSheet) { button.disabled = true; button.title = 'Attendi il completamento della modifica completa in Foundry.'; }
+            button.addEventListener('click', () => {
+                const item = currentDocument.definition?.items?.find(item => item.itemId === button.dataset.managedAiEdit);
+                if (item) openManagedAbilityAiEdit(root, { id: item.itemId, name: item.name });
+            });
         });
     }
 
-    function setupManagedAvatarGenerator(root) {
-        root.querySelectorAll("[data-managed-generate-avatar]").forEach((button) => button.addEventListener("click", () => {
-            const status = button.closest(".managed-avatar-generation").querySelector("[data-managed-generate-avatar-status]");
-            if (managedSaveInProgress || hasManagedUnsavedChanges(root)) {
-                status.textContent = "Salva prima le modifiche alla scheda, poi genera il nuovo avatar.";
-                return;
+    function openManagedAiTools(root) {
+        if (!window.CriptaNpcAiTools) { window.alert('Ricarica la pagina per aprire gli strumenti AI.'); return; }
+        const actor = currentDocument;
+        window.CriptaNpcAiTools.open({ actor,
+            unsaved: hasManagedUnsavedChanges(root), saving: managedSaveInProgress,
+            blockedItemIds: (actor.definition?.items || []).filter(item => findManagedItemCommand(item)?.status === 'pending').map(item => item.itemId),
+            onAction: (action, item) => {
+                if (!root.isConnected || currentDocument?.actorId !== actor.actorId || currentDocument?.worldId !== actor.worldId) throw new Error('La scheda è cambiata. Riapri gli strumenti AI.');
+                return runManagedAiTool(root, action, item);
             }
-            if (!window.CriptaAvatarGenerator) { status.textContent = "Ricarica la pagina per aprire il generatore."; return; }
-            status.textContent = "";
-            window.CriptaAvatarGenerator.open({
-                actor: currentDocument, token: getToken(), referenceUrl: resolveMedia(currentDocument.media.avatar.path),
-                onApplied: async ({ avatar, revision }) => {
-                    const previous = currentDocument.media.avatar;
-                    const history = Array.isArray(currentDocument.site?.avatarHistory) ? [...currentDocument.site.avatarHistory] : [];
-                    if (previous?.path && !history.some((entry) => entry.path === previous.path)) history.push(previous);
-                    currentDocument = { ...currentDocument, revision, media: { ...currentDocument.media, avatar }, site: { ...currentDocument.site, avatarHistory: history } };
-                    if (currentProfile) currentProfile.media = { ...currentProfile.media, avatar };
+        });
+    }
+
+    async function runManagedAiTool(root, action, item) {
+        const actor = currentDocument;
+        if (!window.CriptaNpcAiTools?.toolsFor(actor).some(group => group.tools.some(tool => tool.id === action))) throw new Error('Questo strumento AI è riservato ai gestori della campagna o al proprietario del personaggio.');
+        if (managedSaveInProgress || hasManagedUnsavedChanges(root)) throw new Error('Salva o annulla prima le modifiche alla scheda.');
+        if (!['avatar', 'token', 'drop'].includes(action) && actor.sync?.commands?.some(command => command.nativeSheetVersion && command.status === 'pending')) throw new Error('Attendi il completamento della modifica completa in Foundry.');
+        const adapters = { descriptionHtml: buildManagedDescriptionEditorHtml, descriptionValue: serializeManagedDescriptionEditor, resolveMedia };
+        const onQueued = command => {
+            rememberManagedCommand(command, old => old.id === command.id);
+            renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
+        };
+        if (action === 'edit-ability') {
+            const target = actor.definition?.items?.find(entry => entry.itemId === item?.id);
+            if (!target) throw new Error('Capacità non più disponibile. Riapri la scheda.');
+            if (findManagedItemCommand(target)?.status === 'pending') throw new Error('Questa capacità ha modifiche in attesa di Foundry.');
+            return openManagedAbilityAiEdit(root, { id: target.itemId, name: target.name });
+        }
+        if (action === 'sheet') {
+            if (!window.CriptaNpcSheetAi) throw new Error('Ricarica la pagina per aprire la modifica della scheda.');
+            return window.CriptaNpcSheetAi.open({ actor, token: getToken(), editorAdapters: adapters, onQueued });
+        }
+        if (action === 'create-ability' || action === 'suggestions') {
+            if (!window.CriptaAbilityGenerator) throw new Error('Ricarica la pagina per aprire il generatore.');
+            const openGenerator = initialDetails => window.CriptaAbilityGenerator.open({ actor, token: getToken(), initialDetails, editorAdapters: adapters, onQueued });
+            if (action === 'create-ability') return openGenerator('');
+            if (!window.CriptaNpcSuggestions) throw new Error('Ricarica la pagina per aprire i suggerimenti.');
+            return window.CriptaNpcSuggestions.open({ actor, token: getToken(), referenceUrl: actor.media?.avatar?.path ? resolveMedia(actor.media.avatar.path) : '', onDevelop: openGenerator });
+        }
+        if (action === 'icons' || action === 'translate-abilities') {
+            const tool = action === 'icons' ? window.CriptaAbilityIcons : window.CriptaAbilityTranslations;
+            if (!tool) throw new Error('Ricarica la pagina per aprire questo strumento.');
+            return tool.open({ actor, token: getToken(), onQueued: command => {
+                if (command) rememberManagedCommand(command, old => old.id === command.id);
+                refreshManagedCommandIndicators(root);
+                managedCommandPollAttempts = 0; scheduleManagedCommandRefresh(root);
+            } });
+        }
+        if (action === 'drop') {
+            if (!window.CriptaDropGenerator) throw new Error('Ricarica la pagina per aprire il generatore di bottino.');
+            return window.CriptaDropGenerator.open({ actor, token: getToken(), onQueued: commands => {
+                if (!root.isConnected || currentDocument?.actorId !== actor.actorId || currentDocument.worldId !== actor.worldId) return;
+                for (const command of commands) rememberManagedCommand(command, old => old.id === command.id || (old.kind === command.kind && old.target?.transferId === command.target?.transferId));
+                if (hasManagedUnsavedChanges(root)) return;
+                renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
+                const inventory = root.querySelector('#managed-inventory');
+                if (inventory) inventory.open = true;
+            } });
+        }
+        if (action === 'avatar' || action === 'token') {
+            if (!actor.media?.avatar?.path) throw new Error('Carica e salva prima un avatar da usare come riferimento.');
+            const generator = action === 'token' ? window.CriptaTokenGenerator : window.CriptaAvatarGenerator;
+            if (!generator) throw new Error(`Ricarica la pagina per aprire il generatore ${action}.`);
+            return generator.open({ actor, token: getToken(), referenceUrl: resolveMedia(actor.media.avatar.path),
+                onApplied: async payload => {
+                    const descriptor = payload[action], historyKey = `${action}History`, previous = currentDocument.media?.[action];
+                    const history = Array.isArray(currentDocument.site?.[historyKey]) ? [...currentDocument.site[historyKey]] : [];
+                    if (previous?.path && !history.some(entry => entry.path === previous.path)) history.push(previous);
+                    currentDocument = { ...currentDocument, revision: payload.revision, media: { ...currentDocument.media, [action]: descriptor }, site: { ...currentDocument.site, [historyKey]: history } };
+                    if (currentProfile && action === 'avatar') currentProfile.media = { ...currentProfile.media, avatar: descriptor };
                     window.CriptaApp.api.clearCache?.();
                     renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
                 }
             });
-        }));
+        }
+        throw new Error('Strumento AI non disponibile.');
+    }
+
+    function canGenerateManagedDrops(actor) {
+        return actor?.actorType === 'npc' && actor.permissions?.isEditor === true;
     }
 
     function renderSiteSlotEditor(slot, descriptor, fallbackDescriptor = null) {

@@ -1,0 +1,30 @@
+.npc-ai-tools { width: min(940px, calc(100vw - 32px)); }
+.npc-ai-tools__intro { margin: 0 0 16px; color: #c5c1b8; }
+.npc-ai-tools__catalog { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.npc-ai-tools h3 { margin: 0 0 10px; color: #dec28a; font: 600 15px/1.4 Montserrat, sans-serif; }
+.npc-ai-tools__grid { display: grid; gap: 10px; }
+.npc-ai-tools .npc-ai-tools__tool { display: flex; align-items: flex-start; gap: 13px; width: 100%; padding: 16px; text-align: left; background: #101115; }
+.npc-ai-tools__tool > i { flex: 0 0 22px; padding-top: 3px; color: #dec28a; text-align: center; font-size: 20px; }
+.npc-ai-tools__tool > span { display: grid; gap: 5px; min-width: 0; }
+.npc-ai-tools__tool strong, .npc-ai-tools__ability-list strong { font-size: 14px; }
+.npc-ai-tools__tool span > span, .npc-ai-tools__ability-list span { color: #b8b7c0; font-size: 12px; line-height: 1.5; }
+.npc-ai-tools .npc-ai-tools__tool:disabled { opacity: .72; }
+.npc-ai-tools__tool em { font-size: 11px; font-style: normal; color: #e0b48d; }
+.npc-ai-tools [data-ai-error] { color: #ffb5a8; }
+.npc-ai-tools [data-ai-notice] { padding: 10px 12px; border: 1px solid #a88b5155; border-radius: 8px; color: #e0c298; background: #a88b5110; }
+.npc-ai-tools .npc-ai-tools__back { margin-bottom: 16px; padding: 6px 10px; min-height: 36px; font-size: 12px; }
+.npc-ai-tools__search { display: grid; gap: 6px; font-size: 12px; color: #c5c1b8; }
+.npc-ai-tools__search input { min-width: 0; width: 100%; box-sizing: border-box; min-height: 42px; padding: 10px; border: 1px solid #55515c; border-radius: 8px; background: #101115; color: #eeebe5; font: inherit; }
+.npc-ai-tools__search input:focus-visible { outline: 2px solid #e4c689; outline-offset: 2px; }
+.npc-ai-tools__ability-list { display: grid; gap: 8px; margin-top: 12px; max-height: 45dvh; overflow-y: auto; }
+.npc-ai-tools__ability-list button { display: grid; gap: 4px; text-align: left; }
+.managed-command-actions [data-managed-ai-tools] { border-color: #a88b51; color: #e4c689; }
+@media (max-width: 640px) {
+    .npc-ai-tools { width: calc(100vw - 16px); max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); border-radius: 12px; }
+    .npc-ai-tools header { padding: 16px 18px 10px; }
+    .npc-ai-tools h2 { font-size: 23px; }
+    .npc-ai-tools .npc-avatar-generator__body { padding: 0 18px 16px; }
+    .npc-ai-tools__catalog { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+    .npc-ai-tools footer { padding: 12px 18px; gap: 12px; }
+    .npc-ai-tools footer > span { font-size: 10px; }
+}

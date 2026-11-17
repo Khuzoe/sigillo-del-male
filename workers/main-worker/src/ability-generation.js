@@ -15,14 +15,16 @@ import {NPC_SHEET_AI_FORMAT,NPC_SHEET_AI_COMPILER,NPC_SHEET_AI_SCHEMA,npcSheetPr
 import {NPC_SHEET_AI_INSTRUCTIONS} from "./npc-sheet-ai-context.js";
 import {handleNpcSheetAi} from "./npc-sheet-ai-service.js";
 import {npcSheetJobStorage,MAX_SHEET_JOB_BYTES} from "./npc-sheet-job-storage.js";
+import {generateAbilityTranslation} from './ability-translations.js';
+import {validateAbilityTranslation} from '../../../assets/js/shared/ability-translation.mjs';
 
 export const ABILITY_MODEL = "gpt-5.6-terra";
 const PRIVATE = "_private/ai-abilities/";
 const pending = job => ["pending", "running", "icon-pending", "icon-running"].includes(job?.status);
 const reply = (data, status = 200) => Response.json(data, {status, headers: {"Cache-Control": "private, no-store"}});
 const fail = (error, status = 400) => reply({ok: false, error}, status);
-const scope = context => `${context.campaignId}:${context.worldId}:${context.actorId}${context.purpose === "ability-icons" ? `:icons:${context.itemId || ""}` : context.purpose === "native-sheet" ? ":sheet" : context.purpose === "suggestions" ? ":suggestions" : context.purpose === "native-ability" ? ":native" : context.purpose === "native-ability-edit" ? `:edit:${context.itemId}` : ""}`;
-const publicJob = job => job ? {id: job.id, status: job.status, details: job.details, ...(job.kind==="ability-icon"?{channel:"icons",itemId:job.context.itemId}:{}), ...(job.context?.purpose==="native-ability"?{channel:"native"}:job.context?.purpose==="native-ability-edit"?{channel:"edit",itemId:job.context.itemId}:{}), ...(job.format===NPC_SHEET_AI_FORMAT?{channel:'sheet',usesAvatar:Boolean(job.referenceKey),sheetOptions:{mode:job.options.mode,sharedRuntime:job.options.sharedRuntime,capabilities:job.options.capabilities,protectedEffects:npcSheetProtectedEffects(job.actorSource)}}:{}), ...(job.format ? {format:job.format} : {}), ...(job.recoveredAt?{recoveredAt:job.recoveredAt}:{}), draft: job.draft || null, report: job.report || null, iconId: job.iconId || "", iconAttempt: job.iconAttempt || "", iconError: job.iconError || "", error: job.error || "", errorDetail: job.errorDetail || null, iconErrorDetail: job.iconErrorDetail || null, command: job.command || null, createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job)} : null;
+const scope = context => `${context.campaignId}:${context.worldId}:${context.actorId}${context.purpose === 'ability-translations' ? `:translations:${context.itemId || ''}` : context.purpose === "ability-icons" ? `:icons:${context.itemId || ""}` : context.purpose === "native-sheet" ? ":sheet" : context.purpose === "suggestions" ? ":suggestions" : context.purpose === "native-ability" ? ":native" : context.purpose === "native-ability-edit" ? `:edit:${context.itemId}` : ""}`;
+const publicJob = job => job ? {id: job.id, status: job.status, details: job.details, ...(job.kind==="ability-translation"?{channel:"translations",itemId:job.context.itemId}:job.kind==="ability-icon"?{channel:"icons",itemId:job.context.itemId}:{}), ...(job.context?.purpose==="native-ability"?{channel:"native"}:job.context?.purpose==="native-ability-edit"?{channel:"edit",itemId:job.context.itemId}:{}), ...(job.format===NPC_SHEET_AI_FORMAT?{channel:'sheet',usesAvatar:Boolean(job.referenceKey),sheetOptions:{mode:job.options.mode,sharedRuntime:job.options.sharedRuntime,capabilities:job.options.capabilities,protectedEffects:npcSheetProtectedEffects(job.actorSource)}}:{}), ...(job.format ? {format:job.format} : {}), ...(job.recoveredAt?{recoveredAt:job.recoveredAt}:{}), draft: job.draft || null, report: job.report || null, iconId: job.iconId || "", iconAttempt: job.iconAttempt || "", iconError: job.iconError || "", error: job.error || "", errorDetail: job.errorDetail || null, iconErrorDetail: job.iconErrorDetail || null, command: job.command || null, createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job)} : null;
 const preparedDocument=job=>job.format===NPC_SHEET_AI_FORMAT&&job.prepared?{...job.prepared,draft:job.prepared.draft||job.draft}:job.prepared;
 const validateDraft=(input,format,job)=>format===NPC_SHEET_AI_FORMAT?validateNpcSheetDraft(input,job.actorSource,job.options):format===NATIVE_ABILITY_EDIT_FORMAT?validateNativeAbilityEditDraft(input,job?.itemSource,job?.capabilities||input?.capabilities||{}):format===NATIVE_ABILITY_FORMAT?validateNativeAbilityDraft(input):validateAbility(input);
 // Keep rejected edits privately so a corrected compiler can recover them
@@ -110,6 +112,7 @@ export async function handleAbilityGeneration(request, route, campaignId, env, s
   try {
     if (route.action === "stop") return generationStopResponse(await call("stop", {id: route.jobId, attemptId: body.attemptId}));
     if (suggestions) {
+      if (route.action === "discard") return call("discard-suggestions", {id: route.jobId});
       if (route.action) return fail("L’analisi non può modificare l’NPC.", 405);
       if (!env.OPENAI_API_KEY) return fail("Il generatore deve essere attivato dall’amministratore.", 503);
       if (!/^[a-f0-9-]{36}$/i.test(body.requestId || "") || typeof body.details !== "string" || body.details.length > 2000) return fail("Richiesta non valida: massimo 2000 caratteri.");
@@ -229,15 +232,27 @@ export class AbilityGenerationStore {
       const used = Number(await s.get(`usage:icon:${new Date().toISOString().slice(0,7)}`) || 0);
       return reply({ok:true,abilityIcons:1,iconPromptVersion:ABILITY_ICON_PROMPT_VERSION,imageModel:ABILITY_ICON_MODEL,canStop:true,jobs:jobs.filter(Boolean),usage:used});
     }
+    if (action === 'translation-list') {
+      const jobs = await Promise.all((input.itemIds || []).map(async itemId => {
+        const latestId = await s.get(`latest:${scope({...input.context, itemId})}`);
+        return latestId ? publicJob(await s.get(`job:${latestId}`)) : null;
+      }));
+      return reply({ok:true, abilityTranslations:1, canStop:true, jobs:jobs.filter(Boolean)});
+    }
+    if (action === 'translation-existing') return job ? reply({ok:true, job:publicJob(job)}) : fail('Traduzione non trovata.',404);
     if (action === "icon-existing") return job ? reply({ok:true,job:publicJob(job)}) : fail("Generazione non trovata.",404);
-    if (action === "latest") return reply({ok: true, canStop: true, nativeSheetEditor:NPC_SHEET_AI_COMPILER, nativeSheetVisualInput:NPC_SHEET_VISUAL_INPUT_VERSION, nativeAbilityEditor:1, nativeAbilityEditing:1, abilityEditCompiler:NATIVE_ABILITY_EDIT_COMPILER_VERSION, job: publicJob(job), ...(input.fingerprint ? {stale: Boolean(job && job.fingerprint !== input.fingerprint)} : {})});
+    if (action === "latest") return reply({ok: true, canStop: true, canDiscardSuggestions: true, nativeSheetEditor:NPC_SHEET_AI_COMPILER, nativeSheetVisualInput:NPC_SHEET_VISUAL_INPUT_VERSION, nativeAbilityEditor:1, nativeAbilityEditing:1, abilityEditCompiler:NATIVE_ABILITY_EDIT_COMPILER_VERSION, job: publicJob(job), ...(input.fingerprint ? {stale: Boolean(job && job.fingerprint !== input.fingerprint)} : {})});
     if (action === "create") {
+      if (job?.kind === "suggestions" && job.discardedAt) return fail("Questa analisi è stata scartata. Avvia una nuova analisi.", 409);
       if (job) return reply({ok: true, job: publicJob(job)});
       const previous = latest ? await s.get(`job:${latest}`) : null;
       if (pending(previous)) return reply({ok: true, job: publicJob(previous)});
       if (input.kind === "ability-icon" && previous?.prepared && previous.status !== "accepted") return fail("Completa prima l’invio dell’icona precedente.",409);
       if (await s.get("active")) return fail("Una generazione è già in corso. Riprova tra poco.", 409);
       const iconOnly = input.kind === "ability-icon";
+      const translation = input.kind === 'ability-translation';
+      if (translation && (input.context.purpose !== 'ability-translations' || !input.context.itemId || input.withIcon || !input.translationSource)) return fail('Richiesta traduzione non valida.');
+      if (translation) validateAbilityTranslation(input.translationSource, input.translationSource);
       if (iconOnly && (input.context.purpose !== "ability-icons" || !input.context.itemId || !input.draft || !input.referenceKey)) return fail("Richiesta icona non valida.");
       const next = {...input, imageModel:ABILITY_ICON_MODEL, status: iconOnly ? "icon-pending" : "pending", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS, iconAttempt: input.withIcon ? input.id : ""};
       if(input.format===NPC_SHEET_AI_FORMAT&&(input.context.purpose!=='native-sheet'||input.withIcon||!input.actorSource||!input.options))return fail('Richiesta della scheda non valida.');
@@ -251,6 +266,18 @@ export class AbilityGenerationStore {
       return reply({ok: true, job: publicJob(next)}, 202);
     }
     if (!job) return fail("Proposta non trovata.", 404);
+    if (action === "discard-suggestions") {
+      if (job.kind !== "suggestions" || input.context.purpose !== "suggestions") return fail("Analisi non trovata.", 404);
+      if (pending(job)) return fail("Attendi il termine dell’analisi prima di scartarla.", 409);
+      if (latest && latest !== job.id) return fail("L’analisi è cambiata. Controlla il risultato attuale prima di scartarlo.", 409);
+      // Keep the job and its usage history; remove only this NPC's current result.
+      // A repeated request is safe after a lost response or a coordinator restart.
+      await s.transaction(async tx => {
+        if (!job.discardedAt) await tx.put(`job:${job.id}`, {...job, discardedAt: new Date().toISOString()});
+        if (await tx.get(`latest:${identity}`) === job.id) await tx.delete(`latest:${identity}`);
+      });
+      return reply({ok: true, canDiscardSuggestions: true, discarded: true, job: null, stale: false});
+    }
     if (job.kind === "suggestions") return fail("L’analisi non può modificare l’NPC.", 405);
     if (action === "stop") {
       if (input.attemptId !== (job.iconAttempt || job.id)) return fail("La generazione è cambiata: aggiorna lo stato prima di interrompere l’attesa.", 409);
@@ -306,6 +333,17 @@ export class AbilityGenerationStore {
       return reply({ok:true,document:job.prepared});
     }
     if (job.kind === "ability-icon") return fail("Usa i comandi dedicati alle icone.",405);
+    if (job.kind === 'ability-translation') {
+      if (action !== 'prepare-translation') return fail('Usa i comandi dedicati alle traduzioni.',405);
+      if (job.prepared) return reply({ok:true, document:job.prepared});
+      if (pending(job) || job.status !== 'ready' || !job.draft) return fail('La traduzione non è pronta.',409);
+      const draft = validateAbilityTranslation(job.draft, job.translationSource);
+      const patches = [['name','name'],['description','system.description.value']].filter(([key]) => draft[key] !== job.translationSource[key])
+        .map(([key,path]) => ({path,op:'set',baseValue:job.translationSource[key],value:draft[key]}));
+      if (!patches.length) return fail('Il testo è già in italiano: nessuna modifica da inviare.',409);
+      job.prepared = {patches}; job.status = 'confirming'; await s.put(`job:${id}`,job);
+      return reply({ok:true, document:job.prepared});
+    }
     if (action === "icon" && job.iconAttempt === input.requestId) return reply({ok: true, job: publicJob(job)});
     if (job.status === "accepted" || job.prepared || pending(job) || !job.draft) return fail("La proposta non è modificabile in questo momento.", 409);
     if (action === "prepare") {
@@ -387,6 +425,10 @@ export class AbilityGenerationStore {
         job.report = await generateNpcSuggestions(job, this.env, ABILITY_MODEL);
         job.status = "ready";
         delete job.sheet;
+      } else if (job.kind === 'ability-translation') {
+        stage = 'translation';
+        job.draft = await generateAbilityTranslation(job, this.env, ABILITY_MODEL, abortController.signal);
+        job.status = 'ready';
       } else if (job.status === "running") {
         const textInput=JSON.stringify([NATIVE_ABILITY_EDIT_FORMAT,NPC_SHEET_AI_FORMAT].includes(job.format)?{request:job.details,...job.sheet,previousProposal:job.baseDraft}:{request:job.details,monster:job.sheet,previousProposal:job.baseDraft});
         let visualInput=null;

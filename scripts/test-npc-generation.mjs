@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import worker from "../workers/main-worker/src/index.js";
 import { NpcGenerationStore, NPC_TOKEN_SIZES, npcImagePrompt } from "../workers/main-worker/src/npc-generation.js";
-import { AVATAR_MODEL } from "../workers/main-worker/src/avatar-generation.js";
+import { AVATAR_MODEL, webpHasAlpha } from "../workers/main-worker/src/avatar-generation.js";
 
 class Storage {
   values = new Map();
@@ -19,11 +19,12 @@ class Storage {
   async deleteAlarm() { this.alarm = null; }
   async transaction(fn) { return fn(this); }
 }
-function image(width, height = width) {
-  const bytes = new Uint8Array(30);
-  bytes.set(Buffer.from("RIFF")); new DataView(bytes.buffer).setUint32(4, 22, true);
+function image(width, height = width, alpha = false) {
+  const bytes = new Uint8Array(alpha ? 40 : 30);
+  bytes.set(Buffer.from("RIFF")); new DataView(bytes.buffer).setUint32(4, bytes.length - 8, true);
   bytes.set(Buffer.from("WEBPVP8X"), 8); new DataView(bytes.buffer).setUint32(16, 10, true);
   for (let index = 0; index < 3; index++) { bytes[24 + index] = ((width - 1) >>> (index * 8)) & 255; bytes[27 + index] = ((height - 1) >>> (index * 8)) & 255; }
+  if (alpha) { bytes[20] = 0x10; bytes.set(Buffer.from("ALPH"), 30); new DataView(bytes.buffer).setUint32(34, 1, true); }
   return bytes;
 }
 const objects = new Map(), kv = new Map(), storage = new Storage();
@@ -83,6 +84,7 @@ assert.equal((await req(base, undefined, dm, "mago-folle")).status, 403);
 assert.equal((await req(base, undefined, undefined, campaign, syncHeaders)).status, 401);
 const initial = await status();
 assert.equal(initial.version, 1); assert.equal(initial.canStop, true); assert.equal(initial.enabled, true); assert.equal(initial.job, null);
+assert.equal(initial.tokenTransparencyVersion, 1);
 assert.deepEqual(initial.tokenSizes, NPC_TOKEN_SIZES);
 assert.deepEqual(initial.supportedQualities, ["medium", "high", "xhigh"]);
 assert.deepEqual(initial.supportedResolutions, ["medium", "high", "2k"]);
@@ -96,16 +98,30 @@ env.OPENAI_API_KEY = "fake-no-paid-api";
 
 const originalFetch = globalThis.fetch;
 const calls = [];
-let failToken = false, wrongSize = false;
+let failToken = false, wrongSize = false, opaqueToken = false;
 globalThis.fetch = async (url, options) => {
   assert.match(url, /^https:\/\/api\.openai\.com\/v1\/images\/(generations|edits)$/);
   const body = JSON.parse(options.body); calls.push({ url, body });
   assert.equal(body.model, AVATAR_MODEL); assert.equal(body.n, 1); assert.equal(body.output_format, "webp");
   const [width, height] = body.size.split("x").map(Number);
   if (failToken && width === height) return Response.json({ error: "private provider payload" }, { status: 500 });
-  return Response.json({ data: [{ b64_json: Buffer.from(image(wrongSize ? 16 : width, wrongSize ? 16 : height)).toString("base64") }] });
+  return Response.json({ data: [{ b64_json: Buffer.from(image(wrongSize ? 16 : width, wrongSize ? 16 : height, body.background === "transparent" && !opaqueToken)).toString("base64") }] });
 };
 try {
+  assert.equal(webpHasAlpha(image(1536)), false);
+  assert.equal(webpHasAlpha(image(1536, 1536, true)), true);
+  assert.equal(webpHasAlpha(image(1536, 1536, true).slice(0, -1)), false, "truncated alpha chunks are rejected");
+  const flagOnly = image(1536); flagOnly[20] = 0x10;
+  assert.equal(webpHasAlpha(flagOnly), false, "a flag without an alpha payload is not sufficient");
+  const lossless = image(16); lossless.set(Buffer.from("VP8L"), 12); lossless[20] = 0x2f;
+  new DataView(lossless.buffer).setUint32(21, 15 | (15 << 14) | 0x10000000, true);
+  assert.equal(webpHasAlpha(lossless), true, "lossless WebP alpha is supported too");
+  new DataView(lossless.buffer).setUint32(21, 15 | (15 << 14), true);
+  assert.equal(webpHasAlpha(lossless), false);
+  const binding = env.NPC_GENERATOR;
+  env.NPC_GENERATOR = { idFromName: value => value, get: () => ({ fetch: async request => new URL(request.url).pathname === "/latest" ? Response.json({ ok: true, version: 1, job: null }) : Response.json({ ok: false }, { status: 404 }) }) };
+  assert.equal((await req(base, submit(), dm)).status, 503, "an older coordinator cannot silently generate opaque tokens");
+  env.NPC_GENERATOR = binding;
   const body = submit(), id = body.requestId;
   const duplicates = await Promise.all(Array.from({ length: 4 }, () => req(base, body, dm)));
   assert.ok(duplicates.every(response => response.ok));
@@ -127,7 +143,9 @@ try {
   await coordinator.alarm();
   assert.equal(calls.length, 2); assert.ok(calls[1].url.endsWith("/edits")); assert.equal(calls[1].body.size, "1536x1536");
   assert.equal(calls[1].body.images.length, 1); assert.equal(calls[1].body.images[0].image_url, `data:image/webp;base64,${Buffer.from(image(1296, 2304)).toString("base64")}`);
-  assert.match(calls[1].body.prompt, /pure white flat background/); assert.match(calls[1].body.prompt, /entire circular frame/);
+  assert.match(calls[1].body.prompt, /transparent alpha channel/); assert.match(calls[1].body.prompt, /entire circular frame/);
+  assert.equal(calls[1].body.background, "transparent"); assert.equal(calls[1].body.output_compression, 100);
+  assert.equal(calls[1].body.quality, "high"); assert.equal(calls[0].body.background, undefined, "avatar settings are unchanged");
   assert.doesNotMatch(calls[1].body.prompt, /front|three.quarter|3\/4|9:16/i, "the token has no forced viewing angle or vertical composition");
   assert.equal((await status()).job.status, "ready"); await coordinator.alarm(); assert.equal(calls.length, 2);
   assert.equal(kv.has(`campaign:${campaign}:managed-actor-create-requests`), false, "images do not create an Actor before confirmation");
@@ -138,6 +156,7 @@ try {
   assert.equal(receipt.request.id, id); assert.equal(receipt.request.clientId, `ai-${id}`);
   assert.equal(receipt.request.profile.blocks[0].text, finalForm.description); assert.equal(receipt.request.profile.categoryId, "alleati");
   assert.equal(receipt.request.profile.visibility.state, "public"); assert.equal(receipt.request.document.system.attributes.hp.max, 1);
+  assert.deepEqual(objects.get(receipt.request.document.media.token.slice("media/".length)), image(1536, 1536, true), "confirmation preserves the provider's exact full-resolution bytes without re-encoding");
   assert.ok(receipt.request.document.media.token.startsWith("media/campaigns/")); assert.notEqual(receipt.request.document.media.avatar, receipt.request.document.media.token);
   assert.equal((await req(receipt.request.document.media.avatar)).status, 200);
   assert.deepEqual(await (await req(`${base}/${id}/confirm`, {}, dm)).json(), receipt);
@@ -174,6 +193,14 @@ try {
   assert.equal((await readJob(retryId)).avatarKey, (await readJob(regenerated.id)).avatarKey);
   assert.equal((await readJob(retryId)).tokenAvatarKey, (await readJob(retryId)).avatarKey);
   assert.equal((await req(`${base}/${regenerated.id}/retry-token`, { requestId: retryId }, dm)).status, 200, "lost token request responses recover the same paid attempt");
+
+  const noAlpha = await start(submit("Token senza alpha")); await coordinator.alarm(); opaqueToken = true; await coordinator.alarm(); opaqueToken = false;
+  const alphaFailure = (await status()).job;
+  assert.equal(alphaFailure.hasAvatar, true); assert.equal(alphaFailure.hasToken, false); assert.match(alphaFailure.error, /trasparenza/);
+  assert.equal((await req(`${base}/${noAlpha.id}/confirm`, {}, dm)).status, 409);
+  const alphaCalls = calls.length; await coordinator.alarm(); assert.equal(calls.length, alphaCalls, "an opaque result never triggers another paid attempt automatically");
+  const alphaRetry = await req(`${base}/${noAlpha.id}/retry-token`, { requestId: randomUUID() }, dm);
+  assert.equal(alphaRetry.status, 202); await coordinator.alarm(); assert.equal(calls.length, alphaCalls + 1); assert.equal((await status()).job.tokenBackground, "transparent");
 
   for (const target of ["mago-folle", "oltre-il-velo"]) {
     const other = await start({ ...submit(`NPC ${target}`), form: { ...form(`NPC ${target}`), categoryId: "" } }, admin, target);
@@ -226,16 +253,23 @@ try {
   const setupEnd = directory.indexOf("        function openManagedNpcCreateWizard(", setupStart);
   for (const kind of ["person", "creature"]) {
     let click, opened;
+    let reloadOptions;
+    const completeCatalog = Array.from({ length: 65 }, (_, index) => ({ managedActorWorldId: world, managedActorId: `reference-${index}`, kind: index % 2 ? "creature" : "person" }));
     const button = { dataset: {}, addEventListener: (_event, callback) => { click = callback; } };
     const setupContext = vm.createContext({
       document: { querySelector: selector => selector === "[data-npc-generate]" ? button : { dataset: { rosterType: kind } } },
-      window: { CriptaNpcGenerator: { open: options => { opened = options; } }, location: { reload() {} } },
+      window: { CriptaNpcGenerator: { open: options => { opened = options; } }, CriptaNpcCategories: { normalizeRegistry: value => value }, location: { reload() {} } },
       selectableNpcCategories: registry => registry.categories,
+      loadManagedNpcEntries: async (_legacy, options) => { reloadOptions = options; return { npcs: [...completeCatalog, { pendingCreate: true }], npcCategories: [] }; },
+      applyNpcCategoryMetadata: npc => npc,
     });
     vm.runInContext(directory.slice(setupStart, setupEnd), setupContext);
     setupContext.input = { managedState: { npcs: [{ managedActorWorldId: world, managedActorId: "example" }, { pendingCreate: true }], worldIds: [world] }, categoryRegistry: { categories: [] } };
     vm.runInContext("setupNpcGeneration(input)", setupContext); click();
     assert.equal(opened.initialKind, kind); assert.equal(opened.npcs.length, 1); assert.equal(opened.worlds[0], world);
+    const signal = AbortSignal.timeout(20000), catalog = await opened.loadReferences({ signal });
+    assert.equal(catalog.length, 65, "reference selection reloads the complete catalog independently of the current roster type");
+    assert.equal(reloadOptions.signal, signal); assert.ok(catalog.some(npc => npc.kind === "creature")); assert.ok(catalog.some(npc => npc.kind === "person"));
   }
   assert.doesNotMatch(npcImagePrompt(await readJob(late.id), "token"), /front|three.quarter|3\/4|9:16/i);
   console.log("NPC generation: authenticated routes, private drafts, sequential images, scoped references, retries, confirmations, all campaigns and interrupted-work recovery passed. No paid API calls.");

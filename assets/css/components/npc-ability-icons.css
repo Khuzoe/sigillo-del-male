@@ -1,4 +1,30 @@
 .npc-ability-icons__list { display: grid; gap: 14px; }
+.npc-ability-icons { width: min(1120px, calc(100vw - 32px)); }
+.npc-ability-icons .npc-ability-icons__list { grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); align-items: stretch; }
+.npc-ability-icons__direction { display: grid; gap: 4px; font-weight: 600; }
+.npc-ability-icons .npc-ability-icons__row > .npc-ability-icons__direction { display: grid; gap: 4px; font-size: 12px; }
+.npc-ability-icons .npc-ability-icons__direction textarea { margin: 0; min-height: 88px; font-weight: 400; }
+.npc-ability-icons__filters { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; }
+.npc-ability-icons__filters > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.npc-ability-icons__filters button { padding: 7px 11px; font-size: 12px; }
+.npc-ability-icons__filters button[aria-pressed="true"] { border-color: #dec28a; background: #dec28a1c; color: #f1d7a5; }
+.npc-ability-icons__filters > label { display: flex; gap: 8px; align-items: center; font-size: 12px; cursor: pointer; }
+.npc-ability-icons__filters input { width: 18px; height: 18px; accent-color: #dec28a; }
+.npc-ability-icons .npc-ability-icons__row { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.npc-ability-icons .npc-ability-icons__row > label { align-items: flex-start; overflow-wrap: anywhere; }
+.npc-ability-icons .npc-ability-icons__row input { flex-shrink: 0; }
+.npc-ability-icons__type { color: #b7a67e; font-size: 11px; }
+.npc-ability-icons .npc-ability-icons__images { flex-wrap: nowrap; margin-top: 0; align-items: start; }
+.npc-ability-icons .npc-ability-icons__images figure { flex: 1; min-width: 0; }
+.npc-ability-icons .npc-ability-icons__images figcaption { font-size: 10px; padding-bottom: 5px; font-weight: 400; }
+.npc-ability-icons .npc-ability-icons__images img { display: block; width: 100%; height: auto; max-height: 160px; aspect-ratio: 1; object-fit: contain; cursor: default; }
+.npc-ability-icons .npc-ability-icons__row p { margin: 0; }
+.npc-ability-icons .npc-ability-icons__actions { margin-top: auto; }
+.npc-ability-icons .npc-ability-icons__actions button { flex: 1; padding-inline: 10px; font-size: 12px; }
+.npc-ability-icons__selection { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin: 0 0 14px; padding: 12px 0; border-bottom: 1px solid #44434d; }
+.npc-ability-icons__selection > span { color: #c7c3b9; font-size: 12px; }
+.npc-ability-icons__selection > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.npc-ability-icons__selection button { padding: 8px 12px; font-size: 12px; }
 .npc-ability-icons__row { padding: 16px; border: 1px solid #44434d; border-radius: 12px; background: #101115; }
 .npc-ability-icons__row > label { display: flex; align-items: center; gap: 10px; }
 .npc-ability-icons__row input { width: 20px; height: 20px; accent-color: #dec28a; }

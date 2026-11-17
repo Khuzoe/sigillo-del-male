@@ -2,7 +2,7 @@
 
 Per **Cripta di Sangue con snapshot nativo**, le nuove proposte usano la [generazione integrata nel nuovo editor](npc-ai-editor.md): contesto dalle meccaniche native con versioni, attività multiple e stessi controlli della scheda. Le proposte native accettano anche regole manuali con avviso non bloccante, testo completo e contatori; un tratto passivo può essere privo di attività automatiche. Il percorso descritto sotto rimane attivo per le altre campagne, per gli NPC senza snapshot e per le bozze precedenti.
 
-In **Modifica → Capacità → Crea abilità con AI**, il DM della campagna o l’admin descrive una capacità. Il Worker legge la scheda meccanica salvata (statistiche, GS, risorse, capacità, multiattacco, effetti e attività), genera una proposta e la conserva come bozza privata. Non invia account, dossier, biografia o macro. Se la scheda supera il limite di contesto di 80.000 byte UTF-8, rifiuta la richiesta prima della chiamata API, senza tagliare abilità in silenzio.
+In **Strumenti AI → Abilità → Crea abilità**, il DM della campagna o l’admin descrive una capacità. Il Worker legge la scheda meccanica salvata (statistiche, GS, risorse, capacità, multiattacco, effetti e attività), genera una proposta e la conserva come bozza privata. Non invia account, dossier, biografia o macro. Se la scheda supera il limite di contesto di 80.000 byte UTF-8, rifiuta la richiesta prima della chiamata API, senza tagliare abilità in silenzio.
 
 L’anteprima mostra subito le regole e l’eventuale icona. **Modifica valori, effetti e icona** apre i campi guidati; **Salva bozza** non usa API a pagamento. Le modifiche non salvate rimangono nella sessione del browser. **Rivedi con AI** usa la bozza corrente e le nuove istruzioni. I valori modificati aggiornano la descrizione meccanica in modo deterministico; la motivazione del bilanciamento è quella dell’ultima proposta AI, non una certificazione automatica del GS.
 
@@ -30,7 +30,16 @@ Se l’immagine fallisce, la proposta testuale rimane modificabile e confermabil
 
 ## Icone per capacità esistenti
 
-In **Modifica → Capacità → Genera icone abilità**, DM e admin selezionano gli attacchi e le capacità (`weapon` e `feat`) presenti nello snapshot nativo. Il comando usa **Sunburst 2.6, qualità media**, l’avatar salvato su R2 e un prompt composto dal nome e dalla descrizione della capacità più lo stile delle icone già esistente. Non genera testo o nuove meccaniche: una sola chiamata immagini per capacità selezionata.
+Il generatore mostra una **griglia** con icona attuale e proposta affiancate. I filtri **Tutte / Capacità / Incantesimi** includono anche gli incantesimi dello snapshot NPC. **Seleziona visibili** aggiunge soltanto le abilità disponibili nel filtro attuale, mantenendo le scelte fatte nelle altre categorie; **Deseleziona tutto** svuota l'intera selezione.
+
+All'avvio, **Solo selezionati** si attiva automaticamente e il filtro di tipo torna a **Tutte**, così il gruppo scelto resta visibile anche se contiene tipi diversi. Le abilità in elaborazione e quelle già pronte conservano la spunta. Selezione, filtri e indicazioni vengono recuperati nella stessa sessione dopo la chiusura; un lavoro in corso viene mostrato anche riaprendo senza una selezione locale precedente. Il filtro resta modificabile durante la generazione e non avvia richieste AI.
+
+Ogni scheda della griglia ha il proprio campo **Indicazioni aggiuntive (facoltative)**, fino a 1500 caratteri. Anche nella generazione in gruppo, ciascuna icona riceve soltanto il testo scritto nella propria scheda. I testi vengono acquisiti all'avvio e inviati come `visualDirection` nei rispettivi prompt immagini, oltre a nome, descrizione, avatar e stile obbligatorio. Restano conservati passando tra filtri e riaprendo il pannello nella stessa sessione. Le indicazioni di un lavoro salvato sono recuperate anche senza una bozza locale. Il precedente campo comune viene conservato sulle icone già selezionate. Il testo non modifica le regole della capacità. Un invio ripetuto con lo stesso identificativo recupera la richiesta originale con le sue indicazioni. La capability `iconDirections:1` impedisce al nuovo frontend di spendere con indicazioni che un vecchio Worker ignorerebbe.
+
+Il proprietario di un personaggio può ora usare questo strumento anche sui propri attacchi, capacità e incantesimi, senza richiedere lo snapshot nativo NPC. È disponibile inoltre **Traduci abilità**, che propone solo nome e descrizione con confronto prima della conferma. [Dettagli del percorso player](player-ability-ai.md).
+
+In **Strumenti AI → Immagini → Genera icone abilità**, DM e admin selezionano gli attacchi e le capacità (`weapon`, `feat` e `spell`) presenti nello snapshot nativo. Il comando usa **Sunburst 2.6, qualità media**, l’avatar salvato su R2 e un prompt composto dal nome e dalla descrizione della capacità più lo stile delle icone già esistente. Non genera testo o nuove meccaniche: una sola chiamata immagini per capacità selezionata.
+
 
 Dal prompt versione 2, l’effetto della capacità è il soggetto principale; viso, costume e posa dell’avatar non sono il soggetto predefinito. La generazione riceve anche nomi e brevi descrizioni di fino a 24 altre capacità dello stesso NPC, esclusivamente per scegliere motivi e silhouette distinguibili mantenendo uno stile comune. I dati sono proiettati da nome/descrizione, senza flag, macro o probabilità. Il vecchio contesto JSON serializzato viene decodificato prima di costruire il prompt. Il modello non vede le immagini delle altre icone: questo migliora le indicazioni fornite, senza garantire che le immagini finali siano tutte diverse. Il risultato visivo va valutato sulle nuove anteprime.
 
@@ -46,7 +55,7 @@ Le route dedicate sono `/api/managed-actors/{world}/{actor}/ability-icons` e `/{
 
 ## Suggerisci modifiche
 
-Accanto al generatore, **Suggerisci modifiche** analizza l’avatar attuale e la stessa scheda meccanica completa. È riservato al DM della campagna e all’admin. È possibile indicare una preferenza, ad esempio mantenere il GS o rafforzare il ruolo di supporto.
+In **Strumenti AI → Scheda NPC → Suggerisci miglioramenti**, il pannello **Suggerisci modifiche** analizza l’avatar attuale e la stessa scheda meccanica completa. È riservato al DM della campagna e all’admin. È possibile indicare una preferenza, ad esempio mantenere il GS o rafforzare il ruolo di supporto.
 
 Il risultato contiene cosa preservare, fino a quattro modifiche motivate (valore attuale, proposta e impatto previsto), fino a tre idee di nuove abilità e le incertezze. Le osservazioni visive sono spunti: non provano immunità, poteri o allineamento. Il bilanciamento resta una proposta da valutare al tavolo.
 
@@ -55,6 +64,8 @@ Il risultato contiene cosa preservare, fino a quattro modifiche motivate (valore
 La route `/api/managed-actors/{world}/{actor}/ability-suggestions` legge l’avatar R2 della stessa campagna (massimo 12 MB) e lo invia alla Responses API con `input_image`, `detail:low`, insieme al contesto meccanico. Usa lo stesso modello testo, output strutturato e `store:false`; non genera immagini. Se il riferimento R2 cambia tra prenotazione ed esecuzione, la chiamata viene fermata. Nessuna scrittura o cancellazione KV/R2 viene eseguita dall’analisi.
 
 I risultati sono conservati nel Durable Object esistente, separati dalle bozze delle abilità. Riaprirli non chiama OpenAI. Avatar o statistiche cambiati segnalano un’analisi non aggiornata e impediscono di svilupparne le idee prima di rianalizzare. I suggerimenti non hanno un limite mensile locale; i contatori storici dei tentativi restano conservati. Doppio invio e ripresa usano lo stesso UUID, senza ripetere automaticamente chiamate a pagamento interrotte.
+
+**Scarta analisi** rimuove il risultato attuale dalla vista salvata dell’NPC e torna alla schermata iniziale, anche dopo chiusura e riapertura. La route autenticata `POST .../ability-suggestions/{id}/discard` registra lo scarto nel coordinatore e rimuove soltanto il riferimento al risultato corrente: il lavoro storico e i contatori restano conservati, senza modifiche a NPC, media o bozze delle abilità. Funziona anche senza chiave del provider o avatar; la consultazione dell’analisi salvata resta accessibile dagli strumenti AI. Le analisi in corso non si scartano; se un altro client ha già avviato un’analisi nuova, lo scarto del risultato precedente viene rifiutato e il pannello si aggiorna. Le richieste ripetute sono idempotenti e un vecchio invio non ripristina il report scartato. Il pulsante richiede la capacità `canDiscardSuggestions` del coordinatore aggiornato. Una nuova analisi parte soltanto premendo **Analizza NPC**.
 
 Per questa funzione pubblicare Worker e frontend (incluso `npc-suggestions.js`); nessuna ulteriore modifica a Foundry è necessaria per leggere i consigli. La creazione effettiva delle abilità conserva i requisiti di Wiki Sync descritti sotto.
 

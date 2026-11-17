@@ -1,6 +1,8 @@
 # Generazione avatar NPC
 
-Nel dossier, accanto al ritratto, e in **Modifica → Immagini e impostazioni → Avatar**, «Genera avatar» apre il confronto tra il ritratto attuale e una nuova proposta. I due pulsanti condividono stile e comportamento. Disponibile al DM della campagna e all’admin, non ai soli proprietari dei companion. Le modifiche già aperte nella scheda devono essere salvate prima di aprire il generatore.
+L'inquadratura condivisa con il generatore di nuovi NPC (`AVATAR_FRAMING`) chiede una figura intera che occupi circa il 90% dell'altezza, con margini ridotti sopra la testa e sotto i piedi. Il personaggio domina il primo piano e lo sfondo resta secondario. Posa e angolazione sono libere. Sostituisce il precedente invito generico «with breathing room», che poteva favorire un'inquadratura troppo distante. Il risultato va valutato su una nuova generazione: le immagini precedenti restano conservate.
+
+Nella barra della scheda, **Strumenti AI → Immagini → Genera avatar** apre il confronto tra il ritratto attuale e una nuova proposta, anche senza entrare in modalità modifica. Disponibile al DM della campagna e all’admin, non ai soli proprietari dei companion. Il pannello comune descrive i requisiti delle azioni: salva o annulla le modifiche aperte e prepara un avatar salvato come riferimento.
 
 Il servizio invia a OpenAI l’avatar corrente salvato su R2 e gli eventuali dettagli aggiuntivi. Lo stile completo richiesto è obbligatorio sul server (`AVATAR_STYLE`), con figura intera, nuova posa e immagine WebP **9:16**. La posa e la fedeltà artistica restano risultati generativi da valutare in anteprima; formato e dimensioni sono verificati prima del salvataggio. Il modello è `gpt-image-2.6-sunburst`, una sola immagine per richiesta.
 

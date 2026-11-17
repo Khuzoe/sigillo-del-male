@@ -13,8 +13,19 @@ const examples = [["nino", "Nino Olegna"], ["guardia", "Guardia della cripta"]].
   profile: { name, kind: "person", kindSource: "manual", visibility: { state: "dm" }, lifeState: "alive", categoryId: "alleati", category: "Alleati", tags: [], revision: 1 },
   media: { avatar: { path: `media/campaigns/cripta-di-sangue/${actorId}/avatar.webp` }, token: { path: `media/campaigns/cripta-di-sangue/${actorId}/token.webp` } },
 }));
+for (let index = 0; index < 63; index++) {
+  const npc = structuredClone(examples[0]);
+  npc.actorId = `example-${index + 1}`; npc.name = `NPC ${index + 1}`; npc.profile.name = npc.name;
+  npc.actorLink = index % 2 === 0; npc.profile.kind = npc.actorLink ? "person" : "creature";
+  npc.profile.categoryId = index % 3 ? "custodi" : "alleati"; npc.profile.category = index % 3 ? "Custodi delle terre di confine" : "Alleati";
+  if (index === 62) npc.profile.lifecycle = { state: "archived" };
+  if (index === 61) npc.media.avatar = null;
+  if (index === 60) npc.media = {};
+  if (index === 42) npc.profile.role = "Custode Éléonore";
+  examples.push(npc);
+}
 const json = (response, body, status = 200) => { response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" }); response.end(JSON.stringify(body)); };
-const settings = () => ({ ok: true, enabled: true, version: 1, canStop: true, supportedResolutions: ["medium", "high", "2k"], supportedQualities: ["medium", "high", "xhigh"], job: latest });
+const settings = () => ({ ok: true, enabled: true, version: 1, tokenTransparencyVersion: 1, canStop: true, supportedResolutions: ["medium", "high", "2k"], supportedQualities: ["medium", "high", "xhigh"], job: latest });
 function staticFixture(config) {
   const nativeFetch = window.fetch.bind(window), stateKey = "npc-generator-qa-state";
   let state;
@@ -38,11 +49,11 @@ function staticFixture(config) {
           if (Date.now() - Date.parse(latest.createdAt) > 2400) { latest.hasToken = true; latest.status = "ready"; }
           save();
         }
-        return json({ ok: true, enabled: true, version: 1, canStop: true, supportedResolutions: ["medium", "high", "2k"], supportedQualities: ["medium", "high", "xhigh"], job: latest || null });
+        return json({ ok: true, enabled: true, version: 1, tokenTransparencyVersion: 1, canStop: true, supportedResolutions: ["medium", "high", "2k"], supportedQualities: ["medium", "high", "xhigh"], job: latest || null });
       }
       if (method === "GET" && ["avatar", "token"].includes(route[2])) return nativeFetch("/" + (route[2] === "avatar" ? config.avatar : config.token));
       if (!route[2] || route[2] === "retry-token") {
-        const next = { id: input.requestId, draftId: job?.draftId || input.draftId || input.requestId, form: input.form || job?.form, options: { quality: input.quality, resolution: input.resolution }, references: input.references || job?.references || [], status: "pending", phase: job ? "token" : "avatar", hasAvatar: Boolean(job), hasToken: false, createdAt: new Date().toISOString() };
+        const next = { id: input.requestId, draftId: job?.draftId || input.draftId || input.requestId, form: input.form || job?.form, options: { quality: input.quality, resolution: input.resolution }, references: input.references || job?.references || [], status: "pending", phase: job ? "token" : "avatar", hasAvatar: Boolean(job), hasToken: false, tokenBackground: "transparent", createdAt: new Date().toISOString() };
         state.latest = next.id; state.jobs[next.id] = next; save(); return json({ ok: true, job: next }, 202);
       }
       if (route[2] === "stop") { job.status = "uncertain"; job.error = "Attesa interrotta (prova simulata)."; save(); return json({ ok: true, job }); }
@@ -75,6 +86,7 @@ if (process.argv.includes("--static")) {
   await writeFile(resolve(destination, "npcs.html"), page);
   await writeFile(resolve(destination, "mobile.html"), '<!doctype html><html lang="it"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Genera NPC · anteprima mobile</title><style>body{margin:0;background:#25252b;color:#e4c689;font:14px Arial;display:grid;justify-items:center}p{margin:8px}iframe{width:320px;height:860px;border:1px solid #555}</style><p>Anteprima a 320 px · dati simulati</p><iframe title="Genera NPC a 320 pixel" src="npcs.html"></iframe></html>');
   await writeFile(resolve(destination, "desktop.html"), '<!doctype html><html lang="it"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Genera NPC · anteprima desktop</title><style>body{margin:0;min-width:1200px;background:#25252b;color:#e4c689;font:14px Arial;display:grid;justify-items:center}p{margin:8px}iframe{width:1180px;height:860px;border:1px solid #555}</style><p>Anteprima a 1180 px · dati simulati</p><iframe title="Genera NPC a 1180 pixel" src="npcs.html"></iframe></html>');
+  await writeFile(resolve(destination, "icons.html"), `<!doctype html><html lang="it"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Icone abilità · selezione multipla</title><link rel="stylesheet" href="/assets/css/components/npc-avatar-generator.css"><link rel="stylesheet" href="/assets/css/components/npc-ability-icons.css"><style>body{background:#111;color:#eee;font:14px Arial;padding:20px}body>button{padding:14px}</style><p>Prova di selezione: nessuna chiamata immagini.</p><button id="open-icons">Apri generatore icone</button><script>window.CriptaApp={campaigns:{currentId:()=>"cripta-di-sangue"},urls:{api:path=>new URL('/'+path,location.origin).href},utils:{resolveImageUrl:path=>path}};window.fetch=async(_url,options={})=>new Response(JSON.stringify(options.method==='POST'?{error:'La prova non avvia generazioni.'}:{enabled:true,canSync:true,hasAvatar:true,canStop:true,items:[{id:'bite',name:'Morso'},{id:'shadow',name:'Passo d’ombra'},{id:'blocked',name:'Volo',blocked:true},{id:'sending',name:'Resistenza alla Magia'}],jobs:[{itemId:'sending',id:'local-confirming',status:'confirming'}]}),{status:options.method==='POST'?409:200,headers:{'Content-Type':'application/json'}});</script><script src="/assets/js/shared/npc-ability-icons.js"></script><script>document.querySelector('#open-icons').addEventListener('click',()=>window.CriptaAbilityIcons.open({actor:{worldId:'world',actorId:'test',name:'NPC di prova'},token:'local-fixture',onQueued:()=>{}}));</script></html>`);
   console.log(`Static UI fixture ready: /output/npc-generator-qa/npcs.html (serve with the existing local server)`);
   process.exit(0);
 }
@@ -121,7 +133,7 @@ createServer(async (request, response) => {
         response.setHeader("Content-Type", "image/webp"); response.end(await readFile(resolve(root, route[2] === "avatar" ? avatar : token))); return;
       }
       if (!route[2] || route[2] === "retry-token") {
-        latest = { id: input.requestId, draftId: job?.draftId || input.draftId || input.requestId, form: input.form || job?.form, options: { quality: input.quality, resolution: input.resolution }, references: input.references || job?.references || [], status: "pending", phase: job ? "token" : "avatar", hasAvatar: Boolean(job), hasToken: false, createdAt: new Date().toISOString() };
+        latest = { id: input.requestId, draftId: job?.draftId || input.draftId || input.requestId, form: input.form || job?.form, options: { quality: input.quality, resolution: input.resolution }, references: input.references || job?.references || [], status: "pending", phase: job ? "token" : "avatar", hasAvatar: Boolean(job), hasToken: false, tokenBackground: "transparent", createdAt: new Date().toISOString() };
         jobs.set(latest.id, latest); json(response, { ok: true, job: latest }, 202); return;
       }
       if (route[2] === "stop") { job.status = "uncertain"; job.error = "Attesa interrotta (prova simulata)."; json(response, { ok: true, job }); return; }
@@ -137,8 +149,8 @@ createServer(async (request, response) => {
     if (path === "/sidebar.html") { response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(await readFile(resolve(root, "sidebar.html"))); return; }
     const asset = path.startsWith("/media/campaigns/") ? (path.endsWith("token.webp") ? token : avatar) : path.slice(1);
     const file = resolve(root, asset);
-    if (!(asset.startsWith("assets/") || asset.startsWith("campaigns/")) || !file.startsWith(root + "\\") || ![".js", ".css", ".json", ".svg", ".webp", ".png", ".woff2", ".woff"].includes(extname(file))) { response.writeHead(404); response.end(); return; }
-    response.setHeader("Content-Type", ({ ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2", ".woff": "font/woff" })[extname(file)]);
+    if (!(asset.startsWith("assets/") || asset.startsWith("campaigns/")) || !file.startsWith(root + "\\") || ![".js", ".mjs", ".css", ".json", ".svg", ".webp", ".png", ".woff2", ".woff"].includes(extname(file))) { response.writeHead(404); response.end(); return; }
+    response.setHeader("Content-Type", ({ ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".svg": "image/svg+xml", ".webp": "image/webp", ".png": "image/png", ".woff2": "font/woff2", ".woff": "font/woff" })[extname(file)]);
     if (asset === "assets/js/layout.js") { response.end((await readFile(file, "utf8")).replace('const DISCORD_WORKER_URL = "https://sigillo-api.khuzoe.workers.dev";', `const DISCORD_WORKER_URL = "http://127.0.0.1:${port}";`)); return; }
     response.end(await readFile(file));
   } catch (error) { json(response, { error: error.message }, 500); }

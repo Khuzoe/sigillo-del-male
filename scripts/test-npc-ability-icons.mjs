@@ -56,7 +56,10 @@ try {
  eq((await icons()).body.items.length,2);eq((await icons()).body.usage,0);eq((await icons()).body.quota,undefined);
  const binding=env.ABILITY_GENERATOR;env.ABILITY_GENERATOR={idFromName:n=>n,get:()=>({fetch:async()=>Response.json({ok:true,job:null})})};
  eq((await icons('',{requestId:randomUUID()})).status,503,'Old coordinator cannot spend on a text job');env.ABILITY_GENERATOR=binding;
- const id=randomUUID(),start=await icons('',{requestId:id});eq(start.status,202,JSON.stringify(start.body));eq(start.body.job.status,'icon-pending');
+ for(const details of [null,{},'x'.repeat(1501)])eq((await icons('',{requestId:randomUUID(),details})).status,400,'Invalid optional directions never start a paid job');
+ eq((await icons()).body.iconDirections,1);
+ const iconDetails='Una runa azzurra spezzata, nessun volto';
+ const id=randomUUID(),start=await icons('',{requestId:id,details:iconDetails});eq(start.status,202,JSON.stringify(start.body));eq(start.body.job.status,'icon-pending');
  const currentBinding=env.ABILITY_GENERATOR;
  for(const older of ['prompt','model']){
   env.ABILITY_GENERATOR={idFromName:n=>n,get:()=>({fetch:async request=>{const response=await coordinator.fetch(request);if(new URL(request.url).pathname!=='/icon-list')return response;const body=await response.json();if(older==='prompt')delete body.iconPromptVersion;else body.imageModel='gpt-image-2.6-flare';return Response.json(body,{status:response.status});}})};
@@ -67,7 +70,7 @@ try {
  const secondId=randomUUID();eq((await icons('',{requestId:secondId},'dm','OtherAbility0001')).status,409,'Global paid lock is retained');
  await coordinator.alarm();eq(requests.length,1);eq(requests[0].model,'gpt-image-2.6-sunburst');eq(requests[0].quality,'medium');eq(requests[0].n,1);eq(requests[0].size,'1024x1024');ok(requests[0].images[0].image_url.startsWith('data:image/webp;base64,'));
  ok(requests[0].prompt.includes(editAbilityItem.name));ok(!requests[0].prompt.includes('PRIVATE FLAGS'));eq([...storage.values.keys()].some(k=>k.startsWith('usage:text:')),false);
- const firstPrompt=JSON.parse(requests[0].prompt.split('\n').at(-1));eq(firstPrompt.ability.name,editAbilityItem.name);eq(firstPrompt.otherAbilitiesForContrastOnly.map(row=>row.name),['Resistenza alla Magia']);ok(firstPrompt.otherAbilitiesForContrastOnly[0].description.includes('incantesimi'));ok(requests[0].prompt.includes('A palette change alone is insufficient differentiation'));eq(storage.values.get('job:'+id).iconPromptVersion,ABILITY_ICON_PROMPT_VERSION);
+ const firstPrompt=JSON.parse(requests[0].prompt.split('\n').at(-1));eq(firstPrompt.ability.name,editAbilityItem.name);eq(firstPrompt.visualDirection,iconDetails);eq((await icons()).body.jobs[0].details,iconDetails);eq(firstPrompt.otherAbilitiesForContrastOnly.map(row=>row.name),['Resistenza alla Magia']);ok(firstPrompt.otherAbilitiesForContrastOnly[0].description.includes('incantesimi'));ok(requests[0].prompt.includes('A palette change alone is insufficient differentiation'));eq(storage.values.get('job:'+id).iconPromptVersion,ABILITY_ICON_PROMPT_VERSION);
  const ready=(await icons()).body.jobs[0];eq(ready.status,'ready');eq(ready.iconId,id);
  eq((await icons(`/${id}/preview`)).status,200);eq((await icons(`/${id}/preview`,undefined,'dm','OtherAbility0001')).status,404);
  const bad=await icons(`/${id}/confirm`,{iconId:id,icon:Buffer.from(image(1024)).toString('base64')});eq(bad.status,400);
@@ -103,6 +106,13 @@ try {
  const failed=(await icons()).body.jobs.find(j=>j.id===failureId);eq(failed.status,'ready');ok(failed.iconError);const paid=requests.length;await coordinator.alarm();eq(requests.length,paid);
  failImage=false;const stopId=randomUUID();eq((await icons('',{requestId:stopId})).status,202);
  eq((await icons(`/${stopId}/stop`,{attemptId:randomUUID()})).status,409);eq((await icons(`/${stopId}/stop`,{attemptId:stopId})).status,200);await coordinator.alarm();eq(requests.length,paid,'Stop before alarm never calls the provider');
+ // Native NPC spell icons use the same image-only confirmation contract.
+ const spellId='IconSpell0000001';record.snapshot.actor.items.push({...structuredClone(editAbilityItem),_id:spellId,type:'spell',name:'Raggio di Gelo'});await seed(snapshotKey,record);
+ eq((await icons()).body.items.find(item=>item.id===spellId).type,'spell');
+ const spellJobId=randomUUID();eq((await icons('',{requestId:spellJobId},'dm',spellId)).status,202);await coordinator.alarm();
+ const spellConfirmed=await icons(`/${spellJobId}/confirm`,{iconId:spellJobId,icon:payload.icon},'dm',spellId);eq(spellConfirmed.status,202,JSON.stringify(spellConfirmed.body));eq(spellConfirmed.body.command.patches.map(p=>p.path),['img']);
+ eq(spellConfirmed.body.command.target,{type:'Item',id:spellId});
+ const afterSpell=requests.length;
  const usageKey=`usage:icon:${new Date().toISOString().slice(0,7)}`;
  await storage.put(usageKey,1000000);
  for (const legacyLimit of ['0','1','invalid',undefined]) {
@@ -112,7 +122,7 @@ try {
    eq((await icons('',{requestId:unlimitedId})).body.job.id,unlimitedId,'Unlimited requests still deduplicate');
    eq((await icons(`/${unlimitedId}/stop`,{attemptId:unlimitedId})).status,200);
  }
- eq((await icons()).body.usage,1000004,'Usage history remains accurate without enforcing a cap');eq(requests.length,paid);
+ eq((await icons()).body.usage,1000004,'Usage history remains accurate without enforcing a cap');eq(requests.length,afterSpell);
  eq([...kv],[['untouched','preserved']]);eq(JSON.parse(await new ManagedActorTransaction(env).get(actorKey)),actor);
  console.log(`NPC ability icons and discard: ${checks} checks passed; real routes, SQLite archive, paid deduplication, Sunburst medium, avatar, scopes, image-only patch, conflicts, stop and unlimited attempts. No paid calls or world data writes.`);
 } finally {globalThis.fetch=originalFetch;await runtime.dispose();}

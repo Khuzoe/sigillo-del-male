@@ -3,8 +3,9 @@
     window.CriptaNpcGenerator = { open };
     const purposes = { style: "Stile e palette", appearance: "Aspetto e lineamenti", clothing: "Abbigliamento", frame: "Cornice del token" };
     const active = job => ["pending", "running"].includes(job?.status);
+    const referencePickerUrl = new URL("npc-reference-picker.mjs?v=20261117-picker1", document.currentScript.src).href;
 
-    async function open({ npcs = [], worlds = [], categories = [], initialKind = "person", onCreated = () => {} } = {}) {
+    async function open({ npcs = [], worlds = [], categories = [], initialKind = "person", loadReferences, onCreated = () => {} } = {}) {
         if (document.querySelector("[data-npc-generator]")) return;
         const app = window.CriptaApp, token = window.CriptaDiscordAuth?.getToken?.();
         if (!app || !token) return;
@@ -26,8 +27,8 @@
               </div>
               <details class="npc-generator__references"><summary>NPC di esempio <span data-reference-count>0 / 3 · facoltativi</span></summary>
                 <p>Indica cosa riprendere da ciascun esempio. La descrizione definisce il nuovo personaggio.</p>
-                <label>Cerca nella campagna<input type="search" data-reference-search placeholder="Nome o categoria" autocomplete="off"></label>
-                <div class="npc-generator__search-results" data-reference-results aria-label="NPC disponibili"></div>
+                <div class="npc-generator__reference-toolbar"><button type="button" data-reference-picker>Scegli NPC di esempio</button><button type="button" data-reference-reload>Aggiorna elenco</button></div>
+                <p data-reference-status role="status" aria-live="polite"></p>
                 <p>Gli esempi devono avere l'immagine già salvata sulla wiki. Puoi selezionare fino a tre NPC.</p>
                 <div class="npc-generator__selected-references" data-references></div>
               </details>
@@ -48,7 +49,7 @@
               <figure><figcaption>Avatar · 9:16</figcaption><div><img data-avatar alt="Anteprima avatar del nuovo NPC" hidden><p data-avatar-placeholder>L'avatar a figura intera apparirà qui.</p><button type="button" data-enlarge="avatar" hidden>Ingrandisci</button></div></figure>
               <figure><figcaption>Token · 1:1</figcaption><div><img data-token alt="Anteprima token del nuovo NPC" hidden><p data-token-placeholder>Il token verrà generato dall'avatar.</p><button type="button" data-enlarge="token" hidden>Ingrandisci</button></div></figure>
             </div>
-            <p class="npc-avatar-generator__hint">Il modello sceglie angolazione e posa del token. Cornice circolare intera, bianco piatto all'esterno.</p>
+            <p class="npc-avatar-generator__hint" data-token-background>Il modello sceglie angolazione e posa del token. Cornice circolare intera, esterno trasparente.</p>
             </aside>
           </div>
           <footer><span>Due generazioni per coppia. Conferma per creare l'NPC.</span><div>
@@ -71,6 +72,7 @@
         let job = null, busy = false, loaded = false, enabled = false, canStop = false, closed = false, applying = false;
         let timer, zoom, pendingRequest = null, storageKey = "", references = [];
         let resolutions = [], qualities = [];
+        let loadingReferences = false, referenceError = "", referencesPicker;
         const previews = {}, controller = new AbortController();
         const base = "api/npc-generation";
         const status = (message, error = false) => { el("[data-status]").textContent = message; el("[data-status]").classList.toggle("is-error", error); };
@@ -119,7 +121,10 @@
             el("[data-new]").hidden = !job || active(job) || job.status === "confirming";
             el("[data-new]").disabled = busy || Boolean(pendingRequest);
             dialog.setAttribute("aria-busy", String(busy || active(job)));
-            renderSearch();
+            el("[data-reference-picker]").disabled = frozen || loadingReferences || !npcs.length;
+            el("[data-reference-reload]").disabled = frozen || loadingReferences || !loadReferences;
+            el("[data-reference-status]").textContent = loadingReferences ? "Aggiorno tutti gli NPC della campagna…" : referenceError || `${npcs.length} NPC della campagna · personaggi e creature di tutte le categorie`;
+            el("[data-reference-status]").classList.toggle("is-error", Boolean(referenceError));
         }
         function renderReferences() {
             el("[data-reference-count]").textContent = `${references.length} / 3 · facoltativi`;
@@ -149,26 +154,15 @@
             });
             controls();
         }
-        function renderSearch() {
-            const root = el("[data-reference-results]"), search = el("[data-reference-search]").value.trim().toLocaleLowerCase();
-            root.replaceChildren();
-            const matches = npcs.filter(npc => !references.some(reference => reference.worldId === npc.managedActorWorldId && reference.actorId === npc.managedActorId) && `${npc.name} ${npc.category || ""}`.toLocaleLowerCase().includes(search)).slice(0, 18);
-            for (const npc of matches) {
-                const button = document.createElement("button"); button.type = "button";
-                const hasAvatar = wikiImage(imagePath(npc, "style")), hasToken = wikiImage(imagePath(npc, "frame"));
-                const image = document.createElement("img"); image.alt = ""; image.loading = "lazy";
-                const path = imagePath(npc, hasAvatar ? "style" : "frame");
-                if (path) image.src = app.utils.resolveImageUrl(path); else image.hidden = true;
-                const name = document.createElement("span"); name.textContent = npc.name;
-                button.append(image, name); button.disabled = locked() || references.length >= 3 || (!hasAvatar && !hasToken);
-                if (!hasAvatar && !hasToken) button.title = "Carica e salva prima un'immagine di questo NPC sulla wiki.";
-                button.addEventListener("click", () => {
-                    references.push({ worldId: npc.managedActorWorldId, actorId: npc.managedActorId, name: npc.name, purpose: hasAvatar ? "style" : "frame", note: "" });
-                    renderReferences();
-                });
-                root.appendChild(button);
-            }
-            if (!matches.length) { const empty = document.createElement("p"); empty.textContent = "Nessun altro NPC corrispondente nella campagna."; root.appendChild(empty); }
+        async function reloadReferences() {
+            if (!loadReferences || loadingReferences || closed) return;
+            loadingReferences = true; referenceError = ""; controls();
+            try {
+                const catalog = await loadReferences({ signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]) });
+                if (!closed) npcs = catalog;
+            } catch (_) {
+                if (!closed) referenceError = `Non riesco ad aggiornare l'elenco. ${npcs.length} NPC già caricati; puoi riprovare con «Aggiorna elenco».`;
+            } finally { loadingReferences = false; if (!closed) { renderReferences(); } }
         }
         function restore(input, refs = []) {
             for (const key of ["name", "description", "categoryId", "targetWorldId", "kind", "visibility", "quality", "resolution"]) {
@@ -200,6 +194,9 @@
                 el(`[data-${part}-placeholder]`).hidden = true; el(`[data-enlarge="${part}"]`).hidden = false;
             }));
             if (closed) return;
+            el("[data-token-background]").textContent = job?.hasToken && job.tokenBackground !== "transparent"
+                ? "Questa anteprima usa lo sfondo precedente. Rigenera solo il token per ottenere l'esterno trasparente."
+                : "Il modello sceglie angolazione e posa del token. Cornice circolare intera, esterno trasparente.";
             if (active(job)) {
                 const elapsed = Math.max(0, Math.floor((Date.now() - Date.parse(job.startedAt || job.createdAt)) / 60000));
                 status(`${job.phase === "avatar" ? "Sto creando l'avatar" : "Sto creando il token dall'avatar"}${elapsed ? ` · ${elapsed} min` : ""}. Puoi chiudere la finestra e ritrovare qui la bozza.`);
@@ -218,12 +215,12 @@
                 const payload = await (await request()).json();
                 if (closed) return;
                 const first = !loaded, oldId = job?.id;
-                job = payload.job; loaded = true; enabled = payload.enabled && payload.version === 1; canStop = payload.canStop === true;
+                job = payload.job; loaded = true; enabled = payload.enabled && payload.version === 1 && payload.tokenTransparencyVersion === 1; canStop = payload.canStop === true;
                 resolutions = payload.supportedResolutions || []; qualities = payload.supportedQualities || [];
                 if (pendingRequest && job?.id === pendingRequest.requestId) remember(null);
                 if (!pendingRequest && job && (first || oldId !== job.id)) { clearPreviews(); restore(job, job.references); }
                 await showJob();
-                if (payload.version !== 1) status("Genera NPC richiede l'aggiornamento del servizio.", true);
+                if (payload.version !== 1 || payload.tokenTransparencyVersion !== 1) status("Aggiorna il servizio per generare NPC con token trasparenti.", true);
             } catch (error) {
                 if (!closed) {
                     loaded = false;
@@ -256,7 +253,14 @@
         el("[data-generate]").addEventListener("click", () => generate());
         el("[data-retry-token]").addEventListener("click", () => generate(true));
         el("[data-refresh]").addEventListener("click", refresh);
-        el("[data-reference-search]").addEventListener("input", renderSearch);
+        el("[data-reference-reload]").addEventListener("click", reloadReferences);
+        el("[data-reference-picker]").addEventListener("click", async () => {
+            if (locked() || loadingReferences) return;
+            try {
+                const { openNpcReferencePicker } = await import(referencePickerUrl);
+                if (!closed && !locked()) referencesPicker = openNpcReferencePicker({ npcs, references, categories, usable: (npc, purpose) => wikiImage(imagePath(npc, purpose)), resolveImageUrl: path => app.utils.resolveImageUrl(path), onApply: next => { references = next; renderReferences(); } });
+            } catch (_) { if (!closed) status("Non riesco ad aprire la selezione degli NPC. Ricarica la pagina e riprova.", true); }
+        });
         form.addEventListener("submit", event => { event.preventDefault(); generate(); });
         form.addEventListener("change", controls);
         el("[data-stop]").addEventListener("click", async () => {
@@ -292,6 +296,7 @@
                 zoom.innerHTML = '<header><strong></strong><div><button type="button" data-size aria-pressed="false">Dimensione reale</button><button type="button" data-dismiss aria-label="Chiudi ingrandimento">×</button></div></header><div class="npc-avatar-zoom__canvas"><img alt=""></div>';
                 zoom.querySelector("strong").textContent = `${part === "avatar" ? "Avatar" : "Token"} · ${field("name").value}`;
                 zoom.querySelector("img").src = previews[part].url;
+                if (part === "token") zoom.classList.add("npc-generator-token-zoom");
                 const dismiss = () => { zoom.close(); zoom.remove(); zoom = null; el(`[data-enlarge="${part}"]`).focus(); };
                 zoom.querySelector("[data-dismiss]").addEventListener("click", dismiss);
                 zoom.addEventListener("cancel", event => { event.preventDefault(); dismiss(); });
@@ -303,12 +308,14 @@
         function close() {
             if (closed || applying) return;
             closed = true; clearTimeout(timer); controller.abort();
+            referencesPicker?.close();
             if (zoom) { zoom.close(); zoom.remove(); zoom = null; }
             clearPreviews(); dialog.close(); dialog.remove(); if (previousFocus?.isConnected) previousFocus.focus();
         }
         el("[data-close]").addEventListener("click", close);
         dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
         dialog.showModal(); renderReferences();
+        reloadReferences();
         try {
             const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
             storageKey = `npc-generation:${campaign}:${Array.from(digest.slice(0, 12), byte => byte.toString(16).padStart(2, "0")).join("")}`;

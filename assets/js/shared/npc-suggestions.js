@@ -9,7 +9,7 @@
         let retry = null;
         try { retry = JSON.parse(sessionStorage.getItem(key)); } catch {}
         const remember = value => { retry = value; try { if (value) sessionStorage.setItem(key, JSON.stringify(value)); else sessionStorage.removeItem(key); } catch {} };
-        let job = null, busy = false, loaded = false, enabled = false, hasAvatar = false, stale = false, closed = false, timer;
+        let job = null, busy = false, loaded = false, enabled = false, hasAvatar = false, canDiscard = false, stale = false, closed = false, timer;
         const controller = new AbortController(), previousFocus = document.activeElement;
         const dialog = document.createElement("dialog");
         dialog.className = "npc-avatar-generator npc-ability-generator npc-suggestions";
@@ -30,7 +30,7 @@
               <details data-uncertainties-section open><summary>Ipotesi e aspetti da verificare</summary><ul data-uncertainties></ul></details>
             </div>
           </div>
-          <footer><span>I consigli non certificano il GS. Ogni nuova analisi usa il budget API; riaprire i risultati già pronti non li rigenera.</span><div><button type="button" data-analyze class="npc-avatar-generator__confirm" disabled>Analizza NPC</button></div></footer>`;
+          <footer><span>I consigli non certificano il GS. Ogni nuova analisi usa il budget API; riaprire i risultati già pronti non li rigenera.</span><div><button type="button" data-discard hidden>Scarta analisi</button><button type="button" data-analyze class="npc-avatar-generator__confirm" disabled>Analizza NPC</button></div></footer>`;
         document.body.appendChild(dialog);
         const el = selector => dialog.querySelector(selector);
         el("[data-name]").textContent = actor.name;
@@ -42,12 +42,15 @@
             el("[data-analyze]").disabled = busy || running() || !loaded || !enabled || !hasAvatar;
             el("[data-analyze]").textContent = retry ? "Riprova invio" : running() ? "Analisi in corso…" : job ? "Rianalizza NPC" : "Analizza NPC";
             el("[data-direction]").disabled = busy || running() || Boolean(retry);
+            el("[data-discard]").hidden = !job || running();
+            el("[data-discard]").disabled = busy || !loaded || !canDiscard || Boolean(retry);
+            el("[data-discard]").title = !canDiscard ? "Aggiorna il servizio per scartare l’analisi." : retry ? "Completa prima il controllo dell’invio." : "Rimuovi questa analisi dai risultati salvati dell’NPC.";
             el("[data-stale]").hidden = !stale || !job?.report;
             dialog.querySelectorAll("[data-develop]").forEach(button => button.disabled = busy || running() || stale || Boolean(retry));
             dialog.setAttribute("aria-busy", String(busy || running()));
         };
-        const request = async body => {
-            const response = await fetch(app.urls.api(base), {method: body ? "POST" : "GET", cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]),
+        const request = async (body, suffix = "") => {
+            const response = await fetch(app.urls.api(base + suffix), {method: body ? "POST" : "GET", cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]),
                 headers: {Authorization: `Bearer ${token}`, ...(body ? {"Content-Type": "application/json"} : {})}, ...(body ? {body: JSON.stringify(body)} : {})});
             const data = await response.json().catch(() => ({}));
             if (!response.ok) { const error = new Error(data.error || "Analisi non disponibile. Aggiorna il Worker e riprova."); error.status = response.status; throw error; }
@@ -58,7 +61,10 @@
         function renderReport() {
             const report = job?.report;
             el("[data-report]").hidden = !report;
-            if (!report) return;
+            if (!report) {
+                for (const selector of ["[data-report-date]", "[data-summary]", "[data-visual]", "[data-strengths]", "[data-uncertainties]", "[data-adjustments]", "[data-ideas]"]) el(selector).replaceChildren();
+                return;
+            }
             el("[data-summary]").textContent = report.summary;
             const date = new Date(job.createdAt);
             el("[data-report-date]").textContent = Number.isNaN(date.getTime()) ? "Analisi salvata" : `Analisi del ${date.toLocaleString("it-IT", {dateStyle: "short", timeStyle: "short"})}`;
@@ -101,6 +107,7 @@
         }
         async function show(data) {
             if ("enabled" in data) { enabled = data.enabled && data.version === 1; hasAvatar = data.hasAvatar; loaded = true; }
+            if ("canDiscardSuggestions" in data) canDiscard = data.canDiscardSuggestions === true;
             stale = Boolean(data.stale); job = data.job;
             const problem = job?.errorDetail || job?.iconErrorDetail;
             el("[data-error-details]").hidden = !job?.error && !job?.iconError;
@@ -122,6 +129,22 @@
             try { const data = await request(); if (!closed) await show(data); }
             catch (error) { if (!closed) { status(error.message, true); controls(); if (running()) timer = setTimeout(refresh, 10000); } }
         }
+        el("[data-discard]").addEventListener("click", async () => {
+            if (busy || running() || !job || !canDiscard || retry) return;
+            let didDiscard = false;
+            busy = true; clearTimeout(timer); controls();
+            try {
+                const data = await request({}, `/${encodeURIComponent(job.id)}/discard`);
+                if (data.discarded !== true || data.job) throw new Error("Il servizio non ha confermato lo scarto dell’analisi. Ricarica il pannello e riprova.");
+                remember(null); el("[data-direction]").value = "";
+                await show(data);
+                status("Analisi scartata. Puoi richiederne una nuova quando vuoi.");
+                didDiscard = true;
+            } catch (error) {
+                if (error.status === 409) await refresh();
+                if (!closed) status(error.message, true);
+            } finally { busy = false; if (!closed) { controls(); if (didDiscard) el("[data-direction]").focus(); } }
+        });
         el("[data-analyze]").addEventListener("click", async () => {
             if (busy || running()) return;
             busy = true; clearTimeout(timer); controls();

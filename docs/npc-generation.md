@@ -12,7 +12,7 @@ quelle del flusso di creazione manuale.
 La prima fase genera un avatar a figura intera 9:16 nello stile del generatore
 avatar esistente. La seconda usa precisamente quell'avatar per creare il token
 1:1: volto e busto, angolazione e posa libere, cornice circolare completamente
-visibile e sfondo bianco piatto all'esterno. Non è imposta una vista frontale
+visibile e trasparenza all'esterno. Non è imposta una vista frontale
 né a tre quarti. Le anteprime si possono ingrandire alla dimensione reale.
 
 Durante la compilazione le anteprime restano sempre visibili: su desktop sono
@@ -20,8 +20,28 @@ accanto ai campi, con scorrimento separato del modulo; sugli schermi stretti
 occupano una fascia fissa sopra i campi. Aprire riferimenti e impostazioni non
 sposta le immagini fuori dalla vista.
 
+Il token richiede `background: "transparent"`, WebP e `output_compression: 100`
+direttamente al modello. Qualità e risoluzione restano quelle scelte; il file
+restituito viene salvato e confermato senza ridimensionamenti o ricompressioni.
+Il server verifica dimensioni e presenza del canale alpha prima di rendere pronta
+la proposta, anche durante il recupero di un lavoro. Un risultato opaco conserva
+l'avatar e richiede un nuovo clic esplicito per riprovare il solo token.
+Il fondo a scacchi dell'anteprima rende riconoscibile l'area trasparente.
+Le vecchie proposte opache rimangono disponibili: il pannello indica di rigenerare
+il token se si vuole la trasparenza, senza avviare chiamate automatiche.
+`tokenTransparencyVersion: 1` viene dichiarato dal coordinatore effettivo;
+un coordinatore precedente non può avviare silenziosamente un token opaco.
+
 Si possono scegliere fino a tre NPC della campagna, assegnando a ciascuno un
 ruolo: stile e palette, aspetto e lineamenti, abbigliamento, cornice del token.
+**Scegli NPC di esempio** apre una finestra con ricerca per nome, ruolo, categoria
+e mondo, filtri di categoria/sottocategoria e tipo, conteggi e paginazione di
+24 risultati. Nessun NPC viene perso oltre i primi risultati. L'elenco completo
+viene aggiornato all'apertura, indipendentemente dai filtri della pagina principale,
+e include creature e NPC archiviati accessibili al DM. Gli NPC senza un'immagine
+utilizzabile restano elencati con l'indicazione di caricarla sulla wiki.
+Accenti e ordine delle parole non impediscono la ricerca. Le selezioni, fino a
+tre NPC, rimangono conservate cambiando pagina o filtro.
 Per i primi tre si usa l'avatar; per la cornice si usa il token. Le cornici non
 sono inviate al generatore dell'avatar. I riferimenti devono essere immagini
 PNG/JPEG/WebP già disponibili su R2 nella campagna: massimo 12 MB ciascuna e
@@ -75,7 +95,9 @@ documenti delle campagne e gli originali KV restano invariati.
 `npm run test:npc-generation` verifica le route reali con provider simulato e
 le query D1 con SQLite transazionale nello stesso processo. Copre riferimenti,
 permessi, isolamento campagne, recupero delle due fasi, errori di commit,
-conferme ripetute e ricevute dopo ACK. Il test SQL usa l'interfaccia D1 locale
+conferme ripetute e ricevute dopo ACK. Verifica inoltre selezione dell'intero
+catalogo, filtri, selezione multipla delle icone, trasparenza nativa e conservazione
+esatta dei byte dell'immagine alla conferma. Il test SQL usa l'interfaccia D1 locale
 e il codice di produzione; non sostituisce il controllo della distribuzione
 nel runtime Cloudflare. Non vengono effettuate chiamate a pagamento.
 

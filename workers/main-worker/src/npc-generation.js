@@ -1,8 +1,9 @@
-import { AVATAR_MODEL, AVATAR_STYLE, AVATAR_RESOLUTIONS, AVATAR_QUALITIES, avatarGenerationOptions, avatarReferenceKey, webpSize } from "./avatar-generation.js";
+import { AVATAR_MODEL, AVATAR_STYLE, AVATAR_FRAMING, AVATAR_RESOLUTIONS, AVATAR_QUALITIES, avatarGenerationOptions, avatarReferenceKey, webpSize, webpHasAlpha } from "./avatar-generation.js";
 import { GENERATION_PENDING_MS, GENERATION_WAIT_MS, generationDeadline, recoverGeneration, ownsGeneration } from "./generation-lifecycle.js";
+import { NPC_TOKEN_PROMPT, NPC_TOKEN_SIZES } from "./npc-token-prompt.js";
+export { NPC_TOKEN_SIZES } from "./npc-token-prompt.js";
 
 export const NPC_GENERATION_VERSION = 1;
-export const NPC_TOKEN_SIZES = Object.freeze({ medium: 1024, high: 1536, "2k": 2048 });
 export const NPC_REFERENCE_PURPOSES = Object.freeze({
   style: "artistic style, palette and lighting only",
   appearance: "species, anatomy or family resemblance, while creating a distinct new individual",
@@ -25,7 +26,7 @@ function publicJob(job) {
   return {
     id: job.id, draftId: job.draftId, status: job.status, phase: job.phase, form: job.confirmation || job.form,
     options: job.options, references: job.references.map(({ worldId, actorId, name, purpose, note }) => ({ worldId, actorId, name, purpose, note })),
-    hasAvatar: Boolean(job.avatarReady), hasToken: Boolean(job.tokenReady), error: job.error || "",
+    hasAvatar: Boolean(job.avatarReady), hasToken: Boolean(job.tokenReady), tokenBackground: job.tokenBackground || "opaque", error: job.error || "",
     createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job),
     ...(job.receipt ? { requestId: job.receipt.request?.id || job.draftId } : {}),
   };
@@ -80,10 +81,10 @@ async function checkedReferences(input, campaignId, env, services) {
 export function npcImagePrompt(job, phase) {
   if (phase === "token") {
     const frames = job.references.filter(reference => reference.purpose === "frame");
-    return `Using IMAGE 1, the full body character image, create a circular dynamic portrait close-up. Focus on the face and upper torso, keeping facial features, species, skin, markings, clothing and design consistent with IMAGE 1. Choose the most suitable viewing angle and pose freely. Frame the composition inside a themed uniform circular frame, with the entire circular frame visible and a small clear margin on every side. Add a shallow depth of field background INSIDE the circle. Highly detailed fantasy illustration, cinematic lighting, sharp focus on the face. IMPORTANT: Outside the circular frame keep a pure white flat background, without shadows or objects. Do not cut any part of the frame out of the image. Square 1:1 composition. No text, labels or collage. Preserve the character image's painterly style and color palette.\n${frames.length ? referenceGuide(frames, 2) : ""}`;
+    return `${NPC_TOKEN_PROMPT}\n${frames.length ? referenceGuide(frames, 2) : ""}`;
   }
   const references = job.references.filter(reference => reference.purpose !== "frame");
-  return `Create ONE new fantasy character, not a copy or a collage of the reference characters. Character name: ${JSON.stringify(job.form.name)}. Character description (the authority for identity and requested details): ${JSON.stringify(job.form.description)}. Show the entire body, including head and feet, with breathing room. Vertical 9:16. No text, labels, border or collage.\nMandatory artistic style:\n${ART_STYLE}\n${references.length ? referenceGuide(references, 1) : ""}`;
+  return `Create ONE new fantasy character, not a copy or a collage of the reference characters. Character name: ${JSON.stringify(job.form.name)}. Character description (the authority for identity and requested details): ${JSON.stringify(job.form.description)}. ${AVATAR_FRAMING} No text, labels, border or collage.\nMandatory artistic style:\n${ART_STYLE}\n${references.length ? referenceGuide(references, 1) : ""}`;
 }
 
 function referenceGuide(references, first) {
@@ -122,6 +123,9 @@ export async function handleNpcGeneration(request, route, campaignId, env, servi
       if (previous.ok) return reply({ ok: true, job: publicJob((await previous.json()).job) });
       if (previous.status !== 404) return previous;
       if (!env.OPENAI_API_KEY) return fail("Il generatore deve essere attivato dall'amministratore.", 503);
+      const capabilities = await call("latest");
+      if (!capabilities.ok) return capabilities;
+      if ((await capabilities.json()).tokenTransparencyVersion !== 1) return fail("Aggiornamento del generatore in corso. Riprova per ottenere token trasparenti.", 503);
       const options = avatarGenerationOptions(body);
       if (!options) return fail("Scegli qualità e risoluzione tra le opzioni disponibili.");
       if (route.action === "retry-token") return call("create", { id: body.requestId, parentJobId: route.jobId, tokenOnly: true, options });
@@ -179,7 +183,7 @@ export class NpcGenerationStore {
     const id = action === "latest" ? latest : input.id;
     let job = id ? await storage.get(`job:${id}`) : null;
     if (job && scope(job.context) !== scope(input.context)) return fail("Bozza non trovata.", 404);
-    if (action === "latest") return reply({ ok: true, version: NPC_GENERATION_VERSION, canStop: true, supportedResolutions: Object.keys(AVATAR_RESOLUTIONS), supportedQualities: AVATAR_QUALITIES, tokenSizes: NPC_TOKEN_SIZES, job: publicJob(job) });
+    if (action === "latest") return reply({ ok: true, version: NPC_GENERATION_VERSION, tokenTransparencyVersion: 1, canStop: true, supportedResolutions: Object.keys(AVATAR_RESOLUTIONS), supportedQualities: AVATAR_QUALITIES, tokenSizes: NPC_TOKEN_SIZES, job: publicJob(job) });
     if (action === "create") {
       if (job) return reply({ ok: true, job: publicJob(job) });
       const previous = latest ? await storage.get(`job:${latest}`) : null;
@@ -202,7 +206,7 @@ export class NpcGenerationStore {
         id: input.id, draftId: parent?.draftId || input.id, context: input.context, form: input.tokenOnly ? parent.form : input.form,
         references, options: input.options, status: "pending", phase: input.tokenOnly ? "token" : "avatar",
         avatarKey: input.tokenOnly ? parent.avatarKey : imageKey(input.id, "avatar"), tokenKey: imageKey(input.id, "token"),
-        avatarReady: Boolean(input.tokenOnly), tokenReady: false, error: "", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS,
+        avatarReady: Boolean(input.tokenOnly), tokenReady: false, tokenBackground: "transparent", error: "", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS,
       };
       await storage.transaction(async tx => {
         await tx.put({ [`job:${job.id}`]: job, [`latest:${scope(job.context)}`]: job.id, active: job.id });
@@ -251,8 +255,8 @@ export class NpcGenerationStore {
   async completedImage(job) {
     const object = await this.env.MEDIA_BUCKET.get(job[`${job.phase}Key`]);
     if (!object || object.size > MAX_BYTES) return false;
-    const size = webpSize(new Uint8Array(await object.arrayBuffer())), expected = this.dimensions(job);
-    return size?.width === expected.width && size?.height === expected.height;
+    const bytes = new Uint8Array(await object.arrayBuffer()), size = webpSize(bytes), expected = this.dimensions(job);
+    return size?.width === expected.width && size?.height === expected.height && (job.phase !== "token" || job.tokenBackground !== "transparent" || webpHasAlpha(bytes));
   }
   async recoverExpired(job) {
     if (await this.completedImage(job)) {
@@ -279,6 +283,7 @@ export class NpcGenerationStore {
       }
       if (current?.status !== "pending") { await this.state.storage.delete("active"); return null; }
       current.status = "running"; current.startedAt = new Date().toISOString(); current.deadlineAt = Date.now() + GENERATION_WAIT_MS;
+      if (current.phase === "token") current.tokenBackground = "transparent";
       this.inFlight = id; this.abortController = new AbortController();
       await this.state.storage.transaction(async tx => { await tx.put(`job:${id}`, current); await tx.setAlarm(current.deadlineAt); });
       return current;
@@ -307,7 +312,7 @@ export class NpcGenerationStore {
       const response = await fetch(`https://api.openai.com/v1/images/${images.length ? "edits" : "generations"}`, {
         method: "POST", headers: { Authorization: `Bearer ${this.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12 * 60 * 1000)]),
-        body: JSON.stringify({ model: AVATAR_MODEL, ...(images.length ? { images } : {}), prompt: npcImagePrompt(job, job.phase), n: 1, size: `${dimensions.width}x${dimensions.height}`, quality: job.options.quality, output_format: "webp" }),
+        body: JSON.stringify({ model: AVATAR_MODEL, ...(images.length ? { images } : {}), prompt: npcImagePrompt(job, job.phase), n: 1, size: `${dimensions.width}x${dimensions.height}`, quality: job.options.quality, output_format: "webp", ...(job.phase === "token" ? { background: "transparent", output_compression: 100 } : {}) }),
       });
       if (!response.ok) {
         job.status = response.status >= 500 ? "uncertain" : "failed";
@@ -317,6 +322,7 @@ export class NpcGenerationStore {
       if (typeof encoded !== "string" || encoded.length > MAX_BYTES * 1.4) throw new InputError("Risultato immagine non valido.");
       const bytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0)), size = webpSize(bytes);
       if (bytes.length > MAX_BYTES || size?.width !== dimensions.width || size?.height !== dimensions.height) throw new InputError("Il servizio non ha restituito il formato immagine richiesto.");
+      if (job.phase === "token" && !webpHasAlpha(bytes)) throw new InputError("Il token restituito non contiene il canale di trasparenza richiesto. L'avatar è conservato; puoi riprovare solo il token.");
       await this.env.MEDIA_BUCKET.put(job[`${job.phase}Key`], bytes, { httpMetadata: { contentType: "image/webp" } });
       completed = true;
     } catch (error) {

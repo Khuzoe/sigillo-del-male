@@ -1,0 +1,11 @@
+.ability-translations { width: min(1100px, 96vw); }
+.ability-translations__search { display: grid; gap: 7px; margin-block: 16px; color: #ded8ca; }
+.ability-translations__search input { box-sizing: border-box; width: 100%; padding: 11px 12px; background: #15161b; color: #eee9df; border: 1px solid #55515c; border-radius: 8px; font: inherit; }
+.ability-translations__row details { margin-top: 12px; }
+.ability-translations__row summary { cursor: pointer; color: #dec28a; padding-block: 8px; }
+.ability-translations__comparison { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.ability-translations__comparison section { min-width: 0; padding: 14px; background: #1c1d23; border-radius: 8px; }
+.ability-translations__comparison h4 { color: #b8b1a4; font: 12px Montserrat, sans-serif; margin: 0 0 12px; }
+.ability-translations__comparison strong { overflow-wrap: anywhere; }
+.ability-translations__comparison p { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 340px; overflow-y: auto; line-height: 1.65; }
+@media (max-width: 650px) { .ability-translations__comparison { grid-template-columns: minmax(0, 1fr); } .ability-translations footer { flex-direction: column; align-items: stretch; } }

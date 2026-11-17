@@ -216,6 +216,8 @@ const analysisBody = {requestId: analysisId, details: "Mantieni il GS, suggerisc
 const duplicates = await Promise.all(Array.from({length: 3}, () => req(suggestions, analysisBody, dm)));
 assert.ok(duplicates.every(r => r.ok));
 assert.equal(storage.values.get(`usage:suggestions:${month}`), 1);
+assert.equal((await req(`${suggestions}/${analysisId}/discard`, {}, dm)).status, 409, "an in-flight analysis cannot be discarded");
+assert.equal(await storage.get("active"), analysisId, "discard cannot release a running generation");
 let analysisCalls = 0, capturedAnalysis, invalidAnalysis = false;
 globalThis.fetch = async (url, options) => {
   assert.equal(url, "https://api.openai.com/v1/responses", "analysis never calls image generation");
@@ -238,6 +240,14 @@ try {
   assert.ok(!content[0].text.includes("PRIVATE BIOGRAPHY"));
   const result = await (await req(suggestions, undefined, dm)).json();
   assert.equal(result.job.status, "ready"); assert.equal(result.stale, false); assert.deepEqual(result.job.report, report);
+  assert.equal(result.canDiscardSuggestions, true);
+  assert.equal((await req(`${suggestions}/${analysisId}/discard`, {}, player)).status, 403);
+  assert.equal((await req(`${suggestions}/${analysisId}/discard`, {}, null, sync)).status, 401);
+  assert.equal((await req(`${suggestions}/${analysisId}/discard`, {}, dm, {}, "mago-folle")).status, 403);
+  assert.equal((await req(`api/managed-actors/test-world/other/ability-suggestions/${analysisId}/discard`, {}, dm)).status, 404, "cannot discard another NPC's analysis");
+  assert.equal((await req(`${suggestions}/${previousAbility}/discard`, {}, dm)).status, 404, "ability drafts cannot enter the analysis discard route");
+  assert.equal((await req(`${suggestions}/${analysisId}/discard`, undefined, dm)).status, 405, "discard requires an authenticated POST");
+  assert.equal((await (await req(suggestions, undefined, dm)).json()).job.id, analysisId);
   assert.equal(result.job.draft, null);
   assert.equal((await (await req(generation, undefined, dm)).json()).job.id, previousAbility, "suggestions do not replace an ability draft");
   assert.equal((await req(`${generation}/${analysisId}/confirm`, {draft}, dm)).status, 404, "a report cannot enter the ability command pipeline");
@@ -255,11 +265,35 @@ try {
   assert.equal((await req(suggestions, {requestId: randomUUID(), details: ""}, dm)).status, 400, "no cross-campaign or missing reference");
   assert.equal(storage.values.get(`usage:suggestions:${month}`), 1, "invalid reference does not reserve budget");
   kv.set(actorKey, baseline);
+  // Discard is saved on the coordinator, without deleting the report or usage history.
+  // It works without provider credentials or an avatar and never touches NPC data.
+  const savedApiKey = env.OPENAI_API_KEY;
+  delete env.OPENAI_API_KEY;
+  const noAvatar = JSON.parse(baseline); noAvatar.media = {}; kv.set(actorKey, JSON.stringify(noAvatar));
+  const discarded = await req(`${suggestions}/${analysisId}/discard`, {}, dm);
+  assert.equal(discarded.status, 200);
+  assert.equal((await discarded.json()).discarded, true);
+  for (let i = 0; i < 2; i++) assert.equal((await req(`${suggestions}/${analysisId}/discard`, {}, dm)).status, 200, "discard retries are idempotent");
+  assert.ok((await storage.get(`job:${analysisId}`)).discardedAt);
+  assert.deepEqual((await storage.get(`job:${analysisId}`)).report, report, "historical report is preserved privately");
+  assert.equal(storage.values.get(`usage:suggestions:${month}`), 1, "discard preserves usage counters");
+  coordinator = new AbilityGenerationStore({storage}, env);
+  for (let i = 0; i < 3; i++) assert.equal((await (await req(suggestions, undefined, dm)).json()).job, null, "discard survives reopening and coordinator restarts");
+  env.OPENAI_API_KEY = savedApiKey; kv.set(actorKey, baseline);
+  assert.equal((await req(suggestions, analysisBody, dm)).status, 409, "a retry of an old request cannot revive a discarded report");
+  assert.equal(analysisCalls, 1, "discard never starts a provider call");
+  assert.equal((await (await req(generation, undefined, dm)).json()).job.id, previousAbility, "discard preserves the separate ability draft");
+  assert.deepEqual([...kv.entries()], kvBeforeAnalysis);
+  assert.deepEqual([...objects.keys()], objectsBeforeAnalysis);
   invalidAnalysis = true;
   const invalidId = randomUUID();
   await req(suggestions, {requestId: invalidId, details: ""}, dm); await coordinator.alarm();
   assert.equal((await (await req(suggestions, undefined, dm)).json()).job.status, "uncertain");
   assert.equal((await (await req(suggestions, undefined, dm)).json()).job.errorDetail.code, "validation");
+  assert.equal((await req(`${suggestions}/${analysisId}/discard`, {}, dm)).status, 409, "a stale discard cannot hide a newer analysis");
+  assert.equal((await (await req(suggestions, undefined, dm)).json()).job.id, invalidId);
+  assert.equal((await req(`${suggestions}/${invalidId}/discard`, {}, dm)).status, 200, "failed analyses can also be cleared");
+  assert.equal((await (await req(suggestions, undefined, dm)).json()).job, null);
   assert.deepEqual([...kv.entries()], kvBeforeAnalysis, "invalid model output cannot change data either");
   // A restarted in-flight analysis is not automatically billed again.
   const restartId = randomUUID(); await req(suggestions, {requestId: restartId, details: ""}, dm);
@@ -271,7 +305,7 @@ try {
   await coordinator.alarm();
   assert.equal(analysisCalls, 3);
 } finally { globalThis.fetch = originalFetch; }
-console.log("NPC suggestions: visual reference + full mechanical sheet, private permissions, structured advisory output, isolated drafts, unchanged KV/R2, stale reports, deduplication, failure recovery and unlimited attempts passed.");
+console.log("NPC suggestions: visual analysis, permissions, durable idempotent discard, stale discard protection, unchanged NPC/media/usage, isolated drafts, failure recovery and unlimited attempts passed.");
 
 // Exercise failure handling through real routes and Durable Object alarm, not paid APIs.
 env.ABILITY_MONTHLY_LIMIT = "100";
@@ -352,8 +386,8 @@ const page = await readFile(new URL("../assets/js/pages/managed-actor.js", impor
 const sandbox = {console, URL, Set, Map, WeakMap, window: {CriptaApp: {onPageReady() {}}}};
 vm.runInNewContext(page.replace(/\}\)\(\);\s*$/, `globalThis.api = {renderManagedItemCreator, setActor(a) {currentDocument=a;}};})();`), sandbox);
 sandbox.api.setActor({...actorInput, permissions: {isEditor: true}});
-assert.match(sandbox.api.renderManagedItemCreator("Capacità"), /data-managed-generate-ability/);
-assert.match(sandbox.api.renderManagedItemCreator("Capacità"), /data-managed-suggest-npc/);
+assert.doesNotMatch(sandbox.api.renderManagedItemCreator("Capacità"), /data-managed-generate-ability/);
+assert.doesNotMatch(sandbox.api.renderManagedItemCreator("Capacità"), /data-managed-suggest-npc/);
 assert.ok(!sandbox.api.renderManagedItemCreator("Inventario").includes("data-managed-generate-ability"));
 sandbox.api.setActor({...actorInput, permissions: {isEditor: false}});
 assert.ok(!sandbox.api.renderManagedItemCreator("Capacità").includes("data-managed-generate-ability"));

@@ -1,7 +1,9 @@
 import {GENERATION_WAIT_MS, GENERATION_PENDING_MS, generationDeadline, recoverGeneration, ownsGeneration, generationStopResponse} from "./generation-lifecycle.js";
+import {NPC_TOKEN_PROMPT, NPC_TOKEN_SIZES} from "./npc-token-prompt.js";
 // The model and base style are fixed; quality and resolution use a server-owned allowlist.
 export const AVATAR_STYLE = "Stylized painterly realism, hand-painted surfaces, textured brush strokes, cinematic character portrait, realistic facial structure, expressive eyes, sophisticated color harmony, dramatic rim lighting, soft global illumination, atmospheric perspective, muted but rich color palette, detailed clothing folds, subtle skin texture, realistic lighting behavior, concept art and illustration hybrid, emotional mood, high production animated series quality, visually rich yet grounded, artistic rendering rather than photorealism, masterfully painted 3D look. fullbody. new pose. 9:16";
 export const AVATAR_MODEL = "gpt-image-2.6-sunburst";
+export const AVATAR_FRAMING = 'Tight full-body character composition: the entire figure, from the top of the head to the soles of the feet, fills approximately 90% of the image height. Keep only small clear margins above the head and below the feet, with all limbs and essential equipment fully inside the image. Make the character the dominant foreground subject, with a clearly readable face and clothing details; keep the background secondary. Choose a natural pose and camera angle. Vertical 9:16.';
 export const AVATAR_RESOLUTIONS = Object.freeze({ medium: { width: 864, height: 1536 }, high: { width: 1296, height: 2304 }, "2k": { width: 1440, height: 2560 } });
 export const AVATAR_QUALITIES = Object.freeze(["medium", "high", "xhigh"]);
 export function avatarGenerationOptions(input = {}) {
@@ -12,11 +14,15 @@ export function avatarGenerationOptions(input = {}) {
 }
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 const PRIVATE_PREFIX = "_private/ai-avatars/";
+const tokenJob = job => job?.context?.slot === "token";
+const privateImageKey = job => `${tokenJob(job) ? "_private/ai-tokens/" : PRIVATE_PREFIX}${job.id}.webp`;
+const imageDimensions = job => tokenJob(job) ? {width: NPC_TOKEN_SIZES[job.options?.resolution || "high"], height: NPC_TOKEN_SIZES[job.options?.resolution || "high"]} : AVATAR_RESOLUTIONS[job.options?.resolution || "high"];
+const validTokenImage = (job, bytes) => { const size = webpSize(bytes), expected = imageDimensions(job); return bytes.length <= MAX_IMAGE_BYTES && size?.width === expected.width && size?.height === expected.height && webpHasAlpha(bytes); };
 const reply = (data, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "private, no-store" } });
 const failure = (message, status = 400) => reply({ ok: false, error: message }, status);
-const identity = (c) => `${c.campaignId}:${c.worldId}:${c.actorId}`;
+const identity = (c) => `${c.campaignId}:${c.worldId}:${c.actorId}${c.slot === "token" ? ":token" : ""}`;
 const fingerprint = (avatar) => JSON.stringify([normalizeGeneratedAvatarPath(avatar?.path), avatar?.revision || 0, avatar?.hash || ""]);
-const publicJob = (job) => job ? ({ id: job.id, status: job.status, details: job.details, options: avatarGenerationOptions(job.options), error: job.error || "", createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job) }) : null;
+const publicJob = (job) => job ? ({ id: job.id, mediaSlot: tokenJob(job) ? "token" : "avatar", status: job.status, details: job.details, options: avatarGenerationOptions(job.options), error: job.error || "", createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job) }) : null;
 
 // Early confirmations stored the R2 key instead of the site's media path.
 // Normalize only those generated assets; never reinterpret arbitrary campaign files.
@@ -46,21 +52,30 @@ export function avatarReferenceKey(path, campaignId) {
 }
 
 export async function handleAvatarGeneration(request, route, campaignId, env, services) {
+  const slot = route.slot === "token" ? "token" : "avatar", isToken = slot === "token";
   const user = await services.requireUser(request);
   if (user instanceof Response) return user;
-  if (!await services.isEditor(user, campaignId)) return failure("Solo il DM della campagna o l’admin può generare avatar.", 403);
-  if (!env.AVATAR_GENERATOR || !env.MEDIA_BUCKET) return failure("Generazione avatar non ancora configurata.", 503);
+  if (!await services.isEditor(user, campaignId)) return failure(`Solo il DM della campagna o l'admin può generare ${slot}.`, 403);
+  if (!env.AVATAR_GENERATOR || !env.MEDIA_BUCKET) return failure(`Generazione ${slot} non ancora configurata.`, 503);
   const actor = await services.readActor(campaignId, route);
   if (!actor || actor.actorType !== "npc") return failure("NPC non trovato.", 404);
   const stub = env.AVATAR_GENERATOR.get(env.AVATAR_GENERATOR.idFromName("avatar-generations-v1"));
-  const context = { campaignId, worldId: route.worldId, actorId: route.actorId };
+  const context = { campaignId, worldId: route.worldId, actorId: route.actorId, ...(isToken ? {slot: "token"} : {}) };
   const call = (action, data = {}) => stub.fetch(new Request(`https://avatar.internal/${action}`, {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...data, context }),
   }));
+  // Older coordinators ignore the token scope: never expose or overwrite an avatar job.
+  let tokenCapabilities;
+  if (isToken) {
+    try {
+      const result = await call("latest"); tokenCapabilities = await result.json();
+      if (!result.ok || tokenCapabilities.tokenGenerationVersion !== 1) return failure("Aggiorna il servizio per generare token trasparenti dagli avatar esistenti.", 503);
+    } catch { return failure("Il generatore di token si sta aggiornando. Riprova tra poco.", 503); }
+  }
   if (request.method === "GET" && !route.action) {
-    const result = await call("latest");
-    const payload = await result.json();
-    return reply({ ...payload, enabled: Boolean(env.OPENAI_API_KEY), canStop: payload.canStop === true, optionsVersion: 1, style: AVATAR_STYLE }, result.status);
+    const result = isToken ? null : await call("latest");
+    const payload = isToken ? tokenCapabilities : await result.json();
+    return reply({ ...payload, enabled: Boolean(env.OPENAI_API_KEY), canStop: payload.canStop === true, optionsVersion: 1, style: isToken ? NPC_TOKEN_PROMPT : AVATAR_STYLE }, result?.status || 200);
   }
   if (request.method === "GET" && route.action === "preview") return call("preview", { id: route.jobId });
   if (request.method !== "POST") return failure("Operazione non supportata.", 405);
@@ -82,36 +97,38 @@ export async function handleAvatarGeneration(request, route, campaignId, env, se
     if (!referenceKey) return failure("Prima carica e salva l’avatar attuale sulla wiki: servirà come riferimento.");
     const reference = await env.MEDIA_BUCKET.head(referenceKey);
     if (!reference || reference.size > MAX_IMAGE_BYTES) return failure("Avatar di riferimento mancante o troppo grande (massimo 12 MB).");
-    return call("create", { id: body.requestId, details: body.details.trim(), options, referenceKey, reference: actor.media.avatar });
+    return call("create", { id: body.requestId, details: body.details.trim(), options, referenceKey, reference: actor.media.avatar, ...(isToken ? {target: actor.media?.token || null} : {}) });
   }
   if (route.action !== "confirm") return failure("Operazione non supportata.", 405);
   const result = await call("job", { id: route.jobId });
   if (!result.ok) return result;
   const { job } = await result.json();
   if (!["ready", "accepted"].includes(job.status)) return failure("L’anteprima non è ancora disponibile.", 409);
-  const key = `campaigns/${campaignId}/managed-actors/${route.worldId}/${route.actorId}/base/avatar-ai-${job.id}.webp`;
+  const key = `campaigns/${campaignId}/managed-actors/${route.worldId}/${route.actorId}/base/${slot}-ai-${job.id}.webp`;
   const path = `media/${key}`;
   // Repeating a confirmation after a lost response must not apply it twice.
-  if (actor.media?.avatar?.path === path) {
+  if (actor.media?.[slot]?.path === path) {
     await call("accepted", { id: job.id });
-    return reply({ ok: true, avatar: actor.media.avatar, revision: actor.revision });
+    return reply({ ok: true, [slot]: actor.media[slot], revision: actor.revision });
   }
-  const repairingLegacyPath = actor.media?.avatar?.path === key;
-  if (!repairingLegacyPath && (job.status === "accepted" || fingerprint(actor.media?.avatar) !== fingerprint(job.reference))) {
-    return failure("L’avatar è cambiato dopo la generazione. Riapri il generatore per usare il riferimento aggiornato.", 409);
+  const repairingLegacyPath = !isToken && actor.media?.avatar?.path === key;
+  if (!repairingLegacyPath && (job.status === "accepted" || fingerprint(actor.media?.avatar) !== fingerprint(job.reference) || (isToken && fingerprint(actor.media?.token) !== fingerprint(job.target)))) {
+    return failure(isToken ? "L’avatar o il token sono cambiati dopo la generazione. Riapri il generatore per usare le immagini aggiornate." : "L'avatar è cambiato dopo la generazione. Riapri il generatore per usare il riferimento aggiornato.", 409);
   }
-  const image = await env.MEDIA_BUCKET.get(`${PRIVATE_PREFIX}${job.id}.webp`);
+  const image = await env.MEDIA_BUCKET.get(privateImageKey(job));
   if (!image) return failure("Anteprima non disponibile.", 404);
-  await env.MEDIA_BUCKET.put(key, image.body, { httpMetadata: { contentType: "image/webp" } });
-  const avatar = { path, revision: Number(actor.media?.avatar?.revision || 0) + 1, source: "site", presentation: { x: 50, y: 50, scale: 1 } };
-  const history = Array.isArray(actor.site?.avatarHistory) ? [...actor.site.avatarHistory] : [];
-  if (!repairingLegacyPath && actor.media?.avatar?.path && !history.some((entry) => entry.path === actor.media.avatar.path)) history.push(actor.media.avatar);
+  const imageBody = isToken ? new Uint8Array(await image.arrayBuffer()) : image.body;
+  if (isToken && !validTokenImage(job, imageBody)) return failure("Il servizio non ha conservato un token quadrato con trasparenza valido.", 409);
+  await env.MEDIA_BUCKET.put(key, imageBody, { httpMetadata: { contentType: "image/webp" } });
+  const descriptor = { path, revision: Number(actor.media?.[slot]?.revision || 0) + 1, source: "site", presentation: { x: 50, y: 50, scale: 1 } };
+  const historyKey = `${slot}History`, history = Array.isArray(actor.site?.[historyKey]) ? [...actor.site[historyKey]] : [];
+  if (!repairingLegacyPath && actor.media?.[slot]?.path && !history.some((entry) => entry.path === actor.media[slot].path)) history.push(actor.media[slot]);
   // Use the regular save pipeline for profile synchronization, media retention and Foundry notification.
-  const saved = await services.saveActor({ ...actor, expectedRevision: actor.revision, media: { avatar }, site: { ...actor.site, avatarHistory: history } });
+  const saved = await services.saveActor({ ...actor, expectedRevision: actor.revision, media: { [slot]: descriptor }, site: { ...actor.site, [historyKey]: history } });
   if (!saved.ok) return saved;
   const savedPayload = await saved.json();
   await call("accepted", { id: job.id });
-  return reply({ ok: true, avatar, revision: savedPayload.revision });
+  return reply({ ok: true, [slot]: descriptor, revision: savedPayload.revision });
 }
 
 // A single coordinator runs one generation at a time across all campaigns. The alarm runs the paid
@@ -139,7 +156,7 @@ export class AvatarGenerationStore {
     const id = action === "latest" ? latest : input.id;
     const job = id ? await storage.get(`job:${id}`) : null;
     if (job && identity(job.context) !== scope) return failure("Anteprima non trovata.", 404);
-    if (action === "latest") return reply({ ok: true, canStop: true, supportedResolutions: Object.keys(AVATAR_RESOLUTIONS), supportedQualities: AVATAR_QUALITIES, job: publicJob(job) });
+    if (action === "latest") return reply({ ok: true, canStop: true, tokenGenerationVersion: 1, tokenSizes: NPC_TOKEN_SIZES, supportedResolutions: Object.keys(AVATAR_RESOLUTIONS), supportedQualities: AVATAR_QUALITIES, job: publicJob(job) });
     if (action === "create") {
       if (job) return reply({ ok: true, job: publicJob(job) });
       const previous = latest ? await storage.get(`job:${latest}`) : null;
@@ -147,7 +164,7 @@ export class AvatarGenerationStore {
       if (await storage.get("active")) return failure("È già in corso una generazione. Riprova tra qualche minuto.", 409);
       const month = new Date().toISOString().slice(0, 7);
       const used = Number(await storage.get(`usage:${month}`) || 0);
-      const next = { id: input.id, context: input.context, referenceKey: input.referenceKey, reference: input.reference, details: input.details, options: input.options, status: "pending", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS };
+      const next = { id: input.id, context: input.context, referenceKey: input.referenceKey, reference: input.reference, ...(input.context.slot === "token" ? {target: input.target} : {}), details: input.details, options: input.options, status: "pending", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS };
       // Keep usage history without a monthly cap; save job, deduplication marker and alarm together.
       await storage.transaction(async (tx) => {
         await tx.put({ [`job:${next.id}`]: next, [`latest:${scope}`]: next.id, active: next.id, [`usage:${month}`]: used + 1 });
@@ -175,7 +192,7 @@ export class AvatarGenerationStore {
       return reply({ ok: true, job: publicJob(job) });
     }
     if (action === "preview" && ["ready", "accepted"].includes(job.status)) {
-      const object = await this.env.MEDIA_BUCKET.get(`${PRIVATE_PREFIX}${job.id}.webp`);
+      const object = await this.env.MEDIA_BUCKET.get(privateImageKey(job));
       if (!object) return failure("Anteprima non trovata.", 404);
       return new Response(object.body, { headers: { "Content-Type": "image/webp", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
     }
@@ -183,8 +200,8 @@ export class AvatarGenerationStore {
   }
   async recoverExpired(job) {
     // R2 may have completed just before the process stopped: retain that result.
-    const image = await this.env.MEDIA_BUCKET.head(`${PRIVATE_PREFIX}${job.id}.webp`);
-    if (image) { job.status = "ready"; job.error = ""; return; }
+    const image = tokenJob(job) ? await this.env.MEDIA_BUCKET.get(privateImageKey(job)) : await this.env.MEDIA_BUCKET.head(privateImageKey(job));
+    if (image && (!tokenJob(job) || (image.size <= MAX_IMAGE_BYTES && validTokenImage(job, new Uint8Array(await image.arrayBuffer()))))) { job.status = "ready"; job.error = ""; return; }
     job.status = "uncertain";
     job.error = "L’attesa della generazione è terminata senza un risultato verificabile. Il generatore è stato sbloccato. Nessun nuovo tentativo automatico; verifica i consumi prima di rigenerare.";
   }
@@ -223,17 +240,19 @@ export class AvatarGenerationStore {
     try {
       const options = avatarGenerationOptions(job.options);
       if (!options) throw new Error("Il servizio ha ricevuto impostazioni non valide.");
-      const dimensions = AVATAR_RESOLUTIONS[options.resolution];
+      const dimensions = imageDimensions(job);
       const source = await this.env.MEDIA_BUCKET.get(job.referenceKey);
       if (!source || source.size > MAX_IMAGE_BYTES) throw new Error("Avatar di riferimento non disponibile.");
       const input = new Uint8Array(await source.arrayBuffer());
       const mime = /\.png$/i.test(job.referenceKey) ? "image/png" : /\.jpe?g$/i.test(job.referenceKey) ? "image/jpeg" : "image/webp";
-      const prompt = `Reimagine the character in the reference image. Preserve recognizable identity, facial features, species and distinctive clothing. Show the entire body, including head and feet, in a new pose with breathing room. No text, labels, border or collage.\nAdditional character direction (must respect the mandatory style and composition): ${job.details || "None."}\nMandatory style and composition:\n${AVATAR_STYLE}`;
+      const prompt = tokenJob(job)
+        ? `${NPC_TOKEN_PROMPT}\nAdditional token direction (must respect character identity, the complete circular frame and transparent exterior): ${JSON.stringify(job.details || "None.")}`
+        : `Reimagine the character in the reference image. Preserve recognizable identity, facial features, species and distinctive clothing, in a new pose. ${AVATAR_FRAMING} No text, labels, border or collage.\nAdditional character direction (must respect the mandatory style and composition): ${job.details || "None."}\nMandatory style and composition:\n${AVATAR_STYLE}`;
       providerStarted = true;
       const response = await fetch("https://api.openai.com/v1/images/edits", {
         method: "POST", headers: { Authorization: `Bearer ${this.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
         signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(12 * 60 * 1000)]),
-        body: JSON.stringify({ model: AVATAR_MODEL, images: [{ image_url: `data:${mime};base64,${encodeBase64(input)}` }], prompt, n: 1, size: `${dimensions.width}x${dimensions.height}`, quality: options.quality, output_format: "webp" }),
+        body: JSON.stringify({ model: AVATAR_MODEL, images: [{ image_url: `data:${mime};base64,${encodeBase64(input)}` }], prompt, n: 1, size: `${dimensions.width}x${dimensions.height}`, quality: options.quality, output_format: "webp", ...(tokenJob(job) ? {background: "transparent", output_compression: 100} : {}) }),
       });
       if (!response.ok) {
         // Do not expose provider payloads, prompts or credentials in browser errors/logs.
@@ -245,8 +264,9 @@ export class AvatarGenerationStore {
       if (typeof encoded !== "string" || encoded.length > MAX_IMAGE_BYTES * 1.4) throw new Error("Risultato immagine non valido.");
       const bytes = Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0));
       const size = webpSize(bytes);
-      if (!size || size.width !== dimensions.width || size.height !== dimensions.height) throw new Error("Il servizio non ha restituito l’immagine nel formato verticale richiesto.");
-      await this.env.MEDIA_BUCKET.put(`${PRIVATE_PREFIX}${job.id}.webp`, bytes, { httpMetadata: { contentType: "image/webp" } });
+      if (bytes.length > MAX_IMAGE_BYTES || !size || size.width !== dimensions.width || size.height !== dimensions.height) throw new Error(tokenJob(job) ? "Il servizio non ha restituito il token nel formato quadrato richiesto." : "Il servizio non ha restituito l'immagine nel formato verticale richiesto.");
+      if (tokenJob(job) && !webpHasAlpha(bytes)) throw new Error("Il servizio non ha restituito il canale di trasparenza richiesto per il token.");
+      await this.env.MEDIA_BUCKET.put(privateImageKey(job), bytes, { httpMetadata: { contentType: "image/webp" } });
       job.status = "ready";
     } catch (error) {
       if (job.status === "running") job.status = providerStarted ? "uncertain" : "failed";
@@ -298,4 +318,23 @@ export function webpSize(bytes) {
     i = start + length + (length % 2);
   }
   return null;
+}
+
+// Inspect the encoded container without decoding/re-encoding the artwork.
+export function webpHasAlpha(bytes) {
+  if (!webpSize(bytes)) return false;
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const end = view.getUint32(4, true) + 8;
+  if (end > bytes.length) return false;
+  let extendedAlpha = false, alphaChunk = false;
+  for (let offset = 12; offset + 8 <= end;) {
+    const type = String.fromCharCode(...bytes.subarray(offset, offset + 4));
+    const length = view.getUint32(offset + 4, true), start = offset + 8;
+    if (start + length + (length % 2) > end) return false;
+    if (type === "VP8X" && length >= 10) extendedAlpha = Boolean(bytes[start] & 0x10);
+    if (type === "ALPH" && length > 0) alphaChunk = true;
+    if (type === "VP8L" && length >= 5 && bytes[start] === 0x2f && (view.getUint32(start + 1, true) & 0x10000000)) return true;
+    offset = start + length + (length % 2);
+  }
+  return extendedAlpha && alphaChunk;
 }

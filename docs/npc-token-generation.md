@@ -1,0 +1,13 @@
+# Generazione token da un NPC esistente
+
+**Strumenti AI → Immagini → Genera token** usa l’avatar salvato dell’NPC come riferimento. La proposta contiene volto e busto dentro una cornice circolare completa, con margine sui bordi ed esterno trasparente. L’angolazione e la posa sono libere. Prompt e risoluzioni sono condivisi con il token di **Genera NPC** in `npc-token-prompt.js`.
+
+Il DM della campagna o l’admin può scegliere qualità Media / Alta / Extra alta e risoluzione Media (1024 × 1024), Alta (1536 × 1536) o 2K (2048 × 2048). I valori iniziali sono Alta / Alta; Extra alta e 2K mostrano lo stesso avviso di costo degli avatar. La richiesta usa il modello immagini esistente, `background:transparent`, WebP con `output_compression:100`. Il servizio verifica dimensioni e presenza del canale alpha; non decodifica e ricomprime il risultato. Il soggetto, la cornice e lo sfondo dentro il cerchio devono restare opachi, inclusi i dettagli bianchi.
+
+L’anteprima e l’ingrandimento mostrano una scacchiera per distinguere la trasparenza. **Usa questo token** applica i byte originali attraverso il normale salvataggio dei media condivisi e la notifica a Foundry. Avatar, statistiche, animazioni dedicate della lista, varianti e dossier restano conservati. Il token precedente resta in `site.tokenHistory`; anche i successivi salvataggi ordinari conservano lo storico.
+
+La route autenticata `/api/managed-actors/{world}/{actor}/token-generation` espone lettura, creazione, preview, conferma e interruzione come gli avatar. Riusa `AvatarGenerationStore` con uno scope `:token`, chiavi private `_private/ai-tokens/{id}.webp`, sessione frontend separata e lo stesso blocco globale sulle chiamate immagini. Un coordinatore precedente viene rifiutato prima di interpretare i suoi lavori: serve `tokenGenerationVersion:1`. Non occorrono nuovi binding o migrazioni Durable Object.
+
+La conferma controlla sia l’avatar sorgente sia il token che si sta sostituendo: se cambiano dopo la generazione, serve una nuova proposta. Le modifiche indipendenti alle statistiche sono conservate. Richieste duplicate e conferme ripetute sono idempotenti; nessun tentativo a pagamento viene ripetuto automaticamente. Dopo un’interruzione, il recupero accetta soltanto un’immagine della dimensione richiesta con canale alpha.
+
+Pubblicare Worker e frontend aggiornati. Verifica: `npm run test:token-generation`, `npm run test:avatar-generation`, `npm run test:npc-generation`, `npm run test:npc-ai-tools`. I test usano le route reali con servizi immagini simulati, senza chiamate a pagamento o scritture nei mondi.

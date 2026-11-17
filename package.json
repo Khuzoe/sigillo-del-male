@@ -37,7 +37,8 @@
     "test:npc-visibility": "node --experimental-default-type=module scripts/test-npc-visibility.mjs",
     "test:npc-banner-height": "node --experimental-default-type=module scripts/test-npc-banner-height.mjs",
     "test:avatar-generation": "node --experimental-default-type=module scripts/test-avatar-generation.mjs",
-    "test:npc-generation": "node --experimental-default-type=module scripts/test-npc-generation.mjs && node scripts/test-npc-generation-d1.mjs",
+    "test:token-generation": "node scripts/test-token-generation.mjs",
+    "test:npc-generation": "node --experimental-default-type=module scripts/test-npc-generation.mjs && node scripts/test-npc-generation-d1.mjs && node scripts/test-npc-generation-ui.mjs",
     "test:npc-drop-generation": "node --experimental-default-type=module scripts/test-npc-drop-generation.mjs",
     "test:campaign-item-storage": "node --experimental-default-type=module scripts/test-npc-drop-generation.mjs --d1",
     "test:foundry-map-snapshots": "node --experimental-default-type=module scripts/test-foundry-map-snapshots.mjs",
@@ -60,6 +61,8 @@
     "test:npc-ai-ability-edit": "node --experimental-default-type=module scripts/test-npc-native-ability-edit.mjs && node --experimental-default-type=module scripts/test-npc-ai-ability-edit-worker.mjs && node --experimental-default-type=module scripts/test-npc-ability-edit-foundry.mjs && node --experimental-default-type=module scripts/test-npc-ability-edit-effect-ids.mjs",
     "test:npc-sheet-ai": "node scripts/test-npc-sheet-ai.mjs && node scripts/test-npc-field-policy.mjs && node scripts/test-npc-sheet-hardening.mjs && node scripts/test-npc-sheet-ai-worker.mjs && node scripts/test-npc-sheet-foundry.mjs",
     "test:npc-auto-sync": "node scripts/test-npc-auto-sync.mjs && node scripts/test-npc-sheet-ai-worker.mjs && node scripts/test-npc-sheet-ai-worker.mjs mago-folle && node scripts/test-npc-sheet-ai-worker.mjs oltre-il-velo",
+    "test:npc-ai-tools": "node scripts/test-npc-ai-tools.mjs",
+    "test:player-ability-ai": "node scripts/test-player-ability-ai.mjs",
     "test:npc-ability-icons": "node --experimental-default-type=module scripts/test-npc-ability-icons.mjs",
     "test:tiles-creator": "node scripts/test-tiles-creator.mjs",
     "test:assets-walls": "node --experimental-default-type=module scripts/test-assets-wall-detection.mjs"
