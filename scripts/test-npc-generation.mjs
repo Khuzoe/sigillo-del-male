@@ -202,6 +202,60 @@ try {
   const alphaRetry = await req(`${base}/${noAlpha.id}/retry-token`, { requestId: randomUUID() }, dm);
   assert.equal(alphaRetry.status, 202); await coordinator.alarm(); assert.equal(calls.length, alphaCalls + 1); assert.equal((await status()).job.tokenBackground, "transparent");
 
+  assert.equal(initial.conceptReferences, 1);
+  const upload = (bytes, auth = dm, type = 'image/webp', headers = {}) => worker.fetch(new Request(`https://worker.test/${base}/concepts?campaign=${campaign}`, {
+    method: 'POST', headers: {Authorization: `Bearer ${auth}`, 'Content-Type': type, ...headers}, body: bytes
+  }), env, {});
+  const art = await Promise.all(['creatures/bestiary/nino_olegna_npc.webp', 'items/control_crown.webp', 'items/ginevra_shield.webp']
+    .map(path => readFile(new URL('../assets/img/' + path, import.meta.url))));
+  assert.equal((await upload(art[0], player)).status, 403);
+  assert.equal((await upload('<svg></svg>')).status, 400);
+  assert.equal((await upload(art[0], dm, 'image/png')).status, 400);
+  assert.equal((await upload(art[0], dm, 'image/webp', {'Content-Length': 13 * 1024 * 1024})).status, 413);
+  assert.equal((await upload(new Uint8Array(12 * 1024 * 1024 + 1))).status, 413, 'Stream limit also applies without a declared length');
+  const beforeConcept = calls.length;
+  const refs = [];
+  for (const [index, purpose] of ['character','emblem','equipment'].entries()) {
+    const result = await upload(art[index]); assert.equal(result.status, 200);
+    const {uploadId} = await result.json();
+    refs.push({uploadId, name: 'Disegno ' + index, purpose, note: ['','Sul petto','Al braccio sinistro'][index]});
+    const path = `${base}/concepts/${uploadId}`;
+    assert.deepEqual(Buffer.from(await (await req(path, undefined, dm)).arrayBuffer()), art[index]);
+    assert.equal((await req(path, undefined, admin)).status, 404);
+    assert.equal((await req(path, undefined, admin, 'mago-folle')).status, 404);
+  }
+  assert.equal((await (await upload(art[0])).json()).uploadId, refs[0].uploadId);
+  assert.equal(calls.length, beforeConcept, 'Uploading multiple concepts never starts generation');
+  const storedHead = bucket.head;
+  try {
+    bucket.head = async key => key.includes('/concepts/') ? {size:9 * 1024 * 1024} : storedHead.call(bucket, key);
+    assert.equal((await req(base, submit('', {references:refs}), dm)).status, 400, 'Three individually valid files can exceed the combined size limit');
+  } finally { bucket.head = storedHead; }
+  const newForm = {...form('Custode da un ritratto'), description: ''};
+  for (const invalid of [[refs[1]], [...refs, refs[0]], [refs[0], refs[0]], [{...refs[0], note:'a'.repeat(301)}], [{...refs[0], uploadId:'../concept'}]]) {
+    assert.equal((await req(base, submit('', {form:newForm, references:invalid}), dm)).status, 400);
+  }
+  assert.equal((await req(base, submit('', {references:refs}), admin)).status, 400);
+  const soloBody = submit('', {form:newForm, references:[refs[0]]});
+  await start(soloBody); await coordinator.alarm(); await coordinator.alarm();
+  assert.equal(calls.at(-2).body.images.length, 1);
+  assert.equal((await req(base, soloBody, dm)).status, 200);
+  assert.equal((await req(`${base}/${soloBody.requestId}/confirm`, {form:newForm}, dm)).status, 202);
+  const fromArt = await start(submit('Custode con emblema', {references: refs}));
+  assert.deepEqual(fromArt.references, refs);
+  await coordinator.alarm(); await coordinator.alarm();
+  const avatarCall = calls.at(-2).body, tokenCall = calls.at(-1).body;
+  assert.deepEqual(avatarCall.images.map(im => im.image_url), art.map(bytes => 'data:image/webp;base64,' + bytes.toString('base64')));
+  assert.deepEqual(JSON.parse(avatarCall.prompt.split('Reference roles: ').at(-1)).map(ref => [ref.image, ref.note]), refs.map((ref, i) => [i + 1, ref.note]));
+  assert.equal(tokenCall.images.length, 1);
+  assert.doesNotMatch(tokenCall.prompt, /Sul petto|Al braccio/);
+  const mixed = await start(submit('Araldo', {references:[refs[1], {worldId:world, actorId:'frame', purpose:'frame'}]}));
+  await coordinator.alarm(); await coordinator.alarm();
+  assert.equal(calls.at(-2).body.images.length, 1); assert.equal(calls.at(-1).body.images.length, 2);
+  const retryMixed = await req(`${base}/${mixed.id}/retry-token`, {requestId:randomUUID()}, dm);
+  assert.equal(retryMixed.status, 202); assert.deepEqual((await retryMixed.json()).job.references, mixed.references);
+  await coordinator.alarm(); assert.equal(calls.at(-1).body.images.length, 2);
+
   for (const target of ["mago-folle", "oltre-il-velo"]) {
     const other = await start({ ...submit(`NPC ${target}`), form: { ...form(`NPC ${target}`), categoryId: "" } }, admin, target);
     await coordinator.alarm(); await coordinator.alarm();

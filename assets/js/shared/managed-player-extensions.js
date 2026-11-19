@@ -44,7 +44,7 @@
         if (!document.querySelector("link[data-managed-skill-tree-style]")) {
             const style = document.createElement("link");
             style.rel = "stylesheet";
-            style.href = new URL("../../assets/css/pages/character-skill-tree.css?v=20261101-skill-rules1", window.location.href).toString();
+            style.href = new URL("../../assets/css/pages/character-skill-tree.css?v=20261118-gradi4", window.location.href).toString();
             style.dataset.managedSkillTreeStyle = "true";
             document.head.appendChild(style);
         }
@@ -52,7 +52,7 @@
         if (skillTreeModulePromise) return skillTreeModulePromise;
         skillTreeModulePromise = new Promise((resolve, reject) => {
             const script = document.createElement("script");
-            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20261101-skill-rules1", window.location.href).toString();
+            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20261118-gradi4", window.location.href).toString();
             script.defer = true;
             script.dataset.managedSkillTreeScript = "true";
             script.addEventListener("load", () => window.CriptaCharacterSkillTree ? resolve(window.CriptaCharacterSkillTree) : reject(new Error("Modulo alberi non inizializzato.")), { once: true });
@@ -175,7 +175,7 @@
 
     function skillTreeSubject(actor) {
         // A companion must never inherit the identity (or trees) of its owner.
-        if (normalize(actor?.actorType) === "npc") {
+        if (relationshipType(actor) !== "player" && normalize(actor?.actorType) === "npc") {
             const world = actor.worldId || new URLSearchParams(window.location.search).get("world");
             const actorId = actor.actorId || actor.foundryActorId || actor.id;
             return world && actorId ? { id: `npc-${slugify(world)}-${slugify(actorId)}`, isNpc: true } : null;
@@ -559,7 +559,7 @@
         if (!cards.length && !canManage) return false;
         const section = document.createElement("section");
         section.className = "managed-panel managed-panel--wide managed-player-companions";
-        section.id = "managed-companions";
+        if (host.id !== "managed-companions") section.id = "managed-companions";
         const actions = canManage ? `<span class="managed-companion-management"><span data-companion-management-status></span><button type="button" data-companion-add><i class="fas fa-plus"></i> Aggiungi companion</button></span>` : "";
         const empty = canManage && !cards.length ? '<div class="managed-companion-empty-state"><i class="fas fa-paw"></i><strong>Nessun companion collegato</strong><span>Scegli un NPC gia presente nel flusso gestito.</span></div>' : "";
         section.innerHTML = `<header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Legami</span><h2><i class="fas fa-paw"></i> Companion</h2></div><span class="managed-companion-heading-actions">${actions}<span class="managed-count-badge">${cards.length}</span></span></header><div class="managed-companion-grid">${cards.join("")}${empty}</div>`;
@@ -736,6 +736,7 @@
         const character = {
             ...subject,
             name: actor.name || subject.id,
+            managedActor: {worldId: actor.worldId, actorId: actor.actorId, media: actor.media},
             accountId: actor.permissions?.isOwner ? authAccountId : actor.ownerAccountIds?.[0] || "",
             avatar: mediaUrl(actor.media?.avatar || actor.avatar || actor.img || ""),
             token: mediaUrl(actor.media?.token || actor.token || "")
@@ -772,6 +773,7 @@
                 if (Number.isFinite(Number(version))) skillsVersion = Number(version);
             }
         };
+        if (!host.isConnected) return false;
         const cards = window.CriptaCharacterSkillTree.buildCards(character, allTrees, context);
         if (!cards) {
             setSectionNavVisible("managed-player-skill-trees", false);
@@ -780,9 +782,10 @@
         setSectionNavVisible("managed-player-skill-trees", true);
         const section = document.createElement("section");
         section.className = "managed-panel managed-panel--wide managed-player-skill-trees";
-        section.id = "managed-player-skill-trees";
+        if (host.id !== "managed-player-skill-trees") section.id = "managed-player-skill-trees";
         section.innerHTML = `<header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Progressione</span><h2><i class="fas fa-diagram-project"></i> Alberi abilit&agrave;</h2></div></header>`;
         section.appendChild(cards);
+        host.querySelector(".managed-player-extension-loading")?.remove();
         host.appendChild(section);
         return true;
     }
@@ -804,11 +807,22 @@
         hosts.forEach((host) => { host.innerHTML = loading; });
         const result = companionHost ? await loadCompanions(subject.id) : null;
         if (!hosts.some((host) => host.isConnected)) return;
-        hosts.forEach((host) => { host.innerHTML = ""; });
-        if (companionHost?.isConnected) renderCompanions(companionHost, subject.id, actor.name || subject.id, result, options, actor);
+        if (companionHost?.isConnected) {
+            companionHost.replaceChildren();
+            const visible = renderCompanions(companionHost, subject.id, actor.name || subject.id, result, options, actor);
+            if (!visible && companionHost.closest("[data-managed-npc-pane]")) {
+                companionHost.innerHTML = '<p class="managed-player-extension-loading">Nessun companion collegato.</p>';
+            }
+        }
         if (skillTreeHost?.isConnected) {
             const visible = await renderSkillTrees(skillTreeHost, actor, subject);
-            if (!visible) skillTreeHost.innerHTML = '<p class="managed-player-extension-loading">Nessun albero abilità disponibile.</p>';
+            if (!visible && skillTreeHost.isConnected) {
+                const empty = document.createElement("p");
+                empty.className = "managed-player-extension-loading";
+                empty.textContent = "Nessun albero abilità disponibile.";
+                skillTreeHost.querySelector(".managed-player-extension-loading")?.remove();
+                skillTreeHost.append(empty);
+            }
         }
     }
 

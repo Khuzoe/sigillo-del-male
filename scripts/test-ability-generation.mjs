@@ -79,8 +79,14 @@ const admin = await login("ABILITY-ADMIN-TEST-VERY-STRONG-2026"), player = await
 const sync = {"X-Cripta-Inventory-Secret": env.INVENTORY_SYNC_SECRET, "X-Khuzoe-Sync-Contract": "1", "X-Khuzoe-Foundry-Generation": "14"};
 const ref = `campaigns/${campaign}/managed-actors/test-world/test-npc/base/avatar.webp`; objects.set(ref, image(1024));
 const actorInput = {schemaVersion: 3, name: "Custode", actorType: "npc", ownerAccountIds: ["player"], visibility: {state: "public"},
-  definition: {editor: {version: 1, generatedAbilities: 1, npcRules: 1}, attributes: {hp: {max: 90}}, details: {cr: 7, biography: "PRIVATE BIOGRAPHY"}, abilities: {str: {value: 20}},
-    items: [{name: "Multiattacco", itemId: "existing", type: "feat", definition: {description: "Due attacchi", activities: {}, flags: {secret: "never-send"}}}]},
+  definition: {editor: {version: 1, generatedAbilities: 1, npcRules: 1}, attributes: {hp: {max: 90}}, details: {cr: 7, type: {value: "humanoid", subtype: "goblinoide"}, biography: "PRIVATE BIOGRAPHY"}, abilities: {str: {value: 20}},
+    items: [
+      {name: "Multiattacco", itemId: "existing", type: "feat", definition: {description: "Due attacchi", activities: {}, flags: {secret: "never-send"}}},
+      {name: "Spada", itemId: "sword", type: "feat", definition: {description: "Il custode sferra un colpo con la mano chiusa.",
+        activities: {strike: {name: "Colpo", type: "attack", damage: {parts: [
+          {number: 2, denomination: 6, types: ["bludgeoning"]}, {number: 1, denomination: 4, types: ["fire"]}
+        ]}}}}}
+    ]},
   media: {avatar: {path: `media/${ref}`, revision: 1}},
   contract: {name: "khuzoe-wiki-sync", version: 1, module: {id: "cripta-wiki-sync", version: "0.11.13"}, foundry: {generation: 14}, system: {id: "dnd5e", version: "5.3.3"}}};
 assert.equal((await req(path, actorInput, null, sync)).status, 200);
@@ -203,6 +209,8 @@ const report = {
   uncertainties: ["Il bilanciamento richiede una prova al tavolo; l’immagine non stabilisce capacità soprannaturali."]
 };
 validateSuggestions(report);
+const tacticalReport = {...report, visualObservations: [], ideas: [{...report.ideas[0], visualLink: ""}]};
+assert.deepEqual(validateSuggestions(tacticalReport), tacticalReport, "Tactical advice can stand on its own without visual observations or an image-based rationale");
 assert.throws(() => validateSuggestions({...report, patches: [{path: "system.attributes.hp.max", value: 1}]}));
 assert.throws(() => validateSuggestions({...report, ideas: Array(4).fill(report.ideas[0])}));
 assert.throws(() => validateSuggestions({...report, adjustments: [{...report.adjustments[0], impact: "guaranteed"}]}));
@@ -227,16 +235,28 @@ globalThis.fetch = async (url, options) => {
 try {
   await assert.rejects(() => generateNpcSuggestions({referenceKey: ref, referenceEtag: "original-avatar"}, {
     MEDIA_BUCKET: {get: async () => ({size: 30, etag: "replaced-avatar"})}
-  }, ABILITY_MODEL), /avatar di riferimento/i);
+  }), /avatar di riferimento/i);
   assert.equal(analysisCalls, 0, "changed reference is rejected before a paid call");
   await coordinator.alarm(); await coordinator.alarm();
   assert.equal(analysisCalls, 1);
   assert.equal(capturedAnalysis.text.format.name, "npc_suggestions");
+  assert.equal(capturedAnalysis.model, "gpt-6.2-sol");
+  assert.equal(capturedAnalysis.reasoning.effort, "medium");
   assert.equal(capturedAnalysis.store, false);
   const content = capturedAnalysis.input[0].content;
-  assert.equal(content[1].type, "input_image"); assert.equal(content[1].detail, "low");
+  assert.equal(content[1].type, "input_image"); assert.equal(content[1].detail, "high");
   assert.equal(content[1].image_url, `data:image/webp;base64,${Buffer.from(image(1024)).toString("base64")}`);
   assert.match(content[0].text, /Multiattacco/); assert.match(content[0].text, /Mantieni il GS/);
+  const {monster} = JSON.parse(content[0].text);
+  assert.deepEqual(monster.details.type, actorInput.definition.details.type);
+  const strike = monster.items.find(item => item.name === "Spada");
+  assert.match(strike.description, /mano chiusa/);
+  assert.deepEqual(strike.activities[0].damage.parts.map(part => part.types), [["bludgeoning"], ["fire"]]);
+  assert.match(capturedAnalysis.instructions, /priorità in adjustments/);
+  assert.match(capturedAnalysis.instructions, /danno principale da quello aggiuntivo o alternativo/);
+  assert.match(capturedAnalysis.instructions, /fuori campo.*non prova una contraddizione/);
+  assert.match(capturedAnalysis.instructions, /«Claw»[^.]+«Artiglio»/);
+  assert.match(capturedAnalysis.instructions, /elefante[^.]+«Claw»[^.]+contundenti[^.]+«Stomp»[^.]+«Pestone»/);
   assert.ok(!content[0].text.includes("PRIVATE BIOGRAPHY"));
   const result = await (await req(suggestions, undefined, dm)).json();
   assert.equal(result.job.status, "ready"); assert.equal(result.stale, false); assert.deepEqual(result.job.report, report);
@@ -301,9 +321,13 @@ try {
   coordinator = new AbilityGenerationStore({storage}, env); await coordinator.alarm();
   assert.equal(analysisCalls, 2);
   env.NPC_SUGGESTION_MONTHLY_LIMIT = "0";
+  invalidAnalysis = false;
   assert.equal((await req(suggestions, {requestId: randomUUID(), details: ""}, dm)).status, 202, "Legacy monthly caps cannot block suggestions");
   await coordinator.alarm();
   assert.equal(analysisCalls, 3);
+  assert.equal((await (await req(suggestions, undefined, dm)).json()).job.status, "ready");
+  assert.match(JSON.parse(capturedAnalysis.input[0].content[0].text).request, /come giocheresti/i);
+  assert.match(capturedAnalysis.instructions, /attacco caratteristico.*mossa situazionale/);
 } finally { globalThis.fetch = originalFetch; }
 console.log("NPC suggestions: visual analysis, permissions, durable idempotent discard, stale discard protection, unchanged NPC/media/usage, isolated drafts, failure recovery and unlimited attempts passed.");
 

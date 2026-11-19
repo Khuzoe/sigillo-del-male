@@ -1,11 +1,12 @@
 import { createServer } from "node:http";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { resolve, extname } from "node:path";
+import { createHash } from "node:crypto";
 
 // Local UI fixture only: production generator and CSS, simulated network.
 const root = resolve("."), port = Number(process.argv[2] || 8769);
 const avatar = "assets/img/creatures/bestiary/nino_olegna_npc.webp", token = "assets/img/creatures/transp/avatar.webp";
-const jobs = new Map(), pendingCreates = []; let latest = null;
+const jobs = new Map(), conceptFiles = new Map(), pendingCreates = []; let latest = null;
 const categories = [{ id: "alleati", name: "Alleati", order: 1 }, { id: "custodi", name: "Custodi delle terre di confine", parentId: "alleati", order: 2 }];
 const examples = [["nino", "Nino Olegna"], ["guardia", "Guardia della cripta"]].map(([actorId, name]) => ({
   worldId: "mondo-di-prova", actorId, actorType: "npc", actorLink: true, name, revision: 1, updatedAt: "2026-11-16T12:00:00.000Z",
@@ -25,7 +26,7 @@ for (let index = 0; index < 63; index++) {
   examples.push(npc);
 }
 const json = (response, body, status = 200) => { response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" }); response.end(JSON.stringify(body)); };
-const settings = () => ({ ok: true, enabled: true, version: 1, tokenTransparencyVersion: 1, canStop: true, supportedResolutions: ["medium", "high", "2k"], supportedQualities: ["medium", "high", "xhigh"], job: latest });
+const settings = () => ({ ok: true, enabled: true, version: 1, tokenTransparencyVersion: 1, conceptReferences: 1, canStop: true, supportedResolutions: ["medium", "high", "2k"], supportedQualities: ["medium", "high", "xhigh"], job: latest });
 function staticFixture(config) {
   const nativeFetch = window.fetch.bind(window), stateKey = "npc-generator-qa-state";
   let state;
@@ -39,6 +40,16 @@ function staticFixture(config) {
     if (path === "/api/campaign/access") return json({ ok: true, permissions: { canManageCampaign: true } });
     if (path === "/api/managed-actors") return json({ ok: true, data: config.examples, pendingCreates: state.pendingCreates, npcCategories: config.categories, worldIds: ["mondo-di-prova"] });
     if (path === "/api/npc-categories") return json({ ok: true, revision: 1, categories: config.categories });
+    if (path.startsWith('/api/npc-generation/concepts')) {
+      const cache = await caches.open('npc-concept-qa');
+      if (options.method === 'POST') {
+        const file = options.body, digest = new Uint8Array(await crypto.subtle.digest('SHA-256', await file.arrayBuffer()));
+        const uploadId = Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('') + '.' + (file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1]);
+        await cache.put('/api/npc-generation/concepts/' + uploadId, new Response(file));
+        return json({ok: true, uploadId});
+      }
+      return await cache.match(path) || json({error: 'Concept assente'}, 404);
+    }
     const route = path.match(/^\/api\/npc-generation(?:\/([a-f0-9-]+)\/(avatar|token|confirm|retry-token|stop))?$/);
     if (route) {
       const input = options.body ? JSON.parse(options.body) : {}, job = state.jobs[route[1]], method = options.method || "GET";
@@ -49,7 +60,7 @@ function staticFixture(config) {
           if (Date.now() - Date.parse(latest.createdAt) > 2400) { latest.hasToken = true; latest.status = "ready"; }
           save();
         }
-        return json({ ok: true, enabled: true, version: 1, tokenTransparencyVersion: 1, canStop: true, supportedResolutions: ["medium", "high", "2k"], supportedQualities: ["medium", "high", "xhigh"], job: latest || null });
+        return json({ ok: true, enabled: true, version: 1, tokenTransparencyVersion: 1, conceptReferences: 1, canStop: true, supportedResolutions: ["medium", "high", "2k"], supportedQualities: ["medium", "high", "xhigh"], job: latest || null });
       }
       if (method === "GET" && ["avatar", "token"].includes(route[2])) return nativeFetch("/" + (route[2] === "avatar" ? config.avatar : config.token));
       if (!route[2] || route[2] === "retry-token") {
@@ -113,6 +124,17 @@ createServer(async (request, response) => {
     if (path === "/api/campaign/access") { json(response, { ok: true, permissions: { canManageCampaign: true } }); return; }
     if (path === "/api/managed-actors") { json(response, { ok: true, data: examples, pendingCreates, npcCategories: categories, worldIds: ["mondo-di-prova"] }); return; }
     if (path === "/api/npc-categories") { json(response, { ok: true, revision: 1, categories }); return; }
+    if (path.startsWith('/api/npc-generation/concepts')) {
+      if (request.method === 'POST') {
+        const parts = []; for await (const chunk of request) parts.push(chunk);
+        const bytes = Buffer.concat(parts), mime = request.headers['content-type'];
+        const uploadId = createHash('sha256').update(bytes).digest('hex') + '.' + (mime === 'image/jpeg' ? 'jpg' : mime.split('/')[1]);
+        conceptFiles.set(uploadId, {bytes, mime}); json(response, {ok: true, uploadId}); return;
+      }
+      const found = conceptFiles.get(path.split('/').at(-1));
+      if (!found) { json(response, {error: 'Concept assente'}, 404); return; }
+      response.setHeader('Content-Type', found.mime); response.end(found.bytes); return;
+    }
     if (path === "/" && url.searchParams.has("width")) {
       const width = ["320", "390"].includes(url.searchParams.get("width")) ? url.searchParams.get("width") : "320";
       response.setHeader("Content-Type", "text/html; charset=utf-8"); response.end(`<html><body style="margin:0;background:#333;display:grid;place-items:start center"><iframe title="Anteprima mobile ${width}px" style="width:${width}px;height:840px;border:0" src="/?embedded=1"></iframe></body></html>`); return;

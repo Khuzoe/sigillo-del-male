@@ -1312,8 +1312,13 @@ body.managed-image-lightbox-open { overflow: hidden; }
 
 /* Managed player: companion e alberi restano raccolte indipendenti dallo statblock. */
 .managed-player-extensions {
-    display: contents;
+    display: block;
+    grid-column: 1 / -1;
+    min-width: 0;
+    scroll-margin-top: calc(var(--managed-command-bar-height, 56px) + 1.5rem);
 }
+.managed-player-extensions:empty,
+.managed-command-bar .managed-section-nav a[hidden] { display: none; }
 
 
 .managed-player-extension-loading {

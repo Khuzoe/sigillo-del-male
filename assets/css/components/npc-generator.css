@@ -14,7 +14,8 @@
 .npc-generator__references summary span { font-weight: 400; margin-left: 8px; color: #aaa8b3; }
 .npc-generator__reference-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .npc-generator__reference-toolbar button { font-size: 12px; }
-.npc-generator [data-reference-status].is-error { color: #ffb5a8; }
+.npc-generator [data-reference-status].is-error, .npc-generator [data-concept-status].is-error { color: #ffb5a8; }
+.npc-generator [data-concept-files][hidden] { display: none; }
 .npc-generator__settings .npc-generator__identity { margin-top: 14px; }
 .npc-generator__search-results { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-height: 190px; overflow: auto; margin-top: 10px; }
 .npc-generator__search-results > button { display: flex; align-items: center; text-align: left; gap: 9px; min-width: 0; padding: 7px; font-size: 12px; }

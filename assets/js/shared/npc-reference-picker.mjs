@@ -17,7 +17,7 @@ export function npcReferencePage(npcs, filters = {}, page = 0) {
     return { items: matches.slice(start, start + NPC_REFERENCE_PAGE_SIZE), total: matches.length, pages, page: current, start: matches.length ? start + 1 : 0, end: Math.min(start + NPC_REFERENCE_PAGE_SIZE, matches.length) };
 }
 
-export function openNpcReferencePicker({ npcs, references, categories = [], usable, resolveImageUrl, onApply }) {
+export function openNpcReferencePicker({ npcs, references, limit = 3, categories = [], usable, resolveImageUrl, onApply }) {
     if (document.querySelector("[data-npc-reference-picker]")) return;
     const focus = document.activeElement, selected = new Set(references.map(reference => `${reference.worldId}:${reference.actorId}`));
     const catalog = [...new Map(npcs.map(npc => [npcReferenceKey(npc), npc])).values()];
@@ -51,14 +51,14 @@ export function openNpcReferencePicker({ npcs, references, categories = [], usab
         el("[data-picker-page]").textContent = `Pagina ${page + 1} di ${view.pages}`;
         el("[data-picker-previous]").disabled = page === 0;
         el("[data-picker-next]").disabled = page + 1 >= view.pages;
-        el("[data-picker-selection]").textContent = `${selected.size} / 3 NPC selezionati`;
+        el("[data-picker-selection]").textContent = `${selected.size} / ${limit} NPC selezionati`;
         el("[data-picker-clear]").disabled = !selected.size;
         el("[data-picker-apply]").textContent = `Usa riferimenti (${selected.size})`;
         for (const npc of view.items) {
             const id = npcReferenceKey(npc), checked = selected.has(id), avatar = usable(npc, "style"), token = usable(npc, "frame");
             const row = document.createElement("label"); row.className = "npc-reference-picker__card";
             row.classList.toggle("is-selected", checked); row.classList.toggle("is-unavailable", !avatar && !token);
-            const input = document.createElement("input"); input.type = "checkbox"; input.checked = checked; input.disabled = !checked && (selected.size >= 3 || (!avatar && !token));
+            const input = document.createElement("input"); input.type = "checkbox"; input.checked = checked; input.disabled = !checked && (selected.size >= limit || (!avatar && !token));
             input.dataset.npcReferenceKey = id;
             input.setAttribute("aria-label", `Seleziona ${npc.name}`);
             const image = document.createElement("img"); image.alt = ""; image.loading = "lazy";

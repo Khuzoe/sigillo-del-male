@@ -13,6 +13,7 @@ assert.equal(npc.isNpc, true);
 assert.notEqual(sandbox.subject({actorType:'npc', worldId:'world-b', actorId:'abc123'}).id, npc.id);
 assert.notEqual(sandbox.subject({actorType:'npc', worldId:'world-a', actorId:'def456'}).id, npc.id);
 assert.equal(sandbox.subject({actorType:'character', ownerCharacterId:'valdor'}).id, 'valdor');
+assert.equal(sandbox.subject({actorType:'npc', relationshipType:'player', ownerCharacterId:'valdor'}).id, 'valdor', 'An explicitly linked player keeps the player tree identity');
 assert.equal(sandbox.subject({actorType:'npc', worldId:'world-a'}), null, 'Do not fall back to the owner for an unidentified NPC');
 
 vm.runInNewContext(source.replace(/\}\)\(\);\s*$/, `globalThis.api = {applySkillTreeRuntime, resolvePlayerSkillTreeEntries,

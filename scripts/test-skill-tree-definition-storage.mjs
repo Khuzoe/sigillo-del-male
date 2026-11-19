@@ -6,6 +6,7 @@ import vm from 'node:vm';
 import {build} from '../workers/main-worker/node_modules/esbuild/lib/main.js';
 import {Miniflare} from '../workers/main-worker/node_modules/miniflare/dist/src/index.js';
 import {SkillTreeDefinitionStore} from '../workers/main-worker/src/skill-tree-definition-store.js';
+import {campaign as guardianCampaign, treeId as guardianId, prepareValdorGrades, migrateOnline} from '../assets/js/shared/valdor-grades.mjs';
 const secret='definitions-local-test';
 const bundle=await build({entryPoints:[fileURLToPath(new URL('../workers/main-worker/src/index.js',import.meta.url))],bundle:true,write:false,format:'esm',platform:'neutral',target:'es2022'});
 const runtime=new Miniflare({modules:true,script:bundle.outputFiles[0].text,compatibilityDate:'2026-05-15',kvNamespaces:['SIGILLO_KV'],kvPersist:false,d1Databases:['POLL_DB'],d1Persist:false,
@@ -99,5 +100,41 @@ try{
  vm.runInNewContext(sharedSource.replace(/\}\)\(\);\s*$/,`globalThis.api={applySkillTreeRuntime,saveSingleSkillTreeData};})();`),sharedSandbox);
  sharedSandbox.api.applySkillTreeRuntime({saveSkillTreeData:async()=>({normalizedTrees:{a,b},version:9,treeRevisions:{a:3,b:1}}),setSkillsCache:(trees,version,revisions)=>{adopted={trees,version,revisions};}});
  await sharedSandbox.api.saveSingleSkillTreeData('a',a,{a});equal(Object.keys(adopted.trees),['a','b']);equal(adopted.revisions.a,3);
+ // Use an isolated campaign in the temporary database. Never change the progress collection.
+ const guardianStore = new SkillTreeDefinitionStore({POLL_DB:db,SIGILLO_KV:kv},guardianCampaign);
+ const duration = hours => '<p>Puoi restare qui e puoi restarci per '+hours+'.</p>';
+ const original = {id:guardianId,ownerCharacterId:'valdor',extra:{keep:true},nodes:[
+   {id:'inizio',title:'Cavità',desc:duration('1 ora'),levels:[{desc:duration('1 ora')},{desc:duration('8 ore'),
+     changeNotes:[{id:'custom-note',type:'changed',label:'Durata',before:'1 ora',after:'8 ore'}]}],
+     connections:['mystery'],externalRequirements:[{id:'study-2',level:2,target:16}],foundry:{keep:true}},
+   {id:'mystery',levels:[{desc:'testo originale'},{desc:'altro testo'}],futureClient:{preserve:true}}
+ ]};
+ const companionTree = tree('other-guardian-tree');
+ const rawRecord = JSON.stringify(original);
+ await kv.put(key(guardianCampaign),JSON.stringify({version:2,data:[original,companionTree]}));
+ const stateRow={treeKey:guardianId,characterId:'valdor',unlocked:['inizio'],levels:{inizio:2},externalProgress:{inizio:{'study-2':9}}};
+ const statePayload=JSON.stringify(stateRow);
+ await db.prepare('INSERT INTO skill_tree_states VALUES (?,?,?,?,?)').bind(guardianCampaign,'row','valdor',0,statePayload).run();
+ const read=async name=>name==='skill-trees' ? guardianStore.getDocument() : {source:'d1',campaignId:guardianCampaign,
+   data:[JSON.parse((await db.prepare('SELECT payload FROM skill_tree_states WHERE campaign_id=?').bind(guardianCampaign).first()).payload)]};
+ const save=({tree,expectedTreeRevision})=>guardianStore.saveTree(tree,expectedTreeRevision,{updatedBy:'test'});
+ let backup;
+ const capture=async data=>{backup=structuredClone(data);};
+ const migratedGuardian=prepareValdorGrades(original);
+ equal(JSON.stringify(original),rawRecord);
+ equal(migratedGuardian.added,['inizio']); equal(migratedGuardian.individual,['mystery']);
+ await rejects(migrateOnline({read,save,backup:async()=>{throw Error('Backup unavailable');}}));
+ equal((await read('skill-trees')).treeRevisions[guardianId],1);
+ await rejects(migrateOnline({read,backup:capture,save:async body=>{
+   await save({tree:{...original,freshEdit:true},expectedTreeRevision:1});
+   return save(body);
+ }}));
+ equal((await read('skill-trees')).data[0].freshEdit,true);
+ const confirmed=await migrateOnline({read,backup:capture,save:async body=>{await save(body);throw Error('Response lost');}});
+ equal(confirmed,{revision:3,changed:true});equal(backup.original,{...original,freshEdit:true});equal(backup.states,[stateRow]);
+ const converted=await read('skill-trees');
+ equal(converted.data[0],{...migratedGuardian.adapted,freshEdit:true});equal(converted.data[1],companionTree);equal(converted.treeRevisions[companionTree.id],1);
+ equal((await db.prepare('SELECT payload FROM skill_tree_states WHERE campaign_id=?').bind(guardianCampaign).first()).payload,statePayload);
+ equal(await migrateOnline({read,save:()=>assert.fail('Repeat write'),backup:()=>assert.fail('Repeat backup')}),{revision:3,changed:false});
  console.log(`Skill tree definitions D1: ${checks} checks passed.`);
 }finally{await runtime.dispose();}

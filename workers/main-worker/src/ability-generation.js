@@ -16,6 +16,7 @@ import {NPC_SHEET_AI_INSTRUCTIONS} from "./npc-sheet-ai-context.js";
 import {handleNpcSheetAi} from "./npc-sheet-ai-service.js";
 import {npcSheetJobStorage,MAX_SHEET_JOB_BYTES} from "./npc-sheet-job-storage.js";
 import {generateAbilityTranslation} from './ability-translations.js';
+import {rewriteSkillNode} from './skill-node-generation.js';
 import {validateAbilityTranslation} from '../../../assets/js/shared/ability-translation.mjs';
 
 export const ABILITY_MODEL = "gpt-5.6-terra";
@@ -23,7 +24,8 @@ const PRIVATE = "_private/ai-abilities/";
 const pending = job => ["pending", "running", "icon-pending", "icon-running"].includes(job?.status);
 const reply = (data, status = 200) => Response.json(data, {status, headers: {"Cache-Control": "private, no-store"}});
 const fail = (error, status = 400) => reply({ok: false, error}, status);
-const scope = context => `${context.campaignId}:${context.worldId}:${context.actorId}${context.purpose === 'ability-translations' ? `:translations:${context.itemId || ''}` : context.purpose === "ability-icons" ? `:icons:${context.itemId || ""}` : context.purpose === "native-sheet" ? ":sheet" : context.purpose === "suggestions" ? ":suggestions" : context.purpose === "native-ability" ? ":native" : context.purpose === "native-ability-edit" ? `:edit:${context.itemId}` : ""}`;
+const scope = context => context.purpose === 'skill-node' ? JSON.stringify(['skill-node', context.campaignId, context.accountId, context.tree])
+  : `${context.campaignId}:${context.worldId}:${context.actorId}${context.purpose === 'ability-translations' ? `:translations:${context.itemId || ''}` : context.purpose === "ability-icons" ? `:icons:${context.itemId || ""}` : context.purpose === "native-sheet" ? ":sheet" : context.purpose === "suggestions" ? ":suggestions" : context.purpose === "native-ability" ? ":native" : context.purpose === "native-ability-edit" ? `:edit:${context.itemId}` : ""}`;
 const publicJob = job => job ? {id: job.id, status: job.status, details: job.details, ...(job.kind==="ability-translation"?{channel:"translations",itemId:job.context.itemId}:job.kind==="ability-icon"?{channel:"icons",itemId:job.context.itemId}:{}), ...(job.context?.purpose==="native-ability"?{channel:"native"}:job.context?.purpose==="native-ability-edit"?{channel:"edit",itemId:job.context.itemId}:{}), ...(job.format===NPC_SHEET_AI_FORMAT?{channel:'sheet',usesAvatar:Boolean(job.referenceKey),sheetOptions:{mode:job.options.mode,sharedRuntime:job.options.sharedRuntime,capabilities:job.options.capabilities,protectedEffects:npcSheetProtectedEffects(job.actorSource)}}:{}), ...(job.format ? {format:job.format} : {}), ...(job.recoveredAt?{recoveredAt:job.recoveredAt}:{}), draft: job.draft || null, report: job.report || null, iconId: job.iconId || "", iconAttempt: job.iconAttempt || "", iconError: job.iconError || "", error: job.error || "", errorDetail: job.errorDetail || null, iconErrorDetail: job.iconErrorDetail || null, command: job.command || null, createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job)} : null;
 const preparedDocument=job=>job.format===NPC_SHEET_AI_FORMAT&&job.prepared?{...job.prepared,draft:job.prepared.draft||job.draft}:job.prepared;
 const validateDraft=(input,format,job)=>format===NPC_SHEET_AI_FORMAT?validateNpcSheetDraft(input,job.actorSource,job.options):format===NATIVE_ABILITY_EDIT_FORMAT?validateNativeAbilityEditDraft(input,job?.itemSource,job?.capabilities||input?.capabilities||{}):format===NATIVE_ABILITY_FORMAT?validateNativeAbilityDraft(input):validateAbility(input);
@@ -181,6 +183,19 @@ export async function handleAbilityGeneration(request, route, campaignId, env, s
   }
 }
 
+async function abilityIconReference(job, bucket, concept = false) {
+  const key = concept ? job.concept.key : job.referenceKey;
+  const etag = concept ? job.concept.etag : job.referenceEtag;
+  const source = await bucket.get(key);
+  if (!source || source.size > 12 * 1024 * 1024) throw new GenerationError("reference_missing", concept ? "L’immagine di riferimento non è più disponibile." : "L'avatar di riferimento non è più disponibile. Salva un avatar valido prima di rigenerare l'icona.");
+  if (etag && source.etag !== etag) throw new GenerationError("reference_changed", concept ? "L’immagine di riferimento è cambiata." : "L'avatar di riferimento è cambiato. Avvia una nuova generazione.");
+  const bytes = new Uint8Array(await source.arrayBuffer());
+  let raw = "";
+  for (let i = 0; i < bytes.length; i += 8192) raw += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  const mime = /\.png$/i.test(key) ? "image/png" : /\.jpe?g$/i.test(key) ? "image/jpeg" : "image/webp";
+  return {image_url: `data:${mime};base64,${btoa(raw)}`};
+}
+
 export class AbilityGenerationStore {
   constructor(state, env) { this.state = {storage:npcSheetJobStorage(state.storage)}; this.env = env; this.queue = Promise.resolve(); }
   serial(fn) { const p = this.queue.then(fn); this.queue = p.catch(() => {}); return p; }
@@ -242,18 +257,21 @@ export class AbilityGenerationStore {
     if (action === 'translation-existing') return job ? reply({ok:true, job:publicJob(job)}) : fail('Traduzione non trovata.',404);
     if (action === "icon-existing") return job ? reply({ok:true,job:publicJob(job)}) : fail("Generazione non trovata.",404);
     if (action === "latest") return reply({ok: true, canStop: true, canDiscardSuggestions: true, nativeSheetEditor:NPC_SHEET_AI_COMPILER, nativeSheetVisualInput:NPC_SHEET_VISUAL_INPUT_VERSION, nativeAbilityEditor:1, nativeAbilityEditing:1, abilityEditCompiler:NATIVE_ABILITY_EDIT_COMPILER_VERSION, job: publicJob(job), ...(input.fingerprint ? {stale: Boolean(job && job.fingerprint !== input.fingerprint)} : {})});
-    if (action === "create") {
+    if (action === "create" || action === 'create-skill-node') {
+      const skillNode = action === 'create-skill-node';
+      if (skillNode && (input.context.purpose !== 'skill-node' || !['skill-node-text','skill-node-icon'].includes(input.kind))) return fail('Richiesta nodo non valida.');
       if (job?.kind === "suggestions" && job.discardedAt) return fail("Questa analisi è stata scartata. Avvia una nuova analisi.", 409);
       if (job) return reply({ok: true, job: publicJob(job)});
       const previous = latest ? await s.get(`job:${latest}`) : null;
+      if (skillNode && pending(previous)) return fail('Una generazione è già in corso per questo albero.', 409);
       if (pending(previous)) return reply({ok: true, job: publicJob(previous)});
       if (input.kind === "ability-icon" && previous?.prepared && previous.status !== "accepted") return fail("Completa prima l’invio dell’icona precedente.",409);
       if (await s.get("active")) return fail("Una generazione è già in corso. Riprova tra poco.", 409);
-      const iconOnly = input.kind === "ability-icon";
+      const iconOnly = input.kind === "ability-icon" || input.kind === 'skill-node-icon';
       const translation = input.kind === 'ability-translation';
       if (translation && (input.context.purpose !== 'ability-translations' || !input.context.itemId || input.withIcon || !input.translationSource)) return fail('Richiesta traduzione non valida.');
       if (translation) validateAbilityTranslation(input.translationSource, input.translationSource);
-      if (iconOnly && (input.context.purpose !== "ability-icons" || !input.context.itemId || !input.draft || !input.referenceKey)) return fail("Richiesta icona non valida.");
+      if (input.kind === "ability-icon" && (input.context.purpose !== "ability-icons" || !input.context.itemId || !input.draft || !input.referenceKey)) return fail("Richiesta icona non valida.");
       const next = {...input, imageModel:ABILITY_ICON_MODEL, status: iconOnly ? "icon-pending" : "pending", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS, iconAttempt: input.withIcon ? input.id : ""};
       if(input.format===NPC_SHEET_AI_FORMAT&&(input.context.purpose!=='native-sheet'||input.withIcon||!input.actorSource||!input.options))return fail('Richiesta della scheda non valida.');
       if (new TextEncoder().encode(JSON.stringify(next)).length > (input.format===NPC_SHEET_AI_FORMAT?MAX_SHEET_JOB_BYTES:120000)) return fail("Scheda e proposta troppo estese per la generazione.", 413);
@@ -422,9 +440,12 @@ export class AbilityGenerationStore {
     let stage = job.kind === "suggestions" ? "analysis" : job.status === "running" ? "ability" : "icon-reference";
     try {
       if (job.kind === "suggestions") {
-        job.report = await generateNpcSuggestions(job, this.env, ABILITY_MODEL);
+        job.report = await generateNpcSuggestions(job, this.env);
         job.status = "ready";
         delete job.sheet;
+      } else if (job.kind === 'skill-node-text') {
+        job.draft = await rewriteSkillNode(job, this.env, ABILITY_MODEL, abortController.signal);
+        job.status = 'ready';
       } else if (job.kind === 'ability-translation') {
         stage = 'translation';
         job.draft = await generateAbilityTranslation(job, this.env, ABILITY_MODEL, abortController.signal);
@@ -446,17 +467,17 @@ export class AbilityGenerationStore {
         job.status = job.withIcon ? "icon-pending" : "ready";
         delete job.sheet; delete job.baseDraft;
       } else {
-        const source = await this.env.MEDIA_BUCKET.get(job.referenceKey);
-        if (!source || source.size > 12 * 1024 * 1024) throw new GenerationError("reference_missing", "L’avatar di riferimento non è più disponibile. Salva un avatar valido prima di rigenerare l’icona.");
-        if (job.referenceEtag && source.etag !== job.referenceEtag) throw new GenerationError("reference_changed", "L’avatar di riferimento è cambiato. Avvia una nuova generazione.");
-        const bytes = new Uint8Array(await source.arrayBuffer());
-        let raw = ""; for (let i = 0; i < bytes.length; i += 8192) raw += String.fromCharCode(...bytes.subarray(i, i + 8192));
-        const mime = /\.png$/i.test(job.referenceKey) ? "image/png" : /\.jpe?g$/i.test(job.referenceKey) ? "image/jpeg" : "image/webp";
+        const withoutAvatar = job.kind === 'skill-node-icon' && !job.referenceKey;
+        const reference = withoutAvatar ? null : await abilityIconReference(job, this.env.MEDIA_BUCKET);
+        const hasConcept = job.kind === 'skill-node-icon' && Boolean(job.concept);
+        const images = [];
+        if (hasConcept) images.push(await abilityIconReference(job, this.env.MEDIA_BUCKET, true));
+        if (reference) images.push(reference);
         stage = "icon";
-        const response = await fetchGeneration("https://api.openai.com/v1/images/edits", {
+        const response = await fetchGeneration(images.length ? "https://api.openai.com/v1/images/edits" : "https://api.openai.com/v1/images/generations", {
           method: "POST", headers: {Authorization: `Bearer ${this.env.OPENAI_API_KEY}`, "Content-Type": "application/json"}, signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(12 * 60 * 1000)]),
-          body: JSON.stringify({model: job.imageModel || ABILITY_ICON_MODEL, images: [{image_url: `data:${mime};base64,${btoa(raw)}`}], n: 1, size: "1024x1024", quality: "medium", output_format: "webp",
-            prompt: buildAbilityIconPrompt({name:job.draft.item?.name||job.draft.name,visualDirection:job.draft.iconPrompt,context:job.kind==="ability-icon"?job.iconContext:job.format===NATIVE_ABILITY_EDIT_FORMAT?nativeAbilityEditSummary(job.draft):job.format===NATIVE_ABILITY_FORMAT?nativeAbilitySummary(job.draft):{mode:job.draft.mode,damage:job.draft.damage,extraDamage:job.draft.extraDamage}})})
+          body: JSON.stringify({model: job.imageModel || ABILITY_ICON_MODEL, ...(images.length ? {images} : {}), n: 1, size: "1024x1024", quality: "medium", output_format: "webp",
+            prompt: buildAbilityIconPrompt({hasReference: Boolean(reference), hasConcept, name:job.draft.item?.name||job.draft.name,visualDirection:job.draft.iconPrompt,context:job.iconContext || (job.format===NATIVE_ABILITY_EDIT_FORMAT?nativeAbilityEditSummary(job.draft):job.format===NATIVE_ABILITY_FORMAT?nativeAbilitySummary(job.draft):{mode:job.draft.mode,damage:job.draft.damage,extraDamage:job.draft.extraDamage})})})
         });
         const data = await readGenerationResponse(response), encoded = data.data?.[0]?.b64_json;
         if (typeof encoded !== "string" || encoded.length > 17 * 1024 * 1024) throw new GenerationError("image_invalid", "Il servizio non ha restituito un’immagine utilizzabile.", responseMetadata(response));

@@ -36,16 +36,139 @@ await vm.runInContext('loadCharacterSkillTreeModule()', pageSandbox);
 assert.equal(loadedAssets.length, 1);
 assert.equal(loadedAssets[0].tag, 'link', 'Styles load even when the renderer is already available');
 console.log('OK embedded tree asset loading, version alignment and repeated opening');
-const sandbox = {console, Set, Map, URL, window: {localStorage: {getItem() {return null;}}}};
+const sandbox = {console, Set, Map, URL, structuredClone, window: {localStorage: {getItem() {return null;}}}};
 vm.runInNewContext(source.replace(/\}\)\(\);\s*$/, `
-  globalThis.ui = {applySkillTreeRuntime, deriveSkillTreeNodes, getSkillTreeRequirementView,
-    renderSkillTreeRequirementChecklist, renderSkillTreeNodeProgress, renderSkillTreeRequirementEditorCard};
+  globalThis.ui = {applySkillTreeRuntime, deriveSkillTreeNodes, getSkillTreeRequirementView, getSkillTreePlayerFacingDefinition,
+    renderSkillTreeRequirementChecklist, renderSkillTreeNodeProgress, renderSkillTreeRequirementEditorCard,
+    getSkillGradeModel, applySkillGradeModel, skillGradeHtml, normalizeSkillTreeDefinitionForSave};
 })();`), sandbox);
 const ui = sandbox.ui;
 ui.applySkillTreeRuntime({escapeHtml: value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))});
 const copy = value => JSON.parse(JSON.stringify(value));
 let checks = 1; // Embedded asset loading regression above.
 const test = (label, run) => {run(); checks++; console.log(`OK ${label}`);};
+const timed = {
+  desc: '<p>Rimani per 1 ora.</p>',
+  levels: [{}, {desc:'<p>Rimani per 8 ore.</p>', changeNotes:[{label:'Durata', before:'1 ora', after:'8 ore'}]},
+    {desc:'<p>Rimani per quanto desideri.</p>', changeNotes:[{label:'Durata', before:'8 ore', after:'Quanto desideri'}]}],
+  externalRequirements:[{id:'studio-3', level:3, label:'Studio', target:32}]
+};
+test('matching descriptions produce shared text without changing the original record', () => {
+  const before = JSON.stringify(timed);
+  const model = ui.getSkillGradeModel(timed);
+  assert.deepEqual(copy(model.fields[0].values), ['1 ora','8 ore','quanto desideri']);
+  assert.equal(ui.skillGradeHtml(model, 2), timed.levels[2].desc);
+  assert.equal(JSON.stringify(timed), before);
+});
+test('one grade edit updates complete descriptions and adjacent comparisons across a save', () => {
+  const n = copy(timed);
+  const model = ui.getSkillGradeModel(n);
+  model.fields[0].values[1] = '12 ore';
+  ui.applySkillGradeModel(n, model);
+  const saved = ui.normalizeSkillTreeDefinitionForSave({nodes:[n]}).nodes[0];
+  assert.equal(saved.levels[0].desc, timed.desc);
+  assert.equal(saved.levels[1].desc, '<p>Rimani per 12 ore.</p>');
+  assert.equal(saved.levels[2].changeNotes[0].before, '12 ore');
+  assert.equal(saved.externalRequirements[0].id, 'studio-3');
+  assert.equal(ui.getSkillGradeModel(saved).fields[0].values[1], '12 ore');
+  saved.levels[1].desc = '<p>Regola modificata separatamente.</p>';
+  assert.equal(ui.getSkillGradeModel(saved), null);
+});
+test('the player sees compact grade values with separate acquired and preview states', () => {
+  const model = {html:'<p>Bonus ⟦0⟧.</p>', fields:[{label:'Bonus', values:['+1','+3','+5']}]};
+  const render = (preview, current) => ui.skillGradeHtml(model, preview, 'highlight', current);
+  const preview = render(2, 1);
+  assert.equal(preview.replace(/<[^>]*>/g, ''), 'Bonus +1/+3/+5.');
+  assert.match(preview, /class="skill-grade-step is-current"[^>]*>\+3</);
+  assert.match(preview, /class="skill-grade-step is-preview"[^>]*>\+5</);
+  assert.match(preview, /aria-label="Bonus\. Grado I, \+1\. Grado II, \+3, attuale\. Grado III, \+5, in anteprima"/);
+  assert.doesNotMatch(render(1, 1), /is-preview/);
+  assert.doesNotMatch(render(0, -1), /is-current/);
+  assert.equal(ui.skillGradeHtml(model, 1), '<p>Bonus +3.</p>');
+  const field = model.fields[0];
+  model.html = '<p>Infliggi ⟦0⟧danni.</p>';
+  field.values = ['1d6 ', '2d6 ', '2d6 '];
+  assert.equal(render(1, 1).replace(/<[^>]*>/g, ''), 'Infliggi 1d6/2d6/2d6 danni.');
+  model.html = '<p>Ottieni ⟦0⟧.</p>';
+  field.values = ['resistenza','resistenza','resistenza'];
+  assert.equal(render(0, 0).replace(/<[^>]*>/g, ''), 'Ottieni resistenza.');
+  field.values = ['una frase', 'una regola che occupa diverse righe della descrizione', 'fine'];
+  assert.doesNotMatch(render(1, 0), /skill-grade-scale|una frase/);
+  field.rich = true;
+  field.values = ['<em>uno</em>', '<em>due</em>', '<em>tre</em>'];
+  assert.equal(render(1, 0), ui.skillGradeHtml(model, 1));
+  assert.match(render(1, 0), /due/);
+});
+test('a saved field with selection whitespace still opens in the variables editor', () => {
+  const n = copy(timed);
+  const model = ui.getSkillGradeModel(n);
+  model.html = '<p>⟦1⟧' + model.html.slice(3);
+  model.fields.push({label:'Frequenza', values:['Una ', 'Due ', 'Tre ']});
+  ui.applySkillGradeModel(n, model);
+  const saved = ui.normalizeSkillTreeDefinitionForSave({nodes:[n]}).nodes[0];
+  assert.deepEqual(copy(ui.getSkillGradeModel(saved).fields), copy(model.fields));
+});
+test('ambiguous, missing or contradictory grade values keep the full descriptions', () => {
+  const n = copy(timed);
+  n.levels[2].desc = n.levels[1].desc;
+  assert.equal(ui.getSkillGradeModel(n), null);
+  n.desc = '<p>1 ora. Poi ancora 1 ora.</p>';
+  assert.equal(ui.getSkillGradeModel(n), null);
+  assert.equal(ui.getSkillGradeModel({desc:timed.desc, levels:[{}]}), null);
+});
+test('Amplificazione separates the two bonuses, preserves the authored lightning note and reopens after edits', () => {
+  const notes = {id:'fulmine', type:'changed', label:'Resistenza Velkarya', before:'Resistenza Fulmine', after:'Immunità Fulmine'};
+  const levels = ['+1', '+3', '+5'].map((bonus, i) => {
+    const defense = `Velkarya ottiene un bonus di ${bonus} a Intelligenza e resistenza ai danni da fulmine.`;
+    const spell = `Dopo la tua modifica, Velkarya è un chierico di ${5+i*4}° livello.`;
+    return {desc: `<p>Ottieni un bonus di ${bonus} a Intelligenza.</p><br>` + (i
+      ? `<i>TRATTO DI VELKARYA<br><br></i><p>${defense}</p><p>${spell}</p>`
+      : `<i>TRATTO DI VELKARYA</i><p>${defense}<br><i><br></i>${spell}<i></i></p>`)};
+  });
+  levels[2].changeNotes = [notes];
+  const n = {id:'node-mrkweb9w', desc:levels[0].desc, levels, gradeTemplate:{mode:'individual'}};
+  const original = copy(n);
+  const model = ui.getSkillGradeModel(n);
+  assert.deepEqual(copy(n), original);
+  assert.deepEqual(copy(model.fields.map(field => field.values)), [
+    ['+1','+3','+5'], ['+1','+3','+5'], ['5°','9°','13°'], Array(3).fill('resistenza')
+  ]);
+  const customized = copy(n);
+  customized.levels[2].desc += '<p>Ottieni anche un incantesimo.</p>';
+  assert.equal(ui.getSkillGradeModel(customized), null, 'A distinct authored effect keeps its individual text');
+  model.fields[1].values[1] = '+4';
+  ui.applySkillGradeModel(n, model);
+  const saved = ui.normalizeSkillTreeDefinitionForSave({nodes:[n]}).nodes[0];
+  const reopened = ui.getSkillGradeModel(saved);
+  assert.equal(reopened.fields[0].values[1], '+3');
+  assert.equal(reopened.fields[1].values[1], '+4');
+  assert.equal(reopened.review.noteId, notes.id);
+  assert.deepEqual(copy(saved.levels[2].changeNotes.find(e => e.id === notes.id)), notes);
+  reopened.fields[3].values[2] = 'immunità';
+  ui.applySkillGradeModel(saved, reopened);
+  const resolved = ui.getSkillGradeModel(saved);
+  assert.match(ui.skillGradeHtml(resolved, 2), /immunità ai danni da fulmine/);
+  assert.deepEqual(copy(resolved.originalNotes[2]), [notes]);
+});
+test('two fields can change at different grades', () => {
+  const n = {desc:'<p>3d6 danni. Il tiro annulla.</p>', levels:[{},
+    {desc:'<p>5d6 danni. Il tiro annulla.</p>',changeNotes:[{label:'Danni',before:'3d6',after:'5d6'}]},
+    {desc:'<p>5d6 danni. Il tiro dimezza.</p>',changeNotes:[{label:'Tiro salvezza',before:'annulla',after:'dimezza'}]}]};
+  const model = ui.getSkillGradeModel(n);
+  assert.deepEqual(copy(model.fields.map(f=>f.values)), [['3d6','5d6','5d6'],['annulla','annulla','dimezza']]);
+  model.fields[0].values[0] = '<img>';
+  assert.match(ui.skillGradeHtml(model,0), /&lt;img&gt;/);
+});
+test('legacy editorial states preserve player-visible nodes and their prerequisites', () => {
+  const legacyTree = {nodes: [
+    {id: 'start', editorStatus: 'draft', connections: ['next']},
+    {id: 'next', workflowStatus: 'review', requires: ['start']}
+  ]};
+  const visible = ui.getSkillTreePlayerFacingDefinition(legacyTree);
+  assert.deepEqual(copy(visible.nodes.map(node => node.id)), ['start', 'next']);
+  assert.equal(visible.nodes[0].connections[0].target, 'next');
+  assert.deepEqual(copy(visible.nodes[1].requires), ['start']);
+});
 const node = {id: 'next', title: 'Next', requires: ['a','b'], levels: [{label:'I'},{label:'II'},{label:'III'}], externalRequirements: [
   {id:'goal',label:'Approval',target:1,level:1},
   {id:'count',label:'Research',target:10,level:1},

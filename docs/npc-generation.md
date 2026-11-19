@@ -32,7 +32,20 @@ il token se si vuole la trasparenza, senza avviare chiamate automatiche.
 `tokenTransparencyVersion: 1` viene dichiarato dal coordinatore effettivo;
 un coordinatore precedente non può avviare silenziosamente un token opaco.
 
-Si possono scegliere fino a tre NPC della campagna, assegnando a ciascuno un
+In **Immagini di riferimento**, il DM può combinare fino a tre file e NPC della
+campagna. **Allega immagini** accetta anche una selezione multipla di PNG, JPEG
+o WebP. Ogni file ha un’anteprima, un ruolo (personaggio, emblema, equipaggiamento,
+abbigliamento o stile) e una nota facoltativa dedicata. Un concept del personaggio
+rende facoltativa la descrizione. Il nome serve per creare la scheda. Le note dei
+concept guidano l’avatar e il token viene ricavato dall’avatar risultante.
+
+I file vengono caricati quando si preme **Genera anteprime**. Il server conserva
+i byte originali in uno spazio privato per campagna e account. Il digest del
+contenuto permette di recuperare lo stesso allegato nei tentativi successivi.
+Solo avatar e token confermati entrano nel dossier. I limiti di 12 MB per file
+e 24 MB complessivi valgono anche per le selezioni miste.
+
+Per gli NPC della campagna si può assegnare a ciascuno un
 ruolo: stile e palette, aspetto e lineamenti, abbigliamento, cornice del token.
 **Scegli NPC di esempio** apre una finestra con ricerca per nome, ruolo, categoria
 e mondo, filtri di categoria/sottocategoria e tipo, conteggi e paginazione di

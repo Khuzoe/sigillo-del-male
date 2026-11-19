@@ -116,7 +116,7 @@ function renderMarkdown(md, options = {}) {
     return window.CriptaMarkdown.render(md, getCharacterMarkdownOptions(options));
 }
 
-const CHARACTER_MODULE_VERSION = '20261101-skill-rules1';
+const CHARACTER_MODULE_VERSION = '20261118-gradi4';
 
 function versionedCharacterModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);
@@ -2074,7 +2074,7 @@ function getCompanionReadableEntityId(ownerCharacterId, companion) {
     return buildReadableAssetSlug(ownerCharacterId || 'personaggio', companionName, companionActorId);
 }
 
-function getCompanionAvatarImageCandidates(companion) {
+function getCompanionAvatarImageCandidates(companion, includeTokens = true) {
     const tokenPath = companion?.token?.img || '';
     const avatarVariant = getAvatarVariantPath(tokenPath);
     const ownerCharacterId = slugify(companion?.ownerCharacterId || companion?.characterId || '');
@@ -2096,9 +2096,7 @@ function getCompanionAvatarImageCandidates(companion) {
         resolveSyncedActorImagePath(avatarVariant),
         resolveSyncedActorImagePath(companion?.img),
         resolveSyncedActorImagePath(legacySyncedAvatar),
-        resolveSyncedActorImagePath(syncedToken),
-        resolveSyncedActorImagePath(legacySyncedToken),
-        resolveSyncedActorImagePath(tokenPath)
+        ...(includeTokens ? [syncedToken, legacySyncedToken, tokenPath].map(resolveSyncedActorImagePath) : [])
     ].filter(Boolean)));
 }
 
@@ -2149,6 +2147,8 @@ function getCompanionSkillTreeSubject(character, companion, identity = null) {
         id: `companion-${entityId}`,
         entityId,
         characterId: `companion-${entityId}`,
+        managedActor: companion?.managedActor,
+        avatarCandidates: getCompanionAvatarImageCandidates(companion, false),
         name: companion?.displayName || companion?.name || identity?.name || 'Companion',
         foundryName: companion?.foundryName || companion?.name || identity?.foundryName || '',
         actorId: companion?.actorId || companion?.id || identity?.actorId || '',

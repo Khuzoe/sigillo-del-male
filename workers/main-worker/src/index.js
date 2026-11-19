@@ -16,6 +16,7 @@ import { handleTileGeneration } from "./tile-generation.js";
 export { TileGenerationStore } from "./tile-generation.js";
 import { handleAbilityGeneration } from "./ability-generation.js";
 import { handleAbilityIcons } from "./ability-icons.js";
+import { handleSkillNodeGeneration } from "./skill-node-generation.js";
 import { handleAbilityTranslations } from './ability-translations.js';
 export { AbilityGenerationStore } from "./ability-generation.js";
 import { D1PollStore, PollStorageError } from "./poll-store.js";
@@ -239,9 +240,9 @@ const application = {
         Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
         return new Response(result.body, { status: result.status, headers });
       }
-      const npcGenerationRoute = url.pathname.match(/^\/api\/npc-generation(?:\/([a-f0-9-]{36})\/(avatar|token|retry-token|confirm|stop))?$/i);
+      const npcGenerationRoute = url.pathname.match(/^\/api\/npc-generation(?:\/([a-f0-9-]{36})\/(avatar|token|retry-token|confirm|stop)|\/(concepts)(?:\/([a-f0-9]{64}\.(?:png|jpg|webp)))?)?$/i);
       if (npcGenerationRoute) {
-        const result = await handleNpcGeneration(request, { jobId: npcGenerationRoute[1], action: npcGenerationRoute[2] }, queryCampaignId, env, {
+        const result = await handleNpcGeneration(request, { jobId: npcGenerationRoute[1], action: npcGenerationRoute[2] || npcGenerationRoute[3], uploadId: npcGenerationRoute[4] }, queryCampaignId, env, {
           requireUser: req => requireUser(req, env, corsHeaders),
           isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
           accountId: user => getAuthenticatedAccountId(user, env),
@@ -362,6 +363,19 @@ const application = {
         const storage = skillTreeStorage(env, queryCampaignId);
         if (!storage) return json({ ok: false, error: "D1 non attivo per questa campagna." }, 409, corsHeaders);
         return json(await storage.exportCampaign(), 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
+      }
+
+      const skillNodeRoute = url.pathname.match(/^\/api\/skill-trees\/generate-node(?:\/([a-f\d-]{36})(\/preview)?|\/(concepts)(?:\/([a-f0-9]{64}\.(?:png|jpg|webp)))?)?$/i);
+      if (skillNodeRoute) {
+        const user = await requireUser(request, env, corsHeaders);
+        if (user instanceof Response) return user;
+        if (!await isAuthenticatedCampaignContentEditor(user, env, queryCampaignId)) return json({ok: false, error: "Generazione riservata al DM della campagna."}, 403, corsHeaders);
+        const accountId = getAuthenticatedAccountId(user, env) || getAuthenticatedDiscordId(user);
+        const response = await handleSkillNodeGeneration(request, {id: skillNodeRoute[1], preview: skillNodeRoute[2], concepts: skillNodeRoute[3], uploadId: skillNodeRoute[4]}, queryCampaignId, accountId, env,
+          async (campaign, actor) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaign, actor.worldId, actor.actorId))));
+        const headers = new Headers(response.headers);
+        Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
+        return new Response(response.body, {status: response.status, headers});
       }
 
       if (url.pathname === "/api/skill-trees/storage/export" && request.method === "GET") {
@@ -4100,6 +4114,13 @@ function canReadManagedActor(entry, user, isEditor, env) {
   return isManagedActorOwner(entry, user, env);
 }
 
+function canReadManagedPlayerSkillTrees(entry, user, isEditor, profile = entry?.profile) {
+  return Boolean((user || isEditor)
+    && entry?.ownerCharacterId
+    && normalizeManagedActorRelationshipType(entry.relationshipType, entry.actorType, entry.ownerCharacterId) === "player"
+    && (isEditor || String(profile?.lifecycle?.state || "active") !== "archived"));
+}
+
 function isManagedActorOwner(entry, user, env) {
   const accountId = getAuthenticatedAccountId(user, env);
   const owners = Array.isArray(entry?.ownerAccountIds) ? entry.ownerAccountIds.map(sanitizeAccountId) : [];
@@ -5537,18 +5558,32 @@ async function handleManagedActorProfileGet(request, route, campaignId, env, cor
   profile = enrichManagedActorProfileCategory(profile, categoryRegistry);
 
   const isOwner = isManagedActorOwner(actor, reader.user, env);
-  if (!canReadManagedActorProfile(profile, reader.user, reader.isEditor, actor, env)) {
+  const canReadProfile = canReadManagedActorProfile(profile, reader.user, reader.isEditor, actor, env);
+  const canReadSkillTrees = canReadManagedPlayerSkillTrees(actor, reader.user, reader.isEditor, profile);
+  if (!canReadProfile && !canReadSkillTrees) {
     return json({ ok: false, error: "Forbidden" }, 403, corsHeaders);
   }
-  const filteredProfile = filterManagedActorProfileForReader(profile, reader.user, reader.isEditor, actor, env);
-  const merchant = managedActorMerchantForProfile(actor);
+  const filteredProfile = canReadProfile
+    ? filterManagedActorProfileForReader(profile, reader.user, reader.isEditor, actor, env)
+    : emptyManagedActorProfile(actor, campaignId, route);
+  const merchant = canReadProfile ? managedActorMerchantForProfile(actor) : null;
   const data = merchant ? { ...filteredProfile, merchant } : filteredProfile;
   return json({
     ok: true,
     campaignId,
-    source,
+    source: canReadProfile ? source : "skill-trees",
     data,
-    permissions: { canEdit: reader.isEditor === true || isOwner, isEditor: reader.isEditor === true, isOwner, npcCategoryRevision: categoryRegistry.revision },
+    skillTreeActor: canReadSkillTrees ? {
+      worldId: route.worldId,
+      actorId: route.actorId,
+      actorType: actor.actorType,
+      relationshipType: "player",
+      ownerCharacterId: actor.ownerCharacterId,
+      name: actor.name,
+      media: { avatar: filteredProfile.media?.avatar || null },
+      permissions: { isEditor: reader.isEditor === true, isOwner },
+    } : null,
+    permissions: { canReadProfile, canReadSkillTrees, canEdit: canReadProfile && (reader.isEditor === true || isOwner), isEditor: reader.isEditor === true, isOwner, npcCategoryRevision: categoryRegistry.revision },
   }, 200, {
     ...corsHeaders,
     "Cache-Control": reader.user || reader.isEditor ? "private, no-store" : "public, max-age=120, must-revalidate",
@@ -7747,11 +7782,12 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
     if (archived && (!reader.isEditor || !directoryView)) return [];
     const canReadStats = canReadManagedActor(entry, reader.user, reader.isEditor, env);
     const canReadProfile = canReadManagedActorProfileIndex(entry.profile, reader.user, reader.isEditor, entry, env);
-    if (!canReadStats && !canReadProfile) return [];
+    const canReadSkillTrees = canReadManagedPlayerSkillTrees(entry, reader.user, reader.isEditor);
+    if (!canReadStats && !canReadProfile && !canReadSkillTrees) return [];
     const value = {
       ...entry,
       profile: canReadProfile ? enrichManagedActorProfileCategory(entry.profile, categoryRegistry) : null,
-      permissions: { canReadStats, canReadProfile, isEditor: reader.isEditor === true },
+      permissions: { canReadStats, canReadProfile, canReadSkillTrees, isEditor: reader.isEditor === true },
       ...(syncByActor.has(`${entry.worldId}:${entry.actorId}`) ? { sync: syncByActor.get(`${entry.worldId}:${entry.actorId}`) } : {}),
     };
     return [directoryView ? managedActorDirectoryEntry(value) : value];
@@ -9011,9 +9047,13 @@ function mergeUserSkillTreeStates(existingData, submittedData, accountId, trees 
   const isShared = entry => isSharedSkillTreeStateEntry(entry, sharedTreeKeys)
     || isSharedSkillTreeDefinition({id: entry?.treeKey});
   const kept = (Array.isArray(existingData) ? existingData : []).filter((entry) => isShared(entry) || !belongsToUser(entry));
-  const protectedKeys = new Set(kept.filter(isShared).flatMap(entry => [entry?.id, entry?.key]).filter(Boolean).map(String));
+  const protectedKeys = new Set(kept.flatMap(entry => [entry?.id, entry?.key]).filter(Boolean).map(String));
+  const subjectKey = entry => entry?.treeKey && (entry.characterId || entry.subjectId)
+    ? JSON.stringify([sanitizeAssetToken(entry.treeKey), skillTreeEditableSubjectId(entry.characterId || entry.subjectId)]) : '';
+  const protectedSubjects = new Set(kept.map(subjectKey).filter(Boolean));
   const own = (Array.isArray(submittedData) ? submittedData : [])
     .filter((entry) => entry && typeof entry === "object" && belongsToUser(entry) && !isShared(entry)
+      && !protectedSubjects.has(subjectKey(entry))
       && ![entry.id, entry.key].some(key => key && protectedKeys.has(String(key))))
     .map((entry) => ({
       ...entry,

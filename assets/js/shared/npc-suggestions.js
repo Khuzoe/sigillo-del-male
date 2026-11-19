@@ -16,14 +16,14 @@
         dialog.dataset.npcSuggestions = ""; dialog.setAttribute("aria-labelledby", "npc-suggestions-title");
         dialog.innerHTML = `<header><div><small>ISPIRAZIONE E BILANCIAMENTO</small><h2 id="npc-suggestions-title">Suggerisci modifiche</h2></div><button type="button" data-close aria-label="Chiudi">×</button></header>
           <div class="npc-avatar-generator__body">
-            <div class="npc-suggestions-intro"><img data-reference alt="Avatar attuale dell’NPC" hidden><div><p data-name></p><p>Confronta l’aspetto del mostro con statistiche e capacità per trovare idee coerenti e miglioramenti utili.</p></div></div>
+            <div class="npc-suggestions-intro"><img data-reference alt="Avatar attuale dell’NPC" hidden><div><p data-name></p><p>Trova idee per giocare questa creatura, valorizzare le sue capacità e affinare la scheda.</p></div></div>
             <p data-status class="npc-avatar-generator__status" role="status" aria-live="polite">Caricamento…</p><details data-error-details class="npc-generation-error-details" hidden><summary>Dettagli del problema</summary><pre data-error-reference></pre></details>
             <label class="npc-avatar-generator__direction">Cosa vuoi migliorare? <span>(facoltativo)</span><textarea data-direction rows="2" maxlength="2000" placeholder="Ad esempio: mantieni il GS, rendilo più tattico; è un companion di supporto…"></textarea></label>
             <p class="npc-avatar-generator__hint">L’analisi invia avatar e scheda a OpenAI. Non genera immagini e non cambia l’NPC.</p>
             <p data-stale class="npc-suggestions-stale" hidden>La scheda o l’avatar sono cambiati dopo questa analisi. Rianalizza prima di sviluppare una delle idee.</p>
             <div data-report hidden>
               <p data-report-date class="npc-avatar-generator__hint"></p><p data-summary class="npc-ability-summary"></p>
-              <details><summary>Dall’avatar</summary><ul data-visual></ul></details>
+              <details data-visual-section><summary>Dall’avatar</summary><ul data-visual></ul></details>
               <section data-strengths-section><h3>Da mantenere</h3><ul data-strengths></ul></section>
               <section data-adjustments-section><h3>Modifiche consigliate</h3><div data-adjustments></div></section>
               <section data-ideas-section><h3>Idee per nuove abilità</h3><p class="npc-avatar-generator__hint">Sviluppa un’idea per preparare una bozza modificabile. La generazione parte soltanto al tuo prossimo clic.</p><div data-ideas></div></section>
@@ -68,7 +68,9 @@
             el("[data-summary]").textContent = report.summary;
             const date = new Date(job.createdAt);
             el("[data-report-date]").textContent = Number.isNaN(date.getTime()) ? "Analisi salvata" : `Analisi del ${date.toLocaleString("it-IT", {dateStyle: "short", timeStyle: "short"})}`;
-            list("[data-visual]", report.visualObservations); list("[data-strengths]", report.strengths); list("[data-uncertainties]", report.uncertainties);
+            const observations = report.visualObservations.filter(text => text.trim());
+            list("[data-visual]", observations); list("[data-strengths]", report.strengths); list("[data-uncertainties]", report.uncertainties);
+            el("[data-visual-section]").hidden = !observations.length;
             el("[data-strengths-section]").hidden = !report.strengths.length;
             el("[data-uncertainties-section]").hidden = !report.uncertainties.length;
             el("[data-adjustments]").replaceChildren();
@@ -100,7 +102,9 @@
                     } catch (error) { if (!closed) status(error.message, true); }
                     finally { busy = false; if (!closed) controls(); }
                 });
-                card.append(title, paragraph("", idea.concept), paragraph("Dall’avatar: ", idea.visualLink), paragraph("Nella scheda: ", idea.sheetLink), paragraph("Limite o compromesso: ", idea.tradeoff), button);
+                card.append(title, paragraph("", idea.concept));
+                if (idea.visualLink.trim()) card.append(paragraph("Dall’avatar: ", idea.visualLink));
+                card.append(paragraph("Nella scheda: ", idea.sheetLink), paragraph("Limite o compromesso: ", idea.tradeoff), button);
                 el("[data-ideas]").append(card);
             }
             el("[data-ideas-section]").hidden = !report.ideas.length;

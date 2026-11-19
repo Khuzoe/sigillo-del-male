@@ -47,7 +47,7 @@
                 managedProfileSource = profilePayload.source || "profile";
                 if (currentProfile?.merchant?.enabled) await loadCampaignItemCatalog(token);
                 syncManagedActorNavigation(null);
-                renderManagedProfileOnly(root, currentProfile);
+                renderManagedProfileOnly(root, currentProfile, profilePayload.skillTreeActor);
                 return;
             } catch (error) {
                 console.warn("Vista dossier non disponibile, provo la scheda completa.", error);
@@ -84,7 +84,7 @@
                 managedProfileSource = profilePayload.source || "profile";
                 if (currentProfile?.merchant?.enabled) await loadCampaignItemCatalog(token);
                 syncManagedActorNavigation(null);
-                renderManagedProfileOnly(root, currentProfile);
+                renderManagedProfileOnly(root, currentProfile, profilePayload.skillTreeActor);
                 return;
             } catch (profileError) {
                 console.warn("Dossier NPC non disponibile", profileError);
@@ -541,8 +541,8 @@
                 ${renderCoreStats(attributes, details, actor.runtime || {}, actor.actorType, traits, definition.spellSlots || {}, definition.resources || {}, editMode, sharedRuntime)}
                 ${renderManagedCurrency(currency, editMode)}
                 ${renderAbilities(abilities, editMode)}
-                ${primaryPlayer ? `<div class="managed-player-extensions managed-player-extensions--companions" data-managed-player-companions></div>` : ""}
-                <div class="managed-player-extensions managed-player-extensions--skill-trees" data-managed-player-skill-trees></div>
+                ${primaryPlayer ? `<div id="managed-companions" class="managed-player-extensions managed-player-extensions--companions" data-managed-player-companions></div>` : ""}
+                <div id="managed-player-skill-trees" class="managed-player-extensions managed-player-extensions--skill-trees" data-managed-player-skill-trees></div>
                 ${renderSkills(skills, editMode)}
                 ${renderTraits(traits, editMode, identityEntries)}
                 ${renderEntries("Attacchi e capacità", attackEntries, editMode, "managed-capabilities")}
@@ -805,7 +805,7 @@
         </div>`;
     }
 
-    function renderManagedProfileOnly(root, profile) {
+    function renderManagedProfileOnly(root, profile, skillTreeActor = null) {
         root._managedNpcReaderCleanup?.();
         root._managedNpcReader = null;
         root._managedNpcReaderLoad = null;
@@ -813,13 +813,15 @@
         const media = profile.media || {};
         const avatarPath = media.avatar?.path || media.idle?.path || "";
         const hasAnimation = Boolean(media.idle?.path || media.hover?.path);
+        const hasPlayerSkillTrees = isPrimaryManagedPlayer(skillTreeActor);
         root.classList.add("is-viewing", "is-profile-only", "is-npc");
         root.classList.remove("is-editing", "has-complete-editor", "has-npc-reader");
         root.classList.toggle("has-npc-art", Boolean(avatarPath));
         document.title = `${profile.name || "NPC"} - Cripta di Sangue`;
-        root.innerHTML = `<nav class="managed-actor-breadcrumb" aria-label="Navigazione scheda"><a href="../npcs.html"><i class="fas fa-arrow-left"></i> Torna agli NPC</a></nav>
+        root.innerHTML = `<nav class="managed-actor-breadcrumb" aria-label="Navigazione scheda"><a href="../${hasPlayerSkillTrees ? "giocatori" : "npcs"}.html"><i class="fas fa-arrow-left"></i> ${hasPlayerSkillTrees ? "Torna ai giocatori" : "Torna agli NPC"}</a></nav>
             <section class="managed-actor-hero managed-actor-hero--profile-only"><div class="managed-actor-art"><div class="managed-actor-aura" aria-hidden="true"></div><div class="managed-actor-avatar">${renderManagedAvatarArtwork(media, avatarPath, profile.name)}</div></div><div class="managed-actor-title"><h1>${escapeHtml(profile.name)}</h1>${profile.role ? `<p class="managed-profile-role">${escapeHtml(profile.role)}</p>` : ""}${profile.quote ? `<blockquote class="managed-profile-quote">${escapeHtml(profile.quote)}</blockquote>` : ""}${hasAnimation ? renderManagedSiteAnimation(media, profile.name) : ""}</div></section>
-            <div class="managed-actor-panels">${renderManagedProfileSection(profile, false, false)}${profile.merchant?.enabled ? renderManagedMerchantShop(profile.merchant) : ""}</div>${renderManagedImageLightbox()}`;
+            ${hasPlayerSkillTrees ? '<div class="managed-command-bar"><nav class="managed-section-nav" aria-label="Sezioni della scheda"><div><a href="#managed-npc-profile"><i class="fas fa-book-open" aria-hidden="true"></i><span>Dossier</span></a><a href="#managed-player-skill-trees"><i class="fas fa-diagram-project" aria-hidden="true"></i><span>Alberi</span></a></div></nav></div>' : ""}
+            <div class="managed-actor-panels">${renderManagedProfileSection(profile, false, false)}${profile.merchant?.enabled ? renderManagedMerchantShop(profile.merchant) : ""}${hasPlayerSkillTrees ? '<div id="managed-player-skill-trees" class="managed-player-extensions managed-player-extensions--skill-trees" data-managed-player-skill-trees></div>' : ""}</div>${renderManagedImageLightbox()}`;
         const hero = root.querySelector(".managed-actor-hero");
         const panel = root.querySelector(".managed-profile-panel");
         const dossier = document.createElement("div");
@@ -842,6 +844,16 @@
         setupManagedNpcDossierLayout(root, dossier, portrait, false);
         setupManagedImageLightbox(root);
         setupManagedAvatarFallback(root, media);
+        if (hasPlayerSkillTrees) {
+            setupManagedSectionNavigation(root);
+            setupManagedStickyLayout(root);
+            const host = root.querySelector("[data-managed-player-skill-trees]");
+            window.CriptaManagedPlayerExtensions?.mount?.({ skillTrees: host }, skillTreeActor)
+                .catch((error) => {
+                    console.warn("Alberi non disponibili.", error);
+                    if (host?.isConnected) host.textContent = "Impossibile caricare gli alberi. Ricarica la pagina per riprovare.";
+                });
+        }
     }
 
     function renderManagedProfileSummaryInput(key, label, value) {
@@ -4147,6 +4159,7 @@
             { key: "stats", label: "Statistiche", selectors: ["#managed-stats", "#managed-abilities", "#managed-traits", "#managed-skills"] },
             { key: "actions", label: "Capacità", count: entries.filter((item) => ["weapon", "feat", "spell"].includes(item.type)).length, selectors: ["#managed-capabilities", "#managed-spells"] },
             { key: "inventory", label: "Inventario", selectors: ["#managed-wallet", "#managed-inventory", "#managed-shop"] },
+            { key: "companions", label: "Companion", selectors: ["[data-managed-player-companions]"] },
             { key: "trees", label: "Alberi", selectors: ["[data-managed-player-skill-trees]"] },
             { key: "effects", label: "Effetti", count: actor.definition?.effects?.length || 0, selectors: ["#managed-effects"] },
             { key: "profile", label: "Dossier", selectors: ["#managed-profile", "#managed-appearance", "#managed-variants", "#managed-actor-link"] }
@@ -4224,7 +4237,7 @@
             if (interact) {
                 window.history.replaceState(null, "", `#${pane.id}`);
                 const bar = root.querySelector(".managed-command-bar");
-                if (container.getBoundingClientRect().top < bar.getBoundingClientRect().bottom) {
+                if (["companions", "trees"].includes(pane.key) || container.getBoundingClientRect().top < bar.getBoundingClientRect().bottom) {
                     window.scrollTo({ top: Math.max(0, container.getBoundingClientRect().top + window.scrollY - bar.offsetHeight - 24), behavior: "instant" });
                 }
             }
@@ -4412,8 +4425,8 @@
 
     function setupManagedSectionNavigation(root) {
         root._managedSectionObserver?.disconnect();
-        if (root.classList.contains("is-npc")) return;
         const links = Array.from(root.querySelectorAll('.managed-section-nav a[href^="#"]'));
+        if (!links.length) return;
         const sections = links.map((link) => ({ link, id: String(link.getAttribute("href") || "").slice(1) }))
             .map((entry) => ({ ...entry, target: root.querySelector(`#${CSS.escape(entry.id)}`) }))
             .filter((entry) => entry.target);

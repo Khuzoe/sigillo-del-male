@@ -2,8 +2,9 @@
     "use strict";
     window.CriptaNpcGenerator = { open };
     const purposes = { style: "Stile e palette", appearance: "Aspetto e lineamenti", clothing: "Abbigliamento", frame: "Cornice del token" };
+    const conceptPurposes = { character: "Personaggio / concept", emblem: "Emblema o simbolo", equipment: "Arma o equipaggiamento", clothing: "Abbigliamento", style: "Stile e palette" };
     const active = job => ["pending", "running"].includes(job?.status);
-    const referencePickerUrl = new URL("npc-reference-picker.mjs?v=20261117-picker1", document.currentScript.src).href;
+    const referencePickerUrl = new URL("npc-reference-picker.mjs?v=20261118-concepts1", document.currentScript.src).href;
 
     async function open({ npcs = [], worlds = [], categories = [], initialKind = "person", loadReferences, onCreated = () => {} } = {}) {
         if (document.querySelector("[data-npc-generator]")) return;
@@ -23,13 +24,13 @@
               <div class="npc-generator__identity">
                 <label>Nome<input name="name" required maxlength="180" autocomplete="off" placeholder="Il nome del nuovo NPC"></label>
                 <label>Categoria / sottocategoria<select name="categoryId"><option value="">Senza categoria</option></select></label>
-                <label class="npc-generator__wide">Breve descrizione<textarea name="description" required maxlength="1500" rows="3" placeholder="Aspetto, abiti, personalità e dettagli che vuoi vedere nell'immagine."></textarea></label>
+                <label class="npc-generator__wide">Breve descrizione <span data-description-hint hidden>Facoltativa con un concept del personaggio</span><textarea name="description" required maxlength="1500" rows="3" placeholder="Aspetto, abiti, personalità e dettagli che vuoi vedere nell’immagine."></textarea></label>
               </div>
-              <details class="npc-generator__references"><summary>NPC di esempio <span data-reference-count>0 / 3 · facoltativi</span></summary>
-                <p>Indica cosa riprendere da ciascun esempio. La descrizione definisce il nuovo personaggio.</p>
-                <div class="npc-generator__reference-toolbar"><button type="button" data-reference-picker>Scegli NPC di esempio</button><button type="button" data-reference-reload>Aggiorna elenco</button></div>
+              <details class="npc-generator__references"><summary>Immagini di riferimento <span data-reference-count>0 / 3 · facoltative</span></summary>
+                <p>Allega un personaggio, un emblema o un oggetto, oppure scegli un NPC della campagna. Per ogni immagine puoi indicare cosa riprendere.</p>
+                <div class="npc-generator__reference-toolbar"><button type="button" data-attach>Allega immagini</button><input hidden type="file" data-concept-files accept="image/png,image/jpeg,image/webp" multiple aria-label="Immagini concept"><button type="button" data-reference-picker>Scegli NPC di esempio</button><button type="button" data-reference-reload>Aggiorna elenco</button></div>
+                <p data-concept-status role="status" aria-live="polite">PNG, JPEG o WebP. Fino a 3 riferimenti, 12 MB per immagine e 24 MB in totale.</p>
                 <p data-reference-status role="status" aria-live="polite"></p>
-                <p>Gli esempi devono avere l'immagine già salvata sulla wiki. Puoi selezionare fino a tre NPC.</p>
                 <div class="npc-generator__selected-references" data-references></div>
               </details>
               <details class="npc-generator__settings"><summary>Impostazioni e destinazione</summary><div class="npc-generator__identity">
@@ -73,15 +74,17 @@
         let timer, zoom, pendingRequest = null, storageKey = "", references = [];
         let resolutions = [], qualities = [];
         let loadingReferences = false, referenceError = "", referencesPicker;
+        let conceptSupported = false, checkingFiles = false;
+        const conceptUrls = new Set(), remotePreviews = new Map();
         const previews = {}, controller = new AbortController();
         const base = "api/npc-generation";
         const status = (message, error = false) => { el("[data-status]").textContent = message; el("[data-status]").classList.toggle("is-error", error); };
         const request = async (suffix = "", body) => {
             const response = await fetch(app.urls.api(base + suffix), {
                 method: body === undefined ? "GET" : "POST", cache: "no-store",
-                signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]),
-                headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
-                ...(body === undefined ? {} : { body: JSON.stringify(body) })
+                signal: AbortSignal.any([controller.signal, AbortSignal.timeout(body instanceof Blob ? 90000 : 20000)]),
+                headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { "Content-Type": body instanceof Blob ? body.type : "application/json" }) },
+                ...(body === undefined ? {} : { body: body instanceof Blob ? body : JSON.stringify(body) })
             });
             if (!response.ok) {
                 const payload = await response.json().catch(() => ({}));
@@ -101,14 +104,14 @@
                 return !path.includes("..") && /\.(webp|png|jpe?g)$/i.test(path) && (path.startsWith(`campaigns/${campaign}/`) || (campaign === "cripta-di-sangue" && /^(npcs|players|avatars|managed-actors|characters|creatures|bestiary|companions)\//.test(path)));
             } catch (_) { return false; }
         };
-        const locked = () => busy || active(job) || job?.status === "confirming" || Boolean(pendingRequest);
+        const locked = () => busy || checkingFiles || active(job) || job?.status === "confirming" || Boolean(pendingRequest);
         function controls() {
             const frozen = locked(), supported = resolutions.includes(field("resolution").value) && qualities.includes(field("quality").value);
             for (const input of form.querySelectorAll("input,textarea,select,button")) input.disabled = frozen;
             for (const option of field("resolution").options) option.disabled = !resolutions.includes(option.value);
             for (const option of field("quality").options) option.disabled = !qualities.includes(option.value);
             el("[data-cost-warning]").hidden = field("resolution").value !== "2k" && field("quality").value !== "xhigh";
-            el("[data-generate]").disabled = busy || active(job) || job?.status === "confirming" || !loaded || !enabled || !supported;
+            el("[data-generate]").disabled = busy || checkingFiles || active(job) || job?.status === "confirming" || !loaded || !enabled || !supported;
             el("[data-generate]").textContent = active(job) ? "Generazione in corso…" : pendingRequest ? "Riprova invio" : job && job.status !== "accepted" ? "Rigenera avatar e token" : "Genera anteprime";
             el("[data-confirm]").disabled = busy || !loaded || !["ready", "confirming"].includes(job?.status) || previews.avatar?.id !== job?.id || previews.token?.id !== job?.id || Boolean(pendingRequest);
             el("[data-confirm]").textContent = job?.status === "confirming" ? "Riprendi conferma" : "Crea NPC e sincronizza";
@@ -121,26 +124,53 @@
             el("[data-new]").hidden = !job || active(job) || job.status === "confirming";
             el("[data-new]").disabled = busy || Boolean(pendingRequest);
             dialog.setAttribute("aria-busy", String(busy || active(job)));
-            el("[data-reference-picker]").disabled = frozen || loadingReferences || !npcs.length;
+            el("[data-attach]").disabled = frozen || !conceptSupported || references.length >= 3;
+            el("[data-reference-picker]").disabled = frozen || loadingReferences || !npcs.length || references.filter(isConcept).length === 3;
             el("[data-reference-reload]").disabled = frozen || loadingReferences || !loadReferences;
             el("[data-reference-status]").textContent = loadingReferences ? "Aggiorno tutti gli NPC della campagna…" : referenceError || `${npcs.length} NPC della campagna · personaggi e creature di tutte le categorie`;
             el("[data-reference-status]").classList.toggle("is-error", Boolean(referenceError));
         }
+        function isConcept(reference) { return Boolean(reference.file || reference.uploadId); }
+        function previewUrl(blob) {
+            const url = URL.createObjectURL(blob);
+            conceptUrls.add(url);
+            return url;
+        }
+        function clearConceptUrls() {
+            for (const url of conceptUrls) URL.revokeObjectURL(url);
+            conceptUrls.clear(); remotePreviews.clear();
+        }
+        function showConceptImage(reference, image) {
+            if (reference.url) { image.src = reference.url; return; }
+            const id = reference.uploadId;
+            if (!remotePreviews.has(id)) {
+                remotePreviews.set(id, request(`/concepts/${id}`).then(response => response.blob()).then(blob => closed ? '' : previewUrl(blob))
+                    .catch(() => { remotePreviews.delete(id); return ''; }));
+            }
+            remotePreviews.get(id).then(url => { if (url && image.isConnected) image.src = url; });
+        }
+        const noteStatus = (text, error = false) => {
+            el("[data-concept-status]").textContent = text;
+            el("[data-concept-status]").classList.toggle("is-error", error);
+        };
         function renderReferences() {
-            el("[data-reference-count]").textContent = `${references.length} / 3 · facoltativi`;
+            field("description").required = !references.some(ref => isConcept(ref) && ref.purpose === 'character');
+            el("[data-description-hint]").hidden = field("description").required;
+            el("[data-reference-count]").textContent = `${references.length} / 3 · facoltative`;
             const root = el("[data-references]"); root.replaceChildren();
             references.forEach((reference, index) => {
                 const npc = npcs.find(npc => npc.managedActorWorldId === reference.worldId && npc.managedActorId === reference.actorId);
                 const card = document.createElement("article"); card.className = "npc-generator__reference";
                 const image = document.createElement("img"); image.alt = "";
-                if (imagePath(npc, reference.purpose)) image.src = app.utils.resolveImageUrl(imagePath(npc, reference.purpose));
+                if (isConcept(reference)) { image.alt = reference.name; showConceptImage(reference, image); }
+                else if (imagePath(npc, reference.purpose)) image.src = app.utils.resolveImageUrl(imagePath(npc, reference.purpose));
                 else image.hidden = true;
                 const name = document.createElement("strong"); name.textContent = reference.name || npc?.name || "NPC";
-                const label = document.createElement("label"); label.textContent = "Riprendi da questo NPC";
+                const label = document.createElement("label"); label.textContent = isConcept(reference) ? "Ruolo dell’immagine" : "Riprendi da questo NPC";
                 const select = document.createElement("select"); select.setAttribute("aria-label", `Riferimento da ${name.textContent}`);
-                for (const [value, text] of Object.entries(purposes)) {
+                for (const [value, text] of Object.entries(isConcept(reference) ? conceptPurposes : purposes)) {
                     const option = new Option(text, value);
-                    option.disabled = npc ? !wikiImage(imagePath(npc, value)) : value !== reference.purpose;
+                    option.disabled = !isConcept(reference) && (npc ? !wikiImage(imagePath(npc, value)) : value !== reference.purpose);
                     select.add(option);
                 }
                 select.value = reference.purpose;
@@ -149,11 +179,40 @@
                 const note = document.createElement("textarea"); note.rows = 2; note.maxLength = 300; note.placeholder = "Dettagli da riprendere (facoltativi)"; note.value = reference.note || ""; note.setAttribute("aria-label", `Nota per ${name.textContent}`);
                 note.addEventListener("input", () => { reference.note = note.value; });
                 const remove = document.createElement("button"); remove.type = "button"; remove.textContent = "Rimuovi"; remove.setAttribute("aria-label", `Rimuovi ${name.textContent}`);
-                remove.addEventListener("click", () => { references.splice(index, 1); renderReferences(); });
+                remove.addEventListener("click", () => {
+                    if (reference.url) { URL.revokeObjectURL(reference.url); conceptUrls.delete(reference.url); }
+                    references.splice(index, 1); renderReferences();
+                    noteStatus("PNG, JPEG o WebP. Fino a 3 riferimenti, 12 MB per immagine e 24 MB in totale.");
+                });
                 card.append(image, name, label, note, remove); root.appendChild(card);
             });
             controls();
         }
+        el("[data-attach]").addEventListener("click", () => el("[data-concept-files]").click());
+        el("[data-concept-files]").addEventListener("change", async event => {
+            const files = Array.from(event.target.files || []); event.target.value = "";
+            if (!files.length || locked()) return;
+            const added = [];
+            checkingFiles = true; controls();
+            try {
+                if (references.length + files.length > 3) throw new Error("Puoi usare fino a tre riferimenti. Rimuovine uno o scegli meno file.");
+                let total = references.reduce((sum, ref) => sum + (ref.file?.size || 0), 0);
+                for (const file of files) {
+                    if (!['image/png','image/jpeg','image/webp'].includes(file.type) || !file.size) throw new Error("Scegli immagini PNG, JPEG o WebP.");
+                    total += file.size;
+                    if (file.size > 12 * 1024 * 1024 || total > 24 * 1024 * 1024) throw new Error("Il limite è 12 MB per immagine e 24 MB in totale.");
+                    const url = previewUrl(file), image = new Image();
+                    added.push({file, url, name: file.name.slice(0, 180), purpose: 'character', note: ''});
+                    image.src = url;
+                    try { await image.decode(); } catch { throw new Error(`Impossibile leggere l’immagine ${file.name}.`); }
+                    if (closed) return;
+                }
+                references.push(...added); noteStatus("Scegli il ruolo e aggiungi eventuali indicazioni per ciascuna immagine.");
+            } catch (error) {
+                for (const ref of added) { URL.revokeObjectURL(ref.url); conceptUrls.delete(ref.url); }
+                noteStatus(error.message, true);
+            } finally { checkingFiles = false; if (!closed) renderReferences(); }
+        });
         async function reloadReferences() {
             if (!loadReferences || loadingReferences || closed) return;
             loadingReferences = true; referenceError = ""; controls();
@@ -214,11 +273,13 @@
             try {
                 const payload = await (await request()).json();
                 if (closed) return;
-                const first = !loaded, oldId = job?.id;
+                const oldId = job?.id;
                 job = payload.job; loaded = true; enabled = payload.enabled && payload.version === 1 && payload.tokenTransparencyVersion === 1; canStop = payload.canStop === true;
+                conceptSupported = payload.conceptReferences === 1;
+                if (!conceptSupported) noteStatus("Aggiorna il servizio per allegare immagini. Puoi scegliere gli NPC di esempio.");
                 resolutions = payload.supportedResolutions || []; qualities = payload.supportedQualities || [];
                 if (pendingRequest && job?.id === pendingRequest.requestId) remember(null);
-                if (!pendingRequest && job && (first || oldId !== job.id)) { clearPreviews(); restore(job, job.references); }
+                if (!pendingRequest && job && oldId !== job.id) { clearPreviews(); restore(job, job.references); }
                 await showJob();
                 if (payload.version !== 1 || payload.tokenTransparencyVersion !== 1) status("Aggiorna il servizio per generare NPC con token trasparenti.", true);
             } catch (error) {
@@ -231,21 +292,38 @@
             } finally { busy = false; if (!closed) controls(); }
         }
         async function generate(tokenOnly = false) {
-            if (busy || !loaded || !enabled || active(job) || job?.status === "confirming") return;
+            if (busy || checkingFiles || !loaded || !enabled || active(job) || job?.status === "confirming") return;
             if (!worldControl.value.trim()) el(".npc-generator__settings").open = true;
             if (!pendingRequest && !tokenOnly && !form.reportValidity()) return;
             if (!pendingRequest && job?.status === "uncertain" && !window.confirm("La richiesta precedente potrebbe essere stata addebitata. Avviare una nuova generazione a pagamento?")) return;
             busy = true; clearTimeout(timer);
-            if (!pendingRequest) remember({ requestId: crypto.randomUUID(), form: readForm(), references: references.map(({ worldId, actorId, purpose, note }) => ({ worldId, actorId, purpose, note })), quality: field("quality").value, resolution: field("resolution").value,
-                ...(job && job.status !== "accepted" ? { parentJobId: job.id, draftId: job.draftId } : {}), ...(tokenOnly ? { tokenOnly: true } : {}) });
-            const suffix = pendingRequest.tokenOnly ? `/${pendingRequest.parentJobId}/retry-token` : "";
-            controls(); status("Invio della richiesta…");
+            controls();
             try {
+                if (!pendingRequest) {
+                    if (!tokenOnly) {
+                        for (const reference of references.filter(isConcept)) {
+                            if (!conceptSupported) throw new Error("Aggiorna il servizio per generare con le immagini allegate.");
+                            if (reference.uploadId) continue;
+                            status(`Caricamento di ${reference.name}…`);
+                            const uploaded = await (await request("/concepts", reference.file)).json();
+                            if (!uploaded.uploadId) throw new Error("Caricamento del concept non confermato.");
+                            reference.uploadId = uploaded.uploadId;
+                        }
+                    }
+                    const refs = tokenOnly ? job.references : references.map(({uploadId, name, worldId, actorId, purpose, note}) =>
+                        ({...(uploadId ? {uploadId, name} : {worldId, actorId}), purpose, note}));
+                    if (closed) return;
+                    remember({ requestId: crypto.randomUUID(), form: readForm(), references: refs, quality: field("quality").value, resolution: field("resolution").value,
+                        ...(job && job.status !== "accepted" ? { parentJobId: job.id, draftId: job.draftId } : {}), ...(tokenOnly ? { tokenOnly: true } : {}) });
+                }
+                const suffix = pendingRequest.tokenOnly ? `/${pendingRequest.parentJobId}/retry-token` : "";
+                status("Invio della richiesta…");
                 const payload = await (await request(suffix, pendingRequest)).json();
                 if (closed) return;
                 job = payload.job; remember(null); clearPreviews(); await showJob();
                 try { localStorage.setItem(worldStorage, worldControl.value); } catch (_) {}
             } catch (error) {
+                if (!pendingRequest) { if (!closed) status(error.message, true); return; }
                 if (error.status && error.status < 500) remember(null);
                 if (!closed) { loaded = false; status(`${error.message} Controlla lo stato prima di inviare altre richieste.`, true); el("[data-refresh]").hidden = false; timer = setTimeout(refresh, 10000); }
             } finally { busy = false; if (!closed) controls(); }
@@ -258,7 +336,8 @@
             if (locked() || loadingReferences) return;
             try {
                 const { openNpcReferencePicker } = await import(referencePickerUrl);
-                if (!closed && !locked()) referencesPicker = openNpcReferencePicker({ npcs, references, categories, usable: (npc, purpose) => wikiImage(imagePath(npc, purpose)), resolveImageUrl: path => app.utils.resolveImageUrl(path), onApply: next => { references = next; renderReferences(); } });
+                const concepts = references.filter(isConcept);
+                if (!closed && !locked()) referencesPicker = openNpcReferencePicker({ npcs, references: references.filter(ref => !isConcept(ref)), limit: 3 - concepts.length, categories, usable: (npc, purpose) => wikiImage(imagePath(npc, purpose)), resolveImageUrl: path => app.utils.resolveImageUrl(path), onApply: next => { references = [...concepts, ...next]; renderReferences(); } });
             } catch (_) { if (!closed) status("Non riesco ad aprire la selezione degli NPC. Ricarica la pagina e riprova.", true); }
         });
         form.addEventListener("submit", event => { event.preventDefault(); generate(); });
@@ -273,13 +352,19 @@
         el("[data-new]").addEventListener("click", () => {
             if (locked()) return;
             const selectedWorld = worldControl.value;
-            job = null; references = []; clearPreviews(); form.reset(); worldControl.value = selectedWorld; field("kind").value = initialKind; renderReferences();
+            job = null; references = []; clearPreviews(); clearConceptUrls(); form.reset(); worldControl.value = selectedWorld; field("kind").value = initialKind; renderReferences();
+            noteStatus("PNG, JPEG o WebP. Fino a 3 riferimenti, 12 MB per immagine e 24 MB in totale.");
             status("Descrivi il nuovo NPC: preparerò prima l'avatar e poi il token."); field("name").focus();
         });
         el("[data-confirm]").addEventListener("click", async () => {
             if (busy || !["ready", "confirming"].includes(job?.status)) return;
             if (!worldControl.value.trim()) el(".npc-generator__settings").open = true;
-            if (job.status !== "confirming" && !form.reportValidity()) return;
+            if (job.status !== "confirming") {
+                const description = field("description"), required = description.required;
+                description.required = !job.references.some(ref => ref.uploadId && ref.purpose === 'character');
+                const valid = form.reportValidity(); description.required = required;
+                if (!valid) return;
+            }
             busy = true; applying = true; clearTimeout(timer); el("[data-close]").disabled = true; controls(); status("Creazione dell'NPC e invio a Foundry…");
             try {
                 const payload = await (await request(`/${job.id}/confirm`, { form: readForm() })).json();
@@ -310,7 +395,7 @@
             closed = true; clearTimeout(timer); controller.abort();
             referencesPicker?.close();
             if (zoom) { zoom.close(); zoom.remove(); zoom = null; }
-            clearPreviews(); dialog.close(); dialog.remove(); if (previousFocus?.isConnected) previousFocus.focus();
+            clearPreviews(); clearConceptUrls(); dialog.close(); dialog.remove(); if (previousFocus?.isConnected) previousFocus.focus();
         }
         el("[data-close]").addEventListener("click", close);
         dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
