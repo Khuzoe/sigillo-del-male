@@ -1,22 +1,15 @@
-import { animationPaths, managedAnimationDigest, primaryAnimationSource, MAX_ANIMATION_BYTES } from '../../../assets/js/shared/npc-activity-animation.mjs';
+import { animationPaths, hostedAnimationPath, managedAnimationDigest, primaryAnimationSource, MAX_ANIMATION_BYTES } from '../../../assets/js/shared/npc-activity-animation.mjs';
 import { nativeGet } from '../../../assets/js/shared/npc-native-model.mjs';
+import { webmAudioTrack } from '../../../assets/js/shared/webm-audio-track.mjs';
 
 const hostedAnimationRoute = /^\/media\/campaigns\/[^/]+\/managed-actors\/[^/]+\/[^/]+\/animations\//;
-
-function hostedAnimationPath(source, campaign, route, origin) {
-  if (!source.startsWith(origin + '/media/campaigns/')) return '';
-  const digest = source.match(/\/([a-f0-9]{64})\.webm$/)?.[1];
-  if (!digest) return '';
-  const {path} = animationPaths(campaign, route.worldId, route.actorId, digest);
-  return source === origin + '/' + path ? path : '';
-}
 
 // Older clients return the activity flags but don't export media descriptors.
 export function activityAnimationPreviews(activities, existing, campaign, route, origin) {
   const previews = {...existing};
   for (const [key, activity] of Object.entries(activities || {})) {
     const source = primaryAnimationSource(activity);
-    const path = hostedAnimationPath(source, campaign, route, origin);
+    const path = hostedAnimationPath(source, campaign, route.worldId, route.actorId, origin);
     if (path) previews[activity._id || key] = {source, path};
   }
   return previews;
@@ -34,42 +27,22 @@ export async function prepareActivityAnimationPatches(original, next, patches, {
     const digest = local && managedAnimationDigest(clip, campaign, route.worldId, route.actorId);
     const path = local
       ? digest && animationPaths(campaign, route.worldId, route.actorId, digest).path
-      : hostedAnimationPath(clip, campaign, route, origin);
+      : hostedAnimationPath(clip, campaign, route.worldId, route.actorId, origin);
     if (!path) throw new Error('Percorso WebM non valido per questo NPC.');
     if (!await bucket.head(path.slice(6))) throw new Error('Il WebM da inviare a Foundry non è disponibile.');
     if (!local || canInstall) continue;
-    const field = `system.activities.${id}.flags.autoanimations.primary.video.customPath`;
-    const patch = patches.find(p => p.op === 'set' && (p.path === field || field.startsWith(p.path + '.')));
-    // If only enableCustom changed, the file path already came from Foundry.
-    if (patch) {
-      activity.flags.autoanimations.primary.video.customPath = origin + '/' + path;
+    const primary = activity.flags.autoanimations.primary;
+    const fields = ['video.customPath'];
+    if (primary.sound?.file === clip) fields.push('sound.file');
+    for (const suffix of fields) {
+      const field = `system.activities.${id}.flags.autoanimations.primary.${suffix}`;
+      const patch = patches.find(p => p.op === 'set' && (p.path === field || field.startsWith(p.path + '.')));
+      if (!patch) continue;
+      const [section, key] = suffix.split('.');
+      primary[section][key] = origin + '/' + path;
       patch.value = nativeGet(next, patch.path);
     }
   }
-}
-
-// Read the EBML header and its DocType. Matroska and WebM share the same magic.
-function isWebm(bytes) {
-  if (bytes.length < 12 || new DataView(bytes.buffer, bytes.byteOffset).getUint32(0) !== 0x1a45dfa3) return false;
-  let pos = 4;
-  function integer(keepMarker) {
-    const first = bytes[pos++];
-    let mask = 128, length = 1;
-    while (mask && !(first & mask)) { mask >>= 1; length++; }
-    if (!mask || pos + length - 1 > bytes.length || length > 4) return NaN;
-    let value = keepMarker ? first : first - mask;
-    for (let i = 1; i < length; i++) value = value * 256 + bytes[pos++];
-    return value;
-  }
-  const headerSize = integer(false), end = pos + headerSize;
-  if (end > bytes.length || end > 4096) return false;
-  while (pos < end) {
-    const id = integer(true), size = integer(false);
-    if (!Number.isFinite(id + size) || pos + size > end) return false;
-    if (id === 0x4282) return size === 4 && String.fromCharCode(...bytes.subarray(pos, pos + size)) === 'webm';
-    pos += size;
-  }
-  return false;
 }
 
 export async function storeActivityAnimation(request, bucket, campaign, route, headers) {
@@ -91,13 +64,14 @@ export async function storeActivityAnimation(request, bucket, campaign, route, h
   const bytes = new Uint8Array(size);
   let offset = 0;
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
-  if (!isWebm(bytes)) return fail('Il file non contiene un video WebM valido.', 415);
+  const hasAudio = webmAudioTrack(bytes);
+  if (hasAudio === null) return fail('Il file non contiene un video WebM valido.', 415);
   const hash = await crypto.subtle.digest('SHA-256', bytes);
   const digest = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2,'0')).join('');
   const paths = animationPaths(campaign, route.worldId, route.actorId, digest);
   const key = paths.path.slice(6);
   if (!(await bucket.head(key))) await bucket.put(key, bytes, {httpMetadata:{contentType:'video/webm'}});
-  return Response.json({ok:true, digest, ...paths}, {headers});
+  return Response.json({ok:true, digest, ...paths, hasAudio}, {headers});
 }
 
 export async function readActivityAnimation(request, bucket, key, corsHeaders) {

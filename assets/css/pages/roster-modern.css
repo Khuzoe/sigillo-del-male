@@ -960,6 +960,9 @@ body.page-players {
 .roster-page .npc-profile-visibility[aria-checked="true"] .npc-visibility-track::after { transform: translateX(14px); background: #d3eddb; }
 .roster-page .npc-profile-visibility[aria-disabled="true"] { opacity: .6; cursor: progress; }
 .roster-page .npc-card-actions .arrow-icon { justify-self: auto; }
+.roster-page .npc-card--pending[role="button"] { cursor: pointer; }
+[data-create-name-feedback]:not(:empty) { color: #efb29b; font-size: .8rem; }
+[data-create-name-feedback]:empty { display: none; }
 @media (max-width: 600px) {
     .roster-page .npc-card:has(.npc-profile-visibility) { grid-template-columns: 96px minmax(0, 1fr); padding-top: 28px; }
     .roster-page .npc-card-actions { gap: .3rem; }

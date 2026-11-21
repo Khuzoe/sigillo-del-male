@@ -6,7 +6,7 @@
     const active = job => ["pending", "running"].includes(job?.status);
     const referencePickerUrl = new URL("npc-reference-picker.mjs?v=20261118-concepts1", document.currentScript.src).href;
 
-    async function open({ npcs = [], worlds = [], categories = [], initialKind = "person", loadReferences, onCreated = () => {} } = {}) {
+    async function open({ npcs = [], worlds = [], categories = [], initialKind = "person", loadReferences, setupNameCheck, onCreated = () => {} } = {}) {
         if (document.querySelector("[data-npc-generator]")) return;
         const app = window.CriptaApp, token = window.CriptaDiscordAuth?.getToken?.();
         if (!app || !token) return;
@@ -22,7 +22,7 @@
             <button type="button" data-refresh hidden>Controlla stato</button>
             <form data-form>
               <div class="npc-generator__identity">
-                <label>Nome<input name="name" required maxlength="180" autocomplete="off" placeholder="Il nome del nuovo NPC"></label>
+                <label>Nome<input name="name" required maxlength="180" autocomplete="off" aria-describedby="npc-generator-name-feedback" placeholder="Il nome del nuovo NPC"><small id="npc-generator-name-feedback" data-create-name-feedback aria-live="polite"></small></label>
                 <label>Categoria / sottocategoria<select name="categoryId"><option value="">Senza categoria</option></select></label>
                 <label class="npc-generator__wide">Breve descrizione <span data-description-hint hidden>Facoltativa con un concept del personaggio</span><textarea name="description" required maxlength="1500" rows="3" placeholder="Aspetto, abiti, personalità e dettagli che vuoi vedere nell’immagine."></textarea></label>
               </div>
@@ -98,6 +98,7 @@
             pendingRequest = value;
             try { if (storageKey) { if (value) sessionStorage.setItem(storageKey, JSON.stringify(value)); else sessionStorage.removeItem(storageKey); } } catch (_) {}
         };
+        const checkName = setupNameCheck?.(form);
         const readForm = () => Object.fromEntries(["name", "description", "categoryId", "targetWorldId", "kind", "visibility"].map(name => [name, field(name).value.trim()]));
         const imagePath = (npc, purpose) => npc?.images?.[purpose === "frame" ? "token" : "avatar"] || "";
         const wikiImage = value => {
@@ -308,6 +309,7 @@
             try {
                 if (!pendingRequest) {
                     if (!tokenOnly) {
+                        if (checkName && !await checkName()) return;
                         for (const reference of references.filter(isConcept)) {
                             if (!conceptSupported) throw new Error("Aggiorna il servizio per generare con le immagini allegate.");
                             if (reference.uploadId) continue;
@@ -374,6 +376,10 @@
             }
             busy = true; applying = true; clearTimeout(timer); el("[data-close]").disabled = true; controls(); status("Creazione dell'NPC e invio a Foundry…");
             try {
+                if (job.status === "ready" && checkName && !await checkName()) {
+                    status("Correggi il nome e conferma di nuovo. Le anteprime sono pronte.");
+                    return;
+                }
                 const payload = await (await request(`/${job.id}/confirm`, { form: readForm() })).json();
                 job.status = "accepted"; remember(null); applying = false; close(); await onCreated(payload);
             } catch (error) {

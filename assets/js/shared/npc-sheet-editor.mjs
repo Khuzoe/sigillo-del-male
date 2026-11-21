@@ -1,7 +1,7 @@
 import { nativeGet, nativeSet, nativeHas, nativeEqual, nativeDiff, nativeEditablePath, nativeNewId, nativeActivityTemplate } from "./npc-native-model.mjs";
 import {nativePreserveActivityReferences} from './npc-native-automation.mjs';
 import {validateNpcDomainFields} from './npc-ai-values.mjs';
-import {appendAnimationControls} from './npc-animation-editor.mjs?v=20261120-4';
+import {appendAnimationControls} from './npc-animation-editor.mjs?v=20261121-audio';
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));

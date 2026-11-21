@@ -1,0 +1,228 @@
+diff --git a/module.json b/module.json
+index 57dbf9e..cd0f8c6 100644
+--- a/module.json
++++ b/module.json
+@@ -2,7 +2,7 @@
+   "id": "cripta-wiki-sync",
+   "title": "Khuzoe Wiki Sync",
+   "description": "Sincronizzazione bidirezionale tra wiki e Foundry per Actor gestiti, Tokenizer e catalogo oggetti di campagna.",
+-  "version": "0.11.21",
++  "version": "0.11.22",
+   "authors": [
+     {
+       "name": "Delia + Codex"
+diff --git a/scripts/services/activity-animation-sync.mjs b/scripts/services/activity-animation-sync.mjs
+index 472d7d9..b0e9ec0 100644
+--- a/scripts/services/activity-animation-sync.mjs
++++ b/scripts/services/activity-animation-sync.mjs
+@@ -1,4 +1,5 @@
+-import { animationPaths, managedAnimationDigest, primaryAnimationSource, MAX_ANIMATION_BYTES } from './npc-activity-animation.mjs';
++import { animationPaths, hostedAnimationPath, managedAnimationDigest, primaryAnimationSource, MAX_ANIMATION_BYTES } from './npc-activity-animation.mjs';
++import { webmAudioTrack } from './webm-audio-track.mjs';
+ import { hashNpcBytes } from './npc-native-snapshot.mjs';
+ 
+ function localAsset(source) {
+@@ -15,18 +16,21 @@ function localUrl(source) {
+   return foundry.utils.getRoute(path);
+ }
+ 
+-// A missing local asset must not block the Actor and its other activities.
+-async function readLocalClip(source) {
+-  const url = localUrl(source);
+-  if (!url) return null;
+-  const response = await fetch(url, {cache:'no-store', redirect:'error'});
++async function clipBytes(response) {
+   if (response.status === 404) return null;
+-  if (!response.ok) throw new Error(`Lettura WebM Foundry: HTTP ${response.status}`);
++  if (!response.ok) throw new Error(`Lettura WebM: HTTP ${response.status}`);
+   if (Number(response.headers.get('Content-Length')) > MAX_ANIMATION_BYTES) return null;
+   const bytes = new Uint8Array(await response.arrayBuffer());
+   return bytes.length <= MAX_ANIMATION_BYTES && bytes[0] === 0x1a && bytes[1] === 0x45 ? bytes : null;
+ }
+ 
++// A missing local asset must not block the Actor and its other activities.
++async function readLocalClip(source) {
++  const url = localUrl(source);
++  if (!url) return null;
++  return clipBytes(await fetch(url, {cache:'no-store', redirect:'error', signal:AbortSignal.timeout(20000)}));
++}
++
+ export function hasNpcAnimation(actor) {
+   return actor.type === 'npc' && Array.from(actor.items?.contents || actor.items || []).some(item => {
+     const activities = item.system?.activities;
+@@ -35,6 +39,59 @@ export function hasNpcAnimation(actor) {
+   });
+ }
+ 
++const scanningAudio = new WeakSet();
++
++// A preview exported from Foundry has an R2 object too. Only the activity's
++// actual video path identifies a clip assigned by the website.
++function legacySiteClip(activity, {campaign, world, actor, origin}) {
++  const source = primaryAnimationSource(activity);
++  if (!source || activity.flags.autoanimations.primary.video.wikiSyncAudio != null) return '';
++  return managedAnimationDigest(source, campaign, world, actor) || hostedAnimationPath(source, campaign, world, actor, origin)
++    ? source : '';
++}
++
++async function inspectSiteClip(source, context) {
++  const bytes = source.startsWith('worlds/') ? await readLocalClip(source)
++    : await clipBytes(await context.request(source, {redirect:'error', signal:AbortSignal.timeout(20000)}));
++  return bytes && webmAudioTrack(bytes);
++}
++
++export async function applyLegacySiteAudio(actor, context, canApply) {
++  if (actor.type !== 'npc' || actor.isToken || scanningAudio.has(actor)) return false;
++  scanningAudio.add(actor);
++  const inspected = new Map();
++  let changed = false;
++  try {
++    for (const item of actor.items.values()) {
++      for (const activity of item.system?.activities?.values() || []) {
++        if (!canApply()) return changed;
++        const source = legacySiteClip(activity, context);
++        if (!source) continue;
++        try {
++          if (!inspected.has(source)) inspected.set(source, await inspectSiteClip(source, context));
++          const hasTrack = inspected.get(source);
++          if (hasTrack == null) continue;
++          const current = actor.items.get(item.id)?.system.activities?.get(activity.id);
++          if (!canApply() || legacySiteClip(current, context) !== source) continue;
++          const config = current.flags.autoanimations;
++          const changes = {'flags.autoanimations.primary.video.wikiSyncAudio':{hasTrack}};
++          if (hasTrack && !config.primary.sound?.file && !config.soundOnly?.sound?.enable) {
++            changes['flags.autoanimations.primary.sound.file'] = source;
++            changes['flags.autoanimations.primary.sound.enable'] = true;
++          }
++          await current.update(changes);
++          changed = true;
++        } catch (error) {
++          console.warn('Wiki Sync | Audio WebM in attesa della prossima sincronizzazione.', item.name, activity.id, error);
++        }
++      }
++    }
++    return changed;
++  } finally {
++    scanningAudio.delete(actor);
++  }
++}
++
+ // Store a preview alongside the public Item projection. Raw activity flags keep
+ // their original local paths for the native editor's conflict comparisons.
+ export async function exportNpcAnimations(entries, context) {
+diff --git a/scripts/services/managed-actor-sync.js b/scripts/services/managed-actor-sync.js
+index 1691e5a..2fa7610 100644
+--- a/scripts/services/managed-actor-sync.js
++++ b/scripts/services/managed-actor-sync.js
+@@ -1,4 +1,4 @@
+-import { hasNpcAnimation, exportNpcAnimations, installNpcAnimations } from "./activity-animation-sync.mjs";
++import { applyLegacySiteAudio, hasNpcAnimation, exportNpcAnimations, installNpcAnimations } from "./activity-animation-sync.mjs";
+ import { applyNpcNativeSheet } from "./npc-native-sheet.mjs";
+ import { applyNpcNativeEditor } from "./npc-native-editor.mjs";
+ import { validateNativeAbilityItem } from "./npc-native-ability.mjs";
+@@ -509,6 +509,7 @@ export async function pullManagedActorVariants({ forceIndex = false, actorIds =
+     const canReplaceVariants = typeof tokenizerApi?.replaceVariants === "function";
+     const indexPayload = await loadManagedActorRelationshipIndex({ force: forceIndex });
+     const stateRoot = getWorldObjectSetting(STATE_SETTING);
++    const audioCandidates = [];
+     let nextState = stateRoot;
+     let changed = false;
+     for (const summary of Array.isArray(indexPayload?.data) ? indexPayload.data : []) {
+@@ -521,6 +522,7 @@ export async function pullManagedActorVariants({ forceIndex = false, actorIds =
+         }
+         const actor = game.actors.get(summary.foundryActorId) || game.actors.get(summary.actorId);
+         if (!actor || isTemporaryWikiActor(actor)) continue;
++        if (actor.type === "npc") audioCandidates.push(actor);
+         let previous = nextState[actor.id] || {};
+         await npcDossierVisibilitySync?.pull(actor, summary.profile);
+         const categoryChanged = await applyManagedActorNpcCategory(actor, summary.profile || {});
+@@ -591,6 +593,14 @@ export async function pullManagedActorVariants({ forceIndex = false, actorIds =
+             return false;
+         })
+         : false;
++    // Apply pending edits first so an explicitly chosen soundtrack wins.
++    for (const actor of audioCandidates) {
++        const canApply = () => canRunManagedActorPull(actor) && game.actors.get(actor.id) === actor
++            && getCampaignId() === campaignId && sanitizeId(game.world.id) === worldId;
++        if (!canApply() || !await applyLegacySiteAudio(actor, npcAnimationContext(actor), canApply)) continue;
++        changed = true;
++        if (canRunManagedActorSync(actor)) await queueManagedActorSync(actor, {reason:"activity-audio-default", forceContentSync:true});
++    }
+     return changed || commandChanges;
+ }
+ 
+diff --git a/scripts/services/npc-activity-animation.mjs b/scripts/services/npc-activity-animation.mjs
+index ab7296f..2ec262d 100644
+--- a/scripts/services/npc-activity-animation.mjs
++++ b/scripts/services/npc-activity-animation.mjs
+@@ -23,3 +23,11 @@ export function managedAnimationDigest(source, campaign, world, actor) {
+   const digest = source.split('/').at(-1).replace(/\.webm$/, '');
+   return animationDigestPattern.test(digest) && animationPaths(campaign, world, actor, digest).localPath === source ? digest : '';
+ }
++
++export function hostedAnimationPath(source, campaign, world, actor, origin) {
++  if (!source.startsWith(origin + '/media/campaigns/')) return '';
++  const digest = source.match(/\/([a-f0-9]{64})\.webm$/)?.[1];
++  if (!digest) return '';
++  const {path} = animationPaths(campaign, world, actor, digest);
++  return source === origin + '/' + path ? path : '';
++}
+diff --git a/scripts/services/webm-audio-track.mjs b/scripts/services/webm-audio-track.mjs
+new file mode 100644
+index 0000000..4bde2eb
+--- /dev/null
++++ b/scripts/services/webm-audio-track.mjs
+@@ -0,0 +1,53 @@
++// Walk EBML element boundaries so bytes in an encoded video frame cannot be
++// mistaken for an audio track. Streamed WebM files can omit the Segment size.
++function* ebmlElements(bytes, start, end) {
++  let pos = start;
++  function integer(isId) {
++    const first = bytes[pos++];
++    if (!first) return NaN;
++    const length = Math.clz32(first << 24) + 1;
++    if ((isId && length > 4) || pos + length - 1 > end) return NaN;
++    const marker = 1 << (8 - length);
++    let value = isId ? first : first - marker;
++    let unknown = !isId && value === marker - 1;
++    for (let i = 1; i < length; i++) {
++      const byte = bytes[pos++];
++      value = value * 256 + byte;
++      unknown &&= byte === 255;
++    }
++    return unknown ? Infinity : value;
++  }
++  while (pos < end) {
++    const id = integer(true), size = integer(false);
++    const limit = size === Infinity && id === 0x18538067 ? end : pos + size;
++    if (!Number.isFinite(id) || !Number.isSafeInteger(limit) || limit > end) return;
++    yield {id, start:pos, end:limit};
++    pos = limit;
++  }
++}
++
++export function webmAudioTrack(bytes) {
++  const roots = ebmlElements(bytes, 0, bytes.length);
++  const header = roots.next().value;
++  if (header?.id !== 0x1a45dfa3 || header.end > 4096) return null;
++  const children = element => ebmlElements(bytes, element.start, element.end);
++  const webm = Array.from(children(header)).some(field => field.id === 0x4282 && field.end - field.start === 4
++    && String.fromCharCode(...bytes.subarray(field.start, field.end)) === 'webm');
++  if (!webm) return null;
++  for (const segment of roots) {
++    if (segment.id !== 0x18538067) continue;
++    for (const tracks of children(segment)) {
++      if (tracks.id !== 0x1654ae6b) continue;
++      for (const entry of children(tracks)) {
++        if (entry.id !== 0xae) continue;
++        for (const field of children(entry)) {
++          // TrackType is an unsigned integer; 2 denotes audio.
++          if (field.id === 0x83 && field.end > field.start && field.end - field.start <= 8 &&
++              bytes[field.end - 1] === 2 && bytes.subarray(field.start, field.end - 1).every(byte => byte === 0)) return true;
++        }
++      }
++      return false;
++    }
++  }
++  return false;
++}

@@ -321,3 +321,28 @@
     padding: 14px;
 }
 .is-npc .is-dossier-reader.is-compact-dossier .managed-dossier-identity .managed-hero-vitals { gap: 8px 12px; }
+
+.npc-form-switch, .npc-forms-manager {
+    grid-column: 1 / -1;
+    padding: 1rem;
+    border: 1px solid var(--npc-line, #645549);
+    border-radius: 12px;
+    background: #201e24;
+    color: #f1dfba;
+}
+.npc-forms-manager summary { cursor: pointer; font-weight: 600; }
+.npc-forms-manager summary i { margin-inline: .35rem; }
+.npc-forms-body, .npc-forms-body [data-form-actions] { display: grid; gap: .8rem; }
+.npc-forms-body { margin-block-start: 1rem; }
+.npc-forms-body form, .npc-form-buttons, .npc-form-switch label { display: flex; flex-wrap: wrap; align-items: end; gap: .65rem; }
+.npc-form-switch label { align-items: center; }
+.npc-forms-body form { border-top: 1px solid var(--npc-line, #645549); padding-top: .9rem; }
+.npc-forms-body label { display: grid; gap: .3rem; min-width: 0; }
+.npc-forms-body form label { flex: 1 1 12rem; }
+.npc-forms-body label.npc-form-portrait { display: flex; align-items: baseline; gap: .45rem; }
+.npc-form-switch select, .npc-forms-body select, .npc-forms-body input:not([type="checkbox"]) {
+    max-width: 100%; min-width: 0; padding: .5rem; border: 1px solid #756757;
+    border-radius: 6px; background: #17161b; color: #f5e8d1; font: inherit;
+}
+.npc-forms-body [role="status"]:empty { display: none; }
+.is-npc.has-npc-forms .managed-actor-art > .managed-actor-token { display: block; }

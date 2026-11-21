@@ -31,6 +31,7 @@ const dmIdentityCache = new Map();
 let dmIdentityPromise = null;
 const jsonCache = new Map();
 const apiResponseCache = new Map();
+let wikiSearchCache = null;
 const API_GET_CACHE_TTL_MS = 45 * 1000;
 const isEmbedMode = new URLSearchParams(window.location.search).get("embed") === "1";
 const isEmbeddedRuntime = isEmbedMode || window.self !== window.top;
@@ -1385,47 +1386,54 @@ function getCommandIcon(type) {
     return "fa-circle-dot";
 }
 
-async function loadSearchIndex() {
-    if (searchIndexPromise) return searchIndexPromise;
-
-    searchIndexPromise = (async () => {
-        const data = await fetchJsonWithCache(resolveDataUrl("search-index.json"));
-        const items = Array.isArray(data?.items)
-            ? data.items.filter(item => !window.WikiSpoiler || window.WikiSpoiler.isVisible(item))
-            : [];
-        const FuseCtor = await loadFuse().catch(() => null);
-        const fuse = FuseCtor
-            ? new FuseCtor(items, {
-                keys: [
-                    { name: "title", weight: 0.55 },
-                    { name: "subtitle", weight: 0.25 },
-                    { name: "tags", weight: 0.15 },
-                    { name: "content", weight: 0.05 }
-                ],
-                threshold: 0.36,
-                ignoreLocation: true,
-                minMatchCharLength: 2
-            })
-            : null;
-        return { items, fuse };
-    })();
-
-    return searchIndexPromise;
+async function loadWikiSearchItems() {
+    const token = readStoredToken();
+    const campaign = getCampaignId();
+    if (wikiSearchCache?.token === token && wikiSearchCache.campaign === campaign && wikiSearchCache.expires > Date.now()) {
+        return wikiSearchCache.items;
+    }
+    const items = buildWikiSearchItems(token);
+    wikiSearchCache = { token, campaign, expires: Date.now() + API_GET_CACHE_TTL_MS, items };
+    try { return await items; }
+    catch (error) {
+        if (wikiSearchCache?.items === items) wikiSearchCache = null;
+        throw error;
+    }
 }
 
-function loadFuse() {
-    if (window.Fuse) return Promise.resolve(window.Fuse);
-    if (fuseLoadPromise) return fuseLoadPromise;
+async function buildWikiSearchItems(token) {
+    const [data, directory] = await Promise.all([
+        fetchCampaignJson("search-index.json"),
+        requestApi("api/managed-actors", { token, cache: false, query: { view: "search" } }).catch(() => null)
+    ]);
+    const managedIds = new Set(directory?.managedLegacyCharacterIds || []);
+    const original = (data.items || []).filter(item => !item.tags?.includes("hidden")
+        && (!window.WikiSpoiler || window.WikiSpoiler.isVisible(item)));
+    const legacy = new Map(original.filter(item => item.type === "npc").map(item => [String(item.entityId || "").toLowerCase(), item]));
+    const items = original.filter(item => !(item.type === "npc" && (!directory || managedIds.has(String(item.entityId || "").toLowerCase()))));
+    for (const actor of directory?.data || []) {
+        if (actor.actorType !== "npc" || actor.profile?.lifecycle?.state === "archived") continue;
+        const params = new URLSearchParams({ world: actor.worldId, actor: actor.actorId });
+        if (!actor.permissions?.canReadStats && actor.permissions?.canReadProfile) params.set("profile", "1");
+        const story = legacy.get(actor.profile?.legacyCharacterId);
+        items.push({ type: "npc", title: actor.name, subtitle: actor.profile?.role || story?.subtitle || "NPC",
+            content: [actor.profile?.quote, story?.content].filter(Boolean).join(" "),
+            tags: [...(actor.formLabels || []), ...(actor.profile?.tags || []), ...(story?.tags || [])],
+            url: `pages/characters/managed-actor.html?${params}` });
+    }
+    return items;
+}
 
-    fuseLoadPromise = new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = FUSE_CDN_URL;
-        script.async = true;
-        script.addEventListener("load", () => resolve(window.Fuse || null), { once: true });
-        script.addEventListener("error", () => reject(new Error("Fuse.js non disponibile")), { once: true });
-        document.head.appendChild(script);
-    });
-    return fuseLoadPromise;
+async function loadSearchIndex() {
+    const items = await loadWikiSearchItems();
+    const fuse = window.Fuse ? new window.Fuse(items, {
+        keys: [
+            { name: "title", weight: 0.55 }, { name: "subtitle", weight: 0.25 },
+            { name: "tags", weight: 0.15 }, { name: "content", weight: 0.05 }
+        ],
+        threshold: 0.36, ignoreLocation: true, minMatchCharLength: 2
+    }) : null;
+    return { items, fuse };
 }
 
 function fallbackSearch(items, query) {
@@ -2378,6 +2386,7 @@ function buildApiCacheKey(url) {
 }
 
 function invalidateApiCache(url = null) {
+    wikiSearchCache = null;
     if (!url) {
         apiResponseCache.clear();
         return;
@@ -2622,6 +2631,7 @@ window.CriptaApp = {
         }
     },
     data: {
+        searchItems: loadWikiSearchItems,
         json: fetchCampaignJson,
         globalJson: fetchGlobalJson,
         clearCache: clearJsonCache

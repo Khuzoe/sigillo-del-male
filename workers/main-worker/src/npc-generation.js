@@ -62,7 +62,8 @@ async function checkedForm(input, campaignId, services, clientId = "", character
   const categories = await services.readCategories(campaignId);
   const category = categories.find(entry => entry.id === form.categoryId && !entry.archived && !entry.mergedInto);
   if (form.categoryId && !category) throw new InputError("La categoria non è più disponibile. Scegline un'altra.");
-  if (await services.nameExists(campaignId, form.targetWorldId, form.name, clientId)) throw new InputError("Esiste già un NPC o una richiesta con questo nome nel mondo scelto.");
+  const conflict = await services.nameConflict(campaignId, form.targetWorldId, form.name, clientId);
+  if (conflict) throw new InputError(conflict);
   return { ...form, category: category?.name || "" };
 }
 
@@ -181,7 +182,12 @@ export async function handleNpcGeneration(request, route, campaignId, env, servi
       document: { name: form.name, media: { avatar: `media/${prefix}/avatar.webp`, token: `media/${prefix}/token.webp` } },
       profile: { name: form.name, kind: form.kind, categoryId: form.categoryId, category: form.category, visibility: { state: form.visibility }, blocks: form.description ? [{ id: "descrizione", type: "lore", title: "Descrizione", text: form.description, visibility: "public" }] : [] },
     }, job.draftId);
-    if (!queued.ok) return queued;
+    if (!queued.ok) {
+      if (queued.status === 409 && (await queued.clone().json()).code === "NPC_NAME_TAKEN") {
+        await call("name-conflict", { id: job.id, name: form.name, targetWorldId: form.targetWorldId });
+      }
+      return queued;
+    }
     const receipt = await queued.json();
     // enqueue commits the D1 transaction before the proposal is marked accepted.
     const accepted = await call("accepted", { id: job.id, receipt });
@@ -267,6 +273,15 @@ export class NpcGenerationStore {
       job.status = "confirming";
       await storage.put(`job:${job.id}`, job);
       return reply({ ok: true, job });
+    }
+    if (action === "name-conflict") {
+      if (job.status === "confirming" && job.confirmation?.name === input.name && job.confirmation?.targetWorldId === input.targetWorldId) {
+        job.form = job.confirmation;
+        delete job.confirmation;
+        job.status = "ready";
+        await storage.put(`job:${job.id}`, job);
+      }
+      return reply({ ok: true });
     }
     if (action === "accepted") {
       if (job.status !== "confirming" && job.status !== "accepted") return fail("Conferma non disponibile.", 409);

@@ -1,8 +1,10 @@
 import {animationPaths, managedAnimationDigest, primaryAnimationSource, MAX_ANIMATION_BYTES} from './npc-activity-animation.mjs';
-import {animationWithFile, repairAnimationMenu} from './npc-animation-config.mjs';
+import {animationWithFile, repairAnimationMenu} from './npc-animation-config.mjs?v=20261121-audio';
 export {animationWithFile};
 
-function appendSequenceSettings({body, config, setting, make, redraw}) {
+function appendSequenceSettings({body, config, setting, make, redraw, useVideoSound, locked}) {
+  const supportsVideoOptions = ['melee','range','ontoken','templatefx','aura'].includes(config.menu);
+  if (!supportsVideoOptions && !config.primary?.video?.wikiSyncAudio) return;
   const options = config.primary?.options ?? {};
   const controls = make('div','npc-sheet-fields');
   function toggle(path, label, value) {
@@ -22,7 +24,7 @@ function appendSequenceSettings({body, config, setting, make, redraw}) {
 
   const onlySound = config.soundOnly?.sound?.enable === true;
   toggle('soundOnly.sound.enable', 'Riproduci solo il suono', onlySound);
-  if (!onlySound) {
+  if (!onlySound && supportsVideoOptions) {
     const canPersist = ['ontoken', 'templatefx'].includes(config.menu);
     if (canPersist) toggle('primary.options.persistent', 'Effetto persistente (loop in scena)', options.persistent);
     if (config.menu === 'aura') controls.append(make('p','npc-sheet-muted','L’aura è persistente in Foundry.'));
@@ -30,7 +32,20 @@ function appendSequenceSettings({body, config, setting, make, redraw}) {
       number('primary.options.repeat', 'Riproduzioni totali del video', options.repeat ?? 1, 1, 1);
       number('primary.options.repeatDelay', 'Intervallo tra riproduzioni (ms)', options.repeatDelay ?? 1, 0, 'any');
     }
-    toggle('primary.sound.enable', 'Suono attivo', config.primary?.sound?.enable);
+  }
+  if (!onlySound) {
+    const {video, sound} = config.primary || {};
+    const linked = video?.enableCustom && video.customPath && sound?.file === video.customPath;
+    toggle('primary.sound.enable', linked ? 'Audio del WebM' : 'Suono attivo', sound?.enable);
+    if (video?.enableCustom && /\.webm$/i.test(video.customPath) && video.wikiSyncAudio?.hasTrack && !linked) {
+      const button = make('button','npc-sheet-button','Usa l’audio del WebM');
+      button.type = 'button';
+      button.disabled = locked();
+      button.addEventListener('click', useVideoSound);
+      controls.append(button);
+    } else if (video?.enableCustom && video.wikiSyncAudio?.hasTrack === false) {
+      controls.append(make('small','','Il WebM è privo di traccia audio.'));
+    }
   }
   const sound = onlySound ? config.soundOnly.sound : config.primary?.sound;
   if (sound?.enable) {
@@ -41,6 +56,7 @@ function appendSequenceSettings({body, config, setting, make, redraw}) {
     const hint = make('small','','Per sentire il suono in Foundry, indica un file audio.');
     const updateHint = () => { hint.hidden = Boolean(input.value?.trim()); };
     input.addEventListener('input', updateHint);
+    if (!onlySound) input.addEventListener('change', redraw);
     updateHint();
     file.append(hint);
     controls.append(file);
@@ -64,6 +80,7 @@ export function appendAnimationControls({body, activity, entity, id, source, con
     video.controls = true; video.playsInline = true; video.preload = 'none';
     video.setAttribute('aria-label', `Anteprima animazione di ${activity.name || entity.name}`);
     video.src = context.resolve(path);
+    if (config?.primary?.video?.wikiSyncAudio) video.muted = !(config.primary.sound?.enable && config.primary.sound.file === src);
     video.loop = config?.menu === 'aura' || (['ontoken','templatefx'].includes(config?.menu) && config.primary?.options?.persistent === true);
     const rate = Number(config?.primary?.options?.playbackRate);
     if (rate >= 0.25 && rate <= 4) video.defaultPlaybackRate = video.playbackRate = rate;
@@ -105,9 +122,13 @@ export function appendAnimationControls({body, activity, entity, id, source, con
     number.min=String(Math.min(0.25,Number(number.value) || 0.25)); number.max=String(Math.max(4,Number(number.value) || 4)); number.step='any'; number.required=true;
     number.addEventListener('input',()=>{const rate=Number(number.value);if(video && rate>=0.25 && rate<=4) video.playbackRate=rate;});
     body.append(enabled,speed);
-    if (['melee','range','ontoken','templatefx','aura'].includes(config.menu)) {
-      appendSequenceSettings({body, config, setting, make, redraw});
-    }
+    const useVideoSound = () => {
+      if (locked() || entity.activityReadOnly) return;
+      write(entity, prefix+'.primary.sound.file', src);
+      write(entity, prefix+'.primary.sound.enable', true);
+      redraw();
+    };
+    appendSequenceSettings({body, config, setting, make, redraw, useVideoSound, locked:()=>locked() || entity.activityReadOnly});
   }
   const key = `${entity.key}:${id}`;
   const label = make('label','npc-sheet-field');
@@ -124,7 +145,7 @@ export function appendAnimationControls({body, activity, entity, id, source, con
     try {
       const result = await upload(selected);
       const current = entity.draft.system.activities[id];
-      if (current === activity && !locked()) set(entity,prefix,animationWithFile(current,entity.name,result.localPath));
+      if (current === activity && !locked()) set(entity,prefix,animationWithFile(current,entity.name,result.localPath,result.hasAudio));
     } catch (error) {
       entity.animationErrors ??= new Map();
       entity.animationErrors.set(id,error.message || 'Caricamento del video fallito.');

@@ -60,7 +60,7 @@ export function repairAnimationMenu(config) {
   return restoreBranches(result, {levels3d});
 }
 
-export function animationWithFile(activity, name, path) {
+export function animationWithFile(activity, name, path, hasAudio) {
   const config = structuredClone(activity.flags?.autoanimations || {});
   if (!config.menu) {
     const menu = activity.type !== 'attack' ? 'ontoken' : activity.attack?.type?.value === 'ranged' ? 'range' : 'melee';
@@ -72,6 +72,25 @@ export function animationWithFile(activity, name, path) {
   const complete = repairAnimationMenu(config);
   complete.isCustomized = true;
   complete.primary ??= {};
-  complete.primary.video = {...complete.primary.video, enableCustom:true, customPath:path};
+  const previousVideo = complete.primary.video;
+  const video = {...previousVideo, enableCustom:true, customPath:path};
+  complete.primary.video = video;
+  const track = complete.primary.sound;
+  const linked = previousVideo?.enableCustom && previousVideo.customPath && track?.file === previousVideo.customPath;
+  if (typeof hasAudio === 'boolean') {
+    video.wikiSyncAudio = {hasTrack:hasAudio};
+    if (!track?.file || linked) {
+      const muted = linked ? track.enable === false : previousVideo?.wikiSyncAudio?.keepMuted === true;
+      // Remember an explicit mute across an intervening clip without audio.
+      if (!hasAudio && muted) video.wikiSyncAudio.keepMuted = true;
+      if (hasAudio || linked || track?.enable) {
+        complete.primary.sound = {...track, file:hasAudio ? path : '', enable:hasAudio && !muted};
+      }
+    }
+  } else if (previousVideo?.customPath !== path) {
+    // An older Worker can confirm the upload without inspecting the new tracks.
+    delete video.wikiSyncAudio;
+    if (linked) complete.primary.sound = {...track, file:'', enable:false};
+  }
   return complete;
 }

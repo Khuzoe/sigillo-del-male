@@ -51,10 +51,12 @@ window.CriptaApp.onPageReady("index", () => {
             if (typeof window.CriptaApp?.api?.get !== 'function') return { actors: [], archivedLegacyCharacterIds: [] };
             const token = String(window.CriptaDiscordAuth?.getToken?.() || '').trim();
             const payload = await window.CriptaApp.api.get('api/managed-actors?view=directory', {
+                cache: false,
                 ...(token ? { token } : {})
             });
             return {
                 actors: Array.isArray(payload?.data) ? payload.data : [],
+                managedLegacyCharacterIds: payload?.managedLegacyCharacterIds || [],
                 archivedLegacyCharacterIds: Array.isArray(payload?.archivedLegacyCharacterIds) ? payload.archivedLegacyCharacterIds : []
             };
         } catch (error) {
@@ -216,7 +218,7 @@ window.CriptaApp.onPageReady("index", () => {
             setupLatestSession(lastSession, latestEventsContainer);
 
             setupHomePlayers(playersData, managedDirectory.actors);
-            setupRecentNpcs(managedDirectory.archivedLegacyCharacterIds);
+            setupRecentNpcs(managedDirectory);
         })
         .catch(error => {
             console.error("Errore nel caricamento delle sessioni:", error);
@@ -266,7 +268,7 @@ window.CriptaApp.onPageReady("index", () => {
         if (title) title.textContent = campaignName;
     }
 
-    async function setupRecentNpcs(archivedLegacyCharacterIds = []) {
+    async function setupRecentNpcs(directory) {
         const container = document.getElementById('recent-npcs-row');
         if (!container) return;
         const panel = container.closest('.home-npcs-panel');
@@ -274,8 +276,22 @@ window.CriptaApp.onPageReady("index", () => {
 
         try {
             const data = await fetchJson(window.CriptaApp?.urls?.data?.('home-recent-npcs.json') || 'assets/data/home-recent-npcs.json', 'Lista NPC recenti non trovata');
-            const archivedIds = new Set(archivedLegacyCharacterIds.map((id) => slugify(id)));
-            const items = (Array.isArray(data.items) ? data.items : []).filter((npc) => !archivedIds.has(slugify(npc.id || npc.entityId || '')));
+            const archivedIds = new Set(directory.archivedLegacyCharacterIds);
+            const managedIds = new Set(directory.managedLegacyCharacterIds || []);
+            const visible = new Map(directory.actors.filter(actor => actor.profile?.legacyCharacterId)
+                .map(actor => [actor.profile.legacyCharacterId, actor]));
+            const items = (data.items || []).flatMap(npc => {
+                const id = slugify(npc.id || npc.entityId || '');
+                if (archivedIds.has(id) || (managedIds.has(id) && !visible.has(id))) return [];
+                const actor = visible.get(id);
+                if (!actor?.formLabels?.length) return [npc];
+                const media = actor.media || {};
+                const params = new URLSearchParams({ world: actor.worldId, actor: actor.actorId });
+                if (!actor.permissions?.canReadStats) params.set('profile', '1');
+                return [{ ...npc, name: actor.name, role: actor.profile.role,
+                    managedImage: media.hover?.path || media.idle?.path || media.avatar?.path || media.token?.path || 'assets/img/logo.webp',
+                    url: `pages/characters/managed-actor.html?${params}` }];
+            });
             if (items.length === 0) {
                 container.innerHTML = '';
                 if (panel) panel.hidden = true;
@@ -366,8 +382,8 @@ window.CriptaApp.onPageReady("index", () => {
     }
 
     function renderRecentNpcCard(npc) {
-        const avatarPath = resolveImageUrl(getSyncedNpcImagePath(npc, 'hover'));
-        const fallbackPath = resolveImageUrl(npc.hoverFallback || npc.token || npc.avatar);
+        const avatarPath = resolveImageUrl(npc.managedImage || getSyncedNpcImagePath(npc, 'hover'));
+        const fallbackPath = resolveImageUrl(npc.managedImage ? '' : npc.hoverFallback || npc.token || npc.avatar);
         const rawUrl = npc.url || `pages/characters/character.html?id=${encodeURIComponent(npc.id || '')}`;
         const url = buildSiteUrl(rawUrl);
         return `

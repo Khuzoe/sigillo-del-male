@@ -26,23 +26,7 @@ window.CriptaApp.onPageReady("cerca", async () => {
 
   let items = [];
   try {
-    const data = typeof window.CriptaApp?.data?.json === "function"
-      ? await window.CriptaApp.data.json("search-index.json")
-      : await window.CriptaApp.fetchJson(window.CriptaApp?.urls?.data?.("search-index.json") || siteUrl("assets/data/search-index.json"), { clone: true });
-    const token = String(window.CriptaDiscordAuth?.getToken?.() || "").trim();
-    const managedPayload = await window.CriptaApp.api.get("api/managed-actors", {
-      ...(token ? { token } : {}),
-      cache: false
-    }).catch(() => ({ archivedLegacyCharacterIds: [] }));
-    const archivedNpcIds = new Set((Array.isArray(managedPayload?.archivedLegacyCharacterIds) ? managedPayload.archivedLegacyCharacterIds : [])
-      .map((id) => String(id || "").trim().toLowerCase()).filter(Boolean));
-    items = Array.isArray(data.items)
-      ? data.items.filter(item => {
-        if (window.WikiSpoiler && !window.WikiSpoiler.isVisible(item)) return false;
-        if (item.type === "npc" && archivedNpcIds.has(String(item.entityId || "").trim().toLowerCase())) return false;
-        return !(item.tags || []).includes("hidden");
-      })
-      : [];
+    items = await window.CriptaApp.data.searchItems();
   } catch (err) {
     meta.textContent = "Impossibile caricare l'indice di ricerca.";
     list.innerHTML = '<div class="empty">Errore nel caricamento dell\'indice.</div>';
@@ -96,13 +80,13 @@ window.CriptaApp.onPageReady("cerca", async () => {
     }
 
     list.innerHTML = ranked.map(item => `
-      <a class="result-item" href="${siteUrl(item.url || "")}">
+      <a class="result-item" href="${escapeHtml(siteUrl(item.url || ""))}">
         <div class="result-top">
-          <h3 class="result-title">${item.title || ""}</h3>
-          <span class="result-type">${typeMap[item.type] || item.type || "Voce"}</span>
+          <h3 class="result-title">${escapeHtml(item.title || "")}</h3>
+          <span class="result-type">${escapeHtml(typeMap[item.type] || item.type || "Voce")}</span>
         </div>
-        <div class="result-sub">${item.subtitle || ""}</div>
-        <div class="result-content">${item.content || ""}</div>
+        <div class="result-sub">${escapeHtml(item.subtitle || "")}</div>
+        <div class="result-content">${escapeHtml(item.content || "")}</div>
       </a>
     `).join("");
   }

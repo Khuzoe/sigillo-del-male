@@ -32,6 +32,7 @@ export function managedActorKeyScope(key) {
   else if (/^managed-actor-commands:[^:]+$/.test(name)) kind = "commands";
   else if (name === "managed-actor-create-requests") kind = "create-requests";
   else if (name === "managed-actors:index") kind = "index";
+  else if (name === "managed-actor-forms") kind = "npc-forms";
   else if (name === "npc-categories") kind = "categories";
   else if (name === "data:items:override") kind = "campaign-items";
   else if (name === "item-categories") kind = "item-categories";

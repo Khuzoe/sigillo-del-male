@@ -4,6 +4,8 @@
     let currentCanManageActor = false;
     let managedEditMode = false;
     let currentProfile = null;
+    let formGroup = null;
+    let viewedForm = null;
     let currentProfilePermissions = { canEdit: false, isEditor: false };
     let campaignItemCatalog = [];
     let npcCategoryRegistry = { revision: 0, categories: [] };
@@ -28,37 +30,54 @@
         const root = document.querySelector("[data-managed-actor-root]");
         if (!root) return;
         const params = new URLSearchParams(window.location.search);
-        const worldId = params.get("world") || "";
-        const actorId = params.get("actor") || "";
+        let worldId = params.get("world") || "";
+        let actorId = params.get("actor") || "";
         if (!worldId || !actorId) {
             root.innerHTML = '<div class="managed-load-state"><i class="fas fa-triangle-exclamation"></i><strong>Identità Actor mancante</strong><span>Apri la scheda dal collegamento presente nella wiki.</span></div>';
             return;
         }
-        await loadManagedEconomyRegistry();
-        if (params.get("profile") === "1") {
-            try {
-                const token = getToken();
-                const profilePayload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(worldId)}/${encodeURIComponent(actorId)}/profile`, {
-                    cache: false,
-                    ...(token ? { token } : {})
-                });
-                currentProfile = normalizeManagedProfile(profilePayload.data, { worldId, actorId });
-                currentProfilePermissions = profilePayload.permissions || { canEdit: false, isEditor: false };
-                managedProfileSource = profilePayload.source || "profile";
-                if (currentProfile?.merchant?.enabled) await loadCampaignItemCatalog(token);
-                syncManagedActorNavigation(null);
-                renderManagedProfileOnly(root, currentProfile, profilePayload.skillTreeActor);
+        currentDocument = null;
+        managedEditMode = false;
+        formGroup = null;
+        viewedForm = null;
+        const token = getToken();
+        const options = { cache: false, ...(token ? { token } : {}) };
+        try {
+            const [payload] = await Promise.all([
+                window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(worldId)}/${encodeURIComponent(actorId)}/forms`, options),
+                loadManagedEconomyRegistry()
+            ]);
+            formGroup = payload.group || null;
+        } catch (error) {
+            if (error.status !== 404) {
+                root.innerHTML = `<div class="managed-load-state"><strong>Scheda non disponibile</strong><span>${escapeHtml(error.message || "Riprova tra poco.")}</span></div>`;
                 return;
-            } catch (error) {
-                console.warn("Vista dossier non disponibile, provo la scheda completa.", error);
             }
         }
+        if (formGroup) {
+            const direct = `${worldId}:${actorId}`.toLowerCase();
+            const owner = `${formGroup.owner.worldId}:${formGroup.owner.actorId}`;
+            const requested = params.get("form") || (direct !== owner ? direct : "");
+            viewedForm = formGroup.forms.find(form => form.key === requested)
+                || formGroup.forms.find(form => form.current) || formGroup.forms[0];
+            ({ worldId, actorId } = viewedForm);
+        }
+        const dossierActor = formGroup?.owner || { worldId, actorId };
+        const showDossier = async () => {
+            const profilePayload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(dossierActor.worldId)}/${encodeURIComponent(dossierActor.actorId)}/profile`, options);
+            currentProfile = normalizeManagedProfile(profilePayload.data, dossierActor);
+            currentProfilePermissions = profilePayload.permissions || { canEdit: false, isEditor: false };
+            managedProfileSource = profilePayload.source || "profile";
+            if (currentProfile?.merchant?.enabled) await loadCampaignItemCatalog(token);
+            syncManagedActorNavigation(null);
+            renderManagedProfileOnly(root, currentProfile, profilePayload.skillTreeActor);
+        };
+        if (viewedForm ? !viewedForm.canReadStats : params.get("profile") === "1") {
+            try { await showDossier(); return; }
+            catch (error) { console.warn("Vista dossier non disponibile.", error); }
+        }
         try {
-            const token = getToken();
-            const payload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(worldId)}/${encodeURIComponent(actorId)}`, {
-                cache: false,
-                ...(token ? { token } : {})
-            });
+            const payload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(worldId)}/${encodeURIComponent(actorId)}`, options);
             currentDocument = payload.data;
             syncManagedActorNavigation(currentDocument);
             const permissions = currentDocument?.permissions || {};
@@ -74,23 +93,22 @@
             console.error("Managed Actor non disponibile", error);
             root.innerHTML = `<div class="managed-load-state"><i class="fas fa-lock"></i><strong>Scheda non disponibile</strong><span>${escapeHtml(error.message || "Non è stato possibile caricare questo Actor.")}</span></div>`;
             try {
-                const token = getToken();
-                const profilePayload = await window.CriptaApp.api.get(`api/managed-actors/${encodeURIComponent(worldId)}/${encodeURIComponent(actorId)}/profile`, {
-                    cache: false,
-                    ...(token ? { token } : {})
-                });
-                currentProfile = normalizeManagedProfile(profilePayload.data, { worldId, actorId });
-                currentProfilePermissions = profilePayload.permissions || { canEdit: false, isEditor: false };
-                managedProfileSource = profilePayload.source || "profile";
-                if (currentProfile?.merchant?.enabled) await loadCampaignItemCatalog(token);
-                syncManagedActorNavigation(null);
-                renderManagedProfileOnly(root, currentProfile, profilePayload.skillTreeActor);
+                await showDossier();
                 return;
             } catch (profileError) {
                 console.warn("Dossier NPC non disponibile", profileError);
             }
         }
     });
+
+    function mountNpcForms(root, actor) {
+        root.classList.toggle("has-npc-forms", Boolean(formGroup));
+        window.CriptaNpcForms?.mount(root, {
+            group: formGroup, selected: viewedForm, owner: formGroup?.owner || actor,
+            canManage: currentProfilePermissions.canManageForms === true,
+            token: getToken(), escape: escapeAttr, hasDraft: () => hasManagedUnsavedChanges(root)
+        });
+    }
 
     async function loadManagedEconomyRegistry() {
         try {
@@ -471,7 +489,8 @@
         });
         document.body.classList.remove("managed-frame-circle-open");
         document.body.classList.remove("managed-image-lightbox-open");
-        document.title = `${actor.name || "Actor"} - Cripta di Sangue`;
+        const dossierName = formGroup?.owner.name || actor.name || "Actor";
+        document.title = `${dossierName} - Cripta di Sangue`;
         const definition = actor.definition || {};
         const attributes = definition.attributes || {};
         const details = definition.details || {};
@@ -516,7 +535,7 @@
                     ${renderManagedTokenArtwork(tokenPath, actor.name || "Actor")}
                 </div>
                 <div class="managed-actor-title">
-                    <h1>${editMode ? renderManagedActorControl("name", "text", actor.name || "Actor", { className: "managed-actor-name-input" }) : escapeHtml(actor.name || "Actor")}</h1>
+                    <h1>${editMode ? renderManagedActorControl("name", "text", actor.name || "Actor", { className: "managed-actor-name-input" }) : escapeHtml(dossierName)}</h1>
                     ${currentProfile?.role ? `<p class="managed-profile-role">${escapeHtml(currentProfile.role)}</p>` : ""}
                     ${currentProfile?.quote ? `<blockquote class="managed-profile-quote">${escapeHtml(currentProfile.quote)}</blockquote>` : ""}
                     ${renderManagedHeroVitals(attributes, details, actor.runtime || {}, actor.actorType, sharedRuntime, skills.prc?.passive)}
@@ -556,6 +575,7 @@
         `;
 
         setupManagedNpcWorkspace(root, actor, editMode);
+        mountNpcForms(root, actor);
         root.querySelector("[data-managed-save]")?.addEventListener("click", () => saveManagedActorPage(root));
         root.querySelector("[data-managed-profile-lifecycle-action]")?.addEventListener("click", (event) => setManagedProfileLifecycle(root, event.currentTarget.dataset.managedProfileLifecycleAction));
         root.querySelectorAll("[data-managed-edit-toggle]").forEach((button) => button.addEventListener("click", () => toggleManagedEditMode(root, button.dataset.managedEditToggle === "edit")));
@@ -626,6 +646,7 @@
     }
 
     async function loadManagedActorProfile(actor, token = "") {
+        actor = formGroup?.owner || actor;
         managedProfileDirty = false;
         managedProfileFiles.clear();
         clearManagedProfilePreviews();
@@ -810,8 +831,8 @@
         root._managedNpcReader = null;
         root._managedNpcReaderLoad = null;
         root._managedDossierCleanup?.();
-        const media = profile.media || {};
-        const avatarPath = media.avatar?.path || media.idle?.path || "";
+        const media = viewedForm?.media || profile.media || {};
+        const avatarPath = media.avatar?.path || media.idle?.path || media.token?.path || "";
         const hasAnimation = Boolean(media.idle?.path || media.hover?.path);
         const hasPlayerSkillTrees = isPrimaryManagedPlayer(skillTreeActor);
         root.classList.add("is-viewing", "is-profile-only", "is-npc");
@@ -842,6 +863,10 @@
         dossier.append(panel);
         root.classList.add("is-npc-dossier");
         setupManagedNpcDossierLayout(root, dossier, portrait, false);
+        if (viewedForm?.media?.token?.path && portrait) {
+            portrait.querySelector(".managed-actor-art")?.insertAdjacentHTML("beforeend", renderManagedTokenArtwork(media.token.path, profile.name));
+        }
+        mountNpcForms(root, profile);
         setupManagedImageLightbox(root);
         setupManagedAvatarFallback(root, media);
         if (hasPlayerSkillTrees) {
@@ -1375,7 +1400,7 @@
         next.role = field("role");
         next.lifeState = normalizeManagedNpcLifeState(field("lifeState", currentProfile.lifeState || "unknown"));
         const actorName = String(root.querySelector('[data-managed-actor-path="name"]')?.value || "").trim();
-        if (actorName) next.name = actorName;
+        if (actorName && (!formGroup || viewedForm.key === `${next.worldId}:${next.actorId}`)) next.name = actorName;
         next.status = field("status", currentProfile.status || "");
         const kindMode = field("kind", currentProfile.kindSource === "manual" ? currentProfile.kind : "automatic");
         next.kindSource = kindMode === "automatic" ? "automatic" : "manual";
@@ -1503,7 +1528,7 @@
             expectedRevision: Number(currentProfile?.revision || 0),
             data: next
         }, { token });
-        const savedProfile = normalizeManagedProfile(payload.data, currentDocument || next);
+        const savedProfile = normalizeManagedProfile(payload.data, formGroup?.owner || currentDocument || next);
         const savedBlocks = new Map(savedProfile.blocks.map(block => [block.id, block]));
         const lostBannerHeight = next.blocks.some(block => block.type === "banner_box"
             && normalizeManagedBannerHeight(block.bannerHeight) !== normalizeManagedBannerHeight(savedBlocks.get(block.id)?.bannerHeight));
@@ -1545,7 +1570,7 @@
                 expectedRevision: Number(currentProfile.revision || 0),
                 data: next
             }, { token });
-            currentProfile = normalizeManagedProfile(payload.data, currentDocument || next);
+            currentProfile = normalizeManagedProfile(payload.data, formGroup?.owner || currentDocument || next);
             managedProfileSource = "profile";
             managedProfileDirty = false;
             root.dataset.managedDirty = "false";
@@ -3213,9 +3238,11 @@
             const count = Number(options.repeat) || 1;
             const sound = onlySound ? config.soundOnly.sound : config.primary?.sound;
             const playback = loop ? "Loop persistente" : count > 1 ? `${count} riproduzioni · intervallo ${Number(options.repeatDelay ?? 1)} ms` : "Una riproduzione";
-            const audio = sound?.enable ? (sound.file ? "Suono attivo" : "Suono attivo · file audio da impostare") : "Suono disattivato";
+            const videoSound = custom?.enableCustom && sound?.file === custom.customPath && !onlySound;
+            const audio = videoSound ? (sound.enable ? "Audio del WebM attivo" : "Audio del WebM disattivato")
+                : sound?.enable ? (sound.file ? "Suono attivo" : "Suono attivo · file audio da impostare") : "Suono disattivato";
             const player = !onlySound && clip?.path && clip.source === custom?.customPath
-                ? `<video class="npc-activity-video" controls playsinline preload="none"${loop ? " loop" : ""} data-activity-playback-rate="${speed}" src="${escapeAttr(resolveMedia(clip.path))}" aria-label="Animazione di ${escapeAttr(label)}"></video>` : "";
+                ? `<video class="npc-activity-video" controls playsinline preload="none"${custom.wikiSyncAudio && !(videoSound && sound.enable) ? " muted" : ""}${loop ? " loop" : ""} data-activity-playback-rate="${speed}" src="${escapeAttr(resolveMedia(clip.path))}" aria-label="Animazione di ${escapeAttr(label)}"></video>` : "";
             return `<details class="managed-entry-disclosure"><summary>Animazione · ${escapeHtml(label)}${config.isEnabled === false ? " (disattivata)" : ""}</summary><p>${onlySound ? "Solo suono" : escapeHtml(playback) + " · " + audio}</p>${player}</details>`;
         }).join("");
     }
@@ -4076,7 +4103,7 @@
         const endpoint = `api/managed-actors/${encodeURIComponent(actor.worldId)}/${encodeURIComponent(actor.actorId)}/editor`;
         try {
             const [module, result] = await Promise.all([
-                import("../shared/npc-sheet-editor.mjs?v=20261120-animations-4"),
+                import("../shared/npc-sheet-editor.mjs?v=20261121-audio"),
                 window.CriptaApp.api.get(endpoint, { token: getToken(), cache: false })
             ]);
             if (root._managedCompleteLoad !== marker || !managedEditMode || !root.isConnected) return;
@@ -5022,7 +5049,7 @@
                     const history = Array.isArray(currentDocument.site?.[historyKey]) ? [...currentDocument.site[historyKey]] : [];
                     if (previous?.path && !history.some(entry => entry.path === previous.path)) history.push(previous);
                     currentDocument = { ...currentDocument, revision: payload.revision, media: { ...currentDocument.media, [action]: descriptor }, site: { ...currentDocument.site, [historyKey]: history } };
-                    if (currentProfile && action === 'avatar') currentProfile.media = { ...currentProfile.media, avatar: descriptor };
+                    if (currentProfile && action === 'avatar' && (!formGroup || currentProfile.actorId === currentDocument.actorId && currentProfile.worldId === currentDocument.worldId)) currentProfile.media = { ...currentProfile.media, avatar: descriptor };
                     window.CriptaApp.api.clearCache?.();
                     renderManagedActor(root, currentDocument, currentCanEdit, managedEditMode, currentCanManageActor);
                 }

@@ -147,9 +147,11 @@ function parseYamlLite(yamlText) {
                 if (!(managedState?.npcs || []).length && !(managedState?.pendingCreates || []).length) {
                     const fallbackSource = window.NPC_DATA?.length ? window.NPC_DATA : await loadNpcData(base_path);
                     const normalizedFallback = normalizeCharactersCollection(fallbackSource);
-                    legacyNpcs = currentUserIsDm
+                    const managedIds = new Set(managedState?.managedLegacyCharacterIds || []);
+                    legacyNpcs = (currentUserIsDm
                         ? normalizedFallback
-                        : (window.WikiSpoiler ? window.WikiSpoiler.filterVisible(normalizedFallback) : normalizedFallback.filter((npc) => !npc.hidden));
+                        : (window.WikiSpoiler ? window.WikiSpoiler.filterVisible(normalizedFallback) : normalizedFallback.filter((npc) => !npc.hidden)))
+                        .filter(npc => !managedIds.has(String(npc.id || "").toLowerCase()));
                 }
                 const categoryRegistry = window.CriptaNpcCategories.normalizeRegistry({ categories: managedState?.npcCategories || [] });
                 const unifiedNpcs = [...legacyNpcs, ...(managedState?.npcs || []), ...(managedState?.pendingCreates || [])]
@@ -245,8 +247,9 @@ function parseYamlLite(yamlText) {
             const tokenPath = media.token?.path || legacyImages.token || avatarPath;
             const dedicatedIdlePath = media.idle?.path || legacyImages.idle || '';
             const dedicatedHoverPath = media.hover?.path || legacyImages.hover || '';
-            const idlePath = dedicatedIdlePath || tokenPath || avatarPath || '';
-            const hoverPath = dedicatedHoverPath || tokenPath || idlePath || avatarPath || '';
+            const formAvatar = actor.formLabels?.length ? media.avatar : null;
+            const idlePath = dedicatedIdlePath || formAvatar?.path || tokenPath || avatarPath || '';
+            const hoverPath = dedicatedHoverPath || formAvatar?.path || tokenPath || idlePath || avatarPath || '';
             const legacyId = String(profile.legacyCharacterId || legacyNpc?.id || '').trim();
             const statsVisibility = String(actor?.visibility?.state || 'dm').toLowerCase();
             const profileVisibility = String(profile?.visibility?.state || 'dm').toLowerCase();
@@ -256,6 +259,7 @@ function parseYamlLite(yamlText) {
                 ...(legacyNpc || {}),
                 id: legacyId || `managed-${actor.worldId || 'world'}-${actor.actorId || 'actor'}`,
                 name: actor.name || legacyNpc?.name || 'NPC',
+                searchTerms: [legacyNpc?.searchTerms, ...(actor.formLabels || [])].filter(Boolean).join(' '),
                 role: profile.role || legacyNpc?.role || 'NPC',
                 quote: profile.quote || legacyNpc?.quote || '',
                 lifeState: normalizeManagedNpcLifeState(profile.lifeState, profile.status || legacyNpc?.status),
@@ -282,13 +286,13 @@ function parseYamlLite(yamlText) {
                     token: tokenPath,
                     idle: idlePath,
                     hover: hoverPath,
-                    idleAdjust: managedPresentationToNpcAdjust(media.idle || media.token || media.avatar, legacyImages.idleAdjust || legacyImages.avatarAdjust),
+                    idleAdjust: managedPresentationToNpcAdjust(media.idle || formAvatar || media.token || media.avatar, legacyImages.idleAdjust || legacyImages.avatarAdjust),
                     hasDedicatedIdle: Boolean(dedicatedIdlePath),
                     hasDedicatedHover: Boolean(dedicatedHoverPath),
-                    hoverAdjust: managedPresentationToNpcAdjust(media.hover || media.idle || media.token || media.avatar, legacyImages.hoverAdjust),
+                    hoverAdjust: managedPresentationToNpcAdjust(media.hover || formAvatar || media.idle || media.token || media.avatar, legacyImages.hoverAdjust),
                     idleFallback: tokenPath || avatarPath || legacyImages.idleFallback || '',
-                    idleFrameCircle: managedPresentationToFrameCircle(media.idle || media.token || media.avatar, legacyImages.idleFrameCircle || legacyImages.tokenFrameCircle),
-                    hoverFrameCircle: managedPresentationToFrameCircle(media.hover || media.idle || media.token || media.avatar, legacyImages.hoverFrameCircle),
+                    idleFrameCircle: managedPresentationToFrameCircle(media.idle || formAvatar || media.token || media.avatar, legacyImages.idleFrameCircle || legacyImages.tokenFrameCircle),
+                    hoverFrameCircle: managedPresentationToFrameCircle(media.hover || formAvatar || media.idle || media.token || media.avatar, legacyImages.hoverFrameCircle),
                     hoverFallback: tokenPath || idlePath || avatarPath || legacyImages.hoverFallback || '',
                     avatarFallback: tokenPath || idlePath || legacyImages.avatarFallback || ''
                 },
@@ -318,6 +322,7 @@ function parseYamlLite(yamlText) {
                 tags: Array.isArray(profile.tags) ? [...new Set(profile.tags)] : [],
                 archived: false,
                 pendingCreate: true,
+                renameRequestId: request?.status === 'conflict' && !request.legacyCharacterId && request.current?.actorIds?.length ? request.id : '',
                 createStatus: request?.status || 'pending',
                 sync: { pending: request?.status === 'pending' ? 1 : 0, conflicts: request?.status === 'conflict' ? 1 : 0, failed: request?.status === 'failed' ? 1 : 0 },
                 categoryId: profile.categoryId || '',
@@ -399,6 +404,50 @@ function parseYamlLite(yamlText) {
             document.querySelectorAll('[data-npc-create-link]').forEach((button) => button.removeAttribute('href'));
         }
 
+        function setupNpcCreateNameCheck(form) {
+            const name = form.elements.namedItem('name');
+            const world = form.elements.namedItem('targetWorldId');
+            const feedback = form.querySelector('[data-create-name-feedback]');
+            let timer, pending;
+            function show(message) {
+                feedback.textContent = message;
+                name.setAttribute('aria-invalid', String(Boolean(message)));
+            }
+            async function check() {
+                clearTimeout(timer);
+                if (!form.isConnected) return false;
+                const params = new URLSearchParams({ world: world.value.trim(), name: name.value.trim() });
+                if (!params.get('name') || !params.get('world')) { show(''); return false; }
+                const key = params.toString();
+                if (pending?.key !== key) {
+                    const result = window.CriptaApp.api.get('api/managed-actor-create-requests/check-name?' + key, {
+                        token: window.CriptaDiscordAuth.getToken(), cache: false
+                    });
+                    pending = { key, result };
+                }
+                const current = pending;
+                try {
+                    const answer = await current.result;
+                    if (!form.isConnected || params.get('world') !== world.value.trim() || params.get('name') !== name.value.trim()) return false;
+                    if (typeof answer?.conflict !== 'string') throw new Error('Verifica del nome non disponibile. Riprova tra poco.');
+                    show(answer.conflict);
+                    return !answer.conflict;
+                } finally {
+                    if (pending === current) pending = null;
+                }
+            }
+            const schedule = () => {
+                clearTimeout(timer);
+                show('');
+                if (name.value.trim() && world.value.trim()) timer = setTimeout(() => check().catch(() => {}), 450);
+            };
+            name.addEventListener('input', schedule);
+            world.addEventListener('input', schedule);
+            world.addEventListener('change', schedule);
+            form.addEventListener('reset', () => { clearTimeout(timer); show(''); });
+            return check;
+        }
+
         function setupManagedNpcCreateWizard({ managedState = {}, categoryRegistry = {} } = {}) {
             const trigger = document.querySelector('[data-npc-create-link]');
             if (!trigger || trigger.dataset.managedCreateReady === 'true') return;
@@ -411,6 +460,7 @@ function parseYamlLite(yamlText) {
             if (!trigger || trigger.dataset.generatorReady) return;
             trigger.dataset.generatorReady = 'true';
             trigger.addEventListener('click', () => window.CriptaNpcGenerator?.open({
+                setupNameCheck: setupNpcCreateNameCheck,
                 npcs: managedState.npcs.filter(npc => npc.managedActorWorldId && npc.managedActorId),
                 worlds: managedState.worldIds || [],
                 categories: selectableNpcCategories(categoryRegistry),
@@ -438,7 +488,7 @@ function parseYamlLite(yamlText) {
                 <header><div><span>Nuovo flusso</span><h2 id="managed-npc-create-title"><i class="fas fa-wand-magic-sparkles"></i>Crea ${createLabel}</h2><p>Prepara il dossier ora; Foundry costruira automaticamente l'Actor con statistiche di base.</p></div><button type="button" data-create-close aria-label="Chiudi"><i class="fas fa-xmark"></i></button></header>
                 <form data-managed-npc-create-form>
                     <div class="managed-npc-create-grid">
-                        <label class="is-wide"><span>Nome <b>*</b></span><input name="name" required maxlength="180" autocomplete="off" placeholder="Nome del personaggio o della creatura"></label>
+                        <label class="is-wide"><span>Nome <b>*</b></span><input name="name" required maxlength="180" autocomplete="off" aria-describedby="npc-create-name-feedback" placeholder="Nome del personaggio o della creatura"><small id="npc-create-name-feedback" data-create-name-feedback aria-live="polite"></small></label>
                         <label><span>Tipo</span><select name="kind"><option value="person" ${initialKind === 'person' ? 'selected' : ''}>NPC collegato</option><option value="creature" ${initialKind === 'creature' ? 'selected' : ''}>Creatura del Bestiario</option></select></label>
                         <label><span>Mondo Foundry <b>*</b></span>${worlds.length ? `<select name="targetWorldId" required>${worlds.map((world) => `<option value="${escapeNpcAttribute(world)}">${escapeNpcAttribute(world)}</option>`).join('')}</select>` : '<input name="targetWorldId" required placeholder="ID del mondo Foundry">'}</label>
                         <label><span>Ruolo o soprannome</span><input name="role" maxlength="240" placeholder="Es. Custode del teatro"></label>
@@ -481,18 +531,27 @@ function parseYamlLite(yamlText) {
                 card.querySelector('div')?.prepend(image);
                 card.classList.add('has-file');
             }));
+            const checkName = setupNpcCreateNameCheck(overlay.querySelector('form'));
+            const clientId = 'site-' + crypto.randomUUID();
             overlay.querySelector('input[name="name"]')?.focus();
             overlay.querySelector('[data-managed-npc-create-form]')?.addEventListener('submit', async (event) => {
                 event.preventDefault();
                 const form = event.currentTarget;
                 const submit = form.querySelector('button[type="submit"]');
+                if (submit.disabled) return;
                 const status = form.querySelector('[data-create-status]');
                 const data = new FormData(form);
                 const token = String(window.CriptaDiscordAuth?.getToken?.() || '').trim();
-                const clientId = `site-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
                 submit.disabled = true;
-                status.textContent = 'Preparo immagini e richiesta...';
+                status.textContent = 'Verifico il nome…';
                 try {
+                    if (!await checkName()) {
+                        submit.disabled = false;
+                        status.textContent = '';
+                        form.elements.namedItem('name').focus();
+                        return;
+                    }
+                    status.textContent = 'Preparo immagini e richiesta…';
                     const upload = async (field, fileName) => {
                         const file = data.get(field);
                         if (!(file instanceof File) || !file.size) return '';
@@ -1231,6 +1290,7 @@ function parseYamlLite(yamlText) {
             const statusInfo = statusMap[npc.status] || null;
             const canMoveCategory = canEdit && npc.managedProfileCanEdit === true && !npc.pendingCreate && Boolean(npc.managedActorWorldId && npc.managedActorId);
             const canChangeVisibility = canMoveCategory;
+            const canRenameRequest = npc.pendingCreate && npc.managedProfileCanEdit === true && Boolean(npc.renameRequestId);
             const canChangeLifeState = canMoveCategory && npc.kind !== 'creature';
             const lifeStateBadge = canChangeLifeState
                 ? `<span class="npc-status-badge npc-life-state-control ${statusInfo?.class || 'status-none'}" role="button" tabindex="0" aria-haspopup="dialog" aria-expanded="false" aria-label="Cambia stato di ${escapeNpcAttribute(npc.name)}: ${statusInfo?.text || 'Nessuno'}" title="Cambia stato">${statusInfo?.text || 'NESSUNO'}<i class="fas fa-chevron-down" aria-hidden="true"></i></span>`
@@ -1264,8 +1324,32 @@ function parseYamlLite(yamlText) {
             if (npc.archived) card.classList.add('npc-card--archived');
             if (npc.pendingCreate) {
                 card.classList.add('npc-card--pending');
-                card.setAttribute('aria-disabled', 'true');
-                card.addEventListener('click', (event) => event.preventDefault());
+                if (canRenameRequest) {
+                    card.setAttribute('role', 'button');
+                    card.setAttribute('aria-label', `Rinomina ${npc.name} e riprova la creazione`);
+                    card.addEventListener('keydown', event => {
+                        if (event.key === ' ') { event.preventDefault(); card.click(); }
+                    });
+                    card.addEventListener('click', async event => {
+                        event.preventDefault();
+                        if (card.getAttribute('aria-busy') === 'true') return;
+                        const name = window.prompt('Questo nome è già usato in Foundry. Scegli il nome della nuova scheda.', npc.name)?.trim();
+                        if (!name || name === npc.name) return;
+                        card.setAttribute('aria-busy', 'true');
+                        try {
+                            await window.CriptaApp.api.post(`api/managed-actor-create-requests/${encodeURIComponent(npc.renameRequestId)}/rename`, {
+                                previousName: npc.name, name
+                            }, { token: window.CriptaDiscordAuth.getToken() });
+                            window.location.reload();
+                        } catch (error) {
+                            card.removeAttribute('aria-busy');
+                            showNpcRosterFeedback(error.message || 'Rinomina non riuscita. Riprova.', 'error');
+                        }
+                    });
+                } else {
+                    card.setAttribute('aria-disabled', 'true');
+                    card.addEventListener('click', event => event.preventDefault());
+                }
             }
             const hasDedicatedIdle = npc.images.hasDedicatedIdle ?? Boolean(npc.images.idle);
             const hasDedicatedHover = npc.images.hasDedicatedHover ?? Boolean(npc.images.hover);
@@ -1308,6 +1392,7 @@ function parseYamlLite(yamlText) {
                     <p class="npc-desc">${escapeNpcAttribute(npc.quote || '')}</p>
                 </div>
                 <span class="npc-card-actions">
+                    ${canRenameRequest ? '<span>Rinomina e riprova</span>' : ''}
                     ${canMoveCategory ? '<span class="npc-category-drag-handle npc-category-picker-trigger" role="button" tabindex="0" draggable="false" aria-haspopup="dialog" aria-expanded="false" title="Cambia categoria. Puoi anche trascinare." aria-label="Sposta ' + escapeNpcAttribute(npc.name) + ' in una categoria diversa"><i class="fas fa-folder-open" aria-hidden="true"></i><span>Sposta</span></span>' : ''}
                     ${canChangeVisibility ? '<span class="npc-profile-visibility" role="switch" tabindex="0" aria-label="Dossier visibile a tutti: ' + escapeNpcAttribute(npc.name) + '"><span class="npc-visibility-caption" aria-hidden="true">Dossier</span><span class="npc-visibility-track" aria-hidden="true"></span><span class="npc-visibility-state" aria-hidden="true"></span></span>' : ''}
                     ${canMoveCategory ? `<span class="npc-archive-control" role="button" tabindex="0" data-npc-lifecycle-action="${npc.archived ? 'active' : 'archived'}" title="${npc.archived ? 'Ripristina nell’elenco' : 'Sposta nell’archivio'}" aria-label="${npc.archived ? 'Ripristina' : 'Archivia'} ${escapeNpcAttribute(npc.name)}"><i class="fas ${npc.archived ? 'fa-rotate-left' : 'fa-trash-can'}" aria-hidden="true"></i>${npc.archived ? '<span>Ripristina</span>' : ''}</span>` : ''}

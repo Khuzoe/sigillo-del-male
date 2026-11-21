@@ -312,7 +312,7 @@ try {
   const pending = vm.runInContext("managedCreateRequestToNpcListEntry(request)", context);
   assert.equal(pending.pendingCreate, true); assert.equal(pending.name, finalForm.name); assert.equal(pending.images.token, receipt.request.document.media.token);
   // The real directory button must work from both NPC and Bestiary filters.
-  const setupStart = directory.indexOf("        function setupNpcGeneration(");
+  const setupStart = directory.indexOf("        function setupNpcCreateNameCheck(");
   const setupEnd = directory.indexOf("        function openManagedNpcCreateWizard(", setupStart);
   for (const kind of ["person", "creature"]) {
     let click, opened;

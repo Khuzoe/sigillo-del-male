@@ -7,7 +7,7 @@ import {animationPaths, MAX_ANIMATION_BYTES} from '../assets/js/shared/npc-activ
 import {animationWithFile, appendAnimationControls} from '../assets/js/shared/npc-animation-editor.mjs';
 import {repairAnimationMenu} from '../assets/js/shared/npc-animation-config.mjs';
 import {hashNpcBytes} from '../integrations/cripta-wiki-sync/npc-native-snapshot.mjs';
-import {exportNpcAnimations, installNpcAnimations} from '../integrations/cripta-wiki-sync/activity-animation-sync.mjs';
+import {applyLegacySiteAudio, exportNpcAnimations, installNpcAnimations} from '../integrations/cripta-wiki-sync/activity-animation-sync.mjs';
 import {nativeApply, nativeDiff, nativeSet, nativeValidateChanges} from '../assets/js/shared/npc-native-model.mjs';
 
 const campaign='cripta-di-sangue', world='il-sigillo-del-male', actor='qfqeufrl9j3txqxa';
@@ -24,15 +24,18 @@ const actorKey=`campaign:${campaign}:managed-actor:${world}:${actor}`;
 const env={MEDIA_BUCKET:bucket,INVENTORY_SYNC_SECRET:'test',JWT_SECRET:'local-test',CAMPAIGN_EDITOR_ACCOUNT_IDS:`${campaign}:dm`,
   SIGILLO_KV:{async get(key){return key===actorKey ? JSON.stringify({actorType:'npc',relationshipType:'companion',ownerAccountIds:['owner']}) : null;}}};
 const request=(url,init)=>worker.fetch(new Request(url,init),env,{waitUntil(){}});
-const context={campaign,world,actor,origin,endpoint,headers,request,allowUpload:true};
+const context={campaign,world,actor,origin,endpoint,headers,request,allowUpload:true,resolve:path=>origin+'/'+path};
 const upload=(bytes,extra={})=>request(endpoint,{method:'POST',headers:{...headers(),'Content-Type':'video/webm',...extra},body:bytes});
 function siteUpload(bytes, account, target=endpoint) {
   const jwt=[{alg:'HS256',typ:'JWT'},{accountId:account,username:account,exp:Math.floor(Date.now()/1000)+300}].map(part=>Buffer.from(JSON.stringify(part)).toString('base64url')).join('.');
   const token=jwt+'.'+createHmac('sha256',env.JWT_SECRET).update(jwt).digest('base64url');
   return request(target,{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'video/webm'},body:bytes});
 }
-const original=process.argv[2] ? new Uint8Array(await readFile(process.argv[2])) :
-  Uint8Array.from([0x1a,0x45,0xdf,0xa3,0x87,0x42,0x82,0x84,0x77,0x65,0x62,0x6d,0x18,0x53,0x80,0x67]);
+const webmHeader = [0x1a,0x45,0xdf,0xa3,0x87,0x42,0x82,0x84,0x77,0x65,0x62,0x6d];
+const segmentHeader = [0x18,0x53,0x80,0x67,0x01,255,255,255,255,255,255,255];
+const videoEntry = [0xae,0x83,0x83,0x81,1], audioEntry = [0xae,0x84,0x83,0x82,0,2];
+const sample = entries => Uint8Array.from([...webmHeader,...segmentHeader,0x16,0x54,0xae,0x6b,0x80+entries.length,...entries]);
+const original=process.argv[2] ? new Uint8Array(await readFile(process.argv[2])) : sample([...videoEntry,...audioEntry]);
 const digest=await hashNpcBytes(original);
 assert.equal(await hashNpcBytes(original,null),digest);
 const path='Cripta%20di%20Sangue/tiles/pugno-mano-rossa.webm';
@@ -118,9 +121,11 @@ const saved=await (await siteUpload(replacement,'dm')).json();
 assert.equal(writes,2);
 assert.equal(saved.path,entry.media.animations[id].path);
 const next=structuredClone(item);
-next.system.activities[id].flags.autoanimations=animationWithFile(activity,item.name,saved.localPath);
+next.system.activities[id].flags.autoanimations=animationWithFile(activity,item.name,saved.localPath,saved.hasAudio);
 const changes=nativeDiff(item,next,'Item',{isAdmin:true});
-assert.deepEqual(changes.map(change=>change.path),[`system.activities.${id}.flags.autoanimations.primary.video.customPath`]);
+const pathPatch = changes.find(change=>change.path === `system.activities.${id}.flags.autoanimations.primary.video.customPath`);
+assert.ok(pathPatch);
+if (!process.argv[2]) assert.equal(saved.hasAudio,true);
 
 const route = {worldId:world, actorId:actor};
 const transport = {origin, route, campaign, bucket};
@@ -131,17 +136,17 @@ async function queuedPatches(before, patches, canInstall) {
   await prepareActivityAnimationPatches(before.system.activities, proposed, submitted, {...transport, canInstall});
   return submitted;
 }
-for (const canInstall of [true, false]) {
-  const [patch] = await queuedPatches(item, changes, canInstall);
-  assert.deepEqual(patch, {...changes[0], value:canInstall ? saved.localPath : hosted});
-}
+const expected = structuredClone(next);
+const streamedPrimary = expected.system.activities[id].flags.autoanimations.primary;
+streamedPrimary.video.customPath = hosted;
+if (streamedPrimary.sound?.file === saved.localPath) streamedPrimary.sound.file = hosted;
+assert.deepEqual(nativeApply(item,await queuedPatches(item,changes,true)),next);
+assert.deepEqual(nativeApply(item,await queuedPatches(item,changes,false)),expected);
 const withoutConfig = structuredClone(item);
 delete withoutConfig.system.activities[id].flags.autoanimations;
 const added = nativeDiff(withoutConfig, next, 'Item', {isAdmin:true});
 const queued = await queuedPatches(withoutConfig, added, false);
 const streamedItem = nativeApply(withoutConfig, queued);
-const expected = structuredClone(next);
-expected.system.activities[id].flags.autoanimations.primary.video.customPath = hosted;
 assert.deepEqual(streamedItem, expected, 'A patch adding an entire config preserves its siblings and base');
 assert.deepEqual(await queuedPatches(item,nativeDiff(item,expected,'Item',{isAdmin:true}),false),
   nativeDiff(item,expected,'Item',{isAdmin:true}), 'A hosted URL can be submitted again');
@@ -151,7 +156,7 @@ assert.deepEqual(activityAnimationPreviews(streamedItem.system.activities, {}, c
 assert.deepEqual(activityAnimationPreviews(streamedItem.system.activities, {}, campaign, route, 'https://another.test'), {});
 assert.deepEqual(new Uint8Array(await (await request(hosted)).arrayBuffer()), replacement);
 for (const invalid of [saved.localPath.replace(actor,'another'), hosted.replace(actor,'another'), hosted.replace(saved.digest,'0'.repeat(64))]) {
-  await assert.rejects(queuedPatches(item,[{...changes[0],value:invalid}],false), /WebM/);
+  await assert.rejects(queuedPatches(item,[{...pathPatch,value:invalid}],false), /WebM/);
 }
 let downloads=0;
 const receiving={...context,request:async(...args)=>{downloads++;return request(...args);}};
@@ -230,7 +235,7 @@ function renderSettings() {
     field:(target,path,label,value,write)=>{
       const row=make('label'), input=make('input');
       input.value=String(value); row.append(input);
-      controls.set(path.slice(prefix.length), {value,input,change(nextValue) {
+      controls.set(path.slice(prefix.length), {value,input,label,change(nextValue) {
         write(target,path,nextValue);
         input.listeners.change?.();
       }});
@@ -268,4 +273,101 @@ assert.equal(templateDraft.system.activities[id].flags.autoanimations.isCustomiz
 templateDraft.system.activities[id].flags.autoanimations.menu='aura';
 renderSettings();
 assert.ok(!controls.has('primary.options.repeat') && !controls.has('primary.options.persistent'));
-console.log(`WebM OK: Foundry → Worker → editor → Foundry → sito; ${original.length} byte, permessi, formato, Range, revisione, integrità e idempotenza.`);
+// Select the actual Tracks/TrackEntry/TrackType hierarchy, even in a streamed
+// segment. An identical sequence inside a video block is not an audio track.
+const videoOnly = Uint8Array.from([...sample(videoEntry),0x1f,0x43,0xb6,0x75,0x88,0xa3,0x86,...audioEntry]);
+assert.equal((await (await siteUpload(videoOnly,'dm')).json()).hasAudio,false);
+const audible = await (await siteUpload(sample([...videoEntry,...audioEntry]),'dm')).json();
+assert.equal(audible.hasAudio,true);
+const uploadTo = (config, clip) => animationWithFile({flags:{autoanimations:config}},'Test',clip.localPath,clip.hasAudio);
+const linked = uploadTo({},audible);
+assert.equal(linked.primary.sound.enable,true);
+assert.equal(linked.primary.sound.file,audible.localPath);
+const quiet = uploadTo(linked,{localPath:'silent.webm',hasAudio:false});
+assert.equal(quiet.primary.sound.enable,false);
+assert.equal(quiet.primary.sound.file,'');
+assert.equal(uploadTo(quiet,audible).primary.sound.enable,true);
+assert.equal(uploadTo(linked,{localPath:'legacy-worker.webm'}).primary.sound.enable,false);
+templateDraft.system.activities[id].flags.autoanimations=structuredClone(linked);
+const beforeMute=structuredClone(templateDraft);
+renderSettings();
+assert.equal(controls.get('primary.sound.enable').label,'Audio del WebM');
+controls.get('primary.sound.enable').change(false);
+const muted = templateDraft.system.activities[id].flags.autoanimations;
+assert.equal(muted.primary.sound.file,audible.localPath);
+assert.equal(muted.primary.sound.enable,false);
+const muteDiff=nativeDiff(beforeMute,templateDraft,'Item',{isAdmin:true});
+assert.deepEqual(muteDiff.map(p=>p.path),[prefix+'primary.sound.enable']);
+assert.deepEqual(nativeApply(beforeMute,await queuedPatches(beforeMute,muteDiff,false)),templateDraft);
+assert.equal(uploadTo(muted,{...audible,localPath:'other.webm'}).primary.sound.enable,false);
+assert.equal(uploadTo(uploadTo(muted,{localPath:'silent.webm',hasAudio:false}),audible).primary.sound.enable,false);
+controls.get('primary.sound.enable').change(true);
+assert.equal(muted.primary.sound.enable,true);
+const customSound = uploadTo(templateConfig,audible);
+assert.deepEqual(customSound.primary.sound,templateConfig.primary.sound);
+assert.deepEqual(customSound.soundOnly,templateConfig.soundOnly);
+const customWithSoundOnly=structuredClone(customSound);
+customWithSoundOnly.primary.sound.enable=true;
+customWithSoundOnly.soundOnly.sound.enable=true;
+const replacedCustom=uploadTo(customWithSoundOnly,{...audible,localPath:'next.webm'});
+assert.deepEqual(replacedCustom.primary.sound,customWithSoundOnly.primary.sound);
+assert.deepEqual(replacedCustom.soundOnly,customWithSoundOnly.soundOnly);
+templateDraft.system.activities[id].flags.autoanimations=customSound;
+renderSettings();
+made.findLast(node=>node.textContent==='Usa l’audio del WebM').listeners.click();
+assert.deepEqual(customSound.primary.sound,{...templateConfig.primary.sound, file:audible.localPath, enable:true});
+assert.deepEqual(customSound.soundOnly,templateConfig.soundOnly);
+// A GM pull upgrades only former site assignments, using the same file for
+// either transport. The legacy upload had a disabled sound with no filename.
+const localAudio=audible.localPath, hostedAudio=origin+'/'+audible.path;
+const silent=await (await siteUpload(videoOnly,'dm')).json();
+files.set(localAudio,sample([...videoEntry,...audioEntry]));
+let migrated=0;
+function oldActivity(id,src,sound={enable:false}) {
+  return {id,flags:{autoanimations:{primary:{video:{enableCustom:true,customPath:src},sound}}},
+    async update(changes) {
+      for(const [path,value] of Object.entries(changes))nativeSet(this,path,value);
+      migrated++;
+    }};
+}
+const oldLocal=oldActivity('local',localAudio,{enable:false,volume:0.42});
+const oldHosted=oldActivity('remote',hostedAudio);
+const oldSilent=oldActivity('silent',silent.localPath);
+const oldMuted=oldActivity('muted',localAudio,{file:localAudio,enable:false,volume:0.6});
+const oldCustom=oldActivity('custom',hostedAudio,{file:'spell.ogg',enable:false});
+const oldOnly=oldActivity('only',localAudio);
+oldOnly.flags.autoanimations.soundOnly={sound:{file:'wind.ogg',enable:true}};
+const nativeOnly=oldActivity('foundry',path);
+const otherOrigin=oldActivity('external',hostedAudio.replace(origin,'https://other.test'));
+const otherActor=oldActivity('foreign',localAudio.replace(actor,'another'));
+const activities=new Map([oldLocal,oldHosted,oldMuted,oldCustom,oldOnly,oldSilent,nativeOnly,otherOrigin,otherActor].map(a=>[a.id,a]));
+const npc={type:'npc',items:new Map([['item',{id:'item',system:{activities}}]])};
+let reads=0;
+const legacyContext={...context,request:async(...args)=>{reads++;return request(...args);}};
+assert.equal(await applyLegacySiteAudio(npc,legacyContext,()=>false),false);
+assert.equal(await applyLegacySiteAudio(npc,legacyContext,()=>true),true);
+assert.equal(reads,1);
+assert.equal(migrated,5);
+assert.deepEqual(oldLocal.flags.autoanimations.primary.sound,{enable:true,volume:0.42,file:localAudio});
+assert.deepEqual(oldHosted.flags.autoanimations.primary.sound,{enable:true,file:hostedAudio});
+assert.deepEqual(oldMuted.flags.autoanimations.primary.sound,{enable:false,volume:0.6,file:localAudio});
+assert.deepEqual(oldCustom.flags.autoanimations.primary.sound,{enable:false,file:'spell.ogg'});
+assert.deepEqual(oldOnly.flags.autoanimations.primary.sound,{enable:false});
+for(const untouched of [nativeOnly,otherOrigin,otherActor,oldSilent])assert.equal(untouched.flags.autoanimations.primary.video.wikiSyncAudio,undefined);
+// A missing file is retried. Once processed, manual mutes survive later pulls.
+files.set(silent.localPath,videoOnly);
+oldLocal.flags.autoanimations.primary.sound.enable=false;
+assert.equal(await applyLegacySiteAudio(npc,legacyContext,()=>true),true);
+assert.deepEqual(oldSilent.flags.autoanimations.primary.video.wikiSyncAudio,{hasTrack:false});
+assert.deepEqual(oldSilent.flags.autoanimations.primary.sound,{enable:false});
+assert.equal(await applyLegacySiteAudio(npc,legacyContext,()=>true),false);
+assert.equal(oldLocal.flags.autoanimations.primary.sound.enable,false);
+const replaced=oldActivity('replaced',hostedAudio);
+activities.set(replaced.id,replaced);
+assert.equal(await applyLegacySiteAudio(npc,{...context,request:async(...args)=>{
+  replaced.flags.autoanimations.primary.video.customPath=path;
+  return request(...args);
+}},()=>true),false);
+assert.deepEqual(replaced.flags.autoanimations.primary.sound,{enable:false});
+assert.equal(migrated,6);
+console.log(`WebM OK: Foundry → Worker → editor → Foundry → sito; ${original.length} byte, tracce audio, mute, formato, Range, permessi e integrità.`);

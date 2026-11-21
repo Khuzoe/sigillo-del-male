@@ -8,7 +8,11 @@ Aprire la capacità o l'incantesimo nella scheda NPC ed espandere **Animazione**
 
 Per gli attacchi si possono regolare il numero totale di riproduzioni e l'intervallo in millisecondi. Gli effetti su token e sagome hanno anche **Effetto persistente (loop in scena)**. Disattivandolo si torna alle ripetizioni impostate. Le aure sono sempre persistenti. Per **Emendamento** di Leonora, scegliere l'attività **Tiro salvezza**.
 
-**Suono attivo** abilita il file audio associato all'animazione. Inserire un percorso accessibile a Foundry oppure un URL e regolare il volume da 0 a 1. L'audio ha ripetizioni e intervallo propri. **Riproduci solo il suono** usa la traccia prevista da Automated Animations per la modalità solo audio. Il sito sincronizza il riferimento al file audio e le impostazioni. L'anteprima sul sito riproduce il WebM.
+Se il WebM caricato contiene una traccia audio, l'attività usa automaticamente lo stesso file per il video e il suono. Per silenziare l'abilità, disattivare **Audio del WebM** e premere **Salva modifiche**. La scelta vale anche quando si sostituisce il video. Un WebM privo di audio può essere usato per la sola animazione.
+
+Per i WebM già assegnati dal sito, Wiki Sync 0.11.22 controlla la traccia al primo allineamento del client GM con la sincronizzazione in ingresso attiva. L'audio si abilita anche per queste attività, senza ricaricare il file. Un file audio già scelto, il silenziamento di una traccia e la modalità solo suono mantengono le impostazioni salvate.
+
+Se l'attività ha già un file audio personalizzato, conserva la scelta. **Usa l’audio del WebM** passa alla traccia incorporata. Per usare un'altra traccia, attivare il suono e inserire un percorso accessibile a Foundry o un URL nel campo **File audio in Foundry**. Il volume, le ripetizioni e l'intervallo del suono si regolano separatamente dal video. **Riproduci solo il suono** conserva la propria traccia.
 
 Se il menu di un'animazione creata in precedenza dal sito dà errore in Foundry, aprire **Modifica → attività interessata → Animazione** sul sito. Quando la configurazione è incompleta compare **Ripara menu Foundry**. Sceglierlo, premere **Salva modifiche** e riaprire il menu dopo la sincronizzazione. La riparazione completa i campi dell'attività selezionata e conserva il WebM assegnato.
 
@@ -19,10 +23,11 @@ Il WebM usa `system.activities.<id>.flags.autoanimations.primary.video.customPat
 ## Attivazione
 
 1. Pubblicare il Worker e gli asset del sito da questa revisione. Il Worker usa il bucket R2 già configurato e la coda NPC esistente.
-2. Per trasferire i file locali da e verso Foundry, a mondo chiuso estrarre `dist/cripta-wiki-sync-0.11.21.zip` nella cartella `Data/modules/cripta-wiki-sync`. Il file `module.json` deve trovarsi direttamente in quella cartella.
+2. Per trasferire i file locali e attivare l'audio dei caricamenti precedenti, a mondo chiuso estrarre `dist/cripta-wiki-sync-0.11.22.zip` nella cartella `Data/modules/cripta-wiki-sync`. Il file `module.json` deve trovarsi direttamente in quella cartella.
 3. Per sincronizzare in entrambe le direzioni, avviare il client GM con Wiki Sync in modalità **Bidirezionale**. Il primo avvio della 0.11.21 controlla gli NPC già condivisi. Le successive sincronizzazioni verificano il contenuto del file anche quando il nome resta uguale.
 
 La patch completa `integrations/cripta-wiki-sync/activity-animations-0.11.21.patch` si può applicare con `git apply` a una copia del modulo 0.11.20. Comprende il manifest e tutti i servizi necessari.
+Su una copia della 0.11.21, `git apply integrations/cripta-wiki-sync/activity-audio-0.11.22.patch` aggiunge il recupero dell'audio.
 
 ## Verifica
 

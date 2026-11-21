@@ -1,34 +1,10 @@
 import assert from "node:assert/strict";
 import { createHmac, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { DatabaseSync } from "node:sqlite";
+import { LocalD1 } from "./fixtures/local-d1.mjs";
 import worker from "../workers/main-worker/src/index.js";
 import { NpcGenerationStore } from "../workers/main-worker/src/npc-generation.js";
 
-// Exercise production routes, coordinator and D1 SQL in process. This adapter
-// avoids loopback RPC, which is unavailable in restricted Windows sandboxes.
-// Cloudflare-specific deployment behavior still belongs to the release check.
-class LocalD1 {
-  database = new DatabaseSync(":memory:");
-  prepare(sql, values = []) {
-    const execute = () => {
-      const statement = this.database.prepare(sql);
-      if (/^\s*(SELECT|WITH|PRAGMA)\b/i.test(sql)) return { success: true, results: statement.all(...values).map(row => ({ ...row })), meta: {} };
-      const result = statement.run(...values);
-      return { success: true, results: [], meta: { changes: Number(result.changes), last_row_id: Number(result.lastInsertRowid) } };
-    };
-    return {
-      bind: (...args) => this.prepare(sql, args), execute,
-      all: async () => execute(), run: async () => execute(),
-      first: async column => { const row = execute().results[0] || null; return column ? row?.[column] ?? null : row; },
-    };
-  }
-  async batch(statements) {
-    this.database.exec("BEGIN IMMEDIATE");
-    try { const results = statements.map(statement => statement.execute()); this.database.exec("COMMIT"); return results; }
-    catch (error) { this.database.exec("ROLLBACK"); throw error; }
-  }
-}
 class Storage {
   values = new Map();
   async get(key) { return structuredClone(this.values.get(key)); }
@@ -52,7 +28,9 @@ const signed = [Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toStri
 const token = `${signed}.${createHmac("sha256", secret).update(signed).digest("base64url")}`;
 const syncHeaders = { "X-Cripta-Inventory-Secret": secret, "X-Khuzoe-Sync-Contract": "1", "X-Khuzoe-Foundry-Generation": "14" };
 async function call(path, body, target = campaign, headers = {}) {
-  const response = await worker.fetch(new Request(`https://local.test/api/${path}?campaign=${target}`, {
+  const url = new URL(`https://local.test/api/${path}`);
+  url.searchParams.set("campaign", target);
+  const response = await worker.fetch(new Request(url, {
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...headers },
     ...(body === undefined ? {} : { method: "POST", body: JSON.stringify(body) }),
   }), env, { waitUntil(promise) { promise.catch(() => {}); } });
@@ -103,5 +81,48 @@ try {
   assert.equal((await call("npc-generation", { campaignId: campaign }, "paused")).status, 503, "body campaign cannot bypass the URL campaign's write pause");
   assert.notEqual((await call(`npc-generation/${first.id}/stop`, {}, "paused")).status, 503, "the stop route remains available while writes are paused");
   assert.equal(await kv.get(originalKey), original, "D1 workflow never changes the original KV copy");
+  const route = "managed-actor-create-requests";
+  const checkName = (name, targetWorld = world) => call(route + "/check-name?" + new URLSearchParams({ world: targetWorld, name }));
+  const existingName = "Leonora Invess", altName = "Leonora Invess - Forma Vendetta";
+  await db.prepare("INSERT INTO managed_actor_documents(campaign_id,document_key,kind,revision,payload,updated_at) VALUES(?,?,'index',1,?,'now')")
+    .bind(campaign, originalKey, JSON.stringify({ data: [{ worldId: world, actorId: "leonora", name: existingName }] })).run();
+  const manual = { clientId: "site-leonora", targetWorldId: world, document: { name: "  ＬEONORA Invess  ", media: { avatar: "media/npcs/leonora.webp" } } };
+  assert.match((await checkName(manual.document.name)).body.conflict, /scheda/);
+  assert.equal((await checkName(existingName, "another-world")).body.conflict, "");
+  assert.equal((await call(route, manual)).body.code, "NPC_NAME_TAKEN");
+  const generated = await seed(existingName);
+  assert.equal((await call(`npc-generation/${generated.id}/confirm`, {})).status, 400);
+  assert.equal((await jobState(generated.id)).status, "ready", "a taken name leaves the previews editable");
+  const renamedDraft = await call(`npc-generation/${generated.id}/confirm`, { form: { ...generated.form, name: altName } });
+  assert.equal(renamedDraft.status, 202);
+  assert.equal(renamedDraft.body.request.profile.name, altName);
+  assert.match((await checkName(altName)).body.conflict, /richiesta/);
+  const concurrent = ["site-a","site-b"].map(clientId => ({ ...manual, clientId, document: { ...manual.document, name: "Nome conteso" } }));
+  const attempts = await Promise.all(concurrent.map(body => call(route, body)));
+  assert.deepEqual(attempts.map(item => item.status).sort(), [202,409]);
+  const winner = attempts.findIndex(item => item.status === 202);
+  const queued = attempts[winner].body.request;
+  assert.equal((await call(route, concurrent[winner])).body.request.id, queued.id);
+  // Only Foundry knows about this Actor. Its later conflict can be repaired in place.
+  await call(`managed-actor-commands/${world}/ack`, { createResults: [{ id: queued.id, status: "conflict", current: { actorIds: ["unpublished"] } }] }, campaign, syncHeaders);
+  const rename = (name, previousName = queued.document.name) => call(`${route}/${queued.id}/rename`, { name, previousName });
+  assert.equal((await rename(existingName)).body.code, "NPC_NAME_TAKEN");
+  assert.equal((await rename("Nuovo nome", "Nome superato")).status, 409);
+  const retried = await rename("Nuovo nome");
+  assert.equal(retried.status, 202);
+  assert.equal(retried.body.request.id, queued.id);
+  assert.equal(retried.body.request.status, "pending");
+  assert.deepEqual(retried.body.request.document.media, queued.document.media);
+  assert.equal(retried.body.request.profile.name, "Nuovo nome");
+  assert.equal((await rename("Nome tardivo")).status, 409);
+  const interrupted = await seed(existingName);
+  await storage.put(`job:${interrupted.id}`, { ...interrupted, status: "confirming", confirmation: interrupted.form });
+  const lateCollision = await call(`npc-generation/${interrupted.id}/confirm`, {});
+  assert.equal(lateCollision.body.code, "NPC_NAME_TAKEN");
+  const editable = await jobState(interrupted.id);
+  assert.equal(editable.status, "ready");
+  assert.equal(editable.avatarKey, interrupted.avatarKey);
+  assert.equal(editable.tokenKey, interrupted.tokenKey);
+  assert.equal((await call(`npc-generation/${interrupted.id}/confirm`, { form: { ...editable.form, name: "Forma del gelo" } })).status, 202);
   console.log("NPC generation D1: production Worker/coordinator and transactional SQLite, commit failure, durable receipts, repeated confirmation, Foundry ACK and preserved KV originals passed.");
 } finally { db.database.close(); }

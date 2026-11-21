@@ -28,6 +28,7 @@ import { npcNativeSnapshotD1Enabled, npcNativeSnapshotKey, validateNpcNativeSnap
 import { NPC_NATIVE_EDITOR_VERSION, nativeEntities, nativeFindDocument, nativeTargetKey, nativeValidateChanges, nativePatchConflict, nativeEditorSource, nativeEqual } from "../../../assets/js/shared/npc-native-model.mjs";
 import {validateNativeAbilityItem} from "../../../assets/js/shared/npc-native-ability.mjs";
 import { handleEconomyGet, handleEconomyPost } from "./economy-v1.js";
+import { actorKey as npcFormKey, eligibleNpc, groupFor, updateForms, visibleForms } from "./npc-forms.js";
 export { FoundrySyncHub } from "./foundry-sync-hub.js";
 
 const application = {
@@ -253,18 +254,10 @@ const application = {
           accountId: user => getAuthenticatedAccountId(user, env),
           readActor: async (campaignId, route) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId))),
           readCategories: async campaignId => (await readNpcCategoryRegistry(env, campaignId)).categories,
-          nameExists: async (campaignId, worldId, name, clientId) => {
-            const [rawIndex, rawQueue] = await Promise.all([
-              env.SIGILLO_KV.get(managedActorIndexKey(campaignId)),
-              env.SIGILLO_KV.get(managedActorCreateRequestQueueKey(campaignId)),
-            ]);
-            const key = name.trim().normalize("NFKC").toLocaleLowerCase();
-            return (safeJsonParse(rawIndex)?.data || []).some(actor => actor.worldId === worldId && String(actor.name || "").trim().normalize("NFKC").toLocaleLowerCase() === key)
-              || readManagedActorCreateRequestQueue(rawQueue, campaignId).requests.some(entry => entry.clientId !== clientId && entry.targetWorldId === worldId && String(entry.document?.name || "").trim().normalize("NFKC").toLocaleLowerCase() === key);
-          },
+          nameConflict: (campaignId, worldId, name, clientId) => managedActorCreateNameConflict(env, campaignId, worldId, name, { clientId }),
           enqueue: (body, creationId) => finishManagedActorMutation(handleManagedActorCreateRequestEnqueue(new Request(request.url, {
             method: "POST", headers: request.headers, body: JSON.stringify(body),
-          }), queryCampaignId, env, corsHeaders, ctx, creationId), env, corsHeaders),
+          }), queryCampaignId, env, corsHeaders, ctx, { creationRequestId: creationId }), env, corsHeaders),
         });
         const headers = new Headers(result.headers);
         Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
@@ -315,6 +308,10 @@ const application = {
       const managedActorRoute = matchManagedActorRoute(url.pathname);
       const managedActorLegacyAdoptRoute = matchManagedActorLegacyAdoptRoute(url.pathname);
       const managedActorProfileRoute = matchManagedActorProfileRoute(url.pathname);
+      if (url.pathname.endsWith("/forms") && ["GET", "POST"].includes(request.method)) {
+        const route = matchManagedActorRoute(url.pathname.slice(0, -6));
+        if (route) return handleNpcForms(request, route, queryCampaignId, env, corsHeaders);
+      }
       const managedActorProfileResolveRoute = matchManagedActorProfileResolveRoute(url.pathname);
       const managedActorRuntimeRoute = matchManagedActorRuntimeRoute(url.pathname);
       const managedActorRelationshipRoute = matchManagedActorRelationshipRoute(url.pathname);
@@ -322,6 +319,20 @@ const application = {
       const managedActorCommandBatchRoute = matchManagedActorCommandBatchRoute(url.pathname);
       if (url.pathname === "/api/managed-actor-create-requests" && request.method === "POST") {
         return handleManagedActorCreateRequestEnqueue(request, queryCampaignId, env, corsHeaders, ctx);
+      }
+      const renameCreateRequest = url.pathname.match(/^\/api\/managed-actor-create-requests\/([a-f0-9-]{36})\/rename$/i);
+      if (renameCreateRequest && request.method === "POST") {
+        return handleManagedActorCreateRequestEnqueue(request, queryCampaignId, env, corsHeaders, ctx, { renameRequestId: renameCreateRequest[1] });
+      }
+      if (url.pathname === "/api/managed-actor-create-requests/check-name" && request.method === "GET") {
+        const user = await requireUser(request, env, corsHeaders);
+        if (user instanceof Response) return user;
+        if (!await isAuthenticatedCampaignContentEditor(user, env, queryCampaignId)) return json({ ok: false, error: "Permesso di modifica NPC richiesto." }, 403, corsHeaders);
+        const worldId = sanitizeManagedActorId(url.searchParams.get("world"));
+        const name = (url.searchParams.get("name") || "").trim();
+        if (!worldId || !name || name.length > 180) return json({ ok: false, error: "Controlla il nome e il mondo Foundry." }, 400, corsHeaders);
+        const conflict = await managedActorCreateNameConflict(env, queryCampaignId, worldId, name);
+        return json({ ok: true, conflict }, 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
       }
       if (managedActorCommandRoute && request.method === "POST") {
         return handleManagedActorCommandEnqueue(request, managedActorCommandRoute, queryCampaignId, env, corsHeaders, ctx);
@@ -1799,7 +1810,7 @@ export default {
     const url = new URL(request.url), path = url.pathname;
     let campaignId = getCampaignIdFromUrl(url);
     const managedRoute = /^\/api\/managed-actors(?:\/|$)/.test(path) || path.startsWith("/api/managed-actor-commands/")
-      || path.startsWith("/api/managed-actor-profiles/") || path === "/api/managed-actor-create-requests" || path === "/api/npc-categories"
+      || path.startsWith("/api/managed-actor-profiles/") || /^\/api\/managed-actor-create-requests(?:\/|$)/.test(path) || path === "/api/npc-categories"
       || /^\/api\/npc-generation(?:\/|$)/.test(path);
     const itemsRoute = path === "/api/data/items" || path === "/api/item-categories";
     if (managedRoute && request.method === "POST") {
@@ -1812,7 +1823,7 @@ export default {
     }
     const retrySafe = request.method === "GET" || (request.method === "POST" && (
       /^\/api\/managed-actors\/[^/]+\/[^/]+(?:\/(?:commands|runtime|profile|snapshot))?$/.test(path)
-      || /^\/api\/managed-actor-commands\/[^/]+\/ack$/.test(path) || path === "/api/campaign-items/foundry-sync"));
+      || /^\/api\/managed-actor-commands\/[^/]+\/ack$/.test(path) || path === "/api/managed-actor-create-requests" || path === "/api/campaign-items/foundry-sync"));
     for (let attempt = 0; ; attempt++) {
       const scoped = managedActorStorageEnvironment(env);
       try {
@@ -5602,7 +5613,11 @@ async function handleManagedActorProfileGet(request, route, campaignId, env, cor
       media: { avatar: filteredProfile.media?.avatar || null },
       permissions: { isEditor: reader.isEditor === true, isOwner },
     } : null,
-    permissions: { canReadProfile, canReadSkillTrees, canEdit: canReadProfile && (reader.isEditor === true || isOwner), isEditor: reader.isEditor === true, isOwner, npcCategoryRevision: categoryRegistry.revision },
+    permissions: {
+      canReadProfile, canReadSkillTrees, canEdit: canReadProfile && (reader.isEditor === true || isOwner),
+      isEditor: reader.isEditor === true, isOwner, npcCategoryRevision: categoryRegistry.revision,
+      ...(reader.user && reader.isEditor && eligibleNpc({ ...actor, profile }) ? { canManageForms: true } : {})
+    },
   }, 200, {
     ...corsHeaders,
     "Cache-Control": reader.user || reader.isEditor ? "private, no-store" : "public, max-age=120, must-revalidate",
@@ -6681,7 +6696,25 @@ async function handleManagedActorCommandEnqueue(request, route, fallbackCampaign
 }
 
 
-async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignId, env, corsHeaders = {}, ctx = null, creationRequestId = "") {
+async function managedActorCreateNameConflict(env, campaignId, targetWorldId, name, { queue, clientId, legacyCharacterId } = {}) {
+  const worldId = sanitizeManagedActorId(targetWorldId);
+  const normalize = value => String(value || "").trim().normalize("NFKC").toLowerCase();
+  const key = normalize(name);
+  const [index, rawQueue] = await Promise.all([
+    env.SIGILLO_KV.get(managedActorIndexKey(campaignId)),
+    queue ? null : env.SIGILLO_KV.get(managedActorCreateRequestQueueKey(campaignId)),
+  ]);
+  if ((safeJsonParse(index)?.data || []).some(actor => actor.worldId === worldId && normalize(actor.name) === key)) {
+    return "Esiste già una scheda con questo nome nel mondo scelto. Scegli un nome distinto, per esempio aggiungendo la forma.";
+  }
+  const requests = queue || readManagedActorCreateRequestQueue(rawQueue, campaignId);
+  const reserved = requests.requests.some(entry => (!entry.targetWorldId || entry.targetWorldId === worldId)
+    && !(clientId && entry.clientId === clientId) && !(legacyCharacterId && entry.legacyCharacterId === legacyCharacterId)
+    && normalize(entry.document?.name) === key);
+  return reserved ? "Una richiesta di creazione usa già questo nome nel mondo scelto. Scegli un nome distinto." : "";
+}
+
+async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignId, env, corsHeaders = {}, ctx = null, { creationRequestId, renameRequestId } = {}) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   let body;
   try {
@@ -6696,6 +6729,26 @@ async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignI
   if (user instanceof Response) return user;
   if (!await isAuthenticatedCampaignContentEditor(user, env, campaignId)) {
     return json({ ok: false, error: "Only a campaign editor can create Foundry actors" }, 403, corsHeaders);
+  }
+
+  if (renameRequestId) {
+    const queue = readManagedActorCreateRequestQueue(await env.SIGILLO_KV.get(managedActorCreateRequestQueueKey(campaignId)), campaignId);
+    const entry = queue.requests.find(request => request.id === renameRequestId);
+    if (!entry || entry.legacyCharacterId || entry.status !== "conflict" || !entry.current?.actorIds?.length || entry.document.name !== body.previousName) {
+      return json({ ok: false, error: "La richiesta è cambiata. Aggiorna l’elenco degli NPC." }, 409, corsHeaders);
+    }
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    if (!name || name.length > 180 || name.normalize("NFKC").toLowerCase() === entry.document.name.trim().normalize("NFKC").toLowerCase()) {
+      return json({ ok: false, error: "Scegli un nome diverso, lungo al massimo 180 caratteri." }, 400, corsHeaders);
+    }
+    const conflict = await managedActorCreateNameConflict(env, campaignId, entry.targetWorldId, name, { queue, clientId: entry.clientId });
+    if (conflict) return json({ ok: false, code: "NPC_NAME_TAKEN", error: conflict }, 409, corsHeaders);
+    entry.document.name = name;
+    if (entry.profile) entry.profile.name = name;
+    entry.status = "pending";
+    entry.error = "";
+    delete entry.current;
+    return saveManagedActorCreateRequest(env, ctx, queue, entry, corsHeaders);
   }
 
   const legacyCharacterId = sanitizeAssetId(body?.legacyCharacterId || body?.characterId || "");
@@ -6731,6 +6784,16 @@ async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignI
     (legacyCharacterId && entry.legacyCharacterId === legacyCharacterId)
     || (!legacyCharacterId && entry.clientId === clientId)
   ));
+  // A delivery can be retried while Foundry is already publishing the new Actor.
+  const existing = queue.requests[existingIndex];
+  if (existing?.status === "pending" && existing.targetWorldId === targetWorldId
+      && JSON.stringify(existing.document) === JSON.stringify(document) && JSON.stringify(existing.profile || null) === JSON.stringify(profile)) {
+    return json({ ok: true, queued: true, campaignId, queueVersion: queue.version, request: publicManagedActorCreateRequest(existing) }, 202, { ...corsHeaders, "Cache-Control": "private, no-store" });
+  }
+  if (targetWorldId) {
+    const conflict = await managedActorCreateNameConflict(env, campaignId, targetWorldId, document.name, { queue, clientId, legacyCharacterId });
+    if (conflict) return json({ ok: false, code: "NPC_NAME_TAKEN", error: conflict }, 409, corsHeaders);
+  }
   let createRequest;
   if (existingIndex >= 0) {
     const previous = queue.requests[existingIndex];
@@ -6754,8 +6817,14 @@ async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignI
     };
     queue.requests.push(createRequest);
   }
+  return saveManagedActorCreateRequest(env, ctx, queue, createRequest, corsHeaders);
+}
+
+async function saveManagedActorCreateRequest(env, ctx, queue, createRequest, corsHeaders) {
+  const { campaignId, targetWorldId } = createRequest;
   queue.version += 1;
-  queue.updatedAt = now;
+  createRequest.updatedAt = new Date().toISOString();
+  queue.updatedAt = createRequest.updatedAt;
   await writeManagedActorCreateRequestQueue(env, queue);
   scheduleFoundryLiveInvalidation(ctx, env, {
     campaignId,
@@ -7763,23 +7832,79 @@ function managedActorDirectoryEntry(entry) {
     revision: Number(entry.revision || 0),
     updatedAt: entry.updatedAt || null,
     permissions: entry.permissions,
+    ...(entry.formLabels?.length ? { formLabels: entry.formLabels } : {}),
     ...(entry.sync ? { sync: entry.sync } : {}),
   };
+}
+
+async function readNpcForms(env, campaignId) {
+  const raw = await env.SIGILLO_KV.get(campaignKey(campaignId, "managed-actor-forms"));
+  return raw ? JSON.parse(raw) : { version: 0, groups: [] };
+}
+
+function npcFormAccess(reader, env) {
+  return entry => ({
+    stats: canReadManagedActor(entry, reader.user, reader.isEditor, env),
+    profile: canReadManagedActorProfileIndex(entry.profile, reader.user, reader.isEditor, entry, env)
+  });
+}
+
+async function handleNpcForms(request, route, campaignId, env, corsHeaders) {
+  const headers = { ...corsHeaders, "Cache-Control": "private, no-store" };
+  const reply = (data, status = 200) => json({ ok: status === 200, ...data }, status, headers);
+  const write = request.method === "POST";
+  const candidates = new URL(request.url).searchParams.get("candidates") === "1";
+  const key = npcFormKey(route);
+  const registry = await readNpcForms(env, campaignId);
+  const group = groupFor(registry, key);
+  if (!write && !candidates && !group) return reply({ group: null });
+  const reader = await getManagedActorReader(request, env, campaignId);
+  if ((write || candidates) && !(reader.user && reader.isEditor)) return reply({ error: "Permesso DM richiesto." }, 403);
+  const index = safeJsonParse(await env.SIGILLO_KV.get(managedActorIndexKey(campaignId))) || { data: [] };
+  const { data } = await hydrateManagedActorProfileIndex(index, campaignId, env);
+  const actors = new Map(data.map(entry => [npcFormKey(entry), normalizeGeneratedAvatarDocument(entry)]));
+  if (write) {
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object") return reply({ error: "Richiesta forme non valida." }, 400);
+    const result = updateForms(registry, key, body, actors);
+    if (result.error) return reply({ error: result.error }, result.status);
+    await env.SIGILLO_KV.put(campaignKey(campaignId, "managed-actor-forms"), JSON.stringify(result.registry));
+    return reply({ saved: true });
+  }
+  if (candidates) {
+    const linked = new Set(registry.groups.flatMap(entry => entry.forms.map(form => form.key)));
+    return reply({ candidates: Array.from(actors.values()).filter(actor => eligibleNpc(actor) && npcFormKey(actor) !== key && !linked.has(npcFormKey(actor)))
+      .map(actor => ({ key: npcFormKey(actor), name: actor.name, worldId: actor.worldId })) });
+  }
+  const forms = visibleForms(group, actors, npcFormAccess(reader, env), reader.isEditor);
+  if (!forms.some(form => form.key === key)) return reply({ error: "Scheda non disponibile." }, 403);
+  if (!reader.isEditor && forms.length === 1 && forms[0].key === group.owner) return reply({ group: null });
+  const owner = actors.get(group.owner);
+  return reply({ group: {
+    owner: { worldId: owner.worldId, actorId: owner.actorId, name: owner.name, entityKind: owner.entityKind },
+    forms, ...(reader.isEditor ? { revision: group.revision } : {})
+  } });
 }
 
 async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders = {}) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   const reader = await getManagedActorReader(request, env, campaignId);
-  const directoryView = new URL(request.url).searchParams.get("view") === "directory";
-  const [raw, categoryRegistry, createRaw] = await Promise.all([
+  const view = new URL(request.url).searchParams.get("view");
+  const directoryView = view === "directory";
+  const siteIndex = directoryView || view === "search";
+  const [raw, categoryRegistry, createRaw, formsRegistry] = await Promise.all([
     env.SIGILLO_KV.get(managedActorIndexKey(campaignId)),
     readNpcCategoryRegistry(env, campaignId),
     reader.isEditor && directoryView ? env.SIGILLO_KV.get(managedActorCreateRequestQueueKey(campaignId)) : Promise.resolve(null),
+    siteIndex ? readNpcForms(env, campaignId) : null,
   ]);
   const storedDoc = safeJsonParse(raw) || { version: 0, campaignId, data: [] };
   const profileDoc = await hydrateManagedActorProfileIndex(storedDoc, campaignId, env);
   const doc = await hydrateManagedActorClassificationIndex(profileDoc, campaignId, env);
   const entries = Array.isArray(doc.data) ? doc.data : [];
+  const groups = formsRegistry?.groups || [];
+  const actors = new Map(groups.length ? entries.map(entry => [npcFormKey(entry), normalizeGeneratedAvatarDocument(entry)]) : []);
+  const members = new Map(groups.flatMap(group => group.forms.map(form => [form.key, group])));
   const managedLegacyCharacterIds = Array.from(new Set(entries
     .map((entry) => sanitizeAssetId(entry?.profile?.legacyCharacterId || ""))
     .filter(Boolean)));
@@ -7808,6 +7933,8 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
 
   const data = entries.flatMap((storedEntry) => {
     const entry = normalizeGeneratedAvatarDocument(storedEntry);
+    const key = npcFormKey(entry), group = members.get(key);
+    if (group && key !== group.owner) return [];
     const archived = String(entry?.profile?.lifecycle?.state || "active") === "archived";
     if (archived && (!reader.isEditor || !directoryView)) return [];
     const canReadStats = canReadManagedActor(entry, reader.user, reader.isEditor, env);
@@ -7820,7 +7947,16 @@ async function handleManagedActorIndexGet(request, campaignId, env, corsHeaders 
       permissions: { canReadStats, canReadProfile, canReadSkillTrees, isEditor: reader.isEditor === true },
       ...(syncByActor.has(`${entry.worldId}:${entry.actorId}`) ? { sync: syncByActor.get(`${entry.worldId}:${entry.actorId}`) } : {}),
     };
-    return [directoryView ? managedActorDirectoryEntry(value) : value];
+    if (group) {
+      const forms = visibleForms(group, actors, npcFormAccess(reader, env), reader.isEditor);
+      const selected = forms.find(form => form.current) || forms[0];
+      if (selected) {
+        value.media = selected.media;
+        if (forms.length > 1) value.formLabels = forms.map(form => form.label);
+        value.permissions.canReadStats = selected.canReadStats;
+      }
+    }
+    return [siteIndex ? managedActorDirectoryEntry(value) : value];
   });
   const visibleCategoryIds = new Set(data.flatMap((entry) => [
     sanitizeNpcCategoryId(entry?.profile?.categoryId || ""),
