@@ -1748,6 +1748,71 @@ function getEffectiveSkillLevelDescription(node, index) {
         || '<p>Descrizione potenziamento.</p>';
 }
 
+function skillTreeReviewSource(tree) {
+    const entries = [];
+    const nodes = tree.nodes.map((node, n) => {
+        const item = {id: node.id, name: node.title || String(node.id), flavor: skillLevelHtmlToEditorText(getSkillNodeSharedFlavor(node)),
+            connections: getSkillTreeConnections(node), prerequisites: getNodePrerequisites(node, tree), requiresMode: getSkillTreeRequirementMode(node),
+            requirements: getSkillTreeExternalRequirements(node), levels: []};
+        if (isSkillTreeGroupNode(node)) {
+            const children = getSkillTreeGroupChildren(node), {min, max} = getSkillTreeGroupChoiceLimits(node, children.length);
+            return {...item, description: skillLevelHtmlToEditorText(node.desc), group: {children, min, max: Number.isFinite(max) ? max : 'all'}};
+        }
+        const levels = node.levels?.length ? node.levels : [{}];
+        const descriptions = getSkillLevelScalingDescriptions(node);
+        const model = levels.length > 1 ? getSkillGradeModel(node) : null;
+        if (model) item.template = {text: skillLevelHtmlToEditorText(model.html), variables: model.fields.map((f, i) =>
+            ({marker: '⟦' + i + '⟧', label: f.displayLabel || f.label, values: f.values.map((_, grade) => skillGradeValue(f, grade))}))};
+        item.levels = levels.map((level, i) => {
+            const key = 'n' + (n + 1) + 'g' + (i + 1), name = level.title || item.name;
+            const description = skillLevelHtmlToEditorText(descriptions[i]);
+            const original = model ? (i === 0 ? item.template.text : '') : (i === 0 || getEditableLevelDescription(level) ? description : '');
+            const icon = i === 0 ? node.baseIcon || node.icon || '' : level.icon || '';
+            entries.push({key, nodeId: node.id, level: i, label: item.name + (levels.length > 1 ? ' · Grado ' + (i + 1) : ''),
+                name, original, description, icon, generateIcon: i === 0 || Boolean(icon), template: i === 0 ? item.template : undefined});
+            return {key, name, label: level.label, flavor: skillLevelHtmlToEditorText(level.flavor), description,
+                changes: normalizeSkillLevelChangeNotes(level), pointCost: getSkillTreePointCost(tree, node, i + 1)};
+        });
+        return item;
+    });
+    return {tree: {name: tree.name || tree.title || '', nodes, requirementProfiles: getSkillTreeRequirementProfiles(tree),
+        requirementPresets: getSkillTreeExternalRequirementPresets(tree)}, entries};
+}
+
+function applySkillTreeReview(tree, entries, changes, formatText) {
+    const nodes = structuredClone(tree.nodes), byId = new Map(nodes.map(node => [node.id, node]));
+    const byKey = new Map(entries.map(entry => [entry.key, entry]));
+    for (const change of changes) {
+        const entry = byKey.get(change.key), node = byId.get(entry.nodeId), level = node.levels[entry.level];
+        if (change.text && change.text !== entry.original) {
+            const html = formatText(change.text);
+            if (entry.template) {
+                const model = {...getSkillGradeModel(node), html};
+                node.gradeTemplate = model;
+                node.levels.forEach((grade, i) => {
+                    grade.desc = skillGradeHtml(model, i);
+                    if ('description' in grade) grade.description = grade.desc;
+                });
+            } else {
+                level.desc = html;
+                if ('description' in level) level.description = html;
+            }
+            if (!entry.level) {
+                node.desc = level.desc;
+                if ('baseDesc' in node) node.baseDesc = node.desc;
+            }
+        }
+        if (change.icon) {
+            level.icon = change.icon;
+            if (!entry.level) {
+                node.icon = change.icon;
+                if ('baseIcon' in node) node.baseIcon = change.icon;
+            }
+        }
+    }
+    tree.nodes = nodes;
+}
+
 function getNodeLevelComparisonDescription(node, index) {
     if (!node) return '';
     return getEffectiveSkillLevelDescription(node, Math.max(0, Math.round(Number(index) || 0) - 1));
@@ -2184,6 +2249,57 @@ function markSkillLevelScalingTokens(levelHtml, changes, levelIndex = 0) {
     });
 
     return template.innerHTML;
+}
+
+// Apply emphasis only to the rendered copy. Existing inline elements, including grade
+// values, stay in the DOM and can sit between an opening and a closing delimiter.
+function formatSkillReadingEmphasis(container) {
+    if (!container.textContent.includes('*')) return;
+    const pending = [];
+    for (const child of [...container.childNodes]) {
+        if (child.nodeType === Node.ELEMENT_NODE) {
+            if (!child.matches('span, mark, strong, b, em, i, u, wbr')) pending.length = 0;
+            formatSkillReadingEmphasis(child);
+            continue;
+        }
+        if (child.nodeType !== Node.TEXT_NODE) continue;
+        const source = child.data;
+        const previousChar = child.previousSibling?.textContent.slice(-1) || '';
+        const nextChar = child.nextSibling?.textContent.charAt(0) || '';
+        let rest = child;
+        let offset = 0;
+        for (const match of source.matchAll(/\\\*|\*+/g)) {
+            const token = match[0];
+            const end = match.index + token.length;
+            const before = source[match.index - 1] ?? previousChar;
+            const after = source[end] ?? nextChar;
+            const opening = pending.at(-1);
+            const closes = opening?.data === token && /\S/.test(before) && !/[\p{L}\p{N}_]/u.test(after);
+            const opens = /\S/.test(after) && !/[\p{L}\p{N}_]/u.test(before);
+            const escaped = token.startsWith('\\');
+            if (!escaped && (token.length > 3 || (!closes && !opens))) continue;
+            const marker = rest.splitText(match.index - offset);
+            rest = marker.splitText(token.length);
+            offset = end;
+            if (escaped) {
+                marker.data = token[1];
+            } else if (closes) {
+                pending.pop();
+                const wrapper = document.createElement(token.length === 1 ? 'em' : 'strong');
+                const content = token.length === 3 ? wrapper.appendChild(document.createElement('em')) : wrapper;
+                opening.replaceWith(wrapper);
+                while (wrapper.nextSibling !== marker) content.appendChild(wrapper.nextSibling);
+                marker.remove();
+            } else {
+                pending.push(marker);
+            }
+        }
+    }
+}
+
+function formatSkillNodeReadingPanel(panel) {
+    panel.querySelectorAll('.player-skill-info-desc:not(.is-editable), .player-skill-info-flavor:not([contenteditable]), [data-skill-simple-preview-desc], [data-skill-simple-preview-flavor]')
+        .forEach(formatSkillReadingEmphasis);
 }
 
 function renderSkillNodeDescriptionForReading(node, requestedLevelIndex = null) {
@@ -3348,6 +3464,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     ${levelComparisonHtml}
                     <div class="player-skill-info-desc ${editable ? 'is-editable' : ''}" ${editable ? 'contenteditable="true" data-skill-preview-field="desc" spellcheck="true"' : ''}>${descriptionHtml}</div>`}
                 `;
+        formatSkillNodeReadingPanel(infoPanel);
     };
 
     const applyTreeBackground = () => {
@@ -4626,6 +4743,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         if (descriptionElement) {
             descriptionElement.innerHTML = description || '<p>Nessun dettaglio disponibile.</p>';
         }
+        formatSkillNodeReadingPanel(editorPanel);
         const nodePicker = editorPanel.querySelector('[data-skill-editor-node-picker]');
         const selectedOption = nodePicker?.selectedOptions?.[0];
         if (selectedOption) selectedOption.textContent = (isSkillTreeGroupNode(node) ? 'Gruppo · ' : '') + String(node.title || node.id);
@@ -4723,6 +4841,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                         <output data-skill-bg-opacity>${Math.round(opacity * 100)}%</output>
                     </label>
                 </div>
+                ${skillTreeCurrentUserIsDm && workingTree.nodes.some(node => !isSkillTreeGroupNode(node)) ? '<button type="button" class="player-skill-action-button" data-skill-action="review-tree-ai"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Rivedi tutto l’albero con AI</button>' : ''}
                 ${renderSkillTreeProgressSettings(workingTree)}
                   ${isValdorGuardian() ? `<div class="skill-grade-actions">
                       ${workingTree.nodes.some(n => n.levels?.length > 1 && !Object.hasOwn(n,'gradeTemplate')) ? '<button type="button" class="player-skill-action-button" data-skill-action="migrate-valdor-grades">Adatta i gradi di Valdor</button>' : ''}
@@ -4854,6 +4973,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             </div>
             ${buildEditorFooter()}
         `;
+        formatSkillNodeReadingPanel(editorPanel);
         updateEditorDirtyState();
         restoreEditorViewState(previousEditorViewState, editorContextKey);
     };
@@ -6106,6 +6226,35 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             addDraftNode();
             return;
         }
+        if (action === 'review-tree-ai' && editMode && canEditTree && skillTreeCurrentUserIsDm) {
+            try {
+                const campaignId = getCurrentCampaignId(), accountId = getCurrentAccountId(), snapshot = snapshotTreeDefinition();
+                const check = () => {
+                    if (!editorPanel.isConnected || !editMode || !skillTreeCurrentUserIsDm || campaignId !== getCurrentCampaignId() ||
+                        accountId !== getCurrentAccountId() || snapshotTreeDefinition() !== snapshot) throw new Error('L’albero o la sessione sono cambiati. Riapri la revisione sulla bozza aggiornata.');
+                };
+                const {openSkillTreeReview} = await import('./skill-tree-review.mjs?v=20261120-icon-refs');
+                const {formatSkillNodeDescription, skillNodeAvatarReference} = await import('./skill-node-generator.mjs?v=20261120-icon-stop');
+                check();
+                const source = skillTreeReviewSource(workingTree);
+                await openSkillTreeReview({...source, treeKey, campaignId, accountId, token: readSharedAuthToken(), snapshot,
+                    avatar: skillNodeAvatarReference(character), resolveIcon: resolveSkillAssetPath,
+                    async apply(changes) {
+                        check();
+                        const prepared = [];
+                        for (const change of changes) {
+                            const icon = change.image ? await uploadSkillTreeMedia(change.image, 'nodo-' + change.imageId,
+                                file => resizeImageFileToSquareWebpBlobShared(file, SKILL_TREE_ICON_SIZE, 0.86)) : '';
+                            if (change.image && !icon) throw new Error('Caricamento dell’icona non riuscito. La proposta è conservata.');
+                            prepared.push({key: change.key, text: change.text, icon});
+                        }
+                        check();
+                        applySkillTreeReview(workingTree, source.entries, prepared, text => formatSkillNodeDescription(text, skillLevelEditorTextToHtml));
+                        renderTree(); renderEditor();
+                    }});
+            } catch (error) { alert(error.message || 'Impossibile aprire la revisione.'); }
+            return;
+        }
         if (['generate-node', 'refine-node-text', 'regenerate-node-icon'].includes(action) && editMode && canEditTree && skillTreeCurrentUserIsDm) {
             try {
                 const selected = readEditorNode();
@@ -6131,7 +6280,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                         throw new Error('Il livello è cambiato. Chiudi e riapri lo strumento per usare il contenuto aggiornato.');
                     }
                 }
-                const {openSkillNodeGenerator, formatSkillNodeDescription} = await import('./skill-node-generator.mjs?v=20261118-node-reference2');
+                const {openSkillNodeGenerator, formatSkillNodeDescription} = await import('./skill-node-generator.mjs?v=20261120-icon-stop');
                 checkTarget();
                 openSkillNodeGenerator({treeKey, treeName: workingTree.name || workingTree.title || treeKey, accountId,
                     campaignId, token: readSharedAuthToken(), examples, target, character, isSharedTree, async onApply({title, description, image, imageId}) {

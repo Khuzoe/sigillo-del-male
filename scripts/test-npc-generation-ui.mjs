@@ -28,6 +28,18 @@ const filters = { type: 'abilities', onlySelected: false };
 let refreshes = 0;
 const context = vm.createContext({ data, busy: false, selected, filters, render: () => { refreshes++; }, saveView() {}, fetch: () => assert.fail("Selection must not start a provider request") });
 vm.runInContext(source.slice(start, end), context);
+const appliedIcon = {id:'first-icon', itemId:'accepted', status:'accepted', details:'Indicazioni già usate'};
+const pendingIcon = {id:'pending-icon', itemId:'pending', status:'confirming', details:'Indicazioni in attesa'};
+const drafts = new Map([['accepted', {text: appliedIcon.details}], ['spell', {text:'Altra abilità'}]]);
+context.restoreIconDirections(drafts, [appliedIcon, pendingIcon]);
+assert.equal(drafts.has('accepted'), false, 'An accepted icon clears the previous local direction even when the server still returns it');
+assert.equal(drafts.get('pending').text, pendingIcon.details);
+assert.equal(drafts.get('spell').text, 'Altra abilità');
+drafts.set('accepted', {text:'Nuova direzione', afterAcceptedJob:appliedIcon.id});
+context.restoreIconDirections(drafts, [appliedIcon]);
+assert.equal(drafts.get('accepted').text, 'Nuova direzione', 'Refreshing an applied icon keeps directions typed for the next generation');
+context.restoreIconDirections(drafts, [{...appliedIcon, id:'second-icon'}]);
+assert.equal(drafts.has('accepted'), false);
 assert.equal(vm.runInContext("selectableAbilityIconIds(null).length", context), 0);
 vm.runInContext('const visibleItems = () => visibleAbilityIconItems(data, selected, filters);', context);
 assert.deepEqual(Array.from(vm.runInContext('visibleItems().map(item => item.id)', context)), ['available','accepted','blocked','confirming']);
@@ -49,20 +61,22 @@ assert.equal(selected.size, 0); assert.equal(refreshes, 2, "bulk actions are loc
 const generationStart = source.indexOf('        async function generate(ids)');
 const generationEnd = source.indexOf('        async function apply(id)', generationStart);
 const renders = [], requests = [], notices = [], batchData = structuredClone(data);
-batchData.iconDirections = 1; batchData.jobs = [];
+batchData.iconDirections = 1; batchData.optionalIconReferences = 1; batchData.jobs = [];
+const sharedImages = [{uploadId:'a'.repeat(64)+'.png',note:'Emblema del gelo'},{uploadId:'b'.repeat(64)+'.jpg',note:'Martello cerimoniale'}];
 const batchSelected = new Set(), batchFilters = { type: 'spells', onlySelected: false };
-const batch = vm.createContext({ data: batchData, selected: batchSelected, filters: batchFilters, busy: false, closed: false, timer: null, directions: new Map([['available','Una runa azzurra'],['spell','Una sagoma rossa']]), attempts: {}, crypto: { randomUUID: () => `job-${requests.length}` },
-    clearTimeout() {}, saveView() {}, saveAttempts() {},
+const batch = vm.createContext({ data: batchData, selected: batchSelected, filters: batchFilters, busy: false, closed: false, timer: null, directions: new Map([['available',{text:'Una runa azzurra'}],['spell',{text:'Una sagoma rossa'}]]), attempts: {}, crypto: { randomUUID: () => `job-${requests.length}` },
+    uploadingReferences:false, referencePicker:{values:()=>sharedImages}, clearTimeout() {}, saveView() {}, saveAttempts() {},
     status: text => notices.push(text),
     render() { renders.push(Array.from(batchData.items.filter(item => !batchFilters.onlySelected || batchSelected.has(item.id)), item => item.id)); },
     async request(suffix, body, itemId) { requests.push({body, itemId}); batchData.jobs.push({id:body.requestId,itemId,status:'icon-running'}); return {json:async()=>({job:{id:body.requestId}})}; },
-    async load() { const job = batchData.jobs.at(-1); job.status = 'ready'; job.iconId = job.id; batch.directions.set('spell','Changed after starting'); },
+    async load() { const job = batchData.jobs.at(-1); job.status = 'ready'; job.iconId = job.id; batch.directions.set('spell',{text:'Changed after starting'}); },
     jobFor: id => batchData.jobs.find(job => job.itemId === id), running: job => ['icon-pending','icon-running'].includes(job?.status)
 });
 vm.runInContext(source.slice(start,end) + source.slice(generationStart,generationEnd), batch);
 await vm.runInContext('generate(["available","spell","accepted","blocked"])', batch);
 assert.deepEqual(requests.map(request=>request.itemId), ['available','spell','accepted']);
 assert.deepEqual(requests.map(request=>request.body.details), ['Una runa azzurra','Una sagoma rossa',''], 'Each image receives only its own captured text, including an empty optional field');
+assert.ok(requests.every(request=>JSON.stringify(request.body.references)===JSON.stringify(sharedImages)), 'Every ability receives the same matched reference images and captions');
 assert.ok(renders.every(ids => ids.join(',') === 'available,accepted,spell'), 'Processing/finished cards never disappear from the selected group');
 assert.equal(batchFilters.type,'all'); assert.equal(batchFilters.onlySelected,true);
 assert.deepEqual([...batchSelected],['available','spell','accepted']);
@@ -70,4 +84,29 @@ batchData.iconDirections = undefined; requests.length = 0;
 await vm.runInContext('generate(["available"])', batch);
 assert.equal(requests.length,0,'Optional text never gets silently ignored by an older Worker');
 assert.match(notices.at(-1),/Aggiorna il Worker/);
+// Interrupt while the first POST is still being acknowledged. Even a ready
+// result from that POST must not advance the batch to its second paid icon.
+batchData.iconDirections = 1; batchData.jobs = []; requests.length = 0;
+const submitted = Promise.withResolvers(), acknowledge = Promise.withResolvers();
+const handlers = {};
+Object.assign(batch, {
+    batch: null, controls() {}, el: selector => ({addEventListener: (_event, fn) => { handlers[selector] = fn; }}),
+    async request(suffix, body, itemId) {
+        requests.push({suffix, body, itemId});
+        if (!suffix) {
+            const job = {id: body.requestId, itemId, status: 'icon-pending'};
+            batchData.jobs.push(job); submitted.resolve(); await acknowledge.promise;
+            return {json: async () => ({job})};
+        }
+        return {json: async () => ({job: {...batchData.jobs[0], status: 'ready'}})};
+    }
+});
+vm.runInContext(source.slice(source.indexOf('        async function stopIcon(job)'), source.indexOf('        dialog.showModal();')), batch);
+const interrupted = vm.runInContext('generate(["available","spell"])', batch);
+await submitted.promise; await handlers['[data-stop]'](); acknowledge.resolve(); await interrupted;
+assert.equal(requests.length, 2);
+assert.equal(requests[1].suffix, '/' + requests[0].body.requestId + '/stop');
+assert.equal(requests[1].body.attemptId, requests[0].body.requestId);
+assert.ok(requests.every(request => request.itemId === 'available'));
+assert.equal(batch.busy, false); assert.equal(batch.batch, null);
 console.log('NPC generation UI: full catalog, filters, icon types and legacy fallback, visible bulk selection, stable selected-only batches and isolated per-icon directions passed. No paid calls.');

@@ -1,6 +1,7 @@
 import { nativeGet, nativeSet, nativeHas, nativeEqual, nativeDiff, nativeEditablePath, nativeNewId, nativeActivityTemplate } from "./npc-native-model.mjs";
 import {nativePreserveActivityReferences} from './npc-native-automation.mjs';
 import {validateNpcDomainFields} from './npc-ai-values.mjs';
+import {appendAnimationControls} from './npc-animation-editor.mjs?v=20261120-4';
 
 const clone=value=>JSON.parse(JSON.stringify(value));
 const esc=value=>String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
@@ -37,7 +38,8 @@ const optionsMap=(path,entity)=>{
  return null;
 };
 
-export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,getSource,savePage,descriptionHtml,descriptionValue,resolveMedia,deleteEntity,iconEditor,draftMode=false,creationMode=draftMode,onDraftChange,onEditWithAi,initialTarget,textOnly=false}) {
+export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,getSource,savePage,descriptionHtml,descriptionValue,resolveMedia,deleteEntity,iconEditor,animationContext,draftMode=false,creationMode=draftMode,onDraftChange,onEditWithAi,initialTarget,textOnly=false}) {
+ const animationUploads = new Set();
  const entities=source.entities.map(entity=>({...entity,base:clone(entity.data),draft:clone(entity.initialDraft||entity.data),queued:false}));
  const slots=[],bindings=new Map(),state={busy:false,requestId:null,readOnly:false},permissions=source.permissions;
  const changed=entity=>!nativeEqual(entity.base,entity.draft);
@@ -58,7 +60,7 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
   const img=make("img");img.src=src;img.alt="";img.loading=eager?"eager":"lazy";img.decoding="async";img.draggable=false;return img;
  };
  const set=(entity,path,value,remove=false)=>{nativeSet(entity.draft,path,value,remove);if(entity.type==='Item')nativePreserveActivityReferences(entity.base,entity.draft);if(creationMode&&path==="system.uses.max")for(const activity of Object.values(entity.draft.system.activities||{}))activity.consumption.targets=value&&activity.activation.type?[{type:"itemUses",target:"",value:"1",scaling:{mode:""}}]:[];for(const input of bindings.get(`${entity.key}:${path}`)||[]){if(!input.isConnected)continue;if(input.type==="checkbox")input.checked=Boolean(value);else if(document.activeElement!==input)input.value=value===null&&input.tagName==="SELECT"?"__null":value??"";}if(path.endsWith('.custom.enabled'))for(const slot of slots)for(const node of slot.detail.querySelectorAll('[data-npc-custom-for]'))if(node.dataset.npcCustomFor===path)node.hidden=!value;update();};
- function field(entity,path,label=title(path.split(".").at(-1)),value=nativeGet(entity.draft,path)) {
+ function field(entity,path,label=title(path.split(".").at(-1)),value=nativeGet(entity.draft,path),write=set) {
   const wrapper=make("label","npc-sheet-field"),caption=make("span","",entity.type==='Actor'&&/^system\.traits\.languages\.communication\.[^.]+\.value$/.test(path)?'Distanza':label);wrapper.append(caption);
   const id=`npc-field-${nativeNewId()}`;caption.id=id;
   let map=optionsMap(path,entity);let input;
@@ -70,9 +72,9 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
    input=make("select");const choices={...map};if(value!==null&&!Object.hasOwn(choices,String(value)))choices[value]=String(value);
    if(value===null)choices["__null"]= "Automatica";
    for(const [key,text]of Object.entries(choices)){const option=make("option","",text);option.value=key;input.append(option);}input.value=value===null?"__null":String(value??"");
-   input.addEventListener("change",()=>set(entity,path,input.value==="__null"?null:typeof value==="number"?Number(input.value):input.value));
+   input.addEventListener("change",()=>write(entity,path,input.value==="__null"?null:typeof value==="number"?Number(input.value):input.value));
   } else if(typeof value==="boolean") {
-   wrapper.classList.add("is-switch");input=make("input");input.type="checkbox";input.checked=value;input.addEventListener("change",()=>set(entity,path,input.checked));
+   wrapper.classList.add("is-switch");input=make("input");input.type="checkbox";input.checked=value;input.addEventListener("change",()=>write(entity,path,input.checked));
   } else {
    const isLong=typeof value==="string"&&(/description|biography|macroData\.command/.test(path)||value.length>140);
    const nullableActorNumber=entity.type==='Actor'&&(/^system\.attributes\.senses\.ranges\.[^.]+$|^system\.traits\.languages\.communication\.[^.]+\.value$|^system\.abilities\.[^.]+\.max$|^system\.resources\.[^.]+\.initiative$/.test(path));
@@ -83,7 +85,7 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
    input.addEventListener("input",()=>{
     if(input.type==="number" && !input.validity.valid)return;
     const next=numeric?(input.value===""?null:Number(input.value)):value===null?(input.value===""?null:input.value):input.value;
-    set(entity,path,next);
+    write(entity,path,next);
    });
   }
   input.setAttribute("aria-labelledby",id);input.dataset.npcField=path;
@@ -177,6 +179,24 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
     add.addEventListener("change",()=>{if(!add.value)return;const activity=nativeActivityTemplate(add.value,activityNames[add.value]);if(creationMode&&entity.draft.system.uses.max)activity.consumption.targets=[{type:"itemUses",target:"",value:"1",scaling:{mode:""}}];set(entity,`system.activities.${activity._id}`,activity);selected=activity._id;entity.selectedActivity=selected;render();});nav.append(add);
    if(!selected||!all[selected]){content.append(make("p","npc-sheet-muted","Aggiungi un’attività per definire cosa accade quando usi questa capacità."));return;}
    const activity=all[selected],prefix=`system.activities.${selected}`;
+   if (animationContext && !draftMode) {
+    const animation=group('Animazione');
+    const activityId=selected;
+    animation.node.dataset.activityAnimation=activityId;
+    animation.node.refreshAnimation=()=>{
+     const open=animation.node.open; render();
+     const panel=content.querySelector('[data-activity-animation]'); if(panel)panel.open=open;
+    };
+    const redraw=()=>{
+     for(const slot of slots){
+      const panel=slot.current===entity && slot.detail.querySelector('[data-activity-animation]');
+      if(panel?.dataset?.activityAnimation===activityId)panel.refreshAnimation();
+     }
+    };
+    appendAnimationControls({body:animation.body,activity,entity,id:selected,source,context:animationContext,set,field,make,
+     locked:()=>locked(entity),upload:animationContext.upload,pending:animationUploads,update,redraw});
+    content.append(animation.node);
+   }
     if(activity.type==="attack") {
      const label=make("label","npc-sheet-field"),select=make("select");label.append(make("span","","Dopo un colpo riuscito"));select.setAttribute("aria-label","Dopo un colpo riuscito");
      for(const [id,name]of [["","Nessuna attività aggiuntiva"],...Object.entries(all).filter(([id])=>id!==selected).map(([id,value])=>[id,value.name||activityNames[value.type]])]){const option=make("option","",name);option.value=id;select.append(option);}
@@ -267,7 +287,7 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
  function updateStatus(slot) {
    for(const node of slot.list.children){const entity=node._npcEntity;if(!entity)continue;node.querySelector('.npc-sheet-entity-name').textContent=entity.draft.name||entity.name;const dot=node.querySelector('.npc-sheet-dot');if(changed(entity)&&!dot)node.append(make('span','npc-sheet-dot','●'));if(!changed(entity)&&dot)dot.remove();}
    const count=entities.filter(changed).length,invalid=invalidControl();slot.status.textContent=invalid?'Controlla il campo segnalato':draftMode?(state.readOnlyLabel||(count?"Bozza modificata":state.draftSaved?"Bozza salvata":"Proposta da rivedere")):count?`${count} ${count===1?"elemento modificato":"elementi modificati"}`:"Tutte le modifiche sono salvate";
-  slot.save.disabled=state.busy||(!count&&!invalid)||!source.canApply;
+  slot.save.disabled=state.busy||animationUploads.size>0||(!count&&!invalid)||!source.canApply;
  }
  for(const {node,categories,label}of panes) {
    const shell=make("section",`npc-sheet-editor${draftMode?" is-proposal":""}`),heading=make("header","npc-sheet-heading"),titleGroup=make("div");titleGroup.append(make("span","npc-sheet-eyebrow",draftMode?(creationMode?"Nuova capacità":"Modifica proposta"):"Modifica NPC"),make("h2","",label));const status=make("span","npc-sheet-status");status.setAttribute("role","status");heading.append(titleGroup,status);shell.append(heading);
@@ -285,6 +305,7 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
   if(!dirty())panel.append(make("p","","Nessuna modifica."));panel.append(button("Chiudi",()=>panel.remove()));shell.querySelector(".npc-sheet-heading").after(panel);panel.scrollIntoView({block:"nearest"});
  }
  async function save() {
+  if(animationUploads.size)throw new Error('Attendi il caricamento del WebM prima di salvare.');
   if(draftMode)throw new Error("Conferma la capacità dalla proposta AI.");if(state.busy)return;if(!source.canApply)throw new Error("Ricarica Foundry con Wiki Sync aggiornato.");
   for(const slot of slots){const invalid=slot.shell.querySelector(":invalid");if(invalid){invalid.reportValidity();throw new Error("Controlla i valori inseriti.");}}
   const selected=entities.filter(changed);if(!selected.length)return;for(const entity of selected)if(entity.type==='Actor')validateNpcDomainFields(entity.base,entity.draft,'Actor');
@@ -297,10 +318,10 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
   } finally {state.busy=false;slots.forEach(updateStatus);}
  }
  async function refresh() {
-  if(state.busy||!getSource)return;
+  if(state.busy||animationUploads.size||!getSource)return;
   state.busy=true;slots.forEach(updateStatus);
   try {
-   const latest=(await getSource()).data;source.commands=latest.commands;source.canApply=latest.canApply;
+   const latest=(await getSource()).data;source.commands=latest.commands;source.canApply=latest.canApply;source.animationMedia=latest.animationMedia;source.capabilities=latest.capabilities;
    // Preserve unsent drafts and their original baselines, including conflicts.
    // Only clean entities adopt the newly synchronized native source.
    for(const incoming of latest.entities){const entity=entities.find(e=>e.key===incoming.key);if(entity){entity.img=incoming.img;if(!changed(entity)){entity.data=clone(incoming.data);entity.base=clone(incoming.data);entity.draft=clone(incoming.data);entity.name=incoming.name;entity.queued=false;}}else entities.push({...incoming,base:clone(incoming.data),draft:clone(incoming.data),queued:false});}

@@ -38,7 +38,8 @@
                 <label>Tipo<select name="kind"><option value="person">NPC collegato</option><option value="creature">Creatura del Bestiario</option></select></label>
                 <label>Visibilità dossier<select name="visibility"><option value="dm">Solo DM</option><option value="public">Pubblico</option></select></label>
                 <label>Qualità<select name="quality"><option value="medium">Media</option><option value="high" selected>Alta</option><option value="xhigh">Extra alta · alto costo</option></select></label>
-                <label class="npc-generator__wide">Risoluzione<select name="resolution"><option value="medium">Media · avatar 864 × 1536 · token 1024 × 1024</option><option value="high" selected>Alta · avatar 1296 × 2304 · token 1536 × 1536</option><option value="2k">2K · avatar 1440 × 2560 · token 2048 × 2048 · alto costo</option></select></label>
+                <label class="npc-generator__wide">Risoluzione<select name="resolution"><option value="medium">Media · avatar lato lungo 1536 px · token 1024 × 1024</option><option value="high" selected>Alta · avatar lato lungo 2304 px · token 1536 × 1536</option><option value="2k">2K · avatar lato lungo 2560 px · token 2048 × 2048 · alto costo</option></select></label>
+                <label class="npc-avatar-generator__orientation npc-generator__wide"><input type="checkbox" name="landscape">Avatar orizzontale (16:9)</label>
               </div><p>La descrizione viene salvata nel dossier. Foundry crea la scheda con le statistiche iniziali del flusso di creazione.</p></details>
               <p class="npc-avatar-generator__cost" data-cost-warning hidden><strong>Solo per NPC importanti, alto costo!</strong></p>
             </form>
@@ -47,7 +48,7 @@
             <aside class="npc-generator__preview-pane" aria-label="Anteprime avatar e token">
             <strong class="npc-generator__preview-title">Anteprime</strong>
             <div class="npc-avatar-generator__images npc-generator__previews">
-              <figure><figcaption>Avatar · 9:16</figcaption><div><img data-avatar alt="Anteprima avatar del nuovo NPC" hidden><p data-avatar-placeholder>L'avatar a figura intera apparirà qui.</p><button type="button" data-enlarge="avatar" hidden>Ingrandisci</button></div></figure>
+              <figure><figcaption data-avatar-caption>Avatar · 9:16</figcaption><div><img data-avatar alt="Anteprima avatar del nuovo NPC" hidden><p data-avatar-placeholder>L'avatar a figura intera apparirà qui.</p><button type="button" data-enlarge="avatar" hidden>Ingrandisci</button></div></figure>
               <figure><figcaption>Token · 1:1</figcaption><div><img data-token alt="Anteprima token del nuovo NPC" hidden><p data-token-placeholder>Il token verrà generato dall'avatar.</p><button type="button" data-enlarge="token" hidden>Ingrandisci</button></div></figure>
             </div>
             <p class="npc-avatar-generator__hint" data-token-background>Il modello sceglie angolazione e posa del token. Cornice circolare intera, esterno trasparente.</p>
@@ -72,7 +73,8 @@
         try { const saved = localStorage.getItem(worldStorage); if (saved && (!worlds.length || worlds.includes(saved))) worldControl.value = saved; } catch (_) {}
         let job = null, busy = false, loaded = false, enabled = false, canStop = false, closed = false, applying = false;
         let timer, zoom, pendingRequest = null, storageKey = "", references = [];
-        let resolutions = [], qualities = [];
+        let resolutions = [], qualities = [], landscapeSupported = false;
+        const selectedRatio = () => field("landscape").checked ? "16:9" : "9:16";
         let loadingReferences = false, referenceError = "", referencesPicker;
         let conceptSupported = false, checkingFiles = false;
         const conceptUrls = new Set(), remotePreviews = new Map();
@@ -108,10 +110,13 @@
         function controls() {
             const frozen = locked(), supported = resolutions.includes(field("resolution").value) && qualities.includes(field("quality").value);
             for (const input of form.querySelectorAll("input,textarea,select,button")) input.disabled = frozen;
+            field("landscape").disabled = frozen || !landscapeSupported;
+            const previewRatio = active(job) || job?.hasAvatar ? job.options?.aspectRatio || "9:16" : selectedRatio();
+            el("[data-avatar-caption]").textContent = `Avatar · ${previewRatio}`;
             for (const option of field("resolution").options) option.disabled = !resolutions.includes(option.value);
             for (const option of field("quality").options) option.disabled = !qualities.includes(option.value);
             el("[data-cost-warning]").hidden = field("resolution").value !== "2k" && field("quality").value !== "xhigh";
-            el("[data-generate]").disabled = busy || checkingFiles || active(job) || job?.status === "confirming" || !loaded || !enabled || !supported;
+            el("[data-generate]").disabled = busy || checkingFiles || active(job) || job?.status === "confirming" || !loaded || !enabled || !supported || (field("landscape").checked && !landscapeSupported);
             el("[data-generate]").textContent = active(job) ? "Generazione in corso…" : pendingRequest ? "Riprova invio" : job && job.status !== "accepted" ? "Rigenera avatar e token" : "Genera anteprime";
             el("[data-confirm]").disabled = busy || !loaded || !["ready", "confirming"].includes(job?.status) || previews.avatar?.id !== job?.id || previews.token?.id !== job?.id || Boolean(pendingRequest);
             el("[data-confirm]").textContent = job?.status === "confirming" ? "Riprendi conferma" : "Crea NPC e sincronizza";
@@ -232,6 +237,7 @@
                     field(key).value = value;
                 }
             }
+            field("landscape").checked = (input.aspectRatio ?? input.options?.aspectRatio) === "16:9";
             references = refs.map(reference => ({ ...reference })); renderReferences();
         }
         function clearPreviews() {
@@ -275,6 +281,7 @@
                 if (closed) return;
                 const oldId = job?.id;
                 job = payload.job; loaded = true; enabled = payload.enabled && payload.version === 1 && payload.tokenTransparencyVersion === 1; canStop = payload.canStop === true;
+                landscapeSupported = payload.landscapeAvatar === true;
                 conceptSupported = payload.conceptReferences === 1;
                 if (!conceptSupported) noteStatus("Aggiorna il servizio per allegare immagini. Puoi scegliere gli NPC di esempio.");
                 resolutions = payload.supportedResolutions || []; qualities = payload.supportedQualities || [];
@@ -313,7 +320,7 @@
                     const refs = tokenOnly ? job.references : references.map(({uploadId, name, worldId, actorId, purpose, note}) =>
                         ({...(uploadId ? {uploadId, name} : {worldId, actorId}), purpose, note}));
                     if (closed) return;
-                    remember({ requestId: crypto.randomUUID(), form: readForm(), references: refs, quality: field("quality").value, resolution: field("resolution").value,
+                    remember({ requestId: crypto.randomUUID(), aspectRatio: tokenOnly ? job.options?.aspectRatio || "9:16" : selectedRatio(), form: readForm(), references: refs, quality: field("quality").value, resolution: field("resolution").value,
                         ...(job && job.status !== "accepted" ? { parentJobId: job.id, draftId: job.draftId } : {}), ...(tokenOnly ? { tokenOnly: true } : {}) });
                 }
                 const suffix = pendingRequest.tokenOnly ? `/${pendingRequest.parentJobId}/retry-token` : "";

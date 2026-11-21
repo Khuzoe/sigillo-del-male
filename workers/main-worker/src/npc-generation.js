@@ -1,5 +1,5 @@
 import {handleConceptImage, UPLOAD_ID, MAX_BYTES, imageMime} from './concept-images.js';
-import { AVATAR_MODEL, AVATAR_STYLE, AVATAR_FRAMING, AVATAR_RESOLUTIONS, AVATAR_QUALITIES, avatarGenerationOptions, avatarReferenceKey, webpSize, webpHasAlpha } from "./avatar-generation.js";
+import { AVATAR_MODEL, AVATAR_STYLE, AVATAR_RESOLUTIONS, AVATAR_QUALITIES, avatarDimensions, avatarFraming, avatarGenerationOptions, avatarReferenceKey, webpSize, webpHasAlpha } from "./avatar-generation.js";
 import { GENERATION_PENDING_MS, GENERATION_WAIT_MS, generationDeadline, recoverGeneration, ownsGeneration } from "./generation-lifecycle.js";
 import { NPC_TOKEN_PROMPT, NPC_TOKEN_SIZES } from "./npc-token-prompt.js";
 export { NPC_TOKEN_SIZES } from "./npc-token-prompt.js";
@@ -11,7 +11,6 @@ export const NPC_REFERENCE_PURPOSES = Object.freeze({
   clothing: "clothing, equipment and faction symbols only",
   frame: "the circular token frame's materials, colors and decorations only",
 });
-const ART_STYLE = AVATAR_STYLE.split(" fullbody.")[0];
 const CONCEPT_USES = {
   character: "character concept: preserve the depicted identity, facial features, silhouette and distinctive design unless the description requests a change",
   emblem: "reproduce the emblem's shapes, colors and placement as described",
@@ -33,7 +32,7 @@ function publicJob(job) {
   if (!job) return null;
   return {
     id: job.id, draftId: job.draftId, status: job.status, phase: job.phase, form: job.confirmation || job.form,
-    options: job.options, references: job.references.map(({ uploadId, worldId, actorId, name, purpose, note }) => ({ ...(uploadId ? {uploadId} : {worldId, actorId}), name, purpose, note })),
+    options: avatarGenerationOptions(job.options), references: job.references.map(({ uploadId, worldId, actorId, name, purpose, note }) => ({ ...(uploadId ? {uploadId} : {worldId, actorId}), name, purpose, note })),
     hasAvatar: Boolean(job.avatarReady), hasToken: Boolean(job.tokenReady), tokenBackground: job.tokenBackground || "opaque", error: job.error || "",
     createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job),
     ...(job.receipt ? { requestId: job.receipt.request?.id || job.draftId } : {}),
@@ -105,7 +104,7 @@ export function npcImagePrompt(job, phase) {
     return `${NPC_TOKEN_PROMPT}\n${frames.length ? referenceGuide(frames, 2) : ""}`;
   }
   const references = job.references.filter(reference => reference.purpose !== "frame");
-  return `Create ONE fantasy character. ${references.some(ref => ref.uploadId && ref.purpose === "character") ? "Use the supplied character concept for recognizable identity." : "Create a distinct individual."} Character name: ${JSON.stringify(job.form.name)}. Character description (the authority for identity and requested details): ${JSON.stringify(job.form.description)}. ${AVATAR_FRAMING} No text, labels, border or collage.\nMandatory artistic style:\n${ART_STYLE}\n${references.length ? referenceGuide(references, 1) : ""}`;
+  return `Create ONE fantasy character. ${references.some(ref => ref.uploadId && ref.purpose === "character") ? "Use the supplied character concept for recognizable identity." : "Create a distinct individual."} Character name: ${JSON.stringify(job.form.name)}. Character description (the authority for identity and requested details): ${JSON.stringify(job.form.description)}. ${avatarFraming(job.options)} No text, labels, border or collage.\nMandatory artistic style:\n${AVATAR_STYLE}\n${references.length ? referenceGuide(references, 1) : ""}`;
 }
 
 function referenceGuide(references, first) {
@@ -125,7 +124,7 @@ export async function handleNpcGeneration(request, route, campaignId, env, servi
   if (request.method === "GET" && !route.action) {
     const response = await call("latest");
     const payload = await response.json();
-    return reply({ ...payload, enabled: Boolean(env.OPENAI_API_KEY), style: ART_STYLE }, response.status);
+    return reply({ ...payload, enabled: Boolean(env.OPENAI_API_KEY), style: AVATAR_STYLE }, response.status);
   }
   if (request.method === "GET" && ["avatar", "token"].includes(route.action)) return call(route.action, { id: route.jobId });
   if (request.method !== "POST") return fail("Operazione non supportata.", 405);
@@ -151,8 +150,9 @@ export async function handleNpcGeneration(request, route, campaignId, env, servi
       if (supported.tokenTransparencyVersion !== 1) return fail("Aggiornamento del generatore in corso. Riprova per ottenere token trasparenti.", 503);
       if (Array.isArray(body.references) && body.references.some(ref => ref?.uploadId) && supported.conceptReferences !== 1) return fail("Aggiorna il generatore per usare i concept allegati.", 503);
       const options = avatarGenerationOptions(body);
-      if (!options) return fail("Scegli qualità e risoluzione tra le opzioni disponibili.");
+      if (!options) return fail("Scegli qualità, risoluzione e formato tra le opzioni disponibili.");
       if (route.action === "retry-token") return call("create", { id: body.requestId, parentJobId: route.jobId, tokenOnly: true, options });
+      if (options.aspectRatio === "16:9" && !supported.landscapeAvatar) return fail("Aggiorna il generatore per creare avatar orizzontali.", 503);
       if (body.parentJobId && !UUID.test(body.parentJobId)) return fail("Bozza di partenza non valida.");
       const references = await checkedReferences(body.references ?? [], context, env, services);
       const form = await checkedForm(body.form, campaignId, services, body.parentJobId ? `ai-${body.draftId || body.parentJobId}` : "", hasCharacterConcept(references));
@@ -207,7 +207,7 @@ export class NpcGenerationStore {
     const id = action === "latest" ? latest : input.id;
     let job = id ? await storage.get(`job:${id}`) : null;
     if (job && scope(job.context) !== scope(input.context)) return fail("Bozza non trovata.", 404);
-    if (action === "latest") return reply({ ok: true, version: NPC_GENERATION_VERSION, tokenTransparencyVersion: 1, conceptReferences: 1, canStop: true, supportedResolutions: Object.keys(AVATAR_RESOLUTIONS), supportedQualities: AVATAR_QUALITIES, tokenSizes: NPC_TOKEN_SIZES, job: publicJob(job) });
+    if (action === "latest") return reply({ ok: true, version: NPC_GENERATION_VERSION, tokenTransparencyVersion: 1, conceptReferences: 1, canStop: true, landscapeAvatar: true, supportedResolutions: Object.keys(AVATAR_RESOLUTIONS), supportedQualities: AVATAR_QUALITIES, tokenSizes: NPC_TOKEN_SIZES, job: publicJob(job) });
     if (action === "create") {
       if (job) return reply({ ok: true, job: publicJob(job) });
       const previous = latest ? await storage.get(`job:${latest}`) : null;
@@ -231,7 +231,8 @@ export class NpcGenerationStore {
       }
       job = {
         id: input.id, draftId: parent?.draftId || input.id, context: input.context, form: input.tokenOnly ? parent.form : input.form,
-        references, options: input.options, status: "pending", phase: input.tokenOnly ? "token" : "avatar",
+        references, options: input.tokenOnly ? { ...input.options, aspectRatio: parent.options?.aspectRatio || "9:16" } : input.options,
+        status: "pending", phase: input.tokenOnly ? "token" : "avatar",
         avatarKey: input.tokenOnly ? parent.avatarKey : imageKey(input.id, "avatar"), tokenKey: imageKey(input.id, "token"),
         avatarReady: Boolean(input.tokenOnly), tokenReady: false, tokenBackground: "transparent", error: "", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS,
       };
@@ -277,7 +278,7 @@ export class NpcGenerationStore {
   }
 
   dimensions(job) {
-    return job.phase === "avatar" ? AVATAR_RESOLUTIONS[job.options.resolution] : { width: NPC_TOKEN_SIZES[job.options.resolution], height: NPC_TOKEN_SIZES[job.options.resolution] };
+    return job.phase === "avatar" ? avatarDimensions(job.options) : { width: NPC_TOKEN_SIZES[job.options.resolution], height: NPC_TOKEN_SIZES[job.options.resolution] };
   }
   async completedImage(job) {
     const object = await this.env.MEDIA_BUCKET.get(job[`${job.phase}Key`]);

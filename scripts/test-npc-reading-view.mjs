@@ -32,4 +32,15 @@ entry.definition.activities.attack.activation={type:'minute',value:1};ok(api.ren
 entry.definition.activities.attack.activation={type:'hour',value:2};ok(api.renderManagedAbilityRules(entry,true,true).includes('2 ore'),'Casting time retains its quantity');
 ok(api.renderManagedNpcAbilityDescription(description).includes('Leggi tutto'),'Existing compact editor preview remains supported');
 equal(api.hasManagedProfileContent({blocks:[]}),false);equal(api.hasManagedProfileContent({blocks:[{text:'Un dossier'}]}),true,'Dossier remains default only when it contains something');
+const clip='worlds/demo/moon.webm';
+const animation={menu:'templatefx',primary:{video:{enableCustom:true,customPath:clip},options:{persistent:true,repeat:3,repeatDelay:400},sound:{enable:true}}};
+entry.definition.activities.attack.flags={autoanimations:animation};
+entry.media={animations:{attack:{source:clip,path:'media/moon.webm'}}};
+const animationHtml=()=>api.renderManagedEntryCard(entry,false,'action');
+ok(animationHtml().includes('Loop persistente') && animationHtml().includes(' loop data-activity'),'Template preview loops');
+ok(animationHtml().includes('file audio da impostare'),'An enabled sound without a file is visible');
+animation.primary.options.persistent=false;
+ok(animationHtml().includes('3 riproduzioni · intervallo 400 ms') && !animationHtml().includes(' loop data-activity'));
+animation.soundOnly={sound:{enable:true,file:'worlds/demo/test.ogg'}};
+ok(animationHtml().includes('Solo suono') && !animationHtml().includes('<video'));
 console.log(`NPC reading view: ${checks} checks passed`);

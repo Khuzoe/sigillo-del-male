@@ -1,28 +1,40 @@
 import {GENERATION_WAIT_MS, GENERATION_PENDING_MS, generationDeadline, recoverGeneration, ownsGeneration, generationStopResponse} from "./generation-lifecycle.js";
 import {NPC_TOKEN_PROMPT, NPC_TOKEN_SIZES} from "./npc-token-prompt.js";
 // The model and base style are fixed; quality and resolution use a server-owned allowlist.
-export const AVATAR_STYLE = "Stylized painterly realism, hand-painted surfaces, textured brush strokes, cinematic character portrait, realistic facial structure, expressive eyes, sophisticated color harmony, dramatic rim lighting, soft global illumination, atmospheric perspective, muted but rich color palette, detailed clothing folds, subtle skin texture, realistic lighting behavior, concept art and illustration hybrid, emotional mood, high production animated series quality, visually rich yet grounded, artistic rendering rather than photorealism, masterfully painted 3D look. fullbody. new pose. 9:16";
+export const AVATAR_STYLE = "Stylized painterly realism, hand-painted surfaces, textured brush strokes, cinematic character portrait, realistic facial structure, expressive eyes, sophisticated color harmony, dramatic rim lighting, soft global illumination, atmospheric perspective, muted but rich color palette, detailed clothing folds, subtle skin texture, realistic lighting behavior, concept art and illustration hybrid, emotional mood, high production animated series quality, visually rich yet grounded, artistic rendering rather than photorealism, masterfully painted 3D look.";
 export const AVATAR_MODEL = "gpt-image-2.6-sunburst";
-export const AVATAR_FRAMING = 'Tight full-body character composition: the entire figure, from the top of the head to the soles of the feet, fills approximately 90% of the image height. Keep only small clear margins above the head and below the feet, with all limbs and essential equipment fully inside the image. Make the character the dominant foreground subject, with a clearly readable face and clothing details; keep the background secondary. Choose a natural pose and camera angle. Vertical 9:16.';
+export function avatarFraming(options) {
+  const composition = options?.aspectRatio === "16:9"
+    ? "Horizontal 16:9. Frame the entire figure tightly on a wide canvas. Keep small clear margins around the figure along its longest dimension."
+    : "Vertical 9:16. The entire figure, from the top of the head to the soles of the feet, fills approximately 90% of the image height. Keep small clear margins above the head and below the feet.";
+  return `Tight full-body character composition. ${composition} Keep all limbs and essential equipment fully inside the image. Make the character the dominant foreground subject, with a clearly readable face and clothing details. Keep the background secondary. Choose a natural pose and camera angle.`;
+}
 export const AVATAR_RESOLUTIONS = Object.freeze({ medium: { width: 864, height: 1536 }, high: { width: 1296, height: 2304 }, "2k": { width: 1440, height: 2560 } });
 export const AVATAR_QUALITIES = Object.freeze(["medium", "high", "xhigh"]);
-export function avatarGenerationOptions(input = {}) {
+export function avatarGenerationOptions(input = {}, slot = "avatar") {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
   const quality = input.quality ?? "high", resolution = input.resolution ?? "high";
   if (!AVATAR_QUALITIES.includes(quality) || typeof resolution !== "string" || !Object.hasOwn(AVATAR_RESOLUTIONS, resolution)) return null;
-  return { quality, resolution };
+  if (slot === "token") return { quality, resolution };
+  const aspectRatio = input.aspectRatio ?? "9:16";
+  if (aspectRatio !== "9:16" && aspectRatio !== "16:9") return null;
+  return { quality, resolution, aspectRatio };
+}
+export function avatarDimensions(options) {
+  const portrait = AVATAR_RESOLUTIONS[options?.resolution || "high"];
+  return options?.aspectRatio === "16:9" ? { width: portrait.height, height: portrait.width } : portrait;
 }
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 const PRIVATE_PREFIX = "_private/ai-avatars/";
 const tokenJob = job => job?.context?.slot === "token";
 const privateImageKey = job => `${tokenJob(job) ? "_private/ai-tokens/" : PRIVATE_PREFIX}${job.id}.webp`;
-const imageDimensions = job => tokenJob(job) ? {width: NPC_TOKEN_SIZES[job.options?.resolution || "high"], height: NPC_TOKEN_SIZES[job.options?.resolution || "high"]} : AVATAR_RESOLUTIONS[job.options?.resolution || "high"];
+const imageDimensions = job => tokenJob(job) ? {width: NPC_TOKEN_SIZES[job.options?.resolution || "high"], height: NPC_TOKEN_SIZES[job.options?.resolution || "high"]} : avatarDimensions(job.options);
 const validTokenImage = (job, bytes) => { const size = webpSize(bytes), expected = imageDimensions(job); return bytes.length <= MAX_IMAGE_BYTES && size?.width === expected.width && size?.height === expected.height && webpHasAlpha(bytes); };
 const reply = (data, status = 200) => Response.json(data, { status, headers: { "Cache-Control": "private, no-store" } });
 const failure = (message, status = 400) => reply({ ok: false, error: message }, status);
 const identity = (c) => `${c.campaignId}:${c.worldId}:${c.actorId}${c.slot === "token" ? ":token" : ""}`;
 const fingerprint = (avatar) => JSON.stringify([normalizeGeneratedAvatarPath(avatar?.path), avatar?.revision || 0, avatar?.hash || ""]);
-const publicJob = (job) => job ? ({ id: job.id, mediaSlot: tokenJob(job) ? "token" : "avatar", status: job.status, details: job.details, options: avatarGenerationOptions(job.options), error: job.error || "", createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job) }) : null;
+const publicJob = (job) => job ? ({ id: job.id, mediaSlot: tokenJob(job) ? "token" : "avatar", status: job.status, details: job.details, options: avatarGenerationOptions(job.options, job.context.slot), error: job.error || "", createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job) }) : null;
 
 // Early confirmations stored the R2 key instead of the site's media path.
 // Normalize only those generated assets; never reinterpret arbitrary campaign files.
@@ -91,8 +103,13 @@ export async function handleAvatarGeneration(request, route, campaignId, env, se
     if (!env.OPENAI_API_KEY) return failure("Il generatore deve essere attivato dall’amministratore.", 503);
     if (!/^[a-f0-9-]{36}$/i.test(body.requestId || "")) return failure("Identificativo richiesta non valido.");
     if (typeof body.details !== "string" || body.details.length > 1500) return failure("La descrizione può contenere fino a 1500 caratteri.");
-    const options = avatarGenerationOptions(body);
-    if (!options) return failure("Scegli qualità media, alta o extra alta e risoluzione media, alta o 2K.");
+    const options = avatarGenerationOptions(body, slot);
+    if (!options) return failure("Scegli qualità, risoluzione e formato tra le opzioni disponibili.");
+    if (!isToken && options.aspectRatio === "16:9") {
+      const latest = await call("latest");
+      if (!latest.ok) return latest;
+      if (!(await latest.json()).landscapeAvatar) return failure("Aggiorna il generatore per creare avatar orizzontali.", 503);
+    }
     const referenceKey = avatarReferenceKey(actor.media?.avatar?.path, campaignId);
     if (!referenceKey) return failure("Prima carica e salva l’avatar attuale sulla wiki: servirà come riferimento.");
     const reference = await env.MEDIA_BUCKET.head(referenceKey);
@@ -156,7 +173,7 @@ export class AvatarGenerationStore {
     const id = action === "latest" ? latest : input.id;
     const job = id ? await storage.get(`job:${id}`) : null;
     if (job && identity(job.context) !== scope) return failure("Anteprima non trovata.", 404);
-    if (action === "latest") return reply({ ok: true, canStop: true, tokenGenerationVersion: 1, tokenSizes: NPC_TOKEN_SIZES, supportedResolutions: Object.keys(AVATAR_RESOLUTIONS), supportedQualities: AVATAR_QUALITIES, job: publicJob(job) });
+    if (action === "latest") return reply({ ok: true, canStop: true, landscapeAvatar: true, tokenGenerationVersion: 1, tokenSizes: NPC_TOKEN_SIZES, supportedResolutions: Object.keys(AVATAR_RESOLUTIONS), supportedQualities: AVATAR_QUALITIES, job: publicJob(job) });
     if (action === "create") {
       if (job) return reply({ ok: true, job: publicJob(job) });
       const previous = latest ? await storage.get(`job:${latest}`) : null;
@@ -238,7 +255,7 @@ export class AvatarGenerationStore {
     const abortController = this.abortController;
     let providerStarted = false;
     try {
-      const options = avatarGenerationOptions(job.options);
+      const options = avatarGenerationOptions(job.options, job.context.slot);
       if (!options) throw new Error("Il servizio ha ricevuto impostazioni non valide.");
       const dimensions = imageDimensions(job);
       const source = await this.env.MEDIA_BUCKET.get(job.referenceKey);
@@ -247,7 +264,7 @@ export class AvatarGenerationStore {
       const mime = /\.png$/i.test(job.referenceKey) ? "image/png" : /\.jpe?g$/i.test(job.referenceKey) ? "image/jpeg" : "image/webp";
       const prompt = tokenJob(job)
         ? `${NPC_TOKEN_PROMPT}\nAdditional token direction (must respect character identity, the complete circular frame and transparent exterior): ${JSON.stringify(job.details || "None.")}`
-        : `Reimagine the character in the reference image. Preserve recognizable identity, facial features, species and distinctive clothing, in a new pose. ${AVATAR_FRAMING} No text, labels, border or collage.\nAdditional character direction (must respect the mandatory style and composition): ${job.details || "None."}\nMandatory style and composition:\n${AVATAR_STYLE}`;
+        : `Reimagine the character in the reference image. Preserve recognizable identity, facial features, species and distinctive clothing, in a new pose. ${avatarFraming(options)} No text, labels, border or collage.\nAdditional character direction (must respect the mandatory style and composition): ${job.details || "None."}\nMandatory style and composition:\n${AVATAR_STYLE}`;
       providerStarted = true;
       const response = await fetch("https://api.openai.com/v1/images/edits", {
         method: "POST", headers: { Authorization: `Bearer ${this.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
@@ -264,7 +281,7 @@ export class AvatarGenerationStore {
       if (typeof encoded !== "string" || encoded.length > MAX_IMAGE_BYTES * 1.4) throw new Error("Risultato immagine non valido.");
       const bytes = Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0));
       const size = webpSize(bytes);
-      if (bytes.length > MAX_IMAGE_BYTES || !size || size.width !== dimensions.width || size.height !== dimensions.height) throw new Error(tokenJob(job) ? "Il servizio non ha restituito il token nel formato quadrato richiesto." : "Il servizio non ha restituito l'immagine nel formato verticale richiesto.");
+      if (bytes.length > MAX_IMAGE_BYTES || !size || size.width !== dimensions.width || size.height !== dimensions.height) throw new Error(tokenJob(job) ? "Il servizio non ha restituito il token nel formato quadrato richiesto." : `Il servizio non ha restituito l'avatar nel formato ${options.aspectRatio} richiesto.`);
       if (tokenJob(job) && !webpHasAlpha(bytes)) throw new Error("Il servizio non ha restituito il canale di trasparenza richiesto per il token.");
       await this.env.MEDIA_BUCKET.put(privateImageKey(job), bytes, { httpMetadata: { contentType: "image/webp" } });
       job.status = "ready";

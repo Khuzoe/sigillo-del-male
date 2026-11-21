@@ -2,6 +2,7 @@ import {avatarReferenceKey} from './avatar-generation.js';
 import {generationStopResponse} from './generation-lifecycle.js';
 import {abilityIconSubject,abilityIconContext,ABILITY_ICON_PROMPT_VERSION,ABILITY_ICON_MODEL} from './ability-icon-prompt.js';
 import {canUseAbilityTools,managedAbilityItems,abilityHasPendingCommand} from './managed-ability-tools.js';
+import {handleConceptImage,resolveOptionalIconReferences} from './concept-images.js';
 
 const reply=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'private, no-store'}});
 const fail=(error,status=400)=>reply({ok:false,error},status);
@@ -16,6 +17,12 @@ export async function handleAbilityIcons(request,route,campaignId,env,services) 
   if(!env.ABILITY_GENERATOR||!env.MEDIA_BUCKET)return fail('Aggiorna il Worker per generare le icone.',503);
   const actor=await services.readActor(campaignId,route);
   if(!await canUseAbilityTools(user,actor,campaignId,services))return fail('Solo il DM o il proprietario del personaggio può generare icone.',403);
+  const account = services.accountId(user);
+  const conceptKey = id => '_private/ability-icon-concepts/' + [campaignId,route.worldId,route.actorId,account,id].map(encodeURIComponent).join('/');
+  if(route.action==='concepts') {
+    if(!account)return fail('Accedi per usare i riferimenti visivi.',403);
+    return handleConceptImage(request,route.uploadId,env.MEDIA_BUCKET,conceptKey);
+  }
   const player=actor.actorType!=='npc';
   const native=player?null:await services.readNativeActor?.(campaignId,route);
   const items=player?managedAbilityItems(actor):(native?.snapshot?.actor?.items||[]).filter(item=>['feat','weapon','spell'].includes(item.type));
@@ -29,7 +36,7 @@ export async function handleAbilityIcons(request,route,campaignId,env,services) 
     if(request.method==='GET'&&!route.action) {
       const response=await call('icon-list',{itemIds:items.map(item=>item._id)}),data=await response.json();
       if(!response.ok||data.abilityIcons!==1)return fail('Il generatore si sta aggiornando. Riprova tra poco.',503);
-      return reply({...data,iconDirections:1,enabled:Boolean(env.OPENAI_API_KEY),canSync,hasAvatar:Boolean(avatarReferenceKey(actor.media?.avatar?.path,campaignId)),items:items.map(item=>({id:item._id,name:item.name,type:item.type,img:actor.definition?.items?.find(entry=>entry.itemId===item._id)?.media?.icon?.path||item.img||'',blocked:blocked(item)}))});
+      return reply({...data,iconDirections:1,referenceOwner:account,enabled:Boolean(env.OPENAI_API_KEY),canSync,hasAvatar:Boolean(avatarReferenceKey(actor.media?.avatar?.path,campaignId)),items:items.map(item=>({id:item._id,name:item.name,type:item.type,img:actor.definition?.items?.find(entry=>entry.itemId===item._id)?.media?.icon?.path||item.img||'',blocked:blocked(item)}))});
     }
     const itemId=new URL(request.url).searchParams.get('item');
     const item=items.find(item=>item._id===itemId);
@@ -52,6 +59,12 @@ export async function handleAbilityIcons(request,route,campaignId,env,services) 
       // Retrying the same paid request must recover it even if the source changed.
       const existing=await call('icon-existing',{id:body.requestId},itemId);
       if(existing.status!==404)return existing;
+      let optionalReferences;
+      if(body.references !== undefined) {
+        if(!account)return fail('Accedi per usare i riferimenti visivi.',403);
+        if(capabilities.optionalIconReferences !== 1)return fail('Aggiorna il generatore per usare i riferimenti visivi.',503);
+        optionalReferences = await resolveOptionalIconReferences(body.references,env.MEDIA_BUCKET,conceptKey);
+      }
       if((body.details!==undefined&&typeof body.details!=='string')||(typeof body.details==='string'&&body.details.length>1500))return fail('Le indicazioni aggiuntive devono essere un testo di massimo 1500 caratteri.');
       const details=(body.details||'').trim();
       if(capabilities.imageModel!==ABILITY_ICON_MODEL)return fail('Il generatore si sta aggiornando a Sunburst 2.6. Nessuna nuova generazione è stata avviata. Riprova tra poco.',503);
@@ -61,7 +74,7 @@ export async function handleAbilityIcons(request,route,campaignId,env,services) 
       if(!reference||reference.size>12*1024*1024)return fail('Carica e salva un avatar sulla wiki (massimo 12 MB).');
       const description=iconDescription(item);
       if(description.length>16000)return fail('La descrizione della capacità è troppo estesa per generare l’icona.');
-      return call('create',{id:body.requestId,kind:'ability-icon',details,withIcon:true,draft:{name:item.name,iconPrompt:details},iconContext:abilityIconContext(item,items),iconPromptVersion:ABILITY_ICON_PROMPT_VERSION,sourceFingerprint:fingerprint(item),sourceImage:item.img||'',referenceKey,referenceEtag:reference.etag||''},itemId);
+      return call('create',{id:body.requestId,kind:'ability-icon',details,withIcon:true,draft:{name:item.name,iconPrompt:details},iconContext:abilityIconContext(item,items),iconPromptVersion:ABILITY_ICON_PROMPT_VERSION,sourceFingerprint:fingerprint(item),sourceImage:item.img||'',referenceKey,referenceEtag:reference.etag||'',...(optionalReferences?.length && {optionalReferences})},itemId);
     }
     if(route.action!=='confirm')return fail('Operazione non supportata.',405);
     const response=await call('job',{id:route.jobId},itemId);

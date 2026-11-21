@@ -85,10 +85,11 @@ assert.equal((await req(base, undefined, undefined, campaign, syncHeaders)).stat
 const initial = await status();
 assert.equal(initial.version, 1); assert.equal(initial.canStop, true); assert.equal(initial.enabled, true); assert.equal(initial.job, null);
 assert.equal(initial.tokenTransparencyVersion, 1);
+assert.equal(initial.landscapeAvatar, true);
 assert.deepEqual(initial.tokenSizes, NPC_TOKEN_SIZES);
 assert.deepEqual(initial.supportedQualities, ["medium", "high", "xhigh"]);
 assert.deepEqual(initial.supportedResolutions, ["medium", "high", "2k"]);
-for (const patch of [{ requestId: "bad" }, { quality: "ultra" }, { resolution: "4k" }, { form: { ...form(), description: "" } }, { form: { ...form(), categoryId: "missing" } }, { form: { ...form(), targetWorldId: "../world" } }, { form: { ...form(), name: "Una guardia" } }, { references: [{ worldId: world, actorId: "missing", purpose: "style" }] }, { references: [{ worldId: world, actorId: "example", purpose: "invalid" }] }, { references: Array.from({ length: 4 }, () => ({ worldId: world, actorId: "example", purpose: "style" })) }]) {
+for (const patch of [{ requestId: "bad" }, { quality: "ultra" }, { resolution: "4k" }, { aspectRatio: "1:1" }, { form: { ...form(), description: "" } }, { form: { ...form(), categoryId: "missing" } }, { form: { ...form(), targetWorldId: "../world" } }, { form: { ...form(), name: "Una guardia" } }, { references: [{ worldId: world, actorId: "missing", purpose: "style" }] }, { references: [{ worldId: world, actorId: "example", purpose: "invalid" }] }, { references: Array.from({ length: 4 }, () => ({ worldId: world, actorId: "example", purpose: "style" })) }]) {
   assert.equal((await req(base, { ...submit(), ...patch }, dm)).status, 400, JSON.stringify(patch));
 }
 assert.equal(await storage.get("active"), undefined, "invalid input never starts paid work");
@@ -133,6 +134,8 @@ try {
   assert.equal(calls.length, 1); assert.ok(calls[0].url.endsWith("/generations")); assert.equal(calls[0].body.images, undefined);
   assert.equal(calls[0].body.size, "1296x2304"); assert.match(calls[0].body.prompt, /full.*body|entire body/i);
   const avatarOnly = (await status()).job;
+  assert.equal(avatarOnly.options.aspectRatio, "9:16");
+  assert.match(calls[0].body.prompt, /Vertical 9:16/);
   assert.equal(avatarOnly.phase, "token"); assert.equal(avatarOnly.hasAvatar, true); assert.equal(avatarOnly.hasToken, false);
   assert.equal((await req(`${base}/${id}/avatar`, undefined, dm)).status, 200);
   assert.equal((await req(`${base}/${id}/token`, undefined, dm)).status, 409);
@@ -176,10 +179,13 @@ try {
   assert.equal((await status(admin)).job, null);
   assert.equal((await status(admin, "mago-folle")).job, null, "campaign drafts are isolated");
 
-  const regenerated = await start(submit("Nuovo cavaliere", { parentJobId: referenceJob.id }));
+  const regenerated = await start(submit("Nuovo cavaliere", { parentJobId: referenceJob.id, aspectRatio: "16:9" }));
   assert.equal(regenerated.draftId, referenceJob.draftId); assert.equal(regenerated.hasToken, false);
   assert.equal((await req(`${base}/${referenceJob.id}/confirm`, {}, dm)).status, 409, "a superseded pair cannot be confirmed");
   await coordinator.alarm(); failToken = true; await coordinator.alarm(); failToken = false;
+  assert.equal(calls.at(-2).body.size, "2304x1296");
+  assert.match(calls.at(-2).body.prompt, /Horizontal 16:9/);
+  assert.doesNotMatch(calls.at(-2).body.prompt, /9:16/);
   const partial = (await status()).job;
   assert.equal(partial.status, "uncertain"); assert.equal(partial.hasAvatar, true); assert.equal(partial.hasToken, false);
   assert.doesNotMatch(partial.error, /private provider payload/);
@@ -188,6 +194,9 @@ try {
   assert.equal(retried.status, 202, await retried.clone().text());
   const retryJob = (await retried.json()).job; assert.equal(retryJob.draftId, referenceJob.draftId);
   await coordinator.alarm();
+  assert.equal(retryJob.options.aspectRatio, "16:9", "retrying only the token preserves the existing avatar orientation");
+  assert.equal(calls.at(-1).body.images[0].image_url, `data:image/webp;base64,${Buffer.from(image(2304, 1296)).toString("base64")}`);
+  assert.doesNotMatch(calls.at(-1).body.prompt, /9:16|16:9/);
   assert.equal(calls.length, beforeRetry + 1); assert.equal(calls.at(-1).body.size, "1024x1024"); assert.equal(calls.at(-1).body.quality, "medium");
   assert.equal((await status()).job.status, "ready");
   assert.equal((await readJob(retryId)).avatarKey, (await readJob(regenerated.id)).avatarKey);

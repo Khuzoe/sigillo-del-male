@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import * as snapshots from '../integrations/cripta-wiki-sync/npc-native-snapshot.mjs';
+import {hasNpcAnimation} from '../integrations/cripta-wiki-sync/activity-animation-sync.mjs';
 let checks=0;const eq=(a,b,label)=>{assert.deepEqual(a,b,label);checks++;},ok=(v,label)=>{assert.ok(v,label);checks++;};
 const clone=structuredClone,world='test-world',firstId='FirstNPC00000001',secondId='SecondNPC0000001';
 const raw=id=>({_id:id,type:'npc',name:id,system:{attributes:{hp:{value:10,max:30}}},items:[],effects:[],flags:{secret:{value:'PRIVATE SOURCE'}},_stats:{modifiedTime:1}});
@@ -14,7 +15,7 @@ const modulePath=process.argv[2]||'C:/Program Files/Foundry DEV TEST/FoundryVTT-
 const source=await readFile(modulePath,'utf8'),settings=new Map([['campaignId','cripta-di-sangue'],['managedActorSyncState',{[firstId]:{revision:5}}]]),timers=new Map(),requests=[],messages=[];
 let nextTimer=0,push=true,fail=false;
 const collection={get:id=>actors.find(actor=>actor.id===id),*[Symbol.iterator](){yield* actors;}};
-const sandbox={...snapshots,console:{info(){},warn(...args){messages.push(args);}},URL,AbortSignal,crypto,structuredClone,Set,Map,WeakSet,
+const sandbox={...snapshots,hasNpcAnimation,console:{info(){},warn(...args){messages.push(args);}},URL,AbortSignal,crypto,structuredClone,Set,Map,WeakSet,
  MODULE_ID:'cripta-wiki-sync',SETTINGS:{CAMPAIGN_ID:'campaignId'},DISCORD_WORKER_URL:'https://test.invalid',canPushToWorker:()=>push,canPullFromWorker:()=>true,isTemporaryWikiActor:actor=>Boolean(actor?.temporary),
  foundry:{utils:{deepClone:clone}},game:{user:{id:'gm',isGM:true},users:{activeGM:{id:'gm'}},world:{id:world},actors:collection,modules:new Map(),settings:{get:(_module,key)=>settings.get(key)||{},async set(_module,key,value){settings.set(key,clone(value));}}},
  window:{setTimeout(fn,delay){const id=++nextTimer;timers.set(id,{fn,delay});return id;},clearTimeout(id){timers.delete(id);}},
@@ -37,7 +38,7 @@ eq(first.source.system.attributes.hp.value,7);eq(second.source.system.attributes
 // overwrite a new prompt or restore an addition removed from an unsaved draft.
 const uiSource=await readFile(new URL('../assets/js/shared/npc-sheet-ai.js',import.meta.url),'utf8'),start=uiSource.indexOf('  function ingest(payload){'),end=uiSource.indexOf('  async function load()',start);ok(start>=0&&end>start);
 const ui={model:{NPC_SHEET_AI_FORMAT:'npc-native-sheet-edit-v1'},Date,JSON,setTimeout(){return 1;},clearTimeout(){}};vm.createContext(ui);
-vm.runInContext(`let job=null,editor=null,fresh=false,renderedId='',pendingRequest=null,sharedRuntime=true,enabled=true,canGenerate=true,canSync=false,loaded=false,timer,waitingSince=0,closed=false;
+vm.runInContext(`let job=null,editor=null,fresh=false,renderedId='',pendingRequest=null,sharedRuntime=true,enabled=true,canGenerate=true,canSync=false,loaded=false,timer,waitingSince=0,closed=false,hasAvatar=false,supportsVisualInput=false,delivery=null,localRestored=false;
 const nodes=new Map(),el=key=>{if(!nodes.has(key))nodes.set(key,{});return nodes.get(key);},running=()=>job?.status==='running',renderProposal=()=>{},controls=()=>{},persist=()=>{},status=()=>{},load=()=>{};
 ${uiSource.slice(start,end)}
 globalThis.test={ingest,prepare:state=>{job=state.job;editor=state.editor;fresh=state.fresh||false;el('[data-prompt]').value=state.prompt;},state:()=>JSON.parse(JSON.stringify({job,editor,fresh,renderedId,canSync,prompt:el('[data-prompt]').value}))};`,ui);

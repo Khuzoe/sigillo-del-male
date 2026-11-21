@@ -77,6 +77,7 @@ assert.equal((await req(generation, undefined, dm, {}, "mago-folle")).status, 40
 assert.equal((await req(generation, undefined, dm)).status, 200);
 const emptyStatus = await (await req(generation, undefined, admin)).json();
 assert.equal(emptyStatus.enabled, true);
+assert.equal(emptyStatus.landscapeAvatar, true);
 assert.equal(emptyStatus.optionsVersion, 1, "frontend can detect an older Worker that would ignore selected settings");
 assert.deepEqual(emptyStatus.supportedResolutions, ["medium", "high", "2k"], "the active coordinator advertises its supported resolutions");
 assert.deepEqual(emptyStatus.supportedQualities, ["medium", "high", "xhigh"], "the active coordinator advertises its supported quality levels");
@@ -91,6 +92,7 @@ try {
     assert.equal((await (await req(generation, undefined, dm)).json()).canStop, false, "do not advertise stop for an old running coordinator");
     assert.equal((await (await req(generation, undefined, dm)).json()).supportedResolutions, undefined, "an older coordinator must not advertise 2K before its code updates");
     assert.equal((await (await req(generation, undefined, dm)).json()).supportedQualities, undefined, "an older coordinator must not advertise extra-high quality before its code updates");
+    assert.equal((await req(generation, {requestId: randomUUID(), details: "", aspectRatio: "16:9"}, dm)).status, 503, "older coordinators must not generate a paid portrait for a landscape request");
     const updating = await req(`${generation}/${randomUUID()}/stop`, {}, dm);
     assert.equal(updating.status, 503);
     assert.equal((await updating.json()).code, "GENERATOR_UPDATING");
@@ -99,7 +101,7 @@ delete env.OPENAI_API_KEY;
 assert.equal((await req(generation, { requestId: randomUUID(), details: "" }, dm)).status, 503);
 env.OPENAI_API_KEY = "fake-key-no-live-api";
 assert.equal((await req(generation, { requestId: randomUUID(), details: "x".repeat(1501) }, dm)).status, 400);
-for (const options of [{ quality: "max" }, { resolution: "4k" }, { quality: 1 }, { resolution: {} }]) {
+for (const options of [{ quality: "max" }, { resolution: "4k" }, { aspectRatio: "1:1" }, { quality: 1 }, { resolution: {} }]) {
     assert.equal((await req(generation, { requestId: randomUUID(), details: "", ...options }, dm)).status, 400, "unsupported settings cannot start a generation");
 }
 assert.equal(avatarReferenceKey("http://localhost/private.png", campaign), "");
@@ -133,6 +135,7 @@ try {
     assert.equal(captured.model, AVATAR_MODEL);
     assert.equal(captured.n, 1);
     assert.equal(captured.size, "1296x2304");
+    assert.match(captured.prompt, /Vertical 9:16/);
     assert.equal(captured.quality, "high");
     assert.equal(captured.output_format, "webp");
     assert.ok(captured.prompt.endsWith(AVATAR_STYLE));
@@ -261,7 +264,10 @@ try {
     assert.deepEqual([...kv.entries()], kvBeforeUnlimited, "removing the cap leaves all KV records intact");
     for (const quality of ["medium", "high", "xhigh"]) for (const resolution of ["medium", "high", "2k"]) {
         const requestId = randomUUID();
-        const dimensions = resolution === "medium" ? { width: 864, height: 1536 } : resolution === "2k" ? { width: 1440, height: 2560 } : { width: 1296, height: 2304 };
+        const landscape = quality === "xhigh";
+        const aspectRatio = landscape ? "16:9" : "9:16";
+        const portrait = resolution === "medium" ? { width: 864, height: 1536 } : resolution === "2k" ? { width: 1440, height: 2560 } : { width: 1296, height: 2304 };
+        const dimensions = landscape ? { width: portrait.height, height: portrait.width } : portrait;
         const output = webp.slice();
         for (let byte = 0; byte < 3; byte++) {
             output[24 + byte] = ((dimensions.width - 1) >>> (byte * 8)) & 255;
@@ -271,23 +277,25 @@ try {
             calls++;
             const body = JSON.parse(options.body);
             assert.equal(body.quality, quality);
+            assert.ok(body.prompt.includes(aspectRatio));
+            assert.ok(!body.prompt.includes(landscape ? "9:16" : "16:9"));
             assert.equal(body.size, `${dimensions.width}x${dimensions.height}`);
             assert.equal(body.model, AVATAR_MODEL);
             return Response.json({ data: [{ b64_json: Buffer.from(output).toString("base64") }] });
         };
-        const started = await req(generation, { requestId, details: "", quality, resolution }, dm);
+        const started = await req(generation, { requestId, details: "", quality, resolution, aspectRatio }, dm);
         assert.equal(started.status, 202);
-        assert.deepEqual((await started.json()).job.options, { quality, resolution });
+        assert.deepEqual((await started.json()).job.options, { quality, resolution, aspectRatio });
         // Retried submissions must retain the settings of the original request.
         const duplicate = await req(generation, { requestId, details: "", quality: "high", resolution: "high" }, dm);
-        assert.deepEqual((await duplicate.json()).job.options, { quality, resolution });
+        assert.deepEqual((await duplicate.json()).job.options, { quality, resolution, aspectRatio });
         coordinator = new AvatarGenerationStore({ storage }, env);
         await coordinator.alarm();
         const resumed = (await (await req(generation, undefined, dm)).json()).job;
         assert.equal(resumed.status, "ready");
-        assert.deepEqual(resumed.options, { quality, resolution });
+        assert.deepEqual(resumed.options, { quality, resolution, aspectRatio });
     }
-    assert.equal(calls, 12, "all nine quality/resolution combinations use one provider call each, including xhigh at native 1440x2560");
+    assert.equal(calls, 12, "all nine quality/resolution combinations use one provider call each, including xhigh at native 2560x1440");
     const wrong2kId = randomUUID(), beforeWrong2kKV = [...kv.entries()];
     assert.equal((await req(generation, { requestId: wrong2kId, details: "2K output verification", resolution: "2k" }, dm)).status, 202);
     globalThis.fetch = async (_url, options) => {

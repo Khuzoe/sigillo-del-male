@@ -1,0 +1,264 @@
+diff --git a/module.json b/module.json
+--- a/module.json
++++ b/module.json
+@@ -2,7 +2,7 @@
+   "id": "cripta-wiki-sync",
+   "title": "Khuzoe Wiki Sync",
+   "description": "Sincronizzazione bidirezionale tra wiki e Foundry per Actor gestiti, Tokenizer e catalogo oggetti di campagna.",
+-  "version": "0.11.20",
++  "version": "0.11.21",
+   "authors": [
+     {
+       "name": "Delia + Codex"
+diff --git a/scripts/services/managed-actor-sync.js b/scripts/services/managed-actor-sync.js
+--- a/scripts/services/managed-actor-sync.js
++++ b/scripts/services/managed-actor-sync.js
+@@ -1,3 +1,4 @@
++import { hasNpcAnimation, exportNpcAnimations, installNpcAnimations } from "./activity-animation-sync.mjs";
+ import { applyNpcNativeSheet } from "./npc-native-sheet.mjs";
+ import { applyNpcNativeEditor } from "./npc-native-editor.mjs";
+ import { validateNativeAbilityItem } from "./npc-native-ability.mjs";
+@@ -3309,6 +3310,12 @@ async function rollbackManagedActorLinkConversion(actor) {
+         return { status: "failed", error: `Ripristino non completato: ${String(error?.message || error)}` };
+     }
+ }
++function npcAnimationContext(actor) {
++    const campaign = getCampaignId(), world = sanitizeId(game.world.id), id = sanitizeId(actor.id);
++    return {campaign, world, actor:id, origin:DISCORD_WORKER_URL, request:policyFetch, headers:buildWorkerAuthHeaders,
++        allowUpload:canPushToWorker(), endpoint:DISCORD_WORKER_URL + "/api/managed-actors/" + world + "/" + id + "/activity-animations?campaign=" + encodeURIComponent(campaign)};
++}
++
+ async function applyManagedActorCommand(command) {
+     const kind = String(command?.kind || "");
+     const allowed = new Set(["relationship.update", "actor.update", "item.update", "item.create", "item.delete", "effect.update", "effect.create", "effect.delete", "actor-link.inspect", "actor-link.apply", "actor-link.rollback"]);
+@@ -3339,6 +3346,10 @@ async function applyManagedActorCommand(command) {
+     if (kind === "item.update") {
+         const item = findManagedCommandItem(actor, command.target || {});
+         if (!item) return { status: "conflict", error: "Elemento non trovato nell'Actor" };
++        const activitiesPatch = command.patches?.find(patch => patch.path === "system.activities");
++        if (actor.type === "npc" && activitiesPatch) {
++            await installNpcAnimations(activitiesPatch.baseValue, activitiesPatch.value, npcAnimationContext(actor));
++        }
+         return applyManagedDocumentPatches(item, command.patches, async (update) => {
+             let requestedActivities = foundry.utils.getProperty(update, "system.activities");
+             let requestedEffects = update.effects;
+@@ -3905,6 +3916,7 @@ export async function syncManagedActorNow(actor, event = {}) {
+     const stateRoot = getWorldObjectSetting(STATE_SETTING);
+     const mediaOnlyWrite = !normalizedEvent.forceCreate
+         && !normalizedEvent.forceContentSync
++        && !normalizedEvent.checkAnimations
+         && (normalizedEvent.changedTargets.length > 0 || normalizedEvent.variantsChanged || normalizedEvent.removedVariantIds.length > 0);
+ 
+     if (!mediaOnlyWrite) {
+@@ -3923,6 +3935,9 @@ export async function syncManagedActorNow(actor, event = {}) {
+     const mediaResult = await syncManagedActorMedia(actor, normalizedEvent, previousState, worldId, actorId);
+     const link = await callbacks.getActorLink?.(actor) || {};
+     const document = buildManagedActorDocument(actor, mediaResult.media, link, mediaResult.state.icons);
++    if (actor.type === "npc" && !mediaOnlyWrite) {
++        await exportNpcAnimations(document.definition.items, npcAnimationContext(actor));
++    }
+     document.mediaWriteTargets = normalizedEvent.changedTargets;
+     document.writeScopes = mediaOnlyWrite ? ["media"] : ["content", "media"];
+     document.expectedRevision = Math.max(0, Number(previousState.revision || 0));
+@@ -4053,7 +4068,10 @@ async function flushManagedNpcNativeBackfill() {
+     try {
+         const run = async () => {
+             const actor = game.actors.get(id);
+-            if (actor && actor === job.actor && job.identity === currentIdentity()) await syncManagedNpcNativeSnapshotNow(actor);
++            if (actor && actor === job.actor && job.identity === currentIdentity()) {
++                await syncManagedNpcNativeSnapshotNow(actor);
++                if (hasNpcAnimation(actor)) await queueManagedActorSync(actor, {reason:"activity-animation-backfill", checkAnimations:true});
++            }
+         };
+         const task = managedActorFlushChain.then(run, run);
+         managedActorFlushChain = task.catch(() => {});
+@@ -4084,6 +4102,7 @@ async function syncManagedNpcNativeSnapshotNow(actor) {
+             foundry: contract.foundry, system: contract.system,
+             wikiSync: contract.module?.version,
+             nativeEditor: 1,
++            activityAnimations: 1,
+             nativeSheetEditor: 1,
+             nativeAbilityCreate: 1,
+             nativeAbilityEdit: 1,
+@@ -4719,6 +4738,7 @@ function normalizeTokenizerEvent(event = {}) {
+         forceCreate: Boolean(event.forceCreate),
+         forceContentSync: Boolean(event.forceContentSync),
+         nativeSnapshotOnly: event.nativeSnapshotOnly === true,
++        checkAnimations: event.checkAnimations === true,
+         variantsChanged: Boolean(event.variantsChanged) || String(event.reason || "").startsWith("variant-"),
+         allowMissingBaseMedia: Boolean(event.allowMissingBaseMedia),
+         changedTargets: Array.from(new Set((Array.isArray(event.changedTargets) ? event.changedTargets : []).filter((target) => ["avatar", "token"].includes(target)))),
+@@ -4735,6 +4755,7 @@ function mergeTokenizerEvents(previous, next) {
+         forceCreate: Boolean(previous.forceCreate || next.forceCreate),
+         forceContentSync: Boolean(previous.forceContentSync || next.forceContentSync),
+         nativeSnapshotOnly: previous.nativeSnapshotOnly === true && next.nativeSnapshotOnly === true,
++        checkAnimations: previous.checkAnimations === true || next.checkAnimations === true,
+         variantsChanged: Boolean(previous.variantsChanged || next.variantsChanged),
+         allowMissingBaseMedia: Boolean(previous.allowMissingBaseMedia || next.allowMissingBaseMedia),
+         removedVariantIds: Array.from(new Set([...previous.removedVariantIds, ...next.removedVariantIds]))
+diff --git a/scripts/services/npc-native-snapshot.mjs b/scripts/services/npc-native-snapshot.mjs
+--- a/scripts/services/npc-native-snapshot.mjs
++++ b/scripts/services/npc-native-snapshot.mjs
+@@ -65,6 +65,10 @@ export async function npcNativeSnapshotHash(snapshot, { subtle = globalThis.cryp
+     return value;
+   });
+   const bytes = new TextEncoder().encode(canonical);
++  return hashNpcBytes(bytes, subtle);
++}
++
++export async function hashNpcBytes(bytes, subtle = globalThis.crypto?.subtle) {
+   if (!subtle) return portableSha256(bytes);
+   const digest = await subtle.digest("SHA-256", bytes);
+   return Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, "0")).join("");
+@@ -86,6 +90,7 @@ export async function captureNpcNativeSnapshot(actor, context) {
+     identity: { campaignId: context.campaignId, worldId: context.worldId, foundryActorId: String(actor.id), actorUuid: String(actor.uuid || `Actor.${actor.id}`) },
+     versions: {
+       ...(context.nativeEditor ? {nativeEditor: context.nativeEditor} : {}),
++      ...(context.activityAnimations ? {activityAnimations: 1} : {}),
+       ...(context.nativeAbilityCreate ? {nativeAbilityCreate: context.nativeAbilityCreate} : {}),
+       ...(context.nativeSheetEditor ? {nativeSheetEditor: context.nativeSheetEditor} : {}),
+       ...(context.nativeAbilityEdit ? {nativeAbilityEdit: context.nativeAbilityEdit} : {}),
+diff --git a/scripts/services/npc-activity-animation.mjs b/scripts/services/npc-activity-animation.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/services/npc-activity-animation.mjs
+@@ -0,0 +1,25 @@
++export const MAX_ANIMATION_BYTES = 16 * 1024 * 1024;
++const segment = /^[a-z0-9_-]{1,96}$/;
++export const animationDigestPattern = /^[a-f0-9]{64}$/;
++
++export function animationPaths(campaign, world, actor, digest) {
++  if (![campaign, world, actor].every(value => typeof value === 'string' && segment.test(value)) || !animationDigestPattern.test(digest)) {
++    throw new Error('Identità animazione non valida.');
++  }
++  const filename = `${digest}.webm`;
++  return {
++    path: `media/campaigns/${campaign}/managed-actors/${world}/${actor}/animations/${filename}`,
++    localPath: `worlds/${world}/wiki-sync-animations/${actor}/${filename}`
++  };
++}
++
++export function primaryAnimationSource(activity) {
++  const video = activity?.flags?.autoanimations?.primary?.video;
++  return video?.enableCustom && typeof video.customPath === 'string' && /\.webm$/i.test(video.customPath) ? video.customPath : '';
++}
++
++export function managedAnimationDigest(source, campaign, world, actor) {
++  if (!source?.startsWith(`worlds/${world}/wiki-sync-animations/`)) return '';
++  const digest = source.split('/').at(-1).replace(/\.webm$/, '');
++  return animationDigestPattern.test(digest) && animationPaths(campaign, world, actor, digest).localPath === source ? digest : '';
++}
+diff --git a/scripts/services/activity-animation-sync.mjs b/scripts/services/activity-animation-sync.mjs
+new file mode 100644
+--- /dev/null
++++ b/scripts/services/activity-animation-sync.mjs
+@@ -0,0 +1,109 @@
++import { animationPaths, managedAnimationDigest, primaryAnimationSource, MAX_ANIMATION_BYTES } from './npc-activity-animation.mjs';
++import { hashNpcBytes } from './npc-native-snapshot.mjs';
++
++function localAsset(source) {
++  try {
++    const parts = decodeURIComponent(source).split('/');
++    if (parts.some(part => !part || part === '.' || part === '..' || /[\\:%?#\u0000-\u001f]/.test(part))) return '';
++    return parts.map(encodeURIComponent).join('/');
++  } catch { return ''; }
++}
++
++function localUrl(source) {
++  const path = localAsset(source);
++  if (!path) return '';
++  return foundry.utils.getRoute(path);
++}
++
++// A missing local asset must not block the Actor and its other activities.
++async function readLocalClip(source) {
++  const url = localUrl(source);
++  if (!url) return null;
++  const response = await fetch(url, {cache:'no-store', redirect:'error'});
++  if (response.status === 404) return null;
++  if (!response.ok) throw new Error(`Lettura WebM Foundry: HTTP ${response.status}`);
++  if (Number(response.headers.get('Content-Length')) > MAX_ANIMATION_BYTES) return null;
++  const bytes = new Uint8Array(await response.arrayBuffer());
++  return bytes.length <= MAX_ANIMATION_BYTES && bytes[0] === 0x1a && bytes[1] === 0x45 ? bytes : null;
++}
++
++export function hasNpcAnimation(actor) {
++  return actor.type === 'npc' && Array.from(actor.items?.contents || actor.items || []).some(item => {
++    const activities = item.system?.activities;
++    if (activities?.values && Array.from(activities.values()).some(primaryAnimationSource)) return true;
++    return Object.values(item._source?.system?.activities || item.toObject?.(true)?.system?.activities || {}).some(primaryAnimationSource);
++  });
++}
++
++// Store a preview alongside the public Item projection. Raw activity flags keep
++// their original local paths for the native editor's conflict comparisons.
++export async function exportNpcAnimations(entries, context) {
++  const resolved = new Map();
++  for (const entry of entries) {
++    for (const [key, activity] of Object.entries(entry.definition?.activities || {})) {
++      const source = primaryAnimationSource(activity);
++      if (!source) continue;
++      if (!resolved.has(source)) {
++        const bytes = await readLocalClip(source);
++        let path = '';
++        if (bytes) {
++          const digest = await hashNpcBytes(bytes);
++          path = animationPaths(context.campaign, context.world, context.actor, digest).path;
++          const check = await context.request(`${context.origin}/${path}`, {method:'HEAD'});
++          if (check.status === 404) {
++            if (context.allowUpload) {
++              const result = await context.request(context.endpoint, {method:'POST', headers:{...context.headers(), 'Content-Type':'video/webm'}, body:bytes});
++              if (result.status === 415 || result.status === 413) path = '';
++              else if (!result.ok || (await result.json()).digest !== digest) throw new Error(`Trasferimento WebM non confermato (HTTP ${result.status}).`);
++            } else path = '';
++          } else if (!check.ok) throw new Error(`Verifica WebM: HTTP ${check.status}`);
++        }
++        if (!path) console.warn('Wiki Sync | Anteprima WebM non disponibile:', source);
++        resolved.set(source, path);
++      }
++      const path = resolved.get(source);
++      if (path) {
++        entry.media ??= {};
++        entry.media.animations ??= {};
++        entry.media.animations[activity._id || key] = {source, path};
++      }
++    }
++  }
++}
++
++async function ensureDirectory(picker, directory) {
++  const parent = directory.slice(0, directory.lastIndexOf('/'));
++  const listing = await picker.browse('data', parent);
++  if (listing.dirs.includes(directory)) return;
++  try { await picker.createDirectory('data', directory); }
++  catch (error) {
++    if (!(await picker.browse('data', parent)).dirs.includes(directory)) throw error;
++  }
++}
++
++export async function installNpcAnimations(before, next, context) {
++  const installed = new Set();
++  for (const [id, activity] of Object.entries(next || {})) {
++    const source = primaryAnimationSource(activity);
++    if (!source || source === primaryAnimationSource(before?.[id]) || installed.has(source)) continue;
++    const digest = managedAnimationDigest(source, context.campaign, context.world, context.actor);
++    if (!digest) continue;
++    const existing = await readLocalClip(source);
++    if (!existing || await hashNpcBytes(existing) !== digest) {
++      const {path} = animationPaths(context.campaign, context.world, context.actor, digest);
++      const response = await context.request(`${context.origin}/${path}`);
++      if (!response.ok) throw new Error(`Download animazione: HTTP ${response.status}`);
++      const bytes = new Uint8Array(await response.arrayBuffer());
++      if (bytes.length > MAX_ANIMATION_BYTES || await hashNpcBytes(bytes) !== digest) throw new Error('Il video scaricato non corrisponde alla versione salvata.');
++      const picker = foundry.applications.apps.FilePicker.implementation;
++      const directory = source.slice(0, source.lastIndexOf('/'));
++      await ensureDirectory(picker, directory.slice(0, directory.lastIndexOf('/')));
++      await ensureDirectory(picker, directory);
++      const file = new File([bytes], `${digest}.webm`, {type:'video/webm'});
++      const saved = await picker.upload('data', directory, file, {}, {notify:false});
++      const checked = saved?.path && await readLocalClip(source);
++      if (!checked || await hashNpcBytes(checked) !== digest) throw new Error('Foundry non ha confermato la copia del WebM.');
++    }
++    installed.add(source);
++  }
++}

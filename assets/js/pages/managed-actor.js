@@ -3199,6 +3199,27 @@
         }).join("");
         return `<div class="managed-effective-rolls" aria-label="Danni e tiri">${rows}</div>`;
     }
+    function renderActivityAnimations(entry) {
+        return Object.entries(entry.definition?.activities || {}).map(([key, activity]) => {
+            const config = activity?.flags?.autoanimations;
+            const clip = entry.media?.animations?.[activity?._id || activity?.id || key];
+            const custom = config?.primary?.video;
+            const onlySound = config?.soundOnly?.sound?.enable === true && Boolean(config.soundOnly.sound.file);
+            if (!onlySound && !(custom?.enableCustom && /\.webm$/i.test(custom.customPath))) return "";
+            const label = activity.name || entry.name || "Attività";
+            const options = config.primary?.options || {};
+            const speed = Number(options.playbackRate) || 1;
+            const loop = config.menu === "aura" || (["templatefx","ontoken"].includes(config.menu) && options.persistent === true);
+            const count = Number(options.repeat) || 1;
+            const sound = onlySound ? config.soundOnly.sound : config.primary?.sound;
+            const playback = loop ? "Loop persistente" : count > 1 ? `${count} riproduzioni · intervallo ${Number(options.repeatDelay ?? 1)} ms` : "Una riproduzione";
+            const audio = sound?.enable ? (sound.file ? "Suono attivo" : "Suono attivo · file audio da impostare") : "Suono disattivato";
+            const player = !onlySound && clip?.path && clip.source === custom?.customPath
+                ? `<video class="npc-activity-video" controls playsinline preload="none"${loop ? " loop" : ""} data-activity-playback-rate="${speed}" src="${escapeAttr(resolveMedia(clip.path))}" aria-label="Animazione di ${escapeAttr(label)}"></video>` : "";
+            return `<details class="managed-entry-disclosure"><summary>Animazione · ${escapeHtml(label)}${config.isEnabled === false ? " (disattivata)" : ""}</summary><p>${onlySound ? "Solo suono" : escapeHtml(playback) + " · " + audio}</p>${player}</details>`;
+        }).join("");
+    }
+
     function renderManagedEntryCard(entry, canEdit, groupKey, collectionKind = "capabilities", collectionEntries = []) {
         if (collectionKind === "inventory") return renderManagedInventoryEntryCard(entry, canEdit, groupKey, collectionEntries);
         const npcLayout = String(currentDocument?.actorType || "").toLowerCase() === "npc";
@@ -3237,6 +3258,7 @@
                     ${effectiveRolls ? `<section class="npc-reader-rolls"><h4>Danni e tiri</h4>${effectiveRolls}</section>` : ""}
                     ${description ? `<section class="npc-reader-story"><h4>Descrizione</h4>${renderManagedNpcAbilityDescription(description, true)}</section>` : ""}
                     ${inlineUsage ? "" : rules}
+                    ${renderActivityAnimations(entry)}
                     ${!description && !rules && !effectiveRolls ? '<p class="npc-reader-note">Non sono presenti altri dettagli per questa capacità.</p>' : ""}
                 </article>`;
             }
@@ -3463,7 +3485,7 @@
             ${media}
             <div class="managed-entry-copy">
                 <div class="managed-entry-title"><h3>${escapeHtml(entry?.name || "Oggetto")}</h3>${badges}</div>
-                ${facts}${status}${contents}${details}${editor}
+                ${facts}${status}${contents}${details}${currentDocument?.actorType === 'npc' ? renderActivityAnimations(entry) : ''}${editor}
             </div>
         </article>`;
     }
@@ -4054,7 +4076,7 @@
         const endpoint = `api/managed-actors/${encodeURIComponent(actor.worldId)}/${encodeURIComponent(actor.actorId)}/editor`;
         try {
             const [module, result] = await Promise.all([
-                import("../shared/npc-sheet-editor.mjs?v=20261113-fields4"),
+                import("../shared/npc-sheet-editor.mjs?v=20261120-animations-4"),
                 window.CriptaApp.api.get(endpoint, { token: getToken(), cache: false })
             ]);
             if (root._managedCompleteLoad !== marker || !managedEditMode || !root.isConnected) return;
@@ -4088,6 +4110,17 @@
                 : Array.from(root.querySelectorAll("[data-managed-effect-form]")).find(form => form.dataset.managedEffectId === entity.target.id);
             root._managedCompleteEditor = module.mountNpcSheetEditor({
                 root, source: result.data, panes,
+                animationContext: {
+                    campaign: window.CriptaApp.campaigns.currentId(), world: actor.worldId, actor: actor.actorId, resolve: resolveMedia,
+                    upload: async file => {
+                        const url = new URL(window.CriptaApp.urls.api(`api/managed-actors/${actor.worldId}/${actor.actorId}/activity-animations`));
+                        url.searchParams.set("campaign", window.CriptaApp.campaigns.currentId());
+                        const response = await fetch(url,{method:"POST",headers:{Authorization:`Bearer ${getToken()}`,"Content-Type":"video/webm"},body:file});
+                        const payload = await response.json();
+                        if (!response.ok || !payload.localPath) throw new Error(payload.error || "Caricamento del video fallito.");
+                        return payload;
+                    }
+                },
                 onDirty: dirty => { root.dataset.managedDirty = dirty ? "true" : "false"; root._managedNpcUpdateDraft?.(); },
                 onCommands: commands => { for (const command of commands) rememberManagedCommand(command, old => old.id === command.id); },
                 post: payload => window.CriptaApp.api.post(endpoint,payload,{token:getToken()}),
@@ -4141,6 +4174,10 @@
     }
 
     function setupManagedNpcWorkspace(root, actor, editing) {
+        for (const video of root.querySelectorAll("video[data-activity-playback-rate]")) {
+            const speed = Number(video.dataset.activityPlaybackRate);
+            if (speed >= 0.25 && speed <= 4) video.defaultPlaybackRate = video.playbackRate = speed;
+        }
         root._managedNpcReveal = null;
         root._managedNpcOpenHash = null;
         root._managedNpcUpdateDraft = null;

@@ -3988,3 +3988,11 @@ body.managed-image-lightbox-open { overflow: hidden; }
     .managed-activity-guide { padding: .4rem; }
     .managed-activity-section, .managed-activity-damage-part { padding: .45rem; }
 }
+.npc-activity-video {
+    display: block;
+    width: min(100%, 28rem);
+    max-height: 20rem;
+    margin: .65rem 0;
+    border-radius: .5rem;
+    background: #17131b;
+}

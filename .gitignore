@@ -23,6 +23,7 @@ workers/main-worker/src/*
 !workers/main-worker/src/tile-generation.js
 !workers/main-worker/src/ability-generation.js
 !workers/main-worker/src/ability-icons.js
+!workers/main-worker/src/activity-animations.js
 !workers/main-worker/src/managed-ability-tools.js
 !workers/main-worker/src/ability-translations.js
 !workers/main-worker/src/ability-icon-prompt.js

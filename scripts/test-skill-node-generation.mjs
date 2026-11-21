@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {createHmac, randomUUID} from 'node:crypto';
 import worker, {AbilityGenerationStore} from '../workers/main-worker/src/index.js';
 import {formatSkillNodeDescription, skillNodeAvatarReference} from '../assets/js/shared/skill-node-generator.mjs';
+import {treeReviewSteps} from '../assets/js/shared/skill-tree-review.mjs';
 
 const asParagraph = part => part.trim() ? '<p>' + part.trim().replaceAll('<', '&lt;') + '</p>' : '';
 assert.equal(formatSkillNodeDescription('## Effetto base\nSpendi 1 carica.\n\n> Durante la forma\n> Infliggi 1d6.\n\n<fine>', asParagraph),
@@ -58,7 +59,7 @@ globalThis.fetch = async (url, init) => {
     if (url.endsWith('/images/generations') || url.endsWith('/images/edits')) {
         if (url.endsWith('/edits')) {
             assert.ok(payload.images.length > 0);
-            assert.ok(payload.prompt.includes('Reference image 1'));
+            assert.ok(payload.prompt.includes('Reference image 1') || JSON.parse(payload.prompt.split('\n').at(-1)).optionalReferenceImages?.[0]?.image === 1);
         } else {
             assert.ok(!payload.images); assert.ok(!payload.prompt.includes('Reference image 1'));
         }
@@ -92,6 +93,23 @@ try {
     assert.equal((await call({body: image})).status, 202);
     await coordinator.alarm();
     const iconPath = '/' + image.requestId;
+    const interrupted = {...image, requestId: randomUUID()};
+    const stopPath = '/' + interrupted.requestId + '/stop';
+    const attemptsBeforeStop = requests.length;
+    assert.equal((await call({body: interrupted})).status, 202);
+    assert.equal((await call({path: stopPath})).status, 405);
+    assert.equal((await call({path: stopPath, body: {}, account: 'player'})).status, 403);
+    assert.equal((await call({path: stopPath, body: {}, account: 'admin'})).status, 404);
+    assert.equal((await call({path: stopPath, body: {}, tree: 'other'})).status, 404);
+    assert.equal(await storage.get('active'), interrupted.requestId);
+    const stopped = await (await call({path: stopPath, body: {}})).json();
+    assert.equal(stopped.job.id, interrupted.requestId);
+    assert.match(stopped.job.iconError, /Attesa interrotta/);
+    assert.equal(await storage.get('active'), undefined);
+    assert.equal((await call({path: stopPath, body: {}})).status, 200);
+    await coordinator.alarm();
+    assert.equal(requests.length, attemptsBeforeStop, 'Stopping a queued icon never starts a provider request');
+    assert.equal((await (await call({path: iconPath + '/stop', body: {}})).json()).job.iconId, image.requestId, 'Stop preserves an already finished preview');
     assert.equal((await (await call({path: iconPath})).json()).job.iconId, image.requestId);
     assert.equal((await call({path: iconPath + '/preview', account: 'player'})).status, 403);
     assert.equal((await call({path: iconPath + '/preview', tree: 'randra'})).status, 404);
@@ -160,5 +178,74 @@ try {
         assert.match(payload.prompt, /preserve the depicted species and recognizable identity/);
         assert.equal(payload.prompt.includes("Reference image 2 is the ability owner's avatar"), withPortrait);
     }
-    console.log('Skill node generation: DM access, campaign/tree/account isolation, draft and clarification, edited icon source, private preview and idempotent retries passed.');
+    const runningIcon = {...image, requestId: randomUUID()}, nextIcon = {...image, requestId: randomUUID()};
+    const providerStarted = Promise.withResolvers(), finishProvider = Promise.withResolvers();
+    const mockProvider = globalThis.fetch;
+    globalThis.fetch = async (url, init) => {
+        providerStarted.resolve(init.signal);
+        await finishProvider.promise;
+        return mockProvider(url, init);
+    };
+    assert.equal((await call({body: runningIcon})).status, 202);
+    const runningAlarm = coordinator.alarm(), signal = await providerStarted.promise;
+    assert.equal((await call({path: '/' + runningIcon.requestId + '/stop', body: {}})).status, 200);
+    assert.equal(signal.aborted, true);
+    assert.equal((await call({body: nextIcon})).status, 202, 'The editor can generate another icon immediately');
+    finishProvider.resolve(); await runningAlarm;
+    assert.equal(await storage.get('active'), nextIcon.requestId, 'A late response cannot release the next generation');
+    await coordinator.alarm();
+    assert.equal((await (await call({path: '/' + nextIcon.requestId})).json()).job.iconId, nextIcon.requestId);
+    const tree = {name:'Guardiano', nodes:Array.from({length:18}, (_, i) => ({id:String(i), name:'Nodo ' + i,
+        connections:i ? [] : [{target:'17',mode:'exclusive'}], levels:[{key:'n' + i, description:'Una regola. '.repeat(700)}]}))};
+    tree.nodes[0].template = {text:'Ottieni ⟦0⟧ cariche.', variables:[{marker:'⟦0⟧', values:['1','3','5']}]};
+    const entries = tree.nodes.map(n => ({key:n.levels[0].key, original:n.template?.text || n.levels[0].description, generateIcon:true}));
+    const steps = treeReviewSteps(entries, true, true);
+    assert.ok(steps.filter(s => s.kind === 'review').length > 1);
+    assert.equal(steps.filter(s => s.kind === 'icon').length, entries.length);
+    assert.deepEqual(steps.flatMap(s => s.targets || []).map(t => t.key), entries.map(e => e.key));
+    const review = {mode:'tree-review', requestId:randomUUID(), tree, targets:steps[0].targets, direction:'Richiama il tuono'};
+    let breakMarker = false, reviewCalls = 0;
+    globalThis.fetch = async (_url, init) => {
+        reviewCalls++;
+        const input = JSON.parse(JSON.parse(init.body).input);
+        if (review.referenceNotes) assert.deepEqual(input.optionalImageNotesForRelevantIconsOnly, review.referenceNotes);
+        assert.deepEqual(input.tree, tree, 'Each portion sees the entire tree, including the last node and exclusive links');
+        const proposals = input.targets.map(t => ({key:t.key, description:t.key === 'n0' && !breakMarker ? 'Recuperi ⟦0⟧ cariche.' : 'Testo rivisto.', visual:'Un martello di tuono'}));
+        return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({proposals, visualStyle:'Ambra e ferro sotto una luce temporalesca.'})}]}]});
+    };
+    assert.equal((await call({body:review, account:'player'})).status, 403);
+    assert.equal((await call({body:{...review, targets:[{key:'ignoto',text:true,icon:false}]}})).status, 400);
+    assert.equal((await call({body:review})).status, 202);
+    assert.ok((await storage.get('job:' + review.requestId)).parts > 1);
+    await coordinator.alarm();
+    const plan = (await (await call({path:'/' + review.requestId})).json()).job;
+    assert.equal(plan.status, 'ready', plan.error);
+    assert.equal(plan.draft.proposals[0].description, 'Recuperi ⟦0⟧ cariche.');
+    assert.equal(plan.draft.visualStyle, 'Ambra e ferro sotto una luce temporalesca.');
+    assert.equal((await call({body:review})).status, 200); assert.equal(reviewCalls, 1);
+    assert.equal((await call({path:'/' + review.requestId, tree:'other'})).status, 404);
+    review.mode = 'tree-review-references'; review.referenceNotes = ['Stemma da usare nelle capacità del guardiano']; review.requestId = randomUUID();
+    assert.equal((await call({body:review})).status,202); await coordinator.alarm();
+    assert.equal((await (await call({path:'/'+review.requestId})).json()).job.status,'ready');
+    breakMarker = true; review.requestId = randomUUID();
+    assert.equal((await call({body:review})).status, 202); await coordinator.alarm();
+    const invalid = (await (await call({path:'/' + review.requestId})).json()).job;
+    assert.equal(invalid.status,'uncertain'); assert.equal(invalid.draft, null);
+    globalThis.fetch = mockProvider;
+    const styled = {...image, requestId:randomUUID(), treeStyle:plan.draft.visualStyle};
+    assert.equal((await call({body:styled})).status, 202); await coordinator.alarm();
+    assert.equal(JSON.parse(requests.at(-1).prompt.split('\n').at(-1)).ability.sharedArtDirectionForThisTree, styled.treeStyle);
+    for (const useAvatar of [false,true]) {
+        const refs = [{uploadId,note:'Il simbolo del tuono'}];
+        const optional = {...styled,requestId:randomUUID(),mode:'icon-references',references:refs,...(useAvatar && {avatar:managed})};
+        assert.equal((await call({body:optional,tree:'other'})).status,400);
+        const result = await call({body:optional}); assert.equal(result.status,202,await result.clone().text());
+        await coordinator.alarm();
+        const edit = requests.at(-1), prompt = JSON.parse(edit.prompt.split('\n').at(-1));
+        assert.equal(edit.images.length,useAvatar ? 2 : 1);
+        assert.deepEqual(prompt.optionalReferenceImages,[{image:useAvatar ? 2 : 1,note:refs[0].note}]);
+        assert.equal(edit.images.at(-1).image_url,'data:image/webp;base64,'+bytes.toString('base64'));
+        assert.match(edit.prompt,/including none/);
+    }
+    console.log('Skill node and whole-tree generation: access, scoped drafts, complete context, grade variables, private previews, stop and idempotent retries passed.');
 } finally { globalThis.fetch = originalFetch; }

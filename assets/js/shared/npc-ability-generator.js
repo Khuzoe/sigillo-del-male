@@ -132,6 +132,9 @@
                 wrapper.append(span, control); parent.append(wrapper);
             };
             const choices = values => values.map(v => [v, LABELS[v] || v]);
+            const addIconDirection = () => {
+                if (job.status !== "accepted") field(group("Direzione artistica dell’icona"), "iconPrompt", "Dettaglio da rappresentare", "textarea");
+            };
             if(isNative()) {
                 const item=job.draft.item;
                 const mechanical=value=>({name:value.name,system:value.system,flags:value.flags});
@@ -147,9 +150,11 @@
                     const tools=document.createElement("div");tools.className="npc-sheet-entity-tools";const add=document.createElement("button");add.type="button";add.className="npc-sheet-button is-subtle";add.textContent="+ Nuovo effetto";add.dataset.draftTool="";add.disabled=nativeModule.nativeEffectsAmbiguous(draft.item);
                     add.addEventListener("click",()=>{const next=readDraft(),id=crypto.randomUUID().replaceAll('-','').slice(0,16);next.item.effects.push({_id:id,name:"Nuovo effetto",type:"base",disabled:false,transfer:false,statuses:[],duration:{value:1,units:"rounds",expiry:"turnEnd"},system:{changes:[]},flags:{}});const activity=Object.values(next.item.system.activities||{})[0];if(activity)activity.effects=[...(activity.effects||[]),{_id:id,onSave:false}];writeLocal(`${key}:${job.id}`,next);renderFields(next);controls();});tools.append(add);host.append(tools);renderChanges(draft);
                 }
-                const art=group("Direzione artistica dell’icona");field(art,"iconPrompt","Dettaglio da rappresentare","textarea");
-                // Keep the art controls in the same draft reader as legacy jobs.
-                form.append(art);art.hidden=false;form.closest("details").hidden=false;form.closest("details").open=false;form.closest("details").querySelector("summary").textContent="Impostazioni dell’icona";
+                addIconDirection();
+                const iconSettings = form.closest("details");
+                iconSettings.hidden = job.status === "accepted";
+                iconSettings.open = false;
+                iconSettings.querySelector("summary").textContent = "Impostazioni dell’icona";
                 el("[data-balance]").textContent=draft.balance;el("[data-assumptions]").replaceChildren(...draft.assumptions.map(text=>{const li=document.createElement("li");li.textContent=text;return li;}));el("[data-unsupported]").textContent=draft.unsupported.length?`Da rivedere prima della conferma: ${draft.unsupported.join("; ")}`:"";
                 return;
             }
@@ -173,13 +178,13 @@
             const conditionList = document.createElement("div"); conditionList.className = "npc-ability-conditions";
             for (const condition of CONDITIONS) { const label = document.createElement("label"), input = document.createElement("input"); input.type = "checkbox"; input.dataset.condition = ""; input.value = condition; input.checked = draft.conditions.includes(condition); label.append(input, document.createTextNode(LABELS[condition])); conditionList.append(label); }
             effects.append(conditionList);
-            const icon = group("Direzione artistica dell’icona"); field(icon, "iconPrompt", "Dettaglio da rappresentare", "textarea");
+            addIconDirection();
             el("[data-balance]").textContent = draft.balance;
             el("[data-assumptions]").replaceChildren(...draft.assumptions.map(text => { const li = document.createElement("li"); li.textContent = text; return li; }));
             el("[data-unsupported]").textContent = draft.unsupported.length ? `Da rivedere prima della conferma: ${draft.unsupported.join("; ")}` : "";
         }
         async function showJob(next) {
-            const changed = job?.id !== next?.id || (!job?.draft && next?.draft);
+            const changed = job?.id !== next?.id || (!job?.draft && next?.draft) || (job?.status !== "accepted" && next?.status === "accepted");
             job = next;
             const compactRequest=isNative()&&Boolean(job?.draft)&&!startFresh,requestPanel=el("[data-request-panel]");requestPanel.classList.toggle("is-native-request",compactRequest);if(!compactRequest)requestPanel.open=true;else if(changed)requestPanel.open=false;
             const summaryPanel=el("[data-summary-panel]");summaryPanel.classList.toggle("is-native-summary",compactRequest);if(!compactRequest)summaryPanel.open=true;else if(changed)summaryPanel.open=isEdit();if(isEdit())summaryPanel.querySelector("summary").textContent="Come cambia l’abilità";
@@ -191,7 +196,7 @@
                 : "Questa generazione non conserva il dettaglio della causa. L’aggiornamento lo registra per i nuovi tentativi.";
             el("[data-proposal]").hidden = startFresh || !job?.draft;
             if (changed && job?.details && !el("[data-prompt]").value) el("[data-prompt]").value = job.details;
-            if (job?.draft && (changed || !el("[data-fields]").children.length)) renderFields(readLocal(`${key}:${job.id}`) || (nativeClient?readLocal(`${baseKey}:${job.id}`):null) || job.draft);
+            if (job?.draft && (changed || !el("[data-fields]").children.length)) renderFields(job.status === "accepted" ? job.draft : readLocal(`${key}:${job.id}`) || (nativeClient?readLocal(`${baseKey}:${job.id}`):null) || job.draft);
             if (job?.status === "confirming") { renderFields(job.draft); writeLocal(`${key}:${job.id}`, null); }
             if (retry && (retry.body.requestId === job?.id || retry.body.requestId === job?.iconAttempt)) { retry = null; writeLocal(key, null); }
             if (!startFresh && job?.iconId && previewId !== job.iconId) {
@@ -270,10 +275,13 @@
                 if (!dataUrl.startsWith("data:image/webp;base64,")) throw new Error("Questo browser non può esportare l’icona WebP. Puoi aggiungere l’abilità senza icona.");
                 icon = dataUrl.split(",")[1];
             }
+            const draft = validate(readDraft());
             let data;
-            try { data = await (await request(`/${job.id}/confirm`, {draft: validate(readDraft()), icon})).json(); }
+            try { data = await (await request(`/${job.id}/confirm`, {draft, icon})).json(); }
             catch (error) { await refresh(); throw error; }
             writeLocal(`${key}:${job.id}`, null); job.status = "accepted"; status(editing?"Modifiche inviate, in attesa di Foundry.":"Abilità aggiunta, in attesa di Foundry.");
+            job.draft = draft;
+            renderFields(draft);
             await onQueued?.(data.command);
         }));
         const close = () => { if (busy) return; closed = true; clearTimeout(timer); controller.abort(); if (previewUrl) URL.revokeObjectURL(previewUrl); dialog.close(); dialog.remove(); previousFocus?.focus(); };

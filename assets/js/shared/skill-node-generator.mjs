@@ -79,6 +79,7 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
         ${content}
         <p data-status role="status" aria-live="polite"></p>
         <footer class="player-skill-choice-dialog-actions">
+            <button type="button" class="player-skill-action-button" data-stop hidden>Interrompi attesa</button>
             <button type="button" class="player-skill-action-button" data-resume hidden>Recupera risultato</button>
             <button type="button" class="player-skill-action-button" data-close>Chiudi</button>
             <button type="button" class="player-skill-action-button is-primary" data-add>${refining ? 'Applica testo' : iconOnly ? 'Usa questa icona' : "Aggiungi all'albero"}</button>
@@ -94,7 +95,7 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
     if (refining) el('[data-original]').value = target.description;
     if (iconOnly && target.icon) el('[data-original-icon]').src = target.icon;
     const controller = new AbortController();
-    let busy = false, adding = false, timer, imageBlob = null, imageUrl = '';
+    let busy = false, adding = false, stopping = false, inFlight, timer, imageBlob = null, imageUrl = '';
     let uploadingConcept = false, conceptUrl = '', conceptBlob = null;
     const fileInput = el('[data-concept-file]');
     function showConcept(blob) {
@@ -159,7 +160,7 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
         input.addEventListener('input', () => { draft[input.dataset.field] = input.value; persist(); controls(); });
     }
     function controls() {
-        const working = Boolean(busy || draft.pending || adding || uploadingConcept);
+        const working = Boolean(busy || stopping || draft.pending || adding || uploadingConcept);
         if (fileInput) {
             fileInput.disabled = working;
             el('[data-concept-pick]').disabled = working;
@@ -192,7 +193,9 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
             el('[data-remove]').disabled = working;
         }
         el('[data-close]').disabled = adding;
-        el('[data-resume]').hidden = busy || adding || !draft.pending;
+        el('[data-stop]').hidden = draft.pending?.mode !== 'icon';
+        el('[data-stop]').disabled = stopping;
+        el('[data-resume]').hidden = busy || stopping || adding || !draft.pending;
         el('[data-add]').disabled = working || (iconOnly ? !imageBlob : !draft.hasProposal || !hasText || Boolean(draft.imageId && !imageBlob));
         for (const field of dialog.querySelectorAll('[data-field]')) {
             field.disabled = adding || Boolean(draft.pending && (target || (draft.pending.mode === 'text' && field.dataset.field !== 'direction')));
@@ -216,8 +219,9 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
     async function request(suffix = '', body) {
         const url = new URL(window.CriptaApp.urls.api('api/skill-trees/generate-node' + suffix));
         url.searchParams.set('tree', treeKey); url.searchParams.set('campaign', campaignId);
+        const timeout = AbortSignal.timeout(body instanceof Blob ? 120000 : 20000);
         const response = await fetch(url, {method: body ? 'POST' : 'GET', cache: 'no-store',
-            signal: AbortSignal.any([controller.signal, AbortSignal.timeout(body instanceof Blob ? 120000 : 20000)]),
+            signal: body && (!suffix || suffix.endsWith('/stop')) ? timeout : AbortSignal.any([controller.signal, timeout]),
             headers: {Authorization: `Bearer ${token}`, ...(body ? {'Content-Type': body instanceof Blob ? body.type : 'application/json'} : {})},
             ...(body ? {body: body instanceof Blob ? body : JSON.stringify(body)} : {})});
         if (!response.ok) {
@@ -232,9 +236,12 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
         clearPreview(); imageBlob = blob; imageUrl = URL.createObjectURL(blob);
         el('[data-preview]').src = imageUrl; el('[data-preview]').hidden = false;
     }
-    async function update(body) {
+    function update(body) {
+        if (!stopping && !busy && draft.pending) inFlight = readUpdate(body);
+        return inFlight;
+    }
+    async function readUpdate(body) {
         const pending = draft.pending;
-        if (!pending || busy) return;
         busy = true; controls();
         status(pending.mode === 'icon' ? 'Generazione dell’icona in corso…' : 'Revisione del testo in corso…');
         try {
@@ -289,6 +296,34 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
     el('[data-rewrite]')?.addEventListener('click', () => start(refining ? 'refine' : 'text'));
     el('[data-icon]')?.addEventListener('click', () => start('icon'));
     el('[data-resume]').onclick = () => update();
+    el('[data-stop]').onclick = async () => {
+        const pending = draft.pending;
+        if (stopping || pending?.mode !== 'icon') return;
+        stopping = true; clearTimeout(timer); controls(); status('Interruzione in corso.');
+        let completed = false;
+        try {
+            // If creation is still being submitted, stop the acknowledged job.
+            await inFlight;
+            clearTimeout(timer);
+            if (draft.pending !== pending) return;
+            const {job} = await (await request('/' + pending.id + '/stop', {})).json();
+            if (controller.signal.aborted) return;
+            if (job?.id !== pending.id) throw new Error('Risposta del generatore non valida.');
+            completed = job.status === 'ready' && Boolean(job.iconId) && !job.iconError;
+            if (!completed) {
+                delete draft.pending;
+                persist();
+                status('Attesa interrotta. Una chiamata già avviata potrebbe avere un costo.');
+            }
+        } catch (error) {
+            if (!controller.signal.aborted) status(error.message);
+        } finally {
+            if (!controller.signal.aborted) {
+                stopping = false; busy = false; controls();
+                if (completed) update();
+            }
+        }
+    };
     el('[data-remove]')?.addEventListener('click', () => { delete draft.imageId; clearPreview(); persist(); controls(); status(''); });
     el('[data-add]').onclick = async () => {
         if (el('[data-add]').disabled) return;

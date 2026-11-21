@@ -123,6 +123,34 @@ try {
    eq((await icons(`/${unlimitedId}/stop`,{attemptId:unlimitedId})).status,200);
  }
  eq((await icons()).body.usage,1000004,'Usage history remains accurate without enforcing a cap');eq(requests.length,afterSpell);
+ const upload = (bytes,account='dm') => worker.fetch(new Request('https://worker.test'+base+'/ability-icons/concepts?campaign='+campaign,{
+   method:'POST',headers:{Authorization:'Bearer '+token(account),'Content-Type':'image/webp'},body:bytes}),env,{waitUntil(p){p.catch(()=>{});}});
+ eq((await upload(image(128),'player')).status,403);
+ const refs=[];
+ for(const [width,note] of [[128,'Stemma del gelo'],[256,'Il martello del guardiano']]){
+   const response=await upload(image(width));eq(response.status,200);
+   const {uploadId}=await response.json();
+   eq(Buffer.from((await icons('/concepts/'+uploadId)).body),Buffer.from(image(width)));
+   eq((await icons('/concepts/'+uploadId,undefined,'admin')).status,404,'References are private even between editors');
+   refs.push({uploadId,note});
+ }
+ eq((await icons()).body.optionalIconReferences,1);
+ for(const references of [[...refs,...refs], [refs[0],refs[0]], [{...refs[0],note:'x'.repeat(501)}], [{...refs[0],uploadId:'a'.repeat(64)+'.png'}]]){
+   eq((await icons('',{requestId:randomUUID(),references})).status,400);
+ }
+ eq((await icons('',{requestId:randomUUID(),references:refs},'admin')).status,400);
+ eq(requests.length,afterSpell,'Attaching or rejecting images never starts a generation');
+ for(const target of [itemId,'OtherAbility0001']){
+   const rid=randomUUID(), result=await icons('',{requestId:rid,references:refs,details:'Una sagoma chiara'},'dm',target);
+   eq(result.status,202,JSON.stringify(result.body));await coordinator.alarm();
+   const edit=requests.at(-1),data=JSON.parse(edit.prompt.split('\n').at(-1));
+   eq(edit.images.map(i=>i.image_url),[1024,128,256].map(size=>'data:image/webp;base64,'+Buffer.from(image(size)).toString('base64')));
+   eq(data.optionalReferenceImages,[{image:2,note:refs[0].note},{image:3,note:refs[1].note}]);
+   eq(data.ability.name,record.snapshot.actor.items.find(it=>it._id===target).name);
+   ok(edit.prompt.includes('including none'));eq(data.visualDirection,'Una sagoma chiara');
+   eq((await icons('',{requestId:rid,references:[refs[1]]},'dm',target)).body.job.id,rid);
+ }
+ eq(requests.length,afterSpell+2,'One image call per ability, and no additional selection call');
  eq([...kv],[['untouched','preserved']]);eq(JSON.parse(await new ManagedActorTransaction(env).get(actorKey)),actor);
  console.log(`NPC ability icons and discard: ${checks} checks passed; real routes, SQLite archive, paid deduplication, Sunburst medium, avatar, scopes, image-only patch, conflicts, stop and unlimited attempts. No paid calls or world data writes.`);
 } finally {globalThis.fetch=originalFetch;await runtime.dispose();}

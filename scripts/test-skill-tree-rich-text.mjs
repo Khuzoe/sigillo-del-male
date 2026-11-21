@@ -76,4 +76,45 @@ try {
     assert(await editor.evaluate(e=>e.getBoundingClientRect().width>e.parentElement.getBoundingClientRect().width*.9),'Description must use the full field width rather than a column of the advanced editor');
     assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Editor toolbar must fit a phone viewport');
     console.log('OK guided description uses the full field width and toolbar fits at 390 px');
+
+    await page.route('http://wiki.test/tree', route => route.fulfill({contentType:'text/html', body:'<!doctype html><main></main>'}));
+    await page.goto('http://wiki.test/tree');
+    await page.addStyleTag({content:css});
+    await page.addScriptTag({content:source});
+    const rules = '<p>Tramite *dispel magic* subisci **10 danni**, anche se *dispel magic* fallisce.</p>'
+        + '<h4>Progressi della trasformazione</h4><ul><li>Conservi <em>volo</em>.</li></ul>'
+        + '<p>2 * 3 * 4, 2*3*4, \\*letterale\\*, *spaiato</p>'
+        + '<p>*Bonus <strong>+3</strong> al tiro*. *&lt;img src=x&gt;*</p>';
+    await page.evaluate(desc => {
+        const trees = {lila:{name:'Albero di Lila',nodes:[{id:'dup',title:'Duplicità',x:50,y:50,
+            desc, flavor:'Noi due siamo *legate*.'}]}};
+        const card = window.CriptaCharacterSkillTree.buildCards({id:'lila'}, trees, {
+            skillsMemoryCache:trees, skillTreeCurrentUserIsDm:true, getCurrentCampaignId:()=> 'test'
+        });
+        document.querySelector('main').append(card);
+    }, rules);
+    await page.locator('.player-skill-node[data-node-id="dup"]').dispatchEvent('mouseenter');
+    const reader = page.locator('.player-skill-info-desc');
+    const expectedEmphasis = ['dispel magic','dispel magic','volo','Bonus +3 al tiro','<img src=x>'];
+    const hasColoredItalic = element => {
+        const style = getComputedStyle(element);
+        return style.fontStyle === 'italic' && style.color !== getComputedStyle(element.parentElement).color;
+    };
+    assert.deepEqual(await reader.locator('em').allTextContents(), expectedEmphasis);
+    assert.ok(await reader.locator('em').first().evaluate(hasColoredItalic));
+    assert.equal(await reader.locator('em strong').textContent(), '+3');
+    assert.equal(await reader.locator('p').nth(1).textContent(), '2 * 3 * 4, 2*3*4, *letterale*, *spaiato');
+    assert.equal(await reader.locator('img').count(), 0);
+    assert.equal(await reader.locator('h4').evaluate(e=>getComputedStyle(e).borderBlockStartWidth), '1px');
+    assert.equal(await page.locator('.player-skill-info-flavor em').textContent(), 'legate');
+    await page.locator('[data-skill-edit-toggle]').click();
+    const input = page.locator('[contenteditable][data-node-base-field="desc"]');
+    assert.match(await input.textContent(), /\*dispel magic\*/);
+    const preview = page.locator('[data-skill-simple-preview-desc]');
+    assert.deepEqual(await preview.locator('em').allTextContents(), expectedEmphasis);
+    assert.ok(await preview.locator('em').first().evaluate(hasColoredItalic));
+    await input.fill('Lanci *scudo*.');
+    assert.equal(await preview.locator('em').textContent(), 'scudo');
+    assert.equal(await input.textContent(), 'Lanci *scudo*.');
+    console.log('OK stored asterisks, rich text and live edits render safely in the node card and its preview');
 } finally { await browser.close(); }

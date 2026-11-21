@@ -3104,6 +3104,16 @@
 }
 
 .skill-node-ai { width: min(94vw, 52rem); }
+.skill-tree-review__options { display: flex; flex-wrap: wrap; gap: .65rem 1.25rem; min-width: 0; margin: 0; padding: .65rem 1rem; border: 1px solid rgba(212,175,55,.3); border-radius: .65rem; }
+.skill-tree-review__row { display: grid; gap: .75rem; min-width: 0; padding: 1rem 0; border-top: 1px solid rgba(212,175,55,.25); }
+.skill-tree-review__row h4, .skill-tree-review__row p { margin: 0; }
+.skill-tree-review__row p, .skill-tree-review__row small { white-space: pre-wrap; overflow-wrap: anywhere; }
+.skill-tree-review__row .skill-node-ai__preview { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.skill-tree-review__row img { width: min(100%, 7rem); aspect-ratio: 1; object-fit: contain; border-radius: .5rem; }
+.skill-tree-review .player-skill-choice-dialog-actions { position: sticky; bottom: 0; z-index: 1; flex-wrap: wrap; padding: .65rem; background: #1b171d; border-radius: .6rem; }
+@media (max-width: 600px) {
+    .skill-tree-review__row .skill-node-ai__preview { grid-template-columns: minmax(0,1fr); }
+}
 .skill-node-ai__concept {
     display: grid;
     gap: .6rem;
@@ -5172,6 +5182,34 @@
 .player-skill-info .player-skill-info-state-row { flex-wrap: wrap; overflow: visible; }
 .player-skill-info .player-skill-info-actions { flex-wrap: wrap; white-space: normal; }
 .player-skill-info .player-skill-info-desc { flex: 0 0 auto; overflow: visible; }
+
+.player-skill-tree-card :is(.player-skill-info-flavor, [data-skill-simple-preview-flavor]) {
+    margin: .25rem 0 .7rem;
+    padding-inline-start: .85rem;
+    border-inline-start: 2px solid rgba(212, 175, 55, .52);
+    color: var(--text-muted);
+    font: italic 400 1.08rem/1.5 var(--font-body);
+    overflow-wrap: anywhere;
+}
+
+.player-skill-tree-card :is(.player-skill-info-desc, .player-skill-simple-preview-desc) {
+    max-inline-size: 68ch;
+    font-weight: 400;
+    overflow-wrap: anywhere;
+}
+
+.player-skill-tree-card :is(.player-skill-info-desc, .player-skill-simple-preview-desc) :is(em, i):not([class]) {
+    color: #d9b1f5;
+    font-style: italic;
+    font-weight: inherit;
+}
+
+.player-skill-tree-card :is(.player-skill-info-desc, .player-skill-simple-preview-desc) > h4:not(:first-child) {
+    margin-block-start: 1.35em;
+    padding-block-start: .75em;
+    border-block-start: 1px solid rgba(212, 175, 55, .24);
+}
+
 .skill-point-insufficient { color: #e9ba93; font: .7rem var(--font-ui); }
 .skill-requirement-disclosure { margin: .25rem 0 .8rem; }
 .skill-requirement-disclosure > summary { display: inline-flex; align-items: center; gap: .55rem; padding: .5rem .75rem; border: 1px solid rgba(212,175,55,.22); border-radius: 9px; color: #d9c48e; font: 600 .75rem/1.4 var(--font-ui); cursor: pointer; list-style: none; }

@@ -24,31 +24,36 @@
             <button type="button" data-refresh hidden>Riprova caricamento</button><p data-stop-note class="npc-avatar-generator__hint" hidden>Interrompere l’attesa libera il generatore. Non garantisce l’annullamento della chiamata o del relativo costo.</p>
             <div class="npc-avatar-generator__images">
               <figure><figcaption>Avatar attuale · riferimento</figcaption><div><img data-reference alt="Avatar attuale usato come riferimento"><button type="button" data-enlarge="reference" aria-label="Ingrandisci avatar attuale">⤢ Ingrandisci</button></div></figure>
-              <figure><figcaption>${isToken ? "Nuovo token · 1:1" : "Nuova proposta"}</figcaption><div><img data-preview alt="Anteprima del nuovo ${slot}" hidden><p data-placeholder>${isToken ? "Il nuovo token apparirà qui." : "La nuova illustrazione apparirà qui."}</p><button type="button" data-enlarge="preview" aria-label="Ingrandisci nuova proposta" hidden>⤢ Ingrandisci</button></div></figure>
+              <figure><figcaption data-proposal-caption>${isToken ? "Nuovo token · 1:1" : "Nuovo avatar · 9:16"}</figcaption><div><img data-preview alt="Anteprima del nuovo ${slot}" hidden><p data-placeholder>${isToken ? "Il nuovo token apparirà qui." : "La nuova illustrazione apparirà qui."}</p><button type="button" data-enlarge="preview" aria-label="Ingrandisci nuova proposta" hidden>⤢ Ingrandisci</button></div></figure>
             </div>
             <div class="npc-avatar-generator__options">
               <label>Qualità<select data-quality aria-describedby="${costId}"><option value="medium">Media</option><option value="high" selected>Alta</option><option value="xhigh" disabled>Extra alta · alto costo</option></select></label>
-              <label>Risoluzione<select data-resolution aria-describedby="${costId}"><option value="medium">Media · ${isToken ? "1024 × 1024" : "864 × 1536"}</option><option value="high" selected>Alta · ${isToken ? "1536 × 1536" : "1296 × 2304"}</option><option value="2k" disabled>2K · ${isToken ? "2048 × 2048" : "1440 × 2560"} · alto costo</option></select></label>
+              <label>Risoluzione<select data-resolution aria-describedby="${costId}"><option value="medium">Media · ${isToken ? "1024 × 1024" : "lato lungo 1536 px"}</option><option value="high" selected>Alta · ${isToken ? "1536 × 1536" : "lato lungo 2304 px"}</option><option value="2k" disabled>2K · ${isToken ? "2048 × 2048" : "lato lungo 2560 px"} · alto costo</option></select></label>
             </div>
+            ${isToken ? "" : '<label class="npc-avatar-generator__orientation"><input type="checkbox" data-landscape>Avatar orizzontale (16:9)</label>'}
             <p class="npc-avatar-generator__hint">Qualità e risoluzione più alte consumano più budget.</p>
             <p class="npc-avatar-generator__cost" id="${costId}" data-cost-warning role="note" aria-live="polite" hidden><strong>Solo per NPC importanti, alto costo!</strong></p>
             <p class="npc-avatar-generator__hint" data-options-unavailable hidden>Queste impostazioni richiedono il Worker aggiornato.</p>
             <label class="npc-avatar-generator__direction">Dettagli aggiuntivi <span>(facoltativi)</span><textarea maxlength="1500" rows="3" data-details placeholder="${isToken ? "Ad esempio: cornice di pietra antica, dettagli dorati, luce lunare." : "Ad esempio: posa fiera, mantello mosso dal vento, una cripta sullo sfondo…"}"></textarea></label>
-            <p class="npc-avatar-generator__hint">${isToken ? "Volto e busto · cornice circolare intera · quadrato 1:1 · esterno trasparente. Il modello sceglie angolazione e posa. " : "Figura intera · nuova posa · verticale 9:16. "}L’avatar attuale viene inviato come riferimento al servizio di generazione OpenAI.</p>
+            <p class="npc-avatar-generator__hint">${isToken ? "Volto e busto · cornice circolare intera · quadrato 1:1 · esterno trasparente. Il modello sceglie angolazione e posa. " : "Figura intera · nuova posa. "}L’avatar attuale viene inviato come riferimento al servizio di generazione OpenAI.</p>
             <details><summary>${isToken ? "Composizione del token" : "Stile artistico fisso"}</summary><p data-style></p></details>
           </div>
           <footer><span>Ogni generazione usa il budget API. ${isToken ? "Il token" : "L’avatar"} cambia solo con la tua conferma.</span><div><button type="button" data-stop hidden>Interrompi attesa</button><button type="button" data-generate disabled>Genera anteprima</button><button type="button" class="npc-avatar-generator__confirm" data-confirm disabled>Usa questo ${slot}</button></div></footer>`;
         document.body.appendChild(dialog);
         const el = (selector) => dialog.querySelector(selector);
+        const landscape = el("[data-landscape]");
+        const selectedRatio = () => landscape?.checked ? "16:9" : "9:16";
         el("[data-name]").textContent = actor.name || "NPC";
         el("[data-reference]").src = referenceUrl;
         if (pendingRequest?.details) el("[data-details]").value = pendingRequest.details;
         const restoreOptions = (options = {}) => {
             el("[data-quality]").value = ["medium", "high", "xhigh"].includes(options.quality) ? options.quality : "high";
             el("[data-resolution]").value = ["medium", "high", "2k"].includes(options.resolution) ? options.resolution : "high";
+            if (landscape) landscape.checked = options.aspectRatio === "16:9";
         };
         restoreOptions(pendingRequest || {});
         let job = null, enabled = false, canStop = false, busy = false, loaded = false, closed = false, applying = false;
+        let landscapeSupported = false;
         let supportedResolutions = ["medium", "high"];
         let supportedQualities = ["medium", "high"];
         let disabledReason = "Il generatore deve essere attivato dall’amministratore.";
@@ -75,7 +80,7 @@
             const running = ["pending", "running"].includes(job?.status);
             const resolution = pendingRequest?.resolution || el("[data-resolution]").value;
             const quality = pendingRequest?.quality || el("[data-quality]").value;
-            const supported = supportedResolutions.includes(resolution) && supportedQualities.includes(quality);
+            const supported = supportedResolutions.includes(resolution) && supportedQualities.includes(quality) && (!landscape?.checked || landscapeSupported);
             el('[data-resolution] option[value="2k"]').disabled = !supportedResolutions.includes("2k");
             el('[data-quality] option[value="xhigh"]').disabled = !supportedQualities.includes("xhigh");
             el("[data-cost-warning]").hidden = resolution !== "2k" && quality !== "xhigh";
@@ -89,6 +94,11 @@
             el("[data-details]").disabled = busy || running || !enabled || Boolean(pendingRequest);
             el("[data-quality]").disabled = busy || running || !enabled || Boolean(pendingRequest);
             el("[data-resolution]").disabled = busy || running || !enabled || Boolean(pendingRequest);
+            if (landscape) {
+                landscape.disabled = el("[data-resolution]").disabled || !landscapeSupported;
+                const previewRatio = running || previewId ? job?.options?.aspectRatio || "9:16" : selectedRatio();
+                el("[data-proposal-caption]").textContent = `Nuovo avatar · ${previewRatio}`;
+            }
             dialog.setAttribute("aria-busy", String(busy || running));
         };
         const rememberRequest = (value) => {
@@ -138,6 +148,7 @@
                 const previousId = job?.id;
                 job = payload.job;
                 canStop = payload.canStop === true;
+                landscapeSupported = payload.landscapeAvatar === true;
                 supportedResolutions = Array.isArray(payload.supportedResolutions) ? payload.supportedResolutions.filter(value => ["medium", "high", "2k"].includes(value)) : ["medium", "high"];
                 supportedQualities = Array.isArray(payload.supportedQualities) ? payload.supportedQualities.filter(value => ["medium", "high", "xhigh"].includes(value)) : ["medium", "high"];
                 if (isToken && job && job.mediaSlot !== "token") throw new Error("La proposta non appartiene al generatore di token. Aggiorna il servizio.");
@@ -175,10 +186,10 @@
             } finally { busy = false; if (!closed) controls(); }
         });
         el("[data-generate]").addEventListener("click", async () => {
-            if (busy || !enabled || !loaded || ["pending", "running"].includes(job?.status) || !supportedResolutions.includes(pendingRequest?.resolution || el("[data-resolution]").value) || !supportedQualities.includes(pendingRequest?.quality || el("[data-quality]").value)) return;
+            if (el("[data-generate]").disabled) return;
             if (job?.status === "uncertain" && !window.confirm("La richiesta precedente potrebbe essere stata addebitata. Avviare una nuova generazione a pagamento?")) return;
             busy = true;
-            if (!pendingRequest) rememberRequest({ requestId: crypto.randomUUID(), details: el("[data-details]").value.trim(), quality: el("[data-quality]").value, resolution: el("[data-resolution]").value });
+            if (!pendingRequest) rememberRequest({ requestId: crypto.randomUUID(), details: el("[data-details]").value.trim(), quality: el("[data-quality]").value, resolution: el("[data-resolution]").value, ...(isToken ? {} : { aspectRatio: selectedRatio() }) });
             controls();
             status("Invio della richiesta…");
             try {
@@ -225,6 +236,7 @@
             if (previousFocus?.isConnected) previousFocus.focus();
         }
         el("[data-close]").addEventListener("click", close);
+        landscape?.addEventListener("change", controls);
         el("[data-resolution]").addEventListener("change", controls);
         el("[data-quality]").addEventListener("change", controls);
         el("[data-refresh]").addEventListener("click", refresh);

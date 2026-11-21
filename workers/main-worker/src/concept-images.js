@@ -4,6 +4,23 @@ export const UPLOAD_ID = /^[a-f0-9]{64}\.(?:png|jpg|webp)$/;
 export const imageMime = key => /\.png$/i.test(key) ? "image/png" : /\.jpe?g$/i.test(key) ? "image/jpeg" : "image/webp";
 export const MAX_BYTES = 12 * 1024 * 1024;
 
+export async function resolveOptionalIconReferences(input, bucket, keyFor) {
+  if (!Array.isArray(input) || input.length > 3) throw new Error('Puoi allegare fino a tre riferimenti visivi.');
+  const references = [], seen = new Set();
+  let total = 0;
+  for (const ref of input) {
+    if (typeof ref?.uploadId !== 'string' || !UPLOAD_ID.test(ref.uploadId) || seen.has(ref.uploadId) ||
+        typeof ref.note !== 'string' || ref.note.length > 500) throw new Error('Immagine o nota di riferimento non valida.');
+    const key = keyFor(ref.uploadId), object = await bucket.head(key);
+    if (!object?.size) throw new Error('Riferimento non disponibile. Allegalo di nuovo.');
+    total += object.size;
+    if (total > MAX_BYTES) throw new Error('I riferimenti visivi possono pesare al massimo 12 MB in totale.');
+    seen.add(ref.uploadId);
+    references.push({key, etag: object.etag || '', note: ref.note.trim()});
+  }
+  return references;
+}
+
 const reply = (value, status = 200) => Response.json(value, {status, headers: {'Cache-Control': 'private, no-store'}});
 const fail = (error, status = 400) => reply({ok: false, error}, status);
 

@@ -1,4 +1,5 @@
 import { handleWallDetection } from "./wall-detection.js";
+import { storeActivityAnimation, readActivityAnimation, activityAnimationPreviews, prepareActivityAnimationPatches } from "./activity-animations.js";
 export { WallDetectionStore } from "./wall-detection.js";
 import { discordBotPreferencesKey, handleDiscordBotDmNotifications, normalizeDiscordBotPreferences, sendDiscordBotChannelCard } from "./discord-bot/notifications.js";
 import { handleCampaignItemFoundrySync, normalizeCampaignItemsForSiteSave } from "./campaign-items.js";
@@ -98,6 +99,9 @@ const application = {
       }
 
       if (url.pathname.startsWith("/media/") && (request.method === "GET" || request.method === "HEAD")) {
+        if (/^\/media\/campaigns\/[a-z0-9_-]+\/managed-actors\/[a-z0-9_-]+\/[a-z0-9_-]+\/animations\/[a-f0-9]{64}\.webm$/.test(url.pathname)) {
+          return readActivityAnimation(request, env.MEDIA_BUCKET, url.pathname.slice(7), corsHeaders);
+        }
         return handleMediaGet(request, env, corsHeaders);
       }
 
@@ -192,13 +196,14 @@ const application = {
         return handleSessionJournalUpsert(request, queryCampaignId, env, corsHeaders);
       }
       const suggestionRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-suggestions(?:\/([a-f0-9-]{36})\/(discard))?$/i);
-      const iconRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-icons(?:\/([a-f0-9-]{36})\/(preview|confirm|stop))?$/i);
+      const iconRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-icons(?:\/([a-f0-9-]{36})\/(preview|confirm|stop)|\/(concepts)(?:\/([a-f0-9]{64}\.(?:png|jpg|webp)))?)?$/i);
       const translationRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-translations(?:\/([a-f0-9-]{36})\/(confirm|stop))?$/i);
       const abilityRouteMatch = suggestionRouteMatch || iconRouteMatch || translationRouteMatch || url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/ability-generation(?:\/([a-f0-9-]{36})\/(preview|save|icon|confirm|stop|reopen))?$/i);
       if (abilityRouteMatch) {
         const actorRoute = matchManagedActorRoute(abilityRouteMatch[1]);
         if (!actorRoute) return json({ ok: false, error: "Invalid actor" }, 400, corsHeaders);
-        const result = await (translationRouteMatch ? handleAbilityTranslations : iconRouteMatch ? handleAbilityIcons : handleAbilityGeneration)(request, { ...actorRoute, purpose: suggestionRouteMatch ? "suggestions" : "ability", jobId: abilityRouteMatch[2], action: abilityRouteMatch[3] }, queryCampaignId, env, {
+        const result = await (translationRouteMatch ? handleAbilityTranslations : iconRouteMatch ? handleAbilityIcons : handleAbilityGeneration)(request, { ...actorRoute, purpose: suggestionRouteMatch ? "suggestions" : "ability", jobId: abilityRouteMatch[2], action: abilityRouteMatch[3] || iconRouteMatch?.[4], uploadId: iconRouteMatch?.[5] }, queryCampaignId, env, {
+          accountId: user => getAuthenticatedAccountId(user, env) || getAuthenticatedDiscordId(user),
           requireUser: (req) => requireUser(req, env, corsHeaders),
           isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
           isOwner: (user, actor) => isManagedActorOwner(actor, user, env),
@@ -280,6 +285,20 @@ const application = {
         const headers = new Headers(result.headers);
         Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
         return new Response(result.body, { status: result.status, headers });
+      }
+      const animationUpload = url.pathname.match(/^(\/api\/managed-actors\/[a-z0-9_-]{1,96}\/[a-z0-9_-]{1,96})\/activity-animations$/);
+      if (animationUpload && request.method === 'POST') {
+        const route = matchManagedActorRoute(animationUpload[1]);
+        if (!route) return json({ok:false,error:'Identità NPC non valida.'},400,corsHeaders);
+        if (!isFoundrySyncSecretAuthorized(request, env)) {
+          const user = await requireUser(request, env, corsHeaders);
+          if (user instanceof Response) return user;
+          const actor = safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(queryCampaignId,route.worldId,route.actorId)));
+          if (actor?.actorType !== 'npc' || !await isAuthenticatedCampaignContentEditor(user,env,queryCampaignId) && !isManagedActorOwner(actor,user,env)) {
+            return json({ok:false,error:'Permesso di modifica NPC richiesto.'},403,corsHeaders);
+          }
+        }
+        return storeActivityAnimation(request, env.MEDIA_BUCKET, queryCampaignId, route, corsHeaders);
       }
       const nativeEditorMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/editor$/);
       if (nativeEditorMatch) {
@@ -365,13 +384,13 @@ const application = {
         return json(await storage.exportCampaign(), 200, { ...corsHeaders, "Cache-Control": "private, no-store" });
       }
 
-      const skillNodeRoute = url.pathname.match(/^\/api\/skill-trees\/generate-node(?:\/([a-f\d-]{36})(\/preview)?|\/(concepts)(?:\/([a-f0-9]{64}\.(?:png|jpg|webp)))?)?$/i);
+      const skillNodeRoute = url.pathname.match(/^\/api\/skill-trees\/generate-node(?:\/([a-f\d-]{36})(?:\/(preview|stop))?|\/(concepts)(?:\/([a-f0-9]{64}\.(?:png|jpg|webp)))?)?$/i);
       if (skillNodeRoute) {
         const user = await requireUser(request, env, corsHeaders);
         if (user instanceof Response) return user;
         if (!await isAuthenticatedCampaignContentEditor(user, env, queryCampaignId)) return json({ok: false, error: "Generazione riservata al DM della campagna."}, 403, corsHeaders);
         const accountId = getAuthenticatedAccountId(user, env) || getAuthenticatedDiscordId(user);
-        const response = await handleSkillNodeGeneration(request, {id: skillNodeRoute[1], preview: skillNodeRoute[2], concepts: skillNodeRoute[3], uploadId: skillNodeRoute[4]}, queryCampaignId, accountId, env,
+        const response = await handleSkillNodeGeneration(request, {id: skillNodeRoute[1], action: skillNodeRoute[2], concepts: skillNodeRoute[3], uploadId: skillNodeRoute[4]}, queryCampaignId, accountId, env,
           async (campaign, actor) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaign, actor.worldId, actor.actorId))));
         const headers = new Headers(response.headers);
         Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
@@ -1785,7 +1804,7 @@ export default {
     const itemsRoute = path === "/api/data/items" || path === "/api/item-categories";
     if (managedRoute && request.method === "POST") {
       // Native snapshots and drop generation use the campaign in their URL.
-      const body = path.endsWith("/snapshot") || path.includes("/drop-generation") || path.startsWith("/api/npc-generation") ? null : await request.clone().json().catch(() => null);
+      const body = path.endsWith("/snapshot") || path.endsWith("/activity-animations") || path.endsWith("/ability-icons/concepts") || path.includes("/drop-generation") || path.startsWith("/api/npc-generation") ? null : await request.clone().json().catch(() => null);
       campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || campaignId);
       if (managedActorWritesPaused(env, campaignId) && !path.endsWith("/stop")) return json({ ok: false,
         error: "Salvataggi NPC temporaneamente sospesi per la migrazione. Riprova tra poco.", code: "MANAGED_ACTOR_WRITES_PAUSED" }, 503,
@@ -1797,7 +1816,7 @@ export default {
     for (let attempt = 0; ; attempt++) {
       const scoped = managedActorStorageEnvironment(env);
       try {
-        const response = await application.fetch(request.clone(), scoped.env, ctx);
+        const response = await application.fetch(path.endsWith("/activity-animations") ? request : request.clone(), scoped.env, ctx);
         if (response.ok) await scoped.transaction?.commit();
         if (managedRoute && managedActorD1Enabled(env, campaignId)) response.headers.set("X-Managed-Actor-Storage", "d1");
         if (itemsRoute && request.method === "GET") {
@@ -7328,9 +7347,17 @@ async function handleNpcNativeEditor(request, route, campaignId, env, corsHeader
   const queue = readManagedActorCommandQueue(await env.SIGILLO_KV.get(managedActorCommandQueueKey(campaignId,route.worldId)),campaignId,route.worldId);
   const commands = queue.commands.filter(command => command.actorId === route.actorId);
   const canApply = record.snapshot.versions?.nativeEditor === NPC_NATIVE_EDITOR_VERSION;
-  if (request.method === "GET") return json({ok:true,data:{version:NPC_NATIVE_EDITOR_VERSION,canApply,permissions,
-    receivedAt:record.receivedAt,capabilities:{healingTypes:record.snapshot.versions?.npcRulesHealingTypes===1?1:0,abilityEditing:record.snapshot.versions?.nativeAbilityEdit===1?1:0},entities:nativeEntities(source,permissions),
-    commands:commands.map(command => managedActorCommandForReader(command,permissions.isAdmin)).filter(Boolean)}},200,headers);
+  const origin = new URL(request.url).origin;
+  if (request.method === "GET") {
+    const animationMedia = Object.fromEntries((actor.definition?.items || []).filter(item=>item.media?.animations).map(item=>[item.itemId,item.media.animations]));
+    for (const item of source.items || []) {
+      const previews = activityAnimationPreviews(item.system?.activities, animationMedia[item._id], campaignId, route, origin);
+      if (Object.keys(previews).length) animationMedia[item._id] = previews;
+    }
+    return json({ok:true,data:{version:NPC_NATIVE_EDITOR_VERSION,canApply,permissions,
+      receivedAt:record.receivedAt,capabilities:{activityAnimations:1,healingTypes:record.snapshot.versions?.npcRulesHealingTypes===1?1:0,abilityEditing:record.snapshot.versions?.nativeAbilityEdit===1?1:0},entities:nativeEntities(source,permissions),animationMedia,
+      commands:commands.map(command => managedActorCommandForReader(command,permissions.isAdmin)).filter(Boolean)}},200,headers);
+  }
   if (!canApply) return json({ok:false,code:"NPC_EDITOR_UPGRADE",error:"Ricarica Foundry con Wiki Sync aggiornato prima di inviare le modifiche."},409,headers);
   let body;
   try { const text = await request.text(); if (new TextEncoder().encode(text).length > 768*1024) return json({ok:false,error:"Modifiche troppo grandi."},413,headers); body=JSON.parse(text); }
@@ -7356,6 +7383,9 @@ async function handleNpcNativeEditor(request, route, campaignId, env, corsHeader
       const next = nativeValidateChanges(document,target,change.patches,permissions);
       if (change.patches.some(patch=>nativePatchConflict(nativeEditorSource(document,target.type),patch))) return json({ok:false,code:"NPC_EDITOR_CONFLICT",error:`${document.name}: alcuni campi sono cambiati. Aggiorna la scheda prima di riprovare.`},409,headers);
       if (target.type === "Item") {
+        await prepareActivityAnimationPatches(nativeEditorSource(document,target.type).system?.activities, next, change.patches, {
+          campaign:campaignId, route, origin, bucket:env.MEDIA_BUCKET, canInstall:record.snapshot.versions?.activityAnimations === 1
+        });
         const config = next.flags?.["khuzoe-automations"]?.midiRollConfig;
         if (config && !nativeEqual(config,document.flags?.["khuzoe-automations"]?.midiRollConfig) && !validManagedMidiRollConfig(config,next.system?.activities)) throw new Error("Configurazione delle probabilità non valida.");
         const rules = next.flags?.["khuzoe-automations"]?.npcRules;
@@ -8005,6 +8035,13 @@ async function handleManagedActorGet(request, route, campaignId, env, corsHeader
     },
     ...(commands.length ? { sync: { queueVersion: commandQueue.version, commands } } : {}),
   };
+  if (data.actorType === 'npc') {
+    const origin = new URL(request.url).origin;
+    for (const item of data.definition?.items || []) {
+      const previews = activityAnimationPreviews(item.definition?.activities, item.media?.animations, campaignId, route, origin);
+      if (Object.keys(previews).length) item.media = {...item.media, animations:previews};
+    }
+  }
   return json({ ok: true, campaignId, data }, 200, {
     ...corsHeaders,
     "Cache-Control": reader.user || reader.isEditor ? "private, no-store" : "public, max-age=60, must-revalidate",

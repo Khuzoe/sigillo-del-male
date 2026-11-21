@@ -40,7 +40,7 @@ const sandbox = {console, Set, Map, URL, structuredClone, window: {localStorage:
 vm.runInNewContext(source.replace(/\}\)\(\);\s*$/, `
   globalThis.ui = {applySkillTreeRuntime, deriveSkillTreeNodes, getSkillTreeRequirementView, getSkillTreePlayerFacingDefinition,
     renderSkillTreeRequirementChecklist, renderSkillTreeNodeProgress, renderSkillTreeRequirementEditorCard,
-    getSkillGradeModel, applySkillGradeModel, skillGradeHtml, normalizeSkillTreeDefinitionForSave};
+    getSkillGradeModel, applySkillGradeModel, skillGradeHtml, normalizeSkillTreeDefinitionForSave, skillTreeReviewSource, applySkillTreeReview};
 })();`), sandbox);
 const ui = sandbox.ui;
 ui.applySkillTreeRuntime({escapeHtml: value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))});
@@ -59,6 +59,31 @@ test('matching descriptions produce shared text without changing the original re
   assert.deepEqual(copy(model.fields[0].values), ['1 ora','8 ore','quanto desideri']);
   assert.equal(ui.skillGradeHtml(model, 2), timed.levels[2].desc);
   assert.equal(JSON.stringify(timed), before);
+});
+test('whole-tree review includes branches, groups and every grade, and applies only confirmed fields', () => {
+  const tree = {name: 'Guardiano', nodes: [
+    {...copy(timed), id: 'time', title: 'Durata', icon: 'original.webp', connections:['strike']},
+    {id:'strike', title:'Colpo', desc:'<p>Colpisci.</p>', levels:[{desc:'<p>Colpisci.</p>'}, {}], requires:['time']},
+    {id:'choose', type:'group', title:'Bivio', children:['time','strike'], maxChoices:1}
+  ]};
+  const original = copy(tree), {entries, tree: overview} = ui.skillTreeReviewSource(tree);
+  assert.deepEqual(tree, original);
+  assert.equal(overview.nodes.length, 3);
+  assert.deepEqual(copy(overview.nodes[0].connections), [{target:'strike', mode:'normal'}]);
+  assert.deepEqual(copy(overview.nodes[1].prerequisites), ['time']);
+  assert.deepEqual(copy(overview.nodes[2].group.children), ['time','strike']);
+  assert.deepEqual(copy(overview.nodes[0].template.variables[0].values), ['1 ora','8 ore','quanto desideri']);
+  assert.equal(entries.filter(e => e.generateIcon).length, 2);
+  assert.equal(entries.filter(e => e.original).length, 2);
+  ui.applySkillTreeReview(tree, entries, [{key:'n1g1',text:'La durata è ⟦0⟧.'}, {key:'n2g1',icon:'new.webp'}], text => '<p>' + text + '</p>');
+  assert.equal(tree.nodes[0].levels[2].desc, '<p>La durata è quanto desideri.</p>');
+  assert.equal(tree.nodes[0].icon, 'original.webp');
+  assert.deepEqual(copy(tree.nodes[0].levels[2].changeNotes), original.nodes[0].levels[2].changeNotes);
+  assert.deepEqual(copy(tree.nodes[0].externalRequirements), original.nodes[0].externalRequirements);
+  assert.ok(ui.getSkillGradeModel(tree.nodes[0]));
+  assert.deepEqual(copy(tree.nodes[2]), original.nodes[2]);
+  assert.equal(tree.nodes[1].desc, original.nodes[1].desc);
+  assert.equal(tree.nodes[1].icon, 'new.webp');
 });
 test('one grade edit updates complete descriptions and adjacent comparisons across a save', () => {
   const n = copy(timed);

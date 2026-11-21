@@ -16,7 +16,7 @@ import {NPC_SHEET_AI_INSTRUCTIONS} from "./npc-sheet-ai-context.js";
 import {handleNpcSheetAi} from "./npc-sheet-ai-service.js";
 import {npcSheetJobStorage,MAX_SHEET_JOB_BYTES} from "./npc-sheet-job-storage.js";
 import {generateAbilityTranslation} from './ability-translations.js';
-import {rewriteSkillNode} from './skill-node-generation.js';
+import {reviewSkillTree, rewriteSkillNode} from './skill-node-generation.js';
 import {validateAbilityTranslation} from '../../../assets/js/shared/ability-translation.mjs';
 
 export const ABILITY_MODEL = "gpt-5.6-terra";
@@ -183,9 +183,9 @@ export async function handleAbilityGeneration(request, route, campaignId, env, s
   }
 }
 
-async function abilityIconReference(job, bucket, concept = false) {
-  const key = concept ? job.concept.key : job.referenceKey;
-  const etag = concept ? job.concept.etag : job.referenceEtag;
+async function abilityIconReference(job, bucket, concept) {
+  const key = concept ? concept.key : job.referenceKey;
+  const etag = concept ? concept.etag : job.referenceEtag;
   const source = await bucket.get(key);
   if (!source || source.size > 12 * 1024 * 1024) throw new GenerationError("reference_missing", concept ? "L’immagine di riferimento non è più disponibile." : "L'avatar di riferimento non è più disponibile. Salva un avatar valido prima di rigenerare l'icona.");
   if (etag && source.etag !== etag) throw new GenerationError("reference_changed", concept ? "L’immagine di riferimento è cambiata." : "L'avatar di riferimento è cambiato. Avvia una nuova generazione.");
@@ -245,7 +245,7 @@ export class AbilityGenerationStore {
         return latest ? publicJob(await s.get(`job:${latest}`)) : null;
       }));
       const used = Number(await s.get(`usage:icon:${new Date().toISOString().slice(0,7)}`) || 0);
-      return reply({ok:true,abilityIcons:1,iconPromptVersion:ABILITY_ICON_PROMPT_VERSION,imageModel:ABILITY_ICON_MODEL,canStop:true,jobs:jobs.filter(Boolean),usage:used});
+      return reply({ok:true,abilityIcons:1,optionalIconReferences:1,iconPromptVersion:ABILITY_ICON_PROMPT_VERSION,imageModel:ABILITY_ICON_MODEL,canStop:true,jobs:jobs.filter(Boolean),usage:used});
     }
     if (action === 'translation-list') {
       const jobs = await Promise.all((input.itemIds || []).map(async itemId => {
@@ -259,7 +259,7 @@ export class AbilityGenerationStore {
     if (action === "latest") return reply({ok: true, canStop: true, canDiscardSuggestions: true, nativeSheetEditor:NPC_SHEET_AI_COMPILER, nativeSheetVisualInput:NPC_SHEET_VISUAL_INPUT_VERSION, nativeAbilityEditor:1, nativeAbilityEditing:1, abilityEditCompiler:NATIVE_ABILITY_EDIT_COMPILER_VERSION, job: publicJob(job), ...(input.fingerprint ? {stale: Boolean(job && job.fingerprint !== input.fingerprint)} : {})});
     if (action === "create" || action === 'create-skill-node') {
       const skillNode = action === 'create-skill-node';
-      if (skillNode && (input.context.purpose !== 'skill-node' || !['skill-node-text','skill-node-icon'].includes(input.kind))) return fail('Richiesta nodo non valida.');
+      if (skillNode && (input.context.purpose !== 'skill-node' || !['skill-node-text','skill-node-icon','skill-tree-review'].includes(input.kind))) return fail('Richiesta nodo non valida.');
       if (job?.kind === "suggestions" && job.discardedAt) return fail("Questa analisi è stata scartata. Avvia una nuova analisi.", 409);
       if (job) return reply({ok: true, job: publicJob(job)});
       const previous = latest ? await s.get(`job:${latest}`) : null;
@@ -274,7 +274,8 @@ export class AbilityGenerationStore {
       if (input.kind === "ability-icon" && (input.context.purpose !== "ability-icons" || !input.context.itemId || !input.draft || !input.referenceKey)) return fail("Richiesta icona non valida.");
       const next = {...input, imageModel:ABILITY_ICON_MODEL, status: iconOnly ? "icon-pending" : "pending", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS, iconAttempt: input.withIcon ? input.id : ""};
       if(input.format===NPC_SHEET_AI_FORMAT&&(input.context.purpose!=='native-sheet'||input.withIcon||!input.actorSource||!input.options))return fail('Richiesta della scheda non valida.');
-      if (new TextEncoder().encode(JSON.stringify(next)).length > (input.format===NPC_SHEET_AI_FORMAT?MAX_SHEET_JOB_BYTES:120000)) return fail("Scheda e proposta troppo estese per la generazione.", 413);
+      const maxBytes = input.format === NPC_SHEET_AI_FORMAT || input.kind === 'skill-tree-review' ? MAX_SHEET_JOB_BYTES : 120000;
+      if (new TextEncoder().encode(JSON.stringify(next)).length > maxBytes) return fail("Scheda e proposta troppo estese per la generazione.", 413);
       await s.transaction(async tx => {
         if (!iconOnly) await this.reserve(tx, input.kind === "suggestions" ? "suggestions" : "text");
         if (input.withIcon) await this.reserve(tx, "icon");
@@ -305,7 +306,7 @@ export class AbilityGenerationStore {
         job.stoppedAt = new Date().toISOString();
         const message = "Attesa interrotta. Il generatore è libero. La chiamata precedente potrebbe avere un costo; nessun nuovo tentativo è stato avviato.";
         if (job.status === "uncertain") job.error = message;
-        else if (!job.iconId || job.iconError) job.iconError = job.kind === "ability-icon" ? message : `La bozza dell’abilità è conservata e puoi aggiungerla senza icona. ${message}`;
+        else if (!job.iconId || job.iconError) job.iconError = ["ability-icon", "skill-node-icon"].includes(job.kind) ? message : `La bozza dell’abilità è conservata e puoi aggiungerla senza icona. ${message}`;
         await s.put(`job:${job.id}`, job);
         if (await s.get("active") === job.id) { await s.delete("active"); await s.deleteAlarm(); }
         if (this.inFlight === job.id && this.inFlightAttempt === job.iconAttempt) this.abortController?.abort();
@@ -443,6 +444,10 @@ export class AbilityGenerationStore {
         job.report = await generateNpcSuggestions(job, this.env);
         job.status = "ready";
         delete job.sheet;
+      } else if (job.kind === 'skill-tree-review') {
+        job.draft = await reviewSkillTree(job, this.env, ABILITY_MODEL, abortController.signal);
+        job.status = 'ready';
+        delete job.review;
       } else if (job.kind === 'skill-node-text') {
         job.draft = await rewriteSkillNode(job, this.env, ABILITY_MODEL, abortController.signal);
         job.status = 'ready';
@@ -471,13 +476,18 @@ export class AbilityGenerationStore {
         const reference = withoutAvatar ? null : await abilityIconReference(job, this.env.MEDIA_BUCKET);
         const hasConcept = job.kind === 'skill-node-icon' && Boolean(job.concept);
         const images = [];
-        if (hasConcept) images.push(await abilityIconReference(job, this.env.MEDIA_BUCKET, true));
+        if (hasConcept) images.push(await abilityIconReference(job, this.env.MEDIA_BUCKET, job.concept));
         if (reference) images.push(reference);
+        const optionalImages = [];
+        for (const ref of job.optionalReferences || []) {
+          images.push(await abilityIconReference(job, this.env.MEDIA_BUCKET, ref));
+          optionalImages.push({image: images.length, note: ref.note});
+        }
         stage = "icon";
         const response = await fetchGeneration(images.length ? "https://api.openai.com/v1/images/edits" : "https://api.openai.com/v1/images/generations", {
           method: "POST", headers: {Authorization: `Bearer ${this.env.OPENAI_API_KEY}`, "Content-Type": "application/json"}, signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(12 * 60 * 1000)]),
           body: JSON.stringify({model: job.imageModel || ABILITY_ICON_MODEL, ...(images.length ? {images} : {}), n: 1, size: "1024x1024", quality: "medium", output_format: "webp",
-            prompt: buildAbilityIconPrompt({hasReference: Boolean(reference), hasConcept, name:job.draft.item?.name||job.draft.name,visualDirection:job.draft.iconPrompt,context:job.iconContext || (job.format===NATIVE_ABILITY_EDIT_FORMAT?nativeAbilityEditSummary(job.draft):job.format===NATIVE_ABILITY_FORMAT?nativeAbilitySummary(job.draft):{mode:job.draft.mode,damage:job.draft.damage,extraDamage:job.draft.extraDamage})})})
+            prompt: buildAbilityIconPrompt({hasReference: Boolean(reference), hasConcept, optionalImages, name:job.draft.item?.name||job.draft.name,visualDirection:job.draft.iconPrompt,context:job.iconContext || (job.format===NATIVE_ABILITY_EDIT_FORMAT?nativeAbilityEditSummary(job.draft):job.format===NATIVE_ABILITY_FORMAT?nativeAbilitySummary(job.draft):{mode:job.draft.mode,damage:job.draft.damage,extraDamage:job.draft.extraDamage})})})
         });
         const data = await readGenerationResponse(response), encoded = data.data?.[0]?.b64_json;
         if (typeof encoded !== "string" || encoded.length > 17 * 1024 * 1024) throw new GenerationError("image_invalid", "Il servizio non ha restituito un’immagine utilizzabile.", responseMetadata(response));
@@ -498,6 +508,7 @@ export class AbilityGenerationStore {
         const current = await s.get(`job:${job.id}`);
         if (current?.status === "uncertain" && (job.report || job.draft)) {
           const recovered = {...current, status: "ready", error: "", finishedAt: new Date().toISOString()};
+          if (job.kind === 'skill-tree-review') delete recovered.review;
           delete recovered.errorDetail;
           if (job.report) recovered.report = job.report;
           if (job.draft) {
