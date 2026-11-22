@@ -457,7 +457,7 @@ function buildNewCampaignItem(id, snapshot) {
   };
 }
 
-function campaignItemPresentationFromDocument(document) {
+function campaignItemPresentationFromDocument(document, readText = foundryHtmlToCatalogText) {
   const system = document?.system && typeof document.system === "object" && !Array.isArray(document.system)
     ? document.system
     : {};
@@ -472,17 +472,17 @@ function campaignItemPresentationFromDocument(document) {
     || ""
   );
   const unidentifiedName = String(unidentified.name || system.unidentifiedName || "").trim();
-  const narrative = parseFoundryItemDescription(html);
+  const narrative = parseFoundryItemDescription(html, readText);
   return {
     summary: narrative.summary,
     properties: narrative.properties,
     ...(narrative.notes ? { notes: narrative.notes } : {}),
     ...(unidentifiedName ? { unidentifiedName } : {}),
-    ...(unidentifiedDescription ? { unidentifiedDescription: foundryHtmlToText(unidentifiedDescription) } : {}),
+    ...(unidentifiedDescription ? { unidentifiedDescription: readText(unidentifiedDescription) } : {}),
   };
 }
 
-function parseFoundryItemDescription(value) {
+function parseFoundryItemDescription(value, readText) {
   let html = String(value || "").trim();
   if (!html) return { summary: "", properties: [], notes: "" };
 
@@ -495,24 +495,25 @@ function parseFoundryItemDescription(value) {
     return {
       name: foundryHtmlToText(removeClassBlock(heading.html, "cripta-catalog-property-charges")),
       charges: foundryHtmlToText(chargesBlock),
-      description: foundryHtmlToText(block.html.replace(heading.full, "")),
+      description: readText(block.html.replace(heading.full, "")),
       ...(genial ? { genial: true } : {}),
       ...(negative ? { negative: true } : {}),
     };
-  }).filter((property) => property.name || property.description);
+  }).filter((property) => property.name || property.charges || property.description);
   const structuredNotes = firstClassBlock(html, "cripta-catalog-notes");
   if (structuredSummary || structuredProperties.length || structuredNotes) {
     return {
-      summary: foundryHtmlToText(structuredSummary),
+      summary: readText(structuredSummary),
       properties: structuredProperties,
-      notes: foundryHtmlToText(structuredNotes.replace(firstHeading(structuredNotes).full, "")),
+      notes: readText(structuredNotes.replace(firstHeading(structuredNotes).full, "")),
     };
   }
 
+  const readNativeText = fragment => readText(fragment, {native: true});
   let notes = "";
   const trailingNotes = html.match(/<hr\b[^>]*>\s*<p\b[^>]*>\s*<em\b[^>]*>([\s\S]*?)<\/em>\s*<\/p>\s*$/i);
   if (trailingNotes) {
-    notes = foundryHtmlToText(trailingNotes[1]);
+    notes = readNativeText(trailingNotes[1]);
     html = html.slice(0, trailingNotes.index).trim();
   }
 
@@ -522,16 +523,16 @@ function parseFoundryItemDescription(value) {
   while ((match = headingPattern.exec(html))) {
     headings.push({ index: match.index, end: headingPattern.lastIndex, html: match[2] });
   }
-  if (!headings.length) return { summary: foundryHtmlToText(html), properties: [], notes };
+  if (!headings.length) return { summary: readNativeText(html), properties: [], notes };
 
-  const summary = foundryHtmlToText(html.slice(0, headings[0].index));
+  const summary = readNativeText(html.slice(0, headings[0].index));
   const properties = headings.map((heading, index) => {
     const parsedTitle = splitPropertyTitle(foundryHtmlToText(heading.html));
     const end = headings[index + 1]?.index ?? html.length;
     return {
       name: parsedTitle.name,
       charges: parsedTitle.charges,
-      description: foundryHtmlToText(html.slice(heading.end, end)),
+      description: readNativeText(html.slice(heading.end, end)),
     };
   }).filter((property) => property.name || property.description);
   return { summary, properties, notes };
@@ -569,12 +570,16 @@ function removeClassBlock(value, className) {
   return String(value || "").replace(pattern, "");
 }
 
-function foundryHtmlToText(value) {
-  return decodeHtmlEntities(String(value || "")
+function readableFoundryReferences(value) {
+  return value
     .replace(/@(?:UUID|Compendium)\[([^\]]+)](?:\{([^}]+)})?/gi, (_match, target, label) => label || target.split(".").pop() || "Riferimento Foundry")
     .replace(/@(item|spell|feat|condition|variantrule)\[([^\]|]+)(?:\|[^\]]+)?](?:\{([^}]+)})?/gi, (_match, _kind, label, explicit) => explicit || label)
     .replace(/&Reference\[[^\]]*?=([^\]]+)]/gi, "$1")
-    .replace(/\[\[\/([^\]]+)]]/g, (_match, command) => formatFoundryInlineCommand(command))
+    .replace(/\[\[\/([^\]]+)]]/g, (_match, command) => formatFoundryInlineCommand(command));
+}
+
+function foundryHtmlToText(value) {
+  return decodeHtmlEntities(readableFoundryReferences(String(value || ""))
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<li\b[^>]*>/gi, "\n- ")
     .replace(/<hr\b[^>]*>/gi, "\n\n")
@@ -585,6 +590,79 @@ function foundryHtmlToText(value) {
     .replace(/\n{3,}/g, "\n\n")
     .trim()
     .slice(0, 24_000);
+}
+
+function foundryHtmlToCatalogText(value, {native = false} = {}) {
+  const source = String(value ?? "").trim();
+  if (native && !/<(?:b|strong|em|i|ol|ul)\b/i.test(source)) return foundryHtmlToText(source);
+  if (!/<\/?[a-z][^>]*>/i.test(source)) return decodeHtmlEntities(source).slice(0, 24000);
+  const lists = [], emphasis = [];
+  let text = "", cursor = 0, breakCount = 0, previousList = "";
+  function flushBreak() {
+    if (breakCount) {
+      text = text.trimEnd();
+      if (text) text += "\n".repeat(breakCount);
+      breakCount = 0;
+    }
+  }
+  function append(content) {
+    if (!content) return;
+    flushBreak();
+    text += content;
+  }
+  function appendText(fragment) {
+    // Whitespace between block tags comes from the HTML formatter.
+    if (!fragment.trim() && (breakCount || !text || text.endsWith(" "))) return;
+    if (fragment.trim()) previousList = "";
+    const decoded = decodeHtmlEntities(native ? readableFoundryReferences(fragment) : fragment).replace(/[\t\r\n ]+/g, " ");
+    // Keep Foundry formulas and document references byte-for-byte inside emphasis.
+    append(decoded.replace(/\[\[[^\n]*?\]\](?:\{[^}\n]*\})?|@[\w.]+\[[^\]\n]*\](?:\{[^}\n]*\})?|[\\*]/g,
+      token => token.length === 1 ? "\\" + token : token));
+  }
+  for (const token of source.matchAll(/<!--[\s\S]*?-->|<(\/?)([a-z][\w:-]*)\b(?:[^>'"]|"[^"]*"|'[^']*')*>/gi)) {
+    appendText(source.slice(cursor, token.index));
+    cursor = token.index + token[0].length;
+    if (!token[2]) continue;
+    const closing = Boolean(token[1]), tag = token[2].toLowerCase();
+    if (tag === "ol" || tag === "ul") {
+      if (closing) {
+        lists.pop();
+        if (!lists.length) previousList = tag;
+        breakCount = 1;
+      }
+      else {
+        const start = /\sstart\s*=\s*["']?(\d{1,9})\b/i.exec(token[0])?.[1];
+        breakCount = !lists.length && previousList === tag ? 2 : 1;
+        previousList = "";
+        lists.push({ordered: tag === "ol", next: Number(start ?? 1)});
+      }
+    } else if (tag === "li") {
+      breakCount = Math.max(1, breakCount);
+      if (!closing) {
+        const list = lists.at(-1);
+        append("  ".repeat(Math.max(0, lists.length - 1)) + (list?.ordered ? list.next++ + ". " : "- "));
+      }
+    } else if (["b", "strong", "i", "em"].includes(tag)) {
+      const mark = tag === "b" || tag === "strong" ? "**" : "*";
+      if (closing && emphasis.at(-1)?.mark === mark) {
+        const {offset} = emphasis.pop();
+        const body = text.slice(offset);
+        text = text.slice(0, offset) + body.replace(/^(\s*)(\S[\s\S]*?)(\s*)$/, (_, lead, visible, tail) => lead + mark + visible + mark + tail);
+      } else if (!closing) {
+        flushBreak();
+        emphasis.push({mark, offset: text.length});
+      }
+    } else if (tag === "br") {
+      breakCount = Math.min(2, breakCount + 1);
+    } else if (tag === "hr" || (closing && ["tr", "section", "aside"].includes(tag))) {
+      breakCount = 2;
+    } else if ((tag === "p" || tag === "div") && !lists.length) {
+      if (closing) breakCount = 2;
+      else if (text && !breakCount) breakCount = 2;
+    }
+  }
+  appendText(source.slice(cursor));
+  return text.trim().slice(0, 24000);
 }
 
 function formatFoundryInlineCommand(value) {
@@ -607,22 +685,25 @@ function campaignItemNarrativeFollowsFoundry(item, previousDocument) {
   const current = campaignItemNarrativeFingerprint(item);
   if (!current.summary && !current.notes && !current.properties.length && !current.unidentifiedName && !current.unidentifiedDescription) return true;
   if (!previousDocument) return false;
-  return stableStringify(current) === stableStringify(campaignItemNarrativeFingerprint(campaignItemPresentationFromDocument(previousDocument)));
+  // Older catalogs followed the same Foundry document with emphasis and list numbers flattened.
+  const fingerprint = stableStringify(current);
+  const matches = reader => fingerprint === stableStringify(campaignItemNarrativeFingerprint(campaignItemPresentationFromDocument(previousDocument, reader)));
+  return matches(foundryHtmlToCatalogText) || matches(foundryHtmlToText);
 }
 
 function campaignItemNarrativeFingerprint(item) {
   return {
-    summary: normalizeNarrativeText(item?.summary),
-    notes: normalizeNarrativeText(item?.notes),
+    summary: normalizeCatalogFormatting(item?.summary),
+    notes: normalizeCatalogFormatting(item?.notes),
     unidentifiedName: normalizeNarrativeText(item?.unidentifiedName),
-    unidentifiedDescription: normalizeNarrativeText(item?.unidentifiedDescription),
+    unidentifiedDescription: normalizeCatalogFormatting(item?.unidentifiedDescription),
     properties: (Array.isArray(item?.properties) ? item.properties : []).filter((property) => property?.hidden !== true).map((property) => ({
       name: normalizeNarrativeText(property?.name),
       charges: normalizeNarrativeText(property?.charges),
-      description: normalizeNarrativeText(property?.description),
+      description: normalizeCatalogFormatting(typeof property === "string" ? property : property?.description),
       genial: property?.genial === true && property?.negative !== true,
       negative: property?.negative === true,
-    })).filter((property) => property.name || property.description),
+    })).filter((property) => property.name || property.charges || property.description),
   };
 }
 
@@ -630,9 +711,43 @@ function normalizeNarrativeText(value) {
   return String(value || "").replace(/\r\n?/g, "\n").replace(/[\t ]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+function normalizeCatalogFormatting(value) {
+  // Markdown accepts different bullet signs and repeated numbers in the same list.
+  // Compare their displayed sequence, preserving the first number and nesting.
+  const lists = [];
+  const normalized = [];
+  let afterList = false;
+  for (const line of String(value ?? "").replace(/\r\n?/g, "\n").trimEnd().split("\n")) {
+    const item = /^([ \t]*)(?:[-+*]|(\d{1,9})[.)])[ \t]+(.*)$/.exec(line);
+    if (!item) {
+      if (line.trim()) {
+        lists.length = 0;
+        normalized.push(normalizeNarrativeText(line));
+        afterList = false;
+      } else if (!afterList && normalized.at(-1)) normalized.push("");
+      else if (afterList) lists.length = 0;
+      continue;
+    }
+    if (normalized.at(-1) === "") normalized.pop();
+    const indent = item[1].replace(/\t/g, "    ").length, ordered = Boolean(item[2]);
+    while (lists.length && lists.at(-1).indent > indent) lists.pop();
+    if (lists.at(-1)?.indent === indent && lists.at(-1).ordered !== ordered) lists.pop();
+    if (lists.at(-1)?.indent !== indent) lists.push({indent, ordered, number: Number(item[2])});
+    const prefix = ordered ? lists.at(-1).number++ + ". " : "- ";
+    normalized.push("  ".repeat(lists.length - 1) + prefix + normalizeNarrativeText(item[3]));
+    afterList = true;
+  }
+  return normalized.join("\n").trim();
+}
+
 function applyCampaignItemNarrative(item, presentation) {
   item.summary = String(presentation?.summary || "");
-  item.properties = Array.isArray(presentation?.properties) ? presentation.properties : [];
+  const properties = [...(presentation?.properties || [])];
+  // Hidden properties live only in the catalog and are absent from the public description.
+  for (const [index, property] of (Array.isArray(item.properties) ? item.properties : []).entries()) {
+    if (property?.hidden === true) properties.splice(index, 0, property);
+  }
+  item.properties = properties;
   if (presentation?.notes) item.notes = String(presentation.notes);
   else delete item.notes;
   if (presentation?.unidentifiedName) item.unidentifiedName = String(presentation.unidentifiedName);

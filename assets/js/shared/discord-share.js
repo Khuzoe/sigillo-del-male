@@ -21,12 +21,12 @@
         modal.className = "discord-share-modal";
         modal.hidden = true;
         modal.innerHTML = `
-            <button class="discord-share-backdrop" type="button" data-share-close aria-label="Chiudi anteprima"></button>
+            <button class="discord-share-backdrop" type="button" tabindex="-1" data-share-close aria-label="Chiudi anteprima"></button>
             <section class="discord-share-dialog" role="dialog" aria-modal="true" aria-labelledby="discord-share-title">
                 <header class="discord-share-header">
                     <span class="discord-share-emblem"><i class="fab fa-discord" aria-hidden="true"></i></span>
                     <span><small>Condivisione nel canale della campagna</small><h2 id="discord-share-title">Anteprima Discord</h2></span>
-                    <button class="discord-share-close" type="button" data-share-close aria-label="Chiudi"><i class="fas fa-xmark"></i></button>
+                    <button class="discord-share-close" type="button" data-share-close aria-label="Chiudi"><span aria-hidden="true">×</span></button>
                 </header>
                 <div class="discord-share-layout">
                     <div class="discord-share-preview-shell"><div class="discord-share-preview" data-share-preview></div></div>
@@ -51,7 +51,14 @@
             else if (event.target.closest("[data-share-send]")) send();
         });
         document.addEventListener("keydown", event => {
-            if (event.key === "Escape" && !modal.hidden) close();
+            if (modal.hidden) return;
+            if (event.key === "Escape") close();
+            if (event.key === "Tab") {
+                const buttons = modal.querySelectorAll(".discord-share-dialog button:enabled");
+                const first = buttons[0], last = buttons[buttons.length - 1];
+                if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+            }
         });
         return modal;
     }
@@ -62,8 +69,14 @@
         ensureModal();
         active = { entity, blob: null };
         lastFocused = document.activeElement;
+        modal.dataset.kind = entity.kind;
         modal.hidden = false;
         document.body.classList.add("discord-share-open");
+        const isItem = entity.kind === "item";
+        const destination = modal.querySelector(".discord-share-header small");
+        destination.textContent = isItem
+            ? pretty(entity.campaignId) + " · Canale oggetti" : "Condivisione nel canale della campagna";
+        modal.querySelector("#discord-share-title").textContent = isItem ? "Condividi su Discord" : "Anteprima Discord";
         modal.querySelector("[data-share-kind]").textContent = entity.kind === "npc" ? "Dossier NPC" : "Oggetto & materiale";
         modal.querySelector("[data-share-name]").textContent = entity.name;
         modal.querySelector("[data-share-description]").textContent = entity.description || "La card userà le informazioni pubbliche disponibili.";
@@ -76,15 +89,31 @@
         status("");
         loadingPreview();
         setSending(false);
-        modal.querySelector("[data-share-close]")?.focus();
+        modal.querySelector(".discord-share-close").focus();
         try {
-            await document.fonts?.ready;
-            const blob = await renderBlob(entity);
+            const [campaign] = await Promise.all([isItem ? window.CriptaApp?.campaigns?.ready?.() : null, document.fonts?.ready]);
+            if (active?.entity !== entity) return;
+            const image = entity.imageUrl ? await loadImage(entity.imageUrl).catch(() => null) : null;
+            if (active?.entity !== entity) return;
+            let blob;
+            if (isItem) {
+                const name = campaign?.id === entity.campaignId && campaign.name ? campaign.name : pretty(entity.campaignId);
+                destination.textContent = name + " · Canale oggetti";
+                const sheet = window.CriptaItemShareCard.create(entity, name, image);
+                const preview = modal.querySelector("[data-share-preview]");
+                preview.replaceChildren(sheet);
+                preview.classList.add("is-ready");
+                blob = await window.CriptaItemShareCard.toPng(sheet, encodePng);
+            } else {
+                try { blob = await drawCard(entity, image); }
+                catch (error) { if (!image) throw error; blob = await drawCard(entity, null); }
+            }
             if (!active || active.entity !== entity) return;
             active.blob = blob;
-            showPreview(blob, entity.name);
+            if (!isItem) showPreview(blob, entity.name);
             setSending(false);
         } catch (error) {
+            if (active?.entity !== entity) return;
             console.error("Card Discord non generata", error);
             status("Non riesco a generare l'anteprima. Riprova dopo aver ricaricato la pagina.", true);
             modal.querySelector("[data-share-preview]").innerHTML = '<span class="discord-share-preview-loader is-error"><i class="fas fa-triangle-exclamation"></i>Anteprima non disponibile</span>';
@@ -102,7 +131,7 @@
     }
 
     async function send() {
-        if (!active?.blob) return;
+        if (!active?.blob || modal.querySelector("[data-share-send]").disabled) return;
         setSending(true);
         status("Invio della card in corso...");
         const { entity, blob } = active;
@@ -122,6 +151,7 @@
                 body: form,
                 cache: false
             });
+            if (active?.entity !== entity) return;
             if (!result?.sent) {
                 if (result?.missingChannel) throw new Error("Il canale Discord della campagna non è ancora configurato.");
                 throw new Error(result?.error || "Discord non ha confermato l'invio.");
@@ -131,6 +161,7 @@
             button.innerHTML = '<i class="fas fa-circle-check"></i><span>Pubblicata</span>';
             button.disabled = true;
         } catch (error) {
+            if (active?.entity !== entity) return;
             console.error("Condivisione Discord fallita", error);
             status(error?.message || "Invio non riuscito. Riprova.", true);
             setSending(false);
@@ -192,11 +223,11 @@
             actorId: String(input.actorId || "").trim().slice(0, 96),
             name: text(input.name) || (input.kind === "npc" ? "NPC" : "Oggetto"),
             subtitle: text(input.subtitle),
-            description: text(input.description),
+            description: input.kind === "item" ? String(input.description || "").trim() : text(input.description),
             imageUrl: imageUrl(input.imageUrl),
             badges: list(input.badges, 5),
             facts: list(input.facts, 8),
-            sections: normalizeSections(input.sections),
+            sections: normalizeSections(input.sections, input.kind),
             hidden: input.hidden === true,
             unidentified: input.unidentified === true,
             pageUrl: pageUrl(input.pageUrl || window.location.href)
@@ -205,38 +236,21 @@
 
     function text(value, max = 0) { const clean = String(value || "").replace(/\s+/g, " ").trim(); return max > 0 ? clean.slice(0, max) : clean; }
     function list(value, maxItems, maxLength = 0) { return (Array.isArray(value) ? value : []).map(item => text(item, maxLength)).filter(Boolean).slice(0, maxItems); }
-    function normalizeSections(value) {
+    function normalizeSections(value, kind) {
         return (Array.isArray(value) ? value : []).map(section => ({
             title: text(section?.title),
             meta: text(section?.meta),
-            description: text(section?.description),
+            description: kind === "item" ? String(section?.description || "").trim() : text(section?.description),
             tone: ["arcane", "negative", "material", "note"].includes(section?.tone) ? section.tone : "default"
         })).filter(section => section.title || section.meta || section.description);
     }
-    function imageUrl(value) { try { return new URL(String(value || ""), window.location.href).toString(); } catch (_) { return ""; } }
+    function imageUrl(value) { if (!value) return ""; try { return new URL(String(value), window.location.href).toString(); } catch (_) { return ""; } }
     function pageUrl(value) { try { const url = new URL(String(value || ""), window.location.href); return url.origin === window.location.origin ? url.toString() : ""; } catch (_) { return ""; } }
-
-    async function renderBlob(entity) {
-        let image = null;
-        if (entity.imageUrl) try { image = await loadImage(entity.imageUrl); } catch (_) { image = null; }
-        try { return await drawCard(entity, image); }
-        catch (error) { if (!image) throw error; return drawCard(entity, null); }
-    }
 
     async function drawCard(entity, image) {
         const theme = THEMES[entity.campaignId] || THEMES["cripta-di-sangue"];
         const layout = measureCardLayout(entity, theme);
-        const scales = [SCALE, 1.8, 1.6, 1.4, 1.25];
-        const maxBytes = Math.floor(7.9 * 1024 * 1024);
-        let fallbackBlob = null;
-        for (const renderScale of scales) {
-            const canvas = document.createElement("canvas");
-            canvas.width = Math.round(WIDTH * renderScale);
-            canvas.height = Math.round(layout.height * renderScale);
-            const ctx = canvas.getContext("2d");
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "high";
-            ctx.scale(renderScale, renderScale);
+        return encodePng(WIDTH, layout.height, ctx => {
             const bg = ctx.createLinearGradient(0, 0, WIDTH, layout.height);
             bg.addColorStop(0, "#08080b"); bg.addColorStop(.55, "#151117"); bg.addColorStop(1, theme.soft);
             ctx.fillStyle = bg; ctx.fillRect(0, 0, WIDTH, layout.height);
@@ -247,10 +261,25 @@
             strokeRound(ctx, 35, 35, WIDTH - 70, layout.height - 70, 24, `${theme.accent}55`, 1);
             drawMedia(ctx, entity, image, theme, layout);
             drawText(ctx, entity, theme, layout);
-            fallbackBlob = await toBlob(canvas);
-            if (fallbackBlob.size <= maxBytes) return fallbackBlob;
+        });
+    }
+
+    async function encodePng(width, height, paint) {
+        // Fit both the canvas limits and the share endpoint's 8 MiB upload limit.
+        const initialScale = Math.min(SCALE, 16384 / Math.max(width, height), Math.sqrt(16000000 / (width * height)));
+        for (const factor of [1, .8, .65, .5, .35]) {
+            const scale = initialScale * factor;
+            const canvas = document.createElement("canvas");
+            canvas.width = Math.ceil(width * scale);
+            canvas.height = Math.ceil(height * scale);
+            const ctx = canvas.getContext("2d");
+            ctx.scale(scale, scale);
+            ctx.imageSmoothingQuality = "high";
+            paint(ctx);
+            const blob = await toBlob(canvas);
+            if (blob.size <= 8 * 1024 * 1024) return blob;
         }
-        return fallbackBlob;
+        throw new Error("La scheda supera il limite di 8 MB.");
     }
 
     function measureCardLayout(entity, theme) {

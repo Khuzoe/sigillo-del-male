@@ -94,7 +94,7 @@
             const selectedFromUrl = selectInitialItemFromUrl();
             renderAll();
             if (selectedFromUrl) setFocusMode(true);
-            const statusParts = [`${state.items.length} oggetti caricati da ${loaded.source === 'kv' ? 'KV online' : 'JSON statico'}.`];
+            const statusParts = [`${state.items.length} oggetti caricati${loaded.source === 'kv' ? '' : ' dalla copia locale'}.`];
             if (restoredDraft) statusParts.push('Bozza locale ripristinata dopo reload.');
             if (selectedFromUrl) statusParts.push('Oggetto aperto dalla griglia.');
             setStatus(statusParts.join(' '));
@@ -186,7 +186,8 @@
             heading.textContent = title;
             const copy = document.createElement('p');
             copy.textContent = description;
-            titleWrap.append(heading, copy);
+            titleWrap.append(heading);
+            if (description) titleWrap.append(copy);
             header.append(titleWrap);
             node.append(header);
             return { node, header };
@@ -227,16 +228,20 @@
             }
         }
 
-        const identity = section('Identita', 'Nome, proprietario e immagine principale dell\'oggetto.', 'items-form-section--hero');
+        const identity = section('Identità', '', 'items-form-section--hero');
+        const review = document.createElement('button');
+        review.type = 'button';
+        review.className = 'items-editor-btn';
+        review.dataset.itemAi = 'whole';
+        review.textContent = 'Rivedi oggetto con AI';
         const identityGrid = grid('items-form-grid--identity');
         appendExisting(identityGrid, [
             fieldById('field-name'),
-            fieldById('field-id'),
             fieldById('field-owner')
         ]);
         appendExisting(identity.node, [imageField, identityGrid]);
 
-        const classification = section('Classificazione', 'Campi usati nella lista, nelle schede giocatore e nelle associazioni con Foundry.');
+        const classification = section('Classificazione', '');
         const classificationGrid = grid();
         appendExisting(classificationGrid, [
             fieldById('field-type'),
@@ -284,29 +289,30 @@
         els.materialTagList = materialTagsList;
         els.addMaterialTagBtn = addMaterialTagBtn;
 
-        const links = section('Collegamenti', 'Uno per riga. I nomi Foundry associano inventari e import; gli alias servono alla ricerca del sito.');
+        const links = section('Collegamenti Foundry', 'Inserisci un nome per riga. I nomi Foundry collegano gli inventari, gli alias servono per la ricerca.');
         const linksGrid = grid('items-form-grid--two');
         const foundryNamesField = fieldById('field-foundry-names');
         const aliasesField = fieldById('field-aliases');
         foundryNamesField?.classList.remove('items-editor-field--wide');
         aliasesField?.classList.remove('items-editor-field--wide');
         appendExisting(linksGrid, [
+            fieldById('field-id'),
             foundryNamesField,
             aliasesField
         ]);
         links.node.append(linksGrid);
 
-        const texts = section('Testi', 'La descrizione breve appare nelle liste. Le note sono per origine, sessione o contesto.');
+        const texts = section('Descrizioni', '');
         const textsGrid = grid('items-form-grid--description');
         appendExisting(textsGrid, [
             fieldById('field-summary'),
-            fieldById('field-notes'),
             fieldById('field-unidentified-name'),
-            fieldById('field-unidentified-description')
+            fieldById('field-unidentified-description'),
+            fieldById('field-notes')
         ]);
         texts.node.append(textsGrid);
 
-        const properties = section('Proprieta', 'Ogni blocco diventa una proprieta leggibile nella pagina oggetto. Usa "nascosta" per testo solo DM.');
+        const properties = section('Proprietà', '');
         properties.node.id = 'properties-section';
         const propertyField = els.propertyList?.closest('.items-editor-field');
         const propertyLabel = propertyField?.querySelector('label');
@@ -314,10 +320,32 @@
         if (els.addPropertyBtn) properties.header.append(els.addPropertyBtn);
         appendExisting(properties.node, [propertyField]);
 
-        form.replaceChildren(identity.node, classification.node, material.node, links.node, texts.node, properties.node);
+        form.replaceChildren(review, identity.node, classification.node, material.node, links.node, texts.node, properties.node);
+        mountCatalogEditorTabs(form, identity.node, [
+            ['identity', 'Scheda', [identity.node, classification.node]],
+            ['texts', 'Descrizioni', [texts.node]],
+            ['properties', 'Proprietà', [properties.node, material.node]],
+            ['foundry', 'Foundry', [links.node]]
+        ]);
+        const savebar = document.createElement('footer');
+        savebar.className = 'catalog-editor-savebar';
+        form.append(savebar);
     }
 
     function bindEvents() {
+        const actionsMenu = els.detailForm?.closest('.items-editor-shell')?.querySelector('.catalog-tools-menu');
+        actionsMenu?.addEventListener('click', event => {
+            if (event.target.closest('button')) actionsMenu.open = false;
+        });
+        actionsMenu?.addEventListener('focusout', event => {
+            if (event.relatedTarget && !actionsMenu.contains(event.relatedTarget)) actionsMenu.open = false;
+        });
+        actionsMenu?.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                actionsMenu.open = false;
+                actionsMenu.querySelector('summary').focus();
+            }
+        });
         els.searchInput?.addEventListener('input', (event) => {
             state.query = event.target.value.trim();
             persistFilters();
@@ -437,6 +465,13 @@
     function setFocusMode(enabled) {
         const shell = document.querySelector('.items-editor-shell');
         shell?.classList.toggle('is-focus-mode', enabled);
+        if (els.saveJsonBtn && els.editorStatus) {
+            if (enabled) els.detailForm.querySelector('.catalog-editor-savebar')?.append(els.editorStatus, els.saveJsonBtn);
+            else {
+                shell.querySelector('.items-editor-title')?.append(els.editorStatus);
+                els.focusModeBtn?.before(els.saveJsonBtn);
+            }
+        }
         if (els.focusModeBtn) {
             els.focusModeBtn.innerHTML = enabled
                 ? '<i class="fas fa-table-list"></i> Tabella'
@@ -747,6 +782,7 @@
         const item = getSelectedItem();
         const fields = els.detailForm.querySelectorAll('[data-field], [data-property-field]');
         fields.forEach((field) => { field.disabled = !item; });
+        els.detailForm.querySelectorAll('[data-item-ai]').forEach(button => { button.disabled = !item; });
         if (els.addPropertyBtn) els.addPropertyBtn.disabled = !item;
         if (els.addMaterialTagBtn) els.addMaterialTagBtn.disabled = !item;
         if (els.detailImageDropzone) els.detailImageDropzone.disabled = !item;
@@ -775,6 +811,7 @@
             field.value = formatDetailFieldValue(item, key);
         });
         renderPropertiesEditor(item);
+        enhanceCatalogTextFields(els.detailForm);
         renderMaterialSection(item);
     }
 
@@ -818,8 +855,13 @@
         }
     }
 
-    function renderPropertiesEditor(item) {
+    function renderPropertiesEditor(item, {openLast = false} = {}) {
         if (!els.propertyList) return;
+        const sameItem = els.propertyList.dataset.itemId === item.id;
+        const oldRows = [...els.propertyList.querySelectorAll('[data-property-index]')];
+        const expanded = sameItem && oldRows.length ? new Set(oldRows.flatMap((row, i) =>
+            row.querySelector('[data-property-toggle]')?.getAttribute('aria-expanded') === 'true' ? [i] : [])) : null;
+        els.propertyList.dataset.itemId = item.id;
         const properties = normalizeProperties(item.properties, { keepEmpty: true });
         item.properties = properties;
         if (!properties.length) {
@@ -829,28 +871,35 @@
 
         els.propertyList.innerHTML = properties.map((property, index) => `
             <div class="items-property-row ${property.negative === true ? 'items-property-row--negative' : property.genial === true ? 'items-property-row--genial' : ''}" data-property-index="${index}">
-                <div class="items-property-row-top">
-                    <input class="items-editor-input" data-property-field="name" placeholder="Nome" value="${escapeHtml(property.name || '')}">
-                    <input class="items-editor-input" data-property-field="charges" placeholder="Cariche" value="${escapeHtml(property.charges || '')}">
-                    <button class="items-editor-btn items-editor-btn--danger" type="button" data-action="remove-property" title="Rimuovi proprietà">
-                        <i class="fas fa-trash" aria-hidden="true"></i>
-                    </button>
+                <div class="catalog-property-writing">
+                    <div class="items-property-row-top">
+                        <label>Nome<input class="items-editor-input" data-property-field="name" value="${escapeHtml(property.name || '')}"></label>
+                        <label>Cariche o condizione<input class="items-editor-input" data-property-field="charges" value="${escapeHtml(property.charges || '')}"></label>
+                    </div>
+                    <label>Descrizione<textarea class="items-editor-area" data-property-field="description" rows="4">${escapeHtml(property.description || '')}</textarea></label>
                 </div>
-                <label class="items-editor-check">
-                    <input type="checkbox" data-property-field="genial" ${property.genial === true ? 'checked' : ''}>
-                    Proprietà geniale
-                </label>
-                <label class="items-editor-check">
-                    <input type="checkbox" data-property-field="negative" ${property.negative === true ? 'checked' : ''}>
-                    Effetto negativo
-                </label>
-                <label class="items-editor-check">
-                    <input type="checkbox" data-property-field="hidden" ${property.hidden === true ? 'checked' : ''}>
-                    Proprietà nascosta
-                </label>
-                <textarea class="items-editor-area" data-property-field="description" placeholder="Descrizione">${escapeHtml(property.description || '')}</textarea>
+                <div class="catalog-property-tools">
+                    <label class="items-editor-check">
+                        <input type="checkbox" data-property-field="genial" ${property.genial === true ? 'checked' : ''}>
+                        Geniale
+                    </label>
+                    <label class="items-editor-check">
+                        <input type="checkbox" data-property-field="negative" ${property.negative === true ? 'checked' : ''}>
+                        Negativa
+                    </label>
+                    <label class="items-editor-check">
+                        <input type="checkbox" data-property-field="hidden" ${property.hidden === true ? 'checked' : ''}>
+                        Solo DM
+                    </label>
+                    <button type="button" class="item-ai-refine" data-item-ai="description">Migliora testo con AI</button>
+                    <button class="items-editor-btn items-editor-btn--danger" type="button" data-action="remove-property">Rimuovi</button>
+                </div>
+                <div class="item-property-order"></div>
             </div>
         `).join('');
+        enhanceCatalogTextFields(els.propertyList);
+        if (openLast) expanded?.add(properties.length - 1);
+        refreshCatalogPropertyOrder(els.propertyList, expanded);
     }
 
     function renderMaterialSection(item) {
@@ -967,7 +1016,7 @@
         renderDetails();
         renderItemPicker();
         updateOutput();
-        setStatus('Modifiche non salvate esportate nel JSON.');
+        setStatus('Modifiche da salvare.');
     }
 
     function handleFilePick(event) {
@@ -1094,10 +1143,16 @@
             item.properties[index][propertyField] = (propertyField === 'genial' || propertyField === 'negative' || propertyField === 'hidden')
                 ? target.checked === true
                 : String(target.value || '').trim();
+            if (target.type === 'checkbox') {
+                const [property] = normalizeProperties([item.properties[index]], {keepEmpty: true});
+                item.properties[index] = property;
+                row.querySelector('[data-property-field="genial"]').checked = property.genial === true;
+                row.classList.toggle('items-property-row--genial', property.genial === true);
+                row.classList.toggle('items-property-row--negative', property.negative === true);
+            }
             updatePreview();
-            if (propertyField === 'genial' || propertyField === 'negative' || propertyField === 'hidden') renderPropertiesEditor(item);
             updateOutput();
-            setStatus('Modifiche non salvate esportate nel JSON.');
+            setStatus('Modifiche da salvare.');
             return;
         } else if (materialTagField) {
             const row = target.closest('[data-material-tag-index]');
@@ -1109,7 +1164,7 @@
             if (Array.isArray(item.tags)) delete item.tags;
             updatePreview();
             updateOutput();
-            setStatus('Modifiche non salvate esportate nel JSON.');
+            setStatus('Modifiche da salvare.');
             return;
         }
 
@@ -1120,17 +1175,49 @@
         renderItemPicker();
         renderTable();
         updateOutput();
-        setStatus('Modifiche non salvate esportate nel JSON.');
+        setStatus('Modifiche da salvare.');
     }
 
-    function handleDetailClick(event) {
+    async function handleDetailClick(event) {
         const item = getSelectedItem();
         if (!item) return;
 
+        const move = event.target.closest('[data-property-move]');
+        if (move) {
+            const change = moveCatalogProperty(move);
+            if (change) {
+                const [property] = item.properties.splice(change.from, 1);
+                item.properties.splice(change.to, 0, property);
+                updatePreview();
+                updateOutput();
+                setStatus('Proprietà spostata in posizione ' + (change.to + 1) + '.');
+            }
+            return;
+        }
+        const button = event.target.closest('[data-item-ai]');
+        if (button) {
+            try {
+                const {openItemAiEditor} = await import('../shared/item-ai-editor.mjs?v=20261122-aggiunte');
+                await openItemAiEditor({button, form: els.detailForm, item, token: readAuthToken(), campaignId: getCampaignId(),
+                    resolveImage: resolveImageUrl, isCurrent: () => getSelectedItem() === item,
+                    onReviewApplied: (source, additionsOnly) => {
+                        if (additionsOnly) item.properties = [...(item.properties || []), ...additionsOnly];
+                        else {
+                            for (const key of ['summary', 'unidentifiedDescription', 'notes']) writeItemField(item, key, source[key]);
+                            if (source.properties.length) item.properties = source.properties.map((property, i) => ({...item.properties?.[i], ...property}));
+                        }
+                        renderAll();
+                        setStatus('Revisione applicata alla bozza. Salva online per confermare.');
+                    },
+                    applyImage: path => applyPickedImagePath(null, state.selectedIndex, path)});
+            } catch (error) { setStatus(error.message, 'error'); }
+            return;
+        }
         if (event.target.closest('#add-property-btn')) {
             item.properties = normalizeProperties(item.properties, { keepEmpty: true });
             item.properties.push({ name: '', charges: '', description: '' });
-            renderPropertiesEditor(item);
+            renderPropertiesEditor(item, {openLast: true});
+            els.propertyList.lastElementChild?.querySelector('[data-property-field="name"]')?.focus();
             updateOutput();
             setStatus('Proprietà aggiunta.');
             return;
@@ -1469,6 +1556,7 @@
 
     function focusPrimaryDetailField() {
         window.requestAnimationFrame(() => {
+            els.detailForm?.querySelector('[data-catalog-tab="identity"]')?.click();
             els.detailForm?.querySelector('[data-field="name"]')?.focus();
         });
     }
@@ -1533,7 +1621,7 @@
             } catch (_) {
                 // Ignore storage errors.
             }
-            setStatus(`Oggetti salvati online (${payload.count ?? data.length}). Versione KV ${payload.version ?? '?'}.`);
+            setStatus(`Oggetti salvati online (${payload.count ?? data.length}).`);
         } catch (error) {
             console.error('Errore salvataggio online oggetti:', error);
             setStatus(`Salvataggio online fallito: ${error?.message || error}`, 'error');

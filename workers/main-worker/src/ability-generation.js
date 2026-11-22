@@ -17,6 +17,8 @@ import {handleNpcSheetAi} from "./npc-sheet-ai-service.js";
 import {npcSheetJobStorage,MAX_SHEET_JOB_BYTES} from "./npc-sheet-job-storage.js";
 import {generateAbilityTranslation} from './ability-translations.js';
 import {reviewSkillTree, rewriteSkillNode} from './skill-node-generation.js';
+import {catalogReviewGroups, reviewCatalogItem} from './catalog-item-review.js';
+import {writeDossier,dossierArtPrompt} from './dossier-generation.js';
 import {validateAbilityTranslation} from '../../../assets/js/shared/ability-translation.mjs';
 
 export const ABILITY_MODEL = "gpt-5.6-terra";
@@ -24,7 +26,7 @@ const PRIVATE = "_private/ai-abilities/";
 const pending = job => ["pending", "running", "icon-pending", "icon-running"].includes(job?.status);
 const reply = (data, status = 200) => Response.json(data, {status, headers: {"Cache-Control": "private, no-store"}});
 const fail = (error, status = 400) => reply({ok: false, error}, status);
-const scope = context => context.purpose === 'skill-node' ? JSON.stringify(['skill-node', context.campaignId, context.accountId, context.tree])
+const scope = context => ['skill-node', 'catalog-item', 'dossier'].includes(context.purpose) ? JSON.stringify([context.purpose, context.campaignId, context.accountId, context.tree])
   : `${context.campaignId}:${context.worldId}:${context.actorId}${context.purpose === 'ability-translations' ? `:translations:${context.itemId || ''}` : context.purpose === "ability-icons" ? `:icons:${context.itemId || ""}` : context.purpose === "native-sheet" ? ":sheet" : context.purpose === "suggestions" ? ":suggestions" : context.purpose === "native-ability" ? ":native" : context.purpose === "native-ability-edit" ? `:edit:${context.itemId}` : ""}`;
 const publicJob = job => job ? {id: job.id, status: job.status, details: job.details, ...(job.kind==="ability-translation"?{channel:"translations",itemId:job.context.itemId}:job.kind==="ability-icon"?{channel:"icons",itemId:job.context.itemId}:{}), ...(job.context?.purpose==="native-ability"?{channel:"native"}:job.context?.purpose==="native-ability-edit"?{channel:"edit",itemId:job.context.itemId}:{}), ...(job.format===NPC_SHEET_AI_FORMAT?{channel:'sheet',usesAvatar:Boolean(job.referenceKey),sheetOptions:{mode:job.options.mode,sharedRuntime:job.options.sharedRuntime,capabilities:job.options.capabilities,protectedEffects:npcSheetProtectedEffects(job.actorSource)}}:{}), ...(job.format ? {format:job.format} : {}), ...(job.recoveredAt?{recoveredAt:job.recoveredAt}:{}), draft: job.draft || null, report: job.report || null, iconId: job.iconId || "", iconAttempt: job.iconAttempt || "", iconError: job.iconError || "", error: job.error || "", errorDetail: job.errorDetail || null, iconErrorDetail: job.iconErrorDetail || null, command: job.command || null, createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job)} : null;
 const preparedDocument=job=>job.format===NPC_SHEET_AI_FORMAT&&job.prepared?{...job.prepared,draft:job.prepared.draft||job.draft}:job.prepared;
@@ -38,6 +40,20 @@ function keepRejectedEdit(job,proposal) {
   delete job.sheet;
 }
 const plain = value => String(value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+
+function buildCatalogItemPrompt(job, hasReference) {
+  return [
+    hasReference
+      ? 'Use the uploaded reference image as the main design source. Image 1 is the actual item. Preserve its recognizable silhouette, proportions, construction, materials, colors and distinctive details. If it is a pair, show the pair. Replace its original surroundings with the white composition below.'
+      : 'Design a single magical inventory item based on the item description below.',
+    'Paint high-quality dark fantasy tabletop concept art in watercolor and ink, with detailed hand-painted textures, rich material definition, slightly aged details and dramatic but soft lighting.',
+    'Center the full object on a clean white background. Leave open pure white paper at every outer edge and in the corners. Paint one localized, translucent watercolor stain directly behind the silhouette, visible beyond it: irregular feathered edges, pooling pigment and a few diluted flecks, fading into white. Choose colors from the object itself. The illustrated inventory plates of Cripta di Sangue use violet and muted gold behind jester gloves, smoky gray and ochre behind a dark dagger, or muted crimson behind a rose brooch. Adapt the wash to this object. Keep its silhouette clear.',
+    ...(job.optionalReferences?.length ? ['Image 2 is a secondary visual reference. Borrow only compatible details; image 1 determines the object.'] : []),
+    'No cropping, hands, wearer, characters, scenery, floor, heavy shadows, unrelated objects, text, logos, labels, UI, frames, or borders. Only include symbols already part of the design.',
+    JSON.stringify({item: job.iconContext.name, description: job.iconContext.description,
+      referenceName: job.iconContext.visualReferenceName, artDirection: job.draft.iconPrompt})
+  ].join('\n');
+}
 
 // Send the entire mechanical sheet, not account IDs, dossiers, arbitrary flags or macros.
 export function abilityContext(actor) {
@@ -203,12 +219,12 @@ export class AbilityGenerationStore {
     const data = await request.json();
     return this.serial(async () => { try { return await this.handle(new URL(request.url).pathname.slice(1), data); } catch (error) { return fail(error.message || "Operazione non riuscita."); } });
   }
-  async reserve(tx, kind) {
+  async reserve(tx, kind, count = 1) {
     // Keep historical usage counters; provider credit and rate limits are the
     // only spending constraints. Legacy monthly-limit variables are ignored.
     const key = `usage:${kind}:${new Date().toISOString().slice(0, 7)}`;
     const used = Number(await tx.get(key) || 0);
-    await tx.put(key, used + 1);
+    await tx.put(key, used + count);
   }
   async handle(action, input) {
     const s = this.state.storage, identity = scope(input.context);
@@ -259,11 +275,16 @@ export class AbilityGenerationStore {
     if (action === "latest") return reply({ok: true, canStop: true, canDiscardSuggestions: true, nativeSheetEditor:NPC_SHEET_AI_COMPILER, nativeSheetVisualInput:NPC_SHEET_VISUAL_INPUT_VERSION, nativeAbilityEditor:1, nativeAbilityEditing:1, abilityEditCompiler:NATIVE_ABILITY_EDIT_COMPILER_VERSION, job: publicJob(job), ...(input.fingerprint ? {stale: Boolean(job && job.fingerprint !== input.fingerprint)} : {})});
     if (action === "create" || action === 'create-skill-node') {
       const skillNode = action === 'create-skill-node';
-      if (skillNode && (input.context.purpose !== 'skill-node' || !['skill-node-text','skill-node-icon','skill-tree-review'].includes(input.kind))) return fail('Richiesta nodo non valida.');
+      if (skillNode) {
+        const allowed = input.context.purpose === 'catalog-item' ? ['skill-node-text','skill-node-icon','catalog-item-review']
+          : input.context.purpose === 'dossier' ? ['dossier-text','skill-node-icon']
+          : input.context.purpose === 'skill-node' ? ['skill-node-text','skill-node-icon','skill-tree-review'] : [];
+        if (!allowed.includes(input.kind)) return fail('Richiesta non valida.');
+      }
       if (job?.kind === "suggestions" && job.discardedAt) return fail("Questa analisi è stata scartata. Avvia una nuova analisi.", 409);
       if (job) return reply({ok: true, job: publicJob(job)});
       const previous = latest ? await s.get(`job:${latest}`) : null;
-      if (skillNode && pending(previous)) return fail('Una generazione è già in corso per questo albero.', 409);
+      if (skillNode && pending(previous)) return fail('Una generazione è già in corso. Riprova tra poco.', 409);
       if (pending(previous)) return reply({ok: true, job: publicJob(previous)});
       if (input.kind === "ability-icon" && previous?.prepared && previous.status !== "accepted") return fail("Completa prima l’invio dell’icona precedente.",409);
       if (await s.get("active")) return fail("Una generazione è già in corso. Riprova tra poco.", 409);
@@ -274,10 +295,11 @@ export class AbilityGenerationStore {
       if (input.kind === "ability-icon" && (input.context.purpose !== "ability-icons" || !input.context.itemId || !input.draft || !input.referenceKey)) return fail("Richiesta icona non valida.");
       const next = {...input, imageModel:ABILITY_ICON_MODEL, status: iconOnly ? "icon-pending" : "pending", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS, iconAttempt: input.withIcon ? input.id : ""};
       if(input.format===NPC_SHEET_AI_FORMAT&&(input.context.purpose!=='native-sheet'||input.withIcon||!input.actorSource||!input.options))return fail('Richiesta della scheda non valida.');
-      const maxBytes = input.format === NPC_SHEET_AI_FORMAT || input.kind === 'skill-tree-review' ? MAX_SHEET_JOB_BYTES : 120000;
+      const maxBytes = input.format === NPC_SHEET_AI_FORMAT || input.context.purpose === 'dossier' || ['skill-tree-review','catalog-item-review'].includes(input.kind) ? MAX_SHEET_JOB_BYTES : 120000;
       if (new TextEncoder().encode(JSON.stringify(next)).length > maxBytes) return fail("Scheda e proposta troppo estese per la generazione.", 413);
       await s.transaction(async tx => {
-        if (!iconOnly) await this.reserve(tx, input.kind === "suggestions" ? "suggestions" : "text");
+        if (!iconOnly) await this.reserve(tx, input.kind === "suggestions" ? "suggestions" : "text",
+          input.kind === 'catalog-item-review' ? catalogReviewGroups(input.review, input.field, input.propertyMode).length : input.kind === 'dossier-text' ? input.sections.length : 1);
         if (input.withIcon) await this.reserve(tx, "icon");
         await tx.put({[`job:${id}`]: next, [`latest:${identity}`]: id, active: id});
         await tx.setAlarm(Date.now() + 100);
@@ -411,7 +433,7 @@ export class AbilityGenerationStore {
     }
     const detail = {code: "interrupted", stage: job.draft ? "icon" : job.kind === "suggestions" ? "analysis" : "ability"};
     const message = "L’attesa è terminata senza un risultato verificabile. Il generatore è stato sbloccato. Nessun nuovo tentativo automatico; verifica i consumi prima di riprovare.";
-    if (job.draft) { job.status = "ready"; job.iconError = job.kind === "ability-icon" ? message : `La proposta dell’abilità è conservata e può essere aggiunta senza icona. ${message}`; job.iconErrorDetail = detail; }
+    if (job.draft) { job.status = "ready"; job.iconError = ["ability-icon", "skill-node-icon"].includes(job.kind) ? message : `La proposta dell’abilità è conservata e può essere aggiunta senza icona. ${message}`; job.iconErrorDetail = detail; }
     else { job.status = "uncertain"; job.error = message; job.errorDetail = detail; }
   }
   async alarm() {
@@ -444,6 +466,15 @@ export class AbilityGenerationStore {
         job.report = await generateNpcSuggestions(job, this.env);
         job.status = "ready";
         delete job.sheet;
+      } else if (job.kind === 'catalog-item-review') {
+        const reference = job.concept ? await abilityIconReference(job, this.env.MEDIA_BUCKET, job.concept) : null;
+        job.draft = await reviewCatalogItem(job, this.env, ABILITY_MODEL, abortController.signal, reference);
+        job.status = 'ready';
+        delete job.review;
+      } else if (job.kind === 'dossier-text') {
+        job.draft = await writeDossier(job,this.env,ABILITY_MODEL,abortController.signal);
+        delete job.sections;
+        job.status = 'ready';
       } else if (job.kind === 'skill-tree-review') {
         job.draft = await reviewSkillTree(job, this.env, ABILITY_MODEL, abortController.signal);
         job.status = 'ready';
@@ -484,22 +515,26 @@ export class AbilityGenerationStore {
           optionalImages.push({image: images.length, note: ref.note});
         }
         stage = "icon";
+        const dossier = job.context.purpose === 'dossier';
         const response = await fetchGeneration(images.length ? "https://api.openai.com/v1/images/edits" : "https://api.openai.com/v1/images/generations", {
           method: "POST", headers: {Authorization: `Bearer ${this.env.OPENAI_API_KEY}`, "Content-Type": "application/json"}, signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(12 * 60 * 1000)]),
-          body: JSON.stringify({model: job.imageModel || ABILITY_ICON_MODEL, ...(images.length ? {images} : {}), n: 1, size: "1024x1024", quality: "medium", output_format: "webp",
-            prompt: buildAbilityIconPrompt({hasReference: Boolean(reference), hasConcept, optionalImages, name:job.draft.item?.name||job.draft.name,visualDirection:job.draft.iconPrompt,context:job.iconContext || (job.format===NATIVE_ABILITY_EDIT_FORMAT?nativeAbilityEditSummary(job.draft):job.format===NATIVE_ABILITY_FORMAT?nativeAbilitySummary(job.draft):{mode:job.draft.mode,damage:job.draft.damage,extraDamage:job.draft.extraDamage})})})
+          body: JSON.stringify({model: job.imageModel || ABILITY_ICON_MODEL, ...(images.length ? {images} : {}), n: 1, size: dossier ? "1536x1024" : "1024x1024", quality: "medium", output_format: "webp",
+            ...(job.context.purpose === 'catalog-item' ? {background: 'opaque'} : {}),
+            prompt: dossier ? dossierArtPrompt(job,hasConcept) : job.context.purpose === 'catalog-item'
+              ? buildCatalogItemPrompt(job, hasConcept)
+              : buildAbilityIconPrompt({hasReference: Boolean(reference), hasConcept, optionalImages, name:job.draft.item?.name||job.draft.name,visualDirection:job.draft.iconPrompt,context:job.iconContext || (job.format===NATIVE_ABILITY_EDIT_FORMAT?nativeAbilityEditSummary(job.draft):job.format===NATIVE_ABILITY_FORMAT?nativeAbilitySummary(job.draft):{mode:job.draft.mode,damage:job.draft.damage,extraDamage:job.draft.extraDamage})})})
         });
         const data = await readGenerationResponse(response), encoded = data.data?.[0]?.b64_json;
         if (typeof encoded !== "string" || encoded.length > 17 * 1024 * 1024) throw new GenerationError("image_invalid", "Il servizio non ha restituito un’immagine utilizzabile.", responseMetadata(response));
         const image = Uint8Array.from(atob(encoded), c => c.charCodeAt(0)), size = webpSize(image);
-        if (size?.width !== 1024 || size?.height !== 1024) throw new GenerationError("image_format", "L’icona ricevuta non è nel formato WebP 1024 × 1024 richiesto.", responseMetadata(response));
+        if (size?.width !== (dossier ? 1536 : 1024) || size?.height !== 1024) throw new GenerationError("image_format", "L’immagine ricevuta non rispetta il formato WebP richiesto.", responseMetadata(response));
         stage = "icon-save";
         await this.env.MEDIA_BUCKET.put(`${PRIVATE}${job.id}/${job.iconAttempt}.webp`, image, {httpMetadata: {contentType: "image/webp"}});
         job.iconId = job.iconAttempt; job.status = "ready"; job.iconError = ""; delete job.iconErrorDetail;
       }
     } catch (error) {
       const failure = generationFailure(error, stage);
-      if (job.draft) { job.status = "ready"; job.iconError = job.kind === "ability-icon" ? `Icona non completata. ${failure.message}` : `Icona non completata. L’abilità è conservata e può essere aggiunta senza icona. ${failure.message}`; job.iconErrorDetail = failure.detail; }
+      if (job.draft) { job.status = "ready"; job.iconError = ["ability-icon", "skill-node-icon"].includes(job.kind) ? `Immagine non completata. ${failure.message}` : `Icona non completata. L’abilità è conservata e può essere aggiunta senza icona. ${failure.message}`; job.iconErrorDetail = failure.detail; }
       else { job.status = "uncertain"; job.error = failure.message; job.errorDetail = failure.detail; }
     }
     await this.serial(async () => {
@@ -508,7 +543,8 @@ export class AbilityGenerationStore {
         const current = await s.get(`job:${job.id}`);
         if (current?.status === "uncertain" && (job.report || job.draft)) {
           const recovered = {...current, status: "ready", error: "", finishedAt: new Date().toISOString()};
-          if (job.kind === 'skill-tree-review') delete recovered.review;
+          if (['skill-tree-review','catalog-item-review'].includes(job.kind)) delete recovered.review;
+          if (job.kind === 'dossier-text') delete recovered.sections;
           delete recovered.errorDetail;
           if (job.report) recovered.report = job.report;
           if (job.draft) {

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+    <link rel="stylesheet" href="../assets/css/components/item-ai-editor.css?v=20261122-aggiunte" data-page-style>
     <title>Editor Oggetti | Cripta di Sangue</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -691,21 +692,16 @@
             }
         }
     </style>
+    <link rel="stylesheet" href="../assets/css/components/item-editor.css?v=20261122-lettura" data-page-style>
 </head>
 <body class="page-items-editor">
     <nav class="sidebar" id="sidebar-container"></nav>
 
     <main class="main-content items-editor-page" data-requires-dm>
-        <header class="hero-mini">
-            <div class="hero-title">
-                <h1>Editor Oggetti</h1>
-                <div class="subtitle">Modifica reliquie, strumenti e oggetti magici registrati nella cripta</div>
-            </div>
-        </header>
 
         <div class="legacy-admin-banner" role="note">
-            <strong>Strumento admin legacy</strong>
-            <span>L'editor canonico degli oggetti e quello interno alla pagina Oggetti. Usa questa pagina solo per import, export e manutenzione massiva.</span>
+            <strong>Manutenzione del catalogo</strong>
+            <span>Per importare, esportare e modificare più oggetti. Puoi modificare una singola scheda anche dalla pagina Oggetti.</span>
         </div>
 
         <div class="items-editor-shell">
@@ -713,18 +709,22 @@
                 <header class="items-editor-topbar">
                     <div class="items-editor-title">
                         <h1>Editor Oggetti</h1>
-                        <p id="editor-status">Caricamento dati...</p>
+                        <p id="editor-status" role="status">Caricamento dati...</p>
                     </div>
                     <div class="items-editor-actions">
                         <a class="items-editor-btn" href="../pages/oggetti.html"><i class="fas fa-arrow-left"></i> Oggetti</a>
                         <select class="items-editor-select items-editor-quick-select" id="item-picker" aria-label="Oggetto da modificare"></select>
+                        <button class="items-editor-btn" id="save-json-btn" type="button">Salva online</button>
+                        <button class="items-editor-btn" id="focus-mode-btn" type="button">Tabella</button>
+                        <details class="catalog-tools-menu"><summary class="items-editor-btn">Azioni catalogo</summary><div>
                         <button class="items-editor-btn" id="add-item-btn" type="button"><i class="fas fa-plus"></i> Nuovo</button>
                         <button class="items-editor-btn" id="add-material-btn" type="button"><i class="fas fa-cubes-stacked"></i> Nuovo materiale</button>
                         <button class="items-editor-btn" id="import-json-btn" type="button"><i class="fas fa-file-import"></i> Importa JSON</button>
                         <input class="items-editor-hidden" id="import-json-file" type="file" accept="application/json,.json">
-                        <button class="items-editor-btn" id="focus-mode-btn" type="button"><i class="fas fa-pen-to-square"></i> Scheda</button>
+                        <button class="items-editor-btn" id="download-json-btn" type="button">Esporta JSON</button>
                         <button class="items-editor-btn" id="duplicate-item-btn" type="button"><i class="fas fa-copy"></i> Duplica</button>
                         <button class="items-editor-btn items-editor-btn--danger" id="delete-item-btn" type="button"><i class="fas fa-trash"></i> Elimina</button>
+                        </div></details>
                     </div>
                 </header>
 
@@ -774,7 +774,7 @@
                 </section>
 
                 <section class="items-editor-panel">
-                    <h2>Dettagli</h2>
+                    <h2>Scheda oggetto</h2>
                     <form id="detail-form" class="items-editor-form-grid">
                         <div class="items-editor-form-grid items-editor-form-grid--identity">
                             <div class="items-editor-field items-editor-field--wide">
@@ -787,9 +787,10 @@
                                     </span>
                                     <input class="items-editor-hidden" id="detail-image-file" type="file" accept="image/webp,image/*">
                                 </button>
+                                <button class="items-editor-btn" type="button" data-item-ai="image">Genera immagine</button>
                             </div>
                             <div class="items-editor-field">
-                                <label for="field-name">Nome sito</label>
+                                <label for="field-name">Nome oggetto</label>
                                 <input class="items-editor-input" id="field-name" data-field="name" placeholder="Zara: Guanti">
                             </div>
                             <div class="items-editor-field">
@@ -843,11 +844,13 @@
                             <div class="items-editor-field items-editor-field--wide">
                                 <label for="field-unidentified-description">Descrizione non identificata</label>
                                 <textarea class="items-editor-area" id="field-unidentified-description" data-field="unidentifiedDescription"></textarea>
+                            <button type="button" class="item-ai-refine" data-item-ai="unidentifiedDescription">Scrivi o migliora con AI</button>
                             </div>
                         </div>
                         <div class="items-editor-field">
-                            <label for="field-summary">Descrizione breve</label>
+                            <label for="field-summary">Descrizione identificata</label>
                             <textarea class="items-editor-area" id="field-summary" data-field="summary"></textarea>
+                            <button type="button" class="item-ai-refine" data-item-ai="summary">Scrivi o migliora con AI</button>
                         </div>
                         <div class="items-editor-field">
                             <label>Proprietà</label>
@@ -858,18 +861,15 @@
                             </button>
                         </div>
                         <div class="items-editor-field">
-                            <label for="field-notes">Note</label>
+                            <label for="field-notes">Note della campagna</label>
                             <textarea class="items-editor-area" id="field-notes" data-field="notes"></textarea>
+                            <button type="button" class="item-ai-refine" data-item-ai="notes">Migliora testo con AI</button>
                         </div>
                     </form>
                 </section>
 
                 <section class="items-editor-panel items-editor-output">
-                    <h2>Export</h2>
-                    <div class="items-editor-actions">
-                        <button class="items-editor-btn" id="save-json-btn" type="button"><i class="fas fa-cloud-arrow-up"></i> Salva online</button>
-                        <button class="items-editor-btn" id="download-json-btn" type="button"><i class="fas fa-download"></i> Esporta JSON</button>
-                    </div>
+                    <h2>Anteprima JSON</h2>
                     <textarea class="items-editor-area" id="json-output" readonly spellcheck="false"></textarea>
                 </section>
             </aside>
@@ -877,7 +877,10 @@
     </main>
 
     <script src="../assets/js/layout.js?v=20260721-campaign-switch1"></script>
+    <script src="../assets/js/shared/item-text.js?v=20261122-format"></script>
+    <script src="../assets/js/shared/item-editor-layout.js?v=20261122-scheda"></script>
+    <script src="../assets/js/shared/item-format-editor.js?v=20261122-lettura"></script>
     <script src="../assets/js/shared/media-service.js"></script>
-    <script src="../assets/js/tools/items-editor.js?v=20260722-genial-properties1"></script>
+    <script src="../assets/js/tools/items-editor.js?v=20261122-aggiunte"></script>
 </body>
 </html>

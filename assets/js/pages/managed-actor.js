@@ -1190,6 +1190,16 @@
         const section = root.querySelector("[data-managed-profile]");
         if (!section || !editMode || !currentProfilePermissions.canEdit) return;
         setupManagedNpcProfileEditorLayout(root, section);
+        const toolbar = root.querySelector('[data-managed-profile-toolbar]');
+        if (toolbar && !toolbar.querySelector('[data-dossier-ai]')) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.dossierAi = '';
+            button.className = 'managed-command-secondary';
+            button.textContent = 'Da appunti a dossier';
+            button.addEventListener('click', () => openManagedDossierAi(root).catch(error => window.alert(error.message)));
+            toolbar.append(button);
+        }
         const markDirty = () => { managedProfileDirty = true; root.dataset.managedDirty = "true"; };
         setupManagedBannerEditors(section, markDirty);
         const actorNameControl = root.querySelector('[data-managed-actor-path="name"]');
@@ -1537,7 +1547,7 @@
             throw new Error("Il server non ha conservato l'altezza del banner. Pubblica il Worker aggiornato e riprova: la scelta resta nella bozza.");
         }
         currentProfile = savedProfile;
-        currentProfilePermissions = { ...currentProfilePermissions, canEdit: true, isEditor: true };
+        currentProfilePermissions = { ...currentProfilePermissions, canEdit: true };
         managedProfileSource = "profile";
         managedProfileDirty = false;
         managedProfileFiles.clear();
@@ -1592,7 +1602,10 @@
     async function uploadManagedProfileImage(file, blockId, revision, token) {
         const blob = await fileToWebp(file, 1800);
         const folder = `managed-actors/${sanitizeId(currentProfile.worldId)}/${sanitizeId(currentProfile.actorId)}/lore`;
-        const filename = `${sanitizeId(blockId)}-r${Math.max(1, Math.floor(Number(revision) || 1))}.webp`;
+        // Two editors can upload different proposals before either profile revision is saved.
+        const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()));
+        const suffix = Array.from(digest.slice(0,12), byte => byte.toString(16).padStart(2,'0')).join('');
+        const filename = `${sanitizeId(blockId).slice(0,64)}-r${Math.max(1, Math.floor(Number(revision) || 1))}-${suffix}.webp`;
         const form = new FormData();
         form.set("campaignId", window.CriptaApp.campaigns.currentId());
         form.set("folder", folder);
@@ -2071,7 +2084,7 @@
         const editActions = editMode
             ? '<span class="managed-save-status" data-managed-status></span><button type="button" class="managed-command-secondary" data-managed-edit-toggle="view"><i class="fas fa-xmark"></i><span>Chiudi</span></button><button type="button" class="managed-command-primary" data-managed-save><i class="fas fa-cloud-arrow-up"></i><span>Salva scheda</span></button>'
             : '<button type="button" class="managed-command-primary" data-managed-edit-toggle="edit"><i class="fas fa-pen-to-square"></i><span>Modifica</span></button>';
-        const aiToolsAction = window.CriptaNpcAiTools?.toolsFor(actor).length ? '<button type="button" class="managed-command-secondary" data-managed-ai-tools aria-label="Strumenti AI" aria-haspopup="dialog"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i><span>Strumenti AI</span></button>' : '';
+        const aiToolsAction = window.CriptaNpcAiTools?.toolsFor(actor, {canWriteDossier:currentProfilePermissions.canEdit}).length ? '<button type="button" class="managed-command-secondary" data-managed-ai-tools aria-label="Strumenti AI" aria-haspopup="dialog"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i><span>Strumenti AI</span></button>' : '';
         const actions = canEdit ? aiToolsAction + lifecycleAction + editActions : "";
         return `<div class="managed-command-bar"><nav class="managed-section-nav" aria-label="Sezioni della scheda"><div>${links.map(([id, icon, label]) => `<a href="#${id}"><i class="fas ${icon}" aria-hidden="true"></i><span>${escapeHtml(label)}</span></a>`).join("")}</div></nav><div class="managed-command-actions">${syncIndicator}${actions}</div></div>`;
     }
@@ -4979,10 +4992,61 @@
         });
     }
 
+    async function openManagedDossierAi(root) {
+        if (!currentCanEdit || !currentProfilePermissions.canEdit || !currentProfile || managedSaveInProgress) throw new Error('Il dossier non è disponibile per la modifica.');
+        const actor = currentDocument;
+        const {openDossierWriter} = await import('../shared/dossier-writer.mjs?v=20261122-dossier2');
+        if (currentDocument !== actor || !root.isConnected) throw new Error('La scheda è cambiata.');
+        if (!managedEditMode) await toggleManagedEditMode(root,true);
+        const profile = collectManagedProfileFromRoot(root);
+        const files = new Map(managedProfileFiles);
+        const owner = formGroup?.owner || actor;
+        openDossierWriter({profile, hasAvatar:Boolean(owner.media?.avatar?.path), isEditor:currentProfilePermissions.isEditor,
+            campaign:window.CriptaApp.campaigns.currentId(), token:getToken(), renderChapter:renderManagedProfileViewBlock,
+            apply(rows) {
+                if (!root.isConnected || currentDocument !== actor || !managedEditMode || !currentProfilePermissions.canEdit || managedSaveInProgress) throw new Error('Riapri la proposta dal dossier da modificare.');
+                const latest = collectManagedProfileFromRoot(root);
+                if (latest.worldId !== profile.worldId || latest.actorId !== profile.actorId || latest.revision !== profile.revision) throw new Error('Il dossier è cambiato. Riapri la proposta.');
+                if (latest.blocks.length + rows.filter(row => !row.id).length > 64) throw new Error('Il dossier può contenere al massimo 64 capitoli.');
+                for (const row of rows.filter(row => row.id)) {
+                    const original = profile.blocks.find(block => block.id === row.id);
+                    const current = latest.blocks.find(block => block.id === row.id);
+                    if (!current || JSON.stringify(current) !== JSON.stringify(original) || (row.image && files.get(row.id) !== managedProfileFiles.get(row.id))) throw new Error('Il capitolo è cambiato. Riapri la proposta prima di applicarla.');
+                }
+                currentProfile = latest;
+                let first;
+                for (const row of rows) {
+                    let block = currentProfile.blocks.find(entry => entry.id === row.id);
+                    if (!block) {
+                        const type = row.audience === 'dm' ? 'secret_dossier' : row.image ? 'image_box' : 'lore';
+                        block = normalizeManagedProfileBlockClient({id:uniqueManagedProfileBlockId('capitolo'),type,visibility:row.audience});
+                        currentProfile.blocks.push(block);
+                    }
+                    block.title = row.title;
+                    block.text = row.text;
+                    if (row.image) {
+                        if (block.type === 'lore') block.type = 'image_box';
+                        const previousUrl = managedProfilePreviewUrls.get(block.id);
+                        if (previousUrl) URL.revokeObjectURL(previousUrl);
+                        managedProfilePreviewUrls.delete(block.id);
+                        managedProfileFiles.set(block.id,row.image);
+                    }
+                    first ||= block.id;
+                }
+                managedProfileOpenBlockId = first;
+                managedProfileDirty = true;
+                root.dataset.managedDirty = 'true';
+                rerenderManagedProfileSection(root);
+                root.querySelector('[data-managed-profile-block-id="' + CSS.escape(first) + '"]')?.scrollIntoView({block:'center'});
+            }
+        });
+    }
+
     function openManagedAiTools(root) {
         if (!window.CriptaNpcAiTools) { window.alert('Ricarica la pagina per aprire gli strumenti AI.'); return; }
         const actor = currentDocument;
         window.CriptaNpcAiTools.open({ actor,
+            canWriteDossier: Boolean(currentProfile && currentProfilePermissions.canEdit),
             unsaved: hasManagedUnsavedChanges(root), saving: managedSaveInProgress,
             blockedItemIds: (actor.definition?.items || []).filter(item => findManagedItemCommand(item)?.status === 'pending').map(item => item.itemId),
             onAction: (action, item) => {
@@ -4994,6 +5058,7 @@
 
     async function runManagedAiTool(root, action, item) {
         const actor = currentDocument;
+        if (action === 'dossier') return openManagedDossierAi(root);
         if (!window.CriptaNpcAiTools?.toolsFor(actor).some(group => group.tools.some(tool => tool.id === action))) throw new Error('Questo strumento AI è riservato ai gestori della campagna o al proprietario del personaggio.');
         if (managedSaveInProgress || hasManagedUnsavedChanges(root)) throw new Error('Salva o annulla prima le modifiche alla scheda.');
         if (!['avatar', 'token', 'drop'].includes(action) && actor.sync?.commands?.some(command => command.nativeSheetVersion && command.status === 'pending')) throw new Error('Attendi il completamento della modifica completa in Foundry.');

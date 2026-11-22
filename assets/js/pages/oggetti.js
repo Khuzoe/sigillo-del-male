@@ -598,9 +598,6 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
     const rarity = getItemRarityMeta(item.rarity);
     const properties = getVisibleItemProperties(item, { includeHidden: canEdit, includeUnidentified: canEdit });
     const materialTags = isMaterial ? getVisibleMaterialTags(item) : [];
-    const normalProperties = isMaterial ? [] : properties.filter(property => !isNegativeItemProperty(property) && !isGenialItemProperty(property));
-    const genialProperties = isMaterial ? [] : properties.filter(property => !isNegativeItemProperty(property) && isGenialItemProperty(property));
-    const negativeProperties = isMaterial ? [] : properties.filter(isNegativeItemProperty);
     const hidden = isHiddenItem(item);
     const archived = isArchivedItem(item);
     const itemId = getItemId(item);
@@ -623,31 +620,13 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
                 ${materialTags.map(tag => `<li>${renderMaterialTag(tag)}</li>`).join("")}
             </ul>
         ` : ""}
-        ${normalProperties.length ? `
-            <section class="item-properties-block item-properties-block--normal" aria-label="Propriet\u00e0">
-                <h4><i class="fas fa-list-check" aria-hidden="true"></i>Propriet\u00e0</h4>
-                <ul class="item-properties item-properties--normal">
-                    ${normalProperties.map(property => `<li>${renderItemProperty(property)}</li>`).join("")}
-                </ul>
+        ${!isMaterial && properties.length ? `
+            <section class="item-properties-block" aria-label="Proprietà">
+                <h4>Proprietà</h4>
+                <div class="cripta-catalog-properties">${properties.map(renderItemProperty).join("")}</div>
             </section>
         ` : ""}
-        ${genialProperties.length ? `
-            <section class="item-properties-block item-properties-block--arcane" aria-label="Propriet\u00e0 geniali">
-                <h4><i class="fas fa-sparkles" aria-hidden="true"></i>Propriet\u00e0 geniali</h4>
-                <ul class="item-properties item-properties--arcane">
-                    ${genialProperties.map(property => `<li>${renderItemProperty(property)}</li>`).join("")}
-                </ul>
-            </section>
-        ` : ""}
-        ${negativeProperties.length ? `
-            <section class="item-properties-block item-properties-block--negative" aria-label="Maledizioni ed effetti negativi">
-                <h4><i class="fas fa-skull" aria-hidden="true"></i>Maledizioni ed effetti negativi</h4>
-                <ul class="item-properties item-properties--negative">
-                    ${negativeProperties.map(property => `<li>${renderItemProperty(property)}</li>`).join("")}
-                </ul>
-            </section>
-        ` : ""}
-        ${item.notes ? `<p class="item-notes"><i class="fas fa-bookmark" aria-hidden="true"></i>${escapeHtml(item.notes)}</p>` : ""}
+        ${item.notes ? `<div class="item-notes"><i class="fas fa-bookmark" aria-hidden="true"></i><div class="item-formatted-text">${renderCatalogItemText(item.notes)}</div></div>` : ""}
     `;
 
     return `
@@ -668,7 +647,7 @@ function renderItemCard(item, { canEdit = false, isEditing = false, draft = null
                         ${item?.sync?.pendingFoundry ? '<span class="item-card-sync-badge item-card-sync-badge--pending"><i class="fas fa-clock" aria-hidden="true"></i>Attesa Foundry</span>' : item?.sync?.managed ? '<span class="item-card-sync-badge"><i class="fas fa-circle-check" aria-hidden="true"></i>Sincronizzato</span>' : ""}
                     </div>
                     <h3>${escapeHtml(item.name || "Oggetto senza nome")}</h3>
-                    ${item.summary ? `<p class="item-summary">${escapeHtml(item.summary)}</p>` : '<p class="item-summary item-summary--empty">Nessuna descrizione breve.</p>'}
+                    ${item.summary ? `<div class="item-summary item-formatted-text">${renderCatalogItemText(item.summary)}</div>` : '<p class="item-summary item-summary--empty">Nessuna descrizione breve.</p>'}
                     ${quickFacts ? `<div class="item-card-quickfacts">${quickFacts}</div>` : ""}
                 </div>
                 <div class="item-card-summary-actions">
@@ -879,7 +858,7 @@ function bindItemDiscordSharing(grid, state) {
                 : String(item.name || "Oggetto senza nome").trim();
             const publicDescription = unidentified
                 ? String(item.unidentifiedDescription || "Le proprietà di questo oggetto non sono ancora state identificate.").trim()
-                : String(item.summary || publicSections.find(section => section.description)?.description || "").trim();
+                : String(item.summary || "").trim();
             const link = new URL(window.location.href);
             link.hash = itemId;
             window.CriptaDiscordShare.open({
@@ -953,29 +932,24 @@ function renderItemInlineEditor(item, creating = false) {
                     ${creating ? "" : renderItemSyncBadge(item)}
                 </div>
                 <div class="item-inline-editor-actions">
-                    <button class="item-card-edit-link item-card-edit-link--visible" type="button" data-item-edit-action="cancel">
-                        <i class="fas fa-xmark" aria-hidden="true"></i><span>Annulla</span>
-                    </button>
-                    <button class="item-card-edit-link item-card-edit-link--visible item-card-edit-link--primary" type="button" data-item-edit-action="save">
-                        <i class="fas fa-floppy-disk" aria-hidden="true"></i><span>${creating ? "Crea oggetto" : "Salva modifiche"}</span>
-                    </button>
+                    <button type="button" class="item-card-edit-link item-card-edit-link--visible" data-item-ai="whole">Rivedi oggetto con AI</button>
                 </div>
             </header>
-            ${creating ? '<p class="item-inline-editor-status" role="status" data-item-editor-status></p>' : ""}
             <div class="item-inline-editor-layout">
                 <aside class="item-inline-editor-media">
                     <button class="item-inline-editor-preview" type="button" data-item-image-dropzone>
                         <span data-item-image-preview>${preview}</span>
                         <span class="item-inline-editor-preview-action"><i class="fas fa-cloud-arrow-up"></i><b>Sostituisci immagine</b><small>Click oppure trascina qui</small></span>
                     </button>
+                    <button type="button" class="item-card-edit-link item-card-edit-link--visible" data-item-ai="image"><i class="fas fa-palette" aria-hidden="true"></i>Genera immagine</button>
                     <small class="item-inline-editor-file-name" data-item-image-file-name>${escapeHtml(fileName || "Nessun file selezionato")}</small>
                     <input type="hidden" data-item-field="image" value="${escapeHtml(imagePath)}">
-                    <div class="item-inline-image-adjust" aria-label="Regola immagine oggetto">
-                        <div class="item-inline-image-adjust-title"><i class="fas fa-crop-simple"></i><span>Inquadratura</span></div>
+                    <details class="item-inline-image-adjust">
+                        <summary>Regola inquadratura</summary>
                         ${renderItemImageAdjustControl("x", "X", imageAdjust.x, 0, 100, 1)}
                         ${renderItemImageAdjustControl("y", "Y", imageAdjust.y, 0, 100, 1)}
                         ${renderItemImageAdjustControl("size", "Zoom", imageAdjust.size, 0.75, 2.5, 0.01)}
-                    </div>
+                    </details>
                     <div class="item-inline-editor-checks">
                         ${renderItemEditCheck("Richiede sintonia", "attunement", item.attunement === true)}
                         ${renderItemEditCheck("Non identificato", "unidentified", item.unidentified === true)}
@@ -1008,10 +982,10 @@ function renderItemInlineEditor(item, creating = false) {
                             <span><small>Presentazione</small><h4>Descrizione</h4></span>
                         </div>
                         <div class="item-inline-editor-grid">
-                            ${renderItemEditArea("Sommario", "summary", item.summary || "", "item-inline-editor-field--wide", 4)}
-                            ${renderItemEditArea("Note della campagna", "notes", item.notes || "", "item-inline-editor-field--wide", 4)}
+                            ${renderItemEditArea("Descrizione identificata", "summary", item.summary || "", "item-inline-editor-field--wide", 4)}
                             ${renderItemEditInput("Nome non identificato", "unidentifiedName", item.unidentifiedName || "", "item-inline-editor-field--wide")}
                             ${renderItemEditArea("Descrizione non identificata", "unidentifiedDescription", item.unidentifiedDescription || "", "item-inline-editor-field--wide", 4)}
+                            ${renderItemEditArea("Note della campagna", "notes", item.notes || "", "item-inline-editor-field--wide", 4)}
                         </div>
                     </section>
                     <section class="item-inline-editor-section">
@@ -1063,7 +1037,11 @@ function renderItemInlineEditor(item, creating = false) {
                     </details>
                 </div>
             </div>
-            ${creating ? "" : '<p class="item-inline-editor-status" role="status" data-item-editor-status></p>'}
+            <footer class="catalog-editor-savebar">
+                <p role="status" data-item-editor-status></p>
+                <button class="item-card-edit-link item-card-edit-link--visible" type="button" data-item-edit-action="cancel">Annulla</button>
+                <button class="item-card-edit-link item-card-edit-link--visible" type="button" data-item-edit-action="save">${creating ? "Crea oggetto" : "Salva modifiche"}</button>
+            </footer>
         </div>
     `;
 }
@@ -1226,10 +1204,12 @@ function renderItemEditInput(label, field, value, extraClass = "", readOnly = fa
 
 function renderItemEditArea(label, field, value, extraClass = "", rows = 3) {
     return `
-        <label class="item-inline-editor-field ${extraClass}">
-            <span>${escapeHtml(label)}</span>
-            <textarea data-item-field="${escapeHtml(field)}" rows="${escapeHtml(rows)}">${escapeHtml(value)}</textarea>
-        </label>
+        <div class="item-inline-editor-field ${extraClass}">
+            <label><span>${escapeHtml(label)}</span>
+                <textarea data-item-field="${escapeHtml(field)}" rows="${escapeHtml(rows)}">${escapeHtml(value)}</textarea>
+            </label>
+            <button type="button" class="item-ai-refine" data-item-ai="${escapeHtml(field)}">${field === "notes" ? "Migliora testo con AI" : "Scrivi o migliora con AI"}</button>
+        </div>
     `;
 }
 
@@ -1288,7 +1268,7 @@ function getItemFoundryEffects(item) {
 function buildInitialFoundrySystem(item) {
     const description = buildFoundryItemDescription(item);
     return {
-        description: { value: description, unidentified: String(item?.unidentifiedDescription || ""), chat: "" },
+        description: { value: description, unidentified: renderCatalogItemText(item?.unidentifiedDescription, {inlineWhenSimple: true}), chat: "" },
         quantity: 1,
         rarity: mapSiteRarityToFoundry(item?.rarity),
         identified: item?.unidentified !== true,
@@ -1334,19 +1314,21 @@ function renderItemPropertyEditors(properties) {
 function renderItemPropertyEditor(property = {}) {
     return `
         <article class="item-inline-editor-row" data-item-property-row>
-            <div class="item-inline-editor-row-grid">
+            <div class="item-inline-editor-row-grid catalog-property-writing">
                 ${renderInlineRowInput("Nome", "name", property.name || "")}
-                ${renderInlineRowInput("Cariche / trigger", "charges", property.charges || "")}
+                ${renderInlineRowInput("Cariche o condizione", "charges", property.charges || "")}
                 ${renderInlineRowArea("Descrizione", "description", property.description || "", "item-inline-editor-field--wide", 5)}
             </div>
-            <div class="item-inline-editor-row-actions">
+            <div class="catalog-property-tools">
                 ${renderInlineRowCheck("Geniale", "genial", property.genial === true)}
                 ${renderInlineRowCheck("Negativa", "negative", property.negative === true)}
-                ${renderInlineRowCheck("Nascosta", "hidden", property.hidden === true)}
+                ${renderInlineRowCheck("Solo DM", "hidden", property.hidden === true)}
+                <button type="button" class="item-ai-refine" data-item-ai="description">Migliora testo con AI</button>
                 <button class="item-card-edit-link item-card-edit-link--visible" type="button" data-item-edit-action="remove-row">
                     <span>Rimuovi</span>
                 </button>
             </div>
+            <div class="item-property-order"></div>
         </article>
     `;
 }
@@ -1481,7 +1463,9 @@ function bindItemInlineEditor(grid, state, count) {
                 return;
             }
             if (action === "remove-row") {
+                const list = button.closest("[data-item-properties-list]");
                 button.closest("[data-item-property-row], [data-item-material-tag-row]")?.remove();
+                refreshCatalogPropertyOrder(list);
                 return;
             }
             if (action === "save") {
@@ -1501,16 +1485,62 @@ function bindItemInlineEditor(grid, state, count) {
         input.addEventListener("change", () => updateItemImageAdjustPreview(input));
     });
 
+    grid.querySelectorAll("[data-item-inline-editor]").forEach(form => {
+        const layout = form.querySelector('.item-inline-editor-layout');
+        const sectionOf = field => form.querySelector(field).closest('.item-inline-editor-section');
+        const tags = document.createElement('details');
+        tags.className = 'catalog-editor-tags';
+        tags.innerHTML = '<summary>Tag e materiali</summary>';
+        tags.open = Boolean(form.querySelector('[data-item-material-tag-row]')) || form.querySelector('[data-item-classification="family"]')?.value === 'material';
+        tags.append(sectionOf('[data-item-material-tags-list]'));
+        mountCatalogEditorTabs(form, layout, [
+            ['identity', 'Scheda', [layout]],
+            ['texts', 'Descrizioni', [sectionOf('[data-item-field="summary"]')]],
+            ['properties', 'Proprietà', [sectionOf('[data-item-properties-list]'), tags]],
+            ['foundry', 'Foundry', [form.querySelector('.item-inline-editor-foundry')]]
+        ]);
+        form.querySelector('.item-inline-editor-foundry').open = true;
+        form.addEventListener('input', event => {
+            if (event.target.matches('input, select, textarea') && !state.itemSaving) setItemEditorStatus(form, 'Modifiche da salvare.');
+        });
+        enhanceCatalogTextFields(form);
+        refreshCatalogPropertyOrder(form.querySelector('[data-item-properties-list]'));
+        form.addEventListener("click", async event => {
+            const move = event.target.closest('[data-property-move]');
+            if (move && !state.itemSaving) {
+                const change = moveCatalogProperty(move);
+                if (change) setItemEditorStatus(form, 'Proprietà spostata in posizione ' + (change.to + 1) + '.');
+                return;
+            }
+            const button = event.target.closest("[data-item-ai]");
+            if (!button || state.itemSaving) return;
+            const item = state.itemDraft;
+            try {
+                const { openItemAiEditor } = await import("../shared/item-ai-editor.mjs?v=20261122-aggiunte");
+                await openItemAiEditor({button, form, item, token: readItemsAuthToken(), campaignId: getItemsCampaignId(),
+                    resolveImage: resolveImageUrl, isCurrent: () => item === state.itemDraft,
+                    appendProperties: properties => {
+                        const list = form.querySelector('[data-item-properties-list]');
+                        for (const property of properties) appendInlineEditorRow(list, renderItemPropertyEditor(property), false);
+                        setItemEditorStatus(form, 'Nuove proprietà aggiunte alla bozza. Salva le modifiche per confermare.');
+                    },
+                    applyImage: path => applyInlineImagePath(path, form, item)});
+            } catch (error) { setItemEditorStatus(form, error.message, true); }
+        });
+    });
     grid.querySelectorAll("[data-item-image-dropzone]").forEach((dropzone) => {
         bindItemImageDropzone(dropzone, state);
     });
 }
 
-function appendInlineEditorRow(list, html) {
+function appendInlineEditorRow(list, html, focus = true) {
     if (!list) return;
     list.querySelector(".item-inline-editor-empty")?.remove();
     list.insertAdjacentHTML("beforeend", html);
     bindInlineRowRemoveAction(list.lastElementChild);
+    enhanceCatalogTextFields(list.lastElementChild);
+    refreshCatalogPropertyOrder(list, new Set([list.querySelectorAll('[data-item-property-row]').length - 1]));
+    if (focus) list.lastElementChild?.querySelector('[data-row-field="name"]')?.focus();
 }
 
 function bindInlineRowRemoveAction(row) {
@@ -1518,7 +1548,9 @@ function bindInlineRowRemoveAction(row) {
         button.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
+            const list = row.parentElement;
             button.closest("[data-item-property-row], [data-item-material-tag-row]")?.remove();
+            refreshCatalogPropertyOrder(list);
         });
     });
     row?.querySelector("[data-material-tag-template]")?.addEventListener("change", event => {
@@ -1584,24 +1616,29 @@ function bindItemImageDropzone(dropzone, state) {
 
 async function applyItemImageFile(file, form, state) {
     if (!file || !form || !state.itemDraft) return;
+    const item = state.itemDraft;
     try {
         setItemEditorStatus(form, "Caricamento immagine...");
-        const path = await uploadItemImageFile(file, state.itemDraft);
-        state.itemDraft.image = path;
-        const field = form.querySelector('[data-item-field="image"]');
-        const preview = form.querySelector("[data-item-image-preview]");
-        const fileName = form.querySelector("[data-item-image-file-name]");
-        if (field) field.value = path;
-        if (preview) {
-            preview.innerHTML = `<img src="${escapeHtml(resolveImageUrl(path))}" alt="" ${renderItemAdjustedImageAttributes(readItemImageAdjust(form))}>`;
-            initItemAdjustedImages(preview);
-        }
-        if (fileName) fileName.textContent = getFileNameFromPath(path) || getFileNameFromPath(file.name) || "immagine.webp";
-        setItemEditorStatus(form, "Immagine caricata. Salva l'oggetto per confermare.");
+        const path = await uploadItemImageFile(file, item);
+        if (item === state.itemDraft && form.isConnected) applyInlineImagePath(path, form, item);
     } catch (error) {
         console.error("Upload immagine oggetto fallito:", error);
         setItemEditorStatus(form, `Upload fallito: ${error?.message || error}`, true);
     }
+}
+
+function applyInlineImagePath(path, form, item) {
+    item.image = path;
+    const field = form.querySelector('[data-item-field="image"]');
+    const preview = form.querySelector("[data-item-image-preview]");
+    const fileName = form.querySelector("[data-item-image-file-name]");
+    if (field) field.value = path;
+    if (preview) {
+        preview.innerHTML = `<img src="${escapeHtml(resolveImageUrl(path))}" alt="" ${renderItemAdjustedImageAttributes(readItemImageAdjust(form))}>`;
+        initItemAdjustedImages(preview);
+    }
+    if (fileName) fileName.textContent = getFileNameFromPath(path);
+    setItemEditorStatus(form, "Immagine caricata. Salva l'oggetto per confermare.");
 }
 
 async function uploadItemImageFile(file, item) {
@@ -1886,10 +1923,10 @@ function synchronizeFoundrySystemFromSite(draft, original, foundrySystem) {
         : {};
     system.unidentified = {
         ...unidentified,
-        description: String(draft?.unidentifiedDescription || "")
+        description: renderCatalogItemText(draft?.unidentifiedDescription, {inlineWhenSimple: true})
     };
     if (Object.prototype.hasOwnProperty.call(description, "unidentified")) {
-        system.description.unidentified = String(draft?.unidentifiedDescription || "");
+        system.description.unidentified = system.unidentified.description;
     }
 
     system.rarity = mapSiteRarityToFoundry(draft?.rarity);
@@ -1940,21 +1977,10 @@ function itemNarrativeFingerprint(item) {
 }
 
 function buildFoundryItemDescription(item) {
-    const summary = renderPlainTextParagraphs(item?.summary);
+    const summary = renderCatalogItemText(item?.summary);
     const properties = normalizeItemProperties(item?.properties).filter(property => property.hidden !== true);
-    const propertyCards = properties.map(property => {
-        const toneClass = isNegativeItemProperty(property)
-            ? "cripta-catalog-property--negative"
-            : isGenialItemProperty(property) ? "cripta-catalog-property--genial" : "cripta-catalog-property--normal";
-        const heading = property.name
-            ? "<h3><span>" + escapeHtml(property.name) + "</span>"
-                + (property.charges ? '<small class="cripta-catalog-property-charges">' + escapeHtml(property.charges) + "</small>" : "")
-                + "</h3>"
-            : "";
-        const description = renderPlainTextParagraphs(property.description);
-        return '<section class="cripta-catalog-property ' + toneClass + '">' + heading + description + "</section>";
-    }).filter(Boolean).join("");
-    const notes = renderPlainTextParagraphs(item?.notes);
+    const propertyCards = properties.map(renderItemProperty).join("");
+    const notes = renderCatalogItemText(item?.notes);
     const parts = [
         summary ? '<section class="cripta-catalog-summary">' + summary + "</section>" : "",
         propertyCards ? '<div class="cripta-catalog-properties">' + propertyCards + "</div>" : "",
@@ -1963,14 +1989,6 @@ function buildFoundryItemDescription(item) {
     return parts.length ? '<div class="cripta-catalog-description">' + parts.join("") + "</div>" : "";
 }
 
-function renderPlainTextParagraphs(value, { emphasis = false } = {}) {
-    const text = String(value || "").replace(/\r\n?/g, "\n").trim();
-    if (!text) return "";
-    return text.split(/\n{2,}/).map(block => {
-        const content = escapeHtml(block).replace(/\n/g, "<br />");
-        return "<p>" + (emphasis ? "<em>" + content + "</em>" : content) + "</p>";
-    }).join("");
-}
 function parseItemFoundryJson(form, fieldName, label, fallback) {
     const field = form.querySelector(`[data-item-foundry-json="${fieldName}"]`);
     if (!field) return structuredCloneSafe(fallback);
@@ -2108,7 +2126,7 @@ function normalizeItemProperties(properties) {
             }
             if (!property || typeof property !== "object") return null;
             const name = String(property.name || "").trim();
-            const charges = String(property.charges || "").trim();
+            const charges = String(property.charges ?? "").trim();
             const description = String(property.description || "").trim();
             const negative = property.negative === true;
             const genial = property.genial === true && !negative;
@@ -2251,16 +2269,15 @@ function formatWeightValue(value) {
 }
 
 function renderItemProperty(property) {
-    if (!property.name) return escapeHtml(property.description || "");
-    const charges = String(property.charges || "").trim();
-    const chargeCount = Number(charges);
-    const chargeText = charges
-        ? Number.isFinite(chargeCount)
-            ? ` (${escapeHtml(charges)} ${chargeCount === 1 ? "carica" : "cariche"})`
-            : ` (${escapeHtml(charges)})`
-        : "";
-    const description = property.description ? ` ${escapeHtml(property.description)}` : "";
-    return `<strong>${escapeHtml(property.name)}${chargeText}.</strong>${description}`;
+    const tone = isNegativeItemProperty(property) ? "negative" : isGenialItemProperty(property) ? "genial" : "normal";
+    const label = tone === "negative" ? "Negativa" : tone === "genial" ? "Geniale" : "";
+    const charges = String(property.charges ?? "").trim();
+    const unit = charges && Number.isFinite(Number(charges)) ? (Number(charges) === 1 ? "carica" : "cariche") : "";
+    const badge = charges ? '<small class="cripta-catalog-property-charges"' + (unit ? ' data-unit="' + unit + '"' : '')
+        + '>' + escapeHtml(charges) + '</small>' : '';
+    const heading = property.name || badge ? '<h3><span>' + escapeHtml(property.name || "") + '</span>' + badge + '</h3>' : '';
+    return '<section class="cripta-catalog-property cripta-catalog-property--' + tone + '"'
+        + (label ? ' aria-label="' + label + '"' : '') + '>' + heading + renderCatalogItemText(property.description) + '</section>';
 }
 
 function renderItemMedia(item, type, rarity) {

@@ -396,12 +396,23 @@ const application = {
       }
 
       const skillNodeRoute = url.pathname.match(/^\/api\/skill-trees\/generate-node(?:\/([a-f\d-]{36})(?:\/(preview|stop))?|\/(concepts)(?:\/([a-f0-9]{64}\.(?:png|jpg|webp)))?)?$/i);
-      if (skillNodeRoute) {
+      const itemArtRoute = url.pathname.match(/^\/api\/items\/generate(?:\/([a-f\d-]{36})(?:\/(preview|stop))?|\/(concepts)(?:\/([a-f0-9]{64}\.(?:png|jpg|webp)))?)?$/i);
+      const dossierRoute = url.pathname.match(/^\/api\/managed-actors\/([\w-]{1,128})\/([\w-]{1,128})\/dossier-ai(?:\/([a-f\d-]{36})(?:\/(preview|stop))?|\/(concepts)(?:\/([a-f0-9]{64}\.(?:png|jpg|webp)))?)?$/i);
+      if (skillNodeRoute || itemArtRoute || dossierRoute) {
         const user = await requireUser(request, env, corsHeaders);
         if (user instanceof Response) return user;
-        if (!await isAuthenticatedCampaignContentEditor(user, env, queryCampaignId)) return json({ok: false, error: "Generazione riservata al DM della campagna."}, 403, corsHeaders);
+        const isEditor = await isAuthenticatedCampaignContentEditor(user, env, queryCampaignId);
+        let dossier;
+        if (dossierRoute) {
+          const [, worldId, actorId] = dossierRoute;
+          const actor = safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(queryCampaignId,worldId,actorId)));
+          if (!actor || (!isEditor && !isManagedActorOwner(actor,user,env))) return json({ok:false,error:"Non puoi modificare questo dossier."},403,corsHeaders);
+          dossier = {worldId,actorId,name:actor.name,isEditor};
+        } else if (!isEditor) return json({ok: false, error: "Generazione riservata al DM della campagna."}, 403, corsHeaders);
         const accountId = getAuthenticatedAccountId(user, env) || getAuthenticatedDiscordId(user);
-        const response = await handleSkillNodeGeneration(request, {id: skillNodeRoute[1], action: skillNodeRoute[2], concepts: skillNodeRoute[3], uploadId: skillNodeRoute[4]}, queryCampaignId, accountId, env,
+        if (!accountId) return json({ok:false,error:"Account non disponibile."},403,corsHeaders);
+        const match = dossierRoute ? dossierRoute.slice(2) : skillNodeRoute || itemArtRoute;
+        const response = await handleSkillNodeGeneration(request, {id: match[1], action: match[2], concepts: match[3], uploadId: match[4], catalogItem: Boolean(itemArtRoute), dossier}, queryCampaignId, accountId, env,
           async (campaign, actor) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaign, actor.worldId, actor.actorId))));
         const headers = new Headers(response.headers);
         Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
@@ -1815,7 +1826,7 @@ export default {
     const itemsRoute = path === "/api/data/items" || path === "/api/item-categories";
     if (managedRoute && request.method === "POST") {
       // Native snapshots and drop generation use the campaign in their URL.
-      const body = path.endsWith("/snapshot") || path.endsWith("/activity-animations") || path.endsWith("/ability-icons/concepts") || path.includes("/drop-generation") || path.startsWith("/api/npc-generation") ? null : await request.clone().json().catch(() => null);
+      const body = path.endsWith("/snapshot") || path.endsWith("/activity-animations") || path.endsWith("/ability-icons/concepts") || path.includes("/dossier-ai") || path.includes("/drop-generation") || path.startsWith("/api/npc-generation") ? null : await request.clone().json().catch(() => null);
       campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || campaignId);
       if (managedActorWritesPaused(env, campaignId) && !path.endsWith("/stop")) return json({ ok: false,
         error: "Salvataggi NPC temporaneamente sospesi per la migrazione. Riprova tra poco.", code: "MANAGED_ACTOR_WRITES_PAUSED" }, 503,
@@ -4971,7 +4982,7 @@ function normalizeManagedActorProfileBlock(block, index = 0) {
     ...(image ? { image } : {}),
     ...(banner ? { banner } : {}),
     ...(bannerHeight ? { bannerHeight } : {}),
-    ...(input.image_caption ? { imageCaption: String(input.image_caption).trim().slice(0, 500) } : {}),
+    ...(input.imageCaption || input.image_caption ? { imageCaption: String(input.imageCaption || input.image_caption).trim().slice(0, 500) } : {}),
     ...(input.borderColor ? { borderColor: String(input.borderColor).trim().slice(0, 32) } : {}),
     ...(tags.length ? { tags } : {}),
   };

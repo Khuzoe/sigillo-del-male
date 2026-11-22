@@ -36,7 +36,7 @@ const context = {
 };
 vm.createContext(context);
 vm.runInContext(normalizerSource, context, { filename: "item-normalize.js" });
-for (const file of ["item-categories.js", "image-adjust.js"]) {
+for (const file of ["item-categories.js", "image-adjust.js", "item-text.js"]) {
     vm.runInContext(fs.readFileSync(path.join(__dirname, "../assets/js/shared", file), "utf8"), context, { filename: file });
 }
 vm.runInContext(source, context, { filename: "oggetti.js" });
@@ -139,13 +139,26 @@ context.synchronizeFoundrySystemFromSite(draft, original, system);
 assert.match(system.description.value, /Prima riga<br \/>seconda riga/);
 assert.match(system.description.value, /class="cripta-catalog-description"/);
 assert.match(system.description.value, /<h3><span>Effetto<\/span>/);
-assert.match(system.description.value, /class="cripta-catalog-property-charges">3<\/small>/);
+assert.match(system.description.value, /class="cripta-catalog-property-charges" data-unit="cariche">3<\/small>/);
 assert.match(system.description.value, /class="cripta-catalog-property cripta-catalog-property--normal"/);
 assert.match(system.description.value, /class="cripta-catalog-property cripta-catalog-property--genial"[\s\S]*Idea geniale/);
 assert.match(system.description.value, /class="cripta-catalog-property cripta-catalog-property--negative"[\s\S]*Maledizione/);
 assert.match(system.description.value, /Paragrafo uno\.<\/p><p>Paragrafo due\./);
+assert.match(context.renderItemProperty({name:"Svantaggio", genial:true}), /aria-label="Negativa"/);
+assert.match(context.renderItemProperty({description:"<runa>"}), /<p>&lt;runa&gt;<\/p>/);
+assert.match(context.renderItemProperty({charges:"1"}), /data-unit="carica">1<\/small>/);
 assert.doesNotMatch(system.description.value, /Segreto|Non deve apparire/);
+const reordered = {...draft, properties: [draft.properties[2], draft.properties[3], draft.properties[0], draft.properties[1]]};
+const publicNames = html => [...html.matchAll(/<h3><span>([^<]+)<\/span>/g)].map(match => match[1]);
+assert.deepEqual(publicNames(context.renderItemCard(reordered)), ["Maledizione", "Effetto", "Idea geniale"]);
+assert.deepEqual(publicNames(context.buildFoundryItemDescription(reordered)), ["Maledizione", "Effetto", "Idea geniale"]);
 assert.match(system.description.value, /class="cripta-catalog-notes"[\s\S]*Nota del DM/);
+const mechanics = "**Effetto** e *limite*\n- Spendi **1 carica**\n- Usa [[/r 2*3*4]]\n1. Mostra @UUID[Item.id]{Runa}\n2. Conserva il <sigillo>";
+const rich = context.renderCatalogItemText(mechanics);
+assert.equal(rich, '<p><strong>Effetto</strong> e <em>limite</em></p><ul><li>Spendi <strong>1 carica</strong></li><li>Usa [[/r 2*3*4]]</li></ul><ol><li>Mostra @UUID[Item.id]{Runa}</li><li>Conserva il &lt;sigillo&gt;</li></ol>');
+assert.equal(context.renderCatalogItemText("***Runa***"), "<p><strong><em>Runa</em></strong></p>");
+assert.equal(context.renderCatalogItemText("3. Prima\n  - **Sotto**\n4. Dopo"), '<ol start="3"><li>Prima<ul><li><strong>Sotto</strong></li></ul></li><li>Dopo</li></ol>');
+assert.ok(context.buildFoundryItemDescription({properties:[{name:"Test", description:mechanics}]}).includes(rich));
 assert.equal(system.description.chat, "chat preservata");
 assert.equal(system.unidentified.description, "Aspetto ancora misterioso.");
 assert.equal(system.rarity, "veryRare");

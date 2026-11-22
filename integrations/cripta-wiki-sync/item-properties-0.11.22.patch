@@ -1,0 +1,313 @@
+diff --git a/styles/module.css b/styles/module.css
+--- a/styles/module.css
++++ b/styles/module.css
+@@ -1263,80 +1263,79 @@
+ }
+ 
+-.cripta-catalog-properties {
+-  display: grid;
+-  gap: 0.55rem;
+-}
+-
+-.cripta-catalog-property {
+-  overflow: hidden;
+-  padding: 0 0.85rem 0.8rem;
+-  border: 1px solid rgba(200, 163, 79, 0.24);
+-  border-radius: 8px;
+-  background: linear-gradient(145deg, rgba(200, 163, 79, 0.07), rgba(0, 0, 0, 0.1));
+-}
+-
+-.cripta-catalog-property > h3 {
+-  display: flex;
+-  align-items: center;
+-  justify-content: space-between;
+-  gap: 0.7rem;
+-  margin: 0 -0.85rem 0.7rem;
+-  padding: 0.65rem 0.85rem;
+-  border-bottom: 1px solid rgba(200, 163, 79, 0.2);
+-  background: linear-gradient(90deg, rgba(200, 163, 79, 0.16), rgba(200, 163, 79, 0.035));
+-  color: inherit;
+-  font-size: 1.24em;
+-  font-weight: 750;
+-  line-height: 1.25;
+-  letter-spacing: 0.01em;
+-}
+-
+-.cripta-catalog-property > h3 > span {
+-  min-width: 0;
+-  overflow-wrap: anywhere;
+-  padding-left: 0.6rem;
+-  border-left: 3px solid #c8a34f;
+-}
+-
+-.cripta-catalog-property-charges {
+-  flex: 0 0 auto;
+-  padding: 0.18rem 0.5rem;
+-  border: 1px solid rgba(200, 163, 79, 0.46);
+-  border-radius: 999px;
+-  background: rgba(0, 0, 0, 0.16);
+-  color: inherit;
+-  font-size: 0.72em;
+-  font-weight: 700;
+-  line-height: 1.2;
+-}
+-
+-.cripta-catalog-property--negative {
+-  border-color: rgba(190, 70, 70, 0.42);
+-  background: linear-gradient(145deg, rgba(120, 28, 34, 0.14), rgba(0, 0, 0, 0.1));
+-}
+-
+-.cripta-catalog-property--negative > h3 {
+-  border-bottom-color: rgba(190, 70, 70, 0.3);
+-  background: linear-gradient(90deg, rgba(150, 42, 48, 0.2), rgba(150, 42, 48, 0.035));
+-}
+-
+-.cripta-catalog-property--negative > h3 > span {
+-  border-left-color: #cf666b;
+-}
+-
+-.cripta-catalog-property--genial {
+-  border-color: rgba(151, 91, 201, 0.42);
+-  background: linear-gradient(145deg, rgba(93, 45, 133, 0.14), rgba(0, 0, 0, 0.1));
+-}
+-
+-.cripta-catalog-property--genial > h3 {
+-  border-bottom-color: rgba(151, 91, 201, 0.3);
+-  background: linear-gradient(90deg, rgba(112, 64, 153, 0.2), rgba(112, 64, 153, 0.035));
+-}
+-
+-.cripta-catalog-property--genial > h3 > span {
+-  border-left-color: #b482dc;
+-}
++/* The same engraving and paper colors are used on the wiki and in Foundry sheets. */
++.cripta-catalog-properties {
++    display: grid;
++    grid-template-columns: minmax(0, 1fr);
++    gap: .85rem;
++}
++.cripta-catalog-property {
++    --paper: light-dark(#fff8e9, #302a26);
++    --ink: light-dark(#352b26, #f3e9da);
++    --accent: light-dark(#765331, #dfbc8d);
++    box-sizing: border-box;
++    min-width: 0;
++    padding: .95em 1.2em 1.05em;
++    border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--paper));
++    border-inline-start: 4px double var(--accent);
++    border-radius: 1px;
++    background: var(--paper);
++    color: var(--ink);
++    box-shadow: 0 2px 6px #1d110b16;
++    font: 1em/1.55 Georgia, serif;
++    overflow-wrap: anywhere;
++}
++.theme-dark .cripta-catalog-property { color-scheme: dark; }
++.theme-light .cripta-catalog-property { color-scheme: light; }
++.cripta-catalog-property--genial {
++    --paper: light-dark(#fcf3dc, #332c22);
++    --accent: light-dark(#795314, #edc379);
++}
++.cripta-catalog-property--negative {
++    --paper: light-dark(#fcf0ea, #352827);
++    --accent: light-dark(#873848, #efacb1);
++}
++.cripta-catalog-property--genial::before,
++.cripta-catalog-property--negative::before {
++    display: block;
++    margin-block-end: .4em;
++    color: var(--accent);
++    font: 700 .7em/1.4 system-ui, sans-serif;
++    letter-spacing: .11em;
++    text-transform: uppercase;
++}
++/* Keep these legends outside the description that Foundry imports back into the wiki. */
++.cripta-catalog-property--genial::before { content: "✦  Geniale"; }
++.cripta-catalog-property--negative::before { content: "☾  Negativa"; }
++.cripta-catalog-properties section.cripta-catalog-property > h3 {
++    display: grid;
++    gap: .2em;
++    margin: 0 0 .48em;
++    padding: 0 0 .36em;
++    border: 0;
++    border-bottom: 1px solid color-mix(in srgb, var(--accent) 46%, var(--paper));
++    color: var(--accent);
++    font: 500 1.4em/1.15 Georgia, serif;
++    text-transform: none;
++    text-shadow: none;
++    letter-spacing: normal;
++}
++.cripta-catalog-property > h3 > span:empty { display: none; }
++.cripta-catalog-property-charges {
++    color: var(--accent);
++    font: italic .68em/1.4 Georgia, serif;
++}
++.cripta-catalog-property-charges[data-unit]::after { content: " " attr(data-unit); }
++.cripta-catalog-property p { margin: 0; color: var(--ink); line-height: 1.55; }
++.cripta-catalog-property p + p { margin-top: .5em; }
++.cripta-catalog-property :is(em, strong) { color: inherit; }
++:is(.cripta-catalog-property, .cripta-catalog-summary, .cripta-catalog-notes, .item-formatted-text) :is(ul, ol) {
++    margin: .4em 0;
++    padding-inline-start: 1.6em;
++}
++:is(.cripta-catalog-property, .cripta-catalog-summary, .cripta-catalog-notes, .item-formatted-text) ul { list-style: disc outside; }
++:is(.cripta-catalog-property, .cripta-catalog-summary, .cripta-catalog-notes, .item-formatted-text) ol { list-style: decimal outside; }
++.item-formatted-text p { margin: 0; }
++.item-formatted-text p + p { margin-top: .5em; }
+ 
+ .cripta-catalog-notes {
+   padding: 0.65rem 0.8rem;
+diff --git a/scripts/services/campaign-item-sync.js b/scripts/services/campaign-item-sync.js
+--- a/scripts/services/campaign-item-sync.js
++++ b/scripts/services/campaign-item-sync.js
+@@ -561,7 +561,7 @@
+         img: resolveItemImage(record?.image) || "icons/svg/item-bag.svg",
+         folder: folder?.id || null,
+         system: {
+-            description: { value: renderLegacyDescription(record), unidentified: String(record?.unidentifiedDescription || ""), chat: "" },
++            description: { value: renderLegacyDescription(record), unidentified: renderCatalogItemText(record?.unidentifiedDescription, {inlineWhenSimple: true}), chat: "" },
+             quantity: 1,
+             rarity: mapRarity(record?.rarity),
+             identified: record?.unidentified !== true,
+@@ -617,10 +617,10 @@
+     if (!missingOnly || !currentUnidentified) {
+         system.unidentified = {
+             ...unidentified,
+-            description: String(record?.unidentifiedDescription || "")
++            description: renderCatalogItemText(record?.unidentifiedDescription, {inlineWhenSimple: true})
+         };
+         if (Object.prototype.hasOwnProperty.call(description, "unidentified")) {
+-            system.description.unidentified = String(record?.unidentifiedDescription || "");
++            system.description.unidentified = system.unidentified.description;
+         }
+     }
+ 
+@@ -1238,21 +1238,24 @@
+ }
+ 
+ function buildSiteDescriptionHtml(record) {
+-    const summary = renderFoundryParagraphs(record?.summary);
+-    const properties = (Array.isArray(record?.properties) ? record.properties : []).filter((property) => property?.hidden !== true);
+-    const propertyCards = properties.map((property) => {
+-        const toneClass = property?.negative === true
+-            ? "cripta-catalog-property--negative"
+-            : property?.genial === true ? "cripta-catalog-property--genial" : "cripta-catalog-property--normal";
+-        const heading = property?.name
+-            ? "<h3><span>" + escapeFoundryHtml(property.name) + "</span>"
+-                + (property.charges ? '<small class="cripta-catalog-property-charges">' + escapeFoundryHtml(property.charges) + "</small>" : "")
+-                + "</h3>"
+-            : "";
+-        const description = renderFoundryParagraphs(property?.description);
+-        return '<section class="cripta-catalog-property ' + toneClass + '">' + heading + description + "</section>";
+-    }).filter(Boolean).join("");
+-    const notes = renderFoundryParagraphs(record?.notes);
++    const summary = renderCatalogItemText(record?.summary);
++    const properties = Array.isArray(record?.properties) ? record.properties : [];
++    const propertyCards = properties.filter(property => property && property.hidden !== true).map(entry => {
++        const property = typeof entry === "string" ? { description: entry } : entry;
++        const name = String(property.name || "");
++        const normalizedName = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
++        const negative = property.negative === true || /maledizion|effetto negativo|malus|penalita|svantaggio/.test(normalizedName);
++        const tone = negative ? "negative" : property.genial === true ? "genial" : "normal";
++        const label = negative ? "Negativa" : tone === "genial" ? "Geniale" : "";
++        const charges = String(property.charges ?? "").trim();
++        const unit = charges && Number.isFinite(Number(charges)) ? (Number(charges) === 1 ? "carica" : "cariche") : "";
++        const badge = charges ? '<small class="cripta-catalog-property-charges"' + (unit ? ' data-unit="' + unit + '"' : '')
++            + '>' + escapeFoundryHtml(charges) + '</small>' : '';
++        const heading = name || badge ? '<h3><span>' + escapeFoundryHtml(name) + '</span>' + badge + '</h3>' : '';
++        return '<section class="cripta-catalog-property cripta-catalog-property--' + tone + '"'
++            + (label ? ' aria-label="' + label + '"' : '') + '>' + heading + renderCatalogItemText(property.description) + '</section>';
++    }).join("");
++    const notes = renderCatalogItemText(record?.notes);
+     const parts = [
+         summary ? '<section class="cripta-catalog-summary">' + summary + "</section>" : "",
+         propertyCards ? '<div class="cripta-catalog-properties">' + propertyCards + "</div>" : "",
+@@ -1261,13 +1264,82 @@
+     return parts.length ? '<div class="cripta-catalog-description">' + parts.join("") + "</div>" : "";
+ }
+ 
+-function renderFoundryParagraphs(value, { emphasis = false } = {}) {
+-    const text = String(value || "").replace(/\r\n?/g, "\n").trim();
+-    if (!text) return "";
+-    return text.split(/\n{2,}/).map((block) => {
+-        const content = escapeFoundryHtml(block).replace(/\n/g, "<br />");
+-        return "<p>" + (emphasis ? "<em>" + content + "</em>" : content) + "</p>";
+-    }).join("");
++// Shared with the Foundry item description renderer. Only catalog formatting is expanded.
++function renderCatalogItemText(source, { plain = false, inlineWhenSimple = false } = {}) {
++    const text = String(source ?? "").replace(/\r\n?/g, "\n").trimEnd();
++    if (!text.trim()) return "";
++    const escape = value => plain ? value : value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
++
++    function inline(line) {
++        const parts = [];
++        const open = [];
++        let cursor = 0;
++        // Foundry rolls, document references and their labels are opaque to emphasis.
++        for (const token of line.matchAll(/\[\[[^\n]*?\]\](?:\{[^}\n]*\})?|@[\w.]+\[[^\]\n]*\](?:\{[^}\n]*\})?|\\[\\*]|\*+/g)) {
++            const run = token[0];
++            parts.push(escape(line.slice(cursor, token.index)));
++            cursor = token.index + run.length;
++            if (!run.startsWith("*") || run.length > 3) {
++                parts.push(escape(run.startsWith("\\") ? run.slice(1) : run));
++                continue;
++            }
++            let left = run.length;
++            const canClose = /\S/.test(line[token.index - 1] || "");
++            const canOpen = /\S/.test(line[cursor] || "");
++            while (canClose && open.length && open.at(-1).size <= left) {
++                const {index, size, tag} = open.pop();
++                parts[index] = plain ? "" : "<" + tag + ">";
++                parts.push(plain ? "" : "</" + tag + ">");
++                left -= size;
++            }
++            while (left > 0) {
++                const size = Math.min(2, left);
++                if (canOpen) open.push({index: parts.length, size, tag: size === 2 ? "strong" : "em"});
++                parts.push("*".repeat(size));
++                left -= size;
++            }
++        }
++        return parts.join("") + escape(line.slice(cursor));
++    }
++
++    const out = [], paragraph = [], lists = [];
++    function finishParagraph() {
++        if (paragraph.length) out.push("<p>" + paragraph.splice(0).join("<br />") + "</p>");
++    }
++    function closeList() {
++        out.push("</li></" + lists.pop().tag + ">");
++    }
++    for (const line of text.split("\n")) {
++        const item = /^([ \t]*)(?:[-+*]|(\d{1,9})[.)])[ \t]+(.*)$/.exec(line);
++        if (plain) {
++            out.push(item ? item[1] + (item[2] ? item[2] + ". " : "• ") + inline(item[3]) : inline(line));
++            continue;
++        }
++        if (!item) {
++            while (lists.length) closeList();
++            if (line.trim()) paragraph.push(inline(line));
++            else finishParagraph();
++            continue;
++        }
++        finishParagraph();
++        const indent = item[1].replace(/\t/g, "    ").length;
++        const tag = item[2] ? "ol" : "ul";
++        while (lists.length && lists.at(-1).indent > indent) closeList();
++        if (lists.at(-1)?.indent === indent && lists.at(-1).tag !== tag) closeList();
++        if (lists.at(-1)?.indent === indent) {
++            out.push("</li><li>");
++        } else {
++            const start = tag === "ol" && Number(item[2]) !== 1 ? ' start="' + Number(item[2]) + '"' : "";
++            out.push("<" + tag + start + "><li>");
++            lists.push({indent, tag});
++        }
++        out.push(inline(item[3]));
++    }
++    if (plain) return out.join("\n");
++    while (lists.length) closeList();
++    if (inlineWhenSimple && !out.length && paragraph.length === 1) return paragraph[0];
++    finishParagraph();
++    return out.join("");
+ }
+ 
+ function escapeFoundryHtml(value) {

@@ -247,9 +247,11 @@ function parseYamlLite(yamlText) {
             const tokenPath = media.token?.path || legacyImages.token || avatarPath;
             const dedicatedIdlePath = media.idle?.path || legacyImages.idle || '';
             const dedicatedHoverPath = media.hover?.path || legacyImages.hover || '';
-            const formAvatar = actor.formLabels?.length ? media.avatar : null;
-            const idlePath = dedicatedIdlePath || formAvatar?.path || tokenPath || avatarPath || '';
-            const hoverPath = dedicatedHoverPath || formAvatar?.path || tokenPath || idlePath || avatarPath || '';
+            const idlePath = dedicatedIdlePath || tokenPath;
+            const hoverPath = dedicatedHoverPath || tokenPath || idlePath;
+            const tokenMedia = media.token?.path ? media.token : media.avatar;
+            const idleMedia = media.idle?.path ? media.idle : tokenMedia;
+            const hoverMedia = media.hover?.path ? media.hover : tokenMedia || idleMedia;
             const legacyId = String(profile.legacyCharacterId || legacyNpc?.id || '').trim();
             const statsVisibility = String(actor?.visibility?.state || 'dm').toLowerCase();
             const profileVisibility = String(profile?.visibility?.state || 'dm').toLowerCase();
@@ -286,13 +288,13 @@ function parseYamlLite(yamlText) {
                     token: tokenPath,
                     idle: idlePath,
                     hover: hoverPath,
-                    idleAdjust: managedPresentationToNpcAdjust(media.idle || formAvatar || media.token || media.avatar, legacyImages.idleAdjust || legacyImages.avatarAdjust),
+                    idleAdjust: managedPresentationToNpcAdjust(idleMedia, legacyImages.idleAdjust || legacyImages.avatarAdjust),
                     hasDedicatedIdle: Boolean(dedicatedIdlePath),
                     hasDedicatedHover: Boolean(dedicatedHoverPath),
-                    hoverAdjust: managedPresentationToNpcAdjust(media.hover || formAvatar || media.idle || media.token || media.avatar, legacyImages.hoverAdjust),
+                    hoverAdjust: managedPresentationToNpcAdjust(hoverMedia, legacyImages.hoverAdjust),
                     idleFallback: tokenPath || avatarPath || legacyImages.idleFallback || '',
-                    idleFrameCircle: managedPresentationToFrameCircle(media.idle || formAvatar || media.token || media.avatar, legacyImages.idleFrameCircle || legacyImages.tokenFrameCircle),
-                    hoverFrameCircle: managedPresentationToFrameCircle(media.hover || formAvatar || media.idle || media.token || media.avatar, legacyImages.hoverFrameCircle),
+                    idleFrameCircle: managedPresentationToFrameCircle(idleMedia, legacyImages.idleFrameCircle || legacyImages.tokenFrameCircle),
+                    hoverFrameCircle: managedPresentationToFrameCircle(hoverMedia, legacyImages.hoverFrameCircle),
                     hoverFallback: tokenPath || idlePath || avatarPath || legacyImages.hoverFallback || '',
                     avatarFallback: tokenPath || idlePath || legacyImages.avatarFallback || ''
                 },

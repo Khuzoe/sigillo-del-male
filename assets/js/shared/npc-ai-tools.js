@@ -1,6 +1,9 @@
 (function () {
     'use strict';
     const groups = [
+        { id: 'dossier', name: 'Dossier', tools: [
+            { id: 'dossier', name: 'Da appunti a dossier', icon: 'fa-book-open', description: 'Organizza gli appunti in capitoli o rivedi un capitolo esistente.' }
+        ] },
         { id: 'images', name: 'Immagini', tools: [
             { id: 'avatar', name: 'Genera avatar', icon: 'fa-image-portrait', description: 'Crea una nuova immagine a partire dall’avatar attuale.', needsAvatar: true },
             { id: 'token', name: 'Genera token', icon: 'fa-chess-pawn', description: 'Dall’avatar crea un ritratto circolare con esterno trasparente.', needsAvatar: true },
@@ -21,14 +24,14 @@
     ];
     const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('it');
     const abilityTypes = { feat: 'Capacità', weapon: 'Attacco', spell: 'Incantesimo' };
-    function toolsFor(actor, { unsaved = false, saving = false } = {}) {
+    function toolsFor(actor, { unsaved = false, saving = false, canWriteDossier = false } = {}) {
         const npcEditor = actor?.actorType === 'npc' && actor.permissions?.isEditor === true;
         const playerTools = ['character', 'player'].includes(actor?.actorType) && (actor.permissions?.isOwner === true || actor.permissions?.isEditor === true);
-        if (!npcEditor && !playerTools) return [];
+        if (!npcEditor && !playerTools && !canWriteDossier) return [];
         const pendingSheet = actor.sync?.commands?.some(command => command.nativeSheetVersion && command.status === 'pending');
         const abilities = (actor.definition?.items || []).filter(item => item.itemId && abilityTypes[item.type]);
-        return groups.map(group => ({ ...group, tools: group.tools.filter(tool => npcEditor || ['icons', 'translate-abilities'].includes(tool.id)).map(tool => ({ ...tool,
-            reason: saving ? 'Attendi il completamento del salvataggio.' : unsaved ? 'Salva o annulla prima le modifiche alla scheda.'
+        return groups.map(group => ({ ...group, tools: group.tools.filter(tool => tool.id === 'dossier' ? canWriteDossier : npcEditor || (playerTools && ['icons', 'translate-abilities'].includes(tool.id))).map(tool => ({ ...tool,
+            reason: saving ? 'Attendi il completamento del salvataggio.' : tool.id === 'dossier' ? '' : unsaved ? 'Salva o annulla prima le modifiche alla scheda.'
                 : pendingSheet && !['avatar', 'token', 'drop'].includes(tool.id) ? 'Modifica della scheda in attesa di Foundry.'
                 : tool.needsAvatar && !actor.media?.avatar?.path ? 'Carica e salva prima un avatar nella sezione Media.'
                 : tool.id === 'edit-ability' && !abilities.length ? 'Nessuna capacità disponibile da modificare.' : ''

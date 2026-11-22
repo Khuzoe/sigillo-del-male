@@ -35,8 +35,9 @@ async function main() {
     const catalogDescription = (summary) => `<div class="cripta-catalog-description">
         <section class="cripta-catalog-summary"><p>${summary}</p></section>
         <div class="cripta-catalog-properties">
-            <section class="cripta-catalog-property"><h3><span>Luce di Pezza</span><small class="cripta-catalog-property-charges">3</small></h3><p>Emette luce intensa.</p></section>
-            <section class="cripta-catalog-property cripta-catalog-property--genial"><h3><span>Intuizione</span></h3><p>Una proprietà geniale.</p></section>
+            <section class="cripta-catalog-property"><h3><span>Luce di Pezza</span><small class="cripta-catalog-property-charges" data-unit="cariche">3</small></h3><p>Emette luce intensa.</p></section>
+            <section class="cripta-catalog-property cripta-catalog-property--genial" aria-label="Geniale"><h3><span>Intuizione</span></h3><p>Una <strong>proprietà <em>geniale</em></strong>.</p><ol start="3"><li><p>Spendi <b>1 carica</b>.</p><ul><li><p>Solo <i>di notte</i>.</p></li></ul></li><li>Usa [[/r 1d6*2]].</li></ol><ol><li>Riparti.</li></ol></section>
+            <section class="cripta-catalog-property"><h3><span></span><small class="cripta-catalog-property-charges">All’alba</small></h3></section>
             <section class="cripta-catalog-property cripta-catalog-property--negative"><h3><span>Contraccolpo</span></h3><p>Un effetto negativo.</p></section>
         </div>
         <aside class="cripta-catalog-notes"><h4>Note della campagna</h4><p>Creata da Zara.</p></aside>
@@ -71,7 +72,9 @@ async function main() {
     const request = (entry, seedData = undefined) => new Request("https://test/api/campaign-items/foundry-sync", {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-Inventory-Sync-Secret": "secret" },
-        body: JSON.stringify({ campaignId: campaign, worldId: "test-world", items: [entry], ...(seedData ? { seedData } : {}) })
+        body: JSON.stringify({ campaignId: campaign, worldId: "test-world", contract: {
+            name: "khuzoe-wiki-sync", version: 1, foundry: { generation: 14 }
+        }, items: [entry], ...(seedData ? { seedData } : {}) })
     });
 
     const created = await api.handleCampaignItemFoundrySync(request(snapshot(2), [{ id: "seed", name: "Seed" }]), campaign, env, {});
@@ -84,7 +87,8 @@ async function main() {
     assert.equal(item.summary, "Un ago sottile e luminoso.");
     assert.deepEqual(item.properties, [
         { name: "Luce di Pezza", charges: "3", description: "Emette luce intensa." },
-        { name: "Intuizione", charges: "", description: "Una proprietà geniale.", genial: true },
+        { name: "Intuizione", charges: "", description: "Una **proprietà *geniale***.\n3. Spendi **1 carica**.\n  - Solo *di notte*.\n4. Usa [[/r 1d6*2]].\n\n1. Riparti.", genial: true },
+        { name: "", charges: "All’alba", description: "" },
         { name: "Contraccolpo", charges: "", description: "Un effetto negativo.", negative: true }
     ]);
     assert.equal(item.notes, "Creata da Zara.");
@@ -136,10 +140,18 @@ async function main() {
     assert.notEqual(item.attunement, true);
     assert.equal(item.sync.pendingFoundry, false, "la rimozione viene chiusa solo dopo la conferma reale di Foundry");
 
-    const updated = await api.handleCampaignItemFoundrySync(request(snapshot(3, "La luce ora pulsa lentamente.")), campaign, env, {});
+    const hiddenProperty = {name: "Segreto", description: "**Solo DM**", hidden: true};
+    item.properties[1].description = item.properties[1].description.replace("\n3.", "\n\n3.").replace("  -", "  +");
+    item.properties.splice(1, 0, hiddenProperty);
+    await env.SIGILLO_KV.put(key, JSON.stringify(document));
+    const changed = snapshot(3, "La luce ora pulsa lentamente.");
+    changed.document.document.system.description.value = changed.document.document.system.description.value.replace("<b>1 carica</b>", "<b>2 cariche</b>");
+    const updated = await api.handleCampaignItemFoundrySync(request(changed), campaign, env, {});
     assert.equal(updated.status, 200);
     document = JSON.parse(store.get(key));
     item = document.data.find((entry) => entry.id === "zara-needle");
+    assert.deepEqual(item.properties[1], hiddenProperty);
+    assert.match(item.properties[2].description, /3\. Spendi \*\*2 cariche\*\*/);
     assert.equal(item.cost.components[0].amount, 3, "il prezzo che seguiva Foundry continua a seguirlo");
     assert.equal(item.summary, "La luce ora pulsa lentamente.", "la descrizione che seguiva Foundry continua a seguirlo");
 

@@ -100,8 +100,8 @@ const competing = await Promise.all([
 assert.deepEqual(competing.map(result => result.status).sort(), [200, 409]);
 assert.deepEqual(baseline(), before, "group changes preserve both Actor documents, profiles, and the sync index");
 console.log("Forme NPC verificate su D1 locale: collegamenti, concorrenza, privacy, immagini, dossier e ritorno alla forma precedente.");
-if (process.argv.includes("--browser")) {
+if (process.argv.includes("--browser") || process.argv.includes("--dossier-writer")) {
     db.database.exec("DELETE FROM managed_actor_documents WHERE kind = 'npc-forms'");
     const { verifyDossierForms } = await import("./fixtures/npc-forms-browser.mjs");
-    await verifyDossierForms(call, dm);
+    await verifyDossierForms(call, dm, process.argv.includes("--dossier-writer"));
 }

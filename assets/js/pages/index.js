@@ -289,7 +289,7 @@ window.CriptaApp.onPageReady("index", () => {
                 const params = new URLSearchParams({ world: actor.worldId, actor: actor.actorId });
                 if (!actor.permissions?.canReadStats) params.set('profile', '1');
                 return [{ ...npc, name: actor.name, role: actor.profile.role,
-                    managedImage: media.hover?.path || media.idle?.path || media.avatar?.path || media.token?.path || 'assets/img/logo.webp',
+                    managedImage: media.hover?.path || media.idle?.path || media.token?.path || media.avatar?.path || 'assets/img/logo.webp',
                     url: `pages/characters/managed-actor.html?${params}` }];
             });
             if (items.length === 0) {
