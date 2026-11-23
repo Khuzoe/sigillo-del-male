@@ -22,7 +22,12 @@ const conceptKey = ({campaignId, accountId}, id) => `_private/ai-npcs/concepts/$
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const ID = /^[a-z0-9_-]{1,96}$/i;
 const running = job => ["pending", "running"].includes(job?.status);
-const scope = context => `${context.campaignId}:${context.accountId}`;
+const isPose = phase => phase === "idle" || phase === "hover";
+const imageParts = ["avatar", "token", "idle", "hover"];
+const previewRevision = key => key?.split("/").slice(-2).join("/") || "";
+const canConfirm = job => ["ready", "confirming"].includes(job.status) ||
+  (isPose(job.phase) && ["failed", "uncertain"].includes(job.status) && job.avatarReady && job.tokenReady);
+const scope = context => `${context.campaignId}:${context.accountId}${context.actorId ? ":actor:" + context.worldId + ":" + context.actorId : ""}`;
 const imageKey = (id, part) => `_private/ai-npcs/${id}/${part}.webp`;
 const reply = (value, status = 200) => Response.json(value, { status, headers: { "Cache-Control": "private, no-store" } });
 const fail = (message, status = 400) => reply({ ok: false, error: message }, status);
@@ -34,6 +39,10 @@ function publicJob(job) {
     id: job.id, draftId: job.draftId, status: job.status, phase: job.phase, form: job.confirmation || job.form,
     options: avatarGenerationOptions(job.options), references: job.references.map(({ uploadId, worldId, actorId, name, purpose, note }) => ({ ...(uploadId ? {uploadId} : {worldId, actorId}), name, purpose, note })),
     hasAvatar: Boolean(job.avatarReady), hasToken: Boolean(job.tokenReady), tokenBackground: job.tokenBackground || "opaque", error: job.error || "",
+    hasIdle: Boolean(job.idleKey), hasHover: Boolean(job.hoverKey), poseDirection: job.poseDirection || "",
+    idleRevision: previewRevision(job.idleKey), hoverRevision: previewRevision(job.hoverKey),
+    includePoses: job.includePoses, canConfirm: canConfirm(job),
+    ...(job.actorBaseline ? { baseline: job.actorBaseline, usesCurrentIdle: job.usesCurrentIdle === true } : {}),
     createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job),
     ...(job.receipt ? { requestId: job.receipt.request?.id || job.draftId } : {}),
   };
@@ -100,6 +109,18 @@ async function checkedReferences(input, context, env, services) {
 }
 
 export function npcImagePrompt(job, phase) {
+  if (isPose(phase)) {
+    const identity = `NPC: ${JSON.stringify(job.form.name)}. Character context: ${JSON.stringify(job.form.description)}.`;
+    const composition = "Single square frameless character cutout for a website portrait. Transparent outside the silhouette, including gaps. Keep all visible shapes and effects inside the canvas. No circular medallion, ring, vignette, backing disc, scenery or text.";
+    if (phase === "idle") {
+      const tokenGuide = job.tokenKey ? " Image 2 is the map token: use it only as a secondary reference for likeness and portrait scale." : "";
+      return `${identity} ${composition} Image 1 is the character reference: preserve the face, anatomy, costume and artistic style.${tokenGuide} Omit any decorative frame. Compose a calm, readable head-and-shoulders portrait, allowing a little room for movement.`;
+    }
+    const action = job.poseDirection
+      ? `Follow the DM's direction: ${JSON.stringify(job.poseDirection)}. Respect the requested intensity. Unless a restrained change is requested, carry the action through into a distinct pose that reads at thumbnail size.`
+      : "Show a characteristic action already in progress, legible at thumbnail size. Choose a gesture that fits this particular character's anatomy, personality and visible equipment. For example, a guard might bring a shield up to one shoulder, or a beast might open its jaws and bristle. Let the expression support the action.";
+    return `${identity} ${composition} Edit the supplied idle portrait into the second pose of a two-image hover transition. Keep the camera, crop, face size and approximate head position aligned so the two portraits crossfade cleanly. Preserve the character's features, costume, main light and painting style. Allow the shoulders, limbs, clothing or equipment to change silhouette as the action calls for. ${action}`;
+  }
   if (phase === "token") {
     const frames = job.references.filter(reference => reference.purpose === "frame");
     return `${NPC_TOKEN_PROMPT}\n${frames.length ? referenceGuide(frames, 2) : ""}`;
@@ -127,7 +148,7 @@ export async function handleNpcGeneration(request, route, campaignId, env, servi
     const payload = await response.json();
     return reply({ ...payload, enabled: Boolean(env.OPENAI_API_KEY), style: AVATAR_STYLE }, response.status);
   }
-  if (request.method === "GET" && ["avatar", "token"].includes(route.action)) return call(route.action, { id: route.jobId });
+  if (request.method === "GET" && imageParts.includes(route.action)) return call(route.action, { id: route.jobId });
   if (request.method !== "POST") return fail("Operazione non supportata.", 405);
   let body;
   try {
@@ -138,16 +159,27 @@ export async function handleNpcGeneration(request, route, campaignId, env, servi
   } catch { return fail("Richiesta non valida."); }
   try {
     if (route.action === "stop") return call("stop", { id: route.jobId });
-    if (!route.action || route.action === "retry-token") {
+    const pose = { "generate-idle": "idle", "generate-hover": "hover", "use-idle": "idle" }[route.action];
+    if (!route.action || route.action === "retry-token" || pose) {
       if (!UUID.test(body.requestId || "")) return fail("Identificativo richiesta non valido.");
       // Recover a lost response before resolving references that may since have changed.
       const previous = await call("job", { id: body.requestId });
       if (previous.ok) return reply({ ok: true, job: publicJob((await previous.json()).job) });
       if (previous.status !== 404) return previous;
-      if (!env.OPENAI_API_KEY) return fail("Il generatore deve essere attivato dall'amministratore.", 503);
+      if (!env.OPENAI_API_KEY && route.action !== "use-idle") return fail("Il generatore deve essere attivato dall'amministratore.", 503);
       const capabilities = await call("latest");
       if (!capabilities.ok) return capabilities;
       const supported = await capabilities.json();
+      if (pose) {
+        if (supported.sitePoses !== 1) return fail("Aggiorna il generatore per preparare le pose.", 503);
+        if (typeof (body.direction ?? "") !== "string" || (body.direction || "").length > 500) return fail("L'indicazione per l'hover può contenere fino a 500 caratteri.");
+        let uploadedIdleKey;
+        if (route.action === "use-idle") {
+          if (typeof body.uploadId !== "string" || !UPLOAD_ID.test(body.uploadId) || !body.uploadId.endsWith(".webp")) return fail("Scegli un idle WebP trasparente.");
+          uploadedIdleKey = conceptKey(context, body.uploadId);
+        }
+        return call("create", { id: body.requestId, parentJobId: route.jobId, pose, uploadedIdleKey, idleRevision: body.idleRevision, direction: (body.direction || "").trim() });
+      }
       if (supported.tokenTransparencyVersion !== 1) return fail("Aggiornamento del generatore in corso. Riprova per ottenere token trasparenti.", 503);
       if (Array.isArray(body.references) && body.references.some(ref => ref?.uploadId) && supported.conceptReferences !== 1) return fail("Aggiorna il generatore per usare i concept allegati.", 503);
       const options = avatarGenerationOptions(body);
@@ -164,15 +196,15 @@ export async function handleNpcGeneration(request, route, campaignId, env, servi
     if (!response.ok) return response;
     let { job } = await response.json();
     if (job.status === "accepted") return reply(job.receipt);
-    if (!["ready", "confirming"].includes(job.status)) return fail("Completa avatar e token prima di creare l'NPC.", 409);
+    if (!canConfirm(job)) return fail("Completa avatar e token prima di creare l'NPC.", 409);
     let form = job.confirmation || await checkedForm(body.form || job.form, campaignId, services, `ai-${job.draftId}`, hasCharacterConcept(job.references));
-    const begin = await call("begin-confirm", { id: job.id, form });
+    const begin = await call("begin-confirm", { id: job.id, form, includePoses: body.includePoses === true, idleRevision: body.idleRevision, hoverRevision: body.hoverRevision });
     if (!begin.ok) return begin;
     job = (await begin.json()).job;
     if (job.status === "accepted") return reply(job.receipt);
     form = job.confirmation;
     const prefix = `campaigns/${campaignId}/managed-actors/site-pending/ai-${job.draftId}/base`;
-    for (const part of ["avatar", "token"]) {
+    for (const part of job.includePoses ? imageParts : ["avatar", "token"]) {
       const object = await env.MEDIA_BUCKET.get(job[`${part}Key`]);
       if (!object) return fail("Anteprima non disponibile. La bozza è conservata; riprova la conferma.", 409);
       await env.MEDIA_BUCKET.put(`${prefix}/${part}.webp`, object.body, { httpMetadata: { contentType: "image/webp" } });
@@ -181,7 +213,7 @@ export async function handleNpcGeneration(request, route, campaignId, env, servi
       campaignId, clientId: `ai-${job.draftId}`, targetWorldId: form.targetWorldId,
       document: { name: form.name, media: { avatar: `media/${prefix}/avatar.webp`, token: `media/${prefix}/token.webp` } },
       profile: { name: form.name, kind: form.kind, categoryId: form.categoryId, category: form.category, visibility: { state: form.visibility }, blocks: form.description ? [{ id: "descrizione", type: "lore", title: "Descrizione", text: form.description, visibility: "public" }] : [] },
-    }, job.draftId);
+    }, job.draftId, job.includePoses);
     if (!queued.ok) {
       if (queued.status === 409 && (await queued.clone().json()).code === "NPC_NAME_TAKEN") {
         await call("name-conflict", { id: job.id, name: form.name, targetWorldId: form.targetWorldId });
@@ -213,17 +245,65 @@ export class NpcGenerationStore {
     const id = action === "latest" ? latest : input.id;
     let job = id ? await storage.get(`job:${id}`) : null;
     if (job && scope(job.context) !== scope(input.context)) return fail("Bozza non trovata.", 404);
-    if (action === "latest") return reply({ ok: true, version: NPC_GENERATION_VERSION, tokenTransparencyVersion: 1, conceptReferences: 1, canStop: true, landscapeAvatar: true, supportedResolutions: Object.keys(AVATAR_RESOLUTIONS), supportedQualities: AVATAR_QUALITIES, tokenSizes: NPC_TOKEN_SIZES, job: publicJob(job) });
-    if (action === "create") {
+    if (action === "latest") return reply({ ok: true, version: NPC_GENERATION_VERSION, tokenTransparencyVersion: 1, conceptReferences: 1, sitePoses: 1, actorPoses: 1, canStop: true, landscapeAvatar: true, supportedResolutions: Object.keys(AVATAR_RESOLUTIONS), supportedQualities: AVATAR_QUALITIES, tokenSizes: NPC_TOKEN_SIZES, job: publicJob(job) });
+    if (action === "create" || action === "actor-pose") {
       if (job) return reply({ ok: true, job: publicJob(job) });
       const previous = latest ? await storage.get(`job:${latest}`) : null;
       if (running(previous) || previous?.status === "confirming") return fail("Completa o interrompi la bozza già in corso prima di generarne un'altra.", 409);
       if (await storage.get("active")) return fail("È già in corso una generazione. Riprova tra qualche minuto.", 409);
       const parent = input.parentJobId ? await storage.get(`job:${input.parentJobId}`) : null;
       if (input.parentJobId && (!parent || parent.id !== latest || scope(parent.context) !== scope(input.context) || parent.status === "accepted")) return fail("La bozza è cambiata. Ricarica prima di rigenerare.", 409);
+      if (action === "actor-pose") {
+        if (parent && (parent.actorBaseline !== input.baseline || !parent.idleKey || input.idleRevision !== previewRevision(parent.idleKey))) return fail("L’idle è cambiato. Controlla il riferimento prima di generare.", 409);
+        const job = {
+          id: input.id, draftId: input.id, context: input.context, form: {name: input.name, description: ""},
+          actorBaseline: input.baseline, references: [], options: input.options, phase: input.pose,
+          status: input.uploadKey ? "ready" : "pending", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS,
+          usesCurrentIdle: parent ? parent.usesCurrentIdle : input.pose === "hover", poseDirection: input.direction,
+        };
+        // Pin source bytes before starting the alarm. A later manual upload may reuse its path.
+        const snapshot = async (key, part, optional = false) => {
+          const image = key && await this.env.MEDIA_BUCKET.get(key);
+          if (!image?.size || image.size > MAX_BYTES) {
+            if (optional) return null;
+            throw new InputError("Riferimento non disponibile sulla wiki o superiore a 12 MB.");
+          }
+          const target = `_private/ai-npcs/${job.id}/source-${part}.${key.split(".").pop().toLowerCase()}`;
+          await this.env.MEDIA_BUCKET.put(target, image.body, { httpMetadata: {contentType: imageMime(key)} });
+          return target;
+        };
+        try {
+          if (input.uploadKey) {
+            const image = await this.env.MEDIA_BUCKET.get(input.uploadKey);
+            const bytes = image?.size && image.size <= MAX_BYTES && new Uint8Array(await image.arrayBuffer());
+            const size = bytes && webpSize(bytes);
+            if (!size || size.width !== size.height || !webpHasAlpha(bytes)) return fail("Scegli un idle WebP quadrato con trasparenza, fino a 12 MB.");
+            job.idleKey = input.uploadKey;
+          } else if (input.pose === "idle") {
+            job.avatarKey = await snapshot(input.avatarKey, "character", Boolean(input.tokenKey));
+            if (!job.avatarKey) job.avatarKey = await snapshot(input.tokenKey, "character");
+            else if (input.tokenKey && input.avatarKey !== input.tokenKey) job.tokenKey = await snapshot(input.tokenKey, "token", true);
+          } else {
+            job.idleKey = parent?.idleKey || await snapshot(input.currentIdleKey, "idle");
+          }
+        } catch (error) {
+          if (error instanceof InputError) return fail(error.message, 409);
+          throw error;
+        }
+        return this.queueJob(job);
+      }
       if (input.tokenOnly && (!parent?.avatarReady || !await this.env.MEDIA_BUCKET.head(parent.avatarKey))) return fail("Non è disponibile un avatar da usare per il token.", 409);
-      const references = input.tokenOnly ? parent.references : input.references;
-      if (!input.tokenOnly) {
+      if (input.pose && (!isPose(input.pose) || !parent?.avatarReady || !parent.tokenReady || parent.tokenAvatarKey !== parent.avatarKey || (input.pose === "hover" && !parent.idleKey))) return fail("Controlla prima le immagini da usare come riferimento.", 409);
+      if (input.pose === "hover" && input.idleRevision !== previewRevision(parent.idleKey)) return fail("La posa a riposo è cambiata. Controlla la nuova anteprima.", 409);
+      if (input.uploadedIdleKey) {
+        const idle = await this.env.MEDIA_BUCKET.get(input.uploadedIdleKey);
+        const bytes = idle?.size && idle.size <= MAX_BYTES ? new Uint8Array(await idle.arrayBuffer()) : null;
+        const size = bytes && webpSize(bytes);
+        if (!size || size.width !== size.height || !webpHasAlpha(bytes)) return fail("L'idle deve essere un WebP quadrato con trasparenza, fino a 12 MB.");
+      }
+      const reuseAvatar = input.tokenOnly || Boolean(input.pose);
+      const references = reuseAvatar ? parent.references : input.references;
+      if (!reuseAvatar) {
         for (let index = 0; index < references.length; index++) {
           const reference = references[index];
           // Uploaded concepts already have private, immutable content-addressed keys.
@@ -236,25 +316,26 @@ export class NpcGenerationStore {
         }
       }
       job = {
-        id: input.id, draftId: parent?.draftId || input.id, context: input.context, form: input.tokenOnly ? parent.form : input.form,
-        references, options: input.tokenOnly ? { ...input.options, aspectRatio: parent.options?.aspectRatio || "9:16" } : input.options,
-        status: "pending", phase: input.tokenOnly ? "token" : "avatar",
-        avatarKey: input.tokenOnly ? parent.avatarKey : imageKey(input.id, "avatar"), tokenKey: imageKey(input.id, "token"),
-        avatarReady: Boolean(input.tokenOnly), tokenReady: false, tokenBackground: "transparent", error: "", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS,
+        id: input.id, draftId: parent?.draftId || input.id, context: input.context, form: reuseAvatar ? parent.form : input.form,
+        references, options: input.pose ? parent.options : input.tokenOnly ? { ...input.options, aspectRatio: parent.options?.aspectRatio || "9:16" } : input.options,
+        status: input.uploadedIdleKey ? "ready" : "pending", phase: input.pose || (input.tokenOnly ? "token" : "avatar"),
+        avatarKey: reuseAvatar ? parent.avatarKey : imageKey(input.id, "avatar"), tokenKey: input.pose ? parent.tokenKey : imageKey(input.id, "token"),
+        avatarReady: reuseAvatar, tokenReady: Boolean(input.pose), tokenAvatarKey: input.pose ? parent.tokenAvatarKey : null,
+        tokenBackground: input.pose ? parent.tokenBackground : "transparent",
+        idleKey: input.uploadedIdleKey || (reuseAvatar && parent.idleKey) || null,
+        hoverKey: reuseAvatar && !input.uploadedIdleKey ? parent.hoverKey : null,
+        poseDirection: input.pose === "hover" ? input.direction : reuseAvatar ? parent.poseDirection : "",
+        error: "", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS,
       };
-      await storage.transaction(async tx => {
-        await tx.put({ [`job:${job.id}`]: job, [`latest:${scope(job.context)}`]: job.id, active: job.id });
-        await tx.setAlarm(Date.now() + 100);
-      });
-      return reply({ ok: true, job: publicJob(job) }, 202);
+      return this.queueJob(job);
     }
     if (!job) return fail("Bozza non trovata.", 404);
     if (action === "job") return reply({ ok: true, job });
-    if (["avatar", "token"].includes(action)) {
-      if (!job[`${action}Ready`]) return fail("Anteprima non ancora disponibile.", 409);
+    if (imageParts.includes(action)) {
+      if (!(isPose(action) ? job[`${action}Key`] : job[`${action}Ready`])) return fail("Anteprima non ancora disponibile.", 409);
       const image = await this.env.MEDIA_BUCKET.get(job[`${action}Key`]);
       if (!image) return fail("Anteprima non disponibile.", 404);
-      return new Response(image.body, { headers: { "Content-Type": "image/webp", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
+      return new Response(image.body, { headers: { "Content-Type": imageMime(job[`${action}Key`]), "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
     }
     if (action === "stop") {
       if (running(job)) {
@@ -266,9 +347,24 @@ export class NpcGenerationStore {
       }
       return reply({ ok: true, job: publicJob(job) });
     }
+    if (action === "claim-poses") {
+      if (job.status === "accepted") return reply({job});
+      if (job.id !== latest || !job.actorBaseline || !["ready","confirming"].includes(job.status) || !job.hoverKey || !job.idleKey ||
+        input.hoverRevision !== previewRevision(job.hoverKey) || input.idleRevision !== previewRevision(job.idleKey)) return fail("Controlla le anteprime aggiornate prima di applicarle.", 409);
+      job.status = "confirming";
+      await storage.put(`job:${job.id}`, job);
+      return reply({job});
+    }
+    if (action === "release-poses" && job.actorBaseline && job.status === "confirming") {
+      job.status = "ready"; await storage.put(`job:${job.id}`, job); return reply({ok:true});
+    }
     if (action === "begin-confirm") {
       if (job.status === "accepted") return reply({ ok: true, job });
-      if (latest !== job.id || !["ready", "confirming"].includes(job.status) || !job.avatarReady || !job.tokenReady || job.tokenAvatarKey !== job.avatarKey) return fail("La proposta è cambiata o non è completa. Ricarica le anteprime.", 409);
+      if (latest !== job.id || !canConfirm(job) || !job.avatarReady || !job.tokenReady || job.tokenAvatarKey !== job.avatarKey) return fail("La proposta è cambiata o non è completa. Ricarica le anteprime.", 409);
+      if (job.status !== "confirming") {
+        if (input.includePoses && (!job.idleKey || !job.hoverKey || input.idleRevision !== previewRevision(job.idleKey) || input.hoverRevision !== previewRevision(job.hoverKey))) return fail("Controlla le due anteprime aggiornate prima di includerle.", 409);
+        job.includePoses = input.includePoses;
+      }
       job.confirmation ||= input.form;
       job.status = "confirming";
       await storage.put(`job:${job.id}`, job);
@@ -295,17 +391,34 @@ export class NpcGenerationStore {
   dimensions(job) {
     return job.phase === "avatar" ? avatarDimensions(job.options) : { width: NPC_TOKEN_SIZES[job.options.resolution], height: NPC_TOKEN_SIZES[job.options.resolution] };
   }
+  async queueJob(job) {
+    await this.state.storage.transaction(async tx => {
+      await tx.put({ [`job:${job.id}`]: job, [`latest:${scope(job.context)}`]: job.id });
+      if (job.status === "pending") { await tx.put("active", job.id); await tx.setAlarm(Date.now() + 100); }
+    });
+    return reply({ ok: true, job: publicJob(job) }, 202);
+  }
   async completedImage(job) {
-    const object = await this.env.MEDIA_BUCKET.get(job[`${job.phase}Key`]);
+    const object = await this.env.MEDIA_BUCKET.get(this.outputKey(job));
     if (!object || object.size > MAX_BYTES) return false;
     const bytes = new Uint8Array(await object.arrayBuffer()), size = webpSize(bytes), expected = this.dimensions(job);
-    return size?.width === expected.width && size?.height === expected.height && (job.phase !== "token" || job.tokenBackground !== "transparent" || webpHasAlpha(bytes));
+    return size?.width === expected.width && size?.height === expected.height && (job.phase === "avatar" || (job.phase === "token" && job.tokenBackground !== "transparent") || webpHasAlpha(bytes));
+  }
+  outputKey(job) { return isPose(job.phase) ? imageKey(job.id, job.phase) : job[`${job.phase}Key`]; }
+  finishImage(job) {
+    if (isPose(job.phase)) {
+      job[`${job.phase}Key`] = this.outputKey(job);
+      if (job.phase === "idle") job.hoverKey = null;
+    } else {
+      job[`${job.phase}Ready`] = true;
+      if (job.phase === "token") job.tokenAvatarKey = job.avatarKey;
+    }
+    job.status = "ready"; job.error = "";
   }
   async recoverExpired(job) {
     if (await this.completedImage(job)) {
-      job[`${job.phase}Ready`] = true;
-      if (job.phase === "token") { job.tokenAvatarKey = job.avatarKey; job.status = "ready"; job.error = ""; }
-      else { job.status = "paused"; job.error = "Avatar recuperato. Puoi generare il token senza rifare l'avatar."; }
+      this.finishImage(job);
+      if (job.phase === "avatar") { job.status = "paused"; job.error = "Avatar recuperato. Puoi generare il token senza rifare l'avatar."; }
       return;
     }
     job.status = "uncertain";
@@ -344,8 +457,10 @@ export class NpcGenerationStore {
         for (let offset = 0; offset < bytes.length; offset += 8192) raw += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
         images.push({ image_url: `data:${mime};base64,${btoa(raw)}` });
       };
-      if (job.phase === "token") await encode(job.avatarKey, "image/webp");
-      for (const reference of job.references.filter(reference => (reference.purpose === "frame") === (job.phase === "token"))) await encode(reference.key, reference.mime);
+      if (job.phase === "token" || job.phase === "idle") await encode(job.avatarKey, imageMime(job.avatarKey));
+      if (job.phase === "idle" && job.tokenKey) await encode(job.tokenKey, imageMime(job.tokenKey));
+      if (job.phase === "hover") await encode(job.idleKey, imageMime(job.idleKey));
+      if (!isPose(job.phase)) for (const reference of job.references.filter(reference => (reference.purpose === "frame") === (job.phase === "token"))) await encode(reference.key, reference.mime);
       if (controller.signal.aborted || !await ownsGeneration(this.state, job, "running")) throw new InputError("Attesa interrotta prima della generazione.");
       const dimensions = this.dimensions(job);
       const month = new Date().toISOString().slice(0, 7);
@@ -355,7 +470,7 @@ export class NpcGenerationStore {
       const response = await fetch(`https://api.openai.com/v1/images/${images.length ? "edits" : "generations"}`, {
         method: "POST", headers: { Authorization: `Bearer ${this.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12 * 60 * 1000)]),
-        body: JSON.stringify({ model: AVATAR_MODEL, ...(images.length ? { images } : {}), prompt: npcImagePrompt(job, job.phase), n: 1, size: `${dimensions.width}x${dimensions.height}`, quality: job.options.quality, output_format: "webp", ...(job.phase === "token" ? { background: "transparent", output_compression: 100 } : {}) }),
+        body: JSON.stringify({ model: AVATAR_MODEL, ...(images.length ? { images } : {}), prompt: npcImagePrompt(job, job.phase), n: 1, size: `${dimensions.width}x${dimensions.height}`, quality: job.options.quality, output_format: "webp", ...(job.phase !== "avatar" ? { background: "transparent", output_compression: 100 } : {}) }),
       });
       if (!response.ok) {
         job.status = response.status >= 500 ? "uncertain" : "failed";
@@ -366,7 +481,8 @@ export class NpcGenerationStore {
       const bytes = Uint8Array.from(atob(encoded), character => character.charCodeAt(0)), size = webpSize(bytes);
       if (bytes.length > MAX_BYTES || size?.width !== dimensions.width || size?.height !== dimensions.height) throw new InputError("Il servizio non ha restituito il formato immagine richiesto.");
       if (job.phase === "token" && !webpHasAlpha(bytes)) throw new InputError("Il token restituito non contiene il canale di trasparenza richiesto. L'avatar è conservato; puoi riprovare solo il token.");
-      await this.env.MEDIA_BUCKET.put(job[`${job.phase}Key`], bytes, { httpMetadata: { contentType: "image/webp" } });
+      if (isPose(job.phase) && !webpHasAlpha(bytes)) throw new InputError("La posa ricevuta è opaca. Le anteprime precedenti sono disponibili.");
+      await this.env.MEDIA_BUCKET.put(this.outputKey(job), bytes, { httpMetadata: { contentType: "image/webp" } });
       completed = true;
     } catch (error) {
       if (job.status === "running") job.status = providerStarted ? "uncertain" : "failed";
@@ -380,13 +496,12 @@ export class NpcGenerationStore {
         return;
       }
       if (completed) {
-        job[`${job.phase}Ready`] = true; job.error = "";
+        this.finishImage(job);
         if (job.phase === "avatar") {
           job.phase = "token"; job.status = "pending"; job.deadlineAt = Date.now() + GENERATION_PENDING_MS;
           await storage.transaction(async tx => { await tx.put(`job:${job.id}`, job); await tx.setAlarm(Date.now() + 100); });
           return;
         }
-        job.tokenAvatarKey = job.avatarKey; job.status = "ready";
       }
       job.finishedAt = new Date().toISOString();
       await storage.put(`job:${job.id}`, job);

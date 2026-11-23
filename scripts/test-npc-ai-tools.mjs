@@ -13,7 +13,7 @@ const { toolsFor, abilityChoices } = sandbox.window.CriptaNpcAiTools;
 const actor = { name: 'Custode', actorType: 'npc', actorId: 'npc', worldId: 'world', permissions: { isEditor: true }, media: { avatar: { path: 'media/avatar.webp' } },
     definition: { items: [{ itemId: 'bite', type: 'feat', name: 'Mòrso' }, { itemId: 'shield', type: 'feat', name: 'Scudo arcano' }, { itemId: 'spell', type: 'spell', name: 'Invisibilità' }, { itemId: 'sword', type: 'weapon', name: 'Spada' }, { itemId: 'coin', type: 'loot', name: 'Moneta' }] } };
 const all = (subject = actor, options) => toolsFor(subject, options).flatMap(group => group.tools);
-assert.equal(all().length, 9);
+assert.equal(all().length, 10);
 assert.ok(all().every(tool => !tool.reason));
 assert.deepEqual(Array.from(all({ ...actor, actorType: 'character' }), tool => tool.id), ['icons', 'translate-abilities']);
 const player = { ...actor, actorType: 'character', permissions: { isOwner: true, canEdit: true, canEditStats: true } };
@@ -22,7 +22,7 @@ assert.equal(all({ ...player, permissions: { canEditStats: true } }).length, 0, 
 assert.equal(all({ ...actor, permissions: { isOwner: true } }).length, 0);
 for (const options of [{ unsaved: true }, { saving: true }]) assert.ok(all(actor, options).every(tool => tool.reason));
 const pending = { ...actor, sync: { commands: [{ nativeSheetVersion: 1, status: 'pending' }] } };
-assert.deepEqual(Array.from(all(pending).filter(tool => !tool.reason), tool => tool.id), ['avatar', 'token', 'drop']);
+assert.deepEqual(Array.from(all(pending).filter(tool => !tool.reason), tool => tool.id), ['avatar', 'token', 'poses', 'drop']);
 assert.match(all({ ...actor, media: {} }).find(tool => tool.id === 'avatar').reason, /avatar/);
 assert.match(all({ ...actor, media: {} }).find(tool => tool.id === 'token').reason, /avatar/);
 assert.equal(all({ ...actor, media: {} }).find(tool => tool.id === 'suggestions').reason, '', 'Saved analyses remain accessible without an avatar');
@@ -44,6 +44,7 @@ for (const editMode of [false, true]) assert.match(api.bar({ ...barOptions, edit
 assert.doesNotMatch(api.bar({ ...barOptions, canEdit: false }), /data-managed-ai-tools/);
 assert.doesNotMatch(api.bar({ ...barOptions, actor: { ...actor, permissions: {} } }), /data-managed-ai-tools/);
 const calls = [];
+sandbox.window.CriptaNpcPoses = {open: options => calls.push({kind:'poses',options})};
 for (const [name, kind] of [['CriptaAvatarGenerator', 'avatar'], ['CriptaTokenGenerator', 'token'], ['CriptaAbilityIcons', 'icons'], ['CriptaAbilityTranslations', 'translations'], ['CriptaAbilityGenerator', 'ability'], ['CriptaNpcSheetAi', 'sheet'], ['CriptaNpcSuggestions', 'suggestions'], ['CriptaDropGenerator', 'drop']]) {
     sandbox.window[name] = { open: options => { calls.push({ kind, options }); } };
 }
@@ -53,6 +54,9 @@ assert.ok(calls.every(call => call.options.actor === actor && call.options.token
 assert.equal(calls.at(-1).options.targetItem.id, 'bite');
 assert.equal(calls[0].options.referenceUrl, 'media/avatar.webp');
 assert.equal(calls.find(call => call.kind === 'token').options.referenceUrl, 'media/avatar.webp');
+await api.run(root, 'poses');
+assert.equal(calls.at(-1).kind, 'poses');
+assert.equal(calls.at(-1).options.actor, actor);
 await calls.find(call => call.kind === 'suggestions').options.onDevelop('Una nuova idea');
 assert.equal(calls.at(-1).options.initialDetails, 'Una nuova idea', 'Suggestions retain their transition into ability creation');
 let before = calls.length;

@@ -61,3 +61,56 @@
 [1122/131448.105:ERROR:angle_platform_impl.cc(44)] vulkan_icd.cpp:154 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
 [1122/131448.177:WARNING:angle_platform_impl.cc(49)] vulkan_icd.cpp:315 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
 [1122/131448.188:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[1122/184358.757:WARNING:dns_config_service_win.cc(605)] Failed to read DnsConfig.
+[1122/184358.758:WARNING:dns_config_service_win.cc(605)] Failed to read DnsConfig.
+[1122/184358.799:ERROR:angle_platform_impl.cc(44)] vulkan_icd.cpp:154 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1122/184358.799:ERROR:angle_platform_impl.cc(44)] vulkan_icd.cpp:154 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1122/184358.897:WARNING:angle_platform_impl.cc(49)] vulkan_icd.cpp:315 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1122/184358.897:WARNING:angle_platform_impl.cc(49)] vulkan_icd.cpp:315 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1122/184358.915:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[1122/184358.915:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[1123/102028.783:ERROR:angle_platform_impl.cc(44)] vulkan_icd.cpp:154 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1123/102028.929:WARNING:angle_platform_impl.cc(49)] vulkan_icd.cpp:315 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1123/102028.939:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[1123/102119.689:ERROR:angle_platform_impl.cc(44)] vulkan_icd.cpp:154 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1123/102119.759:WARNING:angle_platform_impl.cc(49)] vulkan_icd.cpp:315 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1123/102119.770:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[1123/102212.970:ERROR:angle_platform_impl.cc(44)] vulkan_icd.cpp:154 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1123/102213.044:WARNING:angle_platform_impl.cc(49)] vulkan_icd.cpp:315 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1123/102213.055:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[1123/102553.103:ERROR:angle_platform_impl.cc(44)] vulkan_icd.cpp:154 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1123/102553.171:WARNING:angle_platform_impl.cc(49)] vulkan_icd.cpp:315 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1123/102553.180:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[1123/102554.339:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/102554.339:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/102554.339:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/102554.339:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/102811.750:ERROR:angle_platform_impl.cc(44)] vulkan_icd.cpp:154 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1123/102811.828:WARNING:angle_platform_impl.cc(49)] vulkan_icd.cpp:315 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1123/102811.839:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[1123/102812.891:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/102812.891:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/102812.891:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/102812.891:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/104359.638:ERROR:angle_platform_impl.cc(44)] vulkan_icd.cpp:154 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1123/104359.777:WARNING:angle_platform_impl.cc(49)] vulkan_icd.cpp:315 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1123/104359.789:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[1123/104836.622:ERROR:angle_platform_impl.cc(44)] vulkan_icd.cpp:154 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1123/104836.691:WARNING:angle_platform_impl.cc(49)] vulkan_icd.cpp:315 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1123/104836.700:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[1123/111223.946:ERROR:angle_platform_impl.cc(44)] vulkan_icd.cpp:154 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1123/111224.027:WARNING:angle_platform_impl.cc(49)] vulkan_icd.cpp:315 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1123/111224.038:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[1123/111224.540:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/111224.540:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/111224.541:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/111224.541:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/111257.118:ERROR:angle_platform_impl.cc(44)] vulkan_icd.cpp:154 (angle::vk::ScopedVkLoaderEnvironment::ScopedVkLoaderEnvironment): Error setting CWD for Vulkan layers init.
+[1123/111257.211:WARNING:angle_platform_impl.cc(49)] vulkan_icd.cpp:315 (angle::vk::ChoosePhysicalDevice): Preferred device ICD not found. Using default physicalDevice instead.
+[1123/111257.223:WARNING:viz_main_impl.cc(85)] VizNullHypothesis is disabled (not a warning)
+[1123/111257.766:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/111257.766:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/111257.766:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/111257.766:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/111257.766:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[1123/111257.766:ERROR:shared_image_manager.cc(358)] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.

@@ -28,3 +28,28 @@
     .npc-ai-tools footer { padding: 12px 18px; gap: 12px; }
     .npc-ai-tools footer > span { font-size: 10px; }
 }
+.npc-actor-poses .npc-actor-poses__workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
+.npc-actor-poses .npc-actor-poses__workspace section { display: grid; gap: 12px; align-content: start; }
+.npc-actor-poses h3 { margin: 0; }
+.npc-actor-poses small { color: #c5bdaf; }
+.npc-actor-poses .npc-actor-poses__buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.npc-actor-poses [data-choice] { display: grid; gap: 6px; }
+.npc-actor-poses select { width: 100%; padding: 8px; font: inherit; color: inherit; background: #24252d; border: 1px solid #55515c; border-radius: 8px; }
+.npc-actor-poses [data-stage] { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: auto; aspect-ratio: 1; }
+.npc-actor-poses [data-stage] img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; cursor: default; transition: opacity .25s ease; }
+.npc-actor-poses [data-hover] { opacity: 0; }
+.npc-actor-poses [data-stage]:has([data-idle][hidden]) [data-hover] { opacity: 1; }
+.npc-actor-poses .show-hover [data-hover] { opacity: 1; }
+.npc-actor-poses .show-hover [data-idle] { opacity: 0; }
+.npc-actor-poses [data-test] { margin-top: 8px; }
+@media (hover: hover) {
+    .npc-actor-poses [data-stage]:hover [data-hover] { opacity: 1; }
+    .npc-actor-poses [data-stage]:hover:has([data-hover]:not([hidden])) [data-idle] { opacity: 0; }
+}
+@media (max-width: 620px) {
+    .npc-actor-poses .npc-actor-poses__workspace { grid-template-columns: minmax(0, 1fr); }
+    .npc-actor-poses figure { width: min(100%, 210px); justify-self: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .npc-actor-poses [data-stage] img { transition: none; }
+}

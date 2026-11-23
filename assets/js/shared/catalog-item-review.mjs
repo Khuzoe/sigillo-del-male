@@ -89,13 +89,24 @@ export function showCatalogEdits(container, fields, draft, persist) {
         next.disabled = index === entries.length - 1;
         const edit = property || draft.edits.find(entry => entry.key === key);
         if (property) {
-            pane.innerHTML = `<div class="catalog-review-new"><strong data-new-title></strong>
+            pane.innerHTML = `<div class="catalog-review-new"><strong>Nuova proprietà</strong>
                 <label>Nome<input data-new-name maxlength="500"></label>
                 <label>Cariche o condizione<input data-new-charges maxlength="1000"></label>
+                <div class="catalog-review-property-options"><label>Stile della proprietà<select data-new-tone>
+                    <option value="normal">Standard</option><option value="genial">Geniale</option><option value="negative">Negativa</option>
+                </select></label><label class="catalog-review-visibility"><input type="checkbox" data-new-hidden>Solo DM</label></div>
                 <label>Descrizione<textarea data-item-proposal rows="5" maxlength="24000"></textarea></label>
                 <p data-clarification></p></div>`;
-            pane.querySelector('[data-new-title]').textContent = ['Nuova proprietà', property.negative ? 'Negativa' : property.genial ? 'Geniale' : '',
-                property.hidden ? 'Solo DM' : ''].filter(Boolean).join(' · ');
+            const tone = pane.querySelector('[data-new-tone]');
+            tone.value = property.negative ? 'negative' : property.genial ? 'genial' : 'normal';
+            tone.onchange = () => {
+                property.genial = tone.value === 'genial';
+                property.negative = tone.value === 'negative';
+                persist();
+            };
+            const visibility = pane.querySelector('[data-new-hidden]');
+            visibility.checked = property.hidden === true;
+            visibility.onchange = () => { property.hidden = visibility.checked; persist(); };
             const question = pane.querySelector('[data-clarification]');
             question.hidden = !property.clarification;
             question.textContent = property.clarification ? 'Da chiarire — ' + property.clarification : '';

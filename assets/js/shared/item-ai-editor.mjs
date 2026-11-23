@@ -1,5 +1,5 @@
-import { openSkillNodeGenerator } from './skill-node-generator.mjs?v=20261122-aggiunte';
-import { captureCatalogReview, catalogProposal } from './catalog-item-review.mjs?v=20261122-aggiunte';
+import { openSkillNodeGenerator } from './skill-node-generator.mjs?v=20261122-flag';
+import { captureCatalogReview, catalogProposal } from './catalog-item-review.mjs?v=20261122-flag';
 
 const labels = {
     summary: 'Descrizione identificata', notes: 'Note della campagna',
@@ -54,7 +54,7 @@ export async function openItemAiEditor({button, form, item, token, campaignId, r
                 const {edits, additions} = catalogProposal(latest.fields, proposal, review.canAdd);
                 const properties = additions.map(({name, charges, description, hidden, negative, genial}) => ({
                     name: name.trim(), charges: charges.trim(), description: description.trim(), hidden: hidden === true,
-                    genial: genial === true, negative: negative === true
+                    genial: genial === true && negative !== true, negative: negative === true
                 }));
                 edits.forEach(({text}, i) => { latest.fields[i].input.value = text; });
                 if (onReviewApplied) {

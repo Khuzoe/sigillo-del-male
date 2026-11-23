@@ -118,6 +118,9 @@
 .catalog-review-original > strong { color: var(--muted); font-size: .86rem; }
 .catalog-review-new { display: grid; grid-column: 1 / -1; gap: .7rem; min-width: 0; }
 .catalog-review-new > strong { color: var(--gold); }
+.catalog-review-property-options { display: flex; flex-wrap: wrap; align-items: end; gap: .5rem 1.25rem; }
+.catalog-item-ai .catalog-review-visibility { display: flex; gap: .5rem; align-items: center; min-height: 2.7rem; cursor: pointer; }
+.catalog-item-ai .catalog-review-visibility input[type="checkbox"] { width: 1.1rem; height: 1.1rem; }
 .catalog-review-new [data-clarification] { margin: 0; padding-inline-start: .7rem; border-inline-start: 2px solid var(--gold); }
 .catalog-review-original .item-formatted-text {
     padding: .7rem .85rem; border-inline-start: 2px solid #988360;

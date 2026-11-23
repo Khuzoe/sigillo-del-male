@@ -124,5 +124,64 @@ try {
   assert.equal(editable.avatarKey, interrupted.avatarKey);
   assert.equal(editable.tokenKey, interrupted.tokenKey);
   assert.equal((await call(`npc-generation/${interrupted.id}/confirm`, { form: { ...editable.form, name: "Forma del gelo" } })).status, 202);
-  console.log("NPC generation D1: production Worker/coordinator and transactional SQLite, commit failure, durable receipts, repeated confirmation, Foundry ACK and preserved KV originals passed.");
+  const poseDraft = await seed("Custode delle pose");
+  poseDraft.idleKey = poseDraft.avatarKey.replace("avatar.webp", "idle.webp");
+  poseDraft.hoverKey = poseDraft.avatarKey.replace("avatar.webp", "hover.webp");
+  await bucket.put(poseDraft.idleKey, new Uint8Array([71])); await bucket.put(poseDraft.hoverKey, new Uint8Array([72]));
+  await storage.put(`job:${poseDraft.id}`, poseDraft);
+  const approved = await call(`npc-generation/${poseDraft.id}/confirm`, {includePoses:true, idleRevision:poseDraft.id + "/idle.webp", hoverRevision:poseDraft.id + "/hover.webp"});
+  assert.equal(approved.status, 202, JSON.stringify(approved.body));
+  const actorPath = `managed-actors/${world}/pose-actor`;
+  const mapToken = "media/npcs/custode-token.webp";
+  const publish = { name: poseDraft.form.name, actorType: "npc", media: { token: {path:mapToken} }, contract: { name: "khuzoe-wiki-sync", version: 1, module: { id:"cripta-wiki-sync", version:"0.11.20" }, foundry:{ generation:14 }, system:{id:"dnd5e",version:"5.3.3"} } };
+  assert.equal((await call(actorPath, publish, campaign, syncHeaders)).status, 200);
+  const profilePath = actorPath + "/profile";
+  const saveProfile = async () => {
+    const profile = (await call(profilePath, undefined, campaign, syncHeaders)).body.data;
+    return call(profilePath, {expectedRevision:profile.revision, data: approved.body.request.profile}, campaign, syncHeaders);
+  };
+  const pendingHover = approved.body.request.document.media.token.slice(6).replace("token.webp", "hover.webp");
+  objects.delete(pendingHover);
+  assert.equal((await saveProfile()).status, 409);
+  assert.equal((await call(actorPath)).body.data.media.idle, null, "an interrupted copy does not publish half a pair");
+  await bucket.put(pendingHover, new Uint8Array([72]));
+  const saved = await saveProfile();
+  assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  for (const [part, byte] of [["idle",71],["hover",72]]) {
+    const path = saved.body.data.media[part].path;
+    assert.ok(path.includes("/pose-actor/site/")); assert.deepEqual(objects.get(path.slice(6)), new Uint8Array([byte]));
+  }
+  const actorRevision = (await call(actorPath)).body.data.revision;
+  assert.equal((await saveProfile()).status, 200);
+  assert.equal((await call(actorPath)).body.data.revision, actorRevision);
+  assert.equal((await call(`managed-actor-commands/${world}/ack`, {createResults:[{id:poseDraft.id,status:"applied"}]}, campaign, syncHeaders)).status, 200);
+  assert.equal((await call(actorPath, publish, campaign, syncHeaders)).status, 200);
+  const media = (await call(actorPath)).body.data.media;
+  assert.equal(media.hover.path, saved.body.data.media.hover.path);
+  assert.equal(media.token.path, mapToken);
+  const roster = (await call("managed-actors")).body.data.find(entry => entry.actorId === "pose-actor");
+  assert.equal(roster.media.idle.path, saved.body.data.media.idle.path);
+  assert.equal(roster.media.hover.path, saved.body.data.media.hover.path);
+  // Edit the same Actor later. A failed commit keeps its public pair intact and can be resumed.
+  const actorPosePath = actorPath + "/poses", editId = randomUUID();
+  const {baseline} = (await call(actorPosePath)).body;
+  const edited = {...poseDraft, id:editId, draftId:editId, phase:"hover", context:{...poseDraft.context, worldId:world, actorId:"pose-actor"},
+    actorBaseline:baseline, usesCurrentIdle:true, hoverKey:`_private/ai-npcs/${editId}/hover.webp`};
+  await bucket.put(edited.hoverKey, new Uint8Array([99]));
+  await storage.put({[`job:${editId}`]:edited,[`latest:${campaign}:admin:actor:${world}:pose-actor`]:editId});
+  const confirmEdit = () => call(actorPosePath + "/" + editId + "/confirm", {idleRevision:poseDraft.id + "/idle.webp",hoverRevision:editId + "/hover.webp"});
+  await db.prepare("CREATE TRIGGER reject_pose_update BEFORE UPDATE ON managed_actor_documents WHEN NEW.kind = 'index' BEGIN SELECT RAISE(ABORT, 'test pose rollback'); END").run();
+  assert.equal((await confirmEdit()).status,503);
+  assert.equal((await jobState(editId)).status,"confirming");
+  assert.deepEqual((await call(actorPath)).body.data.media, media);
+  await db.prepare("DROP TRIGGER reject_pose_update").run();
+  const updated = await confirmEdit();
+  assert.equal(updated.status,200,JSON.stringify(updated.body));
+  assert.equal((await jobState(editId)).status,"accepted");
+  assert.deepEqual((await confirmEdit()).body,updated.body);
+  const updatedActor = (await call(actorPath)).body.data;
+  assert.deepEqual(updatedActor.media.idle,media.idle);
+  assert.equal(updatedActor.media.token.path,mapToken);
+  assert.equal(updatedActor.media.hover.path,updated.body.hover.path);
+  console.log("NPC generation D1: transactional queue, confirmations, Foundry profile delivery, both site poses, ACK and preserved KV originals passed.");
 } finally { db.database.close(); }

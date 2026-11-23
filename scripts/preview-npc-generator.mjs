@@ -28,10 +28,27 @@ for (let index = 0; index < 63; index++) {
 const json = (response, body, status = 200) => { response.writeHead(status, { "Content-Type": "application/json", "Cache-Control": "no-store" }); response.end(JSON.stringify(body)); };
 const settings = () => ({ ok: true, enabled: true, version: 1, tokenTransparencyVersion: 1, conceptReferences: 1, canStop: true, supportedResolutions: ["medium", "high", "2k"], supportedQualities: ["medium", "high", "xhigh"], job: latest });
 function staticFixture(config) {
-  const nativeFetch = window.fetch.bind(window), stateKey = "npc-generator-qa-state";
+  const poseDemo = new URLSearchParams(location.search).has("pose");
+  const nativeFetch = window.fetch.bind(window), stateKey = poseDemo ? "npc-generator-poses-qa" : "npc-generator-qa-state";
   let state;
   try { state = JSON.parse(sessionStorage.getItem(stateKey)); } catch (_) {}
   state ||= { jobs: {}, latest: null, pendingCreates: [] };
+  if (poseDemo) {
+    const id = crypto.randomUUID(), form = { name: "Nino Olegna", description: "Un custode della cripta.", targetWorldId: "mondo-di-prova", kind: "person", visibility: "dm", categoryId: "" };
+    state.jobs[id] = { id, draftId: id, form, references: [], options: {quality:"high", resolution:"high"}, hasAvatar:true, hasToken:true, tokenBackground:"transparent", phase:"token", status:"ready" };
+    state.latest = id;
+    window.addEventListener("load", async () => {
+      await window.CriptaNpcGenerator.open({ worlds: [form.targetWorldId], categories: config.categories });
+      const section = document.querySelector("[data-poses]");
+      if (!section) return;
+      const reveal = () => {
+        if (section.hidden) return;
+        observer.disconnect(); section.open = true; section.querySelector("summary").scrollIntoView({block:"center"});
+      };
+      const observer = new MutationObserver(reveal);
+      observer.observe(section, {attributes:true, attributeFilter:["hidden"]}); reveal();
+    });
+  }
   const save = () => sessionStorage.setItem(stateKey, JSON.stringify(state));
   const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
   window.fetch = async (resource, options = {}) => {
@@ -50,7 +67,7 @@ function staticFixture(config) {
       }
       return await cache.match(path) || json({error: 'Concept assente'}, 404);
     }
-    const route = path.match(/^\/api\/npc-generation(?:\/([a-f0-9-]+)\/(avatar|token|confirm|retry-token|stop))?$/);
+    const route = path.match(/^\/api\/npc-generation(?:\/([a-f0-9-]+)\/(avatar|token|idle|hover|generate-idle|generate-hover|use-idle|confirm|retry-token|stop))?$/);
     if (route) {
       const input = options.body ? JSON.parse(options.body) : {}, job = state.jobs[route[1]], method = options.method || "GET";
       if (method === "GET" && !route[2]) {
@@ -60,9 +77,16 @@ function staticFixture(config) {
           if (Date.now() - Date.parse(latest.createdAt) > 2400) { latest.hasToken = true; latest.status = "ready"; }
           save();
         }
-        return json({ ok: true, enabled: true, version: 1, tokenTransparencyVersion: 1, conceptReferences: 1, canStop: true, supportedResolutions: ["medium", "high", "2k"], supportedQualities: ["medium", "high", "xhigh"], job: latest || null });
+        return json({ ok: true, enabled: true, version: 1, tokenTransparencyVersion: 1, conceptReferences: 1, sitePoses: 1, canStop: true, supportedResolutions: ["medium", "high", "2k"], supportedQualities: ["medium", "high", "xhigh"], job: latest || null });
       }
       if (method === "GET" && ["avatar", "token"].includes(route[2])) return nativeFetch("/" + (route[2] === "avatar" ? config.avatar : config.token));
+      if (method === "GET" && route[2] === "idle" && job.uploadId) return (await caches.open("npc-concept-qa")).match("/api/npc-generation/concepts/" + job.uploadId);
+      if (method === "GET" && ["idle","hover"].includes(route[2])) return nativeFetch("/assets/img/creatures/transp/nino_olegna_" + (route[2] === "idle" ? "transp" : "animation") + ".webp");
+      if (["generate-idle","use-idle","generate-hover"].includes(route[2])) {
+        const hover = route[2] === "generate-hover";
+        const next = { ...job, id: input.requestId, status: "ready", phase: hover ? "hover" : "idle", hasIdle: true, hasHover: hover, idleRevision: hover ? job.idleRevision : input.requestId, hoverRevision: hover ? input.requestId : "", uploadId: hover ? job.uploadId : input.uploadId, poseDirection: input.direction };
+        state.jobs[next.id] = next; state.latest = next.id; save(); return json({ok:true,job:next}, 202);
+      }
       if (!route[2] || route[2] === "retry-token") {
         const next = { id: input.requestId, draftId: job?.draftId || input.draftId || input.requestId, form: input.form || job?.form, options: { quality: input.quality, resolution: input.resolution }, references: input.references || job?.references || [], status: "pending", phase: job ? "token" : "avatar", hasAvatar: Boolean(job), hasToken: false, tokenBackground: "transparent", createdAt: new Date().toISOString() };
         state.latest = next.id; state.jobs[next.id] = next; save(); return json({ ok: true, job: next }, 202);
@@ -72,6 +96,7 @@ function staticFixture(config) {
         if (!job?.hasToken) return json({ error: "Completa le immagini." }, 409);
         const form = input.form || job.form;
         const queued = { id: job.draftId, clientId: `ai-${job.draftId}`, targetWorldId: form.targetWorldId, kind: "actor.create", status: "pending", document: { name: form.name, media: { avatar: "media/campaigns/cripta-di-sangue/new/avatar.webp", token: "media/campaigns/cripta-di-sangue/new/token.webp" } }, profile: { ...form, category: config.categories.find(category => category.id === form.categoryId)?.name || "", visibility: { state: form.visibility }, blocks: [{ id: "descrizione", type: "lore", text: form.description, visibility: "public" }] } };
+        if (input.includePoses) queued.profile.poseDraftId = job.draftId;
         if (!state.pendingCreates.some(entry => entry.id === job.draftId)) state.pendingCreates.push(queued);
         job.status = "accepted"; save(); return json({ ok: true, queued: true, request: queued }, 202);
       }

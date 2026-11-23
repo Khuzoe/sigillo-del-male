@@ -4889,7 +4889,8 @@
     }
     function renderAdmin(actor) {
         return `<section id="managed-appearance" class="managed-panel managed-panel--admin" data-managed-admin>
-            <header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Sito e Foundry</span><h2><i class="fas fa-sliders"></i> Aspetto condiviso</h2></div></header>
+            <header class="managed-panel-heading"><div><span class="managed-panel-eyebrow">Sito e Foundry</span><h2><i class="fas fa-sliders"></i> Aspetto condiviso</h2></div>
+              ${actor.actorType === "npc" && actor.permissions?.isEditor ? '<button type="button" class="managed-command-secondary" data-managed-poses><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Genera pose idle e hover</button>' : ""}</header>
             <div class="managed-media-strip" aria-label="Immagini del personaggio">
                 ${renderBaseMediaCircleEditor("avatar", actor.media?.avatar)}
                 ${renderBaseMediaCircleEditor("token", actor.media?.token)}
@@ -4982,6 +4983,7 @@
             });
         }
         root.querySelectorAll('[data-managed-ai-tools]').forEach(button => button.addEventListener('click', () => openManagedAiTools(root)));
+        root.querySelector('[data-managed-poses]')?.addEventListener('click', () => runManagedAiTool(root, 'poses').catch(error => window.alert(error.message)));
         const pendingSheet = currentDocument.sync?.commands?.some(command => command.nativeSheetVersion && command.status === 'pending');
         root.querySelectorAll('[data-managed-ai-edit]').forEach(button => {
             if (pendingSheet) { button.disabled = true; button.title = 'Attendi il completamento della modifica completa in Foundry.'; }
@@ -5061,7 +5063,7 @@
         if (action === 'dossier') return openManagedDossierAi(root);
         if (!window.CriptaNpcAiTools?.toolsFor(actor).some(group => group.tools.some(tool => tool.id === action))) throw new Error('Questo strumento AI è riservato ai gestori della campagna o al proprietario del personaggio.');
         if (managedSaveInProgress || hasManagedUnsavedChanges(root)) throw new Error('Salva o annulla prima le modifiche alla scheda.');
-        if (!['avatar', 'token', 'drop'].includes(action) && actor.sync?.commands?.some(command => command.nativeSheetVersion && command.status === 'pending')) throw new Error('Attendi il completamento della modifica completa in Foundry.');
+        if (!['avatar', 'token', 'poses', 'drop'].includes(action) && actor.sync?.commands?.some(command => command.nativeSheetVersion && command.status === 'pending')) throw new Error('Attendi il completamento della modifica completa in Foundry.');
         const adapters = { descriptionHtml: buildManagedDescriptionEditorHtml, descriptionValue: serializeManagedDescriptionEditor, resolveMedia };
         const onQueued = command => {
             rememberManagedCommand(command, old => old.id === command.id);
@@ -5103,6 +5105,12 @@
                 const inventory = root.querySelector('#managed-inventory');
                 if (inventory) inventory.open = true;
             } });
+        }
+        if (action === 'poses') {
+            return window.CriptaNpcPoses.open({actor, token:getToken(), resolveMedia, onApplied: () => {
+                window.CriptaApp.api.clearCache?.();
+                if (root.isConnected && currentDocument?.actorId === actor.actorId && currentDocument.worldId === actor.worldId) window.location.reload();
+            }});
         }
         if (action === 'avatar' || action === 'token') {
             if (!actor.media?.avatar?.path) throw new Error('Carica e salva prima un avatar da usare come riferimento.');

@@ -46,9 +46,12 @@ function setupCatalogPropertyRow(row, bar, open) {
         reading.hidden = editing;
         if (!editing) renderReading();
     };
-    const update = () => {
+    const update = event => {
+        const negative = get('negative'), genial = get('genial');
+        if (event?.target === genial && genial.checked) negative.checked = false;
+        else if (negative.checked) genial.checked = false;
         header.querySelector('[data-property-title]').textContent = get('name').value.trim() || 'Nuova proprietà';
-        const tone = get('negative').checked ? 'Negativa' : get('genial').checked ? 'Geniale' : '';
+        const tone = negative.checked ? 'Negativa' : genial.checked ? 'Geniale' : '';
         header.querySelector('[data-property-traits]').textContent = [tone, get('hidden').checked ? 'Solo DM' : ''].filter(Boolean).join(' · ');
         if (body.hidden) renderReading();
     };

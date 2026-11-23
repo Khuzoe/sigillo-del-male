@@ -1,4 +1,32 @@
 // Shared with the Foundry item description renderer. Only catalog formatting is expanded.
+// Repair the opening tag written by the old name-based renderer. Keep the
+// document's prose, rolls, and all unrelated markup byte-for-byte.
+function repairLegacyCatalogPropertyTones(html, properties, escapeName) {
+    if (typeof html !== "string" || !html.includes('cripta-catalog-property--negative" aria-label="Negativa"') || !Array.isArray(properties)) return html;
+    const expected = new Map();
+    for (const p of properties) {
+        if (!p?.name || p.hidden === true) continue;
+        const name = String(p.name).trim();
+        if (!/maledizion|effetto negativo|malus|penalita|svantaggio/.test(name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase())) continue;
+        const title = escapeName(name);
+        if (!expected.has(title)) expected.set(title, []);
+        expected.get(title).push(p.negative === true ? "negative" : p.genial === true ? "genial" : "normal");
+    }
+    if (!expected.size) return html;
+    const tag = /<section class="cripta-catalog-property cripta-catalog-property--(normal|genial|negative)"(?: aria-label="(?:Negativa|Geniale)")?>(?=<h3><span>([^<]*)<\/span>)/g;
+    const counts = new Map();
+    for (const [, , name] of html.matchAll(tag)) counts.set(name, (counts.get(name) || 0) + 1);
+    for (const [name, tones] of expected) if (tones.length !== counts.get(name)) expected.delete(name);
+    return html.replace(tag, (opening, oldTone, name) => {
+        const tones = expected.get(name);
+        if (!tones) return opening;
+        const tone = tones.shift();
+        if (oldTone !== "negative" || tone === "negative") return opening;
+        return '<section class="cripta-catalog-property cripta-catalog-property--' + tone + '"'
+            + (tone === "genial" ? ' aria-label="Geniale"' : '') + '>';
+    });
+}
+
 function renderCatalogItemText(source, { plain = false, inlineWhenSimple = false } = {}) {
     const text = String(source ?? "").replace(/\r\n?/g, "\n").trimEnd();
     if (!text.trim()) return "";

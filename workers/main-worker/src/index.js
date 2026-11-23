@@ -8,6 +8,7 @@ import { CalendarStoreBase } from "./calendar-store.js";
 import { handleAvatarGeneration, normalizeGeneratedAvatarPath, normalizeGeneratedAvatarDocument } from "./avatar-generation.js";
 export { AvatarGenerationStore } from "./avatar-generation.js";
 import { handleNpcGeneration } from "./npc-generation.js";
+import { handleActorPoses } from "./actor-poses.js";
 export { NpcGenerationStore } from "./npc-generation.js";
 import { handleDropGeneration } from "./drop-generation.js";
 import { handleFoundryMaps } from "./foundry-maps.js";
@@ -246,7 +247,7 @@ const application = {
         Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
         return new Response(result.body, { status: result.status, headers });
       }
-      const npcGenerationRoute = url.pathname.match(/^\/api\/npc-generation(?:\/([a-f0-9-]{36})\/(avatar|token|retry-token|confirm|stop)|\/(concepts)(?:\/([a-f0-9]{64}\.(?:png|jpg|webp)))?)?$/i);
+      const npcGenerationRoute = url.pathname.match(/^\/api\/npc-generation(?:\/([a-f0-9-]{36})\/(avatar|token|idle|hover|retry-token|generate-idle|generate-hover|use-idle|confirm|stop)|\/(concepts)(?:\/([a-f0-9]{64}\.(?:png|jpg|webp)))?)?$/i);
       if (npcGenerationRoute) {
         const result = await handleNpcGeneration(request, { jobId: npcGenerationRoute[1], action: npcGenerationRoute[2] || npcGenerationRoute[3], uploadId: npcGenerationRoute[4] }, queryCampaignId, env, {
           requireUser: req => requireUser(req, env, corsHeaders),
@@ -255,20 +256,24 @@ const application = {
           readActor: async (campaignId, route) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId))),
           readCategories: async campaignId => (await readNpcCategoryRegistry(env, campaignId)).categories,
           nameConflict: (campaignId, worldId, name, clientId) => managedActorCreateNameConflict(env, campaignId, worldId, name, { clientId }),
-          enqueue: (body, creationId) => finishManagedActorMutation(handleManagedActorCreateRequestEnqueue(new Request(request.url, {
+          enqueue: (body, creationId, includePoses) => finishManagedActorMutation(handleManagedActorCreateRequestEnqueue(new Request(request.url, {
             method: "POST", headers: request.headers, body: JSON.stringify(body),
-          }), queryCampaignId, env, corsHeaders, ctx, { creationRequestId: creationId }), env, corsHeaders),
+          }), queryCampaignId, env, corsHeaders, ctx, { creationRequestId: creationId, includePoses }), env, corsHeaders),
         });
         const headers = new Headers(result.headers);
         Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
         return new Response(result.body, { status: result.status, headers });
       }
       const avatarRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/(avatar|token)-generation(?:\/([a-f0-9-]{36})\/(preview|confirm|stop))?$/i);
-      if (avatarRouteMatch) {
-        const actorRoute = matchManagedActorRoute(avatarRouteMatch[1]);
+      const poseRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/poses(?:\/(upload)|\/([a-f0-9-]{36})\/(idle|hover|confirm|stop))?$/i);
+      if (avatarRouteMatch || poseRouteMatch) {
+        const match = avatarRouteMatch || poseRouteMatch;
+        const actorRoute = matchManagedActorRoute(match[1]);
         if (!actorRoute) return json({ ok: false, error: "Invalid actor" }, 400, corsHeaders);
-        const result = await handleAvatarGeneration(request, { ...actorRoute, slot: avatarRouteMatch[2].toLowerCase(), jobId: avatarRouteMatch[3], action: avatarRouteMatch[4] }, queryCampaignId, env, {
+        const handler = poseRouteMatch ? handleActorPoses : handleAvatarGeneration;
+        const result = await handler(request, { ...actorRoute, slot: avatarRouteMatch?.[2].toLowerCase(), jobId: match[3], action: match[4] || poseRouteMatch?.[2] }, queryCampaignId, env, {
           requireUser: (req) => requireUser(req, env, corsHeaders),
+          accountId: user => getAuthenticatedAccountId(user, env),
           isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
           readActor: async (campaignId, route) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId))),
           saveActor: (body) => finishManagedActorMutation(handleManagedActorPost(new Request(request.url, {
@@ -1826,7 +1831,7 @@ export default {
     const itemsRoute = path === "/api/data/items" || path === "/api/item-categories";
     if (managedRoute && request.method === "POST") {
       // Native snapshots and drop generation use the campaign in their URL.
-      const body = path.endsWith("/snapshot") || path.endsWith("/activity-animations") || path.endsWith("/ability-icons/concepts") || path.includes("/dossier-ai") || path.includes("/drop-generation") || path.startsWith("/api/npc-generation") ? null : await request.clone().json().catch(() => null);
+      const body = path.endsWith("/snapshot") || path.endsWith("/activity-animations") || path.endsWith("/ability-icons/concepts") || /\/poses(?:\/|$)/.test(path) || path.includes("/dossier-ai") || path.includes("/drop-generation") || path.startsWith("/api/npc-generation") ? null : await request.clone().json().catch(() => null);
       campaignId = sanitizeCampaignId(body?.campaignId || body?.campaign || campaignId);
       if (managedActorWritesPaused(env, campaignId) && !path.endsWith("/stop")) return json({ ok: false,
         error: "Salvataggi NPC temporaneamente sospesi per la migrazione. Riprova tra poco.", code: "MANAGED_ACTOR_WRITES_PAUSED" }, 503,
@@ -5684,6 +5689,29 @@ async function handleManagedActorProfilePost(request, route, campaignId, env, co
   const updatedBy = authorization.source === "foundry"
     ? "foundry"
     : (getAuthenticatedAccountId(authorization.user, env) || "campaign-editor");
+  if (authorization.source === "foundry" && sourceData?.poseDraftId && actor.site?.poseDraftId !== sourceData.poseDraftId) {
+    const draftId = sourceData.poseDraftId;
+    const raw = await env.SIGILLO_KV.get(managedActorCreateRequestQueueKey(campaignId));
+    const entry = readManagedActorCreateRequestQueue(raw, campaignId).requests.find(entry =>
+      entry.id === draftId && entry.profile?.poseDraftId === draftId && entry.clientId === `ai-${draftId}` && entry.targetWorldId === route.worldId);
+    if (!entry) return json({ ok: false, error: "Richiesta di creazione delle pose non trovata." }, 409, corsHeaders);
+    const prefix = `campaigns/${campaignId}/managed-actors`;
+    if (!actor.media.idle && !actor.media.hover) {
+      const media = { ...actor.media };
+      for (const part of ["idle", "hover"]) {
+        const image = await env.MEDIA_BUCKET.get(`${prefix}/site-pending/${entry.clientId}/base/${part}.webp`);
+        if (!image) return json({ ok: false, error: "Posa confermata non disponibile. La sincronizzazione può essere ripresa." }, 409, corsHeaders);
+        const key = `${prefix}/${route.worldId}/${route.actorId}/site/${part}-${draftId}.webp`;
+        await env.MEDIA_BUCKET.put(key, image.body, { httpMetadata: { contentType: "image/webp" } });
+        media[part] = normalizeManagedActorMediaSlot({ path: `media/${key}`, source: "site" });
+      }
+      actor.media = media;
+    }
+    actor.site = { ...actor.site, poseDraftId: draftId };
+    actor.revision = Number(actor.revision || 0) + 1;
+    actor.updatedAt = new Date().toISOString();
+    await env.SIGILLO_KV.put(managedActorDocumentKey(campaignId, route.worldId, route.actorId), JSON.stringify(actor));
+  }
   let next = normalizeManagedActorProfileDocument(sourceData, existing, actor, campaignId, route, updatedBy);
   if (isOwner && !isEditor) next = preserveManagedProfileVisibilityForOwner(next, existing);
   await env.SIGILLO_KV.put(profileKey, JSON.stringify(next));
@@ -6725,7 +6753,7 @@ async function managedActorCreateNameConflict(env, campaignId, targetWorldId, na
   return reserved ? "Una richiesta di creazione usa già questo nome nel mondo scelto. Scegli un nome distinto." : "";
 }
 
-async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignId, env, corsHeaders = {}, ctx = null, { creationRequestId, renameRequestId } = {}) {
+async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignId, env, corsHeaders = {}, ctx = null, { creationRequestId, renameRequestId, includePoses } = {}) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   let body;
   try {
@@ -6786,6 +6814,7 @@ async function handleManagedActorCreateRequestEnqueue(request, fallbackCampaignI
   const document = normalizeManagedActorCreateRequestDocument(body?.document || {}, legacy);
   if (!document.name) return json({ ok: false, error: "Missing NPC name" }, 400, corsHeaders);
   const profile = legacy ? null : normalizeManagedActorCreateRequestProfile(body?.profile || {}, document);
+  if (profile && creationRequestId && includePoses) profile.poseDraftId = creationRequestId;
   const queue = readManagedActorCreateRequestQueue(
     await env.SIGILLO_KV.get(managedActorCreateRequestQueueKey(campaignId)),
     campaignId,
@@ -7257,7 +7286,7 @@ function normalizeManagedActorDocument(input, existing, campaignId, route, sourc
     ? input.runtime
     : (existing?.runtime || {});
   let site = source === "site" && input.site && typeof input.site === "object" ? input.site : (existing?.site || {});
-  for (const historyKey of ["avatarHistory", "tokenHistory"]) if (Array.isArray(existing?.site?.[historyKey])) {
+  for (const historyKey of ["avatarHistory", "tokenHistory", "idleHistory", "hoverHistory"]) if (Array.isArray(existing?.site?.[historyKey])) {
     // An editor opened before generation must not remove retained artwork.
     const history = new Map([...existing.site[historyKey], ...(Array.isArray(site[historyKey]) ? site[historyKey] : [])]
       .filter((entry) => entry?.path).map((entry) => [entry.path, entry]));

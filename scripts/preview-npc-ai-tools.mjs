@@ -26,6 +26,28 @@ function fixture(actor) {
     tokenState ||= { job: null, receipt: null };
     if (tokenState.receipt) { actor.media.token = tokenState.receipt.token; actor.revision = tokenState.receipt.revision; }
     const saveToken = () => sessionStorage.setItem(tokenKey, JSON.stringify(tokenState));
+    const idleArt = '/assets/img/creatures/transp/nino_olegna_transp.webp', hoverArt = '/assets/img/creatures/transp/nino_olegna_animation.webp';
+    const poseKey = 'npc-ai-tools-qa:poses:' + actor.actorId;
+    const poses = JSON.parse(sessionStorage.getItem(poseKey) || '{}');
+    const savePoses = () => sessionStorage.setItem(poseKey, JSON.stringify(poses));
+    const restoreIdle = async () => {
+        if (poses.savedIdleUpload && !actor.media.idle.path.startsWith('blob:')) {
+            const file = await (await caches.open('npc-poses-qa')).match('/pose-fixture/' + poses.savedIdleUpload);
+            if (file) actor.media.idle = {path:URL.createObjectURL(await file.blob())};
+        }
+    };
+    if (!player) {
+        actor.media.idle = {path:poses.savedIdle || idleArt};
+        if (poses.savedHover) actor.media.hover = {path:poses.savedHover};
+        if (new URLSearchParams(location.search).has('pose')) {
+            const observer = new MutationObserver(() => {
+                const button = document.querySelector('[data-managed-ai-tools]');
+                if (!button) return;
+                observer.disconnect(); button.click(); document.querySelector('[data-ai-tool="poses"]')?.click();
+            });
+            observer.observe(document.documentElement, {childList:true, subtree:true});
+        }
+    }
     const analysisKey = 'npc-ai-tools-qa:discarded-analysis', analysisId = '11111111-1111-4111-8111-111111111111';
     const analysis = { id: analysisId, status: 'ready', createdAt: '2026-11-10T15:00:00Z', details: 'Mantieni il GS.', report: {
         summary: 'Analisi precedente del custode: rendere più riconoscibile il suo ruolo di guardiano.',
@@ -35,6 +57,30 @@ function fixture(actor) {
     const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
     window.fetch = async (resource, options = {}) => {
         const url = new URL(typeof resource === 'string' || resource instanceof URL ? resource : resource.url, location.href), path = url.pathname;
+        if (!player && (path === base || path === base + '/poses')) await restoreIdle();
+        if (path === base + '/poses' || path.startsWith(base + '/poses/')) {
+            const method = options.method || 'GET', action = path.split('/').pop();
+            if (action === 'poses' && method === 'GET') return json({enabled:true, baseline:'fixture', canGenerateIdle:true, canUseIdle:true, currentIdle:actor.media.idle.path, currentHover:actor.media.hover?.path || '', job:poses.job});
+            if (action === 'upload') {
+                const id = crypto.randomUUID() + '.webp';
+                await (await caches.open('npc-poses-qa')).put('/pose-fixture/' + id, new Response(options.body));
+                return json({uploadId:id});
+            }
+            if (action === 'poses') {
+                const input = JSON.parse(options.body), hover = input.action === 'hover', parent = input.parentJobId && poses.job;
+                poses.job = {id:input.requestId, baseline:'fixture', phase:hover ? 'hover' : 'idle', status:'ready', hasIdle:true, hasHover:hover,
+                    idleRevision:parent?.idleRevision || input.requestId, hoverRevision:hover ? input.requestId : '', usesCurrentIdle:hover && (!parent || parent.usesCurrentIdle), uploadId:input.uploadId || (parent ? parent.uploadId : hover && poses.savedIdleUpload), poseDirection:input.direction};
+                savePoses(); return json({job:poses.job},202);
+            }
+            if (action === 'idle' && poses.job.uploadId) return (await caches.open('npc-poses-qa')).match('/pose-fixture/' + poses.job.uploadId);
+            if (action === 'idle' || action === 'hover') return nativeFetch(action === 'idle' ? idleArt : hoverArt);
+            if (action === 'confirm') {
+                if (!poses.job.usesCurrentIdle) poses.savedIdleUpload = poses.job.uploadId;
+                poses.job.status = 'accepted'; poses.savedHover = hoverArt; savePoses();
+                const locationUrl = new URL(location.href); locationUrl.searchParams.delete('pose'); history.replaceState(null,'',locationUrl);
+                return json({ok:true});
+            }
+        }
         const abilityRoute = path.match(new RegExp(`^${base}/(ability-translations|ability-icons)(?:/([a-f0-9-]{36})/(confirm|preview|stop))?$`));
         if (abilityRoute) {
             const channel = abilityRoute[1], textOnly = channel === 'ability-translations', itemId = url.searchParams.get('item'), method = options.method || 'GET';

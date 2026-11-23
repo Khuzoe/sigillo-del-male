@@ -4,6 +4,8 @@
     const purposes = { style: "Stile e palette", appearance: "Aspetto e lineamenti", clothing: "Abbigliamento", frame: "Cornice del token" };
     const conceptPurposes = { character: "Personaggio / concept", emblem: "Emblema o simbolo", equipment: "Arma o equipaggiamento", clothing: "Abbigliamento", style: "Stile e palette" };
     const active = job => ["pending", "running"].includes(job?.status);
+    const available = { avatar: "hasAvatar", token: "hasToken", idle: "hasIdle", hover: "hasHover" };
+    const confirmable = job => Boolean(job?.canConfirm || ["ready", "confirming"].includes(job?.status));
     const referencePickerUrl = new URL("npc-reference-picker.mjs?v=20261118-concepts1", document.currentScript.src).href;
 
     async function open({ npcs = [], worlds = [], categories = [], initialKind = "person", loadReferences, setupNameCheck, onCreated = () => {} } = {}) {
@@ -41,6 +43,18 @@
                 <label class="npc-generator__wide">Risoluzione<select name="resolution"><option value="medium">Media · avatar lato lungo 1536 px · token 1024 × 1024</option><option value="high" selected>Alta · avatar lato lungo 2304 px · token 1536 × 1536</option><option value="2k">2K · avatar lato lungo 2560 px · token 2048 × 2048 · alto costo</option></select></label>
                 <label class="npc-avatar-generator__orientation npc-generator__wide"><input type="checkbox" name="landscape">Avatar orizzontale (16:9)</label>
               </div><p>La descrizione viene salvata nel dossier. Foundry crea la scheda con le statistiche iniziali del flusso di creazione.</p></details>
+              <details class="npc-generator__settings npc-generator__poses" data-poses hidden><summary>Pose per la scheda NPC · facoltative</summary>
+                <p>Prepara un ritratto senza cornice per la scheda. Passando sul ritratto si vedrà la seconda posa. Ogni posa generata richiede una chiamata AI.</p>
+                <div class="npc-generator__reference-toolbar"><button type="button" data-generate-idle>Genera idle</button><button type="button" data-attach-idle>Usa un idle esistente</button><input type="file" accept="image/webp" hidden data-idle-file></div>
+                <small>Per usare il tuo idle scegli un WebP quadrato con trasparenza, fino a 12 MB.</small>
+                <div class="npc-generator__pose-preview" id="npc-generator-pose-preview" data-pose-preview hidden>
+                  <img data-idle hidden alt="Posa a riposo"><img data-hover hidden alt="Posa al passaggio del puntatore">
+                </div>
+                <button type="button" data-toggle-hover aria-controls="npc-generator-pose-preview" aria-pressed="false" hidden>Prova la transizione</button>
+                <label>Indicazioni per l’hover (facoltative)<textarea rows="2" maxlength="500" data-direction placeholder="Ad esempio, alza lo scudo davanti alla spalla e si mette in guardia."></textarea></label>
+                <button type="button" data-generate-hover>Approva idle e genera hover</button>
+                <label class="npc-avatar-generator__orientation" data-use-poses hidden><input type="checkbox" data-include-poses>Usa queste due pose nella scheda</label>
+              </details>
               <p class="npc-avatar-generator__cost" data-cost-warning hidden><strong>Solo per NPC importanti, alto costo!</strong></p>
             </form>
             <p class="npc-avatar-generator__hint" data-stop-note hidden>Interrompere l'attesa conserva le immagini già pronte. Non garantisce l'annullamento del costo della chiamata.</p>
@@ -54,7 +68,7 @@
             <p class="npc-avatar-generator__hint" data-token-background>Il modello sceglie angolazione e posa del token. Cornice circolare intera, esterno trasparente.</p>
             </aside>
           </div>
-          <footer><span>Due generazioni per coppia. Conferma per creare l'NPC.</span><div>
+          <footer><span>Avatar e token richiedono due generazioni.</span><div>
             <button type="button" data-new hidden>Nuova bozza</button><button type="button" data-stop hidden>Interrompi attesa</button>
             <button type="button" data-retry-token hidden>Rigenera solo token</button><button type="button" data-generate disabled>Genera anteprime</button>
             <button type="button" class="npc-avatar-generator__confirm" data-confirm disabled>Crea NPC e sincronizza</button>
@@ -73,7 +87,7 @@
         try { const saved = localStorage.getItem(worldStorage); if (saved && (!worlds.length || worlds.includes(saved))) worldControl.value = saved; } catch (_) {}
         let job = null, busy = false, loaded = false, enabled = false, canStop = false, closed = false, applying = false;
         let timer, zoom, pendingRequest = null, storageKey = "", references = [];
-        let resolutions = [], qualities = [], landscapeSupported = false;
+        let resolutions = [], qualities = [], landscapeSupported = false, posesSupported = false;
         const selectedRatio = () => field("landscape").checked ? "16:9" : "9:16";
         let loadingReferences = false, referenceError = "", referencesPicker;
         let conceptSupported = false, checkingFiles = false;
@@ -119,8 +133,22 @@
             el("[data-cost-warning]").hidden = field("resolution").value !== "2k" && field("quality").value !== "xhigh";
             el("[data-generate]").disabled = busy || checkingFiles || active(job) || job?.status === "confirming" || !loaded || !enabled || !supported || (field("landscape").checked && !landscapeSupported);
             el("[data-generate]").textContent = active(job) ? "Generazione in corso…" : pendingRequest ? "Riprova invio" : job && job.status !== "accepted" ? "Rigenera avatar e token" : "Genera anteprime";
-            el("[data-confirm]").disabled = busy || !loaded || !["ready", "confirming"].includes(job?.status) || previews.avatar?.id !== job?.id || previews.token?.id !== job?.id || Boolean(pendingRequest);
-            el("[data-confirm]").textContent = job?.status === "confirming" ? "Riprendi conferma" : "Crea NPC e sincronizza";
+            el("[data-poses]").hidden = !posesSupported || !job?.hasToken || job.status === "accepted";
+            const baseVisible = Boolean(job?.id && previews.avatar?.id === job.id && previews.token?.id === job.id);
+            el("[data-generate-idle]").disabled = frozen || !enabled || !loaded || !baseVisible;
+            el("[data-generate-idle]").textContent = job?.hasIdle ? "Rigenera idle" : "Genera idle";
+            el("[data-attach-idle]").disabled = frozen || !loaded || !baseVisible;
+            el("[data-generate-hover]").disabled = frozen || !loaded || !enabled || !job?.hasIdle || previews.idle?.id !== job?.idleRevision;
+            el("[data-generate-hover]").textContent = job?.hasHover ? "Rigenera hover" : "Approva idle e genera hover";
+            el("[data-pose-preview]").hidden = !previews.idle;
+            el("[data-toggle-hover]").hidden = !previews.hover;
+            el("[data-toggle-hover]").disabled = !previews.hover;
+            el("[data-use-poses]").hidden = !job?.hasHover;
+            el("[data-include-poses]").disabled = frozen || !previews.idle || !previews.hover;
+            const posesVisible = !el("[data-include-poses]").checked || Boolean(previews.hover && previews.hover.id === job?.hoverRevision && previews.idle?.id === job?.idleRevision);
+            el("[data-confirm]").disabled = busy || !loaded || !confirmable(job) || !baseVisible || !posesVisible || Boolean(pendingRequest);
+            const createLabel = el("[data-include-poses]").checked ? "Crea NPC con le pose" : "Crea NPC senza pose";
+            el("[data-confirm]").textContent = job?.status === "confirming" ? "Riprendi conferma" : job?.hasIdle ? createLabel : "Crea NPC e sincronizza";
             el("[data-retry-token]").hidden = !job?.hasAvatar || active(job) || ["accepted", "confirming"].includes(job?.status);
             el("[data-retry-token]").disabled = frozen || !loaded || !enabled || !supported;
             el("[data-retry-token]").textContent = job?.hasToken ? "Rigenera solo token" : "Genera solo token";
@@ -241,37 +269,57 @@
             field("landscape").checked = (input.aspectRatio ?? input.options?.aspectRatio) === "16:9";
             references = refs.map(reference => ({ ...reference })); renderReferences();
         }
-        function clearPreviews() {
-            for (const part of ["avatar", "token"]) {
+        function clearPreviews(parts = Object.keys(available)) {
+            for (const part of parts) {
                 if (previews[part]) URL.revokeObjectURL(previews[part].url);
-                delete previews[part]; el(`[data-${part}]`).hidden = true; el(`[data-${part}-placeholder]`).hidden = false; el(`[data-enlarge="${part}"]`).hidden = true;
+                delete previews[part]; el(`[data-${part}]`).hidden = true;
+                if (el(`[data-${part}-placeholder]`)) { el(`[data-${part}-placeholder]`).hidden = false; el(`[data-enlarge="${part}"]`).hidden = true; }
+                if (part === "hover") {
+                    el("[data-pose-preview]").classList.remove("show-hover");
+                    el("[data-toggle-hover]").setAttribute("aria-pressed", "false");
+                    el("[data-include-poses]").checked = false;
+                }
             }
         }
         async function showJob() {
-            await Promise.all(["avatar", "token"].map(async part => {
-                if (!job?.[part === "avatar" ? "hasAvatar" : "hasToken"] || previews[part]?.id === job.id) return;
-                const id = job.id, blob = await (await request(`/${id}/${part}`)).blob();
+            let posePreviewError = false;
+            async function loadPreview(part, flag) {
+                if (!job?.[flag]) { if (previews[part]) clearPreviews([part]); return; }
+                const id = job[part + "Revision"] || job.id;
+                if (previews[part]?.id === id) return;
+                const blob = await (await request(`/${job.id}/${part}`)).blob();
                 if (closed) return;
                 const url = URL.createObjectURL(blob), image = el(`[data-${part}]`);
                 try { image.src = url; await image.decode(); } catch (error) { URL.revokeObjectURL(url); throw error; }
                 if (closed) { URL.revokeObjectURL(url); return; }
                 if (previews[part]) URL.revokeObjectURL(previews[part].url);
                 previews[part] = { id, url }; image.hidden = false;
-                el(`[data-${part}-placeholder]`).hidden = true; el(`[data-enlarge="${part}"]`).hidden = false;
-            }));
+                if (el(`[data-${part}-placeholder]`)) { el(`[data-${part}-placeholder]`).hidden = true; el(`[data-enlarge="${part}"]`).hidden = false; }
+                if (part === "hover") el("[data-include-poses]").checked = job.includePoses === true;
+            }
+            await Promise.all(Object.entries(available).map(([part, flag]) => loadPreview(part, flag).catch(error => {
+                if (part === "avatar" || part === "token") throw error;
+                clearPreviews([part]); posePreviewError = true;
+            })));
             if (closed) return;
             el("[data-token-background]").textContent = job?.hasToken && job.tokenBackground !== "transparent"
                 ? "Questa anteprima usa lo sfondo precedente. Rigenera solo il token per ottenere l'esterno trasparente."
                 : "Il modello sceglie angolazione e posa del token. Cornice circolare intera, esterno trasparente.";
             if (active(job)) {
                 const elapsed = Math.max(0, Math.floor((Date.now() - Date.parse(job.startedAt || job.createdAt)) / 60000));
-                status(`${job.phase === "avatar" ? "Sto creando l'avatar" : "Sto creando il token dall'avatar"}${elapsed ? ` · ${elapsed} min` : ""}. Puoi chiudere la finestra e ritrovare qui la bozza.`);
+                const phaseText = { avatar: "Sto creando l'avatar", token: "Sto creando il token dall'avatar", idle: "Sto preparando la posa a riposo", hover: "Sto creando l’hover dall’idle approvato" };
+                status(`${phaseText[job.phase]}${elapsed ? ` · ${elapsed} min` : ""}. Puoi chiudere la finestra e ritrovare qui la bozza.`);
                 el("[data-refresh]").hidden = false; timer = setTimeout(refresh, 10000);
-            } else if (job?.status === "ready") status("Avatar e token sono pronti. Controllali prima di creare l'NPC.");
+            } else if (job?.status === "ready") status(job.hasHover ? "Prova la transizione e scegli se usare le pose nella scheda." : job.hasIdle ? "Controlla l’idle prima di generare l’hover." : "Avatar e token sono pronti. Puoi creare l’NPC o aggiungere le pose per la scheda.");
             else if (job?.status === "accepted") status("Questo NPC è già stato inviato a Foundry. Puoi iniziare una nuova bozza.");
             else if (job?.status === "confirming") status("La conferma è stata avviata. Riprendila per verificare l'invio senza creare duplicati.");
             else if (job?.error) status(job.error, true);
             else status(enabled ? "Descrivi il nuovo NPC: preparerò prima l'avatar e poi il token." : "Il generatore deve essere attivato dall'amministratore.", !enabled);
+            if (posePreviewError) {
+                el("[data-include-poses]").checked = false;
+                status("Una posa non è visibile. Premi Controlla stato per ricaricarla oppure crea l’NPC con avatar e token.", true);
+                el("[data-refresh]").hidden = false;
+            }
             controls();
         }
         async function refresh() {
@@ -283,11 +331,16 @@
                 const oldId = job?.id;
                 job = payload.job; loaded = true; enabled = payload.enabled && payload.version === 1 && payload.tokenTransparencyVersion === 1; canStop = payload.canStop === true;
                 landscapeSupported = payload.landscapeAvatar === true;
+                posesSupported = payload.sitePoses === 1;
                 conceptSupported = payload.conceptReferences === 1;
                 if (!conceptSupported) noteStatus("Aggiorna il servizio per allegare immagini. Puoi scegliere gli NPC di esempio.");
                 resolutions = payload.supportedResolutions || []; qualities = payload.supportedQualities || [];
                 if (pendingRequest && job?.id === pendingRequest.requestId) remember(null);
-                if (!pendingRequest && job && oldId !== job.id) { clearPreviews(); restore(job, job.references); }
+                if (!pendingRequest && job && oldId !== job.id) {
+                    clearPreviews(); restore(job, job.references);
+                    el("[data-poses]").open = ["idle", "hover"].includes(job.phase);
+                    el("[data-direction]").value = job.poseDirection || "";
+                }
                 await showJob();
                 if (payload.version !== 1 || payload.tokenTransparencyVersion !== 1) status("Aggiorna il servizio per generare NPC con token trasparenti.", true);
             } catch (error) {
@@ -299,16 +352,17 @@
                 }
             } finally { busy = false; if (!closed) controls(); }
         }
-        async function generate(tokenOnly = false) {
-            if (busy || checkingFiles || !loaded || !enabled || active(job) || job?.status === "confirming") return;
+        async function generate(tokenOnly = false, poseAction = "", file = null) {
+            if (busy || checkingFiles || !loaded || (!enabled && poseAction !== "use-idle") || active(job) || job?.status === "confirming") return;
+            const reuse = tokenOnly || Boolean(poseAction);
             if (!worldControl.value.trim()) el(".npc-generator__settings").open = true;
-            if (!pendingRequest && !tokenOnly && !form.reportValidity()) return;
-            if (!pendingRequest && job?.status === "uncertain" && !window.confirm("La richiesta precedente potrebbe essere stata addebitata. Avviare una nuova generazione a pagamento?")) return;
+            if (!pendingRequest && !reuse && !form.reportValidity()) return;
+            if (!pendingRequest && poseAction !== "use-idle" && job?.status === "uncertain" && !window.confirm("La richiesta precedente potrebbe essere stata addebitata. Avviare una nuova generazione a pagamento?")) return;
             busy = true; clearTimeout(timer);
             controls();
             try {
                 if (!pendingRequest) {
-                    if (!tokenOnly) {
+                    if (!reuse) {
                         if (checkName && !await checkName()) return;
                         for (const reference of references.filter(isConcept)) {
                             if (!conceptSupported) throw new Error("Aggiorna il servizio per generare con le immagini allegate.");
@@ -319,13 +373,20 @@
                             reference.uploadId = uploaded.uploadId;
                         }
                     }
-                    const refs = tokenOnly ? job.references : references.map(({uploadId, name, worldId, actorId, purpose, note}) =>
+                    const refs = reuse ? job.references : references.map(({uploadId, name, worldId, actorId, purpose, note}) =>
                         ({...(uploadId ? {uploadId, name} : {worldId, actorId}), purpose, note}));
                     if (closed) return;
-                    remember({ requestId: crypto.randomUUID(), aspectRatio: tokenOnly ? job.options?.aspectRatio || "9:16" : selectedRatio(), form: readForm(), references: refs, quality: field("quality").value, resolution: field("resolution").value,
+                    let uploadId;
+                    if (poseAction === "use-idle") {
+                        if (!file || file.type !== "image/webp" || file.size > 12 * 1024 * 1024) throw new Error("Scegli un idle WebP fino a 12 MB.");
+                        uploadId = (await (await request("/concepts", file)).json()).uploadId;
+                    }
+                    remember({ requestId: crypto.randomUUID(), aspectRatio: reuse ? job.options?.aspectRatio || "9:16" : selectedRatio(), form: readForm(), references: refs, quality: field("quality").value, resolution: field("resolution").value,
+                        ...(poseAction ? { poseAction, uploadId, idleRevision: previews.idle?.id, direction: el("[data-direction]").value.trim() } : {}),
                         ...(job && job.status !== "accepted" ? { parentJobId: job.id, draftId: job.draftId } : {}), ...(tokenOnly ? { tokenOnly: true } : {}) });
                 }
-                const suffix = pendingRequest.tokenOnly ? `/${pendingRequest.parentJobId}/retry-token` : "";
+                const action = pendingRequest.poseAction || (pendingRequest.tokenOnly ? "retry-token" : "");
+                const suffix = action ? `/${pendingRequest.parentJobId}/${action}` : "";
                 status("Invio della richiesta…");
                 const payload = await (await request(suffix, pendingRequest)).json();
                 if (closed) return;
@@ -339,6 +400,17 @@
         }
         el("[data-generate]").addEventListener("click", () => generate());
         el("[data-retry-token]").addEventListener("click", () => generate(true));
+        el("[data-generate-idle]").addEventListener("click", () => generate(false, "generate-idle"));
+        el("[data-generate-hover]").addEventListener("click", () => generate(false, "generate-hover"));
+        el("[data-attach-idle]").addEventListener("click", () => el("[data-idle-file]").click());
+        el("[data-idle-file]").addEventListener("change", event => {
+            const file = event.target.files[0]; event.target.value = "";
+            if (file) generate(false, "use-idle", file);
+        });
+        el("[data-toggle-hover]").addEventListener("click", event => {
+            const on = el("[data-pose-preview]").classList.toggle("show-hover");
+            event.currentTarget.setAttribute("aria-pressed", String(on));
+        });
         el("[data-refresh]").addEventListener("click", refresh);
         el("[data-reference-reload]").addEventListener("click", reloadReferences);
         el("[data-reference-picker]").addEventListener("click", async () => {
@@ -366,7 +438,7 @@
             status("Descrivi il nuovo NPC: preparerò prima l'avatar e poi il token."); field("name").focus();
         });
         el("[data-confirm]").addEventListener("click", async () => {
-            if (busy || !["ready", "confirming"].includes(job?.status)) return;
+            if (busy || !confirmable(job)) return;
             if (!worldControl.value.trim()) el(".npc-generator__settings").open = true;
             if (job.status !== "confirming") {
                 const description = field("description"), required = description.required;
@@ -376,11 +448,11 @@
             }
             busy = true; applying = true; clearTimeout(timer); el("[data-close]").disabled = true; controls(); status("Creazione dell'NPC e invio a Foundry…");
             try {
-                if (job.status === "ready" && checkName && !await checkName()) {
+                if (job.status !== "confirming" && checkName && !await checkName()) {
                     status("Correggi il nome e conferma di nuovo. Le anteprime sono pronte.");
                     return;
                 }
-                const payload = await (await request(`/${job.id}/confirm`, { form: readForm() })).json();
+                const payload = await (await request(`/${job.id}/confirm`, { form: readForm(), includePoses: el("[data-include-poses]").checked, idleRevision: previews.idle?.id, hoverRevision: previews.hover?.id })).json();
                 job.status = "accepted"; remember(null); applying = false; close(); await onCreated(payload);
             } catch (error) {
                 if (!closed) { status(`${error.message} La bozza è conservata.`, true); el("[data-refresh]").hidden = false; timer = setTimeout(refresh, 10000); }

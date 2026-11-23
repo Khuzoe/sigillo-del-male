@@ -17,6 +17,24 @@
 .npc-generator [data-reference-status].is-error, .npc-generator [data-concept-status].is-error { color: #ffb5a8; }
 .npc-generator [data-concept-files][hidden] { display: none; }
 .npc-generator__settings .npc-generator__identity { margin-top: 14px; }
+.npc-generator__poses[open] { display: grid; gap: 12px; }
+.npc-generator__poses[hidden], .npc-generator__poses [hidden] { display: none; }
+.npc-generator__poses p, .npc-generator__poses .npc-generator__reference-toolbar { margin: 0; }
+.npc-generator__poses > small { color: #c4bdaf; }
+.npc-generator__poses > button { justify-self: start; }
+.npc-generator__poses > label:not([data-use-poses]) { display: grid; gap: 6px; }
+.npc-generator__pose-preview { display: grid; width: min(100%, 240px); aspect-ratio: 1; justify-self: center; border-radius: 10px; background: #24232a; }
+.npc-generator__pose-preview > img { grid-area: 1 / 1; width: 100%; height: 100%; object-fit: contain; transition: opacity .25s ease; }
+.npc-generator__pose-preview [data-hover] { opacity: 0; }
+.npc-generator__pose-preview.show-hover [data-hover] { opacity: 1; }
+.npc-generator__pose-preview.show-hover [data-idle] { opacity: 0; }
+@media (hover: hover) {
+    .npc-generator__pose-preview:hover [data-hover] { opacity: 1; }
+    .npc-generator__pose-preview:hover:has([data-hover]:not([hidden])) [data-idle] { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .npc-generator__pose-preview > img { transition: none; }
+}
 .npc-generator__search-results { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-height: 190px; overflow: auto; margin-top: 10px; }
 .npc-generator__search-results > button { display: flex; align-items: center; text-align: left; gap: 9px; min-width: 0; padding: 7px; font-size: 12px; }
 .npc-generator__search-results > button span { overflow-wrap: anywhere; }

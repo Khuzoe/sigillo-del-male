@@ -107,7 +107,7 @@ function readAdditions(result, mode, hidden) {
             throw new Error('Nome, descrizione o attributi mancanti nella nuova proprietà.');
         }
         return {name: p.name.trim(), charges: p.charges.trim(), description: p.description.trim(), clarification: p.clarification.trim(),
-            hidden: hidden || p.hidden, genial: p.genial, negative: p.negative};
+            hidden: hidden || p.hidden, genial: p.genial && !p.negative, negative: p.negative};
     });
 }
 

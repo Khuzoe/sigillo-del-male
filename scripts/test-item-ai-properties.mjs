@@ -13,7 +13,7 @@ const item = {id:'pergamena', name:'Pergamena', type:'Arma', summary:'Una pergam
 const directions = 'Aggiungi un’infusione di fuoco o necrotica una volta per riposo breve. Poi consenti un attacco bonus dopo un colpo senz’armi o un attacco basato su una caratteristica diversa da Forza o Destrezza con l’azione.';
 const additions = [
     {name:'Infusione', charges:'1 volta per riposo breve', description:'Infligge danni aggiuntivi del tipo scelto.', clarification:'Quanti danni aggiuntivi?', hidden:false, genial:false, negative:false},
-    {name:'Attacco di seguito', charges:'Azione bonus', description:'Dopo un attacco idoneo, usa la tua azione bonus per attaccare con quest’arma.', clarification:'', hidden:false, genial:false, negative:false}
+    {name:'Attacco di seguito', charges:'Azione bonus', description:'Dopo un attacco idoneo, usa la tua azione bonus per attaccare con quest’arma.', clarification:'', hidden:false, genial:false, negative:true}
 ];
 const browser = await chromium.launch({executablePath:process.env.PLAYWRIGHT_EXECUTABLE_PATH, headless:true});
 try {
@@ -67,15 +67,37 @@ try {
         assert.equal(await dialog.locator('[data-review-select] option').count(), 2);
         assert.match(await dialog.locator('[data-clarification]').innerText(), /Quanti danni/);
         await dialog.locator('[data-new-name]').fill('Infusione della pergamena');
+        await dialog.locator('[data-new-tone]').selectOption('genial');
+        await dialog.locator('[data-new-hidden]').check();
         await dialog.locator('[data-next]').click();
+        assert.equal(await dialog.locator('[data-new-tone]').inputValue(), 'negative');
+        await dialog.locator('[data-new-tone]').selectOption('normal');
         await dialog.locator('[data-close]').click();
         assert.equal(await rows.count(),1);
         await open.click();
         assert.equal(await dialog.locator('[data-new-name]').inputValue(),'Attacco di seguito');
+        assert.equal(await dialog.locator('[data-new-tone]').inputValue(),'normal');
+        await dialog.locator('[data-prev]').click();
+        assert.equal(await dialog.locator('[data-new-tone]').inputValue(),'genial');
+        assert.equal(await dialog.locator('[data-new-hidden]').isChecked(),true);
         await dialog.locator('[data-add]').click();
         await dialog.waitFor({state:'detached'});
         assert.equal(jobs,1);
         assert.equal(await rows.count(),3);
+        await form.locator('[data-catalog-tab="properties"]').click();
+        const row = rows.first();
+        const flag = key => row.locator('[data-row-field="' + key + '"], [data-property-field="' + key + '"]');
+        await flag('hidden').check();
+        await flag('negative').check();
+        assert.ok(!(await flag('genial').isChecked()));
+        assert.match(await row.locator('[data-property-traits]').innerText(),/Negativa · Solo DM/);
+        await flag('genial').check();
+        assert.ok(!(await flag('negative').isChecked()));
+        assert.match(await row.locator('[data-property-traits]').innerText(),/Geniale · Solo DM/);
+        await flag('genial').uncheck();
+        assert.equal(await row.locator('[data-property-traits]').innerText(),'Solo DM');
+        await flag('genial').check();
+        await flag('hidden').uncheck();
         await Promise.all([
             page.waitForResponse(res => new URL(res.url()).pathname === '/api/data/items' && res.request().method() === 'POST'),
             page.locator(standalone ? '#save-json-btn' : '[data-item-edit-action="save"]').click()
@@ -88,8 +110,13 @@ try {
         assert.equal(saved[0].summary,item.summary);
         assert.deepEqual(created.map(p=>p.name),['Infusione della pergamena','Attacco di seguito']);
         assert.deepEqual(created.map(p=>p.charges),additions.map(p=>p.charges));
+        assert.ok(created[0].genial && created[0].hidden);
+        assert.ok(!created[1].negative && !created[1].genial && !created[1].hidden);
         assert.ok(created.every(p=>!('clarification' in p)));
-        if (!standalone) assert.match(saved[0].foundry.document.system.description.value,/Infusione della pergamena[\s\S]+Attacco di seguito/);
+        if (!standalone) {
+            assert.doesNotMatch(saved[0].foundry.document.system.description.value,/Infusione della pergamena/);
+            assert.match(saved[0].foundry.document.system.description.value,/property--normal"><h3><span>Attacco di seguito/);
+        }
         await page.close();
     }
     console.log('OK due nuove proprietà in entrambi gli editor, anteprima, recupero e salvataggio.');

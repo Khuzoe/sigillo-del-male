@@ -1516,7 +1516,7 @@ function bindItemInlineEditor(grid, state, count) {
             if (!button || state.itemSaving) return;
             const item = state.itemDraft;
             try {
-                const { openItemAiEditor } = await import("../shared/item-ai-editor.mjs?v=20261122-aggiunte");
+                const { openItemAiEditor } = await import("../shared/item-ai-editor.mjs?v=20261122-flag");
                 await openItemAiEditor({button, form, item, token: readItemsAuthToken(), campaignId: getItemsCampaignId(),
                     resolveImage: resolveImageUrl, isCurrent: () => item === state.itemDraft,
                     appendProperties: properties => {
@@ -1916,6 +1916,8 @@ function synchronizeFoundrySystemFromSite(draft, original, foundrySystem) {
             ...description,
             value: buildFoundryItemDescription(draft)
         };
+    } else if (description.value === original?.foundry?.document?.system?.description?.value) {
+        description.value = repairLegacyCatalogPropertyTones(description.value, draft.properties, escapeHtml);
     }
 
     const unidentified = system.unidentified && typeof system.unidentified === "object" && !Array.isArray(system.unidentified)
@@ -2140,13 +2142,7 @@ function isGenialItemProperty(property) {
     return property?.genial === true && !isNegativeItemProperty(property);
 }
 function isNegativeItemProperty(property) {
-    if (property?.negative === true) return true;
-    const name = String(property?.name || "")
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase();
-    return ["maledizion", "effetto negativo", "malus", "penalita", "svantaggio"]
-        .some(marker => name.includes(marker));
+    return property?.negative === true;
 }
 
 

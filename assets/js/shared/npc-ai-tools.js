@@ -7,6 +7,7 @@
         { id: 'images', name: 'Immagini', tools: [
             { id: 'avatar', name: 'Genera avatar', icon: 'fa-image-portrait', description: 'Crea una nuova immagine a partire dall’avatar attuale.', needsAvatar: true },
             { id: 'token', name: 'Genera token', icon: 'fa-chess-pawn', description: 'Dall’avatar crea un ritratto circolare con esterno trasparente.', needsAvatar: true },
+            { id: 'poses', name: 'Genera pose idle e hover', icon: 'fa-person-rays', description: 'Anima il ritratto nella lista NPC. Puoi partire dall’idle già presente.' },
             { id: 'icons', name: 'Genera icone abilità', icon: 'fa-images', description: 'Scegli le capacità e prepara le loro icone.', needsAvatar: true }
         ] },
         { id: 'abilities', name: 'Abilità', tools: [
@@ -32,7 +33,7 @@
         const abilities = (actor.definition?.items || []).filter(item => item.itemId && abilityTypes[item.type]);
         return groups.map(group => ({ ...group, tools: group.tools.filter(tool => tool.id === 'dossier' ? canWriteDossier : npcEditor || (playerTools && ['icons', 'translate-abilities'].includes(tool.id))).map(tool => ({ ...tool,
             reason: saving ? 'Attendi il completamento del salvataggio.' : tool.id === 'dossier' ? '' : unsaved ? 'Salva o annulla prima le modifiche alla scheda.'
-                : pendingSheet && !['avatar', 'token', 'drop'].includes(tool.id) ? 'Modifica della scheda in attesa di Foundry.'
+                : pendingSheet && !['avatar', 'token', 'poses', 'drop'].includes(tool.id) ? 'Modifica della scheda in attesa di Foundry.'
                 : tool.needsAvatar && !actor.media?.avatar?.path ? 'Carica e salva prima un avatar nella sezione Media.'
                 : tool.id === 'edit-ability' && !abilities.length ? 'Nessuna capacità disponibile da modificare.' : ''
         })) })).filter(group => group.tools.length);

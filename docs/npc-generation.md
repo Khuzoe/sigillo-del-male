@@ -32,6 +32,36 @@ il token se si vuole la trasparenza, senza avviare chiamate automatiche.
 `tokenTransparencyVersion: 1` viene dichiarato dal coordinatore effettivo;
 un coordinatore precedente non può avviare silenziosamente un token opaco.
 
+### Pose per la scheda NPC
+
+Per un **NPC già esistente**, apri la sua scheda dal catalogo NPC, scegli
+**Strumenti AI → Immagini → Genera pose idle e hover**. In modifica trovi lo
+stesso pulsante in **Aspetto condiviso**, accanto ai campi delle immagini.
+Se hai già un idle, **Genera hover** parte direttamente da quel ritratto.
+Puoi anche generare o caricare un altro idle e vedere entrambe le pose prima
+di applicarle. **Applica hover** aggiorna il solo hover, **Applica le due pose**
+salva la nuova coppia sullo stesso NPC. In entrambi i casi il token della mappa
+e l’avatar mantengono i loro file.
+
+Dopo aver visto avatar e token, apri **Pose per la scheda NPC**. **Genera idle**
+prepara un ritratto quadrato trasparente nello stile dell’avatar, con il token
+come riferimento secondario per l’inquadratura. Il ritratto è senza cornice.
+Puoi anche caricare un idle WebP quadrato con trasparenza, fino a 12 MB.
+
+**Approva idle e genera hover** modifica l’idle visualizzato. Di norma l’NPC
+compie un gesto riconoscibile anche in miniatura, mantenendo il volto allineato
+all’idle. Il DM può descrivere un’azione, un effetto o chiedere espressamente
+un cambiamento lieve. Ogni posa generata
+richiede una chiamata aggiuntiva. Un idle caricato si può usare direttamente.
+Passa sul ritratto o premi **Prova la transizione** per confrontare le pose.
+Seleziona **Usa queste due pose nella scheda** prima di confermare l’NPC.
+Un nuovo idle richiede un nuovo hover. Se una generazione fallisce, puoi usare
+la coppia precedente oppure confermare solo avatar e token.
+
+Il profilo inviato da Wiki Sync collega le pose confermate all’Actor creato.
+Il Worker copia entrambe nella cartella del sito per quell’Actor prima
+dell’ACK di Foundry. La mappa continua a usare il token con la cornice.
+
 In **Immagini di riferimento**, il DM può combinare fino a tre file e NPC della
 campagna. **Allega immagini** accetta anche una selezione multipla di PNG, JPEG
 o WebP. Ogni file ha un’anteprima, un ruolo (personaggio, emblema, equipaggiamento,
@@ -42,7 +72,7 @@ concept guidano l’avatar e il token viene ricavato dall’avatar risultante.
 I file vengono caricati quando si preme **Genera anteprime**. Il server conserva
 i byte originali in uno spazio privato per campagna e account. Il digest del
 contenuto permette di recuperare lo stesso allegato nei tentativi successivi.
-Solo avatar e token confermati entrano nel dossier. I limiti di 12 MB per file
+Solo le immagini confermate entrano nella scheda. I limiti di 12 MB per file
 e 24 MB complessivi valgono anche per le selezioni miste.
 
 Per gli NPC della campagna si può assegnare a ciascuno un
@@ -119,6 +149,8 @@ API e autenticazione simulate sotto `output/npc-generator-qa/`. Aprire
 `/output/npc-generator-qa/npcs.html` dal server locale già attivo; `mobile.html`
 contiene un viewport di 320 px. Il layout simulato non legge o modifica il token
 reale del browser e le chiamate API della fixture non raggiungono i servizi online.
+La variante `/output/npc-generator-qa/npcs.html?pose=1` apre il generatore con
+avatar e token di esempio già pronti e permette di provare la transizione di Nino.
 Senza `--static`, lo script può anche avviare un server autonomo sulla porta 8769.
 
 La verifica include il pulsante nelle sezioni NPC e Bestiario e il renderer delle

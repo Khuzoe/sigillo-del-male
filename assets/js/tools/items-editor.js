@@ -1140,16 +1140,15 @@
             if (!Number.isInteger(index)) return;
             item.properties = normalizeProperties(item.properties, { keepEmpty: true });
             if (!item.properties[index]) item.properties[index] = {};
-            item.properties[index][propertyField] = (propertyField === 'genial' || propertyField === 'negative' || propertyField === 'hidden')
-                ? target.checked === true
-                : String(target.value || '').trim();
             if (target.type === 'checkbox') {
-                const [property] = normalizeProperties([item.properties[index]], {keepEmpty: true});
-                item.properties[index] = property;
-                row.querySelector('[data-property-field="genial"]').checked = property.genial === true;
+                const property = item.properties[index];
+                for (const key of ['negative', 'genial', 'hidden']) {
+                    if (row.querySelector('[data-property-field="' + key + '"]').checked) property[key] = true;
+                    else delete property[key];
+                }
                 row.classList.toggle('items-property-row--genial', property.genial === true);
                 row.classList.toggle('items-property-row--negative', property.negative === true);
-            }
+            } else item.properties[index][propertyField] = String(target.value || '').trim();
             updatePreview();
             updateOutput();
             setStatus('Modifiche da salvare.');
@@ -1197,7 +1196,7 @@
         const button = event.target.closest('[data-item-ai]');
         if (button) {
             try {
-                const {openItemAiEditor} = await import('../shared/item-ai-editor.mjs?v=20261122-aggiunte');
+                const {openItemAiEditor} = await import('../shared/item-ai-editor.mjs?v=20261122-flag');
                 await openItemAiEditor({button, form: els.detailForm, item, token: readAuthToken(), campaignId: getCampaignId(),
                     resolveImage: resolveImageUrl, isCurrent: () => getSelectedItem() === item,
                     onReviewApplied: (source, additionsOnly) => {

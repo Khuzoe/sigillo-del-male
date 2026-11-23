@@ -1,4 +1,4 @@
-import {catalogReviewImage, readCatalogImage, catalogProposal, showCatalogEdits} from './catalog-item-review.mjs?v=20261122-aggiunte';
+import {catalogReviewImage, readCatalogImage, catalogProposal, showCatalogEdits} from './catalog-item-review.mjs?v=20261122-flag';
 
 // Pass all content through the editor's plain-text formatter before adding markup.
 export function formatSkillNodeDescription(text, formatText) {

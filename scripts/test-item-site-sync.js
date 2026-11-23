@@ -144,7 +144,26 @@ assert.match(system.description.value, /class="cripta-catalog-property cripta-ca
 assert.match(system.description.value, /class="cripta-catalog-property cripta-catalog-property--genial"[\s\S]*Idea geniale/);
 assert.match(system.description.value, /class="cripta-catalog-property cripta-catalog-property--negative"[\s\S]*Maledizione/);
 assert.match(system.description.value, /Paragrafo uno\.<\/p><p>Paragrafo due\./);
-assert.match(context.renderItemProperty({name:"Svantaggio", genial:true}), /aria-label="Negativa"/);
+assert.match(context.renderItemProperty({name:"Svantaggio", genial:true}), /aria-label="Geniale"/);
+const contract = {name:"Contratto Affilato", properties:[
+    {name:"Rimuovi Maledizione", description:"Termina la maledizione."},
+    {name:"Svantaggio", genial:true, description:"Protegge dallo svantaggio."},
+    {name:"Maledizione", negative:true, description:"Effetto avverso."}
+]};
+assert.deepEqual(Array.from(context.buildDiscordItemSections(contract), p => p.tone), ["default", "arcane", "negative"]);
+const corrected = context.buildFoundryItemDescription(contract);
+const previous = corrected.replace('property--normal">', 'property--negative" aria-label="Negativa">')
+    .replace('property--genial" aria-label="Geniale">', 'property--negative" aria-label="Negativa">');
+const contractBefore = {...contract, foundry:{document:{system:{description:{value:previous}}}}};
+const imported = {description:{value:previous, chat:"chat originale"}};
+context.synchronizeFoundrySystemFromSite(contract, contractBefore, imported);
+assert.equal(imported.description.value, corrected);
+assert.equal(imported.description.chat, "chat originale");
+assert.equal(context.repairLegacyCatalogPropertyTones(corrected, contract.properties, context.escapeHtml), corrected);
+assert.equal(context.repairLegacyCatalogPropertyTones(previous + '<p>Testo manuale</p>', contract.properties, context.escapeHtml), corrected + '<p>Testo manuale</p>');
+const customContract = {description:{value:previous + '<p>Appena modificato in Foundry</p>'}};
+context.synchronizeFoundrySystemFromSite(contract, contractBefore, customContract);
+assert.equal(customContract.description.value, previous + '<p>Appena modificato in Foundry</p>');
 assert.match(context.renderItemProperty({description:"<runa>"}), /<p>&lt;runa&gt;<\/p>/);
 assert.match(context.renderItemProperty({charges:"1"}), /data-unit="carica">1<\/small>/);
 assert.doesNotMatch(system.description.value, /Segreto|Non deve apparire/);

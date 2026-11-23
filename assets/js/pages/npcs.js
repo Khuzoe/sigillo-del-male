@@ -312,6 +312,8 @@ function parseYamlLite(yamlText) {
             const profile = request?.profile || {};
             const document = request?.document || {};
             const media = document?.media || {};
+            const pendingPose = part => profile.poseDraftId && media.token?.endsWith("/token.webp")
+                ? media.token.replace(/token\.webp$/, part + ".webp") : media.token || media.avatar || "";
             return {
                 id: `pending-${request?.id || request?.clientId || 'npc'}`,
                 name: document.name || profile.name || 'Nuovo NPC',
@@ -330,7 +332,7 @@ function parseYamlLite(yamlText) {
                 categoryId: profile.categoryId || '',
                 category: profile.category || 'In attesa di Foundry',
                 categoryRosterSection: profile.categoryRosterSection || 'npc',
-                images: { avatar: media.avatar || '', token: media.token || media.avatar || '', idle: media.token || media.avatar || '', hover: media.token || media.avatar || '' },
+                images: { avatar: media.avatar || '', token: media.token || media.avatar || '', idle: pendingPose("idle"), hover: pendingPose("hover") },
                 managedActorWorldId: request?.targetWorldId || '',
                 managedActorId: '',
                 managedProfileCanEdit: true
