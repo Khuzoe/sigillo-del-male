@@ -3,7 +3,7 @@
     const schemaUrl = new URL("npc-ability-schema.mjs?v=20261113-fields4", document.currentScript.src).href;
     const nativeUrl = new URL("npc-native-ability.mjs?v=20261113-fields4", document.currentScript.src).href;
     const editorUrl = new URL("npc-sheet-editor.mjs?v=20261113-fields4", document.currentScript.src).href;
-    const editUrl=new URL("npc-native-ability-edit.mjs?v=20261113-fields4",document.currentScript.src).href;
+    const editUrl=new URL("npc-native-ability-edit.mjs?v=20261123-damage",document.currentScript.src).href;
     window.CriptaAbilityGenerator = {open};
     async function open({actor, token, onQueued, initialDetails = "", editorAdapters = {}, targetItem = null}) {
         if (document.querySelector("[data-ability-generator]")) return;

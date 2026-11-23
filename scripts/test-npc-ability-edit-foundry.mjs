@@ -5,6 +5,7 @@ import vm from "node:vm";
 import * as model from "../assets/js/shared/npc-native-model.mjs";
 import {compileNativeAbilityEdit,nativeAbilityEditChanges,nativeAbilityEditProjection} from "../assets/js/shared/npc-native-ability-edit.mjs";
 import {applyNpcNativeEditor} from "../integrations/cripta-wiki-sync/npc-native-editor.mjs";
+import {installNpcAnimations} from "../integrations/cripta-wiki-sync/activity-animation-sync.mjs";
 import {editAbilityItem,itemId,attackId,capabilities} from "./fixtures/npc-native-ability-edit.mjs";
 const modulesRoot=process.env.FOUNDRY_DATA_PATH||"C:/Program Files/Foundry DEV TEST/FoundryVTT-WindowsPortable-14.367/Data";
 const servicePath=`${modulesRoot}/modules/cripta-wiki-sync/scripts/services/managed-actor-sync.js`;
@@ -35,7 +36,10 @@ const fresh=()=>{const item=new Item(model.nativeEditorSource(editAbilityItem,'I
 const utils={deepClone:clone,getProperty:model.nativeGet,setProperty:model.nativeSet,randomID:()=>`Generated${String(++sequence).padStart(7,'0')}`};
 const game={actors:new Collection([[actor.id,actor]]),modules:new Map([['khuzoe-automations',{api:{npcRules:{version:1,healingTypes:1,prepare:prepareNpcRules}}}]]),i18n:{localize:value=>value}};
 globalThis.foundry={utils};globalThis.game=game;
+game.world={id:'test-world'};
+game.settings={get:()=> 'cripta-di-sangue'};
 const sandbox={console,structuredClone,Set,Map,WeakSet,URL,crypto,applyNpcNativeEditor,...model,...v14,foundry:{utils},game,CONFIG:{statusEffects:[{id:'prone',name:'Prono',changes:[]}],DND5E:{activityTypes:Object.fromEntries(['attack','save','damage','heal','utility'].map(type=>[type,{documentClass:Activity}]))},ActiveEffect:{documentClass:Effect}},isTemporaryWikiActor:()=>false,MODULE_ID:'cripta-wiki-sync',SETTINGS:{},validateManagedMidiRollConfig:()=>{}};
+Object.assign(sandbox,{installNpcAnimations,DISCORD_WORKER_URL:'https://example.invalid',canPushToWorker:()=>false,policyFetch:()=>{throw new Error('Unexpected network request in Foundry test');}});
 const source=await readFile(servicePath,'utf8');vm.runInNewContext(source.replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,'')+'\nglobalThis.apply=applyManagedActorCommand;',sandbox);
 const proposal=changes=>({changes,summary:'Modifica del morso',balance:'Danni invariati',assumptions:[],unsupported:[],iconPrompt:'Fauci'});
 const set=(path,value)=>({path,op:'set',valueJson:JSON.stringify(value)});

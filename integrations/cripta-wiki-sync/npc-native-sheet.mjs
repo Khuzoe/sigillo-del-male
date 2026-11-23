@@ -3,6 +3,7 @@ import {applyNpcNativeEditor} from './npc-native-editor.mjs';
 import {nativeUndoPatches} from './npc-native-undo.mjs';
 import {npcNativeSnapshotEnabled} from './npc-native-snapshot.mjs';
 import {nativePreserveActivityReferencePatches} from './npc-native-automation.mjs';
+import {normalizeNpcItemMechanics} from './npc-item-mechanics.mjs';
 
 const clone=structuredClone,journalPath='flags.cripta-wiki-sync.nativeSheetJournal';
 const sourceOf=document=>{const source=JSON.parse(JSON.stringify(document.toJSON?.()??document.toObject(true)));if(source.flags?.['cripta-wiki-sync'])delete source.flags['cripta-wiki-sync'].nativeSheetJournal;return source;};
@@ -12,8 +13,9 @@ const inFlight=new WeakMap();
 const receiptPath='flags.cripta-wiki-sync.nativeSheetReceipts';
 const resolve=(actor,target)=>target.type==='Actor'&&actor.id===target.id?actor:target.type==='Item'?actor.items.get(target.id):target.type==='ActiveEffect'?actor.effects.get(target.id):null;
 function comparable(value){const next=clone(value);const visit=entry=>{if(!entry||typeof entry!=='object')return;delete entry._stats;for(const child of Object.values(entry))visit(child);};visit(next);return next;}
-function prepareItem(data){
+function prepareItem(data,creating=false){
  const result=clone(data),rules=result.flags?.['khuzoe-automations']?.npcRules;
+ if(creating)normalizeNpcItemMechanics(result);
  if(rules){
   const compiler=globalThis.game?.modules?.get('khuzoe-automations')?.api?.npcRules;
   if(compiler?.version!==1)throw new Error('Attiva Khuzoe Automations aggiornato per usare le regole di questa capacità.');
@@ -29,6 +31,19 @@ function strictDocument(document,data){
 }
 const creationFields=['_id','name','type','img','system','effects','flags','statuses','duration','disabled','transfer'];
 const creationMissingPaths=(saved,data)=>creationFields.filter(key=>Object.hasOwn(data,key)).flatMap(path=>nativePatchMissingPaths(saved,{path,op:'set',value:data[path]}));
+const npcGearTypes=new Set(['weapon','equipment','tool','consumable','loot','container']);
+function persistedCreationMissingPaths(saved,data,targetType){
+ const wanted=data.system?.properties,actual=saved.system?.properties;
+ // D&D5e preCreateGear adds "gear" to physical NPC items after preflight.
+ // Compare this SetField by membership and still verify every other field.
+ if(targetType==='Item'&&npcGearTypes.has(data.type)&&data.system?.type?.value!=='natural'&&Array.isArray(wanted)&&Array.isArray(actual)){
+  const expected=new Set(wanted),stored=new Set(actual);
+  if(wanted.every(property=>stored.has(property))&&actual.every(property=>property==='gear'||expected.has(property))){
+   saved={...saved,system:{...saved.system,properties:wanted}};
+  }
+ }
+ return creationMissingPaths(saved,data);
+}
 function strictNew(actor,type,data){
  const Class=globalThis.CONFIG?.[type]?.documentClass;
  if(!Class)throw new Error(`Modello ${type} non disponibile.`);
@@ -99,7 +114,7 @@ async function applySheet(actor,command,services){
     else {const list=target.type==='Item'?'items':'effects',index=final[list].findIndex(value=>value._id===target.id);final[list][index]=next;}
    }else if(operation.operation==='create'){
     if(target.type==='Actor'||document||operation.document?._id!==target.id||Object.hasOwn(operation.document,'ownership')||Object.hasOwn(operation.document,'_stats'))throw new Error('Identità del nuovo elemento non valida.');
-    const data=target.type==='Item'?prepareItem(operation.document):clone(operation.document);strictNew(actor,target.type,data);planned.push({...operation,document:data});final[target.type==='Item'?'items':'effects'].push(data);
+    const data=target.type==='Item'?prepareItem(operation.document,true):clone(operation.document);strictNew(actor,target.type,data);planned.push({...operation,document:data});final[target.type==='Item'?'items':'effects'].push(data);
    }else if(operation.operation==='delete'){
     if(target.type==='Actor'||!document||!nativeEqual(comparable(nativeEditorSource(sourceOf(document),target.type)),comparable(operation.baseValue)))return{status:'conflict',error:'L’elemento da rimuovere è cambiato. Nessuna modifica applicata.'};
     planned.push({...operation,before:sourceOf(document)});final[target.type==='Item'?'items':'effects']=final[target.type==='Item'?'items':'effects'].filter(value=>value._id!==target.id);
@@ -126,7 +141,7 @@ async function applySheet(actor,command,services){
    if(operation.operation==='create'){
     await actor.createEmbeddedDocuments(operation.target.type,[clone(entry.document)],{keepId:true,keepEmbeddedIds:true,criptaWikiSyncCommand:true});
     const saved=resolve(actor,operation.target);if(!saved)throw new Error('Il nuovo elemento non è stato restituito da Foundry.');entry.after=sourceOf(saved);
-    const missing=creationMissingPaths(entry.after,entry.document);if(missing.length)throw new Error(entry.document.name+': Foundry non ha conservato '+missing.slice(0,24).join(', ')+'.');
+    const missing=persistedCreationMissingPaths(entry.after,entry.document,operation.target.type);if(missing.length)throw new Error(entry.document.name+': Foundry non ha conservato '+missing.slice(0,24).join(', ')+'.');
    }else if(operation.operation==='update'){
     const result=await applyNpcNativeEditor(actor,{...command,kind:operation.target.type==='Actor'?'actor.update':operation.target.type==='Item'?'item.update':'effect.update',nativeSheetVersion:undefined,nativeEditorVersion:1,target:operation.target,patches:operation.patches,nativePermissions:permissions},services);
     entry.after=sourceOf(resolve(actor,operation.target));if(result.status!=='applied')throw new Error(result.error||'Elemento non aggiornato.');

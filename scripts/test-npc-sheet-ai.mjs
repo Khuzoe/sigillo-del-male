@@ -7,6 +7,21 @@ let checks=0;const eq=(a,b,n)=>{assert.deepEqual(a,b,n);checks++;},ok=(v,n)=>{as
 const clone=structuredClone,raw={_id:'Actor12345678901',name:'Vampire',type:'npc',prototypeToken:{actorLink:true},system:{attributes:{hp:{value:20,max:60,temp:3},prof:4},details:{biography:{value:'A vampire.'},cr:10}},flags:{secret:{value:'PRIVATE ACTOR'}},items:[clone(editAbilityItem)],effects:[]};
 const options={mode:'general',sharedRuntime:true,capabilities},source=npcSheetAiSource(raw,options),before=clone(raw);
 const set=(path,value)=>({path,op:'set',valueJson:JSON.stringify(value)}),op=(targetType,targetId,changes,extra={})=>({targetType,targetId,parentItemId:'',operation:'update',itemType:'',name:'',changes,...extra}),proposal=operations=>({summary:'Aggiornamento della scheda',balance:'Proposta',assumptions:[],unsupported:[],operations});
+{
+ const archived=clone(raw);
+ archived.items[0].flags={other:{keep:true}};
+ const snapshot=npcSheetAiSource(archived,options);
+ const edit=compileNpcSheetProposal(proposal([op('Item',itemId,[set('flags.dae.showIcon',true)])]),snapshot,options);
+ const [command]=npcSheetCommandPlan(edit,snapshot,archived,options);
+ eq(command.patches.map(p=>p.path),['flags.dae']);
+ eq(nativeApply(archived.items[0],command.patches).flags,{other:{keep:true},dae:{showIcon:true}});
+ const effect=op('ActiveEffect','prono',[set('flags',{}),set('statuses',['prone'])],{operation:'create',name:'Prono'});
+ const withEffect=compileNpcSheetProposal(proposal([effect]),snapshot,options);
+ eq(npcSheetCommandPlan(withEffect,snapshot,archived,options)[0].document.statuses,['prone']);
+ archived.flags['khuzoe-automations']={npcRules:{version:1,activities:{}},midiRollConfig:{hidden:true}};
+ const withRules=npcSheetAiSource(archived,options);
+ no(()=>compileNpcSheetProposal(proposal([op('Actor',archived._id,[set('flags',{})])]),withRules,options),/Campo non modificabile/);
+}
 for(const value of ['PRIVATE ACTOR','PRIVATE ORIGIN','PRIVATE MACRO','PRIVATE FLAGS','PRIVATE ROLL CONFIG','PRIVATE EFFECT MACRO'])ok(!JSON.stringify(source).includes(value),`${value} stays private`);
 let draft=compileNpcSheetProposal(proposal([op('Actor',raw._id,[set('system.attributes.hp.max',80)]),op('Item',itemId,[set('name','Morso vampirico')])]),source,options),plan=npcSheetCommandPlan(draft,source,raw,options);
 eq(plan.length,2);eq(plan[0].patches.map(p=>p.path),['system.attributes.hp.max']);eq(plan[1].patches.map(p=>p.path),['name']);eq(raw,before,'Compiler never mutates the raw archive');eq(npcSheetDraftChanges(draft).length,2);

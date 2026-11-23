@@ -1,21 +1,73 @@
 import {nativeGet,nativeEqual} from './npc-native-model.mjs';
 
 const textPath=path=>path==='name'||path==='description'||/^system\.details\.alignment$/.test(path)||/\.(?:description|biography)\.(?:value|public|chat|chatFlavor|unidentified)$/.test(path);
-// Scalars travel as native JSON values. valueJson remains only for structured
-// values and older proposals, which can be recovered without another AI call.
-export const NPC_AI_VALUE_SCHEMA={type:['string','number','boolean','null']};
+// Strict structured output requires named object properties. Encode dynamic
+// Foundry keys as entries, with native arrays and scalars at every depth.
+const valueRef={$ref:'#/$defs/fieldValue'};
+export const NPC_AI_VALUE_SCHEMA={anyOf:[
+ {type:'string'},{type:'number'},{type:'boolean'},{type:'null'},
+ {type:'array',items:valueRef},
+ {type:'object',properties:{entries:{type:'array',items:{type:'object',properties:{key:{type:'string'},value:valueRef},required:['key','value'],additionalProperties:false}}},required:['entries'],additionalProperties:false}
+]};
+function unpack(value,path,depth=0){
+ if(depth>32)throw new Error(`${path}: struttura troppo profonda.`);
+ if(value===null||['string','number','boolean'].includes(typeof value))return value;
+ if(Array.isArray(value))return value.map(child=>unpack(child,path,depth+1));
+ if(!value||Object.keys(value).length!==1||!Array.isArray(value.entries))throw new Error(`${path}: oggetto strutturato non valido.`);
+ const keys=new Set(),pairs=[];
+ for(const field of value.entries){
+  if(!field||typeof field.key!=='string'||!field.key||!Object.hasOwn(field,'value')||keys.has(field.key)||['__proto__','constructor','prototype'].includes(field.key))throw new Error(`${path}: campo duplicato o non valido.`);
+  keys.add(field.key);pairs.push([field.key,unpack(field.value,path,depth+1)]);
+ }
+ return Object.fromEntries(pairs);
+}
+export class NpcAiJsonError extends Error {}
+
+function parseLegacyJson(text){
+ try{return JSON.parse(text);}catch{
+  // Retain quoted strings verbatim, including punctuation inside descriptions
+  // and formulas. Repair only presentation wrappers and trailing separators.
+  const fenced=text.trim().match(/^```(?:json)?\s*\n([\s\S]*?)\n\s*```$/i);
+  const body=(fenced?.[1]??text).trim();
+  const clean=body.replace(/"(?:\\[\s\S]|[^"\\])*"|,\s*(?=[}\]])/g,(token,index)=>{
+   if(token.startsWith('"'))return token;
+   let prior=index-1;while(prior>=0&&/\s/.test(body[prior]))prior--;
+   return prior>=0&&!'[{:,'.includes(body[prior])?'':token;
+  });
+  return JSON.parse(clean);
+ }
+}
 export function decodeNpcAiValue(change,original={}) {
  if(change.op==='delete')return undefined;
  const path=change.path,encoded=change.valueJson;
+ const originalValue=nativeGet(original,path),map=path==='system.activities'||/^system\.activities\.[^.]+$/.test(path);
+ if(!Object.hasOwn(change,'valueJson')&&Object.hasOwn(change,'value')){
+  let value=unpack(change.value,path);
+  if(map&&typeof value==='string'){
+   try{value=parseLegacyJson(value);}catch{throw new NpcAiJsonError(`${path}: il testo delle attività non è JSON valido.`);}
+  }
+  if(map&&(!value||typeof value!=='object'||Array.isArray(value)))throw new Error(`${path}: indica un oggetto di attività strutturato.`);
+  return value;
+ }
  if(typeof encoded!=='string')throw new Error(`${path}: formato del valore non valido.`);
  if(Object.hasOwn(change,'value')&&encoded===''){
   if(change.value!==null&&typeof change.value==='object')throw new Error(`${path}: usa valueJson per oggetti ed elenchi.`);
   return structuredClone(change.value);
  }
  if(Object.hasOwn(change,'value')&&change.value!==null)throw new Error(`${path}: specifica un solo valore.`);
- try{return JSON.parse(encoded);}catch{
-  if((typeof nativeGet(original,path)==='string'||textPath(path))&&!/^\s*[[{"]/.test(encoded))return encoded;
-  throw new Error(`${path}: il valore strutturato non è JSON valido. La proposta originale è conservata.`);
+ try{
+  let value=parseLegacyJson(encoded);
+  if(typeof value==='string'&&(map||originalValue&&typeof originalValue==='object'))value=parseLegacyJson(value);
+  if(path==='system.activities'&&Array.isArray(value)){
+   // Older proposals also carried activity arrays. The compiler resolves their
+   // existing IDs and aliases from these indexed entries, as it did at creation.
+   value=Object.fromEntries(value.entries());
+  }
+  if(map&&(!value||typeof value!=='object'||Array.isArray(value)))throw new Error();
+  return value;
+ }catch{
+  if((typeof originalValue==='string'||textPath(path))&&!/^\s*[[{"]/.test(encoded))return encoded;
+  throw new NpcAiJsonError(`${path}: il valore strutturato non è JSON valido. La proposta originale è conservata.`);
  }
 }
 export function validateNpcDomainFields(before,after,type) {

@@ -13,6 +13,7 @@ import {NATIVE_ABILITY_EDIT_FORMAT, NATIVE_ABILITY_EDIT_SCHEMA, NATIVE_ABILITY_E
 import {nativeAbilityEditSource, nativeAbilityEditContext, nativeAbilityEditCapabilities, nativeAbilityEditFingerprint, NATIVE_ABILITY_EDIT_INSTRUCTIONS} from "./npc-native-ability-edit-context.js";
 import {NPC_SHEET_AI_FORMAT,NPC_SHEET_AI_COMPILER,NPC_SHEET_AI_SCHEMA,npcSheetProtectedEffects,compileNpcSheetProposal,validateNpcSheetDraft} from "../../../assets/js/shared/npc-sheet-ai-model.mjs";
 import {NPC_SHEET_AI_INSTRUCTIONS} from "./npc-sheet-ai-context.js";
+import {decodeNpcAiValue,NpcAiJsonError} from "../../../assets/js/shared/npc-ai-values.mjs";
 import {handleNpcSheetAi} from "./npc-sheet-ai-service.js";
 import {npcSheetJobStorage,MAX_SHEET_JOB_BYTES} from "./npc-sheet-job-storage.js";
 import {generateAbilityTranslation} from './ability-translations.js';
@@ -23,12 +24,30 @@ import {validateAbilityTranslation} from '../../../assets/js/shared/ability-tran
 
 export const ABILITY_MODEL = "gpt-5.6-terra";
 const PRIVATE = "_private/ai-abilities/";
+function rejectedJsonFields(job) {
+  const fields = [];
+  const operations=job.rejectedProposal?.operations;
+  if(!Array.isArray(operations))return fields;
+  for (const [opIndex, operation] of operations.entries()) {
+    if(!Array.isArray(operation?.changes))continue;
+    for (const [changeIndex, change] of operation.changes.entries()) {
+      const encoded=change?.valueJson ?? change?.value;
+      if (typeof encoded !== 'string' || typeof change.path !== 'string') continue;
+      const original = operation.targetType === 'Actor' ? job.actorSource : job.actorSource.items?.find(item => item._id === operation.targetId);
+      try { decodeNpcAiValue(change, original); } catch (error) {
+        if (error instanceof NpcAiJsonError) fields.push({opIndex,changeIndex,name:operation.name || operation.targetId,path:change.path,valueJson:encoded});
+      }
+    }
+  }
+  return fields;
+}
 const pending = job => ["pending", "running", "icon-pending", "icon-running"].includes(job?.status);
 const reply = (data, status = 200) => Response.json(data, {status, headers: {"Cache-Control": "private, no-store"}});
 const fail = (error, status = 400) => reply({ok: false, error}, status);
+const sheetCapabilities={nativeSheetFormat:NPC_SHEET_AI_FORMAT, nativeSheetEditor:NPC_SHEET_AI_COMPILER, nativeSheetVisualInput:NPC_SHEET_VISUAL_INPUT_VERSION};
 const scope = context => ['skill-node', 'catalog-item', 'dossier'].includes(context.purpose) ? JSON.stringify([context.purpose, context.campaignId, context.accountId, context.tree])
   : `${context.campaignId}:${context.worldId}:${context.actorId}${context.purpose === 'ability-translations' ? `:translations:${context.itemId || ''}` : context.purpose === "ability-icons" ? `:icons:${context.itemId || ""}` : context.purpose === "native-sheet" ? ":sheet" : context.purpose === "suggestions" ? ":suggestions" : context.purpose === "native-ability" ? ":native" : context.purpose === "native-ability-edit" ? `:edit:${context.itemId}` : ""}`;
-const publicJob = job => job ? {id: job.id, status: job.status, details: job.details, ...(job.kind==="ability-translation"?{channel:"translations",itemId:job.context.itemId}:job.kind==="ability-icon"?{channel:"icons",itemId:job.context.itemId}:{}), ...(job.context?.purpose==="native-ability"?{channel:"native"}:job.context?.purpose==="native-ability-edit"?{channel:"edit",itemId:job.context.itemId}:{}), ...(job.format===NPC_SHEET_AI_FORMAT?{channel:'sheet',usesAvatar:Boolean(job.referenceKey),sheetOptions:{mode:job.options.mode,sharedRuntime:job.options.sharedRuntime,capabilities:job.options.capabilities,protectedEffects:npcSheetProtectedEffects(job.actorSource)}}:{}), ...(job.format ? {format:job.format} : {}), ...(job.recoveredAt?{recoveredAt:job.recoveredAt}:{}), draft: job.draft || null, report: job.report || null, iconId: job.iconId || "", iconAttempt: job.iconAttempt || "", iconError: job.iconError || "", error: job.error || "", errorDetail: job.errorDetail || null, iconErrorDetail: job.iconErrorDetail || null, command: job.command || null, createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job)} : null;
+const publicJob = job => job ? {id: job.id, status: job.status, details: job.details, ...(job.kind==="ability-translation"?{channel:"translations",itemId:job.context.itemId}:job.kind==="ability-icon"?{channel:"icons",itemId:job.context.itemId}:{}), ...(job.context?.purpose==="native-ability"?{channel:"native"}:job.context?.purpose==="native-ability-edit"?{channel:"edit",itemId:job.context.itemId}:{}), ...(job.format===NPC_SHEET_AI_FORMAT?{channel:'sheet',canRepairJson:job.status==='uncertain'&&rejectedJsonFields(job).length>0,usesAvatar:Boolean(job.referenceKey),sheetOptions:{mode:job.options.mode,sharedRuntime:job.options.sharedRuntime,capabilities:job.options.capabilities,protectedEffects:npcSheetProtectedEffects(job.actorSource)}}:{}), ...(job.format ? {format:job.format} : {}), ...(job.recoveredAt?{recoveredAt:job.recoveredAt}:{}), draft: job.draft || null, report: job.report || null, iconId: job.iconId || "", iconAttempt: job.iconAttempt || "", iconError: job.iconError || "", error: job.error || "", errorDetail: job.errorDetail || null, iconErrorDetail: job.iconErrorDetail || null, command: job.command || null, createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job)} : null;
 const preparedDocument=job=>job.format===NPC_SHEET_AI_FORMAT&&job.prepared?{...job.prepared,draft:job.prepared.draft||job.draft}:job.prepared;
 const validateDraft=(input,format,job)=>format===NPC_SHEET_AI_FORMAT?validateNpcSheetDraft(input,job.actorSource,job.options):format===NATIVE_ABILITY_EDIT_FORMAT?validateNativeAbilityEditDraft(input,job?.itemSource,job?.capabilities||input?.capabilities||{}):format===NATIVE_ABILITY_FORMAT?validateNativeAbilityDraft(input):validateAbility(input);
 // Keep rejected edits privately so a corrected compiler can recover them
@@ -236,7 +255,7 @@ export class AbilityGenerationStore {
     if(job?.format===NATIVE_ABILITY_FORMAT&&!job.context.purpose&&input.context.purpose!=="suggestions"
       &&job.context.campaignId===input.context.campaignId&&job.context.worldId===input.context.worldId&&job.context.actorId===input.context.actorId){
       const previous=scope(job.context);job.context={...job.context,purpose:"native-ability"};await s.put(`job:${job.id}`,job);const nativeKey=`latest:${scope(job.context)}`,currentId=await s.get(nativeKey),current=currentId?await s.get(`job:${currentId}`):null;if(!current||Date.parse(current.createdAt)<=Date.parse(job.createdAt))await s.put(nativeKey,job.id);if(await s.get(`latest:${previous}`)===job.id)await s.delete(`latest:${previous}`);
-      if(action==="latest"&&input.context.purpose!=="native-ability")return reply({ok:true,canStop:true,nativeAbilityEditor:1,adoptedNative:true,job:null});
+      if(action==="latest"&&input.context.purpose!=="native-ability")return reply({ok:true,canStop:true,...sheetCapabilities,nativeAbilityEditor:1,adoptedNative:true,job:null});
     }
     if (job && scope(job.context) !== identity) return fail("Proposta non trovata.", 404);
     if(action==="latest"&&job?.format===NATIVE_ABILITY_EDIT_FORMAT&&job.status==="uncertain"&&job.rejectedProposal&&Number(job.rejectedCompilerVersion||0)<NATIVE_ABILITY_EDIT_COMPILER_VERSION){
@@ -250,7 +269,7 @@ export class AbilityGenerationStore {
     }
     if(action==='latest'&&job?.format===NPC_SHEET_AI_FORMAT&&job.status==='uncertain'&&job.rejectedProposal&&Number(job.rejectedSheetCompiler||0)<NPC_SHEET_AI_COMPILER){
       job.rejectedSheetCompiler=NPC_SHEET_AI_COMPILER;
-      try{job.draft=compileNpcSheetProposal(job.rejectedProposal,job.actorSource,job.options);job.status='ready';job.error='';delete job.errorDetail;delete job.rejectedProposal;job.recoveredAt=new Date().toISOString();}
+      try{job.draft=compileNpcSheetProposal(job.rejectedProposal,job.actorSource,job.options,true);job.status='ready';job.error='';delete job.errorDetail;delete job.rejectedProposal;job.recoveredAt=new Date().toISOString();}
       catch(error){job.error=`La proposta conservata non supera ancora i controlli: ${String(error.message).slice(0,300)} Nessuna nuova chiamata AI è stata eseguita.`;}
       await s.put(`job:${job.id}`,job);
     }
@@ -272,7 +291,7 @@ export class AbilityGenerationStore {
     }
     if (action === 'translation-existing') return job ? reply({ok:true, job:publicJob(job)}) : fail('Traduzione non trovata.',404);
     if (action === "icon-existing") return job ? reply({ok:true,job:publicJob(job)}) : fail("Generazione non trovata.",404);
-    if (action === "latest") return reply({ok: true, canStop: true, canDiscardSuggestions: true, nativeSheetEditor:NPC_SHEET_AI_COMPILER, nativeSheetVisualInput:NPC_SHEET_VISUAL_INPUT_VERSION, nativeAbilityEditor:1, nativeAbilityEditing:1, abilityEditCompiler:NATIVE_ABILITY_EDIT_COMPILER_VERSION, job: publicJob(job), ...(input.fingerprint ? {stale: Boolean(job && job.fingerprint !== input.fingerprint)} : {})});
+    if (action === "latest") return reply({ok: true, canStop: true, canDiscardSuggestions: true, ...sheetCapabilities, nativeAbilityEditor:1, nativeAbilityEditing:1, abilityEditCompiler:NATIVE_ABILITY_EDIT_COMPILER_VERSION, job: publicJob(job), ...(input.fingerprint ? {stale: Boolean(job && job.fingerprint !== input.fingerprint)} : {})});
     if (action === "create" || action === 'create-skill-node') {
       const skillNode = action === 'create-skill-node';
       if (skillNode) {
@@ -346,9 +365,29 @@ export class AbilityGenerationStore {
       if (job.status !== "accepted") { job.status = "accepted"; job.command = input.command; await s.put(`job:${id}`, job); }
       return reply({ok: true, job: publicJob(job)});
     }
+    if(action==='repair-sheet-json'&&job.format===NPC_SHEET_AI_FORMAT){
+      if(job.status!=='uncertain'||!job.rejectedProposal)return reply({ok:true,job:publicJob(job)});
+      const fields=rejectedJsonFields(job);
+      if(!fields.length)return fail('Questa proposta non contiene campi JSON da correggere.');
+      if(input.repairs===undefined)return reply({ok:true,fields});
+      if(!Array.isArray(input.repairs)||input.repairs.length!==fields.length)return fail('Correggi tutti i campi indicati.');
+      const candidate=structuredClone(job.rejectedProposal);
+      try{
+        for(const [i,field] of fields.entries()){
+          const fixed=input.repairs[i];
+          if(fixed?.opIndex!==field.opIndex||fixed.changeIndex!==field.changeIndex||typeof fixed.valueJson!=='string')throw new Error('Il campo da correggere non corrisponde alla proposta.');
+          try{JSON.parse(fixed.valueJson);}catch{throw new Error(`${field.name} · ${field.path}: controlla la sintassi JSON.`);}
+          const change=candidate.operations[field.opIndex].changes[field.changeIndex];
+          delete change.value;change.valueJson=fixed.valueJson;
+        }
+        job.draft=compileNpcSheetProposal(candidate,job.actorSource,job.options,true);
+      }catch(error){return fail(error.message);}
+      job.status='ready';job.error='';job.recoveredAt=new Date().toISOString();delete job.errorDetail;delete job.rejectedProposal;
+      await s.put(`job:${id}`,job);return reply({ok:true,job:publicJob(job)});
+    }
     if(action==='reopen-sheet'&&job.format===NPC_SHEET_AI_FORMAT){
       if(job.status!=='accepted')return reply({ok:true,job:publicJob(job)});
-      const draft=validateNpcSheetDraft(input.draft,input.actorSource,input.options);
+      const draft=validateNpcSheetDraft(input.draft,input.actorSource,input.options,true);
       job.lastCommand=job.command;delete job.command;delete job.prepared;delete job.errorDetail;
       job.draft=draft;job.actorSource=input.actorSource;job.options=input.options;job.submissionId=input.submissionId;job.status='ready';job.error='';
       await s.put(`job:${id}`,job);return reply({ok:true,job:publicJob(job)});
@@ -499,7 +538,7 @@ export class AbilityGenerationStore {
             text: {format: {type: "json_schema", name: job.format===NPC_SHEET_AI_FORMAT?'npc_sheet_edit':job.format===NATIVE_ABILITY_EDIT_FORMAT?"npc_ability_edit":job.format===NATIVE_ABILITY_FORMAT?"npc_native_ability":"npc_ability", strict: true, schema: job.format===NPC_SHEET_AI_FORMAT?NPC_SHEET_AI_SCHEMA:job.format===NATIVE_ABILITY_EDIT_FORMAT?NATIVE_ABILITY_EDIT_SCHEMA:job.format===NATIVE_ABILITY_FORMAT?NATIVE_ABILITY_SCHEMA:ABILITY_SCHEMA}}})
         });
         const data = await readGenerationResponse(response);
-        job.draft = readStructuredGeneration(data, job.format===NPC_SHEET_AI_FORMAT?value=>{try{return compileNpcSheetProposal(value,job.actorSource,job.options);}catch(error){const compact={...job,sheet:undefined,rejectedProposal:value,rejectedSheetCompiler:NPC_SHEET_AI_COMPILER};if(new TextEncoder().encode(JSON.stringify(compact)).length<MAX_SHEET_JOB_BYTES){job.rejectedProposal=value;job.rejectedSheetCompiler=NPC_SHEET_AI_COMPILER;delete job.sheet;}throw error;}}:job.format===NATIVE_ABILITY_EDIT_FORMAT?value=>{try{return compileNativeAbilityEdit(value,job.itemSource,job.capabilities);}catch(error){keepRejectedEdit(job,value);throw error;}}:job.format===NATIVE_ABILITY_FORMAT?compileNativeAbilityProposal:validateAbility, responseMetadata(response));
+        job.draft = readStructuredGeneration(data, job.format===NPC_SHEET_AI_FORMAT?value=>{try{return compileNpcSheetProposal(value,job.actorSource,job.options,true);}catch(error){const compact={...job,sheet:undefined,rejectedProposal:value,rejectedSheetCompiler:NPC_SHEET_AI_COMPILER};if(new TextEncoder().encode(JSON.stringify(compact)).length<MAX_SHEET_JOB_BYTES){job.rejectedProposal=value;job.rejectedSheetCompiler=NPC_SHEET_AI_COMPILER;delete job.sheet;}throw error;}}:job.format===NATIVE_ABILITY_EDIT_FORMAT?value=>{try{return compileNativeAbilityEdit(value,job.itemSource,job.capabilities);}catch(error){keepRejectedEdit(job,value);throw error;}}:job.format===NATIVE_ABILITY_FORMAT?compileNativeAbilityProposal:validateAbility, responseMetadata(response));
         job.status = job.withIcon ? "icon-pending" : "ready";
         delete job.sheet; delete job.baseDraft;
       } else {

@@ -1,6 +1,6 @@
 (function(){
  'use strict';
- const modelUrl=new URL('npc-sheet-ai-model.mjs?v=20261113-fields4',document.currentScript.src).href,editorUrl=new URL('npc-sheet-editor.mjs?v=20261113-fields4',document.currentScript.src).href;
+ const modelUrl=new URL('npc-sheet-ai-model.mjs?v=20261123-damage',document.currentScript.src).href,editorUrl=new URL('npc-sheet-editor.mjs?v=20261113-fields4',document.currentScript.src).href;
  window.CriptaNpcSheetAi={open};
  async function open({actor,token,onQueued,editorAdapters={}}){
   if(document.querySelector('[data-npc-sheet-ai]'))return;
@@ -13,6 +13,7 @@
     <div class="npc-sheet-ai-examples" aria-label="Esempi di richiesta"><button type="button" data-example="translate">Traduci tutte le capacità</button><button type="button" data-example="rebalance">Ribilancia il mostro</button><button type="button" data-example="ability">Aggiungi una capacità</button></div>
     <p class="npc-avatar-generator__hint" data-mode-help>Puoi combinare statistiche, capacità, incantesimi, inventario ed effetti. Ogni proposta usa il budget API.</p></section></details>
     <details data-problem hidden class="npc-generation-error-details"><summary>Dettagli del problema</summary><pre data-problem-text></pre></details>
+    <section data-json-repair hidden><p>Correggi i campi della risposta conservata. Potrai rivedere la proposta prima di applicarla.</p><div data-json-fields></div><button type="button" data-prepare-repair>Prepara bozza senza AI</button></section>
     <section data-review hidden><div class="npc-sheet-ai-review-heading"><div><small>PRIMA DELLA CONFERMA</small><h3>Rivedi la proposta</h3></div><span data-count></span></div><p data-summary></p><div class="npc-sheet-ai-change-list" data-changes></div>
      <p data-unsupported class="npc-avatar-generator__hint" role="note"></p><p data-validation class="is-error" role="alert"></p><details data-notes><summary>Bilanciamento e ipotesi</summary><p data-balance></p><ul data-assumptions></ul></details>
      <details data-editor-panel class="npc-sheet-ai-editor-panel"><summary>Controlla e modifica i valori della proposta</summary><div data-editor></div></details></section>
@@ -62,8 +63,9 @@
     job.draft=draft;renderedId='';editor=null;renderProposal();cacheDraft();controls();status('Bozza aggiornata. Nessuna modifica inviata a Foundry.');
    }catch(error){status(error.message,true);}
   }
-  function controls(){visualHint();const valid=changesPreview();el('[data-sync-state]').hidden=!canGenerate||canSync||!job?.draft||fresh;el('[data-generate]').disabled=busy||running()||!loaded||!enabled||!canGenerate||job?.status==='confirming';el('[data-generate]').textContent=pendingRequest?'Riprova invio':running()?'Generazione in corso…':job?.draft&&!fresh&&job.status!=='accepted'?'Rivedi con AI':'Genera proposta';el('[data-confirm]').disabled=busy||running()||fresh||Boolean(pendingRequest)||!canSync||!(job?.status==='confirming'||job?.status==='ready'&&valid);el('[data-confirm]').textContent=job?.status==='confirming'?'Completa invio':'Applica alla scheda';el('[data-save]').disabled=locked()||fresh||!job?.draft||!editor?.isValid()||Boolean(el('[data-validation]').textContent);el('[data-stop]').hidden=!running();el('[data-stop]').disabled=busy;el('[data-abandon]').hidden=!pendingRequest||running();el('[data-abandon]').disabled=busy;el('[data-reopen]').hidden=job?.status!=='accepted'||!['failed','conflict','missing'].includes(delivery?.status);el('[data-reopen]').disabled=busy;el('[data-new]').hidden=!job||fresh||running();el('[data-new]').disabled=busy||job?.status==='confirming';el('[data-prompt]').disabled=busy||running()||Boolean(pendingRequest)||job?.status==='confirming';el('[data-mode]').disabled=busy||running()||Boolean(pendingRequest)||Boolean(job?.draft&&!fresh);for(const b of dialog.querySelectorAll('[data-example]'))b.disabled=el('[data-prompt]').disabled;editor?.setReadOnly(locked(),job?.status==='confirming'?'In attesa di invio':'');}
+  function controls(){visualHint();const valid=changesPreview();el('[data-sync-state]').hidden=!canGenerate||canSync||!job?.draft||fresh;el('[data-generate]').disabled=busy||running()||!loaded||!enabled||!canGenerate||job?.status==='confirming';el('[data-generate]').textContent=pendingRequest?'Riprova invio':running()?'Generazione in corso…':job?.draft&&!fresh&&job.status!=='accepted'?'Rivedi con AI':'Genera proposta';el('[data-confirm]').disabled=busy||running()||fresh||Boolean(pendingRequest)||!canSync||!(job?.status==='confirming'||job?.status==='ready'&&valid);el('[data-confirm]').textContent=job?.status==='confirming'?'Completa invio':'Applica alla scheda';el('[data-save]').disabled=locked()||fresh||!job?.draft||!editor?.isValid()||Boolean(el('[data-validation]').textContent);el('[data-stop]').hidden=!running();el('[data-stop]').disabled=busy;el('[data-abandon]').hidden=!pendingRequest||running();el('[data-abandon]').disabled=busy;const repairable=job?.status==='uncertain'&&job.canRepairJson;el('[data-reopen]').hidden=fresh||!repairable&&(job?.status!=='accepted'||!['failed','conflict','missing'].includes(delivery?.status));el('[data-reopen]').textContent=repairable?'Correggi proposta senza AI':'Riapri proposta senza AI';if(fresh)el('[data-json-repair]').hidden=true;el('[data-reopen]').disabled=busy;el('[data-new]').hidden=!job||fresh||running();el('[data-new]').disabled=busy||job?.status==='confirming';el('[data-prompt]').disabled=busy||running()||Boolean(pendingRequest)||job?.status==='confirming';el('[data-mode]').disabled=busy||running()||Boolean(pendingRequest)||Boolean(job?.draft&&!fresh);for(const b of dialog.querySelectorAll('[data-example]'))b.disabled=el('[data-prompt]').disabled;editor?.setReadOnly(locked(),job?.status==='confirming'?'In attesa di invio':'');}
   function renderProposal(){
+   if(fresh||job?.status!=='uncertain'||el('[data-json-repair]').dataset.jobId!==job?.id)el('[data-json-repair]').hidden=true;
    const draft=job?.draft;el('[data-review]').hidden=!draft||fresh;if(!draft||fresh)return;
    if(renderedId!==job.id){renderedId=job.id;el('[data-editor]').replaceChildren();const source=model.npcSheetProposalEditor(draft,actor.foundryActorId||actor.actorId,job.sheetOptions||{}),changed=model.npcSheetDraftChanges(draft).find(change=>change.operation!=='delete');source.permissions.sharedRuntime=sharedRuntime;editor=mountNpcSheetEditor({root:dialog,source,panes:[{node:el('[data-editor]'),categories:['stats','abilities','spells','inventory','effects'],label:'La scheda proposta'}],draftMode:true,creationMode:false,textOnly:draft.mode==='translate',initialTarget:changed?.target.type==='Actor'?source.entities[0].target.id:changed?.target.id,descriptionHtml:editorAdapters.descriptionHtml,descriptionValue:editorAdapters.descriptionValue,resolveMedia:editorAdapters.resolveMedia|| (value=>value),onDraftChange:()=>{if(editor)draftChanged();}});}
    el('[data-mode]').value=draft.mode;el('[data-balance]').textContent=draft.balance;el('[data-assumptions]').replaceChildren(...draft.assumptions.map(text=>{const li=document.createElement('li');li.textContent=text;return li;}));
@@ -105,7 +107,25 @@
   function updateMode(){el('[data-mode-help]').textContent=el('[data-mode]').value==='translate'?'Traduzione dei testi con controlli che conservano numeri, formule, collegamenti e meccaniche.':'Puoi combinare statistiche, capacità, incantesimi, inventario ed effetti. Ogni proposta usa il budget API.';}
   el('[data-mode]').addEventListener('change',updateMode);
   el('[data-abandon]').addEventListener('click',()=>{persist(null);controls();status('Invio locale annullato. Un’eventuale generazione già avviata resta recuperabile riaprendo la finestra.');});
-  el('[data-reopen]').addEventListener('click',()=>act(async()=>{const payload=await api('/'+job.id+'/reopen',{});forgetLocal();delivery=null;renderedId='';editor=null;ingest(payload);status('Proposta riaperta sui dati attuali. Nessuna chiamata AI: controlla e salva le modifiche.');}));
+  function showRecovered(payload){
+   forgetLocal();delivery=null;renderedId='';editor=null;ingest(payload);status('Proposta riaperta. Controlla le modifiche prima di applicarle.');
+  }
+  el('[data-reopen]').addEventListener('click',()=>act(async()=>{
+   const payload=await api('/'+job.id+'/reopen',{});
+   if(!payload.fields){showRecovered(payload);return;}
+   const section=el('[data-json-repair]'),container=el('[data-json-fields]');container.replaceChildren();
+   for(const field of payload.fields){
+    const label=document.createElement('label'),input=document.createElement('textarea');
+    label.className='npc-avatar-generator__direction';label.textContent=field.name+' · '+field.path;
+    input.rows=7;input.spellcheck=false;input.value=field.valueJson;input.dataset.op=field.opIndex;input.dataset.change=field.changeIndex;
+    label.append(input);container.append(label);
+   }
+   section.dataset.jobId=job.id;section.hidden=false;container.querySelector('textarea')?.focus();
+  }));
+  el('[data-prepare-repair]').addEventListener('click',()=>act(async()=>{
+   const repairs=Array.from(el('[data-json-fields]').querySelectorAll('textarea'),input=>({opIndex:Number(input.dataset.op),changeIndex:Number(input.dataset.change),valueJson:input.value}));
+   showRecovered(await api('/'+job.id+'/reopen',{repairs}));
+  }));
   function close(){if(!cacheDraft()&&!window.confirm('La copia locale non è stata salvata. Chiudere comunque?'))return;closed=true;clearTimeout(localTimer);clearTimeout(timer);controller.abort();dialog.close();dialog.remove();previousFocus?.focus();}
   el('[data-close]').addEventListener('click',close);dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
   if(pendingRequest){el('[data-prompt]').value=pendingRequest.details;el('[data-mode]').value=pendingRequest.mode;}

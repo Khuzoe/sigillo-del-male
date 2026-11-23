@@ -1,10 +1,11 @@
 import {nativeGet, nativeSet, nativeEqual, nativeDiff, nativeValidateChanges, nativeEditorSource, nativeValidateValue, nativeActivitiesAmbiguous} from "./npc-native-model.mjs";
 import {decodeNpcAiValue,validateNpcDomainFields} from './npc-ai-values.mjs';
+import {normalizeNpcItemMechanics, NpcItemMechanicsError} from './npc-item-mechanics.mjs';
 import {nativePreserveActivityReferences,nativeEffectsAmbiguous} from './npc-native-automation.mjs';
 export {nativeAbilityAutomationWarnings,nativeEffectsAmbiguous} from './npc-native-automation.mjs';
 
 export const NATIVE_ABILITY_EDIT_FORMAT = "npc-native-ability-edit-v1";
-export const NATIVE_ABILITY_EDIT_COMPILER_VERSION = 6;
+export const NATIVE_ABILITY_EDIT_COMPILER_VERSION = 7;
 const clone = value => value === undefined ? undefined : structuredClone(value);
 const object = properties => ({type:"object",properties,required:Object.keys(properties),additionalProperties:false});
 const string = {type:"string"};
@@ -53,7 +54,10 @@ function reconcile(original,base,next,path="") {
   if(next && typeof next==="object") {
     const result=clone(original&&typeof original==="object"&&!Array.isArray(original)?original:{});
     for(const key of new Set([...Object.keys(base||{}),...Object.keys(next)])) {
+      // Leave unchanged projected fields as they were, including absent ones.
+      if(Object.hasOwn(next,key)&&Object.hasOwn(base||{},key)&&nativeEqual(base[key],next[key]))continue;
       if(!Object.hasOwn(next,key)){
+        if(!Object.hasOwn(result,key))continue;
         if(path.split('.').includes('flags')&&base?.[key]&&typeof base[key]==="object"&&!Array.isArray(base[key])){const retained=reconcile(original?.[key],base[key],{},`${path}.${key}`);if(Object.keys(retained).length)result[key]=retained;else delete result[key];}
         else delete result[key];
       }
@@ -170,7 +174,43 @@ function validateMechanics(item,baseline,capabilities={}) {
     }
   }
 }
-export function validateNativeAbilityEditDraft(draft,baseline,capabilities={}) {
+// D&D5e stores long range on weapons. An activity has one range formula and
+// a special-range text field. Repair only ranges introduced by this proposal.
+function normalizeActivityLongRanges(item,baseline) {
+  const activities=Object.values(item.system?.activities||{});
+  const rangesToRepair=activities.filter(activity=>activity.range&&Object.hasOwn(activity.range,'long')
+    &&!nativeEqual(baseline.system?.activities?.[activity._id]?.range?.long,activity.range.long));
+  const numeric=v=>(typeof v==='number'||typeof v==='string'&&v.trim()!=='')&&Number.isFinite(Number(v))&&Number(v)>=0;
+  const compatible=(a,b)=>a==null||a===''||numeric(a)&&Number(a)===Number(b);
+  for(const activity of rangesToRepair){
+    const range=activity.range;
+    const long=range.long;
+    delete range.long;
+    if(long===null||long==='')continue;
+    if(!['number','string'].includes(typeof long)||!String(long).trim())throw new Error(`${item.name}: gittata lunga non valida.`);
+    if(typeof range.value==='number')range.value=String(range.value);
+    const weaponRange=item.system.range||{};
+    const units=range.units||weaponRange.units;
+    const short=range.value??weaponRange.value;
+    // An item-level change must not alter the range of another activity.
+    const otherInherits=activities.some(other=>other!==activity&&!other.range?.override);
+    const sameRange=numeric(weaponRange.value)&&numeric(weaponRange.long)&&Number(weaponRange.value)===Number(short)&&Number(weaponRange.long)===Number(long)&&weaponRange.units===units;
+    if(item.type==='weapon'&&numeric(short)&&numeric(long)&&['ft','m','mi','km'].includes(units)&&(!weaponRange.units||weaponRange.units===units)
+      &&compatible(weaponRange.value,short)&&compatible(weaponRange.long,long)&&(sameRange||!otherInherits&&rangesToRepair.length===1)){
+      item.system.range={...weaponRange,value:Number(short),long:Number(long),units};
+      const rangedWeapon=['simpleR','martialR','siege','natural'].includes(item.system.type?.value)||Array.isArray(item.system.properties)&&item.system.properties.includes('thr');
+      if(rangedWeapon){range.override=false;continue;}
+    }
+    const note=`Gittata lunga: ${long}${units?' '+units:''}`;
+    if(!range.override&&item.system.range){
+      if(short!=null)range.value=String(short);
+      if(units)range.units=units;
+      range.override=true;
+    }
+    range.special=[range.special,note].filter(Boolean).join(' · ');
+  }
+}
+export function validateNativeAbilityEditDraft(draft,baseline,capabilities={},allowItemCorrection=false) {
   if(draft?.version!==1||draft.format!==NATIVE_ABILITY_EDIT_FORMAT||!draft.item||typeof draft.itemId!=="string")throw new Error("Bozza di modifica non valida.");
   if(Object.keys(draft).some(key=>!["version","format","itemId","itemType","base","item","summary","balance","assumptions","unsupported","iconPrompt","capabilities","generatedEffects"].includes(key)))throw new Error("La bozza contiene campi non previsti.");
   if(baseline && (draft.itemId!==baseline._id||draft.itemType!==baseline.type))throw new Error("La bozza riguarda un’altra capacità.");
@@ -185,6 +225,17 @@ export function validateNativeAbilityEditDraft(draft,baseline,capabilities={}) {
     if(patch.op==="set")assertData(patch.value,patch.path);
   }
   const original=baseline?nativeEditorSource(baseline,"Item"):{_id:draft.itemId,type:draft.itemType,...base},next=nativeEditorSource(reconcile(original,base,draft.item),"Item");
+  normalizeActivityLongRanges(next,original);
+  if (allowItemCorrection) {
+    const candidate = {...next, system: clone(next.system)};
+    try {
+      normalizeNpcItemMechanics(candidate, original);
+      next.system = candidate.system;
+    } catch (error) {
+      // Keep the original, editable mechanics. Saving and confirming validate strictly.
+      if (!(error instanceof NpcItemMechanicsError)) throw error;
+    }
+  } else normalizeNpcItemMechanics(next,original);
   nativePreserveActivityReferences(original,next);
   const visibleEffects=new Set(base.effects.map(effect=>effect._id));
   for(const effect of original.effects||[])if(!visibleEffects.has(effect._id)&&!nativeEqual(effect,(next.effects||[]).find(value=>value._id===effect._id)))throw new Error("Un effetto gestito da codice deve essere preservato.");
@@ -196,11 +247,11 @@ export function validateNativeAbilityEditDraft(draft,baseline,capabilities={}) {
   if(new TextEncoder().encode(JSON.stringify(draft)).length>320*1024)throw new Error("Bozza troppo grande.");
   return {...clone(draft),capabilities:clone(capabilities),generatedEffects:(original.effects||[]).filter(effect=>effect.flags?.["khuzoe-automations"]?.npcRule).map(effect=>effect._id),base:clone(base),item:nativeAbilityEditProjection(next)};
 }
-export function compileNativeAbilityEdit(proposal,baseline,capabilities={}) {
+export function compileNativeAbilityEdit(proposal,baseline,capabilities={},allowItemCorrection=false) {
   if(!Array.isArray(proposal?.changes)||proposal.changes.length>256)throw new Error("Modifiche generate non valide.");
   const base=nativeAbilityEditProjection(baseline),item=clone(base),paths=[];
   for(const change of proposal.changes) {
-    if(!change||!allowed(change.path)||!['set','delete'].includes(change.op)||typeof change.valueJson!=="string")throw new Error(`Modifica non valida: ${change?.path||""}`);
+    if(!change||!allowed(change.path)||!['set','delete'].includes(change.op)||!Object.hasOwn(change,'value')&&typeof change.valueJson!=="string")throw new Error(`Modifica non valida: ${change?.path||""}`);
     if(paths.some(path=>path===change.path||path.startsWith(change.path+'.')||change.path.startsWith(path+'.')))throw new Error("La proposta modifica campi sovrapposti.");
     paths.push(change.path);
     const value=decodeNpcAiValue(change,baseline);
@@ -208,7 +259,7 @@ export function compileNativeAbilityEdit(proposal,baseline,capabilities={}) {
     nativeSet(item,change.path,value,change.op==="delete");
   }
   return validateNativeAbilityEditDraft({version:1,format:NATIVE_ABILITY_EDIT_FORMAT,itemId:baseline._id,itemType:baseline.type,base,item:assignCreatedIds(item,baseline),
-    summary:proposal.summary,balance:proposal.balance,assumptions:proposal.assumptions,unsupported:proposal.unsupported,iconPrompt:proposal.iconPrompt},baseline,capabilities);
+    summary:proposal.summary,balance:proposal.balance,assumptions:proposal.assumptions,unsupported:proposal.unsupported,iconPrompt:proposal.iconPrompt},baseline,capabilities,allowItemCorrection);
 }
 export function nativeAbilityEditChanges(draft,baseline,capabilities={}) {
   baseline=nativeEditorSource(baseline,"Item");

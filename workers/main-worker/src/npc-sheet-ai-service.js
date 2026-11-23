@@ -1,9 +1,12 @@
-import {NPC_SHEET_AI_FORMAT,NPC_SHEET_AI_COMPILER,validateNpcSheetDraft,npcSheetCommandPlan,rebaseNpcSheetDraft} from '../../../assets/js/shared/npc-sheet-ai-model.mjs';
+import {NPC_SHEET_AI_FORMAT,validateNpcSheetDraft,npcSheetCommandPlan,rebaseNpcSheetDraft} from '../../../assets/js/shared/npc-sheet-ai-model.mjs';
 import {npcSheetAiContext,npcSheetAiOptions,npcSheetSharedRuntime,npcSheetAiSourceAvailable} from './npc-sheet-ai-context.js';
 import {generationStopResponse} from './generation-lifecycle.js';
 import {avatarReferenceKey} from './avatar-generation.js';
 import {NPC_SHEET_VISUAL_INPUT_VERSION,NPC_AVATAR_MAX_BYTES} from './npc-visual-reference.js';
 const reply=(value,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'private, no-store'}}),fail=(error,status=400)=>reply({ok:false,error},status);
+// These releases already supported the current sheet operations, but only
+// advertised their compiler revision. New releases advertise the format.
+const legacySheetCompilers=new Set([4,5,6]);
 export async function handleNpcSheetAi(request,route,campaignId,env,services){
  const user=await services.requireUser(request);if(user instanceof Response)return user;
  if(!await services.isEditor(user,campaignId))return fail('Solo il DM della campagna o l’admin può modificare la scheda con AI.',403);
@@ -13,8 +16,11 @@ export async function handleNpcSheetAi(request,route,campaignId,env,services){
  const context={campaignId,worldId:route.worldId,actorId:route.actorId,purpose:'native-sheet'},stub=env.ABILITY_GENERATOR.get(env.ABILITY_GENERATOR.idFromName('ability-generations-v1'));
  const call=(action,data={})=>stub.fetch(new Request(`https://ability.internal/${action}`,{method:'POST',body:JSON.stringify({...data,context})}));
  try{
-  const latestResponse=await call('latest'),latest=await latestResponse.json();
-  if(!latestResponse.ok||latest.nativeSheetEditor!==NPC_SHEET_AI_COMPILER)return fail('Il generatore si sta aggiornando. Nessuna chiamata AI è stata avviata. Riprova tra poco.',503);
+  const latestResponse=await call('latest'),latest=await latestResponse.json().catch(()=>null);
+  if(!latestResponse.ok)return fail(typeof latest?.error==='string'&&latest.error||'Impossibile leggere lo stato del generatore NPC.',latestResponse.status);
+  if(latest?.ok!==true)return fail('Il generatore NPC ha restituito uno stato non valido.',502);
+  const compatible=Object.hasOwn(latest,'nativeSheetFormat')?latest.nativeSheetFormat===NPC_SHEET_AI_FORMAT:legacySheetCompilers.has(latest.nativeSheetEditor);
+  if(!compatible)return fail('Il servizio di generazione attivo è incompatibile con questo editor NPC. Aggiorna il Worker sigillo-api.',503);
   if(latest.job&&latest.job.format!==NPC_SHEET_AI_FORMAT)return fail('La proposta non appartiene all’editor della scheda.',409);
   const record=await services.readNativeActor(campaignId,route);
   if(request.method==='GET'&&!route.action){
@@ -57,6 +63,7 @@ export async function handleNpcSheetAi(request,route,campaignId,env,services){
   }
   const stored=await call('job',{id:route.jobId});if(!stored.ok)return stored;const {job}=await stored.json();if(job.format!==NPC_SHEET_AI_FORMAT)return fail('Proposta della scheda non trovata.',404);
   if(route.action==='reopen'){
+   if(job.status==='uncertain'&&job.rejectedProposal)return call('repair-sheet-json',{id:job.id,repairs:body.repairs});
    if(job.status!=='accepted')return call('public-job',{id:job.id});
    const commands=await services.readNativeCommands(campaignId,route),command=commands.find(row=>row.id===job.command?.id);
    if(command?.status==='pending')return fail('Attendi l’esito della richiesta già inviata a Foundry.',409);

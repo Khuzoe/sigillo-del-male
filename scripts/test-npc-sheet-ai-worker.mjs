@@ -48,6 +48,19 @@ try{
  eq((await call('',{requestId:crypto.randomUUID(),details:'Traduci tutto',mode:'translate'})).status,409);eq(requests.length,0);await seed(snapshotKey,record);
  const binding=env.ABILITY_GENERATOR;env.ABILITY_GENERATOR={idFromName:v=>v,get:()=>({fetch:async()=>Response.json({ok:true,job:null,nativeAbilityEditor:1})})};eq((await call()).status,503);env.ABILITY_GENERATOR=binding;
  const compiler=(await import('../assets/js/shared/npc-sheet-ai-model.mjs')).NPC_SHEET_AI_COMPILER;
+ const latestStub=respond=>({idFromName:v=>v,get:()=>({fetch:async request=>{
+  assert.equal(new URL(request.url).pathname,'/latest');return respond();
+ }})});
+ for(const capabilities of [{nativeSheetEditor:compiler-1},{nativeSheetFormat:'npc-native-sheet-edit-v1',nativeSheetEditor:compiler+1}]){
+  env.ABILITY_GENERATOR=latestStub(()=>Response.json({ok:true,job:null,...capabilities}));
+  eq((await call()).status,200,'Compatible coordinators allow the editor to open across compiler revisions');
+ }
+ env.ABILITY_GENERATOR=latestStub(()=>Response.json({ok:true,job:null,nativeSheetEditor:compiler,nativeSheetFormat:'npc-native-sheet-edit-v2'}));
+ eq((await call()).status,503,'An explicitly incompatible format takes precedence over the compiler');
+ env.ABILITY_GENERATOR=latestStub(()=>Response.json({error:'La proposta è incompleta nell’archivio.'},{status:409}));
+ const unreadable=await call();eq(unreadable.status,409);eq(unreadable.body.error,'La proposta è incompleta nell’archivio.');
+ env.ABILITY_GENERATOR=latestStub(()=>new Response('unavailable',{status:502}));eq((await call()).status,502);
+ eq(requests.length,0);
  env.ABILITY_GENERATOR={idFromName:v=>v,get:()=>({fetch:async request=>new URL(request.url).pathname==='/public-job'?Response.json({error:'missing'},{status:404}):Response.json({ok:true,job:null,nativeSheetEditor:compiler})})};eq((await call('',{requestId:crypto.randomUUID(),details:'Usa anche l’avatar',mode:'general'})).status,503,'An older coordinator cannot silently omit visual input');eq(requests.length,0);env.ABILITY_GENERATOR=binding;
  const jobId=crypto.randomUUID(),request={requestId:jobId,details:'Traduci tutte le capacità in italiano',mode:'translate'};
  const starts=await Promise.all([call('',request),call('',request)]);eq(starts.map(r=>r.status).sort(),[200,202]);eq(starts[0].body.job.format,'npc-native-sheet-edit-v1');
@@ -114,6 +127,23 @@ try{
  Object.assign(rejected,{id:recoveryId,status:'uncertain',rejectedSheetCompiler:1,rejectedProposal:{summary:'Allineamento',balance:'',assumptions:[],unsupported:[],operations:[operation('Actor',nativeAbilityActor._id,[{path:'system.details.alignment',op:'set',valueJson:'neutrale malvagio'}])]}});delete rejected.prepared;delete rejected.command;
  await coordinator.state.storage.put(`job:${recoveryId}`,rejected);await coordinator.state.storage.put(`latest:${campaign}:${world}:${id}:sheet`,recoveryId);
  const recovered=await call();eq(recovered.body.job.status,'ready',JSON.stringify(recovered.body));eq(recovered.body.job.draft.actor.system.details.alignment,'neutrale malvagio');ok(recovered.body.job.recoveredAt);eq(requests.length,paidAtReopen,'The exact reported parsing error is recovered without payment');
+ {
+  const gripId=crypto.randomUUID(),details='Serraggio (Ricarica 5–6): TS Destrezza CD 19, 4d8 contundenti, metà se riesce.',broken='{"presa":{"type":"save"';
+  const rejectedGrip={...rejected,id:gripId,details,rejectedSheetCompiler:1,rejectedProposal:{summary:'Serraggio',balance:'',assumptions:[],unsupported:[],operations:[
+   operation('Item','presa',[set('system.description.value',details),{path:'system.activities',op:'set',valueJson:broken}],{operation:'create',itemType:'feat',name:'Serraggio'})
+  ]}};
+  await coordinator.state.storage.put('job:'+gripId,rejectedGrip);await coordinator.state.storage.put(`latest:${campaign}:${world}:${id}:sheet`,gripId);
+  const state=await call();eq(state.body.job.status,'uncertain');eq(state.body.job.canRepairJson,true);eq(state.body.job.rejectedProposal,undefined);
+  eq((await call('/'+gripId+'/reopen',{},'player')).status,403);
+  const inspect=await call('/'+gripId+'/reopen',{});eq(inspect.body.fields,[{opIndex:0,changeIndex:1,name:'Serraggio',path:'system.activities',valueJson:broken}]);
+  const repair=(valueJson,changeIndex=1)=>call('/'+gripId+'/reopen',{repairs:[{opIndex:0,changeIndex,valueJson}]});
+  eq((await repair('{}',0)).status,400);eq((await repair(broken)).status,400);
+  eq((await coordinator.state.storage.get('job:'+gripId)).rejectedProposal,rejectedGrip.rejectedProposal);
+  const fixed=JSON.stringify({presa:{type:'save',save:{ability:['dex'],dc:{calculation:'',formula:'19'}},damage:{onSave:'half',parts:[{number:4,denomination:8,types:['bludgeoning']}]}}});
+  const ready=await repair(fixed);eq(ready.body.job.status,'ready',JSON.stringify(ready.body));const item=ready.body.job.draft.createdItems[0];
+  eq(item.data.system.description.value,details);eq(Object.values(item.data.system.activities)[0].save.dc.formula,'19');eq((await repair(fixed)).body.job.draft,ready.body.job.draft);
+  eq(requests.length,paidAtReopen,'Inspecting, fixing and replaying the saved fragment never calls the model');
+ }
  // Descriptive rules are importable even when their application is manual.
  const manualNotice='Resistenza alla Magia e Resistenza Leggendaria richiedono applicazione manuale da parte del GM.',magicText='<p>Il mostro ha vantaggio ai tiri salvezza contro incantesimi e altri effetti magici.</p>',legendaryText='<p>Se fallisce un tiro salvezza, il mostro può scegliere invece di superarlo. Tre utilizzi al giorno.</p>';
  proposal={summary:'Aggiunge due tratti da gestire manualmente',balance:'Regole complete nelle descrizioni',assumptions:[],unsupported:[manualNotice],operations:[

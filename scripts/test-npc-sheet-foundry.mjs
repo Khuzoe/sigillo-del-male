@@ -73,6 +73,8 @@ const nextCommand=commandFor([op('Actor',actor.id,[set('system.attributes.hp.max
 // Exercise the installed D&D5e createActivity implementation, including its
 // insertion sort, rather than the old test double that copied input verbatim.
 const systemSource=await readFile(`${process.env.FOUNDRY_DATA_PATH||'C:/Program Files/Foundry DEV TEST/FoundryVTT-WindowsPortable-14.367/Data'}/systems/dnd5e/dnd5e.mjs`,'utf8');
+const mechanicsSource=async path=>(await readFile(new URL(path,import.meta.url),'utf8')).replaceAll('\r\n','\n');
+eq(await mechanicsSource('../integrations/cripta-wiki-sync/npc-item-mechanics.mjs'),await mechanicsSource('../assets/js/shared/npc-item-mechanics.mjs'),'Foundry and the sheet compiler use the same mechanics contract');
 const methodStart=systemSource.indexOf('  async createActivity(type, data={}, { renderSheet=true }={}) {'),methodEnd=systemSource.indexOf('  /* -------------------------------------------- */',methodStart);
 ok(methodStart>=0&&methodEnd>methodStart,'Installed D&D5e activity implementation found');
 const realCreate=new Function('CONFIG','CONST','foundry','return '+systemSource.slice(methodStart,methodEnd).trim().replace(/^async createActivity/,'async function'))(sandbox.CONFIG,{SORT_INTEGER_DENSITY:100000},globalThis.foundry);
@@ -104,6 +106,42 @@ const legacyRange=clone(command);legacyRange.document.operations[0].patches.find
 const {default:DataModel}=await import(pathToFileURL(`${appRoot}/common/abstract/data.mjs`));
 const primitives=await import(pathToFileURL(`${appRoot}/common/primitives/array.mjs`));
 const previousAbstract=globalThis.foundry.abstract;globalThis.foundry.abstract={...previousAbstract,DataModel};globalThis.foundry.utils={...originalFoundryUtils,...helpers};
+{
+ // Use the damage schema and field constructors from this D&D5e installation.
+ // Only the surrounding Actor and the database writes are simulated.
+ const bindings={foundry:{abstract:{DataModel},data:{fields},utils:helpers},NumberField$s:fields.NumberField,BooleanField$y:fields.BooleanField,SchemaField$z:fields.SchemaField,SetField$q:fields.SetField,StringField$Q:fields.StringField};
+ const definitions=['FormulaField','DamageData','EmbeddedDataField5e','DamageField'].map(extractClass).join('\n');
+ const DamageField=new Function(...Object.keys(bindings),definitions+';return DamageField;')(...Object.values(bindings));
+ const damageSchema=type=>{
+  const expr=extractClass(type).match(/damage: (new SchemaField\$\w+\(\{[\s\S]*?\n      \}\))/)?.[1];ok(expr,type+' has an installed damage schema');
+  return new Function('SchemaField','BooleanField','DamageField','return '+expr.replace(/(BooleanField|SchemaField)\$\w+/g,'$1'))(fields.SchemaField,fields.BooleanField,DamageField);
+ };
+ const weapon=damageSchema('WeaponData'),consumable=damageSchema('ConsumableData');
+ const expected={number:2,denomination:8,bonus:'4',types:['bludgeoning']};
+ const malformed={base:'2d8 + 4',types:['bludgeoning']};
+ const changes=op('Item','pugno',[set('system.damage',malformed)],{operation:'create',itemType:'weapon',name:'Pugno di basalto'});
+ const lost=nativePatchMissingPaths({system:{damage:weapon.clean(clone(malformed))}},{path:'system',op:'set',value:{damage:malformed}});
+ eq(lost,['system.damage.base','system.damage.types'],'Exact reported preflight paths with the installed schema');
+ for(const schema of [weapon,consumable])eq(nativePatchMissingPaths({system:{damage:schema.clean({base:clone(expected)})}},{path:'system.damage.base',op:'set',value:expected}),[]);
+ const ordinaryItem=globalThis.CONFIG.Item.documentClass,ordinaryCreate=actor.createEmbeddedDocuments;
+ const cleanDamage=data=>{const copy=clone(data);if(copy.type==='weapon'&&copy.system.damage)copy.system.damage=weapon.clean(copy.system.damage);return copy;};
+ globalThis.CONFIG.Item.documentClass=class extends Item{constructor(data,options){super(cleanDamage(data),options);}};
+ let dropType=false;
+ actor.createEmbeddedDocuments=async function(type,docs,...args){
+  const saved=await ordinaryCreate.call(this,type,docs.map(cleanDamage),...args);
+  if(dropType)for(const item of saved)if(item.source.system.damage)item.source.system.damage.base.types=[];
+  return saved;
+ };
+ try{
+  reset();command=commandFor([op('Actor',actor.id,[set('system.attributes.hp.max',80)]),changes]);const createOp=command.document.operations.find(o=>o.operation==='create');
+  eq(createOp.document.system.damage,{base:expected});createOp.document.system.damage=clone(malformed);
+  result=await apply(command);eq(result.status,'applied',result.error);eq(actor.items.get(createOp.target.id).source.system.damage.base.types,expected.types);eq(actorData.system.attributes.hp.max,80);eq(createOp.document.system.damage,malformed);
+  reset();command=commandFor([changes]);command.document.operations[0].document.system.damage={base:expected,types:['fire']};
+  count=writes();result=await apply(command);eq(result.status,'failed');ok(result.error.includes('base.types'));eq(writes(),count,'A contradictory old command is rejected before any write');
+  reset();dropType=true;command=commandFor([op('Item','altro',[],{operation:'create',itemType:'feat',name:'Altro tratto'}),changes]);
+  result=await apply(command);eq(result.status,'failed');ok(result.error.includes('base.types'));eq(actor.items.size,1,'Actual loss rolls back the spear and the previously created feature');
+ }finally{actor.createEmbeddedDocuments=ordinaryCreate;globalThis.CONFIG.Item.documentClass=ordinaryItem;reset();}
+}
 ok(systemSource.includes('cover: new NumberField$7({ min: 0, max: 1 })'),'The optional cover field comes from the installed FeatData schema');
 class OwnedItemData extends DataModel{
  static defineSchema(){return{_id:new fields.StringField(),name:new fields.StringField(),type:new fields.StringField(),img:new fields.StringField(),flags:new fields.ObjectField(),effects:new fields.ArrayField(new fields.ObjectField()),system:new fields.SchemaField({
@@ -127,4 +165,40 @@ reset();const generatedTrait={...clone(trait),flags:{'cripta-wiki-sync':{transfe
 result=await createVerifiedNpcAbility(actor,generatedCommand,generatedTrait);eq(result.status,'applied',result.error);eq(generatedTrait,originalGenerated,'The separate native ability creator also isolates construction and creation input');eq(actor.items.get(trait._id).source.system.description.value,trait.system.description.value);
 reset();const malformedGenerated=clone(generatedTrait);malformedGenerated.system.uses.unrecognized=1;count=writes();result=await createVerifiedNpcAbility(actor,generatedCommand,malformedGenerated);eq(result.status,'failed');ok(result.error.includes('system.uses.unrecognized'),result.error);eq(writes(),count);ok(Object.hasOwn(malformedGenerated.system.uses,'unrecognized'));
 actor.createEmbeddedDocuments=creationApi;globalThis.CONFIG.Item.documentClass=configuredItem;globalThis.foundry.abstract=previousAbstract;globalThis.foundry.utils=originalFoundryUtils;
+reset();
+globalThis.CONFIG.Item.documentClass=class extends Item {
+ constructor(data,options){super(data,options);for(const activity of Object.values(this.source.system.activities||{}))if(activity.range)delete activity.range.long;}
+};
+const thrown=nativeActivityTemplate('attack','Lancio');thrown._id='lancio';thrown.range={value:'30',long:120,units:'ft',override:true};
+command=commandFor([op('Item','giavellotto',[set('system.activities.lancio',thrown),set('system.properties',['thr']),set('system.range.reach',5)],{operation:'create',itemType:'weapon',name:'Giavellotto'})]);
+const legacyJavelin=clone(command),javelin=legacyJavelin.document.operations[0].document;
+Object.values(javelin.system.activities)[0].range.long=120;
+count=writes();result=await apply(legacyJavelin);eq(result.status,'failed');ok(result.error.includes('range.long'),result.error);eq(writes(),count);
+result=await apply(command);eq(result.status,'applied',result.error);
+eq(actor.items.get(javelin._id).toJSON().system.range,{value:30,long:120,units:'ft',reach:5});
+globalThis.CONFIG.Item.documentClass=configuredItem;
+// Use the installed D&D5e preCreateGear hook, which runs only during creation.
+const gearMethod=systemSource.match(/\n  preCreateGear\(data, options, user\) \{[\s\S]*?\n  \}/)?.[0];
+ok(gearMethod,'Installed D&D5e gear hook found');
+const preCreateGear=new Function(`return ({${gearMethod}}).preCreateGear`)();
+let changeProperties=values=>values;
+actor.createEmbeddedDocuments=async(type,documents,options)=>{
+ const created=await creationApi(type,documents,options);
+ for(const item of created){
+  preCreateGear.call({toObject:()=>clone(item.source.system),type:item.source.system.type,parent:{actor:{system:{isNPC:true}}},
+   updateSource:({properties})=>{item.source.system.properties=changeProperties(properties);}});
+ }
+ return created;
+};
+const lanceCommand=(properties,subtype='martialM')=>commandFor([op('Item','lancia',[set('system.type.value',subtype),set('system.properties',properties)],{operation:'create',itemType:'weapon',name:'Lancia di sbarramento'})]);
+reset();command=lanceCommand(['rch','two']);result=await apply(command);eq(result.status,'applied',result.error);
+const lanceId=command.document.operations[0].target.id;
+eq(actor.items.get(lanceId).source.system.properties,['rch','two','gear']);
+eq(command.document.operations[0].document.system.properties,['rch','two'],'The requested properties are not mutated');
+count=writes();eq((await apply(command)).status,'applied');eq(writes(),count,'Replaying the group does not duplicate the spear');
+for(const change of [values=>values.filter(value=>value!=='rch'),values=>[...values,'mgc']]){
+ reset();changeProperties=change;result=await apply(lanceCommand(['rch','two']));eq(result.status,'failed');ok(result.error.includes('system.properties'));eq(actor.items.size,1,'A real property mismatch still rolls back');
+}
+reset();changeProperties=values=>[...values,'gear'];result=await apply(lanceCommand(['rch'],'natural'));eq(result.status,'failed','Natural weapons do not gain the gear default');
+actor.createEmbeddedDocuments=creationApi;
 console.log(`Whole NPC Foundry: ${checks} checks passed: all-document preflight, real constructor ownership/defaults/pruning, precise creation errors, stable IDs, receipts, conflicts and rollback. No world data written.`);
