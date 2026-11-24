@@ -1,6 +1,6 @@
 (function(){
  'use strict';
- const modelUrl=new URL('npc-sheet-ai-model.mjs?v=20261123-damage',document.currentScript.src).href,editorUrl=new URL('npc-sheet-editor.mjs?v=20261113-fields4',document.currentScript.src).href;
+ const modelUrl=new URL('npc-sheet-ai-model.mjs?v=20261124-review-base',document.currentScript.src).href,editorUrl=new URL('npc-sheet-editor.mjs?v=20261124-foundry-fields',document.currentScript.src).href;
  window.CriptaNpcSheetAi={open};
  async function open({actor,token,onQueued,editorAdapters={}}){
   if(document.querySelector('[data-npc-sheet-ai]'))return;
@@ -20,12 +20,14 @@
    </div><footer><span>Controlla la proposta. La scheda cambia solo quando confermi.</span><div><button type="button" data-stop hidden>Interrompi attesa</button><button type="button" data-abandon hidden>Annulla invio locale</button><button type="button" data-reopen hidden>Riapri proposta senza AI</button><button type="button" data-new hidden>Nuova richiesta</button><button type="button" data-save disabled>Salva bozza</button><button type="button" data-generate disabled>Genera proposta</button><button type="button" class="npc-avatar-generator__confirm" data-confirm disabled>Applica alla scheda</button></div></footer>`;
   document.body.append(dialog);dialog.showModal();const el=selector=>dialog.querySelector(selector),base=`api/managed-actors/${encodeURIComponent(actor.worldId)}/${encodeURIComponent(actor.actorId)}/ability-generation`,key=`npc-sheet-ai:${actor.campaignId||app.campaigns.currentId()}:${actor.worldId}:${actor.actorId}`;
   let job=null,editor=null,busy=false,closed=false,enabled=false,canGenerate=false,canSync=false,sharedRuntime=true,hasAvatar=false,supportsVisualInput=false,loaded=false,waitingSince=Date.now(),timer,pendingRequest=null,renderedId='',fresh=false,delivery=null,localTimer,localRestored=false;
+  let serverBase=null,needsLocalCopy=false;
   try{pendingRequest=JSON.parse(sessionStorage.getItem(key));}catch{}
   const persist=value=>{pendingRequest=value;try{if(value)sessionStorage.setItem(key,JSON.stringify(value));else sessionStorage.removeItem(key);}catch{}};
   const running=()=>['pending','running'].includes(job?.status),locked=()=>busy||running()||job?.status==='confirming'||job?.status==='accepted';
   const status=(text,error=false)=>{el('[data-status]').textContent=text;el('[data-status]').classList.toggle('is-error',error);};
   async function api(suffix='',body){const url=new URL(app.urls.api(base+suffix),location.href);url.searchParams.set('editor',model.NPC_SHEET_AI_FORMAT);url.searchParams.set('campaign',actor.campaignId||app.campaigns.currentId());const response=await fetch(url,{method:body===undefined?'GET':'POST',cache:'no-store',signal:AbortSignal.any([controller.signal,AbortSignal.timeout(20000)]),headers:{Authorization:`Bearer ${token}`,...(body===undefined?{}:{'Content-Type':'application/json'})},...(body===undefined?{}:{body:JSON.stringify(body)})});const payload=await response.json().catch(()=>({}));if(!response.ok)throw Object.assign(new Error(payload.error||'Impossibile contattare l’assistente.'),{status:response.status});return payload;}
-  function readDraft(validate=true){if(!job?.draft||!editor)return job?.draft;if(validate)editor.validate();const draft=model.npcSheetReadProposalEditor(job.draft,editor.entities);return validate?model.validateNpcSheetReview(draft,actor.foundryActorId||actor.actorId,job.sheetOptions||{}):draft;}
+  const validateReview=(draft,allowItemCorrection=false)=>model.validateNpcSheetReview(draft,actor.foundryActorId||actor.actorId,job.sheetOptions||{},allowItemCorrection,serverBase);
+  function readDraft(validate=true,allowItemCorrection=false){if(!job?.draft||!editor)return job?.draft;if(validate)editor.validate();const draft=model.npcSheetReadProposalEditor(job.draft,editor.entities);return validate?validateReview(draft,allowItemCorrection):draft;}
   function visualHint(){
    const hint=el('[data-visual-reference]');hint.hidden=!loaded;
    hint.textContent=job&&!fresh?(job.usesAvatar?'Questa richiesta include l’avatar salvato come riferimento visivo.':'Questa richiesta usa i dati e i testi della scheda, senza avatar.'):supportsVisualInput?(hasAvatar?'L’avatar salvato verrà inviato all’AI insieme alla scheda, come riferimento visivo.':'Senza un avatar salvato, l’AI userà i dati e i testi della scheda.'):'Il riferimento visivo sarà disponibile dopo l’aggiornamento del servizio.';
@@ -33,12 +35,18 @@
   let localIdentity='session';try{const claims=JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));localIdentity=String(claims.accountId||claims.sub||claims.id||'session');}catch{}
   const draftKey=()=>key+':draft:'+encodeURIComponent(localIdentity)+':'+job?.id;
   function cacheDraft(){
-   clearTimeout(localTimer);if(!job?.draft||!editor||job.status!=='ready'||fresh)return true;
-   try{localStorage.setItem(draftKey(),JSON.stringify(readDraft()));return true;}
-   catch{status('Impossibile salvare la copia locale. Usa Salva bozza prima di chiudere.',true);return false;}
+   clearTimeout(localTimer);if(!job?.draft||!editor||job.status!=='ready'||fresh||(!needsLocalCopy&&editor.isValid()))return true;
+   let draft;
+   try{draft=readDraft(true,true);}
+   catch(error){status('Controlla la modifica prima di chiudere. '+error.message,true);return false;}
+   try{localStorage.setItem(draftKey(),JSON.stringify(draft));needsLocalCopy=false;return true;}
+   catch{
+    const advice=el('[data-validation]').textContent?'Correggi i campi segnalati per salvarle sul sito.':'Usa Salva bozza per conservarle sul sito.';
+    status('Il browser non ha salvato le ultime modifiche. La proposta originale è sul server. '+advice,true);return false;
+   }
   }
-  function forgetLocal(){try{localStorage.removeItem(draftKey());}catch{}}
-  function draftChanged(){clearTimeout(localTimer);localTimer=setTimeout(cacheDraft,400);controls();}
+  function forgetLocal(){needsLocalCopy=false;try{localStorage.removeItem(draftKey());}catch{}}
+  function draftChanged(){needsLocalCopy=true;clearTimeout(localTimer);localTimer=setTimeout(cacheDraft,400);controls();}
   function changesPreview(){
    if(!job?.draft||fresh)return false;
    try{
@@ -47,7 +55,7 @@
     for(const change of changes){const detail=document.createElement('details'),summary=document.createElement('summary'),badge=document.createElement('span'),name=document.createElement('strong');badge.className=`npc-sheet-ai-badge is-${change.operation}`;badge.textContent={update:'Modifica',create:'Aggiunge',delete:'Rimuove'}[change.operation];name.textContent=change.name;summary.append(badge,name);if(change.patches){const count=document.createElement('small');count.textContent=`${change.patches.length} ${change.patches.length===1?'campo':'campi'}`;summary.append(count);}detail.append(summary);
      if(change.patches){const rows=document.createElement('dl');for(const patch of change.patches){const term=document.createElement('dt'),description=document.createElement('dd'),old=document.createElement('span'),arrow=document.createElement('span'),next=document.createElement('span');term.textContent=patch.path.replace(/^system\./,'').replaceAll('.',' › ');old.textContent=value(patch.baseValue);arrow.textContent='→';next.textContent=patch.op==='delete'?'Rimosso':value(patch.value);description.append(old,arrow,next);rows.append(term,description);}detail.append(rows);}else{const p=document.createElement('p');p.textContent=change.operation==='delete'?'Questo elemento sarà rimosso dalla scheda alla conferma.':'Il nuovo elemento è disponibile nell’editor della proposta.';detail.append(p);}const actions=document.createElement('div'),undo=document.createElement('button');actions.className='npc-sheet-ai-change-actions';undo.type='button';undo.textContent=change.operation==='create'?'Scarta aggiunta':change.operation==='delete'?'Mantieni elemento':'Annulla questa modifica';undo.disabled=locked();undo.addEventListener('click',()=>discardChange(change));actions.append(undo);detail.append(actions);list.append(detail);
     }
-    const warnings=[...new Set([...draft.unsupported,...model.npcSheetAutomationWarnings(draft)])];el('[data-unsupported]').textContent=warnings.length?`Avvisi sulle automazioni · gestione manuale del GM: ${warnings.join(' ')} Puoi applicare la proposta.`:'';model.validateNpcSheetReview(draft,actor.foundryActorId||actor.actorId,job.sheetOptions||{});return changes.length>0;
+    const warnings=[...new Set([...draft.unsupported,...model.npcSheetAutomationWarnings(draft)])];el('[data-unsupported]').textContent=warnings.length?`Automazioni da gestire manualmente · ${warnings.join(' ')}`:'';validateReview(draft);return changes.length>0;
    }catch(error){el('[data-validation]').textContent=error.message;return false;}
   }
   function discardChange(change){
@@ -60,14 +68,16 @@
      else draft[key].find(row=>row.id===id).data=structuredClone(original.data);
     }
     const remaining=model.npcSheetDraftChanges(draft);draft.summary=`Bozza rivista: ${remaining.length} ${remaining.length===1?'elemento coinvolto':'elementi coinvolti'}. L’elenco riporta le modifiche attuali.`;
-    job.draft=draft;renderedId='';editor=null;renderProposal();cacheDraft();controls();status('Bozza aggiornata. Nessuna modifica inviata a Foundry.');
+    job.draft=draft;needsLocalCopy=true;renderedId='';editor=null;renderProposal();controls();if(cacheDraft())status('Bozza aggiornata. Nessuna modifica inviata a Foundry.');
    }catch(error){status(error.message,true);}
   }
   function controls(){visualHint();const valid=changesPreview();el('[data-sync-state]').hidden=!canGenerate||canSync||!job?.draft||fresh;el('[data-generate]').disabled=busy||running()||!loaded||!enabled||!canGenerate||job?.status==='confirming';el('[data-generate]').textContent=pendingRequest?'Riprova invio':running()?'Generazione in corso…':job?.draft&&!fresh&&job.status!=='accepted'?'Rivedi con AI':'Genera proposta';el('[data-confirm]').disabled=busy||running()||fresh||Boolean(pendingRequest)||!canSync||!(job?.status==='confirming'||job?.status==='ready'&&valid);el('[data-confirm]').textContent=job?.status==='confirming'?'Completa invio':'Applica alla scheda';el('[data-save]').disabled=locked()||fresh||!job?.draft||!editor?.isValid()||Boolean(el('[data-validation]').textContent);el('[data-stop]').hidden=!running();el('[data-stop]').disabled=busy;el('[data-abandon]').hidden=!pendingRequest||running();el('[data-abandon]').disabled=busy;const repairable=job?.status==='uncertain'&&job.canRepairJson;el('[data-reopen]').hidden=fresh||!repairable&&(job?.status!=='accepted'||!['failed','conflict','missing'].includes(delivery?.status));el('[data-reopen]').textContent=repairable?'Correggi proposta senza AI':'Riapri proposta senza AI';if(fresh)el('[data-json-repair]').hidden=true;el('[data-reopen]').disabled=busy;el('[data-new]').hidden=!job||fresh||running();el('[data-new]').disabled=busy||job?.status==='confirming';el('[data-prompt]').disabled=busy||running()||Boolean(pendingRequest)||job?.status==='confirming';el('[data-mode]').disabled=busy||running()||Boolean(pendingRequest)||Boolean(job?.draft&&!fresh);for(const b of dialog.querySelectorAll('[data-example]'))b.disabled=el('[data-prompt]').disabled;editor?.setReadOnly(locked(),job?.status==='confirming'?'In attesa di invio':'');}
   function renderProposal(){
    if(fresh||job?.status!=='uncertain'||el('[data-json-repair]').dataset.jobId!==job?.id)el('[data-json-repair]').hidden=true;
    const draft=job?.draft;el('[data-review]').hidden=!draft||fresh;if(!draft||fresh)return;
-   if(renderedId!==job.id){renderedId=job.id;el('[data-editor]').replaceChildren();const source=model.npcSheetProposalEditor(draft,actor.foundryActorId||actor.actorId,job.sheetOptions||{}),changed=model.npcSheetDraftChanges(draft).find(change=>change.operation!=='delete');source.permissions.sharedRuntime=sharedRuntime;editor=mountNpcSheetEditor({root:dialog,source,panes:[{node:el('[data-editor]'),categories:['stats','abilities','spells','inventory','effects'],label:'La scheda proposta'}],draftMode:true,creationMode:false,textOnly:draft.mode==='translate',initialTarget:changed?.target.type==='Actor'?source.entities[0].target.id:changed?.target.id,descriptionHtml:editorAdapters.descriptionHtml,descriptionValue:editorAdapters.descriptionValue,resolveMedia:editorAdapters.resolveMedia|| (value=>value),onDraftChange:()=>{if(editor)draftChanged();}});}
+   if(renderedId!==job.id){renderedId=job.id;el('[data-editor]').replaceChildren();const source=model.npcSheetProposalEditor(draft,actor.foundryActorId||actor.actorId,job.sheetOptions||{}),changed=model.npcSheetDraftChanges(draft).find(change=>change.operation!=='delete'),repair=source.entities.find(entity=>entity.selectedActivity);
+    if(repair)el('[data-editor-panel]').open=true;
+    source.permissions.sharedRuntime=sharedRuntime;editor=mountNpcSheetEditor({root:dialog,source,panes:[{node:el('[data-editor]'),categories:['stats','abilities','spells','inventory','effects'],label:'La scheda proposta'}],draftMode:true,creationMode:false,textOnly:draft.mode==='translate',initialTarget:repair?.target.id||(changed?.target.type==='Actor'?source.entities[0].target.id:changed?.target.id),descriptionHtml:editorAdapters.descriptionHtml,descriptionValue:editorAdapters.descriptionValue,resolveMedia:editorAdapters.resolveMedia|| (value=>value),onDraftChange:()=>{if(editor)draftChanged();}});}
    el('[data-mode]').value=draft.mode;el('[data-balance]').textContent=draft.balance;el('[data-assumptions]').replaceChildren(...draft.assumptions.map(text=>{const li=document.createElement('li');li.textContent=text;return li;}));
   }
   function ingest(payload){
@@ -75,12 +85,14 @@
    if(incoming){
     const different=job?.id!==incoming.id,keepDraft=!different&&editor&&job?.status==='ready'&&incoming.status==='ready';
     const localDraft=keepDraft?job.draft:null;
+    serverBase=incoming.draft?.base??null;
+    if(!keepDraft)needsLocalCopy=false;
     if(different){renderedId='';fresh=false;editor=null;}
     else if(job?.status!==incoming.status){renderedId='';editor=null;}
     job=localDraft?{...incoming,draft:localDraft}:incoming;
-    if(!keepDraft&&job.status==='ready')try{job.draft=model.validateNpcSheetReview(job.draft,actor.foundryActorId||actor.actorId,job.sheetOptions||{});}catch{}
+    if(!keepDraft&&job.status==='ready')try{job.draft=validateReview(job.draft,true);}catch{}
     localRestored=false;
-    if(!keepDraft&&job.status==='ready')try{const cached=JSON.parse(localStorage.getItem(draftKey()));if(cached&&JSON.stringify(cached.base)===JSON.stringify(job.draft.base)){job.draft=model.validateNpcSheetReview(cached,actor.foundryActorId||actor.actorId,job.sheetOptions||{});localRestored=true;}}catch{status('Copia locale non valida: la bozza del server resta disponibile.',true);}
+    if(!keepDraft&&job.status==='ready')try{const cached=JSON.parse(localStorage.getItem(draftKey()));if(cached){job.draft=validateReview(cached,true);localRestored=true;}}catch{status('Copia locale non valida: la bozza del server resta disponibile.',true);}
     if(pendingRequest?.requestId===job.id)persist(null);
     // Availability polling must not replace a prompt being written or restore
     // changes the user has removed from an unsaved proposal.
@@ -98,7 +110,7 @@
    try{const payload=await api('',body);renderedId='';editor=null;fresh=false;ingest(payload);}
    catch(error){if(error.status>=400&&error.status<500&&error.status!==408)persist(null);throw error;}
   }));
-  el('[data-save]').addEventListener('click',()=>act(async()=>{const payload=await api(`/${job.id}/save`,{draft:readDraft()});job=payload.job;forgetLocal();editor.markDraftSaved();status('Bozza salvata. Nessuna modifica inviata a Foundry.');}));
+  el('[data-save]').addEventListener('click',()=>act(async()=>{const payload=await api(`/${job.id}/save`,{draft:readDraft()});job=payload.job;serverBase=job.draft.base;forgetLocal();editor.markDraftSaved();status('Bozza salvata. Nessuna modifica inviata a Foundry.');}));
   el('[data-confirm]').addEventListener('click',()=>act(async()=>{try{const payload=await api(`/${job.id}/confirm`,{draft:readDraft()});persist(null);forgetLocal();job={...job,status:'accepted',command:payload.command};delivery={status:'pending'};await onQueued?.(payload.command);renderedId='';editor=null;await load();}catch(error){try{const latest=await api();if(latest.job?.status==='confirming'||latest.job?.status==='accepted'){renderedId='';editor=null;}ingest(latest);}catch{}throw error;}}));
   el('[data-stop]').addEventListener('click',()=>act(async()=>{ingest(await api(`/${job.id}/stop`,{attemptId:job.id}));persist(null);}));
   el('[data-new]').addEventListener('click',()=>{if(!cacheDraft())return;persist(null);fresh=true;editor=null;renderedId='';el('[data-request-panel]').open=true;el('[data-prompt]').value='';el('[data-mode]').disabled=false;el('[data-review]').hidden=true;status('Descrivi una nuova modifica alla scheda.');controls();el('[data-prompt]').focus();});

@@ -1,5 +1,7 @@
 import {nativeGet,nativeEqual} from './npc-native-model.mjs';
 
+export const NPC_AI_ACTIVITY_TYPES=Object.freeze(['attack','save','damage','heal','utility']);
+
 const textPath=path=>path==='name'||path==='description'||/^system\.details\.alignment$/.test(path)||/\.(?:description|biography)\.(?:value|public|chat|chatFlavor|unidentified)$/.test(path);
 // Strict structured output requires named object properties. Encode dynamic
 // Foundry keys as entries, with native arrays and scalars at every depth.
@@ -70,6 +72,8 @@ export function decodeNpcAiValue(change,original={}) {
   throw new NpcAiJsonError(`${path}: il valore strutturato non è JSON valido. La proposta originale è conservata.`);
  }
 }
+export const NPC_ABILITY_KEYS = Object.freeze(['str','dex','con','int','wis','cha']);
+
 export function validateNpcDomainFields(before,after,type) {
  const numeric=(path,{min=0,max=Infinity,integer=false,nullable=false}={})=>{
   const value=nativeGet(after,path);if(nativeEqual(value,nativeGet(before,path))||value===undefined)return;
@@ -82,7 +86,13 @@ export function validateNpcDomainFields(before,after,type) {
   numeric('system.attributes.ac.flat',{nullable:true,integer:true});
   numeric('system.details.cr',{nullable:true});
   for(const sense of Object.keys(nativeGet(after,'system.attributes.senses.ranges')||{}))numeric(`system.attributes.senses.ranges.${sense}`,{nullable:true,integer:true});
-  for(const key of ['str','dex','con','int','wis','cha'])numeric(`system.abilities.${key}.value`,{integer:true});
+  for(const key of NPC_ABILITY_KEYS){
+   numeric(`system.abilities.${key}.value`,{integer:true});
+   for(const roll of ['check','save']){
+    const path=`system.abilities.${key}.bonuses.${roll}`,value=nativeGet(after,path);
+    if(value!==undefined&&!nativeEqual(value,nativeGet(before,path))&&typeof value!=='string')throw new Error(`${path}: inserisci il bonus come formula testuale.`);
+   }
+  }
   const alignment=nativeGet(after,'system.details.alignment');if(alignment!==undefined&&!nativeEqual(alignment,nativeGet(before,'system.details.alignment'))&&typeof alignment!=='string')throw new Error('system.details.alignment: è richiesto un testo.');
   const communication=nativeGet(after,'system.traits.languages.communication');
   if(!nativeEqual(communication,nativeGet(before,'system.traits.languages.communication'))&&communication!==undefined){

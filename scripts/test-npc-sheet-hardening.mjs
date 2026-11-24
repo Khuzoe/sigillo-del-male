@@ -12,7 +12,131 @@ let draft=compileNpcSheetProposal(proposal([op('Actor',raw._id,[{path:'system.de
 eq(draft.actor.system.details.alignment,'neutrale malvagio','The exact reported legacy failure is recovered locally');
 draft=compileNpcSheetProposal(proposal([op('Actor',raw._id,[typed('system.details.alignment','neutrale malvagio'),typed('system.attributes.hp.max',80)])]),source,options);
 eq(draft.actor.system.attributes.hp.max,80);eq(draft.actor.system.details.alignment,'neutrale malvagio');
-ok(NPC_SHEET_AI_SCHEMA.properties.operations.items.properties.changes.items.required.includes('value'),'New structured output guarantees typed scalars');
+const variants=NPC_SHEET_AI_SCHEMA.properties.operations.items.properties.changes.items.anyOf;
+const nativeChangeSchema=variants.find(variant=>variant.properties.path);
+ok(nativeChangeSchema.required.includes('value'),'Native changes require typed values');
+eq(variants.flatMap(v=>Object.keys(v.properties).slice(0,1)).length,new Set(variants.map(v=>Object.keys(v.properties)[0])).size);
+for(const schema of variants)eq([schema.additionalProperties,schema.required],[false,Object.keys(schema.properties)]);
+{
+ const base=clone(raw);
+ base.system.abilities={con:{value:12,bonuses:{check:'+1',save:'+2'},onUse:'privato'}};
+ base.system.bonuses={abilities:{save:'1'}};
+ const src=npcSheetAiSource(base,options);
+ eq(src.system.abilities.con,{value:12,bonuses:{check:'+1',save:'+2'}});
+ eq(src.system.bonuses,base.system.bonuses);
+ const actor=changes=>proposal([op('Actor',base._id,changes)]);
+ const bonus={abilityBonus:{ability:'con',roll:'save',formula:'+4'}};
+ const compile=changes=>compileNpcSheetProposal(actor(changes),src,options);
+ const wanted=compile([bonus]);
+ // A saved review uses the baseline returned by the Worker. A client may have
+ // a different ordering of effects, or an older list of visible native fields.
+ eq(validateNpcSheetReview(wanted,raw._id,options,false,wanted.base),wanted);
+ const stale=clone(wanted);delete stale.base.actor.system.abilities.con.bonuses;
+ no(()=>validateNpcSheetReview(stale,raw._id,options,false,wanted.base),/sorgente/);
+ no(()=>npcSheetCommandPlan(stale,src,base,options),/sorgente/);
+ const withEffects=clone(base);
+ withEffects.effects=['ZuluEffect000001','AlphaEffect00001'].map(_id=>({_id,name:_id,type:'base',system:{changes:[]}}));
+ const serverDraft=compileNpcSheetProposal(actor([bonus]),npcSheetAiSource(withEffects,options),options);
+ serverDraft.base.effects.reverse();serverDraft.effects.reverse();
+ const copy=clone(serverDraft);
+ eq(validateNpcSheetReview(copy,raw._id,options,false,serverDraft.base),serverDraft);
+ no(()=>validateNpcSheetReview(copy,raw._id,options),/sorgente/);
+ eq(wanted,compile([typed('system.abilities.con.bonuses.save','+4')]));
+ const [row]=npcSheetCommandPlan(wanted,src,base,options);
+ eq(row.patches.map(p=>[p.path,p.baseValue,p.value]),[['system.abilities.con.bonuses.save','+2','+4']]);
+ const concurrent=clone(base);concurrent.system.abilities.con.bonuses.check='+3';
+ eq(npcSheetCommandPlan(wanted,src,concurrent,options),[row]);concurrent.system.abilities.con.bonuses.save='+5';
+ no(()=>npcSheetCommandPlan(wanted,src,concurrent,options),/cambiati/);
+ eq(compile([typed('system.abilities.con.bonuses.save',4)]).actor.system.abilities.con.bonuses.save,'4');
+ for(const path of ['system.abilities.con.onUse','system.abilities.con.bonuses.onUseMacro','system.abilities.con.bonuses.command'])no(()=>compile([typed(path,'x')]),/disponibile/);
+ for(const bad of [{ability:'con',roll:'save',formula:2},{ability:'cos',roll:'save',formula:'2'},{...bonus.abilityBonus,unused:1}])no(()=>compile([{abilityBonus:bad}]),/guidato|valido|inattesi/i);
+ no(()=>compile([bonus,typed('system.abilities.con.bonuses.save','5')]),/sovrappost/);
+ no(()=>compileNpcSheetProposal(actor([bonus]),src,{...options,mode:'translate'}),/traduzione/i);
+ const item=(type,changes)=>proposal([op('Item','nuovo',changes,{operation:'create',itemType:type,name:'Azione'})]);
+ const save=(type,changes)=>npcSheetCommandPlan(compileNpcSheetProposal(item(type,changes),src,options),src,base,options)[0].document.system;
+ const dice={number:4,denomination:8,bonus:'',damageType:'bludgeoning'},part={number:4,denomination:8,bonus:'',types:['bludgeoning']};
+ const grip=save('feat',[{activityType:{activity:'presa',type:'save'}},{newActivitySave:{activity:'presa',ability:'dex',dc:19}},
+  {newActivityDamage:{activity:'presa',...dice}},{activityRange:{activity:'presa',units:'ft',formula:'10'}},typed('system.description.value','Serraggio')]);
+ const [a]=Object.values(grip.activities);
+ eq(a.save,{ability:['dex'],dc:{calculation:'',formula:'19'}});eq(a.damage.parts,[part]);eq(a.range,{units:'ft',value:'10'});eq(grip.damage,undefined);
+ const weapon=save('weapon',[{weaponDistance:{field:'reach',distance:5}},{weaponDistance:{field:'long',distance:null}},{newWeaponDamage:dice}]);
+ eq(weapon.range,{reach:5,long:null});eq(weapon.damage.base,part);
+ const spell=save('spell',[{spellPreparation:{prepared:2}},{spellMethod:{method:'innate'}}]);
+ eq([spell.prepared,spell.method],[2,'innate']);
+ for(const distance of ['',false,-1])no(()=>save('weapon',[{weaponDistance:{field:'reach',distance}}]),/weaponDistance.distance/);
+ no(()=>save('feat',[{activityType:{activity:'linea',type:'reaction'}}]),/activityType.type/);
+ const personal=save('feat',[{activityType:{activity:'cura',type:'heal'}},{activityRangeMode:{activity:'cura',mode:'self'}}]);
+ eq(Object.values(personal.activities)[0].range,{units:'self',value:''});
+ no(()=>save('feat',[{activityRange:{activity:'a.b',units:'ft',formula:'5'}}]),/activityRange.activity/);
+ no(()=>save('loot',[{activityType:{activity:'presa',type:'save'}}]),/disponibile/);
+ no(()=>save('feat',[{newWeaponDamage:dice}]),/disponibile/);
+ no(()=>save('weapon',[{newWeaponDamage:{...dice,number:0}}]),/newWeaponDamage.number/);
+ no(()=>compileNpcSheetProposal(proposal([op('Item',itemId,[{newActivityDamage:{activity:'a',...dice}}])]),src,options),/nuovo oggetto/);
+ no(()=>compileNpcSheetProposal(proposal([op('Item',itemId,[{spellPreparation:{prepared:2}}],{itemType:'spell'})]),src,options),/disponibile/);
+}
+{
+ const make=(type,name,changes)=>proposal([op('Item','nuovo',changes,{operation:'create',itemType:type,name})]);
+ const mace=range=>make('weapon','Mazza del cappellano',[set('system.range',range)]);
+ const saved=p=>npcSheetCommandPlan(compileNpcSheetProposal(p,source,options),source,raw,options)[0].document;
+ eq(saved(mace({value:'',long:'',reach:5,units:'ft'})).system.range,{value:null,long:null,reach:5,units:'ft'});
+ const archived=compileNpcSheetProposal(mace({reach:5,units:'ft'}),source,options);
+ Object.assign(archived.createdItems[0].data.system.range,{value:'',long:''});
+ const reopened=rebaseNpcSheetDraft(archived,source,raw,options);
+ eq(npcSheetCommandPlan(reopened.draft,reopened.source,raw,options)[0].document.system.range,{value:null,long:null,reach:5,units:'ft'});
+ eq(archived.createdItems[0].data.system.range.value,'','Reopening an old proposal leaves the archived input intact');
+ eq(saved(mace({value:'0',long:'30',reach:'1.5',units:'m'})).system.range,{value:0,long:30,reach:1.5,units:'m'});
+ eq(saved(mace({reach:null})).system.range,{reach:null});
+ for(const value of ['5 ft','@mod',-1,false,{}])no(()=>saved(mace({reach:value})),/system.range.reach/);
+ const rejected=compileNpcSheetProposal(mace({reach:'1d6'}),source,options,true);
+ no(()=>npcSheetCommandPlan(rejected,source,raw,options),/reach/);
+ const spell=(legacy,...changes)=>make('spell','Scudo',[set('system.preparation',legacy),...changes]);
+ const effect={_id:'difesa',name:'Scudo',type:'base',system:{changes:[{key:'system.attributes.ac.bonus',type:'add',value:'5',phase:'initial',priority:20}]}};
+ const links=set('system.activities.difesa',{type:'utility',effects:[{_id:'difesa',onSave:false}]});
+ const shield=saved(spell({mode:'innate',prepared:true},links,set('effects',[effect])));
+ eq([shield.system.method,shield.system.prepared,Object.hasOwn(shield.system,'preparation')],['innate',1,false]);
+ eq(Object.values(shield.system.activities)[0].effects,[{_id:shield.effects[0]._id}]);eq(shield.effects[0].system.changes[0].value,5);
+ eq(saved(spell({mode:'prepared'})).system.prepared,0);eq(saved(spell({mode:'always'})).system.prepared,2);
+ no(()=>saved(spell({mode:'innate'},set('system.method','spell'))),/system.method/);
+ no(()=>saved(spell({mode:'always'},set('system.prepared',0))),/system.prepared/);
+ no(()=>saved(spell({mode:'prepared',extra:true})),/preparation.extra/);
+ no(()=>saved(spell({mode:'prepared'},set('system.activities.difesa',{type:'utility',effects:[{_id:'difesa',onSave:true}]}),set('effects',[effect]))),/onSave/);
+ const save=saved(spell({mode:'prepared'},set('system.activities.difesa',{type:'save',effects:[{_id:'difesa',onSave:true}]}),set('effects',[effect])));
+ eq(Object.values(save.system.activities)[0].effects[0].onSave,true);
+ const formula=clone(effect);formula.system.changes[0].value='1 + @prof';
+ eq(saved(spell({mode:'prepared'},set('effects',[formula]))).effects[0].system.changes[0].value,'1 + @prof');
+ const old=clone(raw),weapon=old.items[0];weapon.type='weapon';weapon.system.range={value:'',long:'',reach:5,units:'ft'};
+ const historical=npcSheetAiSource(old,options),update=path=>proposal([op('Item',weapon._id,[set(path,path==='name'?'Nome nuovo':'7.5')])]);
+ const rename=compileNpcSheetProposal(update('name'),historical,options);
+ eq(npcSheetCommandPlan(rename,historical,old,options)[0].patches.map(p=>p.path),['name']);
+ const edit=compileNpcSheetProposal(update('system.range.reach'),historical,options);
+ eq(edit.items[0].data.system.range,{value:'',long:'',reach:7.5,units:'ft'});
+}
+{
+ const ability=type=>proposal([op('Item','linea',[set('system.activities.linea',{type,name:'Difesa',effects:[{_id:'difesa'}]}),set('effects',[{_id:'difesa',name:'Presidio',type:'base',statuses:[]}])],{operation:'create',itemType:'feat',name:'Tenete la linea'})]);
+ const review=compileNpcSheetProposal(ability('reaction'),source,options,true);
+ const [activity]=Object.values(review.createdItems[0].data.system.activities),link=activity.effects[0]._id;
+ eq(link,review.createdItems[0].data.effects[0]._id);
+ no(()=>validateNpcSheetReview(review,raw._id,options),/Tenete la linea.*reaction/);
+ no(()=>npcSheetCommandPlan(review,source,raw,options),/Tenete la linea.*reaction/);
+ eq(validateNpcSheetReview(review,raw._id,options,true).createdItems,review.createdItems);
+ activity.type='utility';
+ const [result]=npcSheetCommandPlan(review,source,raw,options);eq(result.document.system.activities[activity._id].effects,[{_id:link}]);
+ eq(Object.values(compileNpcSheetProposal(ability('  SaVe '),source,options).createdItems[0].data.system.activities)[0].type,'save');
+ no(()=>compileNpcSheetProposal(ability({bad:'type'}),source,options,true),/tipo di attività non valido/);
+ const ambiguous=ability('reaction'),part={number:2,denomination:8,types:['bludgeoning']};
+ ambiguous.operations[0].changes.push(set('system.activities.colpo',{type:'attack'}),set('system.damage.base',part));
+ const pending=compileNpcSheetProposal(ambiguous,source,options,true),system=pending.createdItems[0].data.system;
+ eq(system.damage.base,part,'Resolving the activity type must precede moving shared damage');
+ const unknown=Object.values(system.activities).find(value=>value.type==='reaction');unknown.type='save';
+ no(()=>npcSheetCommandPlan(pending,source,raw,options),/system.damage.base/);
+ unknown.type='utility';
+ const saved=npcSheetCommandPlan(pending,source,raw,options)[0].document.system;
+ eq(Object.values(saved.activities).find(value=>value.type==='attack').damage.parts,[part]);
+ const old=clone(raw),[existing]=Object.values(old.items[0].system.activities);existing.type='check';
+ const oldSource=npcSheetAiSource(old,options),renamed=proposal([op('Item',itemId,[set('name','Modifica descrittiva')])]);
+ eq(compileNpcSheetProposal(renamed,oldSource,options).items[0].data.system.activities[existing._id].type,'check');
+ no(()=>compileNpcSheetProposal(proposal([op('Item',itemId,[set('system.activities.'+existing._id+'.type','utility')])]),oldSource,options,true),/tipo|campo|modific/i);
+}
 {
  const change=(path,value)=>({path,op:'set',value});
  const fields=record=>({entries:Object.entries(record).map(([key,value])=>({key,value}))});
@@ -43,12 +167,43 @@ ok(NPC_SHEET_AI_SCHEMA.properties.operations.items.properties.changes.items.requ
  for(const bad of [json.slice(0,-2),'{,}','{broken'])no(()=>compileNpcSheetProposal(proposal([legacy(bad)]),source,options),/Serraggio.*system.activities.*JSON/);
  for(const key of ['constructor','__proto__'])no(()=>compileNpcSheetProposal(proposal([{...grip,changes:[change('system.activities',{entries:[{key,value:1}]})]}]),source,options),/campo duplicato o non valido/);
  no(()=>compileNpcSheetProposal(proposal([{...grip,changes:[change('system.activities',{entries:[{key:'presa',value:null},{key:'presa',value:5}]})]}]),source,options),/duplicato/);
- eq(Object.hasOwn(NPC_SHEET_AI_SCHEMA.properties.operations.items.properties.changes.items.properties,'valueJson'),false);
+ eq(Object.hasOwn(nativeChangeSchema.properties,'valueJson'),false);
 }
 no(()=>compileNpcSheetProposal(proposal([op('Actor',raw._id,[typed('system.attributes.hp.max',-1)])]),source,options),/hp.max/);
 no(()=>compileNpcSheetProposal(proposal([op('Actor',raw._id,[typed('system.details.cr','impossibile')])]),source,options),/details.cr/);
 const rangedRaw=clone(raw);rangedRaw.system.attributes.movement={walk:'30',units:'ft'};rangedRaw.system.traits={languages:{value:[],custom:'',communication:{}}};const rangedSource=npcSheetAiSource(rangedRaw,options);
 const rangedDraft=compileNpcSheetProposal(proposal([op('Actor',raw._id,[typed('system.traits.languages.communication.telepathy',120)])]),rangedSource,options);
+{
+ const activity=nativeActivityTemplate('utility','Passo');
+ const make=(range,type='feat',extras=[])=>proposal([op('Item','passo',[set('system.activities.passo',{...activity,range}),...extras],{operation:'create',itemType:type,name:'Passo personale'})]);
+ const compile=input=>compileNpcSheetProposal(input,source,options);
+ const read=draft=>Object.values(draft.createdItems[0].data.system.activities)[0].range;
+ for(const mode of ['self','touch','spec','any']){
+  const canonical={units:mode,value:'',override:true,special:'Testo conservato'};
+  const legacy={...canonical,value:mode};
+  const draft=compile(make(legacy));eq(read(draft),canonical);
+  read(draft).value=mode;eq(read(rebaseNpcSheetDraft(draft,source,raw,options).draft),canonical);
+ }
+ eq(read(compile(make({value:'self',override:false}))),{value:'',units:'self',override:false});
+ const ambiguous=make({value:'self',units:'ft'});
+ no(()=>compile(ambiguous),/Passo.*self.*ft/);
+ const fixable=compileNpcSheetProposal(ambiguous,source,options,true);
+ no(()=>npcSheetCommandPlan(fixable,source,raw,options),/self.*ft/);
+ read(fixable).units='self';const ready=npcSheetCommandPlan(fixable,source,raw,options);
+ eq(Object.values(ready[0].document.system.activities)[0].range,{units:'self',value:''});
+ const formula={value:'10 + @prof',units:'ft',override:true};
+ eq(read(compile(make(formula))),formula);
+ eq(read(compile(make({value:15,units:'m'}))),{value:'15',units:'m'});
+ eq(compile(make(formula,'spell',[set('system.range',{value:'touch'})])).createdItems[0].data.system.range,{value:'',units:'touch'});
+ eq(compile(make(formula,'weapon',[set('system.range',{value:30,units:'ft'})])).createdItems[0].data.system.range,{value:30,units:'ft'});
+ const old=clone(raw),first=Object.values(old.items[0].system.activities)[0];first.range={value:'self',units:'ft'};
+ const previous=npcSheetAiSource(old,options),renamed=compileNpcSheetProposal(proposal([op('Item',itemId,[set('name','Altro nome')])]),previous,options);
+ eq(npcSheetCommandPlan(renamed,previous,old,options)[0].patches.map(p=>p.path),['name']);
+ const path='system.activities.'+first._id+'.range';
+ const updated=compileNpcSheetProposal(proposal([op('Item',itemId,[set(path,{value:'self',units:'self'})])]),previous,options);
+ const patches=npcSheetCommandPlan(updated,previous,old,options)[0].patches;
+ eq(nativeApply(old.items[0],patches).system.activities[first._id].range,{value:'',units:'self'});
+}
 {
  const attack=nativeActivityTemplate('attack','Pugno'),part={number:2,denomination:8,bonus:'4',types:['bludgeoning']};
  const damage={base:'2d8 + 4',types:['bludgeoning']};

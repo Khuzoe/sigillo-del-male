@@ -1,5 +1,5 @@
 import {NPC_SHEET_AI_FORMAT,validateNpcSheetDraft,npcSheetCommandPlan,rebaseNpcSheetDraft} from '../../../assets/js/shared/npc-sheet-ai-model.mjs';
-import {npcSheetAiContext,npcSheetAiOptions,npcSheetSharedRuntime,npcSheetAiSourceAvailable} from './npc-sheet-ai-context.js';
+import {npcSheetAiContext,npcSheetAbilityBonusBaseline,npcSheetAiOptions,npcSheetSharedRuntime,npcSheetAiSourceAvailable} from './npc-sheet-ai-context.js';
 import {generationStopResponse} from './generation-lifecycle.js';
 import {avatarReferenceKey} from './avatar-generation.js';
 import {NPC_SHEET_VISUAL_INPUT_VERSION,NPC_AVATAR_MAX_BYTES} from './npc-visual-reference.js';
@@ -16,13 +16,15 @@ export async function handleNpcSheetAi(request,route,campaignId,env,services){
  const context={campaignId,worldId:route.worldId,actorId:route.actorId,purpose:'native-sheet'},stub=env.ABILITY_GENERATOR.get(env.ABILITY_GENERATOR.idFromName('ability-generations-v1'));
  const call=(action,data={})=>stub.fetch(new Request(`https://ability.internal/${action}`,{method:'POST',body:JSON.stringify({...data,context})}));
  try{
-  const latestResponse=await call('latest'),latest=await latestResponse.json().catch(()=>null);
+  const record=await services.readNativeActor(campaignId,route);
+  const bonusBaseline=npcSheetAiSourceAvailable(record)?npcSheetAbilityBonusBaseline(record.snapshot.actor):null;
+  const latestResponse=await call('latest',{bonusBaseline}),latest=await latestResponse.json().catch(()=>null);
   if(!latestResponse.ok)return fail(typeof latest?.error==='string'&&latest.error||'Impossibile leggere lo stato del generatore NPC.',latestResponse.status);
   if(latest?.ok!==true)return fail('Il generatore NPC ha restituito uno stato non valido.',502);
   const compatible=Object.hasOwn(latest,'nativeSheetFormat')?latest.nativeSheetFormat===NPC_SHEET_AI_FORMAT:legacySheetCompilers.has(latest.nativeSheetEditor);
   if(!compatible)return fail('Il servizio di generazione attivo è incompatibile con questo editor NPC. Aggiorna il Worker sigillo-api.',503);
   if(latest.job&&latest.job.format!==NPC_SHEET_AI_FORMAT)return fail('La proposta non appartiene all’editor della scheda.',409);
-  const record=await services.readNativeActor(campaignId,route);
+
   if(request.method==='GET'&&!route.action){
    let delivery=null;
    if(latest.job?.status==='accepted'){

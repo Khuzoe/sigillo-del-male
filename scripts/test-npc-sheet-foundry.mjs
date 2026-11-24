@@ -86,8 +86,44 @@ const sorted=Object.values(actor.items.get(itemId).source.system.activities).fin
 // old clone-only Actor mock could never expose the discarded numeric range.
 const appRoot=process.env.FOUNDRY_APP_PATH||'C:/Program Files/Foundry DEV TEST/FoundryVTT-WindowsPortable-14.367/App/resources/app';
 const fields=await import(pathToFileURL(`${appRoot}/common/data/fields.mjs`)),helpers=await import(pathToFileURL(`${appRoot}/common/utils/helpers.mjs`));
+await import(pathToFileURL(`${appRoot}/common/primitives/array.mjs`));
 const originalFoundryUtils=globalThis.foundry.utils;globalThis.foundry.utils={...originalFoundryUtils,...helpers};
 const extractClass=name=>{const start=systemSource.indexOf(`class ${name} `),end=systemSource.indexOf('\n}',start);assert.ok(start>=0&&end>start);return systemSource.slice(start,end+2);};
+{
+ const expr=extractClass('WeaponData').match(/range: (new SchemaField\$\w+\(\{[\s\S]*?\n      \}\))/)?.[1];ok(expr,'Installed weapon range schema');
+ const range=new Function('SchemaField','NumberField','StringField','defaultUnits','return '+expr.replace(/(SchemaField|NumberField|StringField)\$\w+/g,'$1'))(fields.SchemaField,fields.NumberField,fields.StringField,()=> 'ft');
+ const requested={value:'',long:'',reach:5,units:'ft'},expected={value:null,long:null,reach:5,units:'ft'};
+ eq(range.clean(clone(requested)),expected);
+ eq(nativePatchMissingPaths({system:{range:expected}},{op:'set',path:'system.range',value:requested}),['system.range.value','system.range.long']);
+ const ordinaryItem=globalThis.CONFIG.Item.documentClass,ordinaryCreate=actor.createEmbeddedDocuments;
+ const cleaned=data=>{const next=clone(data);if(next.type==='weapon'&&next.system.range)next.system.range=range.clean(next.system.range);return next;};
+ globalThis.CONFIG.Item.documentClass=class extends Item {constructor(data,options){super(cleaned(data),options);}};
+ let discardReach=false;
+ actor.createEmbeddedDocuments=async function(type,docs,...rest){const saved=await ordinaryCreate.call(this,type,docs.map(cleaned),...rest);if(discardReach)for(const item of saved)if(item.source.system.range)item.source.system.range.reach=null;return saved;};
+ try{
+  reset();command=commandFor([op('Actor',actor.id,[set('system.attributes.hp.max',80)]),op('Item','mazza',[set('system.range',requested)],{operation:'create',itemType:'weapon',name:'Mazza del cappellano'})]);
+  const weapon=command.document.operations.find(op=>op.operation==='create');
+  eq(weapon.document.system.range,expected);
+  weapon.document.system.range=clone(requested);result=await apply(command);eq(result.status,'applied',result.error);
+  eq(actor.items.get(weapon.target.id).toJSON().system.range,expected);eq(weapon.document.system.range,requested,'Archived request remains intact');
+  reset();discardReach=true;result=await apply(command);eq(result.status,'failed');ok(result.error.includes('system.range.reach'));eq(actor.items.has(weapon.target.id),false);eq(actorData.system.attributes.hp.max,60);
+ }finally{globalThis.CONFIG.Item.documentClass=ordinaryItem;actor.createEmbeddedDocuments=ordinaryCreate;reset();}
+}
+{
+ const RangeField=new Function('foundry','SchemaField$X','StringField$1g',extractClass('FormulaField')+'\n'+extractClass('RangeField')+';return RangeField;')({data:{fields},utils:helpers},fields.SchemaField,fields.StringField);
+ const field=new RangeField({override:new fields.BooleanField()});
+ eq(field.fields.value.options.deterministic,true);eq(field.fields.units.initial,'self');
+ reset();const activity=nativeActivityTemplate('utility','Passo personale');activity.range={value:'',units:'self',override:true};
+ command=commandFor([op('Actor',actor.id,[set('system.attributes.hp.max',80)]),op('Item','passo',[set('system.activities.passo',activity)],{operation:'create',itemType:'feat',name:'Passo personale'})]);
+ const created=command.document.operations.find(op=>op.operation==='create'),requested=Object.values(created.document.system.activities)[0].range;
+ requested.value='self';
+ const conflicting=clone(command);Object.values(conflicting.document.operations.find(op=>op.operation==='create').document.system.activities)[0].range.units='ft';
+ count=writes();result=await apply(conflicting);eq(result.status,'failed');ok(result.error.includes('Passo personale')&&result.error.includes('ft'));eq(writes(),count);
+ result=await apply(command);eq(result.status,'applied',result.error);
+ const actual=Object.values(actor.items.get(created.target.id).toJSON().system.activities)[0].range;
+ eq(actual,{value:'',units:'self',override:true});eq(field.validate(field.clean(clone(actual))),undefined);
+ eq(actorData.system.attributes.hp.max,80);eq(requested.value,'self','The receiver repairs a detached copy of the old command');reset();
+}
 const MappingField=new Function('foundry','DataField$1',`${extractClass('MappingField')};return MappingField;`)({data:{fields},utils:helpers},fields.DataField);
 const SimpleTraitField=new Function('SchemaField$D','SetField$t','StringField$V',`${extractClass('SimpleTraitField')};return SimpleTraitField;`)(fields.SchemaField,fields.SetField,fields.StringField);
 const languageExpression=systemSource.match(/languages: (new SimpleTraitField\(\{[\s\S]*?\}, \{ label: "DND5E.Languages" \}\))/)?.[1];ok(languageExpression,'Installed D&D5e language schema found');
@@ -104,8 +140,25 @@ const legacyRange=clone(command);legacyRange.document.operations[0].patches.find
 // test double missed both false losses from undefined defaults and real losses
 // hidden by pruning the object used as the requested baseline.
 const {default:DataModel}=await import(pathToFileURL(`${appRoot}/common/abstract/data.mjs`));
-const primitives=await import(pathToFileURL(`${appRoot}/common/primitives/array.mjs`));
-const previousAbstract=globalThis.foundry.abstract;globalThis.foundry.abstract={...previousAbstract,DataModel};globalThis.foundry.utils={...originalFoundryUtils,...helpers};
+const {default:Document}=await import(pathToFileURL(`${appRoot}/common/abstract/document.mjs`));
+const previousAbstract=globalThis.foundry.abstract;globalThis.foundry.abstract={...previousAbstract,DataModel,Document};globalThis.foundry.utils={...originalFoundryUtils,...helpers};
+{
+ const {normalizeNpcItemMechanics}=await import('../integrations/cripta-wiki-sync/npc-item-mechanics.mjs');
+ const legacyMigration=extractClass('SpellData').match(/static #migratePreparation\(source\) \{([\s\S]*?)\n  \}/)?.[1];
+ ok(legacyMigration,'Preparation migration is available in installed D&D5e');
+ const migrate=new Function('source',legacyMigration);
+ for(const preparation of [{mode:'prepared'},{mode:'innate',prepared:true},{mode:'atwill',prepared:false},{mode:'always'}]){
+  const system={preparation},expected=clone(system);migrate(expected);
+  normalizeNpcItemMechanics({name:'Scudo',type:'spell',system});eq(system,expected);
+ }
+ const AppliedEffectField=new Function('SchemaField$U','DocumentIdField$e','NumberField$L',extractClass('AppliedEffectField')+';return AppliedEffectField;')(fields.SchemaField,fields.DocumentIdField,fields.NumberField);
+ const link={_id:'Effect1234567890',onSave:false},plain=new AppliedEffectField(),save=new AppliedEffectField({onSave:new fields.BooleanField()});
+ eq(Object.hasOwn(plain.clean(clone(link)),'onSave'),false);
+ eq(save.clean(clone(link)).onSave,false);
+ const act={type:'utility',effects:[clone(link)]},system={activities:{activation:act}};
+ normalizeNpcItemMechanics({name:'Scudo',type:'spell',system});
+ eq(nativePatchMissingPaths({link:plain.clean(clone(act.effects[0]))},{path:'link',op:'set',value:act.effects[0]}),[]);
+}
 {
  // Use the damage schema and field constructors from this D&D5e installation.
  // Only the surrounding Actor and the database writes are simulated.

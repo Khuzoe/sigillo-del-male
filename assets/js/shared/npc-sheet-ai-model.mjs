@@ -1,14 +1,36 @@
 import {nativeGet,nativeSet,nativeHas,nativeEqual,nativeDiff,nativeValidateChanges,nativeEditorSource,nativeEntityData,nativePatchConflict,nativeNormalizeEffect,nativeActivitiesAmbiguous,nativeNormalizeActorRanges} from './npc-native-model.mjs';
-import {nativeAbilityEditProjection,compileNativeAbilityEdit,validateNativeAbilityEditDraft,nativeAbilityEditChanges,nativeAiAssertData,nativeAiMergeFields} from './npc-native-ability-edit.mjs';
-import {decodeNpcAiValue,NPC_AI_VALUE_SCHEMA,validateNpcDomainFields} from './npc-ai-values.mjs';
+import {nativeAbilityEditProjection,compileNativeAbilityEdit,validateNativeAbilityEditDraft,nativeAbilityEditChanges,nativeAiAssertData,nativeAiMergeFields} from './npc-native-ability-edit.mjs?v=20261124-bonuses';
+import {decodeNpcAiValue,NPC_AI_VALUE_SCHEMA,NPC_AI_ACTIVITY_TYPES,validateNpcDomainFields} from './npc-ai-values.mjs';
+import {normalizeNpcEffectChanges} from './npc-item-mechanics.mjs';
+import {NPC_SHEET_ITEM_TYPES,NPC_SHEET_ACTIVITY_ITEMS,npcSheetChangeSchema,npcSheetFormChanges} from './npc-sheet-ai-forms.mjs';
 import {nativeAbilityAutomationWarnings,nativeEffectsAmbiguous,nativeEquivalentActivityReference,nativePreserveActivityReferences} from './npc-native-automation.mjs';
 
 export const NPC_SHEET_AI_FORMAT='npc-native-sheet-edit-v1';
 export const NPC_SHEET_AI_VERSION=1;
-export const NPC_SHEET_AI_COMPILER=7;
+export const NPC_SHEET_AI_COMPILER=10;
 const clone=structuredClone,object=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false}),string={type:'string'};
-export const NPC_SHEET_AI_SCHEMA={$defs:{fieldValue:NPC_AI_VALUE_SCHEMA},...object({summary:string,balance:string,assumptions:{type:'array',items:string},unsupported:{type:'array',items:string},operations:{type:'array',items:object({targetType:{type:'string',enum:['Actor','Item','ActiveEffect']},targetId:string,parentItemId:string,operation:{type:'string',enum:['update','create','delete']},itemType:{type:'string',enum:['','feat','spell','weapon','equipment','consumable','tool','loot','container']},name:string,changes:{type:'array',items:object({path:string,op:{type:'string',enum:['set','delete']},value:{$ref:'#/$defs/fieldValue'}})}})}})};
-const allowedTypes=new Set(['feat','spell','weapon','equipment','consumable','tool','loot','container']);
+const nativeChange=object({path:string,op:{type:'string',enum:['set','delete']},value:{$ref:'#/$defs/fieldValue'}});
+const operationSchema=object({
+ targetType:{type:'string',enum:['Actor','Item','ActiveEffect']},targetId:string,parentItemId:string,
+ operation:{type:'string',enum:['update','create','delete']},itemType:{type:'string',enum:['',...NPC_SHEET_ITEM_TYPES]},
+ name:string,changes:{type:'array',items:npcSheetChangeSchema(nativeChange)}
+});
+const schemaFor=operation=>object({
+ summary:string,balance:string,assumptions:{type:'array',items:string},unsupported:{type:'array',items:string},
+ operations:{type:'array',items:operation}
+});
+export const NPC_SHEET_AI_SCHEMA={$defs:{fieldValue:NPC_AI_VALUE_SCHEMA},...schemaFor(operationSchema)};
+const translatable={
+ Actor:/^(?:name|system\.details\.(?:alignment|biography\.(?:value|public)))$/,
+ Item:/^(?:name|system\.(?:description\.(?:value|chat|unidentified)|activities\.[^.]+\.(?:name|description\.(?:value|chatFlavor))))$/,
+ ActiveEffect:/^(?:name|description)$/
+};
+const textPath={type:'string',pattern:Object.values(translatable).map(pattern=>pattern.source).join('|')};
+export const NPC_SHEET_AI_TRANSLATION_SCHEMA=schemaFor(object({
+ ...operationSchema.properties,operation:{type:'string',enum:['update']},itemType:{type:'string',enum:['']},
+ changes:{type:'array',items:object({path:textPath,op:{type:'string',enum:['set']},value:string})}
+}));
+const allowedTypes=new Set(NPC_SHEET_ITEM_TYPES);
 const plain=value=>String(value||'').replace(/<[^>]*>/g,' ');
 const fakeItem=effects=>({_id:'KhzActorEffects1',name:'Effetti del personaggio',type:'feat',system:{activities:{}},effects,flags:{}});
 const effectData=effect=>Object.fromEntries(Object.entries(effect).filter(([key])=>!['_id','type','_stats','ownership','origin'].includes(key)));
@@ -18,7 +40,7 @@ const itemDraft=(base,row)=>({version:1,format:'npc-native-ability-edit-v1',item
 export function npcSheetItemTemplate(type,name,id){
  if(!allowedTypes.has(type)||typeof name!=='string'||!name.trim())throw new Error('Tipo o nome del nuovo elemento non valido.');
  const system={description:{value:''}};
- if(['feat','spell','weapon','equipment','consumable','tool'].includes(type))Object.assign(system,{activities:{},uses:{spent:0,max:'',recovery:[]}});
+ if(NPC_SHEET_ACTIVITY_ITEMS.includes(type))Object.assign(system,{activities:{},uses:{spent:0,max:'',recovery:[]}});
  if(type==='feat')system.type={value:'monster',subtype:''};
  if(type==='spell')Object.assign(system,{level:1,school:'abj',method:'spell',prepared:0});
  if(['equipment','consumable','tool','loot','container'].includes(type))system.quantity=1;
@@ -48,7 +70,9 @@ function changeFields(original,changes,type,permissions){
  for(const change of changes){
   if(!change||typeof change.path!=='string'||!['set','delete'].includes(change.op)||!Object.hasOwn(change,'value')&&typeof change.valueJson!=='string')throw new Error('Campo della proposta non valido.');
   if(seen.some(path=>path===change.path||path.startsWith(change.path+'.')||change.path.startsWith(path+'.')))throw new Error('La proposta contiene campi sovrapposti.');seen.push(change.path);
-  const value=decodeNpcAiValue(change,original);if(change.op==='set')nativeAiAssertData(value,change.path);
+  let value=decodeNpcAiValue(change,original);
+  if(type==='Actor'&&Number.isFinite(value)&&/^system\.abilities\.(?:str|dex|con|int|wis|cha)\.bonuses\.(?:check|save)$/.test(change.path))value=String(value);
+  if(change.op==='set')nativeAiAssertData(value,change.path);
   nativeSet(next,change.path,value,change.op==='delete');
   // Public projections include an empty automation namespace even when the
   // source has none. Omitting that placeholder isn't a module deletion.
@@ -69,13 +93,20 @@ function validateOperationOverlaps(operations){
 }
 export function compileNpcSheetProposal(proposal,source,options={},allowItemCorrection=false){
  notes(proposal);if(!Array.isArray(proposal.operations)||proposal.operations.length>256)throw new Error('Operazioni della scheda non valide.');
- validateOperationOverlaps(proposal.operations);
+ const itemTypes=new Map((source.items||[]).map(item=>[item._id,item.type]));
+ const operations=proposal.operations.map((operation,index)=>{
+  try{
+   if(!operation||typeof operation!=='object')throw new Error('Operazione non valida.');
+   const type=operation.operation==='create'?operation.itemType:itemTypes.get(operation.targetId);
+   return {...operation,changes:npcSheetFormChanges(operation,type)};
+  }catch(error){throw new Error(`Operazione ${index+1} · ${operation?.name||operation?.targetId||'elemento'}: ${error.message}`);}
+ });
+ validateOperationOverlaps(operations);
  const base=npcSheetAiProjection(source),draft={version:1,format:NPC_SHEET_AI_FORMAT,mode:options.mode||'general',base,actor:clone(base.actor),items:clone(base.items),effects:clone(base.effects),createdItems:[],createdEffects:[],summary:proposal.summary,balance:proposal.balance,assumptions:clone(proposal.assumptions),unsupported:clone(proposal.unsupported)};
  const permissions={isAdmin:false,embeddedEffects:true,sharedRuntime:options.sharedRuntime!==false},used=new Set([source._id,...(source.items||[]).map(item=>item._id),...(source.effects||[]).map(effect=>effect._id)]),aliases=new Map(),seen=new Set();let sequence=0;
  const allocate=kind=>{let id;do{id=`KhzNpc${kind}${String(++sequence).padStart(8,'0')}`;}while(used.has(id));used.add(id);return id;};
- for(const [operationIndex,operation] of proposal.operations.entries()){
+ for(const [operationIndex,operation] of operations.entries()){
   try {
-  if(!operation||typeof operation!=='object')throw new Error('Operazione non valida.');
   const {targetType,targetId,parentItemId,changes}=operation;
   if(!['Actor','Item','ActiveEffect'].includes(targetType)||!['create','update','delete'].includes(operation.operation)||typeof targetId!=='string'||typeof parentItemId!=='string')throw new Error('Destinazione della proposta non valida.');
   const key=`${targetType}:${parentItemId}:${targetId}`;if(seen.has(key))throw new Error('Più operazioni si sovrappongono sullo stesso elemento.');seen.add(key);
@@ -121,9 +152,12 @@ export function compileNpcSheetProposal(proposal,source,options={},allowItemCorr
 }
 function checkRows(rows,types=false){if(!Array.isArray(rows)||rows.length>256||new Set(rows.map(row=>row.id)).size!==rows.length)throw new Error('Elementi della bozza non validi o duplicati.');for(const row of rows)if(!/^[A-Za-z0-9]{16}$/.test(row.id)||!row.data||types&&typeof row.type!=='string')throw new Error('Elemento della bozza non valido.');}
 export function validateNpcSheetDraft(input,source,options={},allowItemCorrection=false){
+ return validateSheetFields(input,source,npcSheetAiProjection(source),options,allowItemCorrection);
+}
+function validateSheetFields(input,source,base,options,allowItemCorrection){
  notes(input);if(input.version!==1||input.format!==NPC_SHEET_AI_FORMAT||!['general','translate'].includes(input.mode)||input.mode!==(options.mode||'general'))throw new Error('Bozza della scheda non valida.');
  if(Object.keys(input).some(key=>!['version','format','mode','base','actor','items','effects','createdItems','createdEffects','summary','balance','assumptions','unsupported'].includes(key)))throw new Error('La bozza contiene dati non previsti.');
- const base=npcSheetAiProjection(source);if(!nativeEqual(input.base,base))throw new Error('La sorgente della proposta non corrisponde alla scheda selezionata.');
+ if(!nativeEqual(input.base,base))throw new Error('La sorgente della proposta non corrisponde alla scheda selezionata.');
  const permissions={isAdmin:false,embeddedEffects:true,sharedRuntime:options.sharedRuntime!==false},draft=clone(input);
  nativeNormalizeActorRanges(base.actor,draft.actor);validateNpcDomainFields(base.actor,draft.actor,'Actor');
  const actorPatches=nativeDiff(base.actor,draft.actor,'Actor',permissions);for(const patch of actorPatches)if(patch.op==='set')nativeAiAssertData(patch.value,patch.path);if(actorPatches.length)nativeValidateChanges(source,{type:'Actor',id:source._id},actorPatches,permissions);
@@ -131,7 +165,7 @@ export function validateNpcSheetDraft(input,source,options={},allowItemCorrectio
  const ids=new Set([...base.items.map(row=>row.id),...base.effects.map(row=>row.id),source._id]);
  for(const row of draft.items){const original=source.items.find(item=>item._id===row.id);if(!original||original.type!==row.type)throw new Error('L’identità o il tipo di una capacità esistente non può cambiare.');if(!nativeEqual(base.items.find(item=>item.id===row.id).data,row.data))row.data=validateNativeAbilityEditDraft(itemDraft(original,row),original,options.capabilities||{},allowItemCorrection).item;}
  for(const row of draft.createdItems){if(ids.has(row.id))throw new Error('Il nuovo elemento usa un identificativo già presente.');ids.add(row.id);const template=npcSheetItemTemplate(row.type,row.base?.name,row.id);if(!nativeEqual(row.base,nativeAbilityEditProjection(template)))throw new Error('Sorgente del nuovo elemento non valida.');row.data=validateNativeAbilityEditDraft(itemDraft(template,row),template,options.capabilities||{},allowItemCorrection).item;}
- const validateEffect=(row,original)=>{const before=effectData(nativeAbilityEditProjection(fakeItem([original])).effects[0]||{});if(!before.name)throw new Error('L’effetto gestito da codice non può essere modificato dall’AI.');const patches=nativeDiff(before,row.data,'ActiveEffect',permissions);for(const patch of patches)if(patch.op==='set')nativeAiAssertData(patch.value,patch.path);if(patches.length){
+ const validateEffect=(row,original)=>{const before=effectData(nativeAbilityEditProjection(fakeItem([original])).effects[0]||{});if(!before.name)throw new Error('L’effetto gestito da codice non può essere modificato dall’AI.');normalizeNpcEffectChanges(row.data,before);const patches=nativeDiff(before,row.data,'ActiveEffect',permissions);for(const patch of patches)if(patch.op==='set')nativeAiAssertData(patch.value,patch.path);if(patches.length){
   for(const change of row.data.system?.changes||[])if(!/^system\.[A-Za-z0-9_.-]+$/.test(change.key)||!['multiply','add','subtract','downgrade','upgrade','override'].includes(change.type))throw new Error('Gli effetti AI possono modificare dati di gioco, senza macro o operazioni personalizzate.');
   nativeValidateChanges(original,{type:'ActiveEffect',id:row.id},patches,permissions);
  }};
@@ -154,9 +188,9 @@ function validateTranslation(draft,permissions){
   };
   if(!nativeEqual(roles(patch.baseValue),roles(patch.value)))throw new Error('La traduzione ha cambiato CD, CA o distanze: conserva i valori nel loro contesto.');
   if(!nativeEqual(tokens(patch.baseValue),tokens(patch.value))||!nativeEqual(numbers(patch.baseValue),numbers(patch.value))||!nativeEqual(dice(patch.baseValue),dice(patch.value)))throw new Error('La traduzione deve conservare numeri, formule e collegamenti.');};
- for(const patch of nativeDiff(draft.base.actor,draft.actor,'Actor',permissions))textChange(patch,path=>path==='name'||path==='system.details.alignment'||/^system\.details\.biography\.(?:value|public)$/.test(path));
- const effectTexts=(before,after)=>{for(const patch of nativeDiff(before,after,'ActiveEffect',permissions))textChange(patch,path=>['name','description'].includes(path));};
- for(const row of draft.items){const before=draft.base.items.find(item=>item.id===row.id).data;for(const patch of nativeDiff(mainData(before),mainData(row.data),'Item',permissions)){if(nativeEquivalentActivityReference(before,row.data,patch))continue;textChange(patch,path=>path==='name'||/^system\.description\.(?:value|chat|unidentified)$/.test(path)||/^system\.activities\.[^.]+\.(?:name|description\.(?:value|chatFlavor))$/.test(path));}if(!nativeEqual(before.effects.map(effect=>effect._id).sort(),row.data.effects.map(effect=>effect._id).sort()))throw new Error('La traduzione conserva gli effetti esistenti.');for(const effect of row.data.effects)effectTexts(effectData(before.effects.find(value=>value._id===effect._id)),effectData(effect));}
+ for(const patch of nativeDiff(draft.base.actor,draft.actor,'Actor',permissions))textChange(patch,path=>translatable.Actor.test(path));
+ const effectTexts=(before,after)=>{for(const patch of nativeDiff(before,after,'ActiveEffect',permissions))textChange(patch,path=>translatable.ActiveEffect.test(path));};
+ for(const row of draft.items){const before=draft.base.items.find(item=>item.id===row.id).data;for(const patch of nativeDiff(mainData(before),mainData(row.data),'Item',permissions)){if(nativeEquivalentActivityReference(before,row.data,patch))continue;textChange(patch,path=>translatable.Item.test(path));}if(!nativeEqual(before.effects.map(effect=>effect._id).sort(),row.data.effects.map(effect=>effect._id).sort()))throw new Error('La traduzione conserva gli effetti esistenti.');for(const effect of row.data.effects)effectTexts(effectData(before.effects.find(value=>value._id===effect._id)),effectData(effect));}
  for(const row of draft.effects)effectTexts(draft.base.effects.find(effect=>effect.id===row.id).data,row.data);
 }
 export function npcSheetDraftChanges(draft){
@@ -183,7 +217,8 @@ export function npcSheetProposalEditor(draft,actorId,options={}){
  entities.push({key:`Actor::${actorId}`,target:{type:'Actor',id:actorId},type:'Actor',name:draft.actor.name,category:'stats',data:clone(draft.base.actor),initialDraft:clone(draft.actor)});
  for(const row of [...draft.items,...draft.createdItems]){
   const before=draft.base.items.find(value=>value.id===row.id)?.data||row.base,withoutEffects=value=>{const result=clone(value);delete result.effects;return result;},category=row.type==='spell'?'spells':['feat','weapon'].includes(row.type)?'abilities':'inventory';
-  entities.push({key:`Item::${row.id}`,target:{type:'Item',id:row.id},type:'Item',itemType:row.type,activityReadOnly:nativeActivitiesAmbiguous(row.data),name:row.data.name,category,data:withoutEffects(before),initialDraft:withoutEffects(row.data)});
+  const selectedActivity=Object.keys(row.data.system?.activities||{}).find(id=>!before.system?.activities?.[id]&&!NPC_AI_ACTIVITY_TYPES.includes(row.data.system.activities[id].type));
+  entities.push({key:`Item::${row.id}`,target:{type:'Item',id:row.id},type:'Item',itemType:row.type,selectedActivity,activityReadOnly:nativeActivitiesAmbiguous(row.data),name:row.data.name,category,data:withoutEffects(before),initialDraft:withoutEffects(row.data)});
   for(const effect of row.data.effects||[]){const old=before.effects?.find(value=>value._id===effect._id);entities.push(effectEntity({id:effect._id,type:effect.type,data:effectData(effect)},old?effectData(old):effectData(effect),row));}
  }
  for(const row of [...draft.effects,...draft.createdEffects])entities.push(effectEntity(row,draft.base.effects.find(value=>value.id===row.id)?.data||row.base));
@@ -212,9 +247,12 @@ export function npcSheetCommandPlan(draft,baseline,current,options={}){
 }
 function nativeApplyItem(template,row,options){const draft=itemDraft(template,row),patches=nativeAbilityEditChanges(draft,template,options.capabilities||{}),result=clone(template);for(const patch of patches)nativeSet(result,patch.path,patch.value,patch.op==='delete');return result;}
 
-export function validateNpcSheetReview(draft,actorId,options={}){
- const source={_id:actorId,type:'npc',...clone(draft.base.actor),prototypeToken:{actorLink:options.sharedRuntime!==false},items:draft.base.items.map(row=>({_id:row.id,type:row.type,...clone(row.data)})),effects:draft.base.effects.map(row=>({_id:row.id,type:row.type,...clone(row.data)}))};
- return validateNpcSheetDraft(draft,source,options);
+export function validateNpcSheetReview(draft,actorId,options={},allowItemCorrection=false,serverBase){
+ // The Worker already projected this baseline. Filtering it a second time in
+ // another release or locale can remove native fields or reorder effects.
+ const base=serverBase??draft.base;
+ const source={_id:actorId,type:'npc',...clone(base.actor),prototypeToken:{actorLink:options.sharedRuntime!==false},items:base.items.map(row=>({_id:row.id,type:row.type,...clone(row.data)})),effects:base.effects.map(row=>({_id:row.id,type:row.type,...clone(row.data)}))};
+ return serverBase?validateSheetFields(draft,source,serverBase,options,allowItemCorrection):validateNpcSheetDraft(draft,source,options,allowItemCorrection);
 }
 // Explicitly reopening a failed submission produces a new review against the
 // current source. It does not write the world or repeat the model request.

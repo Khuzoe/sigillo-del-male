@@ -13,6 +13,16 @@ const proposal=changes=>({changes,summary:"Il morso cura dai soli danni necrotic
 const set=(path,value)=>({path,op:"set",valueJson:JSON.stringify(value)});
 export const editAbilityProposal=proposal([set("flags.khuzoe-automations.npcRules",rule)]);
 const draft=compileNativeAbilityEdit(editAbilityProposal,item,capabilities),patches=nativeAbilityEditChanges(draft,item,capabilities);
+{
+ const baseline=structuredClone(item);
+ baseline.system.activities[attackId].bonuses={check:'+1'};
+ baseline.effects.push({_id:'BonusesEffect001',name:'Bonus',type:'base',system:{changes:[{key:'system.abilities.con.bonuses.save',type:'add',value:'1',phase:'initial',priority:20}]}});
+ const current=compileNativeAbilityEdit(proposal([set('name','Morso tradotto')]),baseline,capabilities);
+ const legacy=structuredClone(current);
+ legacy.base=nativeAbilityEditProjection(baseline,true);legacy.item={...structuredClone(legacy.base),name:'Morso tradotto'};
+ eq(nativeAbilityEditChanges(legacy,baseline,capabilities),nativeAbilityEditChanges(current,baseline,capabilities),'Reopening an old review preserves newly visible bonuses and effects');
+ baseline.name='Altro morso';refuses(()=>nativeAbilityEditChanges(legacy,baseline,capabilities),/cambiata/);
+}
 const duplicateActivities=structuredClone(item);duplicateActivities.system.activities['0']=structuredClone(duplicateActivities.system.activities[attackId]);
 const duplicateRename=compileNativeAbilityEdit(proposal([set('name','Morso tradotto')]),duplicateActivities,capabilities);eq(nativeAbilityEditChanges(duplicateRename,duplicateActivities,capabilities).map(patch=>patch.path),['name'],'Text edits preserve legacy duplicate activity IDs');refuses(()=>compileNativeAbilityEdit(proposal([set('system.activities.0.name','Changed')]),duplicateActivities,capabilities),/duplicati/);
 eq(draft.format,NATIVE_ABILITY_EDIT_FORMAT);eq(patches.map(p=>p.path),["flags.khuzoe-automations.npcRules"],"Mixed damage and critical behavior are not rebuilt for typed lifesteal");

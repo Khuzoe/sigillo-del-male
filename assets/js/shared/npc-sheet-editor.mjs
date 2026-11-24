@@ -1,6 +1,6 @@
 import { nativeGet, nativeSet, nativeHas, nativeEqual, nativeDiff, nativeEditablePath, nativeNewId, nativeActivityTemplate } from "./npc-native-model.mjs";
 import {nativePreserveActivityReferences} from './npc-native-automation.mjs';
-import {validateNpcDomainFields} from './npc-ai-values.mjs';
+import {NPC_AI_ACTIVITY_TYPES,validateNpcDomainFields} from './npc-ai-values.mjs';
 import {appendAnimationControls} from './npc-animation-editor.mjs?v=20261121-audio';
 
 const clone=value=>JSON.parse(JSON.stringify(value));
@@ -27,6 +27,7 @@ const optionsMap=(path,entity)=>{
  if(/\.target\.template\.type$/.test(path))return{"":"Nessuna area",cone:"Cono",cube:"Cubo",cylinder:"Cilindro",line:"Linea",radius:"Raggio",sphere:"Sfera"};
  if(/\.ability$|\.spellcasting$/.test(path))return{"":"Automatica",str:"Forza",dex:"Destrezza",con:"Costituzione",int:"Intelligenza",wis:"Saggezza",cha:"Carisma"};
  if(entity.type==='Actor'&&/^system\.(?:attributes\.(?:movement|senses)\.units|traits\.languages\.communication\.[^.]+\.units)$/.test(path))return{ft:'Piedi',m:'Metri',mi:'Miglia',km:'Chilometri'};
+ if(/^system\.activities\.[^.]+\.range\.units$/.test(path)||entity.itemType==='spell'&&path==='system.range.units')return{ft:'Piedi',m:'Metri',mi:'Miglia',km:'Chilometri',self:'Sé stesso',touch:'Contatto',spec:'Speciale',any:'Qualsiasi'};
  if(/\.units$/.test(path))return units;
  if(/\.onSave$/.test(path))return{none:"Nessun danno",half:"Metà danno",full:"Danno pieno"};
  if(/\.mode$/.test(path)&&path.includes("changes"))return{0:"Personalizzata",1:"Moltiplica",2:"Aggiungi",3:"Riduci al massimo",4:"Alza al minimo",5:"Sostituisci"};
@@ -78,9 +79,11 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
   } else {
    const isLong=typeof value==="string"&&(/description|biography|macroData\.command/.test(path)||value.length>140);
    const nullableActorNumber=entity.type==='Actor'&&(/^system\.attributes\.senses\.ranges\.[^.]+$|^system\.traits\.languages\.communication\.[^.]+\.value$|^system\.abilities\.[^.]+\.max$|^system\.resources\.[^.]+\.initiative$/.test(path));
-   const numeric=nullableActorNumber||typeof value==="number"||(value===null&&/\.(number|denomination|rounds|turns|seconds|quantity|level|prepared|flat|cr)$|\.hp\.(value|max|temp|tempmax|dt)$|\.duration\.value$/.test(path));
+   const weaponDistance=entity.itemType==='weapon'&&/^system\.range\.(?:value|long|reach)$/.test(path);
+   const numeric=weaponDistance||nullableActorNumber||typeof value==="number"||(value===null&&/\.(number|denomination|rounds|turns|seconds|quantity|level|prepared|flat|cr)$|\.hp\.(value|max|temp|tempmax|dt)$|\.duration\.value$/.test(path));
    input=make(isLong?"textarea":"input");if(input.tagName==="INPUT")input.type=numeric?"number":"text";
-   if(input.type==="number")input.step="any";if(isLong)input.rows=4;
+   if(input.type==='text'&&(/^system\.activities\.[^.]+\.range\.value$/.test(path)||entity.itemType==='spell'&&path==='system.range.value'))input.placeholder='Distanza o formula. Vuoto per Sé stesso o Contatto.';
+   if(input.type==="number")input.step="any";if(weaponDistance)input.min="0";if(isLong)input.rows=4;
    input.value=value??"";if(value===null)input.placeholder=entity.type==='Actor'&&numeric?"Non impostato":"Automatico";
    input.addEventListener("input",()=>{
     if(input.type==="number" && !input.validity.valid)return;
@@ -175,10 +178,21 @@ export function mountNpcSheetEditor({root,source,panes,onDirty,onCommands,post,g
   const render=()=>{
    nav.replaceChildren();content.replaceChildren();const all=entity.draft.system.activities||{};
     for(const [id,activity]of Object.entries(all)){const b=button(activity.name||activityNames[activity.type]||activity.type,()=>{selected=id;entity.selectedActivity=id;render();});b.setAttribute("aria-pressed",String(id===selected));nav.append(b);}
-   const add=make("select");add.setAttribute("aria-label","Aggiungi attività");add.innerHTML='<option value="">+ Nuova attività</option>'+["attack","save","damage","heal","utility"].map(key=>`<option value="${key}">${activityNames[key]}</option>`).join("");add.disabled=locked(entity);
+   const add=make("select");add.setAttribute("aria-label","Aggiungi attività");add.innerHTML='<option value="">+ Nuova attività</option>'+NPC_AI_ACTIVITY_TYPES.map(key=>`<option value="${key}">${activityNames[key]}</option>`).join("");add.disabled=locked(entity);
     add.addEventListener("change",()=>{if(!add.value)return;const activity=nativeActivityTemplate(add.value,activityNames[add.value]);if(creationMode&&entity.draft.system.uses.max)activity.consumption.targets=[{type:"itemUses",target:"",value:"1",scaling:{mode:""}}];set(entity,`system.activities.${activity._id}`,activity);selected=activity._id;entity.selectedActivity=selected;render();});nav.append(add);
    if(!selected||!all[selected]){content.append(make("p","npc-sheet-muted","Aggiungi un’attività per definire cosa accade quando usi questa capacità."));return;}
    const activity=all[selected],prefix=`system.activities.${selected}`;
+   const proposed=entity.initialDraft?.system?.activities?.[selected];
+   if(draftMode&&!textOnly&&!entity.data.system?.activities?.[selected]&&proposed){
+    const label=make("label","npc-sheet-field"),select=make("select");
+    label.append(make("span","",NPC_AI_ACTIVITY_TYPES.includes(proposed.type)?"Tipo di attività":`Tipo di attività proposto dall’AI · ${proposed.type}`));
+    select.setAttribute("aria-label","Tipo di attività");
+    const placeholder=make("option","","Scegli il tipo di attività");placeholder.value="";placeholder.disabled=true;select.append(placeholder);
+    for(const type of NPC_AI_ACTIVITY_TYPES){const option=make("option","",activityNames[type]);option.value=type;select.append(option);}
+    select.value=NPC_AI_ACTIVITY_TYPES.includes(activity.type)?activity.type:"";select.disabled=locked(entity);
+    select.addEventListener("change",()=>{set(entity,`${prefix}.type`,select.value);render();});
+    label.append(select);content.append(label);
+   }
    if (animationContext && !draftMode) {
     const animation=group('Animazione');
     const activityId=selected;

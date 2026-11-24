@@ -4,9 +4,17 @@ Il pulsante nella barra della scheda apre una revisione dell’intero NPC di gio
 
 Una richiesta può combinare aggiornamenti, aggiunte e rimozioni. L’AI restituisce operazioni mirate sui documenti nativi, non un Actor sostitutivo. Il riepilogo distingue ogni modifica, creazione e rimozione; l’editor manuale è lo stesso usato dal resto della scheda. La conferma rimane esplicita.
 
+## Campi guidati
+
+Per una modifica meccanica il modello riceve la scheda effettiva dell’NPC, gli scheletri degli otto tipi di oggetto e i cinque tipi di attività che l’editor può creare. Lo schema della risposta specifica i valori ammessi per bonus di caratteristica, distanze delle armi, preparazione degli incantesimi, tipo e gittata delle attività, dadi di danno e tiri salvezza a CD fissa. Lo stesso catalogo traduce i campi compilati in modifiche native. Per esempio, un bonus di `+2` al tiro salvezza di Costituzione produce una scrittura su `system.abilities.con.bonuses.save`.
+
+Alla creazione di un tratto come Serraggio, l’AI può indicare Destrezza, CD 19 e 4d8 contundenti. Il sito scrive il tiro salvezza e i dadi sull’attività selezionata. Per una nuova arma può collocare i dadi nel danno base. Le meccaniche articolate e i campi privi di un modulo guidato conservano il formato nativo e i relativi controlli. Per una proposta precedente respinta su un bonus di caratteristica, il Worker recupera il valore di partenza dallo snapshot disponibile e sottopone la bozza a revisione. Alla conferma controlla se il campo è cambiato nel frattempo.
+
+Nella finestra di revisione, il confronto usa la copia iniziale inviata dal server per quella proposta. Il browser salva una copia di recupero dopo una modifica manuale. **Salva bozza** conserva la revisione sul sito. Alla conferma il Worker verifica la sorgente archiviata e i valori correnti dei campi interessati prima di inviare il gruppo a Foundry.
+
 ## Riferimento visivo
 
-**Modifica NPC con AI** allega automaticamente l’avatar salvato sulla wiki, quando disponibile. La stessa richiesta contiene il contesto nativo filtrato, le istruzioni del GM, l’eventuale bozza da rivedere e l’immagine come `input_image`, con dettaglio `low`. Il percorso è condiviso con **Suggerisci modifiche** e usa l’invio di testo e immagini descritto nella [documentazione ufficiale OpenAI](https://developers.openai.com/api/docs/guides/images-vision). Il modello testo resta quello configurato per le capacità; non viene chiamato un generatore di immagini.
+**Modifica NPC con AI** usa `gpt-6.2-sol` con ragionamento `medium` per le modifiche, le revisioni e le traduzioni dell’intera scheda. La richiesta include i dati nativi filtrati, le istruzioni del GM e l’eventuale bozza da rivedere. Quando è disponibile, il Worker allega l’avatar salvato sulla wiki come `input_image` con dettaglio `low`. [Documentazione OpenAI sugli input visivi](https://developers.openai.com/api/docs/guides/images-vision).
 
 L’avatar serve a mantenere coerenti anatomia, abbigliamento, equipaggiamento e dettagli delle modifiche richieste. Le istruzioni del GM e le regole esistenti hanno precedenza. L’aspetto non dimostra automaticamente allineamento, immunità, volo o poteri; le inferenze vanno dichiarate nelle ipotesi. La traduzione conserva le meccaniche anche in presenza dell’immagine. Il contesto della scheda comprende anche l’eventuale biografia nei dati nativi di Foundry; i dossier separati della wiki restano esclusi.
 
@@ -16,7 +24,7 @@ Senza un avatar disponibile la richiesta continua con dati e testi. La finestra 
 
 ## Traduzione
 
-Il comando rapido **Traduci tutte le capacità** sceglie la modalità `translate`. Questa modalità ammette soltanto nomi e testi: vieta modifiche meccaniche, aggiunte e rimozioni e controlla numeri, espressioni dei dadi e riferimenti Foundry. L’editor mostra solo i campi testuali. Gli effetti generati dai preset restano gestiti dai preset.
+Il comando rapido **Traduci tutte le capacità** sceglie la modalità `translate`. Questa modalità ammette soltanto nomi e testi: vieta modifiche meccaniche, aggiunte e rimozioni e controlla numeri, espressioni dei dadi e riferimenti Foundry. L’editor mostra solo i campi testuali. Gli effetti generati dai preset restano gestiti dai preset. Lo schema inviato per questa modalità offre soltanto aggiornamenti di campi testuali esistenti.
 
 ## Contratto e sincronizzazione
 

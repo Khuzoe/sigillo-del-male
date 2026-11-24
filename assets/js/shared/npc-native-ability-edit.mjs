@@ -1,11 +1,11 @@
 import {nativeGet, nativeSet, nativeEqual, nativeDiff, nativeValidateChanges, nativeEditorSource, nativeValidateValue, nativeActivitiesAmbiguous} from "./npc-native-model.mjs";
-import {decodeNpcAiValue,validateNpcDomainFields} from './npc-ai-values.mjs';
+import {decodeNpcAiValue,validateNpcDomainFields,NPC_AI_ACTIVITY_TYPES} from './npc-ai-values.mjs';
 import {normalizeNpcItemMechanics, NpcItemMechanicsError} from './npc-item-mechanics.mjs';
 import {nativePreserveActivityReferences,nativeEffectsAmbiguous} from './npc-native-automation.mjs';
 export {nativeAbilityAutomationWarnings,nativeEffectsAmbiguous} from './npc-native-automation.mjs';
 
 export const NATIVE_ABILITY_EDIT_FORMAT = "npc-native-ability-edit-v1";
-export const NATIVE_ABILITY_EDIT_COMPILER_VERSION = 7;
+export const NATIVE_ABILITY_EDIT_COMPILER_VERSION = 9;
 const clone = value => value === undefined ? undefined : structuredClone(value);
 const object = properties => ({type:"object",properties,required:Object.keys(properties),additionalProperties:false});
 const string = {type:"string"};
@@ -15,30 +15,30 @@ export const NATIVE_ABILITY_EDIT_SCHEMA = object({
 });
 const damageTypes = new Set(["acid","bludgeoning","cold","fire","force","lightning","necrotic","piercing","poison","psychic","radiant","slashing","thunder"]);
 const conditions = new Set(["blinded","charmed","deafened","frightened","grappled","incapacitated","invisible","paralyzed","petrified","poisoned","prone","restrained","stunned","unconscious"]);
-const blocked = path => path.split(".").some(key => ["__proto__","prototype","constructor","_stats","ownership","midiRollConfig"].includes(key) || /macro|^script|^command|onUse/i.test(key));
+const blocked = (path,legacyBonuses=false) => path.split(".").some(key => ["__proto__","prototype","constructor","_stats","ownership","midiRollConfig"].includes(key) || /macro|^script|^command/i.test(key) || (/onUse/i.test(key) && (legacyBonuses || key !== "bonuses" || !path.startsWith("system."))));
 const safeFlag = path => /^flags\.(?:khuzoe-automations\.npcRules|midi-qol|dae)(?:\.|$)/.test(path);
 const allowed = path => !blocked(path) && (path === "name" || /^system\./.test(path) && !/^system\.(?:source|sourceItem|advancement)(?:\.|$)/.test(path) || safeFlag(path) || path === "effects");
-function project(value,path="") {
-  if (blocked(path)) return undefined;
-  if (Array.isArray(value)) return value.map((child,index)=>project(child,`${path}.${index}`));
+function project(value,path="",legacyBonuses=false) {
+  if (blocked(path,legacyBonuses)) return undefined;
+  if (Array.isArray(value)) return value.map((child,index)=>project(child,`${path}.${index}`,legacyBonuses));
   if (!value || typeof value !== "object") return clone(value);
-  return Object.fromEntries(Object.entries(value).filter(([key])=>!blocked(path?`${path}.${key}`:key)).map(([key,child])=>[key,key==="flags"?flags(child):project(child,path?`${path}.${key}`:key)]));
+  return Object.fromEntries(Object.entries(value).filter(([key])=>!blocked(path?`${path}.${key}`:key,legacyBonuses)).map(([key,child])=>[key,key==="flags"?flags(child,legacyBonuses):project(child,path?`${path}.${key}`:key,legacyBonuses)]));
 }
-function flags(value={}) {
+function flags(value={},legacyBonuses=false) {
   const result={"khuzoe-automations":{}};
   for(const [module,data] of Object.entries(value)) {
-    if(module==="khuzoe-automations" && data.npcRules)result[module]={npcRules:project(data.npcRules)};
-    else if(["midi-qol","dae"].includes(module))result[module]=project(data);
+    if(module==="khuzoe-automations" && data.npcRules)result[module]={npcRules:project(data.npcRules,"",legacyBonuses)};
+    else if(["midi-qol","dae"].includes(module))result[module]=project(data,"",legacyBonuses);
   }
   return result;
 }
-export function nativeAbilityEditProjection(item) {
-  const source=nativeEditorSource(item,"Item"),system=project(source.system||{},"system");
+export function nativeAbilityEditProjection(item,legacyBonuses=false) {
+  const source=nativeEditorSource(item,"Item"),system=project(source.system||{},"system",legacyBonuses);
   for(const key of ["source","sourceItem","advancement"])delete system[key];
-  return {name:source.name,system,flags:flags(source.flags),effects:(source.effects||[]).filter(effect=>(effect.system?.changes||[]).every(change=>/^system\./.test(change.key||"")&&!blocked(change.key)&&change.type!=="custom")).map(effect=>{
+  return {name:source.name,system,flags:flags(source.flags,legacyBonuses),effects:(source.effects||[]).filter(effect=>(effect.system?.changes||[]).every(change=>/^system\./.test(change.key||"")&&!blocked(change.key,legacyBonuses)&&change.type!=="custom")).map(effect=>{
     const result={};
-    for(const key of ["_id","name","img","type","description","disabled","transfer","duration","statuses","changes","system","tint","showIcon"])if(Object.hasOwn(effect,key))result[key]=project(effect[key],key);
-    result.flags=flags(effect.flags);return result;
+    for(const key of ["_id","name","img","type","description","disabled","transfer","duration","statuses","changes","system","tint","showIcon"])if(Object.hasOwn(effect,key))result[key]=project(effect[key],key,legacyBonuses);
+    result.flags=flags(effect.flags,legacyBonuses);return result;
   })};
 }
 // Apply the changed, visible fields over the archived source. Opaque module
@@ -74,7 +74,7 @@ function assertData(value,path="") {
     if(entry&&typeof entry==="object")for(const [key,child]of Object.entries(entry))visit(child,prefix?`${prefix}.${key}`:key);
     else if(typeof entry==="string") {
       if(/<\s*(?:script|iframe|object|embed|style)\b|\bon\w+\s*=|javascript\s*:|\b(?:eval|Function)\s*\(|\b(?:game|canvas|globalThis|window|document)\s*[.[]/i.test(entry))throw new Error(`Questo campo deve contenere dati, senza codice: ${prefix}`);
-      if(/(?:formula|bonus|\.max)$/.test(prefix) && /[;{}]|=>/.test(entry))throw new Error(`Formula non valida: ${prefix}`);
+      if(/(?:formula|bonus|\.max|\.bonuses\.(?:check|save))$/.test(prefix) && /[;{}]|=>/.test(entry))throw new Error(`Formula non valida: ${prefix}`);
     }
   };visit(value,path);
 }
@@ -146,13 +146,27 @@ function assignCreatedIds(item,baseline) {
   if(rules?.activities){const result={};for(const [key,rule]of Object.entries(rules.activities)){const id=activityId(key);if(Object.hasOwn(result,id))throw new Error("Regole duplicate per la stessa attività.");result[id]=rule;}rules.activities=result;}
   return item;
 }
-function validateMechanics(item,baseline,capabilities={}) {
+function normalizeNewActivityTypes(item,baseline,allowItemCorrection) {
+  const unresolvedTypes=new Set();
+  for(const [id,activity] of Object.entries(item.system?.activities||{})){
+    if(baseline.system?.activities?.[id])continue;
+    const value=activity?.type;
+    if(typeof value!=='string'||!value.trim()||value.length>128)throw new Error(`«${item.name}» contiene un tipo di attività non valido.`);
+    const type=value.trim().toLowerCase();
+    if(NPC_AI_ACTIVITY_TYPES.includes(type))activity.type=type;
+    else {
+      if(!allowItemCorrection)throw new Error(`«${item.name}» · ${activity.name||id} richiede un tipo di attività supportato. Il valore proposto è «${value}». Scegli il tipo nell’editor della proposta.`);
+      unresolvedTypes.add(id);
+    }
+  }
+  return unresolvedTypes;
+}
+function validateMechanics(item,baseline,capabilities,unresolvedTypes) {
   const activities=item.system?.activities||{},ids=new Set(Object.keys(activities));
   if(ids.size>32&&!nativeEqual(activities,baseline.system?.activities))throw new Error("Una capacità può contenere al massimo 32 attività.");
   for(const [id,activity]of Object.entries(activities)) {
     if(nativeEqual(activity,baseline.system?.activities?.[id]))continue;
     if(!/^[A-Za-z0-9]{16}$/.test(id)||activity._id!==id||!activity.type)throw new Error("Identificativo di attività non valido.");
-    if(!baseline.system?.activities?.[id]&&!['attack','save','damage','heal','utility'].includes(activity.type))throw new Error("La nuova attività richiede un tipo non supportato dall’editor.");
     if(!nativeEqual(activity.effects,baseline.system?.activities?.[id]?.effects))for(const link of activity.effects||[])if(!link||!/^[A-Za-z0-9]{16}$/.test(link._id||''))throw new Error('Il collegamento effetto richiede un identificativo Foundry valido.');
   }
   const effects=item.effects||[];
@@ -170,7 +184,7 @@ function validateMechanics(item,baseline,capabilities={}) {
       if(!ids.has(id)||Object.keys(rule).some(key=>!['healing','healingTypes','conditions','rounds','expiry'].includes(key))||![0,.5,1].includes(rule.healing??0)||!Array.isArray(rule.conditions??[])||(rule.conditions||[]).some(value=>!conditions.has(value))||!Number.isInteger(rule.rounds??1)||(rule.rounds??1)<0||(rule.rounds??1)>100||!['turnStart','turnEnd'].includes(rule.expiry??'turnEnd'))throw new Error("Effetto dell’attività non valido.");
       if(rule.healingTypes!==undefined&&(!Array.isArray(rule.healingTypes)||rule.healingTypes.length>13||rule.healingTypes.some(type=>!damageTypes.has(type))))throw new Error("Tipi di danno per la cura non validi.");
       if(rule.healingTypes?.length&&capabilities.healingTypes!==1)throw new Error("Aggiorna Khuzoe Automations e sincronizza l’NPC per usare la cura da un tipo di danno.");
-      if(rule.healing&&!['attack','save','damage'].includes(activities[id].type))throw new Error("La cura dai danni richiede un attacco, un danno o un tiro salvezza.");
+      if(rule.healing&&!unresolvedTypes.has(id)&&!['attack','save','damage'].includes(activities[id].type))throw new Error("La cura dai danni richiede un attacco, un danno o un tiro salvezza.");
     }
   }
 }
@@ -210,7 +224,7 @@ function normalizeActivityLongRanges(item,baseline) {
     range.special=[range.special,note].filter(Boolean).join(' · ');
   }
 }
-export function validateNativeAbilityEditDraft(draft,baseline,capabilities={},allowItemCorrection=false) {
+export function validateNativeAbilityEditDraft(draft,baseline,capabilities={},allowItemCorrection=false,proposalPaths) {
   if(draft?.version!==1||draft.format!==NATIVE_ABILITY_EDIT_FORMAT||!draft.item||typeof draft.itemId!=="string")throw new Error("Bozza di modifica non valida.");
   if(Object.keys(draft).some(key=>!["version","format","itemId","itemType","base","item","summary","balance","assumptions","unsupported","iconPrompt","capabilities","generatedEffects"].includes(key)))throw new Error("La bozza contiene campi non previsti.");
   if(baseline && (draft.itemId!==baseline._id||draft.itemType!==baseline.type))throw new Error("La bozza riguarda un’altra capacità.");
@@ -218,28 +232,39 @@ export function validateNativeAbilityEditDraft(draft,baseline,capabilities={},al
   for(const key of ["assumptions","unsupported"])if(!Array.isArray(draft[key])||draft[key].length>24||draft[key].some(value=>typeof value!=="string"||value.length>2000))throw new Error("Note della proposta non valide.");
   const base=baseline?nativeAbilityEditProjection(baseline):draft.base;
   if(!base)throw new Error("Manca la capacità originale.");
-  if(baseline&&!nativeEqual(draft.base,base))throw new Error("La capacità è cambiata. Conserva la bozza o riparti dalla scheda attuale con una nuova richiesta.");
+  if(baseline&&!nativeEqual(draft.base,base)){
+    // Old reviews omitted native bonuses and effects which target them.
+    // Reapply their visible edits only if the historical baseline still matches.
+    const legacy=nativeAbilityEditProjection(baseline,true);
+    const hiddenIds=new Set(base.effects.filter(effect=>!legacy.effects.some(old=>old._id===effect._id)).map(effect=>effect._id));
+    if(!nativeEqual(draft.base,legacy)||draft.item.effects?.some(effect=>hiddenIds.has(effect._id))||!nativeEqual(nativeAbilityEditProjection(draft.item,true),draft.item))throw new Error("La capacità è cambiata. Conserva la bozza o riparti dalla scheda attuale con una nuova richiesta.");
+    draft={...draft,base,item:reconcile(base,legacy,draft.item)};
+  }
   const patches=nativeDiff(base,draft.item,"Item",{isAdmin:false,embeddedEffects:true});
   for(const patch of patches) {
     if(!allowed(patch.path))throw new Error(`L’AI non può modificare questo campo: ${patch.path}`);
     if(patch.op==="set")assertData(patch.value,patch.path);
   }
   const original=baseline?nativeEditorSource(baseline,"Item"):{_id:draft.itemId,type:draft.itemType,...base},next=nativeEditorSource(reconcile(original,base,draft.item),"Item");
-  normalizeActivityLongRanges(next,original);
-  if (allowItemCorrection) {
-    const candidate = {...next, system: clone(next.system)};
+  const unresolvedTypes=normalizeNewActivityTypes(next,original,allowItemCorrection);
+  // Moving shared damage or range can depend on which activity will own it.
+  if (!unresolvedTypes.size) normalizeActivityLongRanges(next,original);
+  if (!allowItemCorrection) normalizeNpcItemMechanics(next,original,proposalPaths);
+  else if (!unresolvedTypes.size) {
+    const candidate = {...next, system: clone(next.system), effects: clone(next.effects)};
     try {
-      normalizeNpcItemMechanics(candidate, original);
+      normalizeNpcItemMechanics(candidate, original,proposalPaths);
       next.system = candidate.system;
+      next.effects = candidate.effects;
     } catch (error) {
       // Keep the original, editable mechanics. Saving and confirming validate strictly.
       if (!(error instanceof NpcItemMechanicsError)) throw error;
     }
-  } else normalizeNpcItemMechanics(next,original);
+  }
   nativePreserveActivityReferences(original,next);
   const visibleEffects=new Set(base.effects.map(effect=>effect._id));
   for(const effect of original.effects||[])if(!visibleEffects.has(effect._id)&&!nativeEqual(effect,(next.effects||[]).find(value=>value._id===effect._id)))throw new Error("Un effetto gestito da codice deve essere preservato.");
-  validateMechanics(next,original,capabilities);
+  validateMechanics(next,original,capabilities,unresolvedTypes);
   validateNpcDomainFields(original,next,'Item');
   const actual=nativeDiff({name:original.name,system:original.system,flags:original.flags||{},effects:original.effects||[]},{name:next.name,system:next.system,flags:next.flags||{},effects:next.effects||[]},"Item",{isAdmin:false,embeddedEffects:true});
   if(actual.length)nativeValidateChanges(original,{type:"Item",id:draft.itemId},actual,{isAdmin:false,embeddedEffects:true});
@@ -259,7 +284,7 @@ export function compileNativeAbilityEdit(proposal,baseline,capabilities={},allow
     nativeSet(item,change.path,value,change.op==="delete");
   }
   return validateNativeAbilityEditDraft({version:1,format:NATIVE_ABILITY_EDIT_FORMAT,itemId:baseline._id,itemType:baseline.type,base,item:assignCreatedIds(item,baseline),
-    summary:proposal.summary,balance:proposal.balance,assumptions:proposal.assumptions,unsupported:proposal.unsupported,iconPrompt:proposal.iconPrompt},baseline,capabilities,allowItemCorrection);
+    summary:proposal.summary,balance:proposal.balance,assumptions:proposal.assumptions,unsupported:proposal.unsupported,iconPrompt:proposal.iconPrompt},baseline,capabilities,allowItemCorrection,paths);
 }
 export function nativeAbilityEditChanges(draft,baseline,capabilities={}) {
   baseline=nativeEditorSource(baseline,"Item");
