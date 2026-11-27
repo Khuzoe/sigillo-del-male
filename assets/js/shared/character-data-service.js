@@ -39,7 +39,7 @@
 
     async function loadBootstrap(characterId, type = "player", options = {}) {
         const campaignId = getCampaignId(options);
-        const key = buildCacheKey(characterId, type, campaignId);
+        const key = buildCacheKey(characterId, type, campaignId) + (options.separateSkillTrees ? '::separate-skill-trees' : '');
         if (options.cache !== false && bootstrapCache.has(key)) return bootstrapCache.get(key);
 
         const request = (async () => {
@@ -48,6 +48,7 @@
                     query: {
                         id: characterId,
                         type,
+                        ...(options.separateSkillTrees && {skillTrees:"separate"}),
                         campaign: campaignId,
                         campaignId
                     },

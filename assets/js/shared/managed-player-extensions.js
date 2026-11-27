@@ -14,6 +14,7 @@
     const SKILL_TREE_ICON_SIZE = 256;
     let skills = {};
     let skillsVersion = null;
+    let staticSkillRecords = null;
     let treeRevisions = null;
     let states = [];
     let statesVersion = null;
@@ -44,7 +45,7 @@
         if (!document.querySelector("link[data-managed-skill-tree-style]")) {
             const style = document.createElement("link");
             style.rel = "stylesheet";
-            style.href = new URL("../../assets/css/pages/character-skill-tree.css?v=20261120-node-reading2", window.location.href).toString();
+            style.href = new URL("../../assets/css/pages/character-skill-tree.css?v=20261125-tree-previews", window.location.href).toString();
             style.dataset.managedSkillTreeStyle = "true";
             document.head.appendChild(style);
         }
@@ -52,7 +53,7 @@
         if (skillTreeModulePromise) return skillTreeModulePromise;
         skillTreeModulePromise = new Promise((resolve, reject) => {
             const script = document.createElement("script");
-            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20261120-node-reading2", window.location.href).toString();
+            script.src = new URL("../../assets/js/shared/character-skill-tree.js?v=20261125-scoped", window.location.href).toString();
             script.defer = true;
             script.dataset.managedSkillTreeScript = "true";
             script.addEventListener("load", () => window.CriptaCharacterSkillTree ? resolve(window.CriptaCharacterSkillTree) : reject(new Error("Modulo alberi non inizializzato.")), { once: true });
@@ -592,15 +593,12 @@
         }, {});
     }
 
-    function serializeTrees(value) {
-        return Object.entries(value || {})
-            .filter(([, tree]) => tree && typeof tree === "object" && Array.isArray(tree.nodes))
-            .map(([id, tree]) => ({ ...tree, id }));
-    }
 
-    async function loadTrees() {
+    async function loadTrees(sheetDocument) {
+        staticSkillRecords = null;
         try {
-            const payload = await getApi("api/data/skill-trees", { query: { _: Date.now() } });
+            const payload = sheetDocument || await getApi("api/data/skill-trees", { query: { _: Date.now() } });
+            skillsVersion = payload?.source === 'static' ? Number(payload.version || 0) : null;
             treeRevisions = payload?.treeRevisions || null;
             if (Array.isArray(payload?.data)) {
                 skillsVersion = Number(payload.version || 0);
@@ -610,16 +608,25 @@
         } catch (_) {
             // Usa la raccolta statica senza mutarla.
             treeRevisions = null;
+            skillsVersion = null;
         }
-        const fallback = await window.CriptaApp?.data?.json?.("skills.json").catch(() => ({}));
-        skillsVersion = null;
+        let fallback = null;
+        try { fallback = await window.CriptaApp?.data?.json?.("skills.json"); }
+        catch (error) {
+            if (/\b404\b/.test(String(error?.message))) {
+                try { fallback = await window.CriptaApp.data.globalJson("skills.json"); }
+                catch (globalError) { if (/\b404\b/.test(String(globalError?.message))) fallback = {}; }
+            }
+        }
+        staticSkillRecords = window.CriptaSkillTreeSheet.staticRecords(fallback);
+        if (!staticSkillRecords) skillsVersion = null;
         skills = normalizeTrees(fallback || {});
         return skills;
     }
 
-    async function loadStates() {
+    async function loadStates(sheetDocument) {
         try {
-            const payload = await getApi("api/data/skill-tree-states", { query: { _: Date.now() } });
+            const payload = sheetDocument || await getApi("api/data/skill-tree-states", { query: { _: Date.now() } });
             statesVersion = Number(payload?.version || 0);
             stateRevisions = payload?.stateRevisions || null;
             states = Array.isArray(payload?.data) ? payload.data : [];
@@ -631,32 +638,17 @@
         return states;
     }
 
-    async function saveTrees(nextTrees) {
-        const body = { data: serializeTrees(nextTrees) };
-        if (Number.isFinite(Number(skillsVersion))) body.expectedVersion = Number(skillsVersion);
-        const result = await window.CriptaApp.api.post("api/data/skill-trees", body, { token: token() });
-        skillsVersion = Number(result?.version || skillsVersion || 0);
-        treeRevisions = result?.treeRevisions || null;
-        skills = Array.isArray(result?.data) ? normalizeTrees(result.data) : nextTrees;
-        return { ...result, normalizedTrees: skills };
-    }
 
-    async function saveTree(treeId, tree, nextTrees) {
-        const body = { tree: { ...tree, id: treeId } };
-        if (treeRevisions !== null) body.expectedTreeRevision = treeRevisions[treeId] ?? 0;
-        else if (Number.isFinite(Number(skillsVersion))) body.expectedVersion = Number(skillsVersion);
-        try {
-            const result = await window.CriptaApp.api.post("api/data/skill-trees", body, { token: token() });
-            skillsVersion = Number(result?.version || skillsVersion || 0);
-            treeRevisions = result?.treeRevisions || null;
-            skills = Array.isArray(result?.data) ? normalizeTrees(result.data) : nextTrees;
-            return { ...result, normalizedTrees: skills };
-        } catch (error) {
-            const status = Number(error?.response?.status || error?.status || 0);
-            const message = String(error?.payload?.error || error?.message || "");
-            if (status === 400 && /expected an array/i.test(message)) return saveTrees(nextTrees);
-            throw error;
-        }
+    async function saveTree(treeId, tree, nextTrees, revision) {
+        const result = await window.CriptaSkillTreeSheet.save({...tree,id:treeId},skillDefinitionCache(),token(),revision);
+        staticSkillRecords = null;
+        skillsVersion = Math.max(skillsVersion || 0,result.version || 0);
+        treeRevisions = result.treeRevision ? {...treeRevisions,[treeId]:result.treeRevision} : result.treeRevisions || null;
+        skills = Array.isArray(result.data) ? normalizeTrees(result.data) : {...(skills || nextTrees),[treeId]:tree};
+        return {...result,version:skillsVersion,treeRevisions,normalizedTrees:skills};
+    }
+    function skillDefinitionCache() {
+        return {version:skillsVersion,revisions:treeRevisions,staticRecords:staticSkillRecords};
     }
 
     function resolveSkillAssetPath(path) {
@@ -669,26 +661,6 @@
         if (value.startsWith("/media/")) return window.CriptaApp.urls.api(value.slice(1));
         if (value.startsWith("/")) return value;
         return window.CriptaApp.urls.api(`media/campaigns/${campaignId()}/skill-trees/${value}`);
-    }
-
-    function normalizeEditableHtml(element) {
-        const source = element?.cloneNode?.(true);
-        if (!source) return "<p></p>";
-        source.querySelectorAll("script, style, iframe, object, embed").forEach((entry) => entry.remove());
-        source.querySelectorAll("*").forEach((entry) => {
-            const tag = entry.tagName.toLowerCase();
-            if (["font", "small", "big", "span"].includes(tag)) {
-                while (entry.firstChild) entry.parentNode.insertBefore(entry.firstChild, entry);
-                entry.remove();
-                return;
-            }
-            if (!["p", "br", "strong", "b", "em", "i", "u", "ul", "ol", "li"].includes(tag)) {
-                entry.replaceWith(document.createTextNode(entry.textContent || ""));
-                return;
-            }
-            Array.from(entry.attributes).forEach((attribute) => entry.removeAttribute(attribute.name));
-        });
-        return source.innerHTML.trim() || "<p></p>";
     }
 
     async function resizeWebp(file, width, height, quality = 0.86, cover = false) {
@@ -725,9 +697,11 @@
             setSectionNavVisible("managed-player-skill-trees", false);
             return false;
         }
+        const sheet = await window.CriptaSkillTreeSheet.load(subject,PLAYER_SKILL_TREE_KEYS[subject.id],token()).catch(() => null);
+        if (!host.isConnected) return;
         const [allTrees, allStates, authState, isDm] = await Promise.all([
-            loadTrees(),
-            loadStates(),
+            loadTrees(sheet?.trees),
+            loadStates(sheet?.progress),
             window.CriptaDiscordAuth?.verify?.().catch(() => null),
             window.CriptaDiscordAuth?.isCurrentUserDm?.("../../").catch(() => false)
         ]);
@@ -756,12 +730,12 @@
             getCurrentCampaignId: campaignId,
             readSharedAuthToken: token,
             resolveSkillAssetPath,
-            normalizeSkillTreeEditableHtml: normalizeEditableHtml,
             resizeImageFileToSquareWebpBlobShared: squareWebp,
             resizeImageFileToWebpBlobShared: boundedWebp,
             loadSkillTreeStates: async () => states,
-            saveSkillTreesData: saveTrees,
             saveSkillTreeData: saveTree,
+            getTreeRevision: id => treeRevisions?.[id],
+            deleteSkillTreeData: (id,revision) => window.CriptaSkillTreeSheet.remove(id,skillDefinitionCache(),token(),revision),
             setSkillTreeStates(nextStates, version, revisions) {
                 states = Array.isArray(nextStates) ? nextStates : [];
                 stateRevisions = revisions || null;

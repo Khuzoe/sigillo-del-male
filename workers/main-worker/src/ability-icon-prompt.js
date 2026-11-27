@@ -4,6 +4,28 @@ export const ABILITY_ICON_STYLE='Create one square fantasy game ability icon, re
 const plain=value=>String(value||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim();
 export const abilityIconSubject=item=>({name:item.name,description:plain(item.system?.description?.value)});
 
+const activeActivations = new Set(['action', 'attack', 'bonus', 'bonusaction', 'reaction', 'legendary', 'mythic', 'lair', 'crew', 'minute', 'hour', 'day']);
+const attackTypes = new Set(['attack', 'mwak', 'rwak', 'msak', 'rsak']);
+
+// Foundry also stores passive triggers (turnStart, shortRest, special, etc.) as activities.
+export function abilityIconQuality(itemType, system = {}) {
+ const itemActivation = typeof system.activation === 'string' ? system.activation : system.activation?.type;
+ if (system.mode === 'attack' || attackTypes.has(system.actionType)) return 'high';
+ const activities = Object.values(system.activities || {}).filter(Boolean);
+ if (!activities.length) {
+   const weaponAttack = itemType === 'weapon' && !itemActivation;
+   return weaponAttack || activeActivations.has(itemActivation) ? 'high' : 'medium';
+ }
+ const active = activities.some(activity => {
+   if (attackTypes.has(activity.type) || attackTypes.has(activity.actionType)) return true;
+   const activation = activity.activation;
+   if (activation?.override === true) return activeActivations.has(activation.type);
+   if (activation?.override === false && itemActivation) return activeActivations.has(itemActivation);
+   return activeActivations.has(activation?.type || itemActivation);
+ });
+ return active ? 'high' : 'medium';
+}
+
 export function abilityIconContext(item,items){
  const seen=new Set(),peers=items.filter(other=>other._id!==item._id).map(abilityIconSubject)
   .sort((a,b)=>String(a.name).localeCompare(String(b.name))||a.description.localeCompare(b.description))

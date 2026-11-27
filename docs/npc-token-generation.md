@@ -1,6 +1,6 @@
-# Generazione token da un NPC esistente
+# Generazione token per NPC e personaggi giocanti
 
-**Strumenti AI → Immagini → Genera token** usa l’avatar salvato dell’NPC come riferimento. La proposta contiene volto e busto dentro una cornice circolare completa, con margine sui bordi ed esterno trasparente. L’angolazione e la posa sono libere. Prompt e risoluzioni sono condivisi con il token di **Genera NPC** in `npc-token-prompt.js`.
+**Strumenti AI → Immagini → Genera token** usa l’avatar salvato del personaggio come riferimento. Il DM della campagna e l’admin possono usarlo per NPC e PG. Ogni giocatore può usarlo per il proprio PG. La proposta contiene volto e busto dentro una cornice circolare completa, con margine sui bordi ed esterno trasparente. L’angolazione e la posa sono libere. Prompt e risoluzioni sono condivisi con il token di **Genera NPC** in `npc-token-prompt.js`.
 
 Il DM della campagna o l’admin può scegliere qualità Media / Alta / Extra alta e risoluzione Media (1024 × 1024), Alta (1536 × 1536) o 2K (2048 × 2048). I valori iniziali sono Alta / Alta; Extra alta e 2K mostrano lo stesso avviso di costo degli avatar. La richiesta usa il modello immagini esistente, `background:transparent`, WebP con `output_compression:100`. Il servizio verifica dimensioni e presenza del canale alpha; non decodifica e ricomprime il risultato. Il soggetto, la cornice e lo sfondo dentro il cerchio devono restare opachi, inclusi i dettagli bianchi.
 

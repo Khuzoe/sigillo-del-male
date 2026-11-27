@@ -7,6 +7,7 @@
         { id: 'images', name: 'Immagini', tools: [
             { id: 'avatar', name: 'Genera avatar', icon: 'fa-image-portrait', description: 'Crea una nuova immagine a partire dall’avatar attuale.', needsAvatar: true },
             { id: 'token', name: 'Genera token', icon: 'fa-chess-pawn', description: 'Dall’avatar crea un ritratto circolare con esterno trasparente.', needsAvatar: true },
+            { id: 'card', name: 'Genera card', icon: 'fa-id-card', description: 'Crea una fascia panoramica per Foundry dall’avatar e dal nome del personaggio.', needsAvatar: true },
             { id: 'poses', name: 'Genera pose idle e hover', icon: 'fa-person-rays', description: 'Anima il ritratto nella lista NPC. Puoi partire dall’idle già presente.' },
             { id: 'icons', name: 'Genera icone abilità', icon: 'fa-images', description: 'Scegli le capacità e prepara le loro icone.', needsAvatar: true }
         ] },
@@ -31,9 +32,9 @@
         if (!npcEditor && !playerTools && !canWriteDossier) return [];
         const pendingSheet = actor.sync?.commands?.some(command => command.nativeSheetVersion && command.status === 'pending');
         const abilities = (actor.definition?.items || []).filter(item => item.itemId && abilityTypes[item.type]);
-        return groups.map(group => ({ ...group, tools: group.tools.filter(tool => tool.id === 'dossier' ? canWriteDossier : npcEditor || (playerTools && ['icons', 'translate-abilities'].includes(tool.id))).map(tool => ({ ...tool,
+        return groups.map(group => ({ ...group, tools: group.tools.filter(tool => tool.id === 'dossier' ? canWriteDossier : npcEditor || (playerTools && ['avatar', 'token', 'card', 'icons', 'translate-abilities'].includes(tool.id))).map(tool => ({ ...tool,
             reason: saving ? 'Attendi il completamento del salvataggio.' : tool.id === 'dossier' ? '' : unsaved ? 'Salva o annulla prima le modifiche alla scheda.'
-                : pendingSheet && !['avatar', 'token', 'poses', 'drop'].includes(tool.id) ? 'Modifica della scheda in attesa di Foundry.'
+                : pendingSheet && !['avatar', 'token', 'card', 'poses', 'drop'].includes(tool.id) ? 'Modifica della scheda in attesa di Foundry.'
                 : tool.needsAvatar && !actor.media?.avatar?.path ? 'Carica e salva prima un avatar nella sezione Media.'
                 : tool.id === 'edit-ability' && !abilities.length ? 'Nessuna capacità disponibile da modificare.' : ''
         })) })).filter(group => group.tools.length);
@@ -60,7 +61,7 @@
             <section data-ai-abilities hidden><button type="button" data-ai-back class="npc-ai-tools__back">← Tutti gli strumenti</button><h3>Quale abilità vuoi modificare?</h3><label class="npc-ai-tools__search">Cerca abilità<input type="search" data-ai-search placeholder="Nome o tipo di capacità" autocomplete="off"></label><div data-ai-ability-list class="npc-ai-tools__ability-list"></div></section></div>
             <footer><span>Ogni strumento ti permette di rivedere la proposta prima di applicarla.</span><button type="button" data-ai-done>Chiudi</button></footer>`;
         const el = selector => dialog.querySelector(selector);
-        el('[data-ai-actor]').textContent = actor.name || 'NPC';
+        el('[data-ai-actor]').textContent = actor.name || 'Personaggio';
         el('[data-ai-notice]').hidden = !commonReason; el('[data-ai-notice]').textContent = commonReason;
         el('[data-ai-error]').hidden = !error; el('[data-ai-error]').textContent = error;
         let closed = false;

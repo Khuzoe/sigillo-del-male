@@ -32,7 +32,7 @@
             </div>
             ${isToken ? "" : '<label class="npc-avatar-generator__orientation"><input type="checkbox" data-landscape>Avatar orizzontale (16:9)</label>'}
             <p class="npc-avatar-generator__hint">Qualità e risoluzione più alte consumano più budget.</p>
-            <p class="npc-avatar-generator__cost" id="${costId}" data-cost-warning role="note" aria-live="polite" hidden><strong>Solo per NPC importanti, alto costo!</strong></p>
+            <p class="npc-avatar-generator__cost" id="${costId}" data-cost-warning role="note" aria-live="polite" hidden><strong>${actor.actorType === "npc" ? "Solo per NPC importanti, alto costo!" : "Le impostazioni selezionate aumentano il costo della generazione."}</strong></p>
             <p class="npc-avatar-generator__hint" data-options-unavailable hidden>Queste impostazioni richiedono il Worker aggiornato.</p>
             <label class="npc-avatar-generator__direction">Dettagli aggiuntivi <span>(facoltativi)</span><textarea maxlength="1500" rows="3" data-details placeholder="${isToken ? "Ad esempio: cornice di pietra antica, dettagli dorati, luce lunare." : "Ad esempio: posa fiera, mantello mosso dal vento, una cripta sullo sfondo…"}"></textarea></label>
             <p class="npc-avatar-generator__hint">${isToken ? "Volto e busto · cornice circolare intera · quadrato 1:1 · esterno trasparente. Il modello sceglie angolazione e posa. " : "Figura intera · nuova posa. "}L’avatar attuale viene inviato come riferimento al servizio di generazione OpenAI.</p>
@@ -43,7 +43,7 @@
         const el = (selector) => dialog.querySelector(selector);
         const landscape = el("[data-landscape]");
         const selectedRatio = () => landscape?.checked ? "16:9" : "9:16";
-        el("[data-name]").textContent = actor.name || "NPC";
+        el("[data-name]").textContent = actor.name || "Personaggio";
         el("[data-reference]").src = referenceUrl;
         if (pendingRequest?.details) el("[data-details]").value = pendingRequest.details;
         const restoreOptions = (options = {}) => {

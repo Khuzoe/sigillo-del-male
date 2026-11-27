@@ -2085,7 +2085,8 @@
             ? '<span class="managed-save-status" data-managed-status></span><button type="button" class="managed-command-secondary" data-managed-edit-toggle="view"><i class="fas fa-xmark"></i><span>Chiudi</span></button><button type="button" class="managed-command-primary" data-managed-save><i class="fas fa-cloud-arrow-up"></i><span>Salva scheda</span></button>'
             : '<button type="button" class="managed-command-primary" data-managed-edit-toggle="edit"><i class="fas fa-pen-to-square"></i><span>Modifica</span></button>';
         const aiToolsAction = window.CriptaNpcAiTools?.toolsFor(actor, {canWriteDossier:currentProfilePermissions.canEdit}).length ? '<button type="button" class="managed-command-secondary" data-managed-ai-tools aria-label="Strumenti AI" aria-haspopup="dialog"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i><span>Strumenti AI</span></button>' : '';
-        const actions = canEdit ? aiToolsAction + lifecycleAction + editActions : "";
+        const cardAction = actor.media?.card?.path ? `<button type="button" class="managed-command-secondary" data-managed-image-open="${escapeAttr(resolveMedia(actor.media.card.path))}" data-managed-image-title="Card di ${escapeAttr(actor.name)}"><i class="fas fa-id-card" aria-hidden="true"></i><span>Apri card</span></button>` : "";
+        const actions = cardAction + (canEdit ? aiToolsAction + lifecycleAction + editActions : "");
         return `<div class="managed-command-bar"><nav class="managed-section-nav" aria-label="Sezioni della scheda"><div>${links.map(([id, icon, label]) => `<a href="#${id}"><i class="fas ${icon}" aria-hidden="true"></i><span>${escapeHtml(label)}</span></a>`).join("")}</div></nav><div class="managed-command-actions">${syncIndicator}${actions}</div></div>`;
     }
     function setupManagedStickyLayout(root) {
@@ -4896,6 +4897,12 @@
                 ${renderBaseMediaCircleEditor("token", actor.media?.token)}
                 ${renderSiteCircleEditor("idle", actor.media?.idle, actor.media?.token || actor.media?.avatar)}
                 ${renderSiteCircleEditor("hover", actor.media?.hover, actor.media?.idle || actor.media?.token || actor.media?.avatar)}
+                <fieldset class="managed-slot-editor managed-card-slot" data-managed-media-drop="card">
+                    <legend><i class="fas fa-id-card" aria-hidden="true"></i> Card Foundry</legend>
+                    ${actor.media?.card?.path ? renderImage(actor.media.card.path, `Card di ${actor.name}`) : '<div class="managed-slot-placeholder"><span>Nessuna card</span></div>'}
+                    <label class="managed-file-field"><span>Trascina qui o scegli la card</span><input type="file" accept="image/*" data-managed-file="card"></label>
+                    ${actor.media?.card?.path ? '<label class="managed-remove-field"><input type="checkbox" data-managed-remove="card"><span>Rimuovi card</span></label>' : ""}
+                </fieldset>
             </div>
         </section>`;
     }
@@ -5063,7 +5070,7 @@
         if (action === 'dossier') return openManagedDossierAi(root);
         if (!window.CriptaNpcAiTools?.toolsFor(actor).some(group => group.tools.some(tool => tool.id === action))) throw new Error('Questo strumento AI è riservato ai gestori della campagna o al proprietario del personaggio.');
         if (managedSaveInProgress || hasManagedUnsavedChanges(root)) throw new Error('Salva o annulla prima le modifiche alla scheda.');
-        if (!['avatar', 'token', 'poses', 'drop'].includes(action) && actor.sync?.commands?.some(command => command.nativeSheetVersion && command.status === 'pending')) throw new Error('Attendi il completamento della modifica completa in Foundry.');
+        if (!['avatar', 'token', 'card', 'poses', 'drop'].includes(action) && actor.sync?.commands?.some(command => command.nativeSheetVersion && command.status === 'pending')) throw new Error('Attendi il completamento della modifica completa in Foundry.');
         const adapters = { descriptionHtml: buildManagedDescriptionEditorHtml, descriptionValue: serializeManagedDescriptionEditor, resolveMedia };
         const onQueued = command => {
             rememberManagedCommand(command, old => old.id === command.id);
@@ -5105,6 +5112,12 @@
                 const inventory = root.querySelector('#managed-inventory');
                 if (inventory) inventory.open = true;
             } });
+        }
+        if (action === 'card') {
+            return window.CriptaActorCard.open({actor, token:getToken(), resolveMedia, onApplied: () => {
+                window.CriptaApp.api.clearCache?.();
+                if (root.isConnected && currentDocument?.actorId === actor.actorId && currentDocument.worldId === actor.worldId) window.location.reload();
+            }});
         }
         if (action === 'poses') {
             return window.CriptaNpcPoses.open({actor, token:getToken(), resolveMedia, onApplied: () => {
@@ -6286,6 +6299,12 @@
                         presentation: collectManagedMediaPresentation(root, slot, current?.presentation)
                     };
                 }
+                const cardFile = root.querySelector('[data-managed-file="card"]')?.files?.[0];
+                if (root.querySelector('[data-managed-remove="card"]')?.checked) next.media.card = null;
+                else if (cardFile) {
+                    const path = await uploadSiteSlot(cardFile, "card", next, token);
+                    next.media.card = {path, source:"site", revision:Number(next.media.card?.revision || 0) + 1};
+                }
                 next.media.variants = await collectManagedVariantEdits(root, next, token);
                 next.variantSync = true;
                 const result = await window.CriptaApp.api.post(`api/managed-actors/${encodeURIComponent(next.worldId)}/${encodeURIComponent(next.actorId)}`, next, { token });
@@ -6321,7 +6340,8 @@
     function hasManagedPresentationChanges(root, actor) {
         const visibilityControl = root.querySelector("[data-managed-visibility]");
         if (visibilityControl && visibilityControl.value !== String(actor.visibility?.state || "dm")) return true;
-        if (["avatar", "token"].some((slot) => root.querySelector(`[data-managed-file="${slot}"]`)?.files?.length)) return true;
+        if (["avatar", "token", "card"].some((slot) => root.querySelector(`[data-managed-file="${slot}"]`)?.files?.length)) return true;
+        if (root.querySelector('[data-managed-remove="card"]')?.checked) return true;
         const token = actor.media?.token;
         if (token?.path) {
             const presentation = token.presentation || {};
@@ -6513,9 +6533,9 @@
 
     async function uploadSiteSlot(file, slot, actor, token, revision = 1) {
         const baseSlot = ["avatar", "token"].includes(slot);
-        const blob = await fileToWebp(file, slot === "token" ? 2048 : 1600);
+        const blob = await fileToWebp(file, slot === "token" ? 2048 : slot === "card" ? 1888 : 1600);
         const folder = `managed-actors/${sanitizeId(actor.worldId)}/${sanitizeId(actor.actorId)}/${baseSlot ? "base" : "site"}`;
-        const filename = baseSlot ? `${slot}-site-r${Math.max(1, Math.floor(Number(revision) || 1))}.webp` : `${slot}.webp`;
+        const filename = slot === "card" ? `card-${crypto.randomUUID()}.webp` : baseSlot ? `${slot}-site-r${Math.max(1, Math.floor(Number(revision) || 1))}.webp` : `${slot}.webp`;
         const form = new FormData();
         form.set("campaignId", window.CriptaApp.campaigns.currentId());
         form.set("folder", folder);

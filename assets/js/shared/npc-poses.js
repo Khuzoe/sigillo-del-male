@@ -17,6 +17,7 @@
             <button type="button" data-test aria-pressed="false" hidden>Prova la transizione</button></figure>
           <section><h3>Posa a riposo</h3>
             <label data-choice hidden>Idle da usare<select data-source><option value="proposal">Idle della proposta</option><option value="current">Idle della scheda</option></select></label>
+            <label class="npc-avatar-generator__direction" data-idle-direction-field hidden>Indicazioni per l’idle <span>(facoltative)</span><textarea data-idle-direction maxlength="500" rows="2" placeholder="Ad esempio, tiene una mano sulla tesa del cappello e guarda di lato."></textarea></label>
             <div class="npc-actor-poses__buttons"><button type="button" data-generate-idle>Genera idle</button><button type="button" data-upload>Carica idle</button><input type="file" data-file hidden accept="image/webp"></div>
             <small>Puoi caricare un WebP quadrato trasparente, fino a 12 MB.</small>
             <label class="npc-avatar-generator__direction">Indicazioni per l’hover <span>(facoltative)</span><textarea data-direction maxlength="500" rows="2" placeholder="Ad esempio, alza lo scudo davanti alla spalla e si mette in guardia."></textarea></label>
@@ -52,6 +53,8 @@
             el("choice").hidden = !(job?.hasIdle && job.status !== "accepted" && state?.canUseIdle);
             el("source").value = source;
             el("generate-idle").disabled = frozen || !state?.enabled || !state?.canGenerateIdle;
+            el("idle-direction-field").hidden = !state?.supportsIdleDirection;
+            el("idle-direction").disabled = el("generate-idle").disabled;
             el("upload").disabled = frozen;
             el("direction").disabled = frozen;
             el("generate-hover").disabled = frozen || !state?.enabled || !images.idle || !(proposal() ? job.hasIdle : state?.canUseIdle);
@@ -105,6 +108,7 @@
             if (!job || job.status === "accepted") source = "current";
             else if (old?.id !== job.id) {
                 source = job.hasIdle || job.phase === "idle" ? "proposal" : "current";
+                if (!pending && (!old || job.phase === "idle")) el("idle-direction").value = job.idleDirection || "";
                 if (job.poseDirection) el("direction").value = job.poseDirection;
             }
             await render();
@@ -137,7 +141,9 @@
                     if (file.type !== "image/webp" || file.size > 12 * 1024 * 1024) throw new Error("Scegli un WebP fino a 12 MB.");
                     uploadId = (await (await request("/upload", file)).json()).uploadId;
                 }
-                remember({requestId:crypto.randomUUID(), action, baseline:state.baseline, direction:el("direction").value.trim(), uploadId,
+                remember({requestId:crypto.randomUUID(), action, baseline:state.baseline, uploadId,
+                    ...(action === "idle" ? {idleDirection:el("idle-direction").value.trim()} : {}),
+                    ...(action === "hover" ? {direction:el("direction").value.trim()} : {}),
                     ...(action === "hover" && proposal() ? {parentJobId:job.id, idleRevision:images.idle.key} : {})});
                 await send();
             });
@@ -167,6 +173,7 @@
             const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
             storageKey = [base, actor.campaignId || app.campaigns.currentId(), ...bytes.slice(0, 12)].join(":");
             pending = JSON.parse(sessionStorage.getItem(storageKey));
+            if (pending?.idleDirection) el("idle-direction").value = pending.idleDirection;
         } catch {}
         await refresh();
     }

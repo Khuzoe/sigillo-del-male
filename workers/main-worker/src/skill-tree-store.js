@@ -69,7 +69,21 @@ export class SkillTreeStateStore {
       data: row.has_override ? JSON.parse(row.data) : null, stateRevisions: JSON.parse(row.revisions) };
   }
   async getDocument() { return this.documentFromRow(await this.readRow()); }
-  async saveState(record, expectedRevision, attribution) {
+  async forSubjects(subjects) {
+    await this.ensureImported();
+    const ids = JSON.stringify(subjects);
+    const [header, rows, revisions] = await this.db.batch([
+      this.statement('SELECT version,has_override FROM skill_tree_documents WHERE campaign_id=?',this.campaignId),
+      this.statement(`WITH wanted AS (SELECT value FROM json_each(?))
+        SELECT payload FROM skill_tree_states WHERE campaign_id=? AND (subject_key IN wanted
+          OR json_extract(payload,'$.id') IN wanted OR json_extract(payload,'$.key') IN wanted) ORDER BY position,row_key`,ids,this.campaignId),
+      this.statement('SELECT subject_key,revision FROM skill_tree_subjects WHERE campaign_id=? AND subject_key IN (SELECT value FROM json_each(?))',this.campaignId,ids)
+    ]);
+    const {version,has_override} = header.results[0];
+    return {ok:true,source:has_override?'d1':'static',version,data:has_override?rows.results.map(row => JSON.parse(row.payload)):[],
+      stateRevisions:Object.fromEntries(revisions.results.map(row => [row.subject_key,row.revision]))};
+  }
+  async saveState(record, expectedRevision, attribution, compact = false) {
     validRecords([record]);
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw conflict();
     const subject = skillTreeSubjectId(this.campaignId, record);
@@ -94,9 +108,10 @@ export class SkillTreeStateStore {
         SELECT ?, ?, ?, COALESCE((SELECT MAX(position) + 1 FROM skill_tree_states WHERE campaign_id = ?), 0), ? WHERE ${gate}`,
         this.campaignId, `subject:${subject}`, subject, this.campaignId, JSON.stringify(record), ...params),
       this.statement(`UPDATE skill_tree_documents SET version = version + 1, has_override = 1,
-        metadata = json_patch(metadata, ?) WHERE campaign_id = ? AND ${gate}`, JSON.stringify(attribution), this.campaignId, ...params)
+        metadata = json_patch(metadata, ?) WHERE campaign_id = ? AND ${gate} RETURNING version`, JSON.stringify(attribution), this.campaignId, ...params)
     ]);
     if (!results[0].meta.changes) throw conflict();
+    if (compact) return {ok:true,saved:true,state:record,stateRevision:expectedRevision+1,version:results[3].results[0].version};
     return this.getDocument();
   }
   async replaceCollection(data, expectedVersion, attribution) {

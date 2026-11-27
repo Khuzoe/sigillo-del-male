@@ -163,6 +163,31 @@ try {
         await coordinator.alarm(); assert.equal(calls, before, 'Recovery never repeats a paid request');
     }
     assert.ok(objects.has(avatarKey) && objects.has(oldTokenKey));
+
+    const pc = `api/managed-actors/${world}/test-pg`;
+    assert.equal((await call(pc, { ...actorInput, actorType: 'character', name: 'Aria' }, null, campaign, sync)).status, 200);
+    for (const slot of ['avatar', 'token']) {
+        const details = 'Mantello scarlatto';
+        assert.equal((await call(`${base}/${slot}-generation`, { requestId: randomUUID(), details })).status, 202);
+        await coordinator.alarm();
+        const npcPrompt = captured.prompt;
+        const pcRoute = `${pc}/${slot}-generation`, requestId = randomUUID();
+        const before = (await call(pc)).body.data;
+        const avatarBytes = objects.get(before.media.avatar.path.replace(/^media\//, ''));
+        assert.equal((await call(pcRoute, { requestId, details }, 'other-player')).status, 403);
+        assert.equal((await call(pcRoute, { requestId, details }, 'player')).status, 202);
+        await coordinator.alarm();
+        assert.equal(captured.prompt, npcPrompt);
+        assert.deepEqual(captured.images, [{ image_url: `data:image/webp;base64,${Buffer.from(avatarBytes).toString('base64')}` }]);
+        assert.deepEqual((await call(pc)).body.data.media, before.media);
+        assert.equal((await call(`${pcRoute}/${requestId}/preview`, undefined, 'player')).status, 200);
+        assert.equal((await call(`${pcRoute}/${requestId}/confirm`, {}, 'other-player')).status, 403);
+        assert.equal((await call(`${pcRoute}/${requestId}/confirm`, {}, 'player')).status, 200);
+        const after = (await call(pc)).body.data;
+        assert.deepEqual(after.media, { ...before.media, [slot]: after.media[slot] });
+        assert.ok(after.media[slot].path.endsWith(`/${slot}-ai-${requestId}.webp`));
+        assert.ok(after.site[`${slot}History`].some(entry => entry.path === before.media[slot].path));
+    }
 } finally { globalThis.fetch = originalFetch; }
 assert.ok(originalRecord);
 console.log('Token generation: authenticated real routes, avatar/token isolation, native alpha and dimensions, exact image bytes, shared profile/media save, previous-token retention, stale image protection, retries, stop and recovery passed. No paid calls or world writes.');

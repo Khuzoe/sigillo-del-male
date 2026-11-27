@@ -1,4 +1,5 @@
 import {mountIconReferences} from './icon-reference-picker.mjs?v=20261120-icon-refs';
+import {skillNodePreviewKey, skillNodePreviewScope} from './skill-node-preview-key.mjs?v=20261125-tree-previews';
 
 // Every editorial request sees the same full tree. Split only the requested
 // output so a long tree does not exhaust the model's response budget.
@@ -21,7 +22,7 @@ export function treeReviewSteps(entries, texts, icons) {
     return steps.concat(images);
 }
 
-export async function openSkillTreeReview({tree, entries, treeKey, accountId, campaignId, token, snapshot, avatar, resolveIcon, apply}) {
+export async function openSkillTreeReview({tree, entries, treeKey, accountId, campaignId, token, snapshot, avatar, sharedCharacter, resolveIcon, apply}) {
     if (!token) throw new Error('Accedi per rivedere l’albero.');
     if (document.querySelector('[data-tree-review]')) return;
     const dialog = document.createElement('dialog');
@@ -38,6 +39,10 @@ export async function openSkillTreeReview({tree, entries, treeKey, accountId, ca
         <div data-icon-references hidden></div>
         <label>Indicazioni per l’intero albero (facoltative)<textarea rows="2" maxlength="1500" data-direction></textarea></label>
         <p data-count></p><p data-status role="status" aria-live="polite"></p>
+        <p data-history-status role="status" hidden></p>
+        <button type="button" class="player-skill-action-button" data-history-retry hidden>Ricarica le icone precedenti</button>
+        <button type="button" class="player-skill-action-button" data-download>Scarica pacchetto icone</button>
+        <small data-download-status role="status" hidden></small>
         <button type="button" class="player-skill-action-button" data-toggle-all hidden>Deseleziona tutte le proposte</button>
         <div data-results></div>
         <footer class="player-skill-choice-dialog-actions">
@@ -49,6 +54,12 @@ export async function openSkillTreeReview({tree, entries, treeKey, accountId, ca
         </footer></div>`;
     const el = name => dialog.querySelector('[data-' + name + ']');
     const byKey = new Map(entries.map(entry => [entry.key, entry]));
+    const iconTargets = new Map(await Promise.all(entries.map(async entry => [entry.key, {
+        slot:await skillNodePreviewKey(skillNodePreviewScope({id:entry.nodeId, level:entry.level, mode:'icon'}, sharedCharacter)),
+        legacy:await skillNodePreviewKey([entry.name.trim(), entry.description.trim()])
+    }])));
+    const legacyCounts = new Map();
+    for (const {legacy} of iconTargets.values()) legacyCounts.set(legacy, (legacyCounts.get(legacy) || 0) + 1);
     const referenceScope = JSON.stringify(avatar || null);
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(snapshot + referenceScope));
     const signature = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
@@ -71,9 +82,22 @@ export async function openSkillTreeReview({tree, entries, treeKey, accountId, ca
         el('avatar').checked = draft.useAvatar; el('direction').value = draft.direction;
     }
     const status = message => { el('status').textContent = message; };
-    const selected = () => Object.entries(draft?.results || {}).filter(([, row]) =>
-        (row.description && row.acceptText) || (row.imageId && row.acceptIcon));
+    const history = new Map(), historyController = new AbortController();
+    const showIcons = () => !draft || draft.icons;
+    function iconProposal(key) {
+        const row = draft?.results[key];
+        return row?.imageId ? row : showIcons() ? history.get(key) : null;
+    }
+    function proposals() {
+        return entries.map(({key}) => ({key, text:draft?.results[key], icon:iconProposal(key)}))
+            .filter(({text, icon}) => text?.description || icon);
+    }
+    const selected = () => proposals().map(({key, text, icon}) => ({
+        key, text:text?.acceptText ? text.description : '', imageId:icon?.acceptIcon ? icon.imageId : ''
+    })).filter(change => change.text || change.imageId);
     let running = false, stopping = false, applying = false, closed = false, uploadingReferences = false, polling, runPromise;
+    let loadingHistory = true, downloading = false;
+    const latestImageId = key => draft?.results[key]?.imageId || history.get(key)?.imageId;
     const previews = new Map(), urls = new Set(), readyImages = new Set();
     const endpoint = new URL(window.CriptaApp.urls.api('api/skill-trees/generate-node/concepts'));
     endpoint.searchParams.set('tree', treeKey); endpoint.searchParams.set('campaign', campaignId);
@@ -96,15 +120,16 @@ export async function openSkillTreeReview({tree, entries, treeKey, accountId, ca
         el('stop').disabled = stopping || applying;
         el('reset').hidden = !draft || running || Boolean(next?.sent && !next.failed);
         el('reset').disabled = locked;
-        el('apply').hidden = !Object.keys(draft?.results || {}).length;
-        const accepted = selected(), rows = Object.values(draft?.results || {});
-        const total = rows.reduce((sum, r) => sum + Number(Boolean(r.description)) + Number(Boolean(r.imageId)), 0);
-        const count = accepted.reduce((sum, [,r]) => sum + Number(Boolean(r.description && r.acceptText)) + Number(Boolean(r.imageId && r.acceptIcon)), 0);
+        el('download').disabled = locked || loadingHistory || downloading || !entries.some(entry => entry.icon || latestImageId(entry.key));
+        const accepted = selected(), rows = proposals();
+        el('apply').hidden = !rows.length;
+        const total = rows.reduce((sum, r) => sum + Number(Boolean(r.text?.description)) + Number(Boolean(r.icon)), 0);
+        const count = accepted.reduce((sum, r) => sum + Number(Boolean(r.text)) + Number(Boolean(r.imageId)), 0);
         el('toggle-all').hidden = total < 2; el('toggle-all').disabled = locked;
         el('toggle-all').textContent = count === total ? 'Deseleziona tutte le proposte' : 'Seleziona tutte le proposte';
         el('apply').textContent = 'Conferma nella bozza (' + count + ')';
         el('apply').disabled = locked || !accepted.length || Boolean(next?.sent && !next.failed) ||
-            accepted.some(([, row]) => row.acceptIcon && !readyImages.has(row.imageId));
+            accepted.some(row => row.imageId && !readyImages.has(row.imageId));
         el('close').disabled = applying || stopping;
         for (const input of el('results').querySelectorAll('input')) input.disabled = locked;
     }
@@ -119,12 +144,73 @@ export async function openSkillTreeReview({tree, entries, treeKey, accountId, ca
         return response;
     }
     function preview(id) {
-        if (!previews.has(id)) previews.set(id, request('/' + id + '/preview').then(r => r.blob()).then(blob => {
+        if (!previews.has(id)) previews.set(id, request('/' + id + '/preview', undefined, historyController.signal).then(r => r.blob()).then(blob => {
             if (closed) throw new Error('Finestra chiusa.');
             const url = URL.createObjectURL(blob); urls.add(url); return {blob, url};
         }).catch(error => { previews.delete(id); throw error; }));
         return previews.get(id);
     }
+    async function loadIconHistory() {
+        loadingHistory = true; controls();
+        const note = el('history-status');
+        note.hidden = false; note.textContent = 'Caricamento delle icone già generate…';
+        el('history-retry').hidden = true;
+        try {
+            const targets = [...iconTargets];
+            for (let i = 0; i < targets.length; i += 32) {
+                const batch = targets.slice(i, i + 32);
+                const slots = batch.map(([, {slot, legacy}]) => legacyCounts.get(legacy) === 1 ? slot + '.' + legacy : slot);
+                let result;
+                do {
+                    result = await (await request('?icons=' + slots.join(','), undefined, historyController.signal)).json();
+                } while (result.scanning);
+                for (const [key, {slot}] of batch) {
+                    const image = result.previews[slot];
+                    if (image && !history.has(key)) history.set(key, {imageId:image.id, acceptIcon:false});
+                }
+            }
+            note.hidden = true;
+        } catch {
+            if (closed) return;
+            note.textContent = 'Impossibile caricare le anteprime precedenti.';
+            el('history-retry').hidden = false;
+        }
+        loadingHistory = false;
+        if (!closed) renderResults();
+    }
+    el('history-retry').onclick = loadIconHistory;
+    el('download').onclick = async () => {
+        if (el('download').disabled) return;
+        downloading = true; controls();
+        const note = el('download-status'), signal = historyController.signal;
+        note.hidden = false; note.textContent = 'Preparazione del pacchetto…';
+        try {
+            const {buildSkillTreeIconPack, iconFileStem} = await import('./skill-tree-icon-pack.mjs?v=20261125-icon-pack');
+            const files = [];
+            for (const entry of entries) {
+                const stem = entry.key + '-' + iconFileStem(entry.label);
+                if (entry.icon) files.push({path:'attuali/' + stem, label:entry.label + ' (attuale)', load:async () => {
+                    const response = await fetch(resolveIcon(entry.icon), {signal:AbortSignal.any([signal, AbortSignal.timeout(30000)])});
+                    if (!response.ok) throw new Error('Icona non disponibile.');
+                    return response.blob();
+                }});
+                const id = latestImageId(entry.key);
+                if (id) files.push({path:'proposte-ai/' + stem, label:entry.label + ' (proposta AI)', load:async () => (await preview(id)).blob});
+            }
+            const {blob, count, skipped} = await buildSkillTreeIconPack(files, signal, label => {
+                note.textContent = 'Preparazione del pacchetto · ' + label;
+            });
+            if (blob) {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob); link.download = 'icone-' + iconFileStem(tree.name || treeKey) + '.zip';
+                dialog.append(link); link.click(); link.remove();
+                setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+            }
+            note.textContent = (count ? 'Download avviato · ' + count + (count === 1 ? ' icona.' : ' icone.') : 'Nessuna icona scaricabile.')
+                + (skipped.length ? ' Impossibile includere ' + skipped.join(', ') + '.' : '');
+        } catch (error) { if (!closed) note.textContent = error.message || 'Impossibile preparare il pacchetto.'; }
+        finally { downloading = false; if (!closed) controls(); }
+    };
     function element(tag, text) { const item = document.createElement(tag); if (text) item.textContent = text; return item; }
     function toggle(row, field, labelText) {
         const label = element('label'), input = element('input'); label.className = 'skill-node-ai__avatar';
@@ -135,9 +221,10 @@ export async function openSkillTreeReview({tree, entries, treeKey, accountId, ca
         const list = el('results'); list.replaceChildren();
         for (const entry of entries) {
             const row = draft?.results[entry.key];
-            if (!row || (!row.description && !row.imageId)) continue;
+            const icon = iconProposal(entry.key);
+            if (!showIcons() && !row?.description && !icon) continue;
             const card = element('section'); card.className = 'skill-tree-review__row'; card.append(element('h4', entry.label));
-            if (row.description) {
+            if (row?.description) {
                 card.append(toggle(row, 'acceptText', entry.template ? 'Applica testo condiviso dei gradi' : 'Applica testo'));
                 const comparison = element('div'); comparison.className = 'skill-node-ai__preview';
                 for (const [title, content] of [['Attuale', entry.original], ['Proposta', row.description]]) {
@@ -146,24 +233,26 @@ export async function openSkillTreeReview({tree, entries, treeKey, accountId, ca
                 card.append(comparison);
                 if (entry.template) for (const field of entry.template.variables) card.append(element('small', field.marker + ' ' + field.label + ' · ' + field.values.join(' / ')));
             }
-            if (row.imageId) {
-                card.append(toggle(row, 'acceptIcon', 'Applica icona'));
+            if (showIcons() || icon) {
+                if (icon) card.append(toggle(icon, 'acceptIcon', 'Applica icona'));
                 const images = element('div'); images.className = 'skill-node-ai__preview';
-                for (const proposed of [false, true]) {
-                    const part = element('div'), img = element('img'); img.alt = (proposed ? 'Icona proposta' : 'Icona attuale') + ' · ' + entry.name;
-                    part.append(element('strong', proposed ? 'Proposta' : 'Attuale'));
+                for (const proposed of icon ? [false, true] : [false]) {
+                    const title = proposed ? (icon === row ? 'Icona proposta' : 'Ultima icona generata')
+                        : entry.inheritedIcon ? 'Icona del grado base' : 'Icona attuale';
+                    const part = element('div'), img = element('img'); img.alt = title + ' · ' + entry.label;
+                    part.append(element('strong', title));
                     if (proposed) {
                         part.append(img);
                         const retry = element('button', 'Ricarica anteprima'); retry.type = 'button'; retry.className = 'player-skill-action-button'; retry.hidden = true;
-                        const failed = () => { if (closed || !img.isConnected) return; readyImages.delete(row.imageId); retry.hidden = false; controls(); };
-                        img.onload = () => { if (!closed && img.isConnected && !readyImages.has(row.imageId)) { readyImages.add(row.imageId); controls(); } };
+                        const failed = () => { if (closed || !img.isConnected) return; readyImages.delete(icon.imageId); retry.hidden = false; controls(); };
+                        img.onload = () => { if (!closed && img.isConnected && !readyImages.has(icon.imageId)) { readyImages.add(icon.imageId); controls(); } };
                         img.onerror = failed;
-                        const show = () => { preview(row.imageId).then(({url}) => { img.src = url; }).catch(failed); };
+                        const show = () => { preview(icon.imageId).then(({url}) => { img.src = url; }).catch(failed); };
                         retry.onclick = () => {
-                            previews.delete(row.imageId); retry.hidden = true; show();
+                            previews.delete(icon.imageId); retry.hidden = true; show();
                         };
                         part.append(retry); show();
-                    } else if (entry.icon) { img.src = resolveIcon(entry.icon); part.append(img); }
+                    } else if (entry.icon || entry.inheritedIcon) { img.loading = 'lazy'; img.src = resolveIcon(entry.icon || entry.inheritedIcon); part.append(img); }
                     else part.append(element('small', 'Nessuna icona'));
                     images.append(part);
                 }
@@ -181,6 +270,7 @@ export async function openSkillTreeReview({tree, entries, treeKey, accountId, ca
         }
         const entry = byKey.get(step.key), result = draft.results[step.key];
         return {mode: draft.references?.length ? 'icon-references' : 'icon', requestId: step.id, name: entry.name, description: entry.description, direction: result.visual, treeStyle: draft.visualStyle,
+            previewSlot:iconTargets.get(step.key).slot,
             ...(draft.references?.length && {references: draft.references.map(({uploadId,note}) => ({uploadId,note}))}),
             ...(draft.useAvatar && avatar ? {avatar} : {})};
     }
@@ -202,6 +292,7 @@ export async function openSkillTreeReview({tree, entries, treeKey, accountId, ca
         } else {
             if (!job.iconId) throw new Error('Anteprima dell’icona mancante.');
             Object.assign(draft.results[step.key], {imageId: job.id, acceptIcon: true});
+            history.set(step.key, {imageId:job.id, acceptIcon:false});
         }
         step.done = true; persist(); renderResults();
     }
@@ -242,7 +333,7 @@ export async function openSkillTreeReview({tree, entries, treeKey, accountId, ca
         }
         const next = draft.steps.find(step => !step.done);
         if (next?.failed) { next.id = crypto.randomUUID(); next.failed = false; next.sent = false; }
-        persist(); running = true; polling = new AbortController(); controls();
+        persist(); running = true; polling = new AbortController(); renderResults();
         runPromise = generate(polling.signal);
         try { await runPromise; }
         catch (error) { if (!closed && !stopping) status(error.message); }
@@ -269,8 +360,8 @@ export async function openSkillTreeReview({tree, entries, treeKey, accountId, ca
         if (el('apply').disabled) return;
         applying = true; controls();
         try {
-            const changes = await Promise.all(selected().map(async ([key, row]) => ({key, text: row.acceptText ? row.description : '',
-                ...(row.acceptIcon ? {imageId: row.imageId, image: (await preview(row.imageId)).blob} : {})})));
+            const changes = await Promise.all(selected().map(async ({key, text, imageId}) => ({key, text,
+                ...(imageId ? {imageId, image:(await preview(imageId)).blob} : {})})));
             await apply(changes);
             draft = null; persist(); dialog.close();
         } catch (error) { status(error.message); }
@@ -281,16 +372,20 @@ export async function openSkillTreeReview({tree, entries, treeKey, accountId, ca
         draft = null; persist(); renderResults(); status('');
     };
     el('toggle-all').onclick = () => {
-        const rows = Object.values(draft.results);
-        const accept = rows.some(r => (r.description && !r.acceptText) || (r.imageId && !r.acceptIcon));
-        for (const row of rows) { row.acceptText = Boolean(row.description) && accept; row.acceptIcon = Boolean(row.imageId) && accept; }
+        const rows = proposals();
+        const accept = rows.some(({text, icon}) => (text?.description && !text.acceptText) || (icon && !icon.acceptIcon));
+        for (const {text, icon} of rows) {
+            if (text?.description) text.acceptText = accept;
+            if (icon) icon.acceptIcon = accept;
+        }
         persist(); renderResults();
     };
     for (const field of ['texts','icons']) el(field).onchange = controls;
     el('close').onclick = () => dialog.close();
     dialog.oncancel = e => { if (applying || stopping) e.preventDefault(); };
-    dialog.addEventListener('close', () => { closed = true; polling?.abort(); referencePicker.close(); urls.forEach(url => URL.revokeObjectURL(url)); dialog.remove(); }, {once: true});
+    dialog.addEventListener('close', () => { closed = true; polling?.abort(); historyController.abort(); referencePicker.close(); urls.forEach(url => URL.revokeObjectURL(url)); dialog.remove(); }, {once: true});
     document.body.append(dialog); dialog.showModal(); renderResults();
+    loadIconHistory();
     status(draft ? 'Revisione recuperata. Puoi controllare le proposte già pronte.' : 'L’AI leggerà tutti i nodi e i loro legami. Le modifiche confermate entrano nella bozza dell’editor.');
 }
 

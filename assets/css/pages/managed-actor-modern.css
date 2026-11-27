@@ -3996,3 +3996,21 @@ body.managed-image-lightbox-open { overflow: hidden; }
     border-radius: .5rem;
     background: #17131b;
 }
+
+.managed-media-strip .managed-card-slot {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 330px) minmax(0, 1fr);
+}
+.managed-media-strip .managed-card-slot > :is(img, .managed-slot-placeholder) {
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    aspect-ratio: auto 1600 / 960;
+    object-fit: contain;
+}
+[data-actor-card] figure { margin: 1rem 0; }
+[data-actor-card] figure img { display: block; width: 100%; height: auto; }
+@media (max-width: 620px) {
+    .managed-media-strip .managed-card-slot { grid-template-columns: minmax(0, 1fr); }
+    .managed-media-strip .managed-card-slot > * { grid-column: 1; grid-row: auto; }
+}

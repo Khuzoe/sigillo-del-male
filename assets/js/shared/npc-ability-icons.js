@@ -2,8 +2,9 @@
     'use strict';
     window.CriptaAbilityIcons = {open};
     const referencePickerUrl = new URL('icon-reference-picker.mjs?v=20261120-icon-refs', document.currentScript.src).href;
-    function selectableAbilityIconIds(data) {
-        return (data?.items || []).filter(item => !item.blocked && !['icon-pending', 'icon-running', 'confirming'].includes(data.jobs?.find(job => job.itemId === item.id)?.status)).map(item => item.id);
+    function selectableAbilityIconIds(data, items = data?.items || [], onlyActive = false) {
+        return items.filter(item => (!onlyActive || item.active === true) && !item.blocked
+            && !['icon-pending', 'icon-running', 'confirming'].includes(data.jobs?.find(job => job.itemId === item.id)?.status)).map(item => item.id);
     }
     const abilityIconType = (item, actor) => item.type || actor?.definition?.items?.find(entry => entry.itemId === item.id)?.type || 'feat';
     function visibleAbilityIconItems(data, selected, {type = 'all', onlySelected = false} = {}, actor) {
@@ -47,11 +48,12 @@
         dialog.className = 'npc-avatar-generator npc-ability-icons'; dialog.dataset.abilityIcons = '';
         dialog.setAttribute('aria-labelledby', 'npc-ability-icons-title');
         dialog.innerHTML = `<header><div><small>ICONE DELLE CAPACITÀ</small><h2 id="npc-ability-icons-title">Genera icone abilità</h2></div><button type="button" data-close aria-label="Chiudi">×</button></header>
-            <div class="npc-avatar-generator__body"><p data-name></p><p>Sunburst 2.6 · qualità media. L’avatar salvato è il riferimento; nome e descrizione di ciascuna capacità guidano l’immagine.</p>
+            <div class="npc-avatar-generator__body"><p data-name></p><p>Sunburst 2.6 · qualità alta per attacchi e azioni attive, media per le passive. L’avatar salvato è il riferimento visivo. Il nome e la descrizione di ciascuna capacità guidano l’immagine.</p>
             <p data-status class="npc-avatar-generator__status" role="status" aria-live="polite">Caricamento…</p>
-            <div class="npc-ability-icons__selection" role="group" aria-label="Selezione abilità"><span data-selection-status role="status" aria-live="polite"></span><div><button type="button" data-select-all disabled>Seleziona tutto</button><button type="button" data-select-none disabled>Deseleziona tutto</button></div></div>
+            <p data-card-status role="status" hidden></p>
+            <div class="npc-ability-icons__selection" role="group" aria-label="Selezione abilità"><span data-selection-status role="status" aria-live="polite"></span><div><label><input type="checkbox" data-only-active checked>Solo attive</label><button type="button" data-select-all disabled>Seleziona tutto</button><button type="button" data-select-none disabled>Deseleziona tutto</button></div></div>
             <div data-icon-references hidden></div><div data-list class="npc-ability-icons__list"></div></div>
-            <footer><span>Una chiamata immagini per capacità selezionata. Le icone cambiano solo premendo «Usa icona». Chiudere conserva le anteprime; le generazioni successive non ancora avviate si fermano.</span><div><button type="button" data-refresh>Aggiorna</button><button type="button" data-stop hidden>Interrompi attesa</button><button type="button" data-generate disabled>Genera selezionate</button></div></footer>`;
+            <footer><span>Una chiamata immagini per capacità selezionata. Se manca la card, viene generata e salvata anche una fascia a qualità extra-alta. Le icone cambiano solo premendo «Usa icona». Chiudere conserva le anteprime; le generazioni successive non ancora avviate si fermano.</span><div><button type="button" data-refresh>Aggiorna</button><button type="button" data-stop hidden>Interrompi attesa</button><button type="button" data-generate disabled>Genera selezionate</button></div></footer>`;
         document.body.append(dialog);
         const el = selector => dialog.querySelector(selector);
         const extras = document.createElement('div'); extras.className = 'npc-ability-icons__options';
@@ -74,11 +76,12 @@
         const jobFor = id => data?.jobs?.find(job => job.itemId === id);
         const visibleItems = () => visibleAbilityIconItems(data, selected, filters, actor);
         const selectedAvailableIds = () => selectableAbilityIconIds(data).filter(id => selected.has(id));
+        const bulkIds = () => selectableAbilityIconIds(data, visibleItems(), el('[data-only-active]').checked);
         const controls = () => {
             const active = data?.jobs?.find(running);
             referencePicker?.setLocked(busy || Boolean(active) || data?.optionalIconReferences !== 1);
-            const visibleIds = new Set(visibleItems().map(item => item.id));
-            const eligible = selectableAbilityIconIds(data).filter(id => visibleIds.has(id));
+            const eligible = bulkIds();
+            el('[data-only-active]').disabled = busy;
             el('[data-select-all]').disabled = busy || !eligible.length || eligible.every(id => selected.has(id));
             el('[data-select-none]').disabled = busy || !selected.size;
             el('[data-generate]').textContent = `Genera selezionate (${selectedAvailableIds().length})`;
@@ -86,7 +89,7 @@
             el('[data-refresh]').disabled = busy;
             el('[data-stop]').hidden = !batch && !active;
             el('[data-stop]').disabled = batch ? batch.stopped : busy;
-            el('[data-select-all]').textContent = 'Seleziona visibili';
+            el('[data-select-all]').textContent = filters.type === 'all' && !filters.onlySelected ? 'Seleziona tutto' : 'Seleziona visibili';
             el('[data-selection-status]').textContent = `${selected.size} selezionate · ${visibleItems().length}/${data?.items.length || 0} visibili`;
             for (const input of dialog.querySelectorAll('[data-direction]')) input.disabled = busy || running(jobFor(input.dataset.direction)) || jobFor(input.dataset.direction)?.status === 'confirming';
             el('[data-only-selected]').checked = filters.onlySelected;
@@ -155,6 +158,7 @@
                 });
                 directionField.append(directionLabel, directionInput);
                 message.textContent = running(job) ? 'Generazione in corso…' : job?.status === 'accepted' ? 'Icona inviata a Foundry.' : job?.status === 'confirming' ? 'Invio da completare: usa lo stesso pulsante per riprendere.' : item.blocked ? 'Modifiche in attesa di Foundry.' : job?.iconError || job?.error || (job?.iconId ? 'Anteprima pronta.' : 'Nessuna anteprima generata.');
+                if (job?.cardWarning) message.textContent += ' ' + job.cardWarning;
                 const actions = document.createElement('div'); actions.className = 'npc-ability-icons__actions';
                 const locked = busy || uploadingReferences || !!data.jobs.find(running) || item.blocked || !data.enabled || !data.canSync || !data.hasAvatar;
                 actions.append(button(job?.iconId ? 'Rigenera icona' : 'Genera icona', () => generate([item.id]), locked || job?.status === 'confirming'));
@@ -179,6 +183,13 @@
                 }
             }
             if (!closed) {
+                const cardStatus = el('[data-card-status]');
+                cardStatus.textContent = ({
+                    present:'Card Foundry presente nella scheda.', pending:'Card Foundry in coda.', running:'Generazione della card Foundry in corso.',
+                    applying:'Salvataggio della card Foundry…', ready:'Card pronta. Puoi applicarla da Strumenti AI → Genera card.',
+                    failed:'Generazione della card non riuscita. Puoi riprovare da Strumenti AI → Genera card.'
+                })[data.cardStatus] || '';
+                cardStatus.hidden = !cardStatus.textContent;
                 restoreIconDirections(directions, data.jobs);
                 if (firstLoad && data.jobs.some(running)) {
                     for (const job of data.jobs.filter(running)) selected.add(job.itemId);
@@ -192,8 +203,11 @@
             clearTimeout(timer);
             try {
                 await load();
-                if (!closed && !busy && data.jobs.some(running)) timer = setTimeout(refresh, 5000);
+                if (!closed && !busy && hasRunningJobs()) timer = setTimeout(refresh, 5000);
             } catch (error) { if (!closed) { status(error.message, true); timer = setTimeout(refresh, 10000); } }
+        }
+        function hasRunningJobs() {
+            return data?.jobs.some(running) || ['pending','running','applying'].includes(data?.cardStatus);
         }
         async function generate(ids) {
             if (busy || closed || uploadingReferences) return;
@@ -206,7 +220,7 @@
             for (const id of ids) selected.add(id);
             filters.onlySelected = true; filters.type = 'all'; saveView();
             // Freeze each icon's own direction before the batch starts.
-            batch = {stopped: false, wake: null};
+            batch = {stopped: false, wake: null, cardBatchId: crypto.randomUUID()};
             busy = true; clearTimeout(timer); await render();
             let currentJob;
             try {
@@ -214,7 +228,7 @@
                     const id = ids[index]; attempts[id] ||= crypto.randomUUID(); saveAttempts();
                     currentJob = {id: attempts[id], itemId: id};
                     status(`Generazione ${index + 1} di ${ids.length}. Puoi chiudere e ritrovare l’anteprima qui.`);
-                    const result = await (await request('', {requestId: attempts[id], details: detailsByItem.get(id), ...(references.length && {references})}, id)).json();
+                    const result = await (await request('', {requestId: attempts[id], cardBatchId: batch.cardBatchId, details: detailsByItem.get(id), ...(references.length && {references})}, id)).json();
                     currentJob = {...result.job, itemId: id};
                     delete attempts[id]; saveAttempts();
                     if (closed || batch.stopped) break;
@@ -238,7 +252,7 @@
                 if (batch.stopped && currentJob) await stopIcon(currentJob);
                 else if (batch.stopped && !closed) status('Serie interrotta. Le anteprime pronte sono disponibili.');
                 batch = null; busy = false;
-                if (!closed) { await render(); if (data?.jobs.some(running)) timer = setTimeout(refresh, 5000); }
+                if (!closed) { await render(); if (hasRunningJobs()) timer = setTimeout(refresh, 5000); }
             }
         }
         async function apply(id) {
@@ -269,14 +283,12 @@
         const selectAll = value => {
             if (busy) return;
             if (!value) selected.clear();
-            else {
-                const visibleIds = new Set(visibleItems().map(item => item.id));
-                for (const id of selectableAbilityIconIds(data)) if (visibleIds.has(id)) selected.add(id);
-            }
+            else for (const id of bulkIds()) selected.add(id);
             saveView(); render();
         };
         el('[data-select-all]').addEventListener('click', () => selectAll(true));
         el('[data-select-none]').addEventListener('click', () => selectAll(false));
+        el('[data-only-active]').addEventListener('change', controls);
         el('[data-generate]').addEventListener('click', () => generate(selectedAvailableIds()));
         for (const option of dialog.querySelectorAll('[data-type]')) option.addEventListener('click', () => { filters.type = option.dataset.type; saveView(); render(); });
         el('[data-only-selected]').addEventListener('change', () => { filters.onlySelected = el('[data-only-selected]').checked; saveView(); render(); });

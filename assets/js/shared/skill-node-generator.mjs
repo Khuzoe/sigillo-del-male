@@ -1,4 +1,5 @@
 import {catalogReviewImage, readCatalogImage, catalogProposal, showCatalogEdits} from './catalog-item-review.mjs?v=20261122-flag';
+import {skillNodePreviewKey, skillNodePreviewScope} from './skill-node-preview-key.mjs?v=20261125-tree-previews';
 
 // Pass all content through the editor's plain-text formatter before adding markup.
 export function formatSkillNodeDescription(text, formatText) {
@@ -26,13 +27,16 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
     if (document.querySelector('dialog[data-skill-node-ai]')) return;
     const refining = Boolean(review) || target?.mode === 'refine';
     const iconOnly = target?.mode === 'icon';
-    const scope = [catalogItem ? 'catalog-item-generator' : 'skill-node-generator', campaignId, accountId, treeKey];
-    if (target) scope.push(target.id, target.level, target.mode);
-    if (!refining && isSharedTree && character) scope.push(character.managedActor?.worldId, character.managedActor?.actorId || character.id);
+    const scope = [catalogItem ? 'catalog-item-generator' : 'skill-node-generator', campaignId, accountId, treeKey,
+        ...skillNodePreviewScope(target, !refining && isSharedTree ? character : null)];
     const key = JSON.stringify(scope);
+    const restoreIcons = !catalogItem && !refining;
+    const previewSlot = restoreIcons ? skillNodePreviewKey(scope.slice(4)) : null;
     let draft = {};
     try { draft = JSON.parse(sessionStorage.getItem(key)) || {}; } catch { /* Storage is optional. */ }
-    if (target && draft.source !== target.source) draft = {source: target.source};
+    if (target && draft.source !== target.source) {
+        draft = {source:target.source, ...(iconOnly && restoreIcons && draft.imageId ? {imageId:draft.imageId} : {})};
+    }
     const persist = () => { try { sessionStorage.setItem(key, JSON.stringify(draft)); } catch { /* In-memory draft remains usable. */ } };
     const dialog = document.createElement('dialog');
     dialog.className = 'player-skill-choice-dialog skill-node-ai';
@@ -92,8 +96,12 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
                 : conceptControl}${iconButton}`;
     } else {
         content = `<label>Appunti del DM<textarea data-field="notes" rows="3" maxlength="6000" autofocus placeholder="Descrivi cosa fa l’abilità, quando si attiva e quali limiti ha."></textarea></label>
-            ${rewriteButton}<div class="skill-node-ai__preview" data-proposal hidden>
-            <div><label>Nome del nodo<input data-field="name" maxlength="120"></label>${proposal}</div>
+            ${rewriteButton}<section data-last-icon hidden>
+            <strong data-last-icon-label></strong><img data-last-icon-image alt="Ultima icona generata">
+            <button type="button" class="player-skill-action-button" data-use-last-icon>Usa questa icona</button></section>
+            <div class="skill-node-ai__preview" data-proposal hidden>
+            <div><label>Nome del nodo<input data-field="name" maxlength="120"></label>
+            <label>Sottotitolo (facoltativo)<textarea data-field="flavor" rows="2" maxlength="1000"></textarea></label>${proposal}</div>
             <div>${directions}${image}${iconButton}<button type="button" class="player-skill-action-button" data-remove hidden>Rimuovi icona</button></div></div>`;
     }
     dialog.innerHTML = `<div class="player-skill-choice-dialog-card">
@@ -137,6 +145,7 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
     const readVisual = review?.needsImage ? catalogReviewImage(el('[data-review-image]'), target.icon, controller.signal)
         : catalogItem && iconOnly && target.icon ? () => readCatalogImage(target.icon, controller.signal) : null;
     let busy = false, adding = false, stopping = false, inFlight, timer, imageBlob = null, imageUrl = '';
+    let historyVersion = 0, lastIcon = null, lastIconUrl = '';
     let uploadingConcept = false, conceptUrl = '', conceptBlob = null;
     const fileInput = el('[data-concept-file]');
     function showConcept(blob) {
@@ -271,6 +280,9 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
         if (!target) {
             el('[data-remove]').hidden = !draft.imageId;
             el('[data-remove]').disabled = working;
+            el('[data-use-last-icon]').hidden = !draft.hasProposal && !lastIcon?.description;
+            el('[data-use-last-icon]').textContent = draft.hasProposal ? 'Usa questa icona' : 'Riprendi proposta';
+            el('[data-use-last-icon]').disabled = working;
         }
         el('[data-close]').disabled = adding;
         el('[data-stop]').hidden = draft.pending?.mode !== 'icon';
@@ -313,12 +325,56 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
         }
         return response;
     }
-    async function preview(id) {
-        const blob = await (await request('/' + id + '/preview')).blob();
-        if (controller.signal.aborted || draft.imageId !== id) return;
+    function showPreview(blob) {
         clearPreview(); imageBlob = blob; imageUrl = URL.createObjectURL(blob);
         el('[data-preview]').src = imageUrl; el('[data-preview]').hidden = false;
     }
+    async function preview(id) {
+        const blob = await (await request('/' + id + '/preview')).blob();
+        if (!controller.signal.aborted && draft.imageId === id) showPreview(blob);
+    }
+    function clearLastIcon() {
+        if (lastIconUrl) URL.revokeObjectURL(lastIconUrl);
+        lastIconUrl = ''; lastIcon = null;
+        if (el('[data-last-icon]')) el('[data-last-icon]').hidden = true;
+    }
+    async function restoreLastIcon() {
+        const version = historyVersion;
+        const current = () => !controller.signal.aborted && version === historyVersion;
+        const params = new URLSearchParams({previewSlot:await previewSlot, legacy:target
+            ? await skillNodePreviewKey([target.name.trim(), target.description.trim()]) : 'tree'});
+        let result;
+        do {
+            if (!current()) return;
+            result = await (await request('?' + params)).json();
+        } while (result.scanning);
+        const previous = result.preview;
+        if (!current() || !previous || previous.id === draft.removedImageId || previous.id === draft.imageId) return;
+        const blob = await (await request('/' + previous.id + '/preview')).blob();
+        if (!current()) return;
+        if (iconOnly) {
+            draft.imageId = previous.id;
+            delete draft.imageInputs;
+            showPreview(blob); persist();
+        } else {
+            lastIcon = {...previous, blob};
+            lastIconUrl = URL.createObjectURL(blob);
+            el('[data-last-icon-image]').src = lastIconUrl;
+            el('[data-last-icon-label]').textContent = 'Ultima icona generata · ' + previous.name;
+            el('[data-last-icon]').hidden = false;
+        }
+        controls();
+    }
+    el('[data-use-last-icon]')?.addEventListener('click', () => {
+        if (!lastIcon) return;
+        if (!draft.hasProposal) {
+            Object.assign(draft, {hasProposal:true, name:lastIcon.name, description:lastIcon.description, flavor:lastIcon.flavor || '', questions:[]});
+            for (const field of dialog.querySelectorAll('[data-field="name"], [data-field="description"], [data-field="flavor"]')) field.value = draft[field.dataset.field];
+            questions();
+        }
+        draft.imageId = lastIcon.id;
+        showPreview(lastIcon.blob); clearLastIcon(); persist(); controls();
+    });
     function update(body) {
         if (!stopping && !busy && draft.pending) inFlight = readUpdate(body);
         return inFlight;
@@ -348,13 +404,18 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
                     draft.adjusting = false;
                     displayReview();
                     draft.hasProposal = true;
-                } else Object.assign(draft, job.draft, {hasProposal: true});
-                for (const field of dialog.querySelectorAll('[data-field="name"], [data-field="description"]')) field.value = draft[field.dataset.field];
+                } else {
+                    Object.assign(draft, job.draft, {hasProposal: true});
+                    if (!target) draft.flavor = job.draft.flavor ?? '';
+                    for (const field of dialog.querySelectorAll('[data-field="name"], [data-field="flavor"], [data-field="description"]')) field.value = draft[field.dataset.field];
+                }
                 if (catalogItem && !review) enhanceCatalogTextFields(dialog);
                 questions(); status(review && draft.additions?.length
                     ? (draft.additions.length === 1 ? 'Una nuova proprietà da rivedere.' : draft.additions.length + ' nuove proprietà da rivedere.')
                     : 'Proposta pronta da rivedere.');
             } else {
+                historyVersion++;
+                clearLastIcon();
                 draft.imageId = job.id;
                 draft.imageInputs = pending.imageInputs;
                 clearPreview();
@@ -402,7 +463,9 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
         persist();
         const payload = review ? {source: review.source, field: review.field, propertyMode, concept, notes: draft.notes || '', appearance: draft.appearance || ''}
             : mode === 'icon'
-            ? {name: target?.name ?? draft.name, description: target?.description ?? draft.description, ...options, ...(concept ? {itemImage: concept} : {})}
+            ? {name: target?.name ?? draft.name, description: target?.description ?? draft.description, ...options,
+                ...(previewSlot ? {previewSlot:await previewSlot} : {}), ...(!target ? {flavor:draft.flavor || ''} : {}),
+                ...(concept ? {itemImage: concept} : {})}
             : {notes: draft.notes || '', examples, ...(refining ? {source: {name: target.name, description: target.description}} : {})};
         update({requestId, mode, ...payload});
     }
@@ -437,19 +500,23 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
             }
         }
     };
-    el('[data-remove]')?.addEventListener('click', () => { delete draft.imageId; clearPreview(); persist(); controls(); status(''); });
+    el('[data-remove]')?.addEventListener('click', () => {
+        historyVersion++; draft.removedImageId = draft.imageId; delete draft.imageId;
+        clearPreview(); persist(); controls(); status('');
+    });
     el('[data-add]').onclick = async () => {
         if (el('[data-add]').disabled) return;
         adding = true; controls(); status(catalogItem ? 'Aggiornamento della bozza…' : 'Aggiornamento della bozza dell’albero…');
         try {
-            await onApply(review ? catalogProposal(review.fields, draft, review.canAdd) : {title: draft.name?.trim(), description: draft.description?.trim(), image: imageBlob, imageId: draft.imageId});
+            await onApply(review ? catalogProposal(review.fields, draft, review.canAdd) : {title: draft.name?.trim(),
+                ...(!target ? {flavor: draft.flavor?.trim() || ''} : {}), description: draft.description?.trim(), image: imageBlob, imageId: draft.imageId});
             draft = {}; persist(); dialog.close();
         } catch (error) { status(error.message); adding = false; controls(); }
     };
     el('[data-close]').onclick = () => dialog.close();
     dialog.addEventListener('cancel', event => { if (adding) event.preventDefault(); });
     dialog.addEventListener('close', () => {
-        controller.abort(); clearTimeout(timer); clearPreview();
+        controller.abort(); clearTimeout(timer); clearPreview(); clearLastIcon();
         if (conceptUrl) URL.revokeObjectURL(conceptUrl);
         dialog.remove();
     }, {once: true});
@@ -458,5 +525,8 @@ export function openSkillNodeGenerator({treeKey, treeName, accountId, campaignId
     if (catalogItem && refining && !review) enhanceCatalogTextFields(dialog);
     if (refining && !review && !target.description) status('Inserisci un testo prima di richiedere una revisione.');
     if (draft.imageId) preview(draft.imageId).catch(error => { if (!controller.signal.aborted) status(error.message); }).finally(controls);
+    if (restoreIcons && !draft.pending) restoreLastIcon().catch(error => {
+        if (!controller.signal.aborted && !busy && !imageBlob && error.status !== 405) status("Impossibile recuperare l’ultima icona. " + error.message);
+    });
     if (draft.pending) update();
 }

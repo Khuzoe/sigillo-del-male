@@ -1,8 +1,9 @@
 import {GENERATION_WAIT_MS, GENERATION_PENDING_MS, generationDeadline, recoverGeneration, ownsGeneration, generationStopResponse} from "./generation-lifecycle.js";
 import {avatarReferenceKey, webpSize} from "./avatar-generation.js";
+import { callActorCard } from "./actor-card.js";
 import {ABILITY_SCHEMA, validateAbility, compileAbility} from "../../../assets/js/shared/npc-ability-schema.mjs";
 import {generateNpcSuggestions} from "./npc-suggestions.js";
-import {buildAbilityIconPrompt,ABILITY_ICON_PROMPT_VERSION,ABILITY_ICON_MODEL} from './ability-icon-prompt.js';
+import {buildAbilityIconPrompt,abilityIconQuality,ABILITY_ICON_PROMPT_VERSION,ABILITY_ICON_MODEL} from './ability-icon-prompt.js';
 export {ABILITY_ICON_STYLE,ABILITY_ICON_MODEL} from './ability-icon-prompt.js';
 import {npcVisualReferenceInput,NPC_SHEET_VISUAL_INPUT_VERSION} from './npc-visual-reference.js';
 import {GenerationError, fetchGeneration, readGenerationResponse, readStructuredGeneration, responseMetadata, generationFailure} from "./ai-generation-errors.js";
@@ -18,12 +19,22 @@ import {handleNpcSheetAi} from "./npc-sheet-ai-service.js";
 import {npcSheetJobStorage,MAX_SHEET_JOB_BYTES} from "./npc-sheet-job-storage.js";
 import {generateAbilityTranslation} from './ability-translations.js';
 import {reviewSkillTree, rewriteSkillNode} from './skill-node-generation.js';
+import {lastSkillNodePreview, listSkillNodePreviews, saveGenerationResult} from './skill-node-previews.js';
 import {catalogReviewGroups, reviewCatalogItem} from './catalog-item-review.js';
 import {writeDossier,dossierArtPrompt} from './dossier-generation.js';
 import {validateAbilityTranslation} from '../../../assets/js/shared/ability-translation.mjs';
 
 export const ABILITY_MODEL = "gpt-5.6-terra";
 const PRIVATE = "_private/ai-abilities/";
+function generationIconQuality(job) {
+  const purpose = job.context.purpose;
+  if (purpose === 'skill-node') return 'high';
+  if (purpose === 'dossier' || purpose === 'catalog-item') return 'medium';
+  if (job.kind === 'ability-icon') return job.iconQuality || 'medium';
+  const {item, itemType} = job.draft;
+  return abilityIconQuality(item?.type || itemType, item?.system || job.draft);
+}
+
 function rejectedJsonFields(job) {
   const fields = [];
   const operations=job.rejectedProposal?.operations;
@@ -59,7 +70,7 @@ const fail = (error, status = 400) => reply({ok: false, error}, status);
 const sheetCapabilities={nativeSheetFormat:NPC_SHEET_AI_FORMAT, nativeSheetEditor:NPC_SHEET_AI_COMPILER, nativeSheetVisualInput:NPC_SHEET_VISUAL_INPUT_VERSION};
 const scope = context => ['skill-node', 'catalog-item', 'dossier'].includes(context.purpose) ? JSON.stringify([context.purpose, context.campaignId, context.accountId, context.tree])
   : `${context.campaignId}:${context.worldId}:${context.actorId}${context.purpose === 'ability-translations' ? `:translations:${context.itemId || ''}` : context.purpose === "ability-icons" ? `:icons:${context.itemId || ""}` : context.purpose === "native-sheet" ? ":sheet" : context.purpose === "suggestions" ? ":suggestions" : context.purpose === "native-ability" ? ":native" : context.purpose === "native-ability-edit" ? `:edit:${context.itemId}` : ""}`;
-const publicJob = job => job ? {id: job.id, status: job.status, details: job.details, ...(job.kind==="ability-translation"?{channel:"translations",itemId:job.context.itemId}:job.kind==="ability-icon"?{channel:"icons",itemId:job.context.itemId}:{}), ...(job.context?.purpose==="native-ability"?{channel:"native"}:job.context?.purpose==="native-ability-edit"?{channel:"edit",itemId:job.context.itemId}:{}), ...(job.format===NPC_SHEET_AI_FORMAT?{channel:'sheet',canRepairJson:job.status==='uncertain'&&rejectedJsonFields(job).length>0,usesAvatar:Boolean(job.referenceKey),sheetOptions:{mode:job.options.mode,sharedRuntime:job.options.sharedRuntime,capabilities:job.options.capabilities,protectedEffects:npcSheetProtectedEffects(job.actorSource)}}:{}), ...(job.format ? {format:job.format} : {}), ...(job.recoveredAt?{recoveredAt:job.recoveredAt}:{}), draft: job.draft || null, report: job.report || null, iconId: job.iconId || "", iconAttempt: job.iconAttempt || "", iconError: job.iconError || "", error: job.error || "", errorDetail: job.errorDetail || null, iconErrorDetail: job.iconErrorDetail || null, command: job.command || null, createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job)} : null;
+const publicJob = job => job ? {id: job.id, status: job.status, details: job.details, ...(job.cardWarning && {cardWarning:job.cardWarning}), ...(job.kind==="ability-translation"?{channel:"translations",itemId:job.context.itemId}:job.kind==="ability-icon"?{channel:"icons",itemId:job.context.itemId}:{}), ...(job.context?.purpose==="native-ability"?{channel:"native"}:job.context?.purpose==="native-ability-edit"?{channel:"edit",itemId:job.context.itemId}:{}), ...(job.format===NPC_SHEET_AI_FORMAT?{channel:'sheet',canRepairJson:job.status==='uncertain'&&rejectedJsonFields(job).length>0,usesAvatar:Boolean(job.referenceKey),sheetOptions:{mode:job.options.mode,sharedRuntime:job.options.sharedRuntime,capabilities:job.options.capabilities,protectedEffects:npcSheetProtectedEffects(job.actorSource)}}:{}), ...(job.format ? {format:job.format} : {}), ...(job.recoveredAt?{recoveredAt:job.recoveredAt}:{}), draft: job.draft || null, report: job.report || null, iconId: job.iconId || "", iconAttempt: job.iconAttempt || "", iconError: job.iconError || "", error: job.error || "", errorDetail: job.errorDetail || null, iconErrorDetail: job.iconErrorDetail || null, command: job.command || null, createdAt: job.createdAt, startedAt: job.startedAt || null, deadlineAt: generationDeadline(job)} : null;
 const preparedDocument=job=>job.format===NPC_SHEET_AI_FORMAT&&job.prepared?{...job.prepared,draft:job.prepared.draft||job.draft}:job.prepared;
 const validateDraft=(input,format,job)=>format===NPC_SHEET_AI_FORMAT?validateNpcSheetDraft(input,job.actorSource,job.options):format===NATIVE_ABILITY_EDIT_FORMAT?validateNativeAbilityEditDraft(input,job?.itemSource,job?.capabilities||input?.capabilities||{}):format===NATIVE_ABILITY_FORMAT?validateNativeAbilityDraft(input):validateAbility(input);
 // Keep rejected edits privately so a corrected compiler can recover them
@@ -244,7 +255,7 @@ async function abilityIconReference(job, bucket, concept) {
 }
 
 export class AbilityGenerationStore {
-  constructor(state, env) { this.state = {storage:npcSheetJobStorage(state.storage)}; this.env = env; this.queue = Promise.resolve(); }
+  constructor(state, env) { this.state = {storage:npcSheetJobStorage(state.storage)}; this.rawStorage = state.storage; this.env = env; this.queue = Promise.resolve(); }
   serial(fn) { const p = this.queue.then(fn); this.queue = p.catch(() => {}); return p; }
   async fetch(request) {
     const data = await request.json();
@@ -260,6 +271,10 @@ export class AbilityGenerationStore {
   async handle(action, input) {
     const s = this.state.storage, identity = scope(input.context);
     if (action !== "stop") await recoverGeneration(this.state, job => this.recoverExpired(job));
+    if (action === 'last-skill-icon' && input.context.purpose === 'skill-node') {
+      if (input.targets) return reply(await listSkillNodePreviews(this.rawStorage, input.context, input.targets));
+      return reply(await lastSkillNodePreview(this.rawStorage, input.context, input.slot, input.legacy));
+    }
     const latest = await s.get(`latest:${identity}`), id = action === "latest" ? latest : input.id;
     let job = id ? await s.get(`job:${id}`) : null;
     // Adopt native jobs from the first rollout without deleting their drafts.
@@ -490,6 +505,7 @@ export class AbilityGenerationStore {
   async recoverExpired(job) {
     if (job.draft && job.iconAttempt && await this.env.MEDIA_BUCKET.head(`${PRIVATE}${job.id}/${job.iconAttempt}.webp`)) {
       job.status = "ready"; job.iconId = job.iconAttempt; job.iconError = ""; delete job.iconErrorDetail;
+      if (job.kind === 'skill-node-icon' && job.context.purpose === 'skill-node') await saveGenerationResult(this.state.storage, job);
       return;
     }
     const detail = {code: "interrupted", stage: job.draft ? "icon" : job.kind === "suggestions" ? "analysis" : "ability"};
@@ -582,11 +598,21 @@ export class AbilityGenerationStore {
         }
         stage = "icon";
         const dossier = job.context.purpose === 'dossier';
+        const catalogItem = job.context.purpose === 'catalog-item';
+        if (job.context.worldId && job.context.actorId && this.env.ACTOR_CARD_GENERATOR) {
+          try {
+            const card = await callActorCard(this.env, job.context, "ensure", job.cardBatchId || job.iconAttempt);
+            if (!card.ok) throw new Error("Card unavailable");
+          } catch {
+            job.cardWarning = "Avvio della card non riuscito. Puoi generarla da Strumenti AI.";
+          }
+        }
         const response = await fetchGeneration(images.length ? "https://api.openai.com/v1/images/edits" : "https://api.openai.com/v1/images/generations", {
           method: "POST", headers: {Authorization: `Bearer ${this.env.OPENAI_API_KEY}`, "Content-Type": "application/json"}, signal: AbortSignal.any([abortController.signal, AbortSignal.timeout(12 * 60 * 1000)]),
-          body: JSON.stringify({model: job.imageModel || ABILITY_ICON_MODEL, ...(images.length ? {images} : {}), n: 1, size: dossier ? "1536x1024" : "1024x1024", quality: "medium", output_format: "webp",
-            ...(job.context.purpose === 'catalog-item' ? {background: 'opaque'} : {}),
-            prompt: dossier ? dossierArtPrompt(job,hasConcept) : job.context.purpose === 'catalog-item'
+          body: JSON.stringify({model: job.imageModel || ABILITY_ICON_MODEL, ...(images.length ? {images} : {}), n: 1, size: dossier ? "1536x1024" : "1024x1024",
+            quality: generationIconQuality(job), output_format: "webp",
+            ...(catalogItem ? {background: 'opaque'} : {}),
+            prompt: dossier ? dossierArtPrompt(job,hasConcept) : catalogItem
               ? buildCatalogItemPrompt(job, hasConcept)
               : buildAbilityIconPrompt({hasReference: Boolean(reference), hasConcept, optionalImages, name:job.draft.item?.name||job.draft.name,visualDirection:job.draft.iconPrompt,context:job.iconContext || (job.format===NATIVE_ABILITY_EDIT_FORMAT?nativeAbilityEditSummary(job.draft):job.format===NATIVE_ABILITY_FORMAT?nativeAbilitySummary(job.draft):{mode:job.draft.mode,damage:job.draft.damage,extraDamage:job.draft.extraDamage})})})
         });
@@ -617,18 +643,18 @@ export class AbilityGenerationStore {
             recovered.draft = job.draft;
             if (job.withIcon) recovered.iconError = "La proposta è stata recuperata. L’icona non è stata avviata dopo la fine dell’attesa; puoi aggiungere l’abilità senza icona o generarla esplicitamente.";
           }
-          await s.put(`job:${job.id}`, recovered);
+          await saveGenerationResult(s, recovered);
         } else if (job.iconId && current?.status === "ready" && !current.prepared && current.iconAttempt === job.iconAttempt && current.iconErrorDetail?.code === "interrupted") {
           // Keep manual edits made while the expired image request was finishing.
           const recovered = {...current, iconId: job.iconId, iconError: ""};
           delete recovered.iconErrorDetail;
-          await s.put(`job:${job.id}`, recovered);
+          await saveGenerationResult(s, recovered);
         }
         return;
       }
       job.finishedAt = new Date().toISOString();
       if (job.status === "icon-pending") job.deadlineAt = Date.now() + GENERATION_PENDING_MS;
-      await s.put(`job:${job.id}`, job);
+      await saveGenerationResult(s, job);
       if (await s.get("active") === job.id) {
         if (job.status === "icon-pending") await s.setAlarm(Date.now() + 100);
         else { await s.delete("active"); await s.deleteAlarm(); }

@@ -134,7 +134,7 @@ try {
   await coordinator.alarm(); await coordinator.alarm();
   assert.equal(textCalls, 1); assert.equal(imageCalls, 1);
   assert.equal(capturedImage.size, "1024x1024"); assert.equal(capturedImage.n, 1); assert.ok(capturedImage.images[0].image_url.startsWith("data:image/webp;base64,"));
-  assert.equal(capturedImage.model,'gpt-image-2.6-sunburst');assert.equal(capturedImage.quality,'medium');
+  assert.equal(capturedImage.model,'gpt-image-2.6-sunburst');assert.equal(capturedImage.quality,'high');
   assert.equal(kv.get(actorKey), baseline, "draft never mutates the NPC");
   assert.equal((await req(`${generation}/${id}/preview`, undefined, dm)).status, 200);
   assert.equal((await req(`${generation}/${id}/preview`, undefined, player)).status, 403);
@@ -167,7 +167,7 @@ try {
   assert.equal((await req(`${generation}/${second}/icon`, iconBody, dm)).status, 202);
   assert.equal((await req(`${generation}/${second}/icon`, iconBody, dm)).status, 200);
   await coordinator.alarm(); const textsBefore = textCalls;
-  assert.equal(capturedImage.model,'gpt-image-2.6-sunburst','Explicit icon regeneration uses Sunburst even for an old Flare job');assert.equal(capturedImage.quality,'medium');
+  assert.equal(capturedImage.model,'gpt-image-2.6-sunburst','Explicit icon regeneration uses Sunburst even for an old Flare job');assert.equal(capturedImage.quality,'high');
   assert.equal((await req(`${generation}/${second}/icon`, iconBody, dm)).status, 200); await coordinator.alarm();
   assert.equal(textCalls, textsBefore, "icon retry never regenerates text");
   assert.equal(imageCalls, 3);

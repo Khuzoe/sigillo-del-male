@@ -1,4 +1,4 @@
-import { canUseAbilityTools, managedAbilityItems, abilityHasPendingCommand } from './managed-ability-tools.js';
+import { canUseActorOwnerTools, managedAbilityItems, abilityHasPendingCommand } from './managed-ability-tools.js';
 import { generationStopResponse } from './generation-lifecycle.js';
 import { ABILITY_TRANSLATION_SCHEMA, validateAbilityTranslation } from '../../../assets/js/shared/ability-translation.mjs';
 import { fetchGeneration, readGenerationResponse, readStructuredGeneration, responseMetadata } from './ai-generation-errors.js';
@@ -23,7 +23,7 @@ export async function handleAbilityTranslations(request, route, campaignId, env,
     const user = await services.requireUser(request);
     if (user instanceof Response) return user;
     const actor = await services.readActor(campaignId, route);
-    if (!await canUseAbilityTools(user, actor, campaignId, services)) return fail('Solo il DM o il proprietario del personaggio può tradurre le abilità.', 403);
+    if (!await canUseActorOwnerTools(user, actor, campaignId, services)) return fail('Solo il DM o il proprietario del personaggio può tradurre le abilità.', 403);
     if (!env.ABILITY_GENERATOR) return fail('Aggiorna il Worker per tradurre le abilità.', 503);
     const items = managedAbilityItems(actor), commands = await services.readCommands(campaignId, route);
     const canSync = actor.definition?.editor?.version === 1;

@@ -9,6 +9,7 @@ import { handleAvatarGeneration, normalizeGeneratedAvatarPath, normalizeGenerate
 export { AvatarGenerationStore } from "./avatar-generation.js";
 import { handleNpcGeneration } from "./npc-generation.js";
 import { handleActorPoses } from "./actor-poses.js";
+import { ActorCardGeneration, cardKey, handleActorCard, matchesCardSource } from "./actor-card.js";
 export { NpcGenerationStore } from "./npc-generation.js";
 import { handleDropGeneration } from "./drop-generation.js";
 import { handleFoundryMaps } from "./foundry-maps.js";
@@ -22,7 +23,7 @@ import { handleSkillNodeGeneration } from "./skill-node-generation.js";
 import { handleAbilityTranslations } from './ability-translations.js';
 export { AbilityGenerationStore } from "./ability-generation.js";
 import { D1PollStore, PollStorageError } from "./poll-store.js";
-import { SkillTreeStateStore } from "./skill-tree-store.js";
+import { SkillTreeStateStore, skillTreeSubjectId } from "./skill-tree-store.js";
 import { SkillTreeDefinitionStore } from "./skill-tree-definition-store.js";
 import { managedActorStorageEnvironment, managedActorD1Enabled, managedActorWritesPaused, campaignItemsD1Enabled, campaignItemsWritesPaused, ManagedActorStorageError } from "./managed-actor-store.js";
 import { npcNativeSnapshotD1Enabled, npcNativeSnapshotKey, validateNpcNativeSnapshot, saveNpcNativeSnapshot, NPC_NATIVE_SNAPSHOT_MAX_BYTES } from "./npc-native-snapshot.js";
@@ -264,17 +265,18 @@ const application = {
         Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
         return new Response(result.body, { status: result.status, headers });
       }
-      const avatarRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/(avatar|token)-generation(?:\/([a-f0-9-]{36})\/(preview|confirm|stop))?$/i);
+      const avatarRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/(avatar|token|card)-generation(?:\/([a-f0-9-]{36})\/(preview|confirm|stop))?$/i);
       const poseRouteMatch = url.pathname.match(/^(\/api\/managed-actors\/[^/]+\/[^/]+)\/poses(?:\/(upload)|\/([a-f0-9-]{36})\/(idle|hover|confirm|stop))?$/i);
       if (avatarRouteMatch || poseRouteMatch) {
         const match = avatarRouteMatch || poseRouteMatch;
         const actorRoute = matchManagedActorRoute(match[1]);
         if (!actorRoute) return json({ ok: false, error: "Invalid actor" }, 400, corsHeaders);
-        const handler = poseRouteMatch ? handleActorPoses : handleAvatarGeneration;
+        const handler = poseRouteMatch ? handleActorPoses : avatarRouteMatch[2].toLowerCase() === "card" ? handleActorCard : handleAvatarGeneration;
         const result = await handler(request, { ...actorRoute, slot: avatarRouteMatch?.[2].toLowerCase(), jobId: match[3], action: match[4] || poseRouteMatch?.[2] }, queryCampaignId, env, {
           requireUser: (req) => requireUser(req, env, corsHeaders),
           accountId: user => getAuthenticatedAccountId(user, env),
           isEditor: (user, campaignId) => isAuthenticatedCampaignContentEditor(user, env, campaignId),
+          isOwner: (user, actor) => isManagedActorOwner(actor, user, env),
           readActor: async (campaignId, route) => safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(campaignId, route.worldId, route.actorId))),
           saveActor: (body) => finishManagedActorMutation(handleManagedActorPost(new Request(request.url, {
             method: "POST", headers: request.headers, body: JSON.stringify(body),
@@ -852,6 +854,9 @@ const application = {
       // ======================================================
       if (url.pathname === "/api/bootstrap/character" && request.method === "GET") {
         return await handleCharacterBootstrapGet(request, queryCampaignId, env, corsHeaders);
+      }
+      if (url.pathname === "/api/skill-trees/sheet" && request.method === "GET") {
+        return await handleSkillTreeSheetGet(url, queryCampaignId, env, corsHeaders);
       }
 
       // ======================================================
@@ -3544,8 +3549,7 @@ async function handleCharacterBootstrapGet(request, campaignId, env, corsHeaders
   const collections = [
     "characters",
     "items",
-    "skill-trees",
-    "skill-tree-states",
+    ...(url.searchParams.get("skillTrees") === "separate" ? [] : ["skill-trees","skill-tree-states"]),
     "ability-overrides",
     "item-overrides",
     "media-overrides",
@@ -3571,6 +3575,36 @@ async function handleCharacterBootstrapGet(request, campaignId, env, corsHeaders
     inventory: safeJsonParse(inventoryRaw) || {},
     data,
   }, 200, corsHeaders);
+}
+
+async function handleSkillTreeSheetGet(url, campaignId, env, corsHeaders) {
+  const character = (url.searchParams.get("id") || "").trim();
+  if (!character || character.length > 256) return json({ok:false,error:"Personaggio non valido."},400,corsHeaders);
+  const definitions = skillTreeDefinitionStorage(env,campaignId), states = skillTreeStorage(env,campaignId);
+  const headers = {...corsHeaders,"Cache-Control":"no-store"};
+  if (!definitions || !states) {
+    const [trees,progress] = await Promise.all(["skill-trees","skill-tree-states"].map(key => readDataCollectionDocument(key,campaignId,env)));
+    return json({ok:true,trees,progress},200,headers);
+  }
+  const slugify = value => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
+  const normalize = value => slugify(value).replace(/-/g,"");
+  const id = normalize(character), slug = slugify(character);
+  const legacy = normalize(url.searchParams.get("legacyKey")), npc = url.searchParams.get("type") === "npc";
+  const trees = await definitions.forSheet(record => {
+    const tree = record.tree || record;
+    if (isSharedSkillTreeDefinition(record)) return !npc;
+    const owners = [tree.characterId || record.characterId,tree.ownerCharacterId || record.ownerCharacterId || record.characterId,
+      ...(Array.isArray(tree.characterIds) ? tree.characterIds : []),...(Array.isArray(tree.ownerCharacterIds) ? tree.ownerCharacterIds : [])].map(normalize).filter(Boolean);
+    if (owners.length) return owners.includes(id);
+    const key = normalize(record.id || record.key);
+    return key === id || key === legacy || slugify(record.id || record.key).startsWith(slug+"-");
+  });
+  // Before the first online override the definitions still live in the site's static JSON.
+  const subjects = trees.data?.map(record => skillTreeSubjectId(campaignId,{
+    treeKey:record.id || record.key,characterId:character,shared:isSharedSkillTreeDefinition(record)
+  }));
+  const progress = subjects ? await states.forSubjects(subjects) : await states.getDocument();
+  return json({ok:true,scoped:true,trees,progress},200,headers);
 }
 
 function handleVersionGet(env, corsHeaders = {}) {
@@ -4138,6 +4172,7 @@ function managedActorIndexEntry(document, previousEntry = null) {
       token: document.media?.token || null,
       idle: document.media?.idle || null,
       hover: document.media?.hover || null,
+      card: document.media?.card || null,
     },
     profile: previousEntry?.profile || null,
     revision: document.revision,
@@ -7130,6 +7165,7 @@ function normalizeManagedActorMedia(media, existingMedia = {}, source = "foundry
       : (hasToken ? (normalizeManagedActorMediaSlot(submitted.token) || existingMedia.token || null) : (existingMedia.token || null)),
     idle: source === "site" ? (hasIdle ? normalizeManagedActorMediaSlot(submitted.idle) : (existingMedia.idle || null)) : (existingMedia.idle || null),
     hover: source === "site" ? (hasHover ? normalizeManagedActorMediaSlot(submitted.hover) : (existingMedia.hover || null)) : (existingMedia.hover || null),
+    card: source === "site" && Object.hasOwn(submitted, "card") ? normalizeManagedActorMediaSlot(submitted.card) : (existingMedia.card || null),
     variants: canonicalVariants,
   };
 }
@@ -7556,6 +7592,32 @@ async function handleNpcNativeSnapshot(request, route, campaignId, env, corsHead
   }
 }
 
+export class ActorCardStore extends ActorCardGeneration {
+  async readActor(context, env = managedActorStorageEnvironment(this.env).env) {
+    return safeJsonParse(await env.SIGILLO_KV.get(managedActorDocumentKey(context.campaignId, context.worldId, context.actorId)));
+  }
+  async saveCard(job, previewKey) {
+    const {context} = job, {campaignId} = context;
+    const {env} = managedActorStorageEnvironment(this.env);
+    if (managedActorWritesPaused(env, campaignId)) return json({error:"Salvataggi temporaneamente sospesi."}, 503);
+    const actor = await this.readActor(context, env);
+    const key = cardKey(job), path = "media/" + key;
+    if (actor?.media?.card?.path === path) return json({ok:true, card:actor.media.card, revision:actor.revision});
+    if (!matchesCardSource(job, actor) || job.status === "accepted"
+      || (job.referenceEtag && (await env.MEDIA_BUCKET.head(job.referenceKey))?.etag !== job.referenceEtag)) {
+      return json({error:"Il nome, l’avatar o la card sono cambiati.", code:"CARD_SOURCE_CHANGED"}, 409);
+    }
+    const image = await env.MEDIA_BUCKET.get(previewKey);
+    if (!image) return json({error:"Anteprima non disponibile."}, 404);
+    await env.MEDIA_BUCKET.put(key, image.body, {httpMetadata:{contentType:"image/webp"}});
+    const card = {path, source:"site", revision:Number(actor.media?.card?.revision || 0) + 1};
+    const result = await finishManagedActorMutation(persistManagedActor({...actor, media:{card}, expectedRevision:actor.revision},
+      actor, campaignId, context, {source:"site"}, env, {}, this.state), env, {});
+    if (!result.ok) return result;
+    return json({ok:true, card, revision:(await result.json()).revision});
+  }
+}
+
 async function handleManagedActorPost(request, route, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
   if (!env.SIGILLO_KV) return json({ ok: false, error: "Missing env.SIGILLO_KV" }, 500, corsHeaders);
   if (hasMatchingFoundrySyncSecret(request, env) && !isFoundryV14Request(request)) {
@@ -7578,6 +7640,11 @@ async function handleManagedActorPost(request, route, fallbackCampaignId, env, c
     return json({ ok: false, error: "Unsupported Foundry sync contract", code: "CONTRACT_UNSUPPORTED" }, 426, corsHeaders);
   }
   if (authorization.source === "site" && !existing) return json({ ok: false, error: "Managed actor not found" }, 404, corsHeaders);
+  return persistManagedActor(body, existing, campaignId, route, authorization, env, corsHeaders, ctx);
+}
+
+async function persistManagedActor(body, existing, campaignId, route, authorization, env, corsHeaders, ctx) {
+  const key = managedActorDocumentKey(campaignId, route.worldId, route.actorId);
   const expectedRevision = Number(body?.expectedRevision);
   const hasExpectedRevision = body?.expectedRevision !== undefined && body?.expectedRevision !== null && body?.expectedRevision !== "";
   if (existing && hasExpectedRevision && Number.isFinite(expectedRevision) && expectedRevision !== Number(existing.revision || 0)) {
@@ -7867,7 +7934,7 @@ function managedActorDirectoryEntry(entry) {
     ownerCharacterId: entry.ownerCharacterId || "",
     visibility: entry.visibility,
     capabilities: Array.isArray(entry.capabilities) ? entry.capabilities : [],
-    media: { avatar: media.avatar || null, token: media.token || null, idle: media.idle || null, hover: media.hover || null },
+    media: { avatar: media.avatar || null, token: media.token || null, idle: media.idle || null, hover: media.hover || null, card: media.card || null },
     profile: entry.profile || null,
     revision: Number(entry.revision || 0),
     updatedAt: entry.updatedAt || null,
@@ -8518,6 +8585,23 @@ function mergeOwnedNpcTrees(existing, submitted, owned) {
   return [...kept, ...own];
 }
 
+async function initialOwnedSkillTrees(env, campaignId, id, submitted, owned) {
+  // The owner's client cannot authorize the other rows in a first static import.
+  const root = String(env.FE_URL || "https://khuzoe.github.io/sigillo-del-male/").replace(/\/+$/,"")+"/";
+  const read = path => fetch(new URL(path,root),{signal:AbortSignal.timeout(15000)});
+  let response = await read("campaigns/"+encodeURIComponent(campaignId)+"/data/skills.json");
+  if (response.status === 404) response = await read("assets/data/skills.json");
+  if (!response.ok && response.status !== 404) throw new PollStorageError("Impossibile leggere gli alberi iniziali.",503);
+  const content = response.ok ? await response.json() : {};
+  if (!content || typeof content !== "object") throw new PollStorageError("Alberi iniziali non validi.",503);
+  const baseline = Array.isArray(content) ? content : Object.entries(content).map(([key,tree])=>({...tree,id:key}));
+  const current = baseline.find(tree => (tree.id || tree.key) === id);
+  const change = submitted.find(tree => (tree.id || tree.key) === id);
+  if (!canWriteOwnedNpcTree(change || current,current,owned)) throw new PollStorageError("Albero non modificabile.",403);
+  if (!change) return baseline.filter(tree => tree !== current);
+  return current ? baseline.map(tree => tree === current ? change : tree) : [...baseline,change];
+}
+
 async function handleSkillTreeDefinitionD1Post(body, campaignId, user, env, corsHeaders, ctx, owned = null) {
   const storage = skillTreeDefinitionStorage(env, campaignId);
   const attribution = { updatedAt: new Date().toISOString(), updatedBy: String(user.global_name || user.username || user.sub || ""), updatedByDiscordId: String(user.sub || "") };
@@ -8527,17 +8611,20 @@ async function handleSkillTreeDefinitionD1Post(body, campaignId, user, env, cors
   if (!Array.isArray(data)) return json({ ok: false, error: "Expected { tree: {...} } or { data: [...] }." }, 400, corsHeaders);
   if (JSON.stringify(data).length > 1024 * 1024) return json({ ok: false, error: "Payload too large" }, 413, corsHeaders);
   if (owned) {
-    const current = await storage.getDocument();
-    const existing = current.data || [];
     if (targeted) {
-      if (!canWriteOwnedNpcTree(tree, existing.find(entry => String(entry.id || entry.key || "") === String(tree.id || tree.key || "")), owned)) {
+      if (!canWriteOwnedNpcTree(tree, await storage.getTree(tree.id || tree.key), owned)) {
         return json({ok: false, error: "Forbidden: albero non appartenente a un tuo companion."}, 403, corsHeaders);
       }
-    } else data = mergeOwnedNpcTrees(existing, data, owned);
+    } else {
+      const current = await storage.getDocument();
+      data = current.source === "static" && body.staticTreeId
+        ? await initialOwnedSkillTrees(env,campaignId,body.staticTreeId,data,owned)
+        : mergeOwnedNpcTrees(current.data || [],data,owned);
+    }
   }
   let saved;
   if (targeted && Object.hasOwn(body, "expectedTreeRevision")) {
-    saved = await storage.saveTree(tree, body.expectedTreeRevision, attribution);
+    saved = await storage.saveTree(tree, body.expectedTreeRevision, attribution, body.responseMode === "revision");
   } else {
     let next = data;
     if (targeted) {
@@ -8549,7 +8636,7 @@ async function handleSkillTreeDefinitionD1Post(body, campaignId, user, env, cors
     saved = await storage.replaceCollection(next, body?.expectedVersion, attribution);
   }
   scheduleFoundryLiveInvalidation(ctx, env, { campaignId, collections: ["light-sync"], reason: "data:skill-trees", revision: saved.version });
-  return json({ ...saved, saved: true, count: saved.data.length }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+  return json({ ...saved, saved: true, ...(saved.data && {count:saved.data.length}) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
 }
 
 async function handleSkillTreeStateD1Post(body, campaignId, user, isEditor, env, corsHeaders, ctx) {
@@ -8558,7 +8645,6 @@ async function handleSkillTreeStateD1Post(body, campaignId, user, isEditor, env,
       { ...corsHeaders, "Cache-Control": "no-store", "Retry-After": "60" });
   }
   const storage = skillTreeStorage(env, campaignId);
-  const existing = await storage.getDocument();
   const accountId = getAuthenticatedAccountId(user, env);
   const attribution = { updatedAt: new Date().toISOString(), updatedBy: String(user.global_name || user.username || user.sub || ""),
     updatedByDiscordId: String(user.sub || "") };
@@ -8567,6 +8653,7 @@ async function handleSkillTreeStateD1Post(body, campaignId, user, isEditor, env,
     let record = body.state;
     if (JSON.stringify(record).length > 1024 * 1024) return json({ ok: false, error: "Payload too large" }, 413, corsHeaders);
     if (!isEditor) {
+      const existing = await storage.getDocument();
       const definitions = (await readDataCollectionDocument("skill-trees", campaignId, env))?.data;
       const owned = await getEditableCharacterIdsForAccount(env, campaignId, accountId);
       const allowed = mergeUserSkillTreeStates(existing.data || [], [record], accountId, definitions, owned)
@@ -8574,17 +8661,17 @@ async function handleSkillTreeStateD1Post(body, campaignId, user, isEditor, env,
       if (!allowed || allowed.scope !== "character" || allowed.shared !== false || !owned.has(skillTreeEditableSubjectId(record.characterId))) return json({ ok: false, error: "Forbidden: progresso non modificabile." }, 403, corsHeaders);
       record = allowed;
     }
-    saved = await storage.saveState(record, body.expectedStateRevision, attribution);
+    saved = await storage.saveState(record, body.expectedStateRevision, attribution, body.responseMode === 'revision');
   } else {
     if (!Array.isArray(body?.data)) return json({ ok: false, error: "Expected { state: {...} } or { data: [...] }." }, 400, corsHeaders);
     if (JSON.stringify(body.data).length > 1024 * 1024) return json({ ok: false, error: "Payload too large" }, 413, corsHeaders);
     const definitions = !isEditor ? (await readDataCollectionDocument("skill-trees", campaignId, env))?.data : [];
-    const next = isEditor ? body.data : mergeUserSkillTreeStates(existing.data || [], body.data, accountId, definitions,
+    const next = isEditor ? body.data : mergeUserSkillTreeStates((await storage.getDocument()).data || [], body.data, accountId, definitions,
       await getEditableCharacterIdsForAccount(env, campaignId, accountId));
     saved = await storage.replaceCollection(next, body.expectedVersion, attribution);
   }
   scheduleFoundryLiveInvalidation(ctx, env, { campaignId, collections: ["light-sync"], reason: "data:skill-tree-states", revision: saved.version });
-  return json({ ...saved, saved: true, count: saved.data.length }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
+  return json({ ...saved, saved: true, ...(saved.data && {count:saved.data.length}) }, 200, { ...corsHeaders, "Cache-Control": "no-store" });
 }
 
 async function handleDataCollectionPost(request, collection, fallbackCampaignId, env, corsHeaders = {}, ctx = null) {
@@ -8686,16 +8773,19 @@ async function handleDataCollectionPost(request, collection, fallbackCampaignId,
     if (!treeId) {
       return json({ ok: false, error: "Skill tree id is required" }, 400, corsHeaders);
     }
-    const nextTree = { ...body.tree, id: treeId };
+    let nextTree = { ...body.tree, id: treeId };
     const existingIndex = existingData.findIndex((entry) => String(entry?.id || "") === treeId);
     if (ownedNpcTreeSubjects && !canWriteOwnedNpcTree(nextTree, existingData[existingIndex], ownedNpcTreeSubjects)) {
       return json({ok: false, error: "Forbidden: albero non appartenente a un tuo companion."}, 403, corsHeaders);
     }
+    if (existingData[existingIndex]?.tree && !nextTree.tree) nextTree = {...existingData[existingIndex],tree:nextTree};
     nextData = existingIndex >= 0
       ? existingData.map((entry, index) => index === existingIndex ? nextTree : entry)
       : [...existingData, nextTree];
   } else if (ownedNpcTreeSubjects) {
-    nextData = mergeOwnedNpcTrees(existingData, data, ownedNpcTreeSubjects);
+    nextData = !Array.isArray(existing.data) && body.staticTreeId
+      ? await initialOwnedSkillTrees(env,campaignId,body.staticTreeId,data,ownedNpcTreeSubjects)
+      : mergeOwnedNpcTrees(existingData, data, ownedNpcTreeSubjects);
   }
 
   const removedTransformationMedia = collection === "transformations"

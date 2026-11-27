@@ -149,6 +149,7 @@ sandbox.window.CriptaCharacterSkillTree = { buildCards(character, trees, context
     assert.equal(sandbox.treeApi.canManageSkillTreeDefinition(character, sample.tree), false);
     return element();
 } };
+vm.runInNewContext(await readFile(new URL('../assets/js/shared/skill-tree-sheet.js', import.meta.url), 'utf8'), sandbox);
 vm.runInNewContext(await readFile(new URL('../assets/js/shared/managed-player-extensions.js', import.meta.url), 'utf8'), sandbox);
 const mounts = [];
 const mount = sandbox.window.CriptaManagedPlayerExtensions.mount;

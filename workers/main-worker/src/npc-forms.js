@@ -74,7 +74,7 @@ export function visibleForms(group, actors, access, editor) {
     return [{
       key: form.key, worldId, actorId, label: form.label, past: form.past,
       current: form.key === group.current, canReadStats: stats,
-      media: { avatar: media.avatar, token: media.token, idle: media.idle, hover: media.hover },
+      media: { avatar: media.avatar, token: media.token, idle: media.idle, hover: media.hover, ...(stats && media.card && {card:media.card}) },
       ...(editor ? { showPortrait: !!form.showPortrait, available: eligibleNpc(actor) } : {})
     }];
   });

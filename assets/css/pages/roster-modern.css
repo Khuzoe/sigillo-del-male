@@ -1585,12 +1585,14 @@ body.page-npcs.site-layout.roster-page .npc-atlas-workspace :is(.npc-category-li
     aspect-ratio: 5 / 6;
     overflow: hidden;
     isolation: isolate;
-    border: 1px solid color-mix(in srgb, var(--npc-category-tone) 20%, transparent);
+    border: 1px solid color-mix(in srgb, var(--npc-category-tone) 12%, #252126);
     border-radius: 8px;
-    background: radial-gradient(ellipse at 50% 45%, color-mix(in srgb, var(--npc-category-tone) 9%, transparent), transparent 76%);
+    background: radial-gradient(ellipse at 50% 43%,
+        color-mix(in srgb, var(--npc-category-tone) 9%, #302a30),
+        #211d22 56%, #151318);
 }
 .page-npcs :is(.npc-category-list, .npc-updated-list) .npc-card:is(:hover, :focus-visible) .npc-atlas-plate {
-    border-color: color-mix(in srgb, var(--npc-category-tone) 38%, transparent);
+    border-color: color-mix(in srgb, var(--npc-category-tone) 36%, #393238);
 }
 .page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate .npc-avatar-container {
     width: 94%;
@@ -1602,6 +1604,9 @@ body.page-npcs.site-layout.roster-page .npc-atlas-workspace :is(.npc-category-li
     background: none;
     box-shadow: none;
     transform: none;
+}
+.page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate:not(.npc-atlas-plate--token) .npc-avatar-container:not([data-frame-circle-host]) {
+    box-shadow: none;
 }
 .page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate .npc-avatar-container::before,
 .page-npcs :is(.npc-category-list, .npc-updated-list) .npc-atlas-plate .npc-avatar-container::after { content: none; }

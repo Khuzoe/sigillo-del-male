@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {createHmac, randomUUID} from 'node:crypto';
 import worker, {AbilityGenerationStore} from '../workers/main-worker/src/index.js';
 import {formatSkillNodeDescription, skillNodeAvatarReference} from '../assets/js/shared/skill-node-generator.mjs';
+import {skillNodePreviewKey} from '../assets/js/shared/skill-node-preview-key.mjs';
 import {treeReviewSteps} from '../assets/js/shared/skill-tree-review.mjs';
 
 const asParagraph = part => part.trim() ? '<p>' + part.trim().replaceAll('<', '&lt;') + '</p>' : '';
@@ -22,6 +23,8 @@ assert.deepEqual(legacy.paths, ['media/players/missing.webp', 'media/players/val
 assert.equal(skillNodeAvatarReference({images: {token: 'media/players/token.webp'}}), null);
 const storage = {
     get: async key => structuredClone(values.get(key)),
+    list: async ({prefix, limit, startAfter = ''}) => new Map([...values.keys()].sort()
+        .filter(key => key.startsWith(prefix) && key > startAfter).slice(0, limit).map(key => [key, structuredClone(values.get(key))])),
     put: async (key, value) => {
         for (const [k, v] of Object.entries(typeof key === 'string' ? {[key]: value} : key)) values.set(k, structuredClone(v));
     },
@@ -35,22 +38,23 @@ const env = {JWT_SECRET: 'test', OPENAI_API_KEY: 'mock', GLOBAL_ADMIN_ACCOUNT_ID
         get: async key => avatars.get(key) || (media.has(key) ? {body: media.get(key), size: media.get(key).byteLength, arrayBuffer: async () => media.get(key)} : null)}};
 const coordinator = new AbilityGenerationStore({storage}, env);
 env.ABILITY_GENERATOR = {idFromName: name => name, get: () => coordinator};
-function call({body, account = 'dm', tree = 'valdor', campaign = 'cripta-di-sangue', path = '', item = '', dossierActor = ''} = {}) {
+function call({body, account = 'dm', tree = 'valdor', campaign = 'cripta-di-sangue', path = '', item = '', dossierActor = '', query = {}} = {}) {
     const header = Buffer.from('{"alg":"HS256","typ":"JWT"}').toString('base64url');
     const data = Buffer.from(JSON.stringify({accountId: account, exp: Math.floor(Date.now() / 1000) + 60})).toString('base64url');
     const sig = createHmac('sha256', 'test').update(header + '.' + data).digest('base64url');
     const headers = account ? {Authorization: 'Bearer ' + [header, data, sig].join('.')} : {};
     if (body instanceof Blob) headers['Content-Type'] = body.type;
     const base = dossierActor ? '/api/managed-actors/world-a/' + dossierActor + '/dossier-ai' : item ? '/api/items/generate' : '/api/skill-trees/generate-node';
-    return worker.fetch(new Request('https://local.test' + base + path + '?' + new URLSearchParams({campaign, tree, item}),
+    return worker.fetch(new Request('https://local.test' + base + path + '?' + new URLSearchParams({campaign, tree, item, ...query}),
         {headers, ...(body ? {method: 'POST', body: body instanceof Blob ? body : JSON.stringify(body)} : {})}), env, {});
 }
 const proposal = {name: 'Eco tonante', description: 'Infliggi 1d6 danni da tuono.', questions: ['Qual è la CD?']};
+const nodeProposal = {...proposal, flavor: 'Il tuono ritorna sui suoi passi.'};
 const notes = {mode: 'text', notes: '1d6 tuono, TS, CD da decidere', requestId: randomUUID(),
-    examples: [{name: 'Carica tonante', description: 'Spendi una carica.'}]};
+    examples: [{name: 'Carica tonante', description: 'Spendi una carica.', flavor: 'Il cielo trattiene il fiato.'}]};
 const image = {mode: 'icon', name: 'Nome rivisto', description: 'Descrizione rivista', direction: 'Una runa blu', requestId: randomUUID()};
 const revision = {mode: 'refine', source: {name: 'Rintocco', description: '1d6 danni da tuono, come reazione.'},
-    notes: 'Metti prima l’attivazione.', examples: notes.examples, requestId: randomUUID()};
+    notes: 'Metti prima l’attivazione.', examples: [], requestId: randomUUID()};
 const bytes = Buffer.alloc(30); bytes.write('RIFF'); bytes.write('WEBPVP8X', 8);
 bytes.writeUInt32LE(22, 4); bytes.writeUInt32LE(10, 16);
 bytes.writeUIntLE(1023, 24, 3); bytes.writeUIntLE(1023, 27, 3);
@@ -58,6 +62,7 @@ const originalFetch = globalThis.fetch;
 globalThis.fetch = async (url, init) => {
     const payload = JSON.parse(init.body); requests.push(payload);
     if (url.endsWith('/images/generations') || url.endsWith('/images/edits')) {
+        assert.equal(payload.quality, 'high');
         if (url.endsWith('/edits')) {
             assert.ok(payload.images.length > 0);
             assert.ok(payload.prompt.includes('Reference image 1') || JSON.parse(payload.prompt.split('\n').at(-1)).optionalReferenceImages?.[0]?.image === 1);
@@ -72,21 +77,24 @@ globalThis.fetch = async (url, init) => {
     if (input.livello) {
         assert.deepEqual(input, {livello: revision.source, indicazioni: revision.notes, esempi: revision.examples});
         assert.ok(payload.instructions.includes('Conserva il nome e tutte le meccaniche'));
+        assert.ok(!Object.hasOwn(payload.text.format.schema.properties, 'flavor'));
     } else {
         assert.deepEqual(input, {appunti: notes.notes, esempi: notes.examples});
+        assert.ok(payload.text.format.schema.required.includes('flavor'));
     }
-    return Response.json({status: 'completed', output: [{content: [{type: 'output_text', text: JSON.stringify(proposal)}]}]});
+    return Response.json({status: 'completed', output: [{content: [{type: 'output_text', text: JSON.stringify(input.livello ? proposal : nodeProposal)}]}]});
 };
 try {
     assert.equal((await call({body: notes, account: ''})).status, 401);
     assert.equal((await call({body: notes, account: 'player'})).status, 403);
     assert.equal((await call({body: notes, campaign: 'mago-folle'})).status, 403);
     assert.equal((await call({body: {...notes, examples: Array(6).fill(notes.examples[0])}})).status, 400);
+    assert.equal((await call({body: {...notes, examples: [{...notes.examples[0], flavor: 'x'.repeat(1001)}]}})).status, 400);
     assert.equal((await call({body: notes})).status, 202);
     assert.equal((await call({body: image})).status, 409);
     const textPath = '/' + notes.requestId;
     await coordinator.alarm();
-    assert.deepEqual((await (await call({path: textPath})).json()).job.draft, proposal);
+    assert.deepEqual((await (await call({path: textPath})).json()).job.draft, nodeProposal);
     assert.equal((await call({path: textPath, account: 'admin'})).status, 404);
     assert.equal((await call({path: textPath, tree: 'randra'})).status, 404);
     assert.equal((await call({body: notes})).status, 200);
@@ -153,6 +161,43 @@ try {
         assert.equal((await call({body: portraitJob(avatar)})).status, 400);
     }
     assert.equal(requests.length, 5, 'Missing, changed and oversized avatars do not start another provider generation');
+    const slot = await skillNodePreviewKey(['node-1', 0, 'icon']);
+    const otherLevel = await skillNodePreviewKey(['node-1', 1, 'icon']);
+    const latestIcon = async (query, options) => {
+        let result;
+        do { result = await (await call({query, ...options})).json(); } while (result.scanning);
+        return result.preview;
+    };
+    const legacyJob = await storage.get('job:' + image.requestId);
+    const legacyId = randomUUID();
+    await storage.put('job:' + legacyId, {...legacyJob, id:legacyId, iconId:legacyId, context:{...legacyJob.context, tree:'archivio'}});
+    const legacyKey = await skillNodePreviewKey([image.name, image.description]);
+    assert.equal((await latestIcon({previewSlot:slot, legacy:legacyKey}, {tree:'archivio'})).id, legacyId);
+    const archived = await latestIcon({previewSlot:slot, legacy:'tree'}, {tree:'archivio'});
+    assert.equal(archived.id, legacyId);
+    assert.equal(archived.description, image.description);
+    assert.equal(await latestIcon({previewSlot:slot, legacy:otherLevel}, {tree:'archivio'}), null);
+    const scoped = {...image, requestId:randomUUID(), previewSlot:slot, flavor:nodeProposal.flavor};
+    assert.equal((await call({body:scoped})).status, 202);
+    await coordinator.alarm();
+    const afterIcon = requests.length;
+    assert.equal((await latestIcon({previewSlot:slot})).id, scoped.requestId);
+    assert.equal((await latestIcon({previewSlot:slot, legacy:'tree'})).flavor, nodeProposal.flavor);
+    assert.equal(await latestIcon({previewSlot:otherLevel}), null);
+    assert.equal(await latestIcon({previewSlot:slot}, {account:'admin'}), null);
+    assert.equal(await latestIcon({previewSlot:slot}, {tree:'altro'}), null);
+    const query = {icons:slot + ',' + otherLevel + '.' + legacyKey};
+    const batch = (await (await call({query})).json()).previews;
+    assert.equal(batch[slot].id, scoped.requestId);
+    assert.ok(batch[otherLevel]?.id && batch[otherLevel].id !== scoped.requestId);
+    assert.deepEqual((await (await call({query, account:'admin'})).json()).previews, {});
+    assert.equal((await call({query:{icons:slot + '.tree'}})).status, 400);
+    assert.equal((await call({query:{icons:Array(33).fill(slot).join(',')}})).status, 400);
+    const abandoned = {...scoped, requestId:randomUUID()};
+    assert.equal((await call({body:abandoned})).status, 202);
+    assert.equal((await call({path:'/' + abandoned.requestId + '/stop', body:{}})).status, 200);
+    assert.equal((await latestIcon({previewSlot:slot})).id, scoped.requestId);
+    assert.equal(requests.length, afterIcon, 'Reopening and recovering previews never starts a paid request');
     const attachment = new Blob([bytes], {type: 'image/webp'});
     assert.equal((await call({path: '/concepts', body: attachment, account: 'player'})).status, 403);
     assert.equal((await call({path: '/concepts', body: new Blob(['invalid'], {type: 'image/png'})})).status, 400);
@@ -235,6 +280,7 @@ try {
     globalThis.fetch = mockProvider;
     const styled = {...image, requestId:randomUUID(), treeStyle:plan.draft.visualStyle};
     assert.equal((await call({body:styled})).status, 202); await coordinator.alarm();
+    assert.equal(requests.at(-1).quality, 'high');
     assert.equal(JSON.parse(requests.at(-1).prompt.split('\n').at(-1)).ability.sharedArtDirectionForThisTree, styled.treeStyle);
     for (const useAvatar of [false,true]) {
         const refs = [{uploadId,note:'Il simbolo del tuono'}];
@@ -263,6 +309,7 @@ try {
         assert.match(payload.prompt, /clean white background/);
         assert.match(payload.prompt, /translucent watercolor stain/);
         assert.equal(payload.background, 'opaque');
+        assert.equal(payload.quality, 'medium');
         if (payload.images) {
             assert.ok(url.endsWith('/edits'));
             assert.equal(payload.images[0].image_url, 'data:image/webp;base64,' + bytes.toString('base64'));

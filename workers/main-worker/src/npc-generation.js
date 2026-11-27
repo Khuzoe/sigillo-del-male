@@ -1,5 +1,5 @@
 import {handleConceptImage, UPLOAD_ID, MAX_BYTES, imageMime} from './concept-images.js';
-import { AVATAR_MODEL, AVATAR_STYLE, AVATAR_RESOLUTIONS, AVATAR_QUALITIES, avatarDimensions, avatarFraming, avatarGenerationOptions, avatarReferenceKey, webpSize, webpHasAlpha } from "./avatar-generation.js";
+import { AVATAR_MODEL, AVATAR_STYLE, AVATAR_RESOLUTIONS, AVATAR_QUALITIES, DEFAULT_NPC_POSE_QUALITY, avatarDimensions, avatarFraming, avatarGenerationOptions, avatarReferenceKey, webpSize, webpHasAlpha } from "./avatar-generation.js";
 import { GENERATION_PENDING_MS, GENERATION_WAIT_MS, generationDeadline, recoverGeneration, ownsGeneration } from "./generation-lifecycle.js";
 import { NPC_TOKEN_PROMPT, NPC_TOKEN_SIZES } from "./npc-token-prompt.js";
 export { NPC_TOKEN_SIZES } from "./npc-token-prompt.js";
@@ -33,13 +33,21 @@ const reply = (value, status = 200) => Response.json(value, { status, headers: {
 const fail = (message, status = 400) => reply({ ok: false, error: message }, status);
 class InputError extends Error {}
 
+export function readNpcPoseDirections(phase, body) {
+  if (!isPose(phase)) return {};
+  const key = phase === "idle" ? "idleDirection" : "direction";
+  const value = body[key] ?? "";
+  if (typeof value !== "string" || value.length > 500) return null;
+  return { [key]: value.trim() };
+}
+
 function publicJob(job) {
   if (!job) return null;
   return {
     id: job.id, draftId: job.draftId, status: job.status, phase: job.phase, form: job.confirmation || job.form,
-    options: avatarGenerationOptions(job.options), references: job.references.map(({ uploadId, worldId, actorId, name, purpose, note }) => ({ ...(uploadId ? {uploadId} : {worldId, actorId}), name, purpose, note })),
+    options: avatarGenerationOptions(job.options, job.phase === "hover" ? "hover" : "avatar"), references: job.references.map(({ uploadId, worldId, actorId, name, purpose, note }) => ({ ...(uploadId ? {uploadId} : {worldId, actorId}), name, purpose, note })),
     hasAvatar: Boolean(job.avatarReady), hasToken: Boolean(job.tokenReady), tokenBackground: job.tokenBackground || "opaque", error: job.error || "",
-    hasIdle: Boolean(job.idleKey), hasHover: Boolean(job.hoverKey), poseDirection: job.poseDirection || "",
+    hasIdle: Boolean(job.idleKey), hasHover: Boolean(job.hoverKey), idleDirection: job.idleDirection || "", poseDirection: job.poseDirection || "",
     idleRevision: previewRevision(job.idleKey), hoverRevision: previewRevision(job.hoverKey),
     includePoses: job.includePoses, canConfirm: canConfirm(job),
     ...(job.actorBaseline ? { baseline: job.actorBaseline, usesCurrentIdle: job.usesCurrentIdle === true } : {}),
@@ -108,18 +116,25 @@ async function checkedReferences(input, context, env, services) {
   return references;
 }
 
-export function npcImagePrompt(job, phase) {
-  if (isPose(phase)) {
+export function npcImagePrompt(job, phase, imageCount) {
+  if (phase === "idle") {
     const identity = `NPC: ${JSON.stringify(job.form.name)}. Character context: ${JSON.stringify(job.form.description)}.`;
     const composition = "Single square frameless character cutout for a website portrait. Transparent outside the silhouette, including gaps. Keep all visible shapes and effects inside the canvas. No circular medallion, ring, vignette, backing disc, scenery or text.";
-    if (phase === "idle") {
-      const tokenGuide = job.tokenKey ? " Image 2 is the map token: use it only as a secondary reference for likeness and portrait scale." : "";
-      return `${identity} ${composition} Image 1 is the character reference: preserve the face, anatomy, costume and artistic style.${tokenGuide} Omit any decorative frame. Compose a calm, readable head-and-shoulders portrait, allowing a little room for movement.`;
-    }
+    const tokenGuide = job.tokenKey ? " Image 2 is the map token: use it only as a secondary reference for likeness and portrait scale." : "";
+    const direction = job.idleDirection ? ` Follow the DM's direction for the resting portrait within this framing: ${JSON.stringify(job.idleDirection)}.` : "";
+    return `${identity} ${composition} Image 1 is the character reference: preserve the face, anatomy, costume and artistic style.${tokenGuide} Omit any decorative frame. Compose a calm, readable portrait, allowing a little room for movement.${direction}`;
+  }
+  if (phase === "hover") {
+    const portraitGuide = imageCount > 1
+      ? " Image 2 is the original full portrait. Use it to check likeness, anatomy and costume details. Image 1 sets the starting pose, framing, lighting and rendering style."
+      : "";
     const action = job.poseDirection
-      ? `Follow the DM's direction: ${JSON.stringify(job.poseDirection)}. Respect the requested intensity. Unless a restrained change is requested, carry the action through into a distinct pose that reads at thumbnail size.`
-      : "Show a characteristic action already in progress, legible at thumbnail size. Choose a gesture that fits this particular character's anatomy, personality and visible equipment. For example, a guard might bring a shield up to one shoulder, or a beast might open its jaws and bristle. Let the expression support the action.";
-    return `${identity} ${composition} Edit the supplied idle portrait into the second pose of a two-image hover transition. Keep the camera, crop, face size and approximate head position aligned so the two portraits crossfade cleanly. Preserve the character's features, costume, main light and painting style. Allow the shoulders, limbs, clothing or equipment to change silhouette as the action calls for. ${action}`;
+      ? `Show the requested action at the specified intensity. A request for an expression alone can be fulfilled entirely in the face. ${JSON.stringify(job.poseDirection)}`
+      : "Choose one gesture that fits the anatomy and equipment visible in the idle. Show it partway through, with a change of pose that reads at card size. Make its direction clear through the angle of a moving part or the way two shapes overlap.";
+    return `Create the next frame from image 1, the approved idle cutout.${portraitGuide} ${action}
+Articulate the moving parts at their natural joints. Keep the length and volume of each segment and the proportions of the face. Let a held object follow the grip and attached fabric follow the moving limb. Keep rigid parts rigid as they turn.
+Keep the camera, crop and subject scale fixed so stationary features line up during the crossfade. Match the idle's brushwork, original exposure and palette. Let shadows change locally where a part moves or the requested action casts light.
+Return a single square cutout with transparency around the silhouette and through its gaps.`;
   }
   if (phase === "token") {
     const frames = job.references.filter(reference => reference.purpose === "frame");
@@ -172,13 +187,14 @@ export async function handleNpcGeneration(request, route, campaignId, env, servi
       const supported = await capabilities.json();
       if (pose) {
         if (supported.sitePoses !== 1) return fail("Aggiorna il generatore per preparare le pose.", 503);
-        if (typeof (body.direction ?? "") !== "string" || (body.direction || "").length > 500) return fail("L'indicazione per l'hover può contenere fino a 500 caratteri.");
+        const directions = readNpcPoseDirections(route.action === "use-idle" ? "upload" : pose, body);
+        if (!directions) return fail("Le indicazioni possono contenere fino a 500 caratteri.");
         let uploadedIdleKey;
         if (route.action === "use-idle") {
           if (typeof body.uploadId !== "string" || !UPLOAD_ID.test(body.uploadId) || !body.uploadId.endsWith(".webp")) return fail("Scegli un idle WebP trasparente.");
           uploadedIdleKey = conceptKey(context, body.uploadId);
         }
-        return call("create", { id: body.requestId, parentJobId: route.jobId, pose, uploadedIdleKey, idleRevision: body.idleRevision, direction: (body.direction || "").trim() });
+        return call("create", { id: body.requestId, parentJobId: route.jobId, pose, uploadedIdleKey, idleRevision: body.idleRevision, ...directions });
       }
       if (supported.tokenTransparencyVersion !== 1) return fail("Aggiornamento del generatore in corso. Riprova per ottenere token trasparenti.", 503);
       if (Array.isArray(body.references) && body.references.some(ref => ref?.uploadId) && supported.conceptReferences !== 1) return fail("Aggiorna il generatore per usare i concept allegati.", 503);
@@ -245,7 +261,7 @@ export class NpcGenerationStore {
     const id = action === "latest" ? latest : input.id;
     let job = id ? await storage.get(`job:${id}`) : null;
     if (job && scope(job.context) !== scope(input.context)) return fail("Bozza non trovata.", 404);
-    if (action === "latest") return reply({ ok: true, version: NPC_GENERATION_VERSION, tokenTransparencyVersion: 1, conceptReferences: 1, sitePoses: 1, actorPoses: 1, canStop: true, landscapeAvatar: true, supportedResolutions: Object.keys(AVATAR_RESOLUTIONS), supportedQualities: AVATAR_QUALITIES, tokenSizes: NPC_TOKEN_SIZES, job: publicJob(job) });
+    if (action === "latest") return reply({ ok: true, version: NPC_GENERATION_VERSION, tokenTransparencyVersion: 1, conceptReferences: 1, sitePoses: 1, actorPoses: 1, supportsIdleDirection: true, canStop: true, landscapeAvatar: true, supportedResolutions: Object.keys(AVATAR_RESOLUTIONS), supportedQualities: AVATAR_QUALITIES, tokenSizes: NPC_TOKEN_SIZES, job: publicJob(job) });
     if (action === "create" || action === "actor-pose") {
       if (job) return reply({ ok: true, job: publicJob(job) });
       const previous = latest ? await storage.get(`job:${latest}`) : null;
@@ -260,6 +276,7 @@ export class NpcGenerationStore {
           actorBaseline: input.baseline, references: [], options: input.options, phase: input.pose,
           status: input.uploadKey ? "ready" : "pending", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS,
           usesCurrentIdle: parent ? parent.usesCurrentIdle : input.pose === "hover", poseDirection: input.direction,
+          idleDirection: input.pose === "idle" ? input.idleDirection : parent?.idleDirection,
         };
         // Pin source bytes before starting the alarm. A later manual upload may reuse its path.
         const snapshot = async (key, part, optional = false) => {
@@ -284,7 +301,11 @@ export class NpcGenerationStore {
             if (!job.avatarKey) job.avatarKey = await snapshot(input.tokenKey, "character");
             else if (input.tokenKey && input.avatarKey !== input.tokenKey) job.tokenKey = await snapshot(input.tokenKey, "token", true);
           } else {
+            const idleSource = job.usesCurrentIdle ? input.currentIdleKey : parent?.idleKey;
             job.idleKey = parent?.idleKey || await snapshot(input.currentIdleKey, "idle");
+            if (input.avatarKey && input.avatarKey !== idleSource) {
+              job.avatarKey = await snapshot(input.avatarKey, "portrait", true);
+            }
           }
         } catch (error) {
           if (error instanceof InputError) return fail(error.message, 409);
@@ -318,12 +339,14 @@ export class NpcGenerationStore {
       job = {
         id: input.id, draftId: parent?.draftId || input.id, context: input.context, form: reuseAvatar ? parent.form : input.form,
         references, options: input.pose ? parent.options : input.tokenOnly ? { ...input.options, aspectRatio: parent.options?.aspectRatio || "9:16" } : input.options,
+        ...(input.pose && !input.uploadedIdleKey && {poseQuality: DEFAULT_NPC_POSE_QUALITY[input.pose]}),
         status: input.uploadedIdleKey ? "ready" : "pending", phase: input.pose || (input.tokenOnly ? "token" : "avatar"),
         avatarKey: reuseAvatar ? parent.avatarKey : imageKey(input.id, "avatar"), tokenKey: input.pose ? parent.tokenKey : imageKey(input.id, "token"),
         avatarReady: reuseAvatar, tokenReady: Boolean(input.pose), tokenAvatarKey: input.pose ? parent.tokenAvatarKey : null,
         tokenBackground: input.pose ? parent.tokenBackground : "transparent",
         idleKey: input.uploadedIdleKey || (reuseAvatar && parent.idleKey) || null,
         hoverKey: reuseAvatar && !input.uploadedIdleKey ? parent.hoverKey : null,
+        idleDirection: input.pose === "idle" ? input.idleDirection : reuseAvatar ? parent.idleDirection : "",
         poseDirection: input.pose === "hover" ? input.direction : reuseAvatar ? parent.poseDirection : "",
         error: "", createdAt: new Date().toISOString(), deadlineAt: Date.now() + GENERATION_PENDING_MS,
       };
@@ -449,9 +472,12 @@ export class NpcGenerationStore {
     let providerStarted = false, completed = false;
     try {
       const images = [];
-      const encode = async (key, mime) => {
+      const encode = async (key, mime, optional = false) => {
         const source = await this.env.MEDIA_BUCKET.get(key);
-        if (!source || !source.size || source.size > MAX_BYTES) throw new InputError("Immagine di riferimento non disponibile. Le immagini già pronte sono conservate.");
+        if (!source?.size || source.size > MAX_BYTES) {
+          if (optional) return;
+          throw new InputError("Immagine di riferimento non disponibile. Le immagini già pronte sono conservate.");
+        }
         const bytes = new Uint8Array(await source.arrayBuffer());
         let raw = "";
         for (let offset = 0; offset < bytes.length; offset += 8192) raw += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
@@ -459,7 +485,10 @@ export class NpcGenerationStore {
       };
       if (job.phase === "token" || job.phase === "idle") await encode(job.avatarKey, imageMime(job.avatarKey));
       if (job.phase === "idle" && job.tokenKey) await encode(job.tokenKey, imageMime(job.tokenKey));
-      if (job.phase === "hover") await encode(job.idleKey, imageMime(job.idleKey));
+      if (job.phase === "hover") {
+        await encode(job.idleKey, imageMime(job.idleKey));
+        if (job.avatarKey && job.avatarKey !== job.idleKey) await encode(job.avatarKey, imageMime(job.avatarKey), true);
+      }
       if (!isPose(job.phase)) for (const reference of job.references.filter(reference => (reference.purpose === "frame") === (job.phase === "token"))) await encode(reference.key, reference.mime);
       if (controller.signal.aborted || !await ownsGeneration(this.state, job, "running")) throw new InputError("Attesa interrotta prima della generazione.");
       const dimensions = this.dimensions(job);
@@ -470,7 +499,12 @@ export class NpcGenerationStore {
       const response = await fetch(`https://api.openai.com/v1/images/${images.length ? "edits" : "generations"}`, {
         method: "POST", headers: { Authorization: `Bearer ${this.env.OPENAI_API_KEY}`, "Content-Type": "application/json" },
         signal: AbortSignal.any([controller.signal, AbortSignal.timeout(12 * 60 * 1000)]),
-        body: JSON.stringify({ model: AVATAR_MODEL, ...(images.length ? { images } : {}), prompt: npcImagePrompt(job, job.phase), n: 1, size: `${dimensions.width}x${dimensions.height}`, quality: job.options.quality, output_format: "webp", ...(job.phase !== "avatar" ? { background: "transparent", output_compression: 100 } : {}) }),
+        body: JSON.stringify({
+          model: AVATAR_MODEL, ...(images.length ? { images } : {}),
+          prompt: npcImagePrompt(job, job.phase, images.length), n: 1, size: `${dimensions.width}x${dimensions.height}`,
+          quality: job.poseQuality ?? job.options.quality,
+          output_format: "webp", ...(job.phase !== "avatar" ? { background: "transparent", output_compression: 100 } : {}),
+        }),
       });
       if (!response.ok) {
         job.status = response.status >= 500 ? "uncertain" : "failed";

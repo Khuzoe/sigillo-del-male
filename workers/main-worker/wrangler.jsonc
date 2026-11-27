@@ -31,6 +31,7 @@
   "durable_objects": {
     "bindings": [
       { "name": "WALL_DETECTOR", "class_name": "WallDetectionStore" },
+      { "name": "ACTOR_CARD_GENERATOR", "class_name": "ActorCardStore" },
       {
         "name": "ABILITY_GENERATOR",
         "class_name": "AbilityGenerationStore"
@@ -90,6 +91,7 @@
     }
     ,{ "tag": "assets-wall-detection-v1", "new_sqlite_classes": ["WallDetectionStore"] }
     ,{ "tag": "npc-generation-v1", "new_sqlite_classes": ["NpcGenerationStore"] }
+    ,{ "tag": "actor-card-v1", "new_sqlite_classes": ["ActorCardStore"] }
   ],
   "vars": {
     "ASSETS_WALL_MODEL": "gpt-5.4",

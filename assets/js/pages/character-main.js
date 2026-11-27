@@ -116,7 +116,7 @@ function renderMarkdown(md, options = {}) {
     return window.CriptaMarkdown.render(md, getCharacterMarkdownOptions(options));
 }
 
-const CHARACTER_MODULE_VERSION = '20261120-node-reading2';
+const CHARACTER_MODULE_VERSION = '20261125-scoped';
 
 function versionedCharacterModuleUrl(path, baseUrl) {
     const url = new URL(path, baseUrl);
@@ -506,6 +506,7 @@ let managedInventoryMemoryCache = null;
 let managedInventoryCacheKey = '';
 let skillsRequestPromise = null;
 let skillsMemoryCache = null;
+let staticSkillRecords = null;
 let skillsVersion = null;
 let skillTreeDefinitionRevisions = null;
 let skillTreeStatesRequestPromise = null;
@@ -725,36 +726,6 @@ function dataUrl(pathname) {
 
 function getCurrentCampaignId() {
     return window.CriptaApp?.campaigns?.currentId?.() || 'cripta-di-sangue';
-}
-
-function normalizeSkillTreeEditableHtml(element) {
-    const source = element?.cloneNode?.(true);
-    if (!source) return '<p></p>';
-    source.querySelectorAll('script, style, iframe, object, embed').forEach((entry) => entry.remove());
-    source.querySelectorAll('*').forEach((entry) => {
-        const tag = entry.tagName.toLowerCase();
-        if (/^h[1-6]$/.test(tag) || tag === 'blockquote' || tag === 'section' || tag === 'article' || tag === 'div') {
-            const paragraph = document.createElement('p');
-            while (entry.firstChild) paragraph.appendChild(entry.firstChild);
-            if (!paragraph.textContent.trim() && !paragraph.querySelector('br')) {
-                paragraph.appendChild(document.createElement('br'));
-            }
-            entry.replaceWith(paragraph);
-            return;
-        }
-        if (['font', 'small', 'big', 'span'].includes(tag)) {
-            while (entry.firstChild) entry.parentNode.insertBefore(entry.firstChild, entry);
-            entry.remove();
-            return;
-        }
-        if (!['p', 'br', 'strong', 'b', 'em', 'i', 'u', 'ul', 'ol', 'li'].includes(tag)) {
-            entry.replaceWith(document.createTextNode(entry.textContent || ''));
-            return;
-        }
-        Array.from(entry.attributes).forEach((attribute) => entry.removeAttribute(attribute.name));
-    });
-    const html = source.innerHTML.trim();
-    return html || '<p></p>';
 }
 
 function readSharedAuthToken() {
@@ -1005,13 +976,14 @@ function normalizeTransformationMediaPath(path) {
     return value;
 }
 
-async function loadSkillsData() {
+async function loadSkillsData(sheetDocument) {
     if (skillsMemoryCache) return skillsMemoryCache;
     if (skillsRequestPromise) return skillsRequestPromise;
 
     skillsRequestPromise = (async () => {
         try {
-            const onlinePayload = await window.CriptaApp?.api?.get?.('api/data/skill-trees', { query: { _: Date.now() } });
+            const onlinePayload = sheetDocument || await window.CriptaApp?.api?.get?.('api/data/skill-trees', { query: { _: Date.now() } });
+            skillsVersion = onlinePayload?.source === 'static' ? Number(onlinePayload.version || 0) : null;
             skillTreeDefinitionRevisions = onlinePayload?.treeRevisions || null;
             if (Array.isArray(onlinePayload?.data)) {
                 skillsVersion = Number(onlinePayload.version || 0);
@@ -1021,6 +993,7 @@ async function loadSkillsData() {
         } catch (error) {
             console.warn('Alberi abilita online non disponibili, uso JSON statico.', error);
             skillTreeDefinitionRevisions = null;
+            skillsVersion = null;
         }
 
         let payload = null;
@@ -1036,7 +1009,8 @@ async function loadSkillsData() {
                 : await window.CriptaApp.fetchJson(fallbackUrl, { clone: true });
         }
         skillsMemoryCache = payload && typeof payload === 'object' ? payload : {};
-        skillsVersion = null;
+        staticSkillRecords = window.CriptaSkillTreeSheet.staticRecords(payload);
+        if (!staticSkillRecords) skillsVersion = null;
         return skillsMemoryCache;
     })();
 
@@ -1053,7 +1027,7 @@ async function loadCharacterBootstrap(characterId, type) {
     if (typeof window.CriptaCharacterData?.loadBootstrap !== 'function') return null;
     characterBootstrapKey = nextKey;
     characterBootstrapData = await window.CriptaCharacterData.loadBootstrap(characterId, type, {
-        campaignId: getCurrentCampaignId()
+        campaignId: getCurrentCampaignId(), separateSkillTrees:true
     }).catch((error) => {
         characterBootstrapKey = '';
         console.warn('Bootstrap scheda personaggio non disponibile, uso caricamenti separati.', error);
@@ -1346,51 +1320,29 @@ function normalizeSkillTreesCollection(data) {
     }, {});
 }
 
-function serializeSkillTreesCollection(trees) {
-    return Object.entries(trees || {})
-        .filter(([, tree]) => tree && typeof tree === 'object' && Array.isArray(tree.nodes))
-        .map(([id, tree]) => ({ ...tree, id }));
-}
 
-async function saveSkillTreesData(trees) {
-    const body = { data: serializeSkillTreesCollection(trees) };
-    if (Number.isFinite(Number(skillsVersion))) body.expectedVersion = Number(skillsVersion);
+async function saveSingleSkillTreeData(treeId, tree, trees, revision) {
     const token = readSharedAuthToken();
     if (!token) throw new Error('Login richiesto per salvare l albero abilita.');
-    const result = await window.CriptaApp.api.post('api/data/skill-trees', body, { token });
-    skillsVersion = Number(result?.version || skillsVersion || 0);
-    skillTreeDefinitionRevisions = result?.treeRevisions || null;
-    skillsMemoryCache = Array.isArray(result?.data) ? normalizeSkillTreesCollection(result.data) : trees;
-    return { ...result, normalizedTrees: skillsMemoryCache };
+    const result = await window.CriptaSkillTreeSheet.save({...tree,id:treeId}, skillDefinitionCache(), token, revision);
+    staticSkillRecords = null;
+    skillsVersion = Math.max(skillsVersion || 0,result.version || 0);
+    skillTreeDefinitionRevisions = result.treeRevision ? {...skillTreeDefinitionRevisions,[treeId]:result.treeRevision} : result.treeRevisions || null;
+    skillsMemoryCache = Array.isArray(result.data) ? normalizeSkillTreesCollection(result.data) : {...(skillsMemoryCache || trees),[treeId]:tree};
+    return {...result,version:skillsVersion,treeRevisions:skillTreeDefinitionRevisions,normalizedTrees:skillsMemoryCache};
 }
 
-async function saveSingleSkillTreeData(treeId, tree, trees) {
-    const token = readSharedAuthToken();
-    if (!token) throw new Error('Login richiesto per salvare l albero abilita.');
-    const body = { tree: { ...tree, id: treeId } };
-    if (skillTreeDefinitionRevisions !== null) body.expectedTreeRevision = skillTreeDefinitionRevisions[treeId] ?? 0;
-    else if (Number.isFinite(Number(skillsVersion))) body.expectedVersion = Number(skillsVersion);
-    try {
-        const result = await window.CriptaApp.api.post('api/data/skill-trees', body, { token });
-        skillsVersion = Number(result?.version || skillsVersion || 0);
-        skillTreeDefinitionRevisions = result?.treeRevisions || null;
-        skillsMemoryCache = Array.isArray(result?.data) ? normalizeSkillTreesCollection(result.data) : trees;
-        return { ...result, normalizedTrees: skillsMemoryCache };
-    } catch (error) {
-        const status = Number(error?.response?.status || error?.status || 0);
-        const message = String(error?.payload?.error || error?.message || '');
-        if (status === 400 && /expected an array/i.test(message)) return saveSkillTreesData(trees);
-        throw error;
-    }
+function skillDefinitionCache() {
+    return {version:skillsVersion,revisions:skillTreeDefinitionRevisions,staticRecords:staticSkillRecords};
 }
 
-async function loadSkillTreeStates() {
+async function loadSkillTreeStates(sheetDocument) {
     if (skillTreeStatesMemoryCache) return skillTreeStatesMemoryCache;
     if (skillTreeStatesRequestPromise) return skillTreeStatesRequestPromise;
 
     skillTreeStatesRequestPromise = (async () => {
         try {
-            const payload = await window.CriptaApp?.api?.get?.('api/data/skill-tree-states', { query: { _: Date.now() } });
+            const payload = sheetDocument || await window.CriptaApp?.api?.get?.('api/data/skill-tree-states', { query: { _: Date.now() } });
             skillTreeStatesVersion = Number(payload?.version || 0);
             skillTreeStateRevisions = payload?.stateRevisions || null;
             skillTreeStatesMemoryCache = Array.isArray(payload?.data) ? payload.data : [];
@@ -2252,12 +2204,12 @@ window.CriptaApp.onPageReady("character", async function () {
             getCurrentCampaignId,
             readSharedAuthToken,
             resolveSkillAssetPath,
-            normalizeSkillTreeEditableHtml,
             resizeImageFileToSquareWebpBlobShared,
             resizeImageFileToWebpBlobShared,
             loadSkillTreeStates,
-            saveSkillTreesData,
             saveSkillTreeData: saveSingleSkillTreeData,
+            getTreeRevision: id => skillTreeDefinitionRevisions?.[id],
+            deleteSkillTreeData: (id,revision) => window.CriptaSkillTreeSheet.remove(id,skillDefinitionCache(),readSharedAuthToken(),revision),
             setSkillTreeStates(states, version, revisions) {
                 skillTreeStatesMemoryCache = Array.isArray(states) ? states : [];
                 skillTreeStateRevisions = revisions || null;
@@ -2512,9 +2464,11 @@ window.CriptaApp.onPageReady("character", async function () {
         let playerSkillTrees = null;
         if (charType === 'player') {
             try {
-                playerSkillTrees = await loadSkillsData();
+                const sheet = skillsMemoryCache && skillTreeStatesMemoryCache ? null
+                    : await window.CriptaSkillTreeSheet.load(character,PLAYER_SKILL_TREE_KEYS[slugify(character.id)],readSharedAuthToken()).catch(() => null);
+                playerSkillTrees = await loadSkillsData(sheet?.trees);
                 currentSkillTreeModule = await loadCharacterSkillTreeModule();
-                await loadSkillTreeStates();
+                await loadSkillTreeStates(sheet?.progress);
             } catch (skillError) {
                 console.warn('Impossibile caricare gli alberi abilita:', skillError);
             }

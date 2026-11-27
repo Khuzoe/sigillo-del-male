@@ -30,6 +30,7 @@
             <p data-name></p><p class="npc-avatar-generator__status" data-status role="status" aria-live="polite">Caricamento…</p><details data-error-details class="npc-generation-error-details" hidden><summary>Dettagli del problema</summary><pre data-error-reference></pre></details>
             <details data-request-panel open><summary>La richiesta</summary><div><label class="npc-avatar-generator__direction">Cosa deve fare?<textarea data-prompt maxlength="2000" rows="3" placeholder="Morde un bersaglio entro 10 piedi. Un TS Costituzione evita danni necrotici aggiuntivi, che curano il mostro."></textarea></label>
             <label class="npc-ability-check"><input type="checkbox" data-with-icon> Genera anche l’icona dall’avatar · 512 × 512</label>
+            <p class="npc-avatar-generator__hint">Generando un’icona, se manca la card Foundry del personaggio viene generata anche quella a qualità extra-alta.</p>
             <p class="npc-avatar-generator__hint">La scheda dell’NPC viene inviata a OpenAI per proporre valori coerenti. Con l’icona viene inviato anche l’avatar. Ogni generazione usa il budget API.</p></div></details>
             <p data-stop-note class="npc-avatar-generator__hint" hidden>Interrompere l’attesa libera il generatore e conserva la bozza già pronta. Non garantisce l’annullamento del costo della chiamata.</p><section data-proposal hidden>
               <div class="npc-ability-heading"><div><h3 data-proposal-name>La tua proposta</h3><details data-summary-panel open><summary>Come funziona</summary><section class="npc-ability-summary" aria-label="Come funziona"><div data-summary></div></section></details></div><div class="npc-ability-icon"><img data-icon alt="Icona della capacità" hidden><button type="button" data-icon-generate>Genera icona</button><label class="npc-ability-check"><input type="checkbox" data-use-icon checked> Usa questa icona</label></div></div>
@@ -205,7 +206,7 @@
                 previewUrl = URL.createObjectURL(blob); previewId = job.iconId;
                 el("[data-icon]").src = previewUrl; el("[data-icon]").hidden = false;
             } else if (!job?.iconId && previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = ""; previewId = ""; el("[data-icon]").hidden = true; }
-            el("[data-icon-status]").textContent = job?.iconError || "";
+            el("[data-icon-status]").textContent = [job?.iconError, job?.cardWarning].filter(Boolean).join(" ");
             if (running()) { status(job.status.startsWith("icon") ? "Sto creando l’icona. La proposta dell’abilità è già conservata." : "Sto preparando la capacità sulla base della scheda. Puoi chiudere e ritrovarla qui."); timer = setTimeout(refresh, 5000); }
             else if (job?.status === "accepted") status(editing?"Modifiche inviate. La sincronizzazione con Foundry prosegue anche chiudendo questa finestra.":"Abilità inviata. La sincronizzazione con Foundry prosegue anche chiudendo questa finestra.");
             else if (job?.status === "confirming") status("Conferma preparata: premi Completa invio per ritentare senza creare duplicati.");

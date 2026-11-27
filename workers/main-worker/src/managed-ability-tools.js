@@ -1,6 +1,6 @@
 // Ownership is resolved from the canonical Actor and authenticated account,
 // never from request body flags or the public stats-edit permission.
-export async function canUseAbilityTools(user, actor, campaignId, services) {
+export async function canUseActorOwnerTools(user, actor, campaignId, services) {
     if (!actor) return false;
     const editor = await services.isEditor(user, campaignId);
     return actor.actorType === 'npc' ? editor : ['character', 'player'].includes(actor.actorType) && (editor || await services.isOwner?.(user, actor));
@@ -8,7 +8,8 @@ export async function canUseAbilityTools(user, actor, campaignId, services) {
 export function managedAbilityItems(actor) {
     return (actor.definition?.items || []).filter(item => item.itemId && ['feat', 'weapon', 'spell'].includes(item.type)).map(item => ({
         _id: item.itemId, name: item.name || 'Capacità', type: item.type, img: item.definition?.img || '',
-        system: { description: { value: String(item.definition?.description?.value ?? item.definition?.description ?? '') } },
+        system: { description: { value: String(item.definition?.description?.value ?? item.definition?.description ?? '') },
+            activation: item.definition?.activation, actionType: item.definition?.actionType, activities: item.definition?.activities },
         ...(item.transferId ? { flags: { 'cripta-wiki-sync': { transferId: item.transferId } } } : {})
     }));
 }

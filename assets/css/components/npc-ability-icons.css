@@ -8,8 +8,8 @@
 .npc-ability-icons__filters > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .npc-ability-icons__filters button { padding: 7px 11px; font-size: 12px; }
 .npc-ability-icons__filters button[aria-pressed="true"] { border-color: #dec28a; background: #dec28a1c; color: #f1d7a5; }
-.npc-ability-icons__filters > label { display: flex; gap: 8px; align-items: center; font-size: 12px; cursor: pointer; }
-.npc-ability-icons__filters input { width: 18px; height: 18px; accent-color: #dec28a; }
+.npc-ability-icons__filters > label, .npc-ability-icons__selection label { display: flex; gap: 8px; align-items: center; font-size: 12px; cursor: pointer; }
+.npc-ability-icons__filters input, .npc-ability-icons__selection input { width: 18px; height: 18px; accent-color: #dec28a; }
 .npc-ability-icons .npc-ability-icons__row { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
 .npc-ability-icons .npc-ability-icons__row > label { align-items: flex-start; overflow-wrap: anywhere; }
 .npc-ability-icons .npc-ability-icons__row input { flex-shrink: 0; }

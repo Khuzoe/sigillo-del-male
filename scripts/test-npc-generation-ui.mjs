@@ -21,8 +21,8 @@ assert.ok(filterNpcReferences(catalog).some(npc => npc.archived), "archived NPC 
 assert.equal(npcReferencePage(catalog, { search: "not present" }).total, 0);
 
 const source = await readFile(new URL("../assets/js/shared/npc-ability-icons.js", import.meta.url), "utf8");
-const start = source.indexOf("    function selectableAbilityIconIds(data)"), end = source.indexOf("    async function open(", start);
-const data = { items: [{ id: "available", type: "feat" }, { id: "accepted", type: "weapon" }, { id: "spell", type: "spell" }, { id: "blocked", type: "feat", blocked: true }, { id: "running", type: "spell" }, { id: "confirming", type: "feat" }], jobs: [{ itemId: "accepted", status: "accepted" }, { itemId: "running", status: "icon-running" }, { itemId: "confirming", status: "confirming" }] };
+const start = source.indexOf("    function selectableAbilityIconIds("), end = source.indexOf("    async function open(", start);
+const data = { items: [{ id: "available", type: "feat", active:false }, { id: "accepted", type: "weapon", active:true }, { id: "spell", type: "spell", active:true }, { id: "blocked", type: "feat", blocked: true, active:true }, { id: "running", type: "spell", active:true }, { id: "confirming", type: "feat", active:true }], jobs: [{ itemId: "accepted", status: "accepted" }, { itemId: "running", status: "icon-running" }, { itemId: "confirming", status: "confirming" }] };
 const selected = new Set(['spell']);
 const filters = { type: 'abilities', onlySelected: false };
 let refreshes = 0;
@@ -41,7 +41,11 @@ assert.equal(drafts.get('accepted').text, 'Nuova direzione', 'Refreshing an appl
 context.restoreIconDirections(drafts, [{...appliedIcon, id:'second-icon'}]);
 assert.equal(drafts.has('accepted'), false);
 assert.equal(vm.runInContext("selectableAbilityIconIds(null).length", context), 0);
-vm.runInContext('const visibleItems = () => visibleAbilityIconItems(data, selected, filters);', context);
+assert.match(source, /<input type="checkbox" data-only-active checked>Solo attive/);
+const onlyActive = {checked:true};
+context.actor = {};
+context.el = selector => { assert.equal(selector, '[data-only-active]'); return onlyActive; };
+vm.runInContext(source.slice(source.indexOf('        const visibleItems ='), source.indexOf('        const controls =')), context);
 assert.deepEqual(Array.from(vm.runInContext('visibleItems().map(item => item.id)', context)), ['available','accepted','blocked','confirming']);
 assert.deepEqual(Array.from(vm.runInContext('visibleAbilityIconItems(data, selected, {type:"spells"}).map(item => item.id)', context)), ['spell','running']);
 assert.deepEqual(Array.from(vm.runInContext('visibleAbilityIconItems(data, selected, {onlySelected:true}).map(item => item.id)', context)), ['spell']);
@@ -50,15 +54,20 @@ const toggleStart = source.indexOf("        const selectAll = value =>");
 const toggleEnd = source.indexOf("        el('[data-select-all]').addEventListener", toggleStart);
 vm.runInContext(source.slice(toggleStart, toggleEnd), context);
 vm.runInContext("selectAll(true)", context);
-assert.deepEqual([...selected], ['spell', 'available', 'accepted'], 'Bulk selection adds only visible eligible items and retains hidden choices');
+assert.deepEqual([...selected], ['spell', 'accepted'], 'Active-only bulk selection skips the passive and retains earlier selections');
+onlyActive.checked = false;
+vm.runInContext("selectAll(true)", context);
+assert.deepEqual([...selected], ['spell', 'accepted', 'available'], 'Turning off active-only includes visible passive items');
+onlyActive.checked = true;
+assert.deepEqual(Array.from(vm.runInContext('selectedAvailableIds()', context)), ['available','accepted','spell'], 'An explicit passive selection remains eligible for generation');
 vm.runInContext("selectAll(false)", context);
 assert.equal(selected.size, 0);
 context.busy = true; vm.runInContext("selectAll(true)", context);
-assert.equal(selected.size, 0); assert.equal(refreshes, 2, "bulk actions are locked while a generation is active");
+assert.equal(selected.size, 0); assert.equal(refreshes, 3, "bulk actions are locked while a generation is active");
 
 // Run the actual batch controller: a running/finished card must remain in the
 // selected-only grid, and every icon keeps its own frozen optional direction.
-const generationStart = source.indexOf('        async function generate(ids)');
+const generationStart = source.indexOf('        function hasRunningJobs()');
 const generationEnd = source.indexOf('        async function apply(id)', generationStart);
 const renders = [], requests = [], notices = [], batchData = structuredClone(data);
 batchData.iconDirections = 1; batchData.optionalIconReferences = 1; batchData.jobs = [];

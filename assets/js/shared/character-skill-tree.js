@@ -137,11 +137,6 @@
         modal.classList.add('visible');
     }
 
-    function normalizeSkillTreeEditableHtml(element) {
-        if (typeof skillTreeRuntime.normalizeSkillTreeEditableHtml === 'function') return skillTreeRuntime.normalizeSkillTreeEditableHtml(element);
-        return element?.innerHTML || '<p></p>';
-    }
-
     async function resizeImageFileToSquareWebpBlobShared(file, size = SKILL_TREE_ICON_SIZE, quality = 0.86) {
         if (typeof skillTreeRuntime.resizeImageFileToSquareWebpBlobShared === 'function') {
             return skillTreeRuntime.resizeImageFileToSquareWebpBlobShared(file, size, quality);
@@ -166,9 +161,9 @@
         return result;
     }
 
-    async function saveSingleSkillTreeData(treeKey, tree, trees) {
+    async function saveSingleSkillTreeData(treeKey, tree, trees, revision) {
         const result = typeof skillTreeRuntime.saveSkillTreeData === 'function'
-            ? await skillTreeRuntime.saveSkillTreeData(treeKey, tree, trees)
+            ? await skillTreeRuntime.saveSkillTreeData(treeKey, tree, trees, revision)
             : await saveSkillTreesData(trees);
         skillsMemoryCache = result?.normalizedTrees || trees;
         if (typeof skillTreeRuntime.setSkillsCache === 'function') {
@@ -1027,6 +1022,13 @@ function normalizeSkillLevelStoredHtml(value) {
     return template.innerHTML.trim();
 }
 
+function readSkillLevelEditorHtml(editor) {
+    const html = editor.isContentEditable
+        ? editor.innerHTML.trim() || '<p></p>'
+        : skillLevelEditorTextToHtml(editor.value);
+    return normalizeSkillLevelStoredHtml(html);
+}
+
 const skillRichTextSelectionByEditor = new WeakMap();
 
 function isSkillRichTextRangeInsideEditor(editor, range) {
@@ -1769,7 +1771,8 @@ function skillTreeReviewSource(tree) {
             const original = model ? (i === 0 ? item.template.text : '') : (i === 0 || getEditableLevelDescription(level) ? description : '');
             const icon = i === 0 ? node.baseIcon || node.icon || '' : level.icon || '';
             entries.push({key, nodeId: node.id, level: i, label: item.name + (levels.length > 1 ? ' · Grado ' + (i + 1) : ''),
-                name, original, description, icon, generateIcon: i === 0 || Boolean(icon), template: i === 0 ? item.template : undefined});
+                name, original, description, icon, inheritedIcon: i > 0 && !icon ? node.baseIcon || node.icon || '' : '',
+                generateIcon: i === 0 || Boolean(icon), template: i === 0 ? item.template : undefined});
             return {key, name, label: level.label, flavor: skillLevelHtmlToEditorText(level.flavor), description,
                 changes: normalizeSkillLevelChangeNotes(level), pointCost: getSkillTreePointCost(tree, node, i + 1)};
         });
@@ -2820,14 +2823,20 @@ async function writeCharacterSkillTreeState(character, treeKey, unlockedIds, lev
     if (treePointWallet !== undefined) nextRecord.treePointWallet = normalizeSkillTreePointWallet(treePointWallet);
     const nextStates = [...kept, nextRecord];
     const body = skillTreeStateRevisions !== null
-        ? { state: nextRecord, expectedStateRevision: skillTreeStateRevisions[stateId] ?? 0 }
+        ? { state: nextRecord, expectedStateRevision: skillTreeStateRevisions[stateId] ?? 0, responseMode:'revision' }
         : { data: nextStates, expectedVersion };
     const token = readSharedAuthToken();
     if (!token) throw new Error('Login richiesto per salvare lo stato albero abilita.');
     const result = await window.CriptaApp.api.post('api/data/skill-tree-states', body, { token });
-    skillTreeStatesVersion = Number(result?.version || skillTreeStatesVersion || 0);
-    if (result?.stateRevisions && typeof result.stateRevisions === 'object') skillTreeStateRevisions = { ...result.stateRevisions };
-    skillTreeStatesMemoryCache = Array.isArray(result?.data) ? result.data : nextStates;
+    if (result?.stateRevision !== undefined) {
+        if (!result.saved || result.state?.id !== stateId || result.stateRevision !== body.expectedStateRevision+1) throw new Error('Risposta al salvataggio dei progressi non valida. Ricarica la scheda.');
+        skillTreeStateRevisions = {...skillTreeStateRevisions,[stateId]:result.stateRevision};
+        skillTreeStatesMemoryCache = [...kept,result.state];
+    } else {
+        if (result?.stateRevisions) skillTreeStateRevisions = result.stateRevisions;
+        skillTreeStatesMemoryCache = Array.isArray(result?.data) ? result.data : nextStates;
+    }
+    skillTreeStatesVersion = Number(result.version || skillTreeStatesVersion || 0);
     updateRuntimeSkillTreeStates(skillTreeStatesMemoryCache, skillTreeStatesVersion);
     window.CriptaApp?.embedded?.postMessage?.({
         type: 'cripta-skill-tree-state-updated',
@@ -2951,9 +2960,10 @@ function skillTreeProgressErrorMessage(error) {
     return 'Salvataggio non confermato. Ricarica la pagina per verificare i progressi prima di riprovare.';
 }
 
-async function deleteSkillTreeData(treeKey, treeData, allSkillTrees) {
+async function deleteSkillTreeData(treeKey, treeData, allSkillTrees, revision) {
     const key = String(treeKey || '').trim();
     if (!key) throw new Error('Albero abilita non valido.');
+    if (skillTreeRuntime.deleteSkillTreeData) return skillTreeRuntime.deleteSkillTreeData(key,revision);
     const nextTrees = { ...(skillsMemoryCache || allSkillTrees || {}) };
     if (!nextTrees[key]) throw new Error('Albero abilita non trovato.');
     delete nextTrees[key];
@@ -3045,6 +3055,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         return null;
     }
     const treeKey = treeEntry.key;
+    let displayedRevision = skillTreeRuntime.getTreeRevision?.(treeKey);
     const isSharedTree = isCampaignSharedSkillTree(treeData, treeKey);
     const isArchivedTree = isArchivedSkillTree(treeData);
     const canEditUnlocks = isSharedTree ? skillTreeCurrentUserIsDm : canEditSkillTreeUnlocks(character);
@@ -4206,9 +4217,9 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             icon: icon && resolveSkillAssetPath(icon), source: JSON.stringify([name, html, icon])};
     }
     const generateNodeButton = skillTreeCurrentUserIsDm ? '<button type="button" class="player-skill-action-button is-compact" data-skill-action="generate-node"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Genera nodo</button>' : '';
-    function addDraftNode(title = 'Nuova abilita', desc = '<p>Descrizione.</p>', icon = '') {
+    function addDraftNode({title = 'Nuova abilita', desc = '<p>Descrizione.</p>', icon = '', flavor = ''} = {}) {
         const id = `node-${Date.now().toString(36)}`;
-        workingTree.nodes.push({id, ...findAvailableNodePosition(), title, flavor: '', desc,
+        workingTree.nodes.push({id, ...findAvailableNodePosition(), title, flavor, desc,
             progressionMode: 'single', icon, connections: []});
         selectedNodeId = id;
         selectedConnection = null;
@@ -4389,7 +4400,8 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         const nextTrees = { ...(skillsMemoryCache || allSkillTrees || {}) };
         const normalizedTree = normalizeSkillTreeDefinitionForSave(workingTree);
         nextTrees[treeKey] = normalizedTree;
-        await saveSingleSkillTreeData(treeKey, normalizedTree, nextTrees);
+        const saved = await saveSingleSkillTreeData(treeKey, normalizedTree, nextTrees, displayedRevision);
+        displayedRevision = saved?.treeRevisions?.[treeKey];
         workingTree = structuredClone(normalizedTree);
         markTreeDefinitionSaved();
         if (archiveStateChanged) {
@@ -5519,7 +5531,8 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             const node = readEditorNode();
             if (!node) return;
             if (baseField === 'desc') {
-                node.desc = normalizeSkillLevelStoredHtml(normalizeSkillTreeEditableHtml(target));
+                node.desc = readSkillLevelEditorHtml(target);
+                if ('baseDesc' in node) node.baseDesc = node.desc;
                 scheduleSkillLevelDiffPreview(target.closest('.player-skill-level-row'), node, 0);
             } else if (isFormControl && baseField === 'title') {
                 node.title = String(target.value || '').replace(/[\r\n]+/g, ' ').trimStart();
@@ -5543,10 +5556,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
             const index = Math.max(1, Math.round(Number(levelIndex) || 1));
             if (!levels[index]) levels[index] = { label: `Livello ${index + 1}`, title: '', flavor: '', desc: '', icon: '' };
             if (levelField === 'desc' || levelField === 'description') {
-                const editorHtml = target.isContentEditable
-                    ? normalizeSkillTreeEditableHtml(target)
-                    : skillLevelEditorTextToHtml(target.value);
-                levels[index][levelField] = normalizeSkillLevelStoredHtml(editorHtml);
+                levels[index][levelField] = readSkillLevelEditorHtml(target);
                 scheduleSkillLevelDiffPreview(target.closest('.player-skill-level-row'), node, index);
             } else if (isFormControl) {
                 levels[index][levelField] = target.value;
@@ -6233,12 +6243,12 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                     if (!editorPanel.isConnected || !editMode || !skillTreeCurrentUserIsDm || campaignId !== getCurrentCampaignId() ||
                         accountId !== getCurrentAccountId() || snapshotTreeDefinition() !== snapshot) throw new Error('L’albero o la sessione sono cambiati. Riapri la revisione sulla bozza aggiornata.');
                 };
-                const {openSkillTreeReview} = await import('./skill-tree-review.mjs?v=20261120-icon-refs');
-                const {formatSkillNodeDescription, skillNodeAvatarReference} = await import('./skill-node-generator.mjs?v=20261120-icon-stop');
+                const {openSkillTreeReview} = await import('./skill-tree-review.mjs?v=20261125-icon-pack');
+                const {formatSkillNodeDescription, skillNodeAvatarReference} = await import('./skill-node-generator.mjs?v=20261125-tree-previews');
                 check();
                 const source = skillTreeReviewSource(workingTree);
                 await openSkillTreeReview({...source, treeKey, campaignId, accountId, token: readSharedAuthToken(), snapshot,
-                    avatar: skillNodeAvatarReference(character), resolveIcon: resolveSkillAssetPath,
+                    avatar: skillNodeAvatarReference(character), sharedCharacter:isSharedTree ? character : null, resolveIcon: resolveSkillAssetPath,
                     async apply(changes) {
                         check();
                         const prepared = [];
@@ -6267,8 +6277,11 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                 if (!editing && selected) candidates.unshift(selected);
                 const examples = candidates.filter(node => node && !isSkillTreeGroupNode(node))
                     .map(node => ({name: String(node.title || '').slice(0, 120),
+                        ...(!editing ? {flavor: getSkillNodeSharedFlavor(node).slice(0, 1000)} : {}),
                         description: skillLevelHtmlToEditorText(node.desc || node.levels?.[0]?.desc).slice(0, 1000)}))
-                    .filter(example => example.description && example.description !== 'Descrizione.').slice(0, 5);
+                    .filter(example => example.description && example.description !== 'Descrizione.')
+                    .sort((a, b) => Number(Boolean(b.flavor)) - Number(Boolean(a.flavor)))
+                    .slice(0, 5);
                 const campaignId = getCurrentCampaignId();
                 const accountId = getCurrentAccountId();
                 function checkTarget() {
@@ -6280,17 +6293,17 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
                         throw new Error('Il livello è cambiato. Chiudi e riapri lo strumento per usare il contenuto aggiornato.');
                     }
                 }
-                const {openSkillNodeGenerator, formatSkillNodeDescription} = await import('./skill-node-generator.mjs?v=20261120-icon-stop');
+                const {openSkillNodeGenerator, formatSkillNodeDescription} = await import('./skill-node-generator.mjs?v=20261125-tree-previews');
                 checkTarget();
                 openSkillNodeGenerator({treeKey, treeName: workingTree.name || workingTree.title || treeKey, accountId,
-                    campaignId, token: readSharedAuthToken(), examples, target, character, isSharedTree, async onApply({title, description, image, imageId}) {
+                    campaignId, token: readSharedAuthToken(), examples, target, character, isSharedTree, async onApply({title, flavor, description, image, imageId}) {
                         checkTarget();
                         const icon = image ? await uploadSkillTreeMedia(image, 'nodo-' + imageId,
                             entry => resizeImageFileToSquareWebpBlobShared(entry, SKILL_TREE_ICON_SIZE, 0.86)) : '';
                         if (image && !icon) throw new Error('Caricamento dell’icona non riuscito.');
                         checkTarget();
                         const text = description && formatSkillNodeDescription(description, skillLevelEditorTextToHtml);
-                        if (!editing) return addDraftNode(title, text, icon);
+                        if (!editing) return addDraftNode({title, flavor, desc: text, icon});
                         const field = target.mode === 'refine' ? 'desc' : 'icon';
                         const value = field === 'desc' ? text : icon;
                         const recipient = levelIndex === 0 ? selected : level;
@@ -6691,7 +6704,7 @@ function buildPlayerSkillTreeCard(characterOrId, allSkillTrees, forcedTreeEntry 
         deleteButton.disabled = true;
         editToggle?.setAttribute('disabled', 'disabled');
         try {
-            await deleteSkillTreeData(treeKey, workingTree, allSkillTrees);
+            await deleteSkillTreeData(treeKey, workingTree, allSkillTrees, displayedRevision);
             markTreeDefinitionSaved();
             window.location.reload();
         } catch (error) {

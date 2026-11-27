@@ -3161,7 +3161,8 @@
     gap: 1.2rem;
 }
 .skill-node-ai [data-rewrite] { justify-self: start; }
-.skill-node-ai [data-preview], .skill-node-ai [data-original-icon] {
+.skill-node-ai [data-last-icon] { display: grid; justify-items: start; gap: .5rem; }
+.skill-node-ai [data-preview], .skill-node-ai [data-original-icon], .skill-node-ai [data-last-icon-image] {
     width: min(100%, 12rem);
     aspect-ratio: 1;
     object-fit: contain;

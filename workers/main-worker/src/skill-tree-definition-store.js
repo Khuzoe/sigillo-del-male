@@ -57,7 +57,31 @@ export class SkillTreeDefinitionStore {
       updatedAt:metadata.updatedAt||null,updatedBy:metadata.updatedBy||null,data:row.has_override?JSON.parse(row.data):null,treeRevisions:JSON.parse(row.revisions)};
   }
   async getDocument() { return this.documentFromRow(await this.readRow()); }
-  async saveTree(record, expectedRevision, attribution) {
+  async getTree(id) {
+    await this.ensureImported();
+    const row = await this.statement('SELECT payload FROM skill_tree_definitions WHERE campaign_id=? AND tree_id=?',this.campaignId,id).first();
+    return row?.payload ? JSON.parse(row.payload) : null;
+  }
+  async forSheet(matches) {
+    await this.ensureImported();
+    // Identify owners without transferring node descriptions or the original KV backup.
+    const header = () => this.statement('SELECT version,has_override FROM skill_tree_definition_documents WHERE campaign_id=?',this.campaignId);
+    const [document, index] = await this.db.batch([header(), this.statement(
+      "SELECT tree_id,json_remove(payload,'$.nodes','$.tree.nodes') AS info FROM skill_tree_definitions WHERE campaign_id=? AND payload IS NOT NULL",this.campaignId)]);
+    const {version,has_override} = document.results[0];
+    const ids = index.results.filter(row => matches(JSON.parse(row.info))).map(row => row.tree_id);
+    const [confirmed, records] = await this.db.batch([header(),this.statement(
+      'SELECT tree_id,revision,payload FROM skill_tree_definitions WHERE campaign_id=? AND tree_id IN (SELECT value FROM json_each(?)) AND payload IS NOT NULL ORDER BY position,tree_id',
+      this.campaignId,JSON.stringify(ids))]);
+    if (confirmed.results[0].version !== version) {
+      const full = await this.getDocument();
+      const data = full.data?.filter(matches) ?? null;
+      return {...full,data,treeRevisions:Object.fromEntries((data || []).map(row => [treeId(row),full.treeRevisions[treeId(row)]]))};
+    }
+    return {ok:true,source:has_override?'d1':'static',version,data:has_override ? records.results.map(row => JSON.parse(row.payload)) : null,
+      treeRevisions:Object.fromEntries(records.results.map(row => [row.tree_id,row.revision]))};
+  }
+  async saveTree(record, expectedRevision, attribution, compact = false) {
     const id=treeId(record);
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision<0) throw conflict();
     await this.ensureImported();
@@ -66,11 +90,14 @@ export class SkillTreeDefinitionStore {
       ? this.statement(`INSERT INTO skill_tree_definitions (campaign_id,tree_id,revision,position,payload,mutation_id)
           VALUES (?,?,1,COALESCE((SELECT MAX(position)+1 FROM skill_tree_definitions WHERE campaign_id=?),0),?,?)
           ON CONFLICT (campaign_id,tree_id) DO NOTHING`,this.campaignId,id,this.campaignId,JSON.stringify(record),mutation)
-      : this.statement(`UPDATE skill_tree_definitions SET revision=revision+1,payload=?,mutation_id=? WHERE campaign_id=? AND tree_id=? AND revision=?`,JSON.stringify(record),mutation,this.campaignId,id,expectedRevision);
+      : this.statement(`UPDATE skill_tree_definitions SET revision=revision+1,payload=CASE
+          WHEN ? AND json_type(payload,'$.tree.nodes')='array' THEN json_set(payload,'$.tree',json(?)) ELSE ? END,
+          mutation_id=? WHERE campaign_id=? AND tree_id=? AND revision=?`,compact && !record.tree ? 1 : 0,JSON.stringify(record),JSON.stringify(record),mutation,this.campaignId,id,expectedRevision);
     const gate='EXISTS (SELECT 1 FROM skill_tree_definitions WHERE campaign_id=? AND tree_id=? AND mutation_id=?)';
     const results=await this.db.batch([cas,this.statement(`UPDATE skill_tree_definition_documents SET version=version+1,has_override=1,metadata=json_patch(metadata,?)
-      WHERE campaign_id=? AND ${gate}`,JSON.stringify(attribution),this.campaignId,...params)]);
+      WHERE campaign_id=? AND ${gate} RETURNING version`,JSON.stringify(attribution),this.campaignId,...params)]);
     if (!results[0].meta.changes) throw conflict();
+    if (compact) return {ok:true,saved:true,treeId:id,treeRevision:expectedRevision+1,version:results[1].results[0].version};
     return this.getDocument();
   }
   async replaceCollection(data,expectedVersion,attribution) {

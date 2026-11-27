@@ -1,5 +1,6 @@
 import {avatarGenerationOptions, avatarReferenceKey} from "./avatar-generation.js";
 import {handleConceptImage, UPLOAD_ID} from "./concept-images.js";
+import {readNpcPoseDirections} from "./npc-generation.js";
 
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const reply = (data, status = 200) => Response.json(data, {status, headers: {"Cache-Control":"private, no-store"}});
@@ -34,7 +35,7 @@ export async function handleActorPoses(request, route, campaignId, env, services
     if (!result.ok) return result;
     const data = await result.json();
     if (!data.actorPoses) return fail("Aggiornamento del generatore di pose in corso.", 503);
-    return reply({ok:true, enabled:Boolean(env.OPENAI_API_KEY), job:data.job, baseline, canGenerateIdle:Boolean(sourceKey("avatar") || sourceKey("token")), currentIdle:media.idle?.path || "", canUseIdle:Boolean(sourceKey("idle")), currentHover:media.hover?.path || ""});
+    return reply({ok:true, enabled:Boolean(env.OPENAI_API_KEY), supportsIdleDirection:data.supportsIdleDirection === true, job:data.job, baseline, canGenerateIdle:Boolean(sourceKey("avatar") || sourceKey("token")), currentIdle:media.idle?.path || "", canUseIdle:Boolean(sourceKey("idle")), currentHover:media.hover?.path || ""});
   }
   if (request.method === "GET" && ["idle","hover"].includes(route.action)) return call(route.action, {id:route.jobId});
   if (request.method !== "POST") return fail("Operazione non supportata.", 405);
@@ -51,14 +52,16 @@ export async function handleActorPoses(request, route, campaignId, env, services
     if (!uuid.test(body.requestId) || !["idle","hover","upload"].includes(body.action)) return fail("Richiesta di posa non valida.");
     if (body.baseline !== baseline) return fail("Le immagini dell’NPC sono cambiate. Aggiorna le anteprime.", 409);
     if (body.parentJobId && (!uuid.test(body.parentJobId) || body.action !== "hover")) return fail("Riferimento alla proposta non valido.");
-    if (typeof (body.direction ?? "") !== "string" || (body.direction || "").length > 500) return fail("Le indicazioni possono contenere fino a 500 caratteri.");
-    const options = avatarGenerationOptions(body);
+    const directions = readNpcPoseDirections(body.action, body);
+    if (!directions) return fail("Le indicazioni possono contenere fino a 500 caratteri.");
+    const pose = body.action === "upload" ? "idle" : body.action;
+    const options = avatarGenerationOptions(body, pose);
     if (!options) return fail("Qualità o risoluzione non valida.");
     if (body.action === "upload") {
       if (typeof body.uploadId !== "string" || !UPLOAD_ID.test(body.uploadId) || !body.uploadId.endsWith(".webp")) return fail("Scegli un idle WebP trasparente.");
     } else if (!env.OPENAI_API_KEY) return fail("Generazione AI non attiva.", 503);
-    return call("actor-pose", {id:body.requestId, pose:body.action === "upload" ? "idle" : body.action, baseline, options, name:actor.name,
-      direction:(body.direction || "").trim(), parentJobId:body.parentJobId, idleRevision:body.idleRevision,
+    return call("actor-pose", {id:body.requestId, pose, baseline, options, name:actor.name,
+      ...directions, parentJobId:body.parentJobId, idleRevision:body.idleRevision,
       uploadKey:body.action === "upload" ? uploadKey(body.uploadId) : "", avatarKey:sourceKey("avatar"), tokenKey:sourceKey("token"), currentIdleKey:sourceKey("idle")});
   }
   const claim = await call("claim-poses", {id:route.jobId, idleRevision:body.idleRevision, hoverRevision:body.hoverRevision});

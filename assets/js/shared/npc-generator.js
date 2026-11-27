@@ -45,6 +45,7 @@
               </div><p>La descrizione viene salvata nel dossier. Foundry crea la scheda con le statistiche iniziali del flusso di creazione.</p></details>
               <details class="npc-generator__settings npc-generator__poses" data-poses hidden><summary>Pose per la scheda NPC · facoltative</summary>
                 <p>Prepara un ritratto senza cornice per la scheda. Passando sul ritratto si vedrà la seconda posa. Ogni posa generata richiede una chiamata AI.</p>
+                <label data-idle-direction-field hidden>Indicazioni per l’idle (facoltative)<textarea rows="2" maxlength="500" data-idle-direction placeholder="Ad esempio, tiene una mano sulla tesa del cappello e guarda di lato."></textarea></label>
                 <div class="npc-generator__reference-toolbar"><button type="button" data-generate-idle>Genera idle</button><button type="button" data-attach-idle>Usa un idle esistente</button><input type="file" accept="image/webp" hidden data-idle-file></div>
                 <small>Per usare il tuo idle scegli un WebP quadrato con trasparenza, fino a 12 MB.</small>
                 <div class="npc-generator__pose-preview" id="npc-generator-pose-preview" data-pose-preview hidden>
@@ -267,6 +268,8 @@
                 }
             }
             field("landscape").checked = (input.aspectRatio ?? input.options?.aspectRatio) === "16:9";
+            el("[data-idle-direction]").value = input.idleDirection || "";
+            el("[data-direction]").value = input.poseDirection || input.direction || "";
             references = refs.map(reference => ({ ...reference })); renderReferences();
         }
         function clearPreviews(parts = Object.keys(available)) {
@@ -332,6 +335,7 @@
                 job = payload.job; loaded = true; enabled = payload.enabled && payload.version === 1 && payload.tokenTransparencyVersion === 1; canStop = payload.canStop === true;
                 landscapeSupported = payload.landscapeAvatar === true;
                 posesSupported = payload.sitePoses === 1;
+                el("[data-idle-direction-field]").hidden = !payload.supportsIdleDirection;
                 conceptSupported = payload.conceptReferences === 1;
                 if (!conceptSupported) noteStatus("Aggiorna il servizio per allegare immagini. Puoi scegliere gli NPC di esempio.");
                 resolutions = payload.supportedResolutions || []; qualities = payload.supportedQualities || [];
@@ -339,7 +343,6 @@
                 if (!pendingRequest && job && oldId !== job.id) {
                     clearPreviews(); restore(job, job.references);
                     el("[data-poses]").open = ["idle", "hover"].includes(job.phase);
-                    el("[data-direction]").value = job.poseDirection || "";
                 }
                 await showJob();
                 if (payload.version !== 1 || payload.tokenTransparencyVersion !== 1) status("Aggiorna il servizio per generare NPC con token trasparenti.", true);
@@ -382,7 +385,9 @@
                         uploadId = (await (await request("/concepts", file)).json()).uploadId;
                     }
                     remember({ requestId: crypto.randomUUID(), aspectRatio: reuse ? job.options?.aspectRatio || "9:16" : selectedRatio(), form: readForm(), references: refs, quality: field("quality").value, resolution: field("resolution").value,
-                        ...(poseAction ? { poseAction, uploadId, idleRevision: previews.idle?.id, direction: el("[data-direction]").value.trim() } : {}),
+                        ...(poseAction ? { poseAction, uploadId, idleRevision: previews.idle?.id } : {}),
+                        ...(poseAction === "generate-idle" ? { idleDirection: el("[data-idle-direction]").value.trim() } : {}),
+                        ...(poseAction === "generate-hover" ? { direction: el("[data-direction]").value.trim() } : {}),
                         ...(job && job.status !== "accepted" ? { parentJobId: job.id, draftId: job.draftId } : {}), ...(tokenOnly ? { tokenOnly: true } : {}) });
                 }
                 const action = pendingRequest.poseAction || (pendingRequest.tokenOnly ? "retry-token" : "");

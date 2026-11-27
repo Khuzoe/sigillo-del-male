@@ -31,7 +31,7 @@ assert.throws(() => validateAbilityTranslation({...proposed,system:{damage:'99d9
 const actor = { actorId,worldId:world,campaignId:campaign,foundryActorId:'Actor00000000001',actorType:'character',name:'Eroe',revision:3,ownerAccountIds:['player'],visibility:{state:'public'},
     definition:{ editor:{version:1},attributes:{hp:{value:30,max:30}},items:[
         {itemId,type:'feat',name:source.name,definition:{img:'icons/strike.webp',description:source.description,damage:{parts:[['2d6','fire']]},flags:{private:'PRIVATE-ITEM-DATA'}}},
-        {itemId:spellId,type:'spell',name:'Magic Shield',definition:{img:'icons/shield.webp',description:'<p>Gain 2 AC.</p>',level:1}},
+        {itemId:spellId,type:'spell',name:'Magic Shield',definition:{img:'icons/shield.webp',description:'<p>Gain 2 AC.</p>',level:1,activation:{type:'reaction'}}},
         {itemId:'Coin000000000001',type:'loot',name:'Coin'}]},
     media:{avatar:{path:`media/${avatarKey}`,revision:1}},site:{dmNotes:'PRIVATE-DOSSIER'} };
 kv.set(actorKey,JSON.stringify(actor));
@@ -63,7 +63,8 @@ for(const endpoint of [icons,translations]) {
 assert.deepEqual((await call(icons)).body.items.map(item=>item.id),[itemId,spellId]);
 assert.equal((await call(`${base}/ability-generation`)).status,403);
 assert.equal((await call(`${base}/ability-generation?editor=npc-native-sheet-edit-v1`)).status,403);
-assert.equal((await call(`${base}/avatar-generation`)).status,403);
+assert.equal((await call(`${base}/avatar-generation`,undefined,'viewer')).status,403);
+assert.equal((await call(`${base}/avatar-generation`)).status,503,'The owner has access but the fixture has no avatar generator');
 const binding = env.ABILITY_GENERATOR;
 env.ABILITY_GENERATOR={idFromName:n=>n,get:()=>({fetch:async()=>Response.json({ok:true,job:null})})};
 assert.equal((await call(translations,{requestId:randomUUID()})).status,503); env.ABILITY_GENERATOR=binding;
@@ -111,6 +112,7 @@ try {
     assert.equal(JSON.parse(kv.get(queueKey)).commands.length,1);
     env.OPENAI_API_KEY='fake-no-live-calls';clearQueue();
     const iconId=randomUUID();assert.equal((await call(icons,{requestId:iconId},'player',spellId)).status,202);await coordinator.alarm();
+    assert.equal(requests.at(-1).body.quality,'high','The spell inherits its reaction from the PC item');
     assert.equal((await call(`${icons}/${iconId}/preview`,undefined,'viewer',spellId)).status,403);
     assert.equal((await call(`${icons}/${iconId}/preview`,undefined,'player',spellId)).status,200);
     const iconResult=await call(`${icons}/${iconId}/confirm`,{iconId,icon:Buffer.from(image(512)).toString('base64'),name:'Hacked'},'player',spellId);

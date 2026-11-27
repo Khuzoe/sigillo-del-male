@@ -1,8 +1,10 @@
 import {GENERATION_WAIT_MS, GENERATION_PENDING_MS, generationDeadline, recoverGeneration, ownsGeneration, generationStopResponse} from "./generation-lifecycle.js";
 import {NPC_TOKEN_PROMPT, NPC_TOKEN_SIZES} from "./npc-token-prompt.js";
+import {canUseActorOwnerTools} from "./managed-ability-tools.js";
 // The model and base style are fixed; quality and resolution use a server-owned allowlist.
 export const AVATAR_STYLE = "Stylized painterly realism, hand-painted surfaces, textured brush strokes, cinematic character portrait, realistic facial structure, expressive eyes, sophisticated color harmony, dramatic rim lighting, soft global illumination, atmospheric perspective, muted but rich color palette, detailed clothing folds, subtle skin texture, realistic lighting behavior, concept art and illustration hybrid, emotional mood, high production animated series quality, visually rich yet grounded, artistic rendering rather than photorealism, masterfully painted 3D look.";
 export const AVATAR_MODEL = "gpt-image-2.6-sunburst";
+export const DEFAULT_NPC_POSE_QUALITY = Object.freeze({ idle: "xhigh", hover: "max" });
 export function avatarFraming(options) {
   const composition = options?.aspectRatio === "16:9"
     ? "Horizontal 16:9. Frame the entire figure tightly on a wide canvas. Keep small clear margins around the figure along its longest dimension."
@@ -13,8 +15,9 @@ export const AVATAR_RESOLUTIONS = Object.freeze({ medium: { width: 864, height: 
 export const AVATAR_QUALITIES = Object.freeze(["medium", "high", "xhigh"]);
 export function avatarGenerationOptions(input = {}, slot = "avatar") {
   if (!input || typeof input !== "object" || Array.isArray(input)) return null;
-  const quality = input.quality ?? "high", resolution = input.resolution ?? "high";
-  if (!AVATAR_QUALITIES.includes(quality) || typeof resolution !== "string" || !Object.hasOwn(AVATAR_RESOLUTIONS, resolution)) return null;
+  const quality = input.quality ?? DEFAULT_NPC_POSE_QUALITY[slot] ?? "high", resolution = input.resolution ?? "high";
+  const allowedQuality = AVATAR_QUALITIES.includes(quality) || (slot === "hover" && quality === DEFAULT_NPC_POSE_QUALITY.hover);
+  if (!allowedQuality || typeof resolution !== "string" || !Object.hasOwn(AVATAR_RESOLUTIONS, resolution)) return null;
   if (slot === "token") return { quality, resolution };
   const aspectRatio = input.aspectRatio ?? "9:16";
   if (aspectRatio !== "9:16" && aspectRatio !== "16:9") return null;
@@ -67,10 +70,12 @@ export async function handleAvatarGeneration(request, route, campaignId, env, se
   const slot = route.slot === "token" ? "token" : "avatar", isToken = slot === "token";
   const user = await services.requireUser(request);
   if (user instanceof Response) return user;
-  if (!await services.isEditor(user, campaignId)) return failure(`Solo il DM della campagna o l'admin può generare ${slot}.`, 403);
-  if (!env.AVATAR_GENERATOR || !env.MEDIA_BUCKET) return failure(`Generazione ${slot} non ancora configurata.`, 503);
   const actor = await services.readActor(campaignId, route);
-  if (!actor || actor.actorType !== "npc") return failure("NPC non trovato.", 404);
+  if (!await canUseActorOwnerTools(user, actor, campaignId, services)) {
+    if (!actor && await services.isEditor(user, campaignId)) return failure("Personaggio non trovato.", 404);
+    return failure(`Non hai i permessi per generare ${slot} su questa scheda.`, 403);
+  }
+  if (!env.AVATAR_GENERATOR || !env.MEDIA_BUCKET) return failure(`Generazione ${slot} non ancora configurata.`, 503);
   const stub = env.AVATAR_GENERATOR.get(env.AVATAR_GENERATOR.idFromName("avatar-generations-v1"));
   const context = { campaignId, worldId: route.worldId, actorId: route.actorId, ...(isToken ? {slot: "token"} : {}) };
   const call = (action, data = {}) => stub.fetch(new Request(`https://avatar.internal/${action}`, {
